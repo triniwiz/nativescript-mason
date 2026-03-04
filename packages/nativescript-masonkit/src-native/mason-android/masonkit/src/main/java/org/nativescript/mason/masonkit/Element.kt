@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -13,19 +12,30 @@ interface Element : EventTarget {
 
   override val node: Node
 
-  fun syncStyle(state: String, textState: String) {
-    val stateValue = state.toLongOrNull()?.takeIf { it > -1 }
-    val textStateValue = textState.toLongOrNull()?.takeIf { it > -1 }
-
-    textStateValue?.let { textStateValue ->
-      val value = TextStateKeys(textStateValue)
-      style.setOrAppendState(value)
+  fun syncStyle(low: String, high: String) {
+    fun parseDecimalToLong(s: String): Long? {
+      if (s.isEmpty()) return null
+      return try {
+        java.lang.Long.parseUnsignedLong(s)
+      } catch (_: NumberFormatException) {
+        try {
+          java.math.BigInteger(s).toLong()
+        } catch (_: Exception) {
+          null
+        }
+      }
     }
 
-    stateValue?.let { stateValue ->
-      style.isDirty = stateValue
-      style.updateNativeStyle()
+    val low = parseDecimalToLong(low)
+    val high = parseDecimalToLong(high)
+
+    if (low != null || high != null) {
+      syncStyle(low ?: 0L, high ?: 0L)
     }
+  }
+
+  fun syncStyle(low: Long, high: Long) {
+    style.setStateFromHalves(low, high)
   }
 
   fun onNodeAttached() {}
@@ -191,7 +201,7 @@ interface Element : EventTarget {
     node.appendChild(textNode)
 
     textNode.apply {
-      attributes.sync(style)
+      attributes.sync(this@Element.style)
     }
   }
 

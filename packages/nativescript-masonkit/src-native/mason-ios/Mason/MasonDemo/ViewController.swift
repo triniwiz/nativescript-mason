@@ -8,7 +8,7 @@
 import UIKit
 import Mason
 
-class ViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, MasonList.MasonListDelegate {
+class ViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, MasonList.MasonListDelegate, UIScrollViewDelegate {
   
   let scale = Float(UIScreen.main.scale)
   
@@ -29,6 +29,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   let document = NSCMason.shared.createDocument()
   
   let body = NSCMason.shared.createScrollView()
+
+  // Hacker News state
+  var hnIds: [Int] = []
+  var hnIndex: Int = 0
+  var hnPageSize: Int = 10
+  var hnLoading: Bool = false
+  var hnContainer: Mason.MasonUIView? = nil
   
   var mason: NSCMason {
     get {
@@ -734,6 +741,113 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.append(root)
   }
 
+  // MARK: - Grid Demo
+  func gridSample() {
+    let root = mason.createView()
+    root.display = .Flex
+    root.flexDirection = .Column
+    root.style.padding = MasonRect(uniform: .Points(toPx(12)))
+
+    let inner = mason.createView()
+    inner.display = .Flex
+    inner.flexDirection = .Row
+    inner.style.flexWrap = .Wrap
+    inner.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(12)), MasonLengthPercentage.Points(toPx(12)))
+    inner.style.maxWidth = .Points(toPx(720))
+    inner.style.margin = MasonRect(.Points(0), .Auto, .Points(0), .Auto)
+    root.addView(inner)
+
+    for i in 1...12 {
+      let card = mason.createView()
+      card.display = .Flex
+      card.flexDirection = .Column
+      card.style.setSizeWidth(.Points(0))
+      card.style.flexGrow = 1
+      card.style.minWidth = .Points(toPx(140))
+
+      let iv = mason.createImageView()
+      iv.style.setSizeHeight(.Points(toPx(120)))
+      iv.style.setSizeWidth(.Percent(1))
+      iv.style.objectFit = .Cover
+      loadImage("https://picsum.photos/seed/grid\(i)/600/400", imageInstance: iv, parent: inner.uiView)
+      card.addView(iv)
+
+      let caption = mason.createTextView(type: .Span)
+      caption.append(text: "Image #\(i)")
+      caption.fontSize = 14
+      caption.style.setColor(css: "#0F172A")
+      caption.style.marginTop = .Points(toPx(8))
+      card.addView(caption)
+
+      inner.addView(card)
+    }
+
+    body.addView(root)
+  }
+
+  // MARK: - Gallery Demo (polished cards)
+  func gallerySample() {
+    let root = mason.createView()
+    root.display = .Flex
+    root.flexDirection = .Column
+    root.style.padding = MasonRect(uniform: .Points(toPx(16)))
+
+    let gallery = mason.createView()
+    gallery.display = .Flex
+    gallery.flexDirection = .Row
+    gallery.style.flexWrap = .Wrap
+    gallery.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(16)), MasonLengthPercentage.Points(toPx(24)))
+    gallery.style.maxWidth = .Points(toPx(Float(UIScreen.main.bounds.width)))
+    gallery.style.marginLeft = .Auto
+    gallery.style.marginRight = .Auto
+    root.addView(gallery)
+
+    for i in 1...8 {
+      let minWidth = toPx(Float(UIScreen.main.bounds.width / 2))
+      let card = mason.createView()
+      card.display = .Flex
+      card.flexDirection = .Column
+      card.style.setSizeWidth(.Points(0))
+      card.style.flexGrow = 1
+      card.style.minWidth = .Points(minWidth)
+      card.style.background = "#FFFFFF"
+      card.style.borderRadius = "8px"
+      card.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"
+      card.style.overflow = MasonPoint(uniform: .Clip)
+
+      let iv = mason.createImageView()
+      iv.style.setSizeHeight(.Points(minWidth))
+      iv.style.setSizeWidth(.Percent(1))
+      iv.style.objectFit = .Cover
+      loadImage("https://picsum.photos/seed/gallery\(i)/800/500", imageInstance: iv, parent: card.uiView)
+      card.addView(iv)
+
+      let meta = mason.createView()
+      meta.display = .Flex
+      meta.flexDirection = .Column
+      meta.style.padding = MasonRect(uniform: .Points(toPx(24)))
+
+      let title = mason.createTextView(type: .Span)
+      title.append(text: "Gallery Item #\(i)")
+      title.fontSize = 16
+      title.fontWeight = "500"
+      title.style.setColor(css: "#0F172A")
+      meta.addView(title)
+
+      let desc = mason.createTextView(type: .Span)
+      desc.append(text: "A short description showcasing the image with nice spacing.")
+      desc.fontSize = 13
+      desc.style.setColor(css: "#64748B")
+      desc.style.marginTop = .Points(toPx(6))
+      meta.addView(desc)
+
+      card.addView(meta)
+      gallery.addView(card)
+    }
+
+    body.addView(root)
+  }
+
   let urlSession: URLSession = {
     return URLSession(configuration: .default)
   }()
@@ -793,6 +907,31 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       }
     }.resume() // Don't forget to start the task!
   }
+
+  // Clear Mason content and force layout/invalidate on root and native views
+  func clearContent() {
+   /* DispatchQueue.main.async {
+      // Remove all Mason node children from the scroll body
+      self.body.removeAllChildren()
+
+      // Also remove any native subviews as a fallback
+      for sub in self.body.uiView.subviews {
+        sub.removeFromSuperview()
+      }
+
+      // Request Mason to recompute layout and invalidate
+      self.body.requestLayout()
+      self.body.invalidate()
+
+      // Ensure native views update
+      self.view.setNeedsLayout()
+      self.view.setNeedsDisplay()
+      self.body.uiView.setNeedsLayout()
+      self.body.uiView.setNeedsDisplay()
+    }
+    
+    */
+  }
   
   deinit {
     print("Dispose controller")
@@ -809,26 +948,71 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   override func viewDidLoad() {
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     super.viewDidLoad()
+    // Add a simple demo picker at the top and the Mason body below it
+    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN"]) 
+    demoPicker.selectedSegmentIndex = 3
+    demoPicker.addTarget(self, action: #selector(demoChanged(_:)), for: .valueChanged)
+    demoPicker.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(demoPicker)
 
-    // Add body to view — layoutSubviews auto-computes when bounds are set
+    // Configure Mason scroll body and add to view
+    body.style.overflowY = .Scroll
+    body.style.background = "#FFFFFF"
+    // Add body to view and constrain it below the picker
+    body.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(body)
-    body.style.size = MasonSize(
-      .Points(Float(view.frame.width * UIScreen.main.scale)),
-      .Points(Float(view.frame.height * UIScreen.main.scale))
-    )
-   // body.frame = view.bounds
-   // body.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    
-   // body.background = "red"
 
-    // --- Samples (uncomment one) ---
-   webTextSample()
-     //textSample()
-    // headers()
-      // webList()
-    // filter()
-    // input()
-   // zOrder()
+    NSLayoutConstraint.activate([
+      demoPicker.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+      demoPicker.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+      demoPicker.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+      demoPicker.heightAnchor.constraint(equalToConstant: 32),
+
+      body.topAnchor.constraint(equalTo: demoPicker.bottomAnchor, constant: 8),
+      body.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      body.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      body.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+    ])
+
+    // Run initial sample
+    demoChanged(demoPicker)
+    // ensure we receive scroll events for pagination
+    if let scroll = body.uiView as? UIScrollView {
+      scroll.delegate = self
+    }
+  }
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    // Ensure Mason computes with actual view size after auto layout
+    body.computeWithViewSize()
+    body.requestLayout()
+    body.invalidate()
+  }
+
+  @objc func demoChanged(_ sender: UISegmentedControl) {
+    // Clear existing content then run the selected sample
+    clearContent()
+    switch sender.selectedSegmentIndex {
+    case 0:
+      webTextSample()
+    case 1:
+      textSample()
+    case 2:
+      gridSample()
+    case 3:
+      gallerySample()
+    case 4:
+      hackerNewsSample()
+    default:
+      webTextSample()
+    }
+
+  
+
+    // Ensure Mason recomputes layout
+    //body.requestLayout()
+    //body.invalidate()
   }
   
   func inputTest(){
@@ -853,7 +1037,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     body.addView(root)
     
-    body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+   // body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
   }
   
   
@@ -891,6 +1075,238 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
 
     return d
+  }
+
+  // MARK: - Hacker News Demo
+  private func hackerNewsSample() {
+    // Top orange header like Hacker News
+    let root = mason.createView()
+    root.style.background = "#FFFFFF"
+
+    let topBar = mason.createView()
+    topBar.style.background = "#ff6600"
+    topBar.style.padding = MasonRect(uniform: .Points(toPx(8)))
+    topBar.style.setSizeWidth(1, 2)
+    topBar.display = .Flex
+    topBar.flexDirection = .Row
+    topBar.style.alignItems = .Center
+
+    // Y logo + title
+    let logo = mason.createTextView(type: .Span)
+    logo.append(text: "Y")
+    logo.fontSize = 18
+    logo.fontWeight = "700"
+    logo.style.setColor(css: "#FFFFFF")
+    logo.style.marginRight = .Points(toPx(8))
+    logo.addEventListener("click") { _ in
+      if let url = URL(string: "https://news.ycombinator.com") { UIApplication.shared.open(url) }
+    }
+    topBar.addView(logo)
+
+    let titleLabel = mason.createTextView(type: .Span)
+    titleLabel.append(text: "Hacker News")
+    titleLabel.fontSize = 16
+    titleLabel.fontWeight = "700"
+    titleLabel.style.setColor(css: "#FFFFFF")
+    titleLabel.style.marginLeft = .Points(toPx(8))
+    topBar.addView(titleLabel)
+
+    // flexible spacer to push nav to the right
+    let spacer = mason.createView()
+    spacer.style.flexGrow = 1
+    topBar.addView(spacer)
+
+    // simple nav links
+    let navNames = ["new","past","ask","submit"]
+    for n in navNames {
+      let a = mason.createTextView(type: .A)
+      a.append(text: n)
+      a.fontSize = 13
+      a.style.setColor(css: "#FFFFFF")
+      a.style.marginRight = .Points(toPx(10))
+      a.addEventListener("click") { _ in
+        var path = "/"
+        switch n {
+        case "new": path = "newest"
+        case "past": path = "front"
+        case "ask": path = "ask"
+        case "submit": path = "submit"
+        default: path = ""
+        }
+        if let url = URL(string: "https://news.ycombinator.com/\(path)") { UIApplication.shared.open(url) }
+      }
+      topBar.addView(a)
+    }
+
+    root.addView(topBar)
+
+
+    // Content container with centered constrained inner column
+    let container = mason.createView()
+    container.display = .Flex
+    container.flexDirection = .Column
+    container.style.padding = MasonRect(uniform: .Points(toPx(6)))
+    container.style.background = "#FFFFFF"
+    root.addView(container)
+
+    let inner = mason.createView()
+    inner.display = .Flex
+    inner.flexDirection = .Column
+    // constrain width and center horizontally
+    inner.style.setMaxSizeWidth(toPx(Float(UIScreen.main.bounds.width)), 1)
+    inner.style.margin = MasonRect(.Points(0), .Auto, .Points(0), .Auto)
+    container.addView(inner)
+
+    hnContainer = inner
+
+    body.addView(root)
+
+    // start fetching
+    fetchTopStoriesAndLoadInitial()
+  }
+
+  private func fetchTopStoriesAndLoadInitial() {
+    guard let url = URL(string: "https://hacker-news.firebaseio.com/v0/topstories.json") else { return }
+    hnLoading = true
+    URLSession.shared.dataTask(with: url) { data, resp, err in
+      defer { self.hnLoading = false }
+      guard let data = data else { return }
+      do {
+        if let arr = try JSONSerialization.jsonObject(with: data) as? [Int] {
+          DispatchQueue.main.async {
+            self.hnIds = arr
+            self.hnIndex = 0
+            self.loadMoreHnPosts()
+          }
+        }
+      } catch {
+        print("HN parse error: \(error)")
+      }
+    }.resume()
+  }
+
+  private func loadMoreHnPosts() {
+    guard !hnLoading else { return }
+    guard hnIndex < hnIds.count else { return }
+    hnLoading = true
+    let start = hnIndex
+    let end = min(hnIndex + hnPageSize, hnIds.count)
+    let slice = Array(hnIds[start..<end])
+    hnIndex = end
+
+    let group = DispatchGroup()
+    for (i, id) in slice.enumerated() {
+      group.enter()
+      let itemUrl = URL(string: "https://hacker-news.firebaseio.com/v0/item/\(id).json")!
+      URLSession.shared.dataTask(with: itemUrl) { data, resp, err in
+        defer { group.leave() }
+        guard let data = data else { return }
+        do {
+          if let obj = try JSONSerialization.jsonObject(with: data) as? [String:Any] {
+            DispatchQueue.main.async {
+              self.appendHnPost(item: obj, rank: start + i + 1)
+            }
+          }
+        } catch {
+          print("HN item parse error: \(error)")
+        }
+      }.resume()
+    }
+
+    group.notify(queue: .main) {
+      self.hnLoading = false
+    }
+  }
+
+  private func appendHnPost(item: [String:Any], rank: Int) {
+    guard let container = hnContainer else { return }
+    // Row: left rank/upvote, right content
+    let itemRow = mason.createView()
+    itemRow.display = .Flex
+    itemRow.flexDirection = .Row
+    itemRow.style.alignItems = .FlexStart
+    itemRow.style.padding = MasonRect(uniform: .Points(toPx(6)))
+    itemRow.style.border = "0 0 1px 0 solid #E5E7EB"
+
+    // Left column (rank + upvote)
+    let leftCol = mason.createView()
+    leftCol.style.setSizeWidth(toPx(48), 1)
+    leftCol.style.setMinSizeWidth(toPx(48), 1)
+    leftCol.style.marginRight = .Points(toPx(8))
+    leftCol.display = .Flex
+    leftCol.flexDirection = .Column
+    leftCol.style.alignItems = .Center
+
+    let upvote = mason.createTextView(type: .Span)
+    upvote.append(text: "▲")
+    upvote.fontSize = 12
+    upvote.style.setColor(css: "#828282")
+
+    let rankText = mason.createTextView(type: .Span)
+    rankText.append(text: "\(rank).")
+    rankText.fontSize = 13
+    rankText.style.setColor(css: "#828282")
+
+    leftCol.addView(rankText)
+    leftCol.addView(upvote)
+
+    // Right column (title + meta)
+    let rightCol = mason.createView()
+    rightCol.display = .Flex
+    rightCol.flexDirection = .Column
+    rightCol.style.flexGrow = 1
+
+    let title = mason.createTextView(type: .A)
+    title.append(text: "\(item["title"] as? String ?? "(no title)")")
+    title.fontSize = 18
+    title.fontWeight = "600"
+    title.style.setColor(css: "#0000EE")
+    title.style.marginBottom = .Points(toPx(4))
+    // underline title to match Hacker News style
+    title.decorationLine = .Underline
+    title.style.setDecorationColor(css: "#0000EE")
+    title.addEventListener("click") { _ in
+      if let urlStr = item["url"] as? String, let url = URL(string: urlStr) {
+        UIApplication.shared.open(url)
+      } else if let id = item["id"] as? Int, let url = URL(string: "https://news.ycombinator.com/item?id=\(id)") {
+        UIApplication.shared.open(url)
+      }
+    }
+
+    let meta = mason.createTextView(type: .Span)
+    let score = item["score"] as? Int ?? 0
+    let by = item["by"] as? String ?? ""
+    let comments = item["descendants"] as? Int ?? 0
+    meta.append(text: "\(score) points by \(by) | \(comments) comments")
+    meta.fontSize = 13
+    meta.style.setColor(css: "#828282")
+
+    rightCol.addView(title)
+    rightCol.addView(meta)
+
+    itemRow.addView(leftCol)
+    itemRow.addView(rightCol)
+
+    container.addView(itemRow)
+    // Ensure layout is recomputed so native scroll contentSize updates
+    body.requestLayout()
+    body.invalidate()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+      self.body.computeWithViewSize()
+      self.body.requestLayout()
+      self.body.invalidate()
+    }
+  }
+
+  // UIScrollViewDelegate — trigger pagination when near bottom
+  public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    guard scrollView == body.uiView as? UIScrollView else { return }
+    let offsetY = scrollView.contentOffset.y
+    let height = scrollView.frame.size.height
+    let contentHeight = scrollView.contentSize.height
+    if offsetY + height > contentHeight - 200 {
+      loadMoreHnPosts()
+    }
   }
 
   func list(_ list: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -942,7 +1358,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   func zOrder(){
-    
     let root = mason.createView()
     body.append(root)
     
@@ -973,9 +1388,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.append(a)
     root.append(b)
     root.append(c)
-
-
-
     
    // self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
     
@@ -1219,8 +1631,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     container.append(b)
     
     body.append(container)
-    
-    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+//    
+//    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   func radius() {
@@ -1272,7 +1684,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //
 
     
-    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   
@@ -3172,7 +3584,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.computeWithMaxContent()
   }
   
-  func gridSample(){
+  func gridSampleDefault(){
     /// https://gridbyexample.com/examples/example1/
     
     

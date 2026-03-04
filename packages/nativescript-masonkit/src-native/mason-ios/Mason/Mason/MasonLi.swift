@@ -10,8 +10,8 @@ import UIKit
 @objc(MasonLi)
 @objcMembers
 public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
 
 

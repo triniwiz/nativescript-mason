@@ -171,8 +171,8 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     
   }
   
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
   

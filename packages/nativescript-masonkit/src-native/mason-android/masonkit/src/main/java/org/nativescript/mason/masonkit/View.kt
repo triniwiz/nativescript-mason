@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -155,15 +156,14 @@ class View @JvmOverloads constructor(
   }
 
 
-
   internal var isScrollRoot = false
 
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    Node.invalidateDescendantTextViews(node, change)
+  override fun onChange(low: Long, high: Long) {
+    Node.invalidateDescendantTextViews(node, low, high)
   }
 
 //  fun setStyleFromString(style: String) {
@@ -201,9 +201,12 @@ class View @JvmOverloads constructor(
         mapMeasureSpec(specWidthMode, specWidth).value,
         mapMeasureSpec(specHeightMode, specHeight).value
       )
+
+     node.mason.printTree(node)
     }
 
     val layout = layout()
+
 
     var width = layout.width.toInt()
     var height = layout.height.toInt()
@@ -385,7 +388,14 @@ class View @JvmOverloads constructor(
       super.removeAllViews()
       return
     }
+
     node.removeChildren()
+
+    node.dirty()
+
+    super.removeAllViews()
+
+    invalidateLayout(true)
 
     onChildStructureChangedSafe()
   }

@@ -11,8 +11,8 @@ import Foundation
 @objcMembers
 @objc(MasonUIView)
 public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
   public override func draw(_ rect: CGRect) {
@@ -35,17 +35,18 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // Outset shadows are handled by MasonShadowLayer
 
     // Block 1: Background with border-radius clip
+    // Draw background across the full bounds so it meets edge-aligned children
+    // (image layers) and then draw the border on top. This avoids a 1px gap
+    // when border widths are present.
     if hasBackground {
-      let innerRect = bounds.inset(by: UIEdgeInsets(
-        top: borderWidths.top,
-        left: borderWidths.left,
-        bottom: borderWidths.bottom,
-        right: borderWidths.right
-      ))
+      // Expand background slightly (fractional device pixel) to avoid 1px hairline gaps
+      let scale = UIScreen.main.scale
+      let expand: CGFloat = 1.0 / scale
+      let innerRect = bounds.insetBy(dx: -expand, dy: -expand)
 
       context.saveGState()
       if hasRadii {
-        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerRadius = style.mBorderRender.radius
         let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
         context.addPath(innerPath.cgPath)
         context.clip()
@@ -59,9 +60,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
     }
 
-    // Border drawn OUTSIDE any clip scope so strokes aren't clipped
+    // Border: when rounded radii exist, draw the border inside a rounded clip
+    // so the stroke overlays the background and avoids visible gaps with outset shadows.
     if hasBorder {
-      style.mBorderRender.draw(in: context, rect: bounds)
+      if hasRadii {
+        context.saveGState()
+        let outerPath = style.mBorderRender.getClipPath(rect: bounds, radius: style.mBorderRender.radius)
+        context.addPath(outerPath.cgPath)
+        context.clip()
+        style.mBorderRender.draw(in: context, rect: bounds)
+        context.restoreGState()
+      } else {
+        style.mBorderRender.draw(in: context, rect: bounds)
+      }
     }
   }
   

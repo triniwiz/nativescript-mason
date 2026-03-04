@@ -10,7 +10,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use taffy::Display;
 
-pub const STYLE_BUFFER_SIZE: usize = 324;
+pub const STYLE_BUFFER_SIZE: usize = 400;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -355,7 +355,7 @@ impl StyleArena {
 
         for (idx, buf) in self.buffers.iter_mut().enumerate() {
             if buf.ref_count > 0
-                && Self::hash_buffer(<&[u8; 324]>::try_from(buf.bytes()).unwrap()) == hash
+                && Self::hash_buffer(<&[u8; STYLE_BUFFER_SIZE]>::try_from(buf.bytes()).unwrap()) == hash
                 && buf.bytes() == data
             {
                 buf.ref_count += 1;
@@ -392,7 +392,7 @@ impl StyleArena {
         let new_handle = {
             // COW: clone to new buffer
             let data = self.buffers[idx].bytes().to_vec();
-            self.alloc(<&[u8; 324]>::try_from(data.as_slice()).unwrap())
+            self.alloc(<&[u8; STYLE_BUFFER_SIZE]>::try_from(data.as_slice()).unwrap())
         };
         let ptr = self.buffers[new_handle.index()].mut_bytes().as_mut_ptr();
         (new_handle, ptr)
@@ -421,7 +421,7 @@ impl StyleArena {
 
     /// Get read-only reference to buffer data
     pub fn get(&self, handle: StyleHandle) -> &[u8; STYLE_BUFFER_SIZE] {
-        <&[u8; 324]>::try_from(self.buffers[handle.index()].bytes()).unwrap()
+        <&[u8; STYLE_BUFFER_SIZE]>::try_from(self.buffers[handle.index()].bytes()).unwrap()
     }
 }
 

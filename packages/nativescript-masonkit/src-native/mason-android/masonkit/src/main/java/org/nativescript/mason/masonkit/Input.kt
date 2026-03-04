@@ -80,7 +80,6 @@ class Input @JvmOverloads constructor(
   }
 
 
-
   private val beforeFilter = InputFilter { source, start, end, dest, dstart, dend ->
     val event = InputEvent(
       type = "beforeinput",
@@ -1167,14 +1166,17 @@ class Input @JvmOverloads constructor(
     return size
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    val fontColor = change and TextStyleChangeMask.COLOR != 0
-    val fontSize = change and TextStyleChangeMask.FONT_SIZE != 0
+  override fun onChange(low: Long, high: Long) {
+    val fontColor = StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR)
+    val fontSize = StateKeys.hasFlag(low, high, StateKeys.FONT_SIZE)
+
     val font =
-      change and TextStyleChangeMask.FONT_WEIGHT != 0 || change and TextStyleChangeMask.FONT_STYLE != 0 || change and TextStyleChangeMask.FONT_FAMILY != 0
+      StateKeys.hasFlag(low, high, StateKeys.FONT_WEIGHT) ||
+        StateKeys.hasFlag(low, high, StateKeys.FONT_STYLE) ||
+        StateKeys.hasFlag(low, high, StateKeys.FONT_FAMILY)
 
 
-    val textAlign = change and TextStyleChangeMask.TEXT_ALIGN != 0
+    val textAlign = StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN)
 
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Number, Type.Tel, Type.Url -> {

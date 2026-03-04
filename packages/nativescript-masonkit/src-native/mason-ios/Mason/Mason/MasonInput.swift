@@ -53,11 +53,11 @@ internal extension UIView {
 @objcMembers
 @objc(MasonInput)
 public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListener{
-  func onTextStyleChanged(change: Int64) {
-    let change = TextStyleChangeMasks(rawValue: change)
-    let color = change.contains(.color)
-    let size = change.contains(.fontSize)
-    let font = change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    let state = StateKeys(low: low, high: high)
+    let color = state.contains(.color)
+    let size = state.contains(.fontSize)
+    let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
     case .Text, .Number, .Email, .Password, .Tel, .Url:
       if(color){

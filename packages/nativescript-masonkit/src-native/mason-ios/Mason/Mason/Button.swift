@@ -177,12 +177,12 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   
   public var textValues: NSMutableData {
     get {
-      return style.textValues
+      return style.values
     }
   }
   
-  public func onTextStyleChanged(change: Int64) {
-    engine.onTextStyleChanged(change: change)
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    engine.onStyleChange(low, high)
   }
   
   

@@ -81,7 +81,11 @@ class CSSFilters {
         oldValue: Bitmap,
         newValue: Bitmap?
       ) {
-        if (!oldValue.isRecycled) oldValue.recycle()
+        // Recycle on LRU eviction or replacement by put(), but NOT on
+        // explicit remove() which is used to borrow a bitmap from the pool.
+        if ((evicted || newValue != null) && !oldValue.isRecycled) {
+          oldValue.recycle()
+        }
       }
     }
 
@@ -98,7 +102,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = "${key(width, height, config)}:source"
-      val cached = pool[k]
+      val cached = pool.remove(k)
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -113,7 +117,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = key(width, height, config)
-      val cached = pool[k]
+      val cached = pool.remove(k)
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -128,9 +132,7 @@ class CSSFilters {
       if (source == true) {
         k = "$k:source"
       }
-      if (pool[k] == null) {
-        pool.put(k, bitmap)
-      }
+      pool.put(k, bitmap)
     }
 
     fun clear() {

@@ -46,7 +46,6 @@ class ListView @JvmOverloads constructor(
   }
 
 
-
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
@@ -416,7 +415,7 @@ class ListView @JvmOverloads constructor(
     )
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    Node.invalidateDescendantTextViews(node, change)
+  override fun onChange(low: Long, high: Long) {
+    Node.invalidateDescendantTextViews(node, low, high)
   }
 }

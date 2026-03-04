@@ -44,7 +44,7 @@ private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
 public protocol TextContainer: NSObjectProtocol {
   var engine: TextEngine { get }
   var node: MasonNode { get }
-  func onTextStyleChanged(change: Int64)
+  func onStyleChange(_ low: UInt64, _ high: UInt64)
 }
 
 extension TextContainer {
@@ -52,8 +52,12 @@ extension TextContainer {
     return node.getDefaultAttributes()
   }
   
-  public func onTextStyleChanged(change: Int64){
-    engine.onTextStyleChanged(change: change)
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    engine.onStyleChange(low, high)
+  }
+  
+  internal func onStyleChange(_ state: StateKeys) {
+    engine.onStyleChange(state.low, state.high)
   }
 }
 
@@ -133,32 +137,32 @@ public class TextEngine: NSObject {
       }
     }
   }
-  
-  func onTextStyleChanged(change: Int64) {
-    let change = TextStyleChangeMasks(rawValue: change)
+
+
+  func onStyleChange(low: UInt64, high: UInt64) {
+    let state = StateKeys(low: low, high: high)
+
+
     var dirty = false
     var layout = false
-    if (change.contains(.color)) {
+
+    if (state.contains(.color)) {
       dirty = true
     }
-    
-    if (change.contains(.fontSize)) {
+
+    if (state.contains(.fontSize)) {
       layout = true
       dirty = true
     }
-    
-    if (change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)) {
+
+    if (state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)) {
       dirty = true
     }
-    
-    
-    if (
-      change.contains(.verticalAlign) || change.contains(.textWrap) || change.contains(.whiteSpace) || change.contains(.textTransform) || change.contains(.decorationLine) || change.contains(.decorationColor) || change.contains(.decorationStyle) || change.contains(.letterSpacing) || change.contains(.textJustify) || change.contains(.backgroundColor) || change.contains(.lineHeight)
-    ) {
+
+    if (state.contains(.verticalAlign) || state.contains(.verticalAlign) || state.contains(.textWrap) || state.contains(.textWrap) || state.contains(.whiteSpace) || state.contains(.whiteSpace) || state.contains(.textTransform) || state.contains(.textTransform) || state.contains(.decorationLine) || state.contains(.decorationLine) || state.contains(.decorationColor) || state.contains(.decorationColor) || state.contains(.decorationStyle) || state.contains(.decorationStyle) || state.contains(.letterSpacing) || state.contains(.letterSpacing) || state.contains(.textJustify) || state.contains(.textJustify) || state.contains(.backgroundColor) || state.contains(.backgroundColor) || state.contains(.lineHeight) || state.contains(.lineHeight)) {
       dirty = true
     }
-    
-    
+
     if (dirty) {
       updateStyleOnTextNodes()
       invalidateInlineSegments()
@@ -167,10 +171,15 @@ public class TextEngine: NSObject {
           node.layoutParent?.markDirty()
         }
         (node.view as? MasonElement)?.invalidateLayout()
-      }else {
+      } else {
         invalidate()
       }
     }
+  }
+
+
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    onStyleChange(low: low, high: high)
   }
   
   

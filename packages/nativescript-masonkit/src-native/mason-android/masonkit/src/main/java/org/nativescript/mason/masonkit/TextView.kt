@@ -12,7 +12,6 @@ import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.BorderStyle
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
@@ -99,7 +98,8 @@ class TextView @JvmOverloads constructor(
   override fun onDraw(canvas: Canvas) {
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
-    val ignoreBorder = (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
+    val ignoreBorder =
+      (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) {
       super.onDraw(it)
     }
@@ -163,8 +163,8 @@ class TextView @JvmOverloads constructor(
         TextType.H3 -> {
           node.style.display = Display.Block
           style.fontWeight = FontFace.NSCFontWeight.Bold
-          fontSize = 18
-          node.style.margin = margin(12f, 12f)
+          fontSize = 20
+          node.style.margin = margin(12f, 8f)
         }
 
         TextType.H4 -> {
@@ -289,14 +289,10 @@ class TextView @JvmOverloads constructor(
     return super.getBaseline()
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    engine.onTextStyleChanged(change, paint, resources.displayMetrics)
+  override fun onChange(low: Long, high: Long) {
+    engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }
 
-  val textValues: ByteBuffer
-    get() {
-      return style.textValues
-    }
 
   val values: ByteBuffer
     get() {
@@ -589,7 +585,7 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-   fun addView(view: Element) {
+  fun addView(view: Element) {
     addChildAt(view, -1)
   }
 

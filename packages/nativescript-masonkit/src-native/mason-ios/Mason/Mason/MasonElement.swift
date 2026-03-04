@@ -179,18 +179,24 @@ extension MasonElement {
     return node.getDefaultAttributes()
   }
   
-  
-  public func syncStyle(_ state: String, _ textState: String) {
-    let stateValue = Int64(state, radix: 10)
-    let textStateValue = Int64(textState, radix: 10)
-    if let textStateValue = textStateValue {
-      style.isTextDirty = textStateValue
-      style.updateTextStyle()
+
+  public func syncStyle(_ low: String, _ high: String) {
+    func parseDecimalToUInt64(_ s: String) -> UInt64? {
+      if s.isEmpty { return nil }
+      if s.first == "-" {
+        return UInt64(s)
+      }
+      
+      return UInt64(s)
     }
-    
-    if let stateValue = stateValue {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
+
+    let lowValue = parseDecimalToUInt64(low)
+    let highValue = parseDecimalToUInt64(high)
+
+    if lowValue != nil || highValue != nil {
+      let l = lowValue ?? 0
+      let h = highValue ?? 0
+      style.setStateFromHalves(l, h)
     }
   }
   
@@ -216,6 +222,10 @@ extension MasonElement {
   
   public func replaceChildAt(node: MasonNode, _ index: Int) {
     self.node.replaceChildAt(node, index)
+  }
+  
+  public func removeAllChildren(){
+    node.removeAllChildren()
   }
   
   public var style: MasonStyle {

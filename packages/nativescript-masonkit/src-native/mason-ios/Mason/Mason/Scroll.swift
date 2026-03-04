@@ -9,8 +9,8 @@ import UIKit
 @objc(MasonScroll)
 @objcMembers
 public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
   public override func draw(_ rect: CGRect) {

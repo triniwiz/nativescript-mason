@@ -27,10 +27,9 @@ import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.TextNode
-import org.nativescript.mason.masonkit.TextStyleChangeMask
-import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignItems
@@ -1008,15 +1007,11 @@ class GridActivity : AppCompatActivity() {
     header.append("Header")
     header.configure {
       it.color = Color.WHITE
-      // header.style.background = "#999999"
+       header.style.background = "#999999"
       header.style.gridArea = "header"
       it.padding = boxPadding
       it.borderRadius = "5px"
     }
-
-    header.style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, "#999999".toColorInt())
-    header.style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, 1)
-    header.syncStyle("", TextStyleChangeMask.BACKGROUND_COLOR.toString())
 
 
     val sidebar = mason.createView(this)
@@ -1348,7 +1343,7 @@ class GridActivity : AppCompatActivity() {
       it.margin = Rect.uniform(LengthPercentageAuto.Points(40f))
       it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
       it.fontSize = 80
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
     }
 
     val wrapper6 = mason.createView(this)
@@ -1390,7 +1385,7 @@ class GridActivity : AppCompatActivity() {
     boxA.configure {
       // 150%
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1405,7 +1400,7 @@ class GridActivity : AppCompatActivity() {
 
     boxB.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1420,7 +1415,7 @@ class GridActivity : AppCompatActivity() {
 
     boxC.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1435,7 +1430,7 @@ class GridActivity : AppCompatActivity() {
 
     boxD.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1450,7 +1445,7 @@ class GridActivity : AppCompatActivity() {
 
     boxE.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),

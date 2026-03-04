@@ -131,10 +131,23 @@ class Button @JvmOverloads constructor(
       1f
     }
 
-//    style.triggerPress(pressed)
-//
-//    style.mBackground?.layers?.forEach { it.shader = null }
-//    style.mBorderRenderer.invalidate()
+    // Write pseudo-state (active/pressed) into the node state buffer (u16 at index)
+    try {
+      val buf = node.stateValue
+      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+        // write native-order short mask (1 = ACTIVE)
+        buf.order(java.nio.ByteOrder.nativeOrder())
+        buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, if (pressed) 1.toShort() else 0.toShort())
+        // mark node dirty so native side will pick up the change
+        NativeHelpers.nativeNodeMarkDirty(node.mason.nativePtr, node.nativePtr)
+      }
+    } catch (t: Throwable) {
+      // ignore if no buffer/native available yet
+    }
+
+    // Force background/border rebuild when pressed state changes
+    style.mBackground?.layers?.forEach { it.shader = null }
+    style.mBorderRenderer.invalidate()
 
     invalidate()
   }
@@ -147,8 +160,8 @@ class Button @JvmOverloads constructor(
     return engine.measure(paint, knownDimensions, availableSpace)
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    engine.onTextStyleChanged(change, paint, resources.displayMetrics)
+  override fun onChange(low: Long, high: Long) {
+    engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }
 
 

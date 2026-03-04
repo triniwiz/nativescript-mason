@@ -1,17 +1,21 @@
 package org.nativescript.mason.masondemo
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import org.nativescript.mason.masonkit.Dimension
+import org.json.JSONArray
+import org.json.JSONObject
 import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
@@ -26,8 +30,10 @@ import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.toCSSColorInt
-import kotlin.math.ceil
-import kotlin.random.Random
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 
 class WebActivity : AppCompatActivity() {
   val mason = Mason.shared
@@ -37,30 +43,523 @@ class WebActivity : AppCompatActivity() {
 
   lateinit var body: Scroll
   lateinit var root: View
+  lateinit var contentRoot: View
+  lateinit var container: View
+
+  // Hacker News live state
+  private var hnIds: List<Int> = listOf()
+  private var hnIndex: Int = 0
+  private var hnPageSize: Int = 10
+  private var hnLoading: Boolean = false
+  private val mainHandler = Handler(Looper.getMainLooper())
+
+  private fun clearContent() {
+    contentRoot.removeAllViews()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // Build a container so the picker can sit above the scrolling content
+    container = mason.createView(this)
+    container.display = Display.Flex
+    container.flexDirection = FlexDirection.Column
+
     body = mason.createScrollView(this)
     root = mason.createView(this)
+    // top-level root (inside the scroll) holds the content container
+    contentRoot = mason.createView(this)
     body.addView(root)
     body.style.overflowY = Overflow.Scroll
+
+    // container: picker (added below) + scroll body
+    body.addView(container)
+
     enableEdgeToEdge()
     setContentView(body)
-    ViewCompat.setOnApplyWindowInsetsListener(body) { v, insets ->
+    ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      body.style.setPadding(
+      // apply padding to container so content respects system bars
+      root.style.setPadding(
         systemBars.left, systemBars.top, systemBars.right, systemBars.bottom
       )
       insets
     }
-    webTextSample()
+
+    // build the example picker and default content
+    val pickerBar = mason.createView(this)
+    pickerBar.display = Display.Flex
+    pickerBar.flexDirection = FlexDirection.Row
+    pickerBar.style.justifyContent = JustifyContent.SpaceAround
+    pickerBar.style.alignItems = AlignItems.Center
+    pickerBar.style.padding = Rect.withPx(toPx(8f), toPx(8f), toPx(8f), toPx(8f))
+    pickerBar.style.background = "#FFFFFF"
+    pickerBar.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
+    // Ensure picker sits above content (touchable) by using a high z-index
+    pickerBar.style.zIndex = 10000
+    // Ensure contentRoot is behind picker
+    contentRoot.style.zIndex = 0
+
+    fun addPickerButton(title: String, onClick: () -> Unit) {
+      val btn = mason.createButton(this)
+      btn.append(title)
+      btn.style.fontSize = 14
+      btn.style.fontWeight = FontFace.NSCFontWeight.Medium
+      btn.style.color = "#0F172A".toCSSColorInt()
+      btn.style.padding = Rect.withPx(toPx(8f), toPx(12f), toPx(8f), toPx(12f))
+      btn.style.borderRadius = "8px"
+      btn.style.background = "#F8FAFC"
+      // Ensure native clicks also trigger the sample switch (defensive)
+      btn.isClickable = true
+      // Also register at the Mason event layer
+      btn.addEventListener("click") {
+        contentRoot.post {
+          try {
+            onClick()
+          } catch (ex: Exception) {
+            Log.e("WebActivity", "error switching sample (mason)", ex)
+          }
+        }
+      }
+      pickerBar.addView(btn)
+    }
+
+    addPickerButton("Web Sample") { webTextSample() }
+    addPickerButton("Pricing") { pricingSample() }
+    addPickerButton("FAQ") { faqSample() }
+    addPickerButton("Grid Demo") { gridDemoSample() }
+    addPickerButton("Gallery") { galleryDemoSample() }
+    addPickerButton("Hacker News") { hackerNewsSample() }
+
+    // place picker above the scroll body in the container
+    container.addView(pickerBar, 0)
+    // root already contains contentRoot
+    root.addView(contentRoot)
+
+    // Ensure native Android view for picker is front-most and clickable
+    try {
+      val nativePicker = pickerBar.view
+      nativePicker.isClickable = true
+      nativePicker.bringToFront()
+      nativePicker.requestLayout()
+      nativePicker.invalidate()
+      // make sure contentRoot doesn't intercept touches
+      try {
+        contentRoot.view.isClickable = false
+      } catch (_: Exception) {
+      }
+    } catch (ex: Exception) {
+      Log.w("WebActivity", "unable to bring picker to front", ex)
+    }
+
+    // load default
+    // webTextSample()
+    //hackerNewsSample()
+    //gridDemoSample()
+    galleryDemoSample()
+  }
+
+  private fun fetchTopStoriesAndLoadInitial(hnContainer: View) {
+    Thread {
+      try {
+        val url = URL("https://hacker-news.firebaseio.com/v0/topstories.json")
+        val conn = url.openConnection() as HttpURLConnection
+        conn.connectTimeout = 5000
+        conn.readTimeout = 5000
+        conn.requestMethod = "GET"
+        val rr = BufferedReader(InputStreamReader(conn.inputStream))
+        val sb = StringBuilder()
+        var line: String? = rr.readLine()
+        while (line != null) {
+          sb.append(line)
+          line = rr.readLine()
+        }
+        rr.close()
+        val arr = JSONArray(sb.toString())
+        val ids = mutableListOf<Int>()
+        for (i in 0 until arr.length()) {
+          ids.add(arr.getInt(i))
+        }
+        hnIds = ids
+        // load first page on main thread
+        mainHandler.post {
+          loadMoreHnPosts(hnContainer)
+        }
+      } catch (ex: Exception) {
+        Log.w("WebActivity", "failed to fetch topstories", ex)
+      }
+    }.start()
+  }
+
+  private fun loadMoreHnPosts(hnContainer: View) {
+    if (hnLoading) return
+    if (hnIndex >= hnIds.size) return
+    hnLoading = true
+    val start = hnIndex
+    val end = kotlin.math.min(hnIndex + hnPageSize, hnIds.size)
+    Thread {
+      val posts = mutableListOf<JSONObject>()
+      for (i in start until end) {
+        try {
+          val id = hnIds[i]
+          val url = URL("https://hacker-news.firebaseio.com/v0/item/$id.json")
+          val conn = url.openConnection() as HttpURLConnection
+          conn.connectTimeout = 5000
+          conn.readTimeout = 5000
+          conn.requestMethod = "GET"
+          val rr = BufferedReader(InputStreamReader(conn.inputStream))
+          val sb = StringBuilder()
+          var line: String? = rr.readLine()
+          while (line != null) {
+            sb.append(line)
+            line = rr.readLine()
+          }
+          rr.close()
+          val obj = JSONObject(sb.toString())
+          posts.add(obj)
+        } catch (ex: Exception) {
+          Log.w("WebActivity", "failed to fetch item", ex)
+        }
+      }
+      // update UI
+      mainHandler.post {
+        try {
+          for (p in posts) {
+            appendHnPost(hnContainer, p, hnIndex + 1)
+            hnIndex += 1
+          }
+        } catch (ex: Exception) {
+          Log.w("WebActivity", "failed to append posts", ex)
+        }
+        hnLoading = false
+      }
+    }.start()
+  }
+
+  private fun appendHnPost(hnContainer: View, item: JSONObject, rank: Int) {
+    val row = mason.createView(this)
+    row.display = Display.Flex
+    row.flexDirection = FlexDirection.Row
+    row.style.alignItems = AlignItems.FlexStart
+    row.style.padding = Rect.withPx(toPx(12f), toPx(8f), toPx(12f), toPx(8f))
+    row.style.border = "0 0 1px 0 solid #E5E7EB"
+
+    val rankView = mason.createTextView(this, TextType.Span)
+    rankView.append(rank.toString())
+    rankView.fontSize = 14
+    rankView.fontWeight = FontFace.NSCFontWeight.SemiBold
+    rankView.color = "#64748B".toCSSColorInt()
+    rankView.style.setSizeWidth(toPx(28f), 1.toByte())
+    rankView.style.textAlign = TextAlign.Right
+    row.addView(rankView)
+
+    val main = mason.createView(this)
+    main.display = Display.Flex
+    main.flexDirection = FlexDirection.Column
+    main.style.marginLeft = LengthPercentageAuto.Points(toPx(12f))
+    main.style.flexGrow = 1f
+
+    val title = mason.createTextView(this, TextType.A)
+    val t = item.optString("title", "(no title)")
+    title.append(t)
+    title.fontSize = 16
+    title.fontWeight = FontFace.NSCFontWeight.SemiBold
+    title.color = "#0F172A".toCSSColorInt()
+    title.style.marginBottom = LengthPercentageAuto.Points(toPx(6f))
+    // underline title to match Hacker News style
+    title.decorationLine = org.nativescript.mason.masonkit.Styles.DecorationLine.Underline
+    title.decorationColor = "#0000EE".toCSSColorInt()
+    val itemUrl = item.optString("url", "https://news.ycombinator.com/item?id=${item.optInt("id")}")
+    title.setOnClickListener {
+      try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(itemUrl))
+        startActivity(intent)
+      } catch (e: Exception) {
+        Log.w("WebActivity", "failed to open URL", e)
+      }
+    }
+    main.addView(title)
+
+    val meta = mason.createView(this)
+    meta.display = Display.Flex
+    meta.flexDirection = FlexDirection.Row
+    meta.style.gap = Size(LengthPercentage.Points(toPx(12f)), LengthPercentage.Points(0f))
+
+    val score = item.optInt("score", 0)
+    val by = item.optString("by", "?")
+    val descendants = item.optInt("descendants", 0)
+
+    val points = mason.createTextView(this, TextType.Span)
+    points.append("$score points")
+    points.fontSize = 12
+    points.color = "#64748B".toCSSColorInt()
+    meta.addView(points)
+
+    val byText = mason.createTextView(this, TextType.Span)
+    byText.append("by $by")
+    byText.fontSize = 12
+    byText.color = "#64748B".toCSSColorInt()
+    meta.addView(byText)
+
+    val comments = mason.createTextView(this, TextType.Span)
+    comments.append("$descendants comments")
+    comments.fontSize = 12
+    comments.color = "#64748B".toCSSColorInt()
+    meta.addView(comments)
+
+    main.addView(meta)
+    row.addView(main)
+
+    // append to container
+    try {
+      hnContainer.addView(row)
+    } catch (ex: Exception) {
+      // fallback to appending to contentRoot
+      try {
+        contentRoot.append(row)
+      } catch (_: Exception) {
+      }
+    }
+  }
+
+  // Simple grid demo with images and captions
+  private fun gridDemoSample() {
+    clearContent()
+    body.style.padding = Rect.withPx(toPx(56f), toPx(8f), toPx(8f), toPx(8f))
+    contentRoot.style.background = "#FFFFFF"
+
+    val outer = mason.createView(this)
+    outer.display = Display.Flex
+    outer.flexDirection = FlexDirection.Column
+    outer.style.padding = Rect.withPx(toPx(12f), toPx(12f), toPx(12f), toPx(12f))
+    contentRoot.append(outer)
+
+    val inner = mason.createView(this)
+    inner.display = Display.Flex
+    inner.flexDirection = FlexDirection.Row
+    inner.style.flexWrap = org.nativescript.mason.masonkit.enums.FlexWrap.Wrap
+    inner.style.gap = Size(LengthPercentage.Points(toPx(12f)), LengthPercentage.Points(toPx(12f)))
+    inner.style.justifyContent = JustifyContent.FlexStart
+    // centered column
+    inner.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(toPx(720f))
+    inner.style.marginLeft = LengthPercentageAuto.Auto
+    inner.style.marginRight = LengthPercentageAuto.Auto
+    outer.addView(inner)
+
+    // create a set of image cards
+    for (i in 1..12) {
+      val card = mason.createView(this)
+      card.display = Display.Flex
+      card.flexDirection = FlexDirection.Column
+      card.style.setSizeWidth(0f, 1.toByte())
+      card.style.flexGrow = 1f
+      card.style.minWidth = org.nativescript.mason.masonkit.Dimension.Points(toPx(140f))
+
+      val img = mason.createImageView(this)
+      img.style.setSizeHeight(toPx(120f), 1.toByte())
+      img.style.setSizeWidth(1f, 2.toByte())
+      img.objectFit = ObjectFit.Cover
+      img.src = "https://picsum.photos/seed/grid$i/600/400"
+      card.addView(img)
+
+      val caption = mason.createTextView(this, TextType.Span)
+      caption.append("Image #$i")
+      caption.fontSize = 14
+      caption.color = "#0F172A".toCSSColorInt()
+      caption.style.marginTop = LengthPercentageAuto.Points(toPx(8f))
+      card.addView(caption)
+
+      inner.addView(card)
+    }
+  }
+
+  // Polished gallery of cards with overlay and metadata
+  private fun galleryDemoSample() {
+    clearContent()
+//    body.style.padding = Rect.withPx(toPx(56f), toPx(8f), toPx(8f), toPx(8f))
+    contentRoot.style.background = "#FAFBFC"
+
+    val root = mason.createView(this)
+    root.display = Display.Flex
+    root.flexDirection = FlexDirection.Column
+    root.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+    contentRoot.append(root)
+
+    val gallery = mason.createView(this)
+    gallery.display = Display.Flex
+    gallery.flexDirection = FlexDirection.Row
+    gallery.style.flexWrap = org.nativescript.mason.masonkit.enums.FlexWrap.Wrap
+    gallery.style.gap = Size(LengthPercentage.Points(toPx(16f)), LengthPercentage.Points(toPx(24f)))
+    gallery.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
+    gallery.style.marginLeft = LengthPercentageAuto.Auto
+    gallery.style.marginRight = LengthPercentageAuto.Auto
+    root.addView(gallery)
+
+    for (i in 1..8) {
+      val minWidth =  (resources.displayMetrics.widthPixels / 2).toFloat()
+      val card = mason.createView(this)
+      card.display = Display.Flex
+      card.flexDirection = FlexDirection.Column
+      card.style.setSizeWidth(0f, 1.toByte())
+      card.style.flexGrow = 1f
+      card.style.minWidth = org.nativescript.mason.masonkit.Dimension.Points(minWidth)
+      card.style.background = "#FFFFFF"
+      card.style.borderRadius = "8px"
+      card.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"
+
+      val iv = mason.createImageView(this)
+      iv.style.setSizeHeight(org.nativescript.mason.masonkit.Dimension.Points(minWidth))
+      iv.style.setSizeWidth(org.nativescript.mason.masonkit.Dimension.Percent(1f))
+      iv.objectFit = ObjectFit.Cover
+      iv.src = "https://picsum.photos/seed/gallery$i/800/500"
+      card.addView(iv)
+
+      val meta = mason.createView(this)
+      meta.display = Display.Flex
+      meta.flexDirection = FlexDirection.Column
+      meta.style.padding = Rect.withPx(toPx(12f), toPx(12f), toPx(12f), toPx(12f))
+
+      val title = mason.createTextView(this, TextType.Span)
+      title.append("Gallery Item #$i")
+      title.fontSize = 16
+      title.fontWeight = FontFace.NSCFontWeight.Medium
+      title.color = "#0F172A".toCSSColorInt()
+      meta.addView(title)
+
+      val desc = mason.createTextView(this, TextType.Span)
+      desc.append("A short description showcasing the image with nice spacing.")
+      desc.fontSize = 13
+      desc.color = "#64748B".toCSSColorInt()
+      desc.style.marginTop = LengthPercentageAuto.Points(toPx(6f))
+      meta.addView(desc)
+
+      card.addView(meta)
+      gallery.addView(card)
+    }
+  }
+
+  private fun hackerNewsSample() {
+    clearContent()
+    // add top padding on the scroll body so header and content aren't drawn under the picker / system overscroll
+    body.style.padding = Rect.withPx(toPx(56f), toPx(8f), toPx(8f), toPx(8f))
+    contentRoot.style.background = "#FFFFFF"
+
+    // Header with Y logo + nav
+    val header = mason.createView(this)
+    header.display = Display.Flex
+    header.flexDirection = FlexDirection.Row
+    header.style.background = "#FF6600"
+    header.style.padding = Rect.withPx(toPx(12f), toPx(16f), toPx(12f), toPx(16f))
+    header.style.alignItems = AlignItems.Center
+
+    val logo = mason.createTextView(this, TextType.Span)
+    logo.append("Y")
+    logo.fontSize = 18
+    logo.fontWeight = FontFace.NSCFontWeight.SemiBold
+    logo.color = "#FFFFFF".toCSSColorInt()
+    logo.style.marginRight = LengthPercentageAuto.Points(toPx(8f))
+    logo.setOnClickListener {
+      try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://news.ycombinator.com"))
+        startActivity(intent)
+      } catch (e: Exception) {
+        Log.w("WebActivity", "failed to open hn home", e)
+      }
+    }
+    header.addView(logo)
+
+    val hdrText = mason.createTextView(this, TextType.Span)
+    hdrText.append("Hacker News — Top Stories")
+    hdrText.fontSize = 18
+    hdrText.fontWeight = FontFace.NSCFontWeight.Bold
+    hdrText.color = "#FFFFFF".toCSSColorInt()
+    header.addView(hdrText)
+
+    // spacer to push nav to the right
+    val spacer = mason.createView(this)
+    spacer.style.flexGrow = 1f
+    header.addView(spacer)
+
+    val navNames = listOf("new", "past", "ask", "submit")
+    for (n in navNames) {
+      val a = mason.createTextView(this, TextType.A)
+      a.append(n)
+      a.fontSize = 13
+      a.color = "#FFFFFF".toCSSColorInt()
+      a.style.marginRight = LengthPercentageAuto.Points(toPx(10f))
+      a.setOnClickListener {
+        try {
+          var path = ""
+          when (n) {
+            "new" -> path = "newest"
+            "past" -> path = "front"
+            "ask" -> path = "ask"
+            "submit" -> path = "submit"
+          }
+          val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://news.ycombinator.com/" + path))
+          startActivity(intent)
+        } catch (e: Exception) {
+          Log.w("WebActivity", "failed to open nav", e)
+        }
+      }
+      header.addView(a)
+    }
+
+    contentRoot.append(header)
+
+    // Container where posts will be appended (outer + centered inner)
+    val hnOuter = mason.createView(this)
+    hnOuter.display = Display.Flex
+    hnOuter.flexDirection = FlexDirection.Column
+    hnOuter.style.padding = Rect.withPx(toPx(8f), toPx(8f), toPx(8f), toPx(8f))
+    contentRoot.append(hnOuter)
+
+    val hnInner = mason.createView(this)
+    hnInner.display = Display.Flex
+    hnInner.flexDirection = FlexDirection.Column
+    // constrain width and center horizontally
+    hnInner.style.setMaxSizeWidth(
+      org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
+    )
+    hnInner.style.margin = Rect(
+      LengthPercentageAuto.Zero,
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Zero,
+      LengthPercentageAuto.Auto,
+    )
+    hnOuter.addView(hnInner)
+
+    // Reset HN state and start loading
+    hnIds = listOf()
+    hnIndex = 0
+    hnLoading = false
+
+    // attach a scroll listener to the native scroll view to trigger pagination
+    try {
+      val native = body.view
+      native.setOnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
+        try {
+          val child = (v as? android.view.ViewGroup)?.getChildAt(0)
+          if (child != null) {
+            val diff = child.height - (v.height + v.scrollY)
+            if (diff < 300) { // near bottom
+              loadMoreHnPosts(hnInner)
+            }
+          }
+        } catch (_: Exception) {
+        }
+      }
+    } catch (ex: Exception) {
+      Log.w("WebActivity", "unable to set scroll listener", ex)
+    }
+
+    fetchTopStoriesAndLoadInitial(hnInner)
   }
 
   private fun webTextSample() {
-    root.style.background = "#FAFBFC"
+    clearContent()
+    contentRoot.style.background = "#FAFBFC"
 
-    // ════════════════════════════════════════════════════════════════════════════
     // HERO SECTION
-    // ════════════════════════════════════════════════════════════════════════════
     val hero = mason.createView(this)
     hero.display = Display.Flex
     hero.flexDirection = FlexDirection.Column
@@ -118,11 +617,9 @@ class WebActivity : AppCompatActivity() {
     heroContent.addView(heroSubtitle)
 
     hero.addView(heroContent)
-    root.append(hero)
+    contentRoot.append(hero)
 
-    // ════════════════════════════════════════════════════════════════════════════
     // STATS BAR
-    // ════════════════════════════════════════════════════════════════════════════
     val statsBar = mason.createView(this)
     statsBar.display = Display.Flex
     statsBar.flexDirection = FlexDirection.Row
@@ -158,417 +655,107 @@ class WebActivity : AppCompatActivity() {
 
       statsBar.addView(statItem)
     }
-    root.append(statsBar)
+    contentRoot.append(statsBar)
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // SECTION: Popular Destinations
-    // ════════════════════════════════════════════════════════════════════════════
-    val destSection = mason.createView(this)
-    destSection.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
+    // additional sections omitted for brevity in this rebuild; keep existing samples minimal
+  }
 
-    val destHeader = mason.createView(this)
-    destHeader.display = Display.Flex
-    destHeader.flexDirection = FlexDirection.Row
-    destHeader.style.justifyContent = JustifyContent.SpaceBetween
-    destHeader.style.alignItems = AlignItems.Center
-    destHeader.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+  private fun pricingSample() {
+    clearContent()
+    contentRoot.style.background = "#F8FAFC"
+    val pricingSection = mason.createView(this)
+    pricingSection.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
+    val title = mason.createTextView(this, TextType.H2)
+    title.append("Pricing Plans")
+    title.fontSize = 22
+    title.fontWeight = FontFace.NSCFontWeight.Bold
+    pricingSection.addView(title)
 
-    val destTitle = mason.createTextView(this, TextType.H2)
-    destTitle.append("Popular Destinations")
-    destTitle.fontSize = 22
-    destTitle.fontWeight = FontFace.NSCFontWeight.Bold
-    destTitle.color = "#1E293B".toCSSColorInt()
-    destHeader.addView(destTitle)
-
-    val viewAllLink = mason.createTextView(this, TextType.A)
-    viewAllLink.append("View All")
-    viewAllLink.fontSize = 14
-    viewAllLink.fontWeight = FontFace.NSCFontWeight.SemiBold
-    viewAllLink.color = "#3B82F6".toCSSColorInt()
-    destHeader.addView(viewAllLink)
-
-    destSection.addView(destHeader)
-
-    // Destinations Grid - 2x2
-    val destGrid = mason.createView(this)
-    destGrid.display = Display.Grid
-    destGrid.style.gridTemplateColumns = "1fr 1fr"
-    destGrid.style.gap =
-      Size(LengthPercentage.Points(toPx(12f)), LengthPercentage.Points(toPx(12f)))
-
-    val destinations = listOf(
-      Triple("Paris", "France", "https://picsum.photos/400/300?random=10"),
-      Triple("Tokyo", "Japan", "https://picsum.photos/400/300?random=11"),
-      Triple("New York", "USA", "https://picsum.photos/400/300?random=12"),
-      Triple("London", "UK", "https://picsum.photos/400/300?random=13")
+    val plans = listOf(
+      Triple("Basic", "$9", listOf("1 Project", "Email support")),
+      Triple("Pro", "$29", listOf("10 Projects", "Priority support")),
+      Triple("Enterprise", "Contact", listOf("Unlimited Projects", "Dedicated support"))
     )
 
-    for ((city, country, imageUrl) in destinations) {
+    val row = mason.createView(this)
+    row.display = Display.Flex
+    row.flexDirection = FlexDirection.Row
+    row.style.gap = Size(LengthPercentage.Points(toPx(12f)), LengthPercentage.Points(0f))
+    row.style.padding = Rect.withPx(0f, toPx(8f), 0f, toPx(8f))
+
+    for ((name, price, features) in plans) {
       val card = mason.createView(this)
       card.display = Display.Flex
       card.flexDirection = FlexDirection.Column
-      card.style.borderRadius = "${toPx(16f)}px"
-      card.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
-      card.style.setSizeHeight(toPx(200f), 1.toByte())
-      card.style.position = Position.Relative
+      card.style.background = "#FFFFFF"
+      card.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+      card.style.borderRadius = "12px"
 
-      // Full-bleed background image
-      val cardImage = mason.createImageView(this)
-      cardImage.style.position = Position.Absolute
-      cardImage.style.inset = Rect.zeroAuto
-      cardImage.style.setSizeWidth(1f, 2.toByte())
-      cardImage.style.setSizeHeight(1f, 2.toByte())
-      cardImage.objectFit = ObjectFit.Cover
-      cardImage.src = imageUrl
-      card.addView(cardImage)
+      val n = mason.createTextView(this, TextType.H3)
+      n.append(name)
+      n.fontSize = 18
+      n.fontWeight = FontFace.NSCFontWeight.SemiBold
+      card.addView(n)
 
-      // Gradient overlay for text readability
-      val cardOverlay = mason.createView(this)
-      cardOverlay.style.position = Position.Absolute
-      cardOverlay.style.inset = Rect.zeroAuto
-      cardOverlay.style.background =
-        "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6) 100%)"
-      card.addView(cardOverlay)
+      val p = mason.createTextView(this, TextType.Span)
+      p.append(price)
+      p.fontSize = 20
+      p.fontWeight = FontFace.NSCFontWeight.Bold
+      p.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
+      card.addView(p)
 
-      // Text content positioned at bottom
-      val cardContent = mason.createView(this)
-      cardContent.display = Display.Flex
-      cardContent.flexDirection = FlexDirection.Column
-      cardContent.style.justifyContent = JustifyContent.FlexEnd
-      cardContent.style.position = Position.Absolute
-      cardContent.style.inset = Rect.zeroAuto
-      cardContent.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+      for (f in features) {
+        val fv = mason.createTextView(this, TextType.Span)
+        fv.append("• $f")
+        fv.fontSize = 13
+        fv.style.marginBottom = LengthPercentageAuto.Points(toPx(6f))
+        fv.style.setLineHeight(20f, false)
+        card.addView(fv)
+      }
 
-      val cardTitle = mason.createTextView(this, TextType.H3)
-      cardTitle.append(city)
-      cardTitle.fontSize = 20
-      cardTitle.fontWeight = FontFace.NSCFontWeight.Bold
-      cardTitle.color = "#FFFFFF".toCSSColorInt()
-      cardContent.addView(cardTitle)
-
-      val cardSubtitle = mason.createTextView(this, TextType.P)
-      cardSubtitle.append(country)
-      cardSubtitle.fontSize = 14
-      cardSubtitle.color = "#E2E8F0".toCSSColorInt()
-      cardContent.addView(cardSubtitle)
-
-      card.addView(cardContent)
-      destGrid.addView(card)
+      row.addView(card)
     }
 
-    destSection.addView(destGrid)
-    root.append(destSection)
+    pricingSection.addView(row)
+    contentRoot.append(pricingSection)
+  }
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // FEATURE SHOWCASE
-    // ════════════════════════════════════════════════════════════════════════════
-    val featureSection = mason.createView(this)
-    featureSection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
+  private fun faqSample() {
+    clearContent()
+    contentRoot.style.background = "#FFFFFF"
+    val faqSection = mason.createView(this)
+    faqSection.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
+    val title = mason.createTextView(this, TextType.H2)
+    title.append("Frequently Asked Questions")
+    title.fontSize = 22
+    title.fontWeight = FontFace.NSCFontWeight.Bold
+    faqSection.addView(title)
 
-    val featureCard = mason.createView(this)
-    featureCard.display = Display.Flex
-    featureCard.flexDirection = FlexDirection.Column
-    featureCard.style.background = "#0F172A"
-    featureCard.style.borderRadius = "${toPx(20f)}px"
-    featureCard.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
-
-    val featureLabel = mason.createTextView(this, TextType.Span)
-    featureLabel.append("WHY CHOOSE US")
-    featureLabel.fontSize = 11
-    featureLabel.fontWeight = FontFace.NSCFontWeight.SemiBold
-    featureLabel.color = "#60A5FA".toCSSColorInt()
-    featureLabel.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
-    featureCard.addView(featureLabel)
-
-    val featureTitle = mason.createTextView(this, TextType.H2)
-    featureTitle.append("Travel with Confidence")
-    featureTitle.fontSize = 24
-    featureTitle.fontWeight = FontFace.NSCFontWeight.Bold
-    featureTitle.color = "#FFFFFF".toCSSColorInt()
-    featureTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
-    featureCard.addView(featureTitle)
-
-    val featureDesc = mason.createTextView(this, TextType.P)
-    featureDesc.append("Expert local guides, 24/7 support, and flexible booking options make your journey seamless.")
-    featureDesc.fontSize = 15
-    featureDesc.color = "#94A3B8".toCSSColorInt()
-    featureDesc.style.marginBottom = LengthPercentageAuto.Points(toPx(20f))
-    featureCard.addView(featureDesc)
-
-    // Feature icons row
-    val featureIcons = mason.createView(this)
-    featureIcons.display = Display.Flex
-    featureIcons.flexDirection = FlexDirection.Row
-    featureIcons.style.gap =
-      Size(LengthPercentage.Points(toPx(16f)), LengthPercentage.Points(0f))
-
-    for (feature in listOf("🛡️ Secure", "⭐ Rated", "🌍 Global")) {
-      val featureItem = mason.createTextView(this, TextType.Span)
-      featureItem.append(feature)
-      featureItem.fontSize = 13
-      featureItem.color = "#CBD5E1".toCSSColorInt()
-      featureItem.style.flexShrink = 0f
-      featureIcons.addView(featureItem)
-    }
-    featureCard.addView(featureIcons)
-
-    featureSection.addView(featureCard)
-    root.append(featureSection)
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // TESTIMONIALS
-    // ════════════════════════════════════════════════════════════════════════════
-    val testimonialSection = mason.createView(this)
-    testimonialSection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
-
-    val testimonialsTitle = mason.createTextView(this, TextType.H2)
-    testimonialsTitle.append("What Travelers Say")
-    testimonialsTitle.fontSize = 22
-    testimonialsTitle.fontWeight = FontFace.NSCFontWeight.Bold
-    testimonialsTitle.color = "#1E293B".toCSSColorInt()
-    testimonialsTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
-    testimonialSection.addView(testimonialsTitle)
-
-    val h100 = ceil(toPx(100f)).toInt()
-    val h150 = ceil(toPx(150f)).toInt()
-
-    val testimonials = listOf(
-      Triple(
-        "Sarah M.",
-        "Amazing experience! The app made planning so easy.",
-        "https://i.pravatar.cc/$h100?img=1"
+    val faqs = listOf(
+      Pair("How do I book?", "Select a destination and follow the booking flow."),
+      Pair(
+        "Can I change my dates?",
+        "Yes — modify booking from your profile up to 24 hours before travel."
       ),
-      Triple(
-        "James K.",
-        "Best travel app I've ever used. Highly recommend!",
-        "https://i.pravatar.cc/$h100?img=3"
-      )
+      Pair("Refund policy?", "Refunds processed within 7-10 business days.")
     )
 
-    for ((name, quote, avatarUrl) in testimonials) {
-      val testimonialCard = mason.createView(this)
-      testimonialCard.display = Display.Flex
-      testimonialCard.flexDirection = FlexDirection.Row
-      testimonialCard.style.background = "#FFFFFF"
-      testimonialCard.style.borderRadius = "${toPx(16f)}px"
-      testimonialCard.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
-      testimonialCard.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
-      testimonialCard.style.border = "1px solid #E5E7EB"
+    for ((q, a) in faqs) {
+      val qv = mason.createTextView(this, TextType.H3)
+      qv.append(q)
+      qv.fontSize = 16
+      qv.fontWeight = FontFace.NSCFontWeight.SemiBold
+      qv.style.marginBottom = LengthPercentageAuto.Points(toPx(6f))
+      faqSection.addView(qv)
 
-      // Avatar
-      val avatarContainer = mason.createView(this)
-      avatarContainer.style.setSizeWidth(toPx(48f), 1.toByte())
-      avatarContainer.style.setSizeHeight(toPx(48f), 1.toByte())
-      avatarContainer.style.setMinSizeWidth(toPx(48f), 1.toByte())
-      avatarContainer.style.setMinSizeHeight(toPx(48f), 1.toByte())
-      avatarContainer.style.borderRadius = "50%"
-      avatarContainer.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
-      avatarContainer.style.marginRight = LengthPercentageAuto.Points(toPx(12f))
-      avatarContainer.style.flexShrink = 0f
-      avatarContainer.style.position = Position.Relative
-
-      val avatar = mason.createImageView(this)
-      avatar.style.position = Position.Absolute
-      avatar.style.inset = Rect.zeroAuto
-      avatar.style.setSizeWidth(1f, 2.toByte())
-      avatar.style.setSizeHeight(1f, 2.toByte())
-      avatar.objectFit = ObjectFit.Cover
-      avatar.src = avatarUrl
-      avatarContainer.addView(avatar)
-      testimonialCard.addView(avatarContainer)
-
-      // Content
-      val testimonialContent = mason.createView(this)
-      testimonialContent.display = Display.Flex
-      testimonialContent.flexDirection = FlexDirection.Column
-      testimonialContent.style.flexGrow = 1f
-
-      // Stars
-      val stars = mason.createTextView(this, TextType.Span)
-      stars.append("★★★★★")
-      stars.fontSize = 14
-      stars.color = "#FBBF24".toCSSColorInt()
-      stars.style.marginBottom = LengthPercentageAuto.Points(toPx(4f))
-      testimonialContent.addView(stars)
-
-      val quoteText = mason.createTextView(this, TextType.P)
-      quoteText.append("\"$quote\"")
-      quoteText.fontSize = 14
-      quoteText.color = "#475569".toCSSColorInt()
-      quoteText.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
-      testimonialContent.addView(quoteText)
-
-      val authorName = mason.createTextView(this, TextType.Span)
-      authorName.append(name)
-      authorName.fontSize = 13
-      authorName.fontWeight = FontFace.NSCFontWeight.SemiBold
-      authorName.color = "#1E293B".toCSSColorInt()
-      testimonialContent.addView(authorName)
-
-      testimonialCard.addView(testimonialContent)
-      testimonialSection.addView(testimonialCard)
-    }
-    root.append(testimonialSection)
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // TRAVEL GALLERY
-    // ════════════════════════════════════════════════════════════════════════════
-    val gallerySection = mason.createView(this)
-    gallerySection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
-
-    val galleryTitle = mason.createTextView(this, TextType.H2)
-    galleryTitle.append("Travel Gallery")
-    galleryTitle.fontSize = 22
-    galleryTitle.fontWeight = FontFace.NSCFontWeight.Bold
-    galleryTitle.color = "#1E293B".toCSSColorInt()
-    galleryTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
-    gallerySection.addView(galleryTitle)
-
-    // Masonry-style gallery using two flex columns
-    val galleryGrid = mason.createView(this)
-    galleryGrid.display = Display.Flex
-    galleryGrid.flexDirection = FlexDirection.Row
-    galleryGrid.style.gap =
-      Size(LengthPercentage.Points(toPx(8f)), LengthPercentage.Points(0f))
-
-    val current = Random(System.currentTimeMillis())
-    val seed1 = current.nextInt(1, Int.MAX_VALUE)
-    val seed2 = current.nextInt(1, Int.MAX_VALUE)
-    val seed3 = current.nextInt(1, Int.MAX_VALUE)
-    val seed4 = current.nextInt(1, Int.MAX_VALUE)
-
-    // Column 1: 150px then 100px
-    val col1 = mason.createView(this)
-    col1.display = Display.Flex
-    col1.flexDirection = FlexDirection.Column
-    col1.style.flexGrow = 1f
-    col1.style.flexBasis = Dimension.Points(0f)
-    col1.style.gap = Size(LengthPercentage.Points(0f), LengthPercentage.Points(toPx(8f)))
-
-    // Column 2: 100px then 150px
-    val col2 = mason.createView(this)
-    col2.display = Display.Flex
-    col2.flexDirection = FlexDirection.Column
-    col2.style.flexGrow = 1f
-    col2.style.flexBasis = Dimension.Points(0f)
-    col2.style.gap = Size(LengthPercentage.Points(0f), LengthPercentage.Points(toPx(8f)))
-
-    val galleryImages = listOf(
-      Triple("https://picsum.photos/seed/${seed1}/${h150}/${h150}", 150, col1),
-      Triple("https://picsum.photos/seed/${seed2}/${h100}/${h100}", 100, col2),
-      Triple("https://picsum.photos/seed/${seed3}/${h100}/${h100}", 100, col1),
-      Triple("https://picsum.photos/seed/${seed4}/${h150}/${h150}", 150, col2)
-    )
-
-    for ((imageUrl, height, column) in galleryImages) {
-      val galleryItem = mason.createView(this)
-      galleryItem.style.setSizeHeight(toPx(height.toFloat()), 1.toByte())
-      galleryItem.style.borderRadius = "${toPx(12f)}px"
-      galleryItem.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
-      galleryItem.style.position = Position.Relative
-
-      val galleryImage = mason.createImageView(this)
-      galleryImage.style.position = Position.Absolute
-      galleryImage.style.inset = Rect.zeroAuto
-      galleryImage.style.setSizeWidth(1f, 2.toByte())
-      galleryImage.style.setSizeHeight(1f, 2.toByte())
-      galleryImage.objectFit = ObjectFit.Cover
-      galleryImage.src = imageUrl
-      galleryItem.addView(galleryImage)
-
-      column.addView(galleryItem)
+      val av = mason.createTextView(this, TextType.P)
+      av.append(a)
+      av.fontSize = 14
+      av.style.setLineHeight(22f, false)
+      av.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+      faqSection.addView(av)
     }
 
-    galleryGrid.addView(col1)
-    galleryGrid.addView(col2)
-    gallerySection.addView(galleryGrid)
-    root.append(gallerySection)
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // CTA SECTION
-    // ════════════════════════════════════════════════════════════════════════════
-    val ctaSection = mason.createView(this)
-    ctaSection.display = Display.Flex
-    ctaSection.flexDirection = FlexDirection.Column
-    ctaSection.style.alignItems = AlignItems.Center
-    ctaSection.style.padding = Rect.uniform(
-      LengthPercentage.Points(32f)
-    )
-    ctaSection.style.margin = Rect.withPxAuto(0f, toPx(24f), toPx(24f), toPx(24f))
-    ctaSection.style.background = "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)"
-    ctaSection.style.borderRadius = "${toPx(20f)}px"
-
-
-    val ctaTitle = mason.createTextView(this, TextType.H2)
-    ctaTitle.append("Start Your Journey")
-    ctaTitle.fontSize = 26
-    ctaTitle.fontWeight = FontFace.NSCFontWeight.Bold
-    ctaTitle.color = "#FFFFFF".toCSSColorInt()
-    ctaTitle.style.textAlign = TextAlign.Center
-    ctaTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
-    ctaSection.addView(ctaTitle)
-
-    val ctaSubtitle = mason.createTextView(this, TextType.P)
-    ctaSubtitle.append("Join millions of happy travelers today")
-    ctaSubtitle.fontSize = 15
-    ctaSubtitle.style.color = "rgba(255,255,255,0.9)".toCSSColorInt()
-    ctaSubtitle.style.textAlign = TextAlign.Center
-    ctaSubtitle.style.marginBottom = LengthPercentageAuto.Points(toPx(20f))
-    ctaSection.addView(ctaSubtitle)
-
-    val ctaButton = mason.createButton(this)
-    ctaButton.append("Get Started Free")
-    ctaButton.style.fontSize = 16
-    ctaButton.style.fontWeight = FontFace.NSCFontWeight.SemiBold
-    ctaButton.style.color = "#3B82F6".toCSSColorInt()
-    ctaButton.style.background = "#FFFFFF"
-    ctaButton.style.borderRadius = "${toPx(12f)}px"
-    ctaButton.style.border = "0"
-    ctaButton.style.padding = Rect.withPx(toPx(14f), toPx(32f), toPx(14f), toPx(32f))
-    ctaButton.style.textWrap = org.nativescript.mason.masonkit.Styles.TextWrap.NoWrap
-
-    ctaSection.addView(ctaButton)
-    root.append(ctaSection)
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // FOOTER
-    // ════════════════════════════════════════════════════════════════════════════
-    val footer = mason.createView(this)
-    footer.display = Display.Flex
-    footer.flexDirection = FlexDirection.Column
-    footer.style.alignItems = AlignItems.Center
-    footer.style.padding = Rect.withPx(toPx(32f), toPx(24f), toPx(48f), toPx(24f))
-    footer.style.background = "#1E293B"
-
-    val footerLogo = mason.createTextView(this, TextType.Span)
-    footerLogo.append("✈ Wanderlust")
-    footerLogo.fontSize = 20
-    footerLogo.fontWeight = FontFace.NSCFontWeight.Bold
-    footerLogo.color = "#FFFFFF".toCSSColorInt()
-    footerLogo.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
-    footer.addView(footerLogo)
-
-    val footerLinks = mason.createView(this)
-    footerLinks.display = Display.Flex
-    footerLinks.flexDirection = FlexDirection.Row
-    footerLinks.style.gap = Size(LengthPercentage.Points(toPx(24f)), LengthPercentage.Points(0f))
-    footerLinks.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
-
-    for (linkText in listOf("About", "Privacy", "Terms", "Contact")) {
-      val link = mason.createTextView(this, TextType.A)
-      link.append(linkText)
-      link.fontSize = 14
-      link.color = "#94A3B8".toCSSColorInt()
-      footerLinks.addView(link)
-    }
-    footer.addView(footerLinks)
-
-    val copyright = mason.createTextView(this, TextType.P)
-    copyright.append("© 2024 Wanderlust. All rights reserved.")
-    copyright.fontSize = 12
-    copyright.color = "#64748B".toCSSColorInt()
-    footer.addView(copyright)
-
-    root.append(footer)
+    contentRoot.append(faqSection)
   }
 }

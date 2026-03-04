@@ -74,23 +74,25 @@ class Background {
   var color: UIColor? {
     set {
       guard let color = newValue else {
-        style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, 0, text: true)
-        style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT, text: true)
-        style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+        style.setUInt32(StyleKeys.BACKGROUND_COLOR, 0)
+        style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
+        style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.INHERIT)
+        style.notifyTextStyleChanged(.backgroundColor)
         return
       }
       
       
-      style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, color.toUInt32(), text: true)
-      style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
-      style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+      style.setUInt32(StyleKeys.BACKGROUND_COLOR, color.toUInt32())
+      style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+      style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.SET)
+      style.notifyTextStyleChanged(.backgroundColor)
     }
     get {
-      if(style.getUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, text: true) != StyleState.SET){
+      if(style.getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
         return nil
       }
       
-      return UIColor.colorFromARGB(style.getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true))
+      return UIColor.colorFromARGB(style.getUInt32(StyleKeys.BACKGROUND_COLOR))
     }
   }
   var layers: [BackgroundLayer] = []
@@ -139,8 +141,8 @@ class Background {
     
     
     let newValue = color?.toUInt32() ?? 0
-    style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
-    style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
+    style.setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
+    style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
     // change view as well ??
     // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     

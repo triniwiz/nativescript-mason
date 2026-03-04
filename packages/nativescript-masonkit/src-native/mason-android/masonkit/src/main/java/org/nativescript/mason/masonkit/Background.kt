@@ -56,19 +56,21 @@ class Background(
   var color: Int?
     set(value) {
       if (value == null) {
-        style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
-        style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, 0)
+        style.values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
+        style.values.putInt(StyleKeys.BACKGROUND_COLOR, 0)
+        style.values.putInt(StyleKeys.BACKGROUND_COLOR_TYPE, 0)
         return
       }
 
-      style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
+      style.values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+      style.values.putInt(StyleKeys.BACKGROUND_COLOR, value)
+      style.values.putInt(StyleKeys.BACKGROUND_COLOR_TYPE, 1)
     }
     get() {
-      if (style.textValues.get(TextStyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
+      if (style.values.get(StyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
         return null
       }
-      return style.textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
+      return style.values.getInt(StyleKeys.BACKGROUND_COLOR)
     }
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()

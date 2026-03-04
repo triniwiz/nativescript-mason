@@ -232,7 +232,8 @@ extension CSSBorderRenderer {
       if !parts.isEmpty {
           if !style.inBatch {
             // border radius ?
-            style.isDirty = Int64(StateKeys.border.rawValue)
+            style.isDirty |= StateKeys.border.low
+            style.isDirtyHigh |= StateKeys.border.high
             style.updateNativeStyle()
           }
       }

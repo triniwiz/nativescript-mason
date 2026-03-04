@@ -420,8 +420,8 @@ func replaceChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) 
   element.replaceChildAt(node: node, index)
 }
 
-func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: String) {
-  element.syncStyle(state, textState)
+func syncStyle<T: MasonElement>(_ element: T,_ low: String, _ high: String) {
+  element.syncStyle(low, high)
 }
 
 
@@ -451,9 +451,9 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
     element.dispatch(event)
   }
   
-  @objc public func mason_syncStyle(_ state: String, _ textState: String){
+  @objc public func mason_syncStyle(_ low: String, _ high: String){
     guard let element = self as? MasonElement else { return }
-    element.syncStyle(state, textState)
+    element.syncStyle(low, high)
   }
   
   @objc public func mason_addView(_ view: UIView){

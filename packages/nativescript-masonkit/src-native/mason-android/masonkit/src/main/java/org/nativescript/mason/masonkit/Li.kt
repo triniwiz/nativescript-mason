@@ -170,15 +170,14 @@ class Li @JvmOverloads constructor(
   }
 
 
-
   override val style: Style
     get() = node.style
 
   override val view: View
     get() = this
 
-  override fun onTextStyleChanged(change: Int) {
-    Node.invalidateDescendantTextViews(node, change)
+  override fun onChange(low: Long, high: Long) {
+    Node.invalidateDescendantTextViews(node, low, high)
   }
 
   private fun findFirstTextBaseline(view: View): Int {

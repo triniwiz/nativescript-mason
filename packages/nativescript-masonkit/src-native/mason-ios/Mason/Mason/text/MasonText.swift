@@ -330,13 +330,13 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   public var textValues: NSMutableData {
     get {
-      return style.textValues
+      return style.values
     }
   }
   
   
-  public func onTextStyleChanged(change: Int64) {
-    engine.onTextStyleChanged(change: change)
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    engine.onStyleChange(low, high)
   }
   
   
@@ -475,10 +475,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
       break
     case .H3:
-      fontSize = 18
+      fontSize = 20
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(12 * scale), .Points(0))
+      style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(8 * scale), .Points(0))
       break
     case .H4:
       fontSize = 16

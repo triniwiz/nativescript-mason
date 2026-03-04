@@ -14,7 +14,6 @@ import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
-import android.text.style.UnderlineSpan
 import android.text.style.UpdateLayout
 import android.util.DisplayMetrics
 import android.util.TypedValue
@@ -103,15 +102,22 @@ class TextEngine(val container: TextContainer) {
   }
 
 
-  fun onTextStyleChanged(change: Int, paint: Paint, displayMetrics: DisplayMetrics) {
+  fun onTextStyleChanged(low: Long, high: Long, paint: Paint, displayMetrics: DisplayMetrics) {
     var dirty = false
     var layout = false
-    if (change and TextStyleChangeMask.COLOR != 0) {
+
+    if (StateKeys.hasFlag(
+        low, high, StateKeys.FONT_COLOR
+      )
+    ) {
       paint.color = style.resolvedColor
       dirty = true
     }
 
-    if (change and TextStyleChangeMask.FONT_SIZE != 0) {
+    if (StateKeys.hasFlag(
+        low, high, StateKeys.FONT_SIZE
+      )
+    ) {
       val fontSize = style.resolvedFontSize
       if (fontSize == 0) {
         paint.textSize = 0f
@@ -126,7 +132,14 @@ class TextEngine(val container: TextContainer) {
       dirty = true
     }
 
-    if (change and TextStyleChangeMask.FONT_WEIGHT != 0 || change and TextStyleChangeMask.FONT_STYLE != 0 || change and TextStyleChangeMask.FONT_FAMILY != 0) {
+    if (StateKeys.hasFlag(
+        low, high, StateKeys.FONT_WEIGHT
+      ) || StateKeys.hasFlag(
+        low, high, StateKeys.FONT_STYLE
+      ) || StateKeys.hasFlag(
+        low, high, StateKeys.FONT_FAMILY
+      )
+    ) {
       style.resolvedFontFace.font?.let {
         paint.typeface = it
         dirty = true
@@ -135,19 +148,45 @@ class TextEngine(val container: TextContainer) {
 
 
     if (
-      change and TextStyleChangeMask.TEXT_WRAP != 0 ||
-      change and TextStyleChangeMask.WHITE_SPACE != 0 ||
-      change and TextStyleChangeMask.TEXT_TRANSFORM != 0 ||
-      change and TextStyleChangeMask.DECORATION_LINE != 0 ||
-      change and TextStyleChangeMask.DECORATION_COLOR != 0 ||
-      change and TextStyleChangeMask.DECORATION_STYLE != 0 ||
-      change and TextStyleChangeMask.LETTER_SPACING != 0 ||
-      change and TextStyleChangeMask.TEXT_JUSTIFY != 0 ||
-      change and TextStyleChangeMask.BACKGROUND_COLOR != 0 ||
-      change and TextStyleChangeMask.LINE_HEIGHT != 0 ||
-      change and TextStyleChangeMask.TEXT_ALIGN != 0 ||
-      change and TextStyleChangeMask.TEXT_OVERFLOW != 0 ||
-      change and TextStyleChangeMask.TEXT_SHADOW != 0
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_WRAP
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.WHITE_SPACE
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_TRANSFORM
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.DECORATION_LINE
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.DECORATION_COLOR
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.DECORATION_STYLE
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.LETTER_SPACING
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_JUSTIFY
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.BACKGROUND_COLOR
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.LINE_HEIGHT
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_ALIGN
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_OVERFLOW
+      ) ||
+      StateKeys.hasFlag(
+        low, high, StateKeys.TEXT_SHADOWS
+      )
 
     ) {
       dirty = true
@@ -635,9 +674,9 @@ class TextEngine(val container: TextContainer) {
           }
 
           VerticalAlign.Bottom -> {
-              metrics.ascent = 0
-              metrics.descent = height
-            }
+            metrics.ascent = 0
+            metrics.descent = height
+          }
 
           VerticalAlign.Sub -> {
             metrics.ascent = -(height - parentFm.descent)
@@ -683,7 +722,8 @@ class TextEngine(val container: TextContainer) {
           }
           if (parentWidth > 0) width = parentWidth
         }
-      } catch (_: Throwable) {}
+      } catch (_: Throwable) {
+      }
 
       return width
     }
@@ -858,12 +898,14 @@ class TextEngine(val container: TextContainer) {
       val bstyle = container.style
       val hasBackgroundDrawable = (container.node.view as? View)?.background != null
       val padding = bstyle.padding
-      val hasPadding = padding.top.value > 0f || padding.right.value > 0f || padding.bottom.value > 0f || padding.left.value > 0f
+      val hasPadding =
+        padding.top.value > 0f || padding.right.value > 0f || padding.bottom.value > 0f || padding.left.value > 0f
       val size = bstyle.size
       val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto
       val borderWidth = bstyle.borderWidth
       // If any border other than the left is set, don't flatten — web would render a full box
-      val otherBorders = borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f
+      val otherBorders =
+        borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f
       // If radii present, prefer the view-level rendering so corners clip correctly
       val hasRadii = bstyle.mBorderRenderer.hasRadii()
 
@@ -970,9 +1012,11 @@ class TextEngine(val container: TextContainer) {
           is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
             barWidth = leftWidth.points
           }
+
           is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
             // leave default
           }
+
           is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
             // Percent width isn't meaningful for a hairline; ignore
           }
@@ -982,10 +1026,16 @@ class TextEngine(val container: TextContainer) {
         if (leftColor != 0 && leftColor != android.graphics.Color.TRANSPARENT) {
           barColor = leftColor
         }
-      } catch (_: Throwable) {}
+      } catch (_: Throwable) {
+      }
 
       // Leading margin to offset the bar + gap
-      spannable.setSpan(android.text.style.LeadingMarginSpan.Standard((barWidth + gap).toInt()), start, end, flags)
+      spannable.setSpan(
+        android.text.style.LeadingMarginSpan.Standard((barWidth + gap).toInt()),
+        start,
+        end,
+        flags
+      )
       // Draw the bar using a LineBackgroundSpan
       spannable.setSpan(Spans.BlockQuoteBackgroundSpan(barColor, barWidth), start, end, flags)
     }

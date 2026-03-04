@@ -4,7 +4,6 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
-import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
@@ -14,6 +13,10 @@ object NodeStateKeys {
   const val IS_NODE_DIRTY = 0
   const val IS_VIRTUAL = 1
   const val IS_MUTABLE = 2
+
+  // two bytes reserved for pseudo state bitmask (u16)
+  const val PSEUDO_FLAGS_INDEX = 3
+  const val NODE_STATE_BUFFER_SIZE = 5
 }
 
 
@@ -437,7 +440,11 @@ open class Node internal constructor(
     }
 
     // Efficient single-pass invalidation that only walks each TextView once
-    internal fun invalidateDescendantTextViews(node: Node, state: Int) {
+    internal fun invalidateDescendantTextViews(node: Node, state: StateKeys) {
+      invalidateDescendantTextViews(node, state.low, state.high)
+    }
+
+    internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
       // Early exit if node has no initialized text values
       // if (!node.style.isTextValueInitialized) {
       //  return
@@ -446,13 +453,13 @@ open class Node internal constructor(
       // Direct invalidation if this is a TextView
       if (node.view is TextContainer) {
         // Notify all text style changes to ensure paint is fully updated
-        (node.view as StyleChangeListener).onTextStyleChanged(state)
+        (node.view as StyleChangeListener).onChange(low, high)
       }
 
       // Iterate children (only layout children, not author children)
       val size = node.children.size
       for (i in 0 until size) {
-        invalidateDescendantTextViews(node.children[i], state)
+        invalidateDescendantTextViews(node.children[i], low, high)
       }
     }
   }
@@ -500,7 +507,7 @@ open class Node internal constructor(
       }
 
       // Single pass invalidation of descendants with text styles
-      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+      invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
       onNodeAttached?.let { it() }
     }
@@ -699,7 +706,7 @@ open class Node internal constructor(
             }
 
             // Single invalidation pass for the newly inserted child
-            invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+            invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
             // sync native/layout trees
             NodeUtils.syncNode(this, children)
@@ -719,7 +726,7 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
 
       // Single invalidation pass for the newly inserted child
-      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+      invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
@@ -903,7 +910,7 @@ open class Node internal constructor(
           (child.view as? Element)?.invalidateLayout()
 
           // Single invalidation pass
-          invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+          invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
           // sync views/native tree once using the updated children vector
           NodeUtils.syncNode(this, children)
@@ -933,7 +940,7 @@ open class Node internal constructor(
     }
 
     // Single invalidation pass
-    invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+    invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
     NodeUtils.syncNode(this, children)
     if (!style.inBatch) {

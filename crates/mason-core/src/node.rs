@@ -437,9 +437,12 @@ pub enum NodeStateKeys {
     IS_NODE_DIRTY = 0,
     IS_VIRTUAL = 1,
     IS_MUTABLE = 2,
+    // two bytes reserved for pseudo state bitmask (u16)
+    PSEUDO_FLAGS_LOW = 3,
+    PSEUDO_FLAGS_HIGH = 4,
 }
 
-pub const NODE_STATE_BUFFER_SIZE: usize = 3;
+pub const NODE_STATE_BUFFER_SIZE: usize = 5;
 
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -564,13 +567,29 @@ impl Node {
         );
     }
 
+    #[inline]
+    pub fn get_pseudo_states(&self) -> PseudoStates {
+        let low = self.state[NodeStateKeys::PSEUDO_FLAGS_LOW as usize];
+        let high = self.state[NodeStateKeys::PSEUDO_FLAGS_HIGH as usize];
+        let bits = u16::from_ne_bytes([low, high]);
+        PseudoStates::from_bits_truncate(bits)
+    }
+
+    #[inline]
+    pub fn set_pseudo_states(&mut self, flags: PseudoStates) {
+        let bytes = flags.bits().to_ne_bytes();
+        self.state[NodeStateKeys::PSEUDO_FLAGS_LOW as usize] = bytes[0];
+        self.state[NodeStateKeys::PSEUDO_FLAGS_HIGH as usize] = bytes[1];
+    }
+
     pub fn compute_style(&self) -> Style {
         let mut result = self.style.clone();
         if self.is_text_container() && result.is_inline() {
             result.set_size(Size::auto());
         }
 
-        // let flags = node.pseudo_flags;
+        // read pseudo state flags from node state buffer (u16)
+        // let flags = self.get_pseudo_states();
         //
         // if flags.contains(PseudoStateFlags::HOVER) {
         //     if let Some(s) = &node.pseudo_styles.hover {
@@ -646,11 +665,7 @@ pub(crate) fn drain_deferred_cleanup(
     let mut tree = tree.write();
     let mut nd = node_data.write();
     for id in ids {
-        let has_parent = tree
-            .parents
-            .get(id)
-            .map(|p| p.is_some())
-            .unwrap_or(false);
+        let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
         let has_children = tree
             .children
             .get(id)
