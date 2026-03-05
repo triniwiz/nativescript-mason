@@ -702,6 +702,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   private func setup(_ mason: NSCMason, _ type: MasonInputType){
+    node.style.prepareMut()
     node.style.setUInt32(StyleKeys.ITEM_IS_REPLACED, 1)
     node.style.display = Display.InlineBlock
     self.type = type

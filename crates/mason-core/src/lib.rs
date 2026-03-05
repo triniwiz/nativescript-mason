@@ -13,7 +13,7 @@ pub use taffy::style::{
     Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea,
     GridTemplateComponent, GridTemplateRepetition, JustifyContent, LengthPercentage,
     LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
-    RepetitionCount, TextAlign, TrackSizingFunction,
+    RepetitionCount, TextAlign, TrackSizingFunction, Float
 };
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
@@ -394,6 +394,35 @@ impl Mason {
         output
     }
 
+    /// Return transient float rects for a container as a flat Vec<[left,top,right,bottom,...]>
+    pub fn get_float_rects(&self, container_id: Id) -> Vec<f32> {
+        if let Some(rects) = self.0.get_float_rects_simple(container_id) {
+            let mut out = Vec::with_capacity(rects.len() * 4);
+            for r in rects {
+                out.push(r.left);
+                out.push(r.top);
+                out.push(r.right);
+                out.push(r.bottom);
+            }
+            out
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Return float rects including the `node` id for each rect so callers
+    /// can correlate rects with author nodes. Each entry is a tuple
+    /// `(Id, left, top, right, bottom)` in engine logical units.
+    pub fn get_float_rects_with_nodes(&self, container_id: Id) -> Vec<(Id, f32, f32, f32, f32)> {
+        if let Some(rects) = self.0.get_float_rects(container_id) {
+            rects.into_iter()
+                .map(|r| (r.node, r.left, r.top, r.right, r.bottom))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn compute_layout(&mut self, node_id: Id, available_space: Size<AvailableSpace>) {
         let use_rounding = self.0.use_rounding();
         self.0
@@ -584,6 +613,23 @@ impl Mason {
 
     pub fn mark_dirty(&mut self, node: Id) {
         self.0.mark_dirty(node)
+    }
+
+    /// Set the pseudo-state bitmask for a node and mark it dirty.
+    pub fn set_pseudo_states(&mut self, node: Id, flags: u16) {
+        if let Some(node) = self.0.nodes_mut().get_mut(node) {
+            node.set_pseudo_states(crate::node::PseudoStates::from_bits_truncate(flags));
+            node.mark_dirty();
+        }
+    }
+
+    /// Read the pseudo-state bitmask for a node.
+    pub fn get_pseudo_states(&self, node: Id) -> u16 {
+        if let Some(node) = self.0.nodes().get(node) {
+            node.get_pseudo_states().bits()
+        } else {
+            0
+        }
     }
 
     pub fn child_count(&self, node: Id) -> usize {

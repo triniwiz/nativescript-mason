@@ -261,8 +261,27 @@ public class MasonTextLayer: CALayer {
     guard let textView = textView else {
       return
     }
-    // Draw background first
-    textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+    // Draw background first — but skip for paragraph text nodes or when a
+    // parent container supplies a CSS `background` string. This avoids
+    // the text layer filling the whole paragraph when the visual background
+    // should be painted by the containing view instead of the flattened text.
+    var skipBackground = false
+    if let tv = textView as? MasonText {
+      if tv.type == .P { skipBackground = true }
+      let parentBg = tv.node.parent?.style.background.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      if !parentBg.isEmpty { skipBackground = true }
+      #if DEBUG
+      if !skipBackground {
+        print("[MasonTextLayer.draw] drawing background for MasonText node=\(tv.node) type=\(tv.type) background=\(String(describing: tv.node.style.background)) bounds=\(bounds)")
+      } else {
+        print("[MasonTextLayer.draw] skipping background for MasonText node=\(tv.node) type=\(tv.type) parentBackground=\(parentBg) bounds=\(bounds)")
+      }
+      #endif
+    }
+
+    if !skipBackground {
+      textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+    }
 
     // If this is a flattened blockquote, draw an inline left bar (on top of background)
     var flattenedBlockquote = false
@@ -310,14 +329,75 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   private func cachedFrame(for text: NSAttributedString, width: CGFloat) -> CTFrame {
     let key = text.hash ^ width.hashValue
+    #if DEBUG
+    print("???")
+    #endif
     if let cached = frameCache[key] {
       return cached
     }
     
     let framesetter = CTFramesetterCreateWithAttributedString(text)
-    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: .greatestFiniteMagnitude), transform: nil)
+
+    // Build frame path with exclusion holes for floated rects returned by the engine
+    // Avoid using an infinite height for the framesetter path; large
+    // finite values are sufficient and prevent CTFramesetter from doing
+    // pathological work. Prefer the current view height when available.
+    let fallbackHeight: CGFloat = 10000.0
+    let availableHeight = max(self.bounds.height, fallbackHeight)
+    let outerRect = CGRect(x: 0, y: 0, width: width, height: availableHeight)
+
+    var bezier = UIBezierPath(rect: outerRect)
+    bezier.usesEvenOddFillRule = true
+    // Ask for float rects on the containing layout node (parent) so sibling floats are included.
+    let containerNode = node.parent ?? node
+    let containerViewRef = containerNode.view
+
+    // Fetch float rects from engine: each entry is (nativePtr, rect) in logical units
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
+    #if DEBUG
+    print("cachedFrame",floatEntries)
+    #endif
+    let scale = CGFloat(NSCMason.scale)
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
+    #if DEBUG
+    NSLog("[MasonText.cachedFrame.debug] availableHeight=\(availableHeight) textViewOffset=\(textViewOffset) floatEntries(raw)=\(floatEntries.map{ $0.1 })")
+    #endif
+    if floatEntries.count > 0 {
+      let computedPadding = node.computedLayout.padding
+      let paddingLeft = CGFloat(computedPadding.left) / scale
+      for (_, rectLogical) in floatEntries {
+        // NativeHelpers returns unscaled engine values (device pixels).
+        // Convert to UIKit points for the exclusion path and flip Y into the
+        // CTFrame path coordinate space (path uses top-origin with height = availableHeight).
+        let rectW = rectLogical.width / scale
+        let rectH = rectLogical.height / scale
+        let rectX = rectLogical.origin.x / scale
+        let flippedY = availableHeight - ((rectLogical.origin.y + rectLogical.height) / scale)
+        // Convert from container-local points to this text-view-local coordinates
+        // Subtract left padding so measurements match drawing logic
+        let rectForPath = CGRect(x: rectX - textViewOffset.x - paddingLeft, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
+        #if DEBUG
+        NSLog("[MasonText.cachedFrame.debug] float rect converted=\(rectForPath)")
+        #endif
+        bezier.append(UIBezierPath(rect: rectForPath))
+      }
+    }
+
+    let path = bezier.cgPath
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
-    
+
+    let linesCF = CTFrameGetLines(frame)
+    let linesCount = CFArrayGetCount(linesCF)
+    let visibleRange = CTFrameGetVisibleStringRange(frame)
+    let floatRectsPoints = floatEntries.map { (_ , r) in
+      CGRect(x: r.origin.x / scale, y: r.origin.y / scale, width: r.width / scale, height: r.height / scale)
+    }
+    let msg_cf = "[MasonText.cachedFrame] visibleRange=\(visibleRange) pathBBox=\(path.boundingBox) lines=\(linesCount) scale=\(scale) floatRects=\(floatRectsPoints)"
+    #if DEBUG
+    NSLog("%@", msg_cf)
+    #endif
+
     frameCache[key] = frame
     return frame
   }
@@ -409,6 +489,101 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       setNeedsDisplay()
     }
   }
+
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    // Ensure engine layout has been computed for the containing layout so float rects are available
+    let containerNode = node.parent ?? node
+
+    // After normal layout, position floated child views based on engine float rects.
+    #if DEBUG
+    NSLog("[MasonText.layoutSubviews] entering layoutSubviews node=\(node) container=\(containerNode)")
+    NSLog("[MasonText.layoutSubviews] calling nativeNodeGetFloatRectsWithNodes")
+    #endif
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
+    #if DEBUG
+    NSLog("[MasonText.layoutSubviews] returned from nativeNodeGetFloatRectsWithNodes count=\(floatEntries.count)")
+    #endif
+    let scale2 = CGFloat(NSCMason.scale)
+
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale2, y: CGFloat(node.computedLayout.y) / scale2)
+    let computedPadding = node.computedLayout.padding
+    let paddingLeft = CGFloat(computedPadding.left) / scale2
+
+    for (nodePtr, rectLogical) in floatEntries {
+      guard let nativePtr = nodePtr else { continue }
+      // Diagnostic: print the incoming native pointer value and rect
+      #if DEBUG
+      print("[MasonText] float entry nativePtr=\(String(describing: nativePtr)), rect=\(rectLogical)")
+      #endif
+
+      // Find matching child node by nativePtr
+      if let matched = containerNode.children.first(where: { $0.nativePtr == nativePtr }) {
+        // Safety guards: ensure we only position direct children (not the container)
+        if matched.parent !== containerNode {
+          #if DEBUG
+          print("[MasonText] skipping matched node nativePtr=\(String(describing: nativePtr)) because it's not a direct child")
+          #endif
+          continue
+        }
+
+        if let v = matched.view {
+          // Avoid re-parenting or positioning the container's own view
+          if let cview = containerNode.view, cview === v {
+            #if DEBUG
+            print("[MasonText] skipping float placement for nativePtr=\(String(describing: nativePtr)) because view === containerView")
+            #endif
+            continue
+          }
+          #if DEBUG
+          let cl = matched.computedLayout
+          print("[MasonText] matched node nativePtr=\(String(describing: nativePtr)) computedLayout=(w:\(cl.width), h:\(cl.height)) viewFrame=\(String(describing: v.frame))")
+          #endif
+          // NativeHelpers returns unscaled engine values (device pixels).
+          // Convert to UIKit points before sizing the view. Subtract this
+          // text view's container offset and any left padding so the native
+          // view aligns with the exclusion path used by CoreText.
+          let frame = CGRect(x: rectLogical.origin.x / scale2 - textViewOffset.x - paddingLeft,
+                             y: rectLogical.origin.y / scale2 - textViewOffset.y,
+                             width: rectLogical.width / scale2,
+                             height: rectLogical.height / scale2)
+          if v.superview !== self { addSubview(v) }
+          v.frame = frame
+          bringSubviewToFront(v)
+        } else {
+          #if DEBUG
+          print("[MasonText] matched node but view is nil for nativePtr=\(String(describing: nativePtr))")
+          #endif
+        }
+      } else {
+        // No direct match — dump children nativePtr values for diagnosis
+        #if DEBUG
+        let childPtrs = containerNode.children.map { String(describing: $0.nativePtr) }
+        print("[MasonText] no matching child for nativePtr=\(String(describing: nativePtr)). children.nativePtr=\(childPtrs)")
+        #endif
+      }
+    }
+
+    // Diagnostic: log all child view frames + background colors to find which view
+    // is contributing the large cyan fill.
+    #if DEBUG
+    for child in containerNode.children {
+      if let cv = child.view {
+        let bgDesc: String
+        if let c = cv.backgroundColor {
+          bgDesc = "bg:\(c)"
+        } else {
+          bgDesc = "bg: nil"
+        }
+        print("[MasonText.debug] child view=\(cv) frame=\(cv.frame) \(bgDesc) node=\(child)")
+      }
+    }
+    if let cview = node.parent?.view {
+      print("[MasonText.debug] containerView=\(cview) frame=\(cview.frame) bg=\(String(describing: cview.backgroundColor)) bgStyle=\(node.parent?.style.background)")
+    }
+    #endif
+  }
   
   public func addView(_ view: UIView){
     if(view.superview == self){
@@ -448,32 +623,34 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     node.setMeasureFunction(node.measureFunc!)
     let scale = NSCMason.scale
     node.inBatch = true
+    
+    
     switch(type){
     case .None:
-      break
-    case .P:
-      style.display = .Block
-      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
-      break
-    case .Span:
-      style.display = .Inline
-      break
-    case .Code:
-      style.display = .Inline
-      style.fontFamily = "monospace"
-      break
-    case .H1:
-      fontSize = 32
-      style.display = .Block
-      style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
-      break
-    case .H2:
-      fontSize = 24
-      style.display = .Block
-      style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
-      break
+          break
+        case .P:
+          style.display = .Block
+          style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
+          break
+        case .Span:
+          style.display = .Inline
+          break
+        case .Code:
+          style.display = .Inline
+          style.fontFamily = "monospace"
+          break
+        case .H1:
+          fontSize = 32
+          style.display = .Block
+          style.fontWeight = "bold"
+          style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
+          break
+        case .H2:
+          fontSize = 24
+          style.display = .Block
+          style.fontWeight = "bold"
+          style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
+          break
     case .H3:
       fontSize = 20
       style.display = .Block

@@ -240,6 +240,10 @@ struct CMasonNode *mason_node_remove_child(struct CMason *mason,
 
 struct NodeArray *mason_node_get_children(struct CMason *mason, struct CMasonNode *node);
 
+struct CMasonBuffer *mason_node_get_float_rects_buffer(struct CMason *mason, struct CMasonNode *node);
+
+void mason_node_release_float_rects_buffer(struct CMasonBuffer *buffer);
+
 #if !defined(TARGET_OS_ANDROID)
 void mason_node_set_context(struct CMason *mason,
                             struct CMasonNode *node,

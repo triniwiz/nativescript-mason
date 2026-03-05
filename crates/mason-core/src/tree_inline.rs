@@ -409,6 +409,9 @@ struct InlineFormattingContext {
     content_box_top: f32,
     parent_font: FontMetrics,
     text_align: taffy::TextAlign,
+    base_available: f32,
+    content_box_left_base: f32,
+    float_rects: Vec<taffy::Rect<f32>>,
 }
 
 impl InlineFormattingContext {
@@ -418,16 +421,54 @@ impl InlineFormattingContext {
         content_box_top: f32,
         parent_font: FontMetrics,
         text_align: taffy::TextAlign,
+        float_rects: Vec<taffy::Rect<f32>>,
     ) -> Self {
-        Self {
+        let mut s = Self {
             available_width,
             lines: Vec::new(),
             current_line: Line::new(parent_font),
-            content_box_left,
+            content_box_left: content_box_left,
             content_box_top,
             parent_font,
             text_align,
+            base_available: available_width,
+            content_box_left_base: content_box_left,
+            float_rects,
+        };
+
+        // Initialize available width for the first line
+        s.update_available_for_current_line();
+        s
+    }
+
+    fn current_y_offset(&self) -> f32 {
+        let mut sum = 0.0_f32;
+        for line in &self.lines {
+            sum += line.height();
         }
+        sum + self.content_box_top
+    }
+
+    fn update_available_for_current_line(&mut self) {
+        let y = self.current_y_offset();
+        let mut left_occupied = 0.0_f32;
+        let mut right_occupied = 0.0_f32;
+        for fr in &self.float_rects {
+            if fr.top <= y && fr.top + fr.bottom > y {
+                if fr.left <= self.content_box_left_base + 0.1 {
+                    left_occupied += fr.right;
+                } else {
+                    right_occupied += fr.right;
+                }
+            }
+        }
+
+        if self.base_available.is_finite() {
+            self.available_width = (self.base_available - left_occupied - right_occupied).max(0.0);
+        } else {
+            self.available_width = self.base_available;
+        }
+        self.content_box_left = self.content_box_left_base + left_occupied;
     }
 
     fn would_overflow(&self, width: f32) -> bool {
@@ -457,8 +498,11 @@ impl InlineFormattingContext {
     }
 
     fn add_text(&mut self, width: f32, ascent: f32, descent: f32) {
+        // update available width for the current line before measuring overflow
+        self.update_available_for_current_line();
         if self.would_overflow(width) {
             self.wrap_line();
+            self.update_available_for_current_line();
         }
         self.current_line.add_text(width, ascent, descent);
     }
@@ -474,9 +518,10 @@ impl InlineFormattingContext {
         is_virtual: bool,
     ) {
         let total_width = margin.left + size.width + margin.right;
-
+        self.update_available_for_current_line();
         if self.would_overflow(total_width) {
             self.wrap_line();
+            self.update_available_for_current_line();
         }
 
         self.current_line.add_inline_child(
@@ -495,7 +540,9 @@ impl InlineFormattingContext {
     }
 
     fn add_block_child(&mut self, id: Id, size: Size<f32>, margin: taffy::Rect<f32>) {
+        // Block children always start on a fresh line
         self.wrap_line();
+        self.update_available_for_current_line();
 
         let mut block_line = Line::new(self.parent_font);
         block_line.add_block_child(
@@ -1723,12 +1770,14 @@ impl Tree {
                     .into_option()
                     .unwrap_or(f32::INFINITY);
 
+                let float_rects = self.get_float_rects_simple(id).unwrap_or_default();
                 let mut ifc = InlineFormattingContext::new(
                     content_available_width,
                     pb.left,
                     pb.top,
                     parent_font,
                     style.get_text_align(),
+                    float_rects,
                 );
                 ifc.process_items(&prepared_items);
                 let (_, _, placements) = ifc.finalize();
@@ -1923,12 +1972,14 @@ impl Tree {
             .unwrap_or(f32::INFINITY);
 
         // Pass parent_font to the IFC
+        let float_rects = self.get_float_rects_simple(id).unwrap_or_default();
         let mut ifc = InlineFormattingContext::new(
             content_available_width,
             pb.left,
             pb.top,
             parent_font,
             style.get_text_align(),
+            float_rects,
         );
         ifc.process_items(&prepared_items);
 

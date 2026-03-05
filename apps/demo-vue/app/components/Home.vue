@@ -5,12 +5,21 @@
         <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
       <div>
-        <!-- <sspan>Welcome to the New Layout!</sspan>
-        <p @tap="viewFeature('block')">Block</p>
-        <p @tap="viewFeature('flex')">FlexBox</p>
-        <p @tap="viewFeature('grid')">CSSGrid</p> -->
         <input placeholder="Type here..." />
         <input type="button" value="Tapp" />
+      </div>
+
+      <div style="margin:12;">
+        <h3>Float test</h3>
+        <div>
+          <div style="float: left; width: 50px; height: 50px; border: 2px solid red; background: pink;"></div>
+          <p>
+            This paragraph should wrap around the floated box. Lorem ipsum dolor sit amet, consectetur
+            adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi.
+            Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris.
+          </p>
+        </div>
+        <div style="clear: both;"></div>
       </div>
 
         <!--

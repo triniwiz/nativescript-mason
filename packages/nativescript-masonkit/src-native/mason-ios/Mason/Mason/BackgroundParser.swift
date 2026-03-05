@@ -74,6 +74,7 @@ class Background {
   var color: UIColor? {
     set {
       guard let color = newValue else {
+        style.prepareMut()
         style.setUInt32(StyleKeys.BACKGROUND_COLOR, 0)
         style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
         style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.INHERIT)
@@ -81,11 +82,14 @@ class Background {
         return
       }
       
-      
+      style.prepareMut()
       style.setUInt32(StyleKeys.BACKGROUND_COLOR, color.toUInt32())
       style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.SET)
       style.notifyTextStyleChanged(.backgroundColor)
+      #if DEBUG
+      print("[Background.color.set] node=\(style.node) color=\(String(describing: color))")
+      #endif
     }
     get {
       if(style.getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
@@ -139,10 +143,14 @@ class Background {
     self.layers = layers
     self.css = css
     
-    
     let newValue = color?.toUInt32() ?? 0
+    // Ensure we prepare this style for mutation before writing low-level fields.
+    style.prepareMut()
     style.setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
     style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+    #if DEBUG
+    print("[Background.parseBackground] node=\(style.node) newValue=\(newValue) css=\(css)")
+    #endif
     // change view as well ??
     // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     
@@ -309,7 +317,8 @@ internal let colorMap: [String: UIColor] = [
   "orange": .orange,
   "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
   "pink": UIColor.systemPink,
-  "transparent": .clear
+  "transparent": .clear,
+  "cyan": .cyan
 ]
 
 // MARK: - Top-level splitters

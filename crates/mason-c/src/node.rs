@@ -1,7 +1,23 @@
 use std::ffi::{c_float, c_longlong, c_void};
-
+use once_cell::sync::Lazy;
+use std::sync::Mutex as StdMutex;
 use crate::{CMason, CMasonNode};
 use mason_core::{InlineSegment, Size};
+
+static REGISTRY: Lazy<StdMutex<Vec<usize>>> = Lazy::new(|| StdMutex::new(Vec::new()));
+
+fn register_cnode(ptr: *mut CMasonNode) {
+    let mut reg = REGISTRY.lock().unwrap();
+    reg.push(ptr as usize);
+}
+
+fn unregister_cnode(ptr: *mut CMasonNode) {
+    let mut reg = REGISTRY.lock().unwrap();
+    let key = ptr as usize;
+    if let Some(pos) = reg.iter().position(|p| *p == key) {
+        reg.swap_remove(pos);
+    }
+}
 
 #[repr(C)]
 pub enum AvailableSpace {
@@ -199,6 +215,7 @@ pub extern "C" fn mason_node_destroy(node: *mut CMasonNode) {
         return;
     }
     unsafe {
+        unregister_cnode(node);
         let _ = Box::from_raw(node);
     }
 }
@@ -210,7 +227,9 @@ pub extern "C" fn mason_node_new_image_node(mason: *mut CMason) -> *mut CMasonNo
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(mason.create_image_node())))
+        let ptr = Box::into_raw(Box::new(CMasonNode(mason.create_image_node())));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -221,11 +240,14 @@ pub extern "C" fn mason_node_new_node(mason: *mut CMason, anonymous: bool) -> *m
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(if anonymous {
+        let node_ref = if anonymous {
             mason.create_anonymous_node()
         } else {
             mason.create_node()
-        })))
+        };
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_ref)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -247,7 +269,9 @@ pub extern "C" fn mason_node_new_node_with_context(
 
         mason.set_measure(node_id.id(), measure, measure_data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -276,7 +300,9 @@ pub extern "C" fn mason_node_new_node_with_children(
         let node_id = mason.create_node();
         mason.set_children(node_id.id(), &data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -287,11 +313,14 @@ pub extern "C" fn mason_node_new_text_node(mason: *mut CMason, anonymous: bool) 
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(if anonymous {
+        let node_ref = if anonymous {
             mason.create_anonymous_text_node()
         } else {
             mason.create_text_node()
-        })))
+        };
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_ref)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -313,7 +342,9 @@ pub extern "C" fn mason_node_new_text_node_with_context(
 
         mason.set_measure(node_id.id(), measure, measure_data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -342,7 +373,9 @@ pub extern "C" fn mason_node_new_text_node_with_children(
         let node_id = mason.create_text_node();
         mason.set_children(node_id.id(), &data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -360,7 +393,9 @@ pub extern "C" fn mason_node_new_line_break_node(
 
         let node_id = mason.create_line_break_node();
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -383,7 +418,9 @@ pub extern "C" fn mason_node_new_line_break_node_with_context(
 
         mason.set_measure(node_id.id(), measure, measure_data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -402,7 +439,9 @@ pub extern "C" fn mason_node_new_list_item_node(
 
         let node_id = mason.create_list_item_node();
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -424,7 +463,9 @@ pub extern "C" fn mason_node_new_list_item_node_with_context(
 
         mason.set_measure(node_id.id(), measure, measure_data);
 
-        Box::into_raw(Box::new(CMasonNode(node_id)))
+        let ptr = Box::into_raw(Box::new(CMasonNode(node_id)));
+        register_cnode(ptr);
+        ptr
     }
 }
 
@@ -444,6 +485,103 @@ pub extern "C" fn mason_node_layout(
         let output = mason.layout(node.id());
 
         layout(output.as_ptr())
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_float_rects(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    callback: extern "C" fn(*const c_float) -> *mut c_void,
+) -> *mut c_void {
+    if mason.is_null() || node.is_null() {
+        return callback(std::ptr::null());
+    }
+    unsafe {
+        let mason = &(*mason).0;
+        let node = &(*node).0;
+
+        let output = mason.get_float_rects(node.id());
+
+        callback(output.as_ptr())
+    }
+}
+
+#[repr(C)]
+pub struct CMasonBuffer {
+    pub data: *mut u8,
+    pub size: usize,
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_float_rects_buffer(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut CMasonBuffer {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    unsafe {
+        let mason = &(*mason).0;
+        let node = &(*node).0;
+
+        // Request float rects including node ids from the engine
+        let output = mason.get_float_rects_with_nodes(node.id());
+
+        if output.is_empty() {
+            return Box::into_raw(Box::new(CMasonBuffer { data: std::ptr::null_mut(), size: 0 }));
+        }
+
+        // We'll serialize each entry as: [node_ptr (usize), left(f32), top(f32), right(f32), bottom(f32)]
+        let entry_size = std::mem::size_of::<usize>() + 4 * std::mem::size_of::<f32>();
+        let mut bytes: Vec<u8> = Vec::with_capacity(output.len() * entry_size);
+
+        // Lookup registered CMasonNode pointers and serialize
+        let reg = REGISTRY.lock().unwrap();
+        for (id, left, top, right, bottom) in output.into_iter() {
+            // Find a registered CMasonNode whose inner NodeRef id matches `id`
+            let mut node_ptr_usize: usize = 0;
+            for &entry in reg.iter() {
+                let candidate = entry as *mut CMasonNode;
+                if !candidate.is_null() && unsafe { (*candidate).0.id() == id } {
+                    node_ptr_usize = entry;
+                    break;
+                }
+            }
+
+            // serialize node_ptr_usize (native pointer) in native endianness
+            bytes.extend_from_slice(&node_ptr_usize.to_ne_bytes());
+            bytes.extend_from_slice(&left.to_ne_bytes());
+            bytes.extend_from_slice(&top.to_ne_bytes());
+            bytes.extend_from_slice(&right.to_ne_bytes());
+            bytes.extend_from_slice(&bottom.to_ne_bytes());
+        }
+
+        let mut boxed: Box<[u8]> = bytes.into_boxed_slice();
+        let ptr = boxed.as_mut_ptr();
+        let len = boxed.len();
+        std::mem::forget(boxed);
+
+        Box::into_raw(Box::new(CMasonBuffer { data: ptr, size: len }))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_release_float_rects_buffer(buffer: *mut CMasonBuffer) {
+    if buffer.is_null() {
+        return;
+    }
+
+    unsafe {
+        let buf = Box::from_raw(buffer);
+        if !buf.data.is_null() && buf.size > 0 {
+            // Recover the boxed u8 slice and drop it
+            let count = buf.size;
+            let ptr = buf.data as *mut u8;
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, count));
+        }
+        // buf is dropped here
     }
 }
 
@@ -540,7 +678,11 @@ pub extern "C" fn mason_node_get_child_at(
 
         match mason.child_at_index(node_id.id(), index) {
             None => std::ptr::null_mut(),
-            Some(id) => Box::into_raw(Box::new(CMasonNode(id))),
+            Some(id) => {
+                let ptr = Box::into_raw(Box::new(CMasonNode(id)));
+                register_cnode(ptr);
+                ptr
+            }
         }
     }
 }
@@ -693,7 +835,11 @@ pub extern "C" fn mason_node_replace_child_at(
 
         let ret = mason
             .replace_child_at_index(node_id.id(), child_id.id(), index)
-            .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
+            .map(|v| {
+                let ptr = Box::into_raw(Box::new(CMasonNode(v)));
+                register_cnode(ptr);
+                ptr
+            })
             .unwrap_or_else(std::ptr::null_mut);
 
         ret
@@ -783,6 +929,44 @@ pub extern "C" fn mason_node_mark_dirty(mason: *mut CMason, node: *mut CMasonNod
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_set_pseudo_states(mason: *mut CMason, node: *mut CMasonNode, flags: u16) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason);
+        let node_id = &(*node).0;
+
+        mason.0.set_pseudo_states(node_id.id(), flags);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_pseudo_states(mason: *mut CMason, node: *mut CMasonNode) -> u16 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe {
+        let mason = &*mason;
+        let node_id = &(*node).0;
+        mason.0.get_pseudo_states(node_id.id())
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_has_pseudo_state(mason: *mut CMason, node: *mut CMasonNode, flag: u16) -> bool {
+    if mason.is_null() || node.is_null() {
+        return false;
+    }
+    unsafe {
+        let mason = &*mason;
+        let node_id = &(*node).0;
+        let bits = mason.0.get_pseudo_states(node_id.id());
+        (bits & flag) != 0
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_is_children_same(
     mason: *mut CMason,
     node: *mut CMasonNode,
@@ -840,7 +1024,11 @@ pub extern "C" fn mason_node_remove_child_at(
 
         mason
             .remove_child_at_index(node_id.id(), index)
-            .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
+            .map(|v| {
+                let ptr = Box::into_raw(Box::new(CMasonNode(v)));
+                register_cnode(ptr);
+                ptr
+            })
             .unwrap_or_else(std::ptr::null_mut)
     }
 }
@@ -861,7 +1049,11 @@ pub extern "C" fn mason_node_remove_child(
 
         mason
             .remove_child(node_id.id(), child_id.id())
-            .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
+            .map(|v| {
+                let ptr = Box::into_raw(Box::new(CMasonNode(v)));
+                register_cnode(ptr);
+                ptr
+            })
             .unwrap_or_else(std::ptr::null_mut)
     }
 }
@@ -881,7 +1073,11 @@ pub extern "C" fn mason_node_get_children(
         let buf = mason
             .children(node_id.id())
             .into_iter()
-            .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
+            .map(|v| {
+                let ptr = Box::into_raw(Box::new(CMasonNode(v)));
+                register_cnode(ptr);
+                ptr
+            })
             .collect::<Vec<_>>();
 
         let mut buf = buf.into_boxed_slice();

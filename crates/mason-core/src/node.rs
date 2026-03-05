@@ -12,7 +12,10 @@ use std::sync::Arc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
 use crate::style::arena::{StyleArena, StyleHandle};
-use crate::style::utils::{get_style_data_i8_raw, set_style_data_i8_raw};
+use crate::style::utils::{
+    get_style_data_i8_raw, set_style_data_i8_raw, get_style_data_u32, set_style_data_u32,
+    get_style_data_i32, set_style_data_i32, get_style_data_u8, set_style_data_u8,
+};
 #[cfg(target_os = "android")]
 use crate::{JVM, JVM_CACHE};
 
@@ -411,6 +414,15 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct PseudoStyles {
+    pub hover: Option<crate::style::Style>,
+    pub active: Option<crate::style::Style>,
+    pub focus: Option<crate::style::Style>,
+    pub disabled: Option<crate::style::Style>,
+    pub checked: Option<crate::style::Style>,
+}
+
 /*
 #[derive(Default, Debug, Clone)]
 pub struct PseudoStyles {
@@ -455,6 +467,8 @@ pub struct Node {
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
     pub(crate) state: [u8; NODE_STATE_BUFFER_SIZE],
+    // optional per-node pseudo styles (hover/active/focus/disabled/checked)
+    pub(crate) pseudo_styles: Option<PseudoStyles>,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -471,6 +485,7 @@ impl Node {
             type_: NodeType::Normal,
             is_anonymous: false,
             state: [0u8; NODE_STATE_BUFFER_SIZE],
+            pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -487,8 +502,34 @@ impl Node {
             type_: NodeType::Normal,
             is_anonymous: false,
             state: [0u8; NODE_STATE_BUFFER_SIZE],
+            pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,
+        }
+    }
+
+    /// Attach a pseudo `Style` to this node for the given pseudo state.
+    /// The `style` should have been created with the same arena as the node.
+    pub fn set_pseudo_style(&mut self, state: PseudoStates, style: Style) {
+        if self.pseudo_styles.is_none() {
+            self.pseudo_styles = Some(PseudoStyles::default())
+        }
+        if let Some(p) = &mut self.pseudo_styles {
+            if state.contains(PseudoStates::HOVER) {
+                p.hover = Some(style.clone());
+            }
+            if state.contains(PseudoStates::ACTIVE) {
+                p.active = Some(style.clone());
+            }
+            if state.contains(PseudoStates::FOCUS) {
+                p.focus = Some(style.clone());
+            }
+            if state.contains(PseudoStates::DISABLED) {
+                p.disabled = Some(style.clone());
+            }
+            if state.contains(PseudoStates::CHECKED) {
+                p.checked = Some(style.clone());
+            }
         }
     }
 
@@ -588,38 +629,71 @@ impl Node {
             result.set_size(Size::auto());
         }
 
-        // read pseudo state flags from node state buffer (u16)
-        // let flags = self.get_pseudo_states();
-        //
-        // if flags.contains(PseudoStateFlags::HOVER) {
-        //     if let Some(s) = &node.pseudo_styles.hover {
-        //         result.merge(s);
-        //     }
-        // }
-        //
-        // if flags.contains(PseudoStateFlags::ACTIVE) {
-        //     if let Some(s) = &node.pseudo_styles.active {
-        //         result.merge(s);
-        //     }
-        // }
-        //
-        // if flags.contains(PseudoStateFlags::FOCUS) {
-        //     if let Some(s) = &node.pseudo_styles.focus {
-        //         result.merge(s);
-        //     }
-        // }
-        //
-        // if flags.contains(PseudoStateFlags::DISABLED) {
-        //     if let Some(s) = &node.pseudo_styles.disabled {
-        //         result.merge(s);
-        //     }
-        // }
-        //
-        // if flags.contains(PseudoStateFlags::CHECKED) {
-        //     if let Some(s) = &node.pseudo_styles.checked {
-        //         result.merge(s);
-        //     }
-        // }
+        // Merge pseudo styles (if attached) for commonly-used properties.
+        let flags = self.get_pseudo_states();
+
+        let mut merge_from = |src: &crate::style::Style, dst: &mut crate::style::Style| {
+            // prepare dst for mutation
+            dst.prepare_mut();
+            // Background color (i32) if set in src
+            if get_style_data_u8(src.data(), crate::style::StyleKeys::BACKGROUND_COLOR_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::BACKGROUND_COLOR);
+                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::BACKGROUND_COLOR, v);
+                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::BACKGROUND_COLOR_STATE, 1);
+            }
+            // Font color (u32)
+            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_COLOR_STATE) != 0 {
+                let v = get_style_data_u32(src.data(), crate::style::StyleKeys::FONT_COLOR);
+                set_style_data_u32(dst.data_mut(), crate::style::StyleKeys::FONT_COLOR, v);
+                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_COLOR_STATE, 1);
+            }
+            // Font size (i32)
+            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_SIZE_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::FONT_SIZE);
+                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::FONT_SIZE, v);
+                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_SIZE_STATE, 1);
+            }
+            // Font weight (i32)
+            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_WEIGHT_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::FONT_WEIGHT);
+                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::FONT_WEIGHT, v);
+                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_WEIGHT_STATE, 1);
+            }
+            // Text align (u8)
+            if get_style_data_u8(src.data(), crate::style::StyleKeys::TEXT_ALIGN_STATE) != 0 {
+                let v = get_style_data_i8_raw(src.data(), crate::style::StyleKeys::TEXT_ALIGN as usize);
+                set_style_data_i8_raw(dst.data_mut(), crate::style::StyleKeys::TEXT_ALIGN as usize, v);
+                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::TEXT_ALIGN_STATE, 1);
+            }
+        };
+
+        if let Some(p) = &self.pseudo_styles {
+            if flags.contains(PseudoStates::HOVER) {
+                if let Some(s) = &p.hover {
+                    merge_from(s, &mut result);
+                }
+            }
+            if flags.contains(PseudoStates::ACTIVE) {
+                if let Some(s) = &p.active {
+                    merge_from(s, &mut result);
+                }
+            }
+            if flags.contains(PseudoStates::FOCUS) {
+                if let Some(s) = &p.focus {
+                    merge_from(s, &mut result);
+                }
+            }
+            if flags.contains(PseudoStates::DISABLED) {
+                if let Some(s) = &p.disabled {
+                    merge_from(s, &mut result);
+                }
+            }
+            if flags.contains(PseudoStates::CHECKED) {
+                if let Some(s) = &p.checked {
+                    merge_from(s, &mut result);
+                }
+            }
+        }
 
         result
     }

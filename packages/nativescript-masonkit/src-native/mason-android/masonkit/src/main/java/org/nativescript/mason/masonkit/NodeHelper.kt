@@ -169,6 +169,28 @@ class NodeHelper(val mason: Mason) {
   }
 
 
+  fun getFloat(view: android.view.View): org.nativescript.mason.masonkit.enums.Float {
+    val node = mason.nodeForView(view)
+    return node.style.float
+  }
+
+  fun setFloat(view: android.view.View, value: org.nativescript.mason.masonkit.enums.Float) {
+    val node = mason.nodeForView(view)
+    node.style.float = value
+
+  }
+
+  /**
+   * Returns the float rects computed for the container that contains `view`.
+   * Resulting array is flat `[left, top, width, height, ...]` in engine logical pixels.
+   */
+  fun getFloatRects(view: android.view.View): FloatArray {
+    val node = mason.nodeForView(view)
+    val nodePtr = node.nativePtr
+    return NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), nodePtr)
+  }
+
+
   fun getAlignItems(view: android.view.View): AlignItems {
     val node = mason.nodeForView(view)
     return node.style.alignItems

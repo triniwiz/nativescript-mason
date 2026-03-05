@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
 use crate::style::arena::{StyleArena, StyleHandle};
 use crate::style::style_guard::StyleGuard;
@@ -9,13 +10,7 @@ use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use style_atoms::Atom;
-use taffy::{
-    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
-    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
-    BlockContext, CacheTree, ClearState, CoreStyle, Display, Layout, LayoutBlockContainer,
-    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero,
-    RoundTree, Size, TraversePartialTree, TraverseTree,
-};
+use taffy::{compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, Rect, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree, style::Clear};
 
 new_key_type! {
    pub struct Id;
@@ -53,6 +48,9 @@ pub(crate) struct TreeInner {
     pub(crate) nodes: SlotMap<Id, Node>,
     pub(crate) parents: SecondaryMap<Id, Option<Id>>,
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
+    // Transient float rectangles collected during pre-layout.
+    // Keyed by the container Id (the block/inline container that holds floats).
+    pub(crate) float_context: SecondaryMap<Id, Vec<FloatRect>>,
     pub(crate) use_rounding: bool,
     // small nesting counter to avoid re-entrant inline-run aggregation
     pub(crate) inline_run_nesting: usize,
@@ -81,6 +79,7 @@ impl TreeInner {
             inline_run_pending: Vec::new(),
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
             style_arena: Box::default(),
+            float_context: Default::default(),
         }
     }
 
@@ -89,6 +88,7 @@ impl TreeInner {
             nodes: SlotMap::with_capacity_and_key(value),
             parents: SecondaryMap::with_capacity(value),
             children: SecondaryMap::with_capacity(value),
+            float_context: SecondaryMap::with_capacity(value),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
@@ -119,6 +119,19 @@ impl Default for TreeInner {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FloatRect {
+    // Note: `left`/`top` are the position, `right`/`bottom` are used as
+    // width/height for compatibility with existing `taffy::Rect` usage in
+    // this codebase (i.e. `top + bottom` gives the bottom edge).
+    pub left: f32,
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub side: Float,
+    pub node: Id,
 }
 
 #[derive(Debug, Clone)]
@@ -290,6 +303,258 @@ impl Tree {
             .unwrap_or(vec![])
     }
 
+    /// Clear transient float context before a layout pass.
+    pub fn clear_float_context(&mut self) {
+        self.inner_mut().float_context.clear();
+    }
+
+    /// Collect floated children (by container) into `float_context`.
+    /// This pass only records which children are floated and their side; sizing
+    /// and precise rects are computed in a later step.
+    pub fn collect_floats(&mut self, root: Id) {
+        let mut to_insert: Vec<(Id, Vec<FloatRect>)> = Vec::new();
+        {
+            let inner = self.inner();
+            // Iterate containers and their children, record floated children.
+            for (container_id, children) in inner.children.iter() {
+                // Skip empty lists
+                if children.is_empty() {
+                    continue;
+                }
+
+                let mut floats: Vec<FloatRect> = Vec::new();
+
+                for &child_id in children.iter() {
+                    let node = inner.nodes.get(child_id).unwrap();
+                    let float_side = node.style().get_float();
+                    if float_side != Float::None {
+                        floats.push(FloatRect {
+                            left: 0.0,
+                            top: 0.0,
+                            right: 0.0,
+                            bottom: 0.0,
+                            side: float_side,
+                            node: child_id,
+                        });
+                    }
+                }
+
+                if !floats.is_empty() {
+                    to_insert.push((container_id, floats));
+                }
+            }
+        }
+
+        if !to_insert.is_empty() {
+            let mut inner_mut = self.inner_mut();
+            for (container_id, floats) in to_insert.into_iter() {
+                inner_mut.float_context.insert(container_id, floats);
+            }
+        }
+    }
+
+    /// Measure floated children and populate width/height in `float_context`.
+    /// Uses the provided `available_space` as a parent reference for resolving
+    /// percentage sizes; when a node has a native measure callback, it will be
+    /// invoked.
+    pub fn measure_place_floats(&mut self, _root: Id, available_space: Size<AvailableSpace>) {
+        // Build a list of containers to process under read lock, then perform
+        // measurements by acquiring node_data as needed.
+        let mut work: Vec<(Id, Vec<Id>)> = Vec::new();
+        {
+            let inner = self.inner();
+            for (container_id, floats) in inner.float_context.iter() {
+                let ids = floats.iter().map(|f| f.node).collect::<Vec<_>>();
+                if !ids.is_empty() {
+                    work.push((container_id, ids));
+                }
+            }
+        }
+
+        if work.is_empty() {
+            return;
+        }
+
+        // For measurement we will write back sizes into float_context.
+        for (container_id, ids) in work.into_iter() {
+            for child_id in ids.into_iter() {
+                // Extract measure/style under short locks
+                let (has_measure, style_size, measure) = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    let has_measure = node.has_measure;
+                    let style_size = node.style().get_size();
+                    let measure = self.node_data().get(child_id).unwrap().copy_measure();
+                    (has_measure, style_size, measure)
+                };
+
+                // Resolve style-specified widths/heights against root available space (approx).
+                let parent_w = available_space.width.into_option().unwrap_or(0.0);
+                let parent_h = available_space.height.into_option().unwrap_or(0.0);
+
+                let resolved_width = style_size
+                    .width
+                    .maybe_resolve(parent_w, |_, _| 0.0);
+                let resolved_height = style_size
+                    .height
+                    .maybe_resolve(parent_h, |_, _| 0.0);
+
+                let final_known = taffy::Size {
+                    width: resolved_width,
+                    height: resolved_height,
+                };
+
+                let measured = if !has_measure {
+                    taffy::Size {
+                        width: final_known.width.unwrap_or(0.0),
+                        height: final_known.height.unwrap_or(0.0),
+                    }
+                } else {
+                    measure.measure(final_known, available_space)
+                };
+
+                // Write back into float_context
+                let mut inner_mut = self.inner_mut();
+                if let Some(vec) = inner_mut.float_context.get_mut(container_id) {
+                    if let Some(fr) = vec.iter_mut().find(|f| f.node == child_id) {
+                        fr.right = measured.width; // right := width
+                        fr.bottom = measured.height; // bottom := height
+                    }
+                }
+            }
+
+            // After measuring all floats for this container, assign x/y positions
+            // using a simple left/right stacking algorithm. Margins and clears are
+            // not yet applied here.
+            let container_w = available_space.width.into_option().unwrap_or(0.0);
+            let mut left_offset = 0.0_f32;
+            let mut right_offset = 0.0_f32;
+            // Precompute `clear` values for nodes in this container under a read
+            // lock so we don't need an immutable borrow while holding the
+            // mutable `float_context` entry.
+            let mut clear_map: HashMap<Id, Clear> = HashMap::new();
+            {
+                let inner = self.inner();
+                if let Some(orig_vec) = inner.float_context.get(container_id) {
+                    for fr in orig_vec.iter() {
+                        if let Some(node) = inner.nodes.get(fr.node) {
+                            clear_map.insert(fr.node, node.style().get_clear());
+                        }
+                    }
+                }
+            }
+
+            let mut inner_mut = self.inner_mut();
+            if let Some(vec) = inner_mut.float_context.get_mut(container_id) {
+                // place floats with vertical stacking and clear rules
+                let mut placed: Vec<FloatRect> = Vec::new();
+                for fr in vec.iter_mut() {
+                    let width = fr.right;
+                    let height = fr.bottom;
+                    let side = fr.side;
+                    let clear = *clear_map.get(&fr.node).unwrap_or(&Clear::None);
+
+                    let mut y = 0.0_f32;
+                    // apply clear constraints initially
+                    if matches!(clear, Clear::Left | Clear::Both) {
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            if p.side == Float::Left {
+                                max_bot = max_bot.max(p.top + p.bottom);
+                            }
+                        }
+                        y = y.max(max_bot);
+                    }
+                    if matches!(clear, Clear::Right | Clear::Both) {
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            if p.side == Float::Right {
+                                max_bot = max_bot.max(p.top + p.bottom);
+                            }
+                        }
+                        y = y.max(max_bot);
+                    }
+
+                    loop {
+                        // compute occupied widths at this y
+                        let mut left_occupied = 0.0_f32;
+                        let mut right_occupied = 0.0_f32;
+                        for p in &placed {
+                            let p_top = p.top;
+                            let p_bot = p.top + p.bottom;
+                            if !(p_bot <= y || p_top >= y + height) {
+                                // vertical overlap
+                                if p.side == Float::Left {
+                                    left_occupied += p.right;
+                                } else if p.side == Float::Right {
+                                    right_occupied += p.right;
+                                }
+                            }
+                        }
+
+                        if side == Float::Left {
+                            let x = left_occupied;
+                            if x + width + right_occupied <= container_w + 0.001 {
+                                fr.left = x;
+                                fr.top = y;
+                                placed.push(*fr);
+                                break;
+                            }
+                        } else if side == Float::Right {
+                            let x = (container_w - right_occupied) - width;
+                            if x >= left_occupied - 0.001 {
+                                fr.left = x;
+                                fr.top = y;
+                                placed.push(*fr);
+                                break;
+                            }
+                        } else {
+                            fr.left = left_occupied;
+                            fr.top = y;
+                            placed.push(*fr);
+                            break;
+                        }
+
+                        // advance y to next candidate (smallest bottom > y)
+                        let mut next_y = f32::INFINITY;
+                        for p in &placed {
+                            let bot = p.top + p.bottom;
+                            if bot > y {
+                                next_y = next_y.min(bot);
+                            }
+                        }
+                        if next_y.is_infinite() {
+                            // nothing to advance to; push below current floats
+                            let mut max_bot = 0.0_f32;
+                            for p in &placed {
+                                max_bot = max_bot.max(p.top + p.bottom);
+                            }
+                            y = max_bot;
+                        } else {
+                            y = next_y;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Return cloned float rectangles for a container, if any.
+    pub fn get_float_rects(&self, container_id: Id) -> Option<Vec<FloatRect>> {
+        let inner = self.inner();
+        inner.float_context.get(container_id).cloned()
+    }
+
+    /// Return float rects as `taffy::Rect<f32>` for easier consumption by
+    /// inline layout code.
+    pub fn get_float_rects_simple(&self, container_id: Id) -> Option<Vec<taffy::Rect<f32>>> {
+        let inner = self.inner();
+        inner
+            .float_context
+            .get(container_id)
+            .map(|vec| vec.iter().map(|fr| Rect { left: fr.left, top: fr.top, right: fr.right, bottom: fr.bottom }).collect())
+    }
+
     pub fn children_id(&self, node_id: Id) -> MappedRwLockReadGuard<'_, RawRwLock, Vec<Id>> {
         RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id.into()).unwrap())
     }
@@ -354,6 +619,13 @@ impl Tree {
         // stale pending entries / nesting interfering with cached layouts
         self.inner_mut().inline_run_pending.clear();
         self.set_inline_run_nesting(0);
+
+        // Clear and collect floats for the upcoming layout pass. We record
+        // floated children per container first; then measure them against the
+        // root available space so inline layout can consult approximate sizes.
+        self.clear_float_context();
+        self.collect_floats(root.into());
+        self.measure_place_floats(root.into(), available_space);
 
         compute_root_layout(self, root, available_space);
 

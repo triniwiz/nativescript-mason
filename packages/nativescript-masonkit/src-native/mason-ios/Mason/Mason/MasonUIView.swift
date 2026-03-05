@@ -17,9 +17,21 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   public override func draw(_ rect: CGRect) {
 
-    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
+    let hasBackground: Bool = {
+      if !bgString.isEmpty { return true }
+      if !style.mBackground.layers.isEmpty { return true }
+      if style.mBackground.color != nil { return true }
+      return false
+    }()
     let hasBoxShadow = !style.boxShadows.isEmpty
     let hasBorder = !style.mBorderRender.css.isEmpty
+    
+    if(tag == 1){
+      #if DEBUG
+      print("dodraw", hasBackground, hasBoxShadow, hasBorder, self.backgroundColor)
+      #endif
+    }
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration
     guard hasBackground || hasBoxShadow || hasBorder else { return }
@@ -43,6 +55,17 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       let scale = UIScreen.main.scale
       let expand: CGFloat = 1.0 / scale
       let innerRect = bounds.insetBy(dx: -expand, dy: -expand)
+
+      #if DEBUG
+      let bgString = style.background
+      let bgColorVal = style.backgroundColor
+      let mBgColorDesc = style.mBackground.color != nil ? String(describing: style.mBackground.color!) : "nil"
+      let mBgLayers = style.mBackground.layers.count
+      print("[MasonUIView.draw] drawing background for node=\(node) bounds=\(bounds) bgStyle=\(bgString) bgColor=\(bgColorVal) mBgColor=\(mBgColorDesc) mBgLayers=\(mBgLayers) hasRadii=\(hasRadii)")
+        if bgString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bgColorVal != 0 {
+          print("[MasonUIView.draw] WARNING: numeric bg without css string for node=\(node) bgColor=\(bgColorVal)")
+        }
+      #endif
 
       context.saveGState()
       if hasRadii {
@@ -97,6 +120,11 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     super.layoutSubviews()
     style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
+    #if DEBUG
+    if !(superview is MasonElement) {
+      node.mason.printTree(node)
+    }
+    #endif
 
     // Optimize compositing: set isOpaque for solid opaque backgrounds
     style.mBorderRender.resolve(for: bounds)
@@ -227,6 +255,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       return style.background
     }
     set(value) {
+      // Diagnostic: log assignments to background so we can trace unexpected values
+      #if DEBUG
+      print("[MasonUIView.setBackground] node=\(node) setting background=\(value)")
+      #endif
       style.background = value
       checkAndUpdateStyle()
     }

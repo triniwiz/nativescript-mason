@@ -289,6 +289,31 @@ pub extern "system" fn nativeLayout(
     }
 }
 
+#[no_mangle]
+pub extern "system" fn nativeGetFloatRects(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jfloatArray {
+    if taffy == 0 || node == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        let output = mason.get_float_rects(node_ref.id());
+        let size = output.len();
+        match env.new_float_array(size as i32) {
+            Ok(array) => {
+                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
+                array.into_raw()
+            }
+            Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
 fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     if taffy == 0 || node == 0 {
         return;

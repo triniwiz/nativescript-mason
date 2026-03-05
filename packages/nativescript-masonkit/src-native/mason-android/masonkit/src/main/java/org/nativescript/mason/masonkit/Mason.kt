@@ -459,5 +459,8 @@ class Mason {
     @JvmStatic
     private external fun nativeGetBuffer(mason: Long, handle: Int): Int
 
+    @JvmStatic
+    private external fun nativeNodeGetFloatRects(mason: Long, node: Long): FloatArray
+
   }
 }

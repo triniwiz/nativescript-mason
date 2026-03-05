@@ -46,6 +46,11 @@ typedef struct NodeArray {
   uintptr_t length;
 } NodeArray;
 
+typedef struct CMasonBuffer {
+  uint8_t *data;
+  uintptr_t size;
+} CMasonBuffer;
+
 typedef enum AvailableSpace_Tag {
   Definite,
   MinContent,
@@ -60,11 +65,6 @@ typedef struct AvailableSpace {
     };
   };
 } AvailableSpace;
-
-typedef struct CMasonBuffer {
-  uint8_t *data;
-  uintptr_t size;
-} CMasonBuffer;
 
 typedef struct CMasonMinMax {
   int32_t min_type;
@@ -160,6 +160,15 @@ void *mason_node_layout(struct CMason *mason,
                         struct CMasonNode *node,
                         void *(*layout)(const float*));
 
+void *mason_node_get_float_rects(struct CMason *mason,
+                                 struct CMasonNode *node,
+                                 void *(*callback)(const float*));
+
+struct CMasonBuffer *mason_node_get_float_rects_buffer(struct CMason *mason,
+                                                       struct CMasonNode *node);
+
+void mason_node_release_float_rects_buffer(struct CMasonBuffer *buffer);
+
 void mason_node_compute_wh(struct CMason *mason,
                            struct CMasonNode *node,
                            float width,
@@ -222,6 +231,12 @@ void mason_node_insert_child_after(struct CMason *mason,
 bool mason_node_dirty(struct CMason *mason, struct CMasonNode *node);
 
 void mason_node_mark_dirty(struct CMason *mason, struct CMasonNode *node);
+
+void mason_node_set_pseudo_states(struct CMason *mason, struct CMasonNode *node, uint16_t flags);
+
+uint16_t mason_node_get_pseudo_states(struct CMason *mason, struct CMasonNode *node);
+
+bool mason_node_has_pseudo_state(struct CMason *mason, struct CMasonNode *node, uint16_t flag);
 
 bool mason_node_is_children_same(struct CMason *mason,
                                  struct CMasonNode *node,

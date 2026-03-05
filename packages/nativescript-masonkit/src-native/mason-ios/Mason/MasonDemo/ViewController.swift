@@ -908,6 +908,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }.resume() // Don't forget to start the task!
   }
 
+
   // Clear Mason content and force layout/invalidate on root and native views
   func clearContent() {
    /* DispatchQueue.main.async {
@@ -957,7 +958,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     // Configure Mason scroll body and add to view
     body.style.overflowY = .Scroll
-    body.style.background = "#FFFFFF"
+    //body.style.background = "#FFFFFF"
     // Add body to view and constrain it below the picker
     body.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(body)
@@ -993,21 +994,23 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   @objc func demoChanged(_ sender: UISegmentedControl) {
     // Clear existing content then run the selected sample
     clearContent()
-    switch sender.selectedSegmentIndex {
-    case 0:
-      webTextSample()
-    case 1:
-      textSample()
-    case 2:
-      gridSample()
-    case 3:
-      gallerySample()
-    case 4:
-      hackerNewsSample()
-    default:
-      webTextSample()
-    }
+//    switch sender.selectedSegmentIndex {
+//    case 0:
+//      webTextSample()
+//    case 1:
+//      textSample()
+//    case 2:
+//      gridSample()
+//    case 3:
+//      gallerySample()
+//    case 4:
+//      hackerNewsSample()
+//    default:
+//      webTextSample()
+//    }
 
+    
+    renderFloat(body)
   
 
     // Ensure Mason recomputes layout
@@ -1916,19 +1919,19 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     )
   }
 
-  func renderFloat(_ view: MasonUIView) {
+  func renderFloat(_ view: Scroll) {
     let section = mason.createView()
     let one = mason.createView()
     one.append(text: "1")
     one.configure { it in
-      it.background = "pink"
+      it.background = "purple"
       it.float = .Left
       applyDivStyle(it)
     }
     let two = mason.createView()
     two.append(text: "2")
     two.configure { it in
-      it.background = "pink"
+      it.background = "blue"
       it.float = .Left
       applyDivStyle(it)
     }
@@ -1952,12 +1955,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 """
     )
     section.append(elements: [one, two, three, p])
-
+    
     view.append(section)
     
-    view.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
-    mason.printTree(view.node)
+   // view.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+//                                                                                                                                                                                                     e
   }
   
   

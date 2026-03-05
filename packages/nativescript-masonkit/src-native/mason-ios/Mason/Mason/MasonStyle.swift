@@ -826,6 +826,11 @@ public class MasonStyle: NSObject {
       return
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
+    #if DEBUG
+    if index == StyleKeys.BACKGROUND_COLOR {
+      print("[MasonStyle.setUInt32] BACKGROUND_COLOR write node=\(node) value=\(value)")
+    }
+    #endif
   }
   
   internal func getInt32(_ index: Int) -> Int32 {
@@ -1147,6 +1152,10 @@ public class MasonStyle: NSObject {
     }
     set {
       prepareMut()
+      // DEBUG: log numeric backgroundColor assignments to trace unexpected parents
+      #if DEBUG
+      print("[MasonStyle.setBackgroundColor] node=\(node) value=\(newValue)")
+      #endif
       setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
       setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, 0)
@@ -1214,6 +1223,7 @@ public class MasonStyle: NSObject {
       return getUInt32(StyleKeys.DECORATION_COLOR)
     }
     set {
+      prepareMut()
       setUInt32(StyleKeys.DECORATION_COLOR, newValue)
       setUInt8(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
       notifyTextStyleChanged(StateKeys.decorationColor)
