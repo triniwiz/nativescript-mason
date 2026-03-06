@@ -19,6 +19,14 @@ object NodeStateKeys {
   const val NODE_STATE_BUFFER_SIZE = 5
 }
 
+enum class PseudoState(val mask: Int) {
+  DEFAULT(0),
+  ACTIVE(1),
+  HOVER(2),
+  FOCUS(4),
+  DISABLED(8);
+}
+
 
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
@@ -383,6 +391,122 @@ open class Node internal constructor(
       buffer
     }
   }
+
+  /**
+   * Pseudo-state mask read from the native state buffer (u16).
+   */
+  val pseudoMask: Int
+    get() {
+      try {
+        val buf = stateValue
+        if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+          buf.order(ByteOrder.nativeOrder())
+          return buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+        }
+      } catch (t: Throwable) {
+        // ignore and fallthrough
+      }
+      return 0
+    }
+
+  val pseudoStates: Set<PseudoState>
+    get() {
+      val mask = pseudoMask
+      return PseudoState.entries.filter { it.mask != 0 && (mask and it.mask) != 0 }.toSet()
+    }
+
+
+  fun hasPseudo(state: PseudoState): Boolean {
+    return if (state.mask == 0) pseudoMask == 0 else (pseudoMask and state.mask) != 0
+  }
+
+  fun setPseudo(state: PseudoState, enabled: Boolean) {
+    setPseudo(state, enabled, true)
+  }
+
+  internal fun setPseudo(state: PseudoState, enabled: Boolean, autoDirty: Boolean) {
+    try {
+      val buf = stateValue
+      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+        buf.order(ByteOrder.nativeOrder())
+        val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+        val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
+        buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
+        if (autoDirty) {
+          NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
+        }
+      }
+    } catch (t: Throwable) {
+      // ignore
+    }
+  }
+
+  private val cache = mutableMapOf<Int, ByteBuffer>()
+
+  fun getPseudoBuffer(flags: Int): ByteBuffer {
+    try {
+      val cachedValue = cache[flags]
+      if (cachedValue != null) {
+        return cachedValue
+      }
+      val id = NativeHelpers.nativeGetPseudoStyleBuffer(mason.nativePtr, nativePtr, flags)
+      if (id < 0) {
+        val empty = ByteBuffer.allocateDirect(0)
+        empty.order(ByteOrder.nativeOrder())
+        return empty
+      }
+
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      cache[flags] = buffer
+      return buffer
+    } catch (_: Throwable) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      return empty
+    }
+  }
+
+  fun preparePseudoBuffer(flags: Int): ByteBuffer {
+    try {
+      val cachedValue = cache[flags]
+      if (cachedValue != null) {
+        return cachedValue
+      }
+      val id = NativeHelpers.nativePreparePseudoMut(mason.nativePtr, nativePtr, flags)
+      if (id < 0) {
+        val empty = ByteBuffer.allocateDirect(0)
+        empty.order(ByteOrder.nativeOrder())
+        return empty
+      }
+
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      cache[flags] = buffer
+      return buffer
+    } catch (_: Throwable) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      return empty
+    }
+  }
+
+
+  val isActive: Boolean
+    get() = hasPseudo(PseudoState.ACTIVE)
+
+  val isHover: Boolean
+    get() = hasPseudo(PseudoState.HOVER)
+
+  val isFocused: Boolean
+    get() = hasPseudo(PseudoState.FOCUS)
+
+  val isDisabled: Boolean
+    get() = hasPseudo(PseudoState.DISABLED)
 
   companion object {
 

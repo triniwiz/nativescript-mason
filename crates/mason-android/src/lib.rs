@@ -199,6 +199,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeNewListItem",
                 "nativeNodeNewListItemWithContext",
                 "nativeGetStateBuffer",
+                "nativeGetPseudoStyleBuffer",
+                "nativePreparePseudoMut",
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
@@ -241,6 +243,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(J)J",
                     "(JI)J",
                     "(JJ)I",
+                    "(JJI)I",
+                    "(JJI)I",
                 ]
             } else {
                 [
@@ -282,6 +286,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(J)J",
                     "!(JI)J",
                     "!(JJ)I",
+                    "!(JJI)I",
+                    "!(JJI)I",
                 ]
             };
 
@@ -325,6 +331,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewListItemNodeNormal as *mut c_void,
                     node::NodeNativeNewListItemNodeWithContext as *mut c_void,
                     node::NodeNativeGetStateBuffer as *mut c_void,
+                    node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
+                    node::NodeNativePreparePseudoMut as *mut c_void,
                 ]
             } else {
                 [
@@ -366,6 +374,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewListItemNodeNormal as *mut c_void,
                     node::NodeNativeNewListItemNodeWithContextNormal as *mut c_void,
                     node::NodeNativeGetStateBuffer as *mut c_void,
+                    node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
+                    node::NodeNativePreparePseudoMut as *mut c_void,
                 ]
             };
 

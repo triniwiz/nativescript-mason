@@ -2,8 +2,11 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.enums.Display
@@ -123,26 +126,13 @@ class Button @JvmOverloads constructor(
   override fun drawableStateChanged() {
     super.drawableStateChanged()
 
-    val pressed = isPressed
-
-    alpha = if (pressed) {
-      0.8f
-    } else {
-      1f
-    }
-
-    // Write pseudo-state (active/pressed) into the node state buffer (u16 at index)
+    // Sync pseudo-states via Node API
     try {
-      val buf = node.stateValue
-      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
-        // write native-order short mask (1 = ACTIVE)
-        buf.order(java.nio.ByteOrder.nativeOrder())
-        buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, if (pressed) 1.toShort() else 0.toShort())
-        // mark node dirty so native side will pick up the change
-        NativeHelpers.nativeNodeMarkDirty(node.mason.nativePtr, node.nativePtr)
-      }
-    } catch (t: Throwable) {
-      // ignore if no buffer/native available yet
+      node.setPseudo(PseudoState.ACTIVE, isPressed, false)
+      node.setPseudo(PseudoState.DISABLED, !isEnabled, false)
+      node.setPseudo(PseudoState.FOCUS, isFocused, true)
+    } catch (_: Throwable) {
+      // ignore if node/native not ready
     }
 
     // Force background/border rebuild when pressed state changes
@@ -150,6 +140,27 @@ class Button @JvmOverloads constructor(
     style.mBorderRenderer.invalidate()
 
     invalidate()
+  }
+
+  override fun onHoverEvent(event: MotionEvent): Boolean {
+    when (event.actionMasked) {
+      MotionEvent.ACTION_HOVER_ENTER -> node.setPseudo(PseudoState.HOVER, true)
+      MotionEvent.ACTION_HOVER_EXIT -> node.setPseudo(PseudoState.HOVER, false)
+    }
+    return super.onHoverEvent(event)
+  }
+
+  override fun onTouchEvent(ev: MotionEvent): Boolean {
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_DOWN -> node.setPseudo(PseudoState.ACTIVE, true)
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> node.setPseudo(PseudoState.ACTIVE, false)
+    }
+    return super.onTouchEvent(ev)
+  }
+
+  override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
+    super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+    node.setPseudo(PseudoState.FOCUS, gainFocus)
   }
 
 

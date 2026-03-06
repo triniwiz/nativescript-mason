@@ -533,6 +533,41 @@ impl Node {
         }
     }
 
+    /// Return the attached `Style` for the given pseudo `state`, if any.
+    /// If `state` contains multiple flags, the first matching pseudo style
+    /// is returned in the priority order: HOVER, ACTIVE, FOCUS, DISABLED, CHECKED.
+    pub fn get_pseudo_style(&self, state: PseudoStates) -> Option<Style> {
+        if let Some(p) = &self.pseudo_styles {
+            if state.contains(PseudoStates::HOVER) {
+                if let Some(s) = &p.hover {
+                    return Some(s.clone());
+                }
+            }
+            if state.contains(PseudoStates::ACTIVE) {
+                if let Some(s) = &p.active {
+                    return Some(s.clone());
+                }
+            }
+            if state.contains(PseudoStates::FOCUS) {
+                if let Some(s) = &p.focus {
+                    return Some(s.clone());
+                }
+            }
+            if state.contains(PseudoStates::DISABLED) {
+                if let Some(s) = &p.disabled {
+                    return Some(s.clone());
+                }
+            }
+            if state.contains(PseudoStates::CHECKED) {
+                if let Some(s) = &p.checked {
+                    return Some(s.clone());
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn style(&self) -> &Style {
         &self.style
     }

@@ -175,6 +175,12 @@ public class NativeHelpers {
   @FastNative
   static native int nativeGetStateBuffer(long mason, long node);
 
+  @FastNative
+  static native int nativeGetPseudoStyleBuffer(long mason, long node, int flags);
+
+  @FastNative
+  static native int nativePreparePseudoMut(long mason, long node, int flags);
+
 
   /* Node */
 

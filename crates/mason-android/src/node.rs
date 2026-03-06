@@ -1430,3 +1430,127 @@ pub extern "system" fn NodeNativeGetStateBuffer(
         }
     }
 }
+
+#[no_mangle]
+pub extern "system" fn NodeNativeGetPseudoStyleBuffer(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    #[cfg(target_os = "android")]
+    {
+        if mason == 0 || node == 0 {
+            return -1;
+        }
+
+        unsafe {
+            let mason = &mut *(mason as *mut Mason);
+            let node = &*(node as *mut NodeRef);
+
+            // Try to get an existing platform buffer id first
+            let data = mason.pseudo_style_data(node.id(), flags as u16);
+            if data >= 0 {
+                return data;
+            }
+
+            // Fall back to raw pointer -> create a direct ByteBuffer
+            let (ptr, len) = mason.pseudo_style_data_raw(node.id(), flags as u16);
+
+            if ptr.is_null() || len == 0 {
+                return -1;
+            }
+
+            match env.new_direct_byte_buffer(ptr as _, len) {
+                Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                    Some(cache) => {
+                        let manager = unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
+                        let result = unsafe {
+                            env.call_static_method_unchecked(
+                                manager,
+                                cache.object_manager_add_id,
+                                ReturnType::Primitive(jni::signature::Primitive::Int),
+                                &[jni::sys::jvalue { l: buffer.into_raw() }],
+                            )
+                        };
+
+                        match result {
+                            Ok(result) => result.i().unwrap_or(-1),
+                            Err(_) => -1,
+                        }
+                    }
+                    None => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativePreparePseudoMut(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    #[cfg(target_os = "android")]
+    {
+        if mason == 0 || node == 0 {
+            return -1;
+        }
+
+        unsafe {
+            let mason = &mut *(mason as *mut Mason);
+            let node = &*(node as *mut NodeRef);
+
+            // Try to get existing platform buffer id for prepared pseudo
+            let data = mason.pseudo_style_data_mut(node.id(), flags as u16);
+            if data >= 0 {
+                return data;
+            }
+
+            // Fall back to raw mutable pointer -> create direct ByteBuffer
+            let (ptr, len) = mason.pseudo_style_data_raw_mut(node.id(), flags as u16);
+
+            if ptr.is_null() || len == 0 {
+                return -1;
+            }
+
+            match env.new_direct_byte_buffer(ptr as _, len) {
+                Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                    Some(cache) => {
+                        let manager = unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
+                        let result = unsafe {
+                            env.call_static_method_unchecked(
+                                manager,
+                                cache.object_manager_add_id,
+                                ReturnType::Primitive(jni::signature::Primitive::Int),
+                                &[jni::sys::jvalue { l: buffer.into_raw() }],
+                            )
+                        };
+
+                        match result {
+                            Ok(result) => result.i().unwrap_or(-1),
+                            Err(_) => -1,
+                        }
+                    }
+                    None => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        -1
+    }
+}

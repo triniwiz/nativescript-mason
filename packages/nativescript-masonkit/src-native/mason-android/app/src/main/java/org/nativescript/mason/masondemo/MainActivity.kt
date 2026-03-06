@@ -105,6 +105,12 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    binding.pseudo.setOnClickListener {
+      val intent = Intent(this, PseudoDemoActivity::class.java)
+      startActivity(intent)
+    }
+
+
   }
 
 

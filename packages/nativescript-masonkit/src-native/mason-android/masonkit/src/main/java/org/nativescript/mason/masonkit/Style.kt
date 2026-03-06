@@ -703,6 +703,10 @@ class Style internal constructor(@Transient internal var node: Node) {
           return mPlaceholder
         }
 
+        Log.w("com.test","?? ${nativeGetStyleBuffer(
+          node.mason.nativePtr,
+          node.nativePtr
+        )} ... ${node.view}")
         val buffer =
           ObjectManager.shared[nativeGetStyleBuffer(
             node.mason.nativePtr,
