@@ -16,6 +16,7 @@ import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
 import java.nio.ByteBuffer
+import android.graphics.Paint
 
 val white_space = "\\s+".toRegex()
 
@@ -64,6 +65,29 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+  companion object {
+    // Enable to draw float rects/margins for debugging
+    var DEBUG_FLOAT_OVERLAY: Boolean = false
+  }
+
+  private val debugOutlinePaint = Paint().apply {
+    style = Paint.Style.STROKE
+    strokeWidth = 2f
+    color = android.graphics.Color.RED
+  }
+
+  private val debugMarginPaint = Paint().apply {
+    style = Paint.Style.STROKE
+    strokeWidth = 1f
+    color = android.graphics.Color.CYAN
+  }
+
+  private val debugTextPaint = Paint().apply {
+    style = Paint.Style.FILL
+    color = android.graphics.Color.WHITE
+    textSize = 18f
+  }
+
 
   override fun setTextSize(size: Float) {
     node.style.fontSize = size.toInt()
@@ -89,19 +113,194 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+  private fun ensureScratch(lines: Int) {
+    if (lines <= 0) return
+    if (scratchLeft.size < lines) scratchLeft = IntArray(lines)
+    if (scratchRight.size < lines) scratchRight = IntArray(lines)
+  }
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
     super.onSizeChanged(w, h, oldw, oldh)
+    try {
+      val estimatedLines = kotlin.math.max(1, (h / kotlin.math.max(1f, paint.fontSpacing)).toInt() + 4)
+      ensureScratch(estimatedLines)
+    } catch (_: Throwable) {}
   }
 
+  private val emptyFloats by lazy {
+    Pair(IntArray(0), FloatArray(0))
+  }
+  // Reusable scratch arrays to avoid allocations in onDraw
+  private var scratchLeft = IntArray(0)
+  private var scratchRight = IntArray(0)
   override fun onDraw(canvas: Canvas) {
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
-    ViewUtils.onDraw(this, canvas, style, ignoreBorder) {
-      super.onDraw(it)
+    ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
+      // Query float rects for this view (already mapped to view-local px)
+      val (idsLocal, rectsLocal) = try {
+        NodeHelper.shared.getFloatRectsLocalToView(this)
+      } catch (_: Throwable) {
+        emptyFloats
+      }
+
+      val lineCount = try { layout.lineCount } catch (_: Throwable) { 0 }
+
+      if (rectsLocal.isEmpty() || lineCount == 0) {
+        // No floats — fall back to default draw
+        super.onDraw(c)
+
+        // draw debug overlay if requested
+        if (DEBUG_FLOAT_OVERLAY && rectsLocal.isNotEmpty()) {
+          try {
+            val fcount = rectsLocal.size / 4
+            for (j in 0 until fcount) {
+              val base = j * 4
+              val l = rectsLocal[base]
+              val t = rectsLocal[base + 1]
+              val w = rectsLocal[base + 2]
+              val h = rectsLocal[base + 3]
+              c.drawRect(l, t, l + w, t + h, debugOutlinePaint)
+            }
+          } catch (_: Throwable) {}
+        }
+
+        return@onDraw
+      }
+
+      // Build per-line insets (absolute left and absolute right bounds) in px
+      val widthF = width.toFloat()
+      val padLeft = totalPaddingLeft.toFloat()
+      val padRight = totalPaddingRight.toFloat()
+      val marginLeftView = node.computedLayout.margin.left
+      val marginRightView = node.computedLayout.margin.right
+
+      // deterministic safety gap to avoid glyph overhang clipping
+      // Use a cheap font-derived metric: a small fraction of the font line-height
+      // (descent - ascent). This avoids per-draw `measureText` calls.
+      val fm = paint.fontMetrics
+      var safetyGap = (fm.descent - fm.ascent) * 0.06f
+      if (safetyGap <= 0f) safetyGap = paint.textSize * 0.03f
+      if (safetyGap <= 0f) safetyGap = 1f
+
+
+      // Ensure scratch arrays were preallocated during onMeasure. If they
+      // are not large enough, avoid allocating here (no allocations in onDraw)
+      if (scratchLeft.size < lineCount || scratchRight.size < lineCount) {
+        super.onDraw(c)
+        return@onDraw
+      }
+      val leftArr = scratchLeft
+      val rightArr = scratchRight
+
+      for (lineIndex in 0 until lineCount) {
+        val lineTop = layout.getLineTop(lineIndex).toFloat()
+        val lineBottom = layout.getLineBottom(lineIndex).toFloat()
+
+        var leftInset = 0f
+        var rightInset = 0f
+
+        val fcount = rectsLocal.size / 4
+        for (j in 0 until fcount) {
+          val base = j * 4
+          val l = rectsLocal[base]
+          val t = rectsLocal[base + 1]
+          val w = rectsLocal[base + 2]
+          val h = rectsLocal[base + 3]
+          val r = l + w
+          val b = t + h
+          if (t < lineBottom && b > lineTop) {
+            // Decide side by center-of-float heuristic
+            val mid = l + w * 0.5f
+            if (mid < widthF * 0.5f) {
+              // left float — push text right of float's right edge
+              if (r > leftInset) leftInset = r
+            } else {
+              // right float — push text left of float's left edge
+              if (rightInset == 0f || l < rightInset) rightInset = l
+            }
+          }
+        }
+
+        // leftInset/rightInset are absolute view-local x coordinates when set
+        // apply deterministic safety gap
+        if (leftInset > 0f) leftInset += safetyGap
+        if (rightInset > 0f) rightInset -= safetyGap
+
+        leftArr[lineIndex] = kotlin.math.ceil(leftInset).toInt()
+        // if there is no right float overlapping this line, use full-width as right bound
+        rightArr[lineIndex] = if (rightInset <= 0f) kotlin.math.ceil(widthF).toInt() else kotlin.math.floor(rightInset).toInt()
+      }
+
+      // Group contiguous lines with identical insets and draw per-group
+      var groupStart = 0
+      var prevLeft = leftArr[0]
+      var prevRight = rightArr[0]
+
+      for (i in 1..lineCount) {
+        val currLeft = if (i < lineCount) leftArr[i] else -1
+        val currRight = if (i < lineCount) rightArr[i] else -1
+        if (i == lineCount || currLeft != prevLeft || currRight != prevRight) {
+          val top = layout.getLineTop(groupStart).toFloat()
+          val bottom = layout.getLineBottom(i - 1).toFloat()
+
+          c.save()
+          try {
+            // left/right arrays hold absolute coordinates in view-local content space.
+            val clipLeft = prevLeft.toFloat()
+            val clipRight = prevRight.toFloat()
+
+            // Convert content-space to absolute view coords by adding padding and margins
+            val groupLeftAbs = clipLeft + padLeft + marginLeftView
+            val groupRightAbs = clipRight + padLeft + marginLeftView
+
+            // clamp to content area (inside view padding)
+            val clampedLeft = kotlin.math.max(groupLeftAbs, padLeft)
+            val clampedRight = kotlin.math.min(groupRightAbs, widthF - padRight)
+
+            if (clampedRight <= clampedLeft + 1f) {
+              // Invalid or very small clip — draw full content to avoid clipping
+              super.onDraw(c)
+            } else {
+              c.clipRect(clampedLeft, top, clampedRight, bottom)
+              // Translate so layout.draw starts at the clipped content origin
+              c.translate(groupLeftAbs, 0f)
+              layout.draw(c)
+            }
+          } catch (_: Throwable) {
+            super.onDraw(c)
+          } finally {
+            c.restore()
+          }
+
+          groupStart = i
+          if (i < lineCount) {
+            prevLeft = leftArr[i]
+            prevRight = rightArr[i]
+          }
+        }
+      }
+
+      // Draw debug overlay on top
+      if (DEBUG_FLOAT_OVERLAY) {
+        try {
+          val fcount = rectsLocal.size / 4
+          for (j in 0 until fcount) {
+            val base = j * 4
+            val l = rectsLocal[base]
+            val t = rectsLocal[base + 1]
+            val w = rectsLocal[base + 2]
+            val h = rectsLocal[base + 3]
+            c.drawRect(l, t, l + w, t + h, debugOutlinePaint)
+            if (j < idsLocal.size) {
+              c.drawText(idsLocal[j].toString(), l + 2f, t + 14f, debugTextPaint)
+            }
+          }
+        } catch (_: Throwable) {}
+      }
     }
   }
 
@@ -243,7 +442,7 @@ class TextView @JvmOverloads constructor(
             )
           }
 
-          setOnKeyListener { v, keyCode, event ->
+          setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
               performClick()
               true
@@ -492,6 +691,16 @@ class TextView @JvmOverloads constructor(
         layout.width.toInt(),
         layout.height.toInt(),
       )
+      // Preallocate scratch arrays based on available line count so we avoid
+      // doing allocations during onDraw. Prefer Android's StaticLayout line
+      // count (`this.layout.lineCount`) when present; otherwise estimate from
+      // the computed layout height and font spacing.
+      try {
+        val androidLines = try { this.layout?.lineCount ?: -1 } catch (_: Throwable) { -1 }
+        val estimatedLines = if (androidLines > 0) androidLines + 4 else kotlin.math.max(1, (layout.height / paint.fontSpacing).toInt() + 4)
+        if (scratchLeft.size < estimatedLines) scratchLeft = IntArray(estimatedLines)
+        if (scratchRight.size < estimatedLines) scratchRight = IntArray(estimatedLines)
+      } catch (_: Throwable) {}
     } else {
       // Call super to update Android's internal text Layout (mLayout).
       // Without this, the internal Layout used for rendering may have a stale
@@ -508,6 +717,14 @@ class TextView @JvmOverloads constructor(
         setMeasuredDimension(
           layout.width.toInt(), layout.height.toInt()
         )
+        // When we used Android's measurement, preallocate scratch arrays
+        // based on the Android `layout.lineCount` where possible.
+        try {
+          val androidLines = try { this.layout?.lineCount ?: -1 } catch (_: Throwable) { -1 }
+          val estimatedLines = if (androidLines > 0) androidLines + 4 else kotlin.math.max(1, (measuredHeight / paint.fontSpacing).toInt())
+          if (scratchLeft.size < estimatedLines) scratchLeft = IntArray(estimatedLines)
+          if (scratchRight.size < estimatedLines) scratchRight = IntArray(estimatedLines)
+        } catch (_: Throwable) {}
       }
     }
   }

@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -201,8 +200,6 @@ class View @JvmOverloads constructor(
         mapMeasureSpec(specWidthMode, specWidth).value,
         mapMeasureSpec(specHeightMode, specHeight).value
       )
-
-     node.mason.printTree(node)
     }
 
     val layout = layout()
@@ -231,6 +228,22 @@ class View @JvmOverloads constructor(
       } else {
         layout.contentSize.height.toInt()
       }
+    }
+
+    // Respect incoming MeasureSpec modes so calls to measure(EXACTLY,EXACTLY)
+    // from external consumers (e.g., TextView laying out floated views)
+    // produce the expected measured dimensions instead of relying solely
+    // on the computed layout values.
+    when (specWidthMode) {
+      MeasureSpec.EXACTLY -> width = specWidth
+      MeasureSpec.AT_MOST -> if (width > specWidth) width = specWidth
+      else -> {}
+    }
+
+    when (specHeightMode) {
+      MeasureSpec.EXACTLY -> height = specHeight
+      MeasureSpec.AT_MOST -> if (height > specHeight) height = specHeight
+      else -> {}
     }
 
     setMeasuredDimension(
@@ -2067,8 +2080,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    internal val gson = GsonBuilder()
-      .addSerializationExclusionStrategy(object : ExclusionStrategy {
+    internal val gson = GsonBuilder().addSerializationExclusionStrategy(object : ExclusionStrategy {
         override fun shouldSkipField(f: FieldAttributes): Boolean {
           // Skip Kotlin lazy delegate backing fields (their lambdas capture 'this')
           if (f.name.endsWith("\$delegate")) return true
@@ -2086,8 +2098,7 @@ class View @JvmOverloads constructor(
           // Skip types that create circular references
           return clazz == Node::class.java || clazz == Mason::class.java
         }
-      })
-      .create()
+      }).create()
 
     @JvmStatic
     fun createGridView(mason: Mason, context: Context): View {

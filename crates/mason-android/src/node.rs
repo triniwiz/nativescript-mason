@@ -314,6 +314,42 @@ pub extern "system" fn nativeGetFloatRects(
     }
 }
 
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeGetFloatRectAndroidIds(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jni::sys::jintArray {
+    if taffy == 0 || node == 0 {
+        return env.new_int_array(0_i32).unwrap().into_raw();
+    }
+
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        // Use the richer API to get node ids along with rects
+        let output = mason.get_float_rects_with_nodes(node_ref.id());
+        // Build jint array of android node ids (or -1 if none)
+        let mut ids: Vec<jint> = Vec::with_capacity(output.len());
+        for (id, _l, _t, _r, _b) in output.into_iter() {
+            match mason.get_android_node(id) {
+                Some(v) => ids.push(v),
+                None => ids.push(-1),
+            }
+        }
+
+        let size = ids.len();
+        match env.new_int_array(size as i32) {
+            Ok(arr) => {
+                if let Err(_) = env.set_int_array_region(&arr, 0, ids.as_slice()) {}
+                arr.into_raw()
+            }
+            Err(_) => env.new_int_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
 fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     if taffy == 0 || node == 0 {
         return;

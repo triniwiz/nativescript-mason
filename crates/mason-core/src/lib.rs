@@ -67,6 +67,9 @@ impl JVMCache {
 #[cfg(target_os = "android")]
 pub static JVM_CACHE: std::sync::OnceLock<JVMCache> = std::sync::OnceLock::new();
 
+#[cfg(target_os = "android")]
+use jni::sys::jint;
+
 pub struct MeasureOutput;
 
 impl MeasureOutput {
@@ -385,6 +388,17 @@ impl Mason {
     pub fn clear_android_node(&mut self, node: Id) {
         if let Some(node) = self.0.node_data_mut().get_mut(node) {
             node.android_data = None;
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    /// Return the Android-side node id associated with `node`, if one was set.
+    pub fn get_android_node(&self, node: Id) -> Option<jint> {
+        if let Some(data) = self.0.node_data().get(node) {
+            data.android_data.map(|n| n.0)
+        } else {
+            None
         }
     }
 

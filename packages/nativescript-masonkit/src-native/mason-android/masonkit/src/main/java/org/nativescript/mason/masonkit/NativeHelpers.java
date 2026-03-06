@@ -131,6 +131,9 @@ public class NativeHelpers {
   @FastNative
   static native float[] nativeNodeGetFloatRects(long mason, long node);
 
+  @FastNative
+  static native int[] nativeNodeGetFloatRectAndroidIds(long mason, long node);
+
   @CriticalNative
   static native void nativeNodeSetContext(long mason, long node, int measureFunc);
 

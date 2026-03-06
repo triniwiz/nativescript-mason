@@ -6,6 +6,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -27,11 +29,25 @@ class FloatActivity : AppCompatActivity() {
 
     val body = mason.createView(this)
     enableEdgeToEdge()
+    body.style.setPadding(0f,300f,0f,300f)
     renderFloat(body)
     setContentView(body)
-    ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+    ViewCompat.setOnApplyWindowInsetsListener(body) { v, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+//      body.style.padding = Rect(
+//        LengthPercentage.Points(
+//          systemBars.top.toFloat()
+//        ),
+//        LengthPercentage.Points(
+//          systemBars.right.toFloat()
+//        ),
+//        LengthPercentage.Points(
+//          systemBars.bottom.toFloat()
+//        ),
+//        LengthPercentage.Points(
+//          systemBars.left.toFloat()
+//        )
+//      )
       insets
     }
   }
@@ -39,11 +55,11 @@ class FloatActivity : AppCompatActivity() {
   fun applyDivStyle(style: Style) {
     style.margin = Rect.uniform(LengthPercentageAuto.Points(5f))
     style.size = org.nativescript.mason.masonkit.Size(
-      org.nativescript.mason.masonkit.Dimension.Points(
+      Dimension.Points(
         50f
       ),
-      org.nativescript.mason.masonkit.Dimension.Points(
-        150f
+      Dimension.Points(
+        50f
       )
     )
   }
@@ -53,7 +69,7 @@ class FloatActivity : AppCompatActivity() {
     val one = mason.createView(this)
     one.append("1")
     one.configure {
-      it.background = "pink"
+      it.background = "red"
       it.float = org.nativescript.mason.masonkit.enums.Float.Left
       applyDivStyle(it)
     }

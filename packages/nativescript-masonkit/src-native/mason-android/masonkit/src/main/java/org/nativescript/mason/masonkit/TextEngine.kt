@@ -234,9 +234,6 @@ class TextEngine(val container: TextContainer) {
         )
       }
     }
-
-    // Only update the container's text if there are Mason node children to render.
-    // When node.children is empty (e.g. Button with text set via Android setText),
     // skip setText to avoid wiping externally-set text.
     if (node.children.isNotEmpty()) {
       try {
@@ -365,8 +362,34 @@ class TextEngine(val container: TextContainer) {
     }
 
     // Store the actual measured dimensions (not the constraints)
-    this.measuredTextWidth = measuredWidth
-    this.measuredTextHeight = layout.height.toFloat()
+
+    when (availableWidth) {
+      -1f -> {
+        this.minMeasuredTextWidth = measuredWidth
+      }
+
+      -2f -> {
+        this.maxMeasuredTextWidth = measuredWidth
+      }
+
+      else -> {
+        this.measuredTextWidth = measuredWidth
+      }
+    }
+
+    when (availableHeight) {
+      -1f -> {
+        this.minMeasuredTextHeight = layout.height.toFloat()
+      }
+
+      -2f -> {
+        this.maxMeasuredTextHeight = layout.height.toFloat()
+      }
+
+      else -> {
+        this.measuredTextHeight = layout.height.toFloat()
+      }
+    }
 
     // CRITICAL: Collect and send segments to Rust
     collectAndCacheSegments(layout, spannable, paint)
@@ -398,6 +421,7 @@ class TextEngine(val container: TextContainer) {
   ): Size<Float> {
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
+    val pendingInvalidate = style.fontDirty
     try {
       val layout = measureLayout(
         paint,
@@ -407,15 +431,24 @@ class TextEngine(val container: TextContainer) {
         availableSpace.height ?: Float.NaN
       )
 
+
       // Use the actual measured dimensions from the layout
       val width = if (layout != null) {
-        measuredTextWidth
+        when (availableSpace.width) {
+          -1f -> minMeasuredTextWidth
+          -2f -> maxMeasuredTextWidth
+          else -> measuredTextWidth
+        }
       } else {
         0f
       }
 
       val height = if (layout != null) {
-        measuredTextHeight
+        when (availableSpace.height) {
+          -1f -> minMeasuredTextHeight
+          -2f -> maxMeasuredTextHeight
+          else -> measuredTextHeight
+        }
       } else {
         0f
       }
@@ -434,14 +467,16 @@ class TextEngine(val container: TextContainer) {
       return Size(width, finalHeight)
     } finally {
       style.inMeasure = false
-      // Schedule flush for after Rust releases the read lock.
-      // View.post runs on the next message-loop iteration when the lock is no longer held.
-      (node.view as? View)?.post {
-        if (style.flushPendingMetricsSync()) {
-          node.dirty()
-          (node.view as? View)?.let {
-            it.invalidate()
-            it.requestLayout()
+      if (pendingInvalidate) {
+        // Schedule flush for after Rust releases the read lock.
+        // View.post runs on the next message-loop iteration when the lock is no longer held.
+        (node.view as? View)?.post {
+          if (style.flushPendingMetricsSync()) {
+            node.dirty()
+            (node.view as? View)?.let {
+              it.invalidate()
+              it.requestLayout()
+            }
           }
         }
       }
@@ -564,7 +599,7 @@ class TextEngine(val container: TextContainer) {
     var bitmap: android.graphics.Bitmap? = null
 
     fun updateBitmap(afterLayout: Boolean) {
-      var layout = node.computedLayout
+      val layout = node.computedLayout
       var width = layout.width.toInt()
       var height = layout.height.toInt()
 
@@ -884,8 +919,14 @@ class TextEngine(val container: TextContainer) {
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 
+  private var minMeasuredTextWidth: Float = 0f
+  private var minMeasuredTextHeight: Float = 0f
+
   private var measuredTextWidth: Float = 0f
   private var measuredTextHeight: Float = 0f
+
+  private var maxMeasuredTextWidth: Float = 0f
+  private var maxMeasuredTextHeight: Float = 0f
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
@@ -916,11 +957,7 @@ class TextEngine(val container: TextContainer) {
         return true
       }
 
-      if (!(hasBackgroundDrawable || hasPadding || hasExplicitSize || otherBorders || hasRadii)) {
-        return true
-      } else {
-        return false
-      }
+      return !(hasBackgroundDrawable || hasPadding || hasExplicitSize || otherBorders || hasRadii)
     }
     val style = container.node.style
 
@@ -1007,8 +1044,7 @@ class TextEngine(val container: TextContainer) {
 
       // If the style specifies a left border width, use it (points)
       try {
-        val leftWidth = container.style.borderLeftWidth
-        when (leftWidth) {
+        when (val leftWidth = container.style.borderLeftWidth) {
           is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
             barWidth = leftWidth.points
           }
@@ -1023,7 +1059,7 @@ class TextEngine(val container: TextContainer) {
         }
 
         val leftColor = container.style.borderColor.left
-        if (leftColor != 0 && leftColor != android.graphics.Color.TRANSPARENT) {
+        if (leftColor != 0) {
           barColor = leftColor
         }
       } catch (_: Throwable) {
@@ -1262,8 +1298,12 @@ class TextEngine(val container: TextContainer) {
   internal fun invalidateInlineSegments(markDirty: Boolean = true) {
     segmentsInvalidateVersion += 1
     cachedAttributedString = null
+    minMeasuredTextWidth = 0f
+    minMeasuredTextHeight = 0f
     measuredTextWidth = 0f
     measuredTextHeight = 0f
+    maxMeasuredTextWidth = 0f
+    maxMeasuredTextHeight = 0f
     node.cachedWidth = 0f
     node.cachedHeight = 0f
     if (markDirty) {

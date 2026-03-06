@@ -462,5 +462,8 @@ class Mason {
     @JvmStatic
     private external fun nativeNodeGetFloatRects(mason: Long, node: Long): FloatArray
 
+    @JvmStatic
+    private external fun nativeNodeGetFloatRectAndroidIds(mason: Long, node: Long): IntArray
+
   }
 }
