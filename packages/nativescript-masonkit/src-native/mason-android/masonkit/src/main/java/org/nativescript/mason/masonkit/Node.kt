@@ -21,10 +21,13 @@ object NodeStateKeys {
 
 enum class PseudoState(val mask: Int) {
   DEFAULT(0),
-  ACTIVE(1),
-  HOVER(2),
-  FOCUS(4),
-  DISABLED(8);
+  HOVER(1),         // 1 << 0
+  ACTIVE(2),        // 1 << 1
+  FOCUS(4),         // 1 << 2
+  FOCUS_WITHIN(8),  // 1 << 3
+  FOCUS_VISIBLE(16),// 1 << 4
+  DISABLED(64),     // 1 << 6
+  CHECKED(128);     // 1 << 7
 }
 
 
@@ -586,6 +589,20 @@ open class Node internal constructor(
         invalidateDescendantTextViews(node.children[i], low, high)
       }
     }
+
+    /**
+     * Mark a property as explicitly set in a pseudo style buffer's bitmask.
+     * This enables the merge logic to detect which properties were intentionally
+     * overridden on the pseudo style (vs just cloned from base).
+     */
+
+
+    fun markPseudoSet(buf: ByteBuffer, key: StateKeys) {
+      if (buf.capacity() < StyleKeys.PSEUDO_SET_MASK_HIGH + 8) return
+      buf.putLong(StyleKeys.PSEUDO_SET_MASK_LOW, buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW) or key.low)
+      buf.putLong(StyleKeys.PSEUDO_SET_MASK_HIGH, buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high)
+    }
+
   }
 
   @JvmOverloads

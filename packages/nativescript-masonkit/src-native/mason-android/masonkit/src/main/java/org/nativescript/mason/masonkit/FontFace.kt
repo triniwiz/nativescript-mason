@@ -198,6 +198,16 @@ class FontFace {
       private val Oblique = NSCFontStyle(Style.Oblique)
 
       @JvmStatic
+      fun from(value: Byte): NSCFontStyle? {
+        return when (value) {
+          0.toByte() -> Normal
+          1.toByte() -> Italic
+          2.toByte() -> Oblique
+          else -> null
+        }
+      }
+
+      @JvmStatic
       @JvmOverloads
       fun Oblique(angle: Int = 0): NSCFontStyle {
         if (angle == 0) {

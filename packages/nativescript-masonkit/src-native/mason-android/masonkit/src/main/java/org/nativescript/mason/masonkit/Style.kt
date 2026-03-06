@@ -281,6 +281,12 @@ object StyleKeys {
   const val TEXT_SHADOW_STATE = 395 //byte
   const val TEXT_OVERFLOW = 396
   const val TEXT_OVERFLOW_STATE = 397
+
+  // Pseudo set mask: 128-bit bitmask (two longs) tracking which properties
+  // were explicitly set on a pseudo style buffer. Uses the same bit layout
+  // as StateKeys. Zero-copy: lives in the style buffer itself.
+  const val PSEUDO_SET_MASK_LOW = 398   // long (8 bytes: 398-405)
+  const val PSEUDO_SET_MASK_HIGH = 406  // long (8 bytes: 406-413)
 }
 
 class StateKeys internal constructor(val low: Long, val high: Long) {
@@ -905,7 +911,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var zIndex: Int
     get() {
-      return values.getInt(StyleKeys.Z_INDEX)
+      val base = values.getInt(StyleKeys.Z_INDEX)
+      return resolvePseudo(StateKeys.Z_INDEX, base) { buf -> buf.getInt(StyleKeys.Z_INDEX) }
     }
     set(value) {
       prepareMut()
@@ -916,7 +923,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var objectFit: ObjectFit
     get() {
-      return ObjectFit.from(values.get(StyleKeys.OBJECT_FIT))
+      val base = ObjectFit.from(values.get(StyleKeys.OBJECT_FIT))
+      return resolvePseudo(StateKeys.OBJECT_FIT, base) { buf -> ObjectFit.from(buf.get(StyleKeys.OBJECT_FIT)) }
     }
     set(value) {
       prepareMut()
@@ -927,7 +935,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var float: org.nativescript.mason.masonkit.enums.Float
     get() {
-      return org.nativescript.mason.masonkit.enums.Float.from(values.get(StyleKeys.FLOAT))
+      val base = org.nativescript.mason.masonkit.enums.Float.from(values.get(StyleKeys.FLOAT))
+      return resolvePseudo(StateKeys.FLOAT, base) { buf -> org.nativescript.mason.masonkit.enums.Float.from(buf.get(StyleKeys.FLOAT)) }
     }
     set(value) {
       prepareMut()
@@ -937,7 +946,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var clear: org.nativescript.mason.masonkit.enums.Clear
     get() {
-      return org.nativescript.mason.masonkit.enums.Clear.from(values.get(StyleKeys.CLEAR))
+      val base = org.nativescript.mason.masonkit.enums.Clear.from(values.get(StyleKeys.CLEAR))
+      return resolvePseudo(StateKeys.CLEAR, base) { buf -> org.nativescript.mason.masonkit.enums.Clear.from(buf.get(StyleKeys.CLEAR)) }
     }
     set(value) {
       prepareMut()
@@ -1301,35 +1311,27 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
 
-  var display: Display
-    get() {
-      val mode = DisplayMode.from(values.get(StyleKeys.DISPLAY_MODE))
-      return when (mode) {
-        DisplayMode.None -> {
-          Display.from(values.get(StyleKeys.DISPLAY))
-        }
-
-        DisplayMode.Inline -> {
-          Display.Inline
-        }
-
-        DisplayMode.ListItem -> {
-          Display.ListItem
-        }
-
-        DisplayMode.Box -> {
-          when (Display.from(values.get(StyleKeys.DISPLAY))) {
-            Display.Flex -> Display.InlineFlex
-            Display.Grid -> Display.InlineGrid
-            Display.Block -> Display.InlineBlock
-            else -> {
-              // invalidate state
-              // Block, Flex, Grid
-              throw IllegalStateException("Display cannot be anything other than 0,1,2 when mode is set")
-            }
-          }
+  private fun readDisplayFrom(buf: ByteBuffer): Display {
+    val mode = DisplayMode.from(buf.get(StyleKeys.DISPLAY_MODE))
+    return when (mode) {
+      DisplayMode.None -> Display.from(buf.get(StyleKeys.DISPLAY))
+      DisplayMode.Inline -> Display.Inline
+      DisplayMode.ListItem -> Display.ListItem
+      DisplayMode.Box -> {
+        when (Display.from(buf.get(StyleKeys.DISPLAY))) {
+          Display.Flex -> Display.InlineFlex
+          Display.Grid -> Display.InlineGrid
+          Display.Block -> Display.InlineBlock
+          else -> throw IllegalStateException("Display cannot be anything other than 0,1,2 when mode is set")
         }
       }
+    }
+  }
+
+  var display: Display
+    get() {
+      val base = readDisplayFrom(values)
+      return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
     }
     set(value) {
       var displayMode = DisplayMode.None
@@ -1369,7 +1371,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var position: Position
     get() {
-      return Position.from(values.get(StyleKeys.POSITION))
+      val base = Position.from(values.get(StyleKeys.POSITION))
+      return resolvePseudo(StateKeys.POSITION, base) { buf -> Position.from(buf.get(StyleKeys.POSITION)) }
     }
     set(value) {
       prepareMut()
@@ -1380,7 +1383,8 @@ class Style internal constructor(@Transient internal var node: Node) {
   // TODO
   var direction: Direction
     get() {
-      return Direction.from(values.get(StyleKeys.DIRECTION))
+      val base = Direction.from(values.get(StyleKeys.DIRECTION))
+      return resolvePseudo(StateKeys.DIRECTION, base) { buf -> Direction.from(buf.get(StyleKeys.DIRECTION)) }
     }
     set(value) {
       prepareMut()
@@ -1390,7 +1394,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var flexDirection: FlexDirection
     get() {
-      return FlexDirection.from(values.get(StyleKeys.FLEX_DIRECTION))
+      val base = FlexDirection.from(values.get(StyleKeys.FLEX_DIRECTION))
+      return resolvePseudo(StateKeys.FLEX_DIRECTION, base) { buf -> FlexDirection.from(buf.get(StyleKeys.FLEX_DIRECTION)) }
     }
     set(value) {
       prepareMut()
@@ -1400,7 +1405,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var flexWrap: FlexWrap
     get() {
-      return FlexWrap.from(values.get(StyleKeys.FLEX_WRAP))
+      val base = FlexWrap.from(values.get(StyleKeys.FLEX_WRAP))
+      return resolvePseudo(StateKeys.FLEX_WRAP, base) { buf -> FlexWrap.from(buf.get(StyleKeys.FLEX_WRAP)) }
     }
     set(value) {
       prepareMut()
@@ -1410,10 +1416,11 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var overflow: Point<Overflow>
     get() {
-      return Point(
-        Overflow.from(values.get(StyleKeys.OVERFLOW_X)),
-        Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
-      )
+      val baseX = Overflow.from(values.get(StyleKeys.OVERFLOW_X))
+      val baseY = Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
+      val x = resolvePseudo(StateKeys.OVERFLOW_X, baseX) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_X)) }
+      val y = resolvePseudo(StateKeys.OVERFLOW_Y, baseY) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_Y)) }
+      return Point(x, y)
     }
     set(value) {
       prepareMut()
@@ -1424,7 +1431,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var overflowX: Overflow
     get() {
-      return Overflow.from(values.get(StyleKeys.OVERFLOW_X))
+      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_X))
+      return resolvePseudo(StateKeys.OVERFLOW_X, base) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_X)) }
     }
     set(value) {
       prepareMut()
@@ -1434,7 +1442,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var overflowY: Overflow
     get() {
-      return Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
+      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
+      return resolvePseudo(StateKeys.OVERFLOW_Y, base) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_Y)) }
     }
     set(value) {
       prepareMut()
@@ -1444,7 +1453,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var alignItems: AlignItems
     get() {
-      return AlignItems.from(values.get(StyleKeys.ALIGN_ITEMS))
+      val base = AlignItems.from(values.get(StyleKeys.ALIGN_ITEMS))
+      return resolvePseudo(StateKeys.ALIGN_ITEMS, base) { buf -> AlignItems.from(buf.get(StyleKeys.ALIGN_ITEMS)) }
     }
     set(value) {
       prepareMut()
@@ -1454,7 +1464,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var alignSelf: AlignSelf
     get() {
-      return AlignSelf.from(values.get(StyleKeys.ALIGN_SELF))
+      val base = AlignSelf.from(values.get(StyleKeys.ALIGN_SELF))
+      return resolvePseudo(StateKeys.ALIGN_SELF, base) { buf -> AlignSelf.from(buf.get(StyleKeys.ALIGN_SELF)) }
     }
     set(value) {
       prepareMut()
@@ -1464,7 +1475,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var alignContent: AlignContent
     get() {
-      return AlignContent.from(values.get(StyleKeys.ALIGN_CONTENT))
+      val base = AlignContent.from(values.get(StyleKeys.ALIGN_CONTENT))
+      return resolvePseudo(StateKeys.ALIGN_CONTENT, base) { buf -> AlignContent.from(buf.get(StyleKeys.ALIGN_CONTENT)) }
     }
     set(value) {
       prepareMut()
@@ -1475,7 +1487,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var justifyItems: JustifyItems
     get() {
-      return JustifyItems.from(values.get(StyleKeys.JUSTIFY_ITEMS))
+      val base = JustifyItems.from(values.get(StyleKeys.JUSTIFY_ITEMS))
+      return resolvePseudo(StateKeys.JUSTIFY_ITEMS, base) { buf -> JustifyItems.from(buf.get(StyleKeys.JUSTIFY_ITEMS)) }
     }
     set(value) {
       prepareMut()
@@ -1486,7 +1499,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var justifySelf: JustifySelf
     get() {
-      return JustifySelf.from(values.get(StyleKeys.JUSTIFY_SELF))
+      val base = JustifySelf.from(values.get(StyleKeys.JUSTIFY_SELF))
+      return resolvePseudo(StateKeys.JUSTIFY_SELF, base) { buf -> JustifySelf.from(buf.get(StyleKeys.JUSTIFY_SELF)) }
     }
     set(value) {
       prepareMut()
@@ -1496,7 +1510,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var justifyContent: JustifyContent
     get() {
-      return JustifyContent.from(values.get(StyleKeys.JUSTIFY_CONTENT))
+      val base = JustifyContent.from(values.get(StyleKeys.JUSTIFY_CONTENT))
+      return resolvePseudo(StateKeys.JUSTIFY_CONTENT, base) { buf -> JustifyContent.from(buf.get(StyleKeys.JUSTIFY_CONTENT)) }
     }
     set(value) {
       prepareMut()
@@ -1507,7 +1522,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var align: Align
     get() {
-      return Align.from(values.get(StyleKeys.ALIGN))
+      val base = Align.from(values.get(StyleKeys.ALIGN))
+      return resolvePseudo(StateKeys.ALIGN, base) { buf -> Align.from(buf.get(StyleKeys.ALIGN)) }
     }
     set(value) {
       prepareMut()
@@ -1528,7 +1544,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var boxSizing: BoxSizing
     get() {
-      return BoxSizing.from(values.get(StyleKeys.BOX_SIZING))
+      val base = BoxSizing.from(values.get(StyleKeys.BOX_SIZING))
+      return resolvePseudo(StateKeys.BOX_SIZING, base) { buf -> BoxSizing.from(buf.get(StyleKeys.BOX_SIZING)) }
     }
     set(value) {
       prepareMut()
@@ -1537,22 +1554,19 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
 
+  private fun readInsetFrom(buf: ByteBuffer): Rect<LengthPercentageAuto> {
+    return Rect(
+      left = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_LEFT_TYPE), buf.getFloat(StyleKeys.INSET_LEFT_VALUE))!!,
+      top = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_TOP_TYPE), buf.getFloat(StyleKeys.INSET_TOP_VALUE))!!,
+      right = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_RIGHT_TYPE), buf.getFloat(StyleKeys.INSET_RIGHT_VALUE))!!,
+      bottom = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_BOTTOM_TYPE), buf.getFloat(StyleKeys.INSET_BOTTOM_VALUE))!!
+    )
+  }
+
   var inset: Rect<LengthPercentageAuto>
     get() {
-      return Rect(
-        left = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE)
-        )!!,
-        top = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE)
-        )!!,
-        right = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
-        )!!,
-        bottom = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
-        )!!
-      )
+      val base = readInsetFrom(values)
+      return resolvePseudo(StateKeys.INSET, base) { buf -> readInsetFrom(buf) }
     }
     set(value) {
       prepareMut()
@@ -1625,24 +1639,19 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
   }
 
+  private fun readMarginFrom(buf: ByteBuffer): Rect<LengthPercentageAuto> {
+    return Rect(
+      left = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_LEFT_TYPE), buf.getFloat(StyleKeys.MARGIN_LEFT_VALUE))!!,
+      top = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_TOP_TYPE), buf.getFloat(StyleKeys.MARGIN_TOP_VALUE))!!,
+      right = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_RIGHT_TYPE), buf.getFloat(StyleKeys.MARGIN_RIGHT_VALUE))!!,
+      bottom = LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_BOTTOM_TYPE), buf.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE))!!
+    )
+  }
+
   var margin: Rect<LengthPercentageAuto>
     get() {
-      return Rect(
-        left = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-        )!!,
-        top = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
-        )!!,
-
-        right = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-        )!!,
-        bottom = LengthPercentageAuto.fromTypeValue(
-          values.get(StyleKeys.MARGIN_BOTTOM_TYPE),
-          values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
-        )!!
-      )
+      val base = readMarginFrom(values)
+      return resolvePseudo(StateKeys.MARGIN, base) { buf -> readMarginFrom(buf) }
     }
     set(value) {
       prepareMut()
@@ -1804,29 +1813,19 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
 
+  private fun readPaddingFrom(buf: ByteBuffer): Rect<LengthPercentage> {
+    return Rect(
+      top = LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_TOP_TYPE), buf.getFloat(StyleKeys.PADDING_TOP_VALUE))!!,
+      right = LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_RIGHT_TYPE), buf.getFloat(StyleKeys.PADDING_RIGHT_VALUE))!!,
+      bottom = LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_BOTTOM_TYPE), buf.getFloat(StyleKeys.PADDING_BOTTOM_VALUE))!!,
+      left = LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_LEFT_TYPE), buf.getFloat(StyleKeys.PADDING_LEFT_VALUE))!!
+    )
+  }
+
   var padding: Rect<LengthPercentage>
     get() {
-      val left = LengthPercentage.fromTypeValue(
-        values.get(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
-      )!!
-
-      val top = LengthPercentage.fromTypeValue(
-        values.get(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
-      )!!
-
-      val right = LengthPercentage.fromTypeValue(
-        values.get(StyleKeys.PADDING_RIGHT_TYPE),
-        values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
-      )!!
-
-      val bottom = LengthPercentage.fromTypeValue(
-        values.get(StyleKeys.PADDING_BOTTOM_TYPE),
-        values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
-      )!!
-
-      return Rect(
-        top, right, bottom, left
-      )
+      val base = readPaddingFrom(values)
+      return resolvePseudo(StateKeys.PADDING, base) { buf -> readPaddingFrom(buf) }
     }
     set(value) {
       prepareMut()
@@ -2335,7 +2334,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var flexGrow: Float
     get() {
-      return values.getFloat(StyleKeys.FLEX_GROW)
+      val base = values.getFloat(StyleKeys.FLEX_GROW)
+      return resolvePseudo(StateKeys.FLEX_GROW, base) { buf -> buf.getFloat(StyleKeys.FLEX_GROW) }
     }
     set(value) {
       prepareMut()
@@ -2345,7 +2345,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var flexShrink: Float
     get() {
-      return values.getFloat(StyleKeys.FLEX_SHRINK)
+      val base = values.getFloat(StyleKeys.FLEX_SHRINK)
+      return resolvePseudo(StateKeys.FLEX_SHRINK, base) { buf -> buf.getFloat(StyleKeys.FLEX_SHRINK) }
     }
     set(value) {
       prepareMut()
@@ -2355,10 +2356,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var flexBasis: Dimension
     get() {
-      val type = values.get(StyleKeys.FLEX_BASIS_TYPE)
-      val value = values.getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      // always valid
-      return Dimension.fromTypeValue(type, value)!!
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.FLEX_BASIS_TYPE), values.getFloat(StyleKeys.FLEX_BASIS_VALUE))!!
+      return resolvePseudo(StateKeys.FLEX_BASIS, base) { buf -> Dimension.fromTypeValue(buf.get(StyleKeys.FLEX_BASIS_TYPE), buf.getFloat(StyleKeys.FLEX_BASIS_VALUE))!! }
     }
     set(value) {
       prepareMut()
@@ -2370,7 +2369,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var scrollBarWidth: Float
     get() {
-      return values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
+      val base = values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
+      return resolvePseudo(StateKeys.SCROLLBAR_WIDTH, base) { buf -> buf.getFloat(StyleKeys.SCROLLBAR_WIDTH) }
     }
     set(value) {
       prepareMut()
@@ -2390,14 +2390,16 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var minSize: Size<Dimension>
     get() {
-      val widthType = values.get(StyleKeys.MIN_WIDTH_TYPE)
-      val widthValue = values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-      val width = Dimension.fromTypeValue(widthType, widthValue)
-
-      val heightType = values.get(StyleKeys.MIN_HEIGHT_TYPE)
-      val heightValue = values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-      val height = Dimension.fromTypeValue(heightType, heightValue)
-      return Size(width!!, height!!)
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.MIN_WIDTH_TYPE), values.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.MIN_HEIGHT_TYPE), values.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.MIN_WIDTH_TYPE), buf.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.MIN_HEIGHT_TYPE), buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+        )
+      }
     }
     set(value) {
       prepareMut()
@@ -2449,10 +2451,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       setOrAppendState(StateKeys.MIN_SIZE)
     }
     get() {
-      return Dimension.fromTypeValue(
-        values.get(StyleKeys.MIN_WIDTH_TYPE),
-        values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-      )!!
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MIN_WIDTH_TYPE), values.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf -> Dimension.fromTypeValue(buf.get(StyleKeys.MIN_WIDTH_TYPE), buf.getFloat(StyleKeys.MIN_WIDTH_VALUE))!! }
     }
 
   var minHeight: Dimension
@@ -2463,10 +2463,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       setOrAppendState(StateKeys.MIN_SIZE)
     }
     get() {
-      return Dimension.fromTypeValue(
-        values.get(StyleKeys.MIN_HEIGHT_TYPE),
-        values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-      )!!
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MIN_HEIGHT_TYPE), values.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf -> Dimension.fromTypeValue(buf.get(StyleKeys.MIN_HEIGHT_TYPE), buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!! }
     }
 
 
@@ -2488,14 +2486,16 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var size: Size<Dimension>
     get() {
-      val widthType = values.get(StyleKeys.WIDTH_TYPE)
-      val widthValue = values.getFloat(StyleKeys.WIDTH_VALUE)
-      val width = Dimension.fromTypeValue(widthType, widthValue)
-
-      val heightType = values.get(StyleKeys.HEIGHT_TYPE)
-      val heightValue = values.getFloat(StyleKeys.HEIGHT_VALUE)
-      val height = Dimension.fromTypeValue(heightType, heightValue)
-      return Size(width!!, height!!)
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.WIDTH_TYPE), values.getFloat(StyleKeys.WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.HEIGHT_TYPE), values.getFloat(StyleKeys.HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.WIDTH_TYPE), buf.getFloat(StyleKeys.WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.HEIGHT_TYPE), buf.getFloat(StyleKeys.HEIGHT_VALUE))!!
+        )
+      }
     }
     set(value) {
       prepareMut()
@@ -2542,14 +2542,16 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var maxSize: Size<Dimension>
     get() {
-      val widthType = values.get(StyleKeys.MAX_WIDTH_TYPE)
-      val widthValue = values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-      val width = Dimension.fromTypeValue(widthType, widthValue)
-
-      val heightType = values.get(StyleKeys.MAX_HEIGHT_TYPE)
-      val heightValue = values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-      val height = Dimension.fromTypeValue(heightType, heightValue)
-      return Size(width!!, height!!)
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.MAX_WIDTH_TYPE), values.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.MAX_HEIGHT_TYPE), values.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.MAX_WIDTH_TYPE), buf.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.MAX_HEIGHT_TYPE), buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+        )
+      }
     }
     set(value) {
       prepareMut()
@@ -2600,10 +2602,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       setOrAppendState(StateKeys.MAX_SIZE)
     }
     get() {
-      return Dimension.fromTypeValue(
-        values.get(StyleKeys.MAX_WIDTH_TYPE),
-        values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-      )!!
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MAX_WIDTH_TYPE), values.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf -> Dimension.fromTypeValue(buf.get(StyleKeys.MAX_WIDTH_TYPE), buf.getFloat(StyleKeys.MAX_WIDTH_VALUE))!! }
     }
 
   var maxHeight: Dimension
@@ -2614,23 +2614,23 @@ class Style internal constructor(@Transient internal var node: Node) {
       setOrAppendState(StateKeys.MAX_SIZE)
     }
     get() {
-      return Dimension.fromTypeValue(
-        values.get(StyleKeys.MAX_HEIGHT_TYPE),
-        values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-      )!!
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MAX_HEIGHT_TYPE), values.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf -> Dimension.fromTypeValue(buf.get(StyleKeys.MAX_HEIGHT_TYPE), buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!! }
     }
 
 
   var gap: Size<LengthPercentage>
     get() {
-      val widthType = values.get(StyleKeys.GAP_ROW_TYPE)
-      val widthValue = values.getFloat(StyleKeys.GAP_ROW_VALUE)
-      val width = LengthPercentage.fromTypeValue(widthType, widthValue)
-
-      val heightType = values.get(StyleKeys.GAP_COLUMN_TYPE)
-      val heightValue = values.getFloat(StyleKeys.GAP_COLUMN_VALUE)
-      val height = LengthPercentage.fromTypeValue(heightType, heightValue)
-      return Size(width!!, height!!)
+      val base = Size(
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.GAP_ROW_TYPE), values.getFloat(StyleKeys.GAP_ROW_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.GAP_COLUMN_TYPE), values.getFloat(StyleKeys.GAP_COLUMN_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.GAP, base) { buf ->
+        Size(
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.GAP_ROW_TYPE), buf.getFloat(StyleKeys.GAP_ROW_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.GAP_COLUMN_TYPE), buf.getFloat(StyleKeys.GAP_COLUMN_VALUE))!!
+        )
+      }
     }
     set(value) {
       prepareMut()
@@ -2676,11 +2676,11 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var aspectRatio: Float?
     get() {
-      val value = values.getFloat(StyleKeys.ASPECT_RATIO)
-      return if (value.isNaN()) {
-        null
-      } else {
-        value
+      val raw = values.getFloat(StyleKeys.ASPECT_RATIO)
+      val base: Float? = if (raw.isNaN()) null else raw
+      return resolvePseudo(StateKeys.ASPECT_RATIO, base) { buf ->
+        val v = buf.getFloat(StyleKeys.ASPECT_RATIO)
+        if (v.isNaN()) null else v
       }
     }
     set(value) {
@@ -2784,7 +2784,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var gridAutoFlow: GridAutoFlow
     get() {
-      return GridAutoFlow.from(values.get(StyleKeys.GRID_AUTO_FLOW))
+      val base = GridAutoFlow.from(values.get(StyleKeys.GRID_AUTO_FLOW))
+      return resolvePseudo(StateKeys.GRID_AUTO_FLOW, base) { buf -> GridAutoFlow.from(buf.get(StyleKeys.GRID_AUTO_FLOW)) }
     }
     set(value) {
       prepareMut()
@@ -2951,6 +2952,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         nativeNonBufferData(
           node.mason.nativePtr,
           node.nativePtr,
+          0,
           gridState.gridAutoRows,
           gridState.gridAutoColumns,
           gridState.gridColumn,
@@ -3299,15 +3301,89 @@ class Style internal constructor(@Transient internal var node: Node) {
       return resolvedFont
     }
 
+  // Resolve an Int property with pseudo-state overlay.
+  // Returns the base value unless an active pseudo buffer overrides it.
+  private fun resolvePseudoInt(valueKey: Int, stateKey: Int, base: Int): Int {
+    val mask = node.pseudoMask
+    if (mask == 0) return base
+    var result = base
+    for (state in PSEUDO_CSS_ORDER) {
+      if (mask and state.mask != 0) {
+        val buf = node.getPseudoBuffer(state.mask)
+        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
+          result = buf.getInt(valueKey)
+        }
+      }
+    }
+    return result
+  }
+
+  // Resolve a Byte property with pseudo-state overlay.
+  private fun resolvePseudoByte(valueKey: Int, stateKey: Int, base: Byte): Byte {
+    val mask = node.pseudoMask
+    if (mask == 0) return base
+    var result = base
+    for (state in PSEUDO_CSS_ORDER) {
+      if (mask and state.mask != 0) {
+        val buf = node.getPseudoBuffer(state.mask)
+        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
+          result = buf.get(valueKey)
+        }
+      }
+    }
+    return result
+  }
+
+  // Resolve a Float property with pseudo-state overlay.
+  private fun resolvePseudoFloat(valueKey: Int, stateKey: Int, base: Float): Float {
+    val mask = node.pseudoMask
+    if (mask == 0) return base
+    var result = base
+    for (state in PSEUDO_CSS_ORDER) {
+      if (mask and state.mask != 0) {
+        val buf = node.getPseudoBuffer(state.mask)
+        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
+          result = buf.getFloat(valueKey)
+        }
+      }
+    }
+    return result
+  }
+
+  /**
+   * Generic pseudo resolution using the bitmask. Works for ANY property
+   * (layout or visual) — checks the PSEUDO_SET_MASK bits in the pseudo buffer.
+   * Use this for properties that don't have _STATE bytes.
+   */
+  internal inline fun <T> resolvePseudo(key: StateKeys, base: T, getter: (java.nio.ByteBuffer) -> T): T {
+    val mask = node.pseudoMask
+    if (mask == 0) return base
+    var result = base
+    for (state in PSEUDO_CSS_ORDER) {
+      if (mask and state.mask != 0) {
+        val buf = node.getPseudoBuffer(state.mask)
+        if (buf.capacity() >= StyleKeys.PSEUDO_SET_MASK_HIGH + 8) {
+          val setLow = buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW)
+          val setHigh = buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH)
+          if ((setLow and key.low) != 0L || (setHigh and key.high) != 0L) {
+            result = getter(buf)
+          }
+        }
+      }
+    }
+    return result
+  }
+
   // Resolved properties that handle inheritance
   internal val resolvedColor: Int
     get() {
       val state = values.get(StyleKeys.FONT_COLOR_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedColor ?: values.getInt(StyleKeys.FONT_COLOR)
       } else {
         values.getInt(StyleKeys.FONT_COLOR)
       }
+      return resolvePseudoInt(StyleKeys.FONT_COLOR, StyleKeys.FONT_COLOR_STATE, base)
     }
 
   internal val resolvedFontSize: Int
@@ -3319,13 +3395,15 @@ class Style internal constructor(@Transient internal var node: Node) {
         val parentFontSize =
           node.parent?.takeIf { it.style.isTextValueInitialized }?.style?.resolvedFontSize
             ?: Constants.DEFAULT_FONT_SIZE
-        return resolvePercentageFontSize(parentFontSize, values.getInt(StyleKeys.FONT_SIZE))
+        val base = resolvePercentageFontSize(parentFontSize, values.getInt(StyleKeys.FONT_SIZE))
+        return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base)
       }
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedFontSize ?: values.getInt(StyleKeys.FONT_SIZE)
       } else {
         values.getInt(StyleKeys.FONT_SIZE)
       }
+      return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base)
     }
 
   internal fun resolvePercentageFontSize(parentFontSize: Int, percent: Int): Int {
@@ -3337,99 +3415,126 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal val resolvedFontWeight: FontFace.NSCFontWeight
     get() {
       val state = values.get(StyleKeys.FONT_WEIGHT_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedFontWeight
           ?: FontFace.NSCFontWeight.from(values.getInt(StyleKeys.FONT_WEIGHT))
       } else {
         FontFace.NSCFontWeight.from(values.getInt(StyleKeys.FONT_WEIGHT))
+      }
+      val pseudoRaw = resolvePseudoInt(StyleKeys.FONT_WEIGHT, StyleKeys.FONT_WEIGHT_STATE, values.getInt(StyleKeys.FONT_WEIGHT))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.getInt(StyleKeys.FONT_WEIGHT)) {
+        FontFace.NSCFontWeight.from(pseudoRaw)
+      } else {
+        base
       }
     }
 
   internal val resolvedFontStyle: FontFace.NSCFontStyle
     get() {
       val state = values.get(StyleKeys.FONT_STYLE_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedFontStyle ?: fontStyle
       } else {
         fontStyle
+      }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.FONT_STYLE_TYPE, StyleKeys.FONT_STYLE_STATE, values.get(StyleKeys.FONT_STYLE_TYPE))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.FONT_STYLE_TYPE)) {
+        FontFace.NSCFontStyle.from(pseudoRaw)!!
+      } else {
+        base
       }
     }
 
   val resolvedBackgroundColor: Int
     get() {
       // background-color is NOT inherited in CSS - each element has its own.
-      // Only return the color if explicitly set on this element.
       val state = values.get(StyleKeys.BACKGROUND_COLOR_STATE)
-      return if (state == StyleState.SET) {
+      val base = if (state == StyleState.SET) {
         values.getInt(StyleKeys.BACKGROUND_COLOR)
       } else {
         0 // transparent - do not inherit from parent
       }
+      return resolvePseudoInt(StyleKeys.BACKGROUND_COLOR, StyleKeys.BACKGROUND_COLOR_STATE, base)
     }
 
   internal val resolvedDecorationLine: Styles.DecorationLine
     get() {
       val state = values.get(StyleKeys.DECORATION_LINE_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedDecorationLine ?: Styles.DecorationLine.from(
           values.get(StyleKeys.DECORATION_LINE)
         )
       } else {
         Styles.DecorationLine.from(values.get(StyleKeys.DECORATION_LINE))
       }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_LINE, StyleKeys.DECORATION_LINE_STATE, values.get(StyleKeys.DECORATION_LINE))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.DECORATION_LINE)) {
+        Styles.DecorationLine.from(pseudoRaw)
+      } else {
+        base
+      }
     }
 
   internal val resolvedDecorationColor: Int
     get() {
       val state = values.get(StyleKeys.DECORATION_COLOR_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedDecorationColor
           ?: values.getInt(StyleKeys.DECORATION_COLOR)
       } else {
         values.getInt(StyleKeys.DECORATION_COLOR)
       }
+      return resolvePseudoInt(StyleKeys.DECORATION_COLOR, StyleKeys.DECORATION_COLOR_STATE, base)
     }
 
   internal val resolvedDecorationStyle: Styles.DecorationStyle
     get() {
       val state = values.get(StyleKeys.DECORATION_STYLE_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedDecorationStyle ?: Styles.DecorationStyle.from(
           values.get(StyleKeys.DECORATION_STYLE)
         )
       } else {
         Styles.DecorationStyle.from(values.get(StyleKeys.DECORATION_STYLE))
       }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_STYLE, StyleKeys.DECORATION_STYLE_STATE, values.get(StyleKeys.DECORATION_STYLE))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.DECORATION_STYLE)) {
+        Styles.DecorationStyle.from(pseudoRaw)
+      } else {
+        base
+      }
     }
 
 
   internal val resolvedDecorationThickness: Float
     get() {
-      val state = values.get(StyleKeys.DECORATION_THICKNESS)
-      return if (state == StyleState.INHERIT) {
+      val state = values.get(StyleKeys.DECORATION_THICKNESS_STATE)
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedDecorationThickness
           ?: values.getFloat(StyleKeys.DECORATION_THICKNESS)
       } else {
         values.getFloat(StyleKeys.DECORATION_THICKNESS)
       }
+      return resolvePseudoFloat(StyleKeys.DECORATION_THICKNESS, StyleKeys.DECORATION_THICKNESS_STATE, base)
     }
 
 
   internal val resolvedLetterSpacing: Float
     get() {
       val state = values.get(StyleKeys.LETTER_SPACING_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedLetterSpacing
           ?: values.getFloat(StyleKeys.LETTER_SPACING)
       } else {
         values.getFloat(StyleKeys.LETTER_SPACING)
       }
+      return resolvePseudoFloat(StyleKeys.LETTER_SPACING, StyleKeys.LETTER_SPACING_STATE, base)
     }
 
   internal val resolvedTextWrap: TextWrap
     get() {
       val state = values.get(StyleKeys.TEXT_WRAP_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextWrap ?: TextWrap.from(
           values.get(
             StyleKeys.TEXT_WRAP
@@ -3438,34 +3543,52 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextWrap.from(values.get(StyleKeys.TEXT_WRAP))
       }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_WRAP, StyleKeys.TEXT_WRAP_STATE, values.get(StyleKeys.TEXT_WRAP))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_WRAP)) {
+        TextWrap.from(pseudoRaw)
+      } else {
+        base
+      }
     }
 
   internal val resolvedWhiteSpace: Styles.WhiteSpace
     get() {
       val state = values.get(StyleKeys.WHITE_SPACE_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedWhiteSpace
           ?: Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
       } else {
         Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
+      }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.WHITE_SPACE, StyleKeys.WHITE_SPACE_STATE, values.get(StyleKeys.WHITE_SPACE))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.WHITE_SPACE)) {
+        Styles.WhiteSpace.from(pseudoRaw)
+      } else {
+        base
       }
     }
 
   internal val resolvedTextTransform: Styles.TextTransform
     get() {
       val state = values.get(StyleKeys.TEXT_TRANSFORM_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextTransform
           ?: Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
       } else {
         Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
+      }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_TRANSFORM, StyleKeys.TEXT_TRANSFORM_STATE, values.get(StyleKeys.TEXT_TRANSFORM))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_TRANSFORM)) {
+        Styles.TextTransform.from(pseudoRaw)
+      } else {
+        base
       }
     }
 
   internal val resolvedTextAlign: TextAlign
     get() {
       val state = values.get(StyleKeys.TEXT_ALIGN_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.from(
           values.get(
             StyleKeys.TEXT_ALIGN
@@ -3474,12 +3597,18 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextAlign.from(values.get(StyleKeys.TEXT_ALIGN))
       }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_ALIGN, StyleKeys.TEXT_ALIGN_STATE, values.get(StyleKeys.TEXT_ALIGN))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_ALIGN)) {
+        TextAlign.from(pseudoRaw)
+      } else {
+        base
+      }
     }
 
   internal val resolvedTextJustify: TextJustify
     get() {
       val state = values.get(StyleKeys.TEXT_JUSTIFY_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextJustify ?: TextJustify.from(
           values.get(
             StyleKeys.TEXT_JUSTIFY
@@ -3488,28 +3617,36 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextJustify.from(values.get(StyleKeys.TEXT_JUSTIFY))
       }
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_JUSTIFY, StyleKeys.TEXT_JUSTIFY_STATE, values.get(StyleKeys.TEXT_JUSTIFY))
+      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_JUSTIFY)) {
+        TextJustify.from(pseudoRaw)
+      } else {
+        base
+      }
     }
 
   internal val resolvedLineHeight: Float
     get() {
       val state = values.get(StyleKeys.LINE_HEIGHT_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedLineHeight
           ?: values.getFloat(StyleKeys.LINE_HEIGHT)
       } else {
         values.getFloat(StyleKeys.LINE_HEIGHT)
       }
+      return resolvePseudoFloat(StyleKeys.LINE_HEIGHT, StyleKeys.LINE_HEIGHT_STATE, base)
     }
 
   internal val resolvedLineHeightType: Byte
     get() {
       val state = values.get(StyleKeys.LINE_HEIGHT_STATE)
-      return if (state == StyleState.INHERIT) {
+      val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedLineHeightType
           ?: values.get(StyleKeys.LINE_HEIGHT_TYPE)
       } else {
         values.get(StyleKeys.LINE_HEIGHT_TYPE)
       }
+      return resolvePseudoByte(StyleKeys.LINE_HEIGHT_TYPE, StyleKeys.LINE_HEIGHT_STATE, base)
     }
 
 
@@ -3674,6 +3811,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     external fun nativeNonBufferData(
       mason: Long,
       node: Long,
+      flags: Int,
       gridAutoRows: String?,
       gridAutoColumns: String?,
       gridColumn: String?,

@@ -59,18 +59,11 @@ class ViewUtils {
       val hasBackground = style.mBackground?.let { it.color != null || it.layers.isNotEmpty() } ?: false
       val hasBoxShadow = style.boxShadows.isNotEmpty()
 
-      // Outset shadows are drawn by parent's dispatchDraw to avoid clipping
-      // Only draw inset shadows here
-      // (Comment out outset shadow drawing at child level)
-      // if (hasBoxShadow) {
-      //   style.mBoxShadowRenderer.drawOutsetShadows(view, canvas, width, height, style.mBorderRenderer)
-      // }
-
-      // Block 1: Background with border-radius clip
+      // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
         canvas.withSave {
           if (hasRadii) {
-            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+            canvas.clipPath(style.mBorderRenderer.getOuterClipPath(width, height))
           }
 
           style.mBackground?.let { background ->
@@ -97,12 +90,12 @@ class ViewUtils {
         style.mBoxShadowRenderer.drawInsetShadows(view, canvas, width, height, style.mBorderRenderer)
       }
 
-      // Border drawn OUTSIDE any clip scope so strokes aren't clipped
+      // Border draws freely — the path itself is rounded, no clip needed
       if (!ignoreBorder) {
         style.mBorderRenderer.draw(canvas, width, height)
       }
 
-      // Block 2: Content with border-radius clip + overflow clip
+      // Block 2: Content with inner border-radius clip + overflow clip
       canvas.withSave {
         if (hasRadii) {
           canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))

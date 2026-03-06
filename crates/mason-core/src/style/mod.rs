@@ -613,6 +613,14 @@ pub enum StyleKeys {
     DECORATION_THICKNESS = 390,       // i32 (4 bytes: 390-393)
     DECORATION_THICKNESS_STATE = 394, // u8
     TEXT_SHADOW_STATE = 395,          // u8
+    TEXT_OVERFLOW = 396,              // u8
+    TEXT_OVERFLOW_STATE = 397,        // u8
+
+    // Pseudo set mask: 128-bit bitmask (two i64s) tracking which properties
+    // were explicitly set on a pseudo style buffer. Uses the same bit layout
+    // as StateKeys. Zero-copy: lives in the style buffer itself.
+    PSEUDO_SET_MASK_LOW = 398,        // i64 (8 bytes: 398-405)
+    PSEUDO_SET_MASK_HIGH = 406,       // i64 (8 bytes: 406-413)
 }
 
 bitflags! {

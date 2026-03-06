@@ -667,54 +667,340 @@ impl Node {
         // Merge pseudo styles (if attached) for commonly-used properties.
         let flags = self.get_pseudo_states();
 
+        // Merge helper: for each property with a STATE byte, if SET in src, copy to dst.
+        // Also checks the pseudo set bitmask for layout properties without STATE bytes.
         let mut merge_from = |src: &crate::style::Style, dst: &mut crate::style::Style| {
-            // prepare dst for mutation
             dst.prepare_mut();
-            // Background color (i32) if set in src
-            if get_style_data_u8(src.data(), crate::style::StyleKeys::BACKGROUND_COLOR_STATE) != 0 {
-                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::BACKGROUND_COLOR);
-                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::BACKGROUND_COLOR, v);
-                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::BACKGROUND_COLOR_STATE, 1);
+            use crate::style::StyleKeys;
+
+            // Read the pseudo set bitmask from the source buffer
+            let src_data = src.data();
+            let pseudo_set_low = i64::from_ne_bytes(
+                src_data[StyleKeys::PSEUDO_SET_MASK_LOW as usize..StyleKeys::PSEUDO_SET_MASK_LOW as usize + 8]
+                    .try_into().unwrap_or([0u8; 8])
+            ) as u64;
+            let pseudo_set_high = i64::from_ne_bytes(
+                src_data[StyleKeys::PSEUDO_SET_MASK_HIGH as usize..StyleKeys::PSEUDO_SET_MASK_HIGH as usize + 8]
+                    .try_into().unwrap_or([0u8; 8])
+            ) as u64;
+            let pseudo_set = (pseudo_set_high as u128) << 64 | pseudo_set_low as u128;
+
+            // Helper: check if a StateKeys flag is set in the pseudo bitmask
+            macro_rules! is_pseudo_set {
+                ($flag:expr) => {
+                    (pseudo_set & $flag.bits()) != 0
+                };
             }
-            // Font color (u32)
-            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_COLOR_STATE) != 0 {
-                let v = get_style_data_u32(src.data(), crate::style::StyleKeys::FONT_COLOR);
-                set_style_data_u32(dst.data_mut(), crate::style::StyleKeys::FONT_COLOR, v);
-                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_COLOR_STATE, 1);
+
+            // Helper: copy a raw byte range from src to dst
+            macro_rules! copy_range {
+                ($start:expr, $end:expr) => {
+                    dst.data_mut()[$start..$end].copy_from_slice(&src.data()[$start..$end]);
+                };
             }
-            // Font size (i32)
-            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_SIZE_STATE) != 0 {
-                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::FONT_SIZE);
-                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::FONT_SIZE, v);
-                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_SIZE_STATE, 1);
+
+            // Helper: merge an i32 (4-byte) property via STATE byte
+            macro_rules! merge_i32 {
+                ($val:expr, $state:expr) => {
+                    if get_style_data_u8(src.data(), $state) != 0 {
+                        let v = get_style_data_i32(src.data(), $val);
+                        set_style_data_i32(dst.data_mut(), $val, v);
+                        set_style_data_u8(dst.data_mut(), $state, 1);
+                    }
+                };
             }
+
+            // Helper: merge a u8 (1-byte) property
+            macro_rules! merge_u8 {
+                ($val:expr, $state:expr) => {
+                    if get_style_data_u8(src.data(), $state) != 0 {
+                        let v = get_style_data_i8_raw(src.data(), $val as usize);
+                        set_style_data_i8_raw(dst.data_mut(), $val as usize, v);
+                        set_style_data_u8(dst.data_mut(), $state, 1);
+                    }
+                };
+            }
+
+            // Background color (i32 + type byte)
+            if get_style_data_u8(src.data(), StyleKeys::BACKGROUND_COLOR_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), StyleKeys::BACKGROUND_COLOR);
+                set_style_data_i32(dst.data_mut(), StyleKeys::BACKGROUND_COLOR, v);
+                set_style_data_u8(dst.data_mut(), StyleKeys::BACKGROUND_COLOR_STATE, 1);
+                let t = get_style_data_i8_raw(src.data(), StyleKeys::BACKGROUND_COLOR_TYPE as usize);
+                set_style_data_i8_raw(dst.data_mut(), StyleKeys::BACKGROUND_COLOR_TYPE as usize, t);
+            }
+
+            // Font color (i32)
+            merge_i32!(StyleKeys::FONT_COLOR, StyleKeys::FONT_COLOR_STATE);
+
+            // Font size (i32 + type byte)
+            if get_style_data_u8(src.data(), StyleKeys::FONT_SIZE_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), StyleKeys::FONT_SIZE);
+                set_style_data_i32(dst.data_mut(), StyleKeys::FONT_SIZE, v);
+                set_style_data_u8(dst.data_mut(), StyleKeys::FONT_SIZE_STATE, 1);
+                let t = get_style_data_i8_raw(src.data(), StyleKeys::FONT_SIZE_TYPE as usize);
+                set_style_data_i8_raw(dst.data_mut(), StyleKeys::FONT_SIZE_TYPE as usize, t);
+            }
+
             // Font weight (i32)
-            if get_style_data_u8(src.data(), crate::style::StyleKeys::FONT_WEIGHT_STATE) != 0 {
-                let v = get_style_data_i32(src.data(), crate::style::StyleKeys::FONT_WEIGHT);
-                set_style_data_i32(dst.data_mut(), crate::style::StyleKeys::FONT_WEIGHT, v);
-                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::FONT_WEIGHT_STATE, 1);
+            merge_i32!(StyleKeys::FONT_WEIGHT, StyleKeys::FONT_WEIGHT_STATE);
+
+            // Font style (i32 slant + type byte)
+            if get_style_data_u8(src.data(), StyleKeys::FONT_STYLE_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), StyleKeys::FONT_STYLE_SLANT);
+                set_style_data_i32(dst.data_mut(), StyleKeys::FONT_STYLE_SLANT, v);
+                set_style_data_u8(dst.data_mut(), StyleKeys::FONT_STYLE_STATE, 1);
+                let t = get_style_data_i8_raw(src.data(), StyleKeys::FONT_STYLE_TYPE as usize);
+                set_style_data_i8_raw(dst.data_mut(), StyleKeys::FONT_STYLE_TYPE as usize, t);
             }
+
+            // Font family (state only — family stored externally)
+            if get_style_data_u8(src.data(), StyleKeys::FONT_FAMILY_STATE) != 0 {
+                set_style_data_u8(dst.data_mut(), StyleKeys::FONT_FAMILY_STATE, 1);
+            }
+
             // Text align (u8)
-            if get_style_data_u8(src.data(), crate::style::StyleKeys::TEXT_ALIGN_STATE) != 0 {
-                let v = get_style_data_i8_raw(src.data(), crate::style::StyleKeys::TEXT_ALIGN as usize);
-                set_style_data_i8_raw(dst.data_mut(), crate::style::StyleKeys::TEXT_ALIGN as usize, v);
-                set_style_data_u8(dst.data_mut(), crate::style::StyleKeys::TEXT_ALIGN_STATE, 1);
+            merge_u8!(StyleKeys::TEXT_ALIGN, StyleKeys::TEXT_ALIGN_STATE);
+
+            // Text justify (u8)
+            merge_u8!(StyleKeys::TEXT_JUSTIFY, StyleKeys::TEXT_JUSTIFY_STATE);
+
+            // Text transform (u8)
+            merge_u8!(StyleKeys::TEXT_TRANSFORM, StyleKeys::TEXT_TRANSFORM_STATE);
+
+            // Text wrap (u8)
+            merge_u8!(StyleKeys::TEXT_WRAP, StyleKeys::TEXT_WRAP_STATE);
+
+            // White space (u8)
+            merge_u8!(StyleKeys::WHITE_SPACE, StyleKeys::WHITE_SPACE_STATE);
+
+            // Decoration line (u8)
+            merge_u8!(StyleKeys::DECORATION_LINE, StyleKeys::DECORATION_LINE_STATE);
+
+            // Decoration color (i32)
+            merge_i32!(StyleKeys::DECORATION_COLOR, StyleKeys::DECORATION_COLOR_STATE);
+
+            // Decoration style (u8)
+            merge_u8!(StyleKeys::DECORATION_STYLE, StyleKeys::DECORATION_STYLE_STATE);
+
+            // Decoration thickness (i32)
+            merge_i32!(StyleKeys::DECORATION_THICKNESS, StyleKeys::DECORATION_THICKNESS_STATE);
+
+            // Letter spacing (i32)
+            merge_i32!(StyleKeys::LETTER_SPACING, StyleKeys::LETTER_SPACING_STATE);
+
+            // Text indent (i32 + type byte)
+            if get_style_data_u8(src.data(), StyleKeys::TEXT_INDENT_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), StyleKeys::TEXT_INDENT);
+                set_style_data_i32(dst.data_mut(), StyleKeys::TEXT_INDENT, v);
+                set_style_data_u8(dst.data_mut(), StyleKeys::TEXT_INDENT_STATE, 1);
+                let t = get_style_data_i8_raw(src.data(), StyleKeys::TEXT_INDENT_TYPE as usize);
+                set_style_data_i8_raw(dst.data_mut(), StyleKeys::TEXT_INDENT_TYPE as usize, t);
+            }
+
+            // Line height (i32 + type byte)
+            if get_style_data_u8(src.data(), StyleKeys::LINE_HEIGHT_STATE) != 0 {
+                let v = get_style_data_i32(src.data(), StyleKeys::LINE_HEIGHT);
+                set_style_data_i32(dst.data_mut(), StyleKeys::LINE_HEIGHT, v);
+                set_style_data_u8(dst.data_mut(), StyleKeys::LINE_HEIGHT_STATE, 1);
+                let t = get_style_data_i8_raw(src.data(), StyleKeys::LINE_HEIGHT_TYPE as usize);
+                set_style_data_i8_raw(dst.data_mut(), StyleKeys::LINE_HEIGHT_TYPE as usize, t);
+            }
+
+            // Text shadow (state only — shadows stored externally)
+            if get_style_data_u8(src.data(), StyleKeys::TEXT_SHADOW_STATE) != 0 {
+                set_style_data_u8(dst.data_mut(), StyleKeys::TEXT_SHADOW_STATE, 1);
+            }
+
+            // List style position (u8)
+            merge_u8!(StyleKeys::LIST_STYLE_POSITION, StyleKeys::LIST_STYLE_POSITION_STATE);
+
+            // List style type (u8)
+            merge_u8!(StyleKeys::LIST_STYLE_TYPE, StyleKeys::LIST_STYLE_TYPE_STATE);
+
+            // --- Bitmask-based merge for properties without STATE bytes ---
+            // These use the pseudo set mask to detect explicit overrides.
+            use crate::style::StateKeys as SK;
+
+            // Border colors (4 x u32, no STATE bytes)
+            if is_pseudo_set!(SK::BORDER_COLOR) {
+                copy_range!(202, 218); // BORDER_LEFT_COLOR..BORDER_BOTTOM_COLOR (16 bytes)
+            }
+
+            // Border radius (4 corners, each 14 bytes = 56 bytes total)
+            if is_pseudo_set!(SK::BORDER_RADIUS) {
+                copy_range!(218, 274); // All border radius fields
+            }
+
+            // Border styles (4 x u8)
+            if is_pseudo_set!(SK::BORDER_STYLE) {
+                copy_range!(198, 202); // BORDER_LEFT_STYLE..BORDER_BOTTOM_STYLE
+            }
+
+            // --- Single-byte enum properties ---
+            if is_pseudo_set!(SK::DISPLAY) {
+                copy_range!(0, 1); // DISPLAY
+            }
+            if is_pseudo_set!(SK::POSITION) {
+                copy_range!(1, 2); // POSITION
+            }
+            if is_pseudo_set!(SK::DIRECTION) {
+                copy_range!(2, 3); // DIRECTION
+            }
+            if is_pseudo_set!(SK::FLEX_DIRECTION) {
+                copy_range!(3, 4); // FLEX_DIRECTION
+            }
+            if is_pseudo_set!(SK::FLEX_WRAP) {
+                copy_range!(4, 5); // FLEX_WRAP
+            }
+            if is_pseudo_set!(SK::OVERFLOW_X) {
+                copy_range!(5, 6); // OVERFLOW_X
+            }
+            if is_pseudo_set!(SK::OVERFLOW_Y) {
+                copy_range!(6, 7); // OVERFLOW_Y
+            }
+            if is_pseudo_set!(SK::ALIGN_ITEMS) {
+                copy_range!(7, 8); // ALIGN_ITEMS
+            }
+            if is_pseudo_set!(SK::ALIGN_SELF) {
+                copy_range!(8, 9); // ALIGN_SELF
+            }
+            if is_pseudo_set!(SK::ALIGN_CONTENT) {
+                copy_range!(9, 10); // ALIGN_CONTENT
+            }
+            if is_pseudo_set!(SK::JUSTIFY_ITEMS) {
+                copy_range!(10, 11); // JUSTIFY_ITEMS
+            }
+            if is_pseudo_set!(SK::JUSTIFY_SELF) {
+                copy_range!(11, 12); // JUSTIFY_SELF
+            }
+            if is_pseudo_set!(SK::JUSTIFY_CONTENT) {
+                copy_range!(12, 13); // JUSTIFY_CONTENT
+            }
+
+            // --- Type+value pair properties ---
+            if is_pseudo_set!(SK::INSET) {
+                copy_range!(13, 33); // INSET_LEFT through INSET_BOTTOM (4 sides x 5 bytes)
+            }
+            if is_pseudo_set!(SK::MARGIN) {
+                copy_range!(33, 53); // MARGIN_LEFT through MARGIN_BOTTOM
+            }
+            if is_pseudo_set!(SK::PADDING) {
+                copy_range!(53, 73); // PADDING_LEFT through PADDING_BOTTOM
+            }
+            if is_pseudo_set!(SK::BORDER) {
+                copy_range!(73, 93); // BORDER_LEFT through BORDER_BOTTOM (widths)
+            }
+            if is_pseudo_set!(SK::FLEX_GROW) {
+                copy_range!(93, 97); // FLEX_GROW (f32)
+            }
+            if is_pseudo_set!(SK::FLEX_SHRINK) {
+                copy_range!(97, 101); // FLEX_SHRINK (f32)
+            }
+            if is_pseudo_set!(SK::FLEX_BASIS) {
+                copy_range!(101, 106); // FLEX_BASIS_TYPE + FLEX_BASIS_VALUE
+            }
+            if is_pseudo_set!(SK::SIZE) {
+                copy_range!(106, 116); // WIDTH + HEIGHT (type+value each)
+            }
+            if is_pseudo_set!(SK::MIN_SIZE) {
+                copy_range!(116, 126); // MIN_WIDTH + MIN_HEIGHT
+            }
+            if is_pseudo_set!(SK::MAX_SIZE) {
+                copy_range!(126, 136); // MAX_WIDTH + MAX_HEIGHT
+            }
+            if is_pseudo_set!(SK::GAP) {
+                copy_range!(136, 146); // GAP_ROW + GAP_COLUMN
+            }
+            if is_pseudo_set!(SK::ASPECT_RATIO) {
+                copy_range!(146, 150); // ASPECT_RATIO (f32)
+            }
+            if is_pseudo_set!(SK::GRID_AUTO_FLOW) {
+                copy_range!(150, 151); // GRID_AUTO_FLOW
+            }
+            if is_pseudo_set!(SK::GRID_COLUMN) {
+                copy_range!(151, 161); // GRID_COLUMN_START + GRID_COLUMN_END
+            }
+            if is_pseudo_set!(SK::GRID_ROW) {
+                copy_range!(161, 171); // GRID_ROW_START + GRID_ROW_END
+            }
+            if is_pseudo_set!(SK::SCROLLBAR_WIDTH) {
+                copy_range!(171, 175); // SCROLLBAR_WIDTH (f32)
+            }
+            if is_pseudo_set!(SK::ALIGN) {
+                copy_range!(175, 176); // ALIGN
+            }
+            if is_pseudo_set!(SK::BOX_SIZING) {
+                copy_range!(176, 177); // BOX_SIZING
+            }
+            if is_pseudo_set!(SK::OVERFLOW) {
+                copy_range!(177, 178); // OVERFLOW
+            }
+            if is_pseudo_set!(SK::ITEM_IS_TABLE) {
+                copy_range!(178, 179);
+            }
+            if is_pseudo_set!(SK::ITEM_IS_REPLACED) {
+                copy_range!(179, 180);
+            }
+            if is_pseudo_set!(SK::DISPLAY_MODE) {
+                copy_range!(180, 181);
+            }
+            if is_pseudo_set!(SK::FORCE_INLINE) {
+                copy_range!(181, 182);
+            }
+            if is_pseudo_set!(SK::MIN_CONTENT_WIDTH) {
+                copy_range!(182, 186); // f32
+            }
+            if is_pseudo_set!(SK::MIN_CONTENT_HEIGHT) {
+                copy_range!(186, 190); // f32
+            }
+            if is_pseudo_set!(SK::MAX_CONTENT_WIDTH) {
+                copy_range!(190, 194); // f32
+            }
+            if is_pseudo_set!(SK::MAX_CONTENT_HEIGHT) {
+                copy_range!(194, 198); // f32
+            }
+
+            // Float, Clear, Object Fit
+            if is_pseudo_set!(SK::FLOAT) {
+                copy_range!(274, 275);
+            }
+            if is_pseudo_set!(SK::CLEAR) {
+                copy_range!(275, 276);
+            }
+            if is_pseudo_set!(SK::OBJECT_FIT) {
+                copy_range!(276, 277);
+            }
+
+            // Z-Index
+            if is_pseudo_set!(SK::Z_INDEX) {
+                copy_range!(310, 314); // f32
+            }
+
+            // List style
+            if is_pseudo_set!(SK::LIST_STYLE_POSITION) {
+                copy_range!(316, 317);
+            }
+            if is_pseudo_set!(SK::LIST_STYLE_TYPE) {
+                copy_range!(317, 318);
             }
         };
 
+        // CSS specificity order: later entries override earlier ones.
+        // :active overrides :focus, :focus overrides :hover.
         if let Some(p) = &self.pseudo_styles {
             if flags.contains(PseudoStates::HOVER) {
                 if let Some(s) = &p.hover {
                     merge_from(s, &mut result);
                 }
             }
-            if flags.contains(PseudoStates::ACTIVE) {
-                if let Some(s) = &p.active {
+            if flags.contains(PseudoStates::FOCUS) {
+                if let Some(s) = &p.focus {
                     merge_from(s, &mut result);
                 }
             }
-            if flags.contains(PseudoStates::FOCUS) {
-                if let Some(s) = &p.focus {
+            if flags.contains(PseudoStates::ACTIVE) {
+                if let Some(s) = &p.active {
                     merge_from(s, &mut result);
                 }
             }

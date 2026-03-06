@@ -540,7 +540,7 @@ class NodeHelper(val mason: Mason) {
     if (same) return
 
     // Defer mutation to avoid re-entrant WindowInsets -> layout loops
-    (view as? android.view.View)?.post {
+    view.post {
       try {
         node.style.padding = Rect(newLeft, newRight, newTop, newBottom)
       } catch (_: Throwable) {

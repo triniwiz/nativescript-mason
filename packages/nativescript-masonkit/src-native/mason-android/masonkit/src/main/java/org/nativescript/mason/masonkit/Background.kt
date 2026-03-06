@@ -35,6 +35,15 @@ private val RGBA_REGEX =
 private val ANGLE_REGEX =
   Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
 
+/**
+ * CSS pseudo-state specificity order.
+ * Later entries override earlier ones when multiple states are active.
+ * Matches CSS spec: :active overrides :focus overrides :hover.
+ */
+internal val PSEUDO_CSS_ORDER = listOf(
+  PseudoState.HOVER, PseudoState.FOCUS, PseudoState.ACTIVE, PseudoState.DISABLED
+)
+
 enum class BackgroundClip {
   BORDER_BOX, PADDING_BOX, CONTENT_BOX
 }
@@ -67,10 +76,23 @@ class Background(
       style.values.putInt(StyleKeys.BACKGROUND_COLOR_TYPE, 1)
     }
     get() {
-      if (style.values.get(StyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
-        return null
+      val baseValue: Int? = if (style.values.get(StyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
+        null
+      } else {
+        style.values.getInt(StyleKeys.BACKGROUND_COLOR)
       }
-      return style.values.getInt(StyleKeys.BACKGROUND_COLOR)
+      val mask = style.node.pseudoMask
+      if (mask == 0) return baseValue
+      var result = baseValue
+      for (state in PSEUDO_CSS_ORDER) {
+        if (mask and state.mask != 0) {
+          val buf = style.node.getPseudoBuffer(state.mask)
+          if (buf.capacity() > 0 && buf.get(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.INHERIT) {
+            result = buf.getInt(StyleKeys.BACKGROUND_COLOR)
+          }
+        }
+      }
+      return result
     }
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()

@@ -369,7 +369,7 @@ impl Mason {
                 let bits = PseudoStates::from_bits_truncate(flags);
 
                 if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+                    node.pseudo_styles = Some(node::PseudoStyles::default());
                 }
 
                 if let Some(p) = &mut node.pseudo_styles {
@@ -948,6 +948,87 @@ impl Mason {
         F: FnOnce(&mut Style),
     {
         self.0.with_style_mut(node, func)
+    }
+
+    /// Prepare and invoke `func` on a mutable pseudo `Style` for `node` matching `flags`.
+    /// This will create the pseudo Style slot (cloned from base style) if missing
+    /// and call `prepare_mut()` on it before invoking `func` so callers can safely
+    /// mutate complex non-buffer data (strings/arrays) for pseudos.
+    #[track_caller]
+    pub fn with_pseudo_style_mut<F>(&mut self, node: Id, flags: u16, func: F)
+    where
+        F: FnOnce(&mut Style),
+    {
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .map(|node| {
+                use crate::node::PseudoStates;
+                let bits = PseudoStates::from_bits_truncate(flags);
+
+                if node.pseudo_styles.is_none() {
+                    node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+                }
+
+                if let Some(p) = &mut node.pseudo_styles {
+                    if bits.contains(PseudoStates::HOVER) {
+                        if p.hover.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.hover = Some(s);
+                        } else {
+                            p.hover.as_mut().unwrap().prepare_mut();
+                        }
+                        func(p.hover.as_mut().unwrap());
+                        return;
+                    }
+                    if bits.contains(PseudoStates::ACTIVE) {
+                        if p.active.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.active = Some(s);
+                        } else {
+                            p.active.as_mut().unwrap().prepare_mut();
+                        }
+                        func(p.active.as_mut().unwrap());
+                        return;
+                    }
+                    if bits.contains(PseudoStates::FOCUS) {
+                        if p.focus.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.focus = Some(s);
+                        } else {
+                            p.focus.as_mut().unwrap().prepare_mut();
+                        }
+                        func(p.focus.as_mut().unwrap());
+                        return;
+                    }
+                    if bits.contains(PseudoStates::DISABLED) {
+                        if p.disabled.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.disabled = Some(s);
+                        } else {
+                            p.disabled.as_mut().unwrap().prepare_mut();
+                        }
+                        func(p.disabled.as_mut().unwrap());
+                        return;
+                    }
+                    if bits.contains(PseudoStates::CHECKED) {
+                        if p.checked.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.checked = Some(s);
+                        } else {
+                            p.checked.as_mut().unwrap().prepare_mut();
+                        }
+                        func(p.checked.as_mut().unwrap());
+                        return;
+                    }
+                }
+            })
+            .unwrap_or(());
     }
     pub fn get_root(&self, node: Id) -> Option<NodeRef> {
         self.0.root(node)
