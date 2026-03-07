@@ -103,6 +103,17 @@ class ViewUtils {
 
         Style.applyOverflowClip(style, canvas, style.node)
 
+        // Ensure we use the pseudo-aware resolved filter string so :active/:hover
+        // pseudo strings only apply when the node's pseudo mask is active.
+        val css = style.resolvedFilterString
+        if (style.mFilter == null || style.mFilter?.css != css) {
+          val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
+          style.mFilter = CSSFilters.parse(css)
+          if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
+            (style.node.view as? View)?.invalidate()
+          }
+        }
+
         style.mFilter?.let { filter ->
           if (filter.filters.isEmpty()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -111,6 +122,18 @@ class ViewUtils {
             superDraw(canvas)
             return@let
           }
+
+          // Try lightweight Canvas fast-path (e.g. brightness on :active).
+          // Draw content first, then overlay the filter effect.
+          if (filter.canApplyFast()) {
+            superDraw(canvas)
+            filter.applyFast(canvas, width, height)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              view.setRenderEffect(null)
+            }
+            return@let
+          }
+
           filter.renderFilters(view, canvas) { destCanvas ->
             if (filter.v1 != null || filter.v2 != null) {
               superDraw(destCanvas)

@@ -17,6 +17,9 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   public lazy var engine = {
     TextEngine(container: self)
   }()
+
+  private var touchStartTime: CFTimeInterval?
+  private let tapThreshold: CFTimeInterval = 0.25
   
   
   public var uiView: UIView {
@@ -148,10 +151,6 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     isOpaque = false
     style.setStyleChangeListener(listener: self)
     
-    let recognizer = MasonGestureRecognizer(targetView: self)
-    recognizer.owner = self
-    addGestureRecognizer(recognizer)
-    
     let scale = Float((window?.screen.scale ?? CGFloat(NSCMason.scale)))
     let x =  6 * scale
     let y =  scale
@@ -163,11 +162,15 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
       style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
       style.background = "#F0F0F0"
       style.textAlign = .Center
-      style.border = "1px solid #767676"
-      style.borderRadius = "4px"
+      style.border = "1 solid #767676"
+      style.borderRadius = "4"
     }
     node.view = self
-   
+
+    // Default :active pseudo style — darken whatever background is set via
+    // CSS filter brightness, matching browser behavior without replacing the color.
+    node.setPseudoString(PseudoState.active.rawValue, key: "filter", value: "brightness(0.85)")
+
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
       return TextEngine.measure(self.engine, true, isBlock: false, known, available)
@@ -208,61 +211,61 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     super.init(coder: coder)
     setup()
   }
+  
 }
 
 
 
 extension Button {
-    
-    // MARK: - Press Handling
-    
-    private var isPressed: Bool {
-        return isHighlighted
-    }
-    
-    // Override to track touch down
-    public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-        isHighlighted = true
-        handlePressDown()
-    }
 
-    // Override to track touch move inside/outside
-    public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesMoved(touches, with: event)
-        guard let touch = touches.first else { return }
-        let inside = bounds.contains(touch.location(in: self))
-        isHighlighted = inside
-    }
+  
+  public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+      super.touchesBegan(touches, with: event)
+      node.setPseudo(.active, true)
+    setNeedsDisplay()
+    touchStartTime = CACurrentMediaTime()
+  }
 
-    // Override to track touch up
-    public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesEnded(touches, with: event)
-        let wasPressed = isPressed
-        isHighlighted = false
-        if wasPressed {
-            handlePressUp()
+  public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+      super.touchesEnded(touches, with: event)
+    let now = CACurrentMediaTime()
+    let duration = (touchStartTime != nil) ? (now - touchStartTime!) : 0
+    touchStartTime = nil
+
+    // Provide tap feedback for short taps, keep active state during hold
+    if duration < tapThreshold {
+      // Quick tap: animate a brief scale "press" effect
+      UIView.animate(withDuration: 0.08, animations: {
+        self.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
+      }, completion: { _ in
+        UIView.animate(withDuration: 0.08) {
+          self.transform = .identity
         }
+      })
     }
 
-    public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesCancelled(touches, with: event)
-        isHighlighted = false
-        handlePressCancel()
-    }
+    node.setPseudo(.active, false)
+    setNeedsDisplay()
+  }
 
-    // MARK: - Press Callbacks
+ public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+      super.touchesCancelled(touches, with: event)
+      node.setPseudo(.active, false)
+      setNeedsDisplay()
+  }
+  
+  
 
-    private func handlePressDown() {
-        engine.handlePressDown()
-    }
+  public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+      guard let touch = touches.first else { return }
+      let point = touch.location(in: self)
 
-    private func handlePressUp() {
-        engine.handlePressUp()
-        sendActions(for: .touchUpInside)
-    }
-
-    private func handlePressCancel() {
-        engine.handlePressCancel()
-    }
+      let inside = bounds.contains(point)
+      node.setPseudo(.active, inside)
+      setNeedsDisplay()
+      #if DEBUG
+      print("[DEBUG] Button.touchesMoved inside:\(inside) point:\(point) frame:\(self.frame)")
+      #endif
+  }
+  
 }

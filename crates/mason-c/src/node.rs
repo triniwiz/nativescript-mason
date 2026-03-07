@@ -473,10 +473,10 @@ pub extern "C" fn mason_node_new_list_item_node_with_context(
 pub extern "C" fn mason_node_layout(
     mason: *mut CMason,
     node: *mut CMasonNode,
-    layout: extern "C" fn(*const c_float) -> *mut c_void,
+    layout: extern "C" fn(*const c_float, usize) -> *mut c_void,
 ) -> *mut c_void {
     if mason.is_null() || node.is_null() {
-        return layout(std::ptr::null_mut());
+        return layout(std::ptr::null_mut(), 0);
     }
     unsafe {
         let mason = &(*mason).0;
@@ -484,7 +484,7 @@ pub extern "C" fn mason_node_layout(
 
         let output = mason.layout(node.id());
 
-        layout(output.as_ptr())
+        layout(output.as_ptr(), output.len())
     }
 }
 
@@ -965,6 +965,112 @@ pub extern "C" fn mason_node_has_pseudo_state(mason: *mut CMason, node: *mut CMa
         (bits & flag) != 0
     }
 }
+
+
+/// Return the node's state buffer as raw pointer + length.
+/// The state buffer holds pseudo flags and other per-node state.
+#[no_mangle]
+pub extern "C" fn mason_node_get_state_buffer(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    out_len: *mut usize,
+) -> *const u8 {
+    if mason.is_null() || node.is_null() {
+        if !out_len.is_null() {
+            unsafe { *out_len = 0; }
+        }
+        return std::ptr::null();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node_id = &(*node).0;
+        let (ptr, len) = mason.0.node_state_data_raw(node_id.id());
+        if !out_len.is_null() {
+            *out_len = len;
+        }
+        ptr
+    }
+}
+
+
+/// Return a mutable pointer to the node's state buffer.
+#[no_mangle]
+pub extern "C" fn mason_node_get_state_buffer_mut(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if mason.is_null() || node.is_null() {
+        if !out_len.is_null() {
+            unsafe { *out_len = 0; }
+        }
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node_id = &(*node).0;
+        let (ptr, len) = mason.0.node_state_data_raw_mut(node_id.id());
+        if !out_len.is_null() {
+            *out_len = len;
+        }
+        ptr
+    }
+}
+
+/// Return an existing pseudo style buffer (read-only raw pointer + length).
+/// Returns null if no pseudo buffer exists for the given flags.
+#[no_mangle]
+pub extern "C" fn mason_node_get_pseudo_style_buffer(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    flags: u16,
+    out_len: *mut usize,
+) -> *const u8 {
+    if mason.is_null() || node.is_null() {
+        if !out_len.is_null() {
+            unsafe { *out_len = 0; }
+        }
+        return std::ptr::null();
+    }
+    unsafe {
+        let mason = &(*mason);
+        let node_id = &(*node).0;
+        let (ptr, len) = mason.0.pseudo_style_data_raw(node_id.id(), flags);
+        if !out_len.is_null() {
+            *out_len = len;
+        }
+        ptr
+    }
+}
+
+
+/// Prepare (create if needed) and return a mutable pseudo style buffer.
+/// Clones from the base style if this is the first call for the given pseudo state.
+/// Returns a raw mutable pointer + length for direct buffer writes.
+#[no_mangle]
+pub extern "C" fn mason_node_prepare_pseudo_style_buffer(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    flags: u16,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if mason.is_null() || node.is_null() {
+        if !out_len.is_null() {
+            unsafe { *out_len = 0; }
+        }
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node_id = &(*node).0;
+        let (ptr, len) = mason.0.pseudo_style_data_raw_mut(node_id.id(), flags);
+        if !out_len.is_null() {
+            *out_len = len;
+        }
+        ptr
+    }
+}
+
 
 #[no_mangle]
 pub extern "C" fn mason_node_is_children_same(

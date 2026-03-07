@@ -967,6 +967,22 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
+  /**
+   * Resolve filter string with pseudo-aware cascade. Returns the active
+   * pseudo's filter string according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
+   */
+  internal val resolvedFilterString: String
+    get() {
+      for (state in PSEUDO_CSS_ORDER.asReversed()) {
+        if (node.hasPseudo(state)) {
+          node.getPseudoString(state.mask, "filter")?.let { s ->
+            if (s.isNotEmpty()) return s
+          }
+        }
+      }
+      return filter
+    }
+
   internal var mBackground: Background? = null
   internal var mBackgroundRaw: String = ""
   var background: String
@@ -3302,16 +3318,22 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   // Resolve an Int property with pseudo-state overlay.
-  // Returns the base value unless an active pseudo buffer overrides it.
-  private fun resolvePseudoInt(valueKey: Int, stateKey: Int, base: Int): Int {
+  // Uses PSEUDO_SET_MASK bitmask to determine if the property was explicitly set
+  // in the pseudo buffer (pseudo buffers are cloned from base, so state bytes alone
+  // are unreliable).
+  private fun resolvePseudoInt(valueKey: Int, stateKey: Int, base: Int, key: StateKeys): Int {
     val mask = node.pseudoMask
     if (mask == 0) return base
     var result = base
     for (state in PSEUDO_CSS_ORDER) {
       if (mask and state.mask != 0) {
         val buf = node.getPseudoBuffer(state.mask)
-        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
-          result = buf.getInt(valueKey)
+        if (buf.capacity() >= StyleKeys.PSEUDO_SET_MASK_HIGH + 8) {
+          val setLow = buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW)
+          val setHigh = buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH)
+          if ((setLow and key.low) != 0L || (setHigh and key.high) != 0L) {
+            result = buf.getInt(valueKey)
+          }
         }
       }
     }
@@ -3319,15 +3341,19 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   // Resolve a Byte property with pseudo-state overlay.
-  private fun resolvePseudoByte(valueKey: Int, stateKey: Int, base: Byte): Byte {
+  private fun resolvePseudoByte(valueKey: Int, stateKey: Int, base: Byte, key: StateKeys): Byte {
     val mask = node.pseudoMask
     if (mask == 0) return base
     var result = base
     for (state in PSEUDO_CSS_ORDER) {
       if (mask and state.mask != 0) {
         val buf = node.getPseudoBuffer(state.mask)
-        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
-          result = buf.get(valueKey)
+        if (buf.capacity() >= StyleKeys.PSEUDO_SET_MASK_HIGH + 8) {
+          val setLow = buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW)
+          val setHigh = buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH)
+          if ((setLow and key.low) != 0L || (setHigh and key.high) != 0L) {
+            result = buf.get(valueKey)
+          }
         }
       }
     }
@@ -3335,15 +3361,19 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   // Resolve a Float property with pseudo-state overlay.
-  private fun resolvePseudoFloat(valueKey: Int, stateKey: Int, base: Float): Float {
+  private fun resolvePseudoFloat(valueKey: Int, stateKey: Int, base: Float, key: StateKeys): Float {
     val mask = node.pseudoMask
     if (mask == 0) return base
     var result = base
     for (state in PSEUDO_CSS_ORDER) {
       if (mask and state.mask != 0) {
         val buf = node.getPseudoBuffer(state.mask)
-        if (buf.capacity() > 0 && buf.get(stateKey) != StyleState.INHERIT) {
-          result = buf.getFloat(valueKey)
+        if (buf.capacity() >= StyleKeys.PSEUDO_SET_MASK_HIGH + 8) {
+          val setLow = buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW)
+          val setHigh = buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH)
+          if ((setLow and key.low) != 0L || (setHigh and key.high) != 0L) {
+            result = buf.getFloat(valueKey)
+          }
         }
       }
     }
@@ -3383,7 +3413,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.getInt(StyleKeys.FONT_COLOR)
       }
-      return resolvePseudoInt(StyleKeys.FONT_COLOR, StyleKeys.FONT_COLOR_STATE, base)
+      return resolvePseudoInt(StyleKeys.FONT_COLOR, StyleKeys.FONT_COLOR_STATE, base, StateKeys.FONT_COLOR)
     }
 
   internal val resolvedFontSize: Int
@@ -3396,14 +3426,14 @@ class Style internal constructor(@Transient internal var node: Node) {
           node.parent?.takeIf { it.style.isTextValueInitialized }?.style?.resolvedFontSize
             ?: Constants.DEFAULT_FONT_SIZE
         val base = resolvePercentageFontSize(parentFontSize, values.getInt(StyleKeys.FONT_SIZE))
-        return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base)
+        return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base, StateKeys.FONT_SIZE)
       }
       val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedFontSize ?: values.getInt(StyleKeys.FONT_SIZE)
       } else {
         values.getInt(StyleKeys.FONT_SIZE)
       }
-      return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base)
+      return resolvePseudoInt(StyleKeys.FONT_SIZE, StyleKeys.FONT_SIZE_STATE, base, StateKeys.FONT_SIZE)
     }
 
   internal fun resolvePercentageFontSize(parentFontSize: Int, percent: Int): Int {
@@ -3421,7 +3451,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         FontFace.NSCFontWeight.from(values.getInt(StyleKeys.FONT_WEIGHT))
       }
-      val pseudoRaw = resolvePseudoInt(StyleKeys.FONT_WEIGHT, StyleKeys.FONT_WEIGHT_STATE, values.getInt(StyleKeys.FONT_WEIGHT))
+      val pseudoRaw = resolvePseudoInt(StyleKeys.FONT_WEIGHT, StyleKeys.FONT_WEIGHT_STATE, values.getInt(StyleKeys.FONT_WEIGHT), StateKeys.FONT_WEIGHT)
       return if (node.pseudoMask != 0 && pseudoRaw != values.getInt(StyleKeys.FONT_WEIGHT)) {
         FontFace.NSCFontWeight.from(pseudoRaw)
       } else {
@@ -3437,7 +3467,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         fontStyle
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.FONT_STYLE_TYPE, StyleKeys.FONT_STYLE_STATE, values.get(StyleKeys.FONT_STYLE_TYPE))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.FONT_STYLE_TYPE, StyleKeys.FONT_STYLE_STATE, values.get(StyleKeys.FONT_STYLE_TYPE), StateKeys.FONT_STYLE)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.FONT_STYLE_TYPE)) {
         FontFace.NSCFontStyle.from(pseudoRaw)!!
       } else {
@@ -3454,7 +3484,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         0 // transparent - do not inherit from parent
       }
-      return resolvePseudoInt(StyleKeys.BACKGROUND_COLOR, StyleKeys.BACKGROUND_COLOR_STATE, base)
+      return resolvePseudoInt(StyleKeys.BACKGROUND_COLOR, StyleKeys.BACKGROUND_COLOR_STATE, base, StateKeys.BACKGROUND_COLOR)
     }
 
   internal val resolvedDecorationLine: Styles.DecorationLine
@@ -3467,7 +3497,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         Styles.DecorationLine.from(values.get(StyleKeys.DECORATION_LINE))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_LINE, StyleKeys.DECORATION_LINE_STATE, values.get(StyleKeys.DECORATION_LINE))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_LINE, StyleKeys.DECORATION_LINE_STATE, values.get(StyleKeys.DECORATION_LINE), StateKeys.DECORATION_LINE)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.DECORATION_LINE)) {
         Styles.DecorationLine.from(pseudoRaw)
       } else {
@@ -3484,7 +3514,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.getInt(StyleKeys.DECORATION_COLOR)
       }
-      return resolvePseudoInt(StyleKeys.DECORATION_COLOR, StyleKeys.DECORATION_COLOR_STATE, base)
+      return resolvePseudoInt(StyleKeys.DECORATION_COLOR, StyleKeys.DECORATION_COLOR_STATE, base, StateKeys.DECORATION_COLOR)
     }
 
   internal val resolvedDecorationStyle: Styles.DecorationStyle
@@ -3497,7 +3527,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         Styles.DecorationStyle.from(values.get(StyleKeys.DECORATION_STYLE))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_STYLE, StyleKeys.DECORATION_STYLE_STATE, values.get(StyleKeys.DECORATION_STYLE))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.DECORATION_STYLE, StyleKeys.DECORATION_STYLE_STATE, values.get(StyleKeys.DECORATION_STYLE), StateKeys.DECORATION_STYLE)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.DECORATION_STYLE)) {
         Styles.DecorationStyle.from(pseudoRaw)
       } else {
@@ -3515,7 +3545,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.getFloat(StyleKeys.DECORATION_THICKNESS)
       }
-      return resolvePseudoFloat(StyleKeys.DECORATION_THICKNESS, StyleKeys.DECORATION_THICKNESS_STATE, base)
+      return resolvePseudoFloat(StyleKeys.DECORATION_THICKNESS, StyleKeys.DECORATION_THICKNESS_STATE, base, StateKeys.DECORATION_THICKNESS)
     }
 
 
@@ -3528,7 +3558,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.getFloat(StyleKeys.LETTER_SPACING)
       }
-      return resolvePseudoFloat(StyleKeys.LETTER_SPACING, StyleKeys.LETTER_SPACING_STATE, base)
+      return resolvePseudoFloat(StyleKeys.LETTER_SPACING, StyleKeys.LETTER_SPACING_STATE, base, StateKeys.LETTER_SPACING)
     }
 
   internal val resolvedTextWrap: TextWrap
@@ -3543,7 +3573,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextWrap.from(values.get(StyleKeys.TEXT_WRAP))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_WRAP, StyleKeys.TEXT_WRAP_STATE, values.get(StyleKeys.TEXT_WRAP))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_WRAP, StyleKeys.TEXT_WRAP_STATE, values.get(StyleKeys.TEXT_WRAP), StateKeys.TEXT_WRAP)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_WRAP)) {
         TextWrap.from(pseudoRaw)
       } else {
@@ -3560,7 +3590,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.WHITE_SPACE, StyleKeys.WHITE_SPACE_STATE, values.get(StyleKeys.WHITE_SPACE))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.WHITE_SPACE, StyleKeys.WHITE_SPACE_STATE, values.get(StyleKeys.WHITE_SPACE), StateKeys.WHITE_SPACE)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.WHITE_SPACE)) {
         Styles.WhiteSpace.from(pseudoRaw)
       } else {
@@ -3577,7 +3607,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_TRANSFORM, StyleKeys.TEXT_TRANSFORM_STATE, values.get(StyleKeys.TEXT_TRANSFORM))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_TRANSFORM, StyleKeys.TEXT_TRANSFORM_STATE, values.get(StyleKeys.TEXT_TRANSFORM), StateKeys.TEXT_TRANSFORM)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_TRANSFORM)) {
         Styles.TextTransform.from(pseudoRaw)
       } else {
@@ -3597,7 +3627,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextAlign.from(values.get(StyleKeys.TEXT_ALIGN))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_ALIGN, StyleKeys.TEXT_ALIGN_STATE, values.get(StyleKeys.TEXT_ALIGN))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_ALIGN, StyleKeys.TEXT_ALIGN_STATE, values.get(StyleKeys.TEXT_ALIGN), StateKeys.TEXT_ALIGN)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_ALIGN)) {
         TextAlign.from(pseudoRaw)
       } else {
@@ -3617,7 +3647,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         TextJustify.from(values.get(StyleKeys.TEXT_JUSTIFY))
       }
-      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_JUSTIFY, StyleKeys.TEXT_JUSTIFY_STATE, values.get(StyleKeys.TEXT_JUSTIFY))
+      val pseudoRaw = resolvePseudoByte(StyleKeys.TEXT_JUSTIFY, StyleKeys.TEXT_JUSTIFY_STATE, values.get(StyleKeys.TEXT_JUSTIFY), StateKeys.TEXT_JUSTIFY)
       return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_JUSTIFY)) {
         TextJustify.from(pseudoRaw)
       } else {
@@ -3634,7 +3664,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.getFloat(StyleKeys.LINE_HEIGHT)
       }
-      return resolvePseudoFloat(StyleKeys.LINE_HEIGHT, StyleKeys.LINE_HEIGHT_STATE, base)
+      return resolvePseudoFloat(StyleKeys.LINE_HEIGHT, StyleKeys.LINE_HEIGHT_STATE, base, StateKeys.LINE_HEIGHT)
     }
 
   internal val resolvedLineHeightType: Byte
@@ -3646,7 +3676,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         values.get(StyleKeys.LINE_HEIGHT_TYPE)
       }
-      return resolvePseudoByte(StyleKeys.LINE_HEIGHT_TYPE, StyleKeys.LINE_HEIGHT_STATE, base)
+      return resolvePseudoByte(StyleKeys.LINE_HEIGHT_TYPE, StyleKeys.LINE_HEIGHT_STATE, base, StateKeys.LINE_HEIGHT)
     }
 
 

@@ -950,8 +950,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     super.viewDidLoad()
     // Add a simple demo picker at the top and the Mason body below it
-    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN"]) 
-    demoPicker.selectedSegmentIndex = 3
+    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN","Pseudo"])
+    demoPicker.selectedSegmentIndex = 5
     demoPicker.addTarget(self, action: #selector(demoChanged(_:)), for: .valueChanged)
     demoPicker.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(demoPicker)
@@ -986,9 +986,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     // Ensure Mason computes with actual view size after auto layout
-    body.computeWithViewSize()
-    body.requestLayout()
-    body.invalidate()
+   // body.computeWithViewSize()
+    //body.requestLayout()
+    //body.invalidate()
   }
 
   @objc func demoChanged(_ sender: UISegmentedControl) {
@@ -1009,13 +1009,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //      webTextSample()
 //    }
 
-    
-    renderFloat(body)
-  
-
-    // Ensure Mason recomputes layout
-    //body.requestLayout()
-    //body.invalidate()
+    switch sender.selectedSegmentIndex {
+    case 5:
+      renderPseudoDemo(body)
+    default:
+      renderFloat(body)
+    }
   }
   
   func inputTest(){
@@ -1965,6 +1964,302 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   
+  // MARK: - Pseudo State Demo
+
+  private func pseudoSetBg(_ buf: UnsafeMutableBufferPointer<UInt8>, _ argb: UInt32) {
+    guard buf.count > 0, let base = buf.baseAddress else { return }
+    var val = argb
+    memcpy(base + StyleKeys.BACKGROUND_COLOR, &val, 4)
+    base.advanced(by: StyleKeys.BACKGROUND_COLOR_STATE).pointee = 1
+    MasonNode.markPseudoSet(buf, .backgroundColor)
+  }
+
+  private func pseudoSetFontColor(_ buf: UnsafeMutableBufferPointer<UInt8>, _ argb: UInt32) {
+    guard buf.count > 0, let base = buf.baseAddress else { return }
+    var val = argb
+    memcpy(base + StyleKeys.FONT_COLOR, &val, 4)
+    base.advanced(by: StyleKeys.FONT_COLOR_STATE).pointee = 1
+    MasonNode.markPseudoSet(buf, .color)
+  }
+
+  private func pseudoSetBorderColor(_ buf: UnsafeMutableBufferPointer<UInt8>, _ argb: UInt32) {
+    guard buf.count > 0, let base = buf.baseAddress else { return }
+    var val = argb
+    for offset in [StyleKeys.BORDER_LEFT_COLOR, StyleKeys.BORDER_RIGHT_COLOR,
+                   StyleKeys.BORDER_TOP_COLOR, StyleKeys.BORDER_BOTTOM_COLOR] {
+      memcpy(base + offset, &val, 4)
+    }
+    MasonNode.markPseudoSet(buf, .borderColor)
+  }
+
+  private func pseudoSetBorderWidth(_ buf: UnsafeMutableBufferPointer<UInt8>, _ px: Float) {
+    guard buf.count > 0, let base = buf.baseAddress else { return }
+    var val = px
+    for (t, v) in [(StyleKeys.BORDER_LEFT_TYPE, StyleKeys.BORDER_LEFT_VALUE),
+                   (StyleKeys.BORDER_RIGHT_TYPE, StyleKeys.BORDER_RIGHT_VALUE),
+                   (StyleKeys.BORDER_TOP_TYPE, StyleKeys.BORDER_TOP_VALUE),
+                   (StyleKeys.BORDER_BOTTOM_TYPE, StyleKeys.BORDER_BOTTOM_VALUE)] {
+      base.advanced(by: t).pointee = 0
+      memcpy(base + v, &val, 4)
+    }
+    MasonNode.markPseudoSet(buf, .border)
+  }
+
+  private func pseudoSetBorderRadius(_ buf: UnsafeMutableBufferPointer<UInt8>, _ px: Float) {
+    guard buf.count > 0, let base = buf.baseAddress else { return }
+    var val = px
+    for xType in [StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE,
+                  StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE] {
+      base.advanced(by: xType).pointee = 0
+      memcpy(base + xType + 1, &val, 4)
+    }
+    for yType in [StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE,
+                  StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE] {
+      base.advanced(by: yType).pointee = 0
+      memcpy(base + yType + 1, &val, 4)
+    }
+    MasonNode.markPseudoSet(buf, .borderRadius)
+  }
+
+  private func argb(_ hex: String) -> UInt32 {
+    var hexStr = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+    if hexStr.hasPrefix("#") { hexStr.removeFirst() }
+    var val: UInt64 = 0
+    Scanner(string: hexStr).scanHexInt64(&val)
+    if hexStr.count == 6 {
+      return UInt32(0xFF000000 | UInt32(val))
+    }
+    return UInt32(val)
+  }
+
+  func renderPseudoDemo(_ view: Scroll) {
+    let container = mason.createView()
+    container.configure { style in
+      style.display = .Block
+      style.padding = MasonRect(uniform: .Points(toPx(16)))
+      style.background = "#FFFFFF"
+    }
+
+    func sectionLabel(_ text: String) -> MasonText {
+      let label = mason.createTextView(type: .P)
+      label.append(text: text)
+      label.configure { style in
+        style.color = self.argb("#6B7280")
+        style.fontSize = 12
+        style.display = .Block
+      }
+      label.style.margin = MasonRect(
+        .Points(toPx(12)), .Zero, .Points(toPx(4)), .Zero
+      )
+      return label
+    }
+
+    func styledButton(
+      _ label: String,
+      bg: String? = nil,
+      fg: String? = nil,
+      border: String? = nil,
+      radius: String? = nil,
+      paddingH: Float = 16,
+      paddingV: Float = 10,
+      fullWidth: Bool = true
+    ) -> Button {
+      let btn = mason.createButton()
+      btn.textContent = label
+      btn.configure { style in
+        style.display = fullWidth ? .Block : .InlineBlock
+        if let bg = bg { style.background = bg }
+        if let fg = fg { style.color = self.argb(fg) }
+        if let border = border { style.border = border }
+        if let radius = radius { style.borderRadius = radius }
+        style.padding = MasonRect(
+          .Points(self.toPx(paddingV)),
+          .Points(self.toPx(paddingH)),
+          .Points(self.toPx(paddingV)),
+          .Points(self.toPx(paddingH))
+        )
+        style.margin = MasonRect(
+          .Zero, .Zero, .Points(self.toPx(8)), .Zero
+        )
+        style.textAlign = .Center
+      }
+      return btn
+    }
+
+    let density = scale
+
+    // 1. Primary Button (Indigo)
+    container.addView(sectionLabel("Primary Button"))
+
+    let primary = styledButton("Get Started",
+      bg: "#4F46E5", fg: "#FFFFFF",
+      border: "1 solid #4F46E5", radius: "8")
+    container.addView(primary)
+    
+
+    let primaryHover = primary.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(primaryHover, argb("#4338CA"))
+
+    let primaryActive = primary.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(primaryActive, argb("#3730A3"))
+
+    let primaryFocus = primary.node.preparePseudoBuffer(PseudoState.focus.rawValue)
+    pseudoSetBorderColor(primaryFocus, argb("#818CF8"))
+    pseudoSetBorderWidth(primaryFocus, 2 * density)
+
+    // 2. Outline / Ghost Button
+    container.addView(sectionLabel("Outline Button"))
+
+    let outline = styledButton("Learn More",
+      bg: "#00000000", fg: "#4F46E5",
+      border: "1 solid #4F46E5", radius: "8")
+    container.addView(outline)
+
+    let outlineHover = outline.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(outlineHover, argb("#EEF2FF"))
+
+    let outlineActive = outline.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(outlineActive, UIColor(hex: "#4F46E5")!.toUInt32())
+    pseudoSetFontColor(outlineActive, UIColor.white.toUInt32())
+
+    // 3. Danger Button
+    container.addView(sectionLabel("Danger Button"))
+
+    let danger = styledButton("Delete Account",
+      bg: "#DC2626", fg: "#FFFFFF",
+      border: "0 solid #DC2626", radius: "8")
+    container.addView(danger)
+
+    let dangerHover = danger.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(dangerHover, argb("#B91C1C"))
+
+    let dangerActive = danger.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(dangerActive, argb("#991B1B"))
+
+    // 4. Success Button
+    container.addView(sectionLabel("Success Button"))
+
+    let success = styledButton("Confirm Payment",
+      bg: "#059669", fg: "#FFFFFF",
+      border: "0 solid #059669", radius: "8")
+    container.addView(success)
+
+    let successHover = success.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(successHover, argb("#047857"))
+
+    let successActive = success.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(successActive, argb("#065F46"))
+
+    // 5. Pill Button
+    container.addView(sectionLabel("Pill Button"))
+
+    let pill = styledButton("Subscribe",
+      bg: "#7C3AED", fg: "#FFFFFF",
+      border: "0 solid #7C3AED", radius: "999",
+      paddingH: 24, paddingV: 10, fullWidth: false)
+    container.addView(pill)
+
+    let pillHover = pill.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(pillHover, argb("#6D28D9"))
+
+    let pillActive = pill.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(pillActive, argb("#5B21B6"))
+    pseudoSetBorderRadius(pillActive, 12 * density)
+
+    // 6. Ghost Button
+    container.addView(sectionLabel("Ghost Button"))
+
+    let ghost = styledButton("Cancel",
+      bg: "#00000000", fg: "#6B7280",
+      border: "0 solid #00000000", radius: "6")
+    container.addView(ghost)
+
+    let ghostHover = ghost.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(ghostHover, argb("#F3F4F6"))
+    pseudoSetFontColor(ghostHover, argb("#111827"))
+
+    let ghostActive = ghost.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(ghostActive, argb("#E5E7EB"))
+    pseudoSetFontColor(ghostActive, argb("#111827"))
+
+    // 7. Dark Mode Button
+    container.addView(sectionLabel("Dark Mode Button"))
+
+    let dark = styledButton("Sign In",
+      bg: "#1F2937", fg: "#F9FAFB",
+      border: "1 solid #374151", radius: "8")
+    container.addView(dark)
+
+    let darkHover = dark.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(darkHover, argb("#374151"))
+    pseudoSetBorderColor(darkHover, argb("#4B5563"))
+
+    let darkActive = dark.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(darkActive, argb("#111827"))
+    pseudoSetBorderColor(darkActive, argb("#6366F1"))
+
+    // 8. Outline Danger
+    container.addView(sectionLabel("Outline Danger"))
+
+    let outlineDanger = styledButton("Remove Item",
+      bg: "#00000000", fg: "#DC2626",
+      border: "1 solid #DC2626", radius: "8")
+    container.addView(outlineDanger)
+
+    let outlineDangerHover = outlineDanger.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(outlineDangerHover, argb("#FEF2F2"))
+
+    let outlineDangerActive = outlineDanger.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(outlineDangerActive, argb("#DC2626"))
+    pseudoSetFontColor(outlineDangerActive, 0xFFFFFFFF)
+    pseudoSetBorderColor(outlineDangerActive, argb("#991B1B"))
+
+    // 9. Focus Ring Demo
+    container.addView(sectionLabel("Focus Ring (press to see active)"))
+
+    let focusBtn = styledButton("Tab to Focus Me",
+      bg: "#FFFFFF", fg: "#1F2937",
+      border: "1 solid #D1D5DB", radius: "8")
+    container.addView(focusBtn)
+
+    let focusBtnHover = focusBtn.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(focusBtnHover, argb("#F9FAFB"))
+    pseudoSetBorderColor(focusBtnHover, argb("#9CA3AF"))
+
+    let focusBtnFocus = focusBtn.node.preparePseudoBuffer(PseudoState.focus.rawValue)
+    pseudoSetBorderColor(focusBtnFocus, argb("#6366F1"))
+    pseudoSetBorderWidth(focusBtnFocus, 2 * density)
+
+    let focusBtnActive = focusBtn.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(focusBtnActive, argb("#F3F4F6"))
+
+    // 10. Full Cascade
+    container.addView(sectionLabel("Full Cascade (hover > focus > active)"))
+
+    let cascade = styledButton("Hover, Focus, or Press",
+      bg: "#FFFFFF", fg: "#1F2937",
+      border: "1 solid #D1D5DB", radius: "8")
+    container.addView(cascade)
+
+    let cascadeHover = cascade.node.preparePseudoBuffer(PseudoState.hover.rawValue)
+    pseudoSetBg(cascadeHover, argb("#EEF2FF"))
+    pseudoSetBorderColor(cascadeHover, argb("#A5B4FC"))
+    pseudoSetFontColor(cascadeHover, argb("#4F46E5"))
+
+    let cascadeFocus = cascade.node.preparePseudoBuffer(PseudoState.focus.rawValue)
+    pseudoSetBorderColor(cascadeFocus, argb("#6366F1"))
+    pseudoSetBorderWidth(cascadeFocus, 2 * density)
+
+    let cascadeActive = cascade.node.preparePseudoBuffer(PseudoState.active.rawValue)
+    pseudoSetBg(cascadeActive, argb("#4F46E5"))
+    pseudoSetFontColor(cascadeActive, 0xFFFFFFFF)
+    pseudoSetBorderColor(cascadeActive, argb("#4338CA"))
+    
+    
+
+    view.addView(container)
+  }
+
   private class TapListenerWrapper: NSObject {
       let handler: () -> Void
       init(_ handler: @escaping () -> Void) {

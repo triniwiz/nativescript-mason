@@ -154,13 +154,13 @@ class PseudoDemoActivity : AppCompatActivity() {
     layout.addView(primary, matchWrap())
 
     primary.node.preparePseudoBuffer(PseudoState.HOVER.mask).apply {
-      setBg(Color.parseColor("#4338CA"))
+      setBg("#4338CA".toColorInt())
     }
     primary.node.preparePseudoBuffer(PseudoState.ACTIVE.mask).apply {
-      setBg(Color.parseColor("#3730A3"))
+      setBg("#3730A3".toColorInt())
     }
     primary.node.preparePseudoBuffer(PseudoState.FOCUS.mask).apply {
-      setBorderColor(Color.parseColor("#818CF8"))
+      setBorderColor("#818CF8".toColorInt())
       setBorderWidth(2f * density)
     }
 
@@ -177,10 +177,10 @@ class PseudoDemoActivity : AppCompatActivity() {
     layout.addView(outline, matchWrap())
 
     outline.node.preparePseudoBuffer(PseudoState.HOVER.mask).apply {
-      setBg(Color.parseColor("#EEF2FF"))
+      setBg("#EEF2FF".toColorInt())
     }
     outline.node.preparePseudoBuffer(PseudoState.ACTIVE.mask).apply {
-      setBg(Color.parseColor("#4F46E5"))
+      setBg("#4F46E5".toColorInt())
       setFontColor(Color.WHITE)
     }
 

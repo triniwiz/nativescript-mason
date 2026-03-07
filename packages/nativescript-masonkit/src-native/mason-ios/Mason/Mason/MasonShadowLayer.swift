@@ -69,7 +69,9 @@ class MasonShadowLayer: CALayer {
     
     // Position layer to cover shadow area (in superview coordinates)
     let expandedFrame = viewFrame.insetBy(dx: -maxExpand, dy: -maxExpand)
-    frame = expandedFrame
+    if frame != expandedFrame {
+      frame = expandedFrame
+    }
     
     // Check if we need to redraw
     let shadowsHash = style.boxShadows.hashValue

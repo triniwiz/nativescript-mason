@@ -398,6 +398,46 @@ public class CSSFilters {
       observeSublayerContents(layer: view.layer)
     }
     
+    /// Lightweight CGContext-based render for simple, single color filters.
+    /// Returns true if handled; false means the caller should fall back to
+    /// the full Metal/CIFilter pipeline via `apply(to:)`.
+    public func applyFast(in context: CGContext, rect: CGRect) -> Bool {
+      guard filters.count == 1 else { return false }
+
+      switch filters[0] {
+      case .brightness(let value):
+        if value < 1.0 {
+          // Darken: multiply blend darkens each channel proportionally
+          context.saveGState()
+          context.setBlendMode(.multiply)
+          let gray = max(value, 0)
+          context.setFillColor(UIColor(white: gray, alpha: 1).cgColor)
+          context.fill(rect)
+          context.restoreGState()
+        } else if value > 1.0 {
+          // Lighten: screen blend (additive) with white at (value-1) alpha
+          context.saveGState()
+          context.setBlendMode(.screen)
+          let alpha = min(value - 1.0, 1.0)
+          context.setFillColor(UIColor(white: 1, alpha: alpha).cgColor)
+          context.fill(rect)
+          context.restoreGState()
+        }
+        return true
+
+      case .grayscale(let amount):
+        // Desaturate via luminance overlay isn't accurate enough for a fast path
+        return false
+
+      case .opacity(let amount):
+        // Opacity is already handled by the view's alpha — no CGContext trick
+        return false
+
+      default:
+        return false
+      }
+    }
+
     public func apply(to view: UIView) {
       isApplying = true
       defer { isApplying = false }

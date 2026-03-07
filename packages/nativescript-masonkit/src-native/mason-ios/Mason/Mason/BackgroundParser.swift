@@ -87,9 +87,6 @@ class Background {
       style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.SET)
       style.notifyTextStyleChanged(.backgroundColor)
-      #if DEBUG
-      print("[Background.color.set] node=\(style.node) color=\(String(describing: color))")
-      #endif
     }
     get {
       if(style.getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
@@ -101,11 +98,6 @@ class Background {
   }
   var layers: [BackgroundLayer] = []
   unowned let style: MasonStyle
-  internal var isActive: Bool = false {
-    didSet {
-      style.node.view?.setNeedsDisplay()
-    }
-  }
   init(style: MasonStyle) {
     self.style = style
   }
@@ -148,9 +140,6 @@ class Background {
     style.prepareMut()
     style.setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
     style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-    #if DEBUG
-    print("[Background.parseBackground] node=\(style.node) newValue=\(newValue) css=\(css)")
-    #endif
     // change view as well ??
     // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     

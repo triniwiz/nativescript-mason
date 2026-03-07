@@ -10,10 +10,10 @@ pub use style_atoms::Atom;
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
-    Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea,
+    Display, FlexDirection, FlexWrap, Float, GridAutoFlow, GridPlacement, GridTemplateArea,
     GridTemplateComponent, GridTemplateRepetition, JustifyContent, LengthPercentage,
     LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
-    RepetitionCount, TextAlign, TrackSizingFunction, Float
+    RepetitionCount, TextAlign, TrackSizingFunction,
 };
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
@@ -132,6 +132,48 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
 
         for child in children {
             copy_output(taffy, *child, output);
+        }
+    }
+}
+
+fn copy_output_count(taffy: &Tree, node: Id, output: &mut Vec<f32>, count: &mut usize) {
+    let layout = taffy.layout(node);
+    if let Some(children) = taffy.inner().children.get(node) {
+        let len = children.len();
+        *count += 1;
+        output.reserve(len * 22);
+
+        output.push(layout.order as f32);
+        output.push(layout.location.x);
+        output.push(layout.location.y);
+        output.push(layout.size.width);
+        output.push(layout.size.height);
+
+        output.push(layout.border.top);
+        output.push(layout.border.right);
+        output.push(layout.border.bottom);
+        output.push(layout.border.left);
+
+        output.push(layout.margin.top);
+        output.push(layout.margin.right);
+        output.push(layout.margin.bottom);
+        output.push(layout.margin.left);
+
+        output.push(layout.padding.top);
+        output.push(layout.padding.right);
+        output.push(layout.padding.bottom);
+        output.push(layout.padding.left);
+
+        output.push(layout.content_size.width);
+        output.push(layout.content_size.height);
+
+        output.push(layout.scrollbar_size.width);
+        output.push(layout.scrollbar_size.height);
+
+        output.push(len as f32);
+
+        for child in children {
+            copy_output_count(taffy, *child, output, count);
         }
     }
 }
@@ -532,6 +574,15 @@ impl Mason {
     }
 
     #[track_caller]
+    pub fn node_state_data_raw(&self, node: Id) -> (*const u8, usize) {
+        self.0
+            .nodes()
+            .get(node)
+            .map(|data| (data.state.as_ptr(), data.state.len()))
+            .unwrap_or((0 as _, 0))
+    }
+
+    #[track_caller]
     pub fn node_state_data_raw_mut(&mut self, node: Id) -> (*mut u8, usize) {
         self.0
             .nodes_mut()
@@ -659,7 +710,8 @@ impl Mason {
     /// `(Id, left, top, right, bottom)` in engine logical units.
     pub fn get_float_rects_with_nodes(&self, container_id: Id) -> Vec<(Id, f32, f32, f32, f32)> {
         if let Some(rects) = self.0.get_float_rects(container_id) {
-            rects.into_iter()
+            rects
+                .into_iter()
                 .map(|r| (r.node, r.left, r.top, r.right, r.bottom))
                 .collect()
         } else {
@@ -733,7 +785,8 @@ impl Mason {
     }
 
     pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {
-        self.0.node_data()
+        self.0
+            .node_data()
             .get(node)
             .map(|data| data.inline_segments.lock().clone())
             .unwrap_or_default()
@@ -1035,7 +1088,6 @@ impl Mason {
     }
 }
 
-
 #[doc(hidden)]
 pub mod test_helpers {
     use super::Id;
@@ -1059,7 +1111,6 @@ pub mod test_helpers {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1123,7 +1174,11 @@ mod tests {
         let height = out[4];
 
         assert!((width - 150.0).abs() < 0.001, "unexpected width: {}", width);
-        assert!((height - 12.0).abs() < 0.001, "unexpected height: {}", height);
+        assert!(
+            (height - 12.0).abs() < 0.001,
+            "unexpected height: {}",
+            height
+        );
     }
 
     #[test]
@@ -1139,7 +1194,10 @@ mod tests {
         // Parent contains one inline child segment referencing the child
         mason.set_segments(
             pid,
-            vec![InlineSegment::InlineChild { id: Some(cid), baseline: 0.0 }],
+            vec![InlineSegment::InlineChild {
+                id: Some(cid),
+                baseline: 0.0,
+            }],
         );
 
         // Append child to parent so IFC will consider it
@@ -1161,8 +1219,16 @@ mod tests {
         let child_width = cout[3];
         let child_height = cout[4];
 
-        assert!((child_width - 200.0).abs() < 0.001, "child width: {}", child_width);
-        assert!((child_height - 20.0).abs() < 0.001, "child height: {}", child_height);
+        assert!(
+            (child_width - 200.0).abs() < 0.001,
+            "child width: {}",
+            child_width
+        );
+        assert!(
+            (child_height - 20.0).abs() < 0.001,
+            "child height: {}",
+            child_height
+        );
 
         // Parent should at least contain the child's size
         assert!(parent_width >= child_width - 0.001);
@@ -1197,12 +1263,20 @@ mod tests {
 
         // a should now be DisplayMode::None
         mason.with_style(a_id, |s| {
-            assert_eq!(s.display_mode(), DisplayMode::None, "a should be None after set_display(Block)");
+            assert_eq!(
+                s.display_mode(),
+                DisplayMode::None,
+                "a should be None after set_display(Block)"
+            );
         });
 
         // b must still be DisplayMode::Inline (COW should have protected it)
         mason.with_style(b_id, |s| {
-            assert_eq!(s.display_mode(), DisplayMode::Inline, "b must be unchanged after mutating a");
+            assert_eq!(
+                s.display_mode(),
+                DisplayMode::Inline,
+                "b must be unchanged after mutating a"
+            );
         });
     }
 }

@@ -107,7 +107,7 @@ public class NSCMason: NSObject {
                                    node.nativePtr, create_layout)
     
     guard let points = points else {
-      return MasonLayout.zero
+      return MasonLayout.empty
     }
     
     let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()

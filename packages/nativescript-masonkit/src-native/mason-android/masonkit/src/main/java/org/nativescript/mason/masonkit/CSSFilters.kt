@@ -753,6 +753,48 @@ class CSSFilters {
       return filters.any { it is Filter.DropShadow || it is Filter.Blur }
     }
 
+    /**
+     * Returns true if this filter set can be handled by the lightweight
+     * [applyFast] Canvas path instead of the full pipeline.
+     */
+    fun canApplyFast(): Boolean {
+      if (filters.size != 1) return false
+      return filters[0] is Filter.Brightness
+    }
+
+    /**
+     * Lightweight Canvas-based render for simple, single color filters.
+     * Caller must draw content first, then call this to overlay the effect.
+     */
+    fun applyFast(canvas: Canvas, width: Float, height: Float): Boolean {
+      if (filters.size != 1) return false
+
+      return when (val f = filters[0]) {
+        is Filter.Brightness -> {
+          val v = f.value
+          if (v < 1f) {
+            // Darken: multiply blend darkens each channel proportionally
+            val gray = (v.coerceAtLeast(0f) * 255).toInt()
+            val paint = Paint().apply {
+              color = Color.rgb(gray, gray, gray)
+              xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+            }
+            canvas.drawRect(0f, 0f, width, height, paint)
+          } else if (v > 1f) {
+            // Lighten: additive overlay with white
+            val alpha = ((v - 1f).coerceAtMost(1f) * 255).toInt()
+            val paint = Paint().apply {
+              color = Color.argb(alpha, 255, 255, 255)
+              xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+            }
+            canvas.drawRect(0f, 0f, width, height, paint)
+          }
+          true
+        }
+        else -> false
+      }
+    }
+
     fun renderFilters(view: View, canvas: Canvas, draw: (Canvas) -> Unit) {
       val invalid = !(view.width > 0 && view.height > 0)
 

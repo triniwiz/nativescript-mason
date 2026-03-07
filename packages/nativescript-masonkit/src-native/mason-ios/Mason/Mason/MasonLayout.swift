@@ -6,272 +6,327 @@
 //
 
 import Foundation
+import simd
+
+// MARK: - Internal Flat Layout Tree (Swift-only)
+
+public final class MasonLayoutTree {
+  // Node order
+  var order: [Int] = []
+  
+  // Geometry: x, y, width, height
+  var frames: [SIMD4<Float>] = []
+  
+  // Borders, Margins, Paddings: top, right, bottom, left
+  var borders: [SIMD4<Float>] = []
+  var margins: [SIMD4<Float>] = []
+  var paddings: [SIMD4<Float>] = []
+  
+  // Content & Scrollbar sizes: width, height
+  var contentSizes: [SIMD2<Float>] = []
+  var scrollbarSizes: [SIMD2<Float>] = []
+  
+  // Children indices
+  var childStart: [Int] = []
+  var childCount: [Int] = []
+  var childIndices: [Int] = []
+  
+  public var nodeCount: Int { frames.count }
+  
+  public init() {}
+  
+  // MARK: - Parsing from [Float] array
+  
+  public func fromFloatArray(_ args: [Float]) {
+    reset()
+    var currentIndex = 0
+    var arrayIndex = 0
+    
+    while arrayIndex < args.count {
+      let nodeOrder = Int(args[arrayIndex]); arrayIndex += 1
+      let x = args[arrayIndex]; arrayIndex += 1
+      let y = args[arrayIndex]; arrayIndex += 1
+      let width = args[arrayIndex]; arrayIndex += 1
+      let height = args[arrayIndex]; arrayIndex += 1
+      
+      frames.append(SIMD4<Float>(x, y, width, height))
+      
+      borders.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
+      arrayIndex += 4
+      margins.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
+      arrayIndex += 4
+      paddings.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
+      arrayIndex += 4
+      
+      contentSizes.append(SIMD2<Float>(args[arrayIndex], args[arrayIndex + 1]))
+      arrayIndex += 2
+      scrollbarSizes.append(SIMD2<Float>(args[arrayIndex], args[arrayIndex + 1]))
+      arrayIndex += 2
+      
+      let childrenCountNode = Int(args[arrayIndex]); arrayIndex += 1
+      
+      order.append(nodeOrder)
+      childStart.append(childIndices.count)
+      childCount.append(childrenCountNode)
+      
+      for _ in 0..<childrenCountNode {
+        childIndices.append(currentIndex + 1) // placeholder sequential
+      }
+      
+      currentIndex += 1
+    }
+  }
+  
+  // MARK: - Parsing from UnsafePointer<Float>
+  
+  public func fromFloatPointer(_ ptr: UnsafePointer<Float>, count: Int) {
+    reset()
+    var array = ptr
+    let end = ptr.advanced(by: count)
+
+    while array < end {
+      let nodeOrder = Int(array.pointee.rounded(.towardZero)); array = array.advanced(by: 1)
+      let x = array.pointee; array = array.advanced(by: 1)
+      let y = array.pointee; array = array.advanced(by: 1)
+      let width = array.pointee; array = array.advanced(by: 1)
+      let height = array.pointee; array = array.advanced(by: 1)
+      
+      frames.append(SIMD4<Float>(x, y, width, height))
+      
+      borders.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
+      array = array.advanced(by: 4)
+      
+      margins.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
+      array = array.advanced(by: 4)
+      
+      paddings.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
+      array = array.advanced(by: 4)
+      
+      contentSizes.append(SIMD2<Float>(array.pointee, array.advanced(by: 1).pointee))
+      array = array.advanced(by: 2)
+      
+      scrollbarSizes.append(SIMD2<Float>(array.pointee, array.advanced(by: 1).pointee))
+      array = array.advanced(by: 2)
+      
+      let childrenCountNode = Int(array.pointee.rounded(.towardZero)); array = array.advanced(by: 1)
+
+      let nodeIndex = order.count
+      order.append(nodeOrder)
+      childStart.append(childIndices.count)
+      childCount.append(childrenCountNode)
+
+      for i in 0..<childrenCountNode {
+        childIndices.append(nodeIndex + 1 + i) // sequential indexing
+      }
+    }
+  }
+  
+  // Reset all arrays
+  private func reset() {
+    order.removeAll(keepingCapacity: true)
+    frames.removeAll(keepingCapacity: true)
+    borders.removeAll(keepingCapacity: true)
+    margins.removeAll(keepingCapacity: true)
+    paddings.removeAll(keepingCapacity: true)
+    contentSizes.removeAll(keepingCapacity: true)
+    scrollbarSizes.removeAll(keepingCapacity: true)
+    childStart.removeAll(keepingCapacity: true)
+    childCount.removeAll(keepingCapacity: true)
+    childIndices.removeAll(keepingCapacity: true)
+  }
+}
+
+// MARK: - Swift Node View
+
+public struct MasonNodeView {
+  let tree: MasonLayoutTree
+  let index: Int
+  
+  public var x: Float { tree.frames[index].x }
+  public var y: Float { tree.frames[index].y }
+  public var width: Float { tree.frames[index].z }
+  public var height: Float { tree.frames[index].w }
+  
+  public var borderTop: Float { tree.borders[index].x }
+  public var borderRight: Float { tree.borders[index].y }
+  public var borderBottom: Float { tree.borders[index].z }
+  public var borderLeft: Float { tree.borders[index].w }
+  
+  public var marginTop: Float { tree.margins[index].x }
+  public var marginRight: Float { tree.margins[index].y }
+  public var marginBottom: Float { tree.margins[index].z }
+  public var marginLeft: Float { tree.margins[index].w }
+  
+  public var paddingTop: Float { tree.paddings[index].x }
+  public var paddingRight: Float { tree.paddings[index].y }
+  public var paddingBottom: Float { tree.paddings[index].z }
+  public var paddingLeft: Float { tree.paddings[index].w }
+  
+  public var contentWidth: Float { tree.contentSizes[index].x }
+  public var contentHeight: Float { tree.contentSizes[index].y }
+  
+  public var scrollbarWidth: Float { tree.scrollbarSizes[index].x }
+  public var scrollbarHeight: Float { tree.scrollbarSizes[index].y }
+  
+  public var hasChildren: Bool { tree.childCount[index] > 0 }
+  
+  public var children: [MasonNodeView] {
+    let start = tree.childStart[index]
+    let count = tree.childCount[index]
+    return (0..<count).map { MasonNodeView(tree: tree, index: tree.childIndices[start + $0]) }
+  }
+}
+
+// MARK: - Obj-C Friendly Helper Classes
+
+@objc(MasonRectHelper)
+@objcMembers
+public class MasonRectHelper: NSObject {
+  private let tree: MasonLayoutTree
+  private let index: Int
+  private let array: [SIMD4<Float>]
+  
+  init(tree: MasonLayoutTree, index: Int, array: [SIMD4<Float>]) {
+    self.tree = tree
+    self.index = index
+    self.array = array
+  }
+  
+  public var top: Float { array[index].x }
+  public var right: Float { array[index].y }
+  public var bottom: Float { array[index].z }
+  public var left: Float { array[index].w }
+  
+  
+  public func isEmpty() -> Bool {
+    return all(array[index] .== SIMD4<Float>(repeating: 0))
+  }
+}
+
+@objc(MasonSizeHelper)
+@objcMembers
+public class MasonSizeHelper: NSObject {
+  private let tree: MasonLayoutTree
+  private let index: Int
+  private let array: [SIMD2<Float>]
+  
+  init(tree: MasonLayoutTree, index: Int, array: [SIMD2<Float>]) {
+    self.tree = tree
+    self.index = index
+    self.array = array
+  }
+  
+  public var width: Float { array[index].x }
+  public var height: Float { array[index].y }
+}
+
+// MARK: - Obj-C Friendly MasonLayout Wrapper
 
 @objc(MasonLayout)
 @objcMembers
-public class MasonLayout: NSObject, Codable {
-  public let order: Int
-  public let x: Float
-  public let y: Float
-  public let width: Float
-  public let height: Float
-  public internal(set) var border: MasonRect<Float> = .init(0, 0, 0, 0)
-  public internal(set) var margin: MasonRect<Float> = .init(0, 0, 0, 0)
-  public internal(set) var padding: MasonRect<Float> = .init(0, 0, 0, 0)
-  public internal(set) var contentSize: MasonSize<Float> = .init(0, 0)
-  public internal(set) var scrollbarSize: MasonSize<Float> = .init(0, 0)
-  public let children: [MasonLayout]
-  public static let zero = MasonLayout()
-  public var hasChildren: Bool { !children.isEmpty }
+public class MasonLayout: NSObject {
+  let tree: MasonLayoutTree
+  let index: Int
   
+  /// Empty SIMD-zero fallback
+   private static let zeroFrame = SIMD4<Float>(repeating: 0)
+   private static let zeroRect = SIMD4<Float>(repeating: 0)
+   private static let zeroSize = SIMD2<Float>(repeating: 0)
   
-  public var borderIsEmpty: Bool { border.isEmpty() }
-  public var borderTop:Float {border.left}
-  public var borderRight:Float {border.right}
-  public var borderBottom:Float {border.bottom}
-  public var borderLeft:Float {border.left}
-  
-  public var marginIsEmpty: Bool { margin.isEmpty() }
-  public var marginTop:Float {margin.left}
-  public var marginRight:Float {margin.right}
-  public var marginBottom:Float {margin.bottom}
-  public var marginLeft:Float {margin.left}
-  
-  public var paddingIsEmpty: Bool { padding.isEmpty() }
-  public var paddingTop:Float {padding.left}
-  public var paddingRight:Float {padding.right}
-  public var paddingBottom:Float {padding.bottom}
-  public var paddingLeft:Float {padding.left}
-  
-  public var sizeIsEmpty: Bool { width == 0 && height == 0 }
-  
-  
-  public var contentSizeIsEmpty: Bool { contentSize.isEmpty() }
-  public var contentSizeWidth:Float {contentSize.width}
-  public var contentSizeHeight:Float {contentSize.height}
-  
-  public var scrollbarSizeIsEmpty: Bool { scrollbarSize.isEmpty() }
-  public var scrollbarSizeWidth:Float {scrollbarSize.width}
-  public var scrollbarSizeHeight:Float {scrollbarSize.height}
-  
-  public override var description: String {
-    do {
-      let encoder = JSONEncoder()
-      encoder.outputFormatting = [.prettyPrinted]
-      
-      encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "-Infinity", negativeInfinity: "Infinity", nan: "NaN")
-      
-      let jsonData = try encoder.encode(self)
-      return String(data: jsonData, encoding: .utf8) ?? ""
-    } catch {
-      return "json serialization error: \(error)"
-    }
+  public init(tree: MasonLayoutTree, index: Int) {
+    self.tree = tree
+    self.index = index
   }
   
-  internal override init() {
-    self.order = 0
-    self.x = 0
-    self.y = 0
-    self.width = 0
-    self.height = 0
-    self.children = []
+  public static let empty: MasonLayout = {
+      let tree = MasonLayoutTree()
+      // Ensure arrays have at least one element for SIMD indexing
+      tree.frames = [zeroFrame]
+      tree.borders = [zeroRect]
+      tree.margins = [zeroRect]
+      tree.paddings = [zeroRect]
+      tree.contentSizes = [zeroSize]
+      tree.scrollbarSizes = [zeroSize]
+      tree.childCount = [0]
+      tree.childStart = [0]
+      tree.childIndices = []
+      return MasonLayout(tree: tree, index: 0)
+  }()
+  
+  // MARK: - Geometry
+  public var x: Float { tree.frames[index].x }
+  public var y: Float { tree.frames[index].y }
+  public var width: Float { tree.frames[index].z }
+  public var height: Float { tree.frames[index].w }
+  
+  
+  public var borderTop: Float { tree.borders[index].x }
+  public var borderRight: Float { tree.borders[index].y }
+  public var borderBottom: Float { tree.borders[index].z }
+  public var borderLeft: Float { tree.borders[index].w }
+  
+  public var marginTop: Float { tree.margins[index].x }
+  public var marginRight: Float { tree.margins[index].y }
+  public var marginBottom: Float { tree.margins[index].z }
+  public var marginLeft: Float { tree.margins[index].w }
+  
+  public var paddingTop: Float { tree.paddings[index].x }
+  public var paddingRight: Float { tree.paddings[index].y }
+  public var paddingBottom: Float { tree.paddings[index].z }
+  public var paddingLeft: Float { tree.paddings[index].w }
+  
+  public var contentWidth: Float { tree.contentSizes[index].x }
+  public var contentHeight: Float { tree.contentSizes[index].y }
+  
+  public var scrollbarWidth: Float { tree.scrollbarSizes[index].x }
+  public var scrollbarHeight: Float { tree.scrollbarSizes[index].y }
+  
+  public var sizeIsEmpty: Bool {
+    let f = tree.frames[index]
+    return f.z == 0 && f.w == 0
   }
   
-  internal init(_ order: Int, _ x: Float, _ y: Float,_ width: Float,_ height: Float,_ children: Array<MasonLayout>) {
-    self.order = order
-    self.x = x
-    self.y = y
-    self.width = width
-    self.height = height
-    self.children = children
+  public var paddingIsEmpty: Bool {
+      return all(tree.paddings[index] .== SIMD4<Float>(repeating: 0))
   }
   
-  internal static func fromFloatArray(_ args: [Float], _ offset: Int) -> (Int, MasonLayout) {
-    var offset = offset
-    
-    let order = args[offset]
-    offset += 1
-    
-    let x = args[offset]
-    offset += 1
-    
-    let y = args[offset]
-    offset += 1
-    
-    let width = args[offset]
-    offset += 1
-    
-    let height = args[offset]
-    offset += 1
-    
-    let count = Int(args[offset])
-    offset += 1
-    
-    var border = MasonRect<Float>(uniform: 0)
-    
-    border.top = args[offset]
-    offset += 1
-    border.right = args[offset]
-    offset += 1
-    border.bottom = args[offset]
-    offset += 1
-    border.left = args[offset]
-    offset += 1
-    
-    var margin = MasonRect<Float>(uniform: 0)
-    
-    margin.top = args[offset]
-    offset += 1
-    margin.right = args[offset]
-    offset += 1
-    margin.bottom = args[offset]
-    offset += 1
-    margin.left = args[offset]
-    offset += 1
-    
-    
-    var padding = MasonRect<Float>(uniform: 0)
-    padding.top = args[offset]
-    offset += 1
-    padding.right = args[offset]
-    offset += 1
-    padding.bottom = args[offset]
-    offset += 1
-    padding.left = args[offset]
-    offset += 1
-    
-    
-    var contentSize = MasonSize<Float>(uniform: 0)
-    
-    contentSize.width = args[offset]
-    offset += 1
-    contentSize.height = args[offset]
-    offset += 1
-    
-    var scrollbarSize = MasonSize<Float>(uniform: 0)
-    
-    scrollbarSize.width = args[offset]
-    offset += 1
-    scrollbarSize.height = args[offset]
-    offset += 1
-    
-    
-    var children = Array<MasonLayout>()
-    children.reserveCapacity(count)
-    
-    
-    for _ in 0..<count {
-      let child = fromFloatArray(args, offset)
-      offset = child.0
-      children.append(child.1)
-    }
-    
-    let layout = MasonLayout(Int(order), x, y, width, height, children)
-    layout.border = border
-    layout.margin = margin
-    layout.padding = padding
-    layout.contentSize = contentSize
-    layout.scrollbarSize = scrollbarSize
-    
-    return (offset, layout)
+  public var marginIsEmpty: Bool {
+      return all(tree.margins[index] .== SIMD4<Float>(repeating: 0))
+  }
+
+  public var borderIsEmpty: Bool {
+      return all(tree.borders[index] .== SIMD4<Float>(repeating: 0))
   }
   
   
-  internal static func fromFloatPoint(args: UnsafeMutablePointer<Float>) -> (UnsafePointer<Float>, MasonLayout) {
-    return MasonLayout.fromFloatPoint(UnsafePointer(args))
+  // MARK: - Rect Helpers
+  public var border: MasonRectHelper {
+    MasonRectHelper(tree: tree, index: index, array: tree.borders)
   }
   
-  internal static func fromFloatPoint(_ args: UnsafePointer<Float>) -> (UnsafePointer<Float>, MasonLayout) {
-    var array = args
-    
-    let order = array.pointee
-    array = array.advanced(by: 1)
-    
-    let x = array.pointee
-    array = array.advanced(by: 1)
-    
-    let y = array.pointee
-    array = array.advanced(by: 1)
-    
-    let width = array.pointee
-    array = array.advanced(by: 1)
-    
-    let height = array.pointee
-    array = array.advanced(by: 1)
-    
-    
-    
-    var border = MasonRect<Float>(uniform: 0)
-    
-    border.top = array.pointee
-    array = array.advanced(by: 1)
-    border.right = array.pointee
-    array = array.advanced(by: 1)
-    border.bottom = array.pointee
-    array = array.advanced(by: 1)
-    border.left = array.pointee
-    array = array.advanced(by: 1)
-    
-    var margin = MasonRect<Float>(uniform: 0)
-    
-    margin.top = array.pointee
-    array = array.advanced(by: 1)
-    margin.right = array.pointee
-    array = array.advanced(by: 1)
-    margin.bottom = array.pointee
-    array = array.advanced(by: 1)
-    margin.left = array.pointee
-    array = array.advanced(by: 1)
-    
-    
-    var padding = MasonRect<Float>(uniform: 0)
-    
-    padding.top = array.pointee
-    array = array.advanced(by: 1)
-    padding.right = array.pointee
-    array = array.advanced(by: 1)
-    padding.bottom = array.pointee
-    array = array.advanced(by: 1)
-    padding.left = array.pointee
-    array = array.advanced(by: 1)
-    
-    var contentSize = MasonSize<Float>(uniform: 0)
-    
-    contentSize.width = array.pointee
-    array = array.advanced(by: 1)
-    contentSize.height = array.pointee
-    array = array.advanced(by: 1)
-    
-    var scrollbarSize = MasonSize<Float>(uniform: 0)
-    
-    scrollbarSize.width = array.pointee
-    array = array.advanced(by: 1)
-    scrollbarSize.height = array.pointee
-    array = array.advanced(by: 1)
-    
-    
-    let childCount = Int(array.pointee)
-    array = array.advanced(by: 1)
-    
-    
-    var children = Array<MasonLayout>()
-    children.reserveCapacity(childCount)
-    
-    
-    for _ in 0..<childCount {
-      let child = fromFloatPoint(array)
-      array = child.0
-      children.append(child.1)
-    }
-    
-    let layout =  MasonLayout(Int(order.rounded(.up)), x, y, width, height, children)
-    
-    layout.border = border
-    layout.margin = margin
-    layout.padding = padding
-    layout.contentSize = contentSize
-    layout.scrollbarSize = scrollbarSize
-    
-    return (array, layout)
+  public var margin: MasonRectHelper {
+    MasonRectHelper(tree: tree, index: index, array: tree.margins)
+  }
+  
+  public var padding: MasonRectHelper {
+    MasonRectHelper(tree: tree, index: index, array: tree.paddings)
+  }
+  
+  // MARK: - Size Helpers
+  public var contentSize: MasonSizeHelper {
+    MasonSizeHelper(tree: tree, index: index, array: tree.contentSizes)
+  }
+  
+  public var scrollbarSize: MasonSizeHelper {
+    MasonSizeHelper(tree: tree, index: index, array: tree.scrollbarSizes)
+  }
+  
+  // MARK: - Children
+  public var hasChildren: Bool { tree.childCount[index] > 0 }
+  
+  public var children: [MasonLayout] {
+    let start = tree.childStart[index]
+    let count = tree.childCount[index]
+    return (0..<count).map { MasonLayout(tree: tree, index: tree.childIndices[start + $0]) }
   }
 }

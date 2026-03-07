@@ -498,7 +498,7 @@ func syncStyle<T: MasonElement>(_ element: T,_ low: String, _ high: String) {
   }
   
   @discardableResult @objc public func mason_layout() -> MasonLayout {
-    guard let element = self as? MasonElement else { return MasonLayout.zero}
+    guard let element = self as? MasonElement else { return MasonLayout.empty}
     return layout(element)
   }
   

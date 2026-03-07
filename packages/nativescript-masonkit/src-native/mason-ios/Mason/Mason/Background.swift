@@ -17,32 +17,60 @@ extension Background {
   
   
   func draw(on layer: CALayer, in context: CGContext, rect: CGRect) {
-    if let color = self.color {
-      if(isActive){
-        context.setFillColor(color.darker(by: 0.15).cgColor)
-      }else {
-        context.setFillColor(color.cgColor)
-      }
+    let resolved = style.resolvedBackgroundColor
+    if resolved != 0 {
+      context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
     }
     
     for bgLayer in layers {
       drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
     }
-  }
-  
-  func draw(on view: UIView, in context: CGContext, rect: CGRect) {
-    if let color = self.color {
-      if(isActive){
-        context.setFillColor(color.darker(by: 0.15).cgColor)
-      }else {
-        context.setFillColor(color.cgColor)
+
+    // Apply pseudo-aware filter (e.g. brightness on :active).
+    // Try the lightweight CGContext fast-path first; fall back to Metal.
+    let css = style.resolvedFilterString
+    if css.isEmpty {
+      if !style.mFilter.filters.isEmpty {
+        style.mFilter.reset()
       }
+    } else {
+      style.mFilter.parse(css: css)
+      if !style.mFilter.filters.isEmpty {
+        if !style.mFilter.applyFast(in: context, rect: rect) {
+          if let view = layer.delegate as? UIView {
+            style.mFilter.apply(to: view)
+          }
+        }
+      }
+    }
+  }
+
+  func draw(on view: UIView, in context: CGContext, rect: CGRect) {
+    let resolved = style.resolvedBackgroundColor
+    if resolved != 0 {
+      context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
     }
-    
+
     for layer in layers {
       drawLayer(layer, on: view, in: context, rect: rect)
+    }
+
+    // Apply pseudo-aware filter (e.g. brightness on :active).
+    // Try the lightweight CGContext fast-path first; fall back to Metal.
+    let css = style.resolvedFilterString
+    if css.isEmpty {
+      if !style.mFilter.filters.isEmpty {
+        style.mFilter.reset()
+      }
+    } else {
+      style.mFilter.parse(css: css)
+      if !style.mFilter.filters.isEmpty {
+        if !style.mFilter.applyFast(in: context, rect: rect) {
+          style.mFilter.apply(to: view)
+        }
+      }
     }
   }
   

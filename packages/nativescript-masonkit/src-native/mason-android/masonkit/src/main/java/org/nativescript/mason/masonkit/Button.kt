@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.util.Log
@@ -123,13 +122,9 @@ class Button @JvmOverloads constructor(
 
     node.style.setStyleChangeListener(this)
 
-    // Default :active style (matches browser <button> behavior: darker background on press)
-    node.preparePseudoBuffer(PseudoState.ACTIVE.mask).apply {
-      // background-color: #C0C0C0 (browser darkens ButtonFace on :active)
-      putInt(StyleKeys.BACKGROUND_COLOR, Color.parseColor("#C0C0C0"))
-      put(StyleKeys.BACKGROUND_COLOR_STATE, 1)
-      Node.markPseudoSet(this, StateKeys.BACKGROUND_COLOR)
-    }
+    // Default :active pseudo style — darken whatever background is set via
+    // CSS filter brightness, matching browser behavior without replacing the color.
+    node.setPseudoString(PseudoState.ACTIVE.mask, "filter", "brightness(0.85)")
   }
 
   override fun drawableStateChanged() {

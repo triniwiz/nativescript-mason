@@ -446,6 +446,26 @@ open class Node internal constructor(
 
   private val cache = mutableMapOf<Int, ByteBuffer>()
 
+  // Android-side storage for pseudo string properties (keyed by pseudo mask)
+  // Example: pseudoStrings[state.mask] = mapOf("filter" to "brightness(0.5)")
+  private val pseudoStrings: MutableMap<Int, MutableMap<String, String>> = mutableMapOf()
+
+  fun setPseudoString(flags: Int, key: String, value: String) {
+    val dict = pseudoStrings.getOrPut(flags) { mutableMapOf() }
+    dict[key] = value
+  }
+
+  fun getPseudoString(flags: Int, key: String): String? {
+    return pseudoStrings[flags]?.get(key)
+  }
+
+  fun clearPseudoString(flags: Int, key: String) {
+    pseudoStrings[flags]?.let { dict ->
+      dict.remove(key)
+      if (dict.isEmpty()) pseudoStrings.remove(flags)
+    }
+  }
+
   fun getPseudoBuffer(flags: Int): ByteBuffer {
     try {
       val cachedValue = cache[flags]

@@ -22,13 +22,13 @@ class MasonGestureRecognizer: UIGestureRecognizer {
     }
     super.init(target: nil, action: nil)
   }
-  
+
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
     guard let touch = touches.first else { return }
     if let view = targetView {
       let location = touch.location(in: view)
-      
-      if(isButton){
+
+      if isButton {
         let click = MasonMouseEvent(
           type: "click",
           options: MasonMouseEventOptions().apply {
@@ -41,53 +41,32 @@ class MasonGestureRecognizer: UIGestureRecognizer {
           }
         )
         click.target = view
-        
+
         if let owner = owner {
           owner.node.mason.dispatch(click, owner.node)
         }
-        
-        
+
         if click.defaultPrevented {
           state = .failed
         } else {
           state = .recognized
         }
-        
-        
-        
-        
-        
-        // todo handle form submit
-        
-        /*
-         if(!click.defaultPrevented){}
-         let submit = MasonEvent(
-         type: "submit",
-         options: MasonEventOptions(
-         type: "submit",
-         bubbles: true,
-         cancelable: true
-         )
-         )
-         submit.target = self
-         node.mason.dispatch(submit, node)
-         */
       }
-      
+
       eventDispatched = true
     }
   }
-  
+
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
     if !eventDispatched {
       state = .failed
     }
   }
-  
+
   override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
     state = .cancelled
   }
-  
+
   override func reset() {
     eventDispatched = false
     state = .possible

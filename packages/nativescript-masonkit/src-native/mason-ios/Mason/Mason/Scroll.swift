@@ -10,6 +10,10 @@ import UIKit
 @objcMembers
 public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
   func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    if isHandlingStyleChange { return }
+    isHandlingStyleChange = true
+    defer { isHandlingStyleChange = false }
+
     MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
@@ -64,9 +68,22 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   }
   
   public override func layoutSubviews() {
+    if isApplyingLayout {
+      super.layoutSubviews()
+      return
+    }
+
+    isApplyingLayout = true
+    defer { isApplyingLayout = false }
+
     super.layoutSubviews()
-    style.updateShadowLayer(for: bounds)
-    autoComputeIfRoot()
+
+    // Only update shadow layer / recompute if bounds actually changed
+    if !bounds.equalTo(lastBounds) {
+      style.updateShadowLayer(for: bounds)
+      autoComputeIfRoot()
+      lastBounds = bounds
+    }
   }
 
   public let node: MasonNode
@@ -79,6 +96,10 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   public var style: MasonStyle {
     return node.style
   }
+
+  private var isApplyingLayout: Bool = false
+  private var isHandlingStyleChange: Bool = false
+  private var lastBounds: CGRect = .zero
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow

@@ -122,7 +122,7 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
     cachedListStyleType = nil
     metricsPosition = -2
     metricsOrdered = nil
-    node.computedLayout = MasonLayout.zero
+    node.computedLayout = MasonLayout.empty
     setComputeCache(.init(width: -2, height: -2))
   }
 

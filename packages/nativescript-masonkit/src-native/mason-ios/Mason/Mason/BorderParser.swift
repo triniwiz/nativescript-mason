@@ -192,50 +192,62 @@ extension CSSBorderRenderer {
       let parts = value
           .split(whereSeparator: { $0.isWhitespace })
           .compactMap { parseLengthPercentage(String($0)) }
-    
+
+      // Map 1-4 values to corners per CSS spec
+      let corners: [(MasonLengthPercentage, MasonLengthPercentage)]
       switch parts.count {
       case 1:
-          let lp = parts[0]
-          style.mBorderRender.radius.topLeft = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
-          style.mBorderRender.radius.topRight = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
-          style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
-          style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
-
+        corners = Array(repeating: (parts[0], parts[0]), count: 4)
       case 2:
-        
-        let first = parts[0]
-        let second = parts[1]
-        
-        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: first, vertical: first, exponent: 1)
-        style.mBorderRender.radius.topRight = CornerRadius(horizontal: second, vertical: second, exponent: 1)
-        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: first, vertical: first, exponent: 1)
-        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: second, vertical: second, exponent: 1)
-
+        corners = [(parts[0], parts[0]), (parts[1], parts[1]),
+                   (parts[0], parts[0]), (parts[1], parts[1])]
       case 3:
-        
-        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: parts[0], vertical: parts[0], exponent: 1)
-        style.mBorderRender.radius.topRight = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
-        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: parts[2], vertical: parts[2], exponent: 1)
-        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
-
+        corners = [(parts[0], parts[0]), (parts[1], parts[1]),
+                   (parts[2], parts[2]), (parts[1], parts[1])]
       case 4:
-        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: parts[0], vertical: parts[0], exponent: 1)
-        style.mBorderRender.radius.topRight = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
-        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: parts[2], vertical: parts[2], exponent: 1)
-        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: parts[3], vertical: parts[3], exponent: 1)
-
+        corners = [(parts[0], parts[0]), (parts[1], parts[1]),
+                   (parts[2], parts[2]), (parts[3], parts[3])]
       default:
-          break
+        return
       }
 
-    
-      if !parts.isEmpty {
-          if !style.inBatch {
-            // border radius ?
-            style.isDirty |= StateKeys.border.low
-            style.isDirtyHigh |= StateKeys.border.high
-            style.updateNativeStyle()
-          }
+      // Write to style buffer and update struct
+      let cornerKeys: [(xType: Int, xValue: Int, yType: Int, yValue: Int, exp: Int)] = [
+        (StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE,
+         StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE,
+         StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT),
+        (StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE,
+         StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE,
+         StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT),
+        (StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE,
+         StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE,
+         StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT),
+        (StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE,
+         StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE,
+         StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT),
+      ]
+
+      style.prepareMut()
+      for (i, (h, v)) in corners.enumerated() {
+        let k = cornerKeys[i]
+        style.setInt8(k.xType, h.type)
+        style.setFloat(k.xValue, h.value)
+        style.setInt8(k.yType, v.type)
+        style.setFloat(k.yValue, v.value)
+        style.setFloat(k.exp, 1.0)
+      }
+
+      // Keep struct in sync for hasRadii() checks
+      style.mBorderRender.radius.topLeft = CornerRadius(horizontal: corners[0].0, vertical: corners[0].1, exponent: 1)
+      style.mBorderRender.radius.topRight = CornerRadius(horizontal: corners[1].0, vertical: corners[1].1, exponent: 1)
+      style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: corners[2].0, vertical: corners[2].1, exponent: 1)
+      style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: corners[3].0, vertical: corners[3].1, exponent: 1)
+      style.mBorderRender.invalidateCache()
+
+      if !style.inBatch {
+        style.isDirty |= StateKeys.border.low
+        style.isDirtyHigh |= StateKeys.border.high
+        style.updateNativeStyle()
       }
   }
 }

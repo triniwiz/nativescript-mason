@@ -157,7 +157,10 @@ class FloatActivity : AppCompatActivity() {
       "just like a real magazine. The content reflows to fill " +
       "every available space beside and below the element."
     ))
-    body.append(c1)
+
+   body.append(c1)
+
+      /*
 
     // 2. Photo Essay -- alternating floats
     body.append(label("Photo Essay", "#1E293B", 18))
@@ -286,5 +289,7 @@ class FloatActivity : AppCompatActivity() {
     c6.append(clearLeftBar)
     c6.append(prose("The amber bar clears left only -- it drops below the pink float but the teal float still affects layout above."))
     body.append(c6)
+
+    */
   }
 }

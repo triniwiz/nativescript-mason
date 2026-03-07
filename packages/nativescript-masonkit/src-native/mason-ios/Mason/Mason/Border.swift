@@ -463,9 +463,9 @@ public final class CSSBorderRenderer {
   private func resolveRadius(rect: CGRect) -> BorderRadius {
     // Fetch corner radii from style buffer
     func corner(xType: Int, xValue: Int, yType: Int, yValue: Int, exp: Int) -> CornerRadius {
-      let h = MasonLengthPercentage.fromValueType(Float(xValue), xType) ?? .Zero
-      let v = MasonLengthPercentage.fromValueType(Float(yValue), yType) ?? .Zero
-      let exponent = CGFloat(exp)
+      let h = MasonLengthPercentage.fromValueType(style.getFloat(xValue), Int(style.getInt8(xType))) ?? .Zero
+      let v = MasonLengthPercentage.fromValueType(style.getFloat(yValue), Int(style.getInt8(yType))) ?? .Zero
+      let exponent = CGFloat(style.getFloat(exp))
       return CornerRadius(horizontal: h, vertical: v, exponent: exponent)
     }
     
@@ -752,11 +752,32 @@ public final class CSSBorderRenderer {
   
   internal func buildRoundedPath(in rect: CGRect, radius: BorderRadius) -> UIBezierPath {
     let p = UIBezierPath()
-    let tl = radius.topLeft.resolved(rect: rect)
-    let tr = radius.topRight.resolved(rect: rect)
-    let br = radius.bottomRight.resolved(rect: rect)
-    let bl = radius.bottomLeft.resolved(rect: rect)
-    
+    var tl = radius.topLeft.resolved(rect: rect)
+    var tr = radius.topRight.resolved(rect: rect)
+    var br = radius.bottomRight.resolved(rect: rect)
+    var bl = radius.bottomLeft.resolved(rect: rect)
+
+    // CSS spec: if sum of adjacent radii exceeds the box dimension,
+    // scale all radii down proportionally.
+    let w = rect.width
+    let h = rect.height
+    let maxRatioX = max(
+      (tl.x + tr.x) / max(w, 1),
+      (br.x + bl.x) / max(w, 1)
+    )
+    let maxRatioY = max(
+      (tl.y + bl.y) / max(h, 1),
+      (tr.y + br.y) / max(h, 1)
+    )
+    let maxRatio = max(maxRatioX, maxRatioY)
+    if maxRatio > 1 {
+      let f = 1.0 / maxRatio
+      tl = (tl.x * f, tl.y * f)
+      tr = (tr.x * f, tr.y * f)
+      br = (br.x * f, br.y * f)
+      bl = (bl.x * f, bl.y * f)
+    }
+
     p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY))
     p.addLine(to: CGPoint(x: rect.maxX - tr.x, y: rect.minY))
     p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + tr.y),

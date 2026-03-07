@@ -64,7 +64,7 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
       if let view = view {
         // Clean up children but keep the root view for recycling
         view.node.removeAllChildren()
-        view.node.computedLayout = MasonLayout.zero
+        view.node.computedLayout = MasonLayout.empty
         view.setComputeCache(.init(width: -2, height: -2))
 
         // Reset MasonLi specific state
@@ -304,7 +304,6 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
     list.frame = bounds
-    print(bounds.width, bounds.height, count, list.numberOfSections)
   }
   
   public func register(cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String ){

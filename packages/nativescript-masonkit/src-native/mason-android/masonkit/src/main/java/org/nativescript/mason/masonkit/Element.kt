@@ -83,6 +83,7 @@ interface Element : EventTarget {
       mason.inCompute = false
     }
     node.computeCache = SizeF(-2f, -2f)
+    node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
   fun compute(width: Float, height: Float) {
@@ -95,6 +96,7 @@ interface Element : EventTarget {
       mason.inCompute = false
     }
     node.computeCache = SizeF(width, height)
+    node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
   fun computeMaxContent() {
@@ -107,6 +109,7 @@ interface Element : EventTarget {
       mason.inCompute = false
     }
     node.computeCache = SizeF(-2f, -2f)
+    node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
   fun computeMinContent() {
@@ -119,6 +122,7 @@ interface Element : EventTarget {
       mason.inCompute = false
     }
     node.computeCache = SizeF(-2f, -2f)
+    node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
   fun computeWithViewSize() {
@@ -126,6 +130,7 @@ interface Element : EventTarget {
     val height = view.height.toFloat()
     compute(width, height)
     node.computeCache = SizeF(width, height)
+    node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
   fun computeAndLayout(): Layout {

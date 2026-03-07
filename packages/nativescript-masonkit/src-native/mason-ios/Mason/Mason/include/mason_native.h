@@ -156,9 +156,8 @@ struct CMasonNode *mason_node_new_list_item_node_with_context(struct CMason *mas
                                                                                    float));
 #endif
 
-void *mason_node_layout(struct CMason *mason,
-                        struct CMasonNode *node,
-                        void *(*layout)(const float*));
+void *mason_node_layout(struct CMason *mason, struct CMasonNode *node, void *(*layout)(const float*,
+                                                                                       uintptr_t));
 
 void *mason_node_get_float_rects(struct CMason *mason,
                                  struct CMasonNode *node,
@@ -237,6 +236,40 @@ void mason_node_set_pseudo_states(struct CMason *mason, struct CMasonNode *node,
 uint16_t mason_node_get_pseudo_states(struct CMason *mason, struct CMasonNode *node);
 
 bool mason_node_has_pseudo_state(struct CMason *mason, struct CMasonNode *node, uint16_t flag);
+
+/**
+ * Return the node's state buffer as raw pointer + length.
+ * The state buffer holds pseudo flags and other per-node state.
+ */
+const uint8_t *mason_node_get_state_buffer(struct CMason *mason,
+                                           struct CMasonNode *node,
+                                           uintptr_t *out_len);
+
+/**
+ * Return a mutable pointer to the node's state buffer.
+ */
+uint8_t *mason_node_get_state_buffer_mut(struct CMason *mason,
+                                         struct CMasonNode *node,
+                                         uintptr_t *out_len);
+
+/**
+ * Return an existing pseudo style buffer (read-only raw pointer + length).
+ * Returns null if no pseudo buffer exists for the given flags.
+ */
+const uint8_t *mason_node_get_pseudo_style_buffer(struct CMason *mason,
+                                                  struct CMasonNode *node,
+                                                  uint16_t flags,
+                                                  uintptr_t *out_len);
+
+/**
+ * Prepare (create if needed) and return a mutable pseudo style buffer.
+ * Clones from the base style if this is the first call for the given pseudo state.
+ * Returns a raw mutable pointer + length for direct buffer writes.
+ */
+uint8_t *mason_node_prepare_pseudo_style_buffer(struct CMason *mason,
+                                                struct CMasonNode *node,
+                                                uint16_t flags,
+                                                uintptr_t *out_len);
 
 bool mason_node_is_children_same(struct CMason *mason,
                                  struct CMasonNode *node,
