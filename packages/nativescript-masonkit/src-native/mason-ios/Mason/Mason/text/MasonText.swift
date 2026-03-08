@@ -308,6 +308,8 @@ public class MasonTextLayer: CALayer {
     if !flattenedBlockquote {
       textView.style.mBorderRender.draw(in: context, rect: bounds)
     }
+
+    textView.style.applyResolvedFilter(in: context, rect: bounds, view: textView)
   }
 }
 

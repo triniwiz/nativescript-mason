@@ -100,7 +100,8 @@ public class MasonImageLayer: CALayer {
 //    }
     
     view.style.mBackground.draw(on: self, in: context, rect: bounds)
-    
+    view.style.applyResolvedFilter(in: context, rect: bounds, view: view)
+
     /*
     let imageSize = CGSize(width: image.size.width * 3, height: image.size.height * 3)
     let viewSize = bounds.size

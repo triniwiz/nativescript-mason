@@ -90,6 +90,9 @@
     <activity
       android:name=".PseudoDemoActivity"
       android:exported="false" />
+    <activity
+      android:name=".NumericDemoActivity"
+      android:exported="false" />
   </application>
 
 </manifest>

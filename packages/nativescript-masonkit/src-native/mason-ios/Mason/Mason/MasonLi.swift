@@ -72,6 +72,8 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
     if hasBorder {
       style.mBorderRender.draw(in: context, rect: bounds)
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
 
   public private(set) var node: MasonNode

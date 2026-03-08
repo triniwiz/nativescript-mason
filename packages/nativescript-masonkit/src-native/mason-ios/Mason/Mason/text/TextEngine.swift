@@ -152,7 +152,7 @@ public class TextEngine: NSObject {
       dirty = true
     }
 
-    if (state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)) {
+    if (state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily) || state.contains(.fontVariantNumeric)) {
       dirty = true
     }
 

@@ -95,6 +95,19 @@ class ViewUtils {
         style.mBorderRenderer.draw(canvas, width, height)
       }
 
+      // Resolve filter CSS (pseudo-aware) so :active/:hover strings apply
+      // only when the node's pseudo mask is active.
+      val css = style.resolvedFilterString
+      if (style.mFilter == null || style.mFilter?.css != css) {
+        val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
+        style.mFilter = CSSFilters.parse(css)
+        if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
+          (style.node.view as? View)?.invalidate()
+        }
+      }
+
+      val useFastFilter = style.mFilter?.canApplyFast() == true
+
       // Block 2: Content with inner border-radius clip + overflow clip
       canvas.withSave {
         if (hasRadii) {
@@ -103,34 +116,13 @@ class ViewUtils {
 
         Style.applyOverflowClip(style, canvas, style.node)
 
-        // Ensure we use the pseudo-aware resolved filter string so :active/:hover
-        // pseudo strings only apply when the node's pseudo mask is active.
-        val css = style.resolvedFilterString
-        if (style.mFilter == null || style.mFilter?.css != css) {
-          val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
-          style.mFilter = CSSFilters.parse(css)
-          if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
-            (style.node.view as? View)?.invalidate()
-          }
-        }
-
         style.mFilter?.let { filter ->
-          if (filter.filters.isEmpty()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          if (filter.filters.isEmpty() || useFastFilter) {
+            // No filter or fast-path — draw content normally; fast overlay applied below
+            if (filter.filters.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
               view.setRenderEffect(null)
             }
             superDraw(canvas)
-            return@let
-          }
-
-          // Try lightweight Canvas fast-path (e.g. brightness on :active).
-          // Draw content first, then overlay the filter effect.
-          if (filter.canApplyFast()) {
-            superDraw(canvas)
-            filter.applyFast(canvas, width, height)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-              view.setRenderEffect(null)
-            }
             return@let
           }
 
@@ -146,6 +138,21 @@ class ViewUtils {
           }
         } ?: run {
           superDraw(canvas)
+        }
+      }
+
+      // Fast-path filter (e.g. brightness on :active) applied AFTER all
+      // drawing so it covers background, text, and border uniformly.
+      // Clip to border-radius so the overlay follows the element shape.
+      if (useFastFilter) {
+        canvas.withSave {
+          if (hasRadii) {
+            canvas.clipPath(style.mBorderRenderer.getOuterClipPath(width, height))
+          }
+          style.mFilter?.applyFast(canvas, width, height)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          view.setRenderEffect(null)
         }
       }
     }

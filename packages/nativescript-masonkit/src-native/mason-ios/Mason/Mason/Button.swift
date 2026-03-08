@@ -145,6 +145,27 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     if hasBorder {
       style.mBorderRender.draw(in: context, rect: bounds)
     }
+
+    // CSS filter — applied last so it covers background, text, and border.
+    // If user set an explicit filter string, use that. Otherwise, if :active
+    // is on and no explicit :active pseudo buffer exists, apply a default
+    // brightness(0.85) dimming (matches browser UA button behavior).
+    let filterCss = style.resolvedFilterString
+    if !filterCss.isEmpty {
+      style.applyResolvedFilter(in: context, rect: bounds, view: self)
+    } else if node.hasPseudo(.active),
+              node.getPseudoBuffer(PseudoState.active.rawValue) == nil {
+      context.saveGState()
+      if style.mBorderRender.hasRadii() {
+        let clipPath = style.mBorderRender.getClipPath(rect: bounds, radius: style.mBorderRender.radius)
+        context.addPath(clipPath.cgPath)
+        context.clip()
+      }
+      context.setBlendMode(.multiply)
+      context.setFillColor(UIColor(white: 0.85, alpha: 1).cgColor)
+      context.fill(bounds)
+      context.restoreGState()
+    }
   }
 
   private func setup(){
@@ -167,9 +188,8 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     }
     node.view = self
 
-    // Default :active pseudo style — darken whatever background is set via
-    // CSS filter brightness, matching browser behavior without replacing the color.
-    node.setPseudoString(PseudoState.active.rawValue, key: "filter", value: "brightness(0.85)")
+    // Default :active brightness is applied in draw() as a fallback only
+    // when no explicit :active pseudo buffer has been set by the user.
 
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
@@ -218,23 +238,26 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
 
 extension Button {
 
-  
-  public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-      super.touchesBegan(touches, with: event)
-      node.setPseudo(.active, true)
+  private func updatePseudo(_ state: PseudoState, _ enabled: Bool) {
+    node.setPseudo(state, enabled)
+    onStyleChange(StateKeys.pseudoText)
+    style.mBorderRender.invalidateCache()
     setNeedsDisplay()
+  }
+
+  public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesBegan(touches, with: event)
+    updatePseudo(.active, true)
     touchStartTime = CACurrentMediaTime()
   }
 
   public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-      super.touchesEnded(touches, with: event)
+    super.touchesEnded(touches, with: event)
     let now = CACurrentMediaTime()
     let duration = (touchStartTime != nil) ? (now - touchStartTime!) : 0
     touchStartTime = nil
 
-    // Provide tap feedback for short taps, keep active state during hold
     if duration < tapThreshold {
-      // Quick tap: animate a brief scale "press" effect
       UIView.animate(withDuration: 0.08, animations: {
         self.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
       }, completion: { _ in
@@ -244,28 +267,22 @@ extension Button {
       })
     }
 
-    node.setPseudo(.active, false)
-    setNeedsDisplay()
+    updatePseudo(.active, false)
   }
 
- public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-      super.touchesCancelled(touches, with: event)
-      node.setPseudo(.active, false)
-      setNeedsDisplay()
+  public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesCancelled(touches, with: event)
+    updatePseudo(.active, false)
   }
-  
-  
 
   public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard let touch = touches.first else { return }
-      let point = touch.location(in: self)
-
-      let inside = bounds.contains(point)
-      node.setPseudo(.active, inside)
-      setNeedsDisplay()
-      #if DEBUG
-      print("[DEBUG] Button.touchesMoved inside:\(inside) point:\(point) frame:\(self.frame)")
-      #endif
+    guard let touch = touches.first else { return }
+    let point = touch.location(in: self)
+    let inside = bounds.contains(point)
+    updatePseudo(.active, inside)
+    #if DEBUG
+    print("[DEBUG] Button.touchesMoved inside:\(inside) point:\(point) frame:\(self.frame)")
+    #endif
   }
   
 }

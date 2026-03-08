@@ -2873,8 +2873,85 @@ public enum ListStyleType: Int, RawRepresentable, CustomStringConvertible {
       return "decimal"
     }
   }
-  
+
   public var description: String {
     return cssValue
+  }
+}
+
+// MARK: - FontVariantNumeric
+
+public struct FontVariantNumeric: OptionSet, CustomStringConvertible {
+  public let rawValue: UInt8
+
+  public init(rawValue: UInt8) {
+    self.rawValue = rawValue
+  }
+
+  public static let liningNums        = FontVariantNumeric(rawValue: 1 << 0)
+  public static let oldstyleNums      = FontVariantNumeric(rawValue: 1 << 1)
+  public static let proportionalNums  = FontVariantNumeric(rawValue: 1 << 2)
+  public static let tabularNums       = FontVariantNumeric(rawValue: 1 << 3)
+  public static let diagonalFractions = FontVariantNumeric(rawValue: 1 << 4)
+  public static let stackedFractions  = FontVariantNumeric(rawValue: 1 << 5)
+  public static let ordinal           = FontVariantNumeric(rawValue: 1 << 6)
+  public static let slashedZero       = FontVariantNumeric(rawValue: 1 << 7)
+
+  public static let normal = FontVariantNumeric([])
+
+  /// AAT feature type/selector pairs for CoreText
+  public var fontFeatureSettings: [(Int, Int)] {
+    var features: [(Int, Int)] = []
+    // kNumberCaseType (21): 0=lower(oldstyle), 1=upper(lining)
+    if contains(.liningNums)   { features.append((21, 1)) }
+    if contains(.oldstyleNums) { features.append((21, 0)) }
+    // kNumberSpacingType (6): 0=monospaced(tabular), 1=proportional
+    if contains(.tabularNums)       { features.append((6, 0)) }
+    if contains(.proportionalNums)  { features.append((6, 1)) }
+    // kFractionsType (11): 0=noFractions, 1=verticalFractions(stacked), 2=diagonalFractions
+    if contains(.diagonalFractions) { features.append((11, 2)) }
+    if contains(.stackedFractions)  { features.append((11, 1)) }
+    // kVerticalPositionType (10): 0=normal, 1=superiors, 2=inferiors, 3=ordinals
+    if contains(.ordinal)      { features.append((10, 3)) }
+    // kTypographicExtrasType (14): 0=default, 4=slashedZero
+    if contains(.slashedZero)  { features.append((14, 4)) }
+    return features
+  }
+
+  /// CSS string representation
+  public var cssValue: String {
+    if rawValue == 0 { return "normal" }
+    var parts: [String] = []
+    if contains(.liningNums)        { parts.append("lining-nums") }
+    if contains(.oldstyleNums)      { parts.append("oldstyle-nums") }
+    if contains(.proportionalNums)  { parts.append("proportional-nums") }
+    if contains(.tabularNums)       { parts.append("tabular-nums") }
+    if contains(.diagonalFractions) { parts.append("diagonal-fractions") }
+    if contains(.stackedFractions)  { parts.append("stacked-fractions") }
+    if contains(.ordinal)           { parts.append("ordinal") }
+    if contains(.slashedZero)       { parts.append("slashed-zero") }
+    return parts.joined(separator: " ")
+  }
+
+  public var description: String { cssValue }
+
+  public static func parse(_ css: String) -> FontVariantNumeric {
+    let trimmed = css.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    if trimmed.isEmpty || trimmed == "normal" { return .normal }
+    var result = FontVariantNumeric()
+    for token in trimmed.split(separator: " ") {
+      switch token {
+      case "lining-nums":        result.insert(.liningNums)
+      case "oldstyle-nums":      result.insert(.oldstyleNums)
+      case "proportional-nums":  result.insert(.proportionalNums)
+      case "tabular-nums":       result.insert(.tabularNums)
+      case "diagonal-fractions": result.insert(.diagonalFractions)
+      case "stacked-fractions":  result.insert(.stackedFractions)
+      case "ordinal":            result.insert(.ordinal)
+      case "slashed-zero":       result.insert(.slashedZero)
+      default: break
+      }
+    }
+    return result
   }
 }

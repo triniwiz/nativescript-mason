@@ -27,6 +27,7 @@ import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FontVariantNumeric
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import kotlin.math.ceil
@@ -144,6 +145,12 @@ class TextEngine(val container: TextContainer) {
         paint.typeface = it
         dirty = true
       }
+    }
+
+    if (StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC)) {
+      val features = FontVariantNumeric.toFontFeatureSettings(style.resolvedFontVariantNumeric)
+      paint.fontFeatureSettings = features.ifEmpty { null }
+      dirty = true
     }
 
 
@@ -1006,11 +1013,15 @@ class TextEngine(val container: TextContainer) {
       )
     }
 
-    // Apply background color as a text span only when explicitly set on this element.
-    // background-color is NOT inherited in CSS.
-    val bgColor = container.style.resolvedBackgroundColor
-    if (bgColor != 0 && ((bgColor shr 24) and 0xFF) != 0) {
-      spannable.setSpan(Spans.BackgroundColorSpan(bgColor), start, end, flags)
+    // Apply background color as a text span only for inline elements.
+    // Block-level elements (Button, div, etc.) draw their own background
+    // via ViewUtils/mBackground — adding a BackgroundColorSpan creates a
+    // redundant colored rect behind the text glyphs ("cutout" artifact).
+    if (container.node.view == null) {
+      val bgColor = container.style.resolvedBackgroundColor
+      if (bgColor != 0 && ((bgColor shr 24) and 0xFF) != 0) {
+        spannable.setSpan(Spans.BackgroundColorSpan(bgColor), start, end, flags)
+      }
     }
 
     val fontSize = container.style.resolvedFontSize

@@ -27,8 +27,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let hasBoxShadow = !style.boxShadows.isEmpty
     let hasBorder = !style.mBorderRender.css.isEmpty
     
+    let hasFilter = !style.resolvedFilterString.isEmpty
+
     // Early-out: skip all CoreGraphics work for plain views with no decoration
-    guard hasBackground || hasBoxShadow || hasBorder else { return }
+    guard hasBackground || hasBoxShadow || hasBorder || hasFilter else { return }
 
     guard let context = UIGraphicsGetCurrentContext() else {
       return
@@ -80,11 +82,13 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         style.mBorderRender.draw(in: context, rect: bounds)
       }
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
+
   public let node: MasonNode
   public let mason: NSCMason
-  
+
   public var uiView: UIView { self }
   
   public var style: MasonStyle {

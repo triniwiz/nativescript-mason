@@ -229,12 +229,14 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     if hasBorder {
       style.mBorderRender.draw(in: context, rect: bounds)
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
-  
+
+
   public let node: MasonNode
   public let mason: NSCMason
-  
+
   public var uiView: UIView { self }
   
   public var style: MasonStyle {

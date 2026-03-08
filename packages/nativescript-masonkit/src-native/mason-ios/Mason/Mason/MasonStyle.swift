@@ -279,6 +279,10 @@ public struct StyleKeys {
   // Filter: brightness (float) + state
   public static let FILTER_BRIGHTNESS = 414 // float (4 bytes: 414-417)
   public static let FILTER_BRIGHTNESS_STATE = 418 // byte
+
+  // font-variant-numeric bitmask (byte) + state
+  public static let FONT_VARIANT_NUMERIC = 419 // byte (bitmask)
+  public static let FONT_VARIANT_NUMERIC_STATE = 420 // byte
 }
 
 
@@ -382,6 +386,13 @@ public struct StateKeys: Equatable {
   public static let textShadow = StateKeys(68)
   public static let fontFamily = StateKeys(69)
   public static let letterSpacing = StateKeys(70)
+  public static let fontVariantNumeric = StateKeys(71)
+
+  /// Union of all text-relevant keys that may differ in a pseudo buffer.
+  public static let pseudoText = StateKeys(
+    low:  color.low | fontSize.low | textAlign.low | fontWeight.low | fontStyle.low | fontFamily.low,
+    high: color.high | fontSize.high | textAlign.high | fontWeight.high | fontStyle.high | fontFamily.high | fontVariantNumeric.high
+  )
 }
 
 
@@ -985,7 +996,11 @@ public class MasonStyle: NSObject {
       }
 
       
-      notifyTextStyleChanged(StateKeys.verticalAlign)
+      if(inBatch){
+        setOrAppendState(StateKeys.verticalAlign)
+      }else {
+        notifyTextStyleChanged(StateKeys.verticalAlign)
+      }
     }
   }
   
@@ -1089,8 +1104,37 @@ public class MasonStyle: NSObject {
     }
     return filter
   }
-  
-  
+
+  /// Apply the resolved CSS filter to the given context/view.
+  /// Call at the END of an element's draw(_:) so the filter covers
+  /// background, text, and border uniformly (matching CSS semantics).
+  internal func applyResolvedFilter(in context: CGContext, rect: CGRect, view: UIView? = nil) {
+    let css = resolvedFilterString
+    if css.isEmpty {
+      if !mFilter.filters.isEmpty { mFilter.reset() }
+      return
+    }
+    mFilter.parse(css: css)
+    guard !mFilter.filters.isEmpty else { return }
+
+    // Clip to border-radius so the overlay follows the element shape.
+    context.saveGState()
+    if mBorderRender.hasRadii() {
+      let clipPath = mBorderRender.getClipPath(rect: rect, radius: mBorderRender.radius)
+      context.addPath(clipPath.cgPath)
+      context.clip()
+    }
+
+    if !mFilter.applyFast(in: context, rect: rect) {
+      context.restoreGState()
+      if let view = view {
+        mFilter.apply(to: view)
+      }
+      return
+    }
+    context.restoreGState()
+  }
+
   internal var mBackground: Background!
   public var background: String  {
     set {
@@ -1173,8 +1217,13 @@ public class MasonStyle: NSObject {
       setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, 0)
       // change view as well ??
-      //      node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
-      notifyTextStyleChanged(StateKeys.backgroundColor)
+      // node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
+ 
+      if(inBatch){
+        setOrAppendState(StateKeys.backgroundColor)
+      }else {
+        notifyTextStyleChanged(StateKeys.backgroundColor)
+      }
     }
   }
   
@@ -1203,7 +1252,12 @@ public class MasonStyle: NSObject {
     }else {
       setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 0)
     }
-    notifyTextStyleChanged(StateKeys.lineHeight)
+    
+    if(inBatch){
+      setOrAppendState(StateKeys.lineHeight)
+    }else {
+      notifyTextStyleChanged(StateKeys.lineHeight)
+    }
   }
   
   
@@ -1215,7 +1269,12 @@ public class MasonStyle: NSObject {
       setFloat(StyleKeys.LINE_HEIGHT, newValue)
       setUInt8(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
       setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 0)
-      notifyTextStyleChanged(StateKeys.lineHeight)
+
+      if(inBatch){
+        setOrAppendState(StateKeys.lineHeight)
+      }else {
+        notifyTextStyleChanged(StateKeys.lineHeight)
+      }
     }
   }
   
@@ -1226,11 +1285,39 @@ public class MasonStyle: NSObject {
     set {
       setFloat(StyleKeys.LETTER_SPACING, newValue)
       setUInt8(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.letterSpacing)
+      
+      if(inBatch){
+        setOrAppendState(StateKeys.letterSpacing)
+      }else {
+        notifyTextStyleChanged(StateKeys.letterSpacing)
+      }
     }
   }
-  
-  
+
+  public var fontVariantNumeric: FontVariantNumeric {
+    get {
+      return FontVariantNumeric(rawValue: getUInt8(StyleKeys.FONT_VARIANT_NUMERIC))
+    }
+    set {
+      let old = getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)
+      if newValue.rawValue != old {
+        setUInt8(StyleKeys.FONT_VARIANT_NUMERIC, newValue.rawValue)
+        setUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.SET)
+    
+        if(inBatch){
+          setOrAppendState(StateKeys.fontVariantNumeric)
+        }else {
+          notifyTextStyleChanged(StateKeys.fontVariantNumeric)
+        }
+      }
+    }
+  }
+
+  public var fontVariantNumericString: String {
+    get { fontVariantNumeric.cssValue }
+    set { fontVariantNumeric = FontVariantNumeric.parse(newValue) }
+  }
+
   public var decorationColor: UInt32 {
     get {
       return getUInt32(StyleKeys.DECORATION_COLOR)
@@ -1239,7 +1326,12 @@ public class MasonStyle: NSObject {
       prepareMut()
       setUInt32(StyleKeys.DECORATION_COLOR, newValue)
       setUInt8(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.decorationColor)
+      
+      if(inBatch){
+        setOrAppendState(StateKeys.decorationColor)
+      }else {
+        notifyTextStyleChanged(StateKeys.decorationColor)
+      }
     }
   }
   
@@ -1261,7 +1353,12 @@ public class MasonStyle: NSObject {
     set {
       setInt8(StyleKeys.DECORATION_LINE, newValue.rawValue)
       setUInt8(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.decorationLine)
+      
+      if(inBatch){
+        setOrAppendState(StateKeys.decorationLine)
+      }else {
+        notifyTextStyleChanged(StateKeys.decorationLine)
+      }
     }
   }
   
@@ -1273,7 +1370,13 @@ public class MasonStyle: NSObject {
       setInt32(StyleKeys.FONT_SIZE, newValue)
       setUInt8(StyleKeys.FONT_SIZE_TYPE, 0)
       setUInt8(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.fontSize)
+ 
+      if(inBatch){
+        setOrAppendState(StateKeys.fontSize)
+      }else {
+        notifyTextStyleChanged(StateKeys.fontSize)
+      }
+      
       syncFontMetrics()
     }
   }
@@ -1302,7 +1405,12 @@ public class MasonStyle: NSObject {
         break
       }
       
-      notifyTextStyleChanged(StateKeys.fontStyle)
+      if(inBatch){
+        setOrAppendState(StateKeys.fontStyle)
+      }else {
+        notifyTextStyleChanged(StateKeys.fontStyle)
+      }
+    
     }
   }
   
@@ -1317,7 +1425,12 @@ public class MasonStyle: NSObject {
         setInt8(StyleKeys.TEXT_JUSTIFY, newValue.rawValue)
         setUInt8(StyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
         
-        notifyTextStyleChanged(StateKeys.textJustify)
+        if(inBatch){
+          setOrAppendState(StateKeys.textJustify)
+        }else {
+          notifyTextStyleChanged(StateKeys.textJustify)
+        }
+        
       }
     }
   }
@@ -1387,7 +1500,11 @@ public class MasonStyle: NSObject {
           break
         }
         invalidateResolvedFontCache()
-        notifyTextStyleChanged(StateKeys.fontStyle)
+        if(inBatch){
+          setOrAppendState(StateKeys.fontStyle)
+        }else {
+          notifyTextStyleChanged(StateKeys.fontStyle)
+        }
         syncFontMetrics()
       }
     }
@@ -1497,7 +1614,12 @@ public class MasonStyle: NSObject {
         
         setUInt8(StyleKeys.FONT_FAMILY_STATE, StyleState.SET)
         invalidateResolvedFontCache()
-        notifyTextStyleChanged(StateKeys.fontFamily)
+        
+        if(inBatch){
+          setOrAppendState(StateKeys.fontFamily)
+        }else {
+          notifyTextStyleChanged(StateKeys.fontFamily)
+        }
       }
     }
   }
@@ -1554,7 +1676,11 @@ public class MasonStyle: NSObject {
         setInt32(StyleKeys.FONT_WEIGHT, Int32(font.weight.rawValue))
         setUInt8(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
         invalidateResolvedFontCache()
-        notifyTextStyleChanged(StateKeys.fontWeight)
+        if(inBatch){
+          setOrAppendState(StateKeys.fontWeight)
+        }else {
+          notifyTextStyleChanged(StateKeys.fontWeight)
+        }
         syncFontMetrics()
       }
     }
@@ -1568,7 +1694,11 @@ public class MasonStyle: NSObject {
       setInt32(StyleKeys.TEXT_OVERFLOW, textOverflow.rawValue)
       setUInt8(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
       // Text overflow only affects rendering, not measurement
-      notifyTextStyleChanged(StateKeys.textOverflow)
+      if(inBatch){
+        setOrAppendState(StateKeys.textOverflow)
+      }else {
+        notifyTextStyleChanged(StateKeys.textOverflow)
+      }
     }
   }
   
@@ -1590,7 +1720,11 @@ public class MasonStyle: NSObject {
     set {
       setInt8(StyleKeys.TEXT_TRANSFORM, newValue.rawValue)
       setUInt8(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.textTransform)
+      if(inBatch){
+        setOrAppendState(StateKeys.textTransform)
+      }else {
+        notifyTextStyleChanged(StateKeys.textTransform)
+      }
     }
   }
   
@@ -1601,7 +1735,11 @@ public class MasonStyle: NSObject {
     set {
       setInt8(StyleKeys.WHITE_SPACE, newValue.rawValue)
       setUInt8(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.whiteSpace)
+      if(inBatch){
+        setOrAppendState(StateKeys.whiteSpace)
+      }else {
+        notifyTextStyleChanged(StateKeys.whiteSpace)
+      }
     }
   }
   
@@ -1612,7 +1750,11 @@ public class MasonStyle: NSObject {
     set {
       setInt8(StyleKeys.TEXT_WRAP, newValue.rawValue)
       setUInt8(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.textWrap)
+      if(inBatch){
+        setOrAppendState(StateKeys.textWrap)
+      }else {
+        notifyTextStyleChanged(StateKeys.textWrap)
+      }
     }
   }
   
@@ -3566,6 +3708,32 @@ extension MasonStyle {
   /// Resolve a UInt32 property with pseudo-state overlay.
   /// Returns the base value unless an active pseudo buffer overrides it.
   /// Only reads from pseudo buffers where the property was explicitly marked via `markPseudoSet`.
+  internal func resolvePseudoByte(_ valueKey: Int, _ stateKey: Int, _ base: UInt8, _ key: StateKeys) -> UInt8 {
+    let mask = node.pseudoMask
+    if mask == 0 { return base }
+    var result = base
+    for state in PSEUDO_CSS_ORDER {
+      if (mask & state.rawValue) != 0 {
+        if let buf = node.getPseudoBuffer(state.rawValue),
+           buf.count > stateKey {
+          let lowOfs = StyleKeys.PSEUDO_SET_MASK_LOW
+          let highOfs = StyleKeys.PSEUDO_SET_MASK_HIGH
+          guard buf.count >= highOfs + 8 else { continue }
+          let base = buf.baseAddress!
+          var setLow: UInt64 = 0
+          var setHigh: UInt64 = 0
+          memcpy(&setLow, base + lowOfs, 8)
+          memcpy(&setHigh, base + highOfs, 8)
+          let isSet = (setLow & key.low) != 0 || (setHigh & key.high) != 0
+          if isSet {
+            result = base.advanced(by: valueKey).pointee
+          }
+        }
+      }
+    }
+    return result
+  }
+
   internal func resolvePseudoUInt32(_ valueKey: Int, _ stateKey: Int, _ base: UInt32, _ key: StateKeys) -> UInt32 {
     let mask = node.pseudoMask
     if mask == 0 { return base }
@@ -3716,7 +3884,19 @@ extension MasonStyle {
       getFloat(StyleKeys.LETTER_SPACING)
     }
   }
-  
+
+  internal var resolvedFontVariantNumeric: FontVariantNumeric {
+    let state = getUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE)
+    let base: UInt8 = if state == StyleState.INHERIT {
+      parentStyleWithTextValues?.resolvedFontVariantNumeric.rawValue
+      ?? getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)
+    } else {
+      getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)
+    }
+    let pseudoRaw = resolvePseudoByte(StyleKeys.FONT_VARIANT_NUMERIC, StyleKeys.FONT_VARIANT_NUMERIC_STATE, base, .fontVariantNumeric)
+    return FontVariantNumeric(rawValue: pseudoRaw)
+  }
+
   internal var resolvedTextWrap: TextWrap{
     let state = getUInt8(StyleKeys.TEXT_WRAP_STATE)
     return if (state == StyleState.INHERIT) {
@@ -3811,5 +3991,10 @@ extension MasonStyle {
   func resetFontStyleToInherit() {
     setUInt8(StyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.fontWeight)
+  }
+
+  func resetFontVariantNumericToInherit() {
+    setUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.INHERIT)
+    notifyTextStyleChanged(StateKeys.fontVariantNumeric)
   }
 }

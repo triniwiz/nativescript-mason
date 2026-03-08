@@ -36,6 +36,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   var hnPageSize: Int = 10
   var hnLoading: Bool = false
   var hnContainer: Mason.MasonUIView? = nil
+  var numericTimer: Timer?
   
   var mason: NSCMason {
     get {
@@ -911,6 +912,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
   // Clear Mason content and force layout/invalidate on root and native views
   func clearContent() {
+    numericTimer?.invalidate()
+    numericTimer = nil
    /* DispatchQueue.main.async {
       // Remove all Mason node children from the scroll body
       self.body.removeAllChildren()
@@ -950,8 +953,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     super.viewDidLoad()
     // Add a simple demo picker at the top and the Mason body below it
-    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN","Pseudo"])
-    demoPicker.selectedSegmentIndex = 5
+    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN","Pseudo","Nums"])
+    demoPicker.selectedSegmentIndex = 6
     demoPicker.addTarget(self, action: #selector(demoChanged(_:)), for: .valueChanged)
     demoPicker.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(demoPicker)
@@ -1012,6 +1015,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     switch sender.selectedSegmentIndex {
     case 5:
       renderPseudoDemo(body)
+    case 6:
+      renderFontVariantNumericDemo(body)
     default:
       renderFloat(body)
     }
@@ -2120,7 +2125,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     let outlineActive = outline.node.preparePseudoBuffer(PseudoState.active.rawValue)
     pseudoSetBg(outlineActive, UIColor(hex: "#4F46E5")!.toUInt32())
-    pseudoSetFontColor(outlineActive, UIColor.white.toUInt32())
+    pseudoSetFontColor(outlineActive, argb("#FFFFFF"))
 
     // 3. Danger Button
     container.addView(sectionLabel("Danger Button"))
@@ -2502,6 +2507,163 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
+  func renderFontVariantNumericDemo(_ view: Scroll) {
+    let container = mason.createView()
+    container.configure { style in
+      style.display = .Block
+      style.padding = MasonRect(.Zero, .Points(self.toPx(16)), .Points(self.toPx(16)), .Points(self.toPx(16)))
+      style.background = "#EEF2FF"
+    }
+
+    // --- Title ---
+    let title = mason.createTextView(type: .P)
+    title.append(text: "font-variant-numeric")
+    title.configure { style in
+      style.display = .Block
+      style.fontSize = 22
+      style.fontWeight = "bold"
+      style.color = self.argb("#1E293B")
+    }
+    container.addView(title)
+
+    // --- Timer Row ---
+    let timerRow = mason.createView()
+    timerRow.configure { style in
+      style.display = .Flex
+      style.flexDirection = .Row
+      style.gap = MasonSize(.Points(self.toPx(12)), .Zero)
+      style.margin = MasonRect(.Zero, .Zero, .Points(self.toPx(24)), .Zero)
+    }
+
+    func timerCard(label: String, tabular: Bool) -> (MasonUIView, MasonText) {
+      let card = self.mason.createView()
+      card.configure { style in
+        style.display = .Block
+        style.flexGrow = 1
+        style.background = "#FFFFFF"
+        style.borderRadius = "12"
+        style.padding = MasonRect(uniform: .Points(self.toPx(16)))
+      }
+
+      let timeText = self.mason.createTextView(type: .P)
+      timeText.append(text: "00:00.00")
+      timeText.configure { style in
+        style.display = .Block
+        style.fontSize = 32
+        style.fontWeight = "bold"
+        style.color = self.argb("#1E293B")
+        style.textAlign = .Center
+        if tabular {
+          style.fontVariantNumericString = "tabular-nums"
+        }
+      }
+      card.addView(timeText)
+
+      let badge = self.mason.createView()
+      badge.configure { style in
+        style.display = .Flex
+        style.flexDirection = .Row
+        style.gap = MasonSize(.Points(self.toPx(6)), .Zero)
+        style.margin = MasonRect(.Points(self.toPx(8)), .Zero, .Zero, .Zero)
+        style.alignItems = .Center
+        style.justifyContent = .Center
+      }
+
+      let dot = self.mason.createTextView(type: .P)
+      dot.append(text: tabular ? "✅" : "❌")
+      dot.configure { style in
+        style.display = .InlineBlock
+        style.fontSize = 14
+      }
+      badge.addView(dot)
+
+      let labelText = self.mason.createTextView(type: .P)
+      labelText.append(text: label)
+      labelText.configure { style in
+        style.display = .InlineBlock
+        style.fontSize = 14
+        style.color = self.argb("#64748B")
+      }
+      badge.addView(labelText)
+
+      card.addView(badge)
+      return (card, timeText)
+    }
+
+    let (leftCard, leftTime) = timerCard(label: "w/o tabular-nums", tabular: false)
+    let (rightCard, rightTime) = timerCard(label: "w/ tabular-nums", tabular: true)
+    timerRow.addView(leftCard)
+    timerRow.addView(rightCard)
+    container.addView(timerRow)
+
+    // --- Showcase Cards ---
+    let variants: [(String, String)] = [
+      ("lining-nums", "0123456789"),
+      ("oldstyle-nums", "0123456789"),
+      ("tabular-nums", "111  888"),
+      ("proportional-nums", "111  888"),
+      ("diagonal-fractions", "1/2 3/4 5/6"),
+      ("stacked-fractions", "1/2 3/4 5/6"),
+      ("ordinal", "1st 2nd 3rd"),
+      ("slashed-zero", "0O 00 08"),
+    ]
+
+    for (variant, sample) in variants {
+      let row = mason.createView()
+      row.configure { style in
+        style.display = .Block
+        style.background = "#FFFFFF"
+        style.borderRadius = "8"
+        style.padding = MasonRect(uniform: .Points(self.toPx(12)))
+        style.margin = MasonRect(.Zero, .Zero, .Points(self.toPx(8)), .Zero)
+      }
+
+      let variantLabel = mason.createTextView(type: .P)
+      variantLabel.append(text: variant)
+      variantLabel.configure { style in
+        style.display = .Block
+        style.fontSize = 12
+        style.fontWeight = "semibold"
+        style.color = self.argb("#6366F1")
+        style.margin = MasonRect(.Zero, .Zero, .Points(self.toPx(4)), .Zero)
+      }
+      row.addView(variantLabel)
+
+      let sampleText = mason.createTextView(type: .P)
+      sampleText.configure { style in
+        style.display = .Block
+        style.fontSize = 24
+        style.color = self.argb("#1E293B")
+        style.fontVariantNumericString = variant
+      }
+      sampleText.append(text: sample)
+      row.addView(sampleText)
+
+      container.addView(row)
+    }
+
+    view.addView(container)
+
+    // Start timer (use .common mode so it keeps running during scrolling)
+    var elapsed: TimeInterval = 0
+    let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self, weak leftTime, weak rightTime] _ in
+      guard self != nil else { return }
+      elapsed += 1.0 / 60.0
+      let mins = Int(elapsed) / 60
+      let secs = Int(elapsed) % 60
+      let hundredths = Int((elapsed - floor(elapsed)) * 100)
+      let str = String(format: "%02d:%02d.%02d", mins, secs, hundredths)
+
+      leftTime?.textContent = str
+      rightTime?.textContent = str
+
+      leftTime?.requestLayout()
+      rightTime?.requestLayout()
+    }
+    RunLoop.main.add(timer, forMode: .common)
+    numericTimer = timer
+  }
+
   func wrapper8(){
     let bg =  UIColor(hex: "#444444")
     let rootLayout = mason.createView()

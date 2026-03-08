@@ -10,7 +10,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use taffy::Display;
 
-pub const STYLE_BUFFER_SIZE: usize = 416;
+pub const STYLE_BUFFER_SIZE: usize = 424;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]

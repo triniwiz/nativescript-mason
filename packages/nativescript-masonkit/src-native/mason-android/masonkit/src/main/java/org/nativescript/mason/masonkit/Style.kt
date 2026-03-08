@@ -20,6 +20,7 @@ import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.DisplayMode
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.FontVariantNumeric
 import org.nativescript.mason.masonkit.enums.GridAutoFlow
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.JustifyItems
@@ -287,6 +288,10 @@ object StyleKeys {
   // as StateKeys. Zero-copy: lives in the style buffer itself.
   const val PSEUDO_SET_MASK_LOW = 398   // long (8 bytes: 398-405)
   const val PSEUDO_SET_MASK_HIGH = 406  // long (8 bytes: 406-413)
+
+  // font-variant-numeric bitmask (byte) + state
+  const val FONT_VARIANT_NUMERIC = 419       // byte (bitmask)
+  const val FONT_VARIANT_NUMERIC_STATE = 420 // byte
 }
 
 class StateKeys internal constructor(val low: Long, val high: Long) {
@@ -367,6 +372,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_SHADOWS = flag(68)
     val FONT_FAMILY = flag(69)
     val LETTER_SPACING = flag(70)
+    val FONT_VARIANT_NUMERIC = flag(71)
 
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
       ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
@@ -1066,16 +1072,48 @@ class Style internal constructor(@Transient internal var node: Node) {
           owner = this@Style
         }
         values.put(StyleKeys.FONT_FAMILY_STATE, StyleState.SET)
-        notifyTextStyleChanged(StateKeys.FONT_FAMILY)
+        if (inBatch) {
+          setOrAppendState(StateKeys.FONT_FAMILY)
+        } else {
+          notifyTextStyleChanged(StateKeys.FONT_FAMILY)
+        }
       }
     }
+  private fun ensureWritableFontFace() {
+    val current = font
+    if (current.owner != this) {
+      val old = current
+      val od = old.fontDescriptors
+      val nd = FontFace.NSCFontDescriptors(old.fontFamily)
+      nd.weight = od.weight
+      nd.ascentOverride = od.ascentOverride
+      nd.descentOverride = od.descentOverride
+      nd.display = od.display
+      nd.style = od.style
+      nd.stretch = od.stretch
+      nd.unicodeRange = od.unicodeRange
+      nd.featureSettings = od.featureSettings
+      nd.lineGapOverride = od.lineGapOverride
+      nd.variationSettings = od.variationSettings
+      nd.kerning = od.kerning
+      nd.variantLigatures = od.variantLigatures
+
+      font = FontFace(old.fontFamily, descriptors = nd).apply {
+        font = old.font
+        status = old.status
+        owner = this@Style
+      }
+    }
+  }
 
   var fontVariant: String
     get() {
       return font.fontDescriptors.variationSettings
     }
     set(value) {
-      // todo
+      ensureWritableFontFace()
+      font.fontDescriptors.variationSettings = value
+      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
   var fontStretch: String
@@ -1083,7 +1121,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return font.fontDescriptors.stretch
     }
     set(value) {
-      // todo
+      ensureWritableFontFace()
+      font.fontDescriptors.stretch = value
+      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
   var fontFeatureSettings: String
@@ -1091,7 +1131,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return font.fontDescriptors.featureSettings
     }
     set(value) {
-      // todo
+      ensureWritableFontFace()
+      font.fontDescriptors.featureSettings = value
+      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
   var fontKerning: String
@@ -1099,7 +1141,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return font.fontDescriptors.kerning
     }
     set(value) {
-      // todo
+      ensureWritableFontFace()
+      font.fontDescriptors.kerning = value
+      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
   var fontVariantLigatures: String
@@ -1107,7 +1151,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return font.fontDescriptors.variantLigatures
     }
     set(value) {
-      // todo
+      ensureWritableFontFace()
+      font.fontDescriptors.variantLigatures = value
+      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
 
@@ -1118,7 +1164,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.putInt(StyleKeys.FONT_SIZE, value)
       values.put(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.FONT_SIZE)
+      if (inBatch) {
+        setOrAppendState(StateKeys.FONT_SIZE)
+      } else {
+        notifyTextStyleChanged(StateKeys.FONT_SIZE)
+      }
     }
 
   var fontWeight: FontFace.NSCFontWeight
@@ -1133,7 +1183,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         values.put(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
         font.weight = value
         invalidateResolvedFontFace()
-        notifyTextStyleChanged(StateKeys.FONT_WEIGHT)
+        if (inBatch) {
+          setOrAppendState(StateKeys.FONT_WEIGHT)
+        } else {
+          notifyTextStyleChanged(StateKeys.FONT_WEIGHT)
+        }
       }
     }
 
@@ -1145,7 +1199,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
         invalidateResolvedFontFace()
-        notifyTextStyleChanged(StateKeys.FONT_STYLE)
+        if (inBatch) {
+          setOrAppendState(StateKeys.FONT_STYLE)
+        } else {
+          notifyTextStyleChanged(StateKeys.FONT_STYLE)
+        }
       }
     }
     get() {
@@ -1177,8 +1235,33 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.putFloat(StyleKeys.LETTER_SPACING, value)
       values.put(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.LETTER_SPACING)
+      if (inBatch) {
+        setOrAppendState(StateKeys.LETTER_SPACING)
+      } else {
+        notifyTextStyleChanged(StateKeys.LETTER_SPACING)
+      }
     }
+
+  var fontVariantNumeric: Int
+    get() {
+      return values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
+    }
+    set(value) {
+      val old = values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
+      if (value != old) {
+        values.put(StyleKeys.FONT_VARIANT_NUMERIC, value.toByte())
+        values.put(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.SET)
+        if (inBatch) {
+          setOrAppendState(StateKeys.FONT_VARIANT_NUMERIC)
+        } else {
+          notifyTextStyleChanged(StateKeys.FONT_VARIANT_NUMERIC)
+        }
+      }
+    }
+
+  var fontVariantNumericString: String
+    get() = FontVariantNumeric.toCssString(fontVariantNumeric)
+    set(value) { fontVariantNumeric = FontVariantNumeric.parse(value) }
 
   var textWrap: TextWrap
     get() {
@@ -1187,7 +1270,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.put(StyleKeys.TEXT_WRAP, value.value)
       values.put(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.TEXT_WRAP)
+      if (inBatch) {
+        setOrAppendState(StateKeys.TEXT_WRAP)
+      } else {
+        notifyTextStyleChanged(StateKeys.TEXT_WRAP)
+      }
     }
 
   var whiteSpace: Styles.WhiteSpace
@@ -1197,7 +1284,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.put(StyleKeys.WHITE_SPACE, value.value)
       values.put(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.WHITE_SPACE)
+      if (inBatch) {
+        setOrAppendState(StateKeys.WHITE_SPACE)
+      } else {
+        notifyTextStyleChanged(StateKeys.WHITE_SPACE)
+      }
     }
 
   var textTransform: Styles.TextTransform
@@ -1207,7 +1298,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.put(StyleKeys.TEXT_TRANSFORM, value.value)
       values.put(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.TEXT_TRANSFORM)
+      if (inBatch) {
+        setOrAppendState(StateKeys.TEXT_TRANSFORM)
+      } else {
+        notifyTextStyleChanged(StateKeys.TEXT_TRANSFORM)
+      }
     }
 
   var verticalAlign: VerticalAlign
@@ -1238,7 +1333,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
       }
 
-      notifyTextStyleChanged(StateKeys.VERTICAL_ALIGN)
+      if (inBatch) {
+        setOrAppendState(StateKeys.VERTICAL_ALIGN)
+      } else {
+        notifyTextStyleChanged(StateKeys.VERTICAL_ALIGN)
+      }
     }
 
 
@@ -1249,7 +1348,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.putInt(StyleKeys.BACKGROUND_COLOR, value)
       values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.BACKGROUND_COLOR)
+      if (inBatch) {
+        setOrAppendState(StateKeys.BACKGROUND_COLOR)
+      } else {
+        notifyTextStyleChanged(StateKeys.BACKGROUND_COLOR)
+      }
     }
 
   var decorationLine: Styles.DecorationLine
@@ -1259,7 +1362,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.put(StyleKeys.DECORATION_LINE, value.value)
       values.put(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.DECORATION_LINE)
+      if (inBatch) {
+        setOrAppendState(StateKeys.DECORATION_LINE)
+      } else {
+        notifyTextStyleChanged(StateKeys.DECORATION_LINE)
+      }
     }
 
   var decorationColor: Int
@@ -1269,7 +1376,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.putInt(StyleKeys.DECORATION_COLOR, value)
       values.put(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.DECORATION_COLOR)
+      if (inBatch) {
+        setOrAppendState(StateKeys.DECORATION_COLOR)
+      } else {
+        notifyTextStyleChanged(StateKeys.DECORATION_COLOR)
+      }
     }
 
   var decorationStyle: Styles.DecorationStyle
@@ -1281,7 +1392,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.put(StyleKeys.DECORATION_STYLE, value.value)
       values.put(StyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.DECORATION_STYLE)
+      if (inBatch) {
+        setOrAppendState(StateKeys.DECORATION_STYLE)
+      } else {
+        notifyTextStyleChanged(StateKeys.DECORATION_STYLE)
+      }
     }
 
 
@@ -1292,7 +1407,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       values.putFloat(StyleKeys.DECORATION_THICKNESS, value)
       values.put(StyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.DECORATION_THICKNESS)
+      if (inBatch) {
+        setOrAppendState(StateKeys.DECORATION_THICKNESS)
+      } else {
+        notifyTextStyleChanged(StateKeys.DECORATION_THICKNESS)
+      }
     }
 
   var lineHeight: Float
@@ -1303,7 +1422,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.putFloat(StyleKeys.LINE_HEIGHT, value)
       values.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
       values.put(StyleKeys.LINE_HEIGHT_TYPE, 0)
-      notifyTextStyleChanged(StateKeys.LETTER_SPACING)
+      if (inBatch) {
+        setOrAppendState(StateKeys.LINE_HEIGHT)
+      } else {
+        notifyTextStyleChanged(StateKeys.LINE_HEIGHT)
+      }
     }
 
   fun setLineHeight(value: Float, isRelative: Boolean) {
@@ -1314,7 +1437,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     } else {
       values.put(StyleKeys.LINE_HEIGHT_TYPE, 0)
     }
-    notifyTextStyleChanged(StateKeys.LETTER_SPACING)
+    if (inBatch) {
+      setOrAppendState(StateKeys.LINE_HEIGHT)
+    } else {
+      notifyTextStyleChanged(StateKeys.LINE_HEIGHT)
+    }
   }
 
 
@@ -1323,7 +1450,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       field = value
       values.put(StyleKeys.TEXT_OVERFLOW, value.value)
       values.put(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
-      notifyTextStyleChanged(StateKeys.TEXT_OVERFLOW)
+      if (inBatch) {
+        setOrAppendState(StateKeys.TEXT_OVERFLOW)
+      } else {
+        notifyTextStyleChanged(StateKeys.TEXT_OVERFLOW)
+      }
     }
 
 
@@ -3559,6 +3690,18 @@ class Style internal constructor(@Transient internal var node: Node) {
         values.getFloat(StyleKeys.LETTER_SPACING)
       }
       return resolvePseudoFloat(StyleKeys.LETTER_SPACING, StyleKeys.LETTER_SPACING_STATE, base, StateKeys.LETTER_SPACING)
+    }
+
+  internal val resolvedFontVariantNumeric: Int
+    get() {
+      val state = values.get(StyleKeys.FONT_VARIANT_NUMERIC_STATE)
+      val base = if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedFontVariantNumeric?.toByte()
+          ?: values.get(StyleKeys.FONT_VARIANT_NUMERIC)
+      } else {
+        values.get(StyleKeys.FONT_VARIANT_NUMERIC)
+      }
+      return resolvePseudoByte(StyleKeys.FONT_VARIANT_NUMERIC, StyleKeys.FONT_VARIANT_NUMERIC_STATE, base, StateKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
     }
 
   internal val resolvedTextWrap: TextWrap

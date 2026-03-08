@@ -482,6 +482,8 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       style.mBorderRender.draw(in: context, rect: bounds)
       break
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
 
   private func measureText(_ text: String) -> CGSize {

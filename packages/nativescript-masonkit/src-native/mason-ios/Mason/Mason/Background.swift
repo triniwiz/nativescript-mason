@@ -27,23 +27,6 @@ extension Background {
       drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
     }
 
-    // Apply pseudo-aware filter (e.g. brightness on :active).
-    // Try the lightweight CGContext fast-path first; fall back to Metal.
-    let css = style.resolvedFilterString
-    if css.isEmpty {
-      if !style.mFilter.filters.isEmpty {
-        style.mFilter.reset()
-      }
-    } else {
-      style.mFilter.parse(css: css)
-      if !style.mFilter.filters.isEmpty {
-        if !style.mFilter.applyFast(in: context, rect: rect) {
-          if let view = layer.delegate as? UIView {
-            style.mFilter.apply(to: view)
-          }
-        }
-      }
-    }
   }
 
   func draw(on view: UIView, in context: CGContext, rect: CGRect) {
@@ -55,22 +38,6 @@ extension Background {
 
     for layer in layers {
       drawLayer(layer, on: view, in: context, rect: rect)
-    }
-
-    // Apply pseudo-aware filter (e.g. brightness on :active).
-    // Try the lightweight CGContext fast-path first; fall back to Metal.
-    let css = style.resolvedFilterString
-    if css.isEmpty {
-      if !style.mFilter.filters.isEmpty {
-        style.mFilter.reset()
-      }
-    } else {
-      style.mFilter.parse(css: css)
-      if !style.mFilter.filters.isEmpty {
-        if !style.mFilter.applyFast(in: context, rect: rect) {
-          style.mFilter.apply(to: view)
-        }
-      }
     }
   }
   

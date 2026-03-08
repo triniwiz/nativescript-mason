@@ -401,11 +401,26 @@ public class MasonNode: NSObject {
       // Font
       let fontSize = style.resolvedFontSize
       let weight = style.resolvedFontWeight
-      let style = style.resolvedInternalFontStyle
-      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
-      attrs[.font] = ctFont
+      let fontStyle = style.resolvedInternalFontStyle
+      var font = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: fontStyle)
+
+      // font-variant-numeric: apply AAT feature settings
+      let variantNumeric = style.resolvedFontVariantNumeric
+      if variantNumeric.rawValue != 0 {
+        let features = variantNumeric.fontFeatureSettings.map { (type, selector) in
+          [
+            kCTFontFeatureTypeIdentifierKey: type,
+            kCTFontFeatureSelectorIdentifierKey: selector
+          ] as CFDictionary
+        } as CFArray
+        let attrs = [kCTFontFeatureSettingsAttribute: features] as CFDictionary
+        let desc = CTFontDescriptorCreateWithAttributes(attrs)
+        font = CTFontCreateCopyWithAttributes(font, 0, nil, desc)
+      }
+
+      attrs[.font] = font
       attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
-      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
+      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = fontStyle
     }
     
     
@@ -413,10 +428,15 @@ public class MasonNode: NSObject {
     attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
     
     
-    let backgroundColorValue = style.resolvedBackgroundColor
-    // Background color
-    if backgroundColorValue != 0 {
-      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+    // Background color — only for inline text spans. Block-level elements
+    // (those with a view) already draw their background via mBackground.draw();
+    // setting .backgroundColor on the attributed string would create a
+    // redundant colored rect behind the text glyphs.
+    if view == nil {
+      let backgroundColorValue = style.resolvedBackgroundColor
+      if backgroundColorValue != 0 {
+        attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+      }
     }
     
     

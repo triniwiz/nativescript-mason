@@ -65,8 +65,10 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     if hasBorder {
       style.mBorderRender.draw(in: context, rect: bounds)
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
+
   public override func layoutSubviews() {
     if isApplyingLayout {
       super.layoutSubviews()

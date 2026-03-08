@@ -39,44 +39,69 @@ public final class MasonLayoutTree {
   
   public func fromFloatArray(_ args: [Float]) {
     reset()
-    var currentIndex = 0
     var arrayIndex = 0
-    
+
+    // DFS stack: (nodeIndex, remainingChildren)
+    var stack: [(Int, Int)] = []
+
     while arrayIndex < args.count {
       let nodeOrder = Int(args[arrayIndex]); arrayIndex += 1
       let x = args[arrayIndex]; arrayIndex += 1
       let y = args[arrayIndex]; arrayIndex += 1
       let width = args[arrayIndex]; arrayIndex += 1
       let height = args[arrayIndex]; arrayIndex += 1
-      
+
       frames.append(SIMD4<Float>(x, y, width, height))
-      
+
       borders.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
       arrayIndex += 4
       margins.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
       arrayIndex += 4
       paddings.append(SIMD4<Float>(args[arrayIndex], args[arrayIndex + 1], args[arrayIndex + 2], args[arrayIndex + 3]))
       arrayIndex += 4
-      
+
       contentSizes.append(SIMD2<Float>(args[arrayIndex], args[arrayIndex + 1]))
       arrayIndex += 2
       scrollbarSizes.append(SIMD2<Float>(args[arrayIndex], args[arrayIndex + 1]))
       arrayIndex += 2
-      
+
       let childrenCountNode = Int(args[arrayIndex]); arrayIndex += 1
-      
+      let nodeIndex = order.count
+
       order.append(nodeOrder)
       childStart.append(childIndices.count)
       childCount.append(childrenCountNode)
-      
+
+      // Reserve slots for this node's children (filled as we encounter them)
       for _ in 0..<childrenCountNode {
-        childIndices.append(currentIndex + 1) // placeholder sequential
+        childIndices.append(0)
       }
-      
-      currentIndex += 1
+
+      // Register this node as the next child of the parent on the stack
+      if let last = stack.last {
+        let parentIndex = last.0
+        let parentStart = childStart[parentIndex]
+        let parentTotal = childCount[parentIndex]
+        let parentRemaining = last.1
+        let slot = parentStart + (parentTotal - parentRemaining)
+        childIndices[slot] = nodeIndex
+      }
+
+      // Pop completed parents
+      if !stack.isEmpty {
+        stack[stack.count - 1].1 -= 1
+        while let last = stack.last, last.1 == 0 {
+          stack.removeLast()
+        }
+      }
+
+      // Push this node if it has children
+      if childrenCountNode > 0 {
+        stack.append((nodeIndex, childrenCountNode))
+      }
     }
   }
-  
+
   // MARK: - Parsing from UnsafePointer<Float>
   
   public func fromFloatPointer(_ ptr: UnsafePointer<Float>, count: Int) {
@@ -84,39 +109,66 @@ public final class MasonLayoutTree {
     var array = ptr
     let end = ptr.advanced(by: count)
 
+    // DFS stack: (nodeIndex, remainingChildren)
+    var stack: [(Int, Int)] = []
+
     while array < end {
       let nodeOrder = Int(array.pointee.rounded(.towardZero)); array = array.advanced(by: 1)
       let x = array.pointee; array = array.advanced(by: 1)
       let y = array.pointee; array = array.advanced(by: 1)
       let width = array.pointee; array = array.advanced(by: 1)
       let height = array.pointee; array = array.advanced(by: 1)
-      
+
       frames.append(SIMD4<Float>(x, y, width, height))
-      
+
       borders.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
       array = array.advanced(by: 4)
-      
+
       margins.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
       array = array.advanced(by: 4)
-      
+
       paddings.append(SIMD4<Float>(array.pointee, array.advanced(by: 1).pointee, array.advanced(by: 2).pointee, array.advanced(by: 3).pointee))
       array = array.advanced(by: 4)
-      
+
       contentSizes.append(SIMD2<Float>(array.pointee, array.advanced(by: 1).pointee))
       array = array.advanced(by: 2)
-      
+
       scrollbarSizes.append(SIMD2<Float>(array.pointee, array.advanced(by: 1).pointee))
       array = array.advanced(by: 2)
-      
-      let childrenCountNode = Int(array.pointee.rounded(.towardZero)); array = array.advanced(by: 1)
 
+      let childrenCountNode = Int(array.pointee.rounded(.towardZero)); array = array.advanced(by: 1)
       let nodeIndex = order.count
+
       order.append(nodeOrder)
       childStart.append(childIndices.count)
       childCount.append(childrenCountNode)
 
-      for i in 0..<childrenCountNode {
-        childIndices.append(nodeIndex + 1 + i) // sequential indexing
+      // Reserve slots for this node's children (filled as we encounter them)
+      for _ in 0..<childrenCountNode {
+        childIndices.append(0)
+      }
+
+      // Register this node as the next child of the parent on the stack
+      if let last = stack.last {
+        let parentIndex = last.0
+        let parentStart = childStart[parentIndex]
+        let parentTotal = childCount[parentIndex]
+        let parentRemaining = last.1
+        let slot = parentStart + (parentTotal - parentRemaining)
+        childIndices[slot] = nodeIndex
+      }
+
+      // Pop completed parents
+      if !stack.isEmpty {
+        stack[stack.count - 1].1 -= 1
+        while let last = stack.last, last.1 == 0 {
+          stack.removeLast()
+        }
+      }
+
+      // Push this node if it has children
+      if childrenCountNode > 0 {
+        stack.append((nodeIndex, childrenCountNode))
       }
     }
   }

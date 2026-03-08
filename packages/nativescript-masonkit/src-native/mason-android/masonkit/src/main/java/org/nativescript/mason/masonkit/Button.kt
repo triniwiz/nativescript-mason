@@ -2,6 +2,10 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.util.Log
@@ -61,6 +65,27 @@ class Button @JvmOverloads constructor(
   override fun onDraw(canvas: Canvas) {
     ViewUtils.onDraw(this, canvas, style) {
       super.onDraw(it)
+    }
+
+    // Default :active brightness fallback — only when the user hasn't set
+    // an explicit :active pseudo buffer (their bg override takes priority).
+    if (node.hasPseudo(PseudoState.ACTIVE) &&
+      style.resolvedFilterString.isEmpty() &&
+      node.getPseudoBuffer(PseudoState.ACTIVE.mask).capacity() == 0
+    ) {
+      val w = width.toFloat()
+      val h = height.toFloat()
+      canvas.save()
+      if (style.mBorderRenderer.hasRadii()) {
+        canvas.clipPath(style.mBorderRenderer.getOuterClipPath(w, h))
+      }
+      val gray = (0.85f * 255).toInt()
+      val paint = Paint().apply {
+        color = Color.rgb(gray, gray, gray)
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+      }
+      canvas.drawRect(0f, 0f, w, h, paint)
+      canvas.restore()
     }
   }
 
@@ -122,9 +147,8 @@ class Button @JvmOverloads constructor(
 
     node.style.setStyleChangeListener(this)
 
-    // Default :active pseudo style — darken whatever background is set via
-    // CSS filter brightness, matching browser behavior without replacing the color.
-    node.setPseudoString(PseudoState.ACTIVE.mask, "filter", "brightness(0.85)")
+    // Default :active brightness is applied in ViewUtils.render as a fallback
+    // only when no explicit :active pseudo buffer has been set by the user.
   }
 
   override fun drawableStateChanged() {

@@ -110,6 +110,10 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.numeric.setOnClickListener {
+      val intent = Intent(this, NumericDemoActivity::class.java)
+      startActivity(intent)
+    }
 
   }
 
