@@ -147,7 +147,7 @@ public class MasonNode: NSObject {
   
   internal var measureFunc: MeasureFunc? = nil
 
-  // Swift-side storage for pseudo string properties (keyed by pseudo state value)
+  // Storage for pseudo string properties (keyed by pseudo state value)
   // Example: pseudoStrings[active.rawValue] = ["filter": "brightness(0.88)"]
   private var pseudoStrings: [UInt16: [String: String]] = [:]
 
@@ -1098,9 +1098,7 @@ extension MasonNode {
         NodeUtils.syncNode(self, children)
       }
     } else {
-      if let parent = reference.parent {
-        NodeUtils.removeView(parent, removed.view)
-      }
+      NodeUtils.removeView(self, removed.view)
       removed.parent = nil
     }
     return removed

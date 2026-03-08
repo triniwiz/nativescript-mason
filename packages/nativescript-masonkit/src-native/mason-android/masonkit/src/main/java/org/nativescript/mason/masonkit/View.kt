@@ -102,7 +102,8 @@ class View @JvmOverloads constructor(
     }
 
     zSortedChildren.sortWith(compareBy<android.view.View> {
-      (it as? Element)?.style?.zIndex ?: 0
+      val el = it as? Element ?: return@compareBy 0
+      if (el.node.nativePtr == 0L || !el.style.isValueInitialized) 0 else el.style.zIndex
     }.thenBy {
       indexOfChild(it)
     })
@@ -184,8 +185,8 @@ class View @JvmOverloads constructor(
 
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    val layout = layout()
-    applyLayoutRecursive(node, layout)
+    val tree = layoutFlat()
+    applyLayoutFlat(node, tree)
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -202,11 +203,16 @@ class View @JvmOverloads constructor(
       )
     }
 
-    val layout = layout()
+    val tree = layoutFlat()
+    if (tree.nodeCount == 0) {
+      setMeasuredDimension(0, 0)
+      return
+    }
 
+    val nv = MasonNodeView(tree, 0)
 
-    var width = layout.width.toInt()
-    var height = layout.height.toInt()
+    var width = nv.width.toInt()
+    var height = nv.height.toInt()
 
     var boxing = BoxSizing.BorderBox
 
@@ -216,17 +222,17 @@ class View @JvmOverloads constructor(
 
     if (style.overflowX == Overflow.Visible) {
       width = if (boxing == BoxSizing.BorderBox) {
-        (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+        (nv.x + nv.contentWidth + nv.borderRight + nv.borderLeft + nv.paddingRight + nv.paddingLeft).toInt()
       } else {
-        layout.contentSize.width.toInt()
+        nv.contentWidth.toInt()
       }
     }
 
     if (style.overflowY == Overflow.Visible) {
       height = if (boxing == BoxSizing.BorderBox) {
-        (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+        (nv.y + nv.contentHeight + nv.borderTop + nv.borderBottom + nv.paddingTop + nv.paddingBottom).toInt()
       } else {
-        layout.contentSize.height.toInt()
+        nv.contentHeight.toInt()
       }
     }
 

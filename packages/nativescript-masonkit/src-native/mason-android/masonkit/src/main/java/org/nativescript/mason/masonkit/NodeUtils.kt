@@ -232,4 +232,13 @@ internal object NodeUtils {
       }
     }
   }
+
+  // Fallback removal: if the expected parent doesn't have a view (or the view
+  // isn't a child), try removing the view directly from its actual parent
+  // ViewGroup to avoid leaving dangling attachments.
+  fun removeViewFallback(view: View?) {
+    view ?: return
+    val p = view.parent as? ViewGroup
+    p?.removeView(view)
+  }
 }

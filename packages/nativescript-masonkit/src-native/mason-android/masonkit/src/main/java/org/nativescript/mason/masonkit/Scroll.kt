@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
@@ -146,11 +145,14 @@ class Scroll @JvmOverloads constructor(
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    // todo cache layout
-    val layout = layout()
-    applyLayoutRecursive(node, layout)
+    val tree = layoutFlat()
+    applyLayoutFlat(node, tree)
   }
 
+
+  private val nv by lazy {
+    MasonNodeView(node.computedLayout)
+  }
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
@@ -167,10 +169,16 @@ class Scroll @JvmOverloads constructor(
       )
     }
 
-    val layout = layout()
+    val tree = layoutFlat()
+    if (tree.nodeCount == 0) {
+      setMeasuredDimension(0, 0)
+      return
+    }
 
-    var width = layout.width.toInt()
-    var height = layout.height.toInt()
+    val nv = MasonNodeView(tree, 0)
+
+    var width = nv.width.toInt()
+    var height = nv.height.toInt()
 
     var boxing = BoxSizing.BorderBox
 
@@ -183,11 +191,9 @@ class Scroll @JvmOverloads constructor(
     width = when (overflow.x) {
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
-          // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
-          //   layout.width.toInt()
-          (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+          (nv.x + nv.contentWidth + nv.borderRight + nv.borderLeft + nv.paddingRight + nv.paddingLeft).toInt()
         } else {
-          layout.contentSize.width.toInt()
+          nv.contentWidth.toInt()
         }
       }
 
@@ -199,11 +205,9 @@ class Scroll @JvmOverloads constructor(
     height = when (overflow.y) {
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
-          //(layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
-//          layout.height.toInt()
-          (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+          (nv.y + nv.contentHeight + nv.borderTop + nv.borderBottom + nv.paddingTop + nv.paddingBottom).toInt()
         } else {
-          layout.contentSize.height.toInt()
+          nv.contentHeight.toInt()
         }
       }
 

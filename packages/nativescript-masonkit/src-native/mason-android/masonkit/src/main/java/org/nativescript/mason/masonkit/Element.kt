@@ -73,6 +73,21 @@ interface Element : EventTarget {
     return Layout.fromFloatArray(layouts, 0).second
   }
 
+  fun layoutFlat(): MasonLayoutTree {
+    if (node.nativePtr == 0L) {
+      return MasonLayoutTree.empty
+    }
+    if (node.mason.inCompute) {
+      return node.layoutTree
+    }
+    val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
+    if (layouts.isEmpty()) {
+      return MasonLayoutTree.empty
+    }
+    node.layoutTree.fromFloatArray(layouts)
+    return node.layoutTree
+  }
+
   fun compute() {
     val mason = node.mason
     if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
@@ -189,7 +204,7 @@ interface Element : EventTarget {
   }
 
   fun attachAndApply() {
-    applyLayoutRecursive(node, layout())
+    applyLayoutFlat(node, layoutFlat())
   }
 
   fun append(element: Element) {
@@ -509,8 +524,9 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       }
 
       if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-        if (this !== view.parent) {
-          (view.parent as? View)?.layout(x, y, right, bottom)
+        val parentView = view.parent
+        if (parentView != null && parentView !== this && parentView !== view) {
+          (parentView as? View)?.layout(x, y, right, bottom)
         }
         // For scroll root, use the full content size (not the constrained box size)
         // so that TwoDScrollView.canScroll() returns true when content overflows.
@@ -540,7 +556,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         view.layout(x, y, right, bottom)
         view.layoutChild(0, 0, width, height)
       } else {
-        view.layout(x, y, right, bottom)
+        val lx = x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+        val ty = y.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+        val rx = right.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+        val by = bottom.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+        view.layout(lx, ty, rx, by)
       }
     }
   }
@@ -570,6 +590,197 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
 
       val layoutChild = layout.children.getOrNull(i) ?: continue
       applyLayoutRecursive(child, layoutChild)
+    }
+  }
+}
+
+// MARK: - Flat layout tree application (iterative DFS, zero-allocation per pass)
+
+// Preallocated stack frame to avoid Pair allocations in DFS
+private class LayoutStackFrame {
+  var treeIdx = 0
+  var node: Node? = null
+}
+
+// Pool of stack frames — grown once, reused every pass
+private val layoutStack = ArrayList<LayoutStackFrame>(32)
+private var layoutStackTop = -1
+
+private fun pushFrame(treeIdx: Int, node: Node) {
+  layoutStackTop++
+  val frame: LayoutStackFrame
+  if (layoutStackTop < layoutStack.size) {
+    frame = layoutStack[layoutStackTop]
+  } else {
+    frame = LayoutStackFrame()
+    layoutStack.add(frame)
+  }
+  frame.treeIdx = treeIdx
+  frame.node = node
+}
+
+private fun popFrame(): LayoutStackFrame {
+  val frame = layoutStack[layoutStackTop]
+  layoutStackTop--
+  return frame
+}
+
+internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
+  if (tree.nodeCount == 0) return
+
+  val nv = tree.cursor
+  layoutStackTop = -1
+  pushFrame(0, rootNode)
+
+  while (layoutStackTop >= 0) {
+    val frame = popFrame()
+    val treeIdx = frame.treeIdx
+    val node = frame.node!!
+    frame.node = null // release ref
+
+    nv.pointTo(treeIdx)
+
+    // Store layout tree index on node for external access
+    node.layoutTreeIndex = treeIdx
+
+    if (node.type != NodeType.Element) continue
+    if (node.view is Br.FakeView) continue
+
+    (node.view as? View)?.let { view ->
+      if (view != this) {
+        if (view.isGone) return@let
+
+        var overflow = Point(Overflow.Visible, Overflow.Visible)
+        var boxing = BoxSizing.BorderBox
+        if (node.style.isValueInitialized) {
+          boxing = node.style.boxSizing
+          overflow = node.style.overflow
+        }
+
+        val x = nv.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+        val y = nv.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+        var width = nv.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+        var height = nv.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+        if (view !is Element) {
+          width = view.measuredWidth
+          height = view.measuredHeight
+        }
+
+        val contentWidth = if (boxing == BoxSizing.BorderBox) {
+          nv.width.toInt()
+        } else {
+          nv.contentWidth.toInt()
+        }
+
+        val contentHeight = if (boxing == BoxSizing.BorderBox) {
+          nv.height.toInt()
+        } else {
+          nv.contentHeight.toInt()
+        }
+
+        node.overflowWidth = contentWidth
+        node.overflowHeight = contentHeight
+
+        val layoutWidth = when (overflow.x) {
+          Overflow.Visible -> maxOf(width, contentWidth)
+          else -> width
+        }
+
+        val layoutHeight = when (overflow.y) {
+          Overflow.Visible -> maxOf(height, contentHeight)
+          else -> height
+        }
+
+        val right = x + layoutWidth
+        val bottom = y + layoutHeight
+
+        if (view is TextContainer || view is ListView) {
+          view.setPadding(
+            nv.paddingLeft.toInt(),
+            nv.paddingTop.toInt(),
+            nv.paddingRight.toInt(),
+            nv.paddingBottom.toInt()
+          )
+        }
+
+        if (view is TextContainer || view is ListView) {
+          view.measure(
+            MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
+          )
+        }
+
+        if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
+          val parentView = view.parent
+          if (parentView != null && parentView !== this && parentView !== view) {
+            (parentView as? View)?.layout(x, y, right, bottom)
+          }
+          view.layout(
+            0,
+            0,
+            when (overflow.x) {
+              Overflow.Scroll, Overflow.Auto -> {
+                val fullContentWidth =
+                  (nv.contentWidth + nv.borderLeft + nv.borderRight + nv.paddingLeft + nv.paddingRight).toInt()
+                maxOf(layoutWidth, fullContentWidth)
+              }
+              else -> layoutWidth
+            },
+            when (overflow.y) {
+              Overflow.Scroll, Overflow.Auto -> {
+                val fullContentHeight =
+                  (nv.contentHeight + nv.borderTop + nv.borderBottom + nv.paddingTop + nv.paddingBottom).toInt()
+                maxOf(layoutHeight, fullContentHeight)
+              }
+              else -> layoutHeight
+            }
+          )
+        } else if (view is Input) {
+          view.layout(x, y, right, bottom)
+          view.layoutChild(0, 0, width, height)
+        } else {
+          view.layout(
+            x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
+            y.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
+            right.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
+            bottom.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+          )
+        }
+      }
+    }
+
+    // Push children in reverse order for correct left-to-right processing
+    val childCnt = tree.childCount[treeIdx]
+    if (childCnt > 0) {
+      val children = node.children
+      val childStart = tree.childStart[treeIdx]
+      var activeIdx = 0
+
+      for (i in (0 until childCnt).reversed()) {
+        // Find matching node — skip nodes with freed native pointers
+        val childNodeIdx = children.size - 1 - activeIdx
+        if (childNodeIdx < 0) break
+        // Walk children list in reverse to match reverse iteration of tree children
+        val ci = children.size - 1 - (childCnt - 1 - i)
+        if (ci < 0 || ci >= children.size) continue
+        val child = children[ci]
+        if (child.nativePtr == 0L) continue
+        if (child.type == NodeType.Text) continue
+
+        if (child.parent?.view is TextContainer && child.view is TextContainer) {
+          val flatten =
+            (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+          if (flatten) {
+            (child.view as? View)?.layout(0, 0, 0, 0)
+            continue
+          }
+        }
+
+        val childTreeIdx = tree.childIndices[childStart + i]
+        pushFrame(childTreeIdx, child)
+      }
     }
   }
 }

@@ -50,6 +50,12 @@ open class Node internal constructor(
   var computedLayout: Layout = Layout.empty
     internal set
 
+  // Flat layout tree — reused across layout passes to avoid allocation
+  internal val layoutTree = MasonLayoutTree()
+
+  // Index of this node in the flat layout tree (set during applyLayoutFlat)
+  internal var layoutTreeIndex: Int = 0
+
   // cache overflow size
   internal var overflowWidth = 0
   internal var overflowHeight = 0
@@ -400,6 +406,7 @@ open class Node internal constructor(
    */
   val pseudoMask: Int
     get() {
+      if (nativePtr == 0L) return 0
       try {
         val buf = stateValue
         if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
@@ -428,6 +435,7 @@ open class Node internal constructor(
   }
 
   internal fun setPseudo(state: PseudoState, enabled: Boolean, autoDirty: Boolean) {
+    if (nativePtr == 0L) return
     try {
       val buf = stateValue
       if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
@@ -446,7 +454,7 @@ open class Node internal constructor(
 
   private val cache = mutableMapOf<Int, ByteBuffer>()
 
-  // Android-side storage for pseudo string properties (keyed by pseudo mask)
+  // Storage for pseudo string properties (keyed by pseudo mask)
   // Example: pseudoStrings[state.mask] = mapOf("filter" to "brightness(0.5)")
   private val pseudoStrings: MutableMap<Int, MutableMap<String, String>> = mutableMapOf()
 
@@ -1133,8 +1141,18 @@ open class Node internal constructor(
         NodeUtils.syncNode(this, children)
       }
     } else {
-      NodeUtils.removeView(reference.parent!!, removed.view as View)
-      NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+      // Use `this` (the node whose children vector was updated) as the
+      // parent when removing the platform View. Passing `reference.parent`
+      // could be ambiguous in anonymous/container scenarios and may leave
+      // views attached to the wrong ViewGroup.
+      NodeUtils.removeView(this, removed.view as? View)
+      // If view is still attached (unexpected), try fallback removal directly
+      if (removed.view != null && (removed.view as? View)?.parent != null) {
+        NodeUtils.removeViewFallback(removed.view as View)
+      }
+      if (removed.nativePtr != 0L) {
+        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+      }
       removed.parent = null
       NodeUtils.invalidateLayout(this, true)
     }

@@ -650,17 +650,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       put(StyleKeys.MARGIN_RIGHT_TYPE, 1)
       put(StyleKeys.MARGIN_BOTTOM_TYPE, 1)
       put(StyleKeys.REF_COUNT, 1)
-
-//          putInt(StyleKeys.PADDING_LEFT_TYPE, 0)
-//          putInt(StyleKeys.PADDING_TOP_TYPE, 0)
-//          putInt(StyleKeys.PADDING_RIGHT_TYPE, 0)
-//          putInt(StyleKeys.PADDING_BOTTOM_TYPE, 0)
-
-
-//          putInt(StyleKeys.BORDER_LEFT_TYPE, 0)
-//          putInt(StyleKeys.BORDER_TOP_TYPE, 0)
-//          putInt(StyleKeys.BORDER_RIGHT_TYPE, 0)
-//          putInt(StyleKeys.BORDER_BOTTOM_TYPE, 0)
     }
   }
   private var mValues: ByteBuffer? = null
@@ -714,11 +703,6 @@ class Style internal constructor(@Transient internal var node: Node) {
         if (node.mason.inCompute) {
           return mPlaceholder
         }
-
-        Log.w("com.test","?? ${nativeGetStyleBuffer(
-          node.mason.nativePtr,
-          node.nativePtr
-        )} ... ${node.view}")
         val buffer =
           ObjectManager.shared[nativeGetStyleBuffer(
             node.mason.nativePtr,

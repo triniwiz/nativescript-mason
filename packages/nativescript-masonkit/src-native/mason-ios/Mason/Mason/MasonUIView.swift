@@ -620,12 +620,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   
-  @objc public func setPadding(_ left: Float,_ right:Float, _ top: Float,_ bottom: Float) {
+  @objc public func setPadding(_ left: Float,_ top:Float, _ right: Float,_ bottom: Float) {
     node.style.padding = MasonRect(
-      MasonLengthPercentage.Points(left),
-      MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
-      MasonLengthPercentage.Points(bottom)
+      MasonLengthPercentage.Points(right),
+      MasonLengthPercentage.Points(bottom),
+      MasonLengthPercentage.Points(left)
     )
   }
   
@@ -672,10 +672,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setBorderWidth(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
     style.borderWidth = MasonRect(
-      MasonLengthPercentage.Points(left),
-      MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
-      MasonLengthPercentage.Points(bottom)
+      MasonLengthPercentage.Points(right),
+      MasonLengthPercentage.Points(bottom),
+      MasonLengthPercentage.Points(left)
     )
   }
   
@@ -721,10 +721,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {
     node.style.margin = MasonRect(
-      MasonLengthPercentageAuto.Points(left),
-      MasonLengthPercentageAuto.Points(right),
       MasonLengthPercentageAuto.Points(top),
-      MasonLengthPercentageAuto.Points(bottom)
+      MasonLengthPercentageAuto.Points(right),
+      MasonLengthPercentageAuto.Points(bottom),
+      MasonLengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -771,10 +771,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setInset(_ left: Float,_  top: Float, _ right: Float,_  bottom: Float) {
     node.style.inset = MasonRect(
-      MasonLengthPercentageAuto.Points(left),
-      MasonLengthPercentageAuto.Points(right),
       MasonLengthPercentageAuto.Points(top),
-      MasonLengthPercentageAuto.Points(bottom)
+      MasonLengthPercentageAuto.Points(right),
+      MasonLengthPercentageAuto.Points(bottom),
+      MasonLengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }

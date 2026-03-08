@@ -229,25 +229,27 @@ class Li @JvmOverloads constructor(
       else -> {}
     }
 
-    // todo cache layout
-    val layout = layout()
+    val tree = layoutFlat()
+    if (tree.nodeCount == 0) {
+      setMeasuredDimension(0, 0)
+      return
+    }
+    val nv = MasonNodeView(tree, 0)
 
     measureChild(
       content,
       MeasureSpec.makeMeasureSpec(
-        layout.width.toInt(), MeasureSpec.EXACTLY,
+        nv.width.toInt(), MeasureSpec.EXACTLY,
       ), MeasureSpec.makeMeasureSpec(
-        layout.height.toInt(), MeasureSpec.AT_MOST
+        nv.height.toInt(), MeasureSpec.AT_MOST
       )
     )
-    setMeasuredDimension(layout.width.toInt(), layout.height.toInt())
+    setMeasuredDimension(nv.width.toInt(), nv.height.toInt())
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    // todo cache layout
-    val layout = layout()
-
-    applyLayoutRecursive(node, layout)
+    val tree = layoutFlat()
+    applyLayoutFlat(node, tree)
   }
 
   internal var markerWidth: Float = 0f

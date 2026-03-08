@@ -492,4 +492,138 @@ class ViewBenchmark {
             require(json != null)
         }
     }
+
+    // ===== Flat Layout Tree Benchmarks =====
+
+    @Test
+    fun benchmark_layoutFlat_simpleView() {
+        val view = View(context, mason)
+        view.setSize(100f, 100f)
+        view.compute(-1f, -1f)
+
+        benchmarkRule.measureRepeated {
+            val tree = view.layoutFlat()
+            require(tree.nodeCount > 0)
+        }
+    }
+
+    @Test
+    fun benchmark_layoutFlat_withChildren() {
+        val parent = View(context, mason)
+        parent.setSize(500f, 500f)
+        parent.flexDirection = FlexDirection.Column
+
+        repeat(10) {
+            val child = View(context, mason)
+            child.setSize(50f, 50f)
+            parent.addView(child)
+        }
+        parent.compute(-1f, -1f)
+
+        benchmarkRule.measureRepeated {
+            val tree = parent.layoutFlat()
+            require(tree.nodeCount == 11) // parent + 10 children
+        }
+    }
+
+    @Test
+    fun benchmark_layoutFlat_vs_legacy_withChildren() {
+        val parent = View(context, mason)
+        parent.setSize(500f, 500f)
+        parent.flexDirection = FlexDirection.Column
+
+        repeat(10) {
+            val child = View(context, mason)
+            child.setSize(50f, 50f)
+            parent.addView(child)
+        }
+        parent.compute(-1f, -1f)
+
+        // Benchmark legacy layout() for comparison
+        benchmarkRule.measureRepeated {
+            val layout = parent.layout()
+            require(layout.width > 0)
+        }
+    }
+
+    @Test
+    fun benchmark_applyLayoutFlat_withChildren() {
+        val parent = View(context, mason)
+        parent.setSize(500f, 500f)
+        parent.flexDirection = FlexDirection.Column
+
+        repeat(10) {
+            val child = View(context, mason)
+            child.setSize(50f, 50f)
+            parent.addView(child)
+        }
+
+        parent.compute(-1f, -1f)
+        val tree = parent.layoutFlat()
+
+        benchmarkRule.measureRepeated {
+            parent.applyLayoutFlat(parent.node, tree)
+        }
+    }
+
+    @Test
+    fun benchmark_fullLayoutCycleFlat() {
+        val parent = View.createFlexView(mason, context)
+        parent.setSize(500f, 500f)
+
+        repeat(10) {
+            val child = View(context, mason)
+            child.flexGrow = 1f
+            child.setSize(0f, 50f)
+            parent.addView(child)
+        }
+
+        val widthSpec = AndroidView.MeasureSpec.makeMeasureSpec(500, AndroidView.MeasureSpec.EXACTLY)
+        val heightSpec = AndroidView.MeasureSpec.makeMeasureSpec(500, AndroidView.MeasureSpec.EXACTLY)
+
+        benchmarkRule.measureRepeated {
+            parent.measure(widthSpec, heightSpec)
+            parent.layout(0, 0, parent.measuredWidth, parent.measuredHeight)
+        }
+    }
+
+    @Test
+    fun benchmark_layoutFlat_deeplyNested() {
+        var current = View(context, mason)
+        current.setSize(500f, 500f)
+        val root = current
+
+        repeat(5) {
+            val child = View(context, mason)
+            child.setSize(100f, 100f)
+            current.addView(child)
+            current = child
+        }
+        root.compute(-1f, -1f)
+
+        benchmarkRule.measureRepeated {
+            val tree = root.layoutFlat()
+            require(tree.nodeCount == 6) // root + 5 levels
+        }
+    }
+
+    @Test
+    fun benchmark_layoutFlat_complexFlexbox() {
+        val parent = View.createFlexView(mason, context)
+        parent.setSize(500f, 500f)
+        parent.flexDirection = FlexDirection.Row
+
+        repeat(20) { index ->
+            val child = View(context, mason)
+            child.flexGrow = (index % 3 + 1).toFloat()
+            child.flexShrink = 1f
+            parent.addView(child)
+        }
+        parent.compute(-1f, -1f)
+
+        benchmarkRule.measureRepeated {
+            val tree = parent.layoutFlat()
+            require(tree.nodeCount == 21) // parent + 20 children
+        }
+    }
 }
