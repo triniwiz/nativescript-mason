@@ -16,6 +16,7 @@ typedef struct CMasonInlineTextSegment {
   float width;
   float ascent;
   float descent;
+  uint8_t flags;
 } CMasonInlineTextSegment;
 
 typedef struct CMasonInlineChildSegment {

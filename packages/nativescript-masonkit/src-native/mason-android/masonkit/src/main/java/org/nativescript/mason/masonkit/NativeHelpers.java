@@ -128,11 +128,12 @@ public class NativeHelpers {
 
   @FastNative
   static native float[] nativeNodeLayout(long mason, long node);
-  @FastNative
-  static native float[] nativeNodeGetFloatRects(long mason, long node);
 
   @FastNative
-  static native int[] nativeNodeGetFloatRectAndroidIds(long mason, long node);
+  static native long[] nativeNodeGetFloatRectWithIds(long mason, long node);
+
+  @FastNative
+  static native float[] nativeNodeGetFloatRects(long mason, long node);
 
   @CriticalNative
   static native void nativeNodeSetContext(long mason, long node, int measureFunc);
@@ -146,6 +147,8 @@ public class NativeHelpers {
   );
 
   static native void nativeNodeSetSegments(long masonPtr, long nodePtr, InlineSegment[] segments);
+
+  static native void nativeNodeSetSegmentsPacked(long masonPtr, long nodePtr, float[] floats, long[] longs, int[] kinds);
 
   @CriticalNative
   static native void nativeSetAndroidNode(long masonPtr, long nodePtr, int node);

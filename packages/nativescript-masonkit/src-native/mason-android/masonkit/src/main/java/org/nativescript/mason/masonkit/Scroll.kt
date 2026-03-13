@@ -4,9 +4,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.ViewGroup
-import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
-import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
+import kotlin.math.min
 
 class Scroll @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
@@ -52,7 +51,7 @@ class Scroll @JvmOverloads constructor(
 
     super.addView(
       scrollRoot, LayoutParams(
-        LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT
+        LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT
       )
     )
   }
@@ -66,7 +65,7 @@ class Scroll @JvmOverloads constructor(
 
         super.addView(
           scrollRoot, LayoutParams(
-            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT
+            LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT
           )
         )
 
@@ -79,7 +78,11 @@ class Scroll @JvmOverloads constructor(
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBackground?.layers?.forEach {
+      it.shader = null
+      it.shaderWidth = -1
+      it.shaderHeight = -1
+    } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
     super.onSizeChanged(w, h, oldw, oldh)
   }
@@ -92,8 +95,6 @@ class Scroll @JvmOverloads constructor(
       super.dispatchDraw(it)
     }
   }
-
-
 
   override fun addView(child: android.view.View) {
     if (child == this) {
@@ -145,14 +146,30 @@ class Scroll @JvmOverloads constructor(
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    val tree = layoutFlat()
-    applyLayoutFlat(node, tree)
+    // run the base TwoDScrollView logic first so its internal state (focus
+    // handling, scroll offsets, dirty flags) stays consistent.  previously we
+    // *replaced* onLayout entirely, which meant that scrollTo() and other
+    // bookkeeping never ran and could lead to visual glitches during scrolling
+    // or after dynamic re-layout.  Super will lay out the scrollRoot at its
+    // measured size; we then immediately overwrite those bounds with the
+    // engine's output.
+    super.onLayout(changed, l, t, r, b)
+
+    // Apply layout for the inner scroll root so its native children are
+    // positioned according to the engine's results.  We run compute/layout
+    // inside the inner view during measure, so here we just attach and apply
+    // the layout produced for the scroll root.
+    if (parent !is Element) {
+      scrollRoot.layoutFlat()
+    }
+    if (scrollRoot.node.layoutTree.nodeCount != 0) {
+      applyLayoutFlat(scrollRoot.node, scrollRoot.node.layoutTree)
+    }
+
+    // restore scroll position
+    scrollTo(scrollX, scrollY)
   }
 
-
-  private val nv by lazy {
-    MasonNodeView(node.computedLayout)
-  }
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
@@ -160,63 +177,34 @@ class Scroll @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    val availableWidth = mapMeasureSpec(specWidthMode, specWidth).value
-    val availableHeight = mapMeasureSpec(specHeightMode, specHeight).value
-
     if (parent !is Element) {
-      compute(
-        availableWidth, availableHeight
-      )
-    }
-
-    val tree = layoutFlat()
-    if (tree.nodeCount == 0) {
-      setMeasuredDimension(0, 0)
-      return
-    }
-
-    val nv = MasonNodeView(tree, 0)
-
-    var width = nv.width.toInt()
-    var height = nv.height.toInt()
-
-    var boxing = BoxSizing.BorderBox
-
-    if (style.isValueInitialized) {
-      boxing = style.boxSizing
-    }
-
-    val overflow = style.overflow
-
-    width = when (overflow.x) {
-      Overflow.Visible -> {
-        if (boxing == BoxSizing.BorderBox) {
-          (nv.x + nv.contentWidth + nv.borderRight + nv.borderLeft + nv.paddingRight + nv.paddingLeft).toInt()
-        } else {
-          nv.contentWidth.toInt()
-        }
+      // Let the inner scroll root perform the compute/layout work in its
+      // onMeasure.  For vertical scrolling we give the inner view an
+      // unspecified height so it can grow to its content size.
+      val childWidthSpec = if (enableScrollX) {
+        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      } else {
+        MeasureSpec.makeMeasureSpec(specWidth, MeasureSpec.EXACTLY)
+      }
+      val childHeightSpec = if (enableScrollY) {
+        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      } else {
+        heightMeasureSpec
       }
 
-      Overflow.Hidden, Overflow.Scroll, Overflow.Clip, Overflow.Auto -> {
-        width.coerceAtMost(availableWidth.toInt())
+      scrollRoot.measure(childWidthSpec, childHeightSpec)
+
+      val measuredH = when (specHeightMode) {
+        MeasureSpec.EXACTLY -> specHeight
+        MeasureSpec.AT_MOST -> min(specHeight, scrollRoot.measuredHeight)
+        else -> scrollRoot.measuredHeight
       }
+
+      setMeasuredDimension(specWidth, measuredH)
+    } else {
+      setMeasuredDimension(specWidth, specHeight)
     }
 
-    height = when (overflow.y) {
-      Overflow.Visible -> {
-        if (boxing == BoxSizing.BorderBox) {
-          (nv.y + nv.contentHeight + nv.borderTop + nv.borderBottom + nv.paddingTop + nv.paddingBottom).toInt()
-        } else {
-          nv.contentHeight.toInt()
-        }
-      }
-
-      Overflow.Hidden, Overflow.Scroll, Overflow.Clip, Overflow.Auto -> {
-        height.coerceAtMost(availableHeight.toInt())
-      }
-    }
-
-    setMeasuredDimension(width, height)
   }
 
   override fun generateDefaultLayoutParams(): LayoutParams {

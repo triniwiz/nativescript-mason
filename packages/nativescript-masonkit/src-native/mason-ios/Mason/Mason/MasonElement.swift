@@ -617,9 +617,9 @@ class MasonElementHelpers: NSObject {
       
       let heightIsNan = realLayout.height.isNaN
       
-      let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
+      var x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
       
-      let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
+      var y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
       
       var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
       
@@ -635,6 +635,30 @@ class MasonElementHelpers: NSObject {
         }
       }
       
+      // remember unpadded values before possible scroll-root tweaks
+      let origX = x
+      let origY = y
+      let origWidth = width
+      let origHeight = height
+
+      // special-case scroll root: offset into parent padding and expand
+      if let scroll = view as? Scroll, let parentNode = node.parent {
+        let pad = parentNode.style.padding
+        let parentPadL = CGFloat(pad.left.value/NSCMason.scale)
+        let parentPadT = CGFloat(pad.top.value/NSCMason.scale)
+        let parentPadR = CGFloat(pad.right.value/NSCMason.scale)
+        let parentPadB = CGFloat(pad.bottom.value/NSCMason.scale)
+
+        x += parentPadL
+        y += parentPadT
+        width += parentPadL + parentPadR
+        height += parentPadT + parentPadB
+
+        #if DEBUG
+        print("Mason scrollRoot parentPad=\(parentPadL)/\(parentPadR) layoutW=\(origWidth) layoutH=\(origHeight) finalW=\(width) finalH=\(height)")
+        #endif
+      }
+
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
@@ -643,7 +667,7 @@ class MasonElementHelpers: NSObject {
       if view.frame != newFrame {
         view.frame = newFrame
       }
-      
+
       // Apply clipsToBounds for non-visible overflow on all views
       let overflow = node.style.overflow
       if overflow.x != .Visible || overflow.y != .Visible {

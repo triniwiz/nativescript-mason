@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.util.Log
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -11,12 +13,15 @@ import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
 import org.nativescript.mason.masonkit.IdleHandler
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.enums.TextType
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
   val mason = Mason.shared
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // Ensure native Mason state is cleared on app start to avoid stale state
+    mason.clear()
     enableEdgeToEdge()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

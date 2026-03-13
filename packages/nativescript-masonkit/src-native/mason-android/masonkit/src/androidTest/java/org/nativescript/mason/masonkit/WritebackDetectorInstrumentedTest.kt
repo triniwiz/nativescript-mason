@@ -100,7 +100,7 @@ class WritebackDetectorInstrumentedTest {
       try {
         val node = findNodeByObjectId(parent, id)
         if (node != null) {
-          if (node.computedLayout.height == 0f && h > 0f) {
+          if (node.cachedHeight == 0f && h > 0f) {
             suspicious.add(Triple(id, w, h))
           }
         }
@@ -117,7 +117,7 @@ class WritebackDetectorInstrumentedTest {
       try {
         val node = findNodeByObjectId(tv.node, id)
         if (node != null) {
-          if (node.computedLayout.height == 0f && h > 0f) {
+          if (node.cachedHeight == 0f && h > 0f) {
             suspiciousText.add(Triple(id, w, h))
           }
         }

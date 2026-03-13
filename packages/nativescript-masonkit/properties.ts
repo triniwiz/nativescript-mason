@@ -1,5 +1,5 @@
 import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font } from '@nativescript/core';
-import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign } from '.';
+import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase } from './common';
 import { isMasonChild_, isMasonView_ } from './symbols';
 import type { Style as MasonStyle } from './style';
@@ -1171,6 +1171,22 @@ textShadowProperty.overrideHandlers({
     }
   },
 });
+
+export const floatProperty = new CssProperty<Style, Float>({
+  name: 'float',
+  cssName: 'float',
+  defaultValue: 'none',
+});
+
+export const clearProperty = new CssProperty<Style, Clear>({
+  name: 'clear',
+  cssName: 'clear',
+  defaultValue: 'none',
+});
+
+clearProperty.register(Style);
+
+floatProperty.register(Style);
 
 verticalAlignProperty.register(Style);
 

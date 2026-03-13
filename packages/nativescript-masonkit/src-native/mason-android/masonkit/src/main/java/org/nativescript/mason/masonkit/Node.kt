@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
 import android.util.SizeF
+import android.util.Log
+import kotlin.math.abs
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
@@ -36,6 +38,7 @@ open class Node internal constructor(
 ) : NativeObject {
 
   internal var computeCacheDirty = false
+  internal var computeScheduled = false
   internal var isPlaceholder = false
   internal var isImage = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
@@ -47,14 +50,77 @@ open class Node internal constructor(
         value
       }
     }
-  var computedLayout: Layout = Layout.empty
-    internal set
 
   // Flat layout tree — reused across layout passes to avoid allocation
   internal val layoutTree = MasonLayoutTree()
 
   // Index of this node in the flat layout tree (set during applyLayoutFlat)
   internal var layoutTreeIndex: Int = 0
+
+  // Helper to ensure the shared cursor points at this node's index before reads.
+  private fun nv() = layoutTree.cursor.apply { pointTo(layoutTreeIndex) }
+
+  val computedWidth get() = nv().width
+  val computedHeight get() = nv().height
+
+  val computedBorderTop get() = nv().borderTop
+  val computedBorderRight get() = nv().borderRight
+  val computedBorderBottom get() = nv().borderBottom
+  val computedBorderLeft get() = nv().borderLeft
+
+  val computedMarginTop get() = nv().marginTop
+  val computedMarginRight get() = nv().marginRight
+  val computedMarginBottom get() = nv().marginBottom
+  val computedMarginLeft get() = nv().marginLeft
+
+  val computedPaddingTop get() = nv().paddingTop
+  val computedPaddingRight get() = nv().paddingRight
+  val computedPaddingBottom get() = nv().paddingBottom
+  val computedPaddingLeft get() = nv().paddingLeft
+
+  val computedContentWidth get() = nv().contentWidth
+  val computedContentHeight get() = nv().contentHeight
+
+  val computedScrollbarWidth get() = nv().scrollbarWidth
+  val computedScrollbarHeight get() = nv().scrollbarHeight
+
+  val computedOrder get() = nv().order
+
+  val computedHasChildren get() = nv().hasChildren
+
+  val computedChildNodeCount get() = nv().childNodeCount
+
+  val computedSizeIsEmpty get() = nv().sizeIsEmpty
+
+  /**
+   * Safe accessor for a node's computed content width. Prefer the layout
+   * reported content width, fall back to cached/writeback values and
+   * finally the computeCache. Designed to avoid throwing in test helpers.
+   */
+  fun computedWidthSafe(): Float {
+    val w = computedContentWidth
+    if (w > 0f && w.isFinite()) return w
+    if (cachedWidth > 0f && cachedWidth.isFinite()) return cachedWidth
+    if (!computeCache.width.isNaN() && computeCache.width > 0f && computeCache.width.isFinite()) return computeCache.width
+    return computedWidth
+  }
+
+  // Compatibility accessor: derive a recursive `Layout` representation
+  // from the current `layoutTree` at `layoutTreeIndex`. This avoids
+  // storing a separate `computedLayout` snapshot while preserving the
+  // legacy read API used by tests and callers.
+  val computedLayout: Layout
+    get() {
+      if (layoutTree.nodeCount == 0) return Layout.empty
+      return Layout.fromMasonTree(layoutTree, layoutTreeIndex)
+    }
+
+  val computedPaddingIsEmpty get() = nv().paddingIsEmpty
+
+  val computedMarginIsEmpty get() = nv().marginIsEmpty
+
+  val computedBorderIsEmpty get() = nv().borderIsEmpty
+
 
   // cache overflow size
   internal var overflowWidth = 0
@@ -134,6 +200,12 @@ open class Node internal constructor(
   fun setComputedSize(width: Float, height: Float) {
     cachedWidth = width
     cachedHeight = height
+    android.util.Log.d("Node.setComputedSize", "nodePtr=${nativePtr} cached=${cachedWidth}x${cachedHeight}")
+
+    // Update compute cache so `invalidateLayout()` can observe the new size
+    // immediately and avoid scheduling further native computes for max-content.
+    computeCache = SizeF(width, height)
+    computeCacheDirty = false
   }
 
   internal fun setDefaultMeasureFunction() {
@@ -267,6 +339,21 @@ open class Node internal constructor(
       val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
 
       val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
+
+      try {
+        val nodePtr = this@Node.nativePtr
+        Log.d(
+          "Node.measure",
+          "nodePtr=${nodePtr} known=${knownDimensions.width}x${knownDimensions.height} available=${availableSpace.width}x${availableSpace.height} measured=${width}x${height}"
+        )
+        if (height != 0f && abs(height) < 1e-6f) {
+          Log.w("Node.measure", "tiny measured height on nodePtr=${nodePtr} -> ${height}")
+        }
+        if (width != 0f && abs(width) < 1e-6f) {
+          Log.w("Node.measure", "tiny measured width on nodePtr=${nodePtr} -> ${width}")
+        }
+      } catch (_: Throwable) {
+      }
 
       return Size(width, height)
     }
@@ -407,15 +494,13 @@ open class Node internal constructor(
   val pseudoMask: Int
     get() {
       if (nativePtr == 0L) return 0
-      try {
-        val buf = stateValue
-        if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
-          buf.order(ByteOrder.nativeOrder())
-          return buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
-        }
-      } catch (t: Throwable) {
-        // ignore and fallthrough
+
+      val buf = stateValue
+      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+        buf.order(ByteOrder.nativeOrder())
+        return buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
       }
+
       return 0
     }
 
@@ -436,19 +521,15 @@ open class Node internal constructor(
 
   internal fun setPseudo(state: PseudoState, enabled: Boolean, autoDirty: Boolean) {
     if (nativePtr == 0L) return
-    try {
-      val buf = stateValue
-      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
-        buf.order(ByteOrder.nativeOrder())
-        val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
-        val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
-        buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
-        if (autoDirty) {
-          NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
-        }
+    val buf = stateValue
+    if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+      buf.order(ByteOrder.nativeOrder())
+      val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+      val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
+      buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
+      if (autoDirty) {
+        dirty()
       }
-    } catch (t: Throwable) {
-      // ignore
     }
   }
 
@@ -565,23 +646,9 @@ open class Node internal constructor(
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
       val n = (getObject(node) as? Node)
-      n?.let {
-        // Detect suspicious case where engine's computed layout is zero but
-        // platform reports a non-zero size. This was previously logged for
-        // instrumentation but the log statement has been removed to reduce
-        // noisy output during layout passes.
-        try {
-          if (it.computedLayout.height == 0f && height > 0f) {
-            // suppressed
-          }
-        } catch (e: Exception) {
-          // ignore
-        }
-      }
 
       n?.setComputedSize(width, height)
 
-      testComputedSizeCallback?.invoke(node, width, height)
     }
 
     @JvmStatic
@@ -627,8 +694,14 @@ open class Node internal constructor(
 
     fun markPseudoSet(buf: ByteBuffer, key: StateKeys) {
       if (buf.capacity() < StyleKeys.PSEUDO_SET_MASK_HIGH + 8) return
-      buf.putLong(StyleKeys.PSEUDO_SET_MASK_LOW, buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW) or key.low)
-      buf.putLong(StyleKeys.PSEUDO_SET_MASK_HIGH, buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high)
+      buf.putLong(
+        StyleKeys.PSEUDO_SET_MASK_LOW,
+        buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW) or key.low
+      )
+      buf.putLong(
+        StyleKeys.PSEUDO_SET_MASK_HIGH,
+        buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high
+      )
     }
 
   }
@@ -645,7 +718,18 @@ open class Node internal constructor(
       }
 
       if (style.font.font == null) {
-        style.font.loadSync((container.view as View).context) {}
+        (container.view as? View)?.let { v ->
+          style.font.load(v.context) { _ ->
+            // schedule a layout pass when font finishes loading
+            v.post {
+              style.fontDirty = true
+              style.syncFontMetrics()
+              dirty()
+              v.invalidate()
+              v.requestLayout()
+            }
+          }
+        }
       }
 
       if (pending) {
@@ -674,9 +758,18 @@ open class Node internal constructor(
       if (attach) {
         NodeUtils.addView(this, child.view as? View)
       }
+      if (child is TextContainer) {
+        (child as? TextContainer)?.engine?.invalidateInlineSegments()
+      }
 
       // Single pass invalidation of descendants with text styles
-      invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+      val descendantTextViews = if (view is TextContainer) {
+        this
+      } else {
+        child
+      }
+      computeCacheDirty = true
+      invalidateDescendantTextViews(descendantTextViews, StateKeys.INVALIDATE_TEXT)
 
       onNodeAttached?.let { it() }
     }

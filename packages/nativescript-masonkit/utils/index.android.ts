@@ -833,3 +833,21 @@ export function _getGridTemplateColumns(instance: View) {
 
   return [];
 }
+
+export const enum Float {
+  None = 0,
+
+  Left = 1,
+
+  Right = 2,
+}
+
+export const enum Clear {
+  None = 0,
+
+  Left = 1,
+
+  Right = 2,
+
+  Both = 3,
+}

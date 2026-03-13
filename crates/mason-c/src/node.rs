@@ -58,6 +58,7 @@ pub struct CMasonInlineTextSegment {
     width: f32,
     ascent: f32,
     descent: f32,
+    flags: u8,
 }
 
 #[repr(C)]
@@ -79,7 +80,7 @@ pub enum CMasonSegment {
 impl From<&CMasonSegment> for InlineSegment {
     fn from(segment: &CMasonSegment) -> Self {
         match segment {
-            CMasonSegment::Text(text) => InlineSegment::Text {
+            CMasonSegment::Text(text) => InlineSegment::Text { flags: text.flags,
                 width: text.width,
                 ascent: text.ascent,
                 descent: text.descent,
@@ -109,7 +110,7 @@ impl From<&CMasonSegment> for InlineSegment {
 impl Into<InlineSegment> for CMasonSegment {
     fn into(self) -> InlineSegment {
         match self {
-            CMasonSegment::Text(text) => InlineSegment::Text {
+            CMasonSegment::Text(text) => InlineSegment::Text { flags: text.flags,
                 width: text.width,
                 ascent: text.ascent,
                 descent: text.descent,
@@ -534,7 +535,7 @@ pub extern "C" fn mason_node_get_float_rects_buffer(
         }
 
         // We'll serialize each entry as: [node_ptr (usize), left(f32), top(f32), right(f32), bottom(f32)]
-        let entry_size = std::mem::size_of::<usize>() + 4 * std::mem::size_of::<f32>();
+        let entry_size = size_of::<usize>() + 4 * size_of::<f32>();
         let mut bytes: Vec<u8> = Vec::with_capacity(output.len() * entry_size);
 
         // Lookup registered CMasonNode pointers and serialize
@@ -544,7 +545,7 @@ pub extern "C" fn mason_node_get_float_rects_buffer(
             let mut node_ptr_usize: usize = 0;
             for &entry in reg.iter() {
                 let candidate = entry as *mut CMasonNode;
-                if !candidate.is_null() && unsafe { (*candidate).0.id() == id } {
+                if !candidate.is_null() &&  (*candidate).0.id() == id {
                     node_ptr_usize = entry;
                     break;
                 }

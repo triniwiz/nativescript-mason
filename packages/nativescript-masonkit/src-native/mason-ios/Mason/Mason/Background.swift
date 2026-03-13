@@ -85,14 +85,22 @@ extension Background {
   // MARK: - Gradient Drawing
   private func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, height: CGFloat) {
     guard let gradient = layer.gradient else { return }
+
+    // if size changed since last shader creation, clear cache
+    if layer.shader != nil && (layer.shaderWidth != width || layer.shaderHeight != height) {
+      layer.shader = nil
+    }
+
     if layer.shader == nil {
       let colors = gradient.stops.compactMap {
         colorMap[$0]?.cgColor ?? UIColor(css: $0)?.cgColor
       } as CFArray
       layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors, locations: nil)
+      layer.shaderWidth = width
+      layer.shaderHeight = height
     }
     guard let shader = layer.shader else { return }
-    
+
     switch gradient.type.lowercased() {
     case "linear":
       let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)

@@ -55,6 +55,12 @@ data class BackgroundLayer(
   var size: Pair<Float, Float>? = null,        // 0..1 fraction or special (cover/contain)
   var gradient: Gradient? = null,
   var shader: Shader? = null,
+  // remember the dimensions used to create `shader`; if the view resizes we
+  // need to invalidate the cache so the gradient scales correctly.  Without
+  // this, a zero‑sized element (common during initial layout) would leave a
+  // degenerate shader that never repaints when the real size arrives.
+  var shaderWidth: Int = -1,
+  var shaderHeight: Int = -1,
   var bitmap: Bitmap? = null,                  // cached image
   var clip: BackgroundClip = BackgroundClip.BORDER_BOX
 )
@@ -143,6 +149,14 @@ fun drawBackground(
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int) {
   val gradient = layer.gradient ?: return
 
+  // invalidate cached shader if size has changed; without this the first draw
+  // (which often happens at 0x0) would create a degenerate shader that never
+  // updates when the view finally gets a proper size.
+  if (layer.shader != null &&
+      (layer.shaderWidth != width || layer.shaderHeight != height)) {
+    layer.shader = null
+  }
+
   if (layer.shader == null) {
     // Parse color stops: each stop can be "color position" or just "color"
     val colors = mutableListOf<Int>()
@@ -207,6 +221,10 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
       else -> null
     }
+
+    // remember the size used to create this shader
+    layer.shaderWidth = width
+    layer.shaderHeight = height
   }
 
   val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

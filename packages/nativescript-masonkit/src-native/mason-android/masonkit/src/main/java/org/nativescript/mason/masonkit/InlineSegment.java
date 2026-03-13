@@ -11,11 +11,13 @@ abstract class InlineSegment {
 
   // Represents a text segment
   static final class Text extends InlineSegment {
+    public final byte flags;
     public final float width;
     public final float ascent;
     public final float descent;
 
-    public Text(float width, float ascent, float descent) {
+    public Text(byte flags, float width, float ascent, float descent) {
+      this.flags = flags;
       this.width = width;
       this.ascent = ascent;
       this.descent = descent;
@@ -25,7 +27,7 @@ abstract class InlineSegment {
     @NonNull
     @Override
     public String toString() {
-      return "Text(width=" + width +
+      return "Text(flags=" + flags + ", width=" + width +
         ", ascent=" + ascent +
         ", descent=" + descent + ")";
     }
@@ -34,14 +36,16 @@ abstract class InlineSegment {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (!(o instanceof Text other)) return false;
-      return Float.compare(width, other.width) == 0 &&
+      return this.flags == other.flags &&
+        Float.compare(width, other.width) == 0 &&
         Float.compare(ascent, other.ascent) == 0 &&
         Float.compare(descent, other.descent) == 0;
     }
 
     @Override
     public int hashCode() {
-      int result = Float.hashCode(width);
+      int result = Byte.hashCode(flags);
+      result = 31 * result + Float.hashCode(width);
       result = 31 * result + Float.hashCode(ascent);
       result = 31 * result + Float.hashCode(descent);
       return result;
@@ -57,6 +61,10 @@ abstract class InlineSegment {
       this.nodePtr = nodePtr;
       this.descent = descent;
       this.kind = 1;
+    }
+
+    public long getId(){
+      return nodePtr;
     }
 
     @NonNull

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty } from '@nativescript/core';
-import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection } from '.';
+import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { Style as MasonStyle } from './style';
@@ -13,10 +13,12 @@ import {
   borderRadiusProperty,
   bottomProperty,
   boxSizingProperty,
+  clearProperty,
   columnGapProperty,
   displayProperty,
   filterProperty,
   flexBasisProperty,
+  floatProperty,
   gridAreaProperty,
   gridAutoColumnsProperty,
   gridAutoFlowProperty,
@@ -73,16 +75,18 @@ const enum FrameWork {
 
 let frameWork = FrameWork.Core;
 
-try {
-  global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
-  frameWork = FrameWork.Vue;
-} catch (e) {}
+// try {
+//   global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
+//   frameWork = FrameWork.Vue;
+// } catch (e) {}
 
-try {
-  const helper = require('react-nativescript/dist/nativescript-vue-next/runtime/runtimeHelpers.js');
-  global.REACT_ELEMENT_REF = helper.ELEMENT_REF;
-  frameWork = FrameWork.React;
-} catch (e) {}
+// try {
+//   //@ts-ignore
+//   const helper = import('react-nativescript/dist/nativescript-vue-next/runtime/runtimeHelpers.js');
+//     //@ts-ignore
+//   global.REACT_ELEMENT_REF = helper.ELEMENT_REF;
+//   frameWork = FrameWork.React;
+// } catch (e) {}
 
 if (global.__ngRegisteredViews || typeof Zone !== 'undefined') {
   frameWork = FrameWork.Angular;
@@ -142,6 +146,8 @@ declare module '@nativescript/core/ui/styling/style' {
     verticalAlign: VerticalAlign;
     textWrap: 'nowrap' | 'wrap' | 'balance';
     textOverFlow: 'clip' | 'ellipsis' | `${string}`;
+    float: Float;
+    clear: Clear;
   }
 }
 
@@ -1667,6 +1673,24 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.textOverFlow = value;
+    }
+  }
+
+  [clearProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.clear = value;
+    }
+  }
+
+  [floatProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.float = value;
     }
   }
 }

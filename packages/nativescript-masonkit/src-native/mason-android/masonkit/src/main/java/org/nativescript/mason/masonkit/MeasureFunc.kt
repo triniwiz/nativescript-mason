@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import androidx.annotation.Keep
+import android.util.Log
 import java.lang.ref.WeakReference
 
 
@@ -35,6 +36,14 @@ internal class MeasureFuncImpl(
     val availableWidth = MeasureOutput.getWidth(availableSpaceSpec)
     val availableHeight = MeasureOutput.getHeight(availableSpaceSpec)
 
+    try {
+      Log.d(
+        "mason-measure",
+        "measure called idSpec=${knownDimensionsSpec} availSpec=${availableSpaceSpec} decodedKnown=(${knownWidth},${knownHeight}) decodedAvail=(${availableWidth},${availableHeight})"
+      )
+    } catch (_: Throwable) {
+    }
+
     val result = measureFunc.get()?.measure(
       Size(
         if (knownWidth.isNaN()) null else knownWidth,
@@ -45,6 +54,13 @@ internal class MeasureFuncImpl(
       )
     )
 
-    return MeasureOutput.make(result?.width ?: 0f, result?.height ?: 0f)
+    val outWidth = result?.width ?: 0f
+    val outHeight = result?.height ?: 0f
+    try {
+      Log.d("mason-measure", "measure result out=(${outWidth},${outHeight})")
+    } catch (_: Throwable) {
+    }
+
+    return MeasureOutput.make(outWidth, outHeight)
   }
 }

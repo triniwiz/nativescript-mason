@@ -37,6 +37,7 @@ pub struct InlineSegmentCacheItem {
     text_width: JFieldID,
     text_ascent: JFieldID,
     text_descent: JFieldID,
+    text_flags: JFieldID,
     inline_node_ptr: JFieldID,
     inline_child_descent: JFieldID,
 }
@@ -50,6 +51,7 @@ impl InlineSegmentCacheItem {
         text_width: JFieldID,
         text_ascent: JFieldID,
         text_descent: JFieldID,
+        text_flags: JFieldID,
         inline_node_ptr: JFieldID,
         inline_child_descent: JFieldID,
     ) -> Self {
@@ -61,6 +63,7 @@ impl InlineSegmentCacheItem {
             text_width,
             text_ascent,
             text_descent,
+            text_flags,
             inline_node_ptr,
             inline_child_descent,
         }
@@ -185,7 +188,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeComputeWithSizeAndLayout",
                 "nativeNodeGetChildren",
                 "nativeNodeLayout",
-                "nativeNodeGetFloatRects",
+                "nativeNodeGetFloatRectWithIds",
                 "nativeNodeNewText",
                 "nativeNodeNewTextWithContext",
                 "nativeNodeSetChildren",
@@ -201,6 +204,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeGetStateBuffer",
                 "nativeGetPseudoStyleBuffer",
                 "nativePreparePseudoMut",
+                "nativeNodeSetSegmentsPacked"
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
@@ -229,7 +233,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJFF)[F",
                     "(JJ)[J",
                     "(JJ)[F",
-                    "(JJ)[F",
+                    "(JJ)[J",
                     "(JZ)J",
                     "(JIZ)J",
                     "(JJ[J)V",
@@ -245,6 +249,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJ)I",
                     "(JJI)I",
                     "(JJI)I",
+                    "(JJ[F[J[I)V"
                 ]
             } else {
                 [
@@ -272,7 +277,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJFF)[F",
                     "!(JJ)[J",
                     "!(JJ)[F",
-                    "!(JJ)[F",
+                    "!(JJ)[J",
                     "!(JZ)J",
                     "!(JIZ)J",
                     "!(JJ[J)V",
@@ -288,6 +293,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ)I",
                     "!(JJI)I",
                     "!(JJI)I",
+                    "!(JJ[F[J[I)V"
                 ]
             };
 
@@ -317,7 +323,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
-                    node::nativeGetFloatRects as *mut c_void,
+                    node::NativeNodeGetFloatRectWithIds as *mut c_void,
                     node::NodeNativeNewTextNode as *mut c_void,
                     node::NodeNativeNewTextNodeWithContext as *mut c_void,
                     node::NodeNativeSetChildren as *mut c_void,
@@ -333,6 +339,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetStateBuffer as *mut c_void,
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
+                    node::NodeNativeSetSegmentsPacked as *mut c_void
                 ]
             } else {
                 [
@@ -360,7 +367,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
-                    node::nativeGetFloatRects as *mut c_void,
+                    node::NativeNodeGetFloatRectWithIds as *mut c_void,
                     node::NodeNativeNewTextNodeNormal as *mut c_void,
                     node::NodeNativeNewTextNodeWithContextNormal as *mut c_void,
                     node::NodeNativeSetChildren as *mut c_void,
@@ -376,6 +383,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetStateBuffer as *mut c_void,
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
+                    node::NodeNativeSetSegmentsPacked as *mut c_void
                 ]
             };
 
@@ -519,6 +527,10 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 .get_field_id(&inline_segment_text_clazz, "descent", "F")
                 .unwrap();
 
+            let inline_segment_text_flags = env
+                .get_field_id(&inline_segment_text_clazz, "flags", "B")
+                .unwrap();
+
             let inline_segment_inline_child_node_ptr = env
                 .get_field_id(&inline_segment_inline_child_clazz, "nodePtr", "J")
                 .unwrap();
@@ -537,6 +549,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     inline_segment_text_width,
                     inline_segment_text_ascent,
                     inline_segment_text_descent,
+                    inline_segment_text_flags,
                     inline_segment_inline_child_node_ptr,
                     inline_segment_inline_child_descent,
                 )

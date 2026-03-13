@@ -132,20 +132,22 @@ class ListView @JvmOverloads constructor(
     // Only compute if we are the layout root — when parent is an Element,
     // Taffy computes top-down and will handle this node in the recursive call.
     if (parent !is Element) {
-      compute(
-        availableWidth, availableHeight
-      )
+      if (!node.computeScheduled && !node.mason.inCompute) {
+        compute(
+          availableWidth, availableHeight
+        )
+        layoutFlat()
+      }
     }
 
-    val layout = layout()
-    val width = layout.width.toInt()
-    val height = layout.height.toInt()
+    val width = node.computedWidth.toInt()
+    val height = node.computedHeight.toInt()
 
     measureChild(
       list, MeasureSpec.makeMeasureSpec(
-        layout.width.toInt(), MeasureSpec.EXACTLY,
+        width, MeasureSpec.EXACTLY,
       ), MeasureSpec.makeMeasureSpec(
-        layout.height.toInt(), MeasureSpec.EXACTLY
+        height, MeasureSpec.EXACTLY
       )
     )
 

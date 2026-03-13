@@ -30,11 +30,10 @@ class PseudoDemoActivity : AppCompatActivity() {
 
     mason = Mason()
 
-    val scrollView = ScrollView(this)
+    val layout = mason.createScrollView(this)
 
-    val layout = LinearLayout(this).apply {
+    val root = LinearLayout(this).apply {
       orientation = LinearLayout.VERTICAL
-      setPadding(24, 48, 24, 24)
     }
 
     val density = resources.displayMetrics.density
@@ -395,24 +394,20 @@ class PseudoDemoActivity : AppCompatActivity() {
     // ---------------------------------------------------------------
     // Wire up
     // ---------------------------------------------------------------
-    scrollView.addView(layout, LinearLayout.LayoutParams(
+    root.addView(layout, LinearLayout.LayoutParams(
       LinearLayout.LayoutParams.MATCH_PARENT,
       LinearLayout.LayoutParams.MATCH_PARENT
     ))
 
     enableEdgeToEdge()
 
-    ViewCompat.setOnApplyWindowInsetsListener(scrollView) { _, insets ->
+    ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      scrollView.setPadding(
-        systemBars.left + 24, systemBars.top + 24,
-        systemBars.right + 24, 0
-      )
-      layout.setPadding(0,0,0, systemBars.bottom + 24)
+      view.setPadding(0,systemBars.top + 24,0, systemBars.bottom + 24)
       insets
     }
 
-    setContentView(scrollView)
+    setContentView(root)
   }
 
   private fun matchWrap(): LinearLayout.LayoutParams {
@@ -420,7 +415,7 @@ class PseudoDemoActivity : AppCompatActivity() {
       LinearLayout.LayoutParams.MATCH_PARENT,
       LinearLayout.LayoutParams.WRAP_CONTENT
     ).apply {
-      bottomMargin = (8 * 1).toInt()
+      bottomMargin = (8 * 1)
     }
   }
 

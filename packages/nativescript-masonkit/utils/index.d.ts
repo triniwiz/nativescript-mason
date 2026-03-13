@@ -325,3 +325,21 @@ export function _setGridAutoRows(value, instance: View, initial = false);
 export function _getGridAutoRows(value, instance: View, initial = false);
 
 export function _setGridAutoColumns(value, instance: View, initial = false);
+
+export const enum Float {
+  None = 0,
+
+  Left = 1,
+
+  Right = 2,
+}
+
+export const enum Clear {
+  None = 0,
+
+  Left = 1,
+
+  Right = 2,
+
+  Both = 3,
+}

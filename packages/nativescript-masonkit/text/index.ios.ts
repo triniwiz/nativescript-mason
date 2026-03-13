@@ -174,8 +174,10 @@ export class Text extends TextBase {
       const parentIsMason = this.parent && this.parent[isMasonView_];
 
       if (!parentIsMason) {
-        // only call compute on the parent
-        if (this.width === 'auto' && this.height === 'auto') {
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+
+        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+          // auto/auto with concrete specs – delegate to computeWithSize
           // todo
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
@@ -191,6 +193,8 @@ export class Text extends TextBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
+          // either we have an explicit size or no constraint – measure by
+          // max-content so we don't collapse when the root is unconstrained.
           let width;
           switch (typeof this.width) {
             case 'object': {

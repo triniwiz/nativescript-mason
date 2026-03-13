@@ -82,13 +82,10 @@ class Li @JvmOverloads constructor(
         var x = 0f
         if (listType != ListStyleType.None.value) {
           val fm = style.paint.fontMetrics
-          val baseline =
-            findFirstTextBaseline(content)
-              .takeIf { it != -1 }
-              ?: run {
-                // fallback: first line baseline
-                (-fm.ascent).toInt()
-              }
+          val baseline = findFirstTextBaseline(content).takeIf { it != -1 } ?: run {
+            // fallback: first line baseline
+            (-fm.ascent).toInt()
+          }
 
           val oldPaintStyle = style.paint.style
           val oldStroke = style.paint.strokeWidth
@@ -205,46 +202,51 @@ class Li @JvmOverloads constructor(
     when (parent) {
       is ListView.MasonRecyclerView -> {
         node.dirty()
+        if (!node.computeScheduled && !node.mason.inCompute) {
+          val width = mapMeasureSpec(specWidthMode, specWidth).value
+          var height = mapMeasureSpec(specHeightMode, specHeight).value
 
-        val width = mapMeasureSpec(specWidthMode, specWidth).value
-        var height = mapMeasureSpec(specHeightMode, specHeight).value
+          if (specHeightMode == MeasureSpec.UNSPECIFIED) {
+            height = -2f
+          }
+          compute(
+            width, height
+          )
 
-        if (specHeightMode == MeasureSpec.UNSPECIFIED) {
-          height = -2f
+          layoutFlat()
         }
-        compute(
-          width,
-          height
-        )
 
       }
 
       !is Element -> {
-        compute(
-          mapMeasureSpec(specWidthMode, specWidth).value,
-          mapMeasureSpec(specHeightMode, specHeight).value
-        )
+        if (!node.computeScheduled && !node.mason.inCompute) {
+          compute(
+            mapMeasureSpec(specWidthMode, specWidth).value,
+            mapMeasureSpec(specHeightMode, specHeight).value
+          )
+          layoutFlat()
+        }
+
       }
 
       else -> {}
     }
 
-    val tree = layoutFlat()
-    if (tree.nodeCount == 0) {
+    if (node.layoutTree.nodeCount == 0) {
       setMeasuredDimension(0, 0)
       return
     }
-    val nv = MasonNodeView(tree, 0)
 
+    val width = node.computedWidth.toInt()
+    val height = node.computedHeight.toInt()
     measureChild(
-      content,
-      MeasureSpec.makeMeasureSpec(
-        nv.width.toInt(), MeasureSpec.EXACTLY,
+      content, MeasureSpec.makeMeasureSpec(
+        width, MeasureSpec.EXACTLY,
       ), MeasureSpec.makeMeasureSpec(
-        nv.height.toInt(), MeasureSpec.AT_MOST
+        height, MeasureSpec.AT_MOST
       )
     )
-    setMeasuredDimension(nv.width.toInt(), nv.height.toInt())
+    setMeasuredDimension(width, height)
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -285,8 +287,7 @@ class Li @JvmOverloads constructor(
   }
 
   override fun measure(
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
+    knownDimensions: Size<Float?>, availableSpace: Size<Float?>
   ): Size<Float> {
     (node.parent?.view as? ListView)?.let {
       isOrdered = it.isOrdered

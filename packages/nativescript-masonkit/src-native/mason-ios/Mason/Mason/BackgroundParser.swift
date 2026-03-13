@@ -39,6 +39,9 @@ class BackgroundLayer {
   var size: (CGFloat, CGFloat)? = nil
   var gradient: Gradient? = nil
   var shader: CGGradient? = nil
+  // remember dimensions used to create cached gradient
+  var shaderWidth: CGFloat = -1
+  var shaderHeight: CGFloat = -1
   var bitmap: UIImage? = nil
   var clip: BackgroundClip = .borderBox
   var backgroundColor: UIColor? = nil

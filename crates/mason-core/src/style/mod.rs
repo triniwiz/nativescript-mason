@@ -937,12 +937,52 @@ impl Style {
     /// Get font metrics
     pub fn font_metrics(&self) -> FontMetrics {
         let data = self.data();
+
+        // Read raw values
+        let mut ascent = get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET);
+        let mut descent = get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET);
+        let mut x_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET);
+        let mut leading = get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET);
+        let mut cap_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET);
+
+        // Defensive sanitization: normalize sign and replace NaN / extremely-small values
+        const EPS: f32 = 1e-6;
+
+        if ascent.is_nan() || ascent.abs() < EPS {
+            log::warn!("sanitizing font_metrics.ascent raw_bits=0x{:08x} raw_val={:?}", ascent.to_bits(), ascent);
+            ascent = FontMetrics::DEFAULT.ascent;
+        }
+        // Android font ascent may be negative; keep ascent positive for layout math
+        if ascent <= 0.0 {
+            ascent = ascent.abs();
+        }
+
+        if descent.is_nan() || descent < 0.0 || descent.abs() < EPS {
+            log::warn!("sanitizing font_metrics.descent raw_bits=0x{:08x} raw_val={:?}", descent.to_bits(), descent);
+            descent = FontMetrics::DEFAULT.descent;
+        }
+
+        if x_height.is_nan() || x_height.abs() < EPS {
+            log::warn!("sanitizing font_metrics.x_height raw_bits=0x{:08x} raw_val={:?}", x_height.to_bits(), x_height);
+            x_height = FontMetrics::DEFAULT.x_height;
+        }
+
+        if leading.is_nan() || leading.abs() < EPS {
+            // allow leading to be zero
+            leading = FontMetrics::DEFAULT.leading;
+        }
+
+        if cap_height.is_nan() || cap_height.abs() < EPS {
+            log::warn!("sanitizing font_metrics.cap_height raw_bits=0x{:08x} raw_val={:?}", cap_height.to_bits(), cap_height);
+            cap_height = FontMetrics::DEFAULT.cap_height;
+        }
+
         FontMetrics {
-            ascent: get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET),
-            descent: get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET),
-            x_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET),
-            leading: get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET),
-            cap_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET),
+            ascent,
+            descent,
+            x_height,
+            leading,
+            cap_height,
         }
     }
 
@@ -1260,7 +1300,6 @@ impl Style {
     pub fn set_display(&mut self, value: Display) {
         self.prepare_mut();
         set_style_data_i8(self.data_mut(), StyleKeys::DISPLAY, display_to_enum(value));
-        set_style_data_i8(self.data_mut(), StyleKeys::DISPLAY_MODE, 0);
     }
 
     pub fn get_item_is_table(&self) -> bool {

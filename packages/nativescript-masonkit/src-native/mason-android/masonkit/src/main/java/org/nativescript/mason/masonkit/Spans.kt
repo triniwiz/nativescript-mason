@@ -263,9 +263,8 @@ class Spans {
       end: Int,
       fm: Paint.FontMetricsInt?
     ): Int {
-      val layout = node.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      val width = node.computedWidth.toInt()
+      val height = node.computedHeight.toInt()
 
       fm?.let {
         val fontHeight = paint.fontMetricsInt.descent - paint.fontMetricsInt.ascent
@@ -291,9 +290,8 @@ class Spans {
       bottom: Int,
       paint: Paint
     ) {
-      val layout = node.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      val width = node.computedWidth.toInt()
+      val height = node.computedHeight.toInt()
 
       val fontMetrics = paint.fontMetricsInt
       val fontHeight = fontMetrics.descent - fontMetrics.ascent
@@ -306,7 +304,6 @@ class Spans {
       }
     }
   }
-
 
   class BlurredTextShadowSpan(
     private val offsetX: Float,

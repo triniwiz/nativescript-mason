@@ -19,6 +19,7 @@ export function textLoaded(args) {
 
 export function loaded(args) {
   const view = args.object;
+
   // setTimeout(() => {
   //   console.log('display value:', view.display);
 

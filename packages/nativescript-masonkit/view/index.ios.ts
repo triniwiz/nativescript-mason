@@ -72,15 +72,30 @@ export class View extends ViewBase {
 
       const parentIsMason = this.parent && this.parent[isMasonView_];
       if (!parentIsMason) {
-        // only call compute on the parent
-        if (this.width === 'auto' && this.height === 'auto') {
+        // when the parent isn't a Mason container we have to kick off a new
+        // compute pass.  The old logic always used `mason_computeWithSize`
+        // when both width/height were `auto`, but that breaks when the
+        // incoming height/width spec is UNSPECIFIED (0).  a root view often
+        // receives an unspecified height which leads to a zero result even
+        // though its children have non‑zero dimensions.  wrapping the view in
+        // another container supplied a constraint so the bug only showed up at
+        // the root.
+        //
+        // if either dimension is unconstrained we instead fall back to
+        // `mason_computeWithMaxContent()` which measures based on the content
+        // and avoids collapsing to 0.
+        // if the parent gave us an unspecified measure spec, or an AT_MOST
+        // spec with zero size, treat the dimension as truly unconstrained so
+        // we can grow to our content.  (AT_MOST/0 often appears at the root.)
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+
+        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+          // we have explicit constraints from the spec, use them
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
-          // this.ios.computeWithSize(specWidth, specHeight);
 
           // @ts-ignore
           const layout = this.ios.mason_layout();
-          //const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -92,6 +107,8 @@ export class View extends ViewBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
+          // either we had a non-auto dimension or an unconstrained spec,
+          // measure by max-content so we don't accidentally collapse to zero.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
           // @ts-ignore

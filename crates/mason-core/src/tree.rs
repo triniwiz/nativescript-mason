@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
 use crate::style::arena::{StyleArena, StyleHandle};
 use crate::style::style_guard::StyleGuard;
@@ -6,11 +5,18 @@ use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use parking_lot::{Mutex, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use style_atoms::Atom;
-use taffy::{compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, Rect, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree, style::Clear};
+use taffy::{
+    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
+    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, style::Clear,
+    AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout,
+    LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
+    PrintTree, Rect, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
+};
 
 new_key_type! {
    pub struct Id;
@@ -244,7 +250,18 @@ impl Tree {
 
     #[inline(always)]
     fn node_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Node> {
-        RwLockReadGuard::map(self.0.read(), |v| v.nodes.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.0.read(), |v| {
+            let key: Id = node_id.into();
+            match v.nodes.get(key) {
+                Some(n) => n,
+                None => {
+                    for (k, vec) in v.children.iter() {
+                        let _ = (k, vec);
+                    }
+                    panic!("missing node for id: {:?}", node_id);
+                }
+            }
+        })
     }
 
     #[inline(always)]
@@ -305,6 +322,8 @@ impl Tree {
 
     /// Clear transient float context before a layout pass.
     pub fn clear_float_context(&mut self) {
+        // debug hook
+        log::debug!("clear_float_context called");
         self.inner_mut().float_context.clear();
     }
 
@@ -325,17 +344,22 @@ impl Tree {
                 let mut floats: Vec<FloatRect> = Vec::new();
 
                 for &child_id in children.iter() {
-                    let node = inner.nodes.get(child_id).unwrap();
-                    let float_side = node.style().get_float();
-                    if float_side != Float::None {
-                        floats.push(FloatRect {
-                            left: 0.0,
-                            top: 0.0,
-                            right: 0.0,
-                            bottom: 0.0,
-                            side: float_side,
-                            node: child_id,
-                        });
+                    if let Some(node) = inner.nodes.get(child_id) {
+                        let float_side = node.style().get_float();
+                        let _ = float_side;
+                        if float_side != Float::None {
+                            floats.push(FloatRect {
+                                left: 0.0,
+                                top: 0.0,
+                                right: 0.0,
+                                bottom: 0.0,
+                                side: float_side,
+                                node: child_id,
+                            });
+                        }
+                    } else {
+                        // Node missing (possibly removed); skip gracefully.
+                        continue;
                     }
                 }
 
@@ -375,8 +399,68 @@ impl Tree {
             return;
         }
 
-        // For measurement we will write back sizes into float_context.
+        // For measurement, we will write back sizes into float_context.
+        log::debug!("measure_place_floats start root={:?}", _root);
         for (container_id, ids) in work.into_iter() {
+            // before measuring the floats we need an estimate of the available
+            // space for *this* container.  We resolve the container's explicit
+            // width/height against the incoming available_space and clamp with
+            // min/max rules.  This gives us something closer to what the layout
+            // pass will eventually use than blindly using the root size.
+            let (container_space, container_w) = {
+                let parent_w = available_space.width.into_option().unwrap_or(f32::INFINITY);
+                let parent_h = available_space
+                    .height
+                    .into_option()
+                    .unwrap_or(f32::INFINITY);
+
+                let (style_size, style_min, style_max) = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(container_id).unwrap();
+                    (
+                        node.style().get_size(),
+                        node.style().get_min_size(),
+                        node.style().get_max_size(),
+                    )
+                };
+
+                let mut w = style_size
+                    .width
+                    .maybe_resolve(parent_w, |_, _| 0.0)
+                    .unwrap_or(parent_w);
+                let mut h = style_size
+                    .height
+                    .maybe_resolve(parent_h, |_, _| 0.0)
+                    .unwrap_or(parent_h);
+
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    w = w.max(min_w);
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    w = w.min(max_w);
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    h = h.max(min_h);
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    h = h.min(max_h);
+                }
+
+                (
+                    Size {
+                        width: AvailableSpace::Definite(w),
+                        height: AvailableSpace::Definite(h),
+                    },
+                    w,
+                )
+            };
+
             for child_id in ids.into_iter() {
                 // Extract measure/style under short locks
                 let (has_measure, style_size, measure) = {
@@ -388,30 +472,102 @@ impl Tree {
                     (has_measure, style_size, measure)
                 };
 
-                // Resolve style-specified widths/heights against root available space (approx).
-                let parent_w = available_space.width.into_option().unwrap_or(0.0);
-                let parent_h = available_space.height.into_option().unwrap_or(0.0);
-
-                let resolved_width = style_size
-                    .width
-                    .maybe_resolve(parent_w, |_, _| 0.0);
-                let resolved_height = style_size
+                // Resolve style-specified widths/heights against this container's
+                // available space.
+                let parent_w = container_space.width.into_option().unwrap_or(f32::INFINITY);
+                let parent_h = container_space
                     .height
-                    .maybe_resolve(parent_h, |_, _| 0.0);
+                    .into_option()
+                    .unwrap_or(f32::INFINITY);
+
+                // base resolved size from explicit width/height
+                let mut resolved_width = style_size.width.maybe_resolve(parent_w, |_, _| 0.0);
+                let mut resolved_height = style_size.height.maybe_resolve(parent_h, |_, _| 0.0);
+
+                // clamp against min/max styles
+                let style_min = {
+                    // need a short read lock to get the node again
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    node.style().get_min_size()
+                };
+                let style_max = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    node.style().get_max_size()
+                };
+
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    if let Some(w) = resolved_width {
+                        resolved_width = Some(w.max(min_w));
+                    }
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    if let Some(h) = resolved_height {
+                        resolved_height = Some(h.max(min_h));
+                    }
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    if let Some(w) = resolved_width {
+                        resolved_width = Some(w.min(max_w));
+                    }
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    if let Some(h) = resolved_height {
+                        resolved_height = Some(h.min(max_h));
+                    }
+                }
 
                 let final_known = taffy::Size {
                     width: resolved_width,
                     height: resolved_height,
                 };
 
-                let measured = if !has_measure {
+                let mut measured = if !has_measure {
                     taffy::Size {
                         width: final_known.width.unwrap_or(0.0),
                         height: final_known.height.unwrap_or(0.0),
                     }
                 } else {
-                    measure.measure(final_known, available_space)
+                    // IMPORTANT: `measure` was obtained via `copy_measure()` above
+                    // under a short lock. Do NOT call platform/native measurement
+                    // while holding `inner_mut()` or long-lived locks — the
+                    // expectation is that callers snapshot required data then
+                    // invoke the measure callback outside locks.
+                    #[cfg(test)]
+                    eprintln!(
+                        "TEST: calling measure for child_id={:?} in measure_place_floats",
+                        child_id
+                    );
+                    measure.measure(final_known, container_space)
                 };
+
+                // clamp measurement result as well (measure callbacks are free to
+                // return anything).
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    measured.width = measured.width.max(min_w);
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    measured.height = measured.height.max(min_h);
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    measured.width = measured.width.min(max_w);
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    measured.height = measured.height.min(max_h);
+                }
 
                 // Write back into float_context
                 let mut inner_mut = self.inner_mut();
@@ -426,19 +582,28 @@ impl Tree {
             // After measuring all floats for this container, assign x/y positions
             // using a simple left/right stacking algorithm. Margins and clears are
             // not yet applied here.
-            let container_w = available_space.width.into_option().unwrap_or(0.0);
+            // container_w is already computed above
             let mut left_offset = 0.0_f32;
             let mut right_offset = 0.0_f32;
             // Precompute `clear` values for nodes in this container under a read
             // lock so we don't need an immutable borrow while holding the
             // mutable `float_context` entry.
             let mut clear_map: HashMap<Id, Clear> = HashMap::new();
+            // Precompute resolved margins for each float so placement can
+            // include margins in occupancy/clear calculations without taking
+            // locks while mutating `float_context`.
+            let mut margin_map: HashMap<Id, (f32, f32, f32, f32)> = HashMap::new();
             {
                 let inner = self.inner();
                 if let Some(orig_vec) = inner.float_context.get(container_id) {
                     for fr in orig_vec.iter() {
                         if let Some(node) = inner.nodes.get(fr.node) {
                             clear_map.insert(fr.node, node.style().get_clear());
+                            let m = node
+                                .style()
+                                .get_margin()
+                                .resolve_or_zero(Some(container_w), |_v, _b| 0.0);
+                            margin_map.insert(fr.node, (m.left, m.right, m.top, m.bottom));
                         }
                     }
                 }
@@ -460,7 +625,9 @@ impl Tree {
                         let mut max_bot = 0.0_f32;
                         for p in &placed {
                             if p.side == Float::Left {
-                                max_bot = max_bot.max(p.top + p.bottom);
+                                let (_pl, _pr, _pt, pb) =
+                                    *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                                max_bot = max_bot.max(p.top + p.bottom + pb);
                             }
                         }
                         y = y.max(max_bot);
@@ -469,69 +636,130 @@ impl Tree {
                         let mut max_bot = 0.0_f32;
                         for p in &placed {
                             if p.side == Float::Right {
-                                max_bot = max_bot.max(p.top + p.bottom);
+                                let (_pl, _pr, _pt, pb) =
+                                    *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                                max_bot = max_bot.max(p.top + p.bottom + pb);
                             }
                         }
                         y = y.max(max_bot);
                     }
 
-                    loop {
-                        // compute occupied widths at this y
+                    // Build finite set of candidate Y positions: current y plus
+                    // tops and bottoms+margin of already placed floats. This
+                    // guarantees the placement process checks a finite set and
+                    // terminates.
+                    use std::cmp::Ordering;
+                    let mut candidates: Vec<f32> = Vec::new();
+                    candidates.push(y);
+                    for p in &placed {
+                        let (_p_ml, _p_mr, p_mt, p_mb) =
+                            *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                        candidates.push(p.top);
+                        candidates.push(p.top + p.bottom + p_mb);
+                    }
+                    candidates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+                    candidates.dedup_by(|a, b| ((*a - *b).abs() < 1e-6));
+
+                    // Precompute margins for this float
+                    let (ml, mr, mt, _mb) =
+                        *margin_map.get(&fr.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                    let mut placed_this = false;
+
+                    for cand in candidates.into_iter().filter(|v| *v >= y) {
+                        // compute occupied widths at candidate y
                         let mut left_occupied = 0.0_f32;
                         let mut right_occupied = 0.0_f32;
                         for p in &placed {
+                            let (p_ml, p_mr, p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
                             let p_top = p.top;
-                            let p_bot = p.top + p.bottom;
-                            if !(p_bot <= y || p_top >= y + height) {
-                                // vertical overlap
+                            let p_bot = p.top + p.bottom + p_mb; // include bottom margin for overlap
+                            if !(p_bot <= cand || p_top >= cand + height) {
                                 if p.side == Float::Left {
-                                    left_occupied += p.right;
+                                    left_occupied += p.right + p_ml + p_mr;
                                 } else if p.side == Float::Right {
-                                    right_occupied += p.right;
+                                    right_occupied += p.right + p_ml + p_mr;
+                                }
+                            }
+                        }
+
+                        // If nothing placed and this float (including margins)
+                        // is wider than the container, force placement (allow overflow)
+                        if placed.is_empty() && (ml + width + mr > container_w + 0.001) {
+                            fr.left = ml;
+                            fr.top = cand + mt;
+                            placed.push(*fr);
+                            placed_this = true;
+                            break;
+                        }
+
+                        if side == Float::Left {
+                            let x = left_occupied;
+                            if x + ml + width + mr + right_occupied <= container_w + 0.001 {
+                                fr.left = x + ml;
+                                fr.top = cand + mt;
+                                placed.push(*fr);
+                                placed_this = true;
+                                break;
+                            }
+                        } else if side == Float::Right {
+                            let x = (container_w - right_occupied) - mr - width;
+                            if x >= left_occupied - 0.001 {
+                                fr.left = x;
+                                fr.top = cand + mt;
+                                placed.push(*fr);
+                                placed_this = true;
+                                break;
+                            }
+                        } else {
+                            fr.left = left_occupied + ml;
+                            fr.top = cand + mt;
+                            placed.push(*fr);
+                            placed_this = true;
+                            break;
+                        }
+                    }
+
+                    if !placed_this {
+                        // No candidate fit: place below current floats (include bottom margins)
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            let (_p_ml, _p_mr, _p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                            max_bot = max_bot.max(p.top + p.bottom + p_mb);
+                        }
+                        y = max_bot;
+
+                        // compute occupied widths at y and force placement according to side
+                        let mut left_occupied = 0.0_f32;
+                        let mut right_occupied = 0.0_f32;
+                        for p in &placed {
+                            let (p_ml, p_mr, p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                            let p_top = p.top;
+                            let p_bot = p.top + p.bottom + p_mb;
+                            if !(p_bot <= y || p_top >= y + height) {
+                                if p.side == Float::Left {
+                                    left_occupied += p.right + p_ml + p_mr;
+                                } else if p.side == Float::Right {
+                                    right_occupied += p.right + p_ml + p_mr;
                                 }
                             }
                         }
 
                         if side == Float::Left {
-                            let x = left_occupied;
-                            if x + width + right_occupied <= container_w + 0.001 {
-                                fr.left = x;
-                                fr.top = y;
-                                placed.push(*fr);
-                                break;
-                            }
-                        } else if side == Float::Right {
-                            let x = (container_w - right_occupied) - width;
-                            if x >= left_occupied - 0.001 {
-                                fr.left = x;
-                                fr.top = y;
-                                placed.push(*fr);
-                                break;
-                            }
-                        } else {
-                            fr.left = left_occupied;
-                            fr.top = y;
+                            fr.left = left_occupied + ml;
+                            fr.top = y + mt;
                             placed.push(*fr);
-                            break;
-                        }
-
-                        // advance y to next candidate (smallest bottom > y)
-                        let mut next_y = f32::INFINITY;
-                        for p in &placed {
-                            let bot = p.top + p.bottom;
-                            if bot > y {
-                                next_y = next_y.min(bot);
-                            }
-                        }
-                        if next_y.is_infinite() {
-                            // nothing to advance to; push below current floats
-                            let mut max_bot = 0.0_f32;
-                            for p in &placed {
-                                max_bot = max_bot.max(p.top + p.bottom);
-                            }
-                            y = max_bot;
+                        } else if side == Float::Right {
+                            let x = (container_w - right_occupied) - mr - width;
+                            fr.left = x;
+                            fr.top = y + mt;
+                            placed.push(*fr);
                         } else {
-                            y = next_y;
+                            fr.left = left_occupied + ml;
+                            fr.top = y + mt;
+                            placed.push(*fr);
                         }
                     }
                 }
@@ -549,14 +777,30 @@ impl Tree {
     /// inline layout code.
     pub fn get_float_rects_simple(&self, container_id: Id) -> Option<Vec<taffy::Rect<f32>>> {
         let inner = self.inner();
-        inner
-            .float_context
-            .get(container_id)
-            .map(|vec| vec.iter().map(|fr| Rect { left: fr.left, top: fr.top, right: fr.right, bottom: fr.bottom }).collect())
+        // If the requested container has entries, return them.
+        // NOTE: we used to fall back to flattening float rects from all
+        // containers when the requested container was empty; that was a
+        // temporary debugging aid and caused unexpected rectangles to be
+        // reported for root/ancestor queries.  Do not perform the flattening
+        // anymore.
+        if let Some(vec) = inner.float_context.get(container_id) {
+            return Some(
+                vec.iter()
+                    .map(|fr| Rect {
+                        left: fr.left,
+                        top: fr.top,
+                        right: fr.right,
+                        bottom: fr.bottom,
+                    })
+                    .collect(),
+            );
+        }
+
+        None
     }
 
     pub fn children_id(&self, node_id: Id) -> MappedRwLockReadGuard<'_, RawRwLock, Vec<Id>> {
-        RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id).unwrap())
     }
 
     fn analyze_subtree(&self, id: Id) -> SubtreeAnalysis {
@@ -571,24 +815,29 @@ impl Tree {
             let mut has_non_inline = false;
 
             for child_id in children {
-                let child = &self.inner().nodes[*child_id];
-                let mode = child.style().display_mode();
-                let inline_or_box_inline = matches!(mode, DisplayMode::Inline | DisplayMode::Box);
-                // Fix: Check for anonymous inline blocks too
-                let is_inline = child.style().force_inline() || inline_or_box_inline;
+                if let Some(child) = self.inner().nodes.get(*child_id) {
+                    let mode = child.style().display_mode();
+                    let inline_or_box_inline =
+                        matches!(mode, DisplayMode::Inline | DisplayMode::Box);
+                    // Fix: Check for anonymous inline blocks too
+                    let is_inline = child.style().force_inline() || inline_or_box_inline;
 
-                if is_inline {
-                    has_inline = true;
+                    if is_inline {
+                        has_inline = true;
+                    } else {
+                        has_non_inline = true;
+                        all_inline = false;
+                    }
+
+                    // Early exit if both found
+                    if has_inline && has_non_inline {
+                        has_mixed_content = true;
+                        all_inline = false;
+                        break;
+                    }
                 } else {
-                    has_non_inline = true;
-                    all_inline = false;
-                }
-
-                // Early exit if both found
-                if has_inline && has_non_inline {
-                    has_mixed_content = true;
-                    all_inline = false;
-                    break;
+                    // missing child entry (stale parent/child reference); skip
+                    continue;
                 }
             }
         }
@@ -627,6 +876,22 @@ impl Tree {
         self.collect_floats(root.into());
         self.measure_place_floats(root.into(), available_space);
 
+        // Sanitize children lists to remove any stale/missing node ids that
+        // could have been left by prior operations. This prevents lookups
+        // later in the layout pass from attempting to index into the slotmap
+        // with invalid keys.
+        {
+            let mut inner_mut = self.inner_mut();
+            let parents: Vec<Id> = inner_mut.children.keys().collect();
+            // snapshot existing node ids to avoid double-borrowing `inner_mut`
+            let existing: std::collections::HashSet<Id> = inner_mut.nodes.keys().collect();
+            for parent in parents {
+                if let Some(children) = inner_mut.children.get_mut(parent) {
+                    children.retain(|&c| existing.contains(&c));
+                }
+            }
+        }
+
         compute_root_layout(self, root, available_space);
 
         // Post-process scroll containers to clamp their heights to parent's available space.
@@ -651,6 +916,13 @@ impl Tree {
             return RwLockReadGuard::map(self.0.read(), |v| &v.nodes[node].final_layout);
         }
         RwLockReadGuard::map(self.0.read(), |v| &v.nodes[node].unrounded_layout)
+    }
+
+    pub fn layout_raw(&self, node: Id) -> Layout {
+        if self.use_rounding() {
+            return self.0.read().nodes[node].final_layout;
+        }
+        self.0.read().nodes[node].unrounded_layout
     }
 
     /// Post-process scroll containers to clamp their heights to the parent's available content area.
@@ -903,10 +1175,11 @@ impl Tree {
     }
 
     fn set_parent_inner(tree: &mut TreeInner, child: Id, parent: Option<Id>) -> bool {
-        match tree.parents.insert(child, parent) {
+        let res = match tree.parents.insert(child, parent) {
             Some(old_parent) => old_parent != parent,
             None => true,
-        }
+        };
+        res
     }
 
     pub fn detach(&mut self, child: Id) {
@@ -926,10 +1199,13 @@ impl Tree {
     }
 
     pub fn append(&mut self, parent: Id, child: Id) {
-        self.detach(child);
-        let same = self.set_parent(child, Some(parent));
+        // Perform detach + parent insert + push under one write lock to avoid
+        // transient inconsistent state where children vectors may be mutated
+        // between operations.
+        let mut tree = self.0.write();
+        Self::detach_inner(&mut tree, child);
+        let same = Tree::set_parent_inner(&mut tree, child, Some(parent));
         if same {
-            let mut tree = self.0.write();
             let children = tree.children.get_mut(parent).unwrap();
             children.push(child);
             Tree::mark_dirty_inner(&mut tree, parent);
@@ -1042,6 +1318,7 @@ impl Tree {
         let mut tree = self.0.write();
         if let Some(children) = tree.children.get_mut(parent) {
             if let Some(position) = children.iter().position(|&id| id == node) {
+                let _ = position;
                 children.remove(position);
                 if let Some(node) = tree.nodes.get_mut(parent) {
                     node.mark_dirty();
@@ -1411,6 +1688,15 @@ impl LayoutPartialTree for Tree {
         let mut tree = self.inner_mut();
         if let Some(pos) = tree.inline_run_pending.iter().position(|&x| x == id) {
             let node = tree.node_from_id_mut(node_id);
+            // Log suspicious tiny or NaN heights for diagnostics
+            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
+                log::debug!(
+                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=true size={:?} content_size={:?}",
+                    id,
+                    layout.size,
+                    layout.content_size
+                );
+            }
             // preserve location, update size/metrics from the computed layout
             node.unrounded_layout.size = layout.size;
             node.unrounded_layout.content_size = layout.content_size;
@@ -1425,6 +1711,14 @@ impl LayoutPartialTree for Tree {
             }
         } else {
             let node = tree.node_from_id_mut(node_id);
+            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
+                log::debug!(
+                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=false size={:?} content_size={:?}",
+                    id,
+                    layout.size,
+                    layout.content_size
+                );
+            }
             node.unrounded_layout = *layout;
         }
     }
@@ -1614,6 +1908,34 @@ impl LayoutBlockContainer for Tree {
                             compute_block_layout(tree, node_id, inputs, block_ctx)
                         };
 
+                        // If the block layout produced zero or tiny height despite
+                        // having children (e.g. inline/text children), try the mixed
+                        // layout path as a fallback so inline flows are handled.
+                        if (computed_layout.size.height <= 1e-6) && analysis.has_children {
+                            log::warn!(
+                                "compute_block_child_layout id={:?} branch=block out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x} analysis={:?}",
+                                id,
+                                computed_layout.size.height,
+                                computed_layout.size.height.to_bits(),
+                                computed_layout.content_size.height,
+                                computed_layout.content_size.height.to_bits(),
+                                analysis
+                            );
+                            let children = tree.inner().children.get(id).cloned().unwrap_or_default();
+                            let mixed_out = tree.compute_mixed_layout(id, children.as_slice(), inputs, None);
+                            log::warn!(
+                                "compute_block_child_layout id={:?} mixed_fallback out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x}",
+                                id,
+                                mixed_out.size.height,
+                                mixed_out.size.height.to_bits(),
+                                mixed_out.content_size.height,
+                                mixed_out.content_size.height.to_bits()
+                            );
+                            if mixed_out.size.height > 1e-6 {
+                                computed_layout = mixed_out;
+                            }
+                        }
+
                         // For scroll containers, ensure the layout height doesn't exceed
                         // the available space. content_size should retain the full content
                         // extent so native scroll views know the scrollable area.
@@ -1696,31 +2018,106 @@ impl LayoutBlockContainer for Tree {
                             &style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
-                                let resolved_width = known_dimensions.width.or_else(|| {
+                                // resolve explicit known dimensions (from parent) or style
+                                // size, then apply min/max clamping so floats or other
+                                // leaves cannot grow beyond constraints.
+                                let mut resolved_width = known_dimensions.width.or_else(|| {
                                     style_size
                                         .width
                                         .maybe_resolve(inputs.parent_size.width, |_, _| 0.0)
                                 });
 
-                                let resolved_height = known_dimensions.height.or_else(|| {
+                                let mut resolved_height = known_dimensions.height.or_else(|| {
                                     style_size
                                         .height
                                         .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
                                 });
+
+                                // get constraints from style
+                                let style_min = style.min_size();
+                                let style_max = style.max_size();
+                                if let Some(pw) = inputs.parent_size.width {
+                                    if let Some(min_w) =
+                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                    {
+                                        if let Some(w) = resolved_width {
+                                            resolved_width = Some(w.max(min_w));
+                                        }
+                                    }
+                                    if let Some(max_w) =
+                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                    {
+                                        if let Some(w) = resolved_width {
+                                            resolved_width = Some(w.min(max_w));
+                                        }
+                                    }
+                                }
+                                if let Some(ph) = inputs.parent_size.height {
+                                    if let Some(min_h) =
+                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                    {
+                                        if let Some(h) = resolved_height {
+                                            resolved_height = Some(h.max(min_h));
+                                        }
+                                    }
+                                    if let Some(max_h) =
+                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                    {
+                                        if let Some(h) = resolved_height {
+                                            resolved_height = Some(h.min(max_h));
+                                        }
+                                    }
+                                }
 
                                 let final_known = Size {
                                     width: resolved_width,
                                     height: resolved_height,
                                 };
 
-                                if !has_measure {
+                                let mut result = if !has_measure {
                                     Size {
                                         width: final_known.width.unwrap_or(0.0),
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    measure.measure(final_known, available_space)
+                                    // IMPORTANT: `measure` was obtained via `copy_measure()`
+                                    // under a short lock. Do not call platform/native
+                                    // measurement while holding tree write locks; callers
+                                    // must snapshot data then invoke measure.
+                                    #[cfg(test)]
+                                    eprintln!("TEST: calling measure for id={:?} in compute_block_child_layout leaf path", id);
+                                    log::debug!("measure-call leaf id={:?} known={:?} avail={:?}", id, final_known, available_space);
+                                    let meas = measure.measure(final_known, available_space);
+                                    log::debug!("measure-result leaf id={:?} out={:?}", id, meas);
+                                    meas
+                                };
+
+                                // clamp measured results as well
+                                if let Some(pw) = inputs.parent_size.width {
+                                    if let Some(min_w) =
+                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                    {
+                                        result.width = result.width.max(min_w);
+                                    }
+                                    if let Some(max_w) =
+                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                    {
+                                        result.width = result.width.min(max_w);
+                                    }
                                 }
+                                if let Some(ph) = inputs.parent_size.height {
+                                    if let Some(min_h) =
+                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                    {
+                                        result.height = result.height.max(min_h);
+                                    }
+                                    if let Some(max_h) =
+                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                    {
+                                        result.height = result.height.min(max_h);
+                                    }
+                                }
+                                result
                             },
                         )
                     }

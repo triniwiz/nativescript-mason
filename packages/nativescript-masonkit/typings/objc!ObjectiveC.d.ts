@@ -717,7 +717,7 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_requestLayout(): void;
 
-	mason_syncStyle(state: string, textState: string): void;
+	mason_syncStyle(low: string, high: string): void;
 
 	methodForSelector(aSelector: string): interop.FunctionReference<() => void>;
 

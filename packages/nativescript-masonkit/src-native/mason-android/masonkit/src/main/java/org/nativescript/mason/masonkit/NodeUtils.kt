@@ -80,8 +80,8 @@ internal object NodeUtils {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
           val masonView = view as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && (parent.view as org.nativescript.mason.masonkit.View).isScrollRoot) {
+          // if the *child* is a scroll root, attach it specially to the parent
+          if (masonView != null && masonView.isScrollRoot) {
             if (masonView.parent != null) {
               (masonView.parent as? ViewGroup)?.removeView(masonView)
             }

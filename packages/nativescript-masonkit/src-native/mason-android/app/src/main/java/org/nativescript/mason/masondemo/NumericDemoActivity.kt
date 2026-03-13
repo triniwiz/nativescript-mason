@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.LengthPercentageAuto
@@ -19,6 +20,8 @@ import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
+import java.util.Locale
 
 class NumericDemoActivity : AppCompatActivity() {
   private lateinit var mason: Mason
@@ -41,15 +44,15 @@ class NumericDemoActivity : AppCompatActivity() {
       style.display = Display.Block
       style.padding = Rect(
         LengthPercentage.Points(px(16f)),
+        LengthPercentage.Zero,
         LengthPercentage.Points(px(16f)),
-        LengthPercentage.Points(px(16f)),
-        LengthPercentage.Points(px(16f))
+        LengthPercentage.Zero
       )
       style.background = "#EEF2FF"
     }
 
     // Title
-    val title = mason.createTextView(this)
+    val title = mason.createTextView(this, TextType.H1)
     title.textContent = "font-variant-numeric"
     title.configure { style ->
       style.display = Display.Block
@@ -219,14 +222,12 @@ class NumericDemoActivity : AppCompatActivity() {
     ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
       root.style.setPadding(
-        systemBars.left + 24, systemBars.top + 24,
-        systemBars.right + 24, 0
+        0, systemBars.top + 24,
+        0, 0
       )
       //layout.setPadding(0,0,0, systemBars.bottom + 24)
       insets
     }
-
-
 
     setContentView(root)
 
@@ -238,7 +239,7 @@ class NumericDemoActivity : AppCompatActivity() {
         val mins = (elapsed.toInt()) / 60
         val secs = (elapsed.toInt()) % 60
         val hundredths = ((elapsed - Math.floor(elapsed)) * 100).toInt()
-        val str = String.format("%02d:%02d.%02d", mins, secs, hundredths)
+        val str = String.format(Locale.getDefault(), "%02d:%02d.%02d", mins, secs, hundredths)
 
         leftTime.textContent = str
         rightTime.textContent = str

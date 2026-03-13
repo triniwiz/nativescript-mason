@@ -17,12 +17,15 @@ import org.nativescript.mason.masonkit.enums.JustifySelf
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
+import kotlin.math.max
+import kotlin.math.min
 
 class NodeHelper(val mason: Mason) {
   companion object {
     @JvmStatic
     val shared = NodeHelper(Mason.shared)
   }
+
 
   val views: ArrayList<View> = ArrayList()
 
@@ -177,152 +180,52 @@ class NodeHelper(val mason: Mason) {
   fun setFloat(view: android.view.View, value: org.nativescript.mason.masonkit.enums.Float) {
     val node = mason.nodeForView(view)
     node.style.float = value
-
   }
 
-  /**
-   * Returns the float rects computed for the container that contains `view`.
-   * Resulting array is flat `[left, top, width, height, ...]` in engine logical pixels.
-   */
-  fun getFloatRects(view: android.view.View): FloatArray {
-    val node = mason.nodeForView(view)
-    val nodePtr = node.nativePtr
-    return NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), nodePtr)
-  }
-
-  /**
-   * Returns both the android node ids (one per float rect) and the flat float rects.
-   * Node ids will be -1 when no android node is associated with the float.
-   */
-  fun getFloatRectsWithAndroidIds(view: android.view.View): Pair<IntArray, FloatArray> {
+  fun getFloatRectsWithAndroidIds(view: android.view.View): LongArray {
     val node = mason.nodeForView(view)
     val nodePtr = node.nativePtr
     // Guard: avoid querying engine float rects before the node/container has a computed layout.
     // Many early measure/layout passes have width==0 which causes native to return empty arrays.
-    try {
-      val nodeWidth = node.computedLayout.width
-      val parentWidth = node.parent?.computedLayout?.width ?: 0f
-      if (nodeWidth <= 0f && parentWidth <= 0f) {
-        return Pair(IntArray(0), FloatArray(0))
-      }
-    } catch (_: Throwable) {
+    if (node.layoutTree.frames.isEmpty()) {
+      return LongArray(0)
     }
-    val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), nodePtr)
-    val ids = NativeHelpers.nativeNodeGetFloatRectAndroidIds(mason.getNativePtr(), nodePtr)
-    // Diagnostic logging removed to reduce noise; callers may log if needed.
-
-    // Diagnostic fallback: if this node has no floats, try parent (floats
-    // may be reported at the parent container depending on layout tree).
-    if ((ids.isEmpty() || rects.isEmpty()) && node.parent != null) {
-      try {
-        val p = node.parent!!
-        val rects2 = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), p.nativePtr)
-        val ids2 = NativeHelpers.nativeNodeGetFloatRectAndroidIds(mason.getNativePtr(), p.nativePtr)
-        return Pair(ids2, rects2)
-      } catch (_: Throwable) {
-      }
-    }
-
-    return Pair(ids, rects)
+    return NativeHelpers.nativeNodeGetFloatRectWithIds(mason.getNativePtr(), nodePtr)
   }
 
-  /**
-   * Return only the android node ids for floats computed for the given view's node.
-   * This does NOT perform the diagnostic parent-fallback.
-   */
-  fun getFloatRectAndroidIdsLocal(view: android.view.View): IntArray {
-    val node = mason.nodeForView(view)
-    val nodePtr = node.nativePtr
-    return NativeHelpers.nativeNodeGetFloatRectAndroidIds(mason.getNativePtr(), nodePtr)
-  }
-
-
-  /**
-   * Find the nearest ancestor (including self) that reports float rects and
-   * return the android ids and rects transformed into `view`-local Android pixels.
-   *
-   * This does a single conversion from engine logical units -> Android px
-   * using `mason.scale` so callers should NOT multiply again.
-   */
-
-  private val emptyPair = Pair(IntArray(0), FloatArray(0))
   fun getFloatRectsLocalToView(view: android.view.View): Pair<IntArray, FloatArray> {
     val node = mason.nodeForView(view)
-
-    // Guard: if neither this node nor its parent/container have a computed width,
-    // avoid querying native float rects which will likely be empty during early layout.
-    try {
-      val nodeWidth = node.computedLayout.width
-      val parentWidth = node.parent?.computedLayout?.width ?: 0f
-      if (nodeWidth <= 0f && parentWidth <= 0f) {
-        return emptyPair
-      }
+    if (node.layoutTree.frames.isEmpty()) {
+      return Pair(IntArray(0), FloatArray(0))
+    }
+    return try {
+      val rects = mason.getFloatRects(node)
+      val ids = mason.getFloatRectAndroidIds(node)
+      Pair(ids, rects)
     } catch (_: Throwable) {
+      Pair(IntArray(0), FloatArray(0))
     }
-
-    // Walk up until we find a node that reports floats
-    var current: Node? = node
-    while (current != null) {
-      try {
-        val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), current.nativePtr)
-        val ids =
-          NativeHelpers.nativeNodeGetFloatRectAndroidIds(mason.getNativePtr(), current.nativePtr)
-        if (rects.isNotEmpty() && ids.isNotEmpty()) {
-          // Only return floats to the actual container view that reported them.
-          // If a descendant TextView (e.g., inline segment) queries floats
-          // it can receive rects that are outside its local bounds which
-          // causes duplicated layout and clipping issues. Let the true
-          // container (where `current === node`) handle float layout/drawing.
-          // Remove the restrictive check to allow descendant views to receive mapped float rects again
-          // Compute the offset of `node` relative to `current` (ancestor container)
-          var accX = 0f
-          var accY = 0f
-          var walker: Node? = node
-          while (walker != null && walker !== current) {
-            accX += walker.computedLayout.x
-            accY += walker.computedLayout.y
-            walker = walker.parent
-          }
-
-          // The engine already returns rects in raw Android pixels for this
-          // build. Use the raw values directly and map container-local ->
-          // view-local by subtracting accumulated offsets and the target
-          // node's padding (all in px).
-          val out = FloatArray(rects.size)
-          val paddingLeft = node.computedLayout.padding.left
-          val marginLeft = node.computedLayout.margin.left
-          val marginTop = node.computedLayout.margin.top
-          for (i in rects.indices step 4) {
-            val l = rects[i]
-            val t = rects[i + 1]
-            val w = rects[i + 2]
-            val h = rects[i + 3]
-
-            // Map container-local -> view-local by subtracting descendant offset
-            // Include the node's computed margin and padding so rects align with
-            // the content box used by the Android view.
-            var mappedL = l - accX - marginLeft - paddingLeft
-            var mappedT = t - accY - marginTop
-            // Clamp to avoid negative coordinates leaking into Android layout
-            if (mappedL < 0f) mappedL = 0f
-            if (mappedT < 0f) mappedT = 0f
-            out[i] = mappedL
-            out[i + 1] = mappedT
-            out[i + 2] = w
-            out[i + 3] = h
-          }
-
-          return Pair(ids, out)
-        }
-      } catch (_: Throwable) {
-      }
-
-      current = current.parent
-    }
-
-    return Pair(IntArray(0), FloatArray(0))
   }
 
+  fun getCachedFloatInsetsForView(view: android.view.View, defaultLeft: Float, defaultRight: Float): Pair<Float, Float> {
+    val (_, rects) = getFloatRectsLocalToView(view)
+    if (rects.isEmpty()) return Pair(0f, Float.MAX_VALUE)
+    var leftInset = 0f
+    var rightInset = Float.MAX_VALUE
+    var i = 0
+    while (i + 3 < rects.size) {
+      val x = rects[i]
+      val w = rects[i + 2]
+      if (x <= 0.1f) {
+        leftInset = max(leftInset, w)
+      } else {
+        rightInset = min(rightInset, x)
+      }
+      i += 4
+    }
+    if (rightInset == Float.MAX_VALUE) rightInset = leftInset
+    return Pair(leftInset, rightInset)
+  }
 
   fun getAlignItems(view: android.view.View): AlignItems {
     val node = mason.nodeForView(view)
@@ -750,7 +653,6 @@ class NodeHelper(val mason: Mason) {
       LengthPercentageAuto.Points(top),
       LengthPercentageAuto.Points(bottom)
     )
-
   }
 
   fun setMargin(
@@ -764,7 +666,6 @@ class NodeHelper(val mason: Mason) {
     node.style.margin = Rect(
       left, right, top, bottom
     )
-
   }
 
   fun setMargin(
@@ -785,7 +686,6 @@ class NodeHelper(val mason: Mason) {
       LengthPercentageAuto.fromTypeValue(topType, top) ?: node.style.margin.top,
       LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: node.style.margin.bottom
     )
-
   }
 
   fun setMarginLeft(view: android.view.View, value: Float, type: Byte) {
@@ -1019,7 +919,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.Points(width),
       Dimension.Points(height),
     )
-
   }
 
   fun getSize(view: android.view.View): Size<Dimension> {
@@ -1053,7 +952,6 @@ class NodeHelper(val mason: Mason) {
       width,
       height,
     )
-
   }
 
   fun setSize(
@@ -1068,7 +966,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.fromTypeValue(widthType, width) ?: node.style.size.width,
       Dimension.fromTypeValue(heightType, height) ?: node.style.size.height
     )
-
   }
 
   fun setSizeWidth(view: android.view.View, value: Float, type: Byte) {
@@ -1095,7 +992,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.Points(width),
       Dimension.Points(height),
     )
-
   }
 
   fun getMaxSize(view: android.view.View): Size<Dimension> {
@@ -1129,7 +1025,6 @@ class NodeHelper(val mason: Mason) {
       width,
       height,
     )
-
   }
 
   fun setMaxSize(
@@ -1504,6 +1399,12 @@ class NodeHelper(val mason: Mason) {
   ) {
     val node = mason.nodeForView(view)
     node.style.textShadow = value
+  }
+
+  fun compute(node: Node) {
+    NativeHelpers.nativeNodeCompute(
+      node.mason.nativePtr, node.nativePtr
+    )
   }
 }
 

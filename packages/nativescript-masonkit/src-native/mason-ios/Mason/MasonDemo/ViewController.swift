@@ -914,27 +914,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   func clearContent() {
     numericTimer?.invalidate()
     numericTimer = nil
-   /* DispatchQueue.main.async {
-      // Remove all Mason node children from the scroll body
-      self.body.removeAllChildren()
-
-      // Also remove any native subviews as a fallback
-      for sub in self.body.uiView.subviews {
-        sub.removeFromSuperview()
-      }
-
-      // Request Mason to recompute layout and invalidate
-      self.body.requestLayout()
-      self.body.invalidate()
-
-      // Ensure native views update
-      self.view.setNeedsLayout()
-      self.view.setNeedsDisplay()
-      self.body.uiView.setNeedsLayout()
-      self.body.uiView.setNeedsDisplay()
-    }
     
-    */
+    // Remove all Mason node children from the scroll body
+    self.body.removeAllChildren()
+
+    self.body.invalidate()
   }
   
   deinit {
@@ -1013,10 +997,21 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    }
 
     switch sender.selectedSegmentIndex {
+          case 0:
+            webTextSample()
+          case 1:
+            textSample()
+          case 2:
+            gridSample()
+          case 3:
+            gallerySample()
+          case 4:
+            hackerNewsSample()
     case 5:
       renderPseudoDemo(body)
     case 6:
-      renderFontVariantNumericDemo(body)
+      renderFloat(body)
+     // renderFontVariantNumericDemo(body)
     default:
       renderFloat(body)
     }

@@ -53,7 +53,9 @@ class Mason {
 
         val fm = paint.fontMetrics
 
-        // Android uses negative ascent, positive descent
+        // Android reports a negative `ascent` and positive `descent`.
+        // Convert `ascent` to a positive distance for downstream sizing
+        // (consumers expect positive metric values).
         val ascent = -fm.ascent
         val descent = fm.descent
         val leading = fm.leading
@@ -99,6 +101,16 @@ class Mason {
 
   fun printTree(node: Node) {
     nativePrintTree(nativePtr, node.nativePtr)
+  }
+
+  /** Public wrapper for native float rects (convenience for JVM callers). */
+  fun getFloatRects(node: Node): FloatArray {
+    return nativeNodeGetFloatRects(nativePtr, node.nativePtr)
+  }
+
+  /** Public wrapper to retrieve Android ids associated with float rects. */
+  fun getFloatRectAndroidIds(node: Node): IntArray {
+    return nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
   }
 
   fun printArenaStats() {

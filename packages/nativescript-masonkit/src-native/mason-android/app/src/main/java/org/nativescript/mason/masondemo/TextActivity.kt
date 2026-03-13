@@ -3,7 +3,6 @@ package org.nativescript.mason.masondemo
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -84,9 +83,9 @@ class TextActivity : AppCompatActivity() {
 
   fun bg() {
     val root = Mason.shared.createView(this)
+    body.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     root.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     root.style.background = "content-box radial-gradient(crimson, skyblue);"
-    body.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     body.append(root)
   }
 

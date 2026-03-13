@@ -1,4 +1,5 @@
 use crate::node::NodeType;
+use log::warn;
 use crate::style::{DisplayMode, FontMetrics, VerticalAlign, VerticalAlignValue};
 use crate::{Id, InlineSegment, Tree};
 use taffy::{
@@ -6,7 +7,7 @@ use taffy::{
     LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point,
     ResolveOrZero, Size, SizingMode,
 };
-
+                                
 /// Represents an item in a line during inline layout
 #[derive(Clone, Debug)]
 enum LineItem {
@@ -28,6 +29,7 @@ enum LineItem {
         baseline: f32,
         vertical_align: VerticalAlignValue,
         is_virtual: bool,
+        is_replaced: bool,
     },
     /// Block-level child that breaks the flow
     BlockChild {
@@ -114,6 +116,7 @@ impl Line {
         vertical_align: VerticalAlignValue,
         is_pure_inline: bool,
         is_virtual: bool,
+        is_replaced: bool,
     ) {
         // For 0x0 elements, still add them but don't let them affect line metrics
         if width == 0.0 && height == 0.0 {
@@ -128,6 +131,7 @@ impl Line {
                 baseline,
                 vertical_align,
                 is_virtual,
+                is_replaced,
             });
             self.width += margin_left + margin_right;
             return;
@@ -151,6 +155,7 @@ impl Line {
             baseline,
             vertical_align,
             is_virtual,
+            is_replaced,
         });
 
         self.width += total_width;
@@ -219,7 +224,7 @@ impl Line {
                     vertical_align.offset
                 };
 
-                let element_baseline = baseline.max(0.0);
+                let element_baseline = baseline.max(0.0).min(height);
 
                 let ascent_contribution =
                     (height - element_baseline) + effective_margin_top + offset;
@@ -230,7 +235,7 @@ impl Line {
             }
             VerticalAlign::Sub => {
                 let sub_offset = font_ascent * 0.3;
-                let element_baseline = baseline.max(0.0);
+                let element_baseline = baseline.max(0.0).min(height);
                 let ascent_contribution =
                     (height - element_baseline) + effective_margin_top - sub_offset;
                 let descent_contribution = element_baseline + effective_margin_bottom + sub_offset;
@@ -240,7 +245,7 @@ impl Line {
             }
             VerticalAlign::Super => {
                 let super_offset = font_ascent * 0.4;
-                let element_baseline = baseline.max(0.0);
+                let element_baseline = baseline.max(0.0).min(height);
                 let ascent_contribution =
                     (height - element_baseline) + effective_margin_top + super_offset;
                 let descent_contribution =
@@ -346,7 +351,7 @@ impl Line {
                     vertical_align.offset
                 };
 
-                let element_baseline = baseline.max(0.0);
+                let element_baseline = baseline.max(0.0).min(height);
                 // Position so element's baseline aligns with line baseline
                 y_offset + line_baseline - (height - element_baseline) - offset
             }
@@ -388,6 +393,7 @@ enum PreparedItem {
         vertical_align: VerticalAlignValue,
         is_pure_inline: bool,
         is_virtual: bool,
+        is_replaced: bool,
     },
     BlockChild {
         id: Id,
@@ -500,22 +506,58 @@ impl InlineFormattingContext {
     fn add_text(&mut self, width: f32, ascent: f32, descent: f32) {
         // update available width for the current line before measuring overflow
         self.update_available_for_current_line();
-        if self.would_overflow(width) {
-            self.wrap_line();
-            self.update_available_for_current_line();
+        // If the incoming text run is wider than the available width and we
+        // have a finite available width, split it across multiple lines so
+        // that a single measured run cannot create a single giant line.
+        if self.available_width.is_finite() && width > self.available_width && self.available_width > 0.0 {
+            let mut remaining = width;
+            let piece = self.available_width;
+
+            while remaining > 0.0 {
+                // If current line already has content and adding a piece would overflow,
+                // wrap to a new line first.
+                if self.would_overflow(piece) {
+                    self.wrap_line();
+                    self.update_available_for_current_line();
+                }
+
+                // If available width is non-positive after update, append remaining as-is.
+                if !self.available_width.is_finite() || self.available_width <= 0.0 {
+                    self.current_line.add_text(remaining, ascent, descent);
+                    remaining = 0.0;
+                    break;
+                }
+
+                let take = remaining.min(self.available_width);
+                self.current_line.add_text(take, ascent, descent);
+                remaining -= take;
+
+                // After consuming a piece, if there is still remaining text, force a wrap
+                // so the remainder moves to the next line.
+                if remaining > 0.0 {
+                    self.wrap_line();
+                    self.update_available_for_current_line();
+                }
+            }
+        } else {
+            if self.would_overflow(width) {
+                self.wrap_line();
+                self.update_available_for_current_line();
+            }
+            self.current_line.add_text(width, ascent, descent);
         }
-        self.current_line.add_text(width, ascent, descent);
     }
 
     fn add_inline_child(
         &mut self,
         id: Id,
         size: Size<f32>,
-        margin: taffy::Rect<f32>,
+        margin: &taffy::Rect<f32>,
         baseline: f32,
         vertical_align: VerticalAlignValue,
         is_pure_inline: bool,
         is_virtual: bool,
+        is_replaced: bool,
     ) {
         let total_width = margin.left + size.width + margin.right;
         self.update_available_for_current_line();
@@ -536,6 +578,7 @@ impl InlineFormattingContext {
             vertical_align,
             is_pure_inline,
             is_virtual,
+            is_replaced,
         );
     }
 
@@ -580,18 +623,20 @@ impl InlineFormattingContext {
                     vertical_align,
                     is_pure_inline,
                     is_virtual,
-                } => {
+                    is_replaced,
+                    } => {
                     self.add_inline_child(
                         *id,
                         Size {
                             width: *width,
                             height: *height,
                         },
-                        *margin,
+                        margin,
                         *baseline,
                         *vertical_align,
                         *is_pure_inline,
                         *is_virtual,
+                        *is_replaced,
                     );
                 }
                 PreparedItem::BlockChild {
@@ -627,14 +672,108 @@ impl InlineFormattingContext {
 
     fn finalize(&mut self) -> (f32, f32, Vec<(Id, f32, f32)>) {
         self.wrap_line();
-
         let mut total_height = 0.0;
         let mut max_width = 0.0f32;
         let mut y_offset = self.content_box_top;
         let mut placements: Vec<(Id, f32, f32)> = Vec::new();
 
-        for line in &self.lines {
-            let line_height = line.height();
+        for (li, line) in self.lines.iter().enumerate() {
+            // Compute a conservative text-derived ascent/descent baseline
+            // to avoid runaway contributions from oversized inline children.
+            let mut text_ascent = 0.0f32;
+            let mut text_descent = 0.0f32;
+            for it in &line.items {
+                match it {
+                    LineItem::Text { ascent, descent, .. } => {
+                        text_ascent = text_ascent.max(*ascent);
+                        text_descent = text_descent.max(*descent);
+                    }
+                    _ => {}
+                }
+            }
+
+            // If no text segments present, fall back to the line's parent font
+            if text_ascent == 0.0 {
+                text_ascent = line.parent_font.ascent;
+            }
+            if text_descent == 0.0 {
+                text_descent = line.parent_font.descent;
+            }
+
+            log::warn!(
+                "IFC finalize line={} text_ascent={} text_ascent_bits=0x{:08x} text_descent={} text_descent_bits=0x{:08x} parent_font_ascent={} pf_asc_bits=0x{:08x} parent_font_descent={} pf_desc_bits=0x{:08x}",
+                li,
+                text_ascent,
+                text_ascent.to_bits(),
+                text_descent,
+                text_descent.to_bits(),
+                line.parent_font.ascent,
+                line.parent_font.ascent.to_bits(),
+                line.parent_font.descent,
+                line.parent_font.descent.to_bits(),
+            );
+
+            // Allow larger inline elements (drop-caps, inline-blocks) to
+            // increase the ascent/descent. By default we cap their contribution
+            // to a reasonable multiplier of the text metrics to prevent
+            // pathological outliers producing enormous line heights. However,
+            // when the line actually contains a large inline child (e.g. an
+            // inline image), treat its contribution as authoritative and do
+            // not apply the cap so replaced elements can contribute full size.
+            let allowed_mult = 6.0f32;
+            let allowed_ascent = text_ascent * allowed_mult;
+            let allowed_descent = text_descent * allowed_mult;
+
+            // If any inline child in this line is significantly larger than
+            // the parent font, assume it's a replaced element (image/video)
+            // and skip the sanitizer cap so it contributes its full height.
+            let mut has_large_inline_child = false;
+            for it in &line.items {
+                if let LineItem::InlineChild { is_replaced, .. } = it {
+                    if *is_replaced {
+                        has_large_inline_child = true;
+                        break;
+                    }
+                }
+            }
+
+            let sanitized_max_ascent = if has_large_inline_child {
+                line.max_ascent
+            } else {
+                line.max_ascent.min(allowed_ascent)
+            };
+
+            let sanitized_max_descent = if has_large_inline_child {
+                line.max_descent
+            } else {
+                line.max_descent.min(allowed_descent)
+            };
+
+            // Compute line height using the sanitized metrics, but still allow
+            // top/bottom aligned items to expand the line if necessary (capped).
+            let mut line_height = (sanitized_max_ascent + sanitized_max_descent)
+                .max(line.max_top_height)
+                .max(line.max_bottom_height);
+
+            #[cfg(test)]
+            {
+                    let _ = (li, line.items.len(), line.width, line.total_width(), line.max_ascent, line.max_descent, sanitized_max_ascent, sanitized_max_descent, line.max_top_height, line.max_bottom_height, line_height);
+            }
+
+            log::warn!(
+                "IFC finalize line={} items={} max_ascent={} max_descent={} san_ascent={} san_descent={} max_top={} max_bottom={} line_height={} line_height_bits=0x{:08x} total_height_before={}",
+                li,
+                line.items.len(),
+                line.max_ascent,
+                line.max_descent,
+                sanitized_max_ascent,
+                sanitized_max_descent,
+                line.max_top_height,
+                line.max_bottom_height,
+                line_height,
+                line_height.to_bits(),
+                total_height
+            );
 
             let is_block_line = line.items.len() == 1
                 && matches!(line.items.first(), Some(LineItem::BlockChild { .. }));
@@ -666,6 +805,21 @@ impl InlineFormattingContext {
                     }
                 }
             } else {
+                // Debug: log per-line metrics to help diagnose collapsed heights
+                log::debug!(
+                    "inline: line={} items={} width={} max_ascent={} max_descent={} max_top={} max_bottom={} sanitized_ascent={} sanitized_descent={} line_height={}",
+                    li,
+                    line.items.len(),
+                    line.width,
+                    line.max_ascent,
+                    line.max_descent,
+                    line.max_top_height,
+                    line.max_bottom_height,
+                    sanitized_max_ascent,
+                    sanitized_max_descent,
+                    line_height
+                );
+                // Note: stderr printing removed (keep log::debug for diagnostics)
                 // Compute horizontal alignment offset for the line
                 let mut cursor_x = self.content_box_left;
                 if self.available_width.is_finite() {
@@ -707,6 +861,7 @@ impl InlineFormattingContext {
                             baseline,
                             vertical_align,
                             is_virtual,
+                            is_replaced: _,
                         } => {
                             // For 0x0 elements, place at top of line (y_offset)
                             // They have no visual impact but need a valid position
@@ -742,28 +897,58 @@ impl InlineFormattingContext {
             }
         }
 
+        // Ensure non-zero total height if we produced lines but sanitization
+        // or other logic collapsed heights to zero. In such cases, fall
+        // back to at least the parent's line height per line so callers
+        // receive a positive content height.
+        if total_height == 0.0 && !self.lines.is_empty() {
+            total_height = self
+                .lines
+                .iter()
+                .map(|l| {
+                    let h = l.height();
+                    if h > 0.0 {
+                        h
+                    } else {
+                        self.parent_font.line_height()
+                    }
+                })
+                .sum();
+        }
+
+        log::warn!(
+            "IFC finalize result lines={} max_width={} total_height={} total_height_bits=0x{:08x}",
+            self.lines.len(),
+            max_width,
+            total_height,
+            total_height.to_bits()
+        );
         (max_width, total_height, placements)
     }
 }
 
 impl Tree {
     fn is_inline_level(&self, child_id: Id) -> bool {
-        let node = &self.nodes()[child_id];
-        let style = node.style();
-        let display_mode = style.display_mode();
+        if let Some(node) = self.inner().nodes.get(child_id) {
+            let style = node.style();
+            let display_mode = style.display_mode();
 
-        match display_mode {
-            // Inline text container or inline-block
-            DisplayMode::Inline | DisplayMode::Box => true,
-            DisplayMode::ListItem => false,
-            DisplayMode::None => {
-                // Check if it's a text node or has force_inline
-                let is_text = node.type_ == NodeType::Text;
-                let is_block = style.get_display() == Display::Block;
-                let force_inline = style.force_inline();
+            match display_mode {
+                // Inline text container or inline-block
+                DisplayMode::Inline | DisplayMode::Box => true,
+                DisplayMode::ListItem => false,
+                DisplayMode::None => {
+                    // Check if it's a text node or has force_inline
+                    let is_text = node.type_ == NodeType::Text;
+                    let is_block = style.get_display() == Display::Block;
+                    let force_inline = style.force_inline();
 
-                force_inline || (is_text && !is_block)
+                    force_inline || (is_text && !is_block)
+                }
             }
+        } else {
+            // Missing node entry; conservative default -> block-level
+            false
         }
     }
 
@@ -819,7 +1004,11 @@ impl Tree {
 
     /// Get the vertical alignment from child's style
     fn get_vertical_align(&self, child_id: Id) -> VerticalAlignValue {
-        self.nodes()[child_id].style().vertical_align()
+        if let Some(node) = self.inner().nodes.get(child_id) {
+            node.style().vertical_align()
+        } else {
+            VerticalAlignValue::BASELINE
+        }
     }
 
     /// Get font metrics from node's style, with inheritance fallback
@@ -843,9 +1032,14 @@ impl Tree {
 
     /// Get first baseline for a child element
     /// Returns the distance from the BOTTOM of the element to its baseline
-    fn get_child_baseline(&self, child_id: Id) -> f32 {
+    pub(crate) fn get_child_baseline(&self, child_id: Id) -> f32 {
         let node = &self.nodes()[child_id];
         let style = node.style();
+
+        #[cfg(test)]
+        {
+            eprintln!("get_child_baseline called for id={:?} type={:?} display_mode={:?} display={:?} size={:?} children_count={}", child_id, node.type_, style.display_mode(), style.get_display(), node.unrounded_layout.size, self.inner().children.get(child_id).map(|c| c.len()).unwrap_or(0));
+        }
 
         // 1. Check for explicit first baseline set by native platform
         if let Some(baseline) = style.first_baseline() {
@@ -893,28 +1087,89 @@ impl Tree {
                 0.0
             }
             DisplayMode::Box => {
-                // Inline-block - try to get baseline from first inline child with text
+                // Inline-level block (inline-block / inline-flex / inline-grid)
+                // According to spec, the baseline is the first baseline of the
+                // element's in-flow inline-level descendants. We perform a
+                // depth-first search and compute the baseline relative to the
+                // bottom of this element. If none found, fallback to bottom.
+
+                let this_layout = &node.unrounded_layout;
+
+                // Stack of (id, absolute_top_offset) where absolute_top_offset
+                // is distance from this element's top to child's top.
+                let mut stack: Vec<(Id, f32)> = Vec::new();
                 if let Some(children) = self.inner().children.get(child_id) {
-                    for &grandchild_id in children {
-                        if self.is_inline_level(grandchild_id) {
-                            let grandchild_baseline = self.get_child_baseline(grandchild_id);
-                            if grandchild_baseline > 0.0 {
-                                let grandchild_layout =
-                                    &self.nodes()[grandchild_id].unrounded_layout;
-                                let this_layout = &node.unrounded_layout;
+                    for &c in children.iter().rev() {
+                        let child_layout = &self.nodes()[c].unrounded_layout;
+                        stack.push((c, child_layout.location.y));
+                    }
+                }
 
-                                // Calculate baseline from bottom of this element
-                                let child_bottom =
-                                    grandchild_layout.location.y + grandchild_layout.size.height;
-                                let this_height = this_layout.size.height;
+                while let Some((did, abs_top)) = stack.pop() {
+                    // Consider any descendant that can yield a baseline. This
+                    // covers cases where the element is an inline-level flex
+                    // or grid container whose inline baseline is provided by
+                    // descendants that may themselves be block/flex/grid.
+                    let d_baseline = self.get_child_baseline(did);
+                    #[cfg(test)]
+                    {
+                        eprintln!("get_child_baseline(Box) visiting did={:?} d_baseline={}", did, d_baseline);
+                    }
+                    if d_baseline > 0.0 {
+                        let d_layout = &self.nodes()[did].unrounded_layout;
+                        // descendant bottom absolute (from this top)
+                        let desc_bottom_abs = abs_top + d_layout.size.height;
+                        let this_height = this_layout.size.height;
+                        let baseline_from_bottom = this_height - desc_bottom_abs + d_baseline;
+                        #[cfg(test)]
+                        {
+                            eprintln!("  found descendant did={:?} d_layout.h={} abs_top={} desc_bottom_abs={} this_h={} baseline_from_bottom={}", did, d_layout.size.height, abs_top, desc_bottom_abs, this_height, baseline_from_bottom);
+                        }
+                        if baseline_from_bottom > 0.0 {
+                            return baseline_from_bottom;
+                        } else {
+                            // Fallback: if computed baseline collapses to 0 due
+                            // to positioning quirks (flex/grid), use the
+                            // descendant baseline as a conservative positive
+                            // baseline value.
+                            return d_baseline;
+                        }
+                    }
 
-                                return (this_height - child_bottom + grandchild_baseline).max(0.0);
-                            }
+                    // Push grandchildren with accumulated absolute top offsets
+                    if let Some(grand) = self.inner().children.get(did) {
+                        for &gc in grand.iter().rev() {
+                            let gc_layout = &self.nodes()[gc].unrounded_layout;
+                            stack.push((gc, abs_top + gc_layout.location.y));
                         }
                     }
                 }
 
-                // Inline-block without text children - bottom sits on baseline
+                // No inline descendant baseline found -> baseline at bottom
+                // As a last resort, scan descendants for inline text segments
+                // and return the first found descent as a conservative baseline.
+                let mut scan_stack: Vec<Id> = Vec::new();
+                if let Some(children) = self.inner().children.get(child_id) {
+                    for &c in children.iter().rev() {
+                        scan_stack.push(c);
+                    }
+                }
+
+                while let Some(did) = scan_stack.pop() {
+                    if let Some(data) = self.node_data().get(did) {
+                        for seg in data.inline_segments().iter() {
+                            if let InlineSegment::Text { descent, .. } = seg {
+                                return *descent;
+                            }
+                        }
+                    }
+                    if let Some(grand) = self.inner().children.get(did) {
+                        for &gc in grand.iter().rev() {
+                            scan_stack.push(gc);
+                        }
+                    }
+                }
+
                 0.0
             }
             DisplayMode::None | DisplayMode::ListItem => {
@@ -923,7 +1178,9 @@ impl Tree {
                     let metrics = style.font_metrics();
                     if metrics.is_set() {
                         let layout = &node.unrounded_layout;
-                        return layout.padding.bottom + layout.border.bottom + metrics.descent;
+                        // Clamp baseline to not exceed element height
+                        let baseline = layout.padding.bottom + layout.border.bottom + metrics.descent;
+                        return baseline.min(layout.size.height.max(0.0));
                     }
                     return FontMetrics::DEFAULT.descent;
                 }
@@ -954,7 +1211,7 @@ impl Tree {
     }
 
     /// Get the content size from inline segments for a pure inline element
-    fn get_inline_content_size(&self, child_id: Id) -> Option<Size<f32>> {
+    fn get_inline_content_size(&self, child_id: Id, available_width: Option<f32>) -> Option<Size<f32>> {
         let nd = self.node_data();
         let node_data = nd.get(child_id)?;
         let segments = node_data.inline_segments();
@@ -963,54 +1220,126 @@ impl Tree {
             return Some(Size::ZERO);
         }
 
-        // Simple multi-line handling: track current line width and max width across lines.
+        #[cfg(test)]
+            let _ = (child_id, available_width, segments.len());
+
+        // Compute per-line ascent/descent so that explicit line breaks and
+        // per-line wrapping produce correct heights (each line can have its
+        // own metrics). If a line contains no segments that contribute
+        // metrics, fall back to the node's font metrics for that line.
         let mut current_line_width = 0.0f32;
         let mut max_line_width = 0.0f32;
-        let mut max_ascent = 0.0f32;
-        let mut max_descent = 0.0f32;
-        let mut line_count = 1usize;
+        let mut current_line_ascent = 0.0f32;
+        let mut current_line_descent = 0.0f32;
+        let mut total_height = 0.0f32;
+
+        let avail = available_width.filter(|v| v.is_finite() && *v > 0.0);
 
         for segment in segments.iter() {
             match segment {
-                InlineSegment::Text {
-                    width,
-                    ascent,
-                    descent,
-                } => {
-                    current_line_width += width;
-                    max_ascent = max_ascent.max(*ascent);
-                    max_descent = max_descent.max(*descent);
+                InlineSegment::Text { width, ascent, descent, .. } => {
+                    if let Some(w) = avail {
+                        let mut remaining = *width;
+                        while remaining > 0.0 {
+                            let take = remaining.min(w);
+
+                            if current_line_width > 0.0 && current_line_width + take > w {
+                                // finish current line
+                                max_line_width = max_line_width.max(current_line_width);
+                                let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
+                                    let m = self.get_font_metrics(child_id);
+                                    (m.ascent, m.descent)
+                                } else {
+                                    (current_line_ascent, current_line_descent)
+                                };
+                                total_height += a + d;
+                                current_line_width = 0.0;
+                                current_line_ascent = 0.0;
+                                current_line_descent = 0.0;
+                            }
+
+                            current_line_width += take;
+                            current_line_ascent = current_line_ascent.max(*ascent);
+                            current_line_descent = current_line_descent.max(*descent);
+                            remaining -= take;
+
+                            if remaining > 0.0 {
+                                max_line_width = max_line_width.max(current_line_width);
+                                let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
+                                    let m = self.get_font_metrics(child_id);
+                                    (m.ascent, m.descent)
+                                } else {
+                                    (current_line_ascent, current_line_descent)
+                                };
+                                total_height += a + d;
+                                current_line_width = 0.0;
+                                current_line_ascent = 0.0;
+                                current_line_descent = 0.0;
+                            }
+                        }
+                    } else {
+                        current_line_width += *width;
+                        current_line_ascent = current_line_ascent.max(*ascent);
+                        current_line_descent = current_line_descent.max(*descent);
+                    }
                 }
                 InlineSegment::InlineChild { id: Some(id), .. } => {
                     let child_size = self.nodes()[*id].unrounded_layout.size;
+
+                    if let Some(w) = avail {
+                        if current_line_width > 0.0 && current_line_width + child_size.width > w {
+                            max_line_width = max_line_width.max(current_line_width);
+                            let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
+                                let m = self.get_font_metrics(child_id);
+                                (m.ascent, m.descent)
+                            } else {
+                                (current_line_ascent, current_line_descent)
+                            };
+                            total_height += a + d;
+                            current_line_width = 0.0;
+                            current_line_ascent = 0.0;
+                            current_line_descent = 0.0;
+                        }
+                    }
+
                     current_line_width += child_size.width;
-                    max_ascent = max_ascent.max(child_size.height);
+                    current_line_ascent = current_line_ascent.max(child_size.height);
                 }
                 InlineSegment::InlineChild { id: None, .. } => {}
                 InlineSegment::LineBreak => {
                     max_line_width = max_line_width.max(current_line_width);
+                    let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
+                        let m = self.get_font_metrics(child_id);
+                        (m.ascent, m.descent)
+                    } else {
+                        (current_line_ascent, current_line_descent)
+                    };
+                    total_height += a + d;
                     current_line_width = 0.0;
-                    line_count += 1;
+                    current_line_ascent = 0.0;
+                    current_line_descent = 0.0;
                 }
             }
         }
 
+        // finalize last line
         max_line_width = max_line_width.max(current_line_width);
+        if current_line_width > 0.0 || !segments.is_empty() {
+            let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
+                let m = self.get_font_metrics(child_id);
+                (m.ascent, m.descent)
+            } else {
+                (current_line_ascent, current_line_descent)
+            };
+            total_height += a + d;
+        }
 
-        // Determine per-line ascent/descent using inherited font metrics as minimums
-        let metrics = self.get_font_metrics(child_id);
-        let ascent = max_ascent.max(metrics.ascent);
-        let descent = max_descent.max(metrics.descent);
-        let line_height = ascent + descent;
-        let content_height = line_height * (line_count as f32);
-
-        Some(Size {
-            width: max_line_width,
-            height: content_height,
-        })
+        Some(Size { width: max_line_width, height: total_height })
     }
 
     fn measure_inline_child(&mut self, child_id: Id, inputs: LayoutInput) -> LayoutOutput {
+        // debug prints removed
+
         // Check if this is a replaced element (image, video, etc.)
         let is_replaced = self.nodes()[child_id].style().get_item_is_replaced();
 
@@ -1028,7 +1357,9 @@ impl Tree {
                 ..inputs
             };
 
-            let layout = self.compute_child_layout(child_node_id, measure_inputs);
+            // debug prints removed
+
+            let mut layout = self.compute_child_layout(child_node_id, measure_inputs);
 
             if let Some(child) = self.nodes_mut().get_mut(child_id) {
                 let padding = child
@@ -1066,19 +1397,34 @@ impl Tree {
             #[cfg(target_vendor = "apple")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.apple_data.as_mut() {
+                    log::debug!(
+                        "pre-set_computed_size apple child={:?} w={} h={} h_bits=0x{:08x}",
+                        child_id,
+                        layout.size.width,
+                        layout.size.height,
+                        layout.size.height.to_bits()
+                    );
                     node.set_computed_size(layout.size.width as f64, layout.size.height as f64);
                 }
             }
 
             #[cfg(test)]
-            crate::test_helpers::call_computed_size(child_id, layout.size.width as f32, layout.size.height as f32);
+                let _ = (child_id, layout.size.width, layout.size.height);
 
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.android_data.as_mut() {
+                    log::debug!(
+                        "pre-set_computed_size android child={:?} w={} h={} h_bits=0x{:08x}",
+                        child_id,
+                        layout.size.width,
+                        layout.size.height,
+                        layout.size.height.to_bits()
+                    );
                     node.set_computed_size(layout.size.width, layout.size.height);
                 }
             }
+            
 
             return layout;
         }
@@ -1110,6 +1456,100 @@ impl Tree {
         // Check if this node has a measure function (native text measurement)
         let has_measure = self.nodes()[child_id].has_measure;
         let is_text_container = self.nodes()[child_id].is_text_container();
+
+        #[cfg(test)]
+            let _ = (child_id, is_replaced, is_text_container, has_measure);
+
+        // If this inline node has a native measure function (but is not a
+        // text container), use that measure to populate its size. This covers
+        // cases where an element is `display: block` with `display-mode:
+        // inline` (pure-inline) but still supplies a native measure. The
+        // measure must be invoked after the parent measurement in the IFC
+        // flow (the caller ensures phase ordering), so it's safe to call
+        // here.
+        if has_measure && !is_text_container {
+            let measure = self.node_data().get(child_id).unwrap().copy_measure();
+            let style = self.nodes()[child_id].style().clone();
+            let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
+
+            let mut adjusted_style = style.clone();
+            if is_inline {
+                let mut size = adjusted_style.size();
+                if !size.width.is_auto() && size.width.value() == 0.0 {
+                    size.width = Dimension::auto();
+                }
+                if !size.height.is_auto() && size.height.value() == 0.0 {
+                    size.height = Dimension::auto();
+                }
+                adjusted_style.set_size(size);
+            }
+
+            let mut layout = compute_leaf_layout(
+                inputs,
+                &adjusted_style,
+                |_val, _basis| 0.0,
+                |known_dimensions, available_space| {
+                    let measure_known = if is_inline { Size::NONE } else { known_dimensions };
+                    // measure was copied via `copy_measure()` earlier; ensure
+                    // we invoke it outside long-lived tree locks. This log
+                    // helps detect accidental lock-holding during tests.
+                    #[cfg(test)]
+                    eprintln!("TEST: calling measure for child_id={:?} in measure_inline_child", child_id);
+                    measure.measure(measure_known, available_space)
+                },
+            );
+
+            if let Some(child) = self.nodes_mut().get_mut(child_id) {
+                let padding = child
+                    .style()
+                    .get_padding()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+                let border = child
+                    .style()
+                    .border()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+
+                child.unrounded_layout.location = Point::zero();
+                child.unrounded_layout.size = layout.size;
+                child.unrounded_layout.content_size = layout.content_size;
+                child.unrounded_layout.padding = padding;
+                child.unrounded_layout.border = border;
+            }
+
+            #[cfg(test)]
+            crate::test_helpers::call_computed_size(child_id, layout.size.width as f32, layout.size.height as f32);
+
+            #[cfg(target_vendor = "apple")]
+            if let Some(data) = self.node_data_mut().get_mut(child_id) {
+                if let Some(node) = data.apple_data.as_mut() {
+                    log::debug!(
+                        "pre-set_computed_size inline node={:?} w={} h={} h_bits=0x{:08x}",
+                        child_id,
+                        layout.size.width,
+                        layout.size.height,
+                        layout.size.height.to_bits()
+                    );
+                    node.set_computed_size(layout.size.width as f64, layout.size.height as f64);
+                }
+            }
+
+            #[cfg(target_os = "android")]
+            if let Some(data) = self.node_data_mut().get_mut(child_id) {
+                if let Some(node) = data.android_data.as_mut() {
+                    log::debug!(
+                        "pre-set_computed_size inline node={:?} w={} h={} h_bits=0x{:08x}",
+                        child_id,
+                        layout.size.width,
+                        layout.size.height,
+                        layout.size.height.to_bits()
+                    );
+                    node.set_computed_size(layout.size.width, layout.size.height);
+                }
+            }
+
+      
+            return layout;
+        }
 
         // For text containers with measure functions, use the measure function
         // This allows native platforms to measure text
@@ -1263,7 +1703,9 @@ impl Tree {
             let a = self.compute_child_layout(child_node_id, child_inputs);
             */
 
-            let layout = compute_leaf_layout(
+            // debug prints removed
+
+            let mut layout = compute_leaf_layout(
                 inputs,
                 &adjusted_style,
                 |_val, _basis| 0.0,
@@ -1273,6 +1715,9 @@ impl Tree {
                     } else {
                         known_dimensions
                     };
+                    // debug prints removed
+                    #[cfg(test)]
+                    eprintln!("TEST: calling measure for text-container id={:?} in measure_text_container", child_id);
                     measure.measure(measure_known, available_space)
                 },
             );
@@ -1311,13 +1756,29 @@ impl Tree {
                 }
             }
 
+    
+
             return layout;
+        }
+
+        #[cfg(test)]
+        {
+            let node_layout = self.nodes()[child_id].unrounded_layout.size;
+            let _ = (child_id, node_layout.width, node_layout.height);
         }
 
         // For pure inline elements WITHOUT a measure function,
         // calculate size from content (segments)
         if is_pure_inline {
-            if let Some(content_size) = self.get_inline_content_size(child_id) {
+            // Determine definite available width (if any) to allow wrapping
+            let avail_w = match inputs.available_space.width {
+                AvailableSpace::Definite(v) => Some(v),
+                _ => None,
+            };
+
+            // debug prints removed
+
+            if let Some(content_size) = self.get_inline_content_size(child_id, avail_w) {
                 // Get padding and border (these still apply to inline elements)
                 let padding = self.nodes()[child_id]
                     .style()
@@ -1389,6 +1850,8 @@ impl Tree {
             parent_size: inputs.parent_size,
             ..inputs
         };
+
+        // debug prints removed
 
         let layout = self.compute_child_layout(child_node_id, measure_inputs);
 
@@ -1484,6 +1947,12 @@ impl Tree {
 
         let mut layout = self.compute_child_layout(child_node_id, block_inputs);
 
+        // Debug: measured layout for block children (tests may inspect sizes)
+        #[cfg(test)]
+        {
+            let _ = (child_id, layout.size.width, layout.size.height);
+        }
+
         if let AvailableSpace::Definite(value) = available_width {
             if layout.size.width > value {
                 layout.size.width = value;
@@ -1529,7 +1998,15 @@ impl Tree {
     fn collect_child_info(
         &self,
         child_id: Id,
-    ) -> (Size<f32>, taffy::Rect<f32>, bool, VerticalAlignValue, bool) {
+    ) -> (
+        Size<f32>,
+        taffy::Rect<f32>,
+        bool,
+        VerticalAlignValue,
+        bool,
+        bool,
+        bool,
+    ) {
         let node = &self.nodes()[child_id];
         let margin = node
             .style()
@@ -1538,7 +2015,18 @@ impl Tree {
         let size = node.unrounded_layout.size;
         let is_block = self.is_block_level(child_id);
         let vertical_align = self.get_vertical_align(child_id);
-        (size, margin, is_block, vertical_align, node.is_virtual())
+        let node_is_virtual = node.is_virtual();
+        let is_replaced = node.style().get_item_is_replaced();
+        let is_list_item = node.style().get_item_is_list_item();
+        (
+            size,
+            margin,
+            is_block,
+            vertical_align,
+            node_is_virtual,
+            is_replaced,
+            is_list_item,
+        )
     }
 
     pub fn compute_inline_or_mixed_layout(
@@ -1666,9 +2154,27 @@ impl Tree {
                     } else {
                         known_dimensions
                     };
-                    measure.measure(measure_known, available_space)
+                    // Measure callback must be invoked outside of long-held
+                    // tree locks; we copy the measure earlier to enforce this.
+                    #[cfg(test)]
+                    eprintln!("TEST: calling measure for id={:?} in compute_inline_layout parent measure", id);
+                    log::debug!("measure-call inline-parent id={:?} known={:?} avail={:?}", id, measure_known, available_space);
+                    let meas = measure.measure(measure_known, available_space);
+                    log::debug!("measure-result inline-parent id={:?} out={:?}", id, meas);
+                    meas
                 },
             );
+
+            if ret.size.height.is_nan() || ret.size.height.abs() <= 1e-6_f32 {
+                log::warn!(
+                    "compute_inline_or_mixed_layout: tiny/invalid ret id={:?} ret_size={:?} ret_size_bits=0x{:08x} content_size={:?} content_size_bits=0x{:08x}",
+                    id,
+                    ret.size,
+                    ret.size.height.to_bits(),
+                    ret.content_size,
+                    ret.content_size.height.to_bits()
+                );
+            }
 
             // Phase 2: Now measure pure inline children (after parent).
             // Their sizes are needed for IFC positioning but must not
@@ -1696,11 +2202,7 @@ impl Tree {
                 // Build prepared items from segments (which include text and inline children)
                 for segment in &segments {
                     match segment {
-                        InlineSegment::Text {
-                            width,
-                            ascent,
-                            descent,
-                        } => {
+                        InlineSegment::Text { width, ascent, descent, .. } => {
                             prepared_items.push(PreparedItem::Text {
                                 width: *width,
                                 ascent: *ascent,
@@ -1715,7 +2217,7 @@ impl Tree {
                             baseline,
                         } => {
                             if let Some(child_id) = child_id_opt {
-                                let (size, margin, _, vertical_align, is_virtual) =
+                                let (size, margin, _, vertical_align, node_is_virtual, is_replaced, _is_list_item) =
                                     self.collect_child_info(*child_id);
                                 let is_pure_inline = self.is_pure_inline(*child_id);
                                 prepared_items.push(PreparedItem::InlineChild {
@@ -1726,7 +2228,8 @@ impl Tree {
                                     baseline: *baseline,
                                     vertical_align,
                                     is_pure_inline,
-                                    is_virtual,
+                                    is_virtual: node_is_virtual,
+                                    is_replaced,
                                 });
                             }
                         }
@@ -1736,7 +2239,7 @@ impl Tree {
                 // If no segments but we have children, add children directly
                 if prepared_items.is_empty() {
                     for &child_id in &child_ids {
-                        let (size, margin, is_block, vertical_align, is_virtual) =
+                        let (size, margin, is_block, vertical_align, node_is_virtual, is_replaced, is_list_item) =
                             self.collect_child_info(child_id);
                         if is_block {
                             prepared_items.push(PreparedItem::BlockChild {
@@ -1744,11 +2247,12 @@ impl Tree {
                                 width: size.width,
                                 height: size.height,
                                 margin,
-                                is_virtual,
+                                is_virtual: node_is_virtual && is_list_item,
                             });
                         } else {
                             let baseline = self.get_child_baseline(child_id);
                             let is_pure_inline = self.is_pure_inline(child_id);
+                            let is_virtual = node_is_virtual && is_list_item;
                             prepared_items.push(PreparedItem::InlineChild {
                                 id: child_id,
                                 width: size.width,
@@ -1758,6 +2262,7 @@ impl Tree {
                                 vertical_align,
                                 is_pure_inline,
                                 is_virtual,
+                                is_replaced,
                             });
                         }
                     }
@@ -1780,7 +2285,19 @@ impl Tree {
                     float_rects,
                 );
                 ifc.process_items(&prepared_items);
-                let (_, _, placements) = ifc.finalize();
+                let (ifc_width, ifc_height, placements) = ifc.finalize();
+
+                // Ensure the native-measured size accommodates inline formatting
+                // results (lines / inline-blocks). The IFC returns content height
+                // excluding padding; incorporate padding so the parent size grows
+                // to fit inline children when necessary.
+                let required_height = ifc_height + pb.top + pb.bottom;
+                if ret.size.height < required_height {
+                    ret.size.height = required_height;
+                }
+                if ret.content_size.height < ifc_height {
+                    ret.content_size.height = ifc_height;
+                }
 
                 // If the parent is a list, native list containers (ListView)
                 // may position items themselves. In that case, avoid
@@ -1830,6 +2347,7 @@ impl Tree {
             #[cfg(target_vendor = "apple")]
             if let Some(data) = self.node_data_mut().get_mut(id) {
                 if let Some(node) = data.apple_data.as_mut() {
+                    log::warn!("set_computed_size inline-parent id={:?} out={:?} out_bits=0x{:08x} avail={:?} parent={:?}", id, ret.size, ret.size.height.to_bits(), available_space, parent_size);
                     node.set_computed_size(ret.size.width as f64, ret.size.height as f64);
                 }
             }
@@ -1840,6 +2358,7 @@ impl Tree {
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data_mut().get_mut(id) {
                 if let Some(node) = data.android_data.as_mut() {
+                    log::warn!("set_computed_size inline-parent id={:?} out={:?} out_bits=0x{:08x} avail={:?} parent={:?}", id, ret.size, ret.size.height.to_bits(), available_space, parent_size);
                     node.set_computed_size(ret.size.width, ret.size.height);
                 }
             }
@@ -1900,6 +2419,7 @@ impl Tree {
                         width,
                         ascent,
                         descent,
+                        ..
                     } => {
                         prepared_items.push(PreparedItem::Text {
                             width: *width,
@@ -1915,10 +2435,9 @@ impl Tree {
                         baseline,
                     } => {
                         if let Some(child_id) = child_id_opt {
-                            let (size, margin, _, vertical_align, _) =
+                            let (size, margin, _, vertical_align, node_is_virtual, is_replaced, is_list_item) =
                                 self.collect_child_info(*child_id);
-                            let is_virtual = self.nodes()[*child_id].is_virtual()
-                                && self.nodes()[*child_id].style().get_item_is_list_item();
+                            let is_virtual = node_is_virtual && is_list_item;
                             prepared_items.push(PreparedItem::InlineChild {
                                 id: *child_id,
                                 width: size.width,
@@ -1928,6 +2447,7 @@ impl Tree {
                                 vertical_align,
                                 is_pure_inline: false,
                                 is_virtual,
+                                is_replaced,
                             });
                         }
                     }
@@ -1935,22 +2455,20 @@ impl Tree {
             }
         } else {
             for &child_id in &child_ids {
-                let (size, margin, is_block, vertical_align, _) = self.collect_child_info(child_id);
+                let (size, margin, is_block, vertical_align, node_is_virtual, is_replaced, is_list_item) =
+                    self.collect_child_info(child_id);
                 if is_block {
-                    let is_virtual = self.nodes()[child_id].is_virtual()
-                        && self.nodes()[child_id].style().get_item_is_list_item();
                     prepared_items.push(PreparedItem::BlockChild {
                         id: child_id,
                         width: size.width,
                         height: size.height,
                         margin,
-                        is_virtual,
+                        is_virtual: node_is_virtual && is_list_item,
                     });
                 } else {
                     let baseline = self.get_child_baseline(child_id);
                     let is_pure_inline = self.is_pure_inline(child_id);
-                    let is_virtual = self.nodes()[child_id].is_virtual()
-                        && self.nodes()[child_id].style().get_item_is_list_item();
+                    let is_virtual = node_is_virtual && is_list_item;
                     prepared_items.push(PreparedItem::InlineChild {
                         id: child_id,
                         width: size.width,
@@ -1960,8 +2478,27 @@ impl Tree {
                         vertical_align,
                         is_pure_inline,
                         is_virtual,
+                        is_replaced,
                     });
                 }
+            }
+        }
+
+        for pi in &prepared_items {
+            match pi {
+                PreparedItem::InlineChild { id: cid, width, height, baseline, .. } => {
+                    log::warn!(
+                        "prepared_item InlineChild parent={:?} child={:?} w={} h={} h_bits=0x{:08x} baseline={}",
+                        id, cid, width, height, height.to_bits(), baseline
+                    );
+                }
+                PreparedItem::Text { width, ascent, descent } => {
+                    log::warn!(
+                        "prepared_item Text parent={:?} w={} ascent={} descent={}",
+                        id, width, ascent, descent
+                    );
+                }
+                _ => {}
             }
         }
 
@@ -1972,6 +2509,14 @@ impl Tree {
             .unwrap_or(f32::INFINITY);
 
         // Pass parent_font to the IFC
+        log::warn!(
+            "IFC creating id={:?} parent_font_ascent={} asc_bits=0x{:08x} parent_font_descent={} desc_bits=0x{:08x}",
+            id,
+            parent_font.ascent,
+            parent_font.ascent.to_bits(),
+            parent_font.descent,
+            parent_font.descent.to_bits(),
+        );
         let float_rects = self.get_float_rects_simple(id).unwrap_or_default();
         let mut ifc = InlineFormattingContext::new(
             content_available_width,
@@ -1984,6 +2529,15 @@ impl Tree {
         ifc.process_items(&prepared_items);
 
         let (content_width, content_height, placements) = ifc.finalize();
+
+        log::warn!(
+            "IFC finalize id={:?} content_width={} content_height={} content_height_bits=0x{:08x} placements={}",
+            id,
+            content_width,
+            content_height,
+            content_height.to_bits(),
+            placements.len()
+        );
 
         let parent_is_list = style.get_item_is_list();
         for (child_id, x, y) in placements {
@@ -2006,6 +2560,16 @@ impl Tree {
                 width: content_width,
                 height: content_height,
             },
+        );
+
+        log::warn!(
+            "compute_leaf_layout output id={:?} size=({},{}) size_h_bits=0x{:08x} content_size=({},{})",
+            id,
+            output.size.width,
+            output.size.height,
+            output.size.height.to_bits(),
+            output.content_size.width,
+            output.content_size.height,
         );
 
         // For scroll/overflow containers, ensure content_size reflects the true

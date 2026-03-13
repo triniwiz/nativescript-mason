@@ -1,86 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-  xmlns:mason="http://schemas.android.com/apk/res-auto"
-  xmlns:tools="http://schemas.android.com/tools"
-  android:id="@+id/rootView"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"  xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:orientation="vertical"
-  mason:mason_alignItems="center"
-  mason:mason_flexDirection="column"
-  tools:context=".MainActivity">
-
-  <Button
-    android:id="@+id/btnAnimation"
+  >
+  <ScrollView
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Animation" />
+    android:layout_height="wrap_content">
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:mason="http://schemas.android.com/apk/res-auto"
+      xmlns:tools="http://schemas.android.com/tools"
+      android:id="@+id/rootView"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      mason:mason_alignItems="center"
+      mason:mason_flexDirection="column"
+      tools:context=".MainActivity">
 
-  <Button
-    android:id="@+id/btnAbsolute"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Absolute" />
+      <Button
+        android:id="@+id/btnAnimation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Animation" />
 
-  <Button
-    android:id="@+id/btnFlex"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Flex" />
+      <Button
+        android:id="@+id/btnAbsolute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Absolute" />
 
-  <Button
-    android:id="@+id/btnGrid"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Grid" />
+      <Button
+        android:id="@+id/btnFlex"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Flex" />
 
-  <Button
-    android:id="@+id/btnList"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open List" />
+      <Button
+        android:id="@+id/btnGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Grid" />
 
-  <Button
-    android:id="@+id/btnScroll"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Scroll" />
+      <Button
+        android:id="@+id/btnList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open List" />
 
-  <Button
-    android:id="@+id/btnImage"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Image" />
+      <Button
+        android:id="@+id/btnScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Scroll" />
+
+      <Button
+        android:id="@+id/btnImage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Image" />
 
 
-  <Button
-    android:id="@+id/btnText"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Text" />
+      <Button
+        android:id="@+id/btnText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Text" />
 
-  <Button
-    android:id="@+id/btnFloat"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Float" />
+      <Button
+        android:id="@+id/btnFloat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Float" />
 
-  <Button
-    android:id="@+id/web"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Web Demo" />
+      <Button
+        android:id="@+id/web"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Web Demo" />
 
-  <Button
-    android:id="@+id/pseudo"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Pseudo Demo" />
+      <Button
+        android:id="@+id/pseudo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Pseudo Demo" />
 
-  <Button
-    android:id="@+id/numeric"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Open Numeric Demo" />
+      <Button
+        android:id="@+id/numeric"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Numeric Demo" />
 
+    </LinearLayout>
+  </ScrollView>
 </LinearLayout>
+

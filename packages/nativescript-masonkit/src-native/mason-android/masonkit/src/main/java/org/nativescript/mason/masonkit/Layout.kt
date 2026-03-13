@@ -1,5 +1,8 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
+import kotlin.math.abs
+
 // MARK: - Flat Layout Tree (Android equivalent of iOS MasonLayoutTree)
 
 class MasonLayoutTree {
@@ -36,13 +39,14 @@ class MasonLayoutTree {
   var nodeCount = 0
     internal set
 
-  /** Preallocated reusable cursor — use in hot paths instead of allocating new MasonNodeView. */
+  /** Pre-allocated reusable cursor — use in hot paths instead of allocating new MasonNodeView. */
   val cursor = MasonNodeView(this, 0)
 
   private var childIndicesCount = 0
 
   fun fromFloatArray(args: FloatArray) {
-    val estimatedNodes = args.size / 22
+    val STRIDE = 22
+    val estimatedNodes = args.size / STRIDE
     ensureCapacity(estimatedNodes, estimatedNodes) // rough estimate for child indices too
     nodeCount = 0
     childIndicesCount = 0
@@ -53,6 +57,14 @@ class MasonLayoutTree {
     val stack = ArrayList<IntArray>(32) // [nodeIndex, remaining]
 
     while (arrayIndex < args.size) {
+      // Ensure there are enough floats remaining for one node
+      if (arrayIndex + STRIDE > args.size) {
+        throw IllegalArgumentException("fromFloatArray: truncated args (expected stride=$STRIDE, remaining=${args.size - arrayIndex})")
+      }
+
+      // Make sure arrays can hold this node before writing
+      ensureCapacity(nodeCount + 1, childIndicesCount)
+
       val nodeOrder = args[arrayIndex++].toInt()
       val x = args[arrayIndex++]
       val y = args[arrayIndex++]
@@ -66,6 +78,20 @@ class MasonLayoutTree {
       frames[f4 + 1] = y
       frames[f4 + 2] = width
       frames[f4 + 3] = height
+
+      // Clamp tiny positive frame heights to zero to avoid subnormal artifacts
+      try {
+        val tinyThreshold = 1e-6f
+        if (frames[f4 + 3] > 0f && abs(frames[f4 + 3]) < tinyThreshold) {
+          Log.w(
+            "MasonLayout",
+            "fromFloatArray: clamping tiny frame height node=$nodeIndex orig=${frames[f4 + 3]} -> 0.0"
+          )
+          frames[f4 + 3] = 0f
+        }
+      } catch (_: Throwable) {
+        // non-fatal
+      }
 
       borders[f4] = args[arrayIndex++]
       borders[f4 + 1] = args[arrayIndex++]
@@ -86,10 +112,28 @@ class MasonLayoutTree {
       contentSizes[s2] = args[arrayIndex++]
       contentSizes[s2 + 1] = args[arrayIndex++]
 
+      // Clamp tiny positive content heights to zero as a defensive measure
+      try {
+        val tinyThreshold = 1e-6f
+        if (contentSizes[s2 + 1] > 0f && abs(contentSizes[s2 + 1]) < tinyThreshold) {
+          Log.w(
+            "MasonLayout",
+            "fromFloatArray: clamping tiny contentSize height node=$nodeIndex orig=${contentSizes[s2 + 1]} -> 0.0"
+          )
+          contentSizes[s2 + 1] = 0f
+        }
+      } catch (_: Throwable) {
+        // non-fatal
+      }
+
       scrollbarSizes[s2] = args[arrayIndex++]
       scrollbarSizes[s2 + 1] = args[arrayIndex++]
 
       val childrenCountNode = args[arrayIndex++].toInt()
+
+      if (childrenCountNode < 0) {
+        throw IllegalArgumentException("fromFloatArray: negative childrenCount ($childrenCountNode) at nodeIndex=$nodeIndex")
+      }
 
       order[nodeIndex] = nodeOrder
       childStart[nodeIndex] = childIndicesCount
@@ -130,6 +174,48 @@ class MasonLayoutTree {
       nodeCount++
       ensureCapacity(nodeCount + 1, childIndicesCount)
     }
+
+    // Debug: summarize parsed layout to help catch malformed/truncated arrays
+    try {
+      Log.d("MasonLayout", "fromFloatArray parsed nodeCount=$nodeCount childIndicesCount=$childIndicesCount")
+      if (nodeCount > 0) {
+        val rx = frames.getOrNull(0) ?: 0f
+        val ry = frames.getOrNull(1) ?: 0f
+        val rw = frames.getOrNull(2) ?: 0f
+        val rh = frames.getOrNull(3) ?: 0f
+        Log.d("MasonLayout", "fromFloatArray rootFrame x=$rx y=$ry w=$rw h=$rh")
+        // Summarize parsed heights to help detect degenerate/subnormal values
+        try {
+          var minH = Float.POSITIVE_INFINITY
+          var maxH = Float.NEGATIVE_INFINITY
+          var nanCount = 0
+          var zeroCount = 0
+          var tinyCount = 0
+          val tinyThreshold = 1e-6f
+          for (i in 0 until nodeCount) {
+            val h = frames.getOrNull(i * 4 + 3) ?: 0f
+            if (h.isNaN()) {
+              nanCount++
+            } else {
+              if (h == 0f) zeroCount++
+              if (h > 0f && h < tinyThreshold) tinyCount++
+              if (h < minH) minH = h
+              if (h > maxH) maxH = h
+            }
+          }
+          if (minH == Float.POSITIVE_INFINITY) minH = 0f
+          if (maxH == Float.NEGATIVE_INFINITY) maxH = 0f
+          Log.d(
+            "MasonLayout",
+            "fromFloatArray summary nodes=$nodeCount minH=$minH maxH=$maxH zeros=$zeroCount nans=$nanCount tiny<$tinyThreshold count=$tinyCount"
+          )
+        } catch (_: Throwable) {
+          // non-fatal summary failure, keep original flow
+        }
+      }
+    } catch (t: Throwable) {
+      Log.w("MasonLayout", "fromFloatArray debug failed", t)
+    }
   }
 
   private fun ensureCapacity(nodes: Int, childIndicesCap: Int) {
@@ -165,46 +251,50 @@ class MasonLayoutTree {
 class MasonNodeView(var tree: MasonLayoutTree, var index: Int) {
 
   /** Re-point this view at a different node index without allocating. */
-  fun pointTo(newIndex: Int) { index = newIndex }
+  fun pointTo(newIndex: Int) {
+    index = newIndex
+  }
 
   /** Re-point this view at a different tree and index without allocating. */
-  fun pointTo(newTree: MasonLayoutTree, newIndex: Int) { tree = newTree; index = newIndex }
+  fun pointTo(newTree: MasonLayoutTree, newIndex: Int) {
+    tree = newTree; index = newIndex
+  }
 
-  inline val x get() = tree.frames[index * 4]
-  inline val y get() = tree.frames[index * 4 + 1]
-  inline val width get() = tree.frames[index * 4 + 2]
-  inline val height get() = tree.frames[index * 4 + 3]
+  inline val x get() = tree.frames.getOrNull(index * 4) ?: 0f
+  inline val y get() = tree.frames.getOrNull(index * 4 + 1) ?: 0f
+  inline val width get() = tree.frames.getOrNull(index * 4 + 2) ?: 0f
+  inline val height get() = tree.frames.getOrNull(index * 4 + 3) ?: 0f
 
-  inline val borderTop get() = tree.borders[index * 4]
-  inline val borderRight get() = tree.borders[index * 4 + 1]
-  inline val borderBottom get() = tree.borders[index * 4 + 2]
-  inline val borderLeft get() = tree.borders[index * 4 + 3]
+  inline val borderTop get() = tree.borders.getOrNull(index * 4) ?: 0f
+  inline val borderRight get() = tree.borders.getOrNull(index * 4 + 1) ?: 0f
+  inline val borderBottom get() = tree.borders.getOrNull(index * 4 + 2) ?: 0f
+  inline val borderLeft get() = tree.borders.getOrNull(index * 4 + 3) ?: 0f
 
-  inline val marginTop get() = tree.margins[index * 4]
-  inline val marginRight get() = tree.margins[index * 4 + 1]
-  inline val marginBottom get() = tree.margins[index * 4 + 2]
-  inline val marginLeft get() = tree.margins[index * 4 + 3]
+  inline val marginTop get() = tree.margins.getOrNull(index * 4) ?: 0f
+  inline val marginRight get() = tree.margins.getOrNull(index * 4 + 1) ?: 0f
+  inline val marginBottom get() = tree.margins.getOrNull(index * 4 + 2) ?: 0f
+  inline val marginLeft get() = tree.margins.getOrNull(index * 4 + 3) ?: 0f
 
-  inline val paddingTop get() = tree.paddings[index * 4]
-  inline val paddingRight get() = tree.paddings[index * 4 + 1]
-  inline val paddingBottom get() = tree.paddings[index * 4 + 2]
-  inline val paddingLeft get() = tree.paddings[index * 4 + 3]
+  inline val paddingTop get() = tree.paddings.getOrNull(index * 4) ?: 0f
+  inline val paddingRight get() = tree.paddings.getOrNull(index * 4 + 1) ?: 0f
+  inline val paddingBottom get() = tree.paddings.getOrNull(index * 4 + 2) ?: 0f
+  inline val paddingLeft get() = tree.paddings.getOrNull(index * 4 + 3) ?: 0f
 
-  inline val contentWidth get() = tree.contentSizes[index * 2]
-  inline val contentHeight get() = tree.contentSizes[index * 2 + 1]
+  inline val contentWidth get() = tree.contentSizes.getOrNull(index * 2) ?: 0f
+  inline val contentHeight get() = tree.contentSizes.getOrNull(index * 2 + 1) ?: 0f
 
-  inline val scrollbarWidth get() = tree.scrollbarSizes[index * 2]
-  inline val scrollbarHeight get() = tree.scrollbarSizes[index * 2 + 1]
+  inline val scrollbarWidth get() = tree.scrollbarSizes.getOrNull(index * 2) ?: 0f
+  inline val scrollbarHeight get() = tree.scrollbarSizes.getOrNull(index * 2 + 1) ?: 0f
 
-  inline val order get() = tree.order[index]
+  inline val order get() = tree.order.getOrNull(index) ?: 0f
 
-  val hasChildren get() = tree.childCount[index] > 0
+  val hasChildren get() = (tree.childCount.getOrNull(index) ?: 0) > 0
 
-  val childNodeCount get() = tree.childCount[index]
+  val childNodeCount get() = tree.childCount.getOrNull(index) ?: 0f
 
   /** Returns the child tree index (not a new MasonNodeView). Use with pointTo(). */
   fun childTreeIndex(i: Int): Int {
-    val start = tree.childStart[index]
+    val start = tree.childStart.getOrNull(index) ?: 0
     return tree.childIndices[start + i]
   }
 
@@ -323,5 +413,77 @@ data class Layout(
       Size(0F, 0F),
       listOf()
     )
+
+    @JvmStatic
+    fun fromMasonTree(tree: MasonLayoutTree, index: Int): Layout {
+      try {
+        if (tree.nodeCount == 0) return empty
+
+        val i = index
+        val fIdx = i * 4
+        val sIdx = i * 2
+
+        val order = tree.order.getOrNull(i)?.toInt() ?: 0
+        val x = tree.frames.getOrNull(fIdx) ?: 0f
+        val y = tree.frames.getOrNull(fIdx + 1) ?: 0f
+        val width = tree.frames.getOrNull(fIdx + 2) ?: 0f
+        val height = tree.frames.getOrNull(fIdx + 3) ?: 0f
+
+        val border = Rect(
+          tree.borders.getOrNull(fIdx) ?: 0f,
+          tree.borders.getOrNull(fIdx + 1) ?: 0f,
+          tree.borders.getOrNull(fIdx + 2) ?: 0f,
+          tree.borders.getOrNull(fIdx + 3) ?: 0f
+        )
+
+        val margin = Rect(
+          tree.margins.getOrNull(fIdx) ?: 0f,
+          tree.margins.getOrNull(fIdx + 1) ?: 0f,
+          tree.margins.getOrNull(fIdx + 2) ?: 0f,
+          tree.margins.getOrNull(fIdx + 3) ?: 0f
+        )
+
+        val padding = Rect(
+          tree.paddings.getOrNull(fIdx) ?: 0f,
+          tree.paddings.getOrNull(fIdx + 1) ?: 0f,
+          tree.paddings.getOrNull(fIdx + 2) ?: 0f,
+          tree.paddings.getOrNull(fIdx + 3) ?: 0f
+        )
+
+        val contentSize = Size(
+          tree.contentSizes.getOrNull(sIdx) ?: 0f,
+          tree.contentSizes.getOrNull(sIdx + 1) ?: 0f
+        )
+
+        val scrollbarSize = Size(
+          tree.scrollbarSizes.getOrNull(sIdx) ?: 0f,
+          tree.scrollbarSizes.getOrNull(sIdx + 1) ?: 0f
+        )
+
+        val childCount = tree.childCount.getOrNull(i) ?: 0
+        val childStart = tree.childStart.getOrNull(i) ?: 0
+        val children = ArrayList<Layout>(childCount)
+        for (c in 0 until childCount) {
+          val childIdx = tree.childIndices.getOrNull(childStart + c) ?: continue
+          children.add(fromMasonTree(tree, childIdx))
+        }
+
+        return Layout(
+          order,
+          x,
+          y,
+          width,
+          height,
+          border,
+          margin,
+          padding,
+          contentSize,
+          scrollbarSize,
+          children
+        )
+      } catch (_: Throwable) {
+        return empty
+      }
+    }
   }
 }

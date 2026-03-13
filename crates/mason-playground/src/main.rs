@@ -19,12 +19,30 @@ struct NodeData {
 fn sample() {
     let mut mason = Mason::default();
     let root = mason.create_node();
-    mason.with_style_mut(root.id(), |style| {
-        style.set_size(Size {
-            width: Dimension::length(100.),
-            height: Dimension::length(100.),
-        })
-    });
+    let child = mason.create_image_node();
+
+    extern "C" fn image_measure(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        MeasureOutput::make(300., 300.)
+    }
+
+
+    mason.set_measure(child.id(), Some(image_measure), 0 as _);
+
+
+    // mason.with_style_mut(child.id(), |style| {
+    //     style.set_size(Size {
+    //         width: Dimension::length(100.),
+    //         height: Dimension::length(100.),
+    //     })
+    // });
+    //
+    mason.add_child(root.id(), child.id());
     mason.compute(root.id());
     mason.print_tree(root.id());
 }
@@ -57,7 +75,7 @@ fn gc() {
 }
 fn main() {
    // gc()
-      sample();
+     // sample();
     // flex_example();
     //percent_example()
     // t();
@@ -93,7 +111,7 @@ fn main() {
     // inline();
     //  mixed();
     // inline_block();
-    // inline_segments();
+     inline_segments();
 
     /*
     let mut mason = Mason::new();
@@ -291,6 +309,7 @@ fn inline_block() {
         width: 50.,
         descent: 20.,
         ascent: 30.,
+        flags: 0,
     }];
 
     mason.set_segments(inline_a.id(), segments);
@@ -384,14 +403,15 @@ fn inline_segments() {
             width: 50.,
             ascent: 16.0,
             descent: 4.,
+            flags: 0,
         }],
     );
 
     mason.with_style_mut(inline_a.id(), |style| {
-        style.set_size(Size {
-            width: length(100.),
-            height: length(200.),
-        });
+        // style.set_size(Size {
+        //     width: length(100.),
+        //     height: length(200.),
+        // });
 
         style.set_margin(Rect {
             top: length(20.),
@@ -419,10 +439,10 @@ fn inline_segments() {
     });
 
     mason.add_child(root.id(), inline_a.id());
-    mason.add_child(root.id(), inline_b.id());
-    mason.add_child(root.id(), c.id());
+   // mason.add_child(root.id(), inline_b.id());
+   // mason.add_child(root.id(), c.id());
 
-    mason.compute_wh(root.id(), 1200.0, 3000.);
+    mason.compute_wh(root.id(), -2., -2.);
 
     mason.print_tree(root.id());
 }
@@ -536,6 +556,7 @@ fn grid_template_areas_500() {
             width: 1200.0,
             descent: 20.,
             ascent: 30.,
+            flags: 0,
         }],
     );
 

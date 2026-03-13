@@ -2,6 +2,7 @@ use crate::style::Style;
 use crate::tree::{Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
+use log::warn;
 
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
@@ -26,10 +27,10 @@ pub struct AppleNode(objc2::rc::Retained<NSObject>);
 #[cfg(target_vendor = "apple")]
 impl AppleNode {
     pub fn from_ptr(ptr: *mut NSObject) -> Option<Self> {
-        unsafe { objc2::rc::Retained::from_raw(ptr).map(|n| AppleNode(n)) }
+        unsafe { objc2::rc::Retained::from_raw(ptr).map(AppleNode) }
     }
     pub fn set_computed_size(&mut self, width: f64, height: f64) {
-        let _: () = unsafe { objc2::msg_send![&self.0, setComputedSize: width height: height] };
+        let _: () = unsafe { objc2::msg_send![&self.0, setComputedSize: width, height: height] };
     }
     pub fn computed_width(&self) -> f64 {
         unsafe { objc2::msg_send![&self.0, computedWidth] }
@@ -51,8 +52,35 @@ impl AndroidNode {
             let vm = jvm.attach_current_thread();
             let mut env = vm.unwrap();
             if let Some(cache) = crate::JVM_CACHE.get() {
+                // Capture raw bit-patterns and subnormal status for diagnostics.
+                let width_bits = width.to_bits();
+                let height_bits = height.to_bits();
+                let is_subnormal = height.is_subnormal();
+                warn!(
+                    "AndroidNode.set_computed_size raw node={} width={} height={} width_bits=0x{:08x} height_bits=0x{:08x} is_subnormal={}",
+                    self.0,
+                    width,
+                    height,
+                    width_bits,
+                    height_bits,
+                    is_subnormal
+                );
+
+                let mut clamped_height = height;
+                // Clamp very small positive heights to zero to avoid visual
+                // glitches caused by tiny non-zero floats originating in
+                // native layout math or rounding.
+                if clamped_height > 0.0 && clamped_height.abs() < 1e-6_f32 {
+                    warn!(
+                        "AndroidNode.clamp tiny height node={} orig={} -> 0.0",
+                        self.0, clamped_height
+                    );
+                    clamped_height = 0.0;
+                }
+
                 let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                 let _ = unsafe {
+                    warn!("AndroidNode.set_computed_size node={} w={} h={}", self.0, width, clamped_height);
                     env.call_static_method_unchecked(
                         node,
                         cache.node_set_computed_size_id,
@@ -60,7 +88,7 @@ impl AndroidNode {
                         &[
                             jni::sys::jvalue { i: self.0 },
                             jni::sys::jvalue { f: width },
-                            jni::sys::jvalue { f: height },
+                            jni::sys::jvalue { f: clamped_height },
                         ],
                     )
                 };
@@ -114,6 +142,31 @@ impl NodeMeasure {
 
                 if let Some(cache) = crate::JVM_CACHE.get() {
                     let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
+                    // Trace inputs to the JVM measure call for auditing.
+                    let packed_known = MeasureOutput::make(
+                        known_dimensions.width.unwrap_or(f32::NAN),
+                        known_dimensions.height.unwrap_or(f32::NAN),
+                    );
+                    let packed_avail = MeasureOutput::make(
+                        match available_space.width {
+                            AvailableSpace::MinContent => -1.,
+                            AvailableSpace::MaxContent => -2.,
+                            AvailableSpace::Definite(value) => value,
+                        },
+                        match available_space.height {
+                            AvailableSpace::MinContent => -1.,
+                            AvailableSpace::MaxContent => -2.,
+                            AvailableSpace::Definite(value) => value,
+                        },
+                    );
+
+                    log::warn!(
+                        "mason_core::node calling JVM measure id={} packed_known={} packed_avail={}",
+                        self.measure,
+                        packed_known,
+                        packed_avail
+                    );
+
                     let result = unsafe {
                         env.call_static_method_unchecked(
                             node,
@@ -121,26 +174,8 @@ impl NodeMeasure {
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
                                 jni::sys::jvalue { i: self.measure },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        known_dimensions.width.unwrap_or(f32::NAN),
-                                        known_dimensions.height.unwrap_or(f32::NAN),
-                                    ),
-                                },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        match available_space.width {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                        match available_space.height {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                    ),
-                                },
+                                jni::sys::jvalue { j: packed_known },
+                                jni::sys::jvalue { j: packed_avail },
                             ],
                         )
                     };
@@ -151,9 +186,27 @@ impl NodeMeasure {
                             let width = MeasureOutput::get_width(size);
                             let height = MeasureOutput::get_height(size);
 
+                            if height.is_nan() || height.abs() < 1e-6_f32 {
+                                log::warn!(
+                                    "mason_core::node JVM-measure returned suspicious height={} for node={}",
+                                    height,
+                                    self.measure
+                                );
+                            }
+
+                            log::warn!(
+                                "mason_core::node JVM-measure result node={} width={} height={}",
+                                self.measure,
+                                width,
+                                height
+                            );
+
                             Size { width, height }
                         }
-                        Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+                        Err(e) => {
+                            log::warn!("mason_core::node JVM-measure call failed: {:?}", e);
+                            known_dimensions.map(|v| v.unwrap_or(0.0))
+                        }
                     };
                 }
 
@@ -211,6 +264,7 @@ pub enum InlineSegment {
         width: f32,
         ascent: f32,
         descent: f32,
+        flags: u8,
     },
     InlineChild {
         id: Option<Id>,
@@ -1068,6 +1122,7 @@ pub(crate) fn drain_deferred_cleanup(
             .unwrap_or(false);
         if !has_parent && !has_children {
             if let Some(node) = tree.nodes.remove(id) {
+                let _ = id;
                 tree.style_arena.release(node.style.handle);
             }
             nd.remove(id);
@@ -1094,7 +1149,8 @@ impl Drop for NodeRef {
                     .unwrap_or(false);
                 if !has_parent && !has_children {
                     if let Some(node) = tree.nodes.remove(self.id) {
-                        tree.style_arena.release(node.style.handle);
+                            let _ = self.id;
+                            tree.style_arena.release(node.style.handle);
                     }
                     if let Some(mut nd) = self.node_data.try_write() {
                         nd.remove(self.id);
@@ -1102,7 +1158,7 @@ impl Drop for NodeRef {
                 }
             } else {
                 // Lock is contended — defer cleanup to avoid deadlock.
-                self.deferred_cleanup.lock().push(self.id);
+                    self.deferred_cleanup.lock().push(self.id);
             }
         }
     }

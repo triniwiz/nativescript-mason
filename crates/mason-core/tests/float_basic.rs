@@ -78,3 +78,35 @@ fn floats_basic_positions_and_sizes() {
     // right float left should be container_w - width (since no right offset yet)
     assert!((b_left - (200.0 - b_w)).abs() < 1.0, "right float left");
 }
+
+// regression: floats must obey max-size constraints during measurement
+#[test]
+fn floats_clamp_to_max_size() {
+    let mut mason = Mason::new();
+
+    let root = mason.create_node();
+    let rid = root.id();
+    mason.with_style_mut(rid, |s| {
+        s.set_display(Display::Block);
+        s.set_size(Size { width: Dimension::length(100.0), height: Dimension::auto() });
+    });
+
+    let f = mason.create_node();
+    let fid = f.id();
+    mason.append_node(rid, &[fid]);
+
+    extern "C" fn big(_data: *const c_void, _known_w: c_float, _known_h: c_float, _avail_w: c_float, _avail_h: c_float) -> c_longlong {
+        MeasureOutput::make(80.0, 20.0)
+    }
+
+    mason.set_measure(fid, Some(big), std::ptr::null_mut());
+    mason.with_style_mut(fid, |s| {
+        s.set_float(Float::Left);
+        s.set_max_size(Size { width: Dimension::length(30.0), height: Dimension::length(15.0) });
+    });
+
+    mason.compute_wh(rid, 100.0, f32::NAN);
+    let rects = mason.get_float_rects(rid);
+    assert!((rects[2] - 30.0).abs() < 0.001, "float width should not exceed max-width");
+    assert!((rects[3] - 15.0).abs() < 0.001, "float height should not exceed max-height");
+}

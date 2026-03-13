@@ -1293,7 +1293,7 @@ public class TextEngine: NSObject {
             segment.tag = LineBreak
           } else {
             segment.tag = Text
-            segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up))
+            segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up), flags: UInt8(bitPattern: style.resolvedWhiteSpace.rawValue))
           }
 
           segments.append(segment)

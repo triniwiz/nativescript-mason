@@ -86,17 +86,9 @@ fn multiline_segments_height_with_measure() {
     mason.set_segments(
         id,
         vec![
-            InlineSegment::Text {
-                width: 50.0,
-                ascent: 8.0,
-                descent: 2.0,
-            },
+            InlineSegment::Text { flags: 0, width: 50.0, ascent: 8.0, descent: 2.0 },
             InlineSegment::LineBreak,
-            InlineSegment::Text {
-                width: 30.0,
-                ascent: 7.0,
-                descent: 3.0,
-            },
+            InlineSegment::Text { flags: 0, width: 30.0, ascent: 7.0, descent: 3.0 },
         ],
     );
 
@@ -180,20 +172,16 @@ fn text_container_with_flattened_children_no_height_inflation() {
     mason.set_segments(
         pid,
         vec![
-            InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },
-            InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-            InlineSegment::Text { width: 20.0, ascent: 14.0, descent: 4.0 },
-            InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
+            InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },
+            InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },
+            InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },
+            InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
         ],
     );
 
     // Also set segments on children (their own text)
-    mason.set_segments(c1id, vec![
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-    ]);
-    mason.set_segments(c2id, vec![
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
-    ]);
+    mason.set_segments(c1id, vec![InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 }]);
+    mason.set_segments(c2id, vec![InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 }]);
 
     mason.compute(pid);
     let pout = mason.layout(pid);
@@ -234,11 +222,12 @@ fn adding_more_flattened_children_does_not_inflate_height() {
     mason.set_measure(c1id, Some(measure_code), std::ptr::null_mut());
     mason.append_node(pid, &[c1id]);
     mason.set_segments(c1id, vec![
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },
     ]);
     mason.set_segments(pid, vec![
-        InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
     ]);
 
     mason.compute(pid);
@@ -251,13 +240,13 @@ fn adding_more_flattened_children_does_not_inflate_height() {
     mason.set_measure(c2id, Some(measure_code), std::ptr::null_mut());
     mason.append_node(pid, &[c2id]);
     mason.set_segments(c2id, vec![
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
     ]);
     mason.set_segments(pid, vec![
-        InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-        InlineSegment::Text { width: 20.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
     ]);
 
     mason.compute(pid);
@@ -302,25 +291,25 @@ fn flattened_children_have_measured_sizes() {
     mason.set_measure(c3id, Some(measure_code), std::ptr::null_mut());
 
     mason.set_segments(c1id, vec![
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
     ]);
     mason.set_segments(c2id, vec![
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
     ]);
     mason.set_segments(c3id, vec![
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
     ]);
 
     mason.append_node(pid, &[c1id, c2id, c3id]);
 
     // All flattened - parent segments are all Text
     mason.set_segments(pid, vec![
-        InlineSegment::Text { width: 60.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
-        InlineSegment::Text { width: 10.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
-        InlineSegment::Text { width: 10.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 60.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 10.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 10.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 },
     ]);
 
     mason.compute(pid);
@@ -364,18 +353,14 @@ fn non_flattened_inline_children_same_line() {
 
     mason.set_measure(c1id, Some(measure_code), std::ptr::null_mut());
     mason.set_measure(c2id, Some(measure_code), std::ptr::null_mut());
-    mason.set_segments(c1id, vec![
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-    ]);
-    mason.set_segments(c2id, vec![
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
-    ]);
+    mason.set_segments(c1id, vec![InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 }]);
+    mason.set_segments(c2id, vec![InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 }]);
 
     // Parent's segments include InlineChild entries (non-flattened)
     mason.set_segments(pid, vec![
-        InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },
         InlineSegment::InlineChild { id: Some(c1id), baseline: 0.0 },
-        InlineSegment::Text { width: 20.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },
         InlineSegment::InlineChild { id: Some(c2id), baseline: 0.0 },
     ]);
 
@@ -422,19 +407,19 @@ fn flattened_children_positions_are_zero() {
 
     mason.set_measure(c1id, Some(measure_code), std::ptr::null_mut());
     mason.set_measure(c2id, Some(measure_code), std::ptr::null_mut());
-    mason.set_segments(c1id, vec![
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-    ]);
-    mason.set_segments(c2id, vec![
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
+    mason.set_segments(pid, vec![
+        InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },  // "Supports "
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },  // "flexbox"
+        InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },  // ", "
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },  // "grid"
     ]);
 
     // Segments are all Text (flattened) - no InlineChild entries
     mason.set_segments(pid, vec![
-        InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-        InlineSegment::Text { width: 20.0, ascent: 14.0, descent: 4.0 },
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },
+        InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },
     ]);
 
     mason.compute_wh(pid, 500.0, f32::NAN);
@@ -529,22 +514,18 @@ fn full_hierarchy_p_with_code_children_height_not_inflated() {
     });
 
     // Give code children their own text segments
-    mason.set_segments(c1_id, vec![
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },
-    ]);
-    mason.set_segments(c2_id, vec![
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },
-    ]);
+    mason.set_segments(c1_id, vec![InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 }]);
+    mason.set_segments(c2_id, vec![InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 }]);
 
     // Append code children to <p>
     mason.append_node(p_id, &[c1_id, c2_id]);
 
     // Parent segments (flattened: all Text, no InlineChild)
     mason.set_segments(p_id, vec![
-        InlineSegment::Text { width: 80.0, ascent: 14.0, descent: 4.0 },  // "Supports "
-        InlineSegment::Text { width: 50.0, ascent: 12.0, descent: 3.0 },  // "flexbox"
-        InlineSegment::Text { width: 20.0, ascent: 14.0, descent: 4.0 },  // ", "
-        InlineSegment::Text { width: 35.0, ascent: 12.0, descent: 3.0 },  // "grid"
+        InlineSegment::Text { flags: 0, width: 80.0, ascent: 14.0, descent: 4.0 },  // "Supports "
+        InlineSegment::Text { flags: 0, width: 50.0, ascent: 12.0, descent: 3.0 },  // "flexbox"
+        InlineSegment::Text { flags: 0, width: 20.0, ascent: 14.0, descent: 4.0 },  // ", "
+        InlineSegment::Text { flags: 0, width: 35.0, ascent: 12.0, descent: 3.0 },  // "grid"
     ]);
 
     // h3: another text container
@@ -629,11 +610,7 @@ fn scaling_children_count_does_not_inflate_height() {
             mason.set_measure(pid, Some(measure_paragraph), std::ptr::null_mut());
 
             let mut cids = vec![];
-            let mut segments = vec![InlineSegment::Text {
-                width: 60.0,
-                ascent: 14.0,
-                descent: 4.0,
-            }];
+            let mut segments = vec![InlineSegment::Text { flags: 0, width: 60.0, ascent: 14.0, descent: 4.0 }];
 
             let mut child_refs = Vec::new();
             for _ in 0..n {
@@ -642,24 +619,12 @@ fn scaling_children_count_does_not_inflate_height() {
                 mason.set_measure(cid, Some(measure_code), std::ptr::null_mut());
                 mason.set_segments(
                     cid,
-                    vec![InlineSegment::Text {
-                        width: 40.0,
-                        ascent: 12.0,
-                        descent: 3.0,
-                    }],
+                    vec![InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 }],
                 );
                 cids.push(cid);
                 child_refs.push(child);
-                segments.push(InlineSegment::Text {
-                    width: 40.0,
-                    ascent: 12.0,
-                    descent: 3.0,
-                });
-                segments.push(InlineSegment::Text {
-                    width: 10.0,
-                    ascent: 14.0,
-                    descent: 4.0,
-                });
+                segments.push(InlineSegment::Text { flags: 0, width: 40.0, ascent: 12.0, descent: 3.0 });
+                segments.push(InlineSegment::Text { flags: 0, width: 10.0, ascent: 14.0, descent: 4.0 });
             }
 
             mason.append_node(pid, &cids);

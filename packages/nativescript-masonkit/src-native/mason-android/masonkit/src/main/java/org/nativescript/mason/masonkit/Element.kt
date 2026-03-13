@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -50,28 +51,14 @@ interface Element : EventTarget {
     return node.isDirty()
   }
 
-  fun configure(block: (Style) -> Unit) {
+  fun configure(block: (Style) -> Unit): Element {
     style.inBatch = true
     block(style)
     style.inBatch = false
+    return this
   }
 
   val view: View
-
-  fun layout(): Layout {
-    if (node.nativePtr == 0L) {
-      return Layout.empty
-    }
-    // During compute Rust holds the lock — return cached layout to avoid deadlock
-    if (node.mason.inCompute) {
-      return node.computedLayout ?: Layout.empty
-    }
-    val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
-    if (layouts.isEmpty()) {
-      return Layout.empty
-    }
-    return Layout.fromFloatArray(layouts, 0).second
-  }
 
   fun layoutFlat(): MasonLayoutTree {
     if (node.nativePtr == 0L) {
@@ -102,6 +89,14 @@ interface Element : EventTarget {
   }
 
   fun compute(width: Float, height: Float) {
+    // Fast-path: if compute cache already contains the requested size and
+    // cache is clean, skip the native compute to avoid redundant work and
+    // repeated max-content (-2 x -2) cycles caused by races.
+    if (!node.computeCacheDirty && node.computeCache.width == width && node.computeCache.height == height) {
+      Log.d("compute", "skip compute: cache matches ${width} x ${height}")
+      return
+    }
+
     val mason = node.mason
     if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
@@ -148,37 +143,58 @@ interface Element : EventTarget {
     node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
-  fun computeAndLayout(): Layout {
+  fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
-    if (mason.inCompute) return node.computedLayout // nested compute → skip to avoid Rust RWLock deadlock
+    if (mason.inCompute) return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
     try {
-      return Layout.fromFloatArray(
-        NativeHelpers.nativeNodeComputeAndLayout(
-          mason.nativePtr,
-          node.nativePtr,
-        ), 0
-      ).second
+      val layout = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
+      if (layout.isEmpty()) {
+        return MasonLayoutTree.empty
+      }
+      Log.d("Element.computeAndLayout", "native floats=${layout.joinToString(",")}")
+      node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
+      node.computeCache = SizeF(-1f, -1f)
+      node.computeCacheDirty = false // compute just ran — cache is clean
     }
+    return node.layoutTree
   }
 
-  fun computeAndLayout(width: Float, height: Float): Layout {
+  /**
+   * Compatibility helper used by tests: perform a compute+layout and
+   * return a `Layout` (recursive) representation of the root.
+   */
+  fun layout(): Layout {
     val mason = node.mason
-    if (mason.inCompute) return node.computedLayout // nested compute → skip to avoid Rust RWLock deadlock
+    val floats = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
+    if (floats.isEmpty()) return Layout.empty
+    return Layout.fromFloatArray(floats, 0).second
+  }
+
+  fun computeAndLayout(width: Float, height: Float): MasonLayoutTree {
+    val mason = node.mason
+    if (mason.inCompute) return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
     try {
-      return Layout.fromFloatArray(
-        NativeHelpers.nativeNodeComputeWithSizeAndLayout(
-          mason.nativePtr,
-          node.nativePtr,
-          width, height
-        ), 0
-      ).second
+      val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
+        mason.nativePtr,
+        node.nativePtr,
+        width,
+        height
+      )
+      if (layout.isEmpty()) {
+        return MasonLayoutTree.empty
+      }
+      Log.d("Element.computeAndLayout", "native floats(size=${width}x${height})=${layout.joinToString(",")}")
+      node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
+      node.computeCache = SizeF(width, height)
+      node.computeCacheDirty = false // compute just ran — cache is clean
     }
+    return node.layoutTree
   }
 
   fun computeWithSize(width: Float, height: Float) {
@@ -286,41 +302,142 @@ interface Element : EventTarget {
     node.dirty()
     val root = node.getRootNode() ?: node
 
-    if (root.type == NodeType.Document) {
-      // If root is document, use documentElement to compute
+    // Debounce/schedule expensive compute work to the next UI loop/frame
+    val targetView = when {
+      root.type == NodeType.Document -> root.document?.documentElement?.view
+      else -> root.view as? View
+    }
 
-      root.document?.documentElement?.compute(
-        root.computeCache.width,
-        root.computeCache.height
-      )
-
-      root.document?.documentElement?.view?.invalidate()
-      root.document?.documentElement?.view?.requestLayout()
+    // If no view is available, fallback to immediately compute
+    if (targetView == null) {
+      if (root.type == NodeType.Document) {
+        root.document?.documentElement?.compute(root.computeCache.width, root.computeCache.height)
+      } else if (root.view is Element && root.computeCacheDirty) {
+        // MIN_VALUE sentinel means we’ve never computed before; treat as
+        // unconstrained (max-content) rather than min-content so the initial
+        // async compute doesn’t collapse the layout to zero.
+        val width = if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width
+        val height =
+          if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
+        (root.view as Element).compute(width, height)
+      }
       return
     }
 
-    // Otherwise use the topmost element (root)
-    if (root.view is Element && root.computeCacheDirty) {
-      val width = if (root.computeCache.width == Float.MIN_VALUE) {
-        -1f
-      } else {
-        root.computeCache.width
-      }
-
-      val height = if (root.computeCache.height == Float.MIN_VALUE) {
-        -1f
-      } else {
-        root.computeCache.height
-      }
-      (root.view as Element).compute(width, height)
+    if (invalidateRoot) {
+      root.dirty()
     }
 
-    (root.view as? View)?.let {
-      if (invalidateRoot) {
-        root.dirty()
+    // Schedule a one‑shot compute on the view's message queue to coalesce rapid invalidations.
+    // We no longer gate on `node.mason.inCompute` – if a view is attached we always
+    // post a runnable (unless one is already scheduled).  This keeps layout work
+    // off the caller thread, batches rapid calls and avoids re‑entrancy.  Only when
+    // there is *no* view available do we compute synchronously as a fallback.
+
+    fun doCompute() {
+      if (root.type == NodeType.Document) {
+        root.document?.documentElement?.compute(
+          if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width,
+          if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
+        )
+        root.document?.documentElement?.view?.invalidate()
+        root.document?.documentElement?.view?.requestLayout()
+        return
       }
-      it.invalidate()
-      it.requestLayout()
+
+      if (root.view is Element && root.computeCacheDirty) {
+        // See comment above – the cache may start out as Float.MIN_VALUE or be
+        // stamped with -2 after a max-content compute.  When we're attached to a
+        // real view and the OS has already measured it we should prefer the view's
+        // size rather than repeatedly asking the engine for max-content.  This is
+        // what makes the root stop passing ``-2 x -2`` once the screen dimensions
+        // become known.
+        Log.d("invalidateLayout", "${root.computeCache.width}")
+
+        // choose how much space to give the engine this round
+        var width = if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width
+        var height = if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
+
+        // if the existing cache value was the max-content sentinel and the view
+        // already has a real size, switch to the view dimensions.  also update
+        // the stored cache immediately so callers can observe the change.
+        targetView?.let { v ->
+          // Prefer the Mason node's computed layout when available (most authoritative).
+          val nodeW = root.computedWidth
+          val nodeH = root.computedHeight
+
+          if (width == -2f) {
+            if (!nodeW.isNaN() && nodeW > 0f) {
+              width = nodeW
+            } else if (v.measuredWidth > 0) {
+              width = v.measuredWidth.toFloat()
+            }
+          }
+
+          if (height == -2f) {
+            if (!nodeH.isNaN() && nodeH > 0f) {
+              height = nodeH
+            } else if (v.measuredHeight > 0) {
+              height = v.measuredHeight.toFloat()
+            }
+          }
+
+          // update the stored cache atomically so callers don't observe a partially-updated size
+          root.computeCache = SizeF(width, height)
+        }
+
+        // Runtime guard: if the Mason node already has a valid computed size
+        // (set by a recent async JVM-measure callback), prefer that value and
+        // skip invoking native compute to avoid racing into repeated
+        // max-content (-2 x -2) requests. This prevents the root from
+        // repeatedly calling `native_compute_wh` when a real size is already
+        // available.
+        // Prefer cached sizes written back via JNI (`Node.setComputedSize`),
+        // falling back to the layout-tree `computedWidth` if necessary.
+        val cachedW = root.cachedWidth
+        val cachedH = root.cachedHeight
+        val nodeW2 = root.computedWidth
+        val nodeH2 = root.computedHeight
+
+        if (cachedW > 0f && cachedH > 0f) {
+          root.computeCache = SizeF(cachedW, cachedH)
+          root.computeCacheDirty = false
+          (root.view as? View)?.invalidate()
+          (root.view as? View)?.requestLayout()
+          return
+        }
+
+        if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
+          root.computeCache = SizeF(nodeW2, nodeH2)
+          root.computeCacheDirty = false
+          (root.view as? View)?.invalidate()
+          (root.view as? View)?.requestLayout()
+          return
+        }
+
+        (root.view as Element).compute(width, height)
+      }
+    }
+
+    if (!root.computeScheduled) {
+      root.computeScheduled = true
+      // Always post compute to the view's message queue to coalesce rapid
+      // invalidations and allow JNI write-backs (setComputedSize) to arrive
+      // before we decide whether to run another native compute. Executing
+      // synchronously here caused repeated immediate `native_compute_wh`
+      // calls in tight sequences.
+      targetView.post {
+        try {
+          root.computeScheduled = false
+          doCompute()
+          (root.view as? View)?.let { v ->
+            v.invalidate()
+            v.requestLayout()
+          }
+        } catch (_: Throwable) {
+          // swallow to avoid crashing from posted task
+        }
+      }
     }
   }
 
@@ -433,7 +550,7 @@ interface Element : EventTarget {
   }
 
 }
-
+/*
 internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
   node.computedLayout = layout
 
@@ -486,31 +603,27 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       node.overflowWidth = contentWidth
       node.overflowHeight = contentHeight
 
-      // Determine final layout dimensions based on overflow
-      val layoutWidth = when (overflow.x) {
-        Overflow.Visible -> maxOf(width, contentWidth)
-        Overflow.Scroll, Overflow.Auto -> width // scrollable, use box size
-        Overflow.Hidden, Overflow.Clip -> width // clipped, use box size
-      }
-
-      val layoutHeight = when (overflow.y) {
-        Overflow.Visible -> maxOf(height, contentHeight)
-        Overflow.Scroll, Overflow.Auto -> height // scrollable, use box size
-        Overflow.Hidden, Overflow.Clip -> height // clipped, use box size
-      }
+      // Determine final layout dimensions based on overflow.  per the CSS
+      // spec, overflow (including `visible`) never changes the size of the
+      // element's box – it only affects how the contents are clipped or
+      // scrolled.  siblings should not be affected by over‑spilling children.
+      val layoutWidth = width
+      val layoutHeight = height
 
       val right = x + layoutWidth
       val bottom = y + layoutHeight
 
-      // only set padding on a text element
-      if (view is TextContainer || view is ListView) {
-        view.setPadding(
-          layout.padding.left.toInt(),
-          layout.padding.top.toInt(),
-          layout.padding.right.toInt(),
-          layout.padding.bottom.toInt()
-        )
-      }
+      // apply padding on the native view so that scroll roots and other
+      // containers honor CSS padding when laying out their children.  we used
+      // to do this only for text/list views because they also needed an
+      // explicit measure pass, but the padding is generally harmless and
+      // important for scrollable elements.
+      view.setPadding(
+        layout.padding.left.toInt(),
+        layout.padding.top.toInt(),
+        layout.padding.right.toInt(),
+        layout.padding.bottom.toInt()
+      )
 
       // For TextContainer and ListView views, explicitly measure with EXACTLY specs.
       // The MasonView parent never calls child.measure() — it applies layout
@@ -524,37 +637,68 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       }
 
       if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-        val parentView = view.parent
+        val parentView = view.parent as? org.nativescript.mason.masonkit.View
+        val parentPadL = parentView?.node?.computedLayout?.padding?.left?.toInt() ?: 0
+        val parentPadT = parentView?.node?.computedLayout?.padding?.top?.toInt() ?: 0
+        val parentPadR = parentView?.node?.computedLayout?.padding?.right?.toInt() ?: 0
+        val parentPadB = parentView?.node?.computedLayout?.padding?.bottom?.toInt() ?: 0
+
+        // own padding from this view's layout entry
+        val ownPadL = layout.padding.left.toInt()
+        val ownPadT = layout.padding.top.toInt()
+        val ownPadR = layout.padding.right.toInt()
+        val ownPadB = layout.padding.bottom.toInt()
+
+        // keep outer Scroll positioned too
         if (parentView != null && parentView !== this && parentView !== view) {
-          (parentView as? View)?.layout(x, y, right, bottom)
+          parentView.layout(x, y, right, bottom)
         }
-        // For scroll root, use the full content size (not the constrained box size)
-        // so that TwoDScrollView.canScroll() returns true when content overflows.
-        view.layout(
-          0,
-          0,
-          when (overflow.x) {
-            Overflow.Scroll, Overflow.Auto -> {
-              val fullContentWidth =
-                (layout.contentSize.width + layout.border.left + layout.border.right + layout.padding.left + layout.padding.right).toInt()
-              maxOf(layoutWidth, fullContentWidth)
-            }
 
-            else -> layoutWidth
-          },
-          when (overflow.y) {
-            Overflow.Scroll, Overflow.Auto -> {
-              val fullContentHeight =
-                (layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
-              maxOf(layoutHeight, fullContentHeight)
-            }
+        // content-box dims (exclude this view's own padding)
+        val contentBoxWidth = layoutWidth - ownPadL - ownPadR
+        val contentBoxHeight = layoutHeight - ownPadT - ownPadB
 
-            else -> layoutHeight
+        val fullContentWidth =
+          if (overflow.x == Overflow.Scroll || overflow.x == Overflow.Auto || overflow.x == Overflow.Hidden) {
+            // Rust already adds padding+border to content_size for scroll-like containers
+            layout.contentSize.width.toInt()
+          } else {
+            (layout.contentSize.width + layout.border.left + layout.border.right + ownPadL + ownPadR).toInt()
           }
-        )
-      } else if (view is Input) {
-        view.layout(x, y, right, bottom)
-        view.layoutChild(0, 0, width, height)
+
+        val fullContentHeight =
+          if (overflow.y == Overflow.Scroll || overflow.y == Overflow.Auto || overflow.y == Overflow.Hidden) {
+            layout.contentSize.height.toInt()
+          } else {
+            (layout.contentSize.height + layout.border.top + layout.border.bottom + ownPadT + ownPadB).toInt()
+          }
+
+        // the view itself should occupy the full layout width/height; its
+        // internal padding will create the left/right gutters.  only grow
+        // beyond that when overflow forces more content than the box can hold.
+        var finalWidth = layoutWidth
+        var finalHeight = layoutHeight
+
+        if (overflow.x == Overflow.Scroll || overflow.x == Overflow.Auto) {
+          finalWidth = maxOf(finalWidth, fullContentWidth)
+        }
+        if (overflow.y == Overflow.Scroll || overflow.y == Overflow.Auto) {
+          finalHeight = maxOf(finalHeight, fullContentHeight)
+        }
+
+        // position scrollRoot using the node's computed x/y so native layout
+        // matches Mason's coordinate system instead of relying on the
+        // parent's padding offsets.
+        view.layout(x, y, x + finalWidth, y + finalHeight)
+
+
+          // Debug logging to inspect computed sizes and padding/border influence
+          try {
+            Log.d(
+              "Mason",
+              "FLAT scrollRoot idx=$treeIdx x=$x y=$y layoutW=$layoutWidth layoutH=$layoutHeight contentW=${nv.contentWidth} contentH=${nv.contentHeight} borderL=${nv.borderLeft} borderR=${nv.borderRight} padL=${nv.paddingLeft} padR=${nv.paddingRight} parentPadL=$parentPadL parentPadT=$parentPadT fullContentW=$fullContentWidth finalW=$finalWidth overflow=${overflow.x}/${overflow.y}"
+            )
+          } catch (_: Throwable) {}
       } else {
         val lx = x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
         val ty = y.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
@@ -593,6 +737,8 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
     }
   }
 }
+
+*/
 
 // MARK: - Flat layout tree application (iterative DFS, zero-allocation per pass)
 
@@ -642,7 +788,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
 
     // Store layout tree index on node for external access
     node.layoutTreeIndex = treeIdx
-
     if (node.type != NodeType.Element) continue
     if (node.view is Br.FakeView) continue
 
@@ -650,11 +795,13 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       if (view != this) {
         if (view.isGone) return@let
 
-        var overflow = Point(Overflow.Visible, Overflow.Visible)
-        var boxing = BoxSizing.BorderBox
+        var overflowX = Overflow.Visible.value
+        var overflowY = Overflow.Visible.value
+        var boxing = BoxSizing.BorderBox.value
         if (node.style.isValueInitialized) {
-          boxing = node.style.boxSizing
-          overflow = node.style.overflow
+          boxing = node.style.values.get(StyleKeys.BOX_SIZING)
+          overflowX = node.style.values.get(StyleKeys.OVERFLOW_X)
+          overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
         }
 
         val x = nv.x.takeIf { !it.isNaN() }?.toInt() ?: 0
@@ -668,13 +815,13 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           height = view.measuredHeight
         }
 
-        val contentWidth = if (boxing == BoxSizing.BorderBox) {
+        val contentWidth = if (boxing == BoxSizing.BorderBox.value) {
           nv.width.toInt()
         } else {
           nv.contentWidth.toInt()
         }
 
-        val contentHeight = if (boxing == BoxSizing.BorderBox) {
+        val contentHeight = if (boxing == BoxSizing.BorderBox.value) {
           nv.height.toInt()
         } else {
           nv.contentHeight.toInt()
@@ -683,97 +830,141 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
         node.overflowWidth = contentWidth
         node.overflowHeight = contentHeight
 
-        val layoutWidth = when (overflow.x) {
-          Overflow.Visible -> maxOf(width, contentWidth)
-          else -> width
-        }
-
-        val layoutHeight = when (overflow.y) {
-          Overflow.Visible -> maxOf(height, contentHeight)
-          else -> height
-        }
+        // CSS spec: overflow does **not** change the size of the element’s box.
+        // visible/auto/scroll/hidden/clip all use the width/height computed by the
+        // layout algorithm; only the drawing (clipping/scrolling) differs.
+        // `overflowWidth`/`overflowHeight` are stored separately and used during
+        // painting or when behaving as a scroll root.
+        val layoutWidth = width
+        val layoutHeight = height
 
         val right = x + layoutWidth
         val bottom = y + layoutHeight
 
-        if (view is TextContainer || view is ListView) {
-          view.setPadding(
-            nv.paddingLeft.toInt(),
-            nv.paddingTop.toInt(),
-            nv.paddingRight.toInt(),
-            nv.paddingBottom.toInt()
-          )
-        }
+        // set padding on every view; scroll roots and other containers rely
+        // on Android's padding values when performing scroll/clamp logic.
 
-        if (view is TextContainer || view is ListView) {
-          view.measure(
-            MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
-          )
-        }
+        view.setPadding(
+          nv.paddingLeft.toInt(),
+          nv.paddingTop.toInt(),
+          nv.paddingRight.toInt(),
+          nv.paddingBottom.toInt()
+        )
 
         if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-          val parentView = view.parent
-          if (parentView != null && parentView !== this && parentView !== view) {
-            (parentView as? View)?.layout(x, y, right, bottom)
-          }
-          view.layout(
-            0,
-            0,
-            when (overflow.x) {
-              Overflow.Scroll, Overflow.Auto -> {
-                val fullContentWidth =
-                  (nv.contentWidth + nv.borderLeft + nv.borderRight + nv.paddingLeft + nv.paddingRight).toInt()
-                maxOf(layoutWidth, fullContentWidth)
-              }
-              else -> layoutWidth
-            },
-            when (overflow.y) {
-              Overflow.Scroll, Overflow.Auto -> {
-                val fullContentHeight =
-                  (nv.contentHeight + nv.borderTop + nv.borderBottom + nv.paddingTop + nv.paddingBottom).toInt()
-                maxOf(layoutHeight, fullContentHeight)
-              }
-              else -> layoutHeight
+          val parentView = view.parent as? View
+
+          val width = when (overflowX) {
+            Overflow.Clip.value, Overflow.Hidden.value -> {
+              nv.width.toInt()
             }
+
+            Overflow.Auto.value -> {
+              if (nv.contentWidth > nv.width) {
+                nv.width.toInt()
+              }
+              nv.contentWidth.toInt()
+            }
+
+            else -> nv.contentWidth.toInt()
+          }
+
+          val height = when (overflowY) {
+            Overflow.Clip.value, Overflow.Hidden.value -> {
+              nv.height.toInt()
+            }
+
+            Overflow.Auto.value -> {
+              if (nv.contentHeight > nv.height) {
+                nv.height.toInt()
+              }
+              nv.contentHeight.toInt()
+            }
+
+            else -> nv.contentHeight.toInt()
+          }
+
+          view.measure(
+            MeasureSpec.makeMeasureSpec(
+              width, MeasureSpec.EXACTLY
+            ),
+            MeasureSpec.makeMeasureSpec(
+              height, MeasureSpec.EXACTLY
+            )
           )
+
+          // keep outer Scroll positioned too
+          if (parentView != null && parentView !== this && parentView !== view) {
+
+            /*
+            parentView.measure(
+              MeasureSpec.makeMeasureSpec(
+                nv.width.toInt(), MeasureSpec.EXACTLY
+              ),
+              MeasureSpec.makeMeasureSpec(
+                nv.height.toInt(), MeasureSpec.EXACTLY
+              )
+            )
+
+            parentView.layout(
+              x, y, right, bottom
+            )
+            */
+          }
+
+
+          view.layout(
+            0, 0, width, height
+          )
+
         } else if (view is Input) {
+          view.measure(
+            MeasureSpec.makeMeasureSpec(
+              layoutWidth, MeasureSpec.EXACTLY
+            ),
+            MeasureSpec.makeMeasureSpec(
+              layoutHeight, MeasureSpec.EXACTLY
+            )
+          )
           view.layout(x, y, right, bottom)
           view.layoutChild(0, 0, width, height)
         } else {
-          view.layout(
-            x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
-            y.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
-            right.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE),
-            bottom.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
+          view.measure(
+            MeasureSpec.makeMeasureSpec(
+              layoutWidth, MeasureSpec.EXACTLY
+            ),
+            MeasureSpec.makeMeasureSpec(
+              layoutHeight, MeasureSpec.EXACTLY
+            )
           )
+          view.layout(x, y, right, bottom)
+
+
+          Log.d("layout", "view $view $x $y $right $bottom ... $layoutWidth x $layoutHeight")
         }
       }
     }
 
-    // Push children in reverse order for correct left-to-right processing
+    // Push children in reverse order for correct left-to-right processing.
+    // Use the filtered native children list so indices align with the
+    // layout.children provided by Rust (which omits nodes without native views).
     val childCnt = tree.childCount[treeIdx]
     if (childCnt > 0) {
-      val children = node.children
+      val nativeChildren = node.children.filter { it.nativePtr != 0L }
       val childStart = tree.childStart[treeIdx]
-      var activeIdx = 0
 
       for (i in (0 until childCnt).reversed()) {
-        // Find matching node — skip nodes with freed native pointers
-        val childNodeIdx = children.size - 1 - activeIdx
-        if (childNodeIdx < 0) break
-        // Walk children list in reverse to match reverse iteration of tree children
-        val ci = children.size - 1 - (childCnt - 1 - i)
-        if (ci < 0 || ci >= children.size) continue
-        val child = children[ci]
-        if (child.nativePtr == 0L) continue
+        val child = nativeChildren.getOrNull(i) ?: continue
         if (child.type == NodeType.Text) continue
 
         if (child.parent?.view is TextContainer && child.view is TextContainer) {
           val flatten =
             (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
           if (flatten) {
-            (child.view as? View)?.layout(0, 0, 0, 0)
+            (child.view as? View)?.measure(
+              MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),
+              MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY)
+            )
             continue
           }
         }

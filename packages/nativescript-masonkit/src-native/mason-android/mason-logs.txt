@@ -1,0 +1,156 @@
+--------- beginning of main
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 pre x=44 y=44 right=417 bottom=111 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 clamp pre=(44,44) contentBox=(0,0,0,0) clamped=(44,44,0,0)
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 post left=44 top=44 right=0 bottom=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 pre x=44 y=77 right=1123 bottom=422 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 clamp pre=(44,77) contentBox=(0,0,0,0) clamped=(44,77,0,0)
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 pre x=46 y=46 right=233 bottom=233 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 pre x=47 y=-9 right=139 bottom=196 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 clamp pre=(47,-9) contentBox=(0,0,0,0) clamped=(47,0,0,0)
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 post left=47 top=0 right=0 bottom=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 post left=46 top=46 right=0 bottom=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 pre x=47 y=-9 right=139 bottom=196 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 clamp pre=(47,-9) contentBox=(0,0,0,0) clamped=(47,0,0,0)
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 post left=47 top=0 right=0 bottom=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 post left=44 top=77 right=0 bottom=0
+03-10 19:40:10.915 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 pre x=46 y=46 right=233 bottom=233 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 post left=46 top=46 right=0 bottom=0
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 pre x=47 y=-9 right=139 bottom=196 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 clamp pre=(47,-9) contentBox=(0,0,0,0) clamped=(47,0,0,0)
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 post left=47 top=0 right=0 bottom=0
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 pre x=46 y=62 right=1032 bottom=282 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 clamp pre=(46,62) contentBox=(0,0,0,0) clamped=(46,62,0,0)
+03-10 19:40:10.916 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 post left=46 top=62 right=0 bottom=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT scrollRoot idx=0 x=0 y=0 layoutW=1080 layoutH=3289 contentW=1167.5 contentH=3289.5625 borderL=0.0 borderR=0.0 padL=44.0 padR=44.0 parentPadL=0 parentPadT=0 fullContentW=1255 finalW=1080 overflow=Visible/Scroll
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 pre x=44 y=44 right=417 bottom=111 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 clamp pre=(44,44) contentBox=(0,0,0,0) clamped=(44,44,0,0)
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 post left=44 top=44 right=0 bottom=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 pre x=44 y=77 right=1123 bottom=422 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 clamp pre=(44,77) contentBox=(0,0,0,0) clamped=(44,77,0,0)
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 post left=44 top=77 right=0 bottom=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 pre x=46 y=46 right=233 bottom=233 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 post left=46 top=46 right=0 bottom=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 pre x=47 y=-9 right=139 bottom=196 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 clamp pre=(47,-9) contentBox=(0,0,0,0) clamped=(47,0,0,0)
+03-10 19:40:10.917 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 post left=47 top=0 right=0 bottom=0
+03-10 19:40:10.918 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 pre x=46 y=62 right=1032 bottom=282 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.918 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 clamp pre=(46,62) contentBox=(0,0,0,0) clamped=(46,62,0,0)
+03-10 19:40:10.918 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 post left=46 top=62 right=0 bottom=0
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 pre x=44 y=455 right=314 bottom=522 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 clamp pre=(44,455) contentBox=(0,0,0,0) clamped=(44,455,0,0)
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 post left=44 top=455 right=0 bottom=0
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 pre x=44 y=488 right=1123 bottom=865 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 clamp pre=(44,488) contentBox=(0,0,0,0) clamped=(44,488,0,0)
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 pre x=46 y=46 right=1032 bottom=46 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:10.919 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879757168 pre x=0 y=0 right=100 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879757168 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879757168 post left=0 top=0 right=0 bottom=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 post left=46 top=46 right=0 bottom=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 pre x=0 y=0 right=100 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 post left=0 top=0 right=0 bottom=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 post left=44 top=488 right=0 bottom=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 pre x=46 y=46 right=1032 bottom=46 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 post left=46 top=46 right=0 bottom=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 pre x=0 y=0 right=100 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:10.920 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 post left=0 top=0 right=0 bottom=0
+03-10 19:40:10.921 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 pre x=46 y=62 right=1032 bottom=172 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.921 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 clamp pre=(46,62) contentBox=(0,0,0,0) clamped=(46,62,0,0)
+03-10 19:40:10.921 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 post left=46 top=62 right=0 bottom=0
+03-10 19:40:10.921 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 pre x=46 y=188 right=1032 bottom=188 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.921 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 clamp pre=(46,188) contentBox=(0,0,0,0) clamped=(46,188,0,0)
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 pre x=0 y=0 right=100 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 post left=46 top=188 right=0 bottom=0
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 pre x=0 y=0 right=100 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:10.922 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 pre x=0 y=0 right=373 bottom=67 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 pre x=0 y=0 right=313 bottom=1225 padL=44.0 padR=44.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 pre x=0 y=0 right=187 bottom=187 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.114 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 pre x=0 y=0 right=92 bottom=205 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879632176 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879633392 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 pre x=0 y=0 right=92 bottom=205 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879632176 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 pre x=0 y=0 right=187 bottom=187 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 pre x=0 y=0 right=92 bottom=205 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 pre x=0 y=0 right=204 bottom=55 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT scrollRoot idx=0 x=0 y=0 layoutW=1080 layoutH=3289 contentW=1167.5 contentH=3289.5625 borderL=0.0 borderR=0.0 padL=44.0 padR=44.0 parentPadL=0 parentPadT=0 fullContentW=1255 finalW=1080 overflow=Visible/Scroll
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 pre x=0 y=0 right=373 bottom=67 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879746864 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 pre x=0 y=0 right=313 bottom=1225 padL=44.0 padR=44.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.115 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879746288 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 pre x=0 y=0 right=187 bottom=187 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879633392 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 pre x=0 y=0 right=92 bottom=205 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879632176 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 pre x=0 y=0 right=204 bottom=55 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879633968 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 pre x=0 y=0 right=270 bottom=67 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=6 id=-5476376661879632944 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 pre x=0 y=0 right=308 bottom=762 padL=44.0 padR=44.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 pre x=46 y=46 right=261 bottom=46 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879661104 post left=46 top=46 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 pre x=0 y=0 right=143 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=2 id=-5476376661879757168 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879755440 pre x=0 y=0 right=158 bottom=55 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879755440 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=3 id=-5476376661879755440 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879757744 pre x=46 y=628 right=261 bottom=628 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.116 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879757744 clamp pre=(46,628) contentBox=(0,0,0,0) clamped=(46,628,0,0)
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 pre x=0 y=0 right=143 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=1 id=-5476376661879659312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=4 id=-5476376661879757744 post left=46 top=628 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879659312 pre x=0 y=0 right=143 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879659312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=5 id=-5476376661879659312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=7 id=-5476376661879755312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 pre x=46 y=46 right=261 bottom=46 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 clamp pre=(46,46) contentBox=(0,0,0,0) clamped=(46,46,0,0)
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=8 id=-5476376661879661104 post left=46 top=46 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 pre x=0 y=0 right=143 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=9 id=-5476376661879757168 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 pre x=0 y=0 right=158 bottom=55 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.117 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=10 id=-5476376661879755440 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 pre x=46 y=628 right=261 bottom=628 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 clamp pre=(46,628) contentBox=(0,0,0,0) clamped=(46,628,0,0)
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=11 id=-5476376661879757744 post left=46 top=628 right=0 bottom=0
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 pre x=0 y=0 right=143 bottom=51 padL=0.0 padR=0.0 parentPadL=0 parentPadR=0
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=12 id=-5476376661879659312 post left=0 top=0 right=0 bottom=0
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=13 id=-5476376661879660976 pre x=0 y=0 right=215 bottom=55 padL=0.0 padR=0.0 parentPadL=44 parentPadR=44
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=13 id=-5476376661879660976 clamp pre=(0,0) contentBox=(0,0,0,0) clamped=(0,0,0,0)
+03-10 19:40:11.118 23372 23372 D Mason   : FLAT child idx=13 id=-5476376661879660976 post left=0 top=0 right=0 bottom=0

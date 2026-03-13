@@ -9,6 +9,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Before
 import org.junit.Rule
+import org.junit.Assert
+import android.util.SizeF
+import android.view.View.MeasureSpec
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
@@ -566,6 +569,80 @@ class ViewBenchmark {
         }
     }
 
+    @Test
+    fun rootMeasure_exactlyZero_heightGrows() {
+        val parent = View(context, mason)
+        val child = TextView(context, mason)
+        child.text = "hello"
+        parent.addView(child)
+
+        // simulate the problematic case where Android sends EXACTLY 0 for the
+        // height spec (e.g. first layout pass for a root).  previously this
+        // forced a zero result; after the fix we should grow to the content.
+        parent.measure(
+            MeasureSpec.makeMeasureSpec(100, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY)
+        )
+
+        Assert.assertTrue(
+            "parent measured height should be >0 but was ${parent.measuredHeight}",
+            parent.measuredHeight > 0
+        )
+    }
+
+    @Test
+    fun invalidationMinValue_treatedAsMaxContent() {
+        val parent = View(context, mason)
+        val child = TextView(context, mason)
+        child.text = "hello"
+        parent.addView(child)
+
+        // mark cache dirty and leave width/height at Float.MIN_VALUE
+        parent.node.computeCache = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+        parent.node.computeCacheDirty = true
+
+        // call invalidateLayout which should schedule compute and eventually
+        // grow the root to child's size
+        parent.invalidateLayout()
+
+        // force immediate run (since test not running looper)
+        parent.compute(-2f, -2f) // mimic posted runnable
+
+        Assert.assertTrue(
+            "after invalidation parent height should be >0 but was ${parent.node.computedHeight}",
+            parent.node.computedHeight > 0
+        )
+    }
+
+    @Test
+    fun invalidationMaxContent_updatesToViewSize() {
+        val parent = View(context, mason)
+        val child = TextView(context, mason)
+        child.text = "hello"
+        parent.addView(child)
+
+        // pretend we previously computed with max-content and cached -2
+        parent.node.computeCache = SizeF(-2f, -2f)
+        parent.node.computeCacheDirty = true
+
+        // simulate the Android framework assigning a real size to the view
+        parent.layout(0, 0, 123, 456)
+
+        // invalidateLayout should notice the -2 sentinel and swap in the
+        // view's dimensions before scheduling any compute work.
+        parent.invalidateLayout()
+
+        Assert.assertEquals(
+            "computeCache should be updated to view width",
+            123f,
+            parent.node.computeCache.width
+        )
+        Assert.assertEquals(
+            "computeCache should be updated to view height",
+            456f,
+            parent.node.computeCache.height
+        )
+    }
     @Test
     fun benchmark_fullLayoutCycleFlat() {
         val parent = View.createFlexView(mason, context)
