@@ -834,70 +834,45 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
         )
 
         if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-          val parentView = view.parent as? View
+          val parentScroll = view.parent as? Scroll
 
-          val width = when (overflowX) {
-            Overflow.Clip.value, Overflow.Hidden.value -> {
-              nv.width.toInt()
-            }
-
+          // Scroll root uses content dimensions so the full content is scrollable.
+          // The outer Scroll uses the box dimensions for its visual bounds.
+          val scrollWidth = when (overflowX) {
+            Overflow.Clip.value, Overflow.Hidden.value -> nv.width.toInt()
             Overflow.Auto.value -> {
-              if (nv.contentWidth > nv.width) {
-                nv.width.toInt()
-              }
-              nv.contentWidth.toInt()
+              if (nv.contentWidth > nv.width) nv.contentWidth.toInt()
+              else nv.width.toInt()
             }
-
-            else -> nv.contentWidth.toInt()
+            else -> maxOf(nv.contentWidth.toInt(), nv.width.toInt())
           }
 
-          val height = when (overflowY) {
-            Overflow.Clip.value, Overflow.Hidden.value -> {
-              nv.height.toInt()
-            }
-
+          val scrollHeight = when (overflowY) {
+            Overflow.Clip.value, Overflow.Hidden.value -> nv.height.toInt()
             Overflow.Auto.value -> {
-              if (nv.contentHeight > nv.height) {
-                nv.height.toInt()
-              }
-              nv.contentHeight.toInt()
+              if (nv.contentHeight > nv.height) nv.contentHeight.toInt()
+              else nv.height.toInt()
             }
-
-            else -> nv.contentHeight.toInt()
+            else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
           }
 
+          // Position the outer Scroll at the box dimensions (viewport).
+          // Only use layout() — never measure() — because Scroll.node
+          // delegates to scrollRoot.node and measuring would re-trigger
+          // computeAndLayout, causing an infinite loop.
+          // Padding stays on the scrollRoot (set above at line 829) so it
+          // scrolls with content and doesn't create a static inset that
+          // looks wrong with background colors.
+          if (parentScroll != null && parentScroll !== this) {
+            parentScroll.layout(x, y, right, bottom)
+          }
+
+          // Scroll root gets the content dimensions so the full area is scrollable.
           view.measure(
-            MeasureSpec.makeMeasureSpec(
-              width, MeasureSpec.EXACTLY
-            ),
-            MeasureSpec.makeMeasureSpec(
-              height, MeasureSpec.EXACTLY
-            )
+            MeasureSpec.makeMeasureSpec(scrollWidth, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(scrollHeight, MeasureSpec.EXACTLY)
           )
-
-          // keep outer Scroll positioned too
-          if (parentView != null && parentView !== this && parentView !== view) {
-
-            /*
-            parentView.measure(
-              MeasureSpec.makeMeasureSpec(
-                nv.width.toInt(), MeasureSpec.EXACTLY
-              ),
-              MeasureSpec.makeMeasureSpec(
-                nv.height.toInt(), MeasureSpec.EXACTLY
-              )
-            )
-
-            parentView.layout(
-              x, y, right, bottom
-            )
-            */
-          }
-
-
-          view.layout(
-            0, 0, width, height
-          )
+          view.layout(0, 0, scrollWidth, scrollHeight)
 
         } else if (view is Input) {
           view.measure(

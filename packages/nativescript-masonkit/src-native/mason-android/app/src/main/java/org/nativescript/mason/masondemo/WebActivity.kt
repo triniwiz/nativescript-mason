@@ -65,7 +65,6 @@ class WebActivity : AppCompatActivity() {
     container.flexDirection = FlexDirection.Column
 
     body = mason.createScrollView(this)
-    body.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
     root = mason.createView(this)
     // top-level root (inside the scroll) holds the content container
     contentRoot = mason.createView(this)
@@ -382,6 +381,7 @@ class WebActivity : AppCompatActivity() {
     val root = mason.createView(this)
     root.display = Display.Flex
     root.flexDirection = FlexDirection.Column
+    root.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
     root.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
     contentRoot.append(root)
 
