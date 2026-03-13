@@ -557,7 +557,7 @@ class TextEngine(val container: TextContainer) {
     return layout
   }
 
-  private fun getLayoutAlignment(): android.text.Layout.Alignment {
+  internal fun getLayoutAlignment(): android.text.Layout.Alignment {
     return when (style.resolvedTextAlign) {
       TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
       TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
@@ -655,6 +655,134 @@ class TextEngine(val container: TextContainer) {
         }
       }
     }
+  }
+
+  /**
+   * Build a float-aware StaticLayout that wraps text around floated sibling elements.
+   * Called AFTER layout has been computed and view positions are known (during draw phase).
+   * Returns null if there are no float exclusions or API level < M.
+   */
+  internal fun buildFloatAwareStaticLayout(paint: TextPaint): StaticLayout? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+
+    val parentNode = node.parent ?: return null
+    val view = container.node.view as? View ?: return null
+
+    // Collect floated sibling exclusions from the parent's children.
+    // Expand each exclusion by the float's margins to match CSS margin-box behavior.
+    val exclusions = mutableListOf<FloatExclusion>()
+    for (child in parentNode.children) {
+      if (child === node) continue
+      if (child.type != NodeType.Element) continue
+      val childView = child.view as? View ?: continue
+      if (!child.style.isValueInitialized) continue
+      val floatSide = try { child.style.float } catch (_: Throwable) { continue }
+      if (floatSide == org.nativescript.mason.masonkit.enums.Float.None) continue
+
+      // Read margins from the float's style to expand the exclusion to the margin box
+      val margin = try { child.style.margin } catch (_: Throwable) { null }
+      val ml = resolveMarginValue(margin?.left)
+      val mr = resolveMarginValue(margin?.right)
+      val mt = resolveMarginValue(margin?.top)
+      val mb = resolveMarginValue(margin?.bottom)
+
+      // Use Android View positions (border-box) expanded by margins
+      exclusions.add(
+        FloatExclusion(
+          (childView.left - ml).toInt(), (childView.top - mt).toInt(),
+          (childView.right + mr).toInt(), (childView.bottom + mb).toInt(),
+          floatSide
+        )
+      )
+    }
+
+    if (exclusions.isEmpty()) return null
+
+    // Get text from the container (already set during measure)
+    val text = (container as? android.widget.TextView)?.text as? Spannable ?: return null
+    if (text.isEmpty()) return null
+
+    val viewWidth = view.width
+    if (viewWidth <= 0) return null
+
+    val padL = view.paddingLeft
+    val padR = view.paddingRight
+    val padT = view.paddingTop
+    val contentWidth = viewWidth - padL - padR
+    if (contentWidth <= 0) return null
+
+    val textLeft = view.left
+    val textTop = view.top
+
+    // Estimate line height from font metrics
+    val fm = paint.fontMetrics
+    val lineH = (-fm.ascent + fm.descent).coerceAtLeast(1f)
+
+    // Calculate max number of lines we need to consider
+    val maxExclBottom = exclusions.maxOf { it.bottom }
+    val maxLines = ((maxExclBottom - textTop).toFloat() / lineH + 20).toInt().coerceIn(1, 500)
+
+    val leftIndents = IntArray(maxLines)
+    val rightIndents = IntArray(maxLines)
+
+    var hasIndents = false
+
+    for (line in 0 until maxLines) {
+      val lineTopInParent = textTop + padT + (line * lineH)
+      val lineBottomInParent = lineTopInParent + lineH
+
+      var leftInset = 0f
+      var rightInset = 0f
+
+      for (e in exclusions) {
+        // Check vertical overlap
+        if (lineBottomInParent > e.top && lineTopInParent < e.bottom) {
+          when (e.side) {
+            org.nativescript.mason.masonkit.enums.Float.Left -> {
+              // Left float: indent from left = float's right edge - text content left edge
+              val indent = e.right.toFloat() - (textLeft + padL)
+              leftInset = maxOf(leftInset, indent)
+            }
+
+            org.nativescript.mason.masonkit.enums.Float.Right -> {
+              // Right float: indent from right = text content right edge - float's left edge
+              val indent = (textLeft + viewWidth - padR).toFloat() - e.left.toFloat()
+              rightInset = maxOf(rightInset, indent)
+            }
+
+            else -> {}
+          }
+        }
+      }
+
+      leftIndents[line] = leftInset.toInt().coerceAtLeast(0)
+      rightIndents[line] = rightInset.toInt().coerceAtLeast(0)
+
+      if (leftIndents[line] > 0 || rightIndents[line] > 0) hasIndents = true
+    }
+
+    if (!hasIndents) return null
+
+    val alignment = getLayoutAlignment()
+
+    var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, contentWidth)
+      .setAlignment(alignment)
+      .setLineSpacing(0f, 1f)
+      .setIncludePad(includePadding)
+      .setIndents(leftIndents, rightIndents)
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      builder = builder.setUseLineSpacingFromFallbacks(true)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      builder = if (style.resolvedTextAlign == TextAlign.Justify) {
+        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
+      } else {
+        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
+      }
+    }
+
+    return builder.build()
   }
 
   private fun collectAndCacheSegments(
@@ -1738,4 +1866,19 @@ class TextEngine(val container: TextContainer) {
     }
     return null
   }
+}
+
+/** Describes a floated sibling element's position and side for float-aware text wrapping. */
+internal data class FloatExclusion(
+  val left: Int,
+  val top: Int,
+  val right: Int,
+  val bottom: Int,
+  val side: org.nativescript.mason.masonkit.enums.Float
+)
+
+/** Resolve a margin value to pixels. Only Points are resolved; Auto/Percent return 0. */
+internal fun resolveMarginValue(value: LengthPercentageAuto?): Float = when (value) {
+  is LengthPercentageAuto.Points -> value.points
+  else -> 0f
 }

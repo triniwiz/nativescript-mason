@@ -346,22 +346,13 @@ interface Element : EventTarget {
       }
 
       if (root.view is Element && root.computeCacheDirty) {
-        // See comment above – the cache may start out as Float.MIN_VALUE or be
-        // stamped with -2 after a max-content compute.  When we're attached to a
-        // real view and the OS has already measured it we should prefer the view's
-        // size rather than repeatedly asking the engine for max-content.  This is
-        // what makes the root stop passing ``-2 x -2`` once the screen dimensions
-        // become known.
-        Log.d("invalidateLayout", "${root.computeCache.width}")
-
-        // choose how much space to give the engine this round
         var width = if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width
         var height = if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
 
         // if the existing cache value was the max-content sentinel and the view
         // already has a real size, switch to the view dimensions.  also update
         // the stored cache immediately so callers can observe the change.
-        targetView?.let { v ->
+        targetView.let { v ->
           // Prefer the Mason node's computed layout when available (most authoritative).
           val nodeW = root.computedWidth
           val nodeH = root.computedHeight
@@ -382,18 +373,9 @@ interface Element : EventTarget {
             }
           }
 
-          // update the stored cache atomically so callers don't observe a partially-updated size
           root.computeCache = SizeF(width, height)
         }
 
-        // Runtime guard: if the Mason node already has a valid computed size
-        // (set by a recent async JVM-measure callback), prefer that value and
-        // skip invoking native compute to avoid racing into repeated
-        // max-content (-2 x -2) requests. This prevents the root from
-        // repeatedly calling `native_compute_wh` when a real size is already
-        // available.
-        // Prefer cached sizes written back via JNI (`Node.setComputedSize`),
-        // falling back to the layout-tree `computedWidth` if necessary.
         val cachedW = root.cachedWidth
         val cachedH = root.cachedHeight
         val nodeW2 = root.computedWidth

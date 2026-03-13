@@ -65,6 +65,7 @@ class WebActivity : AppCompatActivity() {
     container.flexDirection = FlexDirection.Column
 
     body = mason.createScrollView(this)
+    body.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
     root = mason.createView(this)
     // top-level root (inside the scroll) holds the content container
     contentRoot = mason.createView(this)
@@ -389,7 +390,6 @@ class WebActivity : AppCompatActivity() {
     gallery.flexDirection = FlexDirection.Row
     gallery.style.flexWrap = org.nativescript.mason.masonkit.enums.FlexWrap.Wrap
     gallery.style.gap = Size(LengthPercentage.Points(toPx(16f)), LengthPercentage.Points(toPx(24f)))
-    gallery.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
     gallery.style.marginLeft = LengthPercentageAuto.Auto
     gallery.style.marginRight = LengthPercentageAuto.Auto
     root.addView(gallery)

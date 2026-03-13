@@ -90,29 +90,86 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
-    style.mBorderRenderer.invalidate()
-    // Invalidate cached StaticLayout when size changes
-    cachedStaticLayout = null
-    cachedStaticLayoutWidth = -1
-    super.onSizeChanged(w, h, oldw, oldh)
-  }
-
 
   // Cached StaticLayout and width used for drawing when we render our own layout
   internal var cachedStaticLayout: StaticLayout? = null
   internal var cachedStaticLayoutWidth: Int = -1
+  // Float-aware StaticLayout: wraps text around floated sibling elements
+  internal var floatAwareStaticLayout: StaticLayout? = null
+  // Height applied by float-aware expansion so onSizeChanged can skip clearing the cache
+  private var floatExpandedHeight: Int = -1
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+    // Invalidate cached StaticLayout when size changes, but skip if this
+    // size change was triggered by our own float-aware height expansion.
+    if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
+      // Keep the float-aware layout intact — we just expanded to fit it.
+    } else {
+      cachedStaticLayout = null
+      cachedStaticLayoutWidth = -1
+      floatAwareStaticLayout = null
+      floatExpandedHeight = -1
+    }
+    super.onSizeChanged(w, h, oldw, oldh)
+  }
+
   override fun onDraw(canvas: Canvas) {
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
-      // Ensure we have a built StaticLayout for the current content width.
-      Log.d("onDraw", "cachedStaticLayoutWidth $cachedStaticLayoutWidth $cachedStaticLayout")
-      if (cachedStaticLayout != null) {
-        cachedStaticLayout?.draw(c)
+      // Build float-aware layout lazily if we have floated siblings.
+      // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
+      // when applyLayoutFlat positions the view), so try building float-aware
+      // layout unconditionally.
+      if (floatAwareStaticLayout == null) {
+        try {
+          floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
+        } catch (_: Throwable) {}
+      }
+
+      val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
+
+      if (layoutToDraw != null) {
+        // If the float-aware layout is taller than the view, expand bounds
+        // so text below the floats isn't clipped, and also grow ancestor
+        // containers so their borders wrap the full content.
+        if (layoutToDraw === floatAwareStaticLayout) {
+          val neededHeight = layoutToDraw.height + paddingTop + paddingBottom
+          if (neededHeight > height) {
+            val extraHeight = neededHeight - height
+            floatExpandedHeight = neededHeight
+            post {
+              layout(left, top, right, top + neededHeight)
+              // Grow ancestor Elements so their borders wrap the expanded
+              // text. Account for the child's bottom margin and the ancestor's
+              // border + padding when computing the needed height.
+              var child: android.view.View = this@TextView
+              var childNode: Node? = this@TextView.node
+              var anc = parent as? android.view.View
+              while (anc != null && anc is Element) {
+                val ancElement = anc as Element
+                // Child's bottom margin (outside its view bounds)
+                val childMarginBottom = childNode?.let {
+                  resolveMarginValue(try { it.style.margin.bottom } catch (_: Throwable) { null })
+                } ?: 0f
+                // Ancestor's bottom border (from computed layout)
+                val ancBorderBottom = ancElement.node.computedBorderBottom
+                val needed = child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
+                val available = anc.height
+                if (needed <= available) break
+                anc.layout(anc.left, anc.top, anc.right, anc.top + needed)
+                anc.invalidate()
+                childNode = ancElement.node
+                child = anc
+                anc = anc.parent as? android.view.View
+              }
+            }
+          }
+        }
+        layoutToDraw.draw(c)
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
         super.onDraw(c)
@@ -128,12 +185,14 @@ class TextView @JvmOverloads constructor(
       // Invalidate our cached layout when text changes
       cachedStaticLayout = null
       cachedStaticLayoutWidth = -1
+      floatAwareStaticLayout = null
       engine.textContent = value
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
     cachedStaticLayout = null
     cachedStaticLayoutWidth = -1
+    floatAwareStaticLayout = null
     super.setText(text, type)
   }
 
@@ -316,6 +375,7 @@ class TextView @JvmOverloads constructor(
     // Style change affects layout; invalidate cached StaticLayout
     cachedStaticLayout = null
     cachedStaticLayoutWidth = -1
+    floatAwareStaticLayout = null
     engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }
 

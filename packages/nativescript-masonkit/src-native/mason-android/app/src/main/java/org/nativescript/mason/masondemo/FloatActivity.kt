@@ -2,6 +2,7 @@ package org.nativescript.mason.masondemo
 
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -15,6 +16,7 @@ import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.Float as CSSFloat
 
 class FloatActivity : AppCompatActivity() {
@@ -26,33 +28,39 @@ class FloatActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     metrics = resources.displayMetrics
     mason.setDeviceScale(metrics.density)
-
-
+    val root = LinearLayout(this)
     val body = mason.createView(this)
+    root.addView(body)
     enableEdgeToEdge()
 
     body.configure {
       it.background = "#F8FAFC"
       it.overflowY = Overflow.Scroll
-      it.setSizeWidth(Dimension.Percent(1f))
-      it.setSizeHeight(Dimension.Percent(1f))
+      it.size = Size(
+        Dimension.Percent(
+          1f
+        ),
+        Dimension.Percent(
+          1f
+        )
+      )
       it.padding = Rect.uniform(LengthPercentage.Points(16f * scale))
     }
 
 
     mdn(body)
-    setContentView(body)
+    setContentView(root)
 
-    ViewCompat.setOnApplyWindowInsetsListener(body) { v, insets ->
+    ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-      body.style.setPadding(
-        bars.left.toFloat() + 16f * scale,
-        bars.top.toFloat() + 16f * scale,
-        bars.right.toFloat() + 16f * scale,
-        bars.bottom.toFloat() + 16f * scale
+      v.setPadding(
+        bars.left + (16 * scale).toInt(),
+        bars.top + (16 * scale).toInt(),
+        bars.right + (16 * scale).toInt(),
+        bars.bottom + (16 * scale).toInt()
       )
-      insets
+      WindowInsetsCompat.CONSUMED
     }
   }
 
@@ -62,7 +70,7 @@ class FloatActivity : AppCompatActivity() {
         it.boxSizing = BoxSizing.BorderBox
         it.border = "1px solid blue"
         it.setSizeWidth(Dimension.Percent(1f))
-      //  it.float = CSSFloat.Left
+        it.float = CSSFloat.Left
       }
     }
 
@@ -84,7 +92,7 @@ class FloatActivity : AppCompatActivity() {
           )
         )
 
-       // it.float = CSSFloat.Left
+        it.float = CSSFloat.Left
 
         it.background = "pink"
       }
@@ -106,7 +114,7 @@ class FloatActivity : AppCompatActivity() {
           )
         )
 
-      //  it.float = CSSFloat.Left
+        it.float = CSSFloat.Left
 
         it.background = "pink"
       }
@@ -128,20 +136,17 @@ class FloatActivity : AppCompatActivity() {
           )
         )
 
-          //  it.float = CSSFloat.Right
+        it.float = CSSFloat.Right
 
         it.background = "cyan"
       }
     }
-    val p = mason.createTextView(this@FloatActivity).apply {
+    val p = mason.createTextView(this@FloatActivity, TextType.P).apply {
       append(
-        """
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi tristique
-      sapien ac erat tincidunt, sit amet dignissim lectus vulputate. Donec id
-      iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa
-      aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus
-        congue.
-        """.trimIndent()
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi tristique " +
+          "sapien ac erat tincidunt, sit amet dignissim lectus vulputate. Donec id " +
+          "iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa " +
+          "aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus congue."
       )
     }
     root.addView(one)
