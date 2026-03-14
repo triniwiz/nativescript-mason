@@ -2524,6 +2524,17 @@ public class MasonStyle: NSObject {
     }
   }
   
+  public var cornerShape: String {
+    get {
+      return _cornerShape
+    }
+    set {
+      _cornerShape = newValue
+      CSSBorderRenderer.parseCornerShape(self, newValue)
+    }
+  }
+  private var _cornerShape: String = ""
+
   public var border: String {
     get {
       return mBorderRender.css

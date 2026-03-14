@@ -302,7 +302,7 @@ class ViewBenchmark {
             runWithTimingDisabled {
                 view.style.inBatch = true
             }
-            view.position = Position.Absolute
+            view.style.position = Position.Absolute
             runWithTimingDisabled {
                 view.style.inBatch = false
                 view.updateNodeAndStyle()

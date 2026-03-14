@@ -160,13 +160,6 @@ impl NodeMeasure {
                         },
                     );
 
-                    log::warn!(
-                        "mason_core::node calling JVM measure id={} packed_known={} packed_avail={}",
-                        self.measure,
-                        packed_known,
-                        packed_avail
-                    );
-
                     let result = unsafe {
                         env.call_static_method_unchecked(
                             node,
@@ -185,26 +178,10 @@ impl NodeMeasure {
                             let size = result.j().unwrap_or_default();
                             let width = MeasureOutput::get_width(size);
                             let height = MeasureOutput::get_height(size);
-
-                            if height.is_nan() || height.abs() < 1e-6_f32 {
-                                log::warn!(
-                                    "mason_core::node JVM-measure returned suspicious height={} for node={}",
-                                    height,
-                                    self.measure
-                                );
-                            }
-
-                            log::warn!(
-                                "mason_core::node JVM-measure result node={} width={} height={}",
-                                self.measure,
-                                width,
-                                height
-                            );
-
+                            
                             Size { width, height }
                         }
                         Err(e) => {
-                            log::warn!("mason_core::node JVM-measure call failed: {:?}", e);
                             known_dimensions.map(|v| v.unwrap_or(0.0))
                         }
                     };

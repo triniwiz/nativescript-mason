@@ -1,4 +1,4 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { ChangedData, CSSType, ObservableArray, Utils } from '@nativescript/core';
 import { itemsProperty, ListBase } from './common';
 import { isMasonView_, native_, style_ } from '../symbols';
 import { Tree } from '../tree';
@@ -12,15 +12,18 @@ class Listener extends java.lang.Object implements org.nativescript.mason.masonk
     listener._owner = new WeakRef(owner);
     return listener;
   }
-  public getItemViewType(param0: number): number {
+  public getItemViewType(index: number): number {
     const owner = this._owner.get();
     if (owner) {
-      return owner.itemTemplateSelector ? owner.itemTemplateSelector(owner.items[param0], param0, owner.items) : 0;
+      const template = owner._getItemTemplate(index);
+      return owner._itemTemplatesInternal.indexOf(template);
     }
     return 0;
   }
-  public onCreate(param0: number): org.nativescript.mason.masonkit.Li {}
-  public onBind(param0: org.nativescript.mason.masonkit.ListView.Holder, param1: number): void {}
+  public onCreate(index: number): android.view.View {
+    const template = this.owner._getItemTemplate(index);
+  }
+  public onBind(holder: org.nativescript.mason.masonkit.ListView.Holder, index: number): void {}
 }
 
 export class List extends ListBase {
@@ -51,24 +54,7 @@ export class List extends ListBase {
     this._view.setListener(Listener.fromOwner(this));
   }
 
-  [itemsProperty.getDefault](): any {
-    return null;
-  }
-
-  [itemsProperty.setNative](value: any) {
-    if (value) {
-      if (value instanceof ObservableArray) {
-        const adapter = this.pagerAdapter;
-        if (!adapter) return;
-        selectedIndexProperty.coerce(this);
-        this._observableArrayInstance = value as any;
-        this._observableArrayInstance.on(ObservableArray.changeEvent, this._observableArrayHandler);
-      } else {
-        this.refresh();
-        selectedIndexProperty.coerce(this);
-      }
-    }
-  }
+  public _onItemsChanged(args: ChangedData<any>): void {}
 }
 
 @CSSType('ul')

@@ -92544,7 +92544,7 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "Dictionary",
-      "offset": 8074,
+      "offset": 8104,
       "length": 3,
       "value": "[]"
     },
@@ -94791,203 +94791,203 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "BooleanLiteral",
-      "offset": 2537,
+      "offset": 2538,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 2575,
+      "offset": 2576,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "StringLiteral",
-      "offset": 2603,
+      "offset": 2604,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 2643,
+      "offset": 2644,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 2682,
+      "offset": 2683,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 2718,
+      "offset": 2719,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 2903,
+      "offset": 2904,
       "length": 2,
       "value": "-2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 7116,
+      "offset": 7117,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 7134,
+      "offset": 7135,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8499,
+      "offset": 8500,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8539,
+      "offset": 8540,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8601,
+      "offset": 8602,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8616,
+      "offset": 8617,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8739,
+      "offset": 8740,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8779,
+      "offset": 8780,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8809,
+      "offset": 8810,
       "length": 3,
       "value": "1.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 8825,
+      "offset": 8826,
       "length": 4,
       "value": "0.08"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8878,
+      "offset": 8879,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8903,
+      "offset": 8904,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8917,
+      "offset": 8918,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 8944,
+      "offset": 8945,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 9122,
+      "offset": 9123,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "FloatLiteral",
-      "offset": 9162,
+      "offset": 9163,
       "length": 3,
       "value": "2.0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 9230,
+      "offset": 9231,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 9248,
+      "offset": 9249,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 9353,
+      "offset": 9354,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "StringLiteral",
-      "offset": 9377,
+      "offset": 9378,
       "length": 18,
       "value": "\"\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "IntegerLiteral",
-      "offset": 9391,
+      "offset": 9392,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonLi.swift",
       "kind": "StringLiteral",
-      "offset": 9393,
+      "offset": 9394,
       "length": 1,
       "value": "\".\""
     }

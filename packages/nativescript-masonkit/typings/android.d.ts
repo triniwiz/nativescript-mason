@@ -2773,13 +2773,13 @@ declare module org {
 						 * Constructs a new instance of the org.nativescript.mason.masonkit.ListView$Listener interface with the provided implementation. An empty constructor exists calling super() when extending the interface class.
 						 */
 						public constructor(implementation: {
-							onCreate(param0: number): org.nativescript.mason.masonkit.Li;
+							onCreate(param0: number): android.view.View;
 							onBind(param0: org.nativescript.mason.masonkit.ListView.Holder, param1: number): void;
 							getItemViewType(param0: number): number;
 						});
 						public constructor();
 						public getItemViewType(param0: number): number;
-						public onCreate(param0: number): org.nativescript.mason.masonkit.Li;
+						public onCreate(param0: number): android.view.View;
 						public onBind(param0: org.nativescript.mason.masonkit.ListView.Holder, param1: number): void;
 					}
 					export class MasonRecyclerView {

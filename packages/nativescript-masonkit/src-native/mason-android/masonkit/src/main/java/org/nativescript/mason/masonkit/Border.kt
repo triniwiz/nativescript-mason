@@ -538,14 +538,54 @@ class BorderRenderer(private val style: Style) {
     outerClipPath.reset()
 
     val f = cssRadiusScale(width, height)
-    val radii = floatArrayOf(
-      topLeftCorner.x * f, topLeftCorner.y * f,
-      topRightCorner.x * f, topRightCorner.y * f,
-      bottomRightCorner.x * f, bottomRightCorner.y * f,
-      bottomLeftCorner.x * f, bottomLeftCorner.y * f,
-    )
+    val tlX = topLeftCorner.x * f
+    val tlY = topLeftCorner.y * f
+    val trX = topRightCorner.x * f
+    val trY = topRightCorner.y * f
+    val brX = bottomRightCorner.x * f
+    val brY = bottomRightCorner.y * f
+    val blX = bottomLeftCorner.x * f
+    val blY = bottomLeftCorner.y * f
 
-    outerClipPath.addRoundRect(RectF(0f, 0f, width, height), radii, Path.Direction.CW)
+    val hasSuperellipse = topLeftExponent != 1f || topRightExponent != 1f ||
+      bottomRightExponent != 1f || bottomLeftExponent != 1f
+
+    if (!hasSuperellipse) {
+      val radii = floatArrayOf(tlX, tlY, trX, trY, brX, brY, blX, blY)
+      outerClipPath.addRoundRect(RectF(0f, 0f, width, height), radii, Path.Direction.CW)
+    } else {
+      outerClipPath.moveTo(tlX, 0f)
+
+      // Top edge
+      outerClipPath.lineTo(width - trX, 0f)
+
+      // Top-right corner
+      tempRadius.set(trX, trY)
+      addCornerToPath(outerClipPath, Corner.TOP_RIGHT, tempRadius, topRightExponent, width, height)
+
+      // Right edge
+      outerClipPath.lineTo(width, height - brY)
+
+      // Bottom-right corner
+      tempRadius.set(brX, brY)
+      addCornerToPath(outerClipPath, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, width, height)
+
+      // Bottom edge
+      outerClipPath.lineTo(blX, height)
+
+      // Bottom-left corner
+      tempRadius.set(blX, blY)
+      addCornerToPath(outerClipPath, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, width, height)
+
+      // Left edge
+      outerClipPath.lineTo(0f, tlY)
+
+      // Top-left corner
+      tempRadius.set(tlX, tlY)
+      addCornerToPath(outerClipPath, Corner.TOP_LEFT, tempRadius, topLeftExponent, width, height)
+
+      outerClipPath.close()
+    }
 
     return outerClipPath
   }
@@ -618,7 +658,7 @@ class BorderRenderer(private val style: Style) {
         }
 
         Corner.TOP_RIGHT -> {
-          px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
+          px = width - radius.x * (1 - cy); py = radius.y * (1 - cx)
         }
 
         Corner.BOTTOM_RIGHT -> {
@@ -626,7 +666,7 @@ class BorderRenderer(private val style: Style) {
         }
 
         Corner.BOTTOM_LEFT -> {
-          px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
+          px = radius.x * (1 - cy); py = height - radius.y * (1 - cx)
         }
       }
       path.lineTo(px, py)
@@ -818,7 +858,7 @@ class BorderRenderer(private val style: Style) {
         }
 
         Corner.TOP_RIGHT -> {
-          px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
+          px = width - radius.x * (1 - cy); py = radius.y * (1 - cx)
         }
 
         Corner.BOTTOM_RIGHT -> {
@@ -826,7 +866,7 @@ class BorderRenderer(private val style: Style) {
         }
 
         Corner.BOTTOM_LEFT -> {
-          px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
+          px = radius.x * (1 - cy); py = height - radius.y * (1 - cx)
         }
       }
       path.lineTo(px, py)
@@ -1059,6 +1099,71 @@ fun parseBorderShorthand(style: Style, value: String) {
   if (dirty) {
     style.mBorderRenderer.invalidate()
   }
+
+  if (batch) {
+    style.inBatch = false
+  }
+}
+
+// ─── corner-shape ────────────────────────────────────────────────────────
+// CSS syntax:
+//   corner-shape: round                      → exponent 1 on all corners (default)
+//   corner-shape: superellipse               → exponent 0.5 on all corners
+//   corner-shape: superellipse(0.3)          → exponent 0.3 on all corners
+//   corner-shape: squircle                   → alias for superellipse (0.5)
+//   corner-shape: notch                      → exponent 2 on all corners
+//   corner-shape: bevel                      → exponent 4 on all corners
+//   1–4 value shorthand follows CSS corner order: TL TR BR BL
+// ─────────────────────────────────────────────────────────────────────────
+
+private val cornerShapeTokenRegex = Regex("""(round|superellipse(?:\((-?\d+(?:\.\d+)?)\))?|squircle|notch|bevel)""")
+
+fun parseCornerShapeToken(token: String): Float? {
+  val match = cornerShapeTokenRegex.matchEntire(token.trim().lowercase()) ?: return null
+  val keyword = match.groupValues[1]
+  val explicitExp = match.groupValues.getOrNull(2)?.toFloatOrNull()
+  return when {
+    keyword.startsWith("superellipse") -> explicitExp ?: 0.5f
+    keyword == "squircle" -> 0.5f
+    keyword == "round" -> 1.0f
+    keyword == "notch" -> 2.0f
+    keyword == "bevel" -> 4.0f
+    else -> null
+  }
+}
+
+fun parseCornerShape(style: Style, value: String) {
+  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";"))
+  val exponents = tokens.mapNotNull { parseCornerShapeToken(it) }
+  if (exponents.isEmpty()) return
+
+  // CSS 4-corner shorthand: 1→all, 2→(TL+BR, TR+BL), 3→(TL, TR+BL, BR), 4→per-corner
+  val (tl, tr, br, bl) = when (exponents.size) {
+    1 -> listOf(exponents[0], exponents[0], exponents[0], exponents[0])
+    2 -> listOf(exponents[0], exponents[1], exponents[0], exponents[1])
+    3 -> listOf(exponents[0], exponents[1], exponents[2], exponents[1])
+    else -> listOf(exponents[0], exponents[1], exponents[2], exponents[3])
+  }
+
+  var batch = false
+  if (!style.inBatch) {
+    style.inBatch = true
+    batch = true
+  }
+
+  style.mBorderTop.setState = false
+  style.mBorderBottom.setState = false
+
+  style.mBorderTop.corner1Exponent = tl    // top-left
+  style.mBorderTop.corner2Exponent = tr    // top-right
+  style.mBorderBottom.corner2Exponent = br  // bottom-right
+  style.mBorderBottom.corner1Exponent = bl  // bottom-left
+
+  style.mBorderTop.setState = true
+  style.mBorderBottom.setState = true
+
+  style.setOrAppendState(StateKeys.BORDER_RADIUS)
+  style.mBorderRenderer.invalidate()
 
   if (batch) {
     style.inBatch = false

@@ -27,6 +27,7 @@
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
+		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		F184839D293534D800EC35F4 /* Mason.h in Headers */ = {isa = PBXBuildFile; fileRef = F184838F293534D800EC35F4 /* Mason.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F18483AD2935351200EC35F4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AC2935351200EC35F4 /* AppDelegate.swift */; };
 		F18483AF2935351200EC35F4 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AE2935351200EC35F4 /* SceneDelegate.swift */; };
@@ -149,6 +150,7 @@
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
 		F1848396293534D800EC35F4 /* MasonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MasonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184839B293534D800EC35F4 /* MasonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		F18483AA2935351200EC35F4 /* MasonDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MasonDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F18483AC2935351200EC35F4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F18483AE2935351200EC35F4 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -364,6 +366,7 @@
 			isa = PBXGroup;
 			children = (
 				F184839B293534D800EC35F4 /* MasonTests.swift */,
+				A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */,
 			);
 			path = MasonTests;
 			sourceTree = "<group>";
@@ -692,6 +695,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F184839C293534D800EC35F4 /* MasonTests.swift in Sources */,
+				A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

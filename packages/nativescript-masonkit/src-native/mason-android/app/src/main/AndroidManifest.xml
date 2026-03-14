@@ -93,6 +93,9 @@
     <activity
       android:name=".NumericDemoActivity"
       android:exported="false" />
+    <activity
+      android:name=".SuperellipseActivity"
+      android:exported="false" />
   </application>
 
 </manifest>

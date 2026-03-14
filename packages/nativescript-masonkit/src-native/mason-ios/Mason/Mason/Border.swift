@@ -757,6 +757,11 @@ public final class CSSBorderRenderer {
     var br = radius.bottomRight.resolved(rect: rect)
     var bl = radius.bottomLeft.resolved(rect: rect)
 
+    let tlExp = radius.topLeft.exponent
+    let trExp = radius.topRight.exponent
+    let brExp = radius.bottomRight.exponent
+    let blExp = radius.bottomLeft.exponent
+
     // CSS spec: if sum of adjacent radii exceeds the box dimension,
     // scale all radii down proportionally.
     let w = rect.width
@@ -779,20 +784,101 @@ public final class CSSBorderRenderer {
     }
 
     p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY))
+
+    // Top edge
     p.addLine(to: CGPoint(x: rect.maxX - tr.x, y: rect.minY))
-    p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + tr.y),
-                   controlPoint: CGPoint(x: rect.maxX, y: rect.minY))
+
+    // Top-right corner
+    addCorner(to: p, corner: .topRight, radius: tr, exponent: trExp, rect: rect)
+
+    // Right edge
     p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br.y))
-    p.addQuadCurve(to: CGPoint(x: rect.maxX - br.x, y: rect.maxY),
-                   controlPoint: CGPoint(x: rect.maxX, y: rect.maxY))
+
+    // Bottom-right corner
+    addCorner(to: p, corner: .bottomRight, radius: br, exponent: brExp, rect: rect)
+
+    // Bottom edge
     p.addLine(to: CGPoint(x: rect.minX + bl.x, y: rect.maxY))
-    p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - bl.y),
-                   controlPoint: CGPoint(x: rect.minX, y: rect.maxY))
+
+    // Bottom-left corner
+    addCorner(to: p, corner: .bottomLeft, radius: bl, exponent: blExp, rect: rect)
+
+    // Left edge
     p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl.y))
-    p.addQuadCurve(to: CGPoint(x: rect.minX + tl.x, y: rect.minY),
-                   controlPoint: CGPoint(x: rect.minX, y: rect.minY))
+
+    // Top-left corner
+    addCorner(to: p, corner: .topLeft, radius: tl, exponent: tlExp, rect: rect)
+
     p.close()
     return p
+  }
+
+  private enum Corner {
+    case topLeft, topRight, bottomRight, bottomLeft
+  }
+
+  private func addCorner(
+    to path: UIBezierPath,
+    corner: Corner,
+    radius: (x: CGFloat, y: CGFloat),
+    exponent: CGFloat,
+    rect: CGRect
+  ) {
+    guard radius.x > 0 || radius.y > 0 else { return }
+
+    if exponent == 1.0 {
+      // Standard quadratic Bézier (circular arc approximation)
+      let controlPoint: CGPoint
+      let endPoint: CGPoint
+
+      switch corner {
+      case .topRight:
+        controlPoint = CGPoint(x: rect.maxX, y: rect.minY)
+        endPoint = CGPoint(x: rect.maxX, y: rect.minY + radius.y)
+      case .bottomRight:
+        controlPoint = CGPoint(x: rect.maxX, y: rect.maxY)
+        endPoint = CGPoint(x: rect.maxX - radius.x, y: rect.maxY)
+      case .bottomLeft:
+        controlPoint = CGPoint(x: rect.minX, y: rect.maxY)
+        endPoint = CGPoint(x: rect.minX, y: rect.maxY - radius.y)
+      case .topLeft:
+        controlPoint = CGPoint(x: rect.minX, y: rect.minY)
+        endPoint = CGPoint(x: rect.minX + radius.x, y: rect.minY)
+      }
+
+      path.addQuadCurve(to: endPoint, controlPoint: controlPoint)
+      return
+    }
+
+    // Superellipse curve
+    let steps = 16
+    let exp = Double(exponent)
+    for i in 0...steps {
+      let t = Double(i) / Double(steps)
+      let angle = t * .pi / 2.0
+      let cx = CGFloat(pow(cos(angle), exp))
+      let cy = CGFloat(pow(sin(angle), exp))
+
+      let px: CGFloat
+      let py: CGFloat
+
+      switch corner {
+      case .topRight:
+        px = rect.maxX - radius.x * (1 - cy)
+        py = rect.minY + radius.y * (1 - cx)
+      case .bottomRight:
+        px = rect.maxX - radius.x * (1 - cx)
+        py = rect.maxY - radius.y * (1 - cy)
+      case .bottomLeft:
+        px = rect.minX + radius.x * (1 - cy)
+        py = rect.maxY - radius.y * (1 - cx)
+      case .topLeft:
+        px = rect.minX + radius.x * (1 - cx)
+        py = rect.minY + radius.y * (1 - cy)
+      }
+
+      path.addLine(to: CGPoint(x: px, y: py))
+    }
   }
 }
 

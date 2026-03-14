@@ -90,6 +90,12 @@
         android:layout_height="wrap_content"
         android:text="Open Numeric Demo" />
 
+      <Button
+        android:id="@+id/superellipse"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Superellipse Demo" />
+
     </LinearLayout>
   </ScrollView>
 </LinearLayout>

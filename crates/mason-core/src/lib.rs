@@ -95,7 +95,6 @@ impl MeasureOutput {
 
 fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
     let layout = taffy.layout_raw(node);
-    log::info!("copy_output {:?}", layout);
     // (previously had a defensive clamp here; reverted to preserve raw
     // computed values so we can trace origins upstream)
     if let Some(children) = taffy.inner().children.get(node) {
@@ -113,8 +112,7 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
         // layout; only adjust the exported value.
         let mut export_h = layout.size.height;
         if export_h.abs() <= 1e-6 && layout.content_size.height > export_h {
-            log::debug!("copy_output: bumping tiny export_h {} -> content_size {} for node={:?}", export_h, layout.content_size.height, node);
-            export_h = layout.content_size.height;
+             export_h = layout.content_size.height;
         }
         output.push(export_h);
 
@@ -710,23 +708,9 @@ impl Mason {
             // treated as zero.
             let mut export_h = output[4];
             if export_h > 0.0 && export_h.abs() < 1e-6_f32 {
-                log::warn!(
-                    "mason_native: clamping tiny exported height {} -> 0.0",
-                    export_h
-                );
                 export_h = 0.0;
                 output[4] = export_h;
             }
-
-            log::warn!(
-                "mason-native-layout root x={} y={} w={} h={}",
-                output[1],
-                output[2],
-                output[3],
-                output[4]
-            );
-        } else {
-            log::warn!("mason-native-layout empty output len={}", output.len());
         }
 
         output

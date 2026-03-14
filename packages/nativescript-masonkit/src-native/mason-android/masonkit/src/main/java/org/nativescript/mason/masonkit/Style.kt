@@ -2266,6 +2266,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseBorderRadius(this, value)
     }
 
+  var cornerShape: String = ""
+    set(value) {
+      field = value
+      parseCornerShape(this, value)
+    }
+
   internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {
     val x = LengthPercentage.fromTypeValue(
       values.get(keys.xType), values.getFloat(keys.xValue)

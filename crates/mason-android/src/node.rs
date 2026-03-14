@@ -394,7 +394,6 @@ fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        log::info!("native_compute_wh {:?} x {:?}", width, height);
         mason.compute_wh(node.id(), width, height);
     }
 }
@@ -568,19 +567,6 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
 ) -> jfloatArray {
     if taffy == 0 || node == 0 {
         return env.new_float_array(0_i32).unwrap().into_raw();
-    }
-
-    #[cfg(debug_assertions)]
-    {
-        // log the raw JNI parameters; they should match what Android
-        // passed from View.onMeasure.
-        log::debug!(
-            "nativeComputeWithSizeAndLayout taffy={} node={} width={} height={}",
-            taffy,
-            node,
-            width,
-            height
-        );
     }
 
     unsafe {
@@ -1160,7 +1146,6 @@ pub extern "system" fn NodeNativeSetSegments(
 
         let children = JObjectArray::from_raw(children);
         let count = env.get_array_length(&children).unwrap_or_default();
-        log::warn!("nativeNodeSetSegments node={:?} count={}", node.id(), count);
         let mut child: Vec<InlineSegment> = vec![];
         for i in 0..count {
             if let Ok(segment) = env.get_object_array_element(&children, i) {
@@ -1231,13 +1216,6 @@ pub extern "system" fn NodeNativeSetSegments(
                             )
                             .and_then(|v| v.f())
                             .unwrap_or(0f32);
-
-                        log::warn!(
-                            "nativeNodeSetSegments inline-child idx={} android_ptr={} descent={}",
-                            i,
-                            id,
-                            descent
-                        );
 
                         let mut child_id: Option<Id> = None;
                         if id != 0 {

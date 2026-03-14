@@ -250,4 +250,82 @@ extension CSSBorderRenderer {
         style.updateNativeStyle()
       }
   }
+
+  // ─── corner-shape ────────────────────────────────────────────────────────
+  // CSS syntax:
+  //   corner-shape: round                      → exponent 1 on all corners (default)
+  //   corner-shape: superellipse               → exponent 0.5 on all corners
+  //   corner-shape: superellipse(0.3)          → exponent 0.3 on all corners
+  //   corner-shape: squircle                   → alias for superellipse (0.5)
+  //   corner-shape: notch                      → exponent 2 on all corners
+  //   corner-shape: bevel                      → exponent 4 on all corners
+  //   1–4 value shorthand follows CSS corner order: TL TR BR BL
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private static let cornerShapeTokenRegex = try! NSRegularExpression(
+    pattern: "^(round|superellipse(?:\\((-?\\d+(?:\\.\\d+)?)\\))?|squircle|notch|bevel)$",
+    options: [.caseInsensitive]
+  )
+
+  static func parseCornerShapeToken(_ token: String) -> Float? {
+    let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let nsT = t as NSString
+    guard let match = cornerShapeTokenRegex.firstMatch(
+      in: t, range: NSRange(location: 0, length: nsT.length)
+    ) else { return nil }
+
+    let keyword = nsT.substring(with: match.range(at: 1))
+    let expRange = match.range(at: 2)
+    let explicitExp: Float? = expRange.location != NSNotFound
+      ? Float(nsT.substring(with: expRange))
+      : nil
+
+    if keyword.hasPrefix("superellipse") { return explicitExp ?? 0.5 }
+    switch keyword {
+    case "squircle": return 0.5
+    case "round":    return 1.0
+    case "notch":    return 2.0
+    case "bevel":    return 4.0
+    default:         return nil
+    }
+  }
+
+  static func parseCornerShape(_ style: MasonStyle, _ value: String) {
+    let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+      .replacingOccurrences(of: ";", with: "")
+    let tokens = cleaned.split(whereSeparator: { $0.isWhitespace })
+    let exponents = tokens.compactMap { parseCornerShapeToken(String($0)) }
+    guard !exponents.isEmpty else { return }
+
+    let tl, tr, br, bl: Float
+    switch exponents.count {
+    case 1:
+      tl = exponents[0]; tr = exponents[0]; br = exponents[0]; bl = exponents[0]
+    case 2:
+      tl = exponents[0]; tr = exponents[1]; br = exponents[0]; bl = exponents[1]
+    case 3:
+      tl = exponents[0]; tr = exponents[1]; br = exponents[2]; bl = exponents[1]
+    default:
+      tl = exponents[0]; tr = exponents[1]; br = exponents[2]; bl = exponents[3]
+    }
+
+    style.prepareMut()
+    style.setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, tl)
+    style.setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, tr)
+    style.setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, br)
+    style.setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, bl)
+
+    // Keep struct in sync
+    style.mBorderRender.radius.topLeft.exponent = CGFloat(tl)
+    style.mBorderRender.radius.topRight.exponent = CGFloat(tr)
+    style.mBorderRender.radius.bottomRight.exponent = CGFloat(br)
+    style.mBorderRender.radius.bottomLeft.exponent = CGFloat(bl)
+    style.mBorderRender.invalidateCache()
+
+    if !style.inBatch {
+      style.isDirty |= StateKeys.border.low
+      style.isDirtyHigh |= StateKeys.border.high
+      style.updateNativeStyle()
+    }
+  }
 }

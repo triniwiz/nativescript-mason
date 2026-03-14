@@ -120,6 +120,11 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.superellipse.setOnClickListener {
+      val intent = Intent(this, SuperellipseActivity::class.java)
+      startActivity(intent)
+    }
+
   }
 
 

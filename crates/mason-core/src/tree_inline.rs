@@ -1522,13 +1522,6 @@ impl Tree {
             #[cfg(target_vendor = "apple")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.apple_data.as_mut() {
-                    log::debug!(
-                        "pre-set_computed_size inline node={:?} w={} h={} h_bits=0x{:08x}",
-                        child_id,
-                        layout.size.width,
-                        layout.size.height,
-                        layout.size.height.to_bits()
-                    );
                     node.set_computed_size(layout.size.width as f64, layout.size.height as f64);
                 }
             }
@@ -1536,13 +1529,6 @@ impl Tree {
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.android_data.as_mut() {
-                    log::debug!(
-                        "pre-set_computed_size inline node={:?} w={} h={} h_bits=0x{:08x}",
-                        child_id,
-                        layout.size.width,
-                        layout.size.height,
-                        layout.size.height.to_bits()
-                    );
                     node.set_computed_size(layout.size.width, layout.size.height);
                 }
             }
@@ -2160,7 +2146,6 @@ impl Tree {
                     eprintln!("TEST: calling measure for id={:?} in compute_inline_layout parent measure", id);
                     log::debug!("measure-call inline-parent id={:?} known={:?} avail={:?}", id, measure_known, available_space);
                     let meas = measure.measure(measure_known, available_space);
-                    log::debug!("measure-result inline-parent id={:?} out={:?}", id, meas);
                     meas
                 },
             );

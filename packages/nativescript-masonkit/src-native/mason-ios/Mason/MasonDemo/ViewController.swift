@@ -937,8 +937,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     super.viewDidLoad()
     // Add a simple demo picker at the top and the Mason body below it
-    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN","Pseudo","Nums"])
-    demoPicker.selectedSegmentIndex = 6
+    let demoPicker = UISegmentedControl(items: ["Web","Text","Grid","Gallery","HN","Pseudo","Nums","Squircle"])
+    demoPicker.selectedSegmentIndex = 7
     demoPicker.addTarget(self, action: #selector(demoChanged(_:)), for: .valueChanged)
     demoPicker.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(demoPicker)
@@ -1012,8 +1012,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     case 6:
       renderFloat(body)
      // renderFontVariantNumericDemo(body)
+    case 7:
+      renderSuperellipseDemo(body)
     default:
-      renderFloat(body)
+      renderSuperellipseDemo(body)
     }
   }
   
@@ -2030,6 +2032,253 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       return UInt32(0xFF000000 | UInt32(val))
     }
     return UInt32(val)
+  }
+
+  // MARK: - Superellipse Demo
+
+  func renderSuperellipseDemo(_ view: Scroll) {
+    let container = mason.createView()
+    container.configure { style in
+      style.display = .Block
+      style.padding = MasonRect(uniform: .Points(toPx(16)))
+    }
+
+    func sectionLabel(_ text: String) -> MasonText {
+      let label = mason.createTextView(type: .P)
+      label.append(text: text)
+      label.configure { style in
+        style.color = self.argb("#9CA3AF")
+        style.fontSize = 11
+        style.display = .Block
+      }
+      label.style.margin = MasonRect(
+        .Points(toPx(20)), .Zero, .Points(toPx(8)), .Zero
+      )
+      return label
+    }
+
+    // ─── 1. Side-by-Side Comparison ────────────────────────────────
+    container.append(sectionLabel("CIRCULAR VS SQUIRCLE"))
+
+    let compRow = mason.createView()
+    compRow.display = .Flex
+    compRow.flexDirection = .Row
+    compRow.style.setSizeWidth(.Auto)
+    compRow.style.gap = MasonSize(.Points(toPx(12)), .Points(toPx(12)))
+
+    let circularCard = mason.createView()
+    circularCard.configure { style in
+      style.display = .Flex
+      style.justifyContent = .Center
+      style.alignItems = .Center
+      style.flexGrow = 1
+      style.flexBasis = .Points(0)
+      style.size = MasonSize(.Auto, .Points(toPx(140)))
+      style.backgroundColor = self.argb("#EEF2FF")
+      style.border = "2 solid #6366F1"
+      style.borderRadius = "\(toPx(24))px"
+      style.cornerShape = "round"
+    }
+    let circLabel = mason.createTextView()
+    circLabel.textContent = "corner-shape: round"
+    circLabel.configure { style in
+      style.textAlign = .Center
+      style.color = self.argb("#4338CA")
+      style.fontSize = 12
+    }
+    circularCard.append(circLabel)
+
+    let squircleCard = mason.createView()
+    squircleCard.configure { style in
+      style.display = .Flex
+      style.justifyContent = .Center
+      style.alignItems = .Center
+      style.flexGrow = 1
+      style.flexBasis = .Points(0)
+      style.size = MasonSize(.Auto, .Points(toPx(140)))
+      style.backgroundColor = self.argb("#F0FDF4")
+      style.border = "2 solid #22C55E"
+      style.borderRadius = "\(toPx(24))px"
+      style.cornerShape = "squircle"
+    }
+    let sqLabel = mason.createTextView()
+    sqLabel.textContent = "corner-shape: squircle"
+    sqLabel.configure { style in
+      style.textAlign = .Center
+      style.color = self.argb("#15803D")
+      style.fontSize = 12
+    }
+    squircleCard.append(sqLabel)
+
+    compRow.append(circularCard)
+    compRow.append(squircleCard)
+    container.append(compRow)
+
+    // ─── 2. Exponent Spectrum ──────────────────────────────────────
+    container.append(sectionLabel("EXPONENT SPECTRUM"))
+
+    let samples: [(shape: String, label: String, bg: String, border: String)] = [
+      ("superellipse(0.3)", "superellipse(0.3) — Super Squircle", "#FFF7ED", "#FB923C"),
+      ("squircle",          "squircle — iOS-style (0.5)",          "#F0FDF4", "#22C55E"),
+      ("superellipse(0.7)", "superellipse(0.7) — Soft Round",     "#EFF6FF", "#3B82F6"),
+      ("round",             "round — Circular (default)",          "#F5F3FF", "#8B5CF6"),
+      ("notch",             "notch — Exponent 2",                  "#FDF2F8", "#EC4899"),
+      ("bevel",             "bevel — Exponent 4",                  "#FEF2F2", "#EF4444"),
+    ]
+
+    for sample in samples {
+      let card = mason.createView()
+      card.configure { style in
+        style.display = .Flex
+        style.justifyContent = .Center
+        style.alignItems = .Center
+        style.size = MasonSize(.Auto, .Points(toPx(100)))
+        style.backgroundColor = self.argb(sample.bg)
+        style.border = "1 solid \(sample.border)"
+        style.borderRadius = "\(toPx(28))px"
+        style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
+        style.cornerShape = sample.shape
+      }
+      let label = mason.createTextView()
+      label.textContent = sample.label
+      label.configure { style in
+        style.textAlign = .Center
+        style.color = self.argb("#374151")
+        style.fontSize = 13
+      }
+      card.append(label)
+      container.append(card)
+    }
+
+    // ─── 3. Per-Corner Mixed Shapes ────────────────────────────────
+    container.append(sectionLabel("PER-CORNER MIXED SHAPES"))
+
+    let mixed = mason.createView()
+    mixed.configure { style in
+      style.display = .Flex
+      style.justifyContent = .Center
+      style.alignItems = .Center
+      style.size = MasonSize(.Auto, .Points(toPx(160)))
+      style.backgroundColor = self.argb("#1E293B")
+      style.border = "2 solid #475569"
+      style.borderRadius = "\(toPx(32))px"
+      style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
+      // TL: super-squircle, TR: circular, BR: squircle, BL: notch
+      style.cornerShape = "superellipse(0.3) round squircle notch"
+    }
+    let mixedLabel = mason.createTextView()
+    mixedLabel.textContent = "TL: superellipse(0.3)\nTR: round\nBR: squircle\nBL: notch"
+    mixedLabel.configure { style in
+      style.textAlign = .Center
+      style.color = self.argb("#E2E8F0")
+      style.fontSize = 13
+    }
+    mixed.append(mixedLabel)
+    container.append(mixed)
+
+    // ─── 4. App Icon Grid ──────────────────────────────────────────
+    container.append(sectionLabel("APP ICON GRID — SQUIRCLE SHOWCASE"))
+
+    let grid = mason.createView()
+    grid.display = .Flex
+    grid.flexDirection = .Row
+    grid.style.flexWrap = .Wrap
+    grid.style.justifyContent = .SpaceBetween
+    grid.style.setSizeWidth(.Auto)
+    grid.style.gap = MasonSize(.Points(toPx(12)), .Points(toPx(12)))
+
+    let iconColors = [
+      "#FF3B30", "#FF9500", "#FFCC00", "#34C759",
+      "#00C7BE", "#007AFF", "#5856D6", "#AF52DE",
+    ]
+
+    for color in iconColors {
+      let icon = mason.createView()
+      icon.configure { style in
+        style.size = MasonSize(.Points(toPx(64)), .Points(toPx(64)))
+        style.backgroundColor = self.argb(color)
+        style.borderRadius = "\(toPx(16))px"
+        style.cornerShape = "squircle"
+      }
+      grid.append(icon)
+    }
+    container.append(grid)
+
+    // ─── 5. Notification Banners ───────────────────────────────────
+    container.append(sectionLabel("NOTIFICATION BANNERS"))
+
+    let banners: [(text: String, bg: String, border: String, fg: String)] = [
+      ("Payment processed successfully",      "#F0FDF4", "#BBF7D0", "#166534"),
+      ("Your session will expire in 5 minutes", "#FFFBEB", "#FDE68A", "#92400E"),
+      ("Unable to connect to server",          "#FEF2F2", "#FECACA", "#991B1B"),
+    ]
+
+    for b in banners {
+      let banner = mason.createView()
+      banner.configure { style in
+        style.display = .Flex
+        style.alignItems = .Center
+        style.size = MasonSize(.Auto, .Auto)
+        style.backgroundColor = self.argb(b.bg)
+        style.border = "1 solid \(b.border)"
+        style.borderRadius = "\(toPx(14))px"
+        style.cornerShape = "squircle"
+        style.padding = MasonRect(
+          .Points(toPx(14)), .Points(toPx(18)),
+          .Points(toPx(14)), .Points(toPx(18))
+        )
+        style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
+      }
+      let label = mason.createTextView()
+      label.textContent = b.text
+      label.configure { style in
+        style.color = self.argb(b.fg)
+        style.fontSize = 14
+      }
+      banner.append(label)
+      container.append(banner)
+    }
+
+    // ─── 6. Pill Buttons ───────────────────────────────────────────
+    container.append(sectionLabel("PILL BUTTONS — CIRCULAR VS SQUIRCLE"))
+
+    let pillRow = mason.createView()
+    pillRow.display = .Flex
+    pillRow.flexDirection = .Row
+    pillRow.style.setSizeWidth(.Auto)
+    pillRow.style.gap = MasonSize(.Points(toPx(12)), .Points(toPx(12)))
+
+    func pillButton(_ label: String, bg: String, fg: String, shape: String) -> Mason.MasonUIView {
+      let pill = mason.createView()
+      pill.configure { style in
+        style.display = .Flex
+        style.justifyContent = .Center
+        style.alignItems = .Center
+        style.flexGrow = 1
+        style.flexBasis = .Points(0)
+        style.size = MasonSize(.Auto, .Points(toPx(44)))
+        style.backgroundColor = self.argb(bg)
+        style.borderRadius = "999px"
+        style.cornerShape = shape
+        style.padding = MasonRect(
+          .Zero, .Points(toPx(24)), .Zero, .Points(toPx(24))
+        )
+      }
+      let text = mason.createTextView()
+      text.textContent = label
+      text.configure { style in
+        style.color = self.argb(fg)
+        style.fontSize = 14
+      }
+      pill.append(text)
+      return pill
+    }
+
+    pillRow.append(pillButton("Circular", bg: "#4F46E5", fg: "#FFFFFF", shape: "round"))
+    pillRow.append(pillButton("Squircle", bg: "#059669", fg: "#FFFFFF", shape: "squircle"))
+    container.append(pillRow)
+
+    view.append(container)
   }
 
   func renderPseudoDemo(_ view: Scroll) {
