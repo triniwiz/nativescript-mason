@@ -557,8 +557,8 @@ public class TextEngine: NSObject {
     var leading: CGFloat = 0
     let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
 
-    // Center the text vertically: place the baseline so the glyph center aligns with the draw area center
-    let baselineY = drawBounds.midY - (ascent - descent) / 2
+    // Top-align the text (matching CSS block-level behavior): baseline sits ascent distance from the top
+    let baselineY = drawBounds.minY + ascent
     let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     var horizontalOffset: CGFloat = 0
     switch style.resolvedTextAlign {
@@ -797,13 +797,10 @@ public class TextEngine: NSObject {
       nil
     )
 
-    // Use suggested height for layout so CTFrame positions lines tightly,
-    // then offset the whole frame to vertically center within drawBounds
-    let verticalCenterOffset = max(0, (drawBounds.height - suggestedSize.height) / 2)
-
+    // Top-align text (matching CSS block-level behavior): no vertical offset
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
-      y: drawBounds.origin.y + verticalCenterOffset,
+      y: drawBounds.origin.y,
       width: drawBounds.width,
       height: suggestedSize.height
     )

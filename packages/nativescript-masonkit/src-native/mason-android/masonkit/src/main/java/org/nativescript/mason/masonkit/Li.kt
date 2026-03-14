@@ -4,26 +4,21 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
-import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.ListStyleType
 import kotlin.math.max
 
 
 class Li @JvmOverloads constructor(
-  context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : FrameLayout(context, attrs), Element, StyleChangeListener, MeasureFunc {
+  context: Context, attrs: AttributeSet? = null
+) : View(context, attrs, 0, true), MeasureFunc {
 
   var holder: ListView.Holder? = null
   var position: Int = -1
   var isOrdered: Boolean = false
-  override lateinit var node: Node
 
   internal var marker = ""
 
-  val content = FrameLayout(context, attrs)
   internal fun setMarkerValue(value: String) {
     marker = value
   }
@@ -36,28 +31,11 @@ class Li @JvmOverloads constructor(
   }
 
   init {
-    if (!override) {
-      if (!::node.isInitialized) {
-        node = Mason.shared.createListItemNode(this).apply {
-          view = this@Li
-        }
-        node.style.setStyleChangeListener(this)
-      }
+    node = Mason.shared.createListItemNode(this).apply {
+      view = this@Li
     }
-
-    addView(content)
-
-    // css visible default
-    clipChildren = false
-    clipToPadding = false
+    node.style.setStyleChangeListener(this)
   }
-
-  override fun generateDefaultLayoutParams(): LayoutParams {
-    return LayoutParams(
-      LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
-    )
-  }
-
 
   /**
    * Reset view state for recycling.
@@ -76,108 +54,70 @@ class Li @JvmOverloads constructor(
     ViewUtils.drawChildrenOutsetShadows(this, canvas)
 
     ViewUtils.dispatchDraw(this, canvas, style) {
-      if (markerWidth > 0) {
-        // Get the resolved list style type, considering ordered mode
-        val listType = resolveListStyleType()
-        var x = 0f
-        if (listType != ListStyleType.None.value) {
-          val fm = style.paint.fontMetrics
-          val baseline = findFirstTextBaseline(content).takeIf { it != -1 } ?: run {
-            // fallback: first line baseline
-            (-fm.ascent).toInt()
-          }
-
-          val oldPaintStyle = style.paint.style
-          val oldStroke = style.paint.strokeWidth
-          // ensure fill for shapes
-          style.paint.style = Paint.Style.FILL
-
-          when (listType) {
-            ListStyleType.Custom.value -> {
-              // custom text marker
-              if (marker.isNotEmpty()) {
-                it.drawText(
-                  marker, 0f, baseline.toFloat(), style.paint
-                )
-                x = style.paint.measureText(marker)
-              }
-            }
-
-            ListStyleType.Disc.value -> {
-              // filled disc
-              val r = markerSize / 2f
-              val cy = baseline - fm.descent / 2f
-              it.drawCircle(r, cy, r, style.paint)
-              x = markerSize
-            }
-
-            ListStyleType.Circle.value -> {
-              // hollow circle
-              val r = markerSize / 2f
-              val cy = baseline - fm.descent / 2f
-
-              style.paint.style = Paint.Style.STROKE
-              style.paint.strokeWidth = max(1f, style.paint.textSize * 0.08f)
-
-              it.drawCircle(r, cy, r, style.paint)
-              x = markerSize
-            }
-
-            ListStyleType.Square.value -> {
-              // filled square
-              val half = markerSize / 2f
-              val cy = baseline - fm.descent / 2f
-
-              val left = 0f
-              val top = cy - half
-              val right = markerSize
-              val bottom = cy + half
-
-              it.drawRect(left, top, right, bottom, style.paint)
-              x = markerSize
-            }
-
-            ListStyleType.Decimal.value -> {
-              // decimal number marker
-              if (position > -1) {
-                val text = "${position + 1}."
-                it.drawText(
-                  text, 0f, baseline.toFloat(), style.paint
-                )
-                x = style.paint.measureText(text)
-              }
-            }
-
-            else -> {}
-          }
-
-          // restore paint
-          style.paint.style = oldPaintStyle
-          style.paint.strokeWidth = oldStroke
-
-          // translate canvas for content after marker + gap
-          if (x > 0) {
-            val gap = style.paint.textSize * 0.5f // proportional gap
-            it.translate(x + gap, 0f)
-          }
-        }
-      }
-      super.dispatchDraw(it)
+      drawMarker(it)
+      // Call ViewGroup.dispatchDraw directly to draw children, avoiding
+      // View's dispatchDraw which would double-wrap with ViewUtils.
+      dispatchDrawChildren(it)
     }
   }
 
+  private fun drawMarker(canvas: Canvas) {
+    if (markerWidth <= 0) return
 
-  override val style: Style
-    get() = node.style
+    val listType = resolveListStyleType()
+    if (listType == ListStyleType.None.value) return
 
-  override val view: View
-    get() = this
+    val fm = style.paint.fontMetrics
+    val baseline = findFirstTextBaseline(this@Li).takeIf { it != -1 } ?: run {
+      (-fm.ascent).toInt()
+    }
 
-  override fun onChange(low: Long, high: Long) {
-    Node.invalidateDescendantTextViews(node, low, high)
+    val oldPaintStyle = style.paint.style
+    val oldStroke = style.paint.strokeWidth
+    style.paint.style = Paint.Style.FILL
+
+    when (listType) {
+      ListStyleType.Custom.value -> {
+        if (marker.isNotEmpty()) {
+          canvas.drawText(marker, 0f, baseline.toFloat(), style.paint)
+        }
+      }
+
+      ListStyleType.Disc.value -> {
+        val r = markerSize / 2f
+        val cy = baseline - fm.descent / 2f
+        canvas.drawCircle(r, cy, r, style.paint)
+      }
+
+      ListStyleType.Circle.value -> {
+        val r = markerSize / 2f
+        val cy = baseline - fm.descent / 2f
+        style.paint.style = Paint.Style.STROKE
+        style.paint.strokeWidth = max(1f, style.paint.textSize * 0.08f)
+        canvas.drawCircle(r, cy, r, style.paint)
+      }
+
+      ListStyleType.Square.value -> {
+        val half = markerSize / 2f
+        val cy = baseline - fm.descent / 2f
+        canvas.drawRect(0f, cy - half, markerSize, cy + half, style.paint)
+      }
+
+      ListStyleType.Decimal.value -> {
+        if (position > -1) {
+          val text = "${position + 1}."
+          canvas.drawText(text, 0f, baseline.toFloat(), style.paint)
+        }
+      }
+
+      else -> {}
+    }
+
+    style.paint.style = oldPaintStyle
+    style.paint.strokeWidth = oldStroke
   }
 
-  private fun findFirstTextBaseline(view: View): Int {
+  private fun findFirstTextBaseline(view: android.view.View): Int {
     if (view is android.widget.TextView) {
       return view.baseline
     }
@@ -192,7 +132,6 @@ class Li @JvmOverloads constructor(
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
 
@@ -202,31 +141,26 @@ class Li @JvmOverloads constructor(
     when (parent) {
       is ListView.MasonRecyclerView -> {
         node.dirty()
-        if (!node.computeScheduled && !node.mason.inCompute) {
+        if (!node.mason.inCompute) {
           val width = mapMeasureSpec(specWidthMode, specWidth).value
           var height = mapMeasureSpec(specHeightMode, specHeight).value
 
           if (specHeightMode == MeasureSpec.UNSPECIFIED) {
             height = -2f
           }
-          compute(
-            width, height
-          )
-
+          compute(width, height)
           layoutFlat()
         }
-
       }
 
       !is Element -> {
-        if (!node.computeScheduled && !node.mason.inCompute) {
+        if (!node.mason.inCompute) {
           compute(
             mapMeasureSpec(specWidthMode, specWidth).value,
             mapMeasureSpec(specHeightMode, specHeight).value
           )
           layoutFlat()
         }
-
       }
 
       else -> {}
@@ -239,26 +173,20 @@ class Li @JvmOverloads constructor(
 
     val width = node.computedWidth.toInt()
     val height = node.computedHeight.toInt()
-    measureChild(
-      content, MeasureSpec.makeMeasureSpec(
-        width, MeasureSpec.EXACTLY,
-      ), MeasureSpec.makeMeasureSpec(
-        height, MeasureSpec.AT_MOST
-      )
-    )
     setMeasuredDimension(width, height)
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    val tree = layoutFlat()
-    applyLayoutFlat(node, tree)
+    if (parent !is Element || parent is ListView.MasonRecyclerView) {
+      layoutFlat()
+    }
+    applyLayoutFlat(node, node.layoutTree)
   }
 
   internal var markerWidth: Float = 0f
   internal var markerHeight: Float = 0f
   private var markerSize: Float = 0f
   internal var counter: Int = -1
-
 
   internal fun resolveListStyleType(): Byte {
     val recycler = parent as? ListView.MasonRecyclerView
@@ -312,7 +240,6 @@ class Li @JvmOverloads constructor(
       ListStyleType.None.value -> 0f
 
       ListStyleType.Custom.value -> {
-        // Custom text marker
         if (marker.isNotEmpty()) {
           paint.measureText(marker)
         } else {
@@ -321,7 +248,6 @@ class Li @JvmOverloads constructor(
       }
 
       ListStyleType.Disc.value, ListStyleType.Circle.value, ListStyleType.Square.value -> {
-        // Shape markers use markerSize
         markerSize
       }
 

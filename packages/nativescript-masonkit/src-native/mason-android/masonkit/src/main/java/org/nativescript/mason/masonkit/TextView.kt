@@ -149,23 +149,26 @@ class TextView @JvmOverloads constructor(
               var child: android.view.View = this@TextView
               var childNode: Node? = this@TextView.node
               var anc = parent as? android.view.View
+              var topExpanded: android.view.View? = null
               while (anc != null && anc is Element) {
                 val ancElement = anc as Element
-                // Child's bottom margin (outside its view bounds)
                 val childMarginBottom = childNode?.let {
                   resolveMarginValue(try { it.style.margin.bottom } catch (_: Throwable) { null })
                 } ?: 0f
-                // Ancestor's bottom border (from computed layout)
                 val ancBorderBottom = ancElement.node.computedBorderBottom
                 val needed = child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
                 val available = anc.height
                 if (needed <= available) break
                 anc.layout(anc.left, anc.top, anc.right, anc.top + needed)
-                anc.invalidate()
+                topExpanded = anc
                 childNode = ancElement.node
                 child = anc
                 anc = anc.parent as? android.view.View
+                anc?.invalidate()
               }
+              // Single invalidate on the topmost expanded ancestor redraws
+              // the whole subtree in one pass instead of per-ancestor.
+              (topExpanded ?: this@TextView).invalidate()
             }
           }
         }

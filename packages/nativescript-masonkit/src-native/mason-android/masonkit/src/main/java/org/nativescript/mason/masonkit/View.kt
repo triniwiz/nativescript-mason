@@ -29,7 +29,7 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import kotlin.math.roundToInt
 
-class View @JvmOverloads constructor(
+open class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
 ) : ViewGroup(context, attrs, defStyleAttr), Element, StyleChangeListener {
 
@@ -159,6 +159,15 @@ class View @JvmOverloads constructor(
     }
   }
 
+  /**
+   * Calls ViewGroup.dispatchDraw directly, bypassing View's override.
+   * Subclasses that override dispatchDraw with their own ViewUtils wrapping
+   * can use this to draw children without double-wrapping.
+   */
+  protected fun dispatchDrawChildren(canvas: Canvas) {
+    super.dispatchDraw(canvas)
+  }
+
 
   internal var isScrollRoot = false
 
@@ -234,7 +243,6 @@ class View @JvmOverloads constructor(
           heightArg
         )
 
-        node.mason.printTree(node)
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
           return
@@ -1090,15 +1098,6 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.display = value
-      checkAndUpdateStyle()
-    }
-
-  var position: Position
-    get() {
-      return style.position
-    }
-    set(value) {
-      style.position = value
       checkAndUpdateStyle()
     }
 

@@ -100,7 +100,7 @@ export class Tree {
     return this.native.createButton();
   }
 
-  createBr(context) {
+  createBr() {
     return this.native.createBr();
   }
 
@@ -136,5 +136,13 @@ export class Tree {
       default:
         return this.native.createInput(MasonInputType.Text);
     }
+  }
+
+  createList() {
+    return this.native.createListViewWithIsOrdered(false);
+  }
+
+  createListItem() {
+    return this.native.createListItem();
   }
 }

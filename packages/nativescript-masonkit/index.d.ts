@@ -238,3 +238,9 @@ export class TextNode {
 
   substringData(offset: number, count: number): string;
 }
+
+export class Ul extends VBase {}
+
+export class Ol extends VBase {}
+
+export class Li extends VBase {}

@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -93,7 +92,7 @@ interface Element : EventTarget {
     // cache is clean, skip the native compute to avoid redundant work and
     // repeated max-content (-2 x -2) cycles caused by races.
     if (!node.computeCacheDirty && node.computeCache.width == width && node.computeCache.height == height) {
-      Log.d("compute", "skip compute: cache matches ${width} x ${height}")
+      // cache hit — skip native compute
       return
     }
 
@@ -152,7 +151,6 @@ interface Element : EventTarget {
       if (layout.isEmpty()) {
         return MasonLayoutTree.empty
       }
-      Log.d("Element.computeAndLayout", "native floats=${layout.joinToString(",")}")
       node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
@@ -187,7 +185,6 @@ interface Element : EventTarget {
       if (layout.isEmpty()) {
         return MasonLayoutTree.empty
       }
-      Log.d("Element.computeAndLayout", "native floats(size=${width}x${height})=${layout.joinToString(",")}")
       node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
@@ -347,7 +344,8 @@ interface Element : EventTarget {
 
       if (root.view is Element && root.computeCacheDirty) {
         var width = if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width
-        var height = if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
+        var height =
+          if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
 
         // if the existing cache value was the max-content sentinel and the view
         // already has a real size, switch to the view dimensions.  also update
@@ -384,16 +382,12 @@ interface Element : EventTarget {
         if (cachedW > 0f && cachedH > 0f) {
           root.computeCache = SizeF(cachedW, cachedH)
           root.computeCacheDirty = false
-          (root.view as? View)?.invalidate()
-          (root.view as? View)?.requestLayout()
           return
         }
 
         if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
           root.computeCache = SizeF(nodeW2, nodeH2)
           root.computeCacheDirty = false
-          (root.view as? View)?.invalidate()
-          (root.view as? View)?.requestLayout()
           return
         }
 
@@ -412,6 +406,8 @@ interface Element : EventTarget {
         try {
           root.computeScheduled = false
           doCompute()
+          // Single invalidate+requestLayout at the end — doCompute early
+          // returns no longer duplicate this, avoiding redundant traversals.
           (root.view as? View)?.let { v ->
             v.invalidate()
             v.requestLayout()
@@ -844,6 +840,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
               if (nv.contentWidth > nv.width) nv.contentWidth.toInt()
               else nv.width.toInt()
             }
+
             else -> maxOf(nv.contentWidth.toInt(), nv.width.toInt())
           }
 
@@ -853,6 +850,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
               if (nv.contentHeight > nv.height) nv.contentHeight.toInt()
               else nv.height.toInt()
             }
+
             else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
           }
 
@@ -895,9 +893,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             )
           )
           view.layout(x, y, right, bottom)
-
-
-          Log.d("layout", "view $view $x $y $right $bottom ... $layoutWidth x $layoutHeight")
         }
       }
     }

@@ -373,45 +373,6 @@ class StateKeys {
   }
 }
 
-class TextStateKeys {
-  constructor(public readonly bits: bigint) {}
-  static readonly ALL = new TextStateKeys(-1n);
-  static readonly NONE = new TextStateKeys(0n);
-  static readonly COLOR = new TextStateKeys(1n << 0n);
-  static readonly DECORATION_LINE = new TextStateKeys(1n << 1n);
-  static readonly DECORATION_COLOR = new TextStateKeys(1n << 2n);
-  static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
-  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
-  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
-  static readonly SIZE = new TextStateKeys(1n << 6n);
-  static readonly TRANSFORM = new TextStateKeys(1n << 7n);
-  static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
-  static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
-  static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
-  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 11n);
-  static readonly DECORATION_STYLE = new TextStateKeys(1n << 12n);
-  static readonly WHITE_SPACE = new TextStateKeys(1n << 13n);
-  static readonly FONT_WEIGHT = new TextStateKeys(1n << 14n);
-  static readonly LINE_HEIGHT = new TextStateKeys(1n << 15n);
-  static readonly VERTICAL_ALIGN = new TextStateKeys(1n << 16n);
-  static readonly DECORATION_THICKNESS = new TextStateKeys(1n << 17n);
-  static readonly TEXT_SHADOW = new TextStateKeys(1n << 18n);
-  static readonly FONT_FAMILY = new TextStateKeys(1n << 19n);
-  static readonly LETTER_SPACING = new TextStateKeys(1n << 20n);
-
-  or(other: TextStateKeys): TextStateKeys {
-    return new TextStateKeys(this.bits | other.bits);
-  }
-
-  and(other: TextStateKeys): TextStateKeys {
-    return new TextStateKeys(this.bits & other.bits);
-  }
-
-  hasFlag(flag: TextStateKeys): boolean {
-    return (this.bits & flag.bits) !== 0n;
-  }
-}
-
 const getInt8 = (view: DataView, offset: number) => {
   return view.getInt8(offset);
 };
@@ -520,14 +481,12 @@ export class Style {
   }
 
   private syncStyle() {
+    const [low, high] = splitBigIntToInt64Parts(this.isDirty);
     if (__ANDROID__) {
       const view = this.view.android as never as org.nativescript.mason.masonkit.Element;
-      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
       view.syncStyle(low, high);
     } else if (__APPLE__) {
       const view = this.view.ios as never as MasonText;
-      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
-      console.log('syncStyle', low, high);
       // @ts-ignore
       view.mason_syncStyle(low, high);
     }
@@ -540,18 +499,6 @@ export class Style {
     } else {
       this.isDirty = this.isDirty | value.bits;
     }
-    if (!this.inBatch) {
-      this.syncStyle();
-    }
-  }
-
-  private setOrAppendTextState(value: TextStateKeys) {
-    if (this.isDirty == -1n) {
-      this.isDirty = value.bits;
-    } else {
-      this.isDirty = this.isDirty | value.bits;
-    }
-
     if (!this.inBatch) {
       this.syncStyle();
     }
@@ -651,7 +598,7 @@ export class Style {
         setInt32(this.style_view, StyleKeys.FONT_SIZE, value);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-        this.setOrAppendTextState(TextStateKeys.SIZE);
+        this.setOrAppendState(StateKeys.SIZE);
         break;
       case 'object':
         switch (value.unit) {
@@ -659,19 +606,19 @@ export class Style {
             setInt32(this.style_view, StyleKeys.FONT_SIZE, layout.toDeviceIndependentPixels(value.value));
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-            this.setOrAppendTextState(TextStateKeys.SIZE);
+            this.setOrAppendState(StateKeys.FONT_SIZE);
             break;
           case 'px':
             setInt32(this.style_view, StyleKeys.FONT_SIZE, value.value);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-            this.setOrAppendTextState(TextStateKeys.SIZE);
+            this.setOrAppendState(StateKeys.FONT_SIZE);
             break;
           case '%':
             setInt32(this.style_view, StyleKeys.FONT_SIZE, value.value * 100);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 1);
-            this.setOrAppendTextState(TextStateKeys.SIZE);
+            this.setOrAppendState(StateKeys.FONT_SIZE);
             break;
         }
         break;
@@ -719,7 +666,7 @@ export class Style {
     if (style !== -1) {
       setInt32(this.style_view, StyleKeys.FONT_STYLE_TYPE, style);
       setInt8(this.style_view, StyleKeys.FONT_STYLE_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.FONT_STYLE);
+      this.setOrAppendState(StateKeys.FONT_STYLE);
     }
   }
 
@@ -776,7 +723,7 @@ export class Style {
     if (weight !== -1) {
       setInt32(this.style_view, StyleKeys.FONT_WEIGHT, weight);
       setInt8(this.style_view, StyleKeys.FONT_WEIGHT_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.FONT_WEIGHT);
+      this.setOrAppendState(StateKeys.FONT_WEIGHT);
     }
   }
 
@@ -795,7 +742,7 @@ export class Style {
     }
     setUint32(this.style_view, StyleKeys.FONT_COLOR, value);
     setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 1);
-    this.setOrAppendTextState(TextStateKeys.COLOR);
+    this.setOrAppendState(StateKeys.FONT_COLOR);
   }
 
   get backgroundColor() {
@@ -812,7 +759,9 @@ export class Style {
     }
     setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, value);
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 1);
-    this.setOrAppendTextState(TextStateKeys.BACKGROUND_COLOR);
+    setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
+
+    this.setOrAppendState(StateKeys.BACKGROUND_COLOR);
   }
 
   get textWrap() {
@@ -849,7 +798,7 @@ export class Style {
     if (wrap !== -1) {
       setInt32(this.style_view, StyleKeys.TEXT_WRAP, wrap);
       setInt8(this.style_view, StyleKeys.TEXT_WRAP_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
+      this.setOrAppendState(StateKeys.TEXT_WRAP);
     }
   }
 
@@ -3021,18 +2970,18 @@ export class Style {
     if (typeof value === 'number') {
       setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value);
       setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+      this.setOrAppendState(StateKeys.LETTER_SPACING);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
           setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LETTER_SPACING);
           break;
         case 'px':
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value.value);
           setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LETTER_SPACING);
           break;
       }
     }
@@ -3047,20 +2996,20 @@ export class Style {
       setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 0);
-      this.setOrAppendTextState(TextStateKeys.LINE_HEIGHT);
+      this.setOrAppendState(StateKeys.LINE_HEIGHT);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LETTER_SPACING);
           break;
         case 'px':
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value.value);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LETTER_SPACING);
           break;
       }
     }
@@ -3125,7 +3074,7 @@ export class Style {
     if (flow !== -1) {
       setInt32(this.style_view, StyleKeys.TEXT_OVERFLOW, flow);
       setInt8(this.style_view, StyleKeys.TEXT_OVERFLOW_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.TEXT_OVERFLOW);
+      this.setOrAppendState(StateKeys.TEXT_OVERFLOW);
     }
   }
 
@@ -3189,7 +3138,7 @@ export class Style {
     if (align !== -1) {
       setInt32(this.style_view, StyleKeys.TEXT_ALIGN, align);
       setInt8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, 1);
-      this.setOrAppendTextState(TextStateKeys.TEXT_ALIGN);
+      this.setOrAppendState(StateKeys.TEXT_ALIGN);
     }
   }
 
@@ -3481,7 +3430,7 @@ export class Style {
         }
       }
     }
-    this.setOrAppendTextState(TextStateKeys.VERTICAL_ALIGN);
+    this.setOrAppendState(StateKeys.VERTICAL_ALIGN);
   }
 
   get textShadow() {

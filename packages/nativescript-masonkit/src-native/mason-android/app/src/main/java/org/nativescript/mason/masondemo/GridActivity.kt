@@ -3,10 +3,7 @@ package org.nativescript.mason.masondemo
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.os.StrictMode
-import android.os.StrictMode.ThreadPolicy
 import android.util.DisplayMetrics
-import android.util.Log
 import android.util.TypedValue
 import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
@@ -106,8 +103,8 @@ class GridActivity : AppCompatActivity() {
 
     //grid_template_areas_600(body)
 
-   // backgroundTest(body)
-     //filter(body)
+    // backgroundTest(body)
+    //filter(body)
     //  objectFit(body)
     //   buttons(body)
     // verticalAlignment(body)
@@ -123,7 +120,7 @@ class GridActivity : AppCompatActivity() {
     setContentView(root)
   }
 
-  fun inputTest(body: View){
+  fun inputTest(body: View) {
     body.id = android.view.View.generateViewId()
     val root = mason.createView(this)
 
@@ -191,13 +188,17 @@ class GridActivity : AppCompatActivity() {
 
       override fun onBind(holder: ListView.Holder, index: Int) {
         arr.getOrNull(index)?.let { url ->
-          val txt = holder.view.node.getChildAt(0)?.view as? TextView
-          (txt?.node?.getChildAt(0) as? TextNode)?.let {
-            it.data = url
-          }
+          (holder.view as? Li)?.let {
+            val txt = it.node.getChildAt(0)?.view as? TextView
+            (txt?.node?.getChildAt(0) as? TextNode)?.let { node ->
+              node.data = url
+            }
 
-          val img = holder.view.node.getChildAt(1)?.view as? Img
-          img?.src = url
+            val img = it.node.getChildAt(1)?.view as? Img
+            img?.src = url
+          } ?: run {
+            holder.view.setBackgroundColor(Color.RED)
+          }
 
         }
       }
@@ -1007,7 +1008,7 @@ class GridActivity : AppCompatActivity() {
     header.append("Header")
     header.configure {
       it.color = Color.WHITE
-       header.style.background = "#999999"
+      header.style.background = "#999999"
       header.style.gridArea = "header"
       it.padding = boxPadding
       it.borderRadius = "5px"

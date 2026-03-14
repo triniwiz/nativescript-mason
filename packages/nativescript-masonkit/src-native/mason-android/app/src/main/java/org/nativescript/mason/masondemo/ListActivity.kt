@@ -2,9 +2,11 @@ package org.nativescript.mason.masondemo
 
 import android.os.Bundle
 import android.view.ViewGroup
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.MutableLiveData
-import androidx.recyclerview.widget.RecyclerView
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.Li
@@ -21,7 +23,6 @@ import java.util.concurrent.Executors
 
 class ListActivity : AppCompatActivity() {
   val array = MutableLiveData(ArrayList<String>())
-  lateinit var adapter: ListView.Adapter
   lateinit var list: ListView
   val mason = Mason.shared
   lateinit var body: View
@@ -29,6 +30,21 @@ class ListActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     body = mason.createView(this)
+    val content = mason.createView(this)
+
+    enableEdgeToEdge()
+
+    ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      content.style.setPadding(
+        systemBars.left + 24, systemBars.top + 24,
+        systemBars.right + 24, 0
+      )
+      insets
+    }
+
+    body.addView(content)
+
     body.style.size = Size(
       Dimension.Percent(1f),
       Dimension.Percent(1f)
@@ -43,7 +59,10 @@ class ListActivity : AppCompatActivity() {
     }
 
     list.listener = object : ListView.Listener {
-      override fun onCreate(type: Int): Li {
+      override fun onCreate(type: Int): android.view.View {
+        if (type == 1) {
+          return mason.createView(this@ListActivity)
+        }
         val ret = mason.createListItem(this@ListActivity)
 
         val root = mason.createView(this@ListActivity)
@@ -77,30 +96,33 @@ class ListActivity : AppCompatActivity() {
         index: Int
       ) {
         array.value?.let {
-          val url = it[index]
-          val root = holder.view.getChildAt(0) as? ViewGroup
-          val textView = root?.getChildAt(0) as? TextView
-          val imageView = root?.getChildAt(1) as? Img
+          (holder.view as? Li)?.let { view ->
+            val url = it[index]
+            val root = view.getChildAt(0) as? ViewGroup
+            val textView = root?.getChildAt(0) as? TextView
+            val imageView = root?.getChildAt(2) as? Img
 
-          textView?.textContent = url
-          imageView?.src = url
-          // viewHolder.imageView.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+            textView?.textContent = url
+            imageView?.src = url
+            // viewHolder.imageView.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+          }
         }
       }
 
       override fun getItemViewType(position: Int): Int {
-        return position
+        if (position == array.value?.lastIndex) {
+          return 1
+        }
+        return 0
       }
     }
 
     array.observe(this) {
       it?.let {
-        if (::adapter.isInitialized) {
-          val last = it.lastIndex
-          if (last != -1) {
-            list.count = it.size
-            adapter.notifyItemRangeChanged(0, last)
-          }
+        val last = it.lastIndex
+        if (last != -1) {
+          list.count = it.size
+          list.notifyItemRangeChanged(0, last)
         }
       }
     }
@@ -108,11 +130,13 @@ class ListActivity : AppCompatActivity() {
     body.appendView(list)
 
     Executors.newSingleThreadExecutor().execute {
+      Thread.sleep(1000)
       val arr = ArrayList<String>(1000)
 
       repeat(1000) {
         arr.add("https://robohash.org/${it + 1}?set=set4")
       }
+      arr.add("test")
       array.postValue(
         arr
       )

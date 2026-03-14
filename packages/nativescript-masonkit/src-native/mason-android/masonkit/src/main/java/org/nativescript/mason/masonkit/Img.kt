@@ -87,10 +87,11 @@ class Img @JvmOverloads constructor(
     if (!node.style.inBatch) {
       if (node.parent == null) {
         invalidateLayout()
-        requestLayout()
       } else {
         invalidateLayout(true)
       }
+      requestLayout()
+      invalidate()
     }
   }
 
@@ -105,11 +106,11 @@ class Img @JvmOverloads constructor(
       }
       val target = object : CustomTarget<Bitmap>(
         when (node.computeCache.width) {
-          Float.MIN_VALUE, -2f -> SIZE_ORIGINAL
+          Float.MIN_VALUE, -2f, -1f -> SIZE_ORIGINAL
           else -> node.computeCache.width.toInt()
         },
         when (node.computeCache.height) {
-          Float.MIN_VALUE, -2f -> SIZE_ORIGINAL
+          Float.MIN_VALUE, -2f, -1f -> SIZE_ORIGINAL
           else -> node.computeCache.height.toInt()
         }
       ) {

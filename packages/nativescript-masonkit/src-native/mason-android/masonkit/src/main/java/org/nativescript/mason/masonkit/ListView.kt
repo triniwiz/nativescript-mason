@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -65,10 +66,10 @@ class ListView @JvmOverloads constructor(
   private var itemIds = mutableMapOf<Int, Long>()
 
   /** Static items keyed by position. Positions not here are virtual (recycled). */
-  val staticItems = mutableMapOf<Int, Li>()
+  val staticItems = mutableMapOf<Int, View>()
 
   /** Backward-compat: flat list accessor. Setting clears staticItems and assigns 0..n. */
-  var staticViews: MutableList<Li>
+  var staticViews: MutableList<View>
     get() = staticItems.keys.sorted().mapNotNull { staticItems[it] }.toMutableList()
     set(value) {
       staticItems.clear()
@@ -76,7 +77,7 @@ class ListView @JvmOverloads constructor(
     }
 
   interface Listener {
-    fun onCreate(type: Int): Li
+    fun onCreate(type: Int): View
     fun onBind(holder: Holder, index: Int)
     fun getItemViewType(position: Int): Int
   }
@@ -92,13 +93,13 @@ class ListView @JvmOverloads constructor(
   private var viewType = mutableMapOf<Int, Int>()
 
   /** Appends a static item at the end (position = current count). */
-  fun addView(item: Li) {
+  fun addStaticView(item: View) {
     val pos = count
     staticItems[pos] = item
   }
 
   /** Inserts a static item at the given position, shifting existing entries at >= index. */
-  fun addView(item: Li, index: Int) {
+  fun addStaticView(item: View, index: Int) {
     for (key in staticItems.keys.sortedDescending()) {
       if (key >= index) {
         staticItems[key + 1] = staticItems.remove(key)!!
@@ -107,16 +108,16 @@ class ListView @JvmOverloads constructor(
     staticItems[index] = item
   }
 
-  override fun addView(child: android.view.View?) {
-    if (child is Li) {
-      addView(child)
-      return
-    }
-    super.addView(child)
-  }
 
-  override fun addView(child: android.view.View?, width: Int, height: Int) {
-    super.addView(child, width, height)
+  fun addStaticView(child: View, width: Int, height: Int) {
+    val params = child.layoutParams?.let {
+      it.width = width
+      it.height = height
+      it
+    } ?: LayoutParams(width, height)
+    child.layoutParams = params
+    val pos = count
+    staticItems[pos] = child
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -132,33 +133,52 @@ class ListView @JvmOverloads constructor(
     // Only compute if we are the layout root — when parent is an Element,
     // Taffy computes top-down and will handle this node in the recursive call.
     if (parent !is Element) {
-      if (!node.computeScheduled && !node.mason.inCompute) {
+      if (!node.mason.inCompute) {
         compute(
           availableWidth, availableHeight
         )
         layoutFlat()
       }
-    }
 
-    val width = node.computedWidth.toInt()
-    val height = node.computedHeight.toInt()
+      val width = node.computedWidth.toInt()
+      val height = node.computedHeight.toInt()
 
-    measureChild(
-      list, MeasureSpec.makeMeasureSpec(
-        width, MeasureSpec.EXACTLY,
-      ), MeasureSpec.makeMeasureSpec(
-        height, MeasureSpec.EXACTLY
+      val pr = node.computedPaddingRight
+      val pl = node.computedPaddingLeft
+      val pb = node.computedPaddingBottom
+      val pt = node.computedPaddingTop
+      measureChild(
+        list, MeasureSpec.makeMeasureSpec(
+          ((width - pr) - pl).toInt(), MeasureSpec.EXACTLY,
+        ), MeasureSpec.makeMeasureSpec(
+          ((height - pb) - pt).toInt(), MeasureSpec.EXACTLY
+        )
       )
-    )
+      setMeasuredDimension(width, height)
+    } else {
 
-    setMeasuredDimension(width, height)
+      val pr = paddingLeft
+      val pl = node.computedPaddingLeft
+      val pb = node.computedPaddingBottom
+      val pt = node.computedPaddingTop
+
+      measureChild(
+        list, MeasureSpec.makeMeasureSpec(
+          ((width - pr) - pl).toInt(), MeasureSpec.EXACTLY,
+        ), MeasureSpec.makeMeasureSpec(
+          ((height - pb) - pt).toInt(), MeasureSpec.EXACTLY
+        )
+      )
+
+      setMeasuredDimension(specWidth, specHeight)
+    }
   }
 
-  internal var virtualItems = mutableListOf<Li>()
+  internal var virtualItems = mutableListOf<View>()
 
-  class Holder(val view: Li) : RecyclerView.ViewHolder(view) {
+  class Holder(val view: View) : RecyclerView.ViewHolder(view) {
     init {
-      view.holder = this
+      (view as? Li)?.holder = this
     }
   }
 
@@ -198,20 +218,22 @@ class ListView @JvmOverloads constructor(
     ) {
       val list = list.get() ?: return
 
-      // Sync ordered mode to the Li item
-      holder.view.isOrdered = list.isOrdered
-      holder.view.position = position
-      holder.view.holder = holder
+      (holder.view as? Li)?.let { li ->
+        // Sync ordered mode to the Li item
+        li.isOrdered = list.isOrdered
+        li.position = position
+        li.holder = holder
 
-      if (holder.view.resolveListStyleType() != ListStyleType.None.value) {
-        val marker = if (list.isOrdered) {
-          "${position + 1}."
+        if (li.resolveListStyleType() != ListStyleType.None.value) {
+          val marker = if (list.isOrdered) {
+            "${position + 1}."
+          } else {
+            "\u2022"
+          }
+          li.setMarkerValue(marker)
         } else {
-          "\u2022"
+          li.setMarkerValue("")
         }
-        holder.view.setMarkerValue(marker)
-      } else {
-        holder.view.setMarkerValue("")
       }
 
       // Only call listener for virtual items (positions not in staticItems)
@@ -240,8 +262,10 @@ class ListView @JvmOverloads constructor(
       if (listView != null && listView.staticItems.containsValue(holder.view)) {
         return
       }
-      holder.view.resetForRecycle()
-      holder.view.holder = null
+      (holder.view as? Li)?.let {
+        it.resetForRecycle()
+        it.holder = null
+      }
     }
   }
 
@@ -399,22 +423,19 @@ class ListView @JvmOverloads constructor(
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-    val pl = paddingLeft
-    val pt = paddingTop
-    val pr = paddingRight
-    val pb = paddingBottom
 
-    list.measure(
-      MeasureSpec.makeMeasureSpec(
-        (right - left - pr) - pl, MeasureSpec.EXACTLY,
-      ), MeasureSpec.makeMeasureSpec(
-        (bottom - top - pb) - pt, MeasureSpec.EXACTLY
-      )
-    )
+    val pr = node.computedPaddingRight
+    val pl = node.computedPaddingLeft
+    val pb = node.computedPaddingBottom
+    val pt = node.computedPaddingTop
+    val width = node.computedWidth.takeIf { it > 0 } ?: (right - left).toFloat()
+    val height = node.computedHeight.takeIf { it > 0 } ?: (bottom - top).toFloat()
+
 
     list.layout(
-      pl, pt, right - left - pr, bottom - top - pb
+      pl.toInt(), pt.toInt(), (width - pr).toInt(), (height - pb).toInt()
     )
+
   }
 
   override fun onChange(low: Long, high: Long) {

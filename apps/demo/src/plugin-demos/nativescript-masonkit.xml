@@ -83,16 +83,37 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 -->
 <!-- </scroll:Scroll> -->
 
+<ui:View>
+
+<ui:View class="section">
+    <ui:View class="div left">
+    <text:Text textContent="1"/>
+    </ui:View>
+    <ui:View class="div left" textContent="2">
+        <text:Text textContent="2"/>
+    </ui:View>
+    <ui:View class="div right" textContent="3">
+        <text:Text textContent="3"/>
+    </ui:View>
+    <web:P textContent="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi tristique
+    sapien ac erat tincidunt, sit amet dignissim lectus vulputate. Donec id
+    iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa
+    aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus
+    congue."/>
+</ui:View>
+
+</ui:View>
 
 
 
-  <ui:View class="flex-example" color="white" loaded="loaded">
+
+  <!-- <ui:View class="flex-example" color="white" loaded="loaded">
     <text:Text class="a">
         <text:Text textContent="aa" class="a"/>
         <text:Text textContent="ab" class="a"/>
     </text:Text>
     <text:Text textContent="b" class="b"/>
-  </ui:View>
+  </ui:View> -->
 
 
 
