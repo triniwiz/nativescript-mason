@@ -398,8 +398,13 @@ public class MasonLi: UIView, MasonEventTarget, MasonElement, MasonElementObjc, 
 
     node.setMeasureFunction { [weak self] known, available in
       guard let self = self else { return .zero }
-      // Sync isOrdered from parent
-      if let list = self.node.parent?.view as? MasonList {
+      // Sync isOrdered from parent — prefer the UIKit view hierarchy
+      // (same as resolveListStyleType) because the Taffy node parent may
+      // not reflect the actual hierarchy for recycled items.
+      let cell = self.superview?.superview as? MasonList.MasonListCell
+      let listFromView = cell?.collectionView?.superview as? MasonList
+      let listFromNode = self.node.parent?.view as? MasonList
+      if let list = listFromView ?? listFromNode {
         self.isOrdered = list.isOrdered
       }
 

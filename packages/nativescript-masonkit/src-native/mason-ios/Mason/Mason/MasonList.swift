@@ -21,6 +21,8 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     func list(_ list: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath)
   }
   
+  @objc(MasonListCell)
+  @objcMembers
   public class MasonListCell: UICollectionViewCell {
     public var willMove: ((MasonListCell) -> Void)?
     public private(set) var view: MasonElement? = nil
@@ -47,6 +49,10 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
       if let newView = newView {
         contentView.addSubview(newView.uiView)
       }
+    }
+    
+    public func setView(compat view: MasonElementObjc?){
+      setView(view as? MasonElement)
     }
 
     public override func willMove(toSuperview newSuperview: UIView?) {
@@ -135,7 +141,8 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
 
       let layout = view.layout()
       view.setComputeCache(CGSizeMake(CGFloat(layout.width), CGFloat(layout.height)))
-      let size = CGSizeMake(CGFloat(layout.width / scale).rounded(.up), CGFloat(layout.height / scale).rounded(.up))
+      // List items always span the full available width; only height is content-driven.
+      let size = CGSizeMake(availableWidth, CGFloat(layout.height / scale).rounded(.up))
       cachedSized = size
       cachedWidth = availableWidth
 
@@ -390,6 +397,9 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
       cell.setView(staticItem)
       cell.contentView.addSubview(staticItem)
       cell.index = indexPath
+      // Bind marker state BEFORE preferredLayoutAttributesFitting sizes
+      // the cell — otherwise markerWidth is 0 and no space is reserved.
+      staticItem.bind(position: index, isOrdered: isOrdered)
       return cell
     }
 
@@ -397,6 +407,10 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     let cell = delegate?.list(collectionView, cellForItemAt: indexPath) ?? MasonListCell.initWithEmptyBackground()
     if let cell = cell as? MasonListCell {
       cell.index = indexPath
+      // Bind marker state before sizing (same reason as static path)
+      if let li = cell.view as? MasonLi {
+        li.bind(position: index, isOrdered: isOrdered)
+      }
     }
     return cell
   }

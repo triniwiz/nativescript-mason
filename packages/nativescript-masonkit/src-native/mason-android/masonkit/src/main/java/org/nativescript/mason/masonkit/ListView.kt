@@ -234,6 +234,15 @@ class ListView @JvmOverloads constructor(
         } else {
           li.setMarkerValue("")
         }
+
+        // Eagerly compute marker dimensions so they are available before
+        // the Taffy compute runs.  This mirrors iOS's calculateMarkerMetrics()
+        // and ensures markerWidth is set even if Taffy's internal marker-node
+        // measure function is not invoked during compute.
+        li.calculateMarkerMetrics()
+
+        li.node.dirty()
+        li.invalidate()
       }
 
       // Only call listener for virtual items (positions not in staticItems)

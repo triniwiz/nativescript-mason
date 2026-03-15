@@ -5,6 +5,9 @@
   xmlns:web="@triniwiz/nativescript-masonkit/web"
   xmlns:br="@triniwiz/nativescript-masonkit/br"
   xmlns:button="@triniwiz/nativescript-masonkit/button"
+  xmlns:list="@triniwiz/nativescript-masonkit/list"
+  xmlns:li="@triniwiz/nativescript-masonkit/li"
+  xmlns:img="@triniwiz/nativescript-masonkit/img"
   >
 
   <!-- <Page.actionBar>
@@ -84,8 +87,20 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 <!-- </scroll:Scroll> -->
 
 <ui:View>
+<list:OrderedList items="{{items}}" height="100%" backgroundColor="lightgray">
+  <list:OrderedList.itemTemplate>
+    <li:Li>
+      <ui:View height="100">
+      <text:Text textContent="{{ name }}" style="vertical-align: top;" />
+      <img:Img src="{{ src }}" width="100" height="100"/>
+      </ui:View>
+    </li:Li>
+  </list:OrderedList.itemTemplate>
+</list:OrderedList>
 
-<ui:View class="section">
+
+
+<!-- <ui:View class="section">
     <ui:View class="div left">
     <text:Text textContent="1"/>
     </ui:View>
@@ -100,7 +115,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
     iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa
     aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus
     congue."/>
-</ui:View>
+</ui:View> -->
 
 </ui:View>
 

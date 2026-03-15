@@ -5,12 +5,14 @@ import { isFunction } from '@nativescript/core/utils';
 export const itemsProperty = new Property<ListBase, any[] | ItemsSource>({
   name: 'items',
   valueChanged: (target, oldValue, newValue) => {
+    console.log('Items property changed from', oldValue, 'to', newValue);
     if (oldValue instanceof Observable) {
       removeWeakEventListener(oldValue, ObservableArray.changeEvent, target._onItemsChanged, target);
     }
     if (newValue instanceof Observable) {
       addWeakEventListener(newValue, ObservableArray.changeEvent, target._onItemsChanged, target);
     }
+    target._updateItemsCount();
     target.refresh();
   },
 });
@@ -19,6 +21,16 @@ export const itemTemplateProperty = new Property<ListBase, string | Template>({
   name: 'itemTemplate',
   valueChanged: (target) => {
     target.refresh();
+  },
+  valueConverter: (value) => {
+    if (typeof value === 'string') {
+      if (__UI_USE_XML_PARSER__) {
+        return Builder.parse(value, null) as never;
+      } else {
+        return null;
+      }
+    }
+    return value;
   },
 });
 
@@ -116,6 +128,10 @@ export abstract class ListBase extends ViewBase implements Omit<TemplatedItemsVi
 
   public _onItemsChanged(args: ChangedData<any>) {
     this.refresh();
+  }
+
+  public _updateItemsCount() {
+    //
   }
 
   public _getItemTemplate(index: number): KeyedTemplate {

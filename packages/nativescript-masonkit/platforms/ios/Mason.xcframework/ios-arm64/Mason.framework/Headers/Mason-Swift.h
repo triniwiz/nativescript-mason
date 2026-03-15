@@ -991,6 +991,20 @@ SWIFT_PROTOCOL_NAMED("MasonListDelegate")
 - (void)list:(UICollectionView * _Nonnull)list willDisplay:(UICollectionViewCell * _Nonnull)cell forItemAt:(NSIndexPath * _Nonnull)indexPath;
 @end
 
+@class UICollectionViewLayoutAttributes;
+SWIFT_CLASS_NAMED("MasonListCell")
+@interface MasonListCell : UICollectionViewCell
+@property (nonatomic, copy) void (^ _Nullable willMove)(MasonListCell * _Nonnull);
++ (MasonListCell * _Nonnull)initWithEmptyBackground SWIFT_METHOD_FAMILY(none) SWIFT_WARN_UNUSED_RESULT;
+- (void)setViewWithCompat:(id <MasonElementObjc> _Nullable)view;
+- (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
+- (void)prepareForReuse;
+- (UICollectionViewLayoutAttributes * _Nonnull)preferredLayoutAttributesFittingAttributes:(UICollectionViewLayoutAttributes * _Nonnull)layoutAttributes SWIFT_WARN_UNUSED_RESULT;
+- (void)layoutSubviews;
+- (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
+@end
+
 @class MasonMouseEventOptions;
 SWIFT_CLASS_NAMED("MasonMouseEvent")
 @interface MasonMouseEvent : MasonEvent
@@ -1190,6 +1204,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull textShadow;
 @property (nonatomic, copy) NSString * _Nonnull boxShadow;
 @property (nonatomic, copy) NSString * _Nonnull borderRadius;
+@property (nonatomic, copy) NSString * _Nonnull cornerShape;
 @property (nonatomic, copy) NSString * _Nonnull border;
 @property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderWidthCompat;
 - (void)setBorderLeftWidth:(float)value :(NSInteger)type;

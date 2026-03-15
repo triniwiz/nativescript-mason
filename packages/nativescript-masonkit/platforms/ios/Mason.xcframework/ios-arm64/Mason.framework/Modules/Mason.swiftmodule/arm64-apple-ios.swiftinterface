@@ -912,14 +912,17 @@ public struct MasonNodeView {
     @objc func list(_ list: UIKit.UICollectionView, cellForItemAt indexPath: Foundation.IndexPath) -> UIKit.UICollectionViewCell
     @objc func list(_ list: UIKit.UICollectionView, willDisplay cell: UIKit.UICollectionViewCell, forItemAt indexPath: Foundation.IndexPath)
   }
-  @objc @_inheritsConvenienceInitializers @_Concurrency.MainActor @preconcurrency public class MasonListCell : UIKit.UICollectionViewCell {
-    @_Concurrency.MainActor @preconcurrency public var willMove: ((Mason.MasonList.MasonListCell) -> Swift.Void)?
+  @_inheritsConvenienceInitializers @objc(MasonListCell) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonListCell : UIKit.UICollectionViewCell {
+    @objc @_Concurrency.MainActor @preconcurrency public var willMove: ((Mason.MasonList.MasonListCell) -> Swift.Void)?
     @_Concurrency.MainActor @preconcurrency public var view: (any Mason.MasonElement)? {
       get
     }
-    @_Concurrency.MainActor @preconcurrency public static func initWithEmptyBackground() -> Mason.MasonList.MasonListCell
+    @objc @_Concurrency.MainActor @preconcurrency public static func initWithEmptyBackground() -> Mason.MasonList.MasonListCell
     #if compiler(>=5.3) && $NonescapableTypes
     @_Concurrency.MainActor @preconcurrency public func setView(_ newView: (any Mason.MasonElement)?)
+    #endif
+    #if compiler(>=5.3) && $NonescapableTypes
+    @objc @_Concurrency.MainActor @preconcurrency public func setView(compat view: (any Mason.MasonElementObjc)?)
     #endif
     #if compiler(>=5.3) && $NonescapableTypes
     @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toSuperview newSuperview: UIKit.UIView?)
@@ -1866,6 +1869,10 @@ public struct StateKeys : Swift.Equatable {
     @objc set
   }
   @objc public var borderRadius: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var cornerShape: Swift.String {
     @objc get
     @objc set
   }

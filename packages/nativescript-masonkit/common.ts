@@ -15,6 +15,7 @@ import {
   boxSizingProperty,
   clearProperty,
   columnGapProperty,
+  cornerShapeProperty,
   displayProperty,
   filterProperty,
   flexBasisProperty,
@@ -148,6 +149,7 @@ declare module '@nativescript/core/ui/styling/style' {
     textOverFlow: 'clip' | 'ellipsis' | `${string}`;
     float: Float;
     clear: Clear;
+    cornerShape: string;
   }
 }
 
@@ -1691,6 +1693,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.float = value;
+    }
+  }
+
+  [cornerShapeProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.cornerShape = value;
     }
   }
 }

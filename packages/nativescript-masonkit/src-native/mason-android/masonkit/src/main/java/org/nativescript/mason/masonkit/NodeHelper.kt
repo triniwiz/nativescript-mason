@@ -207,7 +207,11 @@ class NodeHelper(val mason: Mason) {
     }
   }
 
-  fun getCachedFloatInsetsForView(view: android.view.View, defaultLeft: Float, defaultRight: Float): Pair<Float, Float> {
+  fun getCachedFloatInsetsForView(
+    view: android.view.View,
+    defaultLeft: Float,
+    defaultRight: Float
+  ): Pair<Float, Float> {
     val (_, rects) = getFloatRectsLocalToView(view)
     if (rects.isEmpty()) return Pair(0f, Float.MAX_VALUE)
     var leftInset = 0f
@@ -1399,6 +1403,20 @@ class NodeHelper(val mason: Mason) {
   ) {
     val node = mason.nodeForView(view)
     node.style.textShadow = value
+  }
+
+
+  fun getCornerShape(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShape
+  }
+
+  fun setCornerShape(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShape = value
   }
 
   fun compute(node: Node) {

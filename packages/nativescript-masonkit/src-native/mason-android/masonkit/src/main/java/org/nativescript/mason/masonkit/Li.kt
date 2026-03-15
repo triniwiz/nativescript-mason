@@ -181,12 +181,81 @@ class Li @JvmOverloads constructor(
       layoutFlat()
     }
     applyLayoutFlat(node, node.layoutTree)
+
+    // Ensure children are offset by markerWidth so the marker has room.
+    // This mirrors iOS's sublayerTransform approach — if Taffy's internal
+    // marker node already reserved the space, children will already be at
+    // x >= markerWidth and no additional offset is needed.  When the Taffy
+    // measure function was not invoked (the common edge case), children
+    // sit at x=0 and we shift them here.
+    val offset = markerWidth.toInt()
+    if (offset > 0 && childCount > 0) {
+      val firstChild = getChildAt(0)
+      val needed = offset - firstChild.left
+      if (needed > 0) {
+        for (i in 0 until childCount) {
+          val child = getChildAt(i)
+          child.layout(
+            child.left + needed, child.top,
+            child.right + needed, child.bottom
+          )
+        }
+      }
+    }
   }
 
   internal var markerWidth: Float = 0f
   internal var markerHeight: Float = 0f
   private var markerSize: Float = 0f
   internal var counter: Int = -1
+
+  /**
+   * Eagerly compute marker dimensions from the current position, ordered
+   * mode, and list-style-type — independent of whether Taffy's internal
+   * marker-node measure function fires.  Mirrors iOS's calculateMarkerMetrics().
+   */
+  internal fun calculateMarkerMetrics() {
+    val listStyleType = resolveListStyleType()
+
+    if (listStyleType == ListStyleType.None.value) {
+      markerWidth = 0f
+      markerHeight = 0f
+      markerSize = 0f
+      return
+    }
+
+    val paint = style.paint
+    val fm = paint.fontMetrics
+    val textHeight = fm.descent - fm.ascent
+
+    markerSize = paint.textSize * 0.35f
+
+    val width: Float = when (listStyleType) {
+      ListStyleType.None.value -> 0f
+
+      ListStyleType.Custom.value -> {
+        if (marker.isNotEmpty()) paint.measureText(marker) else 0f
+      }
+
+      ListStyleType.Disc.value, ListStyleType.Circle.value, ListStyleType.Square.value -> {
+        markerSize
+      }
+
+      ListStyleType.Decimal.value -> {
+        if (position > -1) {
+          paint.measureText("${position + 1}.")
+        } else {
+          paint.measureText("0.")
+        }
+      }
+
+      else -> 0f
+    }
+
+    val gap = paint.textSize * 0.5f
+    markerWidth = width + gap
+    markerHeight = textHeight
+  }
 
   internal fun resolveListStyleType(): Byte {
     val recycler = parent as? ListView.MasonRecyclerView
@@ -217,7 +286,12 @@ class Li @JvmOverloads constructor(
   override fun measure(
     knownDimensions: Size<Float?>, availableSpace: Size<Float?>
   ): Size<Float> {
-    (node.parent?.view as? ListView)?.let {
+    // Use the Android view hierarchy (same as resolveListStyleType) so that
+    // recycled items inside the RecyclerView correctly pick up the parent
+    // ListView's ordered flag — node.parent (Taffy tree) may not reflect the
+    // actual view hierarchy for recycled items.
+    val recycler = parent as? ListView.MasonRecyclerView
+    (recycler?.parent as? ListView)?.let {
       isOrdered = it.isOrdered
     }
 

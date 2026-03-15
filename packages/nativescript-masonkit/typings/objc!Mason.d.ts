@@ -1233,6 +1233,24 @@ declare const enum MasonLineHeight {
 	PreLine = 3
 }
 
+declare class MasonListCell extends UICollectionViewCell {
+
+	static alloc(): MasonListCell; // inherited from NSObject
+
+	static new(): MasonListCell; // inherited from NSObject
+
+	static initWithEmptyBackground(): MasonListCell;
+
+	willMove: (cell: MasonListCell) => void;
+
+	readonly view: MasonElement;
+
+	setView(newView: MasonElement): void;
+
+	setViewWithCompat(view: MasonElementObjc): void;
+	
+}
+
 declare class MasonList extends UIView implements MasonElementObjc, UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout {
 
 	static alloc(): MasonList; // inherited from NSObject
@@ -2007,6 +2025,8 @@ declare class MasonStyle extends NSObject {
 	clear: MasonClear;
 
 	color: number;
+
+	cornerShape: string;
 
 	decorationColor: number;
 

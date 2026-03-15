@@ -3544,6 +3544,34 @@ export class Style {
     this.setOrAppendState(StateKeys.CLEAR);
   }
 
+  set cornerShape(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShape(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.cornerShape = value;
+    }
+  }
+
+  get cornerShape(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShape(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.cornerShape;
+    }
+
+    return '';
+  }
+
   toJSON() {
     return {
       display: this.display,

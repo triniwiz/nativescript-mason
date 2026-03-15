@@ -1052,7 +1052,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     let li = mason.createListItem()
     d.setView(li)
-    d.contentView.addSubview(li)
 
     // Determine which data source to use based on the parent list
     let absolutePos = indexPath.row

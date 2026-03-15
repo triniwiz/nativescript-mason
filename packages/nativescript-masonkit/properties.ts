@@ -1184,6 +1184,13 @@ export const clearProperty = new CssProperty<Style, Clear>({
   defaultValue: 'none',
 });
 
+export const cornerShapeProperty = new CssProperty<Style, string>({
+  name: 'cornerShape',
+  cssName: 'corner-shape',
+});
+
+cornerShapeProperty.register(Style);
+
 clearProperty.register(Style);
 
 floatProperty.register(Style);
