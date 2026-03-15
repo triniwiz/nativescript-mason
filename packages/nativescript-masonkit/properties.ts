@@ -81,6 +81,26 @@ export const backgroundProperty = new CssProperty<Style, string>({
   cssName: 'background',
 });
 
+export const backgroundRepeatProperty = new CssProperty<Style, string>({
+  name: 'backgroundRepeat',
+  cssName: 'background-repeat',
+});
+
+export const backgroundPositionProperty = new CssProperty<Style, string>({
+  name: 'backgroundPosition',
+  cssName: 'background-position',
+});
+
+export const backgroundSizeProperty = new CssProperty<Style, string>({
+  name: 'backgroundSize',
+  cssName: 'background-size',
+});
+
+export const backgroundClipProperty = new CssProperty<Style, string>({
+  name: 'backgroundClip',
+  cssName: 'background-clip',
+});
+
 function overflowConverter(value) {
   if (typeof value === 'number') {
     switch (value) {
@@ -1273,6 +1293,10 @@ overflowXProperty.register(Style);
 overflowYProperty.register(Style);
 
 backgroundProperty.register(Style);
+backgroundRepeatProperty.register(Style);
+backgroundPositionProperty.register(Style);
+backgroundSizeProperty.register(Style);
+backgroundClipProperty.register(Style);
 
 borderProperty.register(Style);
 

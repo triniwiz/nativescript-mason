@@ -3599,6 +3599,14 @@ declare module org {
 					public setFilter(this_: globalAndroid.view.View, view: string): void;
 					public setBackgroundColor(this_: globalAndroid.view.View, view: string): void;
 					public setBackgroundImage(this_: globalAndroid.view.View, view: string): void;
+					public getBackgroundRepeat(this_: globalAndroid.view.View): string;
+					public setBackgroundRepeat(this_: globalAndroid.view.View, view: string): void;
+					public getBackgroundPosition(this_: globalAndroid.view.View): string;
+					public setBackgroundPosition(this_: globalAndroid.view.View, view: string): void;
+					public getBackgroundSize(this_: globalAndroid.view.View): string;
+					public setBackgroundSize(this_: globalAndroid.view.View, view: string): void;
+					public getBackgroundClip(this_: globalAndroid.view.View): string;
+					public setBackgroundClip(this_: globalAndroid.view.View, view: string): void;
 					public getMaxSizeJsonValue(this_: globalAndroid.view.View): string;
 					public getOverflowY(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.enums.Overflow;
 					public setInset(this_: globalAndroid.view.View, view: number, left: number, leftType: number, top: number, topType: number, right: number, rightType: number, bottom: number): void;

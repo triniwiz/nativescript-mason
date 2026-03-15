@@ -103,6 +103,46 @@ class Background(
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
 
+  fun applyBackgroundRepeat(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, rep ->
+      layers[idx].repeat = parseRepeat(rep.trim())
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundPosition(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, p ->
+      val tokens = p.trim().split(Regex("\\s+"))
+      layers[idx].position = parsePosition(tokens)
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundSize(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, p ->
+      layers[idx].size = parseSize(p.trim())
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundClip(value: String) {
+    val clip = when (value.trim().lowercase()) {
+      "content-box" -> BackgroundClip.CONTENT_BOX
+      "padding-box" -> BackgroundClip.PADDING_BOX
+      "border-box" -> BackgroundClip.BORDER_BOX
+      else -> return
+    }
+    for (layer in layers) {
+      layer.clip = clip
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
 
   fun clear() {
     layers = mutableListOf()
@@ -524,6 +564,22 @@ fun parsePosition(parts: List<String>): Pair<Float, Float> {
     }
   }
   return x to y
+}
+
+fun parseSize(value: String): Pair<Float, Float>? {
+  val s = value.lowercase()
+  return when (s) {
+    "cover" -> -1f to -1f
+    "contain" -> -2f to -2f
+    else -> {
+      val tokens = s.split(Regex("\\s+"))
+      if (tokens.size == 2) {
+        val w = tokens[0].removeSuffix("px").toFloatOrNull()
+        val h = tokens[1].removeSuffix("px").toFloatOrNull()
+        if (w != null && h != null) w to h else null
+      } else null
+    }
+  }
 }
 
 fun splitTopLevelCommas(input: String): List<String> {

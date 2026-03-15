@@ -1171,42 +1171,61 @@ public class MasonStyle: NSObject {
       mBackground.applyBackgroundProperty(name: "background-repeat", value: newValue)
     }
     get {
-      return ""
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { layer in
+        layer.repeatType.rawValue
+      }.joined(separator: ",")
     }
   }
-  
-  
+
+
   public var backgroundPosition: String {
     set {
       mBackground.applyBackgroundProperty(name: "background-position", value: newValue)
     }
     get {
-      return ""
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { layer in
+        guard let pos = layer.position else { return "center" }
+        return "\(Int(pos.0 * 100))% \(Int(pos.1 * 100))%"
+      }.joined(separator: ",")
     }
   }
-  
-  
+
+
   public var backgroundSize: String {
     set {
       mBackground.applyBackgroundProperty(name: "background-size", value: newValue)
     }
     get {
-      return ""
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { layer in
+        guard let sz = layer.size else { return "auto" }
+        if sz.0 == -1 && sz.1 == -1 { return "cover" }
+        if sz.0 == -2 && sz.1 == -2 { return "contain" }
+        return "\(sz.0)px \(sz.1)px"
+      }.joined(separator: ",")
     }
   }
-  
-  
-  
+
+
+
   public var backgroundClip: String {
     set {
       mBackground.applyBackgroundProperty(name: "background-clip", value: newValue)
     }
     get {
-      return ""
+      if mBackground.layers.isEmpty { return "" }
+      let clip = mBackground.layers.first?.clip ?? .borderBox
+      switch clip {
+      case .contentBox: return "content-box"
+      case .paddingBox: return "padding-box"
+      case .borderBox: return "border-box"
+      }
     }
   }
-  
-  
+
+
   public var backgroundColor: UInt32 {
     get {
       return getUInt32(StyleKeys.BACKGROUND_COLOR)

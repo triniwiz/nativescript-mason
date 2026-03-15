@@ -1392,6 +1392,58 @@ class NodeHelper(val mason: Mason) {
     node.style.backgroundImage = value
   }
 
+  fun getBackgroundRepeat(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundRepeat
+  }
+
+  fun setBackgroundRepeat(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundRepeat = value
+  }
+
+  fun getBackgroundPosition(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundPosition
+  }
+
+  fun setBackgroundPosition(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundPosition = value
+  }
+
+  fun getBackgroundSize(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundSize
+  }
+
+  fun setBackgroundSize(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundSize = value
+  }
+
+  fun getBackgroundClip(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundClip
+  }
+
+  fun setBackgroundClip(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundClip = value
+  }
+
   fun getTextShadow(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.textShadow

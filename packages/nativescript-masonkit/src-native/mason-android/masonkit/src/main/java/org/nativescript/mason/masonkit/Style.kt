@@ -1028,6 +1028,61 @@ class Style internal constructor(@Transient internal var node: Node) {
       mBackground?.layers = layers.toMutableList()
     }
 
+  var backgroundRepeat: String
+    get() {
+      if (mBackground?.layers.isNullOrEmpty()) return ""
+      return mBackground!!.layers.joinToString(",") { it.repeat.value }
+    }
+    set(value) {
+      if (mBackground == null) mBackground = Background(this)
+      mBackground!!.applyBackgroundRepeat(value)
+    }
+
+  var backgroundPosition: String
+    get() {
+      if (mBackground?.layers.isNullOrEmpty()) return ""
+      return mBackground!!.layers.joinToString(",") { layer ->
+        val pos = layer.position ?: return@joinToString "center"
+        "${(pos.first * 100).toInt()}% ${(pos.second * 100).toInt()}%"
+      }
+    }
+    set(value) {
+      if (mBackground == null) mBackground = Background(this)
+      mBackground!!.applyBackgroundPosition(value)
+    }
+
+  var backgroundSize: String
+    get() {
+      if (mBackground?.layers.isNullOrEmpty()) return ""
+      return mBackground!!.layers.joinToString(",") { layer ->
+        val sz = layer.size ?: return@joinToString "auto"
+        when {
+          sz.first == -1f && sz.second == -1f -> "cover"
+          sz.first == -2f && sz.second == -2f -> "contain"
+          else -> "${sz.first}px ${sz.second}px"
+        }
+      }
+    }
+    set(value) {
+      if (mBackground == null) mBackground = Background(this)
+      mBackground!!.applyBackgroundSize(value)
+    }
+
+  var backgroundClip: String
+    get() {
+      if (mBackground?.layers.isNullOrEmpty()) return ""
+      val clip = mBackground!!.layers.firstOrNull()?.clip ?: return "border-box"
+      return when (clip) {
+        BackgroundClip.CONTENT_BOX -> "content-box"
+        BackgroundClip.PADDING_BOX -> "padding-box"
+        BackgroundClip.BORDER_BOX -> "border-box"
+      }
+    }
+    set(value) {
+      if (mBackground == null) mBackground = Background(this)
+      mBackground!!.applyBackgroundClip(value)
+    }
+
   fun setBackgroundColor(value: String) {
     parseColor(value)?.let {
       (mBackground ?: run { Background(this) }).color = it

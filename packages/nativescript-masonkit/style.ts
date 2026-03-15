@@ -3198,6 +3198,118 @@ export class Style {
     }
   }
 
+  get backgroundRepeat() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundRepeat(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundRepeat;
+    }
+
+    return '';
+  }
+
+  set backgroundRepeat(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundRepeat(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.backgroundRepeat = value;
+    }
+  }
+
+  get backgroundPosition() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPosition(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundPosition;
+    }
+
+    return '';
+  }
+
+  set backgroundPosition(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPosition(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.backgroundPosition = value;
+    }
+  }
+
+  get backgroundSize() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundSize(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundSize;
+    }
+
+    return '';
+  }
+
+  set backgroundSize(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundSize(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.backgroundSize = value;
+    }
+  }
+
+  get backgroundClip() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundClip(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundClip;
+    }
+
+    return '';
+  }
+
+  set backgroundClip(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundClip(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.backgroundClip = value;
+    }
+  }
+
   get borderRadius() {
     if (!this.nativeView) {
       return '';
