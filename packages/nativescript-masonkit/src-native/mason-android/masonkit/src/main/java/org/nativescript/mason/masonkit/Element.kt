@@ -174,6 +174,19 @@ interface Element : EventTarget {
   fun computeAndLayout(width: Float, height: Float): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
+
+    // Fast-path: if compute cache already contains the requested size,
+    // cache is clean, and we have a valid layout tree, skip the native
+    // compute to avoid redundant recomputation on spurious layout passes
+    // (e.g. triggered by setPadding → requestLayout in applyLayoutFlat).
+    if (!node.computeCacheDirty
+      && node.computeCache.width == width
+      && node.computeCache.height == height
+      && node.layoutTree.nodeCount > 0
+    ) {
+      return node.layoutTree
+    }
+
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
@@ -614,69 +627,22 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         )
       }
 
-      if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-        val parentView = view.parent as? org.nativescript.mason.masonkit.View
-        val parentPadL = parentView?.node?.computedLayout?.padding?.left?.toInt() ?: 0
-        val parentPadT = parentView?.node?.computedLayout?.padding?.top?.toInt() ?: 0
-        val parentPadR = parentView?.node?.computedLayout?.padding?.right?.toInt() ?: 0
-        val parentPadB = parentView?.node?.computedLayout?.padding?.bottom?.toInt() ?: 0
-
-        // own padding from this view's layout entry
-        val ownPadL = layout.padding.left.toInt()
-        val ownPadT = layout.padding.top.toInt()
-        val ownPadR = layout.padding.right.toInt()
-        val ownPadB = layout.padding.bottom.toInt()
-
-        // keep outer Scroll positioned too
-        if (parentView != null && parentView !== this && parentView !== view) {
-          parentView.layout(x, y, right, bottom)
+      if (view is Scroll) {
+        // Scroll is a single-view container — position at its box dimensions
+        // and update content dimensions for scroll-range calculations.
+        val scrollCW = if (overflow.x == Overflow.Scroll || overflow.x == Overflow.Auto) {
+          maxOf(layout.contentSize.width.toInt(), layoutWidth)
+        } else {
+          layoutWidth
         }
-
-        // content-box dims (exclude this view's own padding)
-        val contentBoxWidth = layoutWidth - ownPadL - ownPadR
-        val contentBoxHeight = layoutHeight - ownPadT - ownPadB
-
-        val fullContentWidth =
-          if (overflow.x == Overflow.Scroll || overflow.x == Overflow.Auto || overflow.x == Overflow.Hidden) {
-            // Rust already adds padding+border to content_size for scroll-like containers
-            layout.contentSize.width.toInt()
-          } else {
-            (layout.contentSize.width + layout.border.left + layout.border.right + ownPadL + ownPadR).toInt()
-          }
-
-        val fullContentHeight =
-          if (overflow.y == Overflow.Scroll || overflow.y == Overflow.Auto || overflow.y == Overflow.Hidden) {
-            layout.contentSize.height.toInt()
-          } else {
-            (layout.contentSize.height + layout.border.top + layout.border.bottom + ownPadT + ownPadB).toInt()
-          }
-
-        // the view itself should occupy the full layout width/height; its
-        // internal padding will create the left/right gutters.  only grow
-        // beyond that when overflow forces more content than the box can hold.
-        var finalWidth = layoutWidth
-        var finalHeight = layoutHeight
-
-        if (overflow.x == Overflow.Scroll || overflow.x == Overflow.Auto) {
-          finalWidth = maxOf(finalWidth, fullContentWidth)
+        val scrollCH = if (overflow.y == Overflow.Scroll || overflow.y == Overflow.Auto) {
+          maxOf(layout.contentSize.height.toInt(), layoutHeight)
+        } else {
+          layoutHeight
         }
-        if (overflow.y == Overflow.Scroll || overflow.y == Overflow.Auto) {
-          finalHeight = maxOf(finalHeight, fullContentHeight)
-        }
-
-        // position scrollRoot using the node's computed x/y so native layout
-        // matches Mason's coordinate system instead of relying on the
-        // parent's padding offsets.
-        view.layout(x, y, x + finalWidth, y + finalHeight)
-
-
-          // Debug logging to inspect computed sizes and padding/border influence
-          try {
-            Log.d(
-              "Mason",
-              "FLAT scrollRoot idx=$treeIdx x=$x y=$y layoutW=$layoutWidth layoutH=$layoutHeight contentW=${nv.contentWidth} contentH=${nv.contentHeight} borderL=${nv.borderLeft} borderR=${nv.borderRight} padL=${nv.paddingLeft} padR=${nv.paddingRight} parentPadL=$parentPadL parentPadT=$parentPadT fullContentW=$fullContentWidth finalW=$finalWidth overflow=${overflow.x}/${overflow.y}"
-            )
-          } catch (_: Throwable) {}
+        view.scrollContentWidth = scrollCW
+        view.scrollContentHeight = scrollCH
+        view.layout(x, y, right, bottom)
       } else {
         val lx = x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
         val ty = y.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
@@ -770,7 +736,17 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
     if (node.view is Br.FakeView) continue
 
     (node.view as? View)?.let { view ->
-      if (view != this) {
+      if (view == this) {
+        // Root node: set padding so scroll-range clamping in
+        // TwoDScrollView.scrollTo uses the correct content-box size.
+        view.setPadding(
+          nv.paddingLeft.toInt(),
+          nv.paddingTop.toInt(),
+          nv.paddingRight.toInt(),
+          nv.paddingBottom.toInt()
+        )
+        // Skip positioning — the root is sized by its parent.
+      } else {
         if (view.isGone) return@let
 
         var overflowX = Overflow.Visible.value
@@ -829,48 +805,28 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           nv.paddingBottom.toInt()
         )
 
-        if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-          val parentScroll = view.parent as? Scroll
-
-          // Scroll root uses content dimensions so the full content is scrollable.
-          // The outer Scroll uses the box dimensions for its visual bounds.
-          val scrollWidth = when (overflowX) {
+        if (view is Scroll) {
+          // Scroll is a single-view container: position it at the box
+          // dimensions (viewport) and update its content dimensions for
+          // scroll-range calculations.
+          val scrollCW = when (overflowX) {
             Overflow.Clip.value, Overflow.Hidden.value -> nv.width.toInt()
-            Overflow.Auto.value -> {
-              if (nv.contentWidth > nv.width) nv.contentWidth.toInt()
-              else nv.width.toInt()
-            }
-
+            Overflow.Auto.value -> if (nv.contentWidth > nv.width) nv.contentWidth.toInt() else nv.width.toInt()
             else -> maxOf(nv.contentWidth.toInt(), nv.width.toInt())
           }
-
-          val scrollHeight = when (overflowY) {
+          val scrollCH = when (overflowY) {
             Overflow.Clip.value, Overflow.Hidden.value -> nv.height.toInt()
-            Overflow.Auto.value -> {
-              if (nv.contentHeight > nv.height) nv.contentHeight.toInt()
-              else nv.height.toInt()
-            }
-
+            Overflow.Auto.value -> if (nv.contentHeight > nv.height) nv.contentHeight.toInt() else nv.height.toInt()
             else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
           }
+          view.scrollContentWidth = scrollCW
+          view.scrollContentHeight = scrollCH
 
-          // Position the outer Scroll at the box dimensions (viewport).
-          // Only use layout() — never measure() — because Scroll.node
-          // delegates to scrollRoot.node and measuring would re-trigger
-          // computeAndLayout, causing an infinite loop.
-          // Padding stays on the scrollRoot (set above at line 829) so it
-          // scrolls with content and doesn't create a static inset that
-          // looks wrong with background colors.
-          if (parentScroll != null && parentScroll !== this) {
-            parentScroll.layout(x, y, right, bottom)
-          }
-
-          // Scroll root gets the content dimensions so the full area is scrollable.
           view.measure(
-            MeasureSpec.makeMeasureSpec(scrollWidth, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(scrollHeight, MeasureSpec.EXACTLY)
+            MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
           )
-          view.layout(0, 0, scrollWidth, scrollHeight)
+          view.layout(x, y, right, bottom)
 
         } else if (view is Input) {
           view.measure(
@@ -894,6 +850,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           )
           view.layout(x, y, right, bottom)
         }
+
       }
     }
 
@@ -904,7 +861,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
     if (childCnt > 0) {
       val nativeChildren = node.children.filter { it.nativePtr != 0L }
       val childStart = tree.childStart[treeIdx]
-
       for (i in (0 until childCnt).reversed()) {
         val child = nativeChildren.getOrNull(i) ?: continue
         if (child.type == NodeType.Text) continue

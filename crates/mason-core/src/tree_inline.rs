@@ -1918,8 +1918,31 @@ impl Tree {
     ) -> LayoutOutput {
         let child_node_id = NodeId::from(child_id);
 
+        // CSS block layout: auto-width block-level children stretch to fill
+        // the parent's content box (available width minus child's horizontal
+        // margins).  Without this, block children in mixed-content containers
+        // would shrink-to-fit like inline-blocks.
+        let child_style = self.nodes()[child_id].style().clone();
+        let child_width_auto = child_style.width().is_auto();
+        let stretched_width = if child_width_auto {
+            if let AvailableSpace::Definite(avail) = available_width {
+                let child_margin = child_style
+                    .get_margin()
+                    .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
+                let w = (avail - child_margin.left - child_margin.right).max(0.0);
+                Some(w)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         let block_inputs = LayoutInput {
-            known_dimensions: Size::NONE,
+            known_dimensions: Size {
+                width: stretched_width,
+                height: None,
+            },
             available_space: Size {
                 width: available_width,
                 height: inputs.available_space.height,

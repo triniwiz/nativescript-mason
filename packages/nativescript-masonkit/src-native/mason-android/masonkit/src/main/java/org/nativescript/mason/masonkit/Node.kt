@@ -1318,15 +1318,7 @@ open class Node internal constructor(
       (it.view as? View)?.let { view ->
         when (this.view) {
           is org.nativescript.mason.masonkit.View -> {
-            val masonView = view as? org.nativescript.mason.masonkit.View
-            // this is a scroll
-            if (masonView != null && masonView.isScrollRoot) {
-              if (masonView.parent != null) {
-                (this.view as org.nativescript.mason.masonkit.View).removeView(masonView.parent as View?)
-              }
-            } else {
-              (this.view as org.nativescript.mason.masonkit.View).removeView(view)
-            }
+            (this.view as org.nativescript.mason.masonkit.View).removeView(view)
           }
 
           is Scroll -> {

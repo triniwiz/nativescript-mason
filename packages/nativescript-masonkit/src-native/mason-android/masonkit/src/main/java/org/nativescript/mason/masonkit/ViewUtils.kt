@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
-import android.util.Log
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
 
@@ -17,7 +16,6 @@ class ViewUtils {
      * bounds.
      */
     fun drawChildrenOutsetShadows(parent: ViewGroup, canvas: Canvas) {
-      Log.d("MasonOutset", "drawChildrenOutsetShadows parent=${parent.javaClass.simpleName} childCount=${parent.childCount}")
       // If the parent is an Element with a Style, apply the parent's
       // overflow clip to the canvas while drawing outset shadows so
       // shadows do not escape the parent's content-box when overflow
@@ -25,20 +23,13 @@ class ViewUtils {
       val parentStyle = (parent as? Element)?.style
       if (parentStyle != null) {
         canvas.withSave {
-          Log.d("MasonOutset", "apply parent overflow clip for outset shadows parent=${parent.javaClass.simpleName}")
-          Log.d("MasonClip", "before applyOverflowClip (outset) parentHash=${parentStyle.node.hashCode()} view=${parent.javaClass.simpleName}")
           Style.applyOverflowClip(parentStyle, canvas, parentStyle.node)
-          Log.d("MasonClip", "after applyOverflowClip (outset) parentHash=${parentStyle.node.hashCode()} view=${parent.javaClass.simpleName}")
 
           for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
             val childStyle = (child as? Element)?.style ?: continue
             val outsetShadows = childStyle.boxShadows.filter { !it.inset }
             if (outsetShadows.isEmpty()) continue
-            Log.d(
-              "MasonOutset",
-              "drawing outset shadows parent=${parent.javaClass.simpleName} idx=$i child=${child.javaClass.simpleName} left=${child.left} top=${child.top} w=${child.width} h=${child.height}"
-            )
 
             canvas.save()
             canvas.translate(child.left.toFloat(), child.top.toFloat())
@@ -52,7 +43,6 @@ class ViewUtils {
               forceLegacy = true  // Use bitmap-based rendering from parent context
             )
             canvas.restore()
-            Log.d("MasonOutset", "restored canvas after drawing outset for idx=$i childLeft=${child.left} childTop=${child.top}")
           }
         }
         return
@@ -63,10 +53,6 @@ class ViewUtils {
         val childStyle = (child as? Element)?.style ?: continue
         val outsetShadows = childStyle.boxShadows.filter { !it.inset }
         if (outsetShadows.isEmpty()) continue
-        Log.d(
-          "MasonOutset",
-          "drawing outset shadows parent=${parent.javaClass.simpleName} idx=$i child=${child.javaClass.simpleName} left=${child.left} top=${child.top} w=${child.width} h=${child.height}"
-        )
 
         canvas.save()
         canvas.translate(child.left.toFloat(), child.top.toFloat())
@@ -80,7 +66,6 @@ class ViewUtils {
           forceLegacy = true  // Use bitmap-based rendering from parent context
         )
         canvas.restore()
-        Log.d("MasonOutset", "restored canvas after drawing outset for idx=$i childLeft=${child.left} childTop=${child.top}")
       }
     }
 
@@ -158,15 +143,12 @@ class ViewUtils {
       val useFastFilter = style.mFilter?.canApplyFast() == true
 
       // Block 2: Content with inner border-radius clip + overflow clip
-      Log.d("MasonDraw", "render enter view=${view.javaClass.simpleName} size=${width.toInt()}x${height.toInt()} hasRadii=$hasRadii hasBackground=$hasBackground hasBoxShadow=$hasBoxShadow")
       canvas.withSave {
         if (hasRadii) {
           canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
         }
 
-        Log.d("MasonClip", "before applyOverflowClip nodeHash=${style.node.hashCode()} view=${view.javaClass.simpleName}")
         Style.applyOverflowClip(style, canvas, style.node)
-        Log.d("MasonClip", "after applyOverflowClip nodeHash=${style.node.hashCode()} view=${view.javaClass.simpleName}")
 
         style.mFilter?.let { filter ->
           if (filter.filters.isEmpty() || useFastFilter) {

@@ -95,7 +95,7 @@
       android:exported="false" />
     <activity
       android:name=".SuperellipseActivity"
-      android:exported="false" />
+      android:exported="true" />
   </application>
 
 </manifest>

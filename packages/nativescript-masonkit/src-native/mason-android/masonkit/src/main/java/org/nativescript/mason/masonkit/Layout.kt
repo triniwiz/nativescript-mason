@@ -175,47 +175,6 @@ class MasonLayoutTree {
       ensureCapacity(nodeCount + 1, childIndicesCount)
     }
 
-    // Debug: summarize parsed layout to help catch malformed/truncated arrays
-    try {
-      Log.d("MasonLayout", "fromFloatArray parsed nodeCount=$nodeCount childIndicesCount=$childIndicesCount")
-      if (nodeCount > 0) {
-        val rx = frames.getOrNull(0) ?: 0f
-        val ry = frames.getOrNull(1) ?: 0f
-        val rw = frames.getOrNull(2) ?: 0f
-        val rh = frames.getOrNull(3) ?: 0f
-        Log.d("MasonLayout", "fromFloatArray rootFrame x=$rx y=$ry w=$rw h=$rh")
-        // Summarize parsed heights to help detect degenerate/subnormal values
-        try {
-          var minH = Float.POSITIVE_INFINITY
-          var maxH = Float.NEGATIVE_INFINITY
-          var nanCount = 0
-          var zeroCount = 0
-          var tinyCount = 0
-          val tinyThreshold = 1e-6f
-          for (i in 0 until nodeCount) {
-            val h = frames.getOrNull(i * 4 + 3) ?: 0f
-            if (h.isNaN()) {
-              nanCount++
-            } else {
-              if (h == 0f) zeroCount++
-              if (h > 0f && h < tinyThreshold) tinyCount++
-              if (h < minH) minH = h
-              if (h > maxH) maxH = h
-            }
-          }
-          if (minH == Float.POSITIVE_INFINITY) minH = 0f
-          if (maxH == Float.NEGATIVE_INFINITY) maxH = 0f
-          Log.d(
-            "MasonLayout",
-            "fromFloatArray summary nodes=$nodeCount minH=$minH maxH=$maxH zeros=$zeroCount nans=$nanCount tiny<$tinyThreshold count=$tinyCount"
-          )
-        } catch (_: Throwable) {
-          // non-fatal summary failure, keep original flow
-        }
-      }
-    } catch (t: Throwable) {
-      Log.w("MasonLayout", "fromFloatArray debug failed", t)
-    }
   }
 
   private fun ensureCapacity(nodes: Int, childIndicesCap: Int) {

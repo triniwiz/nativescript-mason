@@ -79,24 +79,16 @@ internal object NodeUtils {
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
-          val masonView = view as? org.nativescript.mason.masonkit.View
-          // if the *child* is a scroll root, attach it specially to the parent
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (masonView.parent as? ViewGroup)?.removeView(masonView)
-            }
-
-            (parent.view as org.nativescript.mason.masonkit.View).addView(masonView)
-          } else {
-            if (view.parent != null) {
-              (view.parent as? ViewGroup)?.removeView(view)
-            }
-
-            (parent.view as org.nativescript.mason.masonkit.View).addView(view)
+          if (view.parent != null) {
+            (view.parent as? ViewGroup)?.removeView(view)
           }
+          (parent.view as org.nativescript.mason.masonkit.View).addView(view)
         }
 
         is Scroll -> {
+          if (view.parent != null) {
+            (view.parent as? ViewGroup)?.removeView(view)
+          }
           (parent.view as Scroll).addView(view)
         }
 
@@ -112,18 +104,7 @@ internal object NodeUtils {
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
-          val masonView = view as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (parent.view as org.nativescript.mason.masonkit.View).addView(
-                masonView.parent as View?,
-                index
-              )
-            }
-          } else {
-            (parent.view as org.nativescript.mason.masonkit.View).addView(view, index)
-          }
+          (parent.view as org.nativescript.mason.masonkit.View).addView(view, index)
         }
 
         is Scroll -> {
@@ -142,18 +123,7 @@ internal object NodeUtils {
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
-          val masonView = view as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (parent.view as org.nativescript.mason.masonkit.View).addView(
-                masonView.parent as View?,
-                params
-              )
-            }
-          } else {
-            (parent.view as org.nativescript.mason.masonkit.View).addView(view, params)
-          }
+          (parent.view as org.nativescript.mason.masonkit.View).addView(view, params)
         }
 
         is Scroll -> {
@@ -176,19 +146,7 @@ internal object NodeUtils {
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
-          val masonView = view as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (parent.view as org.nativescript.mason.masonkit.View).addView(
-                masonView.parent as View?,
-                index,
-                params
-              )
-            }
-          } else {
-            (parent.view as org.nativescript.mason.masonkit.View).addView(view, index, params)
-          }
+          (parent.view as org.nativescript.mason.masonkit.View).addView(view, index, params)
         }
 
         is Scroll -> {
@@ -211,15 +169,7 @@ internal object NodeUtils {
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
-          val masonView = view as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (parent.view as org.nativescript.mason.masonkit.View).removeView(masonView.parent as View?)
-            }
-          } else {
-            (parent.view as org.nativescript.mason.masonkit.View).removeView(view)
-          }
+          (parent.view as org.nativescript.mason.masonkit.View).removeView(view)
         }
 
         is Scroll -> {

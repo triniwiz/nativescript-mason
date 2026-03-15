@@ -169,8 +169,6 @@ open class View @JvmOverloads constructor(
   }
 
 
-  internal var isScrollRoot = false
-
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
   }
@@ -198,18 +196,8 @@ open class View @JvmOverloads constructor(
 
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    if (isScrollRoot) {
-      val parentScroll = this.parent as? Scroll
-      parentScroll?.let {
-        if (it.parent !is Element) {
-          it.layoutFlat()
-        }
-        applyLayoutFlat(node, node.layoutTree)
-      }
-    } else {
-      if (parent !is Element) {
-        layoutFlat()
-      }
+    if (parent !is Element) {
+      layoutFlat()
       applyLayoutFlat(node, node.layoutTree)
     }
   }
@@ -221,7 +209,7 @@ open class View @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (parent !is Element || parent is Scroll) {
+    if (parent !is Element) {
       if (!node.mason.inCompute) {
         // normal root measurement
 

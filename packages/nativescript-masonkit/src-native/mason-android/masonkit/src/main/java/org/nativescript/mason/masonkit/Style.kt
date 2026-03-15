@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.text.TextPaint
-import android.util.Log
 import android.view.View
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Border.IKeyCorner
@@ -577,16 +576,6 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
     if (descent.isNaN() || descent < 0f || descent < EPS) {
       descent = 4f
-    }
-
-    // Log raw bit-patterns to diagnose tiny/subnormal values observed in native layout
-    try {
-      android.util.Log.d(
-        "Style.syncFontMetrics",
-        "syncFontMetrics ascent=$ascent ascent_bits=0x${java.lang.Integer.toHexString(java.lang.Float.floatToIntBits(ascent))} descent=$descent descent_bits=0x${java.lang.Integer.toHexString(java.lang.Float.floatToIntBits(descent))} leading=$leading"
-      )
-    } catch (t: Throwable) {
-      // best-effort logging; don't crash if logging fails
     }
 
     // Android doesn't directly expose x-height or cap-height
@@ -4307,60 +4296,30 @@ class Style internal constructor(@Transient internal var node: Node) {
         else -> false
       }
 
-      // If neither axis needs clipping, return early — except scroll roots
-      val isScrollRoot =  (node.view as? org.nativescript.mason.masonkit.View)?.isScrollRoot == true
+      // If neither axis needs clipping, return early — except Scroll views
+      val isScrollView = node.view is Scroll
 
-      if (isScrollRoot) {
-        // Scroll roots should clip their content to the scrollport (content-box)
-        Log.d("MasonClip", "node=${node.hashCode()} isScrollRoot=true forcing clip")
-      }
+      if (!clipX && !clipY && !isScrollView) return
 
-      if (!clipX && !clipY && !isScrollRoot) return
+      // If Scroll view, ensure we clip both axes to content box
+      val finalClipX = clipX || isScrollView
+      val finalClipY = clipY || isScrollView
 
-      // If scroll root, ensure we clip both axes to content box
-      val finalClipX = clipX || isScrollRoot
-      val finalClipY = clipY || isScrollRoot
+      // For Scroll views the canvas has already been translated by
+      // -scrollX/-scrollY (Android applies the scroll offset in
+      // View.draw(Canvas, ViewGroup, long) before dispatchDraw is called).
+      // Offset the clip rect so it tracks the scrolled viewport.
+      val scrollOX = if (isScrollView) (node.view as Scroll).scrollX.toFloat() else 0f
+      val scrollOY = if (isScrollView) (node.view as Scroll).scrollY.toFloat() else 0f
 
-      val clipLeft = if (finalClipX) paddingLeft else 0f
-      val clipTop = if (finalClipY) paddingTop else 0f
-      val clipRight = if (finalClipX) width - paddingRight else width
-      val clipBottom = if (finalClipY) height - paddingBottom else height
-
-      // Log the computed clip rect for debugging (caller is responsible for save/restore)
-      try {
-        Log.d(
-          "MasonClip",
-          "node=${node.hashCode()} applyOverflowClip: width=$width height=$height padding=(${paddingLeft},${paddingTop},${paddingRight},${paddingBottom}) overflow=($overflowX,$overflowY) clip=($clipLeft,$clipTop,$clipRight,$clipBottom)"
-        )
-      } catch (_: Throwable) {
-      }
-
-      // Apply clip directly - caller is responsible for save/restore
-      try {
-        val before = android.graphics.Rect()
-        canvas.getClipBounds(before)
-        Log.d("MasonClip", "node=${node.hashCode()} canvas.clipBoundsBefore=$before")
-      } catch (_: Throwable) {
-      }
+      val clipLeft = (if (finalClipX) paddingLeft else 0f) + scrollOX
+      val clipTop = (if (finalClipY) paddingTop else 0f) + scrollOY
+      val clipRight = (if (finalClipX) width - paddingRight else width) + scrollOX
+      val clipBottom = (if (finalClipY) height - paddingBottom else height) + scrollOY
 
       // Defensive guard: if computed clip rect is inverted or degenerate, skip clipping
-      if (clipRight <= clipLeft || clipBottom <= clipTop) {
-        Log.d(
-          "MasonClip",
-          "node=${node.hashCode()} skipping applyOverflowClip due to degenerate clip=($clipLeft,$clipTop,$clipRight,$clipBottom)"
-        )
-      } else {
+      if (clipRight > clipLeft && clipBottom > clipTop) {
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
-
-        try {
-          val after = android.graphics.Rect()
-          canvas.getClipBounds(after)
-          Log.d(
-            "MasonClip",
-            "node=${node.hashCode()} canvas.clipBoundsAfter=$after appliedClip=($clipLeft,$clipTop,$clipRight,$clipBottom)"
-          )
-        } catch (_: Throwable) {
-        }
       }
 
     }

@@ -22,6 +22,7 @@ import org.nativescript.mason.masonkit.enums.FlexWrap
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 
 /**
  * Demonstrates the superellipse (corner-shape) CSS property.
@@ -39,8 +40,8 @@ class SuperellipseActivity : AppCompatActivity() {
     val hPad = 16 * scale
 
     val layout = mason.createScrollView(this)
-    // Only vertical scrolling — use EXACTLY width so children stretch.
-    layout.style.overflowX = Overflow.Hidden
+    // Match iOS: only set vertical scroll (overflowX stays at default Visible)
+    layout.style.overflowY = Overflow.Scroll
 
     // Block container with horizontal padding — matches the iOS pattern.
     // Children with Auto width stretch to fill the content box.
@@ -56,9 +57,10 @@ class SuperellipseActivity : AppCompatActivity() {
     }
 
     fun sectionHeader(label: String): TextView {
-      val header = mason.createTextView(this)
+      val header = mason.createTextView(this, TextType.P)
       header.textContent = label
       header.configure { s ->
+        s.display = Display.Block
         s.color = "#9CA3AF".toColorInt()
         s.fontSize = 11
       }
