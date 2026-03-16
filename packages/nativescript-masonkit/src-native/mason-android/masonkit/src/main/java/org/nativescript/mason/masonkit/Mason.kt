@@ -30,6 +30,10 @@ class Mason {
   private val nodeEventListeners =
     mutableMapOf<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
 
+  // True while Rust holds a lock during compute — prevents re-entrant lock acquisition via prepareMut
+  @JvmField
+  internal var inCompute = false
+
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 
@@ -49,7 +53,9 @@ class Mason {
 
         val fm = paint.fontMetrics
 
-        // Android uses negative ascent, positive descent
+        // Android reports a negative `ascent` and positive `descent`.
+        // Convert `ascent` to a positive distance for downstream sizing
+        // (consumers expect positive metric values).
         val ascent = -fm.ascent
         val descent = fm.descent
         val leading = fm.leading
@@ -70,6 +76,15 @@ class Mason {
         it.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
       }
     }
+  }
+
+  internal var mHtmlParser: HTMLParser? = null
+
+  fun getHtmlParser(context: Context): HTMLParser? {
+    if (mHtmlParser == null) {
+      mHtmlParser = HTMLParser(this, context)
+    }
+    return mHtmlParser
   }
 
   fun drain() {
@@ -95,6 +110,16 @@ class Mason {
 
   fun printTree(node: Node) {
     nativePrintTree(nativePtr, node.nativePtr)
+  }
+
+  /** Public wrapper for native float rects (convenience for JVM callers). */
+  fun getFloatRects(node: Node): FloatArray {
+    return nativeNodeGetFloatRects(nativePtr, node.nativePtr)
+  }
+
+  /** Public wrapper to retrieve Android ids associated with float rects. */
+  fun getFloatRectAndroidIds(node: Node): IntArray {
+    return nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
   }
 
   fun printArenaStats() {
@@ -454,6 +479,12 @@ class Mason {
 
     @JvmStatic
     private external fun nativeGetBuffer(mason: Long, handle: Int): Int
+
+    @JvmStatic
+    private external fun nativeNodeGetFloatRects(mason: Long, node: Long): FloatArray
+
+    @JvmStatic
+    private external fun nativeNodeGetFloatRectAndroidIds(mason: Long, node: Long): IntArray
 
   }
 }

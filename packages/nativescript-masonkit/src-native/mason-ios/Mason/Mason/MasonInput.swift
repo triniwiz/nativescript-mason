@@ -53,11 +53,11 @@ internal extension UIView {
 @objcMembers
 @objc(MasonInput)
 public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListener{
-  func onTextStyleChanged(change: Int64) {
-    let change = TextStyleChangeMasks(rawValue: change)
-    let color = change.contains(.color)
-    let size = change.contains(.fontSize)
-    let font = change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    let state = StateKeys(low: low, high: high)
+    let color = state.contains(.color)
+    let size = state.contains(.fontSize)
+    let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
     case .Text, .Number, .Email, .Password, .Tel, .Url:
       if(color){
@@ -436,29 +436,45 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   public override func draw(_ rect: CGRect) {
-    
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-    
+
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
     switch(self.type){
     case .Radio, .Checkbox, .Range,.Color:
       break
@@ -466,8 +482,10 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       style.mBorderRender.draw(in: context, rect: bounds)
       break
     }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
+
   private func measureText(_ text: String) -> CGSize {
     let attributes = node.getDefaultAttributes()
     let attString = NSAttributedString(string: text, attributes: attributes)
@@ -537,6 +555,9 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   
   
   public override func layoutSubviews() {
+    super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
+    autoComputeIfRoot()
     var inputSize = bounds
     if(!node.computedLayout.paddingIsEmpty){
       let scale = NSCMason.scale
@@ -683,6 +704,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   private func setup(_ mason: NSCMason, _ type: MasonInputType){
+    node.style.prepareMut()
     node.style.setUInt32(StyleKeys.ITEM_IS_REPLACED, 1)
     node.style.display = Display.InlineBlock
     self.type = type

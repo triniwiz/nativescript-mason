@@ -1,10 +1,11 @@
 package org.nativescript.mason.masonkit
 
 import android.util.SizeF
+import android.util.Log
+import kotlin.math.abs
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
-import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
@@ -14,6 +15,21 @@ object NodeStateKeys {
   const val IS_NODE_DIRTY = 0
   const val IS_VIRTUAL = 1
   const val IS_MUTABLE = 2
+
+  // two bytes reserved for pseudo state bitmask (u16)
+  const val PSEUDO_FLAGS_INDEX = 3
+  const val NODE_STATE_BUFFER_SIZE = 5
+}
+
+enum class PseudoState(val mask: Int) {
+  DEFAULT(0),
+  HOVER(1),         // 1 << 0
+  ACTIVE(2),        // 1 << 1
+  FOCUS(4),         // 1 << 2
+  FOCUS_WITHIN(8),  // 1 << 3
+  FOCUS_VISIBLE(16),// 1 << 4
+  DISABLED(64),     // 1 << 6
+  CHECKED(128);     // 1 << 7
 }
 
 
@@ -22,6 +38,7 @@ open class Node internal constructor(
 ) : NativeObject {
 
   internal var computeCacheDirty = false
+  internal var computeScheduled = false
   internal var isPlaceholder = false
   internal var isImage = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
@@ -33,8 +50,77 @@ open class Node internal constructor(
         value
       }
     }
-  var computedLayout: Layout = Layout.empty
-    internal set
+
+  // Flat layout tree — reused across layout passes to avoid allocation
+  internal val layoutTree = MasonLayoutTree()
+
+  // Index of this node in the flat layout tree (set during applyLayoutFlat)
+  internal var layoutTreeIndex: Int = 0
+
+  // Helper to ensure the shared cursor points at this node's index before reads.
+  private fun nv() = layoutTree.cursor.apply { pointTo(layoutTreeIndex) }
+
+  val computedWidth get() = nv().width
+  val computedHeight get() = nv().height
+
+  val computedBorderTop get() = nv().borderTop
+  val computedBorderRight get() = nv().borderRight
+  val computedBorderBottom get() = nv().borderBottom
+  val computedBorderLeft get() = nv().borderLeft
+
+  val computedMarginTop get() = nv().marginTop
+  val computedMarginRight get() = nv().marginRight
+  val computedMarginBottom get() = nv().marginBottom
+  val computedMarginLeft get() = nv().marginLeft
+
+  val computedPaddingTop get() = nv().paddingTop
+  val computedPaddingRight get() = nv().paddingRight
+  val computedPaddingBottom get() = nv().paddingBottom
+  val computedPaddingLeft get() = nv().paddingLeft
+
+  val computedContentWidth get() = nv().contentWidth
+  val computedContentHeight get() = nv().contentHeight
+
+  val computedScrollbarWidth get() = nv().scrollbarWidth
+  val computedScrollbarHeight get() = nv().scrollbarHeight
+
+  val computedOrder get() = nv().order
+
+  val computedHasChildren get() = nv().hasChildren
+
+  val computedChildNodeCount get() = nv().childNodeCount
+
+  val computedSizeIsEmpty get() = nv().sizeIsEmpty
+
+  /**
+   * Safe accessor for a node's computed content width. Prefer the layout
+   * reported content width, fall back to cached/writeback values and
+   * finally the computeCache. Designed to avoid throwing in test helpers.
+   */
+  fun computedWidthSafe(): Float {
+    val w = computedContentWidth
+    if (w > 0f && w.isFinite()) return w
+    if (cachedWidth > 0f && cachedWidth.isFinite()) return cachedWidth
+    if (!computeCache.width.isNaN() && computeCache.width > 0f && computeCache.width.isFinite()) return computeCache.width
+    return computedWidth
+  }
+
+  // Compatibility accessor: derive a recursive `Layout` representation
+  // from the current `layoutTree` at `layoutTreeIndex`. This avoids
+  // storing a separate `computedLayout` snapshot while preserving the
+  // legacy read API used by tests and callers.
+  val computedLayout: Layout
+    get() {
+      if (layoutTree.nodeCount == 0) return Layout.empty
+      return Layout.fromMasonTree(layoutTree, layoutTreeIndex)
+    }
+
+  val computedPaddingIsEmpty get() = nv().paddingIsEmpty
+
+  val computedMarginIsEmpty get() = nv().marginIsEmpty
+
+  val computedBorderIsEmpty get() = nv().borderIsEmpty
+
 
   // cache overflow size
   internal var overflowWidth = 0
@@ -114,6 +200,12 @@ open class Node internal constructor(
   fun setComputedSize(width: Float, height: Float) {
     cachedWidth = width
     cachedHeight = height
+    android.util.Log.d("Node.setComputedSize", "nodePtr=${nativePtr} cached=${cachedWidth}x${cachedHeight}")
+
+    // Update compute cache so `invalidateLayout()` can observe the new size
+    // immediately and avoid scheduling further native computes for max-content.
+    computeCache = SizeF(width, height)
+    computeCacheDirty = false
   }
 
   internal fun setDefaultMeasureFunction() {
@@ -248,6 +340,21 @@ open class Node internal constructor(
 
       val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
 
+      try {
+        val nodePtr = this@Node.nativePtr
+        Log.d(
+          "Node.measure",
+          "nodePtr=${nodePtr} known=${knownDimensions.width}x${knownDimensions.height} available=${availableSpace.width}x${availableSpace.height} measured=${width}x${height}"
+        )
+        if (height != 0f && abs(height) < 1e-6f) {
+          Log.w("Node.measure", "tiny measured height on nodePtr=${nodePtr} -> ${height}")
+        }
+        if (width != 0f && abs(width) < 1e-6f) {
+          Log.w("Node.measure", "tiny measured width on nodePtr=${nodePtr} -> ${width}")
+        }
+      } catch (_: Throwable) {
+      }
+
       return Size(width, height)
     }
   }
@@ -363,16 +470,155 @@ open class Node internal constructor(
   }
 
   internal val stateValue by lazy {
-    val buffer =
-      ObjectManager.shared[NativeHelpers.nativeGetStateBuffer(
-        mason.nativePtr,
-        nativePtr
-      )] as ByteBuffer
-    buffer.apply {
-      order(ByteOrder.nativeOrder())
+    val id = NativeHelpers.nativeGetStateBuffer(
+      mason.nativePtr,
+      nativePtr
+    )
+
+    if (id < 0) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      empty
+    } else {
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      buffer
     }
-    buffer
   }
+
+  /**
+   * Pseudo-state mask read from the native state buffer (u16).
+   */
+  val pseudoMask: Int
+    get() {
+      if (nativePtr == 0L) return 0
+
+      val buf = stateValue
+      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+        buf.order(ByteOrder.nativeOrder())
+        return buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+      }
+
+      return 0
+    }
+
+  val pseudoStates: Set<PseudoState>
+    get() {
+      val mask = pseudoMask
+      return PseudoState.entries.filter { it.mask != 0 && (mask and it.mask) != 0 }.toSet()
+    }
+
+
+  fun hasPseudo(state: PseudoState): Boolean {
+    return if (state.mask == 0) pseudoMask == 0 else (pseudoMask and state.mask) != 0
+  }
+
+  fun setPseudo(state: PseudoState, enabled: Boolean) {
+    setPseudo(state, enabled, true)
+  }
+
+  internal fun setPseudo(state: PseudoState, enabled: Boolean, autoDirty: Boolean) {
+    if (nativePtr == 0L) return
+    val buf = stateValue
+    if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
+      buf.order(ByteOrder.nativeOrder())
+      val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+      val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
+      buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
+      if (autoDirty) {
+        dirty()
+      }
+    }
+  }
+
+  private val cache = mutableMapOf<Int, ByteBuffer>()
+
+  // Storage for pseudo string properties (keyed by pseudo mask)
+  // Example: pseudoStrings[state.mask] = mapOf("filter" to "brightness(0.5)")
+  private val pseudoStrings: MutableMap<Int, MutableMap<String, String>> = mutableMapOf()
+
+  fun setPseudoString(flags: Int, key: String, value: String) {
+    val dict = pseudoStrings.getOrPut(flags) { mutableMapOf() }
+    dict[key] = value
+  }
+
+  fun getPseudoString(flags: Int, key: String): String? {
+    return pseudoStrings[flags]?.get(key)
+  }
+
+  fun clearPseudoString(flags: Int, key: String) {
+    pseudoStrings[flags]?.let { dict ->
+      dict.remove(key)
+      if (dict.isEmpty()) pseudoStrings.remove(flags)
+    }
+  }
+
+  fun getPseudoBuffer(flags: Int): ByteBuffer {
+    try {
+      val cachedValue = cache[flags]
+      if (cachedValue != null) {
+        return cachedValue
+      }
+      val id = NativeHelpers.nativeGetPseudoStyleBuffer(mason.nativePtr, nativePtr, flags)
+      if (id < 0) {
+        val empty = ByteBuffer.allocateDirect(0)
+        empty.order(ByteOrder.nativeOrder())
+        return empty
+      }
+
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      cache[flags] = buffer
+      return buffer
+    } catch (_: Throwable) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      return empty
+    }
+  }
+
+  fun preparePseudoBuffer(flags: Int): ByteBuffer {
+    try {
+      val cachedValue = cache[flags]
+      if (cachedValue != null) {
+        return cachedValue
+      }
+      val id = NativeHelpers.nativePreparePseudoMut(mason.nativePtr, nativePtr, flags)
+      if (id < 0) {
+        val empty = ByteBuffer.allocateDirect(0)
+        empty.order(ByteOrder.nativeOrder())
+        return empty
+      }
+
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      cache[flags] = buffer
+      return buffer
+    } catch (_: Throwable) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      return empty
+    }
+  }
+
+
+  val isActive: Boolean
+    get() = hasPseudo(PseudoState.ACTIVE)
+
+  val isHover: Boolean
+    get() = hasPseudo(PseudoState.HOVER)
+
+  val isFocused: Boolean
+    get() = hasPseudo(PseudoState.FOCUS)
+
+  val isDisabled: Boolean
+    get() = hasPseudo(PseudoState.DISABLED)
 
   companion object {
 
@@ -389,11 +635,20 @@ open class Node internal constructor(
       ) ?: MeasureOutput.make(0f, 0f)
     }
 
+    // Test hook: optional callback to observe engine write-backs during testing.
+    private var testComputedSizeCallback: ((Int, Float, Float) -> Unit)? = null
+
+    @JvmStatic
+    fun setComputedSizeTestCallback(cb: ((Int, Float, Float) -> Unit)?) {
+      testComputedSizeCallback = cb
+    }
+
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
-      (getObject(node) as? Node)?.setComputedSize(
-        width, height
-      )
+      val n = (getObject(node) as? Node)
+
+      n?.setComputedSize(width, height)
+
     }
 
     @JvmStatic
@@ -407,7 +662,11 @@ open class Node internal constructor(
     }
 
     // Efficient single-pass invalidation that only walks each TextView once
-    internal fun invalidateDescendantTextViews(node: Node, state: Int) {
+    internal fun invalidateDescendantTextViews(node: Node, state: StateKeys) {
+      invalidateDescendantTextViews(node, state.low, state.high)
+    }
+
+    internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
       // Early exit if node has no initialized text values
       // if (!node.style.isTextValueInitialized) {
       //  return
@@ -416,15 +675,35 @@ open class Node internal constructor(
       // Direct invalidation if this is a TextView
       if (node.view is TextContainer) {
         // Notify all text style changes to ensure paint is fully updated
-        (node.view as StyleChangeListener).onTextStyleChanged(state)
+        (node.view as StyleChangeListener).onChange(low, high)
       }
 
       // Iterate children (only layout children, not author children)
       val size = node.children.size
       for (i in 0 until size) {
-        invalidateDescendantTextViews(node.children[i], state)
+        invalidateDescendantTextViews(node.children[i], low, high)
       }
     }
+
+    /**
+     * Mark a property as explicitly set in a pseudo style buffer's bitmask.
+     * This enables the merge logic to detect which properties were intentionally
+     * overridden on the pseudo style (vs just cloned from base).
+     */
+
+
+    fun markPseudoSet(buf: ByteBuffer, key: StateKeys) {
+      if (buf.capacity() < StyleKeys.PSEUDO_SET_MASK_HIGH + 8) return
+      buf.putLong(
+        StyleKeys.PSEUDO_SET_MASK_LOW,
+        buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW) or key.low
+      )
+      buf.putLong(
+        StyleKeys.PSEUDO_SET_MASK_HIGH,
+        buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high
+      )
+    }
+
   }
 
   @JvmOverloads
@@ -439,7 +718,18 @@ open class Node internal constructor(
       }
 
       if (style.font.font == null) {
-        style.font.loadSync((container.view as View).context) {}
+        (container.view as? View)?.let { v ->
+          style.font.load(v.context) { _ ->
+            // schedule a layout pass when font finishes loading
+            v.post {
+              style.fontDirty = true
+              style.syncFontMetrics()
+              dirty()
+              v.invalidate()
+              v.requestLayout()
+            }
+          }
+        }
       }
 
       if (pending) {
@@ -468,9 +758,18 @@ open class Node internal constructor(
       if (attach) {
         NodeUtils.addView(this, child.view as? View)
       }
+      if (child is TextContainer) {
+        (child as? TextContainer)?.engine?.invalidateInlineSegments()
+      }
 
       // Single pass invalidation of descendants with text styles
-      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+      val descendantTextViews = if (view is TextContainer) {
+        this
+      } else {
+        child
+      }
+      computeCacheDirty = true
+      invalidateDescendantTextViews(descendantTextViews, StateKeys.INVALIDATE_TEXT)
 
       onNodeAttached?.let { it() }
     }
@@ -669,7 +968,7 @@ open class Node internal constructor(
             }
 
             // Single invalidation pass for the newly inserted child
-            invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+            invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
             // sync native/layout trees
             NodeUtils.syncNode(this, children)
@@ -689,7 +988,7 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
 
       // Single invalidation pass for the newly inserted child
-      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+      invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
@@ -873,7 +1172,7 @@ open class Node internal constructor(
           (child.view as? Element)?.invalidateLayout()
 
           // Single invalidation pass
-          invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+          invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
           // sync views/native tree once using the updated children vector
           NodeUtils.syncNode(this, children)
@@ -903,7 +1202,7 @@ open class Node internal constructor(
     }
 
     // Single invalidation pass
-    invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
+    invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
 
     NodeUtils.syncNode(this, children)
     if (!style.inBatch) {
@@ -935,8 +1234,18 @@ open class Node internal constructor(
         NodeUtils.syncNode(this, children)
       }
     } else {
-      NodeUtils.removeView(reference.parent!!, removed.view as View)
-      NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+      // Use `this` (the node whose children vector was updated) as the
+      // parent when removing the platform View. Passing `reference.parent`
+      // could be ambiguous in anonymous/container scenarios and may leave
+      // views attached to the wrong ViewGroup.
+      NodeUtils.removeView(this, removed.view as? View)
+      // If view is still attached (unexpected), try fallback removal directly
+      if (removed.view != null && (removed.view as? View)?.parent != null) {
+        NodeUtils.removeViewFallback(removed.view as View)
+      }
+      if (removed.nativePtr != 0L) {
+        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+      }
       removed.parent = null
       NodeUtils.invalidateLayout(this, true)
     }
@@ -944,11 +1253,19 @@ open class Node internal constructor(
   }
 
   fun dirty() {
+    // During compute Rust holds the lock — skip JNI to avoid deadlock
+    if (mason.inCompute) {
+      computeCacheDirty = true
+      return
+    }
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }
 
   fun isDirty(): Boolean {
+    if (mason.inCompute) {
+      return true
+    }
     return NativeHelpers.nativeNodeDirty(mason.nativePtr, nativePtr)
   }
 
@@ -1001,15 +1318,7 @@ open class Node internal constructor(
       (it.view as? View)?.let { view ->
         when (this.view) {
           is org.nativescript.mason.masonkit.View -> {
-            val masonView = view as? org.nativescript.mason.masonkit.View
-            // this is a scroll
-            if (masonView != null && masonView.isScrollRoot) {
-              if (masonView.parent != null) {
-                (this.view as org.nativescript.mason.masonkit.View).removeView(masonView.parent as View?)
-              }
-            } else {
-              (this.view as org.nativescript.mason.masonkit.View).removeView(view)
-            }
+            (this.view as org.nativescript.mason.masonkit.View).removeView(view)
           }
 
           is Scroll -> {

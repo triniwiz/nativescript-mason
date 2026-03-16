@@ -19,6 +19,7 @@ export function textLoaded(args) {
 
 export function loaded(args) {
   const view = args.object;
+
   // setTimeout(() => {
   //   console.log('display value:', view.display);
 
@@ -73,6 +74,14 @@ export function loaded(args) {
 export class DemoModel extends DemoSharedNativescriptMasonkit {
   text: Text;
   textNode: TextNode;
+
+  items = [
+    { name: 'Item 1', src: 'https://picsum.photos/seed/1/200/300' },
+    { name: 'Item 2', src: 'https://picsum.photos/seed/2/200/300' },
+    { name: 'Item 3', src: 'https://picsum.photos/seed/3/200/300' },
+    { name: 'Item 4', src: 'https://picsum.photos/seed/4/200/300' },
+    { name: 'Item 5', src: 'https://picsum.photos/seed/5/200/300' },
+  ];
 
   onChange(args) {
     const textField = args.object;

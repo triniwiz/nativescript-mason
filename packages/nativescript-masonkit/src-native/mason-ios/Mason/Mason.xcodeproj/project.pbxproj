@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
 		F10A1B122F02684500888DDD /* Br.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10A1B112F02684200888DDD /* Br.swift */; };
+		F12BE0232F5425D0008C6B6B /* BoxShadowRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */; };
+		F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */; };
 		F13289762F2AD6DE0026A7E2 /* SDWebImage in Frameworks */ = {isa = PBXBuildFile; productRef = F13289752F2AD6DE0026A7E2 /* SDWebImage */; };
 		F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016C2ECE04CB00D6CFD9 /* Background.swift */; };
 		F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016E2ECE04DC00D6CFD9 /* Border.swift */; };
@@ -22,6 +25,7 @@
 		F155B4D82F0F34D7004419BF /* MasonTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155B4D72F0F34D1004419BF /* MasonTextInput.swift */; };
 		F16270A12F14901800ABE5FF /* MasonGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */; };
 		F16270A32F14996B00ABE5FF /* MasonEventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A22F14996800ABE5FF /* MasonEventTarget.swift */; };
+		F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
@@ -128,8 +132,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
+		F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShadowRenderer.swift; sourceTree = "<group>"; };
+		F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonShadowLayer.swift; sourceTree = "<group>"; };
 		F134016C2ECE04CB00D6CFD9 /* Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Background.swift; sourceTree = "<group>"; };
 		F134016E2ECE04DC00D6CFD9 /* Border.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Border.swift; sourceTree = "<group>"; };
 		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
@@ -140,6 +147,7 @@
 		F155B4D72F0F34D1004419BF /* MasonTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTextInput.swift; sourceTree = "<group>"; };
 		F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonGestureRecognizer.swift; sourceTree = "<group>"; };
 		F16270A22F14996800ABE5FF /* MasonEventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonEventTarget.swift; sourceTree = "<group>"; };
+		F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
@@ -305,6 +313,9 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */,
+				F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */,
+				F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */,
 				F1903AC22F22115D00917254 /* MasonLi.swift */,
 				F1903AC02F22051D00917254 /* MasonList.swift */,
 				F16270A22F14996800ABE5FF /* MasonEventTarget.swift */,
@@ -358,6 +369,7 @@
 			isa = PBXGroup;
 			children = (
 				F184839B293534D800EC35F4 /* MasonTests.swift */,
+				A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */,
 			);
 			path = MasonTests;
 			sourceTree = "<group>";
@@ -663,6 +675,7 @@
 				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
 				F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */,
 				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
+				F12BE0232F5425D0008C6B6B /* BoxShadowRenderer.swift in Sources */,
 				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,
 				F1F4F1032F0F862C00FBA616 /* MasonNumberInput.swift in Sources */,
@@ -672,8 +685,10 @@
 				F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
 				F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */,
+				F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */,
 				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
 				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
+				F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */,
 				F10A1B122F02684500888DDD /* Br.swift in Sources */,
 				F1903AC32F22116300917254 /* MasonLi.swift in Sources */,
 			);
@@ -684,6 +699,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F184839C293534D800EC35F4 /* MasonTests.swift in Sources */,
+				A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

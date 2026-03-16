@@ -9,35 +9,33 @@
 import UIKit
 import CoreGraphics
 
+// Shared color space — avoids deviceRGB allocation per gradient draw
+private let deviceRGB = CGColorSpaceCreateDeviceRGB()
+
 // MARK: - Background
 extension Background {
   
   
   func draw(on layer: CALayer, in context: CGContext, rect: CGRect) {
-    if let color = self.color {
-      if(isActive){
-        context.setFillColor(color.darker(by: 0.15).cgColor)
-      }else {
-        context.setFillColor(color.cgColor)
-      }
+    let resolved = style.resolvedBackgroundColor
+    if resolved != 0 {
+      context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
     }
     
     for bgLayer in layers {
       drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
     }
+
   }
-  
+
   func draw(on view: UIView, in context: CGContext, rect: CGRect) {
-    if let color = self.color {
-      if(isActive){
-        context.setFillColor(color.darker(by: 0.15).cgColor)
-      }else {
-        context.setFillColor(color.cgColor)
-      }
+    let resolved = style.resolvedBackgroundColor
+    if resolved != 0 {
+      context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
     }
-    
+
     for layer in layers {
       drawLayer(layer, on: view, in: context, rect: rect)
     }
@@ -87,14 +85,22 @@ extension Background {
   // MARK: - Gradient Drawing
   private func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, height: CGFloat) {
     guard let gradient = layer.gradient else { return }
+
+    // if size changed since last shader creation, clear cache
+    if layer.shader != nil && (layer.shaderWidth != width || layer.shaderHeight != height) {
+      layer.shader = nil
+    }
+
     if layer.shader == nil {
       let colors = gradient.stops.compactMap {
         colorMap[$0]?.cgColor ?? UIColor(css: $0)?.cgColor
       } as CFArray
-      layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil)
+      layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors, locations: nil)
+      layer.shaderWidth = width
+      layer.shaderHeight = height
     }
     guard let shader = layer.shader else { return }
-    
+
     switch gradient.type.lowercased() {
     case "linear":
       let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
@@ -225,7 +231,7 @@ func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, he
     let colors = gradient.stops
       .compactMap { parseColor($0)?.cgColor } as CFArray
     
-    layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+    layer.shader = CGGradient(colorsSpace: deviceRGB,
                               colors: colors,
                               locations: nil)
   }
@@ -362,8 +368,21 @@ func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
     completion(nil)
     return
   }
-  URLSession.shared.dataTask(with: u) { data, _, _ in
+
+  // Check URLCache first to avoid redundant network requests
+  let request = URLRequest(url: u)
+  if let cached = URLCache.shared.cachedResponse(for: request),
+     let image = UIImage(data: cached.data) {
+    completion(image)
+    return
+  }
+
+  URLSession.shared.dataTask(with: u) { data, response, _ in
     guard let data = data else { completion(nil); return }
+    if let response = response {
+      let cachedData = CachedURLResponse(response: response, data: data)
+      URLCache.shared.storeCachedResponse(cachedData, for: request)
+    }
     completion(UIImage(data: data))
   }.resume()
 }

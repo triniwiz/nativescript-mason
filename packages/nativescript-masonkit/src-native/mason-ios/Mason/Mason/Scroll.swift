@@ -9,41 +9,88 @@ import UIKit
 @objc(MasonScroll)
 @objcMembers
 public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    if isHandlingStyleChange { return }
+    isHandlingStyleChange = true
+    defer { isHandlingStyleChange = false }
+
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
   public override func draw(_ rect: CGRect) {
-    
+
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty
+
+    // Early-out: skip all CoreGraphics work for plain views with no decoration
+    guard hasBackground || hasBoxShadow || hasBorder else { return }
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
-    style.mBorderRender.draw(in: context, rect: bounds)
-    style.mBorderRender.draw(in: context, rect: bounds)
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
+    // Border drawn OUTSIDE any clip scope so strokes aren't clipped
+    if hasBorder {
+      style.mBorderRender.draw(in: context, rect: bounds)
+    }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
+
+  public override func layoutSubviews() {
+    if isApplyingLayout {
+      super.layoutSubviews()
+      return
+    }
+
+    isApplyingLayout = true
+    defer { isApplyingLayout = false }
+
+    super.layoutSubviews()
+
+    // Only update shadow layer / recompute if bounds actually changed
+    if !bounds.equalTo(lastBounds) {
+      style.updateShadowLayer(for: bounds)
+      autoComputeIfRoot()
+      lastBounds = bounds
+    }
+  }
+
   public let node: MasonNode
   public let mason: NSCMason
-  
+
   public var uiView: UIView {
     return self
   }
@@ -51,6 +98,10 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   public var style: MasonStyle {
     return node.style
   }
+
+  private var isApplyingLayout: Bool = false
+  private var isHandlingStyleChange: Bool = false
+  private var lastBounds: CGRect = .zero
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow

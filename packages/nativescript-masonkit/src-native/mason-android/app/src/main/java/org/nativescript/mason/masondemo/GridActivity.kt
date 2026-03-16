@@ -3,10 +3,7 @@ package org.nativescript.mason.masondemo
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.os.StrictMode
-import android.os.StrictMode.ThreadPolicy
 import android.util.DisplayMetrics
-import android.util.Log
 import android.util.TypedValue
 import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
@@ -27,10 +24,9 @@ import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.TextNode
-import org.nativescript.mason.masonkit.TextStyleChangeMask
-import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignItems
@@ -107,8 +103,8 @@ class GridActivity : AppCompatActivity() {
 
     //grid_template_areas_600(body)
 
-   // backgroundTest(body)
-     //filter(body)
+    // backgroundTest(body)
+    //filter(body)
     //  objectFit(body)
     //   buttons(body)
     // verticalAlignment(body)
@@ -117,14 +113,14 @@ class GridActivity : AppCompatActivity() {
     //  textShadow(body)
     // input(body)
     // zOrder(body)
-    //list(body)
+    list(body)
 
-    inputTest(body)
+    //inputTest(body)
     root.addView(body)
     setContentView(root)
   }
 
-  fun inputTest(body: View){
+  fun inputTest(body: View) {
     body.id = android.view.View.generateViewId()
     val root = mason.createView(this)
 
@@ -192,13 +188,17 @@ class GridActivity : AppCompatActivity() {
 
       override fun onBind(holder: ListView.Holder, index: Int) {
         arr.getOrNull(index)?.let { url ->
-          val txt = holder.view.node.getChildAt(0)?.view as? TextView
-          (txt?.node?.getChildAt(0) as? TextNode)?.let {
-            it.data = url
-          }
+          (holder.view as? Li)?.let {
+            val txt = it.node.getChildAt(0)?.view as? TextView
+            (txt?.node?.getChildAt(0) as? TextNode)?.let { node ->
+              node.data = url
+            }
 
-          val img = holder.view.node.getChildAt(1)?.view as? Img
-          img?.src = url
+            val img = it.node.getChildAt(1)?.view as? Img
+            img?.src = url
+          } ?: run {
+            holder.view.setBackgroundColor(Color.RED)
+          }
 
         }
       }
@@ -277,7 +277,7 @@ class GridActivity : AppCompatActivity() {
 
     input.addEventListener("input") {
       if (it is InputEvent) {
-        Log.d("com.test", "input ${(it).data} ${it.inputType}")
+        // debug: input event
       }
     }
 
@@ -964,7 +964,6 @@ class GridActivity : AppCompatActivity() {
     content.style.gridArea = "content"
     content.append("Content")
     val br = mason.createBr(this)
-    Log.d("com.test", "style ${mason.styleForViewOrNode(br)}")
     content.replaceChildAt(br, 1)
     content.replaceChildAt(mason.createBr(this), 2)
     content.replaceChildAt(mason.createBr(this), 3)
@@ -1009,15 +1008,11 @@ class GridActivity : AppCompatActivity() {
     header.append("Header")
     header.configure {
       it.color = Color.WHITE
-      // header.style.background = "#999999"
+      header.style.background = "#999999"
       header.style.gridArea = "header"
       it.padding = boxPadding
       it.borderRadius = "5px"
     }
-
-    header.style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, "#999999".toColorInt())
-    header.style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, 1)
-    header.syncStyle("", TextStyleChangeMask.BACKGROUND_COLOR.toString())
 
 
     val sidebar = mason.createView(this)
@@ -1349,7 +1344,7 @@ class GridActivity : AppCompatActivity() {
       it.margin = Rect.uniform(LengthPercentageAuto.Points(40f))
       it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
       it.fontSize = 80
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
     }
 
     val wrapper6 = mason.createView(this)
@@ -1365,7 +1360,7 @@ class GridActivity : AppCompatActivity() {
       it.gridTemplateRows = "repeat(4, 150px)"
     }
 
-    Log.d("com.test", " ${wrapper6.style}")
+    // wrapper6 style debug removed
 
 
     val boxA = createParentWith2Kids("This is box A.", "align-self: stretch", AlignSelf.Stretch)
@@ -1391,7 +1386,7 @@ class GridActivity : AppCompatActivity() {
     boxA.configure {
       // 150%
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1406,7 +1401,7 @@ class GridActivity : AppCompatActivity() {
 
     boxB.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1421,7 +1416,7 @@ class GridActivity : AppCompatActivity() {
 
     boxC.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1436,7 +1431,7 @@ class GridActivity : AppCompatActivity() {
 
     boxD.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),
@@ -1451,7 +1446,7 @@ class GridActivity : AppCompatActivity() {
 
     boxE.configure {
       it.fontSize = 150
-      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(20f),

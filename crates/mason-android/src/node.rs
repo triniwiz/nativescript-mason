@@ -1,12 +1,15 @@
 use crate::style::{JAVA_FLOAT_TYPE, JAVA_INT_TYPE, JAVA_LONG_TYPE};
 use crate::INLINE_SEGMENT;
-use jni::objects::{JClass, JObject, JObjectArray, JPrimitiveArray, ReleaseMode};
+use jni::objects::{
+    JClass, JFloatArray, JIntArray, JLongArray, JObject, JObjectArray, JPrimitiveArray, ReleaseMode,
+};
 use jni::signature::ReturnType;
 use jni::sys::{
-    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, JNI_FALSE, JNI_TRUE,
+    jboolean, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray, JNI_FALSE,
+    JNI_TRUE,
 };
 use jni::JNIEnv;
-use mason_core::{AvailableSpace, Id, InlineSegment, Mason, NodeRef, Size};
+use mason_core::{AvailableSpace, Id, InlineSegment, Mason, MeasureOutput, NodeRef, Size};
 
 #[no_mangle]
 pub extern "system" fn NodeNativeDestroy(node: jlong) {
@@ -289,6 +292,101 @@ pub extern "system" fn nativeLayout(
     }
 }
 
+#[no_mangle]
+pub extern "system" fn nativeGetFloatRects(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jfloatArray {
+    if taffy == 0 || node == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        let output = mason.get_float_rects(node_ref.id());
+        let size = output.len();
+        match env.new_float_array(size as i32) {
+            Ok(array) => {
+                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
+                array.into_raw()
+            }
+            Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeGetFloatRectAndroidIds(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jintArray {
+    if taffy == 0 || node == 0 {
+        return env.new_int_array(0_i32).unwrap().into_raw();
+    }
+
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        // Use the richer API to get node ids along with rects
+        let output = mason.get_float_rects_with_nodes(node_ref.id());
+        // Build jint array of android node ids (or -1 if none)
+        let mut ids: Vec<jint> = Vec::with_capacity(output.len());
+        for (id, l, t, r, b) in output.into_iter() {
+            match mason.get_android_node(id) {
+                Some(v) => ids.push(v),
+                None => ids.push(-1),
+            }
+        }
+
+        let size = ids.len();
+        match env.new_int_array(size as i32) {
+            Ok(arr) => {
+                if let Err(_) = env.set_int_array_region(&arr, 0, ids.as_slice()) {}
+                arr.into_raw()
+            }
+            Err(_) => env.new_int_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NativeNodeGetFloatRectWithIds(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jlongArray {
+    if taffy == 0 || node == 0 {
+        return env.new_int_array(0_i32).unwrap().into_raw();
+    }
+
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        // Use the richer API to get node ids along with rects
+        let output = mason.get_float_rects_with_node_ids(node_ref.id());
+        let mut ids: Vec<jlong> = Vec::with_capacity(output.len() * 3);
+        for (id, lt, rb) in output.into_iter() {
+            ids.push(id);
+            ids.push(lt);
+            ids.push(rb);
+        }
+
+        let size = ids.len();
+        match env.new_long_array(size as i32) {
+            Ok(arr) => {
+                if let Err(_) = env.set_long_array_region(&arr, 0, ids.as_slice()) {}
+                arr.into_raw()
+            }
+            Err(_) => env.new_long_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
 fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     if taffy == 0 || node == 0 {
         return;
@@ -448,15 +546,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
 
         let output = mason.layout(node.id());
 
-        let size = output.len();
-        let result = env.new_float_array(size as i32).unwrap();
-
-        if size > 0 {
-            env.set_float_array_region(&result, 0, output.as_slice())
-                .unwrap();
+        match env.new_float_array(output.len() as i32) {
+            Ok(array) => {
+                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
+                array.into_raw()
+            }
+            Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
-
-        result.into_raw()
     }
 }
 
@@ -480,10 +576,10 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
         mason.compute_wh(node.id(), width, height);
 
         let output = mason.layout(node.id());
+
         match env.new_float_array(output.len() as i32) {
             Ok(array) => {
-                env.set_float_array_region(&array, 0, output.as_slice())
-                    .unwrap();
+                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
                 array.into_raw()
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
@@ -1086,7 +1182,17 @@ pub extern "system" fn NodeNativeSetSegments(
                             .and_then(|v| v.f())
                             .unwrap_or(0f32);
 
+                        let flags = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.text_flags,
+                                ReturnType::Primitive(jni::signature::Primitive::Byte),
+                            )
+                            .and_then(|v| v.b())
+                            .unwrap_or(0i8) as u8;
+
                         child.push(InlineSegment::Text {
+                            flags,
                             width,
                             ascent,
                             descent,
@@ -1153,6 +1259,83 @@ fn native_set_android_node(taffy: jlong, node: jlong, android_node: jint) {
 #[no_mangle]
 pub extern "system" fn NodeNativeSetAndroidNode(taffy: jlong, node: jlong, android_node: jint) {
     native_set_android_node(taffy, node, android_node);
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetSegmentsPacked(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    floats: JFloatArray,
+    longs: JLongArray,
+    kinds: JIntArray,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+
+        // Copy primitive arrays into Rust-owned buffers to avoid nested mutable borrows
+        let klen = env.get_array_length(&kinds).unwrap_or(0) as usize;
+        let flen = env.get_array_length(&floats).unwrap_or(0) as usize;
+        let llen = env.get_array_length(&longs).unwrap_or(0) as usize;
+
+        if klen == 0 {
+            mason.set_segments(node_ref.id(), Vec::new());
+            return;
+        }
+
+        let mut kvec: Vec<jint> = vec![0; klen];
+        let mut fvec: Vec<jfloat> = vec![0.0; flen];
+        let mut lvec: Vec<jlong> = vec![0; llen];
+
+        // Read array regions into our buffers (no long-lived borrows on `env`)
+        let _ = env.get_int_array_region(kinds, 0, &mut kvec);
+        let _ = env.get_float_array_region(floats, 0, &mut fvec);
+        let _ = env.get_long_array_region(longs, 0, &mut lvec);
+
+        let mut child: Vec<InlineSegment> = Vec::with_capacity(klen);
+        for i in 0..klen {
+            let kind = kvec[i] as i32;
+            match kind {
+                0 => {
+                    let base = i.checked_mul(4).unwrap_or(0);
+                    let width = *fvec.get(base).unwrap_or(&0.0);
+                    let ascent = *fvec.get(base + 1).unwrap_or(&0.0);
+                    let descent = *fvec.get(base + 2).unwrap_or(&0.0);
+                    let flags = *fvec.get(base + 3).unwrap_or(&0.0);
+                    child.push(InlineSegment::Text {
+                        flags: flags.clamp(0f32, 255f32) as u8,
+                        width,
+                        ascent,
+                        descent,
+                    });
+                }
+
+                1 => {
+                    let idraw = *lvec.get(i).unwrap_or(&0);
+                    let baseline = *fvec.get(i.checked_mul(3).unwrap_or(0)).unwrap_or(&0.0);
+                    let mut child_id: Option<Id> = None;
+                    if idraw != 0 {
+                        let node_ptr = &*(idraw as *mut NodeRef);
+                        child_id = Some(node_ptr.id());
+                    }
+                    child.push(InlineSegment::InlineChild {
+                        id: child_id,
+                        baseline,
+                    });
+                }
+
+                2 => child.push(InlineSegment::LineBreak),
+                _ => {}
+            }
+        }
+
+        mason.set_segments(node_ref.id(), child);
+    }
 }
 
 #[no_mangle]
@@ -1367,5 +1550,135 @@ pub extern "system" fn NodeNativeGetStateBuffer(
                 Err(_) => -1,
             }
         }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeGetPseudoStyleBuffer(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    #[cfg(target_os = "android")]
+    {
+        if mason == 0 || node == 0 {
+            return -1;
+        }
+
+        unsafe {
+            let mason = &mut *(mason as *mut Mason);
+            let node = &*(node as *mut NodeRef);
+
+            // Try to get an existing platform buffer id first
+            let data = mason.pseudo_style_data(node.id(), flags as u16);
+            if data >= 0 {
+                return data;
+            }
+
+            // Fall back to raw pointer -> create a direct ByteBuffer
+            let (ptr, len) = mason.pseudo_style_data_raw(node.id(), flags as u16);
+
+            if ptr.is_null() || len == 0 {
+                return -1;
+            }
+
+            match env.new_direct_byte_buffer(ptr as _, len) {
+                Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                    Some(cache) => {
+                        let manager =
+                            unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
+                        let result = unsafe {
+                            env.call_static_method_unchecked(
+                                manager,
+                                cache.object_manager_add_id,
+                                ReturnType::Primitive(jni::signature::Primitive::Int),
+                                &[jni::sys::jvalue {
+                                    l: buffer.into_raw(),
+                                }],
+                            )
+                        };
+
+                        match result {
+                            Ok(result) => result.i().unwrap_or(-1),
+                            Err(_) => -1,
+                        }
+                    }
+                    None => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativePreparePseudoMut(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    #[cfg(target_os = "android")]
+    {
+        if mason == 0 || node == 0 {
+            return -1;
+        }
+
+        unsafe {
+            let mason = &mut *(mason as *mut Mason);
+            let node = &*(node as *mut NodeRef);
+
+            // Try to get existing platform buffer id for prepared pseudo
+            let data = mason.pseudo_style_data_mut(node.id(), flags as u16);
+            if data >= 0 {
+                return data;
+            }
+
+            // Fall back to raw mutable pointer -> create direct ByteBuffer
+            let (ptr, len) = mason.pseudo_style_data_raw_mut(node.id(), flags as u16);
+
+            if ptr.is_null() || len == 0 {
+                return -1;
+            }
+
+            match env.new_direct_byte_buffer(ptr as _, len) {
+                Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                    Some(cache) => {
+                        let manager =
+                            unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
+                        let result = unsafe {
+                            env.call_static_method_unchecked(
+                                manager,
+                                cache.object_manager_add_id,
+                                ReturnType::Primitive(jni::signature::Primitive::Int),
+                                &[jni::sys::jvalue {
+                                    l: buffer.into_raw(),
+                                }],
+                            )
+                        };
+
+                        match result {
+                            Ok(result) => result.i().unwrap_or(-1),
+                            Err(_) => -1,
+                        }
+                    }
+                    None => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        -1
     }
 }

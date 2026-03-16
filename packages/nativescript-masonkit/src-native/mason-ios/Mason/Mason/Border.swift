@@ -379,6 +379,12 @@ public final class CSSBorderRenderer {
   private var cachedRadius: BorderRadius = .zero
   internal var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
   internal var css: String = ""
+
+  // Clip path cache — avoids UIBezierPath allocation every frame
+  private var cachedClipPath: UIBezierPath?
+  private var cachedClipRect: CGRect = .zero
+  private var cachedClipRadius: BorderRadius = .zero
+  private var clipPathDirty: Bool = true
   public init(style: MasonStyle) {
     self.style = style
     self.top = BorderSide(style: style, side: .top)
@@ -388,6 +394,29 @@ public final class CSSBorderRenderer {
     self.radius = BorderRadius.zero
   }
   
+  public func hasRadii() -> Bool {
+    return radius.topLeft != .zero || radius.topRight != .zero ||
+           radius.bottomRight != .zero || radius.bottomLeft != .zero
+  }
+
+  /// Returns a cached clip path for the given rect and inner radius, avoiding UIBezierPath allocation every frame.
+  public func getClipPath(rect: CGRect, radius: BorderRadius) -> UIBezierPath {
+    if !clipPathDirty, let cached = cachedClipPath, cachedClipRect == rect {
+      return cached
+    }
+    let path = buildRoundedPath(in: rect, radius: radius)
+    cachedClipPath = path
+    cachedClipRect = rect
+    clipPathDirty = false
+    return path
+  }
+
+  public func invalidateCache() {
+    lastHash = 0
+    clipPathDirty = true
+    cachedClipPath = nil
+  }
+
   internal func resetAllBorders(){
     top.color = .clear
     top.width = .Zero
@@ -416,9 +445,10 @@ public final class CSSBorderRenderer {
     if hash == lastHash && cachedResolvedRect == rect {
       return
     }
-    
+
     cachedResolvedRect = rect
     lastHash = hash
+    clipPathDirty = true
     
     cachedWidths = (
       top: CGFloat(top.width.resolve(relativeTo: Float(rect.width))),
@@ -433,9 +463,9 @@ public final class CSSBorderRenderer {
   private func resolveRadius(rect: CGRect) -> BorderRadius {
     // Fetch corner radii from style buffer
     func corner(xType: Int, xValue: Int, yType: Int, yValue: Int, exp: Int) -> CornerRadius {
-      let h = MasonLengthPercentage.fromValueType(Float(xValue), xType) ?? .Zero
-      let v = MasonLengthPercentage.fromValueType(Float(yValue), yType) ?? .Zero
-      let exponent = CGFloat(exp)
+      let h = MasonLengthPercentage.fromValueType(style.getFloat(xValue), Int(style.getInt8(xType))) ?? .Zero
+      let v = MasonLengthPercentage.fromValueType(style.getFloat(yValue), Int(style.getInt8(yType))) ?? .Zero
+      let exponent = CGFloat(style.getFloat(exp))
       return CornerRadius(horizontal: h, vertical: v, exponent: exponent)
     }
     
@@ -475,17 +505,45 @@ public final class CSSBorderRenderer {
   
   public func draw(in ctx: CGContext, rect: CGRect) {
     resolve(for: rect)
+
+    // Early bail — skip if all sides are invisible
+    let topVisible = cachedWidths.top > 0 && top.style != .none && top.color.cgColor.alpha > 0
+    let rightVisible = cachedWidths.right > 0 && right.style != .none && right.color.cgColor.alpha > 0
+    let bottomVisible = cachedWidths.bottom > 0 && bottom.style != .none && bottom.color.cgColor.alpha > 0
+    let leftVisible = cachedWidths.left > 0 && left.style != .none && left.color.cgColor.alpha > 0
+    
+    guard topVisible || rightVisible || bottomVisible || leftVisible else { return }
+
     ctx.saveGState()
     ctx.setAllowsAntialiasing(true)
     ctx.setShouldAntialias(true)
-    
+
     let outerPath = buildRoundedPath(in: rect, radius: radius)
-    
-    paintSide(.top, ctx: ctx, rect: rect, width: cachedWidths.top, side: top, outerPath: outerPath)
-    paintSide(.right, ctx: ctx, rect: rect, width: cachedWidths.right, side: right, outerPath: outerPath)
-    paintSide(.bottom, ctx: ctx, rect: rect, width: cachedWidths.bottom, side: bottom, outerPath: outerPath)
-    paintSide(.left, ctx: ctx, rect: rect, width: cachedWidths.left, side: left, outerPath: outerPath)
-    
+
+    // Uniform border fast path — single drawPath when all visible sides share color/style/width
+    if topVisible && rightVisible && bottomVisible && leftVisible,
+       cachedWidths.top == cachedWidths.right &&
+       cachedWidths.right == cachedWidths.bottom &&
+       cachedWidths.bottom == cachedWidths.left,
+       top.style == right.style && right.style == bottom.style && bottom.style == left.style,
+       top.color == right.color && right.color == bottom.color && bottom.color == left.color,
+       top.style == .solid {
+      let halfWidth = cachedWidths.top / 2.0
+      let inset = UIEdgeInsets(top: halfWidth, left: halfWidth, bottom: halfWidth, right: halfWidth)
+      let insetRect = rect.inset(by: inset)
+      let insetRadius = radius.insetByBorderWidths((halfWidth, halfWidth, halfWidth, halfWidth))
+      let strokePath = buildRoundedPath(in: insetRect, radius: insetRadius)
+      ctx.setStrokeColor(top.color.cgColor)
+      ctx.setLineWidth(cachedWidths.top)
+      ctx.addPath(strokePath.cgPath)
+      ctx.strokePath()
+    } else {
+      paintSide(.top, ctx: ctx, rect: rect, width: cachedWidths.top, side: top, outerPath: outerPath)
+      paintSide(.right, ctx: ctx, rect: rect, width: cachedWidths.right, side: right, outerPath: outerPath)
+      paintSide(.bottom, ctx: ctx, rect: rect, width: cachedWidths.bottom, side: bottom, outerPath: outerPath)
+      paintSide(.left, ctx: ctx, rect: rect, width: cachedWidths.left, side: left, outerPath: outerPath)
+    }
+
     ctx.restoreGState()
   }
   
@@ -660,29 +718,17 @@ public final class CSSBorderRenderer {
       ctx.addPath(outerPath.cgPath)
       ctx.clip()
 
+      // Clip to this side's band so the fill/stroke doesn't bleed into other sides
+      let band = bandRect(for: s, rect: rect, width: width)
+      ctx.clip(to: band)
+
       switch side.style {
       case .double(let spacing):
         // use resolved radius — you already have `radius` member resolved in resolve(for:)
         drawDoubleBorder(ctx, sideEdge: s, rect: rect, totalWidth: width, side: side, outerRadius: radius)
       case .solid:
-        // Stroke the border along the correct path
-        let halfWidth = width / 2.0
-        // Inset only the relevant side for the current border
-        let inset = insetForSide(s, amount: halfWidth)
-        let insetRect = rect.inset(by: inset)
-        // Inset the radii for this side
-        let borderWidthsForSide: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (
-            top: s == .top ? width : 0,
-            right: s == .right ? width : 0,
-            bottom: s == .bottom ? width : 0,
-            left: s == .left ? width : 0
-        )
-        let insetRadius = radius.insetByBorderWidths(borderWidthsForSide)
-        let path = buildRoundedPath(in: insetRect, radius: insetRadius)
-        ctx.setStrokeColor(side.color.cgColor)
-        ctx.setLineWidth(width)
-        ctx.addPath(path.cgPath)
-        ctx.strokePath()
+        ctx.setFillColor(side.color.cgColor)
+        ctx.fill(band)
       case .dashed(let dash, let gap):
       //  strokeBandCenterline(band: bandRect(for: s, rect: rect, width: width), side: s, ctx: ctx, color: side.color, lineWidth: width, dash: dash, gap: gap)
         break
@@ -706,26 +752,133 @@ public final class CSSBorderRenderer {
   
   internal func buildRoundedPath(in rect: CGRect, radius: BorderRadius) -> UIBezierPath {
     let p = UIBezierPath()
-    let tl = radius.topLeft.resolved(rect: rect)
-    let tr = radius.topRight.resolved(rect: rect)
-    let br = radius.bottomRight.resolved(rect: rect)
-    let bl = radius.bottomLeft.resolved(rect: rect)
-    
+    var tl = radius.topLeft.resolved(rect: rect)
+    var tr = radius.topRight.resolved(rect: rect)
+    var br = radius.bottomRight.resolved(rect: rect)
+    var bl = radius.bottomLeft.resolved(rect: rect)
+
+    let tlExp = radius.topLeft.exponent
+    let trExp = radius.topRight.exponent
+    let brExp = radius.bottomRight.exponent
+    let blExp = radius.bottomLeft.exponent
+
+    // CSS spec: if sum of adjacent radii exceeds the box dimension,
+    // scale all radii down proportionally.
+    let w = rect.width
+    let h = rect.height
+    let maxRatioX = max(
+      (tl.x + tr.x) / max(w, 1),
+      (br.x + bl.x) / max(w, 1)
+    )
+    let maxRatioY = max(
+      (tl.y + bl.y) / max(h, 1),
+      (tr.y + br.y) / max(h, 1)
+    )
+    let maxRatio = max(maxRatioX, maxRatioY)
+    if maxRatio > 1 {
+      let f = 1.0 / maxRatio
+      tl = (tl.x * f, tl.y * f)
+      tr = (tr.x * f, tr.y * f)
+      br = (br.x * f, br.y * f)
+      bl = (bl.x * f, bl.y * f)
+    }
+
     p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY))
+
+    // Top edge
     p.addLine(to: CGPoint(x: rect.maxX - tr.x, y: rect.minY))
-    p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + tr.y),
-                   controlPoint: CGPoint(x: rect.maxX, y: rect.minY))
+
+    // Top-right corner
+    addCorner(to: p, corner: .topRight, radius: tr, exponent: trExp, rect: rect)
+
+    // Right edge
     p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br.y))
-    p.addQuadCurve(to: CGPoint(x: rect.maxX - br.x, y: rect.maxY),
-                   controlPoint: CGPoint(x: rect.maxX, y: rect.maxY))
+
+    // Bottom-right corner
+    addCorner(to: p, corner: .bottomRight, radius: br, exponent: brExp, rect: rect)
+
+    // Bottom edge
     p.addLine(to: CGPoint(x: rect.minX + bl.x, y: rect.maxY))
-    p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - bl.y),
-                   controlPoint: CGPoint(x: rect.minX, y: rect.maxY))
+
+    // Bottom-left corner
+    addCorner(to: p, corner: .bottomLeft, radius: bl, exponent: blExp, rect: rect)
+
+    // Left edge
     p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl.y))
-    p.addQuadCurve(to: CGPoint(x: rect.minX + tl.x, y: rect.minY),
-                   controlPoint: CGPoint(x: rect.minX, y: rect.minY))
+
+    // Top-left corner
+    addCorner(to: p, corner: .topLeft, radius: tl, exponent: tlExp, rect: rect)
+
     p.close()
     return p
+  }
+
+  private enum Corner {
+    case topLeft, topRight, bottomRight, bottomLeft
+  }
+
+  private func addCorner(
+    to path: UIBezierPath,
+    corner: Corner,
+    radius: (x: CGFloat, y: CGFloat),
+    exponent: CGFloat,
+    rect: CGRect
+  ) {
+    guard radius.x > 0 || radius.y > 0 else { return }
+
+    if exponent == 1.0 {
+      // Standard quadratic Bézier (circular arc approximation)
+      let controlPoint: CGPoint
+      let endPoint: CGPoint
+
+      switch corner {
+      case .topRight:
+        controlPoint = CGPoint(x: rect.maxX, y: rect.minY)
+        endPoint = CGPoint(x: rect.maxX, y: rect.minY + radius.y)
+      case .bottomRight:
+        controlPoint = CGPoint(x: rect.maxX, y: rect.maxY)
+        endPoint = CGPoint(x: rect.maxX - radius.x, y: rect.maxY)
+      case .bottomLeft:
+        controlPoint = CGPoint(x: rect.minX, y: rect.maxY)
+        endPoint = CGPoint(x: rect.minX, y: rect.maxY - radius.y)
+      case .topLeft:
+        controlPoint = CGPoint(x: rect.minX, y: rect.minY)
+        endPoint = CGPoint(x: rect.minX + radius.x, y: rect.minY)
+      }
+
+      path.addQuadCurve(to: endPoint, controlPoint: controlPoint)
+      return
+    }
+
+    // Superellipse curve
+    let steps = 16
+    let exp = Double(exponent)
+    for i in 0...steps {
+      let t = Double(i) / Double(steps)
+      let angle = t * .pi / 2.0
+      let cx = CGFloat(pow(cos(angle), exp))
+      let cy = CGFloat(pow(sin(angle), exp))
+
+      let px: CGFloat
+      let py: CGFloat
+
+      switch corner {
+      case .topRight:
+        px = rect.maxX - radius.x * (1 - cy)
+        py = rect.minY + radius.y * (1 - cx)
+      case .bottomRight:
+        px = rect.maxX - radius.x * (1 - cx)
+        py = rect.maxY - radius.y * (1 - cy)
+      case .bottomLeft:
+        px = rect.minX + radius.x * (1 - cy)
+        py = rect.maxY - radius.y * (1 - cx)
+      case .topLeft:
+        px = rect.minX + radius.x * (1 - cx)
+        py = rect.minY + radius.y * (1 - cy)
+      }
+
+      path.addLine(to: CGPoint(x: px, y: py))
+    }
   }
 }
 

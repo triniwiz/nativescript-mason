@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -16,7 +17,6 @@ import com.google.gson.GsonBuilder
 import org.nativescript.mason.masonkit.enums.AlignContent
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
-import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
@@ -29,7 +29,7 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import kotlin.math.roundToInt
 
-class View @JvmOverloads constructor(
+open class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
 ) : ViewGroup(context, attrs, defStyleAttr), Element, StyleChangeListener {
 
@@ -43,6 +43,7 @@ class View @JvmOverloads constructor(
     get() = this
 
   private val nodes = mutableMapOf<android.view.View, Node>()
+
 
   constructor(context: Context, mason: Mason) : this(context) {
     node = mason.createNode().apply {
@@ -91,6 +92,7 @@ class View @JvmOverloads constructor(
 
   internal fun onChildZIndexChanged() {
     rebuildZOrder()
+    invalidate()
   }
 
   private fun rebuildZOrder() {
@@ -100,17 +102,16 @@ class View @JvmOverloads constructor(
     }
 
     zSortedChildren.sortWith(compareBy<android.view.View> {
-      (it as? Element)?.style?.zIndex ?: 0
+      val el = it as? Element ?: return@compareBy 0
+      if (el.node.nativePtr == 0L || !el.style.isValueInitialized) 0 else el.style.zIndex
     }.thenBy {
       indexOfChild(it)
     })
-
-    invalidate()
   }
 
 
   override fun getChildDrawingOrder(childCount: Int, drawingPosition: Int): Int {
-    val view = zSortedChildren[drawingPosition]
+    val view = zSortedChildren.getOrNull(drawingPosition) ?: return drawingPosition
     return indexOfChild(view)
   }
 
@@ -138,26 +139,42 @@ class View @JvmOverloads constructor(
 
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBackground?.layers?.forEach {
+      it.shader = null
+      it.shaderWidth = -1
+      it.shaderHeight = -1
+    } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
 
   override fun dispatchDraw(canvas: Canvas) {
+    // Draw children's outset box shadows first at parent level
+    // so they can extend beyond child bounds
+    ViewUtils.drawChildrenOutsetShadows(this, canvas)
+
     ViewUtils.dispatchDraw(this, canvas, style) {
       super.dispatchDraw(it)
     }
   }
 
-  internal var isScrollRoot = false
+  /**
+   * Calls ViewGroup.dispatchDraw directly, bypassing View's override.
+   * Subclasses that override dispatchDraw with their own ViewUtils wrapping
+   * can use this to draw children without double-wrapping.
+   */
+  protected fun dispatchDrawChildren(canvas: Canvas) {
+    super.dispatchDraw(canvas)
+  }
+
 
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    Node.invalidateDescendantTextViews(node, change)
+  override fun onChange(low: Long, high: Long) {
+    Node.invalidateDescendantTextViews(node, low, high)
   }
 
 //  fun setStyleFromString(style: String) {
@@ -179,9 +196,10 @@ class View @JvmOverloads constructor(
 
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    // todo cache layout
-    val layout = layout()
-    applyLayoutRecursive(node, layout)
+    if (parent !is Element) {
+      layoutFlat()
+      applyLayoutFlat(node, node.layoutTree)
+    }
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -192,45 +210,46 @@ class View @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element) {
-      compute(
-        mapMeasureSpec(specWidthMode, specWidth).value,
-        mapMeasureSpec(specHeightMode, specHeight).value
+      if (!node.mason.inCompute) {
+        // normal root measurement
+
+        // on Android the initial measurement pass for a view that hasn’t yet
+        // been sized by its parent sometimes comes through as EXACTLY 0.  If we
+        // pass that straight into the engine it will force the layout to a
+        // zero height, even though the children have intrinsic size.  Treat an
+        // EXACTLY/0 spec as MaxContent when the view is acting as the root.
+        val widthArg = mapMeasureSpec(specWidthMode, specWidth).value
+        val heightArg = if (specHeightMode == MeasureSpec.EXACTLY && specHeight == 0) {
+          // MaxContent sentinel
+          -2f
+        } else {
+          mapMeasureSpec(specHeightMode, specHeight).value
+        }
+
+        computeAndLayout(
+          widthArg,
+          heightArg
+        )
+
+        if (node.layoutTree.nodeCount == 0) {
+          setMeasuredDimension(0, 0)
+          return
+        }
+        setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
+      } else {
+        // we're currently inside a compute cycle; running computeAndLayout would
+        // deadlock, so temporarily fall back to the provided spec sizes.  post
+        // another layout for when the computation finishes so the real dimensions
+        // can be picked up.
+        setMeasuredDimension(specWidth, specHeight)
+        post { requestLayout() }
+      }
+    } else {
+      setMeasuredDimension(
+        specWidth,
+        specHeight,
       )
     }
-
-    // todo cache layout
-    val layout = layout()
-
-
-    var width = layout.width.toInt()
-    var height = layout.height.toInt()
-
-    var boxing = BoxSizing.BorderBox
-
-    if (style.isValueInitialized) {
-      boxing = style.boxSizing
-    }
-
-    if (style.overflowX == Overflow.Visible) {
-      width = if (boxing == BoxSizing.BorderBox) {
-        (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
-      } else {
-        layout.contentSize.width.toInt()
-      }
-    }
-
-    if (style.overflowY == Overflow.Visible) {
-      height = if (boxing == BoxSizing.BorderBox) {
-        (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
-      } else {
-        layout.contentSize.height.toInt()
-      }
-    }
-
-    setMeasuredDimension(
-      width,
-      height,
-    )
   }
 
   // Public addView methods delegate to Node
@@ -247,13 +266,13 @@ class View @JvmOverloads constructor(
 
     // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
     if (node.suppressChildOps > 0) {
-      super<ViewGroup>.addView(child)
+      super.addView(child)
       return
     }
 
 
     if (childNode.parent == node) {
-      super<ViewGroup>.addView(child)
+      super.addView(child)
       return
     }
 
@@ -382,7 +401,14 @@ class View @JvmOverloads constructor(
       super.removeAllViews()
       return
     }
+
     node.removeChildren()
+
+    node.dirty()
+
+    super.removeAllViews()
+
+    invalidateLayout(true)
 
     onChildStructureChangedSafe()
   }
@@ -1060,15 +1086,6 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.display = value
-      checkAndUpdateStyle()
-    }
-
-  var position: Position
-    get() {
-      return style.position
-    }
-    set(value) {
-      style.position = value
       checkAndUpdateStyle()
     }
 
@@ -2035,6 +2052,12 @@ class View @JvmOverloads constructor(
       return when (mode) {
         MeasureSpec.EXACTLY -> AvailableSpace.Definite(value.toFloat())
         MeasureSpec.UNSPECIFIED -> {
+          // Android encodes an unconstrained measure using mode
+          // UNSPECIFIED and size 0.  we want layouts in this case to grow
+          // to their content, so convert 0 to MaxContent.  any other value
+          // should be treated as a definite constraint even though the mode
+          // is unspecified (this is a rare case but can happen in custom
+          // measurement logic).
           if (value != 0) {
             AvailableSpace.Definite(value.toFloat())
           } else {
@@ -2043,6 +2066,15 @@ class View @JvmOverloads constructor(
         }
 
         MeasureSpec.AT_MOST -> {
+          // Historically we treated an AT_MOST/0 spec as definite‑0, but that
+          // proves problematic at the root level: Android sometimes reports a
+          // maximum size of 0 for an unconstrained view, causing the engine to
+          // collapse its height even when children have intrinsic size.  The
+          // style system already has a mechanism to force a child to exactly
+          // zero via "height:0" (which will bypass this branch), so the risk
+          // of inadvertently growing a truly‑zero container is low.  Map the
+          // zero case to MaxContent so that root/unspecified measurements are
+          // allowed to expand to fit their children.
           if (value != 0) {
             AvailableSpace.Definite(value.toFloat())
           } else {
@@ -2054,27 +2086,25 @@ class View @JvmOverloads constructor(
       }
     }
 
-    internal val gson = GsonBuilder()
-      .addSerializationExclusionStrategy(object : ExclusionStrategy {
-        override fun shouldSkipField(f: FieldAttributes): Boolean {
-          // Skip Kotlin lazy delegate backing fields (their lambdas capture 'this')
-          if (f.name.endsWith("\$delegate")) return true
-          // Skip known circular reference fields
-          if (f.declaringClass == Style::class.java && f.name == "node") return true
-          if (f.declaringClass == FontFace::class.java && f.name == "owner") return true
-          if (f.declaringClass == Border::class.java && f.name == "owner") return true
-          if (f.declaringClass == BorderRenderer::class.java && f.name == "style") return true
-          return false
-        }
+    internal val gson = GsonBuilder().addSerializationExclusionStrategy(object : ExclusionStrategy {
+      override fun shouldSkipField(f: FieldAttributes): Boolean {
+        // Skip Kotlin lazy delegate backing fields (their lambdas capture 'this')
+        if (f.name.endsWith("\$delegate")) return true
+        // Skip known circular reference fields
+        if (f.declaringClass == Style::class.java && f.name == "node") return true
+        if (f.declaringClass == FontFace::class.java && f.name == "owner") return true
+        if (f.declaringClass == Border::class.java && f.name == "owner") return true
+        if (f.declaringClass == BorderRenderer::class.java && f.name == "style") return true
+        return false
+      }
 
-        override fun shouldSkipClass(clazz: Class<*>): Boolean {
-          // Skip Android platform types that don't serialize meaningfully
-          if (clazz.name.startsWith("android.")) return true
-          // Skip types that create circular references
-          return clazz == Node::class.java || clazz == Mason::class.java
-        }
-      })
-      .create()
+      override fun shouldSkipClass(clazz: Class<*>): Boolean {
+        // Skip Android platform types that don't serialize meaningfully
+        if (clazz.name.startsWith("android.")) return true
+        // Skip types that create circular references
+        return clazz == Node::class.java || clazz == Mason::class.java
+      }
+    }).create()
 
     @JvmStatic
     fun createGridView(mason: Mason, context: Context): View {

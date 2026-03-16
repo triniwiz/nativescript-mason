@@ -10,6 +10,14 @@ sealed class LengthPercentageAuto {
 
   companion object {
     @JvmStatic
+    fun isValid(type: Byte, value: Float): Boolean {
+      return when (type) {
+        0.toByte(), 1.toByte(), 2.toByte() -> true
+        else -> false
+      }
+    }
+
+    @JvmStatic
     fun fromTypeValue(type: Byte, value: Float): LengthPercentageAuto? {
       return when (type) {
         0.toByte() -> Auto

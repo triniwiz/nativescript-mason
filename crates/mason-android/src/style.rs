@@ -1,6 +1,6 @@
 use jni::objects::{JClass, JString};
 use jni::signature::ReturnType;
-use jni::sys::{jbyte, jfloat, jlong, jstring};
+use jni::sys::{jbyte, jfloat, jlong, jstring, jint};
 use jni::JNIEnv;
 use mason_core::{Mason, NodeRef, JVM_CACHE};
 
@@ -35,6 +35,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
     _: JClass,
     mason: jlong,
     node: jlong,
+    flags: jint,
     grid_auto_rows: JString,
     grid_auto_columns: JString,
     grid_column: JString,
@@ -73,8 +74,67 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
     unsafe {
         let mason = &mut *(mason as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        let old = mason.get_device_scale();
-        mason.with_style_mut(node.id().into(), |style| {
+        let flags = flags as u16;
+
+        mason.with_pseudo_style_mut(node.id().into(), flags, |style| {
+            // mason_core::style::utils::update_from_ffi(
+            //     style,
+            //     0, // display (ignored when using individual setters below)
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0,
+            //     0.0,
+            //     0.0,
+            //     0.0,
+            //     0,
+            //     None,
+            //     None,
+            //     0,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            //     None,
+            // );
+
             if let Some(grid_template_rows) = grid_template_rows.as_deref() {
                 style.set_grid_template_columns_css(grid_template_rows);
             }

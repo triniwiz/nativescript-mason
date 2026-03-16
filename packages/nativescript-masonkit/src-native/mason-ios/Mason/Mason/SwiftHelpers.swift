@@ -24,7 +24,7 @@ public class SwiftHelpers: NSObject {
   }
   
   @discardableResult public static func layout(_ element : MasonElementObjc) -> MasonLayout {
-    guard let element = element as? MasonElement else {return .zero}
+    guard let element = element as? MasonElement else {return .empty}
     return element.layout()
   }
   

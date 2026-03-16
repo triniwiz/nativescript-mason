@@ -5,16 +5,17 @@ use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use parking_lot::{Mutex, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use style_atoms::Atom;
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
-    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
-    BlockContext, CacheTree, ClearState, CoreStyle, Display, Layout, LayoutBlockContainer,
-    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, RoundTree, Size,
-    TraversePartialTree, TraverseTree,
+    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, style::Clear,
+    AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout,
+    LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
+    PrintTree, Rect, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
 };
 
 new_key_type! {
@@ -41,11 +42,21 @@ struct SubtreeAnalysis {
 }
 
 #[derive(Debug)]
+/// # Locking Discipline
+///
+/// `node_data` lives in its own `RwLock` (`Tree.2`), independent of `TreeInner`.
+/// During layout:
+/// 1. `TreeInner` locks must be short and non-reentrant
+/// 2. Never call FFI/measure while holding `TreeInner`
+/// 3. Use `copy_measure()` to extract measure data, then call without locks
+/// 4. Callbacks may freely access `node_data` (separate lock)
 pub(crate) struct TreeInner {
     pub(crate) nodes: SlotMap<Id, Node>,
     pub(crate) parents: SecondaryMap<Id, Option<Id>>,
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
-    pub(crate) node_data: SecondaryMap<Id, NodeData>,
+    // Transient float rectangles collected during pre-layout.
+    // Keyed by the container Id (the block/inline container that holds floats).
+    pub(crate) float_context: SecondaryMap<Id, Vec<FloatRect>>,
     pub(crate) use_rounding: bool,
     // small nesting counter to avoid re-entrant inline-run aggregation
     pub(crate) inline_run_nesting: usize,
@@ -69,12 +80,12 @@ impl TreeInner {
             nodes: Default::default(),
             parents: Default::default(),
             children: Default::default(),
-            node_data: Default::default(),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
             style_arena: Box::default(),
+            float_context: Default::default(),
         }
     }
 
@@ -83,7 +94,7 @@ impl TreeInner {
             nodes: SlotMap::with_capacity_and_key(value),
             parents: SecondaryMap::with_capacity(value),
             children: SecondaryMap::with_capacity(value),
-            node_data: SecondaryMap::with_capacity(value),
+            float_context: SecondaryMap::with_capacity(value),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
@@ -116,10 +127,24 @@ impl Default for TreeInner {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FloatRect {
+    // Note: `left`/`top` are the position, `right`/`bottom` are used as
+    // width/height for compatibility with existing `taffy::Rect` usage in
+    // this codebase (i.e. `top + bottom` gives the bottom edge).
+    pub left: f32,
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub side: Float,
+    pub node: Id,
+}
+
 #[derive(Debug, Clone)]
 pub struct Tree(
     pub(crate) Arc<RwLock<TreeInner>>,
     pub(crate) Arc<Mutex<Vec<Id>>>,
+    pub(crate) Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 );
 
 impl Default for Tree {
@@ -140,11 +165,11 @@ impl Tree {
     pub fn prepare_mut(&mut self, node_id: NodeId) {
         self.inner_mut().prepare_mut(node_id);
     }
-    fn density(&self) -> MappedRwLockReadGuard<'_, RawRwLock, Arc<AtomicU32>> {
+    pub fn density(&self) -> MappedRwLockReadGuard<'_, RawRwLock, Arc<AtomicU32>> {
         RwLockReadGuard::map(self.0.read(), |v| &v.density)
     }
 
-    fn density_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, Arc<AtomicU32>> {
+    pub fn density_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, Arc<AtomicU32>> {
         RwLockWriteGuard::map(self.0.write(), |v| &mut v.density)
     }
 
@@ -165,13 +190,14 @@ impl Tree {
     }
 
     pub fn new() -> Self {
-        Self(Default::default(), Default::default())
+        Self(Default::default(), Default::default(), Default::default())
     }
 
     pub fn with_capacity(value: usize) -> Self {
         Self(
             Arc::new(RwLock::new(TreeInner::with_capacity(value))),
             Default::default(),
+            Arc::new(RwLock::new(SecondaryMap::with_capacity(value))),
         )
     }
 
@@ -195,14 +221,12 @@ impl Tree {
         RwLockWriteGuard::map(self.0.write(), |v| &mut v.nodes)
     }
 
-    pub fn node_data(&self) -> MappedRwLockReadGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
-        RwLockReadGuard::map(self.0.read(), |v| &v.node_data)
+    pub fn node_data(&self) -> RwLockReadGuard<'_, SecondaryMap<Id, NodeData>> {
+        self.2.read()
     }
 
-    pub fn node_data_mut(
-        &mut self,
-    ) -> MappedRwLockWriteGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
-        RwLockWriteGuard::map(self.0.write(), |v| &mut v.node_data)
+    pub fn node_data_mut(&mut self) -> RwLockWriteGuard<'_, SecondaryMap<Id, NodeData>> {
+        self.2.write()
     }
 
     pub fn children_mut(
@@ -226,7 +250,18 @@ impl Tree {
 
     #[inline(always)]
     fn node_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Node> {
-        RwLockReadGuard::map(self.0.read(), |v| v.nodes.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.0.read(), |v| {
+            let key: Id = node_id.into();
+            match v.nodes.get(key) {
+                Some(n) => n,
+                None => {
+                    for (k, vec) in v.children.iter() {
+                        let _ = (k, vec);
+                    }
+                    panic!("missing node for id: {:?}", node_id);
+                }
+            }
+        })
     }
 
     #[inline(always)]
@@ -252,16 +287,14 @@ impl Tree {
     }
 
     pub fn get_node_data(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, NodeData> {
-        RwLockReadGuard::map(self.0.read(), |v| v.node_data.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.2.read(), |v| v.get(node_id.into()).unwrap())
     }
 
     pub fn get_node_data_mut(
         &mut self,
         node_id: NodeId,
     ) -> MappedRwLockWriteGuard<'_, RawRwLock, NodeData> {
-        RwLockWriteGuard::map(self.0.write(), |v| {
-            v.node_data.get_mut(node_id.into()).unwrap()
-        })
+        RwLockWriteGuard::map(self.2.write(), |v| v.get_mut(node_id.into()).unwrap())
     }
 
     pub fn children(&self, node_id: Id) -> Vec<NodeRef> {
@@ -279,6 +312,7 @@ impl Tree {
                             guard: Arc::clone(&node.guard),
                             tree: Arc::clone(self.inner_ptr()),
                             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                            node_data: Arc::clone(&self.2),
                         }
                     })
                     .collect::<Vec<_>>()
@@ -286,8 +320,487 @@ impl Tree {
             .unwrap_or(vec![])
     }
 
+    /// Clear transient float context before a layout pass.
+    pub fn clear_float_context(&mut self) {
+        // debug hook
+        log::debug!("clear_float_context called");
+        self.inner_mut().float_context.clear();
+    }
+
+    /// Collect floated children (by container) into `float_context`.
+    /// This pass only records which children are floated and their side; sizing
+    /// and precise rects are computed in a later step.
+    pub fn collect_floats(&mut self, root: Id) {
+        let mut to_insert: Vec<(Id, Vec<FloatRect>)> = Vec::new();
+        {
+            let inner = self.inner();
+            // Iterate containers and their children, record floated children.
+            for (container_id, children) in inner.children.iter() {
+                // Skip empty lists
+                if children.is_empty() {
+                    continue;
+                }
+
+                let mut floats: Vec<FloatRect> = Vec::new();
+
+                for &child_id in children.iter() {
+                    if let Some(node) = inner.nodes.get(child_id) {
+                        let float_side = node.style().get_float();
+                        let _ = float_side;
+                        if float_side != Float::None {
+                            floats.push(FloatRect {
+                                left: 0.0,
+                                top: 0.0,
+                                right: 0.0,
+                                bottom: 0.0,
+                                side: float_side,
+                                node: child_id,
+                            });
+                        }
+                    } else {
+                        // Node missing (possibly removed); skip gracefully.
+                        continue;
+                    }
+                }
+
+                if !floats.is_empty() {
+                    to_insert.push((container_id, floats));
+                }
+            }
+        }
+
+        if !to_insert.is_empty() {
+            let mut inner_mut = self.inner_mut();
+            for (container_id, floats) in to_insert.into_iter() {
+                inner_mut.float_context.insert(container_id, floats);
+            }
+        }
+    }
+
+    /// Measure floated children and populate width/height in `float_context`.
+    /// Uses the provided `available_space` as a parent reference for resolving
+    /// percentage sizes; when a node has a native measure callback, it will be
+    /// invoked.
+    pub fn measure_place_floats(&mut self, _root: Id, available_space: Size<AvailableSpace>) {
+        // Build a list of containers to process under read lock, then perform
+        // measurements by acquiring node_data as needed.
+        let mut work: Vec<(Id, Vec<Id>)> = Vec::new();
+        {
+            let inner = self.inner();
+            for (container_id, floats) in inner.float_context.iter() {
+                let ids = floats.iter().map(|f| f.node).collect::<Vec<_>>();
+                if !ids.is_empty() {
+                    work.push((container_id, ids));
+                }
+            }
+        }
+
+        if work.is_empty() {
+            return;
+        }
+
+        // For measurement, we will write back sizes into float_context.
+        log::debug!("measure_place_floats start root={:?}", _root);
+        for (container_id, ids) in work.into_iter() {
+            // before measuring the floats we need an estimate of the available
+            // space for *this* container.  We resolve the container's explicit
+            // width/height against the incoming available_space and clamp with
+            // min/max rules.  This gives us something closer to what the layout
+            // pass will eventually use than blindly using the root size.
+            let (container_space, container_w) = {
+                let parent_w = available_space.width.into_option().unwrap_or(f32::INFINITY);
+                let parent_h = available_space
+                    .height
+                    .into_option()
+                    .unwrap_or(f32::INFINITY);
+
+                let (style_size, style_min, style_max) = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(container_id).unwrap();
+                    (
+                        node.style().get_size(),
+                        node.style().get_min_size(),
+                        node.style().get_max_size(),
+                    )
+                };
+
+                let mut w = style_size
+                    .width
+                    .maybe_resolve(parent_w, |_, _| 0.0)
+                    .unwrap_or(parent_w);
+                let mut h = style_size
+                    .height
+                    .maybe_resolve(parent_h, |_, _| 0.0)
+                    .unwrap_or(parent_h);
+
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    w = w.max(min_w);
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    w = w.min(max_w);
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    h = h.max(min_h);
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    h = h.min(max_h);
+                }
+
+                (
+                    Size {
+                        width: AvailableSpace::Definite(w),
+                        height: AvailableSpace::Definite(h),
+                    },
+                    w,
+                )
+            };
+
+            for child_id in ids.into_iter() {
+                // Extract measure/style under short locks
+                let (has_measure, style_size, measure) = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    let has_measure = node.has_measure;
+                    let style_size = node.style().get_size();
+                    let measure = self.node_data().get(child_id).unwrap().copy_measure();
+                    (has_measure, style_size, measure)
+                };
+
+                // Resolve style-specified widths/heights against this container's
+                // available space.
+                let parent_w = container_space.width.into_option().unwrap_or(f32::INFINITY);
+                let parent_h = container_space
+                    .height
+                    .into_option()
+                    .unwrap_or(f32::INFINITY);
+
+                // base resolved size from explicit width/height
+                let mut resolved_width = style_size.width.maybe_resolve(parent_w, |_, _| 0.0);
+                let mut resolved_height = style_size.height.maybe_resolve(parent_h, |_, _| 0.0);
+
+                // clamp against min/max styles
+                let style_min = {
+                    // need a short read lock to get the node again
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    node.style().get_min_size()
+                };
+                let style_max = {
+                    let lock = self.0.read();
+                    let node = lock.nodes.get(child_id).unwrap();
+                    node.style().get_max_size()
+                };
+
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    if let Some(w) = resolved_width {
+                        resolved_width = Some(w.max(min_w));
+                    }
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    if let Some(h) = resolved_height {
+                        resolved_height = Some(h.max(min_h));
+                    }
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    if let Some(w) = resolved_width {
+                        resolved_width = Some(w.min(max_w));
+                    }
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    if let Some(h) = resolved_height {
+                        resolved_height = Some(h.min(max_h));
+                    }
+                }
+
+                let final_known = taffy::Size {
+                    width: resolved_width,
+                    height: resolved_height,
+                };
+
+                let mut measured = if !has_measure {
+                    taffy::Size {
+                        width: final_known.width.unwrap_or(0.0),
+                        height: final_known.height.unwrap_or(0.0),
+                    }
+                } else {
+                    // IMPORTANT: `measure` was obtained via `copy_measure()` above
+                    // under a short lock. Do NOT call platform/native measurement
+                    // while holding `inner_mut()` or long-lived locks — the
+                    // expectation is that callers snapshot required data then
+                    // invoke the measure callback outside locks.
+                    #[cfg(test)]
+                    eprintln!(
+                        "TEST: calling measure for child_id={:?} in measure_place_floats",
+                        child_id
+                    );
+                    measure.measure(final_known, container_space)
+                };
+
+                // clamp measurement result as well (measure callbacks are free to
+                // return anything).
+                if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
+                    measured.width = measured.width.max(min_w);
+                }
+                if let Some(min_h) = style_min.height.maybe_resolve(parent_h, |_, _| 0.0) {
+                    measured.height = measured.height.max(min_h);
+                }
+                if let Some(max_w) = style_max
+                    .width
+                    .maybe_resolve(parent_w, |_, _| f32::INFINITY)
+                {
+                    measured.width = measured.width.min(max_w);
+                }
+                if let Some(max_h) = style_max
+                    .height
+                    .maybe_resolve(parent_h, |_, _| f32::INFINITY)
+                {
+                    measured.height = measured.height.min(max_h);
+                }
+
+                // Write back into float_context
+                let mut inner_mut = self.inner_mut();
+                if let Some(vec) = inner_mut.float_context.get_mut(container_id) {
+                    if let Some(fr) = vec.iter_mut().find(|f| f.node == child_id) {
+                        fr.right = measured.width; // right := width
+                        fr.bottom = measured.height; // bottom := height
+                    }
+                }
+            }
+
+            // After measuring all floats for this container, assign x/y positions
+            // using a simple left/right stacking algorithm. Margins and clears are
+            // not yet applied here.
+            // container_w is already computed above
+            let mut left_offset = 0.0_f32;
+            let mut right_offset = 0.0_f32;
+            // Precompute `clear` values for nodes in this container under a read
+            // lock so we don't need an immutable borrow while holding the
+            // mutable `float_context` entry.
+            let mut clear_map: HashMap<Id, Clear> = HashMap::new();
+            // Precompute resolved margins for each float so placement can
+            // include margins in occupancy/clear calculations without taking
+            // locks while mutating `float_context`.
+            let mut margin_map: HashMap<Id, (f32, f32, f32, f32)> = HashMap::new();
+            {
+                let inner = self.inner();
+                if let Some(orig_vec) = inner.float_context.get(container_id) {
+                    for fr in orig_vec.iter() {
+                        if let Some(node) = inner.nodes.get(fr.node) {
+                            clear_map.insert(fr.node, node.style().get_clear());
+                            let m = node
+                                .style()
+                                .get_margin()
+                                .resolve_or_zero(Some(container_w), |_v, _b| 0.0);
+                            margin_map.insert(fr.node, (m.left, m.right, m.top, m.bottom));
+                        }
+                    }
+                }
+            }
+
+            let mut inner_mut = self.inner_mut();
+            if let Some(vec) = inner_mut.float_context.get_mut(container_id) {
+                // place floats with vertical stacking and clear rules
+                let mut placed: Vec<FloatRect> = Vec::new();
+                for fr in vec.iter_mut() {
+                    let width = fr.right;
+                    let height = fr.bottom;
+                    let side = fr.side;
+                    let clear = *clear_map.get(&fr.node).unwrap_or(&Clear::None);
+
+                    let mut y = 0.0_f32;
+                    // apply clear constraints initially
+                    if matches!(clear, Clear::Left | Clear::Both) {
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            if p.side == Float::Left {
+                                let (_pl, _pr, _pt, pb) =
+                                    *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                                max_bot = max_bot.max(p.top + p.bottom + pb);
+                            }
+                        }
+                        y = y.max(max_bot);
+                    }
+                    if matches!(clear, Clear::Right | Clear::Both) {
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            if p.side == Float::Right {
+                                let (_pl, _pr, _pt, pb) =
+                                    *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                                max_bot = max_bot.max(p.top + p.bottom + pb);
+                            }
+                        }
+                        y = y.max(max_bot);
+                    }
+
+                    // Build finite set of candidate Y positions: current y plus
+                    // tops and bottoms+margin of already placed floats. This
+                    // guarantees the placement process checks a finite set and
+                    // terminates.
+                    use std::cmp::Ordering;
+                    let mut candidates: Vec<f32> = Vec::new();
+                    candidates.push(y);
+                    for p in &placed {
+                        let (_p_ml, _p_mr, p_mt, p_mb) =
+                            *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                        candidates.push(p.top);
+                        candidates.push(p.top + p.bottom + p_mb);
+                    }
+                    candidates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+                    candidates.dedup_by(|a, b| ((*a - *b).abs() < 1e-6));
+
+                    // Precompute margins for this float
+                    let (ml, mr, mt, _mb) =
+                        *margin_map.get(&fr.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                    let mut placed_this = false;
+
+                    for cand in candidates.into_iter().filter(|v| *v >= y) {
+                        // compute occupied widths at candidate y
+                        let mut left_occupied = 0.0_f32;
+                        let mut right_occupied = 0.0_f32;
+                        for p in &placed {
+                            let (p_ml, p_mr, p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                            let p_top = p.top;
+                            let p_bot = p.top + p.bottom + p_mb; // include bottom margin for overlap
+                            if !(p_bot <= cand || p_top >= cand + height) {
+                                if p.side == Float::Left {
+                                    left_occupied += p.right + p_ml + p_mr;
+                                } else if p.side == Float::Right {
+                                    right_occupied += p.right + p_ml + p_mr;
+                                }
+                            }
+                        }
+
+                        // If nothing placed and this float (including margins)
+                        // is wider than the container, force placement (allow overflow)
+                        if placed.is_empty() && (ml + width + mr > container_w + 0.001) {
+                            fr.left = ml;
+                            fr.top = cand + mt;
+                            placed.push(*fr);
+                            placed_this = true;
+                            break;
+                        }
+
+                        if side == Float::Left {
+                            let x = left_occupied;
+                            if x + ml + width + mr + right_occupied <= container_w + 0.001 {
+                                fr.left = x + ml;
+                                fr.top = cand + mt;
+                                placed.push(*fr);
+                                placed_this = true;
+                                break;
+                            }
+                        } else if side == Float::Right {
+                            let x = (container_w - right_occupied) - mr - width;
+                            if x >= left_occupied - 0.001 {
+                                fr.left = x;
+                                fr.top = cand + mt;
+                                placed.push(*fr);
+                                placed_this = true;
+                                break;
+                            }
+                        } else {
+                            fr.left = left_occupied + ml;
+                            fr.top = cand + mt;
+                            placed.push(*fr);
+                            placed_this = true;
+                            break;
+                        }
+                    }
+
+                    if !placed_this {
+                        // No candidate fit: place below current floats (include bottom margins)
+                        let mut max_bot = 0.0_f32;
+                        for p in &placed {
+                            let (_p_ml, _p_mr, _p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                            max_bot = max_bot.max(p.top + p.bottom + p_mb);
+                        }
+                        y = max_bot;
+
+                        // compute occupied widths at y and force placement according to side
+                        let mut left_occupied = 0.0_f32;
+                        let mut right_occupied = 0.0_f32;
+                        for p in &placed {
+                            let (p_ml, p_mr, p_mt, p_mb) =
+                                *margin_map.get(&p.node).unwrap_or(&(0.0, 0.0, 0.0, 0.0));
+                            let p_top = p.top;
+                            let p_bot = p.top + p.bottom + p_mb;
+                            if !(p_bot <= y || p_top >= y + height) {
+                                if p.side == Float::Left {
+                                    left_occupied += p.right + p_ml + p_mr;
+                                } else if p.side == Float::Right {
+                                    right_occupied += p.right + p_ml + p_mr;
+                                }
+                            }
+                        }
+
+                        if side == Float::Left {
+                            fr.left = left_occupied + ml;
+                            fr.top = y + mt;
+                            placed.push(*fr);
+                        } else if side == Float::Right {
+                            let x = (container_w - right_occupied) - mr - width;
+                            fr.left = x;
+                            fr.top = y + mt;
+                            placed.push(*fr);
+                        } else {
+                            fr.left = left_occupied + ml;
+                            fr.top = y + mt;
+                            placed.push(*fr);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Return cloned float rectangles for a container, if any.
+    pub fn get_float_rects(&self, container_id: Id) -> Option<Vec<FloatRect>> {
+        let inner = self.inner();
+        inner.float_context.get(container_id).cloned()
+    }
+
+    /// Return float rects as `taffy::Rect<f32>` for easier consumption by
+    /// inline layout code.
+    pub fn get_float_rects_simple(&self, container_id: Id) -> Option<Vec<taffy::Rect<f32>>> {
+        let inner = self.inner();
+        // If the requested container has entries, return them.
+        // NOTE: we used to fall back to flattening float rects from all
+        // containers when the requested container was empty; that was a
+        // temporary debugging aid and caused unexpected rectangles to be
+        // reported for root/ancestor queries.  Do not perform the flattening
+        // anymore.
+        if let Some(vec) = inner.float_context.get(container_id) {
+            return Some(
+                vec.iter()
+                    .map(|fr| Rect {
+                        left: fr.left,
+                        top: fr.top,
+                        right: fr.right,
+                        bottom: fr.bottom,
+                    })
+                    .collect(),
+            );
+        }
+
+        None
+    }
+
     pub fn children_id(&self, node_id: Id) -> MappedRwLockReadGuard<'_, RawRwLock, Vec<Id>> {
-        RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id).unwrap())
     }
 
     fn analyze_subtree(&self, id: Id) -> SubtreeAnalysis {
@@ -302,24 +815,29 @@ impl Tree {
             let mut has_non_inline = false;
 
             for child_id in children {
-                let child = &self.inner().nodes[*child_id];
-                let mode = child.style().display_mode();
-                let inline_or_box_inline = matches!(mode, DisplayMode::Inline | DisplayMode::Box);
-                // Fix: Check for anonymous inline blocks too
-                let is_inline = child.style().force_inline() || inline_or_box_inline;
+                if let Some(child) = self.inner().nodes.get(*child_id) {
+                    let mode = child.style().display_mode();
+                    let inline_or_box_inline =
+                        matches!(mode, DisplayMode::Inline | DisplayMode::Box);
+                    // Fix: Check for anonymous inline blocks too
+                    let is_inline = child.style().force_inline() || inline_or_box_inline;
 
-                if is_inline {
-                    has_inline = true;
+                    if is_inline {
+                        has_inline = true;
+                    } else {
+                        has_non_inline = true;
+                        all_inline = false;
+                    }
+
+                    // Early exit if both found
+                    if has_inline && has_non_inline {
+                        has_mixed_content = true;
+                        all_inline = false;
+                        break;
+                    }
                 } else {
-                    has_non_inline = true;
-                    all_inline = false;
-                }
-
-                // Early exit if both found
-                if has_inline && has_non_inline {
-                    has_mixed_content = true;
-                    all_inline = false;
-                    break;
+                    // missing child entry (stale parent/child reference); skip
+                    continue;
                 }
             }
         }
@@ -341,7 +859,7 @@ impl Tree {
         // locks for the layout pass.  This prevents the deferred queue from
         // growing unboundedly and cleans up nodes that couldn't be removed
         // earlier because the tree lock was contended.
-        drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue());
+        drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue(), &self.2);
 
         // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
         self.set_use_rounding(use_rounding);
@@ -351,7 +869,35 @@ impl Tree {
         self.inner_mut().inline_run_pending.clear();
         self.set_inline_run_nesting(0);
 
+        // Clear and collect floats for the upcoming layout pass. We record
+        // floated children per container first; then measure them against the
+        // root available space so inline layout can consult approximate sizes.
+        self.clear_float_context();
+        self.collect_floats(root.into());
+        self.measure_place_floats(root.into(), available_space);
+
+        // Sanitize children lists to remove any stale/missing node ids that
+        // could have been left by prior operations. This prevents lookups
+        // later in the layout pass from attempting to index into the slotmap
+        // with invalid keys.
+        {
+            let mut inner_mut = self.inner_mut();
+            let parents: Vec<Id> = inner_mut.children.keys().collect();
+            // snapshot existing node ids to avoid double-borrowing `inner_mut`
+            let existing: std::collections::HashSet<Id> = inner_mut.nodes.keys().collect();
+            for parent in parents {
+                if let Some(children) = inner_mut.children.get_mut(parent) {
+                    children.retain(|&c| existing.contains(&c));
+                }
+            }
+        }
+
         compute_root_layout(self, root, available_space);
+
+        // Post-process scroll containers to clamp their heights to parent's available space.
+        // This is done after layout because block layout measures children with intrinsic sizing
+        // (MinContent) which doesn't pass the parent's actual available height.
+        self.fix_scroll_container_heights(root, available_space.height);
 
         if use_rounding {
             round_layout(self, root);
@@ -372,6 +918,97 @@ impl Tree {
         RwLockReadGuard::map(self.0.read(), |v| &v.nodes[node].unrounded_layout)
     }
 
+    pub fn layout_raw(&self, node: Id) -> Layout {
+        if self.use_rounding() {
+            return self.0.read().nodes[node].final_layout;
+        }
+        self.0.read().nodes[node].unrounded_layout
+    }
+
+    /// Post-process scroll containers to clamp their heights to the parent's available content area.
+    /// This is necessary because block layout measures children with intrinsic sizing (MinContent)
+    /// which doesn't constrain scroll containers to their parent's available height.
+    fn fix_scroll_container_heights(
+        &mut self,
+        node_id: NodeId,
+        parent_available_height: AvailableSpace,
+    ) {
+        let id: Id = node_id.into();
+
+        // Get parent's computed layout and style info
+        let (layout, padding, border, children, overflow) = {
+            let inner = self.0.read();
+            let node = inner.nodes.get(id);
+            if node.is_none() {
+                return;
+            }
+            let node = node.unwrap();
+            let style = node.style();
+            let children = inner.children.get(id).cloned().unwrap_or_default();
+            (
+                node.unrounded_layout,
+                style.get_padding(),
+                style.get_border(),
+                children,
+                style.get_overflow(),
+            )
+        };
+
+        // Check if this node itself is a scroll container that needs clamping
+        let is_scroll_container_y = matches!(
+            overflow.y,
+            crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+        );
+
+        if is_scroll_container_y {
+            // Get the constraint from parent_available_height
+            if let AvailableSpace::Definite(constraint_h) = parent_available_height {
+                let mut inner = self.0.write();
+                if let Some(node) = inner.nodes.get_mut(id) {
+                    if node.unrounded_layout.size.height > constraint_h {
+                        // Preserve content_size for scrollable extent
+                        if node.unrounded_layout.content_size.height
+                            < node.unrounded_layout.size.height
+                        {
+                            node.unrounded_layout.content_size.height =
+                                node.unrounded_layout.size.height;
+                        }
+                        // Clamp the visible size
+                        node.unrounded_layout.size.height = constraint_h;
+                    }
+                }
+            }
+        }
+
+        // Calculate available height for children (our content box)
+        let padding_top = padding
+            .top
+            .resolve_or_zero(Some(layout.size.width), |_v, _b| 0.0);
+        let padding_bottom = padding
+            .bottom
+            .resolve_or_zero(Some(layout.size.width), |_v, _b| 0.0);
+        let border_top = border
+            .top
+            .resolve_or_zero(Some(layout.size.width), |_v, _b| 0.0);
+        let border_bottom = border
+            .bottom
+            .resolve_or_zero(Some(layout.size.width), |_v, _b| 0.0);
+        let content_box_height =
+            layout.size.height - padding_top - padding_bottom - border_top - border_bottom;
+
+        // Recursively process children
+        for child_id in children {
+            let child_node_id = NodeId::from(child_id);
+            // Children get the content box height as their available space
+            let child_available = if content_box_height > 0.0 {
+                AvailableSpace::Definite(content_box_height)
+            } else {
+                AvailableSpace::MinContent
+            };
+            self.fix_scroll_container_heights(child_node_id, child_available);
+        }
+    }
+
     fn get_arena(&mut self) -> *mut StyleArena {
         &mut *self.inner_mut().style_arena
     }
@@ -385,15 +1022,16 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
 
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -407,14 +1045,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -429,14 +1068,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -452,14 +1092,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -473,14 +1114,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -494,14 +1136,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -514,14 +1157,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -531,10 +1175,11 @@ impl Tree {
     }
 
     fn set_parent_inner(tree: &mut TreeInner, child: Id, parent: Option<Id>) -> bool {
-        match tree.parents.insert(child, parent) {
+        let res = match tree.parents.insert(child, parent) {
             Some(old_parent) => old_parent != parent,
             None => true,
-        }
+        };
+        res
     }
 
     pub fn detach(&mut self, child: Id) {
@@ -554,10 +1199,13 @@ impl Tree {
     }
 
     pub fn append(&mut self, parent: Id, child: Id) {
-        self.detach(child);
-        let same = self.set_parent(child, Some(parent));
+        // Perform detach + parent insert + push under one write lock to avoid
+        // transient inconsistent state where children vectors may be mutated
+        // between operations.
+        let mut tree = self.0.write();
+        Self::detach_inner(&mut tree, child);
+        let same = Tree::set_parent_inner(&mut tree, child, Some(parent));
         if same {
-            let mut tree = self.0.write();
             let children = tree.children.get_mut(parent).unwrap();
             children.push(child);
             Tree::mark_dirty_inner(&mut tree, parent);
@@ -610,6 +1258,7 @@ impl Tree {
             guard: Arc::clone(&child_node.guard),
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         })
     }
 
@@ -618,7 +1267,8 @@ impl Tree {
         tree.nodes.clear();
         tree.parents.clear();
         tree.children.clear();
-        tree.node_data.clear();
+        drop(tree);
+        self.2.write().clear();
     }
 
     pub fn is_children_same(&self, node: Id, children: &[Id]) -> bool {
@@ -668,6 +1318,7 @@ impl Tree {
         let mut tree = self.0.write();
         if let Some(children) = tree.children.get_mut(parent) {
             if let Some(position) = children.iter().position(|&id| id == node) {
+                let _ = position;
                 children.remove(position);
                 if let Some(node) = tree.nodes.get_mut(parent) {
                     node.mark_dirty();
@@ -814,11 +1465,13 @@ impl Tree {
         if replaced == child {
             let tree = Arc::clone(&self.inner_ptr());
             let deferred = Arc::clone(self.deferred_cleanup_queue());
+            let nd = Arc::clone(&self.2);
             return self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
                 id: replaced,
                 guard: node.guard.clone(),
                 tree,
                 deferred_cleanup: deferred,
+                node_data: nd,
             });
         }
 
@@ -838,11 +1491,13 @@ impl Tree {
 
         let tree = Arc::clone(&self.inner_ptr());
         let deferred = Arc::clone(self.deferred_cleanup_queue());
+        let nd = Arc::clone(&self.2);
         self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
             id: replaced,
             guard: node.guard.clone(),
             tree,
             deferred_cleanup: deferred,
+            node_data: nd,
         })
     }
 
@@ -858,6 +1513,7 @@ impl Tree {
                     guard: Arc::clone(&tree.nodes.get_mut(removed)?.guard),
                     tree: Arc::clone(self.inner_ptr()),
                     deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                    node_data: Arc::clone(&self.2),
                 });
             }
         }
@@ -874,6 +1530,7 @@ impl Tree {
                 guard: Arc::clone(&node.guard),
                 tree: Arc::clone(self.inner_ptr()),
                 deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                node_data: Arc::clone(&self.2),
             })
         } else {
             None
@@ -920,6 +1577,7 @@ impl Tree {
                 guard: node_data.guard.clone(),
                 tree: Arc::clone(self.inner_ptr()),
                 deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                node_data: Arc::clone(&self.2),
             })
         })
     }
@@ -1030,6 +1688,15 @@ impl LayoutPartialTree for Tree {
         let mut tree = self.inner_mut();
         if let Some(pos) = tree.inline_run_pending.iter().position(|&x| x == id) {
             let node = tree.node_from_id_mut(node_id);
+            // Log suspicious tiny or NaN heights for diagnostics
+            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
+                log::debug!(
+                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=true size={:?} content_size={:?}",
+                    id,
+                    layout.size,
+                    layout.content_size
+                );
+            }
             // preserve location, update size/metrics from the computed layout
             node.unrounded_layout.size = layout.size;
             node.unrounded_layout.content_size = layout.content_size;
@@ -1044,6 +1711,14 @@ impl LayoutPartialTree for Tree {
             }
         } else {
             let node = tree.node_from_id_mut(node_id);
+            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
+                log::debug!(
+                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=false size={:?} content_size={:?}",
+                    id,
+                    layout.size,
+                    layout.content_size
+                );
+            }
             node.unrounded_layout = *layout;
         }
     }
@@ -1163,7 +1838,16 @@ impl LayoutBlockContainer for Tree {
     ) -> LayoutOutput {
         compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
-            let (has_children, display_mode, display, padding, border, size, is_text_container) = {
+            let (
+                has_children,
+                display_mode,
+                display,
+                padding,
+                border,
+                size,
+                is_text_container,
+                overflow,
+            ) = {
                 let inner = tree.0.read();
                 let node = inner.nodes.get(id).unwrap();
                 let style = node.style();
@@ -1182,8 +1866,31 @@ impl LayoutBlockContainer for Tree {
                     style.get_border(),
                     style.size(),
                     node.is_text_container(),
+                    style.get_overflow(),
                 )
             };
+
+            // For scroll/auto overflow containers with auto height, constrain
+            // to the parent's available height so the container doesn't expand
+            // to fit all content (which would prevent scrolling).
+            let mut inputs = inputs;
+            let is_scroll_container_y = matches!(
+                overflow.y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            );
+            if is_scroll_container_y
+                && inputs.known_dimensions.height.is_none()
+                && size.height.is_auto()
+            {
+                // Try available_space first, then fall back to parent_size
+                if let AvailableSpace::Definite(h) = inputs.available_space.height {
+                    inputs.known_dimensions.height = Some(h);
+                } else if let Some(parent_h) = inputs.parent_size.height {
+                    // If parent has a definite height, use it to constrain the scroll container
+                    inputs.known_dimensions.height = Some(parent_h);
+                    inputs.available_space.height = AvailableSpace::Definite(parent_h);
+                }
+            }
 
             match display_mode {
                 DisplayMode::None => match (display, has_children) {
@@ -1201,6 +1908,52 @@ impl LayoutBlockContainer for Tree {
                             compute_block_layout(tree, node_id, inputs, block_ctx)
                         };
 
+                        // If the block layout produced zero or tiny height despite
+                        // having children (e.g. inline/text children), try the mixed
+                        // layout path as a fallback so inline flows are handled.
+                        if (computed_layout.size.height <= 1e-6) && analysis.has_children {
+                            log::warn!(
+                                "compute_block_child_layout id={:?} branch=block out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x} analysis={:?}",
+                                id,
+                                computed_layout.size.height,
+                                computed_layout.size.height.to_bits(),
+                                computed_layout.content_size.height,
+                                computed_layout.content_size.height.to_bits(),
+                                analysis
+                            );
+                            let children = tree.inner().children.get(id).cloned().unwrap_or_default();
+                            let mixed_out = tree.compute_mixed_layout(id, children.as_slice(), inputs, None);
+                            log::warn!(
+                                "compute_block_child_layout id={:?} mixed_fallback out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x}",
+                                id,
+                                mixed_out.size.height,
+                                mixed_out.size.height.to_bits(),
+                                mixed_out.content_size.height,
+                                mixed_out.content_size.height.to_bits()
+                            );
+                            if mixed_out.size.height > 1e-6 {
+                                computed_layout = mixed_out;
+                            }
+                        }
+
+                        // For scroll containers, ensure the layout height doesn't exceed
+                        // the available space. content_size should retain the full content
+                        // extent so native scroll views know the scrollable area.
+                        if is_scroll_container_y {
+                            if let Some(constrained_h) = inputs.known_dimensions.height {
+                                if computed_layout.size.height > constrained_h {
+                                    // content_size should be at least the computed size
+                                    // to represent the full scrollable content
+                                    computed_layout.content_size.height = computed_layout
+                                        .content_size
+                                        .height
+                                        .max(computed_layout.size.height);
+                                    // Clamp size to available space
+                                    computed_layout.size.height = constrained_h;
+                                }
+                            }
+                        }
+
                         if is_text_container {
                             if let Some(resolved_height) = size
                                 .height
@@ -1215,46 +1968,156 @@ impl LayoutBlockContainer for Tree {
 
                         computed_layout
                     }
-                    (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
-                    (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
+                    (Display::Flex, true) => {
+                        let mut computed_layout = compute_flexbox_layout(tree, node_id, inputs);
+                        // Constrain scroll container height for flex containers
+                        if is_scroll_container_y {
+                            if let Some(constrained_h) = inputs.known_dimensions.height {
+                                if computed_layout.size.height > constrained_h {
+                                    computed_layout.content_size.height = computed_layout
+                                        .content_size
+                                        .height
+                                        .max(computed_layout.size.height);
+                                    computed_layout.size.height = constrained_h;
+                                }
+                            }
+                        }
+                        computed_layout
+                    }
+                    (Display::Grid, true) => {
+                        let mut computed_layout = compute_grid_layout(tree, node_id, inputs);
+                        // Constrain scroll container height for grid containers
+                        if is_scroll_container_y {
+                            if let Some(constrained_h) = inputs.known_dimensions.height {
+                                if computed_layout.size.height > constrained_h {
+                                    computed_layout.content_size.height = computed_layout
+                                        .content_size
+                                        .height
+                                        .max(computed_layout.size.height);
+                                    computed_layout.size.height = constrained_h;
+                                }
+                            }
+                        }
+                        computed_layout
+                    }
                     (_, false) => {
-                        let tree = tree.inner();
-                        let node = tree.nodes.get(id).unwrap();
-                        let has_measure = node.has_measure;
-                        let style = node.style();
-                        let style_size = style.get_size();
-                        let node_data = tree.node_data.get(id).unwrap();
+                        // Extract data under short locks, then drop before
+                        // calling compute_leaf_layout (measure is FFI).
+                        let (has_measure, style, style_size, measure) = {
+                            let inner = tree.inner();
+                            let node = inner.nodes.get(id).unwrap();
+                            let has_measure = node.has_measure;
+                            let style = node.style().clone();
+                            let style_size = style.get_size();
+                            let measure = tree.node_data().get(id).unwrap().copy_measure();
+                            (has_measure, style, style_size, measure)
+                        };
 
                         compute_leaf_layout(
                             inputs,
-                            style,
+                            &style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
-                                let resolved_width = known_dimensions.width.or_else(|| {
+                                // resolve explicit known dimensions (from parent) or style
+                                // size, then apply min/max clamping so floats or other
+                                // leaves cannot grow beyond constraints.
+                                let mut resolved_width = known_dimensions.width.or_else(|| {
                                     style_size
                                         .width
                                         .maybe_resolve(inputs.parent_size.width, |_, _| 0.0)
                                 });
 
-                                let resolved_height = known_dimensions.height.or_else(|| {
+                                let mut resolved_height = known_dimensions.height.or_else(|| {
                                     style_size
                                         .height
                                         .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
                                 });
+
+                                // get constraints from style
+                                let style_min = style.min_size();
+                                let style_max = style.max_size();
+                                if let Some(pw) = inputs.parent_size.width {
+                                    if let Some(min_w) =
+                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                    {
+                                        if let Some(w) = resolved_width {
+                                            resolved_width = Some(w.max(min_w));
+                                        }
+                                    }
+                                    if let Some(max_w) =
+                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                    {
+                                        if let Some(w) = resolved_width {
+                                            resolved_width = Some(w.min(max_w));
+                                        }
+                                    }
+                                }
+                                if let Some(ph) = inputs.parent_size.height {
+                                    if let Some(min_h) =
+                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                    {
+                                        if let Some(h) = resolved_height {
+                                            resolved_height = Some(h.max(min_h));
+                                        }
+                                    }
+                                    if let Some(max_h) =
+                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                    {
+                                        if let Some(h) = resolved_height {
+                                            resolved_height = Some(h.min(max_h));
+                                        }
+                                    }
+                                }
 
                                 let final_known = Size {
                                     width: resolved_width,
                                     height: resolved_height,
                                 };
 
-                                if !has_measure {
+                                let mut result = if !has_measure {
                                     Size {
                                         width: final_known.width.unwrap_or(0.0),
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    node_data.measure(final_known, available_space)
+                                    // IMPORTANT: `measure` was obtained via `copy_measure()`
+                                    // under a short lock. Do not call platform/native
+                                    // measurement while holding tree write locks; callers
+                                    // must snapshot data then invoke measure.
+                                    #[cfg(test)]
+                                    eprintln!("TEST: calling measure for id={:?} in compute_block_child_layout leaf path", id);
+                                    log::debug!("measure-call leaf id={:?} known={:?} avail={:?}", id, final_known, available_space);
+                                    let meas = measure.measure(final_known, available_space);
+                                    log::debug!("measure-result leaf id={:?} out={:?}", id, meas);
+                                    meas
+                                };
+
+                                // clamp measured results as well
+                                if let Some(pw) = inputs.parent_size.width {
+                                    if let Some(min_w) =
+                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                    {
+                                        result.width = result.width.max(min_w);
+                                    }
+                                    if let Some(max_w) =
+                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                    {
+                                        result.width = result.width.min(max_w);
+                                    }
                                 }
+                                if let Some(ph) = inputs.parent_size.height {
+                                    if let Some(min_h) =
+                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                    {
+                                        result.height = result.height.max(min_h);
+                                    }
+                                    if let Some(max_h) =
+                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                    {
+                                        result.height = result.height.min(max_h);
+                                    }
+                                }
+                                result
                             },
                         )
                     }
@@ -1263,7 +2126,21 @@ impl LayoutBlockContainer for Tree {
                     if display == Display::None {
                         return compute_hidden_layout(tree, node_id);
                     }
-                    tree.compute_inline_layout(node_id, inputs, block_ctx)
+                    let mut computed_layout =
+                        tree.compute_inline_layout(node_id, inputs, block_ctx);
+                    // Constrain scroll container height for inline/box containers
+                    if is_scroll_container_y {
+                        if let Some(constrained_h) = inputs.known_dimensions.height {
+                            if computed_layout.size.height > constrained_h {
+                                computed_layout.content_size.height = computed_layout
+                                    .content_size
+                                    .height
+                                    .max(computed_layout.size.height);
+                                computed_layout.size.height = constrained_h;
+                            }
+                        }
+                    }
+                    computed_layout
                 }
                 DisplayMode::ListItem => {
                     // Quick path: ask the node to measure the marker (if it
@@ -1272,15 +2149,25 @@ impl LayoutBlockContainer for Tree {
                     // the reduced available width. Finally add the reserved
                     // width back to the computed size so the li includes the
                     // marker.
-                    let lock = tree.0.read();
-                    let node = lock.nodes.get(id).unwrap();
 
-                    let marker_size = if node.has_measure {
+                    // Extract measure data under short locks (measure is FFI).
+                    let (has_measure, measure) = {
+                        let lock = tree.0.read();
+                        let node = lock.nodes.get(id).unwrap();
+                        let has_measure = node.has_measure;
+                        let measure = if has_measure {
+                            Some(tree.node_data().get(id).unwrap().copy_measure())
+                        } else {
+                            None
+                        };
+                        (has_measure, measure)
+                    };
+
+                    let marker_size = if let Some(m) = measure {
                         // Call the measure function; many native `Li`
                         // implementations return the marker size when
                         // measured.
-                        let node_data = lock.node_data.get(id).unwrap();
-                        node_data.measure(Size::NONE, inputs.available_space)
+                        m.measure(Size::NONE, inputs.available_space)
                     } else {
                         Size::ZERO
                     };
@@ -1311,8 +2198,6 @@ impl LayoutBlockContainer for Tree {
                         sizing_mode: inputs.sizing_mode,
                         ..inputs
                     };
-
-                    drop(lock);
 
                     let mut computed_layout = if tree.analyze_subtree(id).all_inline {
                         tree.compute_inline_layout(node_id, adjusted_inputs, block_ctx)

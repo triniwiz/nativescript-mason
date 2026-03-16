@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty } from '@nativescript/core';
-import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection } from '.';
+import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { Style as MasonStyle } from './style';
@@ -13,10 +13,13 @@ import {
   borderRadiusProperty,
   bottomProperty,
   boxSizingProperty,
+  clearProperty,
   columnGapProperty,
+  cornerShapeProperty,
   displayProperty,
   filterProperty,
   flexBasisProperty,
+  floatProperty,
   gridAreaProperty,
   gridAutoColumnsProperty,
   gridAutoFlowProperty,
@@ -52,8 +55,7 @@ import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, te
 import { Tree } from './tree';
 import { TextNode } from './text-node';
 
-// Angular zone detection
-declare const Zone: any, kotlin;
+declare const kotlin;
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
@@ -62,33 +64,66 @@ function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle
 
 export interface MasonChild extends ViewBase {}
 
-const enum FrameWork {
-  Core,
-  Angular,
-  Vue,
-  React,
-  Svelte,
-  Solid,
+/**
+ * Cached per-view accessor for the framework's virtual DOM element.
+ * The accessor is a function that retrieves the element cheaply on subsequent calls.
+ * We use `false` as a sentinel to indicate "no framework detected" (avoids re-scanning).
+ */
+const _frameworkAccessorCache = new WeakMap<object, ((view: any) => any) | false>();
+
+function getFrameworkElement(view: any): any {
+  const cached = _frameworkAccessorCache.get(view);
+  if (cached === false) return null;
+  if (cached) return cached(view);
+
+  // First call: detect framework and cache the accessor
+  const symbols = Object.getOwnPropertySymbols(view);
+
+  // Vue 3 (nativescript-vue): stores ELEMENT_REF symbol on native view
+  for (const sym of symbols) {
+    if (sym.description === 'elementRef' || sym.description === '') {
+      const el = view[sym];
+      if (el && Array.isArray(el.childNodes)) {
+        _frameworkAccessorCache.set(view, (v) => v[sym]);
+        return el;
+      }
+    }
+  }
+
+  // React (react-nativescript): stores __reactFiber$ symbol on node
+  for (const sym of symbols) {
+    if (sym.description?.startsWith('__reactFiber$')) {
+      if (Array.isArray(view.childNodes)) {
+        _frameworkAccessorCache.set(view, (v) => v);
+        return view;
+      }
+    }
+  }
+
+  // Svelte (svelte-native): stores __SvelteNativeElement__ on native view
+  if (view.__SvelteNativeElement__) {
+    const el = view.__SvelteNativeElement__;
+    if (Array.isArray(el.childNodes)) {
+      _frameworkAccessorCache.set(view, (v) => v.__SvelteNativeElement__);
+      return el;
+    }
+  }
+
+  // SolidJS (dominative): the element IS the native view, extended with DOM methods
+  if (view.__dominative_isNative) {
+    _frameworkAccessorCache.set(view, (v) => v);
+    return view;
+  }
+
+  // Angular (@nativescript/angular): uses firstChild/nextSibling linked list
+  if (view.firstChild !== undefined && view.meta?.skipAddToDom !== undefined) {
+    _frameworkAccessorCache.set(view, (v) => v);
+    return view;
+  }
+
+  _frameworkAccessorCache.set(view, false);
+  return null;
 }
-
-let frameWork = FrameWork.Core;
-
-try {
-  global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
-  frameWork = FrameWork.Vue;
-} catch (e) {}
-
-try {
-  const helper = require('react-nativescript/dist/nativescript-vue-next/runtime/runtimeHelpers.js');
-  global.REACT_ELEMENT_REF = helper.ELEMENT_REF;
-  frameWork = FrameWork.React;
-} catch (e) {}
-
-if (global.__ngRegisteredViews || typeof Zone !== 'undefined') {
-  frameWork = FrameWork.Angular;
-}
-
-// @ts-ignore
 
 export const textContentProperty = new Property<ViewBase, string>({
   name: 'textContent',
@@ -142,6 +177,9 @@ declare module '@nativescript/core/ui/styling/style' {
     verticalAlign: VerticalAlign;
     textWrap: 'nowrap' | 'wrap' | 'balance';
     textOverFlow: 'clip' | 'ellipsis' | `${string}`;
+    float: Float;
+    clear: Clear;
+    cornerShape: string;
   }
 }
 
@@ -157,6 +195,38 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   constructor() {
     super();
+  }
+
+  get innerHTML() {
+    //@ts-ignore
+    const nativeView = this._view as any;
+    if (__ANDROID__) {
+      if (nativeView && nativeView.getInnerHTML) {
+        return nativeView.getInnerHTML();
+      }
+    }
+    if (__APPLE__) {
+      if (nativeView && nativeView.mason_innerHTML) {
+        return nativeView.mason_innerHTML;
+      }
+    }
+
+    return '';
+  }
+
+  set innerHTML(value: string) {
+    //@ts-ignore
+    const nativeView = this._view as any;
+    if (__ANDROID__) {
+      if (nativeView && nativeView.setInnerHTML) {
+        nativeView.setInnerHTML(value);
+      }
+    }
+    if (__APPLE__) {
+      if (nativeView && nativeView.mason_innerHTML) {
+        nativeView.mason_innerHTML = value;
+      }
+    }
   }
 
   _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
@@ -569,169 +639,153 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // -- Platform bridge methods for native text node operations --
+
+  private _createOrUpdateNativeTextNode(node: any, text: string): any {
+    if (node[textNode_]) {
+      if (__ANDROID__) {
+        (node[textNode_] as org.nativescript.mason.masonkit.TextNode).setData(text);
+      }
+      if (__APPLE__) {
+        (node[textNode_] as MasonTextNode).data = text;
+      }
+      return node[textNode_];
+    }
+
+    let textNode;
+    if (__ANDROID__) {
+      textNode = new org.nativescript.mason.masonkit.TextNode(Tree.instance.native as never, text);
+    }
+    if (__APPLE__) {
+      textNode = MasonTextNode.alloc().initWithMasonDataAttributes(Tree.instance.native as never, text, null);
+    }
+    node[textNode_] = textNode;
+    return textNode;
+  }
+
+  private _nativeAddChild(textNode: any, index: number) {
+    //@ts-ignore
+    if (__ANDROID__) this._view.addChildAt(textNode, index);
+    //@ts-ignore
+    if (__APPLE__) this._view.mason_addChildAtNode(textNode, index);
+  }
+
+  private _nativeReplaceChild(textNode: any, index: number) {
+    //@ts-ignore
+    if (__ANDROID__) this._view.replaceChildAt(textNode, index);
+    //@ts-ignore
+    if (__APPLE__) this._view.mason_replaceChildAtNode(textNode, index);
+  }
+
+  private _setOrPushChild(index: number, entry: any) {
+    if (this._children.length > index) {
+      //@ts-ignore
+      this._children[index] = entry;
+    } else {
+      //@ts-ignore
+      this._children.push(entry);
+    }
+  }
+
+  // -- Unified text node update (cross-platform) --
+
   private _updateTextNode(
-    node,
+    node: any,
     operation: {
       type: 'add' | 'replace' | 'insert';
       index?: number;
       isBreak?: boolean;
     } = null,
   ) {
-    let textNode;
-    if (__ANDROID__) {
-      if (node[textNode_]) {
-        (node[textNode_] as org.nativescript.mason.masonkit.TextNode).setData(node.text ?? '');
-        textNode = node[textNode_];
-      } else {
-        textNode = new org.nativescript.mason.masonkit.TextNode(Tree.instance.native as never, node.text ?? '');
-        node[textNode_] = textNode;
-      }
-      if (operation) {
-        switch (operation.type) {
-          case 'add':
-            //@ts-ignore
-            this._view.addChildAt(textNode, this._children.length);
-            //@ts-ignore
-            this._children.push({ [text_]: node.text, [textNode_]: textNode, [textNodeIndex_]: this._children.length });
-            break;
-          case 'replace':
-            //@ts-ignore
-            this._view.replaceChildAt(textNode, operation.index);
+    const text = node.text ?? node.data ?? '';
+    const textNode = this._createOrUpdateNativeTextNode(node, text);
 
-            if (this._children.length >= operation.index) {
-              //@ts-ignore
-              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
-            } else {
-              //@ts-ignore
-              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
-            }
+    if (!operation) return;
 
-            break;
-          case 'insert':
-            //@ts-ignore
-            this._view.addChildAt(textNode, operation.index);
+    const entry = { [text_]: text, [textNode_]: textNode, [textNodeIndex_]: operation.index ?? this._children.length };
 
-            if (this._children.length >= operation.index) {
-              //@ts-ignore
-              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
-            } else {
-              //@ts-ignore
-              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
-            }
-
-            break;
-        }
-      }
-    }
-
-    if (__APPLE__) {
-      if (node[textNode_]) {
-        (node[textNode_] as MasonTextNode).data = node.text;
-        textNode = node[textNode_];
-        if (operation && 'index' in operation && node[textNodeIndex_] === operation.index) {
-          return;
-        }
-      } else {
-        textNode = MasonTextNode.alloc().initWithMasonDataAttributes(Tree.instance.native as never, node.text, null);
-        node[textNode_] = textNode;
-        node[textNodeIndex_] = operation?.index ?? this._children.length;
-      }
-
-      if (operation) {
-        switch (operation.type) {
-          case 'add':
-            //@ts-ignore
-            this._view.mason_addChildAtNode(textNode, this._children.length);
-
-            //@ts-ignore
-            this._children.push({ [text_]: node.text, [textNode_]: textNode, [textNodeIndex_]: this._children.length });
-
-            break;
-          case 'replace':
-            //@ts-ignore
-            this._view.mason_replaceChildAtNode(textNode, operation.index);
-
-            if (this._children.length >= operation.index) {
-              //@ts-ignore
-              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
-            } else {
-              //@ts-ignore
-              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
-            }
-
-            break;
-          case 'insert':
-            //@ts-ignore
-            this._view.mason_addChildAtNode(textNode, operation.index);
-
-            if (this._children.length >= operation.index) {
-              //@ts-ignore
-              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
-            } else {
-              //@ts-ignore
-              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
-            }
-
-            break;
-        }
-      }
+    switch (operation.type) {
+      case 'add':
+        this._nativeAddChild(textNode, this._children.length);
+        //@ts-ignore
+        this._children.push({ ...entry, [textNodeIndex_]: this._children.length });
+        break;
+      case 'replace':
+        this._nativeReplaceChild(textNode, operation.index);
+        this._setOrPushChild(operation.index, entry);
+        break;
+      case 'insert':
+        this._nativeAddChild(textNode, operation.index);
+        this._setOrPushChild(operation.index, entry);
+        break;
     }
   }
 
+  // -- Text setter with per-view framework detection --
+
   set text(value: string) {
-    if ((frameWork === FrameWork.Vue && global.VUE3_ELEMENT_REF) || (frameWork === FrameWork.React && global.REACT_ELEMENT_REF)) {
-      const view_ref = (this[global.VUE3_ELEMENT_REF] as any) ?? (this[global.REACT_ELEMENT_REF] as any);
-      if (Array.isArray(view_ref.childNodes)) {
-        if (view_ref.childNodes.length === 0) {
+    const frameworkEl = getFrameworkElement(this);
+
+    if (frameworkEl) {
+      // Frameworks with childNodes array (Vue, React, Svelte, SolidJS)
+      if (Array.isArray(frameworkEl.childNodes)) {
+        const childNodes = frameworkEl.childNodes as any[];
+        if (childNodes.length === 0) {
           this.replaceChild({ [text_]: value }, 0);
           return;
         }
-        if (view_ref.childNodes.length === 1) {
-          const node = view_ref.childNodes[0];
-          if (node && node.nodeType === 'text') {
-            this._updateTextNode(node, { type: 'add' });
+
+        for (let i = 0; i < childNodes.length; i++) {
+          const node = childNodes[i];
+          const isTextNode = node.nodeType === 'text' || node.nodeType === 3;
+          if (isTextNode) {
+            const type = i === 0 && childNodes.length === 1 && !this._children.length ? 'add' : 'replace';
+            this._updateTextNode(node, { type, index: i, isBreak: node.nodeName === 'br' });
           }
-          return;
+        }
+        return;
+      }
+
+      // Frameworks with linked-list traversal (Angular)
+      if ('firstChild' in frameworkEl) {
+        const nodes = [];
+        let child = frameworkEl.firstChild;
+        while (child) {
+          nodes.push(child);
+          child = child.nextSibling;
         }
 
-        (view_ref.childNodes as any[]).forEach((node, index) => {
-          if (node.nodeType === 'text') {
-            this._updateTextNode(node, { type: 'replace', index, isBreak: node.nodeName === 'br' });
+        for (let i = 0; i < nodes.length; i++) {
+          const node = nodes[i];
+          const isTextNode = node.nodeType === 'text' || node.nodeType === 3 || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode';
+          if (isTextNode || node.nodeName === 'br') {
+            this._updateTextNode(node, { type: 'replace', index: i, isBreak: node.nodeName === 'br' });
           }
-        });
+        }
+        return;
       }
-      return;
     }
+
+    // NativeScript Core: linked-list traversal on the view itself
     if ('firstChild' in this) {
-      function getTextNodes(root) {
-        const result = [];
-        let node = root.firstChild;
-        while (node) {
-          result.push(node);
-          node = node.nextSibling;
-        }
-        return result;
+      const nodes = [];
+      let child = (this as any).firstChild;
+      while (child) {
+        nodes.push(child);
+        child = child.nextSibling;
       }
 
-      const nodes = getTextNodes(this);
-
-      for (const [index, node] of nodes.entries()) {
-        if (node.nodeType === 'text' || node.nodeName === 'TextNode' || node.constructor.name === 'TextNode') {
-          const existing = this._children[index];
-          if (existing && Object.is(existing['node'], node)) {
-            // todo direct set text
-            this._updateTextNode(node, { type: 'replace', index });
-            continue;
-          }
-          this._updateTextNode(node, { type: 'replace', index });
-        } else if (node.nodeName === 'br') {
-          this._updateTextNode(node, { type: 'replace', index, isBreak: true });
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const isTextNode = node.nodeType === 'text' || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode';
+        if (isTextNode || node.nodeName === 'br') {
+          this._updateTextNode(node, { type: 'replace', index: i, isBreak: node.nodeName === 'br' });
         }
       }
-
       return;
     }
 
+    // Fallback: direct textContent
     if ('textContent' in this) {
       // @ts-ignore
       this.textContent = value;
@@ -1667,6 +1721,32 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.textOverFlow = value;
+    }
+  }
+
+  [clearProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.clear = value;
+    }
+  }
+
+  [floatProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.float = value;
+    }
+  }
+
+  [cornerShapeProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.cornerShape = value;
     }
   }
 }

@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.util.Log
 import android.widget.ImageView
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withMatrix
@@ -34,6 +33,14 @@ class Img @JvmOverloads constructor(
     get() = this
 
   internal var currentBitmap: Bitmap? = null
+
+  var objectFit: ObjectFit
+    get() {
+      return style.objectFit
+    }
+    set(value) {
+      style.objectFit = value
+    }
 
   override fun setImageBitmap(bm: Bitmap?) {
     super.setImageBitmap(bm)
@@ -80,10 +87,11 @@ class Img @JvmOverloads constructor(
     if (!node.style.inBatch) {
       if (node.parent == null) {
         invalidateLayout()
-        requestLayout()
       } else {
         invalidateLayout(true)
       }
+      requestLayout()
+      invalidate()
     }
   }
 
@@ -97,16 +105,14 @@ class Img @JvmOverloads constructor(
         currentTarget = null
       }
       val target = object : CustomTarget<Bitmap>(
-        if (node.computeCache.width == Float.MIN_VALUE) {
-          SIZE_ORIGINAL
-        } else {
-          node.computeCache.width.toInt()
+        when (node.computeCache.width) {
+          Float.MIN_VALUE, -2f, -1f -> SIZE_ORIGINAL
+          else -> node.computeCache.width.toInt()
         },
-        if (node.computeCache.height == Float.MIN_VALUE) {
-          SIZE_ORIGINAL
-        } else {
-          node.computeCache.height.toInt()
-        },
+        when (node.computeCache.height) {
+          Float.MIN_VALUE, -2f, -1f -> SIZE_ORIGINAL
+          else -> node.computeCache.height.toInt()
+        }
       ) {
         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
           setImageBitmap(resource)
@@ -247,7 +253,6 @@ class Img @JvmOverloads constructor(
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
 
@@ -259,23 +264,21 @@ class Img @JvmOverloads constructor(
         specWidth, specHeight
       )
     } else if (parent !is Element) {
-      compute(
-        View.mapMeasureSpec(specWidthMode, specWidth).value,
-        View.mapMeasureSpec(specHeightMode, specHeight).value
-      )
+      if (!node.mason.inCompute) {
+        compute(
+          View.mapMeasureSpec(specWidthMode, specWidth).value,
+          View.mapMeasureSpec(specHeightMode, specHeight).value
+        )
+      }
 
-      val layout = layout()
-      node.computedLayout = layout
+      layoutFlat()
 
       setMeasuredDimension(
-        layout.width.toInt(),
-        layout.height.toInt(),
+        node.computedWidth.toInt(), node.computedHeight.toInt(),
       )
     } else {
-      val layout = layout()
-
-      var width = layout.width.toInt()
-      var height = layout.height.toInt()
+      var width = node.computedWidth.toInt()
+      var height = node.computedHeight.toInt()
 
       if (specWidthMode == MeasureSpec.UNSPECIFIED) {
         width = drawable?.intrinsicWidth ?: 0

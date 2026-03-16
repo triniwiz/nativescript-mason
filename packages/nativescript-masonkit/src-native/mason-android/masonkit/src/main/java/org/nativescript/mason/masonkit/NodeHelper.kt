@@ -17,12 +17,15 @@ import org.nativescript.mason.masonkit.enums.JustifySelf
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
+import kotlin.math.max
+import kotlin.math.min
 
 class NodeHelper(val mason: Mason) {
   companion object {
     @JvmStatic
     val shared = NodeHelper(Mason.shared)
   }
+
 
   val views: ArrayList<View> = ArrayList()
 
@@ -168,6 +171,65 @@ class NodeHelper(val mason: Mason) {
 
   }
 
+
+  fun getFloat(view: android.view.View): org.nativescript.mason.masonkit.enums.Float {
+    val node = mason.nodeForView(view)
+    return node.style.float
+  }
+
+  fun setFloat(view: android.view.View, value: org.nativescript.mason.masonkit.enums.Float) {
+    val node = mason.nodeForView(view)
+    node.style.float = value
+  }
+
+  fun getFloatRectsWithAndroidIds(view: android.view.View): LongArray {
+    val node = mason.nodeForView(view)
+    val nodePtr = node.nativePtr
+    // Guard: avoid querying engine float rects before the node/container has a computed layout.
+    // Many early measure/layout passes have width==0 which causes native to return empty arrays.
+    if (node.layoutTree.frames.isEmpty()) {
+      return LongArray(0)
+    }
+    return NativeHelpers.nativeNodeGetFloatRectWithIds(mason.getNativePtr(), nodePtr)
+  }
+
+  fun getFloatRectsLocalToView(view: android.view.View): Pair<IntArray, FloatArray> {
+    val node = mason.nodeForView(view)
+    if (node.layoutTree.frames.isEmpty()) {
+      return Pair(IntArray(0), FloatArray(0))
+    }
+    return try {
+      val rects = mason.getFloatRects(node)
+      val ids = mason.getFloatRectAndroidIds(node)
+      Pair(ids, rects)
+    } catch (_: Throwable) {
+      Pair(IntArray(0), FloatArray(0))
+    }
+  }
+
+  fun getCachedFloatInsetsForView(
+    view: android.view.View,
+    defaultLeft: Float,
+    defaultRight: Float
+  ): Pair<Float, Float> {
+    val (_, rects) = getFloatRectsLocalToView(view)
+    if (rects.isEmpty()) return Pair(0f, Float.MAX_VALUE)
+    var leftInset = 0f
+    var rightInset = Float.MAX_VALUE
+    var i = 0
+    while (i + 3 < rects.size) {
+      val x = rects[i]
+      val w = rects[i + 2]
+      if (x <= 0.1f) {
+        leftInset = max(leftInset, w)
+      } else {
+        rightInset = min(rightInset, x)
+      }
+      i += 4
+    }
+    if (rightInset == Float.MAX_VALUE) rightInset = leftInset
+    return Pair(leftInset, rightInset)
+  }
 
   fun getAlignItems(view: android.view.View): AlignItems {
     val node = mason.nodeForView(view)
@@ -357,6 +419,40 @@ class NodeHelper(val mason: Mason) {
       LengthPercentage.fromTypeValue(bottomType, bottom) ?: node.style.padding.bottom
     )
 
+  }
+
+  /**
+   * Safely set padding from raw pixel values if they differ from current padding.
+   * Uses `post` to defer the write to avoid re-entrant inset/layout callbacks.
+   */
+  fun setPaddingIfChanged(
+    view: android.view.View,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float
+  ) {
+    val node = mason.nodeForView(view)
+    val current = node.style.padding
+    val newLeft = LengthPercentage.Points(left)
+    val newRight = LengthPercentage.Points(right)
+    val newTop = LengthPercentage.Points(top)
+    val newBottom = LengthPercentage.Points(bottom)
+
+    val same = (current.left.type == newLeft.type && current.left.value == newLeft.value
+      && current.right.type == newRight.type && current.right.value == newRight.value
+      && current.top.type == newTop.type && current.top.value == newTop.value
+      && current.bottom.type == newBottom.type && current.bottom.value == newBottom.value)
+
+    if (same) return
+
+    // Defer mutation to avoid re-entrant WindowInsets -> layout loops
+    view.post {
+      try {
+        node.style.padding = Rect(newLeft, newRight, newTop, newBottom)
+      } catch (_: Throwable) {
+      }
+    }
   }
 
 
@@ -561,7 +657,6 @@ class NodeHelper(val mason: Mason) {
       LengthPercentageAuto.Points(top),
       LengthPercentageAuto.Points(bottom)
     )
-
   }
 
   fun setMargin(
@@ -575,7 +670,6 @@ class NodeHelper(val mason: Mason) {
     node.style.margin = Rect(
       left, right, top, bottom
     )
-
   }
 
   fun setMargin(
@@ -596,7 +690,6 @@ class NodeHelper(val mason: Mason) {
       LengthPercentageAuto.fromTypeValue(topType, top) ?: node.style.margin.top,
       LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: node.style.margin.bottom
     )
-
   }
 
   fun setMarginLeft(view: android.view.View, value: Float, type: Byte) {
@@ -830,7 +923,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.Points(width),
       Dimension.Points(height),
     )
-
   }
 
   fun getSize(view: android.view.View): Size<Dimension> {
@@ -864,7 +956,6 @@ class NodeHelper(val mason: Mason) {
       width,
       height,
     )
-
   }
 
   fun setSize(
@@ -879,7 +970,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.fromTypeValue(widthType, width) ?: node.style.size.width,
       Dimension.fromTypeValue(heightType, height) ?: node.style.size.height
     )
-
   }
 
   fun setSizeWidth(view: android.view.View, value: Float, type: Byte) {
@@ -906,7 +996,6 @@ class NodeHelper(val mason: Mason) {
       Dimension.Points(width),
       Dimension.Points(height),
     )
-
   }
 
   fun getMaxSize(view: android.view.View): Size<Dimension> {
@@ -940,7 +1029,6 @@ class NodeHelper(val mason: Mason) {
       width,
       height,
     )
-
   }
 
   fun setMaxSize(
@@ -1304,6 +1392,58 @@ class NodeHelper(val mason: Mason) {
     node.style.backgroundImage = value
   }
 
+  fun getBackgroundRepeat(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundRepeat
+  }
+
+  fun setBackgroundRepeat(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundRepeat = value
+  }
+
+  fun getBackgroundPosition(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundPosition
+  }
+
+  fun setBackgroundPosition(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundPosition = value
+  }
+
+  fun getBackgroundSize(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundSize
+  }
+
+  fun setBackgroundSize(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundSize = value
+  }
+
+  fun getBackgroundClip(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundClip
+  }
+
+  fun setBackgroundClip(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundClip = value
+  }
+
   fun getTextShadow(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.textShadow
@@ -1315,6 +1455,66 @@ class NodeHelper(val mason: Mason) {
   ) {
     val node = mason.nodeForView(view)
     node.style.textShadow = value
+  }
+
+
+  fun getCornerShape(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShape
+  }
+
+  fun setCornerShape(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShape = value
+  }
+
+  fun getCornerShapeTopLeft(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeTopLeft
+  }
+
+  fun setCornerShapeTopLeft(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeTopLeft = value
+  }
+
+  fun getCornerShapeTopRight(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeTopRight
+  }
+
+  fun setCornerShapeTopRight(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeTopRight = value
+  }
+
+  fun getCornerShapeBottomRight(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeBottomRight
+  }
+
+  fun setCornerShapeBottomRight(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeBottomRight = value
+  }
+
+  fun getCornerShapeBottomLeft(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeBottomLeft
+  }
+
+  fun setCornerShapeBottomLeft(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeBottomLeft = value
+  }
+
+  fun compute(node: Node) {
+    NativeHelpers.nativeNodeCompute(
+      node.mason.nativePtr, node.nativePtr
+    )
   }
 }
 

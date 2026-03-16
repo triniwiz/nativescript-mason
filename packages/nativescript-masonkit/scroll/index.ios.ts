@@ -68,8 +68,12 @@ export class Scroll extends ViewBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
       if (this.parent && !this.parent[isMasonView_]) {
-        // only call compute on the parent
-        if (this.width === 'auto' && this.height === 'auto') {
+        // same reasoning as other views – if the scroll view is the root it may
+        // receive an UNSPECIFIED spec, or sometimes an AT_MOST/0 spec, which we
+        // must treat as unconstrained.
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+
+        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
           // this.ios.computeWithSize(specWidth, specHeight);
@@ -87,6 +91,7 @@ export class Scroll extends ViewBase {
 
           return;
         } else {
+          // unconstrained or explicit size – fall back to max-content
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
           // // @ts-ignore

@@ -7,9 +7,11 @@
 import UIKit
 
 
-internal func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawPointer? {
+internal func create_layout(_ floats: UnsafePointer<Float>?, _ count: UInt) -> UnsafeMutableRawPointer? {
   guard let floats = floats else {return nil}
-  let layout = MasonLayout.fromFloatPoint(floats).1
+  let tree = MasonLayoutTree()
+  tree.fromFloatPointer(floats, count: Int(count))
+  let layout = MasonLayout(tree: tree, index: 0)
   return Unmanaged.passRetained(layout).toOpaque()
 }
 
@@ -27,6 +29,8 @@ public protocol MasonElement: NSObjectProtocol {
   var node: MasonNode { get }
   
   var uiView: UIView { get }
+  
+  var innerHTML: String {get set}
   
   func markNodeDirty()
   
@@ -99,6 +103,7 @@ private struct MasonElementProperties {
   static var computeCache: UInt8 = 0
   static var isInLayout: UInt8 = 1
   static var computeCacheDirty: UInt8 = 2
+  static var lastAutoComputeSize: UInt8 = 3
 }
 
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -145,11 +150,23 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
   
   let postScriptName = cgFont.postScriptName! as String
   
-  let attributes: [CFString: Any] = [
-    kCTFontNameAttribute: postScriptName as CFString,
+  // System fonts (PostScript names starting with ".") can't be resolved by name alone —
+  // CoreText ignores weight traits when an explicit name like ".SFUI-Regular" is given.
+  // Use the family name + traits so CoreText selects the correct weight variant.
+  let isSystemFont = postScriptName.hasPrefix(".")
+  
+  var attributes: [CFString: Any] = [
     kCTFontSizeAttribute: fontSize,
     kCTFontTraitsAttribute: traits
   ]
+  
+  if isSystemFont {
+    // For system fonts, use CTFontCreateUIFontForLanguage to get the correct weight
+    let uiFont = UIFont.systemFont(ofSize: fontSize, weight: weight)
+    return CTFontCreateWithFontDescriptor(uiFont.fontDescriptor as CTFontDescriptor, fontSize, nil)
+  } else {
+    attributes[kCTFontNameAttribute] = postScriptName as CFString
+  }
   
   let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
   
@@ -157,6 +174,17 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 }
 
 extension MasonElement {
+  
+  public var innerHTML: String {
+    get {
+      //todo
+      return ""
+    }
+    set {
+      node.mason.htmlParser.parseInto(newValue, element: self)
+    }
+  }
+  
   public func dispatch(_ event: MasonEvent) {
     node.mason.dispatch(event, node)
   }
@@ -166,18 +194,24 @@ extension MasonElement {
     return node.getDefaultAttributes()
   }
   
-  
-  public func syncStyle(_ state: String, _ textState: String) {
-    let stateValue = Int64(state, radix: 10)
-    let textStateValue = Int64(textState, radix: 10)
-    if let textStateValue = textStateValue {
-      style.isTextDirty = textStateValue
-      style.updateTextStyle()
+
+  public func syncStyle(_ low: String, _ high: String) {
+    func parseDecimalToUInt64(_ s: String) -> UInt64? {
+      if s.isEmpty { return nil }
+      if s.first == "-" {
+        return UInt64(s)
+      }
+      
+      return UInt64(s)
     }
-    
-    if let stateValue = stateValue {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
+
+    let lowValue = parseDecimalToUInt64(low)
+    let highValue = parseDecimalToUInt64(high)
+
+    if lowValue != nil || highValue != nil {
+      let l = lowValue ?? 0
+      let h = highValue ?? 0
+      style.setStateFromHalves(l, h)
     }
   }
   
@@ -205,6 +239,10 @@ extension MasonElement {
     self.node.replaceChildAt(node, index)
   }
   
+  public func removeAllChildren(){
+    node.removeAllChildren()
+  }
+  
   public var style: MasonStyle {
     get {
       return node.style
@@ -226,11 +264,17 @@ extension MasonElement {
     }else {
       root.view as? MasonElement
     }
-    
+
     if let view = view {
       if(view.computeCacheDirty){
         let computed = view.computeCache()
+        // Preserve root view's frame — managed externally, not by Mason
+        let isRoot = !(view.uiView.superview is MasonElement)
+        let savedFrame = view.uiView.frame
         view.computeWithSize(Float(computed.width), Float(computed.height))
+        if isRoot && view.uiView.frame != savedFrame {
+          view.uiView.frame = savedFrame
+        }
       }
     }
   }
@@ -311,7 +355,40 @@ extension MasonElement {
     objc_setAssociatedObject(self, &MasonElementProperties.computeCache, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     computeCacheDirty = true
   }
-  
+
+  private var _lastAutoComputeSize: CGSize {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize) as? CGSize ?? .zero
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  /// Auto-compute layout when this is a root Mason view.
+  /// Call from layoutSubviews in any MasonElement UIView subclass.
+  /// Mirrors Android's onMeasure: if the parent isn't a MasonElement,
+  /// take the parent's size as the available space and compute.
+  public func autoComputeIfRoot() {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    guard parentSize.width > 0 || parentSize.height > 0 else { return }
+    if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
+      _lastAutoComputeSize = parentSize
+      let scale = NSCMason.scale
+      let w = scale * Float(parentSize.width)
+      let h = scale * Float(parentSize.height)
+      // Preserve root view's frame — it's managed by the parent
+      // (autolayout/autoresize), not by Mason. Only children get repositioned.
+      let savedFrame = uiView.frame
+      computeWithSize(w, h)
+      computeCacheDirty = false
+      if uiView.frame != savedFrame {
+        uiView.frame = savedFrame
+      }
+    }
+  }
+
   public func append(_ element: MasonElement){
     node.appendChild(element.node)
   }
@@ -373,7 +450,7 @@ extension MasonElement {
                                    node.nativePtr, create_layout)
     
     guard let points = points else {
-      return MasonLayout.zero
+      return MasonLayout.empty
     }
     
     let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
@@ -533,6 +610,7 @@ extension MasonElement {
   }
 }
 
+
 class MasonElementHelpers: NSObject {
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
@@ -553,17 +631,17 @@ class MasonElementHelpers: NSObject {
       
       let heightIsNan = realLayout.height.isNaN
       
-      let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
+      var x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
       
-      let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
+      var y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
       
       var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
       
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
       
       if(isTextView){
-        if(!hasWidthConstraint && realLayout.contentSize.width > realLayout.width){
-          width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
+        if(!hasWidthConstraint && realLayout.contentWidth > realLayout.width){
+          width = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
         }
         
         if(!hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
@@ -571,46 +649,116 @@ class MasonElementHelpers: NSObject {
         }
       }
       
+      // remember unpadded values before possible scroll-root tweaks
+      let origX = x
+      let origY = y
+      let origWidth = width
+      let origHeight = height
+
+      // special-case scroll root: offset into parent padding and expand
+      if let scroll = view as? Scroll, let parentNode = node.parent {
+        let pad = parentNode.style.padding
+        let parentPadL = CGFloat(pad.left.value/NSCMason.scale)
+        let parentPadT = CGFloat(pad.top.value/NSCMason.scale)
+        let parentPadR = CGFloat(pad.right.value/NSCMason.scale)
+        let parentPadB = CGFloat(pad.bottom.value/NSCMason.scale)
+
+        x += parentPadL
+        y += parentPadT
+        width += parentPadL + parentPadR
+        height += parentPadT + parentPadB
+
+        #if DEBUG
+        print("Mason scrollRoot parentPad=\(parentPadL)/\(parentPadR) layoutW=\(origWidth) layoutH=\(origHeight) finalW=\(width) finalH=\(height)")
+        #endif
+      }
+
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
       
-      view.frame = CGRect(origin: point, size: size)
+      let newFrame = CGRect(origin: point, size: size)
+      if view.frame != newFrame {
+        view.frame = newFrame
+      }
+
+      // Apply clipsToBounds for non-visible overflow on all views
+      let overflow = node.style.overflow
+      if overflow.x != .Visible || overflow.y != .Visible {
+        view.clipsToBounds = true
+        // Apply border-radius clipping via layer mask when radii are present
+        let borderRender = node.style.mBorderRender
+        borderRender.resolve(for: view.bounds)
+        if borderRender.hasRadii() {
+          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
+          let newCGPath = clipPath.cgPath
+          if let existing = view.layer.mask as? CAShapeLayer {
+            if existing.path == nil || existing.path!.boundingBoxOfPath != newCGPath.boundingBoxOfPath {
+              existing.path = newCGPath
+            }
+          } else {
+            let maskLayer = CAShapeLayer()
+            maskLayer.path = newCGPath
+            view.layer.mask = maskLayer
+          }
+        } else if view.layer.mask != nil {
+          view.layer.mask = nil
+        }
+      } else {
+        view.clipsToBounds = false
+        if view.layer.mask != nil {
+          view.layer.mask = nil
+        }
+      }
       
       node.isLayoutValid = true
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
         
-        scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
+        
+        let scrollWidth =
+        max(CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale), CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale))
+        
+        let scrollHeight =
+        max(CGFloat(realLayout.contentHeight.isNaN ? 0 : realLayout.contentHeight/NSCMason.scale), CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale))
+        
+      
+        
+        let newContentSize = CGSize(width: scrollWidth, height: scrollHeight)
+        if scroll.contentSize != newContentSize {
+          scroll.contentSize = newContentSize
+        }
+        
         
         MasonElementHelpers.handleOverflow(overflow.x, scroll)
         MasonElementHelpers.handleOverflow(overflow.y, scroll, true)
         
       }
-      
-      
+
     }
     
     if(!layout.children.isEmpty){
-      let children = node.children.filter {
-        let node = $0
-        if(node.nativePtr == nil){
-          return false
-        }else if(node.parent?.view is TextContainer && node.view is TextContainer){
-          let flatten = (node.parent!.view as! MasonText).engine.shouldFlattenTextContainer(node.view as! TextContainer)
-          return !flatten
-        }else {
-          return true
-        }
-      }
-      
+      // Filter to only children with nativePtr (matching Rust layout tree order)
+      // Do NOT filter out flattened text containers here — indices must stay
+      // aligned with layout.children from Rust.
+      let children = node.children.filter { $0.nativePtr != nil }
+
       let count = children.count
       for i in 0..<count{
         let child = children[i]
         if(child.type == .text){
           continue
         }
+
+        // Skip flattened text containers — parent draws their text
+        if child.parent?.view is TextContainer && child.view is TextContainer {
+          if (child.parent!.view as! MasonText).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
+            child.view?.frame = .zero
+            continue
+          }
+        }
+
         let layout = layout.children[i]
         applyToView(child, layout)
       }
@@ -620,62 +768,58 @@ class MasonElementHelpers: NSObject {
   
   
   
+  private static func setIfNeeded<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<UIScrollView, T>, on scroll: UIScrollView, to value: T) {
+    if scroll[keyPath: keyPath] != value {
+      scroll[keyPath: keyPath] = value
+    }
+  }
+
   internal static func handleOverflow(_ overflow: Overflow, _ scroll: UIScrollView, _ vertical: Bool = false) {
     switch(overflow){
     case .Visible:
-      scroll.clipsToBounds = false
+      setIfNeeded(\.clipsToBounds, on: scroll, to: false)
       if(vertical){
-        scroll.alwaysBounceVertical = false
-        scroll.showsVerticalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: false)
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
       }else {
-        scroll.alwaysBounceHorizontal = false
-        scroll.showsHorizontalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: false)
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     case .Hidden:
-      scroll.clipsToBounds = true
-      scroll.alwaysBounceVertical = true
-      scroll.alwaysBounceHorizontal = true
+      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
       if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
       }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     case .Scroll:
-      scroll.clipsToBounds = true
+      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
       if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = true
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: true)
       }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = true
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: true)
       }
     case .Clip:
-      scroll.clipsToBounds = true
+      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
       if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
       }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = false
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     case .Auto:
-      scroll.clipsToBounds = true
+      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
       if(vertical){
-        if(scroll.contentSize.height > scroll.bounds.size.height){
-          scroll.showsVerticalScrollIndicator = true
-        }else {
-          scroll.showsVerticalScrollIndicator = false
-        }
-        scroll.alwaysBounceVertical = true
+        let showIndicator = scroll.contentSize.height > scroll.bounds.size.height
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: showIndicator)
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
       }else {
-        if(scroll.contentSize.width > scroll.bounds.size.width){
-          scroll.showsHorizontalScrollIndicator = true
-        }else {
-          scroll.showsHorizontalScrollIndicator = false
-        }
-        scroll.showsHorizontalScrollIndicator = false
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     }
   }

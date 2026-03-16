@@ -420,12 +420,33 @@ func replaceChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) 
   element.replaceChildAt(node: node, index)
 }
 
-func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: String) {
-  element.syncStyle(state, textState)
+func syncStyle<T: MasonElement>(_ element: T,_ low: String, _ high: String) {
+  element.syncStyle(low, high)
+}
+
+func getInnerHTML<T: MasonElement>(_ element: T) -> String {
+  return element.innerHTML
+}
+
+func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
+  element.innerHTML = value
 }
 
 
+
 @objc extension NSObject {
+  
+  @objc
+  public var mason_innerHTML: String {
+    set {
+      guard let element = self as? MasonElement else { return }
+      element.innerHTML = newValue
+    }
+    get {
+      guard let element = self as? MasonElement else { return "" }
+      return element.innerHTML
+    }
+  }
   
   @discardableResult
   @objc public func mason_addEventListener(_ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
@@ -451,9 +472,9 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
     element.dispatch(event)
   }
   
-  @objc public func mason_syncStyle(_ state: String, _ textState: String){
+  @objc public func mason_syncStyle(_ low: String, _ high: String){
     guard let element = self as? MasonElement else { return }
-    element.syncStyle(state, textState)
+    element.syncStyle(low, high)
   }
   
   @objc public func mason_addView(_ view: UIView){
@@ -498,7 +519,7 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
   }
   
   @discardableResult @objc public func mason_layout() -> MasonLayout {
-    guard let element = self as? MasonElement else { return MasonLayout.zero}
+    guard let element = self as? MasonElement else { return MasonLayout.empty}
     return layout(element)
   }
   

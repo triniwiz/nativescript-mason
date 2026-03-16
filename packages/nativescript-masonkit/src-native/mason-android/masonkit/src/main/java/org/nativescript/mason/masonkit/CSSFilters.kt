@@ -56,7 +56,7 @@ class CSSFilters {
     ) : Filter()
   }
 
-  internal class BitmapPool(context: Context) {
+  class BitmapPool(context: Context) {
     // How many bytes this pool is allowed to use
     private val maxSizeBytes: Int
 
@@ -81,7 +81,11 @@ class CSSFilters {
         oldValue: Bitmap,
         newValue: Bitmap?
       ) {
-        if (!oldValue.isRecycled) oldValue.recycle()
+        // Recycle on LRU eviction or replacement by put(), but NOT on
+        // explicit remove() which is used to borrow a bitmap from the pool.
+        if ((evicted || newValue != null) && !oldValue.isRecycled) {
+          oldValue.recycle()
+        }
       }
     }
 
@@ -98,7 +102,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = "${key(width, height, config)}:source"
-      val cached = pool[k]
+      val cached = pool.remove(k)
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -113,7 +117,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = key(width, height, config)
-      val cached = pool[k]
+      val cached = pool.remove(k)
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -128,9 +132,7 @@ class CSSFilters {
       if (source == true) {
         k = "$k:source"
       }
-      if (pool[k] == null) {
-        pool.put(k, bitmap)
-      }
+      pool.put(k, bitmap)
     }
 
     fun clear() {
@@ -154,6 +156,12 @@ class CSSFilters {
       }
 
     companion object {
+      // Reusable Paint for drop shadow — avoids allocation per filter render
+      internal val shadowPaint = Paint().apply {
+        isAntiAlias = true
+        isFilterBitmap = true
+      }
+
       fun createBlurBitmap(
         context: Context,
         width: Int,
@@ -236,9 +244,7 @@ class CSSFilters {
           destroyRS = true
         }
 
-        val paint = Paint().apply {
-          isAntiAlias = true
-          isFilterBitmap = true
+        val paint = shadowPaint.apply {
           colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
         }
 
@@ -732,8 +738,61 @@ class CSSFilters {
 
     internal var v3: Any? = null
 
+    // Cache the V3 RenderEffect for color-only filters (no shadows/blurs)
+    // The effect chain only depends on filter params, not content
+    private var cachedV3Effect: Any? = null
+    private var cachedV3HasShadows = false
+    private var cachedV3Width = 0
+    private var cachedV3Height = 0
+
     init {
       this.css = css
+    }
+
+    private fun hasShadowOrBlur(): Boolean {
+      return filters.any { it is Filter.DropShadow || it is Filter.Blur }
+    }
+
+    /**
+     * Returns true if this filter set can be handled by the lightweight
+     * [applyFast] Canvas path instead of the full pipeline.
+     */
+    fun canApplyFast(): Boolean {
+      if (filters.size != 1) return false
+      return filters[0] is Filter.Brightness
+    }
+
+    /**
+     * Lightweight Canvas-based render for simple, single color filters.
+     * Caller must draw content first, then call this to overlay the effect.
+     */
+    fun applyFast(canvas: Canvas, width: Float, height: Float): Boolean {
+      if (filters.size != 1) return false
+
+      return when (val f = filters[0]) {
+        is Filter.Brightness -> {
+          val v = f.value
+          if (v < 1f) {
+            // Darken: multiply blend darkens each channel proportionally
+            val gray = (v.coerceAtLeast(0f) * 255).toInt()
+            val paint = Paint().apply {
+              color = Color.rgb(gray, gray, gray)
+              xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+            }
+            canvas.drawRect(0f, 0f, width, height, paint)
+          } else if (v > 1f) {
+            // Lighten: additive overlay with white
+            val alpha = ((v - 1f).coerceAtMost(1f) * 255).toInt()
+            val paint = Paint().apply {
+              color = Color.argb(alpha, 255, 255, 255)
+              xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+            }
+            canvas.drawRect(0f, 0f, width, height, paint)
+          }
+          true
+        }
+        else -> false
+      }
     }
 
     fun renderFilters(view: View, canvas: Canvas, draw: (Canvas) -> Unit) {
@@ -746,12 +805,31 @@ class CSSFilters {
       this.invalid = false
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val hasShadows = hasShadowOrBlur()
+
+        // For color-only filters, reuse cached RenderEffect if size hasn't changed
+        if (!hasShadows && cachedV3Effect != null &&
+          cachedV3Width == view.width && cachedV3Height == view.height
+        ) {
+          @Suppress("NewApi")
+          view.setRenderEffect(cachedV3Effect as? RenderEffect)
+          return
+        }
+
         val filter = FilterHelperV3.build(view, filters, draw)
         v3 = filter
+
         if (filter.shadowNodes.isEmpty()) {
           view.setRenderEffect(filter.filter)
+          // Cache the effect for reuse
+          cachedV3Effect = filter.filter
+          cachedV3HasShadows = false
+          cachedV3Width = view.width
+          cachedV3Height = view.height
         } else {
           view.setRenderEffect(null)
+          cachedV3Effect = null
+          cachedV3HasShadows = true
           if (filter.hasComposite) {
             canvas.drawRenderNode(filter.compositeNode)
           } else {
@@ -798,10 +876,8 @@ class CSSFilters {
           tmpCanvas.drawBitmap(sourceBmp, 0f, 0f, null)
 
           // draw composited temp with color matrix applied
-          val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(matrix)
-          }
-          canvas.drawBitmap(tmp, 0f, 0f, paint)
+          colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
+          canvas.drawBitmap(tmp, 0f, 0f, colorMatrixPaint)
           //  pool.putBitmap(tmp, true)
         } ?: run {
           // no color matrix -> draw shadows/blurs + source directly
@@ -834,10 +910,8 @@ class CSSFilters {
 
         it.source?.let { source ->
           it.cssFilter?.let { matrix ->
-            val paint = Paint().apply {
-              colorFilter = ColorMatrixColorFilter(matrix)
-            }
-            canvas.drawBitmap(source, 0f, 0f, paint)
+            colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
+            canvas.drawBitmap(source, 0f, 0f, colorMatrixPaint)
           } ?: run {
             canvas.drawBitmap(source, 0f, 0f, null)
           }
@@ -848,6 +922,8 @@ class CSSFilters {
   }
 
   companion object {
+    // Reusable Paint for color matrix filter rendering — avoids allocation per frame
+    private val colorMatrixPaint = Paint()
 
     private var mPool: BitmapPool? = null
 

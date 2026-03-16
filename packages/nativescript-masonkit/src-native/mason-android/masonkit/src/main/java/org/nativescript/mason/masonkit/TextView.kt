@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.os.Build
+import android.text.StaticLayout
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
@@ -64,7 +66,6 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-
   override fun setTextSize(size: Float) {
     node.style.fontSize = size.toInt()
   }
@@ -89,15 +90,93 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+
+  // Cached StaticLayout and width used for drawing when we render our own layout
+  internal var cachedStaticLayout: StaticLayout? = null
+  internal var cachedStaticLayoutWidth: Int = -1
+  // Float-aware StaticLayout: wraps text around floated sibling elements
+  internal var floatAwareStaticLayout: StaticLayout? = null
+  // Height applied by float-aware expansion so onSizeChanged can skip clearing the cache
+  private var floatExpandedHeight: Int = -1
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
+    // Invalidate cached StaticLayout when size changes, but skip if this
+    // size change was triggered by our own float-aware height expansion.
+    if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
+      // Keep the float-aware layout intact — we just expanded to fit it.
+    } else {
+      cachedStaticLayout = null
+      cachedStaticLayoutWidth = -1
+      floatAwareStaticLayout = null
+      floatExpandedHeight = -1
+    }
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
   override fun onDraw(canvas: Canvas) {
-    ViewUtils.onDraw(this, canvas, style) {
-      super.onDraw(it)
+    // Suppress view-level border only when this TextView will be flattened
+    // and the blockquote bar is drawn as an inline span.
+    val ignoreBorder =
+      (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
+    ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
+      // Build float-aware layout lazily if we have floated siblings.
+      // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
+      // when applyLayoutFlat positions the view), so try building float-aware
+      // layout unconditionally.
+      if (floatAwareStaticLayout == null) {
+        try {
+          floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
+        } catch (_: Throwable) {}
+      }
+
+      val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
+
+      if (layoutToDraw != null) {
+        // If the float-aware layout is taller than the view, expand bounds
+        // so text below the floats isn't clipped, and also grow ancestor
+        // containers so their borders wrap the full content.
+        if (layoutToDraw === floatAwareStaticLayout) {
+          val neededHeight = layoutToDraw.height + paddingTop + paddingBottom
+          if (neededHeight > height) {
+            val extraHeight = neededHeight - height
+            floatExpandedHeight = neededHeight
+            post {
+              layout(left, top, right, top + neededHeight)
+              // Grow ancestor Elements so their borders wrap the expanded
+              // text. Account for the child's bottom margin and the ancestor's
+              // border + padding when computing the needed height.
+              var child: android.view.View = this@TextView
+              var childNode: Node? = this@TextView.node
+              var anc = parent as? android.view.View
+              var topExpanded: android.view.View? = null
+              while (anc != null && anc is Element) {
+                val ancElement = anc as Element
+                val childMarginBottom = childNode?.let {
+                  resolveMarginValue(try { it.style.margin.bottom } catch (_: Throwable) { null })
+                } ?: 0f
+                val ancBorderBottom = ancElement.node.computedBorderBottom
+                val needed = child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
+                val available = anc.height
+                if (needed <= available) break
+                anc.layout(anc.left, anc.top, anc.right, anc.top + needed)
+                topExpanded = anc
+                childNode = ancElement.node
+                child = anc
+                anc = anc.parent as? android.view.View
+                anc?.invalidate()
+              }
+              // Single invalidate on the topmost expanded ancestor redraws
+              // the whole subtree in one pass instead of per-ancestor.
+              (topExpanded ?: this@TextView).invalidate()
+            }
+          }
+        }
+        layoutToDraw.draw(c)
+      } else {
+        // Fall back to platform drawing if building a StaticLayout fails.
+        super.onDraw(c)
+      }
     }
   }
 
@@ -106,8 +185,19 @@ class TextView @JvmOverloads constructor(
       return engine.textContent
     }
     set(value) {
+      // Invalidate our cached layout when text changes
+      cachedStaticLayout = null
+      cachedStaticLayoutWidth = -1
+      floatAwareStaticLayout = null
       engine.textContent = value
     }
+
+  override fun setText(text: CharSequence, type: BufferType) {
+    cachedStaticLayout = null
+    cachedStaticLayoutWidth = -1
+    floatAwareStaticLayout = null
+    super.setText(text, type)
+  }
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
@@ -127,6 +217,7 @@ class TextView @JvmOverloads constructor(
     gravity = android.view.Gravity.NO_GRAVITY
     setLineSpacing(0f, 1f)
     setPadding(0, 0, 0, 0)
+    background = null
 
     if (type != TextType.None) {
       node.style.inBatch = true
@@ -137,49 +228,48 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.Code -> {
-          style.font = FontFace("monospace")
+          style.fontFamily = "monospace"
           style.display = Display.Inline
-          //  setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 32
           node.style.margin = margin(16f, 16f)
         }
 
         TextType.H2 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 24
           node.style.margin = margin(14f, 14f)
         }
 
         TextType.H3 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
-          fontSize = 18
-          node.style.margin = margin(12f, 12f)
+          style.fontWeight = FontFace.NSCFontWeight.Bold
+          fontSize = 20
+          node.style.margin = margin(12f, 8f)
         }
 
         TextType.H4 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
           node.style.margin = margin(10f, 10f)
         }
 
         TextType.H5 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 13
           node.style.margin = margin(8f, 8f)
         }
 
         TextType.H6 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 10
           node.style.margin = margin(6f, 6f)
         }
@@ -189,21 +279,30 @@ class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           node.style.display = Display.Block
+          node.style.margin = Rect(
+            top = LengthPercentageAuto.Points(16f),
+            right = LengthPercentageAuto.Points(40f),
+            bottom = LengthPercentageAuto.Points(16f),
+            left = LengthPercentageAuto.Points(40f),
+          )
         }
 
         TextType.B, TextType.Strong -> {
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           style.display = Display.Inline
         }
 
         TextType.Pre -> {
-          style.font = FontFace("monospace")
+          node.style.display = Display.Block
+          style.fontFamily = "monospace"
           fontSize = Constants.DEFAULT_FONT_SIZE
           whiteSpace = Styles.WhiteSpace.Pre
+          node.style.margin = margin(16f, 16f)
         }
 
         TextType.I, TextType.Em -> {
-          fontFace.style = FontFace.NSCFontStyle.Italic
+          style.fontStyle = FontFace.NSCFontStyle.Italic
+          style.display = Display.Inline
         }
 
         TextType.P -> {
@@ -230,7 +329,7 @@ class TextView @JvmOverloads constructor(
             )
           }
 
-          setOnKeyListener { v, keyCode, event ->
+          setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
               performClick()
               true
@@ -243,12 +342,12 @@ class TextView @JvmOverloads constructor(
         else -> {}
       }
 
-      fontFace.loadSync(context) {}
+      fontFace.load(context) { _ -> }
 
       node.style.inBatch = false
 
     } else {
-      fontFace.loadSync(context) {}
+      fontFace.load(context) { _ -> }
     }
 
     paint.textSize = TypedValue.applyDimension(
@@ -264,9 +363,10 @@ class TextView @JvmOverloads constructor(
     // Return baseline calculated from our font metrics
     if (style.isValueInitialized) {
       val metrics = style.getFontMetrics()
-      val layout = node.computedLayout
       // Baseline is ascent distance from top of content box
-      val baselineY = layout.padding.top + layout.border.top + metrics.ascent
+      // `metrics.ascent` is negative (distance above baseline). Use its
+      // negated value to get the positive distance from the top to baseline.
+      val baselineY = node.computedPaddingTop + node.computedBorderTop + -metrics.ascent
       return baselineY.toInt()
     }
 
@@ -274,14 +374,13 @@ class TextView @JvmOverloads constructor(
     return super.getBaseline()
   }
 
-  override fun onTextStyleChanged(change: Int) {
-    engine.onTextStyleChanged(change, paint, resources.displayMetrics)
+  override fun onChange(low: Long, high: Long) {
+    // Style change affects layout; invalidate cached StaticLayout
+    cachedStaticLayout = null
+    cachedStaticLayoutWidth = -1
+    floatAwareStaticLayout = null
+    engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }
-
-  val textValues: ByteBuffer
-    get() {
-      return style.textValues
-    }
 
   val values: ByteBuffer
     get() {
@@ -469,34 +568,21 @@ class TextView @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (node.parent == null && parent !is Element) {
-      compute(
-        mapMeasureSpec(specWidthMode, specWidth).value,
-        mapMeasureSpec(specHeightMode, specHeight).value
-      )
+    if (parent !is Element || node.parent == null) {
+      if (!node.mason.inCompute) {
+        compute(
+          mapMeasureSpec(specWidthMode, specWidth).value,
+          mapMeasureSpec(specHeightMode, specHeight).value
+        )
+      }
 
-      val layout = layout()
-      node.computedLayout = layout
-      setMeasuredDimension(
-        layout.width.toInt(),
-        layout.height.toInt(),
-      )
+      layoutFlat()
+      setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
     } else {
-      // Call super to update Android's internal text Layout (mLayout).
-      // Without this, the internal Layout used for rendering may have a stale
-      // width, causing text to be clipped or wrapped incorrectly.
-      super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-
-      // Override measured dimensions with the computed values
       if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
-        setMeasuredDimension(
-          specWidth, specHeight
-        )
+        setMeasuredDimension(specWidth, specHeight)
       } else {
-        val layout = layout()
-        setMeasuredDimension(
-          layout.width.toInt(), layout.height.toInt()
-        )
+        setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
       }
     }
   }
@@ -572,5 +658,13 @@ class TextView @JvmOverloads constructor(
     child.apply {
       attributes.sync(style)
     }
+  }
+
+  fun addView(view: Element) {
+    addChildAt(view, -1)
+  }
+
+  fun addView(view: Element, index: Int) {
+    addChildAt(view, index)
   }
 }

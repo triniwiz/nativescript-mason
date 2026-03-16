@@ -11,40 +11,84 @@ import Foundation
 @objcMembers
 @objc(MasonUIView)
 public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
-  func onTextStyleChanged(change: Int64) {
-    MasonNode.invalidateDescendantTextViews(node, change)
+  func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    MasonNode.invalidateDescendantTextViews(node, low, high)
   }
   
   public override func draw(_ rect: CGRect) {
+
+    let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
+    let hasBackground: Bool = {
+      if !bgString.isEmpty { return true }
+      if !style.mBackground.layers.isEmpty { return true }
+      if style.mBackground.color != nil { return true }
+      return false
+    }()
+    let hasBoxShadow = !style.boxShadows.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty
     
+    let hasFilter = !style.resolvedFilterString.isEmpty
+
+    // Early-out: skip all CoreGraphics work for plain views with no decoration
+    guard hasBackground || hasBoxShadow || hasBorder || hasFilter else { return }
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-    
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
-    style.mBorderRender.draw(in: context, rect: bounds)
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
+    // Draw background across the full bounds so it meets edge-aligned children
+    // (image layers) and then draw the border on top. This avoids a 1px gap
+    // when border widths are present.
+    if hasBackground {
+      // Expand background slightly (fractional device pixel) to avoid 1px hairline gaps
+      let scale = UIScreen.main.scale
+      let expand: CGFloat = 1.0 / scale
+      let innerRect = bounds.insetBy(dx: -expand, dy: -expand)
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
+    // Border: when rounded radii exist, draw the border inside a rounded clip
+    // so the stroke overlays the background and avoids visible gaps with outset shadows.
+    if hasBorder {
+      if hasRadii {
+        context.saveGState()
+        let outerPath = style.mBorderRender.getClipPath(rect: bounds, radius: style.mBorderRender.radius)
+        context.addPath(outerPath.cgPath)
+        context.clip()
+        style.mBorderRender.draw(in: context, rect: bounds)
+        context.restoreGState()
+      } else {
+        style.mBorderRender.draw(in: context, rect: bounds)
+      }
+    }
+
+    style.applyResolvedFilter(in: context, rect: bounds, view: self)
   }
-  
+
   public let node: MasonNode
   public let mason: NSCMason
-  
+
   public var uiView: UIView { self }
   
   public var style: MasonStyle {
@@ -59,6 +103,38 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     return node.isDirty
   }
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
+    autoComputeIfRoot()
+    #if DEBUG
+    if !(superview is MasonElement) {
+      node.mason.printTree(node)
+    }
+    #endif
+
+    // Optimize compositing: set isOpaque for solid opaque backgrounds
+    style.mBorderRender.resolve(for: bounds)
+    guard let bg = style.mBackground else {return}
+    let hasOpaqueBackground = bg.color != nil && (bg.color!.cgColor.alpha >= 1.0) && bg.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+
+    if hasOpaqueBackground && !style.mBorderRender.hasRadii() && !hasBoxShadow {
+      isOpaque = true
+    } else {
+      isOpaque = false
+    }
+
+    // Rasterize complex decorated views (gradient + radii or box shadow)
+    let hasGradient = !bg.layers.isEmpty
+    if hasGradient && style.mBorderRender.hasRadii() || hasBoxShadow {
+      layer.shouldRasterize = true
+      layer.rasterizationScale = UIScreen.main.scale
+    } else {
+      layer.shouldRasterize = false
+    }
+  }
+
   init(mason doc: NSCMason) {
     node = doc.createNode()
     mason = doc
@@ -69,8 +145,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     node.view = self
     style.setStyleChangeListener(listener: self)
   }
-  
-  
+
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
@@ -544,12 +620,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   
-  @objc public func setPadding(_ left: Float,_ right:Float, _ top: Float,_ bottom: Float) {
+  @objc public func setPadding(_ left: Float,_ top:Float, _ right: Float,_ bottom: Float) {
     node.style.padding = MasonRect(
-      MasonLengthPercentage.Points(left),
-      MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
-      MasonLengthPercentage.Points(bottom)
+      MasonLengthPercentage.Points(right),
+      MasonLengthPercentage.Points(bottom),
+      MasonLengthPercentage.Points(left)
     )
   }
   
@@ -596,10 +672,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setBorderWidth(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
     style.borderWidth = MasonRect(
-      MasonLengthPercentage.Points(left),
-      MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
-      MasonLengthPercentage.Points(bottom)
+      MasonLengthPercentage.Points(right),
+      MasonLengthPercentage.Points(bottom),
+      MasonLengthPercentage.Points(left)
     )
   }
   
@@ -645,10 +721,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {
     node.style.margin = MasonRect(
-      MasonLengthPercentageAuto.Points(left),
-      MasonLengthPercentageAuto.Points(right),
       MasonLengthPercentageAuto.Points(top),
-      MasonLengthPercentageAuto.Points(bottom)
+      MasonLengthPercentageAuto.Points(right),
+      MasonLengthPercentageAuto.Points(bottom),
+      MasonLengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -695,10 +771,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   @objc public func setInset(_ left: Float,_  top: Float, _ right: Float,_  bottom: Float) {
     node.style.inset = MasonRect(
-      MasonLengthPercentageAuto.Points(left),
-      MasonLengthPercentageAuto.Points(right),
       MasonLengthPercentageAuto.Points(top),
-      MasonLengthPercentageAuto.Points(bottom)
+      MasonLengthPercentageAuto.Points(right),
+      MasonLengthPercentageAuto.Points(bottom),
+      MasonLengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }

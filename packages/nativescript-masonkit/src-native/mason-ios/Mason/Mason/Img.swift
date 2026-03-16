@@ -56,6 +56,7 @@ public class MasonImageLayer: CALayer {
   let contentsLayer = CALayer()
 
   private func setup(){
+    masksToBounds = true
     contentsLayer.contentsGravity = .resizeAspectFill
     contentsLayer.contentsScale = UIScreen.main.scale
     addSublayer(contentsLayer)
@@ -99,7 +100,8 @@ public class MasonImageLayer: CALayer {
 //    }
     
     view.style.mBackground.draw(on: self, in: context, rect: bounds)
-    
+    view.style.applyResolvedFilter(in: context, rect: bounds, view: view)
+
     /*
     let imageSize = CGSize(width: image.size.width * 3, height: image.size.height * 3)
     let viewSize = bounds.size
@@ -201,6 +203,7 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   public var style: MasonStyle {
     return node.style
   }
+  
   
   public var didLayout: (() -> Void)?
   
@@ -338,10 +341,15 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   }
   
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
+  }
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-  
+
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
     if let known = known {

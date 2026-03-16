@@ -429,6 +429,8 @@ declare class NSObject implements NSObjectProtocol {
 	 */
 	isAccessibilityElementBlock: () => boolean;
 
+	mason_innerHTML: string;
+
 	observationInfo: interop.Pointer | interop.Reference<any>;
 
 	/**
@@ -717,7 +719,7 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_requestLayout(): void;
 
-	mason_syncStyle(state: string, textState: string): void;
+	mason_syncStyle(low: string, high: string): void;
 
 	methodForSelector(aSelector: string): interop.FunctionReference<() => void>;
 
@@ -854,9 +856,9 @@ declare class NSObject implements NSObjectProtocol {
 	 */
 	unableToSetNilForKey(key: string): void;
 
-	validateValueForKeyError(ioValue: interop.Pointer | interop.Reference<any>, inKey: string): boolean;
+	validateValueForKeyError(ioValue: interop.Pointer | interop.Reference<any>, inKey: string, error?: interop.Reference<NSError>): boolean;
 
-	validateValueForKeyPathError(ioValue: interop.Pointer | interop.Reference<any>, inKeyPath: string): boolean;
+	validateValueForKeyPathError(ioValue: interop.Pointer | interop.Reference<any>, inKeyPath: string, error?: interop.Reference<NSError>): boolean;
 
 	valueForKey(key: string): any;
 

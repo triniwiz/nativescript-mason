@@ -7,6 +7,7 @@ export default {
   android: {
     v8Flags: '--expose_gc',
     markingMode: 'none',
+    maxLogcatObjectSize: 4092,
   },
   tailwind: {
     autoload: true,

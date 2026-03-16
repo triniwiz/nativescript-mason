@@ -1,10 +1,4 @@
-use crate::style::utils::{
-    dimension_from_type_value, dimension_to_type_value, get_style_data_bool, get_style_data_f32,
-    get_style_data_i8, get_style_data_u8, length_percentage_auto_from_type_value,
-    length_percentage_auto_to_type_value, length_percentage_from_type_value,
-    length_percentage_to_type_value, set_style_data_bool, set_style_data_f32, set_style_data_i8,
-    set_style_data_u8,
-};
+use crate::style::utils::{dimension_from_type_value, dimension_to_type_value, get_style_data_bool, get_style_data_f32, get_style_data_i8, get_style_data_u8, length_percentage_auto_from_type_value, length_percentage_auto_to_type_value, length_percentage_from_type_value, length_percentage_to_type_value, set_style_data_bool, set_style_data_f32, set_style_data_i32, set_style_data_i8, set_style_data_u32, set_style_data_u8};
 use crate::utils::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
     align_self_from_enum, align_self_to_enum, boxing_size_from_enum, boxing_size_to_enum,
@@ -477,7 +471,7 @@ pub enum StyleKeys {
     GRID_ROW_END_TYPE = 166,
     GRID_ROW_END_VALUE = 167, // float (4 bytes: 167-170)
     SCROLLBAR_WIDTH = 171,    // float (4 bytes: 171-174)
-    TEXT_ALIGN = 175,
+    ALIGN = 175,
     BOX_SIZING = 176,
     OVERFLOW = 177,
     ITEM_IS_TABLE = 178,
@@ -575,58 +569,136 @@ pub enum StyleKeys {
     LIST_STYLE_POSITION_STATE = 318,
     LIST_STYLE_TYPE_STATE = 319,
     REF_COUNT = 320, // (4 bytes: 320- 324)
+
+    // Text-related fields
+    FONT_COLOR = 324,                 // u32 (4 bytes: 324-327)
+    FONT_COLOR_STATE = 328,           // u8
+    FONT_SIZE = 329,                  // i32 (4 bytes: 329-332)
+    FONT_SIZE_TYPE = 333,             // u8
+    FONT_SIZE_STATE = 334,            // u8
+    FONT_WEIGHT = 335,                // i32 (4 bytes: 335-338)
+    FONT_WEIGHT_STATE = 339,          // u8
+    FONT_STYLE_SLANT = 340,           // i32 (4 bytes: 340-343)
+    FONT_STYLE_TYPE = 344,            // u8
+    FONT_STYLE_STATE = 345,           // u8
+    FONT_FAMILY_STATE = 346,          // u8
+    FONT_RESOLVED_DIRTY = 347,        // u8
+    BACKGROUND_COLOR = 348,           // i32 (4 bytes: 348-351)
+    BACKGROUND_COLOR_STATE = 352,     // u8
+    BACKGROUND_COLOR_TYPE = 353,      // u8
+    DECORATION_LINE = 354,            // u8
+    DECORATION_LINE_STATE = 355,      // u8
+    DECORATION_COLOR = 356,           // i32 (4 bytes: 356-359)
+    DECORATION_COLOR_STATE = 360,     // u8
+    DECORATION_STYLE = 361,           // u8
+    DECORATION_STYLE_STATE = 362,     // u8
+    LETTER_SPACING = 363,             // i32 (4 bytes: 363-366)
+    LETTER_SPACING_STATE = 367,       // u8
+    TEXT_WRAP = 368,                  // u8
+    TEXT_WRAP_STATE = 369,            // u8
+    WHITE_SPACE = 370,                // u8
+    WHITE_SPACE_STATE = 371,          // u8
+    TEXT_TRANSFORM = 372,             // u8
+    TEXT_TRANSFORM_STATE = 373,       // u8
+    TEXT_ALIGN = 374,                 // u8
+    TEXT_ALIGN_STATE = 375,           // u8
+    TEXT_JUSTIFY = 376,               // u8
+    TEXT_JUSTIFY_STATE = 377,         // u8
+    TEXT_INDENT = 378,                // i32 (4 bytes: 378-381)
+    TEXT_INDENT_TYPE = 382,           // u8
+    TEXT_INDENT_STATE = 383,          // u8
+    LINE_HEIGHT = 384,                // i32 (4 bytes: 384-387)
+    LINE_HEIGHT_STATE = 388,          // u8
+    LINE_HEIGHT_TYPE = 389,           // u8
+    DECORATION_THICKNESS = 390,       // i32 (4 bytes: 390-393)
+    DECORATION_THICKNESS_STATE = 394, // u8
+    TEXT_SHADOW_STATE = 395,          // u8
+    TEXT_OVERFLOW = 396,              // u8
+    TEXT_OVERFLOW_STATE = 397,        // u8
+
+    // Pseudo set mask: 128-bit bitmask (two i64s) tracking which properties
+    // were explicitly set on a pseudo style buffer. Uses the same bit layout
+    // as StateKeys. Zero-copy: lives in the style buffer itself.
+    PSEUDO_SET_MASK_LOW = 398,        // i64 (8 bytes: 398-405)
+    PSEUDO_SET_MASK_HIGH = 406,       // i64 (8 bytes: 406-413)
 }
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct StateKeys: u64 {
-        const DISPLAY         = 1 << 0;
-        const POSITION        = 1 << 1;
-        const DIRECTION       = 1 << 2;
-        const FLEX_DIRECTION  = 1 << 3;
-        const FLEX_WRAP       = 1 << 4;
-        const OVERFLOW_X      = 1 << 5;
-        const OVERFLOW_Y      = 1 << 6;
-        const ALIGN_ITEMS     = 1 << 7;
-        const ALIGN_SELF      = 1 << 8;
-        const ALIGN_CONTENT   = 1 << 9;
-        const JUSTIFY_ITEMS   = 1 << 10;
-        const JUSTIFY_SELF    = 1 << 11;
-        const JUSTIFY_CONTENT = 1 << 12;
-        const INSET           = 1 << 13;
-        const MARGIN          = 1 << 14;
-        const PADDING         = 1 << 15;
-        const BORDER          = 1 << 16;
-        const FLEX_GROW       = 1 << 17;
-        const FLEX_SHRINK     = 1 << 18;
-        const FLEX_BASIS      = 1 << 19;
-        const SIZE            = 1 << 20;
-        const MIN_SIZE        = 1 << 21;
-        const MAX_SIZE        = 1 << 22;
-        const GAP             = 1 << 23;
-        const ASPECT_RATIO    = 1 << 24;
-        const GRID_AUTO_FLOW  = 1 << 25;
-        const GRID_COLUMN     = 1 << 26;
-        const GRID_ROW        = 1 << 27;
-        const SCROLLBAR_WIDTH = 1 << 28;
-        const TEXT_ALIGN      = 1 << 29;
-        const BOX_SIZING      = 1 << 30;
-        const OVERFLOW        = 1 << 31;
-        const ITEM_IS_TABLE   = 1 << 32;
-        const ITEM_IS_REPLACED = 1 << 33;
-        const DISPLAY_MODE   = 1 << 34;
-        const FORCE_INLINE = 1 << 35;
-        const MIN_CONTENT_WIDTH = 1 << 36;
-        const MIN_CONTENT_HEIGHT = 1 << 37;
-        const MAX_CONTENT_WIDTH = 1 << 38;
-        const MAX_CONTENT_HEIGHT = 1 << 39;
-        const BORDER_STYLE    = 1 << 40;
-        const BORDER_RADIUS    = 1 << 41;
-        const BORDER_COLOR    = 1 << 42;
-        const FLOAT = 1 << 43;
-        const CLEAR = 1 << 44;
-        const OBJECT_FIT = 1 << 45;
-        const VERTICAL_ALIGN = 1 << 46;
+    pub struct StateKeys: u128 {
+        const DISPLAY         = 1u128 << 0;
+        const POSITION        = 1u128 << 1;
+        const DIRECTION       = 1u128 << 2;
+        const FLEX_DIRECTION  = 1u128 << 3;
+        const FLEX_WRAP       = 1u128 << 4;
+        const OVERFLOW_X      = 1u128 << 5;
+        const OVERFLOW_Y      = 1u128 << 6;
+        const ALIGN_ITEMS     = 1u128 << 7;
+        const ALIGN_SELF      = 1u128 << 8;
+        const ALIGN_CONTENT   = 1u128 << 9;
+        const JUSTIFY_ITEMS   = 1u128 << 10;
+        const JUSTIFY_SELF    = 1u128 << 11;
+        const JUSTIFY_CONTENT = 1u128 << 12;
+        const INSET           = 1u128 << 13;
+        const MARGIN          = 1u128 << 14;
+        const PADDING         = 1u128 << 15;
+        const BORDER          = 1u128 << 16;
+        const FLEX_GROW       = 1u128 << 17;
+        const FLEX_SHRINK     = 1u128 << 18;
+        const FLEX_BASIS      = 1u128 << 19;
+        const SIZE            = 1u128 << 20;
+        const MIN_SIZE        = 1u128 << 21;
+        const MAX_SIZE        = 1u128 << 22;
+        const GAP             = 1u128 << 23;
+        const ASPECT_RATIO    = 1u128 << 24;
+        const GRID_AUTO_FLOW  = 1u128 << 25;
+        const GRID_COLUMN     = 1u128 << 26;
+        const GRID_ROW        = 1u128 << 27;
+        const SCROLLBAR_WIDTH = 1u128 << 28;
+        const ALIGN           = 1u128 << 29;
+        const BOX_SIZING      = 1u128 << 30;
+        const OVERFLOW        = 1u128 << 31;
+        const ITEM_IS_TABLE   = 1u128 << 32;
+        const ITEM_IS_REPLACED = 1u128 << 33;
+        const DISPLAY_MODE   = 1u128 << 34;
+        const FORCE_INLINE = 1u128 << 35;
+        const MIN_CONTENT_WIDTH = 1u128 << 36;
+        const MIN_CONTENT_HEIGHT = 1u128 << 37;
+        const MAX_CONTENT_WIDTH = 1u128 << 38;
+        const MAX_CONTENT_HEIGHT = 1u128 << 39;
+        const BORDER_STYLE    = 1u128 << 40;
+        const BORDER_RADIUS    = 1u128 << 41;
+        const BORDER_COLOR    = 1u128 << 42;
+        const FLOAT = 1u128 << 43;
+        const CLEAR = 1u128 << 44;
+        const OBJECT_FIT = 1u128 << 45;
+        const Z_INDEX = 1u128 << 46;
+        const LIST_STYLE_POSITION = 1u128 << 47;
+        const LIST_STYLE_TYPE = 1u128 << 48;
+        const _RESERVED_49 = 1u128 << 49;
+
+        const FONT_COLOR = 1u128 << 50;
+        const DECORATION_LINE = 1u128 << 51;
+        const DECORATION_COLOR = 1u128 << 52;
+        const TEXT_ALIGN = 1u128 << 53;
+        const TEXT_JUSTIFY = 1u128 << 54;
+        const BACKGROUND_COLOR = 1u128 << 55;
+
+        const FONT_SIZE = 1u128 << 56;
+        const TEXT_TRANSFORM = 1u128 << 57;
+        const FONT_STYLE = 1u128 << 58;
+        const FONT_STYLE_SLANT = 1u128 << 59;
+        const TEXT_WRAP = 1u128 << 60;
+        const TEXT_OVERFLOW = 1u128 << 61;
+        const DECORATION_STYLE = 1u128 << 62;
+        const WHITE_SPACE = 1u128 << 63;
+        const FONT_WEIGHT = 1u128 << 64;
+        const LINE_HEIGHT = 1u128 << 65;
+        const VERTICAL_ALIGN_TEXT = 1u128 << 66;
+        const DECORATION_THICKNESS = 1u128 << 67;
+        const TEXT_SHADOWS = 1u128 << 68;
+        const FONT_FAMILY = 1u128 << 69;
+        const LETTER_SPACING = 1u128 << 70;
     }
 }
 
@@ -691,6 +763,9 @@ impl Drop for Style {
     }
 }
 
+const DEFAULT_FONT_SIZE: i32 = 16;
+const UNSET_COLOR: u32 = 0xDEADBEEF;
+
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl Style {
     pub fn prepare_mut(&mut self) {
@@ -725,6 +800,27 @@ impl Style {
 
     pub(crate) fn init_default_data(buffer: &mut [u8]) {
         buffer[StyleKeys::LIST_STYLE_TYPE as usize] = 2;
+
+        set_style_data_i32(
+            buffer, StyleKeys::FONT_WEIGHT, 400 // normal
+        );
+
+        set_style_data_i32(
+            buffer, StyleKeys::FONT_SIZE, DEFAULT_FONT_SIZE
+        );
+
+        set_style_data_u32(
+            buffer, StyleKeys::FONT_COLOR, 0xFF000000
+        );
+
+        set_style_data_u32(
+            buffer, StyleKeys::BACKGROUND_COLOR, 0
+        );
+
+        set_style_data_u32(
+            buffer, StyleKeys::DECORATION_COLOR, UNSET_COLOR
+        );
+
 
         {
             set_style_data_f32(buffer, StyleKeys::ASPECT_RATIO, f32::NAN);
@@ -798,6 +894,10 @@ impl Style {
         int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize] = 0;
 
         int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize] = 0;
+
+        int_slice[StyleKeys::TEXT_ALIGN as usize] = 5; // start
+
+        int_slice[StyleKeys::TEXT_JUSTIFY as usize] = -1; // none
     }
 
     pub fn new(arena: *mut StyleArena) -> Self {
@@ -807,6 +907,7 @@ impl Style {
 
     pub fn new_with_handle(arena: *mut StyleArena, handle: StyleHandle) -> Self {
         let arena = unsafe { &mut *arena };
+        arena.retain(handle);
         let raw = arena.get_ptr_mut(handle);
         Self {
             arena,
@@ -836,12 +937,52 @@ impl Style {
     /// Get font metrics
     pub fn font_metrics(&self) -> FontMetrics {
         let data = self.data();
+
+        // Read raw values
+        let mut ascent = get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET);
+        let mut descent = get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET);
+        let mut x_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET);
+        let mut leading = get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET);
+        let mut cap_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET);
+
+        // Defensive sanitization: normalize sign and replace NaN / extremely-small values
+        const EPS: f32 = 1e-6;
+
+        if ascent.is_nan() || ascent.abs() < EPS {
+            log::warn!("sanitizing font_metrics.ascent raw_bits=0x{:08x} raw_val={:?}", ascent.to_bits(), ascent);
+            ascent = FontMetrics::DEFAULT.ascent;
+        }
+        // Android font ascent may be negative; keep ascent positive for layout math
+        if ascent <= 0.0 {
+            ascent = ascent.abs();
+        }
+
+        if descent.is_nan() || descent < 0.0 || descent.abs() < EPS {
+            log::warn!("sanitizing font_metrics.descent raw_bits=0x{:08x} raw_val={:?}", descent.to_bits(), descent);
+            descent = FontMetrics::DEFAULT.descent;
+        }
+
+        if x_height.is_nan() || x_height.abs() < EPS {
+            log::warn!("sanitizing font_metrics.x_height raw_bits=0x{:08x} raw_val={:?}", x_height.to_bits(), x_height);
+            x_height = FontMetrics::DEFAULT.x_height;
+        }
+
+        if leading.is_nan() || leading.abs() < EPS {
+            // allow leading to be zero
+            leading = FontMetrics::DEFAULT.leading;
+        }
+
+        if cap_height.is_nan() || cap_height.abs() < EPS {
+            log::warn!("sanitizing font_metrics.cap_height raw_bits=0x{:08x} raw_val={:?}", cap_height.to_bits(), cap_height);
+            cap_height = FontMetrics::DEFAULT.cap_height;
+        }
+
         FontMetrics {
-            ascent: get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET),
-            descent: get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET),
-            x_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET),
-            leading: get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET),
-            cap_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET),
+            ascent,
+            descent,
+            x_height,
+            leading,
+            cap_height,
         }
     }
 
@@ -1159,7 +1300,6 @@ impl Style {
     pub fn set_display(&mut self, value: Display) {
         self.prepare_mut();
         set_style_data_i8(self.data_mut(), StyleKeys::DISPLAY, display_to_enum(value));
-        set_style_data_i8(self.data_mut(), StyleKeys::DISPLAY_MODE, 0);
     }
 
     pub fn get_item_is_table(&self) -> bool {
@@ -1816,14 +1956,14 @@ impl Style {
     }
 
     pub fn get_text_align(&self) -> TextAlign {
-        text_align_from_enum(get_style_data_i8(self.data(), StyleKeys::TEXT_ALIGN)).unwrap()
+        text_align_from_enum(get_style_data_i8(self.data(), StyleKeys::ALIGN)).unwrap()
     }
 
     pub fn set_text_align(&mut self, value: TextAlign) {
         self.prepare_mut();
         set_style_data_i8(
             self.data_mut(),
-            StyleKeys::TEXT_ALIGN,
+            StyleKeys::ALIGN,
             text_align_to_enum(value),
         )
     }

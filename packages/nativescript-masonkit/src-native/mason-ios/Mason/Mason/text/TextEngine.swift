@@ -44,7 +44,7 @@ private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
 public protocol TextContainer: NSObjectProtocol {
   var engine: TextEngine { get }
   var node: MasonNode { get }
-  func onTextStyleChanged(change: Int64)
+  func onStyleChange(_ low: UInt64, _ high: UInt64)
 }
 
 extension TextContainer {
@@ -52,8 +52,12 @@ extension TextContainer {
     return node.getDefaultAttributes()
   }
   
-  public func onTextStyleChanged(change: Int64){
-    engine.onTextStyleChanged(change: change)
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    engine.onStyleChange(low, high)
+  }
+  
+  internal func onStyleChange(_ state: StateKeys) {
+    engine.onStyleChange(state.low, state.high)
   }
 }
 
@@ -78,15 +82,12 @@ public class TextEngine: NSObject {
   }
   
   internal func handlePressDown() {
-    style.mBackground.isActive = true
   }
-  
+
   internal func handlePressUp() {
-    style.mBackground.isActive = false
   }
-  
+
   internal func handlePressCancel() {
-    style.mBackground.isActive = false
   }
   
   /// Text content - sets or gets the concatenated text from all text nodes
@@ -133,32 +134,32 @@ public class TextEngine: NSObject {
       }
     }
   }
-  
-  func onTextStyleChanged(change: Int64) {
-    let change = TextStyleChangeMasks(rawValue: change)
+
+
+  func onStyleChange(low: UInt64, high: UInt64) {
+    let state = StateKeys(low: low, high: high)
+
+
     var dirty = false
     var layout = false
-    if (change.contains(.color)) {
+
+    if (state.contains(.color)) {
       dirty = true
     }
-    
-    if (change.contains(.fontSize)) {
+
+    if (state.contains(.fontSize)) {
       layout = true
       dirty = true
     }
-    
-    if (change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)) {
+
+    if (state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily) || state.contains(.fontVariantNumeric)) {
       dirty = true
     }
-    
-    
-    if (
-      change.contains(.verticalAlign) || change.contains(.textWrap) || change.contains(.whiteSpace) || change.contains(.textTransform) || change.contains(.decorationLine) || change.contains(.decorationColor) || change.contains(.decorationStyle) || change.contains(.letterSpacing) || change.contains(.textJustify) || change.contains(.backgroundColor) || change.contains(.lineHeight)
-    ) {
+
+    if (state.contains(.verticalAlign) || state.contains(.verticalAlign) || state.contains(.textWrap) || state.contains(.textWrap) || state.contains(.whiteSpace) || state.contains(.whiteSpace) || state.contains(.textTransform) || state.contains(.textTransform) || state.contains(.decorationLine) || state.contains(.decorationLine) || state.contains(.decorationColor) || state.contains(.decorationColor) || state.contains(.decorationStyle) || state.contains(.decorationStyle) || state.contains(.letterSpacing) || state.contains(.letterSpacing) || state.contains(.textJustify) || state.contains(.textJustify) || state.contains(.backgroundColor) || state.contains(.backgroundColor) || state.contains(.lineHeight) || state.contains(.lineHeight)) {
       dirty = true
     }
-    
-    
+
     if (dirty) {
       updateStyleOnTextNodes()
       invalidateInlineSegments()
@@ -167,10 +168,15 @@ public class TextEngine: NSObject {
           node.layoutParent?.markDirty()
         }
         (node.view as? MasonElement)?.invalidateLayout()
-      }else {
+      } else {
         invalidate()
       }
     }
+  }
+
+
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    onStyleChange(low: low, high: high)
   }
   
   
@@ -267,23 +273,65 @@ public class TextEngine: NSObject {
       }
     }
     
-    // Create framesetter and frame to collect segments
+    // Create framesetter
     let framesetter = CTFramesetterCreateWithAttributedString(text)
-    
-    let constraintSize = CGSize(width: maxWidth, height: maxHeight)
-    let path = CGPath(rect: CGRect(origin: .zero, size: constraintSize), transform: nil)
-    
-    let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
-    
-    // Now calculate the size
-    // todo handle Float
-    var size = CTFramesetterSuggestFrameSizeWithConstraints(
+
+    var constraintSize = CGSize(width: maxWidth, height: maxHeight)
+    // Avoid passing infinite height to CoreText framesetter — use a large finite fallback.
+    if !constraintSize.height.isFinite || constraintSize.height > 1_000_000 {
+      if available.height.isFinite && available.height > 0 {
+        constraintSize.height = available.height / CGFloat(NSCMason.scale)
+      } else {
+        constraintSize.height = 10000.0
+      }
+    }
+
+    // First get the suggested size from CoreText using our constraints so we can build
+    // the exclusion path with the same height CT will actually use. This prevents
+    // mismatch where measurement used a huge outer rect while draw used a tight height.
+    var suggested = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
       CFRangeMake(0, text.length),
       nil,
       constraintSize,
       nil
     )
+    if !suggested.height.isFinite || suggested.height <= 0 {
+      // Fallback to provided constraint or a reasonable default
+      suggested.height = min(constraintSize.height, 10000.0)
+    }
+
+    let scale = CGFloat(NSCMason.scale)
+    // Build exclusion path including floated native views returned by the engine
+    // Use a frame-local outer rect (origin at zero) so rects from the engine (top-based)
+    // can be appended directly without an extra flip.
+    let outerRect = CGRect(origin: .zero, size: CGSize(width: constraintSize.width, height: suggested.height))
+    let bezier = UIBezierPath(rect: outerRect)
+    bezier.usesEvenOddFillRule = true
+    let containerNode = engine.node.parent ?? engine.node
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode)
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
+    if floatEntries.count > 0 {
+      for (_, rectLogical) in floatEntries {
+        // Convert engine px -> points. Engine Y is top-based; use it directly in
+        // the frame-local coordinates so the exclusion rect aligns with the native view.
+        let rectW = rectLogical.width / scale
+        let rectH = rectLogical.height / scale
+        let rectX = rectLogical.origin.x / scale
+        let rectY = rectLogical.origin.y / scale
+        // Convert from container-local points to this text-view-local coordinates
+        let rectForPath = CGRect(x: rectX - textViewOffset.x, y: rectY - textViewOffset.y, width: rectW, height: rectH)
+        bezier.append(UIBezierPath(rect: rectForPath))
+      }
+    }
+    let path = bezier.cgPath
+
+    // Create final frame using the path built with the CT-suggested height
+    let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
+
+    // Now calculate the size (use suggested which matches the path height)
+    var size = suggested
     
     if text.length > 0 && size.width <= 0 {
       let line = CTLineCreateWithAttributedString(text)
@@ -297,12 +345,10 @@ public class TextEngine: NSObject {
     }
     
     
-    
     // IMPORTANT: Collect and push segments to Rust BEFORE returning size
     engine.collectAndCacheSegments(from: frame, constraintSize)
     
     
-    let scale = CGFloat(NSCMason.scale)
     if(!isInLine && maxWidth < CGFloat.greatestFiniteMagnitude && maxWidth != .greatestFiniteMagnitude){
       size.width = (maxWidth * scale).rounded(.up)
     }else {
@@ -359,32 +405,63 @@ public class TextEngine: NSObject {
   /// Decide whether to flatten a nested text container or treat it as inline-block
   internal func shouldFlattenTextContainer(_ container: TextContainer) -> Bool {
     let style = container.node.style
-    
+
     // If style is not initialized, flatten by default
     guard style.isValueInitialized else {
       return true
     }
     
     // Check for view-like properties that require inline-block behavior
-    let hasBackground =  container.node.style.backgroundColor != 0 || container.node.view?.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
-    
+    let hasBackground: Bool = {
+      // Consider CSS `background` (string) as a visual background too
+      let bgString = container.node.style.background.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !bgString.isEmpty { return true }
+
+      if container.node.style.backgroundColor != 0 { return true }
+      if let alpha = container.node.view?.backgroundColor?.cgColor.alpha, alpha > 0 { return true }
+      return false
+    }()
+
     let border = style.mBorderRender
-    let hasBorder = border.top.width.value > 0.0 || border.right.width.value > 0.0 ||
-    border.bottom.width.value > 0.0 || border.left.width.value > 0.0
-    
+    // Check configured per-side widths (shorthand parsing sets these)
+    let hasBorder = border.top.width.value > 0.0 || border.right.width.value > 0.0 || border.bottom.width.value > 0.0 || border.left.width.value > 0.0
+
     let padding = style.padding
-    let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 ||
-    padding.bottom.value > 0.0 || padding.left.value > 0.0
-    
-    
+    let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 || padding.bottom.value > 0.0 || padding.left.value > 0.0
+
     let size = style.size
     let hasExplicitSize = size.width != .Auto || size.height != .Auto
-    
-    // If it has any view properties, treat as inline-block
+
+    // Special-case Blockquote: allow flattening when it's safe to render as an inline left-bar
+    if let tv = container as? MasonText, tv.type == .Blockquote {
+      // If only the LEFT border is present and there is no background/padding/explicit size,
+      // it's safe to flatten and draw a left-bar inline (matches web shorthand like "0 0 0 3px").
+      let hasBorderOtherThanLeft = border.top.width.value > 0.0 || border.right.width.value > 0.0 || border.bottom.width.value > 0.0
+      let leftOnlyBorder = border.left.width.value > 0.0 && !hasBorderOtherThanLeft
+
+      if leftOnlyBorder && !(hasBackground || hasPadding || hasExplicitSize) {
+        return true
+      }
+
+      // If any other view-like properties that affect layout or clipping are present, do NOT flatten
+      if hasBackground || hasPadding || hasExplicitSize || style.mBorderRender.hasRadii() {
+        return false
+      }
+
+      // If there are borders on any side other than left, avoid flattening (we'd lose those borders)
+      if hasBorderOtherThanLeft {
+        return false
+      }
+
+      // Otherwise flatten (left-border will be drawn inline by the text layer)
+      return true
+    }
+
+    // For general containers: if it has any view properties, treat as inline-block
     if hasBackground || hasBorder || hasPadding || hasExplicitSize {
       return false
     }
-    
+
     // Only has text properties: flatten it
     return true
   }
@@ -392,6 +469,14 @@ public class TextEngine: NSObject {
   
   /// Create placeholder attributed string for inline child
   private func createPlaceholder(for child: MasonNode) -> NSAttributedString {
+    // If this child is floated, we do not insert an inline placeholder
+    // — floated elements are positioned as native views and excluded via
+    // CoreText exclusion paths, so they should not participate as inline
+    // attachments in the attributed string.
+    if child.style.float != .None {
+      return NSAttributedString(string: "")
+    }
+
     guard let childView = child.view else {
       return NSAttributedString(string: "")
     }
@@ -472,8 +557,20 @@ public class TextEngine: NSObject {
     var leading: CGFloat = 0
     let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
 
-    let originX = drawBounds.origin.x
-    let baselineOrigin = CGPoint(x: originX, y: drawBounds.origin.y)
+    // Top-align the text (matching CSS block-level behavior): baseline sits ascent distance from the top
+    let baselineY = drawBounds.minY + ascent
+    let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    var horizontalOffset: CGFloat = 0
+    switch style.resolvedTextAlign {
+    case .Center:
+      horizontalOffset = max(0, (drawBounds.width - lineWidth) / 2)
+    case .Right, .End:
+      horizontalOffset = max(0, drawBounds.width - lineWidth)
+    case .Left, .Auto, .Start, .Justify:
+      horizontalOffset = 0
+    }
+    let originX = drawBounds.origin.x + horizontalOffset
+    let baselineOrigin = CGPoint(x: originX, y: baselineY)
 
     var drawLine: CTLine = line
 
@@ -544,6 +641,9 @@ public class TextEngine: NSObject {
       }
     }
 
+    // Draw text decorations (underline, strikethrough) — CTRunDraw doesn't render these
+    drawTextDecorations(for: drawLine, at: baselineOrigin, in: context)
+
     // Draw inline attachments
     drawInlineAttachments(
       for: drawLine,
@@ -585,6 +685,86 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Manually draws text decorations (underline, strikethrough) for a CTLine.
+  /// CTRunDraw does not render decorations — only CTLineDraw does — but we can't
+  /// use CTLineDraw because we need to skip placeholder / BrSpan runs.
+  private func drawTextDecorations(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
+    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+    for run in runs {
+      guard let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+      if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+
+      let underlineStyleValue = attrs[.underlineStyle] as? Int ?? 0
+      let strikethruStyleValue = attrs[.strikethroughStyle] as? Int ?? 0
+
+      guard underlineStyleValue != 0 || strikethruStyleValue != 0 else { continue }
+
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      var leading: CGFloat = 0
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, &leading))
+      guard width > 0 else { continue }
+
+      var runPosition = CGPoint.zero
+      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+      let x = lineOrigin.x + runPosition.x
+
+      // Try to get font for metrics
+      let ctFont: CTFont? = {
+        guard let f = attrs[.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() else { return nil }
+        return (f as! CTFont)
+      }()
+
+      if underlineStyleValue != 0 {
+        let color: CGColor
+        if let ulColor = attrs[.underlineColor] as? UIColor {
+          color = ulColor.cgColor
+        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
+          color = fgColor.cgColor
+        } else {
+          color = UIColor.black.cgColor
+        }
+
+        let thickness: CGFloat
+        let y: CGFloat
+        if let font = ctFont {
+          thickness = max(CTFontGetUnderlineThickness(font), 0.5)
+          // underlinePosition is negative in CoreText (below baseline)
+          y = lineOrigin.y + CTFontGetUnderlinePosition(font)
+        } else {
+          thickness = 1.0
+          y = lineOrigin.y - descent * 0.3
+        }
+
+        context.saveGState()
+        context.setFillColor(color)
+        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
+        context.restoreGState()
+      }
+
+      if strikethruStyleValue != 0 {
+        let color: CGColor
+        if let stColor = attrs[.strikethroughColor] as? UIColor {
+          color = stColor.cgColor
+        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
+          color = fgColor.cgColor
+        } else {
+          color = UIColor.black.cgColor
+        }
+
+        let thickness: CGFloat = ctFont != nil ? max(CTFontGetUnderlineThickness(ctFont!), 0.5) : 1.0
+        let xHeight: CGFloat = ctFont != nil ? CTFontGetXHeight(ctFont!) : ascent * 0.5
+        let y = lineOrigin.y + xHeight / 2
+
+        context.saveGState()
+        context.setFillColor(color)
+        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
+        context.restoreGState()
+      }
+    }
+  }
+  
   
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
@@ -617,14 +797,68 @@ public class TextEngine: NSObject {
       nil
     )
 
+    // Top-align text (matching CSS block-level behavior): no vertical offset
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
       width: drawBounds.width,
-      height: max(drawBounds.height, suggestedSize.height)
+      height: suggestedSize.height
     )
 
-    let path = CGPath(rect: layoutBounds, transform: nil)
+    // Build exclusion path in layout-local coordinates (origin at zero).
+    // We'll flip Y so CoreText's frame-coordinate space matches the engine's top-based Y.
+    let localOuter = CGRect(origin: .zero, size: layoutBounds.size)
+    var bezier = UIBezierPath(rect: localOuter)
+    bezier.usesEvenOddFillRule = true
+    let containerNode = node.parent ?? node
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
+    let scale = CGFloat(NSCMason.scale)
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
+    if floatEntries.count > 0 {
+      for (nodePtr, rectLogical) in floatEntries {
+        // Prefer using the actual child view frame if the native view exists
+        // so exclusion holes exactly match placed native views. Fallback to
+        // engine rect conversion otherwise.
+        var rectForPath: CGRect
+        if let np = nodePtr, let matched = containerNode.children.first(where: { $0.nativePtr == np }), let v = matched.view {
+          // v.frame is already positioned relative to this text view (we
+          // subtract offsets when placing the view). Use it directly and
+          // flip Y into CT frame coordinates.
+          let vf = v.frame
+          rectForPath = CGRect(x: vf.origin.x, y: localOuter.height - (vf.origin.y + vf.size.height), width: vf.size.width, height: vf.size.height)
+        } else {
+          // Convert engine px -> points and flip Y for CoreText frame coordinates
+          let rectW = rectLogical.width / scale
+          let rectH = rectLogical.height / scale
+          let rectX = rectLogical.origin.x / scale
+          let flippedY = localOuter.height - ((rectLogical.origin.y + rectLogical.height) / scale)
+          // Convert from container-local points to this text-view-local coordinates
+          // Subtract layout origin to account for any left padding/inset applied to drawBounds
+          rectForPath = CGRect(x: rectX - textViewOffset.x - layoutBounds.origin.x, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
+        }
+        bezier.append(UIBezierPath(rect: rectForPath))
+      }
+    }
+    let path = bezier.cgPath
+
+    // DEBUG: visualize exclusion path (even-odd fill + stroke) so holes appear transparent
+    #if DEBUG_EXCLUSION_PATH
+    do {
+      context.saveGState()
+      // Translate to layout origin so overlay aligns with onscreen coordinates
+      context.translateBy(x: layoutBounds.origin.x, y: layoutBounds.origin.y)
+      context.setAlpha(0.35)
+      context.setFillColor(UIColor.systemPurple.withAlphaComponent(0.2).cgColor)
+      context.setStrokeColor(UIColor.red.cgColor)
+      context.setLineWidth(1.5)
+      context.addPath(path)
+      // Use even-odd fill rule so appended rects become holes
+      context.drawPath(using: .eoFillStroke)
+      context.restoreGState()
+    }
+    #endif
+
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
 
     context.saveGState()
@@ -643,7 +877,6 @@ public class TextEngine: NSObject {
         for i in 0..<linesCount {
           let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
           let lineOrigin = origins[i]
-          let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
           let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
           // Compute horizontal offset based on resolved text alignment
           var horizontalOffset: CGFloat = 0
@@ -655,7 +888,7 @@ public class TextEngine: NSObject {
           case .Left, .Auto, .Start, .Justify:
             horizontalOffset = 0
           }
-          let textPos = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
+          let textPos = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + layoutBounds.origin.y)
           context.saveGState()
           context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
           
@@ -679,7 +912,6 @@ public class TextEngine: NSObject {
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
       let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
       var horizontalOffset: CGFloat = 0
       switch style.resolvedTextAlign {
@@ -690,7 +922,7 @@ public class TextEngine: NSObject {
       case .Left, .Auto, .Start, .Justify:
         horizontalOffset = 0
       }
-      context.textPosition = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
+      context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + layoutBounds.origin.y)
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -706,14 +938,17 @@ public class TextEngine: NSObject {
           let isBold = symbolicTraits.contains(.traitBold)
           let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
           if !isBold && weight >= 0.4 {
-            drawRunWithFakeBold(run, in: context, at: CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset))
-          } else {
+              drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + layoutBounds.origin.y))
+            } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
         } else {
           CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
       }
+
+      // Draw text decorations (underline, strikethrough) for this line
+      drawTextDecorations(for: line, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + layoutBounds.origin.y), in: context)
     }
 
     context.restoreGState()
@@ -793,6 +1028,9 @@ public class TextEngine: NSObject {
     // Build attributed string for drawing (uses cache if valid)
     let text = buildAttributedString(forMeasurement: false)
     context.saveGState()
+    #if DEBUG
+    print("[DEBUG] TextEngine.drawText node:\(node.nativePtr) rect:\(rect) frame:\((node.view as? UIView)?.frame ?? .zero) bounds:\((node.view as? UIView)?.bounds ?? .zero)")
+    #endif
     context.textMatrix = .identity
     context.translateBy(x: 0, y: rect.height)
     context.scaleBy(x: 1.0, y: -1.0)
@@ -1052,7 +1290,7 @@ public class TextEngine: NSObject {
             segment.tag = LineBreak
           } else {
             segment.tag = Text
-            segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up))
+            segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up), flags: UInt8(bitPattern: style.resolvedWhiteSpace.rawValue))
           }
 
           segments.append(segment)

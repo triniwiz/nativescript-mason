@@ -39,6 +39,9 @@ class BackgroundLayer {
   var size: (CGFloat, CGFloat)? = nil
   var gradient: Gradient? = nil
   var shader: CGGradient? = nil
+  // remember dimensions used to create cached gradient
+  var shaderWidth: CGFloat = -1
+  var shaderHeight: CGFloat = -1
   var bitmap: UIImage? = nil
   var clip: BackgroundClip = .borderBox
   var backgroundColor: UIColor? = nil
@@ -74,32 +77,30 @@ class Background {
   var color: UIColor? {
     set {
       guard let color = newValue else {
-        style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, 0, text: true)
-        style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT, text: true)
-        style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+        style.prepareMut()
+        style.setUInt32(StyleKeys.BACKGROUND_COLOR, 0)
+        style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
+        style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.INHERIT)
+        style.notifyTextStyleChanged(.backgroundColor)
         return
       }
       
-      
-      style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, color.toUInt32(), text: true)
-      style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
-      style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+      style.prepareMut()
+      style.setUInt32(StyleKeys.BACKGROUND_COLOR, color.toUInt32())
+      style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+      style.setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, StyleState.SET)
+      style.notifyTextStyleChanged(.backgroundColor)
     }
     get {
-      if(style.getUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, text: true) != StyleState.SET){
+      if(style.getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
         return nil
       }
       
-      return UIColor.colorFromARGB(style.getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true))
+      return UIColor.colorFromARGB(style.getUInt32(StyleKeys.BACKGROUND_COLOR))
     }
   }
   var layers: [BackgroundLayer] = []
   unowned let style: MasonStyle
-  internal var isActive: Bool = false {
-    didSet {
-      style.node.view?.setNeedsDisplay()
-    }
-  }
   init(style: MasonStyle) {
     self.style = style
   }
@@ -137,10 +138,11 @@ class Background {
     self.layers = layers
     self.css = css
     
-    
     let newValue = color?.toUInt32() ?? 0
-    style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
-    style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
+    // Ensure we prepare this style for mutation before writing low-level fields.
+    style.prepareMut()
+    style.setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
+    style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
     // change view as well ??
     // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     
@@ -307,7 +309,8 @@ internal let colorMap: [String: UIColor] = [
   "orange": .orange,
   "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
   "pink": UIColor.systemPink,
-  "transparent": .clear
+  "transparent": .clear,
+  "cyan": .cyan
 ]
 
 // MARK: - Top-level splitters
@@ -418,7 +421,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       }
       
       if !cgColors.isEmpty {
-        layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+        layer.shader = CGGradient(colorsSpace: UIColor.deviceCS,
                                   colors: cgColors as CFArray,
                                   locations: locations)
       }

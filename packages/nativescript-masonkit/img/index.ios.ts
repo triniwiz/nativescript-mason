@@ -74,8 +74,9 @@ export class Img extends ImageBase {
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
       if (!this[isMasonView_]) {
-        // only call compute on the parent
-        if (this.width === 'auto' && this.height === 'auto') {
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+
+        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
 
@@ -88,6 +89,8 @@ export class Img extends ImageBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
+          // fallback to max-content when unconstrained or explicit sizes
+          // are provided
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
           // @ts-ignore

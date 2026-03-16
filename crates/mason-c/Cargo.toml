@@ -6,3 +6,5 @@ edition = "2021"
 
 [dependencies]
 mason-core = { path = "../mason-core" }
+once_cell = "1.16.0"
+parking_lot = "0.12.5"

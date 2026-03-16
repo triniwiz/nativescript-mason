@@ -107,7 +107,11 @@ public class MasonLengthPercentagePointCompat: NSObject, Codable{
     }
 }
 
-public struct MasonPoint<T: Codable>: Codable{
+public struct MasonPoint<T: Codable & Equatable>: Codable, Equatable{
+  public static func == (lhs: MasonPoint<T>, rhs: MasonPoint<T>) -> Bool {
+    return lhs.x == rhs.x && lhs.y == rhs.y
+  }
+  
     var x: T
     var y: T
     

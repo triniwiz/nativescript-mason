@@ -35,6 +35,15 @@ private val RGBA_REGEX =
 private val ANGLE_REGEX =
   Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
 
+/**
+ * CSS pseudo-state specificity order.
+ * Later entries override earlier ones when multiple states are active.
+ * Matches CSS spec: :active overrides :focus overrides :hover.
+ */
+internal val PSEUDO_CSS_ORDER = listOf(
+  PseudoState.HOVER, PseudoState.FOCUS, PseudoState.ACTIVE, PseudoState.DISABLED
+)
+
 enum class BackgroundClip {
   BORDER_BOX, PADDING_BOX, CONTENT_BOX
 }
@@ -46,6 +55,12 @@ data class BackgroundLayer(
   var size: Pair<Float, Float>? = null,        // 0..1 fraction or special (cover/contain)
   var gradient: Gradient? = null,
   var shader: Shader? = null,
+  // remember the dimensions used to create `shader`; if the view resizes we
+  // need to invalidate the cache so the gradient scales correctly.  Without
+  // this, a zero‑sized element (common during initial layout) would leave a
+  // degenerate shader that never repaints when the real size arrives.
+  var shaderWidth: Int = -1,
+  var shaderHeight: Int = -1,
   var bitmap: Bitmap? = null,                  // cached image
   var clip: BackgroundClip = BackgroundClip.BORDER_BOX
 )
@@ -56,23 +71,78 @@ class Background(
   var color: Int?
     set(value) {
       if (value == null) {
-        style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
-        style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, 0)
+        style.values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
+        style.values.putInt(StyleKeys.BACKGROUND_COLOR, 0)
+        style.values.putInt(StyleKeys.BACKGROUND_COLOR_TYPE, 0)
         return
       }
 
-      style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
+      style.values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+      style.values.putInt(StyleKeys.BACKGROUND_COLOR, value)
+      style.values.putInt(StyleKeys.BACKGROUND_COLOR_TYPE, 1)
     }
     get() {
-      if (style.textValues.get(TextStyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
-        return null
+      val baseValue: Int? = if (style.values.get(StyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
+        null
+      } else {
+        style.values.getInt(StyleKeys.BACKGROUND_COLOR)
       }
-      return style.textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
+      val mask = style.node.pseudoMask
+      if (mask == 0) return baseValue
+      var result = baseValue
+      for (state in PSEUDO_CSS_ORDER) {
+        if (mask and state.mask != 0) {
+          val buf = style.node.getPseudoBuffer(state.mask)
+          if (buf.capacity() > 0 && buf.get(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.INHERIT) {
+            result = buf.getInt(StyleKeys.BACKGROUND_COLOR)
+          }
+        }
+      }
+      return result
     }
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
 
+  fun applyBackgroundRepeat(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, rep ->
+      layers[idx].repeat = parseRepeat(rep.trim())
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundPosition(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, p ->
+      val tokens = p.trim().split(Regex("\\s+"))
+      layers[idx].position = parsePosition(tokens)
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundSize(value: String) {
+    val parts = splitLayers(value)
+    while (layers.size < parts.size) layers.add(BackgroundLayer())
+    parts.forEachIndexed { idx, p ->
+      layers[idx].size = parseSize(p.trim())
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
+
+  fun applyBackgroundClip(value: String) {
+    val clip = when (value.trim().lowercase()) {
+      "content-box" -> BackgroundClip.CONTENT_BOX
+      "padding-box" -> BackgroundClip.PADDING_BOX
+      "border-box" -> BackgroundClip.BORDER_BOX
+      else -> return
+    }
+    for (layer in layers) {
+      layer.clip = clip
+    }
+    (style.node.view as? android.view.View)?.invalidate()
+  }
 
   fun clear() {
     layers = mutableListOf()
@@ -89,10 +159,6 @@ data class Gradient(
   val direction: String?,       // e.g., "to bottom"
   val stops: List<String>,      // color stops
 )
-
-private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-  isDither = true
-}
 
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
@@ -122,6 +188,14 @@ fun drawBackground(
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int) {
   val gradient = layer.gradient ?: return
+
+  // invalidate cached shader if size has changed; without this the first draw
+  // (which often happens at 0x0) would create a degenerate shader that never
+  // updates when the view finally gets a proper size.
+  if (layer.shader != null &&
+      (layer.shaderWidth != width || layer.shaderHeight != height)) {
+    layer.shader = null
+  }
 
   if (layer.shader == null) {
     // Parse color stops: each stop can be "color position" or just "color"
@@ -173,13 +247,9 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
-        val (x0, y0, x1, y1) = when (gradient.direction?.lowercase()) {
-          "to bottom", "180deg" -> listOf(0f, 0f, 0f, height.toFloat())
-          "to top", "0deg" -> listOf(0f, height.toFloat(), 0f, 0f)
-          "to right", "90deg" -> listOf(0f, 0f, width.toFloat(), 0f)
-          "to left", "270deg" -> listOf(width.toFloat(), 0f, 0f, 0f)
-          else -> listOf(0f, 0f, 0f, height.toFloat())
-        }
+        val (x0, y0, x1, y1) = resolveLinearGradientEndpoints(
+          gradient.direction, width.toFloat(), height.toFloat()
+        )
         LinearGradient(x0, y0, x1, y1, colorsArray, positionsArray, Shader.TileMode.CLAMP)
       }
 
@@ -191,11 +261,79 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
       else -> null
     }
+
+    // remember the size used to create this shader
+    layer.shaderWidth = width
+    layer.shaderHeight = height
   }
 
-  gradientPaint.shader = layer.shader
-  canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), gradientPaint)
-  gradientPaint.shader = null
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    isDither = true
+    shader = layer.shader
+  }
+  canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+}
+
+/**
+ * Resolve linear-gradient endpoints for the given direction string and box size.
+ * Supports CSS angle values (deg, rad, turn, grad), named directions
+ * ("to bottom", "to top right", etc.), and falls back to top-to-bottom (180deg).
+ */
+private fun resolveLinearGradientEndpoints(
+  direction: String?,
+  width: Float,
+  height: Float
+): List<Float> {
+  val dir = direction?.trim()?.lowercase() ?: return listOf(0f, 0f, 0f, height)
+
+  // Named directions
+  when (dir) {
+    "to bottom" -> return listOf(0f, 0f, 0f, height)
+    "to top" -> return listOf(0f, height, 0f, 0f)
+    "to right" -> return listOf(0f, 0f, width, 0f)
+    "to left" -> return listOf(width, 0f, 0f, 0f)
+    "to bottom right", "to right bottom" -> return listOf(0f, 0f, width, height)
+    "to bottom left", "to left bottom" -> return listOf(width, 0f, 0f, height)
+    "to top right", "to right top" -> return listOf(0f, height, width, 0f)
+    "to top left", "to left top" -> return listOf(width, height, 0f, 0f)
+  }
+
+  // Try to parse as an angle
+  val angleRad = parseCssAngleToRadians(dir)
+  if (angleRad != null) {
+    val centerX = width / 2f
+    val centerY = height / 2f
+    val sinA = kotlin.math.sin(angleRad).toFloat()
+    val cosA = kotlin.math.cos(angleRad).toFloat()
+    // Half-length of gradient line per CSS spec
+    val halfLen = (kotlin.math.abs(width * sinA) + kotlin.math.abs(height * cosA)) / 2f
+    val x0 = centerX - halfLen * sinA
+    val y0 = centerY + halfLen * cosA
+    val x1 = centerX + halfLen * sinA
+    val y1 = centerY - halfLen * cosA
+    return listOf(x0, y0, x1, y1)
+  }
+
+  // Fallback: top-to-bottom (CSS default)
+  return listOf(0f, 0f, 0f, height)
+}
+
+/**
+ * Parse a CSS angle string (e.g. "135deg", "0.75turn", "1.5rad", "200grad")
+ * to radians. Returns null if the string cannot be parsed.
+ */
+private fun parseCssAngleToRadians(value: String): Double? {
+  val v = value.trim().lowercase()
+  return when {
+    v.endsWith("deg") -> v.removeSuffix("deg").toDoubleOrNull()
+      ?.let { it * Math.PI / 180.0 }
+    v.endsWith("grad") -> v.removeSuffix("grad").toDoubleOrNull()
+      ?.let { it * Math.PI / 200.0 }
+    v.endsWith("turn") -> v.removeSuffix("turn").toDoubleOrNull()
+      ?.let { it * 2.0 * Math.PI }
+    v.endsWith("rad") -> v.removeSuffix("rad").toDoubleOrNull()
+    else -> null
+  }
 }
 
 private fun drawBitmapLayer(
@@ -426,6 +564,22 @@ fun parsePosition(parts: List<String>): Pair<Float, Float> {
     }
   }
   return x to y
+}
+
+fun parseSize(value: String): Pair<Float, Float>? {
+  val s = value.lowercase()
+  return when (s) {
+    "cover" -> -1f to -1f
+    "contain" -> -2f to -2f
+    else -> {
+      val tokens = s.split(Regex("\\s+"))
+      if (tokens.size == 2) {
+        val w = tokens[0].removeSuffix("px").toFloatOrNull()
+        val h = tokens[1].removeSuffix("px").toFloatOrNull()
+        if (w != null && h != null) w to h else null
+      } else null
+    }
+  }
 }
 
 fun splitTopLevelCommas(input: String): List<String> {

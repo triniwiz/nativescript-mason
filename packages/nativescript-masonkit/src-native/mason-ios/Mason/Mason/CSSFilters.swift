@@ -30,8 +30,10 @@ public class CSSFilters {
   private static var device: MTLDevice?
   private static var commandQueue: MTLCommandQueue?
   private static var ciContext: CIContext?
-  
-  
+
+  // Shared color space — avoids CGColorSpaceCreateDeviceRGB() allocation per texture/image creation
+  private static let deviceRGB = CGColorSpaceCreateDeviceRGB()
+
   private static var textureLoader: MTKTextureLoader?
   
   // MARK: - MPS Texture Helpers
@@ -57,14 +59,13 @@ public class CSSFilters {
       y: -ciImage.extent.origin.y
     ))
     
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let commandBuffer = commandQueue.makeCommandBuffer() else { return nil }
     context.render(
       normalizedImage,
       to: texture,
       commandBuffer: commandBuffer,
       bounds: CGRect(origin: .zero, size: ciImage.extent.size),
-      colorSpace: colorSpace
+      colorSpace: deviceRGB
     )
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
@@ -73,7 +74,7 @@ public class CSSFilters {
   }
   
   private static func createCIImage(from texture: MTLTexture, extent: CGRect) -> CIImage? {
-    guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: CGColorSpaceCreateDeviceRGB()]) else { return nil }
+    guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: deviceRGB]) else { return nil }
     
     return image.transformed(by: CGAffineTransform(translationX: extent.origin.x, y: extent.origin.y))
   }
@@ -265,7 +266,6 @@ public class CSSFilters {
     var filters: [Filter]
     private var ciFilters: [CIFilter] = []
     private weak var view: UIView?
-    private var colorSpace = CGColorSpaceCreateDeviceRGB()
     
     public override init() {
       filters = []
@@ -398,6 +398,46 @@ public class CSSFilters {
       observeSublayerContents(layer: view.layer)
     }
     
+    /// Lightweight CGContext-based render for simple, single color filters.
+    /// Returns true if handled; false means the caller should fall back to
+    /// the full Metal/CIFilter pipeline via `apply(to:)`.
+    public func applyFast(in context: CGContext, rect: CGRect) -> Bool {
+      guard filters.count == 1 else { return false }
+
+      switch filters[0] {
+      case .brightness(let value):
+        if value < 1.0 {
+          // Darken: multiply blend darkens each channel proportionally
+          context.saveGState()
+          context.setBlendMode(.multiply)
+          let gray = max(value, 0)
+          context.setFillColor(UIColor(white: gray, alpha: 1).cgColor)
+          context.fill(rect)
+          context.restoreGState()
+        } else if value > 1.0 {
+          // Lighten: screen blend (additive) with white at (value-1) alpha
+          context.saveGState()
+          context.setBlendMode(.screen)
+          let alpha = min(value - 1.0, 1.0)
+          context.setFillColor(UIColor(white: 1, alpha: alpha).cgColor)
+          context.fill(rect)
+          context.restoreGState()
+        }
+        return true
+
+      case .grayscale(let amount):
+        // Desaturate via luminance overlay isn't accurate enough for a fast path
+        return false
+
+      case .opacity(let amount):
+        // Opacity is already handled by the view's alpha — no CGContext trick
+        return false
+
+      default:
+        return false
+      }
+    }
+
     public func apply(to view: UIView) {
       isApplying = true
       defer { isApplying = false }
@@ -622,7 +662,7 @@ public class CSSFilters {
                         to: drawable.texture,
                         commandBuffer: cb,
                         bounds: drawableBounds,
-                        colorSpace: colorSpace)
+                        colorSpace: CSSFilters.deviceRGB)
       if let cb = cb {
         cb.present(drawable)
         cb.commit()

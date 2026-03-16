@@ -43,6 +43,10 @@ export type GridAutoFlow = 'row' | 'column' | 'row dense' | 'column dense' | 'de
 
 export type VerticalAlign = 'baseline' | 'sub' | 'super' | 'text-top' | 'text-bottom' | 'middle' | 'top' | 'bottom' | Length | number;
 
+export type Float = 'left' | 'right' | 'none';
+
+export type Clear = 'left' | 'right' | 'both' | 'none';
+
 declare module '@nativescript/core/ui/styling/style' {
   interface Style {
     boxSizing: BoxSizing;
@@ -234,3 +238,9 @@ export class TextNode {
 
   substringData(offset: number, count: number): string;
 }
+
+export class Ul extends VBase {}
+
+export class Ol extends VBase {}
+
+export class Li extends VBase {}

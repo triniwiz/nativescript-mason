@@ -143,7 +143,7 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       return 17
     }
   }
-
+  
   
   public init?(rawValue: RawValue) {
     switch rawValue {
@@ -244,16 +244,19 @@ public class MasonTextLayer: CALayer {
   
   public override init() {
     super.init()
+    isOpaque = false
     needsDisplayOnBoundsChange = true
   }
   
   required init?(coder: NSCoder) {
     super.init(coder: coder)
+    isOpaque = false
     needsDisplayOnBoundsChange = true
   }
   
   public override init(layer: Any) {
     super.init(layer: layer)
+    isOpaque = false
     needsDisplayOnBoundsChange = true
   }
   
@@ -261,10 +264,53 @@ public class MasonTextLayer: CALayer {
     guard let textView = textView else {
       return
     }
+    // Ensure the context starts clear (transparent)
+    context.clear(bounds)
     
-    textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+    // Draw background first — but skip for paragraph text nodes or when a
+    // parent container supplies a CSS `background` string. This avoids
+    // the text layer filling the whole paragraph when the visual background
+    // should be painted by the containing view instead of the flattened text.
+    var skipBackground = false
+    if let tv = textView as? MasonText {
+      let hasOwnBg = tv.style.resolvedBackgroundColor != 0
+      if tv.type == .P && !hasOwnBg { skipBackground = true }
+      let parentBg = tv.node.parent?.style.background.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      if !parentBg.isEmpty && !hasOwnBg { skipBackground = true }
+    }
+    
+    if !skipBackground {
+      textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+    }
+    
+    // If this is a flattened blockquote, draw an inline left bar (on top of background)
+    var flattenedBlockquote = false
+    if let tv = textView as? MasonText, tv.type == .Blockquote {
+      flattenedBlockquote = tv.engine.shouldFlattenTextContainer(tv)
+      if flattenedBlockquote {
+        // Resolve border renderer for this rect so cachedWidths/colors are available
+        textView.style.mBorderRender.resolve(for: bounds)
+        let leftWidth = textView.style.mBorderRender.cachedWidths.left
+        let leftSide = textView.style.mBorderRender.left
+        let leftVisible = leftWidth > 0 && leftSide.style != .none && leftSide.color.cgColor.alpha > 0
+        if leftVisible {
+          context.saveGState()
+          context.setFillColor(leftSide.color.cgColor)
+          context.fill(CGRect(x: bounds.minX, y: bounds.minY, width: leftWidth, height: bounds.height))
+          context.restoreGState()
+        }
+      }
+    }
+    
+    // Draw text
     textView.engine.drawText(context: context, rect: bounds)
-    textView.style.mBorderRender.draw(in: context, rect: bounds)
+    
+    // Draw full border only when not flattened (flattened blockquote uses inline bar above)
+    if !flattenedBlockquote {
+      textView.style.mBorderRender.draw(in: context, rect: bounds)
+    }
+    
+    textView.style.applyResolvedFilter(in: context, rect: bounds, view: textView)
   }
 }
 
@@ -290,9 +336,48 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
     
     let framesetter = CTFramesetterCreateWithAttributedString(text)
-    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: .greatestFiniteMagnitude), transform: nil)
+    
+    // Build frame path with exclusion holes for floated rects returned by the engine
+    // Avoid using an infinite height for the framesetter path; large
+    // finite values are sufficient and prevent CTFramesetter from doing
+    // pathological work. Prefer the current view height when available.
+    let fallbackHeight: CGFloat = 10000.0
+    let availableHeight = max(self.bounds.height, fallbackHeight)
+    let outerRect = CGRect(x: 0, y: 0, width: width, height: availableHeight)
+    
+    var bezier = UIBezierPath(rect: outerRect)
+    bezier.usesEvenOddFillRule = true
+    // Ask for float rects on the containing layout node (parent) so sibling floats are included.
+    let containerNode = node.parent ?? node
+    let containerViewRef = containerNode.view
+    
+    // Fetch float rects from engine: each entry is (nativePtr, rect) in logical units
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
+    let scale = CGFloat(NSCMason.scale)
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
+    if floatEntries.count > 0 {
+      let paddingLeft = CGFloat(node.computedLayout.paddingLeft) / scale
+      for (_, rectLogical) in floatEntries {
+        // NativeHelpers returns unscaled engine values (device pixels).
+        // Convert to UIKit points for the exclusion path and flip Y into the
+        // CTFrame path coordinate space (path uses top-origin with height = availableHeight).
+        let rectW = rectLogical.width / scale
+        let rectH = rectLogical.height / scale
+        let rectX = rectLogical.origin.x / scale
+        let flippedY = availableHeight - ((rectLogical.origin.y + rectLogical.height) / scale)
+        // Convert from container-local points to this text-view-local coordinates
+        // Subtract left padding so measurements match drawing logic
+        let rectForPath = CGRect(x: rectX - textViewOffset.x - paddingLeft, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
+        bezier.append(UIBezierPath(rect: rectForPath))
+      }
+    }
+    
+    let path = bezier.cgPath
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
     
+    let linesCF = CTFrameGetLines(frame)
+    let linesCount = CFArrayGetCount(linesCF)
     frameCache[key] = frame
     return frame
   }
@@ -305,13 +390,13 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   public var textValues: NSMutableData {
     get {
-      return style.textValues
+      return style.values
     }
   }
   
   
-  public func onTextStyleChanged(change: Int64) {
-    engine.onTextStyleChanged(change: change)
+  public func onStyleChange(_ low: UInt64, _ high: UInt64) {
+    engine.onStyleChange(low, high)
   }
   
   
@@ -385,6 +470,45 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
   }
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    // Ensure engine layout has been computed for the containing layout so float rects are available
+    let containerNode = node.parent ?? node
+    
+    // After normal layout, position floated child views based on engine float rects.
+    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
+    let scale2 = CGFloat(NSCMason.scale)
+    
+    // Compute this text view's origin in container coordinates (points)
+    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale2, y: CGFloat(node.computedLayout.y) / scale2)
+    
+    let paddingLeft = CGFloat(node.computedLayout.paddingLeft) / scale2
+    
+    for (nodePtr, rectLogical) in floatEntries {
+      guard let nativePtr = nodePtr else { continue }
+      
+      // Find matching child node by nativePtr
+      if let matched = containerNode.children.first(where: { $0.nativePtr == nativePtr }) {
+        if matched.parent !== containerNode { continue }
+        
+        if let v = matched.view {
+          if let cview = containerNode.view, cview === v { continue }
+          // NativeHelpers returns unscaled engine values (device pixels).
+          // Convert to UIKit points before sizing the view. Subtract this
+          // text view's container offset and any left padding so the native
+          // view aligns with the exclusion path used by CoreText.
+          let frame = CGRect(x: rectLogical.origin.x / scale2 - textViewOffset.x - paddingLeft,
+                             y: rectLogical.origin.y / scale2 - textViewOffset.y,
+                             width: rectLogical.width / scale2,
+                             height: rectLogical.height / scale2)
+          if v.superview !== self { addSubview(v) }
+          v.frame = frame
+          bringSubviewToFront(v)
+        }
+      }
+    }
+  }
+  
   public func addView(_ view: UIView){
     if(view.superview == self){
       return
@@ -411,6 +535,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   private func initText(){
     isOpaque = false
+    backgroundColor = .clear
     textLayer.textView = self
     textLayer.contentsScale = UIScreen.main.scale
     style.setStyleChangeListener(listener: self)
@@ -418,76 +543,82 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
       let type = self.type
-      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B , known, available)
+      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B || type == .Strong || type == .Em || type == .I , known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
     let scale = NSCMason.scale
     node.inBatch = true
+    
+    
     switch(type){
     case .None:
-      // noop
       break
     case .P:
       style.display = .Block
-      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
+      style.margin = MasonRect(.Points(16), .Points(0), .Points(16), .Points(0))
       break
     case .Span:
+      style.display = .Inline
       break
     case .Code:
+      style.display = .Inline
+      style.fontFamily = "monospace"
       break
     case .H1:
       fontSize = 32
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .H2:
       fontSize = 24
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
       break
     case .H3:
-      fontSize = 18
+      fontSize = 20
       style.display = .Block
-      style.font.weight = .bold
-      style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(12 * scale), .Points(0))
+      style.fontWeight = "bold"
+      style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(8 * scale), .Points(0))
       break
     case .H4:
       fontSize = 16
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(10 * scale), .Points(0), .Points(10 * scale), .Points(0))
       break
     case .H5:
       fontSize = 13
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(8 * scale), .Points(0), .Points(8 * scale), .Points(0))
       break
     case .H6:
       fontSize = 10
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(6 * scale), .Points(0), .Points(6 * scale), .Points(0))
       break
     case .Li:
       break
     case .Blockquote:
-      style.font.style = "italic"
-      let indent: Float = 40 * scale
       style.display = .Block
-      style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
+      style.margin = MasonRect(.Points(16 * scale), .Points(40 * scale), .Points(16 * scale), .Points(40 * scale))
       break
     case .B, .Strong:
-      style.font.weight = .bold
+      style.display = .Inline
+      style.fontWeight = "bold"
       break
     case .Pre:
-      style.font = NSCFontFace(family: "ui-monospace")
+      style.display = .Block
+      style.fontFamily = "monospace"
       whiteSpace = .Pre
+      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .I, .Em:
-      style.font.style = "italic"
+      style.display = .Inline
+      style.fontStyle = .Italic
       break
     case .A:
       node.style.display = Display.Inline

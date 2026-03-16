@@ -1,5 +1,5 @@
 import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font } from '@nativescript/core';
-import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign } from '.';
+import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase } from './common';
 import { isMasonChild_, isMasonView_ } from './symbols';
 import type { Style as MasonStyle } from './style';
@@ -79,6 +79,26 @@ export const borderProperty = new CssProperty<Style, string>({
 export const backgroundProperty = new CssProperty<Style, string>({
   name: 'background',
   cssName: 'background',
+});
+
+export const backgroundRepeatProperty = new CssProperty<Style, string>({
+  name: 'backgroundRepeat',
+  cssName: 'background-repeat',
+});
+
+export const backgroundPositionProperty = new CssProperty<Style, string>({
+  name: 'backgroundPosition',
+  cssName: 'background-position',
+});
+
+export const backgroundSizeProperty = new CssProperty<Style, string>({
+  name: 'backgroundSize',
+  cssName: 'background-size',
+});
+
+export const backgroundClipProperty = new CssProperty<Style, string>({
+  name: 'backgroundClip',
+  cssName: 'background-clip',
 });
 
 function overflowConverter(value) {
@@ -1172,6 +1192,53 @@ textShadowProperty.overrideHandlers({
   },
 });
 
+export const floatProperty = new CssProperty<Style, Float>({
+  name: 'float',
+  cssName: 'float',
+  defaultValue: 'none',
+});
+
+export const clearProperty = new CssProperty<Style, Clear>({
+  name: 'clear',
+  cssName: 'clear',
+  defaultValue: 'none',
+});
+
+export const cornerShapeProperty = new CssProperty<Style, string>({
+  name: 'cornerShape',
+  cssName: 'corner-shape',
+});
+
+export const cornerShapeTopLeftProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeTopLeft',
+  cssName: 'corner-shape-top-left',
+});
+
+export const cornerShapeTopRightProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeTopRight',
+  cssName: 'corner-shape-top-right',
+});
+
+export const cornerShapeBottomRightProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeBottomRight',
+  cssName: 'corner-shape-bottom-right',
+});
+
+export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeBottomLeft',
+  cssName: 'corner-shape-bottom-left',
+});
+
+cornerShapeProperty.register(Style);
+cornerShapeTopLeftProperty.register(Style);
+cornerShapeTopRightProperty.register(Style);
+cornerShapeBottomRightProperty.register(Style);
+cornerShapeBottomLeftProperty.register(Style);
+
+clearProperty.register(Style);
+
+floatProperty.register(Style);
+
 verticalAlignProperty.register(Style);
 
 textOverFlowProperty.register(Style);
@@ -1250,6 +1317,10 @@ overflowXProperty.register(Style);
 overflowYProperty.register(Style);
 
 backgroundProperty.register(Style);
+backgroundRepeatProperty.register(Style);
+backgroundPositionProperty.register(Style);
+backgroundSizeProperty.register(Style);
+backgroundClipProperty.register(Style);
 
 borderProperty.register(Style);
 

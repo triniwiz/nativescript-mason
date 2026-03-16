@@ -146,8 +146,15 @@ export class Input extends InputBase {
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
       if (!this[isMasonView_]) {
-        // only call compute on the parent
-        if (this.width === 'auto' && this.height === 'auto') {
+        // when operating as a root/non‑Mason parent element we need to
+        // decide between computing with an explicit size or using the
+        // content-driven fallback. previous logic always used
+        // mason_computeWithSize for auto/auto which collapses when the
+        // incoming spec is UNSPECIFIED (a common case for the root). detect
+        // that and treat it as unconstrained instead.
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+
+        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
 
@@ -160,6 +167,8 @@ export class Input extends InputBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
+          // either we have fixed dimensions or the spec did not constrain us
+          // – compute using max-content so the view can grow to its children.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
           // @ts-ignore

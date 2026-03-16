@@ -164,4 +164,12 @@ export class Tree {
   createTextNode() {
     return this.native.createTextNode();
   }
+
+  createList(context) {
+    return this.native.createListView(context);
+  }
+
+  createListItem(context) {
+    return this.native.createListItem(context);
+  }
 }

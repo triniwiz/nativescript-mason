@@ -263,9 +263,9 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       attributes.textAlign?.let { align ->
         spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
       }
-      // Apply backgroundColor
+      // Apply backgroundColor only when alpha is non-zero (ARGB format: alpha in high 8 bits)
       attributes.backgroundColor?.let { color ->
-        if (color != 0) {
+        if (color != 0 && ((color shr 24) and 0xFF) != 0) {
           spannable.setSpan(Spans.BackgroundColorSpan(color), start, end, flags)
         }
       }

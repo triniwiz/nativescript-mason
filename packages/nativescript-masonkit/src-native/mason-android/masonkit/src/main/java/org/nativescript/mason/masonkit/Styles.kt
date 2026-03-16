@@ -214,7 +214,7 @@ class Styles {
       @JvmOverloads
       @JvmStatic
       fun custom(token: String = ""): TextOverflow {
-        return Ellipse.apply {
+        return Custom.apply {
           this.token = token
         }
       }

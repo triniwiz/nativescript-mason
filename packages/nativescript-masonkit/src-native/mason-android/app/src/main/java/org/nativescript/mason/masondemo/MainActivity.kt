@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.util.Log
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -11,12 +13,15 @@ import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
 import org.nativescript.mason.masonkit.IdleHandler
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.enums.TextType
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
   val mason = Mason.shared
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // Ensure native Mason state is cleared on app start to avoid stale state
+    mason.clear()
     enableEdgeToEdge()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -47,8 +52,6 @@ class MainActivity : AppCompatActivity() {
     for (j in 0 until 1_00_000) {
       val node = mason.createNode()
     }
-
-    Log.d("com.test", "time ${System.currentTimeMillis() - now}")
     */
 
     binding = ActivityMainBinding.inflate(layoutInflater)
@@ -101,6 +104,26 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.web.setOnClickListener {
+      val intent = Intent(this, WebActivity::class.java)
+      startActivity(intent)
+    }
+
+
+    binding.pseudo.setOnClickListener {
+      val intent = Intent(this, PseudoDemoActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.numeric.setOnClickListener {
+      val intent = Intent(this, NumericDemoActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.superellipse.setOnClickListener {
+      val intent = Intent(this, SuperellipseActivity::class.java)
+      startActivity(intent)
+    }
 
   }
 

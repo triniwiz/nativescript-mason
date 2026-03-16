@@ -29,7 +29,7 @@ class Spans {
     val type: Type
   }
 
-  class TypefaceSpan(private val typeface: Typeface, private val isBold: Boolean = false) :
+  class TypefaceSpan(private val typeface: Typeface, private val isBold: Boolean = false, private val isItalic: Boolean = false) :
     android.text.style.MetricAffectingSpan(),
     NSCSpan {
     override val type: Type
@@ -39,12 +39,18 @@ class Spans {
       if (isBold && !typeface.isBold) {
         tp?.isFakeBoldText = true
       }
+      if (isItalic && !typeface.isItalic) {
+        tp?.textSkewX = -0.25f
+      }
       tp?.typeface = typeface
     }
 
     override fun updateMeasureState(textPaint: TextPaint) {
       if (isBold && !typeface.isBold) {
         textPaint.isFakeBoldText = true
+      }
+      if (isItalic && !typeface.isItalic) {
+        textPaint.textSkewX = -0.25f
       }
 
       textPaint.typeface = typeface
@@ -103,15 +109,44 @@ class Spans {
       get() = Type.DecorationLine
   }
 
-  class UnderlineSpan(val color: Int) : android.text.style.CharacterStyle(), NSCSpan {
+  class UnderlineSpan(val color: Int, private val thicknessPx: Float = 0f) : LineBackgroundSpan, NSCSpan {
     override val type: Type
       get() = Type.DecorationLine
 
-    override fun updateDrawState(tp: TextPaint?) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        tp?.underlineColor = color
-        tp?.isUnderlineText = true
-      }
+    override fun drawBackground(
+      canvas: Canvas,
+      paint: Paint,
+      left: Int,
+      right: Int,
+      top: Int,
+      baseline: Int,
+      bottom: Int,
+      text: CharSequence,
+      start: Int,
+      end: Int,
+      lineNumber: Int
+    ) {
+      val oldColor = paint.color
+      val oldStrokeWidth = paint.strokeWidth
+
+      paint.color = color
+
+      val fm = paint.fontMetrics
+      // Draw underline slightly below baseline using descent
+      val y = baseline + fm.descent + (thicknessPx / 2f)
+
+      paint.strokeWidth = if (thicknessPx > 0f) thicknessPx else (oldStrokeWidth.takeIf { it > 0f } ?: 1f)
+
+      canvas.drawLine(
+        left.toFloat(),
+        y,
+        right.toFloat(),
+        y,
+        paint
+      )
+
+      paint.color = oldColor
+      paint.strokeWidth = oldStrokeWidth
     }
   }
 
@@ -181,6 +216,35 @@ class Spans {
     }
   }
 
+  class BlockQuoteBackgroundSpan(private val color: Int, private val barWidthPx: Float) : LineBackgroundSpan {
+
+    override fun drawBackground(
+      canvas: Canvas,
+      paint: Paint,
+      left: Int,
+      right: Int,
+      top: Int,
+      baseline: Int,
+      bottom: Int,
+      text: CharSequence,
+      start: Int,
+      end: Int,
+      lineNumber: Int
+    ) {
+      val oldColor = paint.color
+      val oldStyle = paint.style
+
+      paint.color = color
+      paint.style = Paint.Style.FILL
+
+      // draw a vertical bar at the left of the line area
+      canvas.drawRect(left.toFloat(), top.toFloat(), left + barWidthPx, bottom.toFloat(), paint)
+
+      paint.color = oldColor
+      paint.style = oldStyle
+    }
+  }
+
   class ViewSpannable(val view: View, val node: Node) : ReplacementSpan(), NSCSpan {
 
     override val type: Type
@@ -199,9 +263,8 @@ class Spans {
       end: Int,
       fm: Paint.FontMetricsInt?
     ): Int {
-      val layout = node.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      val width = node.computedWidth.toInt()
+      val height = node.computedHeight.toInt()
 
       fm?.let {
         val fontHeight = paint.fontMetricsInt.descent - paint.fontMetricsInt.ascent
@@ -227,9 +290,8 @@ class Spans {
       bottom: Int,
       paint: Paint
     ) {
-      val layout = node.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      val width = node.computedWidth.toInt()
+      val height = node.computedHeight.toInt()
 
       val fontMetrics = paint.fontMetricsInt
       val fontHeight = fontMetrics.descent - fontMetrics.ascent
@@ -242,7 +304,6 @@ class Spans {
       }
     }
   }
-
 
   class BlurredTextShadowSpan(
     private val offsetX: Float,

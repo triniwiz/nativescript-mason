@@ -83,7 +83,7 @@ public class MasonNode: NSObject {
   public var onNodeDetached: (() -> Void)? = nil
   
   
-  static func invalidateDescendantTextViews(_ node: MasonNode, _ state: Int64) {
+  static func invalidateDescendantTextViews(_ node: MasonNode, _ state: StateKeys) {
     // Early exit if node has no initialized text values
     // if (!node.style.isTextValueInitialized) {
     //  return
@@ -92,13 +92,18 @@ public class MasonNode: NSObject {
     // Direct invalidation if this is a MasonText
     if let view = node.view as? TextContainer {
       // Notify all text style changes to ensure paint is fully updated
-      view.onTextStyleChanged(change: state)
+      view.onStyleChange(state)
     }
 
     // Iterate children (only layout children, not author children)
     for child in node.children {
       invalidateDescendantTextViews(child, state)
     }
+  }
+  
+  
+  static func invalidateDescendantTextViews(_ node: MasonNode, _ low: UInt64, _ high: UInt64) {
+    invalidateDescendantTextViews(node,StateKeys(low: low, high: high))
   }
   
   
@@ -128,7 +133,7 @@ public class MasonNode: NSObject {
   
   public internal(set) var nativePtr: OpaquePointer?
   
-  public internal(set) var computedLayout = MasonLayout()
+  public internal(set) var computedLayout = MasonLayout.empty
   
   internal var isLayoutValid: Bool = false
   
@@ -141,6 +146,26 @@ public class MasonNode: NSObject {
   internal var children: [MasonNode] = []
   
   internal var measureFunc: MeasureFunc? = nil
+
+  // Storage for pseudo string properties (keyed by pseudo state value)
+  // Example: pseudoStrings[active.rawValue] = ["filter": "brightness(0.88)"]
+  private var pseudoStrings: [UInt16: [String: String]] = [:]
+
+  public func setPseudoString(_ pseudoState: UInt16, key: String, value: String) {
+    var dict = pseudoStrings[pseudoState] ?? [:]
+    dict[key] = value
+    pseudoStrings[pseudoState] = dict
+  }
+
+  public func getPseudoString(_ pseudoState: UInt16, key: String) -> String? {
+    return pseudoStrings[pseudoState]?[key]
+  }
+
+  public func clearPseudoString(_ pseudoState: UInt16, key: String) {
+    guard var dict = pseudoStrings[pseudoState] else { return }
+    dict.removeValue(forKey: key)
+    pseudoStrings[pseudoState] = dict.isEmpty ? nil : dict
+  }
   
   public func getRootNode() -> MasonNode {
     var current = self
@@ -360,8 +385,6 @@ public class MasonNode: NSObject {
       paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
       break
     case .Blockquote:
-      paragraphStyle.headIndent = CGFloat(40)
-      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
       break
     default:
       //noop
@@ -378,11 +401,26 @@ public class MasonNode: NSObject {
       // Font
       let fontSize = style.resolvedFontSize
       let weight = style.resolvedFontWeight
-      let style = style.resolvedInternalFontStyle
-      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
-      attrs[.font] = ctFont
+      let fontStyle = style.resolvedInternalFontStyle
+      var font = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: fontStyle)
+
+      // font-variant-numeric: apply AAT feature settings
+      let variantNumeric = style.resolvedFontVariantNumeric
+      if variantNumeric.rawValue != 0 {
+        let features = variantNumeric.fontFeatureSettings.map { (type, selector) in
+          [
+            kCTFontFeatureTypeIdentifierKey: type,
+            kCTFontFeatureSelectorIdentifierKey: selector
+          ] as CFDictionary
+        } as CFArray
+        let attrs = [kCTFontFeatureSettingsAttribute: features] as CFDictionary
+        let desc = CTFontDescriptorCreateWithAttributes(attrs)
+        font = CTFontCreateCopyWithAttributes(font, 0, nil, desc)
+      }
+
+      attrs[.font] = font
       attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
-      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
+      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = fontStyle
     }
     
     
@@ -390,10 +428,15 @@ public class MasonNode: NSObject {
     attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
     
     
-    let backgroundColorValue = style.resolvedBackgroundColor
-    // Background color
-    if backgroundColorValue != 0 {
-      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+    // Background color — only for inline text spans. Block-level elements
+    // (those with a view) already draw their background via mBackground.draw();
+    // setting .backgroundColor on the attributed string would create a
+    // redundant colored rect behind the text glyphs.
+    if view == nil {
+      let backgroundColorValue = style.resolvedBackgroundColor
+      if backgroundColorValue != 0 {
+        attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+      }
     }
     
     
@@ -534,8 +577,8 @@ extension MasonNode {
     
   
       container.children.append(child)
-      if let child = child as? MasonTextNode, let it = container.view as? MasonText {
-        child.attributes = it.getDefaultAttributes()
+      if let child = child as? MasonTextNode, let it = container.view as? TextContainer {
+        child.attributes = it.node.getDefaultAttributes()
         child.container = it
         it.engine.invalidateInlineSegments()
       }
@@ -547,7 +590,7 @@ extension MasonNode {
       NativeHelpers.nativeNodeAddChild(mason, self, child)
       NodeUtils.addView(self, child.view)
       // Single pass invalidation of descendants with text styles
-      MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+      MasonNode.invalidateDescendantTextViews(child, .invalidateText)
       onNodeAttached?()
     }
   }
@@ -810,7 +853,7 @@ extension MasonNode {
           
           
           // Single pass invalidation of descendants with text styles
-          MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+          MasonNode.invalidateDescendantTextViews(child, .invalidateText)
           
           NodeUtils.syncNode(self, children)
           if !style.inBatch {
@@ -829,7 +872,7 @@ extension MasonNode {
     NodeUtils.addView(self, child.view)
     
     // Single pass invalidation of descendants with text styles
-    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+    MasonNode.invalidateDescendantTextViews(child, .invalidateText)
     
     
     NodeUtils.syncNode(self, children)
@@ -994,7 +1037,7 @@ extension MasonNode {
      //   NodeUtils.syncNode(self, children)
         NodeUtils.addView(self, child.view)
         // Single pass invalidation of descendants with text styles
-        MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+        MasonNode.invalidateDescendantTextViews(child, .invalidateText)
         
         
         NodeUtils.syncNode(self, children)
@@ -1025,7 +1068,7 @@ extension MasonNode {
     }
     
     // Single pass invalidation of descendants with text styles
-    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+    MasonNode.invalidateDescendantTextViews(child, StateKeys.invalidateText)
     
     NodeUtils.syncNode(self, children)
     if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
@@ -1055,15 +1098,13 @@ extension MasonNode {
         NodeUtils.syncNode(self, children)
       }
     } else {
-      if let parent = reference.parent {
-        NodeUtils.removeView(parent, removed.view)
-      }
+      NodeUtils.removeView(self, removed.view)
       removed.parent = nil
     }
     return removed
   }
   
-  func removeAllChildren() {
+ public func removeAllChildren() {
     // Remove all children
     for child in children {
       child.parent = nil
@@ -1140,9 +1181,117 @@ extension MasonNode {
     
     node.cachedWidth = result?.width ?? 0
     node.cachedHeight = result?.height ?? 0
-    
+
     return result ?? .zero
   }
-  
-  
+
+
+}
+
+
+// MARK: - Pseudo State Support
+
+@objc(PseudoState)
+public enum PseudoState: UInt16 {
+  case `default` = 0
+  case hover     = 0x01
+  case active    = 0x02
+  case focus     = 0x04
+  case focusWithin  = 0x08
+  case focusVisible = 0x10
+  case disabled  = 0x40
+  case checked   = 0x80
+}
+
+/// CSS cascade order for pseudo state resolution: hover → focus → active → disabled
+internal let PSEUDO_CSS_ORDER: [PseudoState] = [.hover, .focus, .active, .disabled]
+
+
+extension MasonNode {
+
+  // MARK: - Pseudo State Read/Write
+
+  /// Current active pseudo state bitmask read from the native state buffer.
+  public var pseudoMask: UInt16 {
+    var len: Int = 0
+    let ptr = mason_node_get_state_buffer(mason.nativePtr, nativePtr, &len)
+    guard let ptr = ptr, len >= 5 else { return 0 }
+    // Pseudo flags are at indices 3 (low byte) and 4 (high byte)
+    let low = UInt16(ptr[3])
+    let high = UInt16(ptr[4])
+    return low | (high << 8)
+  }
+
+  public func hasPseudo(_ state: PseudoState) -> Bool {
+    if state == .default { return pseudoMask == 0 }
+    return (pseudoMask & state.rawValue) != 0
+  }
+
+  public func setPseudo(_ state: PseudoState, _ enabled: Bool, autoDirty: Bool = true) {
+    var len: Int = 0
+    let ptr = mason_node_get_state_buffer_mut(mason.nativePtr, nativePtr, &len)
+    guard let ptr = ptr, len >= 5 else { return }
+    let orig = UInt16(ptr[3]) | (UInt16(ptr[4]) << 8)
+    let updated = enabled ? (orig | state.rawValue) : (orig & ~state.rawValue)
+    ptr[3] = UInt8(updated & 0xFF)
+    ptr[4] = UInt8((updated >> 8) & 0xFF)
+    if autoDirty {
+      mason_node_mark_dirty(mason.nativePtr, nativePtr)
+    }
+  }
+
+  var isActive: Bool { hasPseudo(.active) }
+  var isHover: Bool  { hasPseudo(.hover) }
+  var isFocused: Bool { hasPseudo(.focus) }
+  var isDisabledState: Bool { hasPseudo(.disabled) }
+
+  // MARK: - Pseudo Style Buffers
+
+  private static var pseudoBufferCache = NSMapTable<MasonNode, NSMutableDictionary>.weakToStrongObjects()
+
+  private var pseudoCache: NSMutableDictionary {
+    if let existing = MasonNode.pseudoBufferCache.object(forKey: self) {
+      return existing
+    }
+    let dict = NSMutableDictionary()
+    MasonNode.pseudoBufferCache.setObject(dict, forKey: self)
+    return dict
+  }
+
+  /// Get existing pseudo style buffer (read-only).
+  public func getPseudoBuffer(_ flags: UInt16) -> UnsafeBufferPointer<UInt8>? {
+    var len: Int = 0
+    let ptr = mason_node_get_pseudo_style_buffer(mason.nativePtr, nativePtr, flags, &len)
+    guard let ptr = ptr, len > 0 else { return nil }
+    return UnsafeBufferPointer(start: ptr, count: len)
+  }
+
+  /// Prepare (create if needed) a mutable pseudo style buffer.
+  /// Clones from base style on first call for a given state.
+ public func preparePseudoBuffer(_ flags: UInt16) -> UnsafeMutableBufferPointer<UInt8> {
+    var len: Int = 0
+    let ptr = mason_node_prepare_pseudo_style_buffer(mason.nativePtr, nativePtr, flags, &len)
+    guard let ptr = ptr, len > 0 else {
+      return UnsafeMutableBufferPointer(start: nil, count: 0)
+    }
+    return UnsafeMutableBufferPointer(start: ptr, count: len)
+  }
+
+  /// Mark a property as explicitly set in a pseudo style buffer's bitmask.
+  public static func markPseudoSet(_ buf: UnsafeMutableBufferPointer<UInt8>, _ key: StateKeys) {
+    let lowOfs = StyleKeys.PSEUDO_SET_MASK_LOW
+    let highOfs = StyleKeys.PSEUDO_SET_MASK_HIGH
+    guard buf.count >= highOfs + 8 else { return }
+
+    let base = buf.baseAddress!
+    var low: UInt64 = 0
+    memcpy(&low, base + lowOfs, 8)
+    low |= key.low
+    memcpy(base + lowOfs, &low, 8)
+
+    var high: UInt64 = 0
+    memcpy(&high, base + highOfs, 8)
+    high |= key.high
+    memcpy(base + highOfs, &high, 8)
+  }
 }
