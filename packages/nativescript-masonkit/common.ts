@@ -197,6 +197,38 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     super();
   }
 
+  get innerHTML() {
+    //@ts-ignore
+    const nativeView = this._view as any;
+    if (__ANDROID__) {
+      if (nativeView && nativeView.getInnerHTML) {
+        return nativeView.getInnerHTML();
+      }
+    }
+    if (__APPLE__) {
+      if (nativeView && nativeView.mason_innerHTML) {
+        return nativeView.mason_innerHTML;
+      }
+    }
+
+    return '';
+  }
+
+  set innerHTML(value: string) {
+    //@ts-ignore
+    const nativeView = this._view as any;
+    if (__ANDROID__) {
+      if (nativeView && nativeView.setInnerHTML) {
+        nativeView.setInnerHTML(value);
+      }
+    }
+    if (__APPLE__) {
+      if (nativeView && nativeView.mason_innerHTML) {
+        nativeView.mason_innerHTML = value;
+      }
+    }
+  }
+
   _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
 
   _registerNativeEvent(arg: string, callback: any, thisArg?: any) {

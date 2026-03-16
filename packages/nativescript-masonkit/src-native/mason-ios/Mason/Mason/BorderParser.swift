@@ -59,6 +59,37 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
 }
 
 
+func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentageAuto? {
+  let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
+    return nil
+  }
+  let ns = v as NSString
+  let parsed = Double(ns.substring(with: match.range(at: 1)))
+  let num = Float(parsed ?? 0)
+
+  let unitRange = match.range(at: 2)
+  let unit: String? =
+      unitRange.location != NSNotFound
+      ? String(v[Range(unitRange, in: v)!])
+      : nil
+  
+  switch unit {
+  case "auto": return .Auto
+  case "px": return .Points(num)
+  case "%": return .Percent(num / 100)
+  case "dip": return .Points(num * scale)
+  default: do {
+    if(parsed != nil){
+      return .Points(num * scale)
+    }else {
+      return nil
+    }
+  }
+  }
+}
+
+
 func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.scale, resolve: Bool = false) -> Float? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
   guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {

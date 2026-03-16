@@ -78,6 +78,15 @@ class Mason {
     }
   }
 
+  internal var mHtmlParser: HTMLParser? = null
+
+  fun getHtmlParser(context: Context): HTMLParser? {
+    if (mHtmlParser == null) {
+      mHtmlParser = HTMLParser(this, context)
+    }
+    return mHtmlParser
+  }
+
   fun drain() {
     gc.drain()
   }

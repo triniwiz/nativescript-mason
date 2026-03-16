@@ -30,6 +30,8 @@ public protocol MasonElement: NSObjectProtocol {
   
   var uiView: UIView { get }
   
+  var innerHTML: String {get set}
+  
   func markNodeDirty()
   
   func isNodeDirty() -> Bool
@@ -172,6 +174,17 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 }
 
 extension MasonElement {
+  
+  public var innerHTML: String {
+    get {
+      //todo
+      return ""
+    }
+    set {
+      node.mason.htmlParser.parseInto(newValue, element: self)
+    }
+  }
+  
   public func dispatch(_ event: MasonEvent) {
     node.mason.dispatch(event, node)
   }
@@ -596,6 +609,7 @@ extension MasonElement {
     node.markDirty()
   }
 }
+
 
 class MasonElementHelpers: NSObject {
   

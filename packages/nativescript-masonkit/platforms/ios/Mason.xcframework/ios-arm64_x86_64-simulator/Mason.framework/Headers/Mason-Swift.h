@@ -516,6 +516,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTra
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+SWIFT_CLASS_NAMED("HTMLParser")
+@interface MasonHTMLParser : NSObject
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+/// Parses an HTML string and returns a list of root-level MasonElement/MasonNode children.
+- (NSArray<MasonNode *> * _Nonnull)parse:(NSString * _Nonnull)html SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 enum MasonLoadingState : NSInteger;
 @class UIImage;
 SWIFT_CLASS_NAMED("Img")
@@ -1661,6 +1670,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
 - (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
+@property (nonatomic, strong) MasonHTMLParser * _Nonnull htmlParser;
 - (void)clear;
 - (MasonDocument * _Nonnull)createDocument SWIFT_WARN_UNUSED_RESULT;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
@@ -1683,6 +1693,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
+@property (nonatomic, copy) NSString * _Nonnull mason_innerHTML;
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
@@ -2408,6 +2419,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTra
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+SWIFT_CLASS_NAMED("HTMLParser")
+@interface MasonHTMLParser : NSObject
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+/// Parses an HTML string and returns a list of root-level MasonElement/MasonNode children.
+- (NSArray<MasonNode *> * _Nonnull)parse:(NSString * _Nonnull)html SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 enum MasonLoadingState : NSInteger;
 @class UIImage;
 SWIFT_CLASS_NAMED("Img")
@@ -3553,6 +3573,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
 - (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
+@property (nonatomic, strong) MasonHTMLParser * _Nonnull htmlParser;
 - (void)clear;
 - (MasonDocument * _Nonnull)createDocument SWIFT_WARN_UNUSED_RESULT;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
@@ -3575,6 +3596,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
+@property (nonatomic, copy) NSString * _Nonnull mason_innerHTML;
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;

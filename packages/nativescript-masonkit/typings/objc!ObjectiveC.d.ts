@@ -429,6 +429,8 @@ declare class NSObject implements NSObjectProtocol {
 	 */
 	isAccessibilityElementBlock: () => boolean;
 
+	mason_innerHTML: string;
+
 	observationInfo: interop.Pointer | interop.Reference<any>;
 
 	/**

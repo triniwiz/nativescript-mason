@@ -160,6 +160,10 @@ public class NSCMason: NSObject {
   }
 
   
+  public lazy var htmlParser = {
+    HTMLParser(mason: self)
+  }()
+  
   
   public func clear(){
     mason_clear(nativePtr)

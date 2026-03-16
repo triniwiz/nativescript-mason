@@ -424,8 +424,29 @@ func syncStyle<T: MasonElement>(_ element: T,_ low: String, _ high: String) {
   element.syncStyle(low, high)
 }
 
+func getInnerHTML<T: MasonElement>(_ element: T) -> String {
+  return element.innerHTML
+}
+
+func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
+  element.innerHTML = value
+}
+
+
 
 @objc extension NSObject {
+  
+  @objc
+  public var mason_innerHTML: String {
+    set {
+      guard let element = self as? MasonElement else { return }
+      element.innerHTML = newValue
+    }
+    get {
+      guard let element = self as? MasonElement else { return "" }
+      return element.innerHTML
+    }
+  }
   
   @discardableResult
   @objc public func mason_addEventListener(_ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {

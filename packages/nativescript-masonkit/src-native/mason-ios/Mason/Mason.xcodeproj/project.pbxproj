@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
@@ -24,10 +25,10 @@
 		F155B4D82F0F34D7004419BF /* MasonTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155B4D72F0F34D1004419BF /* MasonTextInput.swift */; };
 		F16270A12F14901800ABE5FF /* MasonGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */; };
 		F16270A32F14996B00ABE5FF /* MasonEventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A22F14996800ABE5FF /* MasonEventTarget.swift */; };
+		F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
-		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		F184839D293534D800EC35F4 /* Mason.h in Headers */ = {isa = PBXBuildFile; fileRef = F184838F293534D800EC35F4 /* Mason.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F18483AD2935351200EC35F4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AC2935351200EC35F4 /* AppDelegate.swift */; };
 		F18483AF2935351200EC35F4 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AE2935351200EC35F4 /* SceneDelegate.swift */; };
@@ -131,6 +132,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
 		F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShadowRenderer.swift; sourceTree = "<group>"; };
@@ -145,12 +147,12 @@
 		F155B4D72F0F34D1004419BF /* MasonTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTextInput.swift; sourceTree = "<group>"; };
 		F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonGestureRecognizer.swift; sourceTree = "<group>"; };
 		F16270A22F14996800ABE5FF /* MasonEventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonEventTarget.swift; sourceTree = "<group>"; };
+		F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
 		F1848396293534D800EC35F4 /* MasonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MasonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184839B293534D800EC35F4 /* MasonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTests.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		F18483AA2935351200EC35F4 /* MasonDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MasonDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F18483AC2935351200EC35F4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F18483AE2935351200EC35F4 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -311,6 +313,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */,
 				F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */,
 				F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */,
 				F1903AC22F22115D00917254 /* MasonLi.swift */,
@@ -685,6 +688,7 @@
 				F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */,
 				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
 				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
+				F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */,
 				F10A1B122F02684500888DDD /* Br.swift in Sources */,
 				F1903AC32F22116300917254 /* MasonLi.swift in Sources */,
 			);

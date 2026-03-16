@@ -12,6 +12,16 @@ interface Element : EventTarget {
 
   override val node: Node
 
+  var innerHTML: String
+    get() {
+      return ""
+    }
+    set(value) {
+      node.mason.getHtmlParser(view.context)?.let {
+        it.parseInto(value, this)
+      }
+    }
+
   fun syncStyle(low: String, high: String) {
     fun parseDecimalToLong(s: String): Long? {
       if (s.isEmpty()) return null

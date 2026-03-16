@@ -647,6 +647,19 @@ declare class MasonGridTrackRepetition extends NSObject {
 	static readonly AutoFit: MasonGridTrackRepetition;
 }
 
+declare class MasonHTMLParser extends NSObject {
+
+	static alloc(): MasonHTMLParser; // inherited from NSObject
+
+	static new(): MasonHTMLParser; // inherited from NSObject
+
+	constructor(o: { mason: NSCMason; });
+
+	initWithMason(mason: NSCMason): this;
+
+	parse(html: string): NSArray<MasonNode>;
+}
+
 declare class MasonImageLayer extends CALayer {
 
 	static alloc(): MasonImageLayer; // inherited from NSObject
@@ -1233,24 +1246,6 @@ declare const enum MasonLineHeight {
 	PreLine = 3
 }
 
-declare class MasonListCell extends UICollectionViewCell {
-
-	static alloc(): MasonListCell; // inherited from NSObject
-
-	static new(): MasonListCell; // inherited from NSObject
-
-	static initWithEmptyBackground(): MasonListCell;
-
-	willMove: (cell: MasonListCell) => void;
-
-	readonly view: MasonElement;
-
-	setView(newView: MasonElement): void;
-
-	setViewWithCompat(view: MasonElementObjc): void;
-	
-}
-
 declare class MasonList extends UIView implements MasonElementObjc, UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout {
 
 	static alloc(): MasonList; // inherited from NSObject
@@ -1618,6 +1613,48 @@ declare class MasonList extends UIView implements MasonElementObjc, UICollection
 	self(): this;
 
 	viewForZoomingInScrollView(scrollView: UIScrollView): UIView;
+}
+
+declare class MasonListCell extends UICollectionViewCell {
+
+	static alloc(): MasonListCell; // inherited from NSObject
+
+	static appearance(): MasonListCell; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonListCell; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonListCell; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonListCell; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonListCell; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonListCell; // inherited from UIAppearance
+
+	static initWithEmptyBackground(): MasonListCell;
+
+	static new(): MasonListCell; // inherited from NSObject
+
+	willMove: (p1: MasonListCell) => void;
+
+	setViewWithCompat(view: MasonElementObjc): void;
 }
 
 interface MasonListDelegate {
@@ -2028,13 +2065,13 @@ declare class MasonStyle extends NSObject {
 
 	cornerShape: string;
 
-	cornerShapeTopLeft: string;
-
-	cornerShapeTopRight: string;
+	cornerShapeBottomLeft: string;
 
 	cornerShapeBottomRight: string;
 
-	cornerShapeBottomLeft: string;
+	cornerShapeTopLeft: string;
+
+	cornerShapeTopRight: string;
 
 	decorationColor: number;
 
@@ -3206,6 +3243,8 @@ declare class NSCMason extends NSObject {
 	static new(): NSCMason; // inherited from NSObject
 
 	static setShared(value: NSCMason): void;
+
+	htmlParser: MasonHTMLParser;
 
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
