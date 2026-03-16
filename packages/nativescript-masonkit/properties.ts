@@ -1209,7 +1209,31 @@ export const cornerShapeProperty = new CssProperty<Style, string>({
   cssName: 'corner-shape',
 });
 
+export const cornerShapeTopLeftProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeTopLeft',
+  cssName: 'corner-shape-top-left',
+});
+
+export const cornerShapeTopRightProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeTopRight',
+  cssName: 'corner-shape-top-right',
+});
+
+export const cornerShapeBottomRightProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeBottomRight',
+  cssName: 'corner-shape-bottom-right',
+});
+
+export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
+  name: 'cornerShapeBottomLeft',
+  cssName: 'corner-shape-bottom-left',
+});
+
 cornerShapeProperty.register(Style);
+cornerShapeTopLeftProperty.register(Style);
+cornerShapeTopRightProperty.register(Style);
+cornerShapeBottomRightProperty.register(Style);
+cornerShapeBottomLeftProperty.register(Style);
 
 clearProperty.register(Style);
 

@@ -1876,6 +1876,22 @@ public struct StateKeys : Swift.Equatable {
     @objc get
     @objc set
   }
+  @objc public var cornerShapeTopLeft: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var cornerShapeTopRight: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var cornerShapeBottomRight: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var cornerShapeBottomLeft: Swift.String {
+    @objc get
+    @objc set
+  }
   @objc public var border: Swift.String {
     @objc get
     @objc set

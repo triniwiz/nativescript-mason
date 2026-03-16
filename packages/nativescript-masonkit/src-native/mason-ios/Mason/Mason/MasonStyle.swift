@@ -2554,6 +2554,78 @@ public class MasonStyle: NSObject {
   }
   private var _cornerShape: String = ""
 
+  public var cornerShapeTopLeft: String {
+    get {
+      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.topLeft.exponent))
+    }
+    set {
+      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      prepareMut()
+      setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, exp)
+      mBorderRender.radius.topLeft.exponent = CGFloat(exp)
+      mBorderRender.invalidateCache()
+      if !inBatch {
+        isDirty |= StateKeys.border.low
+        isDirtyHigh |= StateKeys.border.high
+        updateNativeStyle()
+      }
+    }
+  }
+
+  public var cornerShapeTopRight: String {
+    get {
+      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.topRight.exponent))
+    }
+    set {
+      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      prepareMut()
+      setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, exp)
+      mBorderRender.radius.topRight.exponent = CGFloat(exp)
+      mBorderRender.invalidateCache()
+      if !inBatch {
+        isDirty |= StateKeys.border.low
+        isDirtyHigh |= StateKeys.border.high
+        updateNativeStyle()
+      }
+    }
+  }
+
+  public var cornerShapeBottomRight: String {
+    get {
+      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.bottomRight.exponent))
+    }
+    set {
+      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      prepareMut()
+      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, exp)
+      mBorderRender.radius.bottomRight.exponent = CGFloat(exp)
+      mBorderRender.invalidateCache()
+      if !inBatch {
+        isDirty |= StateKeys.border.low
+        isDirtyHigh |= StateKeys.border.high
+        updateNativeStyle()
+      }
+    }
+  }
+
+  public var cornerShapeBottomLeft: String {
+    get {
+      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.bottomLeft.exponent))
+    }
+    set {
+      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      prepareMut()
+      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, exp)
+      mBorderRender.radius.bottomLeft.exponent = CGFloat(exp)
+      mBorderRender.invalidateCache()
+      if !inBatch {
+        isDirty |= StateKeys.border.low
+        isDirtyHigh |= StateKeys.border.high
+        updateNativeStyle()
+      }
+    }
+  }
+
   public var border: String {
     get {
       return mBorderRender.css

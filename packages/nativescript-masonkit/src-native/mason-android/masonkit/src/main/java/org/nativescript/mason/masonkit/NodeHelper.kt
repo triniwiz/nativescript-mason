@@ -1471,6 +1471,46 @@ class NodeHelper(val mason: Mason) {
     node.style.cornerShape = value
   }
 
+  fun getCornerShapeTopLeft(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeTopLeft
+  }
+
+  fun setCornerShapeTopLeft(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeTopLeft = value
+  }
+
+  fun getCornerShapeTopRight(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeTopRight
+  }
+
+  fun setCornerShapeTopRight(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeTopRight = value
+  }
+
+  fun getCornerShapeBottomRight(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeBottomRight
+  }
+
+  fun setCornerShapeBottomRight(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeBottomRight = value
+  }
+
+  fun getCornerShapeBottomLeft(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.cornerShapeBottomLeft
+  }
+
+  fun setCornerShapeBottomLeft(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.cornerShapeBottomLeft = value
+  }
+
   fun compute(node: Node) {
     NativeHelpers.nativeNodeCompute(
       node.mason.nativePtr, node.nativePtr

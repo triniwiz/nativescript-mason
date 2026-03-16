@@ -2028,6 +2028,14 @@ declare class MasonStyle extends NSObject {
 
 	cornerShape: string;
 
+	cornerShapeTopLeft: string;
+
+	cornerShapeTopRight: string;
+
+	cornerShapeBottomRight: string;
+
+	cornerShapeBottomLeft: string;
+
 	decorationColor: number;
 
 	decorationLine: MasonDecorationLine;

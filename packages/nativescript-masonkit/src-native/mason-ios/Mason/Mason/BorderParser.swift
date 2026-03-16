@@ -267,6 +267,16 @@ extension CSSBorderRenderer {
     options: [.caseInsensitive]
   )
 
+  static func exponentToCornerShapeToken(_ exponent: Float) -> String {
+    switch exponent {
+    case 1.0: return "round"
+    case 0.5: return "squircle"
+    case 2.0: return "notch"
+    case 4.0: return "bevel"
+    default: return "superellipse(\(exponent))"
+    }
+  }
+
   static func parseCornerShapeToken(_ token: String) -> Float? {
     let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let nsT = t as NSString

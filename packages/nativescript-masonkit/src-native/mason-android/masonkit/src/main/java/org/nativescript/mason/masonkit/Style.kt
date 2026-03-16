@@ -2316,6 +2316,46 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShape(this, value)
     }
 
+  var cornerShapeTopLeft: String
+    get() = exponentToCornerShapeToken(mBorderTop.corner1Exponent)
+    set(value) {
+      parseCornerShapeToken(value)?.let {
+        mBorderTop.corner1Exponent = it
+        setOrAppendState(StateKeys.BORDER_RADIUS)
+        mBorderRenderer.invalidate()
+      }
+    }
+
+  var cornerShapeTopRight: String
+    get() = exponentToCornerShapeToken(mBorderTop.corner2Exponent)
+    set(value) {
+      parseCornerShapeToken(value)?.let {
+        mBorderTop.corner2Exponent = it
+        setOrAppendState(StateKeys.BORDER_RADIUS)
+        mBorderRenderer.invalidate()
+      }
+    }
+
+  var cornerShapeBottomRight: String
+    get() = exponentToCornerShapeToken(mBorderBottom.corner2Exponent)
+    set(value) {
+      parseCornerShapeToken(value)?.let {
+        mBorderBottom.corner2Exponent = it
+        setOrAppendState(StateKeys.BORDER_RADIUS)
+        mBorderRenderer.invalidate()
+      }
+    }
+
+  var cornerShapeBottomLeft: String
+    get() = exponentToCornerShapeToken(mBorderBottom.corner1Exponent)
+    set(value) {
+      parseCornerShapeToken(value)?.let {
+        mBorderBottom.corner1Exponent = it
+        setOrAppendState(StateKeys.BORDER_RADIUS)
+        mBorderRenderer.invalidate()
+      }
+    }
+
   internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {
     val x = LengthPercentage.fromTypeValue(
       values.get(keys.xType), values.getFloat(keys.xValue)

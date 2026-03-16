@@ -1205,6 +1205,10 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull boxShadow;
 @property (nonatomic, copy) NSString * _Nonnull borderRadius;
 @property (nonatomic, copy) NSString * _Nonnull cornerShape;
+@property (nonatomic, copy) NSString * _Nonnull cornerShapeTopLeft;
+@property (nonatomic, copy) NSString * _Nonnull cornerShapeTopRight;
+@property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomRight;
+@property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomLeft;
 @property (nonatomic, copy) NSString * _Nonnull border;
 @property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderWidthCompat;
 - (void)setBorderLeftWidth:(float)value :(NSInteger)type;

@@ -1118,6 +1118,16 @@ fun parseBorderShorthand(style: Style, value: String) {
 
 private val cornerShapeTokenRegex = Regex("""(round|superellipse(?:\((-?\d+(?:\.\d+)?)\))?|squircle|notch|bevel)""")
 
+fun exponentToCornerShapeToken(exponent: Float): String {
+  return when (exponent) {
+    1.0f -> "round"
+    0.5f -> "squircle"
+    2.0f -> "notch"
+    4.0f -> "bevel"
+    else -> "superellipse($exponent)"
+  }
+}
+
 fun parseCornerShapeToken(token: String): Float? {
   val match = cornerShapeTokenRegex.matchEntire(token.trim().lowercase()) ?: return null
   val keyword = match.groupValues[1]

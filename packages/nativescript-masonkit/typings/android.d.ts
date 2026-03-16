@@ -3755,6 +3755,14 @@ declare module org {
 					public setGridAutoColumns(this_: globalAndroid.view.View, view: string): void;
 					public getCornerShape(this_: globalAndroid.view.View): string;
 					public setCornerShape(this_: globalAndroid.view.View, view: string): void;
+					public getCornerShapeTopLeft(this_: globalAndroid.view.View): string;
+					public setCornerShapeTopLeft(this_: globalAndroid.view.View, value: string): void;
+					public getCornerShapeTopRight(this_: globalAndroid.view.View): string;
+					public setCornerShapeTopRight(this_: globalAndroid.view.View, value: string): void;
+					public getCornerShapeBottomRight(this_: globalAndroid.view.View): string;
+					public setCornerShapeBottomRight(this_: globalAndroid.view.View, value: string): void;
+					public getCornerShapeBottomLeft(this_: globalAndroid.view.View): string;
+					public setCornerShapeBottomLeft(this_: globalAndroid.view.View, value: string): void;
 				}
 			}
 		}
