@@ -68,6 +68,9 @@
         android:value="" />
     </activity>
     <activity
+      android:name=".BugActivity"
+      android:exported="false" />
+    <activity
       android:name=".FlexActivity"
       android:exported="false">
       <meta-data

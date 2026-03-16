@@ -367,13 +367,6 @@ class TextEngine(val container: TextContainer) {
             val before = widthConstraint
             widthConstraint = if (widthConstraint == Int.MAX_VALUE) pCW
             else kotlin.math.min(widthConstraint, pCW)
-            try {
-              Log.d(
-                "com.test",
-                "measure-clamp parentFloated nodePtr=${node.nativePtr} parentPtr=${p.nativePtr} before=$before after=$widthConstraint pContent=$pContent"
-              )
-            } catch (_: Throwable) {
-            }
           }
         } catch (_: Throwable) {
         }
@@ -622,21 +615,6 @@ class TextEngine(val container: TextContainer) {
       val measuredHeight = layout?.height?.toFloat()
 
       val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
-
-      try {
-        val nodePtr = node.nativePtr
-        Log.d(
-          "TextEngine.measure",
-          "nodePtr=${nodePtr} available=${availableSpace.width}x${availableSpace.height} measured=${width}x${finalHeight} layoutPresent=${layout != null}"
-        )
-        if (finalHeight != 0f && abs(finalHeight) < 1e-6f) {
-          Log.w("TextEngine.measure", "tiny finalHeight on nodePtr=${nodePtr} -> ${finalHeight}")
-        }
-        if (width != 0f && abs(width) < 1e-6f) {
-          Log.w("TextEngine.measure", "tiny width on nodePtr=${nodePtr} -> ${width}")
-        }
-      } catch (_: Throwable) {
-      }
 
       return Size(width, finalHeight)
     } finally {
@@ -999,10 +977,7 @@ class TextEngine(val container: TextContainer) {
 
       // Call the packed JNI path synchronously. This path is safe when
       // invoked inside the expected native/Java measurement flow and we
-      // prefer the fast packed primitive arrays. Removed the previous
-      // deferred-post path since writes are contained within the enclosing
-      // lock context and do not require posting to the view thread.
-      val tJniStart = System.nanoTime()
+      // prefer the fast packed primitive arrays. 
       NativeHelpers.nativeNodeSetSegmentsPacked(
         node.mason.nativePtr,
         node.nativePtr,
@@ -1010,15 +985,6 @@ class TextEngine(val container: TextContainer) {
         longs,
         kinds
       )
-      val tJniEnd = System.nanoTime()
-
-      try {
-        Log.d(
-          "mason-text-bench",
-          "packed count=$count packMs=${(tPackEnd - tPackStart) / 1e6} jniMs=${(tJniEnd - tJniStart) / 1e6}"
-        )
-      } catch (_: Throwable) {
-      }
     }
 
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
@@ -1093,11 +1059,6 @@ class TextEngine(val container: TextContainer) {
       } else {
         childNode.computedHeight.toInt()
       }
-
-      Log.d(
-        "TextEngine:getSize",
-        "$width $height ..... ${childNode.cachedWidth} ${childNode.cachedHeight}"
-      )
 
       // Fallback: if computed sizes are zero, try measuring the child view
       if ((width <= 0 || height <= 0) && childNode.view is View) {
@@ -1222,14 +1183,6 @@ class TextEngine(val container: TextContainer) {
         }
       } catch (_: Throwable) {
       }
-
-      try {
-        Log.d(
-          "mason-debug-text",
-          "ViewSpan.getSize node=${childNode.nativePtr} w=$width h=$height fm=${fm?.ascent},${fm?.descent}"
-        )
-      } catch (_: Throwable) {
-      }
       return width
     }
 
@@ -1255,11 +1208,6 @@ class TextEngine(val container: TextContainer) {
       } else {
         childNode.computedHeight.toInt()
       }
-
-      Log.d(
-        "TextEngine:draw",
-        "$cachedWidth $cachedHeight ..... ${childNode.cachedWidth} ${childNode.cachedHeight}"
-      )
 
       val childView = childNode.view as? View ?: return
 
@@ -1361,13 +1309,6 @@ class TextEngine(val container: TextContainer) {
       }
 
       canvas.withTranslation(x, drawY) {
-        try {
-          Log.d(
-            "mason-debug-text",
-            "ViewSpan.draw node=${childNode.nativePtr} x=$x drawTop=$drawY cachedW=$cachedWidth cachedH=$cachedHeight"
-          )
-        } catch (_: Throwable) {
-        }
         childView.draw(this)
       }
     }
@@ -1563,13 +1504,6 @@ class TextEngine(val container: TextContainer) {
 
       // Leading margin to offset the bar + gap
       val leading = (barWidth + gap).toInt()
-      try {
-        Log.d(
-          "mason-debug-text",
-          "Blockquote span applied node=${container.node.nativePtr} barWidth=$barWidth gap=$gap leading=$leading"
-        )
-      } catch (_: Throwable) {
-      }
       spannable.setSpan(
         android.text.style.LeadingMarginSpan.Standard(leading),
         start,

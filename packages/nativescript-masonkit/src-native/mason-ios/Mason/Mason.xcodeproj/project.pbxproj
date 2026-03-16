@@ -25,6 +25,7 @@
 		F155B4D82F0F34D7004419BF /* MasonTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155B4D72F0F34D1004419BF /* MasonTextInput.swift */; };
 		F16270A12F14901800ABE5FF /* MasonGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */; };
 		F16270A32F14996B00ABE5FF /* MasonEventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A22F14996800ABE5FF /* MasonEventTarget.swift */; };
+		F175AB1B2F683EFD00465812 /* BugViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F175AB1A2F683EFD00465812 /* BugViewController.swift */; };
 		F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
@@ -147,6 +148,7 @@
 		F155B4D72F0F34D1004419BF /* MasonTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTextInput.swift; sourceTree = "<group>"; };
 		F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonGestureRecognizer.swift; sourceTree = "<group>"; };
 		F16270A22F14996800ABE5FF /* MasonEventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonEventTarget.swift; sourceTree = "<group>"; };
+		F175AB1A2F683EFD00465812 /* BugViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BugViewController.swift; sourceTree = "<group>"; };
 		F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
@@ -377,6 +379,7 @@
 		F18483AB2935351200EC35F4 /* MasonDemo */ = {
 			isa = PBXGroup;
 			children = (
+				F175AB1A2F683EFD00465812 /* BugViewController.swift */,
 				F18483AC2935351200EC35F4 /* AppDelegate.swift */,
 				F18483AE2935351200EC35F4 /* SceneDelegate.swift */,
 				F18483B02935351200EC35F4 /* ViewController.swift */,
@@ -710,6 +713,7 @@
 				F18483B12935351200EC35F4 /* ViewController.swift in Sources */,
 				F18483AD2935351200EC35F4 /* AppDelegate.swift in Sources */,
 				F18483AF2935351200EC35F4 /* SceneDelegate.swift in Sources */,
+				F175AB1B2F683EFD00465812 /* BugViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

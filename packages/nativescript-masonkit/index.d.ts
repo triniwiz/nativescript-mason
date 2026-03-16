@@ -97,6 +97,11 @@ declare module '@nativescript/core/ui/styling/style' {
     overflowY: Overflow;
     scrollBarWidth: Length;
     verticalAlign: VerticalAlign;
+    cornerShape: string;
+    cornerShapeTopLeft: string;
+    cornerShapeTopRight: string;
+    cornerShapeBottomRight: string;
+    cornerShapeBottomLeft: string;
   }
 }
 
@@ -149,6 +154,11 @@ interface Style {
   overflowY: Overflow;
   scrollBarWidth: Length;
   verticalAlign: VerticalAlign;
+  cornerShape: string;
+  cornerShapeTopLeft: string;
+  cornerShapeTopRight: string;
+  cornerShapeBottomRight: string;
+  cornerShapeBottomLeft: string;
 }
 
 interface IViewBase {
@@ -199,6 +209,11 @@ interface IViewBase {
   overflowY: Overflow;
   scrollBarWidth: number | CoreTypes.LengthType;
   verticalAlign: VerticalAlign;
+  cornerShape: string;
+  cornerShapeTopLeft: string;
+  cornerShapeTopRight: string;
+  cornerShapeBottomRight: string;
+  cornerShapeBottomLeft: string;
 }
 
 class VBase extends ViewBase implements IViewBase {

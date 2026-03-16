@@ -5,11 +5,17 @@ sealed class Dimension(val isZero: Boolean) {
   data class Percent(var percentage: Float) : Dimension(percentage <= 0)
   data object Auto : Dimension(false)
 
+  enum class Kind(val value: Byte) {
+    Auto(0),
+    Points(1),
+    Percent(2)
+  }
+
   companion object {
     @JvmStatic
     fun isValid(type: Byte, value: Float): Boolean {
       return when (type) {
-        0.toByte(), 1.toByte(), 2.toByte() -> true
+        Kind.Auto.value, Kind.Points.value, Kind.Percent.value -> true
         else -> false
       }
     }
@@ -17,9 +23,9 @@ sealed class Dimension(val isZero: Boolean) {
     @JvmStatic
     fun fromTypeValue(type: Byte, value: Float): Dimension? {
       return when (type) {
-        0.toByte() -> Auto
-        1.toByte() -> Points(value)
-        2.toByte() -> Percent(value)
+        Kind.Auto.value -> Auto
+        Kind.Points.value -> Points(value)
+        Kind.Percent.value -> Percent(value)
         else -> null
       }
     }
@@ -27,9 +33,9 @@ sealed class Dimension(val isZero: Boolean) {
 
   internal val type: Byte
     get() = when (this) {
-      is Auto -> 0
-      is Points -> 1
-      is Percent -> 2
+      is Auto -> Kind.Auto.value
+      is Points -> Kind.Points.value
+      is Percent -> Kind.Percent.value
     }
 
   internal val value: Float

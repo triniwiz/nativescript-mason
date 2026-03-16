@@ -371,7 +371,11 @@ class Mason {
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
       is Element -> {
-        nodes[view.node.nativePtr]?.get() ?: run {
+        val existingRef = nodes[view.node.nativePtr]
+        val existing = existingRef?.get()
+        if (existing != null) {
+          existing
+        } else {
           val node = createNode().apply {
             this.view = view
           }
@@ -381,7 +385,11 @@ class Mason {
       }
 
       else -> {
-        viewNodes[view]?.get() ?: run {
+        val existingRef = viewNodes[view]
+        val existing = existingRef?.get()
+        if (existing != null) {
+          existing
+        } else {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
             this.view = view

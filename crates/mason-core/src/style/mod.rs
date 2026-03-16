@@ -949,7 +949,6 @@ impl Style {
         const EPS: f32 = 1e-6;
 
         if ascent.is_nan() || ascent.abs() < EPS {
-            log::warn!("sanitizing font_metrics.ascent raw_bits=0x{:08x} raw_val={:?}", ascent.to_bits(), ascent);
             ascent = FontMetrics::DEFAULT.ascent;
         }
         // Android font ascent may be negative; keep ascent positive for layout math
@@ -958,12 +957,10 @@ impl Style {
         }
 
         if descent.is_nan() || descent < 0.0 || descent.abs() < EPS {
-            log::warn!("sanitizing font_metrics.descent raw_bits=0x{:08x} raw_val={:?}", descent.to_bits(), descent);
             descent = FontMetrics::DEFAULT.descent;
         }
 
         if x_height.is_nan() || x_height.abs() < EPS {
-            log::warn!("sanitizing font_metrics.x_height raw_bits=0x{:08x} raw_val={:?}", x_height.to_bits(), x_height);
             x_height = FontMetrics::DEFAULT.x_height;
         }
 
@@ -973,7 +970,6 @@ impl Style {
         }
 
         if cap_height.is_nan() || cap_height.abs() < EPS {
-            log::warn!("sanitizing font_metrics.cap_height raw_bits=0x{:08x} raw_val={:?}", cap_height.to_bits(), cap_height);
             cap_height = FontMetrics::DEFAULT.cap_height;
         }
 

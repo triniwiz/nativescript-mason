@@ -5,6 +5,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.TypedValue
+import android.util.Log
 import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -43,6 +44,7 @@ import org.nativescript.mason.masonkit.events.InputEvent
 import java.util.Timer
 import java.util.concurrent.Executors
 import kotlin.concurrent.schedule
+import kotlin.random.Random
 
 
 class GridActivity : AppCompatActivity() {
@@ -113,11 +115,79 @@ class GridActivity : AppCompatActivity() {
     //  textShadow(body)
     // input(body)
     // zOrder(body)
-    list(body)
+    // default list demo
+    // list(body)
+
+    // red grid reproduction example (compact tiled squares)
+    redGrid(body)
 
     //inputTest(body)
     root.addView(body)
     setContentView(root)
+  }
+
+  fun redGrid(body: View) {
+    val root = mason.createView(this)
+    root.display = org.nativescript.mason.masonkit.enums.Display.Flex
+    root.flexDirection = org.nativescript.mason.masonkit.enums.FlexDirection.Column
+    root.style.padding = Rect(LengthPercentage.Points(8f), LengthPercentage.Points(8f), LengthPercentage.Points(8f), LengthPercentage.Points(8f))
+
+    val container = mason.createView(this)
+    container.display = org.nativescript.mason.masonkit.enums.Display.Flex
+    container.flexDirection = org.nativescript.mason.masonkit.enums.FlexDirection.Row
+    container.style.flexWrap = org.nativescript.mason.masonkit.enums.FlexWrap.Wrap
+    container.style.gap = org.nativescript.mason.masonkit.Size(org.nativescript.mason.masonkit.LengthPercentage.Points(0f), org.nativescript.mason.masonkit.LengthPercentage.Points(0f))
+
+    // small header row of colored pixels
+    val header = mason.createView(this)
+    header.display = org.nativescript.mason.masonkit.enums.Display.Flex
+    header.flexDirection = org.nativescript.mason.masonkit.enums.FlexDirection.Row
+    header.style.flexWrap = org.nativescript.mason.masonkit.enums.FlexWrap.NoWrap
+    header.style.marginBottom = LengthPercentageAuto.Points(6f)
+
+    val colors = arrayOf("#FF5C5C","#FFB86B","#FFF36B","#9BFF6B","#6BFFEA","#6BA6FF","#C56BFF","#FF6BD1")
+    for (c in colors) {
+      val dot = mason.createView(this)
+      dot.style.size = org.nativescript.mason.masonkit.Size(Dimension.Points(toPx(8f)), Dimension.Points(toPx(8f)))
+      dot.style.background = c
+      header.append(dot)
+    }
+
+    container.append(header)
+
+    // compute grid using screen width/height (px) and add ~50dip to max height
+    val boxDp = 10f
+    var boxSize = toPx(boxDp)
+    if (boxSize <= 0f) boxSize = 1f
+    val maxWidthPx = metrics.widthPixels.toFloat()
+    val maxHeightPx = metrics.heightPixels.toFloat() + toPx(50f)
+
+    val cols = Math.max(1, Math.floor((maxWidthPx / boxSize).toDouble()).toInt())
+    var rows = Math.max(1, Math.floor((maxHeightPx / boxSize).toDouble()).toInt())
+
+    // Sanity cap to avoid creating massive numbers of nodes which can crash native buffers
+    val MAX_CELLS = 10000
+    val total = cols.toLong() * rows.toLong()
+    if (total > MAX_CELLS) {
+      val newRows = Math.max(1, (MAX_CELLS / cols).toInt())
+      Log.w("GridActivity", "Capping grid cells from $total to $MAX_CELLS (rows: $rows -> $newRows)")
+      rows = newRows
+    }
+
+    for (r in 0 until rows) {
+      for (c in 0 until cols) {
+        val v = mason.createView(this)
+        v.style.size = org.nativescript.mason.masonkit.Size(Dimension.Points(boxSize), Dimension.Points(boxSize))
+        val colorInt = Random.nextInt(0x1000000)
+        val hex = String.format("#%06X", 0xFFFFFF and colorInt)
+        v.style.background = hex
+        v.style.border = "1px solid #000000"
+        container.append(v)
+      }
+    }
+
+    root.addView(container)
+    body.addView(root)
   }
 
   fun inputTest(body: View) {

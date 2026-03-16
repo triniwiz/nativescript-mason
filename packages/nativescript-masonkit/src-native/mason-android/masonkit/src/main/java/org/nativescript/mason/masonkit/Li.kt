@@ -68,9 +68,7 @@ class Li @JvmOverloads constructor(
     if (listType == ListStyleType.None.value) return
 
     val fm = style.paint.fontMetrics
-    val baseline = findFirstTextBaseline(this@Li).takeIf { it != -1 } ?: run {
-      (-fm.ascent).toInt()
-    }
+    val baseline = findFirstTextBaseline(this@Li).takeIf { it != -1 } ?: (-fm.ascent).toInt()
 
     val oldPaintStyle = style.paint.style
     val oldStroke = style.paint.strokeWidth

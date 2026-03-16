@@ -786,6 +786,62 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.addView(root)
   }
 
+  // Compact red-tile grid reproduction (no bottom-artifact)
+  func redGridSample() {
+    let root = mason.createView()
+    root.display = .Flex
+    root.flexDirection = .Column
+    root.style.padding = MasonRect(uniform: .Points(toPx(8)))
+
+    let container = mason.createView()
+    container.display = .Flex
+    container.flexDirection = .Row
+    container.style.flexWrap = .Wrap
+    container.style.gap = MasonSize(.Points(0), .Points(0))
+
+    // header colored pixels
+    let header = mason.createView()
+    header.display = .Flex
+    header.flexDirection = .Row
+    header.style.flexWrap = .NoWrap
+    header.style.marginBottom = .Points(toPx(6))
+
+    let colors = ["#FF5C5C","#FFB86B","#FFF36B","#9BFF6B","#6BFFEA","#6BA6FF","#C56BFF","#FF6BD1"]
+    for c in colors {
+      let dot = mason.createView()
+      dot.style.setSizeWidth(.Points(toPx(8)))
+      dot.style.setSizeHeight(.Points(toPx(8)))
+      dot.style.background = c
+      header.addView(dot)
+    }
+
+    container.addView(header)
+
+    // compute grid dimensions from screen px and add ~50dip padding to height
+    let box = toPx(10)
+    let maxWidthPx = Float(UIScreen.main.bounds.width) * scale
+    let maxHeightPx = Float(UIScreen.main.bounds.height) * scale + toPx(50)
+
+    let cols = max(1, Int(floor(Double(maxWidthPx / box))))
+    let rows = max(1, Int(floor(Double(maxHeightPx / box))))
+
+    for _ in 0..<rows {
+      for _ in 0..<cols {
+        let v = mason.createView()
+        v.style.setSizeWidth(.Points(box))
+        v.style.setSizeHeight(.Points(box))
+        let rand = Int.random(in: 0...0xFFFFFF)
+        let hex = String(format: "#%06X", rand)
+        v.style.background = hex
+        v.style.border = "1px solid #000000"
+        container.addView(v)
+      }
+    }
+
+    root.addView(container)
+    body.addView(root)
+  }
+
   // MARK: - Gallery Demo (polished cards)
   func gallerySample() {
     let root = mason.createView()
@@ -948,6 +1004,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //body.style.background = "#FFFFFF"
     // Add body to view and constrain it below the picker
     body.translatesAutoresizingMaskIntoConstraints = false
+    // add a Bug button below the picker to present BugViewController
+    let bugButton = UIButton(type: .system)
+    bugButton.setTitle("Open Bug Demo", for: .normal)
+    bugButton.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(bugButton)
     view.addSubview(body)
 
     NSLayoutConstraint.activate([
@@ -956,11 +1017,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       demoPicker.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
       demoPicker.heightAnchor.constraint(equalToConstant: 32),
 
-      body.topAnchor.constraint(equalTo: demoPicker.bottomAnchor, constant: 8),
+      bugButton.topAnchor.constraint(equalTo: demoPicker.bottomAnchor, constant: 8),
+      bugButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+      bugButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+      bugButton.heightAnchor.constraint(equalToConstant: 36),
+
+      body.topAnchor.constraint(equalTo: bugButton.bottomAnchor, constant: 8),
       body.leadingAnchor.constraint(equalTo: view.leadingAnchor),
       body.trailingAnchor.constraint(equalTo: view.trailingAnchor),
       body.bottomAnchor.constraint(equalTo: view.bottomAnchor)
     ])
+
+    bugButton.addTarget(self, action: #selector(openBug(_:)), for: .touchUpInside)
 
     // Run initial sample
     demoChanged(demoPicker)
@@ -1002,7 +1070,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
           case 1:
             textSample()
           case 2:
-            gridSample()
+            // red grid reproduction example
+            redGridSample()
           case 3:
             gallerySample()
           case 4:
@@ -1017,6 +1086,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     default:
       renderSuperellipseDemo(body)
     }
+  }
+
+  @objc func openBug(_ sender: Any) {
+    let vc = BugViewController()
+    vc.modalPresentationStyle = .fullScreen
+    present(vc, animated: true, completion: nil)
   }
   
   func inputTest(){

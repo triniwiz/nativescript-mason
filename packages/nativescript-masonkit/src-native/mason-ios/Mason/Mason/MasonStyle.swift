@@ -3045,6 +3045,17 @@ public class MasonStyle: NSObject {
     size = MasonSize(wh, wh)
   }
   
+  public func setSizePoints(_ width: Float, _ height: Float) {
+    prepareMut()
+    setInt8(StyleKeys.WIDTH_TYPE, MasonDimension.Kind.Points.rawValue)
+    setFloat(StyleKeys.WIDTH_VALUE, width)
+    
+    setInt8(StyleKeys.HEIGHT_TYPE, MasonDimension.Kind.Points.rawValue)
+    setFloat(StyleKeys.HEIGHT_VALUE, height)
+    
+    setOrAppendState(StateKeys.size)
+  }
+  
   
   
   public var width: MasonDimension {

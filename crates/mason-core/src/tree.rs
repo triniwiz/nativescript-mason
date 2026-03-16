@@ -322,8 +322,6 @@ impl Tree {
 
     /// Clear transient float context before a layout pass.
     pub fn clear_float_context(&mut self) {
-        // debug hook
-        log::debug!("clear_float_context called");
         self.inner_mut().float_context.clear();
     }
 
@@ -400,7 +398,6 @@ impl Tree {
         }
 
         // For measurement, we will write back sizes into float_context.
-        log::debug!("measure_place_floats start root={:?}", _root);
         for (container_id, ids) in work.into_iter() {
             // before measuring the floats we need an estimate of the available
             // space for *this* container.  We resolve the container's explicit
@@ -1688,15 +1685,6 @@ impl LayoutPartialTree for Tree {
         let mut tree = self.inner_mut();
         if let Some(pos) = tree.inline_run_pending.iter().position(|&x| x == id) {
             let node = tree.node_from_id_mut(node_id);
-            // Log suspicious tiny or NaN heights for diagnostics
-            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
-                log::debug!(
-                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=true size={:?} content_size={:?}",
-                    id,
-                    layout.size,
-                    layout.content_size
-                );
-            }
             // preserve location, update size/metrics from the computed layout
             node.unrounded_layout.size = layout.size;
             node.unrounded_layout.content_size = layout.content_size;
@@ -1711,14 +1699,6 @@ impl LayoutPartialTree for Tree {
             }
         } else {
             let node = tree.node_from_id_mut(node_id);
-            if layout.size.height.is_nan() || layout.size.height.abs() <= 1e-6 {
-                log::debug!(
-                    "set_unrounded_layout: tiny/invalid height id={:?} inline_pending=false size={:?} content_size={:?}",
-                    id,
-                    layout.size,
-                    layout.content_size
-                );
-            }
             node.unrounded_layout = *layout;
         }
     }
@@ -1912,25 +1892,8 @@ impl LayoutBlockContainer for Tree {
                         // having children (e.g. inline/text children), try the mixed
                         // layout path as a fallback so inline flows are handled.
                         if (computed_layout.size.height <= 1e-6) && analysis.has_children {
-                            log::warn!(
-                                "compute_block_child_layout id={:?} branch=block out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x} analysis={:?}",
-                                id,
-                                computed_layout.size.height,
-                                computed_layout.size.height.to_bits(),
-                                computed_layout.content_size.height,
-                                computed_layout.content_size.height.to_bits(),
-                                analysis
-                            );
                             let children = tree.inner().children.get(id).cloned().unwrap_or_default();
                             let mixed_out = tree.compute_mixed_layout(id, children.as_slice(), inputs, None);
-                            log::warn!(
-                                "compute_block_child_layout id={:?} mixed_fallback out_h={} out_h_bits=0x{:08x} content_h={} content_h_bits=0x{:08x}",
-                                id,
-                                mixed_out.size.height,
-                                mixed_out.size.height.to_bits(),
-                                mixed_out.content_size.height,
-                                mixed_out.content_size.height.to_bits()
-                            );
                             if mixed_out.size.height > 1e-6 {
                                 computed_layout = mixed_out;
                             }
@@ -2084,11 +2047,7 @@ impl LayoutBlockContainer for Tree {
                                     // under a short lock. Do not call platform/native
                                     // measurement while holding tree write locks; callers
                                     // must snapshot data then invoke measure.
-                                    #[cfg(test)]
-                                    eprintln!("TEST: calling measure for id={:?} in compute_block_child_layout leaf path", id);
-                                    log::debug!("measure-call leaf id={:?} known={:?} avail={:?}", id, final_known, available_space);
                                     let meas = measure.measure(final_known, available_space);
-                                    log::debug!("measure-result leaf id={:?} out={:?}", id, meas);
                                     meas
                                 };
 

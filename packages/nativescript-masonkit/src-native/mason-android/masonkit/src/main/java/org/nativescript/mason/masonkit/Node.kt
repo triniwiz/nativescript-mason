@@ -1,8 +1,7 @@
 package org.nativescript.mason.masonkit
 
-import android.util.SizeF
 import android.util.Log
-import kotlin.math.abs
+import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
@@ -10,6 +9,7 @@ import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 
 object NodeStateKeys {
   const val IS_NODE_DIRTY = 0
@@ -200,7 +200,6 @@ open class Node internal constructor(
   fun setComputedSize(width: Float, height: Float) {
     cachedWidth = width
     cachedHeight = height
-    android.util.Log.d("Node.setComputedSize", "nodePtr=${nativePtr} cached=${cachedWidth}x${cachedHeight}")
 
     // Update compute cache so `invalidateLayout()` can observe the new size
     // immediately and avoid scheduling further native computes for max-content.
@@ -340,21 +339,6 @@ open class Node internal constructor(
 
       val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
 
-      try {
-        val nodePtr = this@Node.nativePtr
-        Log.d(
-          "Node.measure",
-          "nodePtr=${nodePtr} known=${knownDimensions.width}x${knownDimensions.height} available=${availableSpace.width}x${availableSpace.height} measured=${width}x${height}"
-        )
-        if (height != 0f && abs(height) < 1e-6f) {
-          Log.w("Node.measure", "tiny measured height on nodePtr=${nodePtr} -> ${height}")
-        }
-        if (width != 0f && abs(width) < 1e-6f) {
-          Log.w("Node.measure", "tiny measured width on nodePtr=${nodePtr} -> ${width}")
-        }
-      } catch (_: Throwable) {
-      }
-
       return Size(width, height)
     }
   }
@@ -364,7 +348,7 @@ open class Node internal constructor(
 
   var view: Any? = null
 
-  internal var children = arrayListOf<Node>()
+  internal var children = ArrayList<Node>(32)
   internal val style = Style(this)
 
   internal var suppressChildOps = 0
@@ -498,7 +482,14 @@ open class Node internal constructor(
       val buf = stateValue
       if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
         buf.order(ByteOrder.nativeOrder())
-        return buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
+
+        var index = 0
+        try {
+          index = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt()
+        } catch (_: Exception) {
+        }
+
+        return index and 0xFFFF
       }
 
       return 0

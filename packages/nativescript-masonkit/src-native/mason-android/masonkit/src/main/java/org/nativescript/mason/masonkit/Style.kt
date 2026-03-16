@@ -715,22 +715,22 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   val values: ByteBuffer
     get() {
-      return mWritableValue ?: mValues ?: run {
-        // During compute Rust holds the lock — use placeholder to avoid deadlock
-        if (node.mason.inCompute) {
-          return mPlaceholder
-        }
-        val buffer =
-          ObjectManager.shared[nativeGetStyleBuffer(
-            node.mason.nativePtr,
-            node.nativePtr
-          )] as ByteBuffer
-        buffer.apply {
-          order(ByteOrder.nativeOrder())
-        }
-        mValues = buffer
-        buffer
+      if (mWritableValue != null) return mWritableValue!!
+      if (mValues != null) return mValues!!
+      // During compute Rust holds the lock — use placeholder to avoid deadlock
+      if (node.mason.inCompute) {
+        return mPlaceholder
       }
+      val buffer =
+        ObjectManager.shared[nativeGetStyleBuffer(
+          node.mason.nativePtr,
+          node.nativePtr
+        )] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      mValues = buffer
+      return buffer
     }
 
   internal var isDirty = -1L
@@ -1085,7 +1085,8 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   fun setBackgroundColor(value: String) {
     parseColor(value)?.let {
-      (mBackground ?: run { Background(this) }).color = it
+      if (mBackground == null) mBackground = Background(this)
+      mBackground!!.color = it
     }
   }
 
@@ -2245,6 +2246,23 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal val mBoxShadowRenderer by lazy {
     BoxShadowRenderer(this)
   }
+  
+  // Compute a stable, allocation-free hash for the current list of box shadows.
+  // This combines primitive fields directly to avoid creating temporary objects
+  // inside hot rendering paths.
+  fun boxShadowsHash(): Int {
+    var result = 1
+    val list = boxShadows
+    for (s in list) {
+      result = 31 * result + s.offsetX.hashCode()
+      result = 31 * result + s.offsetY.hashCode()
+      result = 31 * result + s.blurRadius.hashCode()
+      result = 31 * result + s.spreadRadius.hashCode()
+      result = 31 * result + s.color
+      result = 31 * result + if (s.inset) 1 else 0
+    }
+    return result
+  }
   var boxShadow: String
     get() = mBoxShadowRaw
     set(value) {
@@ -2626,40 +2644,32 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setBorderLeftWidth(value: Float, type: Byte) {
-    val left = LengthPercentage.fromTypeValue(type, value)
-    left?.let {
-      mBorderLeft.width = it
+    if (LengthPercentage.isValid(type, value)) {
+      mBorderLeft.width = LengthPercentage.fromTypeValue(type, value)!!
     }
   }
 
   fun setBorderRightWidth(value: Float, type: Byte) {
-    val right = LengthPercentage.fromTypeValue(type, value)
-
-    right?.let {
-      mBorderRight.width = it
+    if (LengthPercentage.isValid(type, value)) {
+      mBorderRight.width = LengthPercentage.fromTypeValue(type, value)!!
     }
   }
 
   fun setBorderTopWidth(value: Float, type: Byte) {
-    val top = LengthPercentage.fromTypeValue(type, value)
-
-    top?.let {
-      mBorderTop.width = it
+    if (LengthPercentage.isValid(type, value)) {
+      mBorderTop.width = LengthPercentage.fromTypeValue(type, value)!!
     }
   }
 
   fun setBorderBottomWidth(value: Float, type: Byte) {
-    val bottom = LengthPercentage.fromTypeValue(type, value)
-
-    bottom?.let {
-      mBorderBottom.width = it
+    if (LengthPercentage.isValid(type, value)) {
+      mBorderBottom.width = LengthPercentage.fromTypeValue(type, value)!!
     }
   }
 
   fun setBorderWidth(value: Float, type: Byte) {
-    val border = LengthPercentage.fromTypeValue(type, value)
-
-    border?.let {
+    if (LengthPercentage.isValid(type, value)) {
+      val it = LengthPercentage.fromTypeValue(type, value)!!
       mBorderLeft.apply {
         setState = false
         width = it
@@ -2917,6 +2927,16 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.putFloat(StyleKeys.HEIGHT_VALUE, value.height.value)
       setOrAppendState(StateKeys.SIZE)
     }
+
+  fun setSizePoints(width: Float, height: Float) {
+    prepareMut()
+    values.put(StyleKeys.WIDTH_TYPE, Dimension.Kind.Points.value)
+    values.putFloat(StyleKeys.WIDTH_VALUE, width)
+
+    values.put(StyleKeys.HEIGHT_TYPE, Dimension.Kind.Points.value)
+    values.putFloat(StyleKeys.HEIGHT_VALUE, height)
+    setOrAppendState(StateKeys.SIZE)
+  }
 
 
   fun setSizeWidth(value: Float, type: Byte) {

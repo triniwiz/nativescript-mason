@@ -1141,21 +1141,23 @@ class Input @JvmOverloads constructor(
       }
     }
 
-    knownDimensions.width?.let {
-      if (!it.isNaN() && it.isFinite()) {
-        size.width = it
+    val knownW = knownDimensions.width
+    if (knownW != null) {
+      if (!knownW.isNaN() && knownW.isFinite()) {
+        size.width = knownW
       }
-    } ?: run {
+    } else {
       ch?.let {
         size.width = max(ch * this.size, 150f)
       }
     }
 
-    knownDimensions.height?.let {
-      if (!it.isNaN() && it.isFinite()) {
-        size.height = it
+    val knownH = knownDimensions.height
+    if (knownH != null) {
+      if (!knownH.isNaN() && knownH.isFinite()) {
+        size.height = knownH
       }
-    } ?: run {
+    } else {
       ch?.let {
         val fm = style.paint.fontMetrics
         size.height = fm.descent - fm.ascent

@@ -56,15 +56,6 @@ impl AndroidNode {
                 let width_bits = width.to_bits();
                 let height_bits = height.to_bits();
                 let is_subnormal = height.is_subnormal();
-                warn!(
-                    "AndroidNode.set_computed_size raw node={} width={} height={} width_bits=0x{:08x} height_bits=0x{:08x} is_subnormal={}",
-                    self.0,
-                    width,
-                    height,
-                    width_bits,
-                    height_bits,
-                    is_subnormal
-                );
 
                 let mut clamped_height = height;
                 // Clamp very small positive heights to zero to avoid visual
@@ -80,7 +71,6 @@ impl AndroidNode {
 
                 let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                 let _ = unsafe {
-                    warn!("AndroidNode.set_computed_size node={} w={} h={}", self.0, width, clamped_height);
                     env.call_static_method_unchecked(
                         node,
                         cache.node_set_computed_size_id,

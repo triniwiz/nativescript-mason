@@ -37,6 +37,8 @@ class BoxShadowRenderer(private val style: Style) {
   private var cachedWidth = 0f
   private var cachedHeight = 0f
   private var cachedShadowsHash = 0
+  private val tmpRadii = FloatArray(8)
+  private val tmpPath = Path()
 
   // For API 31+
   @RequiresApi(Build.VERSION_CODES.S)
@@ -163,7 +165,7 @@ class BoxShadowRenderer(private val style: Style) {
   }
 
   private fun needsRebuild(width: Float, height: Float): Boolean {
-    val shadowsHash = style.boxShadows.hashCode()
+    val shadowsHash = style.boxShadowsHash()
     return cachedWidth != width || cachedHeight != height || cachedShadowsHash != shadowsHash
   }
 
@@ -219,7 +221,8 @@ class BoxShadowRenderer(private val style: Style) {
 
         // Adjust radii for spread
         val adjustedRadii = if (radii != null) {
-          FloatArray(8) { i -> (radii[i] + spread).coerceAtLeast(0f) }
+          for (i in 0 until 8) tmpRadii[i] = (radii[i] + spread).coerceAtLeast(0f)
+          tmpRadii
         } else null
 
         // Create shape node
@@ -229,27 +232,24 @@ class BoxShadowRenderer(private val style: Style) {
         shapeRect.set(0f, 0f, shapeW.toFloat(), shapeH.toFloat())
         shapePaint.color = Color.WHITE
         if (adjustedRadii != null) {
-          val path = Path()
-          path.addRoundRect(shapeRect, adjustedRadii, Path.Direction.CW)
-          shapeCanvas.drawPath(path, shapePaint)
+          tmpPath.reset()
+          tmpPath.addRoundRect(shapeRect, adjustedRadii, Path.Direction.CW)
+          shapeCanvas.drawPath(tmpPath, shapePaint)
         } else {
           shapeCanvas.drawRect(shapeRect, shapePaint)
         }
         shapeNode.endRecording()
 
         // Create color tint effect
-        val colorFilter = ColorMatrixColorFilter(
-          ColorMatrix(
-            floatArrayOf(
-              0f, 0f, 0f, 0f, Color.red(shadow.color).toFloat(),
-              0f, 0f, 0f, 0f, Color.green(shadow.color).toFloat(),
-              0f, 0f, 0f, 0f, Color.blue(shadow.color).toFloat(),
-              0f, 0f, 0f, Color.alpha(shadow.color) / 255f, 0f
-            )
-          )
-        )
-
-        val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
+          val tmpColorArray = FloatArray(20)
+          val tmpColorMatrix = ColorMatrix()
+          tmpColorArray[0] = 0f; tmpColorArray[1] = 0f; tmpColorArray[2] = 0f; tmpColorArray[3] = 0f; tmpColorArray[4] = Color.red(shadow.color).toFloat()
+          tmpColorArray[5] = 0f; tmpColorArray[6] = 0f; tmpColorArray[7] = 0f; tmpColorArray[8] = 0f; tmpColorArray[9] = Color.green(shadow.color).toFloat()
+          tmpColorArray[10] = 0f; tmpColorArray[11] = 0f; tmpColorArray[12] = 0f; tmpColorArray[13] = 0f; tmpColorArray[14] = Color.blue(shadow.color).toFloat()
+          tmpColorArray[15] = 0f; tmpColorArray[16] = 0f; tmpColorArray[17] = 0f; tmpColorArray[18] = Color.alpha(shadow.color) / 255f; tmpColorArray[19] = 0f
+          tmpColorMatrix.set(tmpColorArray)
+          val colorFilter = ColorMatrixColorFilter(tmpColorMatrix)
+          val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
 
         val shadowEffect = if (shadow.blurRadius > 0f) {
           val blurEffect = RenderEffect.createBlurEffect(
@@ -287,7 +287,7 @@ class BoxShadowRenderer(private val style: Style) {
       outsetShadowNodes = nodes
       cachedWidth = width
       cachedHeight = height
-      cachedShadowsHash = style.boxShadows.hashCode()
+      cachedShadowsHash = style.boxShadowsHash()
     }
 
     // Draw cached nodes (in reverse order so first shadow is on top)
@@ -310,13 +310,16 @@ class BoxShadowRenderer(private val style: Style) {
       val hasRadii = borderRenderer.hasRadii()
       val radii = if (hasRadii) borderRenderer.getRadii() else null
 
+      val tmpRadii = FloatArray(8)
+      val tmpPath = Path()
       for (shadow in shadows.reversed()) {
         val spread = shadow.spreadRadius
         val shapeW = (width + spread * 2).toInt().coerceAtLeast(1)
         val shapeH = (height + spread * 2).toInt().coerceAtLeast(1)
 
         val adjustedRadii = if (radii != null) {
-          FloatArray(8) { i -> (radii[i] + spread).coerceAtLeast(0f) }
+          for (i in 0 until 8) tmpRadii[i] = (radii[i] + spread).coerceAtLeast(0f)
+          tmpRadii
         } else null
 
         // Create shape
@@ -340,7 +343,7 @@ class BoxShadowRenderer(private val style: Style) {
       cachedOutsetShadows = entries
       cachedWidth = width
       cachedHeight = height
-      cachedShadowsHash = style.boxShadows.hashCode()
+      cachedShadowsHash = style.boxShadowsHash()
     }
 
     // Draw cached bitmaps (in reverse order so first shadow is on top)
@@ -399,6 +402,8 @@ class BoxShadowRenderer(private val style: Style) {
       color = Color.WHITE
     }
     val shapeRect = RectF()
+    val tmpRadii = FloatArray(8)
+    val tmpPath = Path()
 
     for ((index, shadow) in shadows.withIndex().reversed()) {
       val spread = shadow.spreadRadius
@@ -418,7 +423,8 @@ class BoxShadowRenderer(private val style: Style) {
 
       // Cut out the inner area (where no shadow should appear)
       val innerRadii = if (radii != null) {
-        FloatArray(8) { i -> (radii[i] - spread).coerceAtLeast(0f) }
+        for (i in 0 until 8) tmpRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
+        tmpRadii
       } else null
 
       shapeRect.set(
@@ -431,9 +437,9 @@ class BoxShadowRenderer(private val style: Style) {
       shapePaint.color = Color.TRANSPARENT
       shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
       if (innerRadii != null) {
-        val cutPath = Path()
-        cutPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
-        shapeCanvas.drawPath(cutPath, shapePaint)
+        tmpPath.reset()
+        tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+        shapeCanvas.drawPath(tmpPath, shapePaint)
       } else {
         shapeCanvas.drawRect(shapeRect, shapePaint)
       }
@@ -519,8 +525,11 @@ class BoxShadowRenderer(private val style: Style) {
       frameCanvas.drawRect(0f, 0f, frameW.toFloat(), frameH.toFloat(), shapePaint)
 
       // Cut out inner area
+      val tmpRadii = FloatArray(8)
+      val tmpPath = Path()
       val innerRadii = if (radii != null) {
-        FloatArray(8) { i -> (radii[i] - spread).coerceAtLeast(0f) }
+        for (i in 0 until 8) tmpRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
+        tmpRadii
       } else null
 
       shapeRect.set(
@@ -533,9 +542,9 @@ class BoxShadowRenderer(private val style: Style) {
       shapePaint.color = Color.TRANSPARENT
       shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
       if (innerRadii != null) {
-        val cutPath = Path()
-        cutPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
-        frameCanvas.drawPath(cutPath, shapePaint)
+        tmpPath.reset()
+        tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+        frameCanvas.drawPath(tmpPath, shapePaint)
       } else {
         frameCanvas.drawRect(shapeRect, shapePaint)
       }

@@ -245,18 +245,16 @@ class ColorInput @JvmOverloads constructor(
           val hPx = hue.height.coerceAtLeast((6 * resources.displayMetrics.density).toInt())
           if (w <= 0 || hPx <= 0) return
           // initialize hue track drawable and set initial gap
-          val posX = run {
-            val tb = try {
-              hue.thumb?.bounds
-            } catch (_: Exception) {
-              null
-            }
-            if (tb != null && !tb.isEmpty) tb.centerX() else {
-              // map progress -> pixel in the inner track area (respect paddings)
-              val avail = (w - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-              val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
-              (hue.paddingLeft + x).toInt()
-            }
+          val tb = try {
+            hue.thumb?.bounds
+          } catch (_: Exception) {
+            null
+          }
+          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
+            // map progress -> pixel in the inner track area (respect paddings)
+            val avail = (w - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
+            val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
+            (hue.paddingLeft + x).toInt()
           }
           val trackH = (12 * resources.displayMetrics.density).toInt()
           // create a fresh HueTrackDrawable for this SeekBar instance so
@@ -333,17 +331,15 @@ class ColorInput @JvmOverloads constructor(
             cancelable = false
           )
           // update hue drawable gap
-          val posX = run {
-            val tb = try {
-              hue.thumb?.bounds
-            } catch (_: Exception) {
-              null
-            }
-            if (tb != null && !tb.isEmpty) tb.centerX() else {
-              val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-              val x = (progress.toFloat() / hue.max) * (avail - 1)
-              (hue.paddingLeft + x).toInt()
-            }
+          val tb = try {
+            hue.thumb?.bounds
+          } catch (_: Exception) {
+            null
+          }
+          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
+            val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
+            val x = (progress.toFloat() / hue.max) * (avail - 1)
+            (hue.paddingLeft + x).toInt()
           }
           hueTrackDrawable?.setGap(posX, huePressed)
         }
@@ -379,17 +375,15 @@ class ColorInput @JvmOverloads constructor(
             cancelable = false
           )
           // keep gap updated when SV changes
-          val posX = run {
-            val tb = try {
-              hue.thumb?.bounds
-            } catch (_: Exception) {
-              null
-            }
-            if (tb != null && !tb.isEmpty) tb.centerX() else {
-              val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-              val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
-              (hue.paddingLeft + x).toInt()
-            }
+          val tb = try {
+            hue.thumb?.bounds
+          } catch (_: Exception) {
+            null
+          }
+          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
+            val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
+            val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
+            (hue.paddingLeft + x).toInt()
           }
           hueTrackDrawable?.setGap(posX, huePressed)
           updatePreview()
