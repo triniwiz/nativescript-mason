@@ -182,29 +182,66 @@ class NodeHelper(val mason: Mason) {
     node.style.float = value
   }
 
+  private fun convertFloatRectsToLocalSizes(rects: FloatArray): FloatArray {
+    if (rects.isEmpty() || rects.size % 4 != 0) return rects
+
+    val converted = FloatArray(rects.size)
+    var i = 0
+    while (i + 3 < rects.size) {
+      val left = rects[i]
+      val top = rects[i + 1]
+      val right = rects[i + 2]
+      val bottom = rects[i + 3]
+
+      converted[i] = left
+      converted[i + 1] = top
+      converted[i + 2] = max(0f, right - left)
+      converted[i + 3] = max(0f, bottom - top)
+      i += 4
+    }
+
+    return converted
+  }
+
+  private fun queryFloatRects(node: Node): Pair<IntArray, FloatArray> {
+    var current: Node? = node
+    while (current != null) {
+      if (current.nativePtr != 0L) {
+        val rects = mason.getFloatRects(current)
+        if (rects.isNotEmpty()) {
+          val ids = mason.getFloatRectAndroidIds(current)
+          return Pair(ids, convertFloatRectsToLocalSizes(rects))
+        }
+      }
+      current = current.parent
+    }
+
+    return Pair(IntArray(0), FloatArray(0))
+  }
+
+  private fun queryFloatRectsWithIds(node: Node): LongArray {
+    var current: Node? = node
+    while (current != null) {
+      if (current.nativePtr != 0L) {
+        val rects = NativeHelpers.nativeNodeGetFloatRectWithIds(mason.getNativePtr(), current.nativePtr)
+        if (rects.isNotEmpty()) {
+          return rects
+        }
+      }
+      current = current.parent
+    }
+
+    return LongArray(0)
+  }
+
   fun getFloatRectsWithAndroidIds(view: android.view.View): LongArray {
     val node = mason.nodeForView(view)
-    val nodePtr = node.nativePtr
-    // Guard: avoid querying engine float rects before the node/container has a computed layout.
-    // Many early measure/layout passes have width==0 which causes native to return empty arrays.
-    if (node.layoutTree.frames.isEmpty()) {
-      return LongArray(0)
-    }
-    return NativeHelpers.nativeNodeGetFloatRectWithIds(mason.getNativePtr(), nodePtr)
+    return queryFloatRectsWithIds(node)
   }
 
   fun getFloatRectsLocalToView(view: android.view.View): Pair<IntArray, FloatArray> {
     val node = mason.nodeForView(view)
-    if (node.layoutTree.frames.isEmpty()) {
-      return Pair(IntArray(0), FloatArray(0))
-    }
-    return try {
-      val rects = mason.getFloatRects(node)
-      val ids = mason.getFloatRectAndroidIds(node)
-      Pair(ids, rects)
-    } catch (_: Throwable) {
-      Pair(IntArray(0), FloatArray(0))
-    }
+    return queryFloatRects(node)
   }
 
   fun getCachedFloatInsetsForView(
@@ -213,7 +250,7 @@ class NodeHelper(val mason: Mason) {
     defaultRight: Float
   ): Pair<Float, Float> {
     val (_, rects) = getFloatRectsLocalToView(view)
-    if (rects.isEmpty()) return Pair(0f, Float.MAX_VALUE)
+    if (rects.isEmpty()) return Pair(defaultLeft, defaultRight)
     var leftInset = 0f
     var rightInset = Float.MAX_VALUE
     var i = 0
@@ -442,14 +479,7 @@ class NodeHelper(val mason: Mason) {
         && current.bottom.type == newBottom.type && current.bottom.value == newBottom.value)
 
       if (same) return
-
-      // Defer mutation to avoid re-entrant WindowInsets -> layout loops
-      view.post {
-        try {
-          node.style.padding = Rect(newLeft, newRight, newTop, newBottom)
-        } catch (_: Throwable) {
-        }
-      }
+      node.style.padding = Rect(newLeft, newRight, newTop, newBottom)
     }
 
 
@@ -1499,4 +1529,3 @@ class NodeHelper(val mason: Mason) {
       )
     }
   }
-

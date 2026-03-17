@@ -125,9 +125,7 @@ class TextView @JvmOverloads constructor(
       // when applyLayoutFlat positions the view), so try building float-aware
       // layout unconditionally.
       if (floatAwareStaticLayout == null) {
-        try {
-          floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
-        } catch (_: Throwable) {}
+        floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
       }
 
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout

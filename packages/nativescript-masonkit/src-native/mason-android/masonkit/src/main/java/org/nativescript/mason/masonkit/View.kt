@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -197,8 +196,16 @@ open class View @JvmOverloads constructor(
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     if (parent !is Element) {
-      layoutFlat()
-      applyLayoutFlat(node, node.layoutTree)
+      // Only re-read the layout from Rust if we don't already have a
+      // valid cached layout tree (computeAndLayout populates it during
+      // onMeasure). Re-reading via layoutFlat() can pick up stale Rust
+      // state when spurious layout passes occur.
+      if (node.layoutTree.nodeCount == 0) {
+        layoutFlat()
+      }
+      if (node.layoutTree.nodeCount != 0) {
+        applyLayoutFlat(node, node.layoutTree)
+      }
     }
   }
 
@@ -230,7 +237,6 @@ open class View @JvmOverloads constructor(
           widthArg,
           heightArg
         )
-
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
           return
@@ -238,11 +244,8 @@ open class View @JvmOverloads constructor(
         setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
       } else {
         // we're currently inside a compute cycle; running computeAndLayout would
-        // deadlock, so temporarily fall back to the provided spec sizes.  post
-        // another layout for when the computation finishes so the real dimensions
-        // can be picked up.
+        // deadlock, so temporarily fall back to the provided spec sizes.
         setMeasuredDimension(specWidth, specHeight)
-        post { requestLayout() }
       }
     } else {
       setMeasuredDimension(

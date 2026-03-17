@@ -69,7 +69,7 @@
     </activity>
     <activity
       android:name=".BugActivity"
-      android:exported="false" />
+      android:exported="true" />
     <activity
       android:name=".FlexActivity"
       android:exported="false">

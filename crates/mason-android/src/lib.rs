@@ -15,6 +15,8 @@ use std::ffi::c_void;
 mod node;
 pub mod style;
 
+
+
 const INLINE_SEGMENT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment";
 
 const INLINE_SEGMENT_TEXT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment$Text";
@@ -716,6 +718,7 @@ fn native_set_device_scale(taffy: jlong, scale: jfloat) {
 pub extern "system" fn MasonNativeSetDeviceScale(taffy: jlong, scale: jfloat) {
     native_set_device_scale(taffy, scale);
 }
+
 
 #[no_mangle]
 pub extern "system" fn MasonNativeSetDeviceScaleNormal(

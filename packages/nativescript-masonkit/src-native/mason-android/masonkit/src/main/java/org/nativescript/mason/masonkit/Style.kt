@@ -550,7 +550,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   /**
    * Update font metrics on a Mason node when font changes.
    * When called during a Rust measure callback (inMeasure == true),
-   * the write is deferred to avoid deadlocking the rwlock.
+   * write is deferred to avoid deadlocking the rwlock.
    */
   internal fun syncFontMetrics() {
     if (!fontDirty) return
@@ -2246,7 +2246,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal val mBoxShadowRenderer by lazy {
     BoxShadowRenderer(this)
   }
-  
+
   // Compute a stable, allocation-free hash for the current list of box shadows.
   // This combines primitive fields directly to avoid creating temporary objects
   // inside hot rendering paths.

@@ -410,6 +410,46 @@ impl Mason {
             .unwrap_or((0 as _, 0))
     }
 
+        /// Return the StyleHandle for a pseudo style (immutable) if present.
+        #[track_caller]
+        pub fn pseudo_style_handle(&self, node: Id, flags: u16) -> Option<u32> {
+            self.0
+                .nodes()
+                .get(node)
+                .and_then(|node| {
+                    if let Some(p) = &node.pseudo_styles {
+                        use crate::node::PseudoStates;
+                        let bits = PseudoStates::from_bits_truncate(flags);
+                        if bits.contains(PseudoStates::HOVER) {
+                            if let Some(s) = &p.hover {
+                                return Some(s.handle.index() as u32);
+                            }
+                        }
+                        if bits.contains(PseudoStates::ACTIVE) {
+                            if let Some(s) = &p.active {
+                                return Some(s.handle.index() as u32);
+                            }
+                        }
+                        if bits.contains(PseudoStates::FOCUS) {
+                            if let Some(s) = &p.focus {
+                                return Some(s.handle.index() as u32);
+                            }
+                        }
+                        if bits.contains(PseudoStates::DISABLED) {
+                            if let Some(s) = &p.disabled {
+                                return Some(s.handle.index() as u32);
+                            }
+                        }
+                        if bits.contains(PseudoStates::CHECKED) {
+                            if let Some(s) = &p.checked {
+                                return Some(s.handle.index() as u32);
+                            }
+                        }
+                    }
+                    None
+                })
+        }
+
     /// Prepare and return a mutable pseudo style buffer for `node` matching `flags`.
     /// This will create the pseudo Style slot (cloned from base style) if missing
     /// and call `prepare_mut()` on it so callers can safely mutate the raw buffer.
@@ -482,6 +522,78 @@ impl Mason {
                 None
             })
             .unwrap_or((0 as _, 0))
+    }
+
+    /// Prepare and return the StyleHandle for a mutable pseudo style.
+    /// Caller may then query `buffer_from(handle)` / `buffer_raw_mut_from(handle)`.
+    #[track_caller]
+    pub fn pseudo_style_handle_mut(&mut self, node: Id, flags: u16) -> Option<u32> {
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .and_then(|node| {
+                use crate::node::PseudoStates;
+                let bits = PseudoStates::from_bits_truncate(flags);
+
+                if node.pseudo_styles.is_none() {
+                    node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+                }
+
+                if let Some(p) = &mut node.pseudo_styles {
+                    // choose first matching pseudo in priority order
+                    if bits.contains(PseudoStates::HOVER) {
+                        if p.hover.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.hover = Some(s);
+                        } else {
+                            p.hover.as_mut().unwrap().prepare_mut();
+                        }
+                        return Some(p.hover.as_ref().unwrap().handle.index() as u32);
+                    }
+                    if bits.contains(PseudoStates::ACTIVE) {
+                        if p.active.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.active = Some(s);
+                        } else {
+                            p.active.as_mut().unwrap().prepare_mut();
+                        }
+                        return Some(p.active.as_ref().unwrap().handle.index() as u32);
+                    }
+                    if bits.contains(PseudoStates::FOCUS) {
+                        if p.focus.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.focus = Some(s);
+                        } else {
+                            p.focus.as_mut().unwrap().prepare_mut();
+                        }
+                        return Some(p.focus.as_ref().unwrap().handle.index() as u32);
+                    }
+                    if bits.contains(PseudoStates::DISABLED) {
+                        if p.disabled.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.disabled = Some(s);
+                        } else {
+                            p.disabled.as_mut().unwrap().prepare_mut();
+                        }
+                        return Some(p.disabled.as_ref().unwrap().handle.index() as u32);
+                    }
+                    if bits.contains(PseudoStates::CHECKED) {
+                        if p.checked.is_none() {
+                            let mut s = node.style.clone();
+                            s.prepare_mut();
+                            p.checked = Some(s);
+                        } else {
+                            p.checked.as_mut().unwrap().prepare_mut();
+                        }
+                        return Some(p.checked.as_ref().unwrap().handle.index() as u32);
+                    }
+                }
+                None
+            })
     }
 
     #[cfg(target_os = "android")]

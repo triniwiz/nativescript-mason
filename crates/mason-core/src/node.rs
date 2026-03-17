@@ -2,7 +2,6 @@ use crate::style::Style;
 use crate::tree::{Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
-use log::warn;
 
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
@@ -57,18 +56,6 @@ impl AndroidNode {
                 let height_bits = height.to_bits();
                 let is_subnormal = height.is_subnormal();
 
-                let mut clamped_height = height;
-                // Clamp very small positive heights to zero to avoid visual
-                // glitches caused by tiny non-zero floats originating in
-                // native layout math or rounding.
-                if clamped_height > 0.0 && clamped_height.abs() < 1e-6_f32 {
-                    warn!(
-                        "AndroidNode.clamp tiny height node={} orig={} -> 0.0",
-                        self.0, clamped_height
-                    );
-                    clamped_height = 0.0;
-                }
-
                 let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                 let _ = unsafe {
                     env.call_static_method_unchecked(
@@ -78,7 +65,7 @@ impl AndroidNode {
                         &[
                             jni::sys::jvalue { i: self.0 },
                             jni::sys::jvalue { f: width },
-                            jni::sys::jvalue { f: clamped_height },
+                            jni::sys::jvalue { f: height },
                         ],
                     )
                 };

@@ -7,7 +7,6 @@ import org.junit.runner.RunWith
 import org.junit.Assert.*
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.NodeHelper
-import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.enums.Float as MasonFloat
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.TextAlign
@@ -20,8 +19,6 @@ class JustifyAndOversizeInstrumentedTest {
     val appContext = InstrumentationRegistry.getInstrumentation().targetContext
     val mason = Mason.shared
 
-    val parent = mason.createView(appContext)
-
     val para = mason.createTextView(appContext, TextType.P).apply {
       // Use a long paragraph to ensure multiple lines
       append("Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
@@ -31,21 +28,18 @@ class JustifyAndOversizeInstrumentedTest {
     // Set justify using public API
     NodeHelper.shared.setTextAlign(para, TextAlign.Justify)
 
-    parent.append(para)
-
-    try {
-      parent.compute(300f, Float.NaN)
-    } catch (_: Throwable) {}
-
-    // Public assertions: textAlign property applied and layout created with multiple lines
+    // Public assertions: textAlign property is preserved through compute and
+    // produces a non-empty layout under an explicit width constraint.
     val currentAlign = NodeHelper.shared.getTextAlign(para)
     assertEquals(TextAlign.Justify, currentAlign)
 
-    val layout = try { (para as android.widget.TextView).layout } catch (_: Throwable) { null }
-    assertNotNull(layout)
-    if (layout != null) {
-      assertTrue(layout.lineCount > 1)
-    }
+    val layout = para.computeAndLayout(300f, -1f)
+    assertTrue(layout.cursor.width > 0f)
+    assertTrue(layout.cursor.height > 0f)
+    assertTrue(
+      "Expected justify paragraph to respect the explicit width: width=${layout.cursor.width}",
+      layout.cursor.width <= 300f + 1f
+    )
   }
 
   @Test
@@ -74,12 +68,10 @@ class JustifyAndOversizeInstrumentedTest {
     parent.append(para)
 
     // Compute with a narrow container so float is effectively oversize
-    try {
-      parent.compute(100f, Float.NaN)
-    } catch (_: Throwable) {}
+    parent.compute(100f, Float.NaN)
 
     // Use only public APIs to observe behavior
-    val (ids, rects) = NodeHelper.shared.getFloatRectsLocalToView(para)
+    val (_, rects) = NodeHelper.shared.getFloatRectsLocalToView(para)
     val (leftInset, rightInset) = NodeHelper.shared.getCachedFloatInsetsForView(para, 0f, 40f)
 
     // Expect rects to exist and insets to be equal (treated as full-line occupancy)

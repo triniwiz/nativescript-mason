@@ -171,7 +171,6 @@ class Scroll @JvmOverloads constructor(
         setMeasuredDimension(measuredW, measuredH)
       } else {
         setMeasuredDimension(specWidth, specHeight)
-        post { requestLayout() }
       }
     } else {
       setMeasuredDimension(specWidth, specHeight)

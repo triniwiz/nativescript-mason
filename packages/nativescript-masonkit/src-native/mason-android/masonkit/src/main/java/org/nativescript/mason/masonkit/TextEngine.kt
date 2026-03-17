@@ -228,11 +228,8 @@ class TextEngine(val container: TextContainer) {
       // to a plain-text concatenation of direct TextNode children so
       // the view still renders readable text instead of nothing.
       val fallback = SpannableStringBuilder()
-      try {
-        for (child in node.children) {
-          if (child is TextNode) fallback.append(child.data)
-        }
-      } catch (_: Exception) {
+      for (child in node.children) {
+        if (child is TextNode) fallback.append(child.data)
       }
       fallback
     }
@@ -249,10 +246,7 @@ class TextEngine(val container: TextContainer) {
         container.setText(spannable, BufferType.SPANNABLE)
       } catch (_: Exception) {
         // As a last resort, set plain text to avoid leaving the view blank
-        try {
-          container.setText(spannable.toString(), BufferType.NORMAL)
-        } catch (_: Exception) {
-        }
+        container.setText(spannable.toString(), BufferType.NORMAL)
       }
     }
 
@@ -281,18 +275,15 @@ class TextEngine(val container: TextContainer) {
 
     // Adjust width constraint to account for container padding so StaticLayout
     // measures the text inside the content-box (matching web behavior).
-    try {
-      val padL = container.node.computedPaddingLeft.toInt()
-      val padR = container.node.computedPaddingRight.toInt()
-      if (widthConstraint != Int.MAX_VALUE) {
-        val adjusted = widthConstraint - (padL + padR)
-        widthConstraint = if (adjusted > 0) adjusted
-        else 0
-      } else if (availableWidth.isFinite() && availableWidth > 0f) {
-        val adjusted = availableWidth.toInt() - (padL + padR)
-        if (adjusted > 0) widthConstraint = adjusted
-      }
-    } catch (_: Throwable) {
+    val padL = container.node.computedPaddingLeft.toInt()
+    val padR = container.node.computedPaddingRight.toInt()
+    if (widthConstraint != Int.MAX_VALUE) {
+      val adjusted = widthConstraint - (padL + padR)
+      widthConstraint = if (adjusted > 0) adjusted
+      else 0
+    } else if (availableWidth.isFinite() && availableWidth > 0f) {
+      val adjusted = availableWidth.toInt() - (padL + padR)
+      if (adjusted > 0) widthConstraint = adjusted
     }
 
     var allowWrap = true
@@ -349,26 +340,23 @@ class TextEngine(val container: TextContainer) {
         null
       }
       if (pFloat != null && pFloat != org.nativescript.mason.masonkit.enums.Float.None) {
-        try {
-          val pWidth = p.computedWidth
-          val pPadL = try {
-            p.computedPaddingLeft
-          } catch (_: Throwable) {
-            0f
-          }
-          val pPadR = try {
-            p.computedPaddingRight
-          } catch (_: Throwable) {
-            0f
-          }
-          val pContent = pWidth - pPadL - pPadR
-          if (pContent > 0f) {
-            val pCW = pContent.toInt()
-            val before = widthConstraint
-            widthConstraint = if (widthConstraint == Int.MAX_VALUE) pCW
-            else kotlin.math.min(widthConstraint, pCW)
-          }
+        val pWidth = p.computedWidth
+        val pPadL = try {
+          p.computedPaddingLeft
         } catch (_: Throwable) {
+          0f
+        }
+        val pPadR = try {
+          p.computedPaddingRight
+        } catch (_: Throwable) {
+          0f
+        }
+        val pContent = pWidth - pPadL - pPadR
+        if (pContent > 0f) {
+          val pCW = pContent.toInt()
+          val before = widthConstraint
+          widthConstraint = if (widthConstraint == Int.MAX_VALUE) pCW
+          else kotlin.math.min(widthConstraint, pCW)
         }
       }
     }
@@ -977,7 +965,7 @@ class TextEngine(val container: TextContainer) {
 
       // Call the packed JNI path synchronously. This path is safe when
       // invoked inside the expected native/Java measurement flow and we
-      // prefer the fast packed primitive arrays. 
+      // prefer the fast packed primitive arrays.
       NativeHelpers.nativeNodeSetSegmentsPacked(
         node.mason.nativePtr,
         node.nativePtr,
@@ -1157,31 +1145,28 @@ class TextEngine(val container: TextContainer) {
       // width so the placeholder spans the full line instead of shrinking to
       // the child's computed width (which may be zero while layouts are
       // being computed).
-      try {
-        if (childNode.style.display == Display.Block) {
-          var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
-          if (parentWidth <= 0) {
-            // Fallback to nearest ancestor Element width to get the real container width
-            val ancestorElement = findAncestorElement(childNode)
-            parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
-          }
+      if (childNode.style.display == Display.Block) {
+        var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
+        if (parentWidth <= 0) {
+          // Fallback to nearest ancestor Element width to get the real container width
+          val ancestorElement = findAncestorElement(childNode)
+          parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
+        }
 
-          if (parentWidth <= 0) {
-            // Fallback to this TextContainer's computed width
-            try {
-              val fallback = container.node.computedWidth.toInt()
-              if (fallback > 0) parentWidth = fallback
-            } catch (_: Throwable) {
-            }
-          }
-
-          // Match web semantics: if we have a parent/container width, use it.
-          // Otherwise leave the measured width as-is to allow overflow when nowrap.
-          if (parentWidth > 0) {
-            width = parentWidth
+        if (parentWidth <= 0) {
+          // Fallback to this TextContainer's computed width
+          try {
+            val fallback = container.node.computedWidth.toInt()
+            if (fallback > 0) parentWidth = fallback
+          } catch (_: Throwable) {
           }
         }
-      } catch (_: Throwable) {
+
+        // Match web semantics: if we have a parent/container width, use it.
+        // Otherwise leave the measured width as-is to allow overflow when nowrap.
+        if (parentWidth > 0) {
+          width = parentWidth
+        }
       }
       return width
     }
@@ -1480,26 +1465,23 @@ class TextEngine(val container: TextContainer) {
       var barColor = 0xFF666666.toInt()
 
       // If the style specifies a left border width, use it (points)
-      try {
-        when (val leftWidth = container.style.borderLeftWidth) {
-          is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
-            barWidth = leftWidth.points
-          }
-
-          is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
-            // leave default
-          }
-
-          is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
-            // Percent width isn't meaningful for a hairline; ignore
-          }
+      when (val leftWidth = container.style.borderLeftWidth) {
+        is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
+          barWidth = leftWidth.points
         }
 
-        val leftColor = container.style.borderColor.left
-        if (leftColor != 0) {
-          barColor = leftColor
+        is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
+          // leave default
         }
-      } catch (_: Throwable) {
+
+        is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
+          // Percent width isn't meaningful for a hairline; ignore
+        }
+      }
+
+      val leftColor = container.style.borderColor.left
+      if (leftColor != 0) {
+        barColor = leftColor
       }
 
       // Leading margin to offset the bar + gap

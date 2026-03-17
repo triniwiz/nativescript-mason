@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -101,7 +100,14 @@ open class Node internal constructor(
     val w = computedContentWidth
     if (w > 0f && w.isFinite()) return w
     if (cachedWidth > 0f && cachedWidth.isFinite()) return cachedWidth
-    if (!computeCache.width.isNaN() && computeCache.width > 0f && computeCache.width.isFinite()) return computeCache.width
+    if (
+      !computeCache.width.isNaN()
+      && computeCache.width != Float.MIN_VALUE
+      && computeCache.width > 0f
+      && computeCache.width.isFinite()
+    ) {
+      return computeCache.width
+    }
     return computedWidth
   }
 
@@ -472,27 +478,19 @@ open class Node internal constructor(
     }
   }
 
+  // Cached pseudo mask to avoid unsafe direct-buffer reads on hot paths
+  @Volatile
+  internal var pseudoMaskCache: Int = 0
+
   /**
    * Pseudo-state mask read from the native state buffer (u16).
    */
   val pseudoMask: Int
     get() {
-      if (nativePtr == 0L) return 0
-
-      val buf = stateValue
-      if (buf.capacity() >= NodeStateKeys.NODE_STATE_BUFFER_SIZE) {
-        buf.order(ByteOrder.nativeOrder())
-
-        var index = 0
-        try {
-          index = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt()
-        } catch (_: Exception) {
-        }
-
-        return index and 0xFFFF
-      }
-
-      return 0
+      // Prefer the cached mask to avoid reading from a possibly-invalid
+      // native DirectByteBuffer during tight UI paths (sorting, layout).
+      // The cache is updated whenever `setPseudo` mutates the buffer.
+      return pseudoMaskCache
     }
 
   val pseudoStates: Set<PseudoState>
@@ -518,6 +516,9 @@ open class Node internal constructor(
       val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
       val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
       buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
+        // Keep a JVM-side cached copy of the pseudo-mask to avoid unsafe
+        // direct-buffer reads on hot paths (see pseudoMask getter).
+        pseudoMaskCache = updated and 0xFFFF
       if (autoDirty) {
         dirty()
       }
@@ -636,6 +637,9 @@ open class Node internal constructor(
 
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
+      // Invoke optional test callback for instrumentation hooks
+      testComputedSizeCallback?.invoke(node, width, height)
+
       val n = (getObject(node) as? Node)
 
       n?.setComputedSize(width, height)

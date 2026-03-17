@@ -1,7 +1,8 @@
 use crate::node::NodeType;
 use crate::style::{DisplayMode, FontMetrics, VerticalAlign, VerticalAlignValue};
 use crate::{Id, InlineSegment, Tree};
-use log::warn;
+use log::{warn, info};
+use std::time::{SystemTime, UNIX_EPOCH};
 use taffy::{
     compute_leaf_layout, AvailableSpace, BlockContext, BoxSizing, CoreStyle, Dimension, Display,
     LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point,

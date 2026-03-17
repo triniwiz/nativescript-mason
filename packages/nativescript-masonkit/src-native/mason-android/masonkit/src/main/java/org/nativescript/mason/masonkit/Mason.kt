@@ -38,6 +38,8 @@ class Mason {
     private set
 
   init {
+    nativeSetDeviceScale(nativePtr, scale)
+
     // set default style font metrics
     val buffer = ObjectManager.shared[nativeGetBuffer(
       nativePtr, 0 // default handle
@@ -114,12 +116,12 @@ class Mason {
 
   /** Public wrapper for native float rects (convenience for JVM callers). */
   fun getFloatRects(node: Node): FloatArray {
-    return nativeNodeGetFloatRects(nativePtr, node.nativePtr)
+    return NativeHelpers.nativeNodeGetFloatRects(nativePtr, node.nativePtr)
   }
 
   /** Public wrapper to retrieve Android ids associated with float rects. */
   fun getFloatRectAndroidIds(node: Node): IntArray {
-    return nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
+    return NativeHelpers.nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
   }
 
   fun printArenaStats() {
@@ -487,12 +489,6 @@ class Mason {
 
     @JvmStatic
     private external fun nativeGetBuffer(mason: Long, handle: Int): Int
-
-    @JvmStatic
-    private external fun nativeNodeGetFloatRects(mason: Long, node: Long): FloatArray
-
-    @JvmStatic
-    private external fun nativeNodeGetFloatRectAndroidIds(mason: Long, node: Long): IntArray
 
   }
 }
