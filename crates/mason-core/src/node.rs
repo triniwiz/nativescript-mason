@@ -120,20 +120,20 @@ impl NodeMeasure {
                 if let Some(cache) = crate::JVM_CACHE.get() {
                     let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                     // Trace inputs to the JVM measure call for auditing.
-                    let packed_known = MeasureOutput::make(
-                        known_dimensions.width.unwrap_or(f32::NAN),
-                        known_dimensions.height.unwrap_or(f32::NAN),
+                    let packed_known = MeasureOutput::make_bits(
+                        known_dimensions.width.unwrap_or(-3.0).to_bits(),
+                        known_dimensions.height.unwrap_or(-3.0).to_bits(),
                     );
-                    let packed_avail = MeasureOutput::make(
+                    let packed_avail = MeasureOutput::make_bits(
                         match available_space.width {
-                            AvailableSpace::MinContent => -1.,
-                            AvailableSpace::MaxContent => -2.,
-                            AvailableSpace::Definite(value) => value,
+                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                            AvailableSpace::Definite(value) => value.to_bits(),
                         },
                         match available_space.height {
-                            AvailableSpace::MinContent => -1.,
-                            AvailableSpace::MaxContent => -2.,
-                            AvailableSpace::Definite(value) => value,
+                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                            AvailableSpace::Definite(value) => value.to_bits(),
                         },
                     );
 
@@ -306,26 +306,22 @@ impl NodeData {
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
                                 jni::sys::jvalue { i: self.measure },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        known_dimensions.width.unwrap_or(f32::NAN),
-                                        known_dimensions.height.unwrap_or(f32::NAN),
-                                    ),
-                                },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        match available_space.width {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                        match available_space.height {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                    ),
-                                },
+                                jni::sys::jvalue { j: MeasureOutput::make_bits(
+                                    known_dimensions.width.unwrap_or(-3.0).to_bits(),
+                                    known_dimensions.height.unwrap_or(-3.0).to_bits(),
+                                ) },
+                                jni::sys::jvalue { j: MeasureOutput::make_bits(
+                                    match available_space.width {
+                                        AvailableSpace::MinContent => (-1f32).to_bits(),
+                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                        AvailableSpace::Definite(value) => value.to_bits(),
+                                    },
+                                    match available_space.height {
+                                        AvailableSpace::MinContent => (-1f32).to_bits(),
+                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                        AvailableSpace::Definite(value) => value.to_bits(),
+                                    },
+                                ) },
                             ],
                         );
 

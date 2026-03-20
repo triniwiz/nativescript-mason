@@ -8,7 +8,6 @@ import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.abs
 
 object NodeStateKeys {
   const val IS_NODE_DIRTY = 0
@@ -229,108 +228,87 @@ open class Node internal constructor(
 
   internal var measureFunc: MeasureFunc = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>, availableSpace: Size<Float?>
-    ): Size<Float> {
-      knownWidth = knownDimensions.width
-      knownHeight = knownDimensions.height
-      availableWidth = availableSpace.width
-      availableHeight = availableSpace.height
+      knownWidth: Float, knownHeight: Float,
+      availableWidth: Float, availableHeight: Float
+    ): Long {
       val view = this@Node.view as? View
-      if (knownDimensions.width != null && knownDimensions.height != null) {
-        return Size(knownDimensions.width!!, knownDimensions.height!!)
+      if (knownWidth > -1f && knownHeight > -1f) {
+        return MeasureOutput.make(knownWidth, knownHeight)
       }
       if (view !is Element) {
         var width = 0
         var height = 0
         val layoutParams = view?.layoutParams
-        val widthSpec = if (knownWidth != null) {
-          if (knownWidth!!.isNaN() || knownWidth!!.isInfinite()) {
-            width = Int.MAX_VALUE
-            MeasureSpec.UNSPECIFIED
-          } else {
-            width = knownWidth!!.toInt()
-            MeasureSpec.EXACTLY
-          }
-        } else if (layoutParams != null) {
-          val paramsWidth = layoutParams.width
-          when (paramsWidth) {
-            ViewGroup.LayoutParams.MATCH_PARENT -> {
-              if (availableWidth != null && availableWidth!!.isFinite()) {
-                if (availableWidth == -2f) {
+        val widthSpec = if (knownWidth > -1f) {
+          width = knownWidth.toInt()
+          MeasureSpec.EXACTLY
+        } else {
+          if (layoutParams != null) {
+            val paramsWidth = layoutParams.width
+            when (paramsWidth) {
+              ViewGroup.LayoutParams.MATCH_PARENT -> {
+                if (availableWidth < -1) {
                   width = Int.MAX_VALUE
                   MeasureSpec.UNSPECIFIED
                 } else {
-                  width = availableWidth!!.toInt()
+                  width = availableWidth.toInt()
                   MeasureSpec.AT_MOST
                 }
-              } else {
+              }
+
+              ViewGroup.LayoutParams.WRAP_CONTENT -> {
+                MeasureSpec.UNSPECIFIED
+              }
+
+              else -> {
+                if (paramsWidth >= 0) {
+                  width = paramsWidth
+                }
                 MeasureSpec.EXACTLY
               }
             }
-
-            ViewGroup.LayoutParams.WRAP_CONTENT -> {
-              MeasureSpec.UNSPECIFIED
-            }
-
-            else -> {
-              if (paramsWidth >= 0) {
-                width = paramsWidth
-              }
-              MeasureSpec.EXACTLY
-            }
+          } else {
+            width = Int.MAX_VALUE
+            MeasureSpec.UNSPECIFIED
           }
-        } else {
-          MeasureSpec.UNSPECIFIED
         }
 
-        val heightSpec = if (knownHeight != null) {
-          if (knownHeight!!.isNaN() || knownHeight!!.isInfinite()) {
+
+
+        val heightSpec = if (knownHeight > -1f) {
+          height = knownHeight.toInt()
+          MeasureSpec.EXACTLY
+        } else {
+          if (layoutParams != null) {
+            val paramsheight = layoutParams.height
+            when (paramsheight) {
+              ViewGroup.LayoutParams.MATCH_PARENT -> {
+                if (availableHeight < -1) {
+                  height = Int.MAX_VALUE
+                  MeasureSpec.UNSPECIFIED
+                } else {
+                  height = availableHeight.toInt()
+                  MeasureSpec.AT_MOST
+                }
+              }
+
+              ViewGroup.LayoutParams.WRAP_CONTENT -> {
+                MeasureSpec.UNSPECIFIED
+              }
+
+              else -> {
+                if (paramsheight >= 0) {
+                  height = paramsheight
+                }
+                MeasureSpec.EXACTLY
+              }
+            }
+          } else {
             height = Int.MAX_VALUE
             MeasureSpec.UNSPECIFIED
-          } else {
-            height = knownHeight!!.toInt()
-            MeasureSpec.EXACTLY
           }
-        } else if (layoutParams != null) {
-          val paramsHeight = layoutParams.height
-          when (paramsHeight) {
-            ViewGroup.LayoutParams.MATCH_PARENT -> {
-              if (availableHeight != null && availableHeight!!.isFinite()) {
-                when (availableHeight) {
-                  -2f -> {
-                    height = Int.MAX_VALUE
-                    MeasureSpec.UNSPECIFIED
-                  }
-
-                  -1f -> {
-                    height = Int.MAX_VALUE
-                    MeasureSpec.UNSPECIFIED
-                  }
-
-                  else -> {
-                    height = availableHeight!!.toInt()
-                    MeasureSpec.AT_MOST
-                  }
-                }
-              } else {
-                MeasureSpec.EXACTLY
-              }
-            }
-
-            ViewGroup.LayoutParams.WRAP_CONTENT -> {
-              MeasureSpec.UNSPECIFIED
-            }
-
-            else -> {
-              if (paramsHeight >= 0) {
-                height = paramsHeight
-              }
-              MeasureSpec.EXACTLY
-            }
-          }
-        } else {
-          MeasureSpec.UNSPECIFIED
         }
+
 
         view?.measure(
           MeasureSpec.makeMeasureSpec(
@@ -341,11 +319,11 @@ open class Node internal constructor(
         )
       }
 
-      val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
+      val width = knownWidth.takeIf { it > 0 } ?: view?.measuredWidth?.toFloat() ?: 0f
 
-      val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
+      val height = knownHeight.takeIf { it > 0 } ?: view?.measuredHeight?.toFloat() ?: 0f
 
-      return Size(width, height)
+      return MeasureOutput.make(width, height)
     }
   }
 
@@ -516,9 +494,9 @@ open class Node internal constructor(
       val orig = buf.getShort(NodeStateKeys.PSEUDO_FLAGS_INDEX).toInt() and 0xFFFF
       val updated = if (enabled) orig or state.mask else orig and state.mask.inv()
       buf.putShort(NodeStateKeys.PSEUDO_FLAGS_INDEX, updated.toShort())
-        // Keep a JVM-side cached copy of the pseudo-mask to avoid unsafe
-        // direct-buffer reads on hot paths (see pseudoMask getter).
-        pseudoMaskCache = updated and 0xFFFF
+      // Keep a JVM-side cached copy of the pseudo-mask to avoid unsafe
+      // direct-buffer reads on hot paths (see pseudoMask getter).
+      pseudoMaskCache = updated and 0xFFFF
       if (autoDirty) {
         dirty()
       }
@@ -624,7 +602,7 @@ open class Node internal constructor(
     fun measure(id: Int, knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
       return (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
         knownDimensionsSpec, availableSpaceSpec
-      ) ?: MeasureOutput.make(0f, 0f)
+      ) ?: MeasureOutput.ZERO
     }
 
     // Test hook: optional callback to observe engine write-backs during testing.
@@ -653,7 +631,7 @@ open class Node internal constructor(
           it.cachedWidth,
           it.cachedHeight
         )
-      } ?: MeasureOutput.make(0f, 0f)
+      } ?: MeasureOutput.ZERO
     }
 
     // Efficient single-pass invalidation that only walks each TextView once
@@ -1281,12 +1259,13 @@ open class Node internal constructor(
     NativeHelpers.nativeNodeRemoveContext(mason.nativePtr, nativePtr)
     measureFunc = object : MeasureFunc {
       override fun measure(
-        knownDimensions: Size<Float?>, availableSpace: Size<Float?>
-      ): Size<Float> {
+        knownWidth: Float, knownHeight: Float,
+        availableWidth: Float, availableHeight: Float
+      ): Long {
         val view = this@Node.view as? View
-        val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
-        val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
-        return Size(width, height)
+        val width = knownWidth.takeIf { it > 0 } ?: view?.measuredWidth?.toFloat() ?: 0f
+        val height = knownHeight.takeIf { it > 0 } ?: view?.measuredHeight?.toFloat() ?: 0f
+        return MeasureOutput.make(width, height)
       }
     }
 

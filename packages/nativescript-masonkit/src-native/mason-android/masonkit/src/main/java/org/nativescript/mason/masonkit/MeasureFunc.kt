@@ -1,12 +1,18 @@
 package org.nativescript.mason.masonkit
 
 import androidx.annotation.Keep
-import android.util.Log
 import java.lang.ref.WeakReference
 
 
 interface MeasureFunc {
-  fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float>
+  /**
+   * If a dimension is undefined, it will be passed as -3f.
+   * Implementations should check for value == -3f to detect undefined.
+   */
+  fun measure(
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long
 }
 
 internal class MeasureFuncImpl(
@@ -30,25 +36,16 @@ internal class MeasureFuncImpl(
 
   @Keep
   fun measure(knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
+    val func = measureFunc.get()
+      ?: // Fast path: no custom measure function, just return a default packed value (e.g., zero size)
+      return MeasureOutput.ZERO
+
     val knownWidth = MeasureOutput.getWidth(knownDimensionsSpec)
     val knownHeight = MeasureOutput.getHeight(knownDimensionsSpec)
-
     val availableWidth = MeasureOutput.getWidth(availableSpaceSpec)
     val availableHeight = MeasureOutput.getHeight(availableSpaceSpec)
 
-    val result = measureFunc.get()?.measure(
-      Size(
-        if (knownWidth.isNaN()) null else knownWidth,
-        if (knownHeight.isNaN()) null else knownHeight
-      ), Size(
-        if (availableWidth.isNaN()) null else availableWidth,
-        if (availableHeight.isNaN()) null else availableHeight
-      )
-    )
-
-    val outWidth = result?.width ?: 0f
-    val outHeight = result?.height ?: 0f
-
-    return MeasureOutput.make(outWidth, outHeight)
+    // -3f is now always used for undefined from Rust, so just pass through
+    return func.measure(knownWidth, knownHeight, availableWidth, availableHeight)
   }
 }

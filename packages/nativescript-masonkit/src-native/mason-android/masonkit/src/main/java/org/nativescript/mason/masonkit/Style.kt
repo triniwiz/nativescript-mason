@@ -983,6 +983,161 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
+  // Transform handling (simple subset: translate, translateX/Y, scale, scaleX/Y, rotate)
+  internal data class TransformProps(
+    var tx: Float = 0f,
+    var ty: Float = 0f,
+    var rotate: Float = 0f, // degrees
+    var scaleX: Float = 1f,
+    var scaleY: Float = 1f,
+  )
+
+  internal var mTransformRaw: String = ""
+  internal var mTransform: TransformProps = TransformProps()
+
+  var transform: String
+    get() = mTransformRaw
+    set(value) {
+      mTransformRaw = value
+      mTransform = parseTransform(value)
+      applyTransformToView()
+    }
+
+  private fun parseTransform(input: String): TransformProps {
+    val t = TransformProps()
+    if (input.isBlank()) return t
+
+    // match function calls like translate(10px, 20px) rotate(45deg) scale(1.2)
+    val fnRegex = Regex("(\\w+)\\(([^)]*)\\)")
+    for (m in fnRegex.findAll(input)) {
+      val name = m.groupValues[1].trim().lowercase()
+      val rawArgs = m.groupValues[2].trim()
+      // Accept either comma-separated or whitespace-separated lists
+      val args = rawArgs.replace(',', ' ').split(Regex("\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
+      try {
+        when (name) {
+          "translate" -> {
+            val ax = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
+            val ay = args.getOrNull(1)?.let { parseLength(it) } ?: 0f
+            t.tx = ax
+            t.ty = ay
+          }
+          "translatex" -> {
+            t.tx = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
+          }
+          "translatey" -> {
+            t.ty = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
+          }
+          "scale" -> {
+            val sx = args.getOrNull(0)?.toFloatOrNull() ?: 1f
+            val sy = args.getOrNull(1)?.toFloatOrNull() ?: sx
+            t.scaleX = sx
+            t.scaleY = sy
+          }
+          "scalex" -> {
+            t.scaleX = args.getOrNull(0)?.toFloatOrNull() ?: 1f
+          }
+          "scaley" -> {
+            t.scaleY = args.getOrNull(0)?.toFloatOrNull() ?: 1f
+          }
+          "rotate" -> {
+            val raw = args.getOrNull(0) ?: "0"
+            t.rotate = parseAngle(raw)
+          }
+          "matrix" -> {
+            // matrix(a, b, c, d, tx, ty)
+            val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
+            if (nums.size >= 6) {
+              val a = nums[0]
+              val b = nums[1]
+              val c = nums[2]
+              val d = nums[3]
+              val tx = nums[4]
+              val ty = nums[5]
+              // Decompose affine matrix into translate, rotate, scale (skew ignored)
+              t.tx = tx
+              t.ty = ty
+              val scaleX = kotlin.math.sqrt((a * a + b * b).toDouble()).toFloat()
+              if (scaleX != 0f) {
+                val rotationDeg = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
+                val det = a * d - b * c
+                val scaleY = (det / scaleX)
+                t.scaleX = scaleX
+                t.scaleY = scaleY
+                t.rotate = rotationDeg
+              }
+            }
+          }
+          "matrix3d" -> {
+            // matrix3d(...) may contain 16 numbers. CSS ordering: m11,m12,m13,m14, m21,..., m41,m42,m43,m44
+            val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
+            if (nums.size >= 16) {
+              // For typical 2D-affine embedded in 3d, the mapping is:
+              // a = m11 (index 0), b = m12 (1), c = m21 (4), d = m22 (5), tx = m41 (12), ty = m42 (13)
+              val a = nums[0]
+              val b = nums[1]
+              val c = nums[4]
+              val d = nums[5]
+              val tx = nums[12]
+              val ty = nums[13]
+              t.tx = tx
+              t.ty = ty
+              val scaleX = kotlin.math.sqrt((a * a + b * b).toDouble()).toFloat()
+              if (scaleX != 0f) {
+                val rotationDeg = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
+                val det = a * d - b * c
+                val scaleY = (det / scaleX)
+                t.scaleX = scaleX
+                t.scaleY = scaleY
+                t.rotate = rotationDeg
+              }
+            }
+          }
+        }
+      } catch (_: Exception) {
+      }
+    }
+
+    return t
+  }
+
+  private fun parseLength(s: String): Float {
+    val v = s.trim()
+    return when {
+      v.endsWith("px") -> v.removeSuffix("px").toFloatOrNull() ?: 0f
+      v.endsWith("dp") -> v.removeSuffix("dp").toFloatOrNull() ?: 0f
+      v.endsWith("%") -> {
+        // percentage lengths are not supported for now
+        v.removeSuffix("%").toFloatOrNull() ?: 0f
+      }
+      else -> v.toFloatOrNull() ?: 0f
+    }
+  }
+
+  private fun parseAngle(s: String): Float {
+    val v = s.trim()
+    return when {
+      v.endsWith("deg") -> v.removeSuffix("deg").toFloatOrNull() ?: 0f
+      v.endsWith("rad") -> (v.removeSuffix("rad").toFloatOrNull() ?: 0f) * (180f / Math.PI.toFloat())
+      else -> v.toFloatOrNull() ?: 0f
+    }
+  }
+
+  internal fun applyTransformToView() {
+    val v = node.view as? android.view.View ?: return
+    // ensure pivot at center by default
+    if (v.width > 0 && v.height > 0) {
+      v.pivotX = v.width / 2f
+      v.pivotY = v.height / 2f
+    }
+    v.translationX = mTransform.tx
+    v.translationY = mTransform.ty
+    v.rotation = mTransform.rotate
+    v.scaleX = mTransform.scaleX
+    v.scaleY = mTransform.scaleY
+    v.invalidate()
+  }
+
   /**
    * Resolve filter string with pseudo-aware cascade. Returns the active
    * pseudo's filter string according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
@@ -2271,11 +2426,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       mBoxShadowRenderer.invalidate()
       val view = node.view as? View
       if (view != null) {
-        // Only disable clipping on immediate parent - parent draws child shadows
-        val parent = view.parent
-        if (parent is android.view.ViewGroup && boxShadows.any { !it.inset }) {
-          parent.clipChildren = false
-        }
         view.invalidate()
       }
     }
@@ -3443,8 +3593,8 @@ class Style internal constructor(@Transient internal var node: Node) {
           gridState.gridTemplateRows,
           gridState.gridTemplateColumns,
           gridState.gridArea,
-          gridState.gridTemplateAreas
-        )
+           gridState.gridTemplateAreas
+         )
         resetState()
         (node.view as? Element)?.invalidateLayout()
         return
@@ -4472,6 +4622,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       gridArea: String?,
       gridTemplateAreas: String?,
     )
+
 
     @JvmStatic
     external fun nativeGetGridArea(

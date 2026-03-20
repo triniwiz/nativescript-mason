@@ -101,7 +101,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
 
   private var isApplyingLayout: Bool = false
   private var isHandlingStyleChange: Bool = false
-  private var lastBounds: CGRect = .zero
+  private var lastBounds: CGRect = .null
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow

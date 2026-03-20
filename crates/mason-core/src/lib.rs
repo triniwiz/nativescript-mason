@@ -72,6 +72,17 @@ pub static JVM_CACHE: std::sync::OnceLock<JVMCache> = std::sync::OnceLock::new()
 use jni::sys::jint;
 
 pub struct MeasureOutput;
+impl MeasureOutput {
+    /// Tagged quiet-NaN payloads for MinContent / MaxContent signaling.
+    /// These match the Kotlin `MeasureOutput.MIN_BITS` / `MAX_BITS` constants.
+    pub const MIN_BITS: u32 = 0x7FC0_0001;
+    pub const MAX_BITS: u32 = 0x7FC0_0002;
+
+    /// Packs two u32 bit patterns into an i64
+    pub fn make_bits(width_bits: u32, height_bits: u32) -> i64 {
+        ((width_bits as i64) << 32) | (height_bits as i64)
+    }
+}
 
 impl MeasureOutput {
     pub fn make(width: f32, height: f32) -> i64 {

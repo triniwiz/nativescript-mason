@@ -99,6 +99,9 @@
     <activity
       android:name=".SuperellipseActivity"
       android:exported="true" />
+    <activity
+      android:name=".TransformActivity"
+      android:exported="true" />
   </application>
 
 </manifest>

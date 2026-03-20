@@ -198,10 +198,10 @@ class Button @JvmOverloads constructor(
 
 
   override fun measure(
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
-    return engine.measure(paint, knownDimensions, availableSpace)
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
+    return engine.measure(paint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 
   override fun onChange(low: Long, high: Long) {

@@ -126,6 +126,13 @@ open class View @JvmOverloads constructor(
   }
 
   private fun dispatchToChild(child: android.view.View, ev: MotionEvent): Boolean {
+    // Check if the touch point is within the child's bounds (standard Android behavior)
+    val x = ev.x + scrollX
+    val y = ev.y + scrollY
+    if (x < child.left || x >= child.right || y < child.top || y >= child.bottom) {
+      return false
+    }
+
     val offsetX = scrollX - child.left
     val offsetY = scrollY - child.top
 
@@ -144,6 +151,11 @@ open class View @JvmOverloads constructor(
       it.shaderHeight = -1
     } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
+    // Reapply transforms now that pivot and size are known
+    try {
+      style.applyTransformToView()
+    } catch (_: Exception) {
+    }
     super.onSizeChanged(w, h, oldw, oldh)
   }
 

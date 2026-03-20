@@ -1075,10 +1075,12 @@ class Input @JvmOverloads constructor(
   }
 
   override fun measure(
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
-    val size = Size(300f, 150f)
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
+    var sizeWidth = 300f
+    var sizeHeight = 150f
+
     var ch: Float? = null
     when (type) {
       Type.Checkbox -> {
@@ -1087,8 +1089,8 @@ class Input @JvmOverloads constructor(
           24F,
           resources.displayMetrics
         )
-        size.width = dim
-        size.height = dim
+        sizeWidth = dim
+        sizeHeight = dim
       }
 
       Type.Radio -> {
@@ -1102,8 +1104,8 @@ class Input @JvmOverloads constructor(
           24F,
           resources.displayMetrics
         )
-        size.width = width
-        size.height = height
+        sizeWidth = width
+        sizeHeight = height
       }
 
       Type.Color -> {
@@ -1117,22 +1119,22 @@ class Input @JvmOverloads constructor(
           24F,
           resources.displayMetrics
         )
-        size.width = width
-        size.height = height
+        sizeWidth = width
+        sizeHeight = height
       }
 
       Type.File -> {
         fileInput.measure(0, 0)
-        size.width = fileInput.measuredWidth.toFloat()
-        size.height = fileInput.measuredHeight.toFloat()
+        sizeWidth = fileInput.measuredWidth.toFloat()
+        sizeHeight = fileInput.measuredHeight.toFloat()
       }
 
       Type.Button -> {
         buttonInput.measure(0, 0)
-        size.width = max(buttonInput.measuredWidth.toFloat(), 64 * resources.displayMetrics.density)
+        sizeWidth = max(buttonInput.measuredWidth.toFloat(), 64 * resources.displayMetrics.density)
 
         val fm = style.paint.fontMetrics
-        size.height =
+        sizeHeight =
           max(fm.descent - fm.ascent, 32 * resources.displayMetrics.density)
       }
 
@@ -1141,31 +1143,27 @@ class Input @JvmOverloads constructor(
       }
     }
 
-    val knownW = knownDimensions.width
-    if (knownW != null) {
-      if (!knownW.isNaN() && knownW.isFinite()) {
-        size.width = knownW
-      }
+    val knownW = knownWidth
+    if (knownW != -3F) {
+      sizeWidth = knownW
     } else {
       ch?.let {
-        size.width = max(ch * this.size, 150f)
+        sizeWidth = max(ch * this.size, 150f)
       }
     }
 
-    val knownH = knownDimensions.height
-    if (knownH != null) {
-      if (!knownH.isNaN() && knownH.isFinite()) {
-        size.height = knownH
-      }
+    val knownH = knownHeight
+    if (knownH != -3F) {
+      sizeHeight = knownH
     } else {
       ch?.let {
         val fm = style.paint.fontMetrics
-        size.height = fm.descent - fm.ascent
+        sizeHeight = fm.descent - fm.ascent
       }
     }
 
 
-    return size
+    return MeasureOutput.make(sizeWidth, sizeHeight)
   }
 
   override fun onChange(low: Long, high: Long) {

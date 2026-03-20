@@ -199,15 +199,11 @@ public class NSCMason: NSObject {
   }
   
   public func createScrollView()-> Scroll {
-    let view = Scroll(mason: self)
-    
-    return view
+    return Scroll(mason: self)
   }
   
   public func createButton()-> Button {
-    let btn = Button(mason: self)
-    
-    return btn
+    return Button(mason: self)
   }
   
   public func createNode() -> MasonNode {
@@ -266,5 +262,5 @@ public class NSCMason: NSObject {
     return MasonLi(mason: self)
   }
   
-  @objc static let scale = Float(UIScreen.main.scale)
+  @objc public static let scale = Float(UIScreen.main.scale)
 }

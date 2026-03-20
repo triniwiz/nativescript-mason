@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import QuartzCore
 
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
@@ -797,6 +798,114 @@ public class MasonStyle: NSObject {
         notifyTextStyleChanged(state)
       }
     }
+  }
+
+  // Apply the stored transform string to the node's view (UIView/CALayer).
+  // Supports translate/translateX/translateY, scale/scaleX/scaleY, rotate, matrix(a,b,c,d,tx,ty), matrix3d(...)
+  internal func applyTransformToNodeView(_ input: String) {
+    guard let view = node.view else { return }
+
+    var affine = CGAffineTransform.identity
+    var has3D = false
+    var transform3D = CATransform3DIdentity
+
+    let fnRegex = try? NSRegularExpression(pattern: "(\\w+)\\(([^)]*)\\)", options: [])
+    let ns = input as NSString
+    if let matches = fnRegex?.matches(in: input, options: [], range: NSRange(location: 0, length: ns.length)) {
+      for m in matches {
+        if m.numberOfRanges >= 3 {
+          let name = ns.substring(with: m.range(at: 1)).lowercased()
+          let rawArgs = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
+          let args = rawArgs.replacingOccurrences(of: ",", with: " ").split(separator: " ").map { String($0) }
+          switch name {
+          case "translate":
+            let tx = parseLength(args: args, index: 0)
+            let ty = parseLength(args: args, index: 1)
+            affine = affine.translatedBy(x: tx, y: ty)
+          case "translatex":
+            affine = affine.translatedBy(x: parseLength(args: args, index: 0), y: 0)
+          case "translatey":
+            affine = affine.translatedBy(x: 0, y: parseLength(args: args, index: 0))
+          case "scale":
+            let sxVal = parseNumber(args: args, index: 0, defaultValue: 1.0)
+            let syVal = parseNumber(args: args, index: 1, defaultValue: sxVal)
+            affine = affine.scaledBy(x: CGFloat(sxVal), y: CGFloat(syVal))
+          case "scalex":
+            let sxVal = parseNumber(args: args, index: 0, defaultValue: 1.0)
+            affine = affine.scaledBy(x: CGFloat(sxVal), y: 1)
+          case "scaley":
+            let syVal = parseNumber(args: args, index: 0, defaultValue: 1.0)
+            affine = affine.scaledBy(x: 1, y: CGFloat(syVal))
+          case "rotate":
+            let angleStr = args.count > 0 ? args[0] : "0"
+            let angle = parseAngle(str: angleStr)
+            affine = affine.rotated(by: angle)
+          case "matrix":
+            let nums = args.compactMap { Double($0.replacingOccurrences(of: "px", with: "")) }
+            if nums.count >= 6 {
+              let a = CGFloat(nums[0]); let b = CGFloat(nums[1]); let c = CGFloat(nums[2]); let d = CGFloat(nums[3]); let tx = CGFloat(nums[4]); let ty = CGFloat(nums[5])
+              let m = CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty)
+              affine = affine.concatenating(m)
+            }
+          case "matrix3d":
+            let nums = args.compactMap { Double($0.replacingOccurrences(of: "px", with: "")) }
+            if nums.count >= 16 {
+              var t = CATransform3DIdentity
+              t.m11 = CGFloat(nums[0]); t.m12 = CGFloat(nums[1]); t.m13 = CGFloat(nums[2]); t.m14 = CGFloat(nums[3])
+              t.m21 = CGFloat(nums[4]); t.m22 = CGFloat(nums[5]); t.m23 = CGFloat(nums[6]); t.m24 = CGFloat(nums[7])
+              t.m31 = CGFloat(nums[8]); t.m32 = CGFloat(nums[9]); t.m33 = CGFloat(nums[10]); t.m34 = CGFloat(nums[11])
+              t.m41 = CGFloat(nums[12]); t.m42 = CGFloat(nums[13]); t.m43 = CGFloat(nums[14]); t.m44 = CGFloat(nums[15])
+              if !CATransform3DIsIdentity(transform3D) {
+                transform3D = CATransform3DConcat(transform3D, t)
+              } else {
+                transform3D = t
+              }
+              has3D = true
+            }
+          default:
+            break
+          }
+        }
+      }
+    }
+
+    DispatchQueue.main.async {
+      if has3D {
+        let a3 = CATransform3DMakeAffineTransform(affine)
+        let final = CATransform3DConcat(a3, transform3D)
+        view.layer.transform = final
+      } else {
+        view.transform = affine
+      }
+    }
+  }
+
+  private func parseLength(args: [String], index: Int) -> CGFloat {
+    guard index < args.count else { return 0 }
+    let s = args[index].trimmingCharacters(in: .whitespaces)
+    if s.hasSuffix("px") { return CGFloat(Double(s.dropLast(2)) ?? 0) }
+    if s.hasSuffix("%") { return CGFloat(Double(s.dropLast(1)) ?? 0) }
+    return CGFloat(Double(s) ?? 0)
+  }
+
+  private func parseAngle(str: String) -> CGFloat {
+    let s = str.trimmingCharacters(in: .whitespaces)
+    if s.hasSuffix("deg") {
+      let v = Double(s.dropLast(3)) ?? 0
+      return CGFloat(v * .pi / 180)
+    }
+    if s.hasSuffix("rad") {
+      let v = Double(s.dropLast(3)) ?? 0
+      return CGFloat(v)
+    }
+    return CGFloat(Double(s) ?? 0)
+  }
+
+  private func parseNumber(args: [String], index: Int, defaultValue: Double = 0.0) -> Double {
+    guard index < args.count else { return defaultValue }
+    let s = args[index].trimmingCharacters(in: .whitespaces)
+    let cleaned = s.replacingOccurrences(of: "px", with: "").replacingOccurrences(of: "%", with: "")
+    return Double(cleaned) ?? defaultValue
   }
   
   
@@ -3320,6 +3429,18 @@ public class MasonStyle: NSObject {
           mason_style_get_grid_template_areas_css(node.mason.nativePtr, node.nativePtr)
         } ?? ""
       })
+    }
+  }
+
+  // Platform-local CSS `transform` string. Not stored in native style buffer.
+  private var _transform: String?
+  public var transform: String {
+    set {
+      _transform = newValue
+      applyTransformToNodeView(newValue)
+    }
+    get {
+      return _transform ?? ""
     }
   }
   

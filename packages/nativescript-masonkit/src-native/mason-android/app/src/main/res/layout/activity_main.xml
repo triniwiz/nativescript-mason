@@ -102,6 +102,12 @@
         android:layout_height="wrap_content"
         android:text="Open Superellipse Demo" />
 
+      <Button
+        android:id="@+id/transform"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Transform Demo" />
+
     </LinearLayout>
   </ScrollView>
 </LinearLayout>

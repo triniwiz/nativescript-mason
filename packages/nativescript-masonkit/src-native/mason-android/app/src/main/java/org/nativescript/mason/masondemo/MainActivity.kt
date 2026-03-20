@@ -130,6 +130,11 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.transform.setOnClickListener {
+      val intent = Intent(this, TransformActivity::class.java)
+      startActivity(intent)
+    }
+
   }
 
 

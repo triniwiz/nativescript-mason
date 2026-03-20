@@ -101,7 +101,38 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     guard view.subviews.first is MasonUIView else {return}
     //      view.uiView.frame.origin.x += view.safeAreaInsets.left
     //                view.uiView.frame.origin.y += view.safeAreaInsets.top
+    // Add Transform demo launcher if not present
+    if navigationController != nil {
+      if navigationItem.rightBarButtonItem == nil {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Transform", style: .plain, target: self, action: #selector(openTransform))
+      }
+    } else {
+      // Fallback: add a small floating button in the top-right
+      if view.viewWithTag(0xF00D) == nil {
+        let btn = UIButton(type: .system)
+        btn.setTitle("Transform", for: .normal)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.addTarget(self, action: #selector(openTransform), for: .touchUpInside)
+        btn.tag = 0xF00D
+        view.addSubview(btn)
+        NSLayoutConstraint.activate([
+          btn.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+          btn.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12)
+        ])
+      }
+    }
     
+
+  }
+
+  @objc func openTransform() {
+    let vc = TransformViewController()
+    if let nav = navigationController {
+      nav.pushViewController(vc, animated: true)
+    } else {
+      let nav = UINavigationController(rootViewController: vc)
+      present(nav, animated: true, completion: nil)
+    }
   }
   
   override func viewSafeAreaInsetsDidChange() {
@@ -974,7 +1005,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // Remove all Mason node children from the scroll body
     self.body.removeAllChildren()
 
-    self.body.invalidate()
+    // Request a layout pass for the Mason root so it recomputes naturally
+    self.body.invalidateLayout()
+
+    // Reset any demo-specific state so subsequent samples start fresh
+    self.hnContainer = nil
+    self.hnIds = []
+    self.hnIndex = 0
+    self.hnLoading = false
   }
   
   deinit {
@@ -1089,9 +1127,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
 
   @objc func openBug(_ sender: Any) {
-    let vc = BugViewController()
-    vc.modalPresentationStyle = .fullScreen
-    present(vc, animated: true, completion: nil)
+//    let vc = BugViewController()
+//    vc.modalPresentationStyle = .fullScreen
+//    present(vc, animated: true, completion: nil)
+    openTransform()
   }
   
   func inputTest(){

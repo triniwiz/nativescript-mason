@@ -270,7 +270,7 @@ impl Tree {
     }
 
     #[inline(always)]
-    fn style_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Style> {
+   pub fn style_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Style> {
         RwLockReadGuard::map(self.0.read(), |v| {
             v.nodes.get(node_id.into()).unwrap().style()
         })
@@ -2081,13 +2081,62 @@ impl LayoutBlockContainer for Tree {
                         )
                     }
                 },
-                DisplayMode::Inline | DisplayMode::Box => {
+                DisplayMode::Inline => {
                     if display == Display::None {
                         return compute_hidden_layout(tree, node_id);
                     }
                     let mut computed_layout =
                         tree.compute_inline_layout(node_id, inputs, block_ctx);
-                    // Constrain scroll container height for inline/box containers
+                    if is_scroll_container_y {
+                        if let Some(constrained_h) = inputs.known_dimensions.height {
+                            if computed_layout.size.height > constrained_h {
+                                computed_layout.content_size.height = computed_layout
+                                    .content_size
+                                    .height
+                                    .max(computed_layout.size.height);
+                                computed_layout.size.height = constrained_h;
+                            }
+                        }
+                    }
+                    computed_layout
+                }
+                DisplayMode::Box => {
+                    // Inline-level boxes (inline-block, inline-flex, inline-grid):
+                    // outer behavior is inline (parent positions them in IFC),
+                    // but inner layout uses the appropriate algorithm per display.
+                    if display == Display::None {
+                        return compute_hidden_layout(tree, node_id);
+                    }
+
+                    let mut computed_layout = if is_text_container {
+                        // Text containers still use inline measurement for native text sizing
+                        tree.compute_inline_layout(node_id, inputs, block_ctx)
+                    } else {
+                        match (display, has_children) {
+                            (Display::Flex, true) => {
+                                compute_flexbox_layout(tree, node_id, inputs)
+                            }
+                            (Display::Grid, true) => {
+                                compute_grid_layout(tree, node_id, inputs)
+                            }
+                            (Display::Block, true) => {
+                                let analysis = tree.analyze_subtree(id);
+                                if analysis.all_inline {
+                                    tree.compute_inline_layout(node_id, inputs, block_ctx)
+                                } else if analysis.has_mixed_content {
+                                    let children = tree.inner().children.get(id).cloned().unwrap_or_default();
+                                    tree.compute_mixed_layout(id, children.as_slice(), inputs, block_ctx)
+                                } else {
+                                    compute_block_layout(tree, node_id, inputs, block_ctx)
+                                }
+                            }
+                            _ => {
+                                // Leaf node or fallback — use inline layout with measure
+                                tree.compute_inline_layout(node_id, inputs, block_ctx)
+                            }
+                        }
+                    };
+
                     if is_scroll_container_y {
                         if let Some(constrained_h) = inputs.known_dimensions.height {
                             if computed_layout.size.height > constrained_h {

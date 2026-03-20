@@ -265,16 +265,12 @@ extension MasonElement {
       root.view as? MasonElement
     }
 
+    // Schedule a main-thread compute for the root Mason element so layout
+    // is recomputed naturally after content or style changes. This ensures
+    // callers don't have to manually call computeWithViewSize everywhere.
     if let view = view {
-      if(view.computeCacheDirty){
-        let computed = view.computeCache()
-        // Preserve root view's frame — managed externally, not by Mason
-        let isRoot = !(view.uiView.superview is MasonElement)
-        let savedFrame = view.uiView.frame
-        view.computeWithSize(Float(computed.width), Float(computed.height))
-        if isRoot && view.uiView.frame != savedFrame {
-          view.uiView.frame = savedFrame
-        }
+      DispatchQueue.main.async {
+        view.computeWithViewSize(layout: true)
       }
     }
   }

@@ -718,6 +718,7 @@ pub struct Style {
     grid_auto_columns_raw: Option<Atom>,
     pub(crate) grid_template_areas: Vec<GridTemplateArea<Atom>>,
     pub(crate) grid_template_areas_raw: Atom,
+    // (transform handled at platform layer; no native storage here)
     grid_template_column_names: Vec<Vec<Atom>>,
     grid_template_row_names: Vec<Vec<Atom>>,
     pub(crate) device_scale: Option<Arc<AtomicU32>>,
@@ -2347,6 +2348,7 @@ impl Style {
     pub fn get_grid_template_areas_css(&self) -> &str {
         self.grid_template_areas_raw.as_ref()
     }
+    
 
     pub fn set_grid_template_areas(&mut self, value: Vec<GridTemplateArea<Atom>>) {
         self.grid_template_areas_raw = Atom::from(crate::utils::grid_template_areas_to_string(

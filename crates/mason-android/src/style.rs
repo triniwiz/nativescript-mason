@@ -29,6 +29,8 @@ fn get_string_lossy(env: &mut JNIEnv, value: &JString) -> Option<String> {
             .map(|java_str| java_str.to_string_lossy().to_string())
     }
 }
+
+// Note: transform is handled at platform layer; no JNI setter needed.
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBufferData(
     mut env: JNIEnv,

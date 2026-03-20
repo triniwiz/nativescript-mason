@@ -174,6 +174,38 @@ final class MasonTests: XCTestCase {
     XCTAssertEqual(size.height.value, 300)
   }
 
+  func test_transform_rotate_applies_rotation() {
+    let view = MasonUIView(mason: mason)
+    // request a 90deg rotation
+    view.style.transform = "rotate(90deg)"
+    view.layoutSubviews()
+
+    let exp = expectation(description: "transform applied")
+    DispatchQueue.main.async {
+      let t = view.transform
+      let angle = atan2(t.b, t.a)
+      XCTAssertEqual(Double(angle), Double.pi / 2.0, accuracy: 0.05)
+      exp.fulfill()
+    }
+    waitForExpectations(timeout: 1)
+  }
+
+  func test_transform_translate_and_scale() {
+    let view = MasonUIView(mason: mason)
+    view.style.transform = "translate(24,12) scale(2)"
+    view.layoutSubviews()
+
+    let exp = expectation(description: "transform applied")
+    DispatchQueue.main.async {
+      let t = view.transform
+      XCTAssertEqual(Double(t.tx), 24.0, accuracy: 0.5)
+      XCTAssertEqual(Double(t.ty), 12.0, accuracy: 0.5)
+      XCTAssertEqual(Double(t.a), 2.0, accuracy: 0.05)
+      exp.fulfill()
+    }
+    waitForExpectations(timeout: 1)
+  }
+
   func test_updateDisplay() {
     let view = MasonUIView(mason: mason)
     view.inBatch = true

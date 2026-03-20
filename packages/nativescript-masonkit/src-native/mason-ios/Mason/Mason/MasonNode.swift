@@ -29,8 +29,14 @@ private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _
     }
   }
 
-  guard let size = node.measureFunc?(CGSize(width: CGFloat(knownDimensionsWidth), height: CGFloat(knownDimensionsHeight)), CGSize(width: CGFloat(availableSpaceWidth), height: CGFloat(availableSpaceHeight))) else {
-    return MeasureOutput.make(Float.nan, Float.nan)
+  // Use -3.0 to represent undefined, matching Android/Rust
+  let knownWidth = knownDimensionsWidth == -3.0 ? nil : CGFloat(knownDimensionsWidth)
+  let knownHeight = knownDimensionsHeight == -3.0 ? nil : CGFloat(knownDimensionsHeight)
+  let availableWidth = availableSpaceWidth == -3.0 ? nil : CGFloat(availableSpaceWidth)
+  let availableHeight = availableSpaceHeight == -3.0 ? nil : CGFloat(availableSpaceHeight)
+
+  guard let size = node.measureFunc?(CGSize(width: knownWidth ?? 0, height: knownHeight ?? 0), CGSize(width: availableWidth ?? 0, height: availableHeight ?? 0)) else {
+    return MeasureOutput.make(-3.0, -3.0)
   }
 
   return MeasureOutput.make(width: size.width, height: size.height)
@@ -367,22 +373,22 @@ public class MasonNode: NSObject {
     
     switch(type){
     case .H1:
-      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(8)
       break
     case .H2:
-      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(7)
       break
     case .H3:
-      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(6)
       break
     case .H4:
-      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(5)
       break
     case .H5:
-      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(4)
       break
     case .H6:
-      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
+      paragraphStyle.paragraphSpacing = CGFloat(3)
       break
     case .Blockquote:
       break
@@ -400,6 +406,9 @@ public class MasonNode: NSObject {
     if let font = fontFace.font {
       // Font
       let fontSize = style.resolvedFontSize
+      let scale = NSCMason.scale
+      // Debug log: `resolvedFontSize` is in points; compute engine pixels as points * scale
+      print("MASON_DEBUG: resolvedFontSize=\(fontSize) scale=\(scale) fontPoints=\(CGFloat(fontSize)) enginePixels=\(CGFloat(fontSize) * CGFloat(scale))")
       let weight = style.resolvedFontWeight
       let fontStyle = style.resolvedInternalFontStyle
       var font = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: fontStyle)
@@ -478,13 +487,14 @@ public class MasonNode: NSObject {
     // letter spacing
     let letterSpacing = style.resolvedLetterSpacing
     if(letterSpacing > 0){
-      attrs[.kern] = letterSpacing
+      let scaleF = CGFloat(NSCMason.scale)
+      attrs[.kern] = CGFloat(letterSpacing) / scaleF
     }
     
     let lineHeightType = style.resolvedLineHeightType
     let lineHeight = style.resolvedLineHeight
     if(lineHeightType == 1){
-      let height = CGFloat(lineHeight)
+      let height = CGFloat(lineHeight) / CGFloat(NSCMason.scale)
       paragraphStyle.minimumLineHeight = height
       paragraphStyle.maximumLineHeight = height
     }else {
@@ -1145,34 +1155,42 @@ extension MasonNode {
   }
   
   static func measureFunction(_ node: MasonNode, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
-    
+
     var width = CGFloat.greatestFiniteMagnitude
     var height = CGFloat.greatestFiniteMagnitude
-    
-    
-    if(knownDimensions?.width.isZero == true){
+
+
+    if knownDimensions?.width.isZero == true {
       width = 0
-    }else if(availableSpace.width > 0){
+    } else if availableSpace.width == -1 {
+      // MinContent: constrain to zero to get minimum intrinsic width
+      width = 0
+    } else if availableSpace.width > 0 {
       width = availableSpace.width
     }
-    
-    if(knownDimensions?.height.isZero == true){
+    // else MaxContent (-2) or NaN: leave as greatestFiniteMagnitude
+
+    if knownDimensions?.height.isZero == true {
       height = 0
-    }else if(availableSpace.height > 0){
+    } else if availableSpace.height == -1 {
+      // MinContent: constrain to zero to get minimum intrinsic height
+      height = 0
+    } else if availableSpace.height > 0 {
       height = availableSpace.height
     }
-    
+    // else MaxContent (-2) or NaN: leave as greatestFiniteMagnitude
+
     if let known = knownDimensions {
-      if(!known.width.isNaN && !known.height.isNaN){
+      if !known.width.isNaN && !known.height.isNaN {
         node.cachedWidth = known.width
         node.cachedHeight = known.height
         return known
       }
     }
-    
+
     let constraintSize = CGSize(width: width, height: height)
     var result = node.view?.sizeThatFits(constraintSize)
-    
+
     if let size = result {
       result?.width = size.width * CGFloat(NSCMason.scale)
       result?.height = size.height * CGFloat(NSCMason.scale)

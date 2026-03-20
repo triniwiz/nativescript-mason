@@ -557,25 +557,25 @@ class TextEngine(val container: TextContainer) {
 
   fun measure(
     paint: TextPaint,
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
     val pendingInvalidate = style.fontDirty
     try {
       val layout = measureLayout(
         paint,
-        knownDimensions.width ?: Float.NaN,
-        knownDimensions.height ?: Float.NaN,
-        availableSpace.width ?: Float.NaN,
-        availableSpace.height ?: Float.NaN
+        knownWidth,
+        knownHeight,
+        availableWidth,
+        availableHeight
       )
 
 
       // Use the actual measured dimensions from the layout
       val width = if (layout != null) {
-        when (availableSpace.width) {
+        when (availableWidth) {
           -1f -> minMeasuredTextWidth
           -2f -> maxMeasuredTextWidth
           else -> measuredTextWidth
@@ -585,7 +585,7 @@ class TextEngine(val container: TextContainer) {
       }
 
       val height = if (layout != null) {
-        when (availableSpace.height) {
+        when (availableHeight) {
           -1f -> minMeasuredTextHeight
           -2f -> maxMeasuredTextHeight
           else -> measuredTextHeight
@@ -604,7 +604,7 @@ class TextEngine(val container: TextContainer) {
 
       val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
 
-      return Size(width, finalHeight)
+      return MeasureOutput.make(width, finalHeight)
     } finally {
       style.inMeasure = false
       if (pendingInvalidate) {
