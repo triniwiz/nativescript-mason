@@ -1218,6 +1218,13 @@ impl Mason {
                 use crate::node::PseudoStates;
                 let bits = PseudoStates::from_bits_truncate(flags);
 
+                // When no pseudo state bits are set, apply to the base style
+                if bits.is_empty() {
+                    node.style.prepare_mut();
+                    func(&mut node.style);
+                    return;
+                }
+
                 if node.pseudo_styles.is_none() {
                     node.pseudo_styles = Some(crate::node::PseudoStyles::default());
                 }

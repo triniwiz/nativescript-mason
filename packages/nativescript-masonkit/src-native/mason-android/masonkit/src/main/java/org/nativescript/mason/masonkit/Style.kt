@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.text.TextPaint
+import android.util.Log
 import android.view.View
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Border.IKeyCorner
@@ -450,6 +451,29 @@ internal class GridState {
     gridTemplateRows = null
     gridTemplateColumns = null
   }
+
+  override fun toString(): String {
+    val props = buildList {
+      gridArea?.let { add("gridArea=$it") }
+      gridTemplateAreas?.let { add("gridTemplateAreas=$it") }
+      gridAutoRows?.let { add("gridAutoRows=$it") }
+      gridAutoColumns?.let { add("gridAutoColumns=$it") }
+      gridRow?.let { add("gridRow=$it") }
+      gridRowStart?.let { add("gridRowStart=$it") }
+      gridRowEnd?.let { add("gridRowEnd=$it") }
+      gridColumn?.let { add("gridColumn=$it") }
+      gridColumnStart?.let { add("gridColumnStart=$it") }
+      gridColumnEnd?.let { add("gridColumnEnd=$it") }
+      gridTemplateRows?.let { add("gridTemplateRows=$it") }
+      gridTemplateColumns?.let { add("gridTemplateColumns=$it") }
+    }
+
+    return if (props.isEmpty()) {
+      "GridState(empty)"
+    } else {
+      "GridState(\n  ${props.joinToString(",\n  ")}\n)"
+    }
+  }
 }
 
 interface StyleChangeListener {
@@ -752,6 +776,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   private var isSlowDirty = false
     set(value) {
       if (value && !inBatch) {
+        node.dirty()
         updateNativeStyle()
       }
       field = value
@@ -1066,7 +1091,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     for (m in fnRegex.findAll(input)) {
       val name = m.groupValues[1].trim().lowercase()
       val rawArgs = m.groupValues[2].trim()
-      val args = rawArgs.replace(',', ' ').split(Regex("\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
+      val args =
+        rawArgs.replace(',', ' ').split(Regex("\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
       try {
         when (name) {
           "translate" -> {
@@ -1074,18 +1100,65 @@ class Style internal constructor(@Transient internal var node: Node) {
             val ay = args.getOrNull(1)?.let { parseLength(it) } ?: 0f
             ops.add(TransformOp(TransformOpType.TRANSLATE, ax, ay))
           }
-          "translatex" -> ops.add(TransformOp(TransformOpType.TRANSLATE_X, args.getOrNull(0)?.let { parseLength(it) } ?: 0f, 0f))
-          "translatey" -> ops.add(TransformOp(TransformOpType.TRANSLATE_Y, 0f, args.getOrNull(0)?.let { parseLength(it) } ?: 0f))
+
+          "translatex" -> ops.add(
+            TransformOp(
+              TransformOpType.TRANSLATE_X,
+              args.getOrNull(0)?.let { parseLength(it) } ?: 0f,
+              0f))
+
+          "translatey" -> ops.add(
+            TransformOp(
+              TransformOpType.TRANSLATE_Y,
+              0f,
+              args.getOrNull(0)?.let { parseLength(it) } ?: 0f))
+
           "scale" -> {
             val sx = args.getOrNull(0)?.toFloatOrNull() ?: 1f
             val sy = args.getOrNull(1)?.toFloatOrNull() ?: sx
             ops.add(TransformOp(TransformOpType.SCALE, sx, sy))
           }
-          "scalex" -> ops.add(TransformOp(TransformOpType.SCALE_X, args.getOrNull(0)?.toFloatOrNull() ?: 1f, 1f))
-          "scaley" -> ops.add(TransformOp(TransformOpType.SCALE_Y, 1f, args.getOrNull(0)?.toFloatOrNull() ?: 1f))
-          "rotate" -> ops.add(TransformOp(TransformOpType.ROTATE, parseAngle(args.getOrNull(0) ?: "0"), 0f))
-          "skewx" -> ops.add(TransformOp(TransformOpType.SKEW_X, parseAngle(args.getOrNull(0) ?: "0"), 0f))
-          "skewy" -> ops.add(TransformOp(TransformOpType.SKEW_Y, parseAngle(args.getOrNull(0) ?: "0"), 0f))
+
+          "scalex" -> ops.add(
+            TransformOp(
+              TransformOpType.SCALE_X,
+              args.getOrNull(0)?.toFloatOrNull() ?: 1f,
+              1f
+            )
+          )
+
+          "scaley" -> ops.add(
+            TransformOp(
+              TransformOpType.SCALE_Y,
+              1f,
+              args.getOrNull(0)?.toFloatOrNull() ?: 1f
+            )
+          )
+
+          "rotate" -> ops.add(
+            TransformOp(
+              TransformOpType.ROTATE,
+              parseAngle(args.getOrNull(0) ?: "0"),
+              0f
+            )
+          )
+
+          "skewx" -> ops.add(
+            TransformOp(
+              TransformOpType.SKEW_X,
+              parseAngle(args.getOrNull(0) ?: "0"),
+              0f
+            )
+          )
+
+          "skewy" -> ops.add(
+            TransformOp(
+              TransformOpType.SKEW_Y,
+              parseAngle(args.getOrNull(0) ?: "0"),
+              0f
+            )
+          )
+
           "matrix" -> {
             val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
             if (nums.size >= 6) {
@@ -1093,6 +1166,7 @@ class Style internal constructor(@Transient internal var node: Node) {
               return listOf(TransformOp(-1, 0f, 0f)) // sentinel
             }
           }
+
           "matrix3d" -> {
             val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
             if (nums.size >= 16) {
@@ -1101,7 +1175,8 @@ class Style internal constructor(@Transient internal var node: Node) {
             }
           }
         }
-      } catch (_: Exception) {}
+      } catch (_: Exception) {
+      }
     }
     return ops
   }
@@ -1135,7 +1210,10 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private fun writeMatrix3dToBuffer(nums: List<Float>) {
     values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
-    values.put(StyleKeys.TRANSFORM_FLAGS, (StyleKeys.TRANSFORM_FLAG_HAS_MATRIX or StyleKeys.TRANSFORM_FLAG_IS_3D).toByte())
+    values.put(
+      StyleKeys.TRANSFORM_FLAGS,
+      (StyleKeys.TRANSFORM_FLAG_HAS_MATRIX or StyleKeys.TRANSFORM_FLAG_IS_3D).toByte()
+    )
     val base = StyleKeys.TRANSFORM_MATRIX
     // CSS matrix3d is in column-major order: m11,m12,m13,m14, m21,m22,m23,m24, ...
     for (i in 0 until 16) {
@@ -1145,17 +1223,38 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private fun flattenOpsToMatrix(ops: List<TransformOp>) {
     // Compose all ops into a 2D affine matrix, then write as 4x4
-    var a = 1f; var b = 0f; var c = 0f; var d = 1f; var tx = 0f; var ty = 0f
+    var a = 1f;
+    var b = 0f;
+    var c = 0f;
+    var d = 1f;
+    var tx = 0f;
+    var ty = 0f
     for (op in ops) {
       when (op.type) {
-        TransformOpType.TRANSLATE -> { tx += a * op.a + c * op.b; ty += b * op.a + d * op.b }
-        TransformOpType.TRANSLATE_X -> { tx += a * op.a; ty += b * op.a }
-        TransformOpType.TRANSLATE_Y -> { tx += c * op.b; ty += d * op.b }
+        TransformOpType.TRANSLATE -> {
+          tx += a * op.a + c * op.b; ty += b * op.a + d * op.b
+        }
+
+        TransformOpType.TRANSLATE_X -> {
+          tx += a * op.a; ty += b * op.a
+        }
+
+        TransformOpType.TRANSLATE_Y -> {
+          tx += c * op.b; ty += d * op.b
+        }
+
         TransformOpType.SCALE -> {
           a *= op.a; b *= op.a; c *= op.b; d *= op.b
         }
-        TransformOpType.SCALE_X -> { a *= op.a; b *= op.a }
-        TransformOpType.SCALE_Y -> { c *= op.b; d *= op.b }
+
+        TransformOpType.SCALE_X -> {
+          a *= op.a; b *= op.a
+        }
+
+        TransformOpType.SCALE_Y -> {
+          c *= op.b; d *= op.b
+        }
+
         TransformOpType.ROTATE -> {
           val rad = Math.toRadians(op.a.toDouble())
           val cos = kotlin.math.cos(rad).toFloat()
@@ -1166,12 +1265,14 @@ class Style internal constructor(@Transient internal var node: Node) {
           val nd = b * -sin + d * cos
           a = na; b = nb; c = nc; d = nd
         }
+
         TransformOpType.SKEW_X -> {
           val t = kotlin.math.tan(Math.toRadians(op.a.toDouble())).toFloat()
           val nc = a * t + c
           val nd = b * t + d
           c = nc; d = nd
         }
+
         TransformOpType.SKEW_Y -> {
           val t = kotlin.math.tan(Math.toRadians(op.a.toDouble())).toFloat()
           val na = a + c * t
@@ -1197,7 +1298,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     val v = s.trim()
     return when {
       v.endsWith("deg") -> v.removeSuffix("deg").toFloatOrNull() ?: 0f
-      v.endsWith("rad") -> (v.removeSuffix("rad").toFloatOrNull() ?: 0f) * (180f / Math.PI.toFloat())
+      v.endsWith("rad") -> (v.removeSuffix("rad").toFloatOrNull()
+        ?: 0f) * (180f / Math.PI.toFloat())
+
       else -> v.toFloatOrNull() ?: 0f
     }
   }
@@ -1231,28 +1334,42 @@ class Style internal constructor(@Transient internal var node: Node) {
         rotate = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
         scaleY = (a * d - b * c) / scaleX
       }
-      if (v.width > 0 && v.height > 0) { v.pivotX = v.width / 2f; v.pivotY = v.height / 2f }
+      if (v.width > 0 && v.height > 0) {
+        v.pivotX = v.width / 2f; v.pivotY = v.height / 2f
+      }
       v.translationX = tx; v.translationY = ty
       v.rotation = rotate; v.scaleX = scaleX; v.scaleY = scaleY
     } else {
       // Compose inline ops
-      var tx = 0f; var ty = 0f; var rot = 0f; var sx = 1f; var sy = 1f
+      var tx = 0f;
+      var ty = 0f;
+      var rot = 0f;
+      var sx = 1f;
+      var sy = 1f
       for (i in 0 until count) {
         val opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
         val type = values.get(opBase).toInt() and 0xFF
         val a = values.getFloat(opBase + 4)
         val b = values.getFloat(opBase + 8)
         when (type) {
-          TransformOpType.TRANSLATE -> { tx += a; ty += b }
+          TransformOpType.TRANSLATE -> {
+            tx += a; ty += b
+          }
+
           TransformOpType.TRANSLATE_X -> tx += a
           TransformOpType.TRANSLATE_Y -> ty += b
-          TransformOpType.SCALE -> { sx *= a; sy *= b }
+          TransformOpType.SCALE -> {
+            sx *= a; sy *= b
+          }
+
           TransformOpType.SCALE_X -> sx *= a
           TransformOpType.SCALE_Y -> sy *= b
           TransformOpType.ROTATE -> rot += a
         }
       }
-      if (v.width > 0 && v.height > 0) { v.pivotX = v.width / 2f; v.pivotY = v.height / 2f }
+      if (v.width > 0 && v.height > 0) {
+        v.pivotX = v.width / 2f; v.pivotY = v.height / 2f
+      }
       v.translationX = tx; v.translationY = ty
       v.rotation = rot; v.scaleX = sx; v.scaleY = sy
     }
@@ -2539,6 +2656,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
     return result
   }
+
   var boxShadow: String
     get() = mBoxShadowRaw
     set(value) {
@@ -3682,6 +3800,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       return
     }
 
+    // Mark the style as initialized so ViewUtils.render() draws
+    // backgrounds, borders, etc. This is the first point where TS-driven
+    // style writes reach Kotlin (via syncStyle → setStateFromHalves).
+    isValueInitialized = true
+
     updateTextStyle()
 
     val borderState = (isDirty and StateKeys.BORDER.low) or (isDirtyHigh and StateKeys.BORDER.high)
@@ -3714,8 +3837,8 @@ class Style internal constructor(@Transient internal var node: Node) {
           gridState.gridTemplateRows,
           gridState.gridTemplateColumns,
           gridState.gridArea,
-           gridState.gridTemplateAreas
-         )
+          gridState.gridTemplateAreas
+        )
         resetState()
         (node.view as? Element)?.invalidateLayout()
         return

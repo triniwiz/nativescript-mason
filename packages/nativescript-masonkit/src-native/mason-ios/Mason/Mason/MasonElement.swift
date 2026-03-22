@@ -645,30 +645,6 @@ class MasonElementHelpers: NSObject {
         }
       }
       
-      // remember unpadded values before possible scroll-root tweaks
-      let origX = x
-      let origY = y
-      let origWidth = width
-      let origHeight = height
-
-      // special-case scroll root: offset into parent padding and expand
-      if let scroll = view as? Scroll, let parentNode = node.parent {
-        let pad = parentNode.style.padding
-        let parentPadL = CGFloat(pad.left.value/NSCMason.scale)
-        let parentPadT = CGFloat(pad.top.value/NSCMason.scale)
-        let parentPadR = CGFloat(pad.right.value/NSCMason.scale)
-        let parentPadB = CGFloat(pad.bottom.value/NSCMason.scale)
-
-        x += parentPadL
-        y += parentPadT
-        width += parentPadL + parentPadR
-        height += parentPadT + parentPadB
-
-        #if DEBUG
-        print("Mason scrollRoot parentPad=\(parentPadL)/\(parentPadR) layoutW=\(origWidth) layoutH=\(origHeight) finalW=\(width) finalH=\(height)")
-        #endif
-      }
-
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
@@ -684,9 +660,9 @@ class MasonElementHelpers: NSObject {
       // Visible → no clip
       let overflow = node.style.overflow
       let clipX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Clip
-        || (overflow.x == .Auto && node.overflowWidth > Float(view.bounds.width) * NSCMason.scale)
+        || (overflow.x == .Auto && realLayout.contentWidth > realLayout.width)
       let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
-        || (overflow.y == .Auto && node.overflowHeight > Float(view.bounds.height) * NSCMason.scale)
+        || (overflow.y == .Auto && realLayout.contentHeight > realLayout.height)
 
       let borderRender = node.style.mBorderRender
       borderRender.resolve(for: view.bounds)
@@ -713,11 +689,11 @@ class MasonElementHelpers: NSObject {
         // Only one axis clips — use a layer mask that extends beyond
         // the view on the non-clipped axis so shadows/content can overflow.
         view.clipsToBounds = false
-        let pad = node.style.getPadding()
-        let padL = CGFloat(pad.left.value / NSCMason.scale)
-        let padR = CGFloat(pad.right.value / NSCMason.scale)
-        let padT = CGFloat(pad.top.value / NSCMason.scale)
-        let padB = CGFloat(pad.bottom.value / NSCMason.scale)
+//        let pad = node.style.padding
+//        let padL = CGFloat(pad.left.value / NSCMason.scale)
+//        let padR = CGFloat(pad.right.value / NSCMason.scale)
+//        let padT = CGFloat(pad.top.value / NSCMason.scale)
+//        let padB = CGFloat(pad.bottom.value / NSCMason.scale)
 
         // Large overflow allowance for the unclipped axis
         let overflow: CGFloat = 10000

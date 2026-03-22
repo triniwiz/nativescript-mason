@@ -687,14 +687,6 @@ pub extern "C" fn mason_style_update_non_buffer_data(
         let node = &*(node as *mut NodeRef);
 
         mason.with_style_mut(node.id().into(), |style| {
-            if let Some(grid_template_rows) = grid_template_rows.as_deref() {
-                style.set_grid_template_columns_css(grid_template_rows);
-            }
-
-            if let Some(grid_template_columns) = grid_template_columns.as_deref() {
-                style.set_grid_template_columns_css(grid_template_columns);
-            }
-
             if let Some(grid_auto_rows) = grid_auto_rows.as_deref() {
                 style.set_grid_auto_rows_css(grid_auto_rows);
             }
@@ -712,7 +704,7 @@ pub extern "C" fn mason_style_update_non_buffer_data(
             }
 
             if let Some(end) = grid_row_end.as_deref() {
-                style.set_grid_row_start_css(end)
+                style.set_grid_row_end_css(end)
             }
 
             if let Some(grid_column) = grid_column.as_deref() {
@@ -724,7 +716,7 @@ pub extern "C" fn mason_style_update_non_buffer_data(
             }
 
             if let Some(end) = grid_column_end.as_deref() {
-                style.set_grid_column_start_css(end)
+                style.set_grid_column_end_css(end)
             }
 
             if let Some(areas) = grid_template_areas.as_deref() {

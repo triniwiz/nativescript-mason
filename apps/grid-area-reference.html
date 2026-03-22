@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grid Areas Reference</title>
+    <style>
+      body {
+        font-family: -apple-system, sans-serif;
+        padding: 16px;
+        background: #f5f5f5;
+      }
+    </style>
+  </head>
+  <body>
+    <p style="font-size: 22px; font-weight: bold; color: #1a1a2e; margin-bottom: 4px">Named Grid Areas</p>
+    <p style="font-size: 12px; color: #888; margin-bottom: 12px">Header / Sidebar / Content / Footer</p>
+
+    <div style="display: grid; gap: 8px; grid-template-columns: 100px auto; grid-template-areas: 'header header' 'sidebar content' 'sidebar2 sidebar2' 'footer footer'">
+      <div style="grid-area: header; background-color: #2d3436; color: #fff; border-radius: 8px; padding: 12px; font-size: 14px">
+        <p style="color: white; margin: 0">Header</p>
+      </div>
+      <div style="grid-area: sidebar; background-color: #444; color: #fff; border-radius: 8px; padding: 12px; font-size: 14px">
+        <p style="color: white; margin: 0">Sidebar</p>
+      </div>
+      <div style="grid-area: content; background-color: #444; color: #fff; border-radius: 8px; padding: 12px; font-size: 14px">
+        <p style="color: white; margin: 0">Content</p>
+        <p style="color: #ccc; font-size: 11px; margin-top: 4px">More content than we had before so this column is now quite tall.</p>
+      </div>
+      <div style="grid-area: sidebar2; background-color: #636e72; color: #fff; border-radius: 8px; padding: 12px; font-size: 14px">
+        <p style="color: white; margin: 0">Sidebar 2</p>
+      </div>
+      <div style="grid-area: footer; background-color: #2d3436; color: #fff; border-radius: 8px; padding: 12px; font-size: 14px">
+        <p style="color: white; margin: 0">Footer</p>
+      </div>
+    </div>
+
+    <p style="font-size: 22px; font-weight: bold; color: #1a1a2e; margin-top: 24px; margin-bottom: 4px">Holy Grail Layout</p>
+    <p style="font-size: 12px; color: #888; margin-bottom: 12px">Classic 3-column with header/footer</p>
+
+    <div style="display: grid; grid-template-columns: 70px 1fr 70px; grid-template-rows: 48px 1fr 40px; grid-template-areas: 'hg-header hg-header hg-header' 'hg-left hg-main hg-right' 'hg-footer hg-footer hg-footer'; gap: 6px; height: 240px">
+      <div style="grid-area: hg-header; background-color: #0984e3; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+        <p style="color: white; font-weight: bold; font-size: 14px; text-align: center; margin: 0">Header</p>
+      </div>
+      <div style="grid-area: hg-left; background-color: #6c5ce7; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+        <p style="color: white; font-size: 11px; text-align: center; margin: 0">Left</p>
+      </div>
+      <div style="grid-area: hg-main; background-color: #00b894; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+        <p style="color: white; font-size: 13px; text-align: center; margin: 0">Main Content Area</p>
+      </div>
+      <div style="grid-area: hg-right; background-color: #e84393; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+        <p style="color: white; font-size: 11px; text-align: center; margin: 0">Right</p>
+      </div>
+      <div style="grid-area: hg-footer; background-color: #2d3436; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+        <p style="color: white; font-weight: bold; font-size: 14px; text-align: center; margin: 0">Footer</p>
+      </div>
+    </div>
+  </body>
+</html>

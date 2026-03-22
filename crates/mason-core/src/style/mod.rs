@@ -2293,13 +2293,13 @@ impl Style {
     ) {
         if let Some(name) = &self.grid_area {
             if let Some(area) = template_areas.iter().find(|a| &a.name == name) {
-                // Grid lines in Taffy use 1-based indexing (CSS Grid standard)
-                // But area indices are 0-based, so add 1
-                self.grid_row_start = GridPlacement::from_line_index((area.row_start + 1) as i16);
-                self.grid_row_end = GridPlacement::from_line_index((area.row_end + 1) as i16);
+                // The parser already stores 1-based CSS grid line indices,
+                // so use them directly.
+                self.grid_row_start = GridPlacement::from_line_index(area.row_start as i16);
+                self.grid_row_end = GridPlacement::from_line_index(area.row_end as i16);
                 self.grid_column_start =
-                    GridPlacement::from_line_index((area.column_start + 1) as i16);
-                self.grid_column_end = GridPlacement::from_line_index((area.column_end + 1) as i16);
+                    GridPlacement::from_line_index(area.column_start as i16);
+                self.grid_column_end = GridPlacement::from_line_index(area.column_end as i16);
             }
         }
     }

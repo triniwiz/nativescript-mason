@@ -3,7 +3,7 @@
     <ActionBar>
       <Label text="Showcase" class="text-white" style="font-size: 18; font-weight: bold;" />
     </ActionBar>
-    <div style="padding: 16; background-color: #fafafa;overflow-y: scroll;">
+    <div style="padding: 24; background-color: #fafafa;overflow-y: scroll;">
 
       <!-- Hero Card -->
       <div style="background-color: #1a1a2e; border-radius: 20; padding: 30; margin-bottom: 20; box-shadow: 0 12px 40px rgba(26, 26, 46, 0.4);">
@@ -55,7 +55,7 @@
         </div>
         <!-- Body -->
         <div style="padding: 18;">
-          <p style="font-size: 13; color: #555; line-height: 22;">
+          <p style="font-size: 13; color: #555;">
             Full CSS layout support including Flexbox, Grid, Box Shadows, Transforms, Typography, and more. Built on Taffy with a high-performance shared-buffer architecture.
           </p>
         </div>

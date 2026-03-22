@@ -530,6 +530,8 @@ export class Style {
 
         const buffer = interop.bufferFromData(styleBuffer);
         this.style_view = new DataView(buffer);
+        this.i8View = new Int8Array(buffer);
+        this.u8View = new Uint8Array(buffer);
       }
 
       if (__ANDROID__) {
@@ -542,6 +544,8 @@ export class Style {
         const styleBuffer = style.getValues();
         const buffer = (<any>ArrayBuffer).from(styleBuffer);
         this.style_view = new DataView(buffer);
+        this.i8View = new Int8Array(buffer);
+        this.u8View = new Uint8Array(buffer);
       }
     }
   }
@@ -595,6 +599,7 @@ export class Style {
 
     switch (typeof value) {
       case 'number':
+        this.prepareMut();
         setInt32(this.style_view, StyleKeys.FONT_SIZE, value);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
@@ -603,18 +608,21 @@ export class Style {
       case 'object':
         switch (value.unit) {
           case 'dip':
+            this.prepareMut();
             setInt32(this.style_view, StyleKeys.FONT_SIZE, layout.toDeviceIndependentPixels(value.value));
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
             this.setOrAppendState(StateKeys.FONT_SIZE);
             break;
           case 'px':
+            this.prepareMut();
             setInt32(this.style_view, StyleKeys.FONT_SIZE, value.value);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
             this.setOrAppendState(StateKeys.FONT_SIZE);
             break;
           case '%':
+            this.prepareMut();
             setInt32(this.style_view, StyleKeys.FONT_SIZE, value.value * 100);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 1);
@@ -622,10 +630,6 @@ export class Style {
             break;
         }
         break;
-    }
-
-    if (value && typeof value === 'object') {
-    } else {
     }
   }
 
@@ -664,6 +668,7 @@ export class Style {
         break;
     }
     if (style !== -1) {
+      this.prepareMut();
       setInt32(this.style_view, StyleKeys.FONT_STYLE_TYPE, style);
       setInt8(this.style_view, StyleKeys.FONT_STYLE_STATE, 1);
       this.setOrAppendState(StateKeys.FONT_STYLE);
@@ -721,6 +726,7 @@ export class Style {
         break;
     }
     if (weight !== -1) {
+      this.prepareMut();
       setInt32(this.style_view, StyleKeys.FONT_WEIGHT, weight);
       setInt8(this.style_view, StyleKeys.FONT_WEIGHT_STATE, 1);
       this.setOrAppendState(StateKeys.FONT_WEIGHT);
@@ -740,6 +746,7 @@ export class Style {
     if (!this.style_view) {
       return;
     }
+    this.prepareMut();
     setUint32(this.style_view, StyleKeys.FONT_COLOR, value);
     setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 1);
     this.setOrAppendState(StateKeys.FONT_COLOR);
@@ -757,6 +764,7 @@ export class Style {
     if (!this.style_view) {
       return;
     }
+    this.prepareMut();
     setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, value);
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 1);
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
@@ -796,6 +804,7 @@ export class Style {
     }
 
     if (wrap !== -1) {
+      this.prepareMut();
       setInt32(this.style_view, StyleKeys.TEXT_WRAP, wrap);
       setInt8(this.style_view, StyleKeys.TEXT_WRAP_STATE, 1);
       this.setOrAppendState(StateKeys.TEXT_WRAP);
@@ -1367,29 +1376,24 @@ export class Style {
 
     switch (typeof value) {
       case 'string':
-        this.prepareMut();
         type = 0;
         insetValue = 0;
         break;
       case 'number':
-        this.prepareMut();
         type = 1;
         insetValue = layout.toDevicePixels(value);
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.prepareMut();
             type = 1;
             insetValue = layout.toDevicePixels(value.value);
             break;
           case 'px':
-            this.prepareMut();
             type = 1;
             insetValue = value.value;
             break;
           case '%':
-            this.prepareMut();
             type = 2;
             insetValue = value.value;
             break;
@@ -1398,6 +1402,7 @@ export class Style {
     }
 
     if (type !== undefined && insetValue !== undefined) {
+      this.prepareMut();
       i8Buffer.fill(type);
 
       this.u8View.set(i8Buffer, StyleKeys.INSET_LEFT_TYPE);
@@ -1584,29 +1589,24 @@ export class Style {
 
     switch (typeof value) {
       case 'string':
-        this.prepareMut();
         type = 0;
         marginValue = 0;
         break;
       case 'number':
-        this.prepareMut();
         type = 1;
         marginValue = layout.toDevicePixels(value);
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.prepareMut();
             type = 1;
             marginValue = layout.toDevicePixels(value.value);
             break;
           case 'px':
-            this.prepareMut();
             type = 1;
             marginValue = value.value;
             break;
           case '%':
-            this.prepareMut();
             type = 2;
             marginValue = value.value;
             break;
@@ -1615,6 +1615,7 @@ export class Style {
     }
 
     if (type !== undefined && marginValue !== undefined) {
+      this.prepareMut();
       i8Buffer.fill(type);
 
       this.u8View.set(i8Buffer, StyleKeys.MARGIN_LEFT_TYPE);
@@ -2052,6 +2053,7 @@ export class Style {
   }
 
   set aspectRatio(value: number) {
+    this.prepareMut();
     setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, value);
     this.setOrAppendState(StateKeys.ASPECT_RATIO);
   }
@@ -2891,6 +2893,7 @@ export class Style {
   }
 
   set flexGrow(value: number) {
+    this.prepareMut();
     setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
     this.setOrAppendState(StateKeys.FLEX_GROW);
   }
@@ -2900,6 +2903,7 @@ export class Style {
   }
 
   set flexShrink(value: number) {
+    this.prepareMut();
     setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
     this.setOrAppendState(StateKeys.FLEX_SHRINK);
   }
@@ -2910,15 +2914,18 @@ export class Style {
 
   set scrollBarWidth(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
+      this.prepareMut();
       setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value);
       this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
           this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
         case 'px':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value.value);
           this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
@@ -2932,17 +2939,20 @@ export class Style {
 
   set letterSpacing(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
+      this.prepareMut();
       setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value);
       setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
       this.setOrAppendState(StateKeys.LETTER_SPACING);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
           setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
           this.setOrAppendState(StateKeys.LETTER_SPACING);
           break;
         case 'px':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value.value);
           setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
           this.setOrAppendState(StateKeys.LETTER_SPACING);
@@ -2957,6 +2967,7 @@ export class Style {
 
   set lineHeight(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
+      this.prepareMut();
       setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 0);
@@ -2964,12 +2975,14 @@ export class Style {
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDevicePixels(value.value));
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
           this.setOrAppendState(StateKeys.LINE_HEIGHT);
           break;
         case 'px':
+          this.prepareMut();
           setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value.value);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
@@ -3036,6 +3049,7 @@ export class Style {
     }
 
     if (flow !== -1) {
+      this.prepareMut();
       setInt32(this.style_view, StyleKeys.TEXT_OVERFLOW, flow);
       setInt8(this.style_view, StyleKeys.TEXT_OVERFLOW_STATE, 1);
       this.setOrAppendState(StateKeys.TEXT_OVERFLOW);
@@ -3100,6 +3114,7 @@ export class Style {
     }
 
     if (align !== -1) {
+      this.prepareMut();
       setInt32(this.style_view, StyleKeys.TEXT_ALIGN, align);
       setInt8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, 1);
       this.setOrAppendState(StateKeys.TEXT_ALIGN);
@@ -3466,41 +3481,49 @@ export class Style {
   set verticalAlign(value: VerticalAlign) {
     switch (value) {
       case 'baseline':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
         break;
       case 'top':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 1);
         break;
       case 'text-top':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 2);
         break;
       case 'middle':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 3);
         break;
       case 'bottom':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 4);
         break;
       case 'text-bottom':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 5);
         break;
       case 'sub':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 6);
         break;
       case 'super':
+        this.prepareMut();
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
         setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
         setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 7);
@@ -3508,6 +3531,7 @@ export class Style {
       default: {
         switch (typeof value) {
           case 'number':
+            this.prepareMut();
             setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
             setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value * layout.getDisplayDensity());
             setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
@@ -3519,16 +3543,19 @@ export class Style {
                 if (typeof parsed === 'object' && parsed !== null && 'unit' in parsed) {
                   switch (parsed.unit) {
                     case '%':
+                      this.prepareMut();
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
                       setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value);
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
                       break;
                     case 'px':
+                      this.prepareMut();
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
                       setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value);
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
                       break;
                     case 'dip':
+                      this.prepareMut();
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
                       setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value * layout.getDisplayDensity());
                       setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
@@ -3542,16 +3569,19 @@ export class Style {
             if (value !== null && 'unit' in value) {
               switch (value.unit) {
                 case '%':
+                  this.prepareMut();
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
                   setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value);
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
                   break;
                 case 'px':
+                  this.prepareMut();
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
                   setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value);
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
                   break;
                 case 'dip':
+                  this.prepareMut();
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
                   setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value * layout.getDisplayDensity());
                   setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
@@ -3598,6 +3628,7 @@ export class Style {
   }
 
   set zIndex(value: number) {
+    this.prepareMut();
     setInt32(this.style_view, StyleKeys.Z_INDEX, value);
     this.setOrAppendState(StateKeys.Z_INDEX);
   }
