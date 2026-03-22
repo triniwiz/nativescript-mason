@@ -202,6 +202,43 @@ extension CSSBorderRenderer {
     self.invalidateCache()
     self.style.node.view?.setNeedsDisplay()
   }
+
+  /// Parse a side-specific CSS border shorthand, e.g. `border-left: 4px solid #00B894`.
+  func parseBorderSideShorthand(_ side: CSSBorderRenderer.Side, _ value: String) {
+    let borderSide: BorderSide
+    switch side {
+    case .left: borderSide = self.left
+    case .top: borderSide = self.top
+    case .right: borderSide = self.right
+    case .bottom: borderSide = self.bottom
+    }
+
+    if value.isEmpty {
+      borderSide.width = .Points(0)
+      borderSide.style = .none
+      borderSide.color = .clear
+      self.invalidateCache()
+      self.style.node.view?.setNeedsDisplay()
+      return
+    }
+
+    let parsed = CSSBorderRenderer.parseBorderShorthand(value)
+    if parsed.color == nil && parsed.style == nil && (parsed.widths == nil || parsed.widths!.isEmpty) {
+      return
+    }
+
+    let width = (parsed.widths != nil && !parsed.widths!.isEmpty) ? parsed.widths![0] : MasonLengthPercentage.Points(3)
+    let style = parsed.style ?? .solid
+    let color = parsed.color ?? .black
+
+    borderSide.width = width
+    borderSide.style = style
+    borderSide.color = color
+
+    self.invalidateCache()
+    self.style.node.view?.setNeedsDisplay()
+  }
+
   /// Parse CSS shorthand border: "1px solid red"
   static func parseBorderShorthand(_ value: String) -> (widths: [MasonLengthPercentage]?, style: CSSBorderRenderer.BorderStyle?, color: UIColor?) {
     var widths: [MasonLengthPercentage] = []

@@ -1219,6 +1219,10 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomRight;
 @property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomLeft;
 @property (nonatomic, copy) NSString * _Nonnull border;
+@property (nonatomic, copy) NSString * _Nonnull borderLeft;
+@property (nonatomic, copy) NSString * _Nonnull borderTop;
+@property (nonatomic, copy) NSString * _Nonnull borderRight;
+@property (nonatomic, copy) NSString * _Nonnull borderBottom;
 @property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderWidthCompat;
 - (void)setBorderLeftWidth:(float)value :(NSInteger)type;
 - (void)setBorderRightWidth:(float)value :(NSInteger)type;
@@ -3163,6 +3167,10 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomRight;
 @property (nonatomic, copy) NSString * _Nonnull cornerShapeBottomLeft;
 @property (nonatomic, copy) NSString * _Nonnull border;
+@property (nonatomic, copy) NSString * _Nonnull borderLeft;
+@property (nonatomic, copy) NSString * _Nonnull borderTop;
+@property (nonatomic, copy) NSString * _Nonnull borderRight;
+@property (nonatomic, copy) NSString * _Nonnull borderBottom;
 @property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderWidthCompat;
 - (void)setBorderLeftWidth:(float)value :(NSInteger)type;
 - (void)setBorderRightWidth:(float)value :(NSInteger)type;

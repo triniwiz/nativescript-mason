@@ -2143,6 +2143,22 @@ public struct StateKeys : Swift.Equatable {
     @objc get
     @objc set
   }
+  @objc public var borderLeft: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var borderTop: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var borderRight: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var borderBottom: Swift.String {
+    @objc get
+    @objc set
+  }
   public var borderWidth: Mason.MasonRect<Mason.MasonLengthPercentage> {
     get
     set

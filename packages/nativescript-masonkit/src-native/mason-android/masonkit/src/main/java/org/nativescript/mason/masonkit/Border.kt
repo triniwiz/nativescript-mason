@@ -1230,6 +1230,74 @@ fun parseBorderShorthand(style: Style, value: String) {
   }
 }
 
+/**
+ * Parse a side-specific CSS border shorthand, e.g. `border-left: 4px solid #00B894`.
+ * Applies width, style, and color only to the specified side.
+ */
+fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
+  val border = when (side) {
+    Border.Side.Left -> style.mBorderLeft
+    Border.Side.Top -> style.mBorderTop
+    Border.Side.Right -> style.mBorderRight
+    Border.Side.Bottom -> style.mBorderBottom
+  }
+
+  if (value.isEmpty()) {
+    border.width = Zero
+    border.style = BorderStyle.None
+    border.color = Color.TRANSPARENT
+    style.mBorderRenderer.invalidate()
+    return
+  }
+
+  val scale = style.node.mason.scale
+  var width: LengthPercentage? = Points(scale * 3)  // medium default
+  var borderStyle: BorderStyle? = BorderStyle.Solid
+  var color: Int? = Color.BLACK
+  var valid = false
+
+  val split = value.split(SPLIT_REGEX)
+  split.forEach { part ->
+    when {
+      parseLengthPercentage(part) != null -> {
+        width = when (part) {
+          "thin" -> Points(scale * 1)
+          "medium" -> Points(scale * 3)
+          "thick" -> Points(scale * 5)
+          else -> parseLengthPercentage(part)
+        }
+        valid = true
+      }
+      BorderStyle.cssNames.contains(part.lowercase()) -> {
+        borderStyle = BorderStyle.fromName(part)
+        valid = borderStyle != null
+      }
+      colorRegex.matches(part) -> {
+        color = parseColor(part)
+        valid = color != null
+      }
+    }
+  }
+
+  if (!valid) return
+
+  var batch = false
+  if (!style.inBatch) {
+    style.inBatch = true
+    batch = true
+  }
+
+  width?.let { border.width = it }
+  borderStyle?.let { border.style = it }
+  color?.let { border.color = it }
+
+  style.mBorderRenderer.invalidate()
+
+  if (batch) {
+    style.inBatch = false
+  }
+}
+
 // ─── corner-shape ────────────────────────────────────────────────────────
 // CSS syntax:
 //   corner-shape: round                      → exponent 1 on all corners (default)

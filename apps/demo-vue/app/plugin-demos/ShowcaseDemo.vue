@@ -44,7 +44,7 @@
       <!-- Profile Card -->
       <div style="background-color: white; border-radius: 16; margin-bottom: 20; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);">
         <!-- Header -->
-        <div style="display: flex; flex-direction: row; align-items: center; gap: 14; padding: 18; border-bottom: 1px solid #f0f0f0;">
+        <div style="display: flex; flex-direction: row; align-items: center; gap: 14; padding: 18; border-bottom: 1 solid #f0f0f0;">
           <div style="width: 52; height: 52; border-radius: 26; background-color: #6C5CE7; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.4);">
             <p style="font-size: 22; color: white; font-weight: bold;">M</p>
           </div>
@@ -60,7 +60,7 @@
           </p>
         </div>
         <!-- Footer Stats -->
-        <div style="display: flex; flex-direction: row; justify-content: space-around; padding: 14; border-top: 1px solid #f0f0f0;">
+        <div style="display: flex; flex-direction: row; justify-content: space-around; padding: 14; border-top: 1 solid #f0f0f0;">
           <div style="display: flex; flex-direction: column; align-items: center;">
             <p style="font-size: 18; font-weight: bold; color: #0984E3;">JS</p>
             <p style="font-size: 10; color: #aaa;">TypeScript</p>
@@ -84,7 +84,7 @@
       <p style="font-size: 18; font-weight: bold; color: #1a1a2e; margin-bottom: 10;">Activity</p>
 
       <div style="display: flex; flex-direction: column; gap: 8; margin-bottom: 20;">
-        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4px solid #00B894;">
+        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4 solid #00B894;">
           <div style="flex-grow: 1;">
             <p style="font-size: 13; font-weight: bold; color: #333;">Build Succeeded</p>
             <p style="font-size: 11; color: #999;">All 42 tests passed</p>
@@ -92,7 +92,7 @@
           <p style="font-size: 10; color: #ccc;">2m ago</p>
         </div>
 
-        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4px solid #FDCB6E;">
+        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4 solid #FDCB6E;">
           <div style="flex-grow: 1;">
             <p style="font-size: 13; font-weight: bold; color: #333;">Layout Recomputed</p>
             <p style="font-size: 11; color: #999;">3 dirty nodes invalidated</p>
@@ -100,7 +100,7 @@
           <p style="font-size: 10; color: #ccc;">5m ago</p>
         </div>
 
-        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4px solid #0984E3;">
+        <div style="display: flex; flex-direction: row; align-items: center; gap: 12; background-color: white; border-radius: 12; padding: 14; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4 solid #0984E3;">
           <div style="flex-grow: 1;">
             <p style="font-size: 13; font-weight: bold; color: #333;">Style Synced</p>
             <p style="font-size: 11; color: #999;">Buffer updated: 560 bytes</p>

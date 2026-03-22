@@ -2883,8 +2883,31 @@ public class MasonStyle: NSObject {
       mBorderRender.parseBorderShorthand(newValue)
     }
   }
-  
-  
+
+  public var borderLeft: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.left, borderLeft)
+    }
+  }
+
+  public var borderTop: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.top, borderTop)
+    }
+  }
+
+  public var borderRight: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.right, borderRight)
+    }
+  }
+
+  public var borderBottom: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.bottom, borderBottom)
+    }
+  }
+
   internal var mBorderLeft: CSSBorderRenderer.BorderSide {
     return mBorderRender.left
   }

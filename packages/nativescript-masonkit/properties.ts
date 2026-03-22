@@ -80,6 +80,26 @@ export const borderProperty = new CssProperty<Style, string>({
   cssName: 'border',
 });
 
+export const borderLeftProperty = new CssProperty<Style, string>({
+  name: 'borderLeft',
+  cssName: 'border-left',
+});
+
+export const borderTopProperty = new CssProperty<Style, string>({
+  name: 'borderTop',
+  cssName: 'border-top',
+});
+
+export const borderRightProperty = new CssProperty<Style, string>({
+  name: 'borderRight',
+  cssName: 'border-right',
+});
+
+export const borderBottomProperty = new CssProperty<Style, string>({
+  name: 'borderBottom',
+  cssName: 'border-bottom',
+});
+
 export const backgroundProperty = new CssProperty<Style, string>({
   name: 'background',
   cssName: 'background',
@@ -1357,6 +1377,10 @@ backgroundSizeProperty.register(Style);
 backgroundClipProperty.register(Style);
 
 borderProperty.register(Style);
+borderLeftProperty.register(Style);
+borderTopProperty.register(Style);
+borderRightProperty.register(Style);
+borderBottomProperty.register(Style);
 
 filterProperty.register(Style);
 

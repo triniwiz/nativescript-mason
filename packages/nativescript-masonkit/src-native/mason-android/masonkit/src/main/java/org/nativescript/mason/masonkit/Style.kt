@@ -2711,6 +2711,30 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseBorderShorthand(this, value)
     }
 
+  var borderLeft: String = ""
+    set(value) {
+      field = value
+      parseBorderSideShorthand(this, Border.Side.Left, value)
+    }
+
+  var borderTop: String = ""
+    set(value) {
+      field = value
+      parseBorderSideShorthand(this, Border.Side.Top, value)
+    }
+
+  var borderRight: String = ""
+    set(value) {
+      field = value
+      parseBorderSideShorthand(this, Border.Side.Right, value)
+    }
+
+  var borderBottom: String = ""
+    set(value) {
+      field = value
+      parseBorderSideShorthand(this, Border.Side.Bottom, value)
+    }
+
   var borderRadius: String = ""
     set(value) {
       field = value

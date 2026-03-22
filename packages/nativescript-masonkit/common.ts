@@ -10,6 +10,10 @@ import {
   aspectRatioProperty,
   backgroundProperty,
   borderProperty,
+  borderLeftProperty,
+  borderTopProperty,
+  borderRightProperty,
+  borderBottomProperty,
   borderRadiusProperty,
   bottomProperty,
   boxSizingProperty,
@@ -845,6 +849,42 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.border = value;
+    }
+  }
+
+  [borderLeftProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderLeft = value;
+    }
+  }
+
+  [borderTopProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderTop = value;
+    }
+  }
+
+  [borderRightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderRight = value;
+    }
+  }
+
+  [borderBottomProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderBottom = value;
     }
   }
 

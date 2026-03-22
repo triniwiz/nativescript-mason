@@ -558,6 +558,26 @@ class NodeHelper(val mason: Mason) {
       return node.style.border
     }
 
+    fun setBorderLeft(view: android.view.View, value: String) {
+      val node = mason.nodeForView(view)
+      node.style.borderLeft = value
+    }
+
+    fun setBorderTop(view: android.view.View, value: String) {
+      val node = mason.nodeForView(view)
+      node.style.borderTop = value
+    }
+
+    fun setBorderRight(view: android.view.View, value: String) {
+      val node = mason.nodeForView(view)
+      node.style.borderRight = value
+    }
+
+    fun setBorderBottom(view: android.view.View, value: String) {
+      val node = mason.nodeForView(view)
+      node.style.borderBottom = value
+    }
+
     fun setBorderWidth(
       view: android.view.View,
       left: Float,
