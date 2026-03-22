@@ -47,9 +47,12 @@ import {
   rowGapProperty,
   scrollBarWidthProperty,
   textOverFlowProperty,
+  textProperty,
   textWrapProperty,
   topProperty,
   verticalAlignProperty,
+  boxShadowProperty,
+  transformProperty,
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_ } from './symbols';
 import { Tree } from './tree';
@@ -180,6 +183,7 @@ declare module '@nativescript/core/ui/styling/style' {
     float: Float;
     clear: Clear;
     cornerShape: string;
+    transform: string;
   }
 }
 
@@ -723,7 +727,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   // -- Text setter with per-view framework detection --
 
-  set text(value: string) {
+  [textProperty.setNative](value: string) {
     const frameworkEl = getFrameworkElement(this);
 
     if (frameworkEl) {
@@ -1700,7 +1704,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set inset(value) {
-    this.style.inset = value;
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      if (value === 'auto') {
+        style.inset = 'auto';
+        return;
+      }
+      try {
+        style.inset = CorePercentLength.parse(value as never);
+      } catch (error) {}
+    }
   }
 
   get inset() {
@@ -1749,7 +1763,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       style.cornerShape = value;
     }
   }
+
+  [boxShadowProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.boxShadow = typeof value === 'string' ? value : `${value}`;
+    }
+  }
+
+  [transformProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.transform = value;
+    }
+  }
 }
+
+textProperty.register(ViewBase);
 
 export class TextBase extends ViewBase {
   textContent: string;

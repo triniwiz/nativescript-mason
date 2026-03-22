@@ -1850,27 +1850,35 @@ impl LayoutBlockContainer for Tree {
                 )
             };
 
-            // For scroll/auto overflow containers with auto height, constrain
-            // to the parent's available height so the container doesn't expand
-            // to fit all content (which would prevent scrolling).
+            // For scroll/auto overflow containers, we need the layout engine
+            // to compute the *unconstrained* content height so that native
+            // scroll views know the full scrollable area.  We therefore do NOT
+            // inject `known_dimensions.height` before the compute.  Instead we
+            // save the viewport constraint and apply it *after* the compute,
+            // clamping `size` while preserving `content_size`.
             let mut inputs = inputs;
             let is_scroll_container_y = matches!(
                 overflow.y,
                 crate::style::Overflow::Scroll | crate::style::Overflow::Auto
             );
-            if is_scroll_container_y
-                && inputs.known_dimensions.height.is_none()
-                && size.height.is_auto()
-            {
-                // Try available_space first, then fall back to parent_size
-                if let AvailableSpace::Definite(h) = inputs.available_space.height {
-                    inputs.known_dimensions.height = Some(h);
+            let scroll_constraint_y: Option<f32> = if is_scroll_container_y && size.height.is_auto() {
+                // Resolve the viewport constraint but do NOT apply it yet.
+                if let Some(h) = inputs.known_dimensions.height {
+                    // Already has a definite height from the caller — use it
+                    // but clear it so the layout runs unconstrained.
+                    inputs.known_dimensions.height = None;
+                    Some(h)
+                } else if let AvailableSpace::Definite(h) = inputs.available_space.height {
+                    Some(h)
                 } else if let Some(parent_h) = inputs.parent_size.height {
-                    // If parent has a definite height, use it to constrain the scroll container
-                    inputs.known_dimensions.height = Some(parent_h);
                     inputs.available_space.height = AvailableSpace::Definite(parent_h);
+                    Some(parent_h)
+                } else {
+                    None
                 }
-            }
+            } else {
+                None
+            };
 
             match display_mode {
                 DisplayMode::None => match (display, has_children) {
@@ -1899,21 +1907,15 @@ impl LayoutBlockContainer for Tree {
                             }
                         }
 
-                        // For scroll containers, ensure the layout height doesn't exceed
-                        // the available space. content_size should retain the full content
-                        // extent so native scroll views know the scrollable area.
-                        if is_scroll_container_y {
-                            if let Some(constrained_h) = inputs.known_dimensions.height {
-                                if computed_layout.size.height > constrained_h {
-                                    // content_size should be at least the computed size
-                                    // to represent the full scrollable content
-                                    computed_layout.content_size.height = computed_layout
-                                        .content_size
-                                        .height
-                                        .max(computed_layout.size.height);
-                                    // Clamp size to available space
-                                    computed_layout.size.height = constrained_h;
-                                }
+                        // For scroll containers, clamp visible size to the
+                        // viewport while preserving full content extent.
+                        if let Some(constrained_h) = scroll_constraint_y {
+                            if computed_layout.size.height > constrained_h {
+                                computed_layout.content_size.height = computed_layout
+                                    .content_size
+                                    .height
+                                    .max(computed_layout.size.height);
+                                computed_layout.size.height = constrained_h;
                             }
                         }
 
@@ -1933,32 +1935,28 @@ impl LayoutBlockContainer for Tree {
                     }
                     (Display::Flex, true) => {
                         let mut computed_layout = compute_flexbox_layout(tree, node_id, inputs);
-                        // Constrain scroll container height for flex containers
-                        if is_scroll_container_y {
-                            if let Some(constrained_h) = inputs.known_dimensions.height {
-                                if computed_layout.size.height > constrained_h {
-                                    computed_layout.content_size.height = computed_layout
-                                        .content_size
-                                        .height
-                                        .max(computed_layout.size.height);
-                                    computed_layout.size.height = constrained_h;
-                                }
+                        // Clamp scroll container visible height, preserve content extent
+                        if let Some(constrained_h) = scroll_constraint_y {
+                            if computed_layout.size.height > constrained_h {
+                                computed_layout.content_size.height = computed_layout
+                                    .content_size
+                                    .height
+                                    .max(computed_layout.size.height);
+                                computed_layout.size.height = constrained_h;
                             }
                         }
                         computed_layout
                     }
                     (Display::Grid, true) => {
                         let mut computed_layout = compute_grid_layout(tree, node_id, inputs);
-                        // Constrain scroll container height for grid containers
-                        if is_scroll_container_y {
-                            if let Some(constrained_h) = inputs.known_dimensions.height {
-                                if computed_layout.size.height > constrained_h {
-                                    computed_layout.content_size.height = computed_layout
-                                        .content_size
-                                        .height
-                                        .max(computed_layout.size.height);
-                                    computed_layout.size.height = constrained_h;
-                                }
+                        // Clamp scroll container visible height, preserve content extent
+                        if let Some(constrained_h) = scroll_constraint_y {
+                            if computed_layout.size.height > constrained_h {
+                                computed_layout.content_size.height = computed_layout
+                                    .content_size
+                                    .height
+                                    .max(computed_layout.size.height);
+                                computed_layout.size.height = constrained_h;
                             }
                         }
                         computed_layout

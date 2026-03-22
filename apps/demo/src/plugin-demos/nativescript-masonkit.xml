@@ -87,7 +87,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 <!-- </scroll:Scroll> -->
 
 <ui:View>
-<list:OrderedList items="{{items}}" height="100%" backgroundColor="lightgray">
+<!-- <list:OrderedList items="{{items}}" height="100%" backgroundColor="lightgray">
   <list:OrderedList.itemTemplate>
     <li:Li>
       <ui:View height="100">
@@ -96,13 +96,13 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
       </ui:View>
     </li:Li>
   </list:OrderedList.itemTemplate>
-</list:OrderedList>
+</list:OrderedList> -->
 
 
 
-<!-- <ui:View class="section">
+<ui:View class="section">
     <ui:View class="div left">
-    <text:Text textContent="1"/>
+    <text:Text textContent="1"/>d
     </ui:View>
     <ui:View class="div left" textContent="2">
         <text:Text textContent="2"/>
@@ -115,7 +115,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
     iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa
     aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus
     congue."/>
-</ui:View> -->
+</ui:View>
 
 </ui:View>
 

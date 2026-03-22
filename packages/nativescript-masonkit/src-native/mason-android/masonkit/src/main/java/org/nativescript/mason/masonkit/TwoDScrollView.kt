@@ -13,7 +13,7 @@ import android.view.ViewDebug.ExportedProperty
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
-import android.widget.Scroller
+import android.widget.OverScroller
 import androidx.core.view.isEmpty
 import androidx.core.view.isNotEmpty
 import kotlin.math.abs
@@ -36,7 +36,7 @@ open class TwoDScrollView : FrameLayout {
 
   private var lastScroll: Long = 0
 
-  private var scroller: Scroller? = null
+  private var scroller: OverScroller? = null
 
   private var scrollChangeListener: ScrollChangeListener? = null
 
@@ -131,7 +131,7 @@ open class TwoDScrollView : FrameLayout {
     get() = (MAX_SCROLL_FACTOR * width).toInt()
 
   private fun initTwoDScrollView(context: Context?, attrs: AttributeSet?) {
-    scroller = Scroller(getContext())
+    scroller = OverScroller(getContext())
     isFocusable = true
     descendantFocusability = FOCUS_AFTER_DESCENDANTS
     setWillNotDraw(false)
@@ -142,8 +142,7 @@ open class TwoDScrollView : FrameLayout {
   }
 
   private fun canScroll(): Boolean {
-    return (height < scrollContentHeight + paddingTop + paddingBottom)
-      || (width < scrollContentWidth + paddingLeft + paddingRight)
+    return enableScrollX || enableScrollY
   }
 
   fun executeKeyEvent(event: KeyEvent): Boolean {
@@ -171,7 +170,7 @@ open class TwoDScrollView : FrameLayout {
 
   override fun onTouchEvent(ev: MotionEvent): Boolean {
     if (ev.action == MotionEvent.ACTION_DOWN && ev.edgeFlags != 0) return false
-    if (!canScroll()) return false
+    if (!canScroll()) return super.onTouchEvent(ev)
 
     if (velocityTracker == null) velocityTracker = VelocityTracker.obtain()
     velocityTracker!!.addMovement(ev)
@@ -185,6 +184,8 @@ open class TwoDScrollView : FrameLayout {
         if (!scroller!!.isFinished) scroller!!.abortAnimation()
         lastMotionY = y
         lastMotionX = x
+        // Let the view handle the down event (e.g. for tap/click listeners)
+        super.onTouchEvent(ev)
       }
 
       MotionEvent.ACTION_MOVE -> {
@@ -213,6 +214,8 @@ open class TwoDScrollView : FrameLayout {
             val availableToScroll = scrollContentHeight - scrollY - bottomEdge
             deltaY = if (availableToScroll > 0) min(availableToScroll, deltaY) else 0
           }
+        } else {
+          deltaY = 0
         }
         if (deltaY != 0 || deltaX != 0) scrollBy(deltaX, deltaY)
       }
@@ -229,6 +232,8 @@ open class TwoDScrollView : FrameLayout {
           velocityTracker!!.recycle()
           velocityTracker = null
         }
+        // Let the view handle the up event (e.g. for tap/click listeners)
+        super.onTouchEvent(ev)
       }
     }
     return true
@@ -497,7 +502,7 @@ open class TwoDScrollView : FrameLayout {
     val duration = AnimationUtils.currentAnimationTimeMillis() - lastScroll
     if (duration > ANIMATED_SCROLL_GAP) {
       scroller!!.startScroll(scrollX, scrollY, dx, dy)
-      awakenScrollBars(scroller!!.duration)
+      awakenScrollBars(SCROLL_ANIMATION_DURATION)
       invalidate()
     } else {
       if (!scroller!!.isFinished) scroller!!.abortAnimation()
@@ -577,7 +582,9 @@ open class TwoDScrollView : FrameLayout {
       MotionEvent.ACTION_MOVE -> {
         val yDiff = abs(y - lastMotionY).toInt()
         val xDiff = abs(x - lastMotionX).toInt()
-        if (yDiff > touchSlop || xDiff > touchSlop) isBeingDragged = true
+        val exceedsY = enableScrollY && yDiff > touchSlop
+        val exceedsX = enableScrollX && xDiff > touchSlop
+        if (exceedsY || exceedsX) isBeingDragged = true
       }
       MotionEvent.ACTION_DOWN -> {
         lastMotionY = y
@@ -626,10 +633,13 @@ open class TwoDScrollView : FrameLayout {
       val viewportHeight = height - paddingBottom - paddingTop
       val viewportWidth = width - paddingRight - paddingLeft
 
+      val vx = if (enableScrollX) velocityX else 0
+      val vy = if (enableScrollY) velocityY else 0
+
       scroller!!.fling(
-        scrollX, scrollY, velocityX, velocityY,
-        0, maxOf(scrollContentWidth - viewportWidth, 0),
-        0, maxOf(scrollContentHeight - viewportHeight, 0)
+        scrollX, scrollY, vx, vy,
+        0, if (enableScrollX) maxOf(scrollContentWidth - viewportWidth, 0) else 0,
+        0, if (enableScrollY) maxOf(scrollContentHeight - viewportHeight, 0) else 0
       )
 
       val movingDown = velocityY > 0
@@ -644,7 +654,7 @@ open class TwoDScrollView : FrameLayout {
         twoDScrollViewMovedFocus = false
       }
 
-      awakenScrollBars(scroller!!.duration)
+      awakenScrollBars(SCROLL_ANIMATION_DURATION)
       invalidate()
     }
   }
@@ -661,6 +671,7 @@ open class TwoDScrollView : FrameLayout {
 
   companion object {
     const val ANIMATED_SCROLL_GAP: Int = 250
+    const val SCROLL_ANIMATION_DURATION: Int = 250
     const val MAX_SCROLL_FACTOR: Float = 0.5f
   }
 }

@@ -1071,10 +1071,8 @@ pub(crate) fn drain_deferred_cleanup(
             .map(|children| !children.is_empty())
             .unwrap_or(false);
         if !has_parent && !has_children {
-            if let Some(node) = tree.nodes.remove(id) {
-                let _ = id;
-                tree.style_arena.release(node.style.handle);
-            }
+            // Remove the node; Style::drop will release the arena handle
+            tree.nodes.remove(id);
             nd.remove(id);
         }
     }
@@ -1098,10 +1096,8 @@ impl Drop for NodeRef {
                     .map(|children| !children.is_empty())
                     .unwrap_or(false);
                 if !has_parent && !has_children {
-                    if let Some(node) = tree.nodes.remove(self.id) {
-                            let _ = self.id;
-                            tree.style_arena.release(node.style.handle);
-                    }
+                    // Remove the node; Style::drop will release the arena handle
+                    tree.nodes.remove(self.id);
                     if let Some(mut nd) = self.node_data.try_write() {
                         nd.remove(self.id);
                     }

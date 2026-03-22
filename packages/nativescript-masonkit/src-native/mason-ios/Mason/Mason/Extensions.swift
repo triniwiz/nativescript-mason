@@ -663,8 +663,6 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     addChildAt(parent, node: node, index: index)
   }
   
-  
-  
   @objc public func mason_replaceChildAt(text: String, _ index: Int){
     guard let parent = self as? MasonElement else { return }
     replaceChildAt(parent, text: text, index: index)

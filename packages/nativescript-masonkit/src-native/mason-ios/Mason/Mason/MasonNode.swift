@@ -142,6 +142,7 @@ public class MasonNode: NSObject {
   public internal(set) var computedLayout = MasonLayout.empty
   
   internal var isLayoutValid: Bool = false
+  internal var hasClickGesture: Bool = false
   
   public internal(set) var document: MasonDocument? = nil
   
@@ -1115,17 +1116,39 @@ extension MasonNode {
   }
   
  public func removeAllChildren() {
-    // Remove all children
     for child in children {
+      // Recursively clean up the entire subtree so grandchild nodes
+      // are detached on the Rust side before we release Swift references.
+      child.removeAllChildren()
+
       child.parent = nil
+
+      guard let childPtr = child.nativePtr else {
+        child.view?.removeFromSuperview()
+        continue
+      }
+
+      // Release the retained reference the Rust side holds via apple_data.
+      // set_apple_data(nil) drops the Retained<NSObject>, balancing passRetained from init.
+      mason_node_set_apple_node(mason.nativePtr, childPtr, nil)
+
+      // Clear measure function context on the Rust side.
+      child.measureFunc = nil
+      mason_node_remove_context(mason.nativePtr, childPtr)
+
+      // Remove view from superview AFTER Rust-side refs are cleared.
+      // removeFromSuperview can trigger layoutSubviews → compute_layout,
+      // so we need Rust state to be consistent first.
       child.view?.removeFromSuperview()
     }
-    
-    children.removeAll()
-    
-    // Clear native layout tree
+
+    // Detach children on the Rust side BEFORE releasing Swift references,
+    // so that NodeRef::drop (triggered by deallocation) sees has_parent=false
+    // and can properly clean up tree nodes and release style handles.
     mason_node_remove_children(mason.nativePtr, nativePtr)
-    
+
+    children.removeAll()
+
     markDirty()
   }
   

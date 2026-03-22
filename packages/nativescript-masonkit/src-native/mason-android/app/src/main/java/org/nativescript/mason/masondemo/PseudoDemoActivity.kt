@@ -85,21 +85,17 @@ class PseudoDemoActivity : AppCompatActivity() {
     }
 
     fun ByteBuffer.setBorderRadius(px: Float) {
-      for (xType in intArrayOf(
-        StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE,
-        StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE,
-        StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE,
-        StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE
+      for ((t, v) in listOf(
+        StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE to StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE,
+        StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE to StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE,
+        StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE to StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE,
+        StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE to StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE,
+        StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE to StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE,
+        StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE to StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE,
+        StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE to StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE,
+        StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE to StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE,
       )) {
-        put(xType, 0); putFloat(xType + 1, px)
-      }
-      for (yType in intArrayOf(
-        StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE,
-        StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE,
-        StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE,
-        StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE
-      )) {
-        put(yType, 0); putFloat(yType + 1, px)
+        put(t, 0); putFloat(v, px)
       }
       Node.markPseudoSet(this, StateKeys.BORDER_RADIUS)
     }

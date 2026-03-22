@@ -158,8 +158,9 @@ export class Text extends TextBase {
 
   _removeViewFromNativeVisualTree(view: ViewBase): void {
     view[isTextChild_] = false;
+    // todo: remove from native view
     // @ts-ignore
-    super._removeViewFromNativeVisualTree(view);
+    // super._removeViewFromNativeVisualTree(view);
   }
 }
 
@@ -205,6 +206,6 @@ export class Br extends TextBase {
   _removeViewFromNativeVisualTree(view: ViewBase): void {
     view[isTextChild_] = false;
     // @ts-ignore
-    super._removeViewFromNativeVisualTree(view);
+    // super._removeViewFromNativeVisualTree(view);
   }
 }

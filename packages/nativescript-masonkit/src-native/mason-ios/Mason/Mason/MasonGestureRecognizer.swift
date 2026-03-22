@@ -12,14 +12,8 @@ class MasonGestureRecognizer: UIGestureRecognizer {
   weak var targetView: UIView?
   internal var isSubmit: Bool = false
   var eventDispatched: Bool = false
-  private let isButton: Bool
   init(targetView: UIView) {
     self.targetView = targetView
-    if let a = targetView as? MasonText {
-      isButton = a.type == .A
-    }else {
-      isButton = targetView is UIButton || targetView is Button
-    }
     super.init(target: nil, action: nil)
   }
 
@@ -28,29 +22,27 @@ class MasonGestureRecognizer: UIGestureRecognizer {
     if let view = targetView {
       let location = touch.location(in: view)
 
-      if isButton {
-        let click = MasonMouseEvent(
-          type: "click",
-          options: MasonMouseEventOptions().apply {
-            $0.clientX = Float(location.x)
-            $0.clientY = Float(location.y)
-            $0.screenX = Float(location.x)
-            $0.screenY = Float(location.y)
-            $0.pageX = Float(location.x)
-            $0.pageY = Float(location.y)
-          }
-        )
-        click.target = view
-
-        if let owner = owner {
-          owner.node.mason.dispatch(click, owner.node)
+      let click = MasonMouseEvent(
+        type: "click",
+        options: MasonMouseEventOptions().apply {
+          $0.clientX = Float(location.x)
+          $0.clientY = Float(location.y)
+          $0.screenX = Float(location.x)
+          $0.screenY = Float(location.y)
+          $0.pageX = Float(location.x)
+          $0.pageY = Float(location.y)
         }
+      )
+      click.target = view
 
-        if click.defaultPrevented {
-          state = .failed
-        } else {
-          state = .recognized
-        }
+      if let owner = owner {
+        owner.node.mason.dispatch(click, owner.node)
+      }
+
+      if click.defaultPrevented {
+        state = .failed
+      } else {
+        state = .recognized
       }
 
       eventDispatched = true

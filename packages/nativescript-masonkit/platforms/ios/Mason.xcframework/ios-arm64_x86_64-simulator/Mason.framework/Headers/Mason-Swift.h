@@ -1242,6 +1242,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
 - (void)setSizeWidthHeight:(float)value :(NSInteger)type;
+- (void)setSizePoints:(float)width :(float)height;
 @property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull maxSizeCompat;
 - (void)setMaxSizeWidth:(float)value :(NSInteger)type;
 - (void)setMaxSizeHeight:(float)value :(NSInteger)type;
@@ -1253,6 +1254,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setColumnGap:(float)value :(NSInteger)type;
 @property (nonatomic, copy) NSString * _Nonnull gridArea;
 @property (nonatomic, copy) NSString * _Nonnull gridTemplateAreas;
+@property (nonatomic, copy) NSString * _Nonnull transform;
 @property (nonatomic, copy) NSString * _Nonnull gridAutoRows;
 @property (nonatomic, copy) NSString * _Nonnull gridAutoColumns;
 @property (nonatomic) enum MasonGridAutoFlowWrap gridAutoFlow;
@@ -1320,6 +1322,31 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
 @end
 
+@class NSTextContainer;
+@class NSAttributedString;
+@class UIFont;
+@class UITextPosition;
+SWIFT_CLASS("_TtC5Mason14MasonTextInput")
+@interface MasonTextInput : UITextView <UITextViewDelegate>
+- (nonnull instancetype)initWithFrame:(CGRect)frame textContainer:(NSTextContainer * _Nullable)textContainer SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, copy) NSString * _Null_unspecified text;
+@property (nonatomic, strong) NSAttributedString * _Null_unspecified attributedText;
+@property (nonatomic, strong) UIFont * _Nullable font;
+@property (nonatomic) NSTextAlignment textAlignment;
+- (void)layoutSubviews;
+- (void)textViewDidChange:(UITextView * _Nonnull)textView;
+- (void)textViewDidEndEditing:(UITextView * _Nonnull)textView;
+- (void)paste:(id _Nullable)sender;
+- (void)cut:(id _Nullable)sender;
+- (BOOL)textView:(UITextView * _Nonnull)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString * _Nonnull)text SWIFT_WARN_UNUSED_RESULT;
+- (CGRect)caretRectForPosition:(UITextPosition * _Nonnull)position SWIFT_WARN_UNUSED_RESULT;
+@end
+
+SWIFT_CLASS("_TtC5Mason13MasonTextArea")
+@interface MasonTextArea : MasonTextInput
+@end
+
 SWIFT_CLASS("_TtC5Mason14MasonTextLayer")
 @interface MasonTextLayer : CALayer
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
@@ -1344,7 +1371,6 @@ SWIFT_CLASS_NAMED("MasonTextNode")
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
 @end
 
-@class NSAttributedString;
 @interface MasonTextNode (SWIFT_EXTENSION(Mason))
 /// Get attributed string representation of this text node
 - (NSAttributedString * _Nonnull)attributed SWIFT_WARN_UNUSED_RESULT;
@@ -1690,6 +1716,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonList * _Nonnull)createListViewWithIsOrdered:(BOOL)isOrdered SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createListItemNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonLi * _Nonnull)createListItem SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
++ (float)scale SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
@@ -1883,6 +1911,19 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
+
+typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
+  TransformOpTypeNone = 0,
+  TransformOpTypeTranslate = 1,
+  TransformOpTypeTranslateX = 2,
+  TransformOpTypeTranslateY = 3,
+  TransformOpTypeScale = 4,
+  TransformOpTypeScaleX = 5,
+  TransformOpTypeScaleY = 6,
+  TransformOpTypeRotate = 7,
+  TransformOpTypeSkewX = 8,
+  TransformOpTypeSkewY = 9,
+};
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpaceNormal = 0,
@@ -3145,6 +3186,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
 - (void)setSizeWidthHeight:(float)value :(NSInteger)type;
+- (void)setSizePoints:(float)width :(float)height;
 @property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull maxSizeCompat;
 - (void)setMaxSizeWidth:(float)value :(NSInteger)type;
 - (void)setMaxSizeHeight:(float)value :(NSInteger)type;
@@ -3156,6 +3198,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setColumnGap:(float)value :(NSInteger)type;
 @property (nonatomic, copy) NSString * _Nonnull gridArea;
 @property (nonatomic, copy) NSString * _Nonnull gridTemplateAreas;
+@property (nonatomic, copy) NSString * _Nonnull transform;
 @property (nonatomic, copy) NSString * _Nonnull gridAutoRows;
 @property (nonatomic, copy) NSString * _Nonnull gridAutoColumns;
 @property (nonatomic) enum MasonGridAutoFlowWrap gridAutoFlow;
@@ -3223,6 +3266,31 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
 @end
 
+@class NSTextContainer;
+@class NSAttributedString;
+@class UIFont;
+@class UITextPosition;
+SWIFT_CLASS("_TtC5Mason14MasonTextInput")
+@interface MasonTextInput : UITextView <UITextViewDelegate>
+- (nonnull instancetype)initWithFrame:(CGRect)frame textContainer:(NSTextContainer * _Nullable)textContainer SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, copy) NSString * _Null_unspecified text;
+@property (nonatomic, strong) NSAttributedString * _Null_unspecified attributedText;
+@property (nonatomic, strong) UIFont * _Nullable font;
+@property (nonatomic) NSTextAlignment textAlignment;
+- (void)layoutSubviews;
+- (void)textViewDidChange:(UITextView * _Nonnull)textView;
+- (void)textViewDidEndEditing:(UITextView * _Nonnull)textView;
+- (void)paste:(id _Nullable)sender;
+- (void)cut:(id _Nullable)sender;
+- (BOOL)textView:(UITextView * _Nonnull)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString * _Nonnull)text SWIFT_WARN_UNUSED_RESULT;
+- (CGRect)caretRectForPosition:(UITextPosition * _Nonnull)position SWIFT_WARN_UNUSED_RESULT;
+@end
+
+SWIFT_CLASS("_TtC5Mason13MasonTextArea")
+@interface MasonTextArea : MasonTextInput
+@end
+
 SWIFT_CLASS("_TtC5Mason14MasonTextLayer")
 @interface MasonTextLayer : CALayer
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
@@ -3247,7 +3315,6 @@ SWIFT_CLASS_NAMED("MasonTextNode")
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
 @end
 
-@class NSAttributedString;
 @interface MasonTextNode (SWIFT_EXTENSION(Mason))
 /// Get attributed string representation of this text node
 - (NSAttributedString * _Nonnull)attributed SWIFT_WARN_UNUSED_RESULT;
@@ -3593,6 +3660,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonList * _Nonnull)createListViewWithIsOrdered:(BOOL)isOrdered SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createListItemNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonLi * _Nonnull)createListItem SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
++ (float)scale SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
@@ -3786,6 +3855,19 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
+
+typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
+  TransformOpTypeNone = 0,
+  TransformOpTypeTranslate = 1,
+  TransformOpTypeTranslateX = 2,
+  TransformOpTypeTranslateY = 3,
+  TransformOpTypeScale = 4,
+  TransformOpTypeScaleX = 5,
+  TransformOpTypeScaleY = 6,
+  TransformOpTypeRotate = 7,
+  TransformOpTypeSkewX = 8,
+  TransformOpTypeSkewY = 9,
+};
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpaceNormal = 0,

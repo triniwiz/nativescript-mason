@@ -3763,6 +3763,10 @@ declare module org {
 					public setCornerShapeBottomRight(this_: globalAndroid.view.View, value: string): void;
 					public getCornerShapeBottomLeft(this_: globalAndroid.view.View): string;
 					public setCornerShapeBottomLeft(this_: globalAndroid.view.View, value: string): void;
+					public getBoxShadow(this_: globalAndroid.view.View): string;
+					public setBoxShadow(this_: globalAndroid.view.View, value: string): void;
+					public getTransform(this_: globalAndroid.view.View): string;
+					public setTransform(this_: globalAndroid.view.View, value: string): void;
 				}
 			}
 		}

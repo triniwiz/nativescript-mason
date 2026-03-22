@@ -1238,7 +1238,7 @@ pub extern "C" fn mason_node_set_apple_node(
     node: *mut CMasonNode,
     apple_node: *mut c_void,
 ) {
-    if mason.is_null() || node.is_null() || apple_node.is_null() {
+    if mason.is_null() || node.is_null() {
         return;
     }
 

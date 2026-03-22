@@ -20,78 +20,79 @@ enum StyleKeys {
   JUSTIFY_SELF = 11,
   JUSTIFY_CONTENT = 12,
 
+  // Contiguous types, then contiguous values per group
   INSET_LEFT_TYPE = 13,
-  INSET_LEFT_VALUE = 14, // float (4 bytes: 14-17)
-  INSET_RIGHT_TYPE = 18,
-  INSET_RIGHT_VALUE = 19, // float (4 bytes: 19-22)
-  INSET_TOP_TYPE = 23,
-  INSET_TOP_VALUE = 24, // float (4 bytes: 24-27)
-  INSET_BOTTOM_TYPE = 28,
-  INSET_BOTTOM_VALUE = 29, // float (4 bytes: 29-32)
+  INSET_RIGHT_TYPE = 14,
+  INSET_TOP_TYPE = 15,
+  INSET_BOTTOM_TYPE = 16,
+  INSET_LEFT_VALUE = 17, // f32 (4 bytes: 17-20)
+  INSET_RIGHT_VALUE = 21, // f32 (4 bytes: 21-24)
+  INSET_TOP_VALUE = 25, // f32 (4 bytes: 25-28)
+  INSET_BOTTOM_VALUE = 29, // f32 (4 bytes: 29-32)
 
   MARGIN_LEFT_TYPE = 33,
-  MARGIN_LEFT_VALUE = 34, // float (4 bytes: 34-37)
-  MARGIN_RIGHT_TYPE = 38,
-  MARGIN_RIGHT_VALUE = 39, // float (4 bytes: 39-42)
-  MARGIN_TOP_TYPE = 43,
-  MARGIN_TOP_VALUE = 44, // float (4 bytes: 44-47)
-  MARGIN_BOTTOM_TYPE = 48,
-  MARGIN_BOTTOM_VALUE = 49, // float (4 bytes: 49-52)
+  MARGIN_RIGHT_TYPE = 34,
+  MARGIN_TOP_TYPE = 35,
+  MARGIN_BOTTOM_TYPE = 36,
+  MARGIN_LEFT_VALUE = 37, // f32 (4 bytes: 37-40)
+  MARGIN_RIGHT_VALUE = 41, // f32 (4 bytes: 41-44)
+  MARGIN_TOP_VALUE = 45, // f32 (4 bytes: 45-48)
+  MARGIN_BOTTOM_VALUE = 49, // f32 (4 bytes: 49-52)
 
   PADDING_LEFT_TYPE = 53,
-  PADDING_LEFT_VALUE = 54, // float (4 bytes: 54-57)
-  PADDING_RIGHT_TYPE = 58,
-  PADDING_RIGHT_VALUE = 59, // float (4 bytes: 59-62)
-  PADDING_TOP_TYPE = 63,
-  PADDING_TOP_VALUE = 64, // float (4 bytes: 64-67)
-  PADDING_BOTTOM_TYPE = 68,
-  PADDING_BOTTOM_VALUE = 69, // float (4 bytes: 69-72)
+  PADDING_RIGHT_TYPE = 54,
+  PADDING_TOP_TYPE = 55,
+  PADDING_BOTTOM_TYPE = 56,
+  PADDING_LEFT_VALUE = 57, // f32 (4 bytes: 57-60)
+  PADDING_RIGHT_VALUE = 61, // f32 (4 bytes: 61-64)
+  PADDING_TOP_VALUE = 65, // f32 (4 bytes: 65-68)
+  PADDING_BOTTOM_VALUE = 69, // f32 (4 bytes: 69-72)
 
   BORDER_LEFT_TYPE = 73,
-  BORDER_LEFT_VALUE = 74, // float (4 bytes: 74-77)
-  BORDER_RIGHT_TYPE = 78,
-  BORDER_RIGHT_VALUE = 79, // float (4 bytes: 79-82)
-  BORDER_TOP_TYPE = 83,
-  BORDER_TOP_VALUE = 84, // float (4 bytes: 84-87)
-  BORDER_BOTTOM_TYPE = 88,
-  BORDER_BOTTOM_VALUE = 89, // float (4 bytes: 89-92)
+  BORDER_RIGHT_TYPE = 74,
+  BORDER_TOP_TYPE = 75,
+  BORDER_BOTTOM_TYPE = 76,
+  BORDER_LEFT_VALUE = 77, // f32 (4 bytes: 77-80)
+  BORDER_RIGHT_VALUE = 81, // f32 (4 bytes: 81-84)
+  BORDER_TOP_VALUE = 85, // f32 (4 bytes: 85-88)
+  BORDER_BOTTOM_VALUE = 89, // f32 (4 bytes: 89-92)
 
-  FLEX_GROW = 93, // float (4 bytes: 93-96)
-  FLEX_SHRINK = 97, // float (4 bytes: 97-100)
+  FLEX_GROW = 93, // f32 (4 bytes: 93-96)
+  FLEX_SHRINK = 97, // f32 (4 bytes: 97-100)
 
   FLEX_BASIS_TYPE = 101,
-  FLEX_BASIS_VALUE = 102, // float (4 bytes: 102-105)
+  FLEX_BASIS_VALUE = 102, // f32 (4 bytes: 102-105)
 
   WIDTH_TYPE = 106,
-  WIDTH_VALUE = 107, // float (4 bytes: 107-110)
-  HEIGHT_TYPE = 111,
-  HEIGHT_VALUE = 112, // float (4 bytes: 112-115)
+  HEIGHT_TYPE = 107,
+  WIDTH_VALUE = 108, // f32 (4 bytes: 108-111)
+  HEIGHT_VALUE = 112, // f32 (4 bytes: 112-115)
 
   MIN_WIDTH_TYPE = 116,
-  MIN_WIDTH_VALUE = 117, // float (4 bytes: 117-120)
-  MIN_HEIGHT_TYPE = 121,
-  MIN_HEIGHT_VALUE = 122, // float (4 bytes: 122-125)
+  MIN_HEIGHT_TYPE = 117,
+  MIN_WIDTH_VALUE = 118, // f32 (4 bytes: 118-121)
+  MIN_HEIGHT_VALUE = 122, // f32 (4 bytes: 122-125)
 
   MAX_WIDTH_TYPE = 126,
-  MAX_WIDTH_VALUE = 127, // float (4 bytes: 127-130)
-  MAX_HEIGHT_TYPE = 131,
-  MAX_HEIGHT_VALUE = 132, // float (4 bytes: 132-135)
+  MAX_HEIGHT_TYPE = 127,
+  MAX_WIDTH_VALUE = 128, // f32 (4 bytes: 128-131)
+  MAX_HEIGHT_VALUE = 132, // f32 (4 bytes: 132-135)
 
   GAP_ROW_TYPE = 136,
-  GAP_ROW_VALUE = 137, // float (4 bytes: 137-140)
-  GAP_COLUMN_TYPE = 141,
-  GAP_COLUMN_VALUE = 142, // float (4 bytes: 142-145)
+  GAP_COLUMN_TYPE = 137,
+  GAP_ROW_VALUE = 138, // f32 (4 bytes: 138-141)
+  GAP_COLUMN_VALUE = 142, // f32 (4 bytes: 142-145)
 
-  ASPECT_RATIO = 146, // float (4 bytes: 146-149)
+  ASPECT_RATIO = 146, // f32 (4 bytes: 146-149)
   GRID_AUTO_FLOW = 150,
   GRID_COLUMN_START_TYPE = 151,
-  GRID_COLUMN_START_VALUE = 152, // float (4 bytes: 152-155)
-  GRID_COLUMN_END_TYPE = 156,
-  GRID_COLUMN_END_VALUE = 157, // float (4 bytes: 157-160)
-  GRID_ROW_START_TYPE = 161,
-  GRID_ROW_START_VALUE = 162, // float (4 bytes: 162-165)
-  GRID_ROW_END_TYPE = 166,
-  GRID_ROW_END_VALUE = 167, // float (4 bytes: 167-170)
+  GRID_COLUMN_END_TYPE = 152,
+  GRID_ROW_START_TYPE = 153,
+  GRID_ROW_END_TYPE = 154,
+  GRID_COLUMN_START_VALUE = 155, // f32 (4 bytes: 155-158)
+  GRID_COLUMN_END_VALUE = 159, // f32 (4 bytes: 159-162)
+  GRID_ROW_START_VALUE = 163, // f32 (4 bytes: 163-166)
+  GRID_ROW_END_VALUE = 167, // f32 (4 bytes: 167-170)
   SCROLLBAR_WIDTH = 171, // float (4 bytes: 171-174)
   ALIGN = 175,
   BOX_SIZING = 176,
@@ -123,45 +124,30 @@ enum StyleKeys {
 
   // ============================================================
   // Border Radius (elliptical + squircle exponent)
-  // Each corner = 5 fields (12 bytes total):
-  //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+  // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
   // ============================================================
-
-  // ----------------------------
-  // Top-left corner (12 bytes)
-  // ----------------------------
   BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,
-  BORDER_RADIUS_TOP_LEFT_X_VALUE = 219, // float (4 bytes: 219-222)
-  BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223,
-  BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224, // float (4 bytes: 224-227)
-  BORDER_RADIUS_TOP_LEFT_EXPONENT = 228, // float (4 bytes: 228-231)
+  BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219,
+  BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220,
+  BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 221,
+  BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 222,
+  BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223,
+  BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224,
+  BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225,
 
-  // ----------------------------
-  // Top-right corner
-  // ----------------------------
-  BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232,
-  BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233, // float (4 bytes: 233-236)
-  BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237,
-  BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238, // float (4 bytes: 238-241)
-  BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242, // float (4 bytes: 242-245)
+  BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, // f32 (4 bytes: 226-229)
+  BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230, // f32 (4 bytes: 230-233)
+  BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234, // f32 (4 bytes: 234-237)
+  BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238, // f32 (4 bytes: 238-241)
+  BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242, // f32 (4 bytes: 242-245)
+  BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246, // f32 (4 bytes: 246-249)
+  BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250, // f32 (4 bytes: 250-253)
+  BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254, // f32 (4 bytes: 254-257)
 
-  // ----------------------------
-  // Bottom-right corner
-  // ----------------------------
-  BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246,
-  BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247, // float (4 bytes: 247-250)
-  BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251,
-  BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252, // float (4 bytes: 252-255)
-  BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256, // float (4 bytes: 256-259)
-
-  // ----------------------------
-  // Bottom-left corner
-  // ----------------------------
-  BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260,
-  BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261, // float (4 bytes: 261-264)
-  BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265,
-  BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266, // float (4 bytes: 266-269)
-  BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270, // float (4 bytes: 270-273)
+  BORDER_RADIUS_TOP_LEFT_EXPONENT = 258, // f32 (4 bytes: 258-261)
+  BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262, // f32 (4 bytes: 262-265)
+  BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266, // f32 (4 bytes: 266-269)
+  BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270, // f32 (4 bytes: 270-273)
 
   // ----------------------------
   // Float
@@ -441,9 +427,19 @@ const setFloat32 = (view: DataView, offset: number, value: number) => {
   view.setFloat32(offset, value, true);
 };
 
+const i8Buffer = new Int8Array(4);
+
+const f32Buffer = new Uint8Array(Float32Array.BYTES_PER_ELEMENT * 4);
+const f32View = new Float32Array(f32Buffer.buffer);
+
+const i32Buffer = new Uint8Array(Int32Array.BYTES_PER_ELEMENT * 4);
+const i32View = new Int32Array(i32Buffer.buffer);
+
 export class Style {
   private view_: View;
   private style_view: DataView;
+  private i8View: Int8Array;
+  private u8View: Uint8Array;
   private isDirty = -1n;
   private inBatch = false;
   private nativeView: any;
@@ -461,6 +457,8 @@ export class Style {
       const styleBuffer = style.getValues();
       const buffer = (<any>ArrayBuffer).from(styleBuffer);
       ret.style_view = new DataView(buffer);
+      ret.i8View = new Int8Array(buffer);
+      ret.u8View = new Uint8Array(buffer);
     } else if (__APPLE__) {
       let style: MasonStyle = nativeView?.style as never;
       if (!style) {
@@ -470,6 +468,8 @@ export class Style {
 
       const buffer = interop.bufferFromData(styleBuffer);
       ret.style_view = new DataView(buffer);
+      ret.i8View = new Int8Array(buffer);
+      ret.u8View = new Uint8Array(buffer);
     }
     //console.timeEnd('fromView');
 
@@ -912,9 +912,9 @@ export class Style {
   get flexDirection() {
     switch (getInt8(this.style_view, StyleKeys.FLEX_DIRECTION)) {
       case 0:
-        return 'column';
-      case 1:
         return 'row';
+      case 1:
+        return 'column';
       case 2:
         return 'row-reverse';
       case 3:
@@ -925,10 +925,10 @@ export class Style {
   set flexDirection(value: 'column' | 'row' | 'column-reverse' | 'row-reverse') {
     let flex = -1;
     switch (value) {
-      case 'column':
+      case 'row':
         flex = 0;
         break;
-      case 'row':
+      case 'column':
         flex = 1;
         break;
       case 'row-reverse':
@@ -1361,6 +1361,55 @@ export class Style {
     this.setOrAppendState(StateKeys.BORDER);
   }
 
+  set inset(value: LengthAuto) {
+    var type;
+    var insetValue;
+
+    switch (typeof value) {
+      case 'string':
+        this.prepareMut();
+        type = 0;
+        insetValue = 0;
+        break;
+      case 'number':
+        this.prepareMut();
+        type = 1;
+        insetValue = layout.toDevicePixels(value);
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            this.prepareMut();
+            type = 1;
+            insetValue = layout.toDevicePixels(value.value);
+            break;
+          case 'px':
+            this.prepareMut();
+            type = 1;
+            insetValue = value.value;
+            break;
+          case '%':
+            this.prepareMut();
+            type = 2;
+            insetValue = value.value;
+            break;
+        }
+        break;
+    }
+
+    if (type !== undefined && insetValue !== undefined) {
+      i8Buffer.fill(type);
+
+      this.u8View.set(i8Buffer, StyleKeys.INSET_LEFT_TYPE);
+
+      f32View.fill(insetValue);
+
+      this.u8View.set(f32Buffer, StyleKeys.INSET_LEFT_VALUE);
+
+      this.setOrAppendState(StateKeys.INSET);
+    }
+  }
+
   get left(): LengthAuto {
     const type = getInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE);
@@ -1530,10 +1579,52 @@ export class Style {
   }
 
   set margin(value: LengthAuto) {
-    this.inBatch = true;
-    this.marginBottom = this.marginLeft = this.marginRight = this.marginTop = value;
-    this.inBatch = false;
-    this.setOrAppendState(StateKeys.MARGIN);
+    var type;
+    var marginValue;
+
+    switch (typeof value) {
+      case 'string':
+        this.prepareMut();
+        type = 0;
+        marginValue = 0;
+        break;
+      case 'number':
+        this.prepareMut();
+        type = 1;
+        marginValue = layout.toDevicePixels(value);
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            this.prepareMut();
+            type = 1;
+            marginValue = layout.toDevicePixels(value.value);
+            break;
+          case 'px':
+            this.prepareMut();
+            type = 1;
+            marginValue = value.value;
+            break;
+          case '%':
+            this.prepareMut();
+            type = 2;
+            marginValue = value.value;
+            break;
+        }
+        break;
+    }
+
+    if (type !== undefined && marginValue !== undefined) {
+      i8Buffer.fill(type);
+
+      this.u8View.set(i8Buffer, StyleKeys.MARGIN_LEFT_TYPE);
+
+      f32View.fill(marginValue);
+
+      this.u8View.set(f32Buffer, StyleKeys.MARGIN_LEFT_VALUE);
+
+      this.setOrAppendState(StateKeys.MARGIN);
+    }
   }
 
   get marginLeft() {
@@ -2026,41 +2117,38 @@ export class Style {
   }
 
   set alignItems(value: 'normal' | 'start' | 'end' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch') {
+    let align = -1;
     switch (value) {
       case 'normal':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Normal);
+        align = AlignItems.Normal;
         break;
       case 'start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Start);
+        align = AlignItems.Start;
         break;
       case 'end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.End);
+        align = AlignItems.End;
         break;
       case 'flex-start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.FlexStart);
+        align = AlignItems.FlexStart;
         break;
       case 'flex-end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.FlexEnd);
+        align = AlignItems.FlexEnd;
         break;
       case 'center':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Center);
+        align = AlignItems.Center;
         break;
       case 'baseline':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Baseline);
+        align = AlignItems.Baseline;
         break;
       case 'stretch':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Stretch);
+        align = AlignItems.Stretch;
         break;
     }
-    this.setOrAppendState(StateKeys.ALIGN_ITEMS);
+    if (align !== -1) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, align);
+      this.setOrAppendState(StateKeys.ALIGN_ITEMS);
+    }
   }
 
   get alignSelf() {
@@ -2112,7 +2200,7 @@ export class Style {
         align = AlignSelf.FlexEnd;
         break;
     }
-    if (align === -2) {
+    if (align !== -2) {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.ALIGN_SELF, align);
       this.setOrAppendState(StateKeys.ALIGN_SELF);
@@ -2141,41 +2229,38 @@ export class Style {
   }
 
   set alignContent(value: 'normal' | 'space-around' | 'space-between' | 'space-evenly' | 'center' | 'end' | 'start' | 'stretch') {
+    let align = -1;
     switch (value) {
       case 'normal':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Normal);
+        align = AlignContent.Normal;
         break;
       case 'space-around':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceAround);
+        align = AlignContent.SpaceAround;
         break;
       case 'space-between':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceBetween);
+        align = AlignContent.SpaceBetween;
         break;
       case 'space-evenly':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceEvenly);
+        align = AlignContent.SpaceEvenly;
         break;
       case 'center':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Center);
+        align = AlignContent.Center;
         break;
       case 'end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.End);
+        align = AlignContent.End;
         break;
       case 'start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Start);
+        align = AlignContent.Start;
         break;
       case 'stretch':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Stretch);
+        align = AlignContent.Stretch;
         break;
     }
-    this.setOrAppendState(StateKeys.ALIGN_CONTENT);
+    if (align !== -1) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, align);
+      this.setOrAppendState(StateKeys.ALIGN_CONTENT);
+    }
   }
 
   get justifyItems() {
@@ -2199,41 +2284,38 @@ export class Style {
     }
   }
   set justifyItems(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    let v = -1;
     switch (value) {
       case 'normal':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Normal);
+        v = JustifyItems.Normal;
         break;
       case 'start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Start);
+        v = JustifyItems.Start;
         break;
       case 'end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.End);
+        v = JustifyItems.End;
         break;
       case 'center':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Center);
+        v = JustifyItems.Center;
         break;
       case 'baseline':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Baseline);
+        v = JustifyItems.Baseline;
         break;
       case 'stretch':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Stretch);
+        v = JustifyItems.Stretch;
         break;
       case 'flex-start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.FlexStart);
+        v = JustifyItems.FlexStart;
         break;
       case 'flex-end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.FlexEnd);
+        v = JustifyItems.FlexEnd;
         break;
     }
-    this.setOrAppendState(StateKeys.JUSTIFY_ITEMS);
+    if (v !== -1) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, v);
+      this.setOrAppendState(StateKeys.JUSTIFY_ITEMS);
+    }
   }
 
   get justifySelf() {
@@ -2258,41 +2340,38 @@ export class Style {
   }
 
   set justifySelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    let v = -1;
     switch (value) {
       case 'normal':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Normal);
+        v = JustifySelf.Normal;
         break;
       case 'start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Start);
+        v = JustifySelf.Start;
         break;
       case 'end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.End);
+        v = JustifySelf.End;
         break;
       case 'center':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Center);
+        v = JustifySelf.Center;
         break;
       case 'baseline':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Baseline);
+        v = JustifySelf.Baseline;
         break;
       case 'stretch':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Stretch);
+        v = JustifySelf.Stretch;
         break;
       case 'flex-start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.FlexStart);
+        v = JustifySelf.FlexStart;
         break;
       case 'flex-end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.FlexEnd);
+        v = JustifySelf.FlexEnd;
         break;
     }
-    this.setOrAppendState(StateKeys.JUSTIFY_SELF);
+    if (v !== -1) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, v);
+      this.setOrAppendState(StateKeys.JUSTIFY_SELF);
+    }
   }
 
   get justifyContent() {
@@ -2321,41 +2400,38 @@ export class Style {
   }
 
   set justifyContent(value: 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end') {
+    let v = -1;
     switch (value) {
       case 'normal':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Normal);
+        v = JustifyContent.Normal;
         break;
       case 'space-around':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceAround);
+        v = JustifyContent.SpaceAround;
         break;
       case 'space-between':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceBetween);
+        v = JustifyContent.SpaceBetween;
         break;
       case 'space-evenly':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceEvenly);
+        v = JustifyContent.SpaceEvenly;
         break;
       case 'center':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Center);
+        v = JustifyContent.Center;
         break;
       case 'end':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.End);
+        v = JustifyContent.End;
         break;
       case 'start':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Start);
+        v = JustifyContent.Start;
         break;
       case 'stretch':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Stretch);
+        v = JustifyContent.Stretch;
         break;
     }
-    this.setOrAppendState(StateKeys.JUSTIFY_CONTENT);
+    if (v !== -1) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, v);
+      this.setOrAppendState(StateKeys.JUSTIFY_CONTENT);
+    }
   }
   get gridAutoRows() {
     if (!this.nativeView) {
@@ -2428,26 +2504,12 @@ export class Style {
   }
 
   set gridAutoFlow(value: GridAutoFlow) {
-    switch (value) {
-      case 'row':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, 0);
-        break;
-      case 'column':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, 1);
-        break;
-      case 'row dense':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, 2);
-        break;
-      case 'column dense':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, 3);
-        break;
+    const v = ({ row: 0, column: 1, 'row dense': 2, 'column dense': 3 } as Record<string, number>)[value];
+    if (v !== undefined) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, v);
+      this.setOrAppendState(StateKeys.GRID_AUTO_FLOW);
     }
-
-    this.setOrAppendState(StateKeys.GRID_AUTO_FLOW);
   }
 
   get gridRowGap() {
@@ -2756,76 +2818,28 @@ export class Style {
   }
 
   set overflow(value: OverFlow | `${OverFlow} ${OverFlow}`) {
+    const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 };
+    this.prepareMut();
     switch (value) {
       case 'visible':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 0);
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 0);
-        break;
       case 'hidden':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 1);
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 1);
-        break;
       case 'scroll':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 2);
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 2);
+      case 'clip':
+      case 'auto': {
+        const v = overflowMap[value];
+        setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
+        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
         break;
-      default:
-        {
-          const values = value.split(' ');
-          switch (values[0]) {
-            case 'visible':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_X, 0);
-              break;
-            case 'hidden':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_X, 1);
-              break;
-            case 'scroll':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_X, 2);
-              break;
-            case 'clip':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_X, 3);
-              break;
-            case 'auto':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_X, 4);
-              break;
-          }
-          switch (values[1]) {
-            case 'visible':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 0);
-              break;
-            case 'hidden':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 1);
-              break;
-            case 'scroll':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 2);
-              break;
-            case 'clip':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 3);
-              break;
-            case 'auto':
-              this.prepareMut();
-              setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 4);
-              break;
-          }
-        }
+      }
+      default: {
+        const values = value.split(' ');
+        const x = overflowMap[values[0]];
+        const y = overflowMap[values[1]];
+        if (x !== undefined) setInt8(this.style_view, StyleKeys.OVERFLOW_X, x);
+        if (y !== undefined) setInt8(this.style_view, StyleKeys.OVERFLOW_Y, y);
         break;
+      }
     }
-
     this.setOrAppendState(StateKeys.OVERFLOW);
   }
   get overflowX() {
@@ -2840,35 +2854,10 @@ export class Style {
   }
 
   set overflowX(value: OverFlow) {
-    let dirty = false;
-    switch (value) {
-      case 'visible':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 0);
-        dirty = true;
-        break;
-      case 'hidden':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 1);
-        dirty = true;
-        break;
-      case 'scroll':
-        dirty = true;
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 2);
-        break;
-      case 'clip':
-        dirty = true;
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 3);
-        break;
-      case 'auto':
-        dirty = true;
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, 4);
-        break;
-    }
-    if (dirty) {
+    const v = ({ visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 } as Record<string, number>)[value];
+    if (v !== undefined) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
       this.setOrAppendState(StateKeys.OVERFLOW_X);
     }
   }
@@ -2889,35 +2878,10 @@ export class Style {
   }
 
   set overflowY(value: OverFlow) {
-    let dirty = false;
-    switch (value) {
-      case 'visible':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 0);
-        dirty = true;
-        break;
-      case 'hidden':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 1);
-        dirty = true;
-        break;
-      case 'scroll':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 2);
-        dirty = true;
-        break;
-      case 'clip':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 3);
-        dirty = true;
-        break;
-      case 'auto':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, 4);
-        dirty = true;
-        break;
-    }
-    if (dirty) {
+    const v = ({ visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 } as Record<string, number>)[value];
+    if (v !== undefined) {
+      this.prepareMut();
+      setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
       this.setOrAppendState(StateKeys.OVERFLOW_Y);
     }
   }
@@ -3000,16 +2964,16 @@ export class Style {
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
-          setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
+          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDevicePixels(value.value));
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.setOrAppendState(StateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LINE_HEIGHT);
           break;
         case 'px':
-          setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value.value);
+          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value.value);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.setOrAppendState(StateKeys.LETTER_SPACING);
+          this.setOrAppendState(StateKeys.LINE_HEIGHT);
           break;
       }
     }
@@ -3411,6 +3375,62 @@ export class Style {
     }
   }
 
+  get boxShadow() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBoxShadow(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.boxShadow;
+    }
+
+    return '';
+  }
+
+  set boxShadow(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBoxShadow(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.boxShadow = value;
+    }
+  }
+
+  get transform() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTransform(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.transform;
+    }
+
+    return '';
+  }
+
+  set transform(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setTransform(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.transform = value;
+    }
+  }
+
   get verticalAlign() {
     const isPercent = getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1;
     const value = getFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET);
@@ -3648,9 +3668,9 @@ export class Style {
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.CLEAR, Clear.Right);
         break;
-      case 'none':
+      case 'both':
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.CLEAR, Clear.None);
+        setInt8(this.style_view, StyleKeys.CLEAR, Clear.Both);
         break;
     }
     this.setOrAppendState(StateKeys.CLEAR);

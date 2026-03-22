@@ -68,78 +68,79 @@ object StyleKeys {
   const val JUSTIFY_SELF = 11
   const val JUSTIFY_CONTENT = 12
 
+  // Contiguous types, then contiguous values per group
   const val INSET_LEFT_TYPE = 13
-  const val INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
-  const val INSET_RIGHT_TYPE = 18
-  const val INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
-  const val INSET_TOP_TYPE = 23
-  const val INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
-  const val INSET_BOTTOM_TYPE = 28
-  const val INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
+  const val INSET_RIGHT_TYPE = 14
+  const val INSET_TOP_TYPE = 15
+  const val INSET_BOTTOM_TYPE = 16
+  const val INSET_LEFT_VALUE = 17   // f32 (4 bytes: 17-20)
+  const val INSET_RIGHT_VALUE = 21  // f32 (4 bytes: 21-24)
+  const val INSET_TOP_VALUE = 25    // f32 (4 bytes: 25-28)
+  const val INSET_BOTTOM_VALUE = 29 // f32 (4 bytes: 29-32)
 
   const val MARGIN_LEFT_TYPE = 33
-  const val MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
-  const val MARGIN_RIGHT_TYPE = 38
-  const val MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
-  const val MARGIN_TOP_TYPE = 43
-  const val MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
-  const val MARGIN_BOTTOM_TYPE = 48
-  const val MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
+  const val MARGIN_RIGHT_TYPE = 34
+  const val MARGIN_TOP_TYPE = 35
+  const val MARGIN_BOTTOM_TYPE = 36
+  const val MARGIN_LEFT_VALUE = 37   // f32 (4 bytes: 37-40)
+  const val MARGIN_RIGHT_VALUE = 41  // f32 (4 bytes: 41-44)
+  const val MARGIN_TOP_VALUE = 45    // f32 (4 bytes: 45-48)
+  const val MARGIN_BOTTOM_VALUE = 49 // f32 (4 bytes: 49-52)
 
   const val PADDING_LEFT_TYPE = 53
-  const val PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
-  const val PADDING_RIGHT_TYPE = 58
-  const val PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
-  const val PADDING_TOP_TYPE = 63
-  const val PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
-  const val PADDING_BOTTOM_TYPE = 68
-  const val PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
+  const val PADDING_RIGHT_TYPE = 54
+  const val PADDING_TOP_TYPE = 55
+  const val PADDING_BOTTOM_TYPE = 56
+  const val PADDING_LEFT_VALUE = 57   // f32 (4 bytes: 57-60)
+  const val PADDING_RIGHT_VALUE = 61  // f32 (4 bytes: 61-64)
+  const val PADDING_TOP_VALUE = 65    // f32 (4 bytes: 65-68)
+  const val PADDING_BOTTOM_VALUE = 69 // f32 (4 bytes: 69-72)
 
   const val BORDER_LEFT_TYPE = 73
-  const val BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
-  const val BORDER_RIGHT_TYPE = 78
-  const val BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
-  const val BORDER_TOP_TYPE = 83
-  const val BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
-  const val BORDER_BOTTOM_TYPE = 88
-  const val BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
+  const val BORDER_RIGHT_TYPE = 74
+  const val BORDER_TOP_TYPE = 75
+  const val BORDER_BOTTOM_TYPE = 76
+  const val BORDER_LEFT_VALUE = 77   // f32 (4 bytes: 77-80)
+  const val BORDER_RIGHT_VALUE = 81  // f32 (4 bytes: 81-84)
+  const val BORDER_TOP_VALUE = 85    // f32 (4 bytes: 85-88)
+  const val BORDER_BOTTOM_VALUE = 89 // f32 (4 bytes: 89-92)
 
-  const val FLEX_GROW = 93 // float (4 bytes: 93-96)
-  const val FLEX_SHRINK = 97 // float (4 bytes: 97-100)
+  const val FLEX_GROW = 93   // f32 (4 bytes: 93-96)
+  const val FLEX_SHRINK = 97 // f32 (4 bytes: 97-100)
 
   const val FLEX_BASIS_TYPE = 101
-  const val FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
+  const val FLEX_BASIS_VALUE = 102 // f32 (4 bytes: 102-105)
 
   const val WIDTH_TYPE = 106
-  const val WIDTH_VALUE = 107 // float (4 bytes: 107-110)
-  const val HEIGHT_TYPE = 111
-  const val HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
+  const val HEIGHT_TYPE = 107
+  const val WIDTH_VALUE = 108  // f32 (4 bytes: 108-111)
+  const val HEIGHT_VALUE = 112 // f32 (4 bytes: 112-115)
 
   const val MIN_WIDTH_TYPE = 116
-  const val MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
-  const val MIN_HEIGHT_TYPE = 121
-  const val MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
+  const val MIN_HEIGHT_TYPE = 117
+  const val MIN_WIDTH_VALUE = 118  // f32 (4 bytes: 118-121)
+  const val MIN_HEIGHT_VALUE = 122 // f32 (4 bytes: 122-125)
 
   const val MAX_WIDTH_TYPE = 126
-  const val MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
-  const val MAX_HEIGHT_TYPE = 131
-  const val MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
+  const val MAX_HEIGHT_TYPE = 127
+  const val MAX_WIDTH_VALUE = 128  // f32 (4 bytes: 128-131)
+  const val MAX_HEIGHT_VALUE = 132 // f32 (4 bytes: 132-135)
 
   const val GAP_ROW_TYPE = 136
-  const val GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
-  const val GAP_COLUMN_TYPE = 141
-  const val GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
+  const val GAP_COLUMN_TYPE = 137
+  const val GAP_ROW_VALUE = 138    // f32 (4 bytes: 138-141)
+  const val GAP_COLUMN_VALUE = 142 // f32 (4 bytes: 142-145)
 
-  const val ASPECT_RATIO = 146 // float (4 bytes: 146-149)
+  const val ASPECT_RATIO = 146 // f32 (4 bytes: 146-149)
   const val GRID_AUTO_FLOW = 150
   const val GRID_COLUMN_START_TYPE = 151
-  const val GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
-  const val GRID_COLUMN_END_TYPE = 156
-  const val GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
-  const val GRID_ROW_START_TYPE = 161
-  const val GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
-  const val GRID_ROW_END_TYPE = 166
-  const val GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
+  const val GRID_COLUMN_END_TYPE = 152
+  const val GRID_ROW_START_TYPE = 153
+  const val GRID_ROW_END_TYPE = 154
+  const val GRID_COLUMN_START_VALUE = 155 // f32 (4 bytes: 155-158)
+  const val GRID_COLUMN_END_VALUE = 159   // f32 (4 bytes: 159-162)
+  const val GRID_ROW_START_VALUE = 163    // f32 (4 bytes: 163-166)
+  const val GRID_ROW_END_VALUE = 167      // f32 (4 bytes: 167-170)
   const val SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
   const val ALIGN = 175
   const val BOX_SIZING = 176
@@ -171,45 +172,30 @@ object StyleKeys {
 
   // ============================================================
   // Border Radius (elliptical + squircle exponent)
-  // Each corner = 5 fields (12 bytes total):
-  //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+  // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
   // ============================================================
-
-  // ----------------------------
-  // Top-left corner (12 bytes)
-  // ----------------------------
   const val BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
-  const val BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
-  const val BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
-  const val BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
-  const val BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
+  const val BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219
+  const val BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220
+  const val BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 221
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 222
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225
 
-  // ----------------------------
-  // Top-right corner
-  // ----------------------------
-  const val BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
-  const val BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
-  const val BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
-  const val BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
-  const val BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
+  const val BORDER_RADIUS_TOP_LEFT_X_VALUE = 226      // f32 (4 bytes: 226-229)
+  const val BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230      // f32 (4 bytes: 230-233)
+  const val BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234     // f32 (4 bytes: 234-237)
+  const val BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238     // f32 (4 bytes: 238-241)
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242  // f32 (4 bytes: 242-245)
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246  // f32 (4 bytes: 246-249)
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250   // f32 (4 bytes: 250-253)
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254   // f32 (4 bytes: 254-257)
 
-  // ----------------------------
-  // Bottom-right corner
-  // ----------------------------
-  const val BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
-  const val BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
-  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
-  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
-  const val BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
-
-  // ----------------------------
-  // Bottom-left corner
-  // ----------------------------
-  const val BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
-  const val BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
-  const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
-  const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
-  const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
+  const val BORDER_RADIUS_TOP_LEFT_EXPONENT = 258     // f32 (4 bytes: 258-261)
+  const val BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262    // f32 (4 bytes: 262-265)
+  const val BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266 // f32 (4 bytes: 266-269)
+  const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270  // f32 (4 bytes: 270-273)
 
   // ----------------------------
   // Float
@@ -291,6 +277,34 @@ object StyleKeys {
   // font-variant-numeric bitmask (byte) + state
   const val FONT_VARIANT_NUMERIC = 419       // byte (bitmask)
   const val FONT_VARIANT_NUMERIC_STATE = 420 // byte
+
+  // ── Transform buffer region (bytes 422-559) ──────────────────────
+  const val TRANSFORM_COUNT = 422            // u8: number of inline ops (0-6)
+  const val TRANSFORM_FLAGS = 423            // u8: bit 0 = HAS_MATRIX, bit 1 = IS_3D
+  const val TRANSFORM_OP_0 = 424             // 12 bytes: type(u8) + pad(3) + a(f32) + b(f32)
+  const val TRANSFORM_OP_1 = 436
+  const val TRANSFORM_OP_2 = 448
+  const val TRANSFORM_OP_3 = 460
+  const val TRANSFORM_OP_4 = 472
+  const val TRANSFORM_OP_5 = 484
+  const val TRANSFORM_MATRIX = 496           // 64 bytes: 16 x f32 (4x4 column-major)
+  const val TRANSFORM_OP_SIZE = 12
+  const val MAX_INLINE_TRANSFORM_OPS = 6
+  const val TRANSFORM_FLAG_HAS_MATRIX = 0x01
+  const val TRANSFORM_FLAG_IS_3D = 0x02
+}
+
+object TransformOpType {
+  const val NONE = 0
+  const val TRANSLATE = 1
+  const val TRANSLATE_X = 2
+  const val TRANSLATE_Y = 3
+  const val SCALE = 4
+  const val SCALE_X = 5
+  const val SCALE_Y = 6
+  const val ROTATE = 7
+  const val SKEW_X = 8
+  const val SKEW_Y = 9
 }
 
 class StateKeys internal constructor(val low: Long, val high: Long) {
@@ -626,7 +640,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   private val mPlaceholder by lazy {
     isValueInitialized = true
     // use the same capacity set in rust
-    ByteBuffer.allocateDirect(400).apply {
+    ByteBuffer.allocateDirect(560).apply {
       order(ByteOrder.nativeOrder())
 
       // default ratio to NAN
@@ -983,122 +997,190 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
-  // Transform handling (simple subset: translate, translateX/Y, scale, scaleX/Y, rotate)
-  internal data class TransformProps(
-    var tx: Float = 0f,
-    var ty: Float = 0f,
-    var rotate: Float = 0f, // degrees
-    var scaleX: Float = 1f,
-    var scaleY: Float = 1f,
-  )
+  // ── Transform (buffer-backed) ───────────────────────────────────────
+
+  internal data class TransformOp(val type: Int, val a: Float, val b: Float)
 
   internal var mTransformRaw: String = ""
-  internal var mTransform: TransformProps = TransformProps()
 
   var transform: String
     get() = mTransformRaw
     set(value) {
       mTransformRaw = value
-      mTransform = parseTransform(value)
+      writeTransformToBuffer(value)
       applyTransformToView()
     }
 
-  private fun parseTransform(input: String): TransformProps {
-    val t = TransformProps()
-    if (input.isBlank()) return t
+  private fun writeTransformToBuffer(input: String) {
+    val ops = parseTransformOps(input)
+    prepareMut()
 
-    // match function calls like translate(10px, 20px) rotate(45deg) scale(1.2)
+    if (ops.isEmpty()) {
+      // Clear transform
+      values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
+      values.put(StyleKeys.TRANSFORM_FLAGS, 0.toByte())
+      return
+    }
+
+    // Check for matrix ops — write directly to matrix region
+    if (ops.size == 1 && ops[0].type == -1) {
+      // matrix() sentinel: a/b unused, matrix already written by parseTransformOps
+      return
+    }
+    if (ops.size == 1 && ops[0].type == -2) {
+      // matrix3d() sentinel
+      return
+    }
+
+    if (ops.size > StyleKeys.MAX_INLINE_TRANSFORM_OPS) {
+      // Too many ops — flatten to matrix
+      flattenOpsToMatrix(ops)
+      return
+    }
+
+    // Write inline ops
+    values.put(StyleKeys.TRANSFORM_COUNT, ops.size.toByte())
+    values.put(StyleKeys.TRANSFORM_FLAGS, 0.toByte())
+    for (i in ops.indices) {
+      val base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+      values.put(base, ops[i].type.toByte())
+      values.put(base + 1, 0.toByte()) // padding
+      values.put(base + 2, 0.toByte())
+      values.put(base + 3, 0.toByte())
+      values.putFloat(base + 4, ops[i].a)
+      values.putFloat(base + 8, ops[i].b)
+    }
+    // Zero remaining slots
+    for (i in ops.size until StyleKeys.MAX_INLINE_TRANSFORM_OPS) {
+      val base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+      values.putFloat(base, 0f) // zeros type + padding
+      values.putFloat(base + 4, 0f)
+      values.putFloat(base + 8, 0f)
+    }
+  }
+
+  private fun parseTransformOps(input: String): List<TransformOp> {
+    if (input.isBlank()) return emptyList()
+    val ops = mutableListOf<TransformOp>()
     val fnRegex = Regex("(\\w+)\\(([^)]*)\\)")
     for (m in fnRegex.findAll(input)) {
       val name = m.groupValues[1].trim().lowercase()
       val rawArgs = m.groupValues[2].trim()
-      // Accept either comma-separated or whitespace-separated lists
       val args = rawArgs.replace(',', ' ').split(Regex("\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
       try {
         when (name) {
           "translate" -> {
             val ax = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
             val ay = args.getOrNull(1)?.let { parseLength(it) } ?: 0f
-            t.tx = ax
-            t.ty = ay
+            ops.add(TransformOp(TransformOpType.TRANSLATE, ax, ay))
           }
-          "translatex" -> {
-            t.tx = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
-          }
-          "translatey" -> {
-            t.ty = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
-          }
+          "translatex" -> ops.add(TransformOp(TransformOpType.TRANSLATE_X, args.getOrNull(0)?.let { parseLength(it) } ?: 0f, 0f))
+          "translatey" -> ops.add(TransformOp(TransformOpType.TRANSLATE_Y, 0f, args.getOrNull(0)?.let { parseLength(it) } ?: 0f))
           "scale" -> {
             val sx = args.getOrNull(0)?.toFloatOrNull() ?: 1f
             val sy = args.getOrNull(1)?.toFloatOrNull() ?: sx
-            t.scaleX = sx
-            t.scaleY = sy
+            ops.add(TransformOp(TransformOpType.SCALE, sx, sy))
           }
-          "scalex" -> {
-            t.scaleX = args.getOrNull(0)?.toFloatOrNull() ?: 1f
-          }
-          "scaley" -> {
-            t.scaleY = args.getOrNull(0)?.toFloatOrNull() ?: 1f
-          }
-          "rotate" -> {
-            val raw = args.getOrNull(0) ?: "0"
-            t.rotate = parseAngle(raw)
-          }
+          "scalex" -> ops.add(TransformOp(TransformOpType.SCALE_X, args.getOrNull(0)?.toFloatOrNull() ?: 1f, 1f))
+          "scaley" -> ops.add(TransformOp(TransformOpType.SCALE_Y, 1f, args.getOrNull(0)?.toFloatOrNull() ?: 1f))
+          "rotate" -> ops.add(TransformOp(TransformOpType.ROTATE, parseAngle(args.getOrNull(0) ?: "0"), 0f))
+          "skewx" -> ops.add(TransformOp(TransformOpType.SKEW_X, parseAngle(args.getOrNull(0) ?: "0"), 0f))
+          "skewy" -> ops.add(TransformOp(TransformOpType.SKEW_Y, parseAngle(args.getOrNull(0) ?: "0"), 0f))
           "matrix" -> {
-            // matrix(a, b, c, d, tx, ty)
             val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
             if (nums.size >= 6) {
-              val a = nums[0]
-              val b = nums[1]
-              val c = nums[2]
-              val d = nums[3]
-              val tx = nums[4]
-              val ty = nums[5]
-              // Decompose affine matrix into translate, rotate, scale (skew ignored)
-              t.tx = tx
-              t.ty = ty
-              val scaleX = kotlin.math.sqrt((a * a + b * b).toDouble()).toFloat()
-              if (scaleX != 0f) {
-                val rotationDeg = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
-                val det = a * d - b * c
-                val scaleY = (det / scaleX)
-                t.scaleX = scaleX
-                t.scaleY = scaleY
-                t.rotate = rotationDeg
-              }
+              writeMatrixToBuffer(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5])
+              return listOf(TransformOp(-1, 0f, 0f)) // sentinel
             }
           }
           "matrix3d" -> {
-            // matrix3d(...) may contain 16 numbers. CSS ordering: m11,m12,m13,m14, m21,..., m41,m42,m43,m44
             val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
             if (nums.size >= 16) {
-              // For typical 2D-affine embedded in 3d, the mapping is:
-              // a = m11 (index 0), b = m12 (1), c = m21 (4), d = m22 (5), tx = m41 (12), ty = m42 (13)
-              val a = nums[0]
-              val b = nums[1]
-              val c = nums[4]
-              val d = nums[5]
-              val tx = nums[12]
-              val ty = nums[13]
-              t.tx = tx
-              t.ty = ty
-              val scaleX = kotlin.math.sqrt((a * a + b * b).toDouble()).toFloat()
-              if (scaleX != 0f) {
-                val rotationDeg = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
-                val det = a * d - b * c
-                val scaleY = (det / scaleX)
-                t.scaleX = scaleX
-                t.scaleY = scaleY
-                t.rotate = rotationDeg
-              }
+              writeMatrix3dToBuffer(nums)
+              return listOf(TransformOp(-2, 0f, 0f)) // sentinel
             }
           }
         }
-      } catch (_: Exception) {
+      } catch (_: Exception) {}
+    }
+    return ops
+  }
+
+  private fun writeMatrixToBuffer(a: Float, b: Float, c: Float, d: Float, tx: Float, ty: Float) {
+    values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
+    values.put(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX.toByte())
+    // Write as 4x4 column-major identity with 2D affine embedded
+    val base = StyleKeys.TRANSFORM_MATRIX
+    // Column 0: [a, b, 0, 0]
+    values.putFloat(base, a)
+    values.putFloat(base + 4, b)
+    values.putFloat(base + 8, 0f)
+    values.putFloat(base + 12, 0f)
+    // Column 1: [c, d, 0, 0]
+    values.putFloat(base + 16, c)
+    values.putFloat(base + 20, d)
+    values.putFloat(base + 24, 0f)
+    values.putFloat(base + 28, 0f)
+    // Column 2: [0, 0, 1, 0]
+    values.putFloat(base + 32, 0f)
+    values.putFloat(base + 36, 0f)
+    values.putFloat(base + 40, 1f)
+    values.putFloat(base + 44, 0f)
+    // Column 3: [tx, ty, 0, 1]
+    values.putFloat(base + 48, tx)
+    values.putFloat(base + 52, ty)
+    values.putFloat(base + 56, 0f)
+    values.putFloat(base + 60, 1f)
+  }
+
+  private fun writeMatrix3dToBuffer(nums: List<Float>) {
+    values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
+    values.put(StyleKeys.TRANSFORM_FLAGS, (StyleKeys.TRANSFORM_FLAG_HAS_MATRIX or StyleKeys.TRANSFORM_FLAG_IS_3D).toByte())
+    val base = StyleKeys.TRANSFORM_MATRIX
+    // CSS matrix3d is in column-major order: m11,m12,m13,m14, m21,m22,m23,m24, ...
+    for (i in 0 until 16) {
+      values.putFloat(base + i * 4, nums[i])
+    }
+  }
+
+  private fun flattenOpsToMatrix(ops: List<TransformOp>) {
+    // Compose all ops into a 2D affine matrix, then write as 4x4
+    var a = 1f; var b = 0f; var c = 0f; var d = 1f; var tx = 0f; var ty = 0f
+    for (op in ops) {
+      when (op.type) {
+        TransformOpType.TRANSLATE -> { tx += a * op.a + c * op.b; ty += b * op.a + d * op.b }
+        TransformOpType.TRANSLATE_X -> { tx += a * op.a; ty += b * op.a }
+        TransformOpType.TRANSLATE_Y -> { tx += c * op.b; ty += d * op.b }
+        TransformOpType.SCALE -> {
+          a *= op.a; b *= op.a; c *= op.b; d *= op.b
+        }
+        TransformOpType.SCALE_X -> { a *= op.a; b *= op.a }
+        TransformOpType.SCALE_Y -> { c *= op.b; d *= op.b }
+        TransformOpType.ROTATE -> {
+          val rad = Math.toRadians(op.a.toDouble())
+          val cos = kotlin.math.cos(rad).toFloat()
+          val sin = kotlin.math.sin(rad).toFloat()
+          val na = a * cos + c * sin
+          val nb = b * cos + d * sin
+          val nc = a * -sin + c * cos
+          val nd = b * -sin + d * cos
+          a = na; b = nb; c = nc; d = nd
+        }
+        TransformOpType.SKEW_X -> {
+          val t = kotlin.math.tan(Math.toRadians(op.a.toDouble())).toFloat()
+          val nc = a * t + c
+          val nd = b * t + d
+          c = nc; d = nd
+        }
+        TransformOpType.SKEW_Y -> {
+          val t = kotlin.math.tan(Math.toRadians(op.a.toDouble())).toFloat()
+          val na = a + c * t
+          val nb = b + d * t
+          a = na; b = nb
+        }
       }
     }
-
-    return t
+    writeMatrixToBuffer(a, b, c, d, tx, ty)
   }
 
   private fun parseLength(s: String): Float {
@@ -1106,10 +1188,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     return when {
       v.endsWith("px") -> v.removeSuffix("px").toFloatOrNull() ?: 0f
       v.endsWith("dp") -> v.removeSuffix("dp").toFloatOrNull() ?: 0f
-      v.endsWith("%") -> {
-        // percentage lengths are not supported for now
-        v.removeSuffix("%").toFloatOrNull() ?: 0f
-      }
+      v.endsWith("%") -> v.removeSuffix("%").toFloatOrNull() ?: 0f
       else -> v.toFloatOrNull() ?: 0f
     }
   }
@@ -1125,16 +1204,58 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun applyTransformToView() {
     val v = node.view as? android.view.View ?: return
-    // ensure pivot at center by default
-    if (v.width > 0 && v.height > 0) {
-      v.pivotX = v.width / 2f
-      v.pivotY = v.height / 2f
+    val count = values.get(StyleKeys.TRANSFORM_COUNT).toInt() and 0xFF
+    val flags = values.get(StyleKeys.TRANSFORM_FLAGS).toInt() and 0xFF
+
+    if (count == 0 && (flags and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) == 0) {
+      // No transform — reset to identity
+      v.translationX = 0f; v.translationY = 0f
+      v.scaleX = 1f; v.scaleY = 1f; v.rotation = 0f
+      v.invalidate()
+      return
     }
-    v.translationX = mTransform.tx
-    v.translationY = mTransform.ty
-    v.rotation = mTransform.rotate
-    v.scaleX = mTransform.scaleX
-    v.scaleY = mTransform.scaleY
+
+    if ((flags and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0) {
+      // Read 4x4 matrix and decompose into translate/rotate/scale
+      val base = StyleKeys.TRANSFORM_MATRIX
+      val a = values.getFloat(base)
+      val b = values.getFloat(base + 4)
+      val c = values.getFloat(base + 16)
+      val d = values.getFloat(base + 20)
+      val tx = values.getFloat(base + 48)
+      val ty = values.getFloat(base + 52)
+      val scaleX = kotlin.math.sqrt((a * a + b * b).toDouble()).toFloat()
+      var rotate = 0f
+      var scaleY = 1f
+      if (scaleX != 0f) {
+        rotate = Math.toDegrees(kotlin.math.atan2(b.toDouble(), a.toDouble())).toFloat()
+        scaleY = (a * d - b * c) / scaleX
+      }
+      if (v.width > 0 && v.height > 0) { v.pivotX = v.width / 2f; v.pivotY = v.height / 2f }
+      v.translationX = tx; v.translationY = ty
+      v.rotation = rotate; v.scaleX = scaleX; v.scaleY = scaleY
+    } else {
+      // Compose inline ops
+      var tx = 0f; var ty = 0f; var rot = 0f; var sx = 1f; var sy = 1f
+      for (i in 0 until count) {
+        val opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+        val type = values.get(opBase).toInt() and 0xFF
+        val a = values.getFloat(opBase + 4)
+        val b = values.getFloat(opBase + 8)
+        when (type) {
+          TransformOpType.TRANSLATE -> { tx += a; ty += b }
+          TransformOpType.TRANSLATE_X -> tx += a
+          TransformOpType.TRANSLATE_Y -> ty += b
+          TransformOpType.SCALE -> { sx *= a; sy *= b }
+          TransformOpType.SCALE_X -> sx *= a
+          TransformOpType.SCALE_Y -> sy *= b
+          TransformOpType.ROTATE -> rot += a
+        }
+      }
+      if (v.width > 0 && v.height > 0) { v.pivotX = v.width / 2f; v.pivotY = v.height / 2f }
+      v.translationX = tx; v.translationY = ty
+      v.rotation = rot; v.scaleX = sx; v.scaleY = sy
+    }
     v.invalidate()
   }
 
@@ -4549,38 +4670,37 @@ class Style internal constructor(@Transient internal var node: Node) {
       // Nothing to do if both axes are visible
       if (overflowX == Overflow.Visible.value && overflowY == Overflow.Visible.value) return
 
+      // Clip per the CSS overflow spec:
+      // Hidden(1), Scroll(2), Clip(3) → always clip
+      // Auto(4) → clip only when content overflows
+      // Visible(0) → never clip
       val clipX = when (overflowX.toInt()) {
-        1, 3 -> true
+        1, 2, 3 -> true
         4 -> style.node.overflowWidth > width
         else -> false
       }
 
       val clipY = when (overflowY.toInt()) {
-        1, 3 -> true
+        1, 2, 3 -> true
         4 -> style.node.overflowHeight > height
         else -> false
       }
 
-      // If neither axis needs clipping, return early — except Scroll views
-      val isScrollView = node.view is Scroll
+      if (!clipX && !clipY) return
 
-      if (!clipX && !clipY && !isScrollView) return
-
-      // If Scroll view, ensure we clip both axes to content box
-      val finalClipX = clipX || isScrollView
-      val finalClipY = clipY || isScrollView
+      val scroll = node.view as? Scroll
 
       // For Scroll views the canvas has already been translated by
       // -scrollX/-scrollY (Android applies the scroll offset in
       // View.draw(Canvas, ViewGroup, long) before dispatchDraw is called).
       // Offset the clip rect so it tracks the scrolled viewport.
-      val scrollOX = if (isScrollView) (node.view as Scroll).scrollX.toFloat() else 0f
-      val scrollOY = if (isScrollView) (node.view as Scroll).scrollY.toFloat() else 0f
+      val scrollOX = scroll?.scrollX?.toFloat() ?: 0f
+      val scrollOY = scroll?.scrollY?.toFloat() ?: 0f
 
-      val clipLeft = (if (finalClipX) paddingLeft else 0f) + scrollOX
-      val clipTop = (if (finalClipY) paddingTop else 0f) + scrollOY
-      val clipRight = (if (finalClipX) width - paddingRight else width) + scrollOX
-      val clipBottom = (if (finalClipY) height - paddingBottom else height) + scrollOY
+      val clipLeft = (if (clipX) paddingLeft else 0f) + scrollOX
+      val clipTop = (if (clipY) paddingTop else 0f) + scrollOY
+      val clipRight = (if (clipX) width - paddingRight else width) + scrollOX
+      val clipBottom = (if (clipY) height - paddingBottom else height) + scrollOY
 
       // Defensive guard: if computed clip rect is inverted or degenerate, skip clipping
       if (clipRight > clipLeft && clipBottom > clipTop) {

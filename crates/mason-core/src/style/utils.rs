@@ -506,131 +506,49 @@ pub fn update_from_ffi(
 }
 
 #[inline(always)]
-fn i16_to_bytes(value: i16) -> [u8; 2] {
-    if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    }
-}
-
-#[inline(always)]
-fn i16_from_bytes(value: [u8; 2]) -> i16 {
-    if cfg!(target_endian = "little") {
-        i16::from_le_bytes(value)
-    } else {
-        i16::from_be_bytes(value)
-    }
-}
-
-#[inline(always)]
-fn i32_to_bytes(value: i32) -> [u8; 4] {
-    if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    }
-}
-
-#[inline(always)]
-fn i32_from_bytes(value: [u8; 4]) -> i32 {
-    if cfg!(target_endian = "little") {
-        i32::from_le_bytes(value)
-    } else {
-        i32::from_be_bytes(value)
-    }
-}
-
-#[inline(always)]
-fn f32_to_bytes(value: f32) -> [u8; 4] {
-    if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    }
-}
-
-#[inline(always)]
-fn f32_from_bytes(value: [u8; 4]) -> f32 {
-    if cfg!(target_endian = "little") {
-        f32::from_le_bytes(value)
-    } else {
-        f32::from_be_bytes(value)
-    }
-}
-
-#[inline(always)]
-fn set_style_data(style: &mut [u8], position: StyleKeys, value: &[u8]) {
-    let offset = position as usize;
-    let range = offset..offset + value.len();
-    style[range].copy_from_slice(value);
-}
-
-#[inline(always)]
 pub(crate) fn set_style_data_i16(style: &mut [u8], position: StyleKeys, value: i16) {
     let offset = position as usize;
-    let ptr = &mut style[offset..offset + 2];
 
-    let value = if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    };
-
-    ptr.copy_from_slice(&value);
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut i16;
+        ptr.write_unaligned(value.to_le());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_i32(style: &mut [u8], position: StyleKeys, value: i32) {
     let offset = position as usize;
-    let ptr = &mut style[offset..offset + 4];
-
-    let value = if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    };
-
-    ptr.copy_from_slice(&value);
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut i32;
+        ptr.write_unaligned(value.to_le());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_u32(style: &mut [u8], position: StyleKeys, value: u32) {
     let offset = position as usize;
-    let ptr = &mut style[offset..offset + 4];
 
-    let value = if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    };
-
-    ptr.copy_from_slice(&value);
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut u32;
+        ptr.write_unaligned(value.to_le());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_f32(style: &mut [u8], position: StyleKeys, value: f32) {
     let offset = position as usize;
-    let ptr = &mut style[offset..offset + 4];
-
-    let value = if cfg!(target_endian = "little") {
-        value.to_le_bytes()
-    } else {
-        value.to_be_bytes()
-    };
-
-    ptr.copy_from_slice(&value);
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut u32;
+        ptr.write_unaligned(value.to_bits().to_le());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_i16(style: &[u8], position: StyleKeys) -> i16 {
     let offset = position as usize;
-    let ptr: [u8; 2] = <[u8; 2]>::try_from(&style[offset..offset + 2]).unwrap();
-
-    if cfg!(target_endian = "little") {
-        i16::from_le_bytes(ptr)
-    } else {
-        i16::from_be_bytes(ptr)
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const i16;
+        i16::from_le(ptr.read_unaligned())
     }
 }
 
@@ -649,95 +567,59 @@ pub(crate) fn get_style_data_i32(style: &[u8], position: StyleKeys) -> i32 {
 #[inline(always)]
 pub(crate) fn get_style_data_u32(style: &[u8], position: StyleKeys) -> u32 {
     let offset = position as usize;
-    let ptr: [u8; 4] = <[u8; 4]>::try_from(&style[offset..offset + 4]).unwrap();
-
-    if cfg!(target_endian = "little") {
-        u32::from_le_bytes(ptr)
-    } else {
-        u32::from_be_bytes(ptr)
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const u32;
+        u32::from_le(ptr.read_unaligned())
     }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_f32(style: &[u8], position: StyleKeys) -> f32 {
     let offset = position as usize;
-    let ptr: [u8; 4] = <[u8; 4]>::try_from(&style[offset..offset + 4]).unwrap();
-
-    if cfg!(target_endian = "little") {
-        f32::from_le_bytes(ptr)
-    } else {
-        f32::from_be_bytes(ptr)
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const u32;
+        f32::from_bits(u32::from_le(ptr.read_unaligned()))
     }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_bool(style: &mut [u8], position: StyleKeys, value: bool) {
-    let offset = position as usize;
     unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut bool;
-        *ptr = value;
+        *style.as_mut_ptr().add(position as usize) = value as u8;
     }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_bool(style: &[u8], position: StyleKeys) -> bool {
-    let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const bool;
-        *ptr
-    }
+    unsafe { *style.as_ptr().add(position as usize) != 0 }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_u8(style: &mut [u8], position: StyleKeys, value: u8) {
-    let offset = position as usize;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset);
-        *ptr = value;
-    }
+    unsafe { *style.as_mut_ptr().add(position as usize) = value }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_u8(style: &[u8], position: StyleKeys) -> u8 {
-    let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset);
-        *ptr
-    }
+    unsafe { *style.as_ptr().add(position as usize) }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_i8(style: &mut [u8], position: StyleKeys, value: i8) {
-    let offset = position as usize;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut i8;
-        *ptr = value;
-    }
+    unsafe { *style.as_mut_ptr().add(position as usize) = value as u8 }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_i8(style: &[u8], position: StyleKeys) -> i8 {
-    let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const i8;
-        *ptr
-    }
+    unsafe { *style.as_ptr().add(position as usize) as i8 }
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_i8_raw(style: &mut [u8], position: usize, value: i8) {
-    let offset = position;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut i8;
-        *ptr = value;
-    }
+    unsafe { *style.as_mut_ptr().add(position) = value as u8 };
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_i8_raw(style: &[u8], position: usize) -> i8 {
-    let offset = position;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const i8;
-        *ptr
-    }
+    unsafe { style.as_ptr().add(position) as i8 }
 }

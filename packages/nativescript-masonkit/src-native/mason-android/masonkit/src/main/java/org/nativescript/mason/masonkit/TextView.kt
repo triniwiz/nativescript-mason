@@ -325,6 +325,7 @@ class TextView @JvmOverloads constructor(
           isFocusable = true
           isFocusableInTouchMode = true
 
+          node.hasNativeClickDispatch = true
           setOnClickListener {
             node.mason.dispatch(
               Event(

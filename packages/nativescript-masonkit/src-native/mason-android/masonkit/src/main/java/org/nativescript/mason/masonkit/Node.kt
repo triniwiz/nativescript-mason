@@ -37,6 +37,7 @@ open class Node internal constructor(
 
   internal var computeCacheDirty = false
   internal var computeScheduled = false
+  internal var hasNativeClickDispatch = false
   internal var isPlaceholder = false
   internal var isImage = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
@@ -1287,6 +1288,10 @@ open class Node internal constructor(
 
   fun removeChildren() {
     children.forEach {
+      // Recursively clean up the entire subtree first so Rust-side
+      // grandchild nodes are properly detached and eligible for cleanup.
+      it.removeChildren()
+
       it.parent = null
       (it.view as? Element)?.onNodeDetached()
       (it.view as? View)?.let { view ->
@@ -1305,11 +1310,14 @@ open class Node internal constructor(
         }
       }
     }
-    children.clear()
 
+    // Detach children on the Rust side BEFORE clearing the list,
+    // so that node cleanup sees has_parent=false and can release styles.
     if (nativePtr != 0L) {
       NativeHelpers.nativeNodeRemoveChildren(mason.nativePtr, nativePtr)
     }
+
+    children.clear()
     dirty()
   }
 

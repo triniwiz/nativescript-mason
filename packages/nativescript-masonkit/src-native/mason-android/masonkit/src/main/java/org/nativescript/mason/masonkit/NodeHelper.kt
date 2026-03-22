@@ -1523,6 +1523,32 @@ class NodeHelper(val mason: Mason) {
       node.style.cornerShapeBottomLeft = value
     }
 
+    fun getBoxShadow(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.boxShadow
+    }
+
+    fun setBoxShadow(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.boxShadow = value
+    }
+
+    fun getTransform(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.transform
+    }
+
+    fun setTransform(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.transform = value
+    }
+
     fun compute(node: Node) {
       NativeHelpers.nativeNodeCompute(
         node.mason.nativePtr, node.nativePtr

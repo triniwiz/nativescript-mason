@@ -132,9 +132,12 @@ class Button @JvmOverloads constructor(
     minHeight = 0
     isAllCaps = false
     background = null
+    stateListAnimator = null
+    elevation = 0f
     isClickable = true
     isFocusable = true
 
+    node.hasNativeClickDispatch = true
     setOnClickListener {
       node.mason.dispatch(
         Event(

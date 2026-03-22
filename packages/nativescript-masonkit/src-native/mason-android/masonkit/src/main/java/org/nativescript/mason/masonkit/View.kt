@@ -410,6 +410,10 @@ open class View @JvmOverloads constructor(
     onChildStructureChangedSafe()
   }
 
+  fun removeChildren(){
+    removeAllViews()
+  }
+
   override fun removeAllViews() {
     // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
     if (node.suppressChildOps > 0) {

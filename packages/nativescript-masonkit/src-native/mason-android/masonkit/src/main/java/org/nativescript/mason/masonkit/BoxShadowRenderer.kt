@@ -54,6 +54,10 @@ class BoxShadowRenderer(private val style: Style) {
   )
 
   companion object {
+    /** Maximum bitmap dimension (width or height) to prevent OOM.
+     *  A 2048x2048 ARGB_8888 bitmap is 16 MB - safe for most devices. */
+    private const val MAX_BITMAP_DIM = 2048
+
     /**
      * Create a shape bitmap for a rounded rectangle
      */
@@ -182,6 +186,7 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     forceLegacy: Boolean = false
   ) {
+    if (width <= 0f || height <= 0f) return
     val outsetShadows = style.boxShadows.filter { !it.inset }
     if (outsetShadows.isEmpty()) return
 
@@ -304,6 +309,8 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     shadows: List<Shadow.BoxShadow>
   ) {
+    if (width <= 0f || height <= 0f) return
+
     if (needsRebuild(width, height)) {
       val pool = CSSFilters.getPool(context)
       val entries = mutableListOf<ShadowBitmapEntry>()
@@ -316,6 +323,16 @@ class BoxShadowRenderer(private val style: Style) {
         val spread = shadow.spreadRadius
         val shapeW = (width + spread * 2).toInt().coerceAtLeast(1)
         val shapeH = (height + spread * 2).toInt().coerceAtLeast(1)
+
+        // Calculate expanded dimensions with blur padding
+        val blurPad = ceil(shadow.blurRadius * 3f).toInt()
+        val expandedW = shapeW + blurPad * 2
+        val expandedH = shapeH + blurPad * 2
+
+        // Skip this shadow if bitmap would exceed safe limits
+        if (expandedW > MAX_BITMAP_DIM || expandedH > MAX_BITMAP_DIM || expandedW <= 0 || expandedH <= 0) {
+          continue
+        }
 
         val adjustedRadii = if (radii != null) {
           for (i in 0 until 8) tmpRadii[i] = (radii[i] + spread).coerceAtLeast(0f)
@@ -333,9 +350,8 @@ class BoxShadowRenderer(private val style: Style) {
         pool.putBitmap(shapeBitmap)
 
         // Calculate draw position
-        val blurPad = ceil(shadow.blurRadius * 3f)
-        val drawX = shadow.offsetX - spread - blurPad
-        val drawY = shadow.offsetY - spread - blurPad
+        val drawX = shadow.offsetX - spread - blurPad.toFloat()
+        val drawY = shadow.offsetY - spread - blurPad.toFloat()
 
         entries.add(ShadowBitmapEntry(shadowBitmap, drawX, drawY, false))
       }
@@ -362,6 +378,7 @@ class BoxShadowRenderer(private val style: Style) {
     height: Float,
     borderRenderer: BorderRenderer
   ) {
+    if (width <= 0f || height <= 0f) return
     val insetShadows = style.boxShadows.filter { it.inset }
     if (insetShadows.isEmpty()) return
 
@@ -497,6 +514,8 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     shadows: List<Shadow.BoxShadow>
   ) {
+    if (width <= 0f || height <= 0f) return
+
     val pool = CSSFilters.getPool(context)
     val hasRadii = borderRenderer.hasRadii()
     val radii = if (hasRadii) borderRenderer.getRadii() else null
@@ -514,6 +533,16 @@ class BoxShadowRenderer(private val style: Style) {
 
       val frameW = width.toInt() + blurPad * 2
       val frameH = height.toInt() + blurPad * 2
+
+      // Calculate expanded dimensions with blur
+      val expandedPad = ceil(shadow.blurRadius * 3f).toInt()
+      val expandedW = frameW + expandedPad * 2
+      val expandedH = frameH + expandedPad * 2
+
+      // Skip this shadow if bitmap would exceed safe limits
+      if (expandedW > MAX_BITMAP_DIM || expandedH > MAX_BITMAP_DIM || expandedW <= 0 || expandedH <= 0) {
+        continue
+      }
 
       // Create frame bitmap with hole cut out
       val frameBitmap = pool.getBitmap(frameW, frameH, Bitmap.Config.ARGB_8888)

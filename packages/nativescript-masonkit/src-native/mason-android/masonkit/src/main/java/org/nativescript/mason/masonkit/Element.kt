@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.events.Event
+import java.util.UUID
 
 interface Element : EventTarget {
   val style: Style
@@ -21,6 +23,22 @@ interface Element : EventTarget {
     set(value) {
       node.mason.getHtmlParser(view.context)?.parseInto(value, this)
     }
+
+  override fun addEventListener(type: String, listener: (Event) -> Unit): UUID {
+    val id = node.mason.addEventListener(node, type, listener)
+    if (type == "click" && !node.hasNativeClickDispatch) {
+      node.hasNativeClickDispatch = true
+      view.isClickable = true
+      view.setOnClickListener {
+        dispatch(
+          Event(type = "click").apply {
+            target = this@Element
+          }
+        )
+      }
+    }
+    return id
+  }
 
   fun syncStyle(low: String, high: String) {
     fun parseDecimalToLong(s: String): Long? {
@@ -466,21 +484,20 @@ interface Element : EventTarget {
           root.computeCache = SizeF(width, height)
         }
 
+        // Use cached/computed root dimensions as the size input when available,
+        // but always run compute() so that child style changes (e.g. flex-direction)
+        // are picked up by the layout engine.
         val cachedW = root.cachedWidth
         val cachedH = root.cachedHeight
         val nodeW2 = root.computedWidth
         val nodeH2 = root.computedHeight
 
         if (cachedW > 0f && cachedH > 0f) {
-          root.computeCache = SizeF(cachedW, cachedH)
-          root.computeCacheDirty = false
-          return
-        }
-
-        if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
-          root.computeCache = SizeF(nodeW2, nodeH2)
-          root.computeCacheDirty = false
-          return
+          width = cachedW
+          height = cachedH
+        } else if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
+          width = nodeW2
+          height = nodeH2
         }
 
         (root.view as Element).compute(width, height)
@@ -588,7 +605,7 @@ interface Element : EventTarget {
     child.apply {
       if (this@Element is TextContainer) {
         // Copy current TextView attributes to the new text node
-        attributes.sync(style)
+        attributes.sync(this@Element.node.style)
       }
     }
   }
@@ -614,7 +631,7 @@ interface Element : EventTarget {
       data = text
       if (this@Element is TextContainer) {
         // Copy current TextView attributes to the new text node
-        attributes.sync(style)
+        attributes.sync(this@Element.node.style)
       }
     }
   }
@@ -775,7 +792,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
 
 */
 
-// MARK: - Flat layout tree application (iterative DFS, zero-allocation per pass)
+// Flat layout tree application (iterative DFS, zero-allocation per pass)
 
 // Preallocated stack frame to avoid Pair allocations in DFS
 private class LayoutStackFrame {
@@ -810,8 +827,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
   if (tree.nodeCount == 0) return
 
   val parentVG = (this.view.parent as? ViewGroup)
-  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-    parentVG?.suppressLayout(true)
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && parentVG?.isInLayout == false) {
+    parentVG.suppressLayout(true)
   }
   try {
     val nv = tree.cursor
@@ -980,8 +997,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       }
     }
   } finally {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      parentVG?.suppressLayout(false)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && parentVG?.isInLayout == false) {
+      parentVG.suppressLayout(false)
     }
   }
 }

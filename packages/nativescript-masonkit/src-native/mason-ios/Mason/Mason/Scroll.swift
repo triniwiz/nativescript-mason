@@ -105,25 +105,30 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow
+    let viewBounds = bounds.size
+
     var canScrollHorizontally: Bool = false
     var canScrollVertically: Bool = false
-    switch(flow.x, flow.y){
-    case (let x, let y):
-      switch(x){
-      case .Hidden, .Scroll, .Auto:
-        canScrollHorizontally = true
-      case .Visible, .Clip:
-        canScrollHorizontally = false
-      }
-      
-      switch(y){
-      case .Hidden, .Scroll, .Auto:
-        canScrollVertically = true
-      case .Visible, .Clip:
-        canScrollVertically = false
-      }
+
+    switch flow.x {
+    case .Scroll:
+      canScrollHorizontally = true
+    case .Auto:
+      // Only scroll when content actually overflows
+      canScrollHorizontally = contentSize.width > viewBounds.width
+    case .Visible, .Hidden, .Clip:
+      canScrollHorizontally = false
     }
-    
+
+    switch flow.y {
+    case .Scroll:
+      canScrollVertically = true
+    case .Auto:
+      canScrollVertically = contentSize.height > viewBounds.height
+    case .Visible, .Hidden, .Clip:
+      canScrollVertically = false
+    }
+
     return (canScrollHorizontally, canScrollVertically)
   }
 

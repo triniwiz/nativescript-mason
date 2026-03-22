@@ -27,6 +27,7 @@ class ViewUtils {
 
           for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
+            if (child.width <= 0 || child.height <= 0) continue
             val childStyle = (child as? Element)?.style ?: continue
             val outsetShadows = childStyle.boxShadows.filter { !it.inset }
             if (outsetShadows.isEmpty()) continue
@@ -50,6 +51,7 @@ class ViewUtils {
 
       for (i in 0 until parent.childCount) {
         val child = parent.getChildAt(i)
+        if (child.width <= 0 || child.height <= 0) continue
         val childStyle = (child as? Element)?.style ?: continue
         val outsetShadows = childStyle.boxShadows.filter { !it.inset }
         if (outsetShadows.isEmpty()) continue

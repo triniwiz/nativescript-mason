@@ -2059,6 +2059,8 @@ declare class MasonStyle extends NSObject {
 
 	boxSizing: MasonBoxSizing;
 
+	transform: string;
+
 	clear: MasonClear;
 
 	color: number;

@@ -276,9 +276,9 @@ public final class CSSBorderRenderer {
     
     public var color: UIColor{
       get {
-        return UIColor.colorFromARGB(
-          owner.getUInt32(keys.color)
-        )
+        let base = owner.getUInt32(keys.color)
+        let resolved = owner.resolvePseudoUInt32(keys.color, keys.color, base, .borderColor)
+        return UIColor.colorFromARGB(resolved)
       }
       
       set {

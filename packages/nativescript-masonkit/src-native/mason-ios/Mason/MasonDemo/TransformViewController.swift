@@ -39,9 +39,8 @@ class TransformViewController: UIViewController {
     title.textContent = "Transform Demo"
     title.style.fontSize = 18
     title.style.setSizeHeight(44 * scale, 1)
-    title.style.display = .Flex
-    title.style.justifyContent = .Center
-    title.style.alignItems = .Center
+    title.style.setSizeWidth(1, 2) // 100% width
+    title.style.align = .Center
     root.addView(title)
 
     // ── Preview area (flex: 1, centered) ─────────────────────────────────
@@ -84,6 +83,7 @@ class TransformViewController: UIViewController {
 
     // Presets row (horizontal scroll)
     let presetsScroll = mason.createScrollView()
+    presetsScroll.style.display = .Flex
     presetsScroll.style.overflowX = .Scroll
     presetsScroll.style.overflowY = .Hidden
 

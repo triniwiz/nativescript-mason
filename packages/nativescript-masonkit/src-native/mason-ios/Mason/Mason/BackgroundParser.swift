@@ -92,11 +92,11 @@ class Background {
       style.notifyTextStyleChanged(.backgroundColor)
     }
     get {
-      if(style.getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
+      let resolved = style.resolvedBackgroundColor
+      if resolved == 0 {
         return nil
       }
-      
-      return UIColor.colorFromARGB(style.getUInt32(StyleKeys.BACKGROUND_COLOR))
+      return UIColor.colorFromARGB(resolved)
     }
   }
   var layers: [BackgroundLayer] = []

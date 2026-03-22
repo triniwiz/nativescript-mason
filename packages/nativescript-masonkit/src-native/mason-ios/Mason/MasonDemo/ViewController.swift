@@ -1004,11 +1004,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     // Remove all Mason node children from the scroll body
     self.body.removeAllChildren()
-
-    // Request a layout pass for the Mason root so it recomputes naturally
-    self.body.invalidateLayout()
-
-    // Reset any demo-specific state so subsequent samples start fresh
+    
     self.hnContainer = nil
     self.hnIds = []
     self.hnIndex = 0
@@ -1120,7 +1116,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       renderFloat(body)
      // renderFontVariantNumericDemo(body)
     case 7:
-      renderSuperellipseDemo(body)
+      //renderSuperellipseDemo(body)
+      renderPseudoDemo(body)
     default:
       renderSuperellipseDemo(body)
     }
@@ -2123,15 +2120,16 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   private func pseudoSetBorderRadius(_ buf: UnsafeMutableBufferPointer<UInt8>, _ px: Float) {
     guard buf.count > 0, let base = buf.baseAddress else { return }
     var val = px
-    for xType in [StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE,
-                  StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE] {
-      base.advanced(by: xType).pointee = 0
-      memcpy(base + xType + 1, &val, 4)
-    }
-    for yType in [StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE,
-                  StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE] {
-      base.advanced(by: yType).pointee = 0
-      memcpy(base + yType + 1, &val, 4)
+    for (t, v) in [(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE),
+                   (StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE),
+                   (StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE),
+                   (StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE),
+                   (StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE),
+                   (StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE),
+                   (StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE),
+                   (StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE)] {
+      base.advanced(by: t).pointee = 0
+      memcpy(base + v, &val, 4)
     }
     MasonNode.markPseudoSet(buf, .borderRadius)
   }
