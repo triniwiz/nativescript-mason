@@ -25,7 +25,7 @@ internal func mapTextInputType(
   return "insertText"
 }
 
-class MasonTextInput: UITextView, UITextViewDelegate {
+public class MasonTextInput: UITextView, UITextViewDelegate {
   internal var owner: MasonElement? = nil
   
   override init(frame: CGRect, textContainer: NSTextContainer?) {
@@ -44,19 +44,19 @@ class MasonTextInput: UITextView, UITextViewDelegate {
     didSet { placeholderLabel.text = placeholder }
   }
   
-  override var text: String! {
+  public override var text: String! {
     didSet { updatePlaceholder() }
   }
   
-  override var attributedText: NSAttributedString! {
+  public override var attributedText: NSAttributedString! {
     didSet { updatePlaceholder() }
   }
   
-  override var font: UIFont? {
+  public override var font: UIFont? {
     didSet { placeholderLabel.font = font ?? UIFont.systemFont(ofSize: UIFont.systemFontSize) }
   }
   
-  override var textAlignment: NSTextAlignment {
+  public override var textAlignment: NSTextAlignment {
     didSet { placeholderLabel.textAlignment = textAlignment }
   }
   
@@ -91,7 +91,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
     updatePlaceholder()
   }
   
-  override func layoutSubviews() {
+  public override func layoutSubviews() {
     super.layoutSubviews()
     
     // For single-line behavior, vertically center text by adjusting top/bottom inset
@@ -135,7 +135,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
   private var lastInputType: String? = nil
   
   
-  func textViewDidChange(_ textView: UITextView) {
+  public func textViewDidChange(_ textView: UITextView) {
     guard let owner = owner else { return }
     
     let event = MasonInputEvent(
@@ -155,7 +155,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
     lastInputType = nil
   }
   
-  func textViewDidEndEditing(_ textView: UITextView) {
+  public func textViewDidEndEditing(_ textView: UITextView) {
     guard let owner = owner else { return }
     
     let event = MasonEvent(
@@ -172,7 +172,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
   }
   
   private var didPaste = false
-  override func paste(_ sender: Any?) {
+  public override func paste(_ sender: Any?) {
     didPaste = true
     
     guard let owner = owner else {
@@ -202,7 +202,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
   }
   
   private var didCut = false
-  override func cut(_ sender: Any?) {
+  public override func cut(_ sender: Any?) {
     didCut = true
     guard let owner = owner else {
       super.cut(sender)
@@ -231,7 +231,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
   }
   
   
-  func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+  public func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
     let isRedoingOrUndoing = textView.undoManager?.isRedoing ?? false || textView.undoManager?.isUndoing ?? false
     
     if (didCut) {
@@ -290,7 +290,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
   /// Optional explicit caret height. If nil, the caret height is derived from the font's capHeight.
   var caretHeight: CGFloat? = nil
   
-  override func caretRect(for position: UITextPosition) -> CGRect {
+  public override func caretRect(for position: UITextPosition) -> CGRect {
     var rect = super.caretRect(for: position)
     // shrink width
     rect.size.width = max(0.5, caretWidth)

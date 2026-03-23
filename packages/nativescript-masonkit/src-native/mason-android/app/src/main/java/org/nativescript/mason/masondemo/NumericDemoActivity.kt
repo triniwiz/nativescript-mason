@@ -2,15 +2,13 @@ package org.nativescript.mason.masondemo
 
 import android.graphics.Color
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.view.Choreographer
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.FontFace
+import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -22,11 +20,12 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 class NumericDemoActivity : AppCompatActivity() {
   private lateinit var mason: Mason
-  private val handler = Handler(Looper.getMainLooper())
-  private var timerRunnable: Runnable? = null
+  private var running = AtomicBoolean()
+  private var runnable: Choreographer.FrameCallback? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -82,7 +81,10 @@ class NumericDemoActivity : AppCompatActivity() {
       )
     }
 
-    fun timerCard(label: String, tabular: Boolean): Pair<View, org.nativescript.mason.masonkit.TextView> {
+    fun timerCard(
+      label: String,
+      tabular: Boolean
+    ): Pair<View, org.nativescript.mason.masonkit.TextView> {
       val card = mason.createView(this@NumericDemoActivity)
       card.configure { style ->
         style.display = Display.Block
@@ -230,11 +232,12 @@ class NumericDemoActivity : AppCompatActivity() {
     }
 
     setContentView(root)
-
-    // Start timer
+    running.set(true)
     val startTime = System.currentTimeMillis()
-    timerRunnable = object : Runnable {
-      override fun run() {
+    runnable = object : Choreographer.FrameCallback {
+      override fun doFrame(p0: Long) {
+        if (!running.get()) return
+
         val elapsed = (System.currentTimeMillis() - startTime) / 1000.0
         val mins = (elapsed.toInt()) / 60
         val secs = (elapsed.toInt()) % 60
@@ -244,15 +247,21 @@ class NumericDemoActivity : AppCompatActivity() {
         leftTime.textContent = str
         rightTime.textContent = str
 
-        handler.postDelayed(this, 16)
+        Choreographer.getInstance().postFrameCallback(runnable)
+
       }
     }
-    handler.post(timerRunnable!!)
+    Choreographer.getInstance().postFrameCallback(runnable)
+
+  }
+
+  override fun onPause() {
+    running.set(false)
+    super.onPause()
   }
 
   override fun onDestroy() {
-    timerRunnable?.let { handler.removeCallbacks(it) }
-    timerRunnable = null
+    running.set(false)
     super.onDestroy()
   }
 }

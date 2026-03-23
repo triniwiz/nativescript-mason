@@ -1,7 +1,7 @@
 use jni::objects::{JClass, JString};
-use jni::signature::ReturnType;
-use jni::sys::{jbyte, jfloat, jlong, jstring, jint};
+use jni::sys::{jbyte, jfloat, jint, jlong, jstring};
 use jni::JNIEnv;
+use jni::signature::ReturnType;
 use mason_core::{Mason, NodeRef, JVM_CACHE};
 
 #[cfg(target_os = "android")]
@@ -29,6 +29,8 @@ fn get_string_lossy(env: &mut JNIEnv, value: &JString) -> Option<String> {
             .map(|java_str| java_str.to_string_lossy().to_string())
     }
 }
+
+// Note: transform is handled at platform layer; no JNI setter needed.
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBufferData(
     mut env: JNIEnv,
@@ -76,73 +78,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
         let node = &*(node as *mut NodeRef);
         let flags = flags as u16;
 
-        mason.with_pseudo_style_mut(node.id().into(), flags, |style| {
-            // mason_core::style::utils::update_from_ffi(
-            //     style,
-            //     0, // display (ignored when using individual setters below)
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0,
-            //     0.0,
-            //     0.0,
-            //     0.0,
-            //     0,
-            //     None,
-            //     None,
-            //     0,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            //     None,
-            // );
-
-            if let Some(grid_template_rows) = grid_template_rows.as_deref() {
-                style.set_grid_template_columns_css(grid_template_rows);
-            }
-
-            if let Some(grid_template_columns) = grid_template_columns.as_deref() {
-                style.set_grid_template_columns_css(grid_template_columns);
-            }
-
+        let update_style = |style: &mut mason_core::Style| {
             if let Some(grid_auto_rows) = grid_auto_rows.as_deref() {
                 style.set_grid_auto_rows_css(grid_auto_rows);
             }
@@ -160,7 +96,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
             }
 
             if let Some(end) = grid_row_end.as_deref() {
-                style.set_grid_row_start_css(end)
+                style.set_grid_row_end_css(end)
             }
 
             if let Some(grid_column) = grid_column.as_deref() {
@@ -172,7 +108,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
             }
 
             if let Some(end) = grid_column_end.as_deref() {
-                style.set_grid_column_start_css(end)
+                style.set_grid_column_end_css(end)
             }
 
             if let Some(areas) = grid_template_areas.as_deref() {
@@ -190,7 +126,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
             if let Some(area) = grid_area.as_deref() {
                 style.set_grid_area(area);
             }
-        })
+        };
+
+        if flags == 0 {
+            mason.with_style_mut(node.id().into(), update_style);
+        } else {
+            mason.with_pseudo_style_mut(node.id().into(), flags, update_style);
+        }
     }
 }
 
@@ -648,7 +590,7 @@ pub extern "system" fn StyleNativeGetGridColumnStart(
     _: JClass,
     mason: jlong,
     node: jlong,
-) -> jstring {
+) -> jni::sys::jstring {
     if mason == 0 || node == 0 {
         return 0 as _;
     }

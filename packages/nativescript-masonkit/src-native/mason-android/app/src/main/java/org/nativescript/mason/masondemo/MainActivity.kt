@@ -109,6 +109,11 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.btnBug.setOnClickListener {
+      val intent = Intent(this, BugActivity::class.java)
+      startActivity(intent)
+    }
+
 
     binding.pseudo.setOnClickListener {
       val intent = Intent(this, PseudoDemoActivity::class.java)
@@ -122,6 +127,11 @@ class MainActivity : AppCompatActivity() {
 
     binding.superellipse.setOnClickListener {
       val intent = Intent(this, SuperellipseActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.transform.setOnClickListener {
+      val intent = Intent(this, TransformActivity::class.java)
       startActivity(intent)
     }
 

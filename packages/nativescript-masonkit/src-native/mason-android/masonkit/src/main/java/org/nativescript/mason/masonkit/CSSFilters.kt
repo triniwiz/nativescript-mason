@@ -352,10 +352,13 @@ class CSSFilters {
                 view.height
               )
 
-              keyToView[view]?.add(key) ?: run {
-                keyToView[view] = HashSet<String>().apply {
-                  add(key)
-                }
+              val set = keyToView[view]
+              if (set != null) {
+                set.add(key)
+              } else {
+                val newSet = HashSet<String>()
+                newSet.add(key)
+                keyToView[view] = newSet
               }
 
               helper.shadowsOrBlurs.add(
@@ -791,6 +794,7 @@ class CSSFilters {
           }
           true
         }
+
         else -> false
       }
     }
@@ -864,7 +868,7 @@ class CSSFilters {
           }
 
           // draw source into temp (use recorded fallback if available)
-          val sourceBmp = filter.sourceFallback ?: run {
+          val sourceBmp: Bitmap = filter.sourceFallback ?: run {
             val bmp = pool.getSourceBitmap(view.width, view.height)
             val c = Canvas(bmp)
             view.setTag(R.id.tag_suppress_ops, true)
@@ -879,7 +883,7 @@ class CSSFilters {
           colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
           canvas.drawBitmap(tmp, 0f, 0f, colorMatrixPaint)
           //  pool.putBitmap(tmp, true)
-        } ?: run {
+        } ?: {
           // no color matrix -> draw shadows/blurs + source directly
           for (node in filter.shadowsOrBlurs) {
             node.shadow?.let {
@@ -890,9 +894,10 @@ class CSSFilters {
             }
           }
 
-          filter.sourceFallback?.let { src ->
-            canvas.drawBitmap(src, 0f, 0f, null)
-          } ?: run {
+          val _fallback = filter.sourceFallback
+          if (_fallback != null) {
+            canvas.drawBitmap(_fallback, 0f, 0f, null)
+          } else {
             canvas.drawRenderNode(filter.sourceNode)
           }
         }
@@ -909,10 +914,11 @@ class CSSFilters {
         }
 
         it.source?.let { source ->
-          it.cssFilter?.let { matrix ->
+          val matrix = it.cssFilter
+          if (matrix != null) {
             colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
             canvas.drawBitmap(source, 0f, 0f, colorMatrixPaint)
-          } ?: run {
+          } else {
             canvas.drawBitmap(source, 0f, 0f, null)
           }
         }

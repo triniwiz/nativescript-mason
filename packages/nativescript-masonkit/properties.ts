@@ -1,6 +1,6 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font } from '@nativescript/core';
+import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
-import type { TextBase } from './common';
+import type { TextBase, ViewBase } from './common';
 import { isMasonChild_, isMasonView_ } from './symbols';
 import type { Style as MasonStyle } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
@@ -17,6 +17,10 @@ function isMasonViewOrChild(style: Style): boolean {
   }
   return false;
 }
+
+export const textProperty = new Property<ViewBase, string>({
+  name: 'text',
+});
 
 export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
@@ -74,6 +78,26 @@ export const filterProperty = new CssProperty<Style, string>({
 export const borderProperty = new CssProperty<Style, string>({
   name: 'border',
   cssName: 'border',
+});
+
+export const borderLeftProperty = new CssProperty<Style, string>({
+  name: 'borderLeft',
+  cssName: 'border-left',
+});
+
+export const borderTopProperty = new CssProperty<Style, string>({
+  name: 'borderTop',
+  cssName: 'border-top',
+});
+
+export const borderRightProperty = new CssProperty<Style, string>({
+  name: 'borderRight',
+  cssName: 'border-right',
+});
+
+export const borderBottomProperty = new CssProperty<Style, string>({
+  name: 'borderBottom',
+  cssName: 'border-bottom',
 });
 
 export const backgroundProperty = new CssProperty<Style, string>({
@@ -769,10 +793,19 @@ alignSelfProperty.overrideHandlers({
   },
 });
 
+export const AlignContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'stretch');
+export const AlignContentParse = makeParser(AlignContentIsValid);
+
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
   name: 'alignContent',
   cssName: 'align-content',
   defaultValue: 'normal',
+  valueConverter: function (value) {
+    if (isMasonViewOrChild(this)) {
+      return value as never;
+    }
+    return AlignContentParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -823,9 +856,18 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   },
 });
 
+export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around');
+export const JustifyContentParse = makeParser(JustifyContentIsValid);
+
 justifyContentProperty.overrideHandlers({
   name: 'justifyContent',
   cssName: 'justify-content',
+  valueConverter: function (value) {
+    if (isMasonViewOrChild(this)) {
+      return value as never;
+    }
+    return JustifyContentParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -1209,6 +1251,16 @@ export const cornerShapeProperty = new CssProperty<Style, string>({
   cssName: 'corner-shape',
 });
 
+export const boxShadowProperty = new CssProperty<Style, string>({
+  name: 'boxShadow',
+  cssName: 'box-shadow',
+});
+
+export const transformProperty = new CssProperty<Style, string>({
+  name: 'transform',
+  cssName: 'transform',
+});
+
 export const cornerShapeTopLeftProperty = new CssProperty<Style, string>({
   name: 'cornerShapeTopLeft',
   cssName: 'corner-shape-top-left',
@@ -1230,6 +1282,8 @@ export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
 });
 
 cornerShapeProperty.register(Style);
+boxShadowProperty.register(Style);
+transformProperty.register(Style);
 cornerShapeTopLeftProperty.register(Style);
 cornerShapeTopRightProperty.register(Style);
 cornerShapeBottomRightProperty.register(Style);
@@ -1323,6 +1377,10 @@ backgroundSizeProperty.register(Style);
 backgroundClipProperty.register(Style);
 
 borderProperty.register(Style);
+borderLeftProperty.register(Style);
+borderTopProperty.register(Style);
+borderRightProperty.register(Style);
+borderBottomProperty.register(Style);
 
 filterProperty.register(Style);
 

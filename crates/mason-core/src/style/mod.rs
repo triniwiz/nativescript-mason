@@ -1,4 +1,10 @@
-use crate::style::utils::{dimension_from_type_value, dimension_to_type_value, get_style_data_bool, get_style_data_f32, get_style_data_i8, get_style_data_u8, length_percentage_auto_from_type_value, length_percentage_auto_to_type_value, length_percentage_from_type_value, length_percentage_to_type_value, set_style_data_bool, set_style_data_f32, set_style_data_i32, set_style_data_i8, set_style_data_u32, set_style_data_u8};
+use crate::style::utils::{
+    dimension_from_type_value, dimension_to_type_value, get_style_data_bool, get_style_data_f32,
+    get_style_data_i8, get_style_data_u8, length_percentage_auto_from_type_value,
+    length_percentage_auto_to_type_value, length_percentage_from_type_value,
+    length_percentage_to_type_value, set_style_data_bool, set_style_data_f32, set_style_data_i32,
+    set_style_data_i8, set_style_data_u32, set_style_data_u8,
+};
 use crate::utils::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
     align_self_from_enum, align_self_to_enum, boxing_size_from_enum, boxing_size_to_enum,
@@ -106,7 +112,7 @@ impl Into<taffy::style::Overflow> for Overflow {
             Overflow::Clip => taffy::Overflow::Clip,
             Overflow::Hidden => taffy::Overflow::Hidden,
             Overflow::Scroll => taffy::Overflow::Scroll,
-            Overflow::Auto => taffy::Overflow::Visible,
+            Overflow::Auto => taffy::Overflow::Scroll,
         }
     }
 }
@@ -398,79 +404,80 @@ pub enum StyleKeys {
     JUSTIFY_SELF = 11,
     JUSTIFY_CONTENT = 12,
 
+    // Contiguous types, then contiguous values per group
     INSET_LEFT_TYPE = 13,
-    INSET_LEFT_VALUE = 14, // float (4 bytes: 14-17)
-    INSET_RIGHT_TYPE = 18,
-    INSET_RIGHT_VALUE = 19, // float (4 bytes: 19-22)
-    INSET_TOP_TYPE = 23,
-    INSET_TOP_VALUE = 24, // float (4 bytes: 24-27)
-    INSET_BOTTOM_TYPE = 28,
-    INSET_BOTTOM_VALUE = 29, // float (4 bytes: 29-32)
+    INSET_RIGHT_TYPE = 14,
+    INSET_TOP_TYPE = 15,
+    INSET_BOTTOM_TYPE = 16,
+    INSET_LEFT_VALUE = 17,   // f32 (4 bytes: 17-20)
+    INSET_RIGHT_VALUE = 21,  // f32 (4 bytes: 21-24)
+    INSET_TOP_VALUE = 25,    // f32 (4 bytes: 25-28)
+    INSET_BOTTOM_VALUE = 29, // f32 (4 bytes: 29-32)
 
     MARGIN_LEFT_TYPE = 33,
-    MARGIN_LEFT_VALUE = 34, // float (4 bytes: 34-37)
-    MARGIN_RIGHT_TYPE = 38,
-    MARGIN_RIGHT_VALUE = 39, // float (4 bytes: 39-42)
-    MARGIN_TOP_TYPE = 43,
-    MARGIN_TOP_VALUE = 44, // float (4 bytes: 44-47)
-    MARGIN_BOTTOM_TYPE = 48,
-    MARGIN_BOTTOM_VALUE = 49, // float (4 bytes: 49-52)
+    MARGIN_RIGHT_TYPE = 34,
+    MARGIN_TOP_TYPE = 35,
+    MARGIN_BOTTOM_TYPE = 36,
+    MARGIN_LEFT_VALUE = 37,   // f32 (4 bytes: 37-40)
+    MARGIN_RIGHT_VALUE = 41,  // f32 (4 bytes: 41-44)
+    MARGIN_TOP_VALUE = 45,    // f32 (4 bytes: 45-48)
+    MARGIN_BOTTOM_VALUE = 49, // f32 (4 bytes: 49-52)
 
     PADDING_LEFT_TYPE = 53,
-    PADDING_LEFT_VALUE = 54, // float (4 bytes: 54-57)
-    PADDING_RIGHT_TYPE = 58,
-    PADDING_RIGHT_VALUE = 59, // float (4 bytes: 59-62)
-    PADDING_TOP_TYPE = 63,
-    PADDING_TOP_VALUE = 64, // float (4 bytes: 64-67)
-    PADDING_BOTTOM_TYPE = 68,
-    PADDING_BOTTOM_VALUE = 69, // float (4 bytes: 69-72)
+    PADDING_RIGHT_TYPE = 54,
+    PADDING_TOP_TYPE = 55,
+    PADDING_BOTTOM_TYPE = 56,
+    PADDING_LEFT_VALUE = 57,   // f32 (4 bytes: 57-60)
+    PADDING_RIGHT_VALUE = 61,  // f32 (4 bytes: 61-64)
+    PADDING_TOP_VALUE = 65,    // f32 (4 bytes: 65-68)
+    PADDING_BOTTOM_VALUE = 69, // f32 (4 bytes: 69-72)
 
     BORDER_LEFT_TYPE = 73,
-    BORDER_LEFT_VALUE = 74, // float (4 bytes: 74-77)
-    BORDER_RIGHT_TYPE = 78,
-    BORDER_RIGHT_VALUE = 79, // float (4 bytes: 79-82)
-    BORDER_TOP_TYPE = 83,
-    BORDER_TOP_VALUE = 84, // float (4 bytes: 84-87)
-    BORDER_BOTTOM_TYPE = 88,
-    BORDER_BOTTOM_VALUE = 89, // float (4 bytes: 89-92)
+    BORDER_RIGHT_TYPE = 74,
+    BORDER_TOP_TYPE = 75,
+    BORDER_BOTTOM_TYPE = 76,
+    BORDER_LEFT_VALUE = 77,   // f32 (4 bytes: 77-80)
+    BORDER_RIGHT_VALUE = 81,  // f32 (4 bytes: 81-84)
+    BORDER_TOP_VALUE = 85,    // f32 (4 bytes: 85-88)
+    BORDER_BOTTOM_VALUE = 89, // f32 (4 bytes: 89-92)
 
-    FLEX_GROW = 93,   // float (4 bytes: 93-96)
-    FLEX_SHRINK = 97, // float (4 bytes: 97-100)
+    FLEX_GROW = 93,   // f32 (4 bytes: 93-96)
+    FLEX_SHRINK = 97, // f32 (4 bytes: 97-100)
 
     FLEX_BASIS_TYPE = 101,
-    FLEX_BASIS_VALUE = 102, // float (4 bytes: 102-105)
+    FLEX_BASIS_VALUE = 102, // f32 (4 bytes: 102-105)
 
     WIDTH_TYPE = 106,
-    WIDTH_VALUE = 107, // float (4 bytes: 107-110)
-    HEIGHT_TYPE = 111,
-    HEIGHT_VALUE = 112, // float (4 bytes: 112-115)
+    HEIGHT_TYPE = 107,
+    WIDTH_VALUE = 108,  // f32 (4 bytes: 108-111)
+    HEIGHT_VALUE = 112, // f32 (4 bytes: 112-115)
 
     MIN_WIDTH_TYPE = 116,
-    MIN_WIDTH_VALUE = 117, // float (4 bytes: 117-120)
-    MIN_HEIGHT_TYPE = 121,
-    MIN_HEIGHT_VALUE = 122, // float (4 bytes: 122-125)
+    MIN_HEIGHT_TYPE = 117,
+    MIN_WIDTH_VALUE = 118,  // f32 (4 bytes: 118-121)
+    MIN_HEIGHT_VALUE = 122, // f32 (4 bytes: 122-125)
 
     MAX_WIDTH_TYPE = 126,
-    MAX_WIDTH_VALUE = 127, // float (4 bytes: 127-130)
-    MAX_HEIGHT_TYPE = 131,
-    MAX_HEIGHT_VALUE = 132, // float (4 bytes: 132-135)
+    MAX_HEIGHT_TYPE = 127,
+    MAX_WIDTH_VALUE = 128,  // f32 (4 bytes: 128-131)
+    MAX_HEIGHT_VALUE = 132, // f32 (4 bytes: 132-135)
 
     GAP_ROW_TYPE = 136,
-    GAP_ROW_VALUE = 137, // float (4 bytes: 137-140)
-    GAP_COLUMN_TYPE = 141,
-    GAP_COLUMN_VALUE = 142, // float (4 bytes: 142-145)
+    GAP_COLUMN_TYPE = 137,
+    GAP_ROW_VALUE = 138,    // f32 (4 bytes: 138-141)
+    GAP_COLUMN_VALUE = 142, // f32 (4 bytes: 142-145)
 
-    ASPECT_RATIO = 146, // float (4 bytes: 146-149)
+    ASPECT_RATIO = 146, // f32 (4 bytes: 146-149)
     GRID_AUTO_FLOW = 150,
     GRID_COLUMN_START_TYPE = 151,
-    GRID_COLUMN_START_VALUE = 152, // float (4 bytes: 152-155)
-    GRID_COLUMN_END_TYPE = 156,
-    GRID_COLUMN_END_VALUE = 157, // float (4 bytes: 157-160)
-    GRID_ROW_START_TYPE = 161,
-    GRID_ROW_START_VALUE = 162, // float (4 bytes: 162-165)
-    GRID_ROW_END_TYPE = 166,
-    GRID_ROW_END_VALUE = 167, // float (4 bytes: 167-170)
-    SCROLLBAR_WIDTH = 171,    // float (4 bytes: 171-174)
+    GRID_COLUMN_END_TYPE = 152,
+    GRID_ROW_START_TYPE = 153,
+    GRID_ROW_END_TYPE = 154,
+    GRID_COLUMN_START_VALUE = 155, // f32 (4 bytes: 155-158)
+    GRID_COLUMN_END_VALUE = 159,   // f32 (4 bytes: 159-162)
+    GRID_ROW_START_VALUE = 163,    // f32 (4 bytes: 163-166)
+    GRID_ROW_END_VALUE = 167,      // f32 (4 bytes: 167-170)
+    SCROLLBAR_WIDTH = 171,         // float (4 bytes: 171-174)
     ALIGN = 175,
     BOX_SIZING = 176,
     OVERFLOW = 177,
@@ -501,45 +508,30 @@ pub enum StyleKeys {
 
     // ============================================================
     // Border Radius (elliptical + squircle exponent)
-    // Each corner = 5 fields (12 bytes total):
-    //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+    // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
     // ============================================================
-
-    // ----------------------------
-    // Top-left corner (12 bytes)
-    // ----------------------------
     BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,
-    BORDER_RADIUS_TOP_LEFT_X_VALUE = 219, // float (4 bytes: 219-222)
-    BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223,
-    BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224, // float (4 bytes: 224-227)
-    BORDER_RADIUS_TOP_LEFT_EXPONENT = 228, // float (4 bytes: 228-231)
+    BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219,
+    BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220,
+    BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 221,
+    BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 222,
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223,
+    BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224,
+    BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225,
 
-    // ----------------------------
-    // Top-right corner
-    // ----------------------------
-    BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232,
-    BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233, // float (4 bytes: 233-236)
-    BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237,
-    BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238, // float (4 bytes: 238-241)
-    BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242, // float (4 bytes: 242-245)
+    BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, // f32 (4 bytes: 226-229)
+    BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230, // f32 (4 bytes: 230-233)
+    BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234, // f32 (4 bytes: 234-237)
+    BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238, // f32 (4 bytes: 238-241)
+    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242, // f32 (4 bytes: 242-245)
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246, // f32 (4 bytes: 246-249)
+    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250, // f32 (4 bytes: 250-253)
+    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254, // f32 (4 bytes: 254-257)
 
-    // ----------------------------
-    // Bottom-right corner
-    // ----------------------------
-    BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246,
-    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247, // float (4 bytes: 247-250)
-    BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251,
-    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252, // float (4 bytes: 252-255)
-    BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256, // float (4 bytes: 256-259)
-
-    // ----------------------------
-    // Bottom-left corner
-    // ----------------------------
-    BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260,
-    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261, // float (4 bytes: 261-264)
-    BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265,
-    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266, // float (4 bytes: 266-269)
-    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270, // float (4 bytes: 270-273)
+    BORDER_RADIUS_TOP_LEFT_EXPONENT = 258, // f32 (4 bytes: 258-261)
+    BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262, // f32 (4 bytes: 262-265)
+    BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266, // f32 (4 bytes: 266-269)
+    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270, // f32 (4 bytes: 270-273)
 
     // ----------------------------
     // Float
@@ -619,8 +611,63 @@ pub enum StyleKeys {
     // Pseudo set mask: 128-bit bitmask (two i64s) tracking which properties
     // were explicitly set on a pseudo style buffer. Uses the same bit layout
     // as StateKeys. Zero-copy: lives in the style buffer itself.
-    PSEUDO_SET_MASK_LOW = 398,        // i64 (8 bytes: 398-405)
-    PSEUDO_SET_MASK_HIGH = 406,       // i64 (8 bytes: 406-413)
+    PSEUDO_SET_MASK_LOW = 398,  // i64 (8 bytes: 398-405)
+    PSEUDO_SET_MASK_HIGH = 406, // i64 (8 bytes: 406-413)
+
+    // Platform-only (not in Rust StyleKeys but reserved):
+    // FONT_VARIANT_NUMERIC = 419      // u8 (bitmask)
+    // FONT_VARIANT_NUMERIC_STATE = 420 // u8
+
+    // ============================================================
+    // Transform buffer region (bytes 422-561)
+    // ============================================================
+    TRANSFORM_COUNT = 422,  // u8: number of inline ops (0-6)
+    TRANSFORM_FLAGS = 423,  // u8: bit 0 = HAS_MATRIX, bit 1 = IS_3D
+    TRANSFORM_OP_0 = 424,   // 12 bytes: type(u8) + pad(3) + a(f32) + b(f32)
+    TRANSFORM_OP_1 = 436,   // 12 bytes
+    TRANSFORM_OP_2 = 448,   // 12 bytes
+    TRANSFORM_OP_3 = 460,   // 12 bytes
+    TRANSFORM_OP_4 = 472,   // 12 bytes
+    TRANSFORM_OP_5 = 484,   // 12 bytes
+    TRANSFORM_MATRIX = 496, // 64 bytes: 16 x f32 (4x4 column-major matrix)
+}
+
+pub const MAX_INLINE_TRANSFORM_OPS: usize = 6;
+pub const TRANSFORM_OP_SIZE: usize = 12; // bytes per op
+
+pub const TRANSFORM_FLAG_HAS_MATRIX: u8 = 0x01;
+pub const TRANSFORM_FLAG_IS_3D: u8 = 0x02;
+
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TransformOpType {
+    None = 0,
+    Translate = 1,
+    TranslateX = 2,
+    TranslateY = 3,
+    Scale = 4,
+    ScaleX = 5,
+    ScaleY = 6,
+    Rotate = 7,
+    SkewX = 8,
+    SkewY = 9,
+}
+
+impl TransformOpType {
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            1 => Self::Translate,
+            2 => Self::TranslateX,
+            3 => Self::TranslateY,
+            4 => Self::Scale,
+            5 => Self::ScaleX,
+            6 => Self::ScaleY,
+            7 => Self::Rotate,
+            8 => Self::SkewX,
+            9 => Self::SkewY,
+            _ => Self::None,
+        }
+    }
 }
 
 bitflags! {
@@ -799,43 +846,57 @@ impl Style {
     }
 
     pub(crate) fn init_default_data(buffer: &mut [u8]) {
-        buffer[StyleKeys::LIST_STYLE_TYPE as usize] = 2;
+        set_style_data_u8(
+            buffer,
+            StyleKeys::DISPLAY,
+            display_to_enum(Display::Block) as u8,
+        );
+
+        set_style_data_u8(buffer, StyleKeys::LIST_STYLE_TYPE, 2);
 
         set_style_data_i32(
-            buffer, StyleKeys::FONT_WEIGHT, 400 // normal
+            buffer,
+            StyleKeys::FONT_WEIGHT,
+            400, // normal
         );
 
-        set_style_data_i32(
-            buffer, StyleKeys::FONT_SIZE, DEFAULT_FONT_SIZE
-        );
+        set_style_data_i32(buffer, StyleKeys::FONT_SIZE, DEFAULT_FONT_SIZE);
 
-        set_style_data_u32(
-            buffer, StyleKeys::FONT_COLOR, 0xFF000000
-        );
+        set_style_data_u32(buffer, StyleKeys::FONT_COLOR, 0xFF000000);
 
-        set_style_data_u32(
-            buffer, StyleKeys::BACKGROUND_COLOR, 0
-        );
+        set_style_data_u32(buffer, StyleKeys::BACKGROUND_COLOR, 0);
 
-        set_style_data_u32(
-            buffer, StyleKeys::DECORATION_COLOR, UNSET_COLOR
-        );
+        set_style_data_u32(buffer, StyleKeys::DECORATION_COLOR, UNSET_COLOR);
 
+        // default ratio to NAN
+        set_style_data_f32(buffer, StyleKeys::ASPECT_RATIO, f32::NAN);
+        // default shrink to 1
+        set_style_data_f32(buffer, StyleKeys::FLEX_SHRINK, 1.);
+
+        /*
+        set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_TOP_LEFT_EXPONENT, 1.);
+        set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1.);
+        set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1.);
+        set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1.);
+        */
+
+        unsafe {
+            let src: [f32; 4] = [1., 1., 1., 1.];
+
+            let ptr = buffer
+                .as_mut_ptr()
+                .add(StyleKeys::BORDER_RADIUS_TOP_LEFT_EXPONENT as usize)
+                as *mut u32;
+
+            for i in 0..4 {
+                ptr.add(i).write_unaligned(src[i].to_bits().to_le());
+            }
+        }
+
+        // Default font metrics
 
         {
-            set_style_data_f32(buffer, StyleKeys::ASPECT_RATIO, f32::NAN);
-
-            // default ratio to NAN
-            set_style_data_f32(buffer, StyleKeys::ASPECT_RATIO, f32::NAN);
-            // default shrink to 1
-            set_style_data_f32(buffer, StyleKeys::FLEX_SHRINK, 1.);
-
-            set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_TOP_LEFT_EXPONENT, 1.);
-            set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1.);
-            set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1.);
-            set_style_data_f32(buffer, StyleKeys::BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1.);
-
-            // Default font metrics
+            /*
 
             set_style_data_f32(buffer, StyleKeys::FONT_METRICS_ASCENT_OFFSET, 14.);
 
@@ -849,55 +910,66 @@ impl Style {
             set_style_data_f32(buffer, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET, 10.);
 
             set_style_data_f32(buffer, StyleKeys::FIRST_BASELINE_OFFSET, f32::NAN);
+
+            */
+
+            let src: [u32; 5] = [
+                14f32.to_bits(), // ascent
+                4f32.to_bits(),  // descent
+                7f32.to_bits(),  // x-height
+                0f32.to_bits(),  // leading
+                10f32.to_bits(), // cap height
+            ];
+
+            unsafe {
+                let ptr = buffer
+                    .as_mut_ptr()
+                    .add(StyleKeys::FONT_METRICS_ASCENT_OFFSET as usize)
+                    as *mut u32;
+
+                ptr.add(0).write_unaligned(src[0]);
+                ptr.add(1).write_unaligned(src[1]);
+                ptr.add(2).write_unaligned(src[2]);
+                ptr.add(3).write_unaligned(src[3]);
+                ptr.add(4).write_unaligned(src[4]);
+            }
         }
 
-        let int_slice =
-            unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut i8, buffer.len()) };
+        set_style_data_i8(
+            buffer,
+            StyleKeys::OBJECT_FIT,
+            object_to_enum(ObjectFit::Fill),
+        );
 
-        int_slice[StyleKeys::OBJECT_FIT as usize] = object_to_enum(ObjectFit::Fill);
+        // Normal
+        set_style_data_i8(buffer, StyleKeys::ALIGN_ITEMS, -1);
+        set_style_data_i8(buffer, StyleKeys::ALIGN_SELF, -1);
+        set_style_data_i8(buffer, StyleKeys::ALIGN_CONTENT, -1);
 
-        int_slice[StyleKeys::DISPLAY as usize] = display_to_enum(Display::Block);
+        set_style_data_i8(buffer, StyleKeys::JUSTIFY_ITEMS, -1);
+        set_style_data_i8(buffer, StyleKeys::JUSTIFY_SELF, -1);
+        set_style_data_i8(buffer, StyleKeys::JUSTIFY_CONTENT, -1);
 
-        // default Normal -> -1
-        int_slice[StyleKeys::ALIGN_ITEMS as usize] = -1;
+        {
+            let src: [i8; 4] = [1, 1, 1, 1];
+            // set_style_data_i8(buffer, StyleKeys::MARGIN_LEFT_TYPE, 1);
+            // set_style_data_i8(buffer, StyleKeys::MARGIN_TOP_TYPE, 1);
+            // set_style_data_i8(buffer, StyleKeys::MARGIN_RIGHT_TYPE, 1);
+            // set_style_data_i8(buffer, StyleKeys::MARGIN_BOTTOM_TYPE, 1);
 
-        int_slice[StyleKeys::ALIGN_SELF as usize] = -1;
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    src.as_ptr(),
+                    buffer
+                        .as_mut_ptr()
+                        .add(StyleKeys::MARGIN_LEFT_TYPE as usize) as *mut i8,
+                    4,
+                );
+            }
+        }
 
-        int_slice[StyleKeys::ALIGN_CONTENT as usize] = -1;
-
-        int_slice[StyleKeys::JUSTIFY_ITEMS as usize] = -1;
-
-        int_slice[StyleKeys::JUSTIFY_SELF as usize] = -1;
-
-        int_slice[StyleKeys::JUSTIFY_CONTENT as usize] = -1;
-
-        int_slice[StyleKeys::MARGIN_LEFT_TYPE as usize] = 1;
-
-        int_slice[StyleKeys::MARGIN_TOP_TYPE as usize] = 1;
-
-        int_slice[StyleKeys::MARGIN_RIGHT_TYPE as usize] = 1;
-
-        int_slice[StyleKeys::MARGIN_BOTTOM_TYPE as usize] = 1;
-
-        int_slice[StyleKeys::PADDING_LEFT_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::PADDING_TOP_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::PADDING_RIGHT_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::PADDING_BOTTOM_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::BORDER_LEFT_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::BORDER_TOP_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize] = 0;
-
-        int_slice[StyleKeys::TEXT_ALIGN as usize] = 5; // start
-
-        int_slice[StyleKeys::TEXT_JUSTIFY as usize] = -1; // none
+        set_style_data_i8(buffer, StyleKeys::TEXT_ALIGN, 5);
+        set_style_data_i8(buffer, StyleKeys::TEXT_JUSTIFY, -5);
     }
 
     pub fn new(arena: *mut StyleArena) -> Self {
@@ -938,18 +1010,38 @@ impl Style {
     pub fn font_metrics(&self) -> FontMetrics {
         let data = self.data();
 
-        // Read raw values
+        let mut ascent: f32;
+        let mut descent: f32;
+        let mut x_height: f32;
+        let mut leading: f32;
+        let mut cap_height: f32;
+
+        /*
+         // Read raw values
         let mut ascent = get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET);
         let mut descent = get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET);
         let mut x_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET);
         let mut leading = get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET);
         let mut cap_height = get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET);
+         */
+
+        unsafe {
+            let ptr = data
+                .as_ptr()
+                .add(StyleKeys::FONT_METRICS_ASCENT_OFFSET as usize)
+                as *const u32;
+
+            ascent = f32::from_bits(u32::from_le(ptr.add(0).read_unaligned()));
+            descent = f32::from_bits(u32::from_le(ptr.add(1).read_unaligned()));
+            x_height = f32::from_bits(u32::from_le(ptr.add(2).read_unaligned()));
+            leading = f32::from_bits(u32::from_le(ptr.add(3).read_unaligned()));
+            cap_height = f32::from_bits(u32::from_le(ptr.add(4).read_unaligned()));
+        }
 
         // Defensive sanitization: normalize sign and replace NaN / extremely-small values
         const EPS: f32 = 1e-6;
 
         if ascent.is_nan() || ascent.abs() < EPS {
-            log::warn!("sanitizing font_metrics.ascent raw_bits=0x{:08x} raw_val={:?}", ascent.to_bits(), ascent);
             ascent = FontMetrics::DEFAULT.ascent;
         }
         // Android font ascent may be negative; keep ascent positive for layout math
@@ -958,12 +1050,10 @@ impl Style {
         }
 
         if descent.is_nan() || descent < 0.0 || descent.abs() < EPS {
-            log::warn!("sanitizing font_metrics.descent raw_bits=0x{:08x} raw_val={:?}", descent.to_bits(), descent);
             descent = FontMetrics::DEFAULT.descent;
         }
 
         if x_height.is_nan() || x_height.abs() < EPS {
-            log::warn!("sanitizing font_metrics.x_height raw_bits=0x{:08x} raw_val={:?}", x_height.to_bits(), x_height);
             x_height = FontMetrics::DEFAULT.x_height;
         }
 
@@ -973,7 +1063,6 @@ impl Style {
         }
 
         if cap_height.is_nan() || cap_height.abs() < EPS {
-            log::warn!("sanitizing font_metrics.cap_height raw_bits=0x{:08x} raw_val={:?}", cap_height.to_bits(), cap_height);
             cap_height = FontMetrics::DEFAULT.cap_height;
         }
 
@@ -989,6 +1078,7 @@ impl Style {
     /// Set font metrics
     pub fn set_font_metrics(&mut self, metrics: FontMetrics) {
         let data = self.data_mut();
+        /*
         set_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET, metrics.ascent);
         set_style_data_f32(
             data,
@@ -1010,6 +1100,27 @@ impl Style {
             StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET,
             metrics.cap_height,
         );
+
+        */
+
+        let src: [f32; 5] = [
+            metrics.ascent,
+            metrics.descent,
+            metrics.x_height,
+            metrics.leading,
+            metrics.cap_height,
+        ];
+
+        unsafe {
+            let ptr = data
+                .as_mut_ptr()
+                .add(StyleKeys::FONT_METRICS_ASCENT_OFFSET as usize)
+                as *mut u32;
+
+            for i in 0..5 {
+                ptr.add(i).write_unaligned(src[i].to_bits().to_le());
+            }
+        }
     }
 
     /// Set font metrics from individual values
@@ -1408,44 +1519,60 @@ impl Style {
     }
 
     pub fn get_inset(&self) -> Rect<LengthPercentageAuto> {
-        Rect {
-            left: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::INSET_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::INSET_LEFT_VALUE),
-            ),
-            right: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::INSET_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::INSET_RIGHT_VALUE),
-            ),
-            top: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::INSET_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::INSET_TOP_VALUE),
-            ),
-            bottom: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::INSET_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::INSET_BOTTOM_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut inset_type = [0i8; 4];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::INSET_LEFT_TYPE as usize) as *const i8,
+                inset_type.as_mut_ptr(),
+                4,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::INSET_LEFT_VALUE as usize) as *const u32;
+
+            let values = [
+                f32::from_bits(ptr.add(0).read_unaligned()),
+                f32::from_bits(ptr.add(1).read_unaligned()),
+                f32::from_bits(ptr.add(2).read_unaligned()),
+                f32::from_bits(ptr.add(3).read_unaligned()),
+            ];
+
+            Rect {
+                left: length_percentage_auto_from_type_value(inset_type[0], values[0]),
+                right: length_percentage_auto_from_type_value(inset_type[1], values[1]),
+                top: length_percentage_auto_from_type_value(inset_type[2], values[2]),
+                bottom: length_percentage_auto_from_type_value(inset_type[3], values[3]),
+            }
         }
     }
 
     pub fn set_inset(&mut self, value: Rect<LengthPercentageAuto>) {
         self.prepare_mut();
-        let left = length_percentage_auto_to_type_value(value.left);
-        let right = length_percentage_auto_to_type_value(value.right);
-        let top = length_percentage_auto_to_type_value(value.top);
-        let bottom = length_percentage_auto_to_type_value(value.bottom);
+        let (lt, lv) = length_percentage_auto_to_type_value(value.left);
+        let (rt, rv) = length_percentage_auto_to_type_value(value.right);
+        let (tt, tv) = length_percentage_auto_to_type_value(value.top);
+        let (bt, bv) = length_percentage_auto_to_type_value(value.bottom);
 
-        set_style_data_i8(self.data_mut(), StyleKeys::INSET_LEFT_TYPE, left.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::INSET_LEFT_VALUE, left.1);
+        let inset_type = [lt, rt, tt, bt];
+        let inset_value = [lv.to_bits(), rv.to_bits(), tv.to_bits(), bv.to_bits()];
 
-        set_style_data_i8(self.data_mut(), StyleKeys::INSET_RIGHT_TYPE, right.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::INSET_RIGHT_VALUE, right.1);
+        let data = self.data_mut();
 
-        set_style_data_i8(self.data_mut(), StyleKeys::INSET_TOP_TYPE, top.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::INSET_TOP_VALUE, top.1);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                inset_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::INSET_LEFT_TYPE as usize) as *mut i8,
+                4,
+            );
 
-        set_style_data_i8(self.data_mut(), StyleKeys::INSET_BOTTOM_TYPE, bottom.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::INSET_BOTTOM_VALUE, bottom.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::INSET_LEFT_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(inset_value[0]);
+            ptr.add(1).write_unaligned(inset_value[1]);
+            ptr.add(2).write_unaligned(inset_value[2]);
+            ptr.add(3).write_unaligned(inset_value[3]);
+        }
     }
 
     pub fn set_left_inset(&mut self, value: LengthPercentageAuto) {
@@ -1505,60 +1632,60 @@ impl Style {
     }
 
     pub fn get_margin(&self) -> Rect<LengthPercentageAuto> {
-        Rect {
-            left: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MARGIN_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MARGIN_LEFT_VALUE),
-            ),
-            right: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MARGIN_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MARGIN_RIGHT_VALUE),
-            ),
-            top: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MARGIN_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MARGIN_TOP_VALUE),
-            ),
-            bottom: length_percentage_auto_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MARGIN_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MARGIN_BOTTOM_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut margin_type = [0i8; 4];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::MARGIN_LEFT_TYPE as usize) as *const i8,
+                margin_type.as_mut_ptr(),
+                4,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::MARGIN_LEFT_VALUE as usize) as *const u32;
+
+            let values = [
+                f32::from_bits(ptr.add(0).read_unaligned()),
+                f32::from_bits(ptr.add(1).read_unaligned()),
+                f32::from_bits(ptr.add(2).read_unaligned()),
+                f32::from_bits(ptr.add(3).read_unaligned()),
+            ];
+
+            Rect {
+                left: length_percentage_auto_from_type_value(margin_type[0], values[0]),
+                right: length_percentage_auto_from_type_value(margin_type[1], values[1]),
+                top: length_percentage_auto_from_type_value(margin_type[2], values[2]),
+                bottom: length_percentage_auto_from_type_value(margin_type[3], values[3]),
+            }
         }
     }
 
     pub fn set_margin(&mut self, value: Rect<LengthPercentageAuto>) {
         self.prepare_mut();
-        let margin_left = length_percentage_auto_to_type_value(value.left);
-        let margin_right = length_percentage_auto_to_type_value(value.right);
-        let margin_top = length_percentage_auto_to_type_value(value.top);
-        let margin_bottom = length_percentage_auto_to_type_value(value.bottom);
+        let (lt, lv) = length_percentage_auto_to_type_value(value.left);
+        let (rt, rv) = length_percentage_auto_to_type_value(value.right);
+        let (tt, tv) = length_percentage_auto_to_type_value(value.top);
+        let (bt, bv) = length_percentage_auto_to_type_value(value.bottom);
 
-        set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_LEFT_TYPE, margin_left.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_LEFT_VALUE, margin_left.1);
+        let margin_type = [lt, rt, tt, bt];
+        let margin_value = [lv.to_bits(), rv.to_bits(), tv.to_bits(), bv.to_bits()];
 
-        set_style_data_i8(
-            self.data_mut(),
-            StyleKeys::MARGIN_RIGHT_TYPE,
-            margin_right.0,
-        );
-        set_style_data_f32(
-            self.data_mut(),
-            StyleKeys::MARGIN_RIGHT_VALUE,
-            margin_right.1,
-        );
+        let data = self.data_mut();
 
-        set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_TOP_TYPE, margin_top.0);
-        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_TOP_VALUE, margin_top.1);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                margin_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::MARGIN_LEFT_TYPE as usize) as *mut i8,
+                4,
+            );
 
-        set_style_data_i8(
-            self.data_mut(),
-            StyleKeys::MARGIN_BOTTOM_TYPE,
-            margin_bottom.0,
-        );
-        set_style_data_f32(
-            self.data_mut(),
-            StyleKeys::MARGIN_BOTTOM_VALUE,
-            margin_bottom.1,
-        );
+            let ptr = data.as_mut_ptr().add(StyleKeys::MARGIN_LEFT_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(margin_value[0]);
+            ptr.add(1).write_unaligned(margin_value[1]);
+            ptr.add(2).write_unaligned(margin_value[2]);
+            ptr.add(3).write_unaligned(margin_value[3]);
+        }
     }
 
     pub fn set_left_margin(&mut self, value: LengthPercentageAuto) {
@@ -1618,116 +1745,170 @@ impl Style {
     }
 
     pub fn get_padding(&self) -> Rect<LengthPercentage> {
-        Rect {
-            left: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::PADDING_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_LEFT_VALUE),
-            ),
-            right: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::PADDING_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_RIGHT_VALUE),
-            ),
-            top: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::PADDING_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_TOP_VALUE),
-            ),
-            bottom: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::PADDING_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_BOTTOM_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut padding_type = [0i8; 4];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::PADDING_LEFT_TYPE as usize) as *const i8,
+                padding_type.as_mut_ptr(),
+                4,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::PADDING_LEFT_VALUE as usize) as *const u32;
+
+            let values = [
+                f32::from_bits(ptr.add(0).read_unaligned()),
+                f32::from_bits(ptr.add(1).read_unaligned()),
+                f32::from_bits(ptr.add(2).read_unaligned()),
+                f32::from_bits(ptr.add(3).read_unaligned()),
+            ];
+
+            Rect {
+                left: length_percentage_from_type_value(padding_type[0], values[0]),
+                right: length_percentage_from_type_value(padding_type[1], values[1]),
+                top: length_percentage_from_type_value(padding_type[2], values[2]),
+                bottom: length_percentage_from_type_value(padding_type[3], values[3]),
+            }
         }
     }
 
     pub fn set_padding(&mut self, value: Rect<LengthPercentage>) {
         self.prepare_mut();
-        let padding_left = length_percentage_to_type_value(value.left);
-        let padding_right = length_percentage_to_type_value(value.right);
-        let padding_top = length_percentage_to_type_value(value.top);
-        let padding_bottom = length_percentage_to_type_value(value.bottom);
+
+        let (lt, lv) = length_percentage_to_type_value(value.left);
+        let (rt, rv) = length_percentage_to_type_value(value.right);
+        let (tt, tv) = length_percentage_to_type_value(value.top);
+        let (bt, bv) = length_percentage_to_type_value(value.bottom);
+
+        let padding_type = [lt, rt, tt, bt];
+        let padding_value = [lv.to_bits(), rv.to_bits(), tv.to_bits(), bv.to_bits()];
 
         let data = self.data_mut();
 
-        set_style_data_i8(data, StyleKeys::PADDING_LEFT_TYPE, padding_left.0);
-        set_style_data_f32(data, StyleKeys::PADDING_LEFT_VALUE, padding_left.1);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                padding_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::PADDING_LEFT_TYPE as usize) as *mut i8,
+                4,
+            );
 
-        set_style_data_i8(data, StyleKeys::PADDING_RIGHT_TYPE, padding_right.0);
-        set_style_data_f32(data, StyleKeys::PADDING_RIGHT_VALUE, padding_right.1);
+            let ptr = data
+                .as_mut_ptr()
+                .add(StyleKeys::PADDING_LEFT_VALUE as usize) as *mut u32;
 
-        set_style_data_i8(data, StyleKeys::PADDING_TOP_TYPE, padding_top.0);
-        set_style_data_f32(data, StyleKeys::PADDING_TOP_VALUE, padding_top.1);
-
-        set_style_data_i8(data, StyleKeys::PADDING_BOTTOM_TYPE, padding_bottom.0);
-        set_style_data_f32(data, StyleKeys::PADDING_BOTTOM_VALUE, padding_bottom.1);
+            ptr.add(0).write_unaligned(padding_value[0]);
+            ptr.add(1).write_unaligned(padding_value[1]);
+            ptr.add(2).write_unaligned(padding_value[2]);
+            ptr.add(3).write_unaligned(padding_value[3]);
+        }
     }
 
     pub fn get_border(&self) -> Rect<LengthPercentage> {
-        Rect {
-            left: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::BORDER_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::BORDER_LEFT_VALUE),
-            ),
-            right: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::BORDER_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::BORDER_RIGHT_VALUE),
-            ),
-            top: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::BORDER_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::BORDER_TOP_VALUE),
-            ),
-            bottom: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::BORDER_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::BORDER_BOTTOM_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut border_type = [0i8; 4];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::BORDER_LEFT_TYPE as usize) as *const i8,
+                border_type.as_mut_ptr(),
+                4,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::BORDER_LEFT_VALUE as usize) as *const u32;
+
+            let values = [
+                f32::from_bits(ptr.add(0).read_unaligned()),
+                f32::from_bits(ptr.add(1).read_unaligned()),
+                f32::from_bits(ptr.add(2).read_unaligned()),
+                f32::from_bits(ptr.add(3).read_unaligned()),
+            ];
+
+            Rect {
+                left: length_percentage_from_type_value(border_type[0], values[0]),
+                right: length_percentage_from_type_value(border_type[1], values[1]),
+                top: length_percentage_from_type_value(border_type[2], values[2]),
+                bottom: length_percentage_from_type_value(border_type[3], values[3]),
+            }
         }
     }
 
     pub fn set_border(&mut self, value: Rect<LengthPercentage>) {
         self.prepare_mut();
-        let border_left = length_percentage_to_type_value(value.left);
-        let border_right = length_percentage_to_type_value(value.right);
-        let border_top = length_percentage_to_type_value(value.top);
-        let border_bottom = length_percentage_to_type_value(value.bottom);
+        let (lt, lv) = length_percentage_to_type_value(value.left);
+        let (rt, rv) = length_percentage_to_type_value(value.right);
+        let (tt, tv) = length_percentage_to_type_value(value.top);
+        let (bt, bv) = length_percentage_to_type_value(value.bottom);
+
+        let border_type = [lt, rt, tt, bt];
+        let border_value = [lv.to_bits(), rv.to_bits(), tv.to_bits(), bv.to_bits()];
 
         let data = self.data_mut();
 
-        set_style_data_i8(data, StyleKeys::BORDER_LEFT_TYPE, border_left.0);
-        set_style_data_f32(data, StyleKeys::BORDER_LEFT_VALUE, border_left.1);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                border_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::BORDER_LEFT_TYPE as usize) as *mut i8,
+                4,
+            );
 
-        set_style_data_i8(data, StyleKeys::BORDER_RIGHT_TYPE, border_right.0);
-        set_style_data_f32(data, StyleKeys::BORDER_RIGHT_VALUE, border_right.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::BORDER_LEFT_VALUE as usize) as *mut u32;
 
-        set_style_data_i8(data, StyleKeys::BORDER_TOP_TYPE, border_top.0);
-        set_style_data_f32(data, StyleKeys::BORDER_TOP_VALUE, border_top.1);
-
-        set_style_data_i8(data, StyleKeys::BORDER_BOTTOM_TYPE, border_bottom.0);
-        set_style_data_f32(data, StyleKeys::BORDER_BOTTOM_VALUE, border_bottom.1);
+            ptr.add(0).write_unaligned(border_value[0]);
+            ptr.add(1).write_unaligned(border_value[1]);
+            ptr.add(2).write_unaligned(border_value[2]);
+            ptr.add(3).write_unaligned(border_value[3]);
+        }
     }
 
     pub fn get_size(&self) -> Size<Dimension> {
-        Size {
-            width: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::WIDTH_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::WIDTH_VALUE),
-            ),
-            height: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::HEIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::HEIGHT_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut size_type = [0i8; 2];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::WIDTH_TYPE as usize) as *const i8,
+                size_type.as_mut_ptr(),
+                2,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::WIDTH_VALUE as usize) as *const u32;
+
+            Size {
+                width: dimension_from_type_value(
+                    size_type[0],
+                    f32::from_bits(ptr.add(0).read_unaligned()),
+                ),
+                height: dimension_from_type_value(
+                    size_type[1],
+                    f32::from_bits(ptr.add(1).read_unaligned()),
+                ),
+            }
         }
     }
 
     pub fn set_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
-        let width = dimension_to_type_value(value.width);
+        let (wt, wv) = dimension_to_type_value(value.width);
+        let (ht, hv) = dimension_to_type_value(value.height);
+
+        let size_type = [wt, ht];
+        let size_value = [wv.to_bits(), hv.to_bits()];
 
         let data = self.data_mut();
-        set_style_data_i8(data, StyleKeys::WIDTH_TYPE, width.0);
-        set_style_data_f32(data, StyleKeys::WIDTH_VALUE, width.1);
 
-        let height = dimension_to_type_value(value.height);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                size_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::WIDTH_TYPE as usize) as *mut i8,
+                2,
+            );
 
-        set_style_data_i8(data, StyleKeys::HEIGHT_TYPE, height.0);
-        set_style_data_f32(data, StyleKeys::HEIGHT_VALUE, height.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::WIDTH_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(size_value[0]);
+            ptr.add(1).write_unaligned(size_value[1]);
+        }
     }
 
     pub fn width(&self) -> Dimension {
@@ -1761,30 +1942,53 @@ impl Style {
     }
 
     pub fn get_min_size(&self) -> Size<Dimension> {
-        Size {
-            width: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MIN_WIDTH_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MIN_WIDTH_VALUE),
-            ),
-            height: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MIN_HEIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MIN_HEIGHT_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut size_type = [0i8; 2];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::MIN_WIDTH_TYPE as usize) as *const i8,
+                size_type.as_mut_ptr(),
+                2,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::MIN_WIDTH_VALUE as usize) as *const u32;
+
+            Size {
+                width: dimension_from_type_value(
+                    size_type[0],
+                    f32::from_bits(ptr.add(0).read_unaligned()),
+                ),
+                height: dimension_from_type_value(
+                    size_type[1],
+                    f32::from_bits(ptr.add(1).read_unaligned()),
+                ),
+            }
         }
     }
 
     pub fn set_min_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
-        let width = dimension_to_type_value(value.width);
+        let (wt, wv) = dimension_to_type_value(value.width);
+        let (ht, hv) = dimension_to_type_value(value.height);
+
+        let size_type = [wt, ht];
+        let size_value = [wv.to_bits(), hv.to_bits()];
 
         let data = self.data_mut();
-        set_style_data_i8(data, StyleKeys::MIN_WIDTH_TYPE, width.0);
-        set_style_data_f32(data, StyleKeys::MIN_WIDTH_VALUE, width.1);
 
-        let height = dimension_to_type_value(value.height);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                size_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::MIN_WIDTH_TYPE as usize) as *mut i8,
+                2,
+            );
 
-        set_style_data_i8(data, StyleKeys::MIN_HEIGHT_TYPE, height.0);
-        set_style_data_f32(data, StyleKeys::MIN_HEIGHT_VALUE, height.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::MIN_WIDTH_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(size_value[0]);
+            ptr.add(1).write_unaligned(size_value[1]);
+        }
     }
 
     pub fn set_min_width(&mut self, value: Dimension) {
@@ -1804,30 +2008,53 @@ impl Style {
     }
 
     pub fn get_max_size(&self) -> Size<Dimension> {
-        Size {
-            width: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MAX_WIDTH_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MAX_WIDTH_VALUE),
-            ),
-            height: dimension_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::MAX_HEIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::MAX_HEIGHT_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut size_type = [0i8; 2];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::MAX_WIDTH_TYPE as usize) as *const i8,
+                size_type.as_mut_ptr(),
+                2,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::MAX_WIDTH_VALUE as usize) as *const u32;
+
+            Size {
+                width: dimension_from_type_value(
+                    size_type[0],
+                    f32::from_bits(ptr.add(0).read_unaligned()),
+                ),
+                height: dimension_from_type_value(
+                    size_type[1],
+                    f32::from_bits(ptr.add(1).read_unaligned()),
+                ),
+            }
         }
     }
 
     pub fn set_max_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
-        let width = dimension_to_type_value(value.width);
+        let (wt, wv) = dimension_to_type_value(value.width);
+        let (ht, hv) = dimension_to_type_value(value.height);
+
+        let size_type = [wt, ht];
+        let size_value = [wv.to_bits(), hv.to_bits()];
 
         let data = self.data_mut();
-        set_style_data_i8(data, StyleKeys::MAX_WIDTH_TYPE, width.0);
-        set_style_data_f32(data, StyleKeys::MAX_WIDTH_VALUE, width.1);
 
-        let height = dimension_to_type_value(value.height);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                size_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::MAX_WIDTH_TYPE as usize) as *mut i8,
+                2,
+            );
 
-        set_style_data_i8(data, StyleKeys::MAX_HEIGHT_TYPE, height.0);
-        set_style_data_f32(data, StyleKeys::MAX_HEIGHT_VALUE, height.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::MAX_WIDTH_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(size_value[0]);
+            ptr.add(1).write_unaligned(size_value[1]);
+        }
     }
 
     pub fn get_aspect_ratio(&self) -> Option<f32> {
@@ -1845,30 +2072,53 @@ impl Style {
     }
 
     pub fn get_gap(&self) -> Size<LengthPercentage> {
-        Size {
-            width: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::GAP_ROW_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::GAP_ROW_VALUE),
-            ),
-            height: length_percentage_from_type_value(
-                get_style_data_i8(self.data(), StyleKeys::GAP_COLUMN_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::GAP_COLUMN_VALUE),
-            ),
+        let data = self.data();
+        unsafe {
+            let mut gap_type = [0i8; 2];
+
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr().add(StyleKeys::GAP_ROW_TYPE as usize) as *const i8,
+                gap_type.as_mut_ptr(),
+                2,
+            );
+
+            let ptr = data.as_ptr().add(StyleKeys::GAP_ROW_VALUE as usize) as *const u32;
+
+            Size {
+                width: length_percentage_from_type_value(
+                    gap_type[0],
+                    f32::from_bits(ptr.add(0).read_unaligned()),
+                ),
+                height: length_percentage_from_type_value(
+                    gap_type[1],
+                    f32::from_bits(ptr.add(1).read_unaligned()),
+                ),
+            }
         }
     }
 
     pub fn set_gap(&mut self, value: Size<LengthPercentage>) {
         self.prepare_mut();
-        let gap_row = length_percentage_to_type_value(value.width);
+        let (rt, rv) = length_percentage_to_type_value(value.width);
+        let (ct, cv) = length_percentage_to_type_value(value.height);
+
+        let gap_type = [rt, ct];
+        let gap_value = [rv.to_bits(), cv.to_bits()];
 
         let data = self.data_mut();
-        set_style_data_i8(data, StyleKeys::GAP_ROW_TYPE, gap_row.0);
-        set_style_data_f32(data, StyleKeys::GAP_ROW_VALUE, gap_row.1);
 
-        let gap_column = length_percentage_to_type_value(value.height);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                gap_type.as_ptr(),
+                data.as_mut_ptr().add(StyleKeys::GAP_ROW_TYPE as usize) as *mut i8,
+                2,
+            );
 
-        set_style_data_i8(data, StyleKeys::GAP_COLUMN_TYPE, gap_column.0);
-        set_style_data_f32(data, StyleKeys::GAP_COLUMN_VALUE, gap_column.1);
+            let ptr = data.as_mut_ptr().add(StyleKeys::GAP_ROW_VALUE as usize) as *mut u32;
+
+            ptr.add(0).write_unaligned(gap_value[0]);
+            ptr.add(1).write_unaligned(gap_value[1]);
+        }
     }
 
     pub fn get_align_items(&self) -> Option<AlignItems> {
@@ -1961,11 +2211,7 @@ impl Style {
 
     pub fn set_text_align(&mut self, value: TextAlign) {
         self.prepare_mut();
-        set_style_data_i8(
-            self.data_mut(),
-            StyleKeys::ALIGN,
-            text_align_to_enum(value),
-        )
+        set_style_data_i8(self.data_mut(), StyleKeys::ALIGN, text_align_to_enum(value))
     }
 
     pub fn get_flex_direction(&self) -> FlexDirection {
@@ -2047,13 +2293,13 @@ impl Style {
     ) {
         if let Some(name) = &self.grid_area {
             if let Some(area) = template_areas.iter().find(|a| &a.name == name) {
-                // Grid lines in Taffy use 1-based indexing (CSS Grid standard)
-                // But area indices are 0-based, so add 1
-                self.grid_row_start = GridPlacement::from_line_index((area.row_start + 1) as i16);
-                self.grid_row_end = GridPlacement::from_line_index((area.row_end + 1) as i16);
+                // The parser already stores 1-based CSS grid line indices,
+                // so use them directly.
+                self.grid_row_start = GridPlacement::from_line_index(area.row_start as i16);
+                self.grid_row_end = GridPlacement::from_line_index(area.row_end as i16);
                 self.grid_column_start =
-                    GridPlacement::from_line_index((area.column_start + 1) as i16);
-                self.grid_column_end = GridPlacement::from_line_index((area.column_end + 1) as i16);
+                    GridPlacement::from_line_index(area.column_start as i16);
+                self.grid_column_end = GridPlacement::from_line_index(area.column_end as i16);
             }
         }
     }
@@ -2403,6 +2649,125 @@ impl Style {
 
     pub fn raw_mut(&mut self) -> (*mut u8, usize) {
         (self.raw, STYLE_BUFFER_SIZE)
+    }
+
+    // ── Transform buffer helpers ────────────────────────────────────────
+
+    #[inline]
+    pub fn transform_count(&self) -> u8 {
+        self.data()[StyleKeys::TRANSFORM_COUNT as usize]
+    }
+
+    #[inline]
+    pub fn transform_flags(&self) -> u8 {
+        self.data()[StyleKeys::TRANSFORM_FLAGS as usize]
+    }
+
+    #[inline]
+    pub fn has_transform_matrix(&self) -> bool {
+        (self.transform_flags() & TRANSFORM_FLAG_HAS_MATRIX) != 0
+    }
+
+    #[inline]
+    pub fn is_transform_3d(&self) -> bool {
+        (self.transform_flags() & TRANSFORM_FLAG_IS_3D) != 0
+    }
+
+    #[inline]
+    pub fn set_transform_count(&mut self, count: u8) {
+        self.data_mut()[StyleKeys::TRANSFORM_COUNT as usize] = count;
+    }
+
+    #[inline]
+    pub fn set_transform_flags(&mut self, flags: u8) {
+        self.data_mut()[StyleKeys::TRANSFORM_FLAGS as usize] = flags;
+    }
+
+    pub fn set_transform_op(&mut self, slot: usize, op_type: TransformOpType, a: f32, b: f32) {
+        debug_assert!(slot < MAX_INLINE_TRANSFORM_OPS);
+        let base = StyleKeys::TRANSFORM_OP_0 as usize + slot * TRANSFORM_OP_SIZE;
+        let buf = self.data_mut();
+        buf[base] = op_type as u8;
+        buf[base + 1] = 0; // padding
+        buf[base + 2] = 0;
+        buf[base + 3] = 0;
+        let a_bytes = if cfg!(target_endian = "little") {
+            a.to_le_bytes()
+        } else {
+            a.to_be_bytes()
+        };
+        let b_bytes = if cfg!(target_endian = "little") {
+            b.to_le_bytes()
+        } else {
+            b.to_be_bytes()
+        };
+        buf[base + 4..base + 8].copy_from_slice(&a_bytes);
+        buf[base + 8..base + 12].copy_from_slice(&b_bytes);
+    }
+
+    pub fn get_transform_op(&self, slot: usize) -> (TransformOpType, f32, f32) {
+        debug_assert!(slot < MAX_INLINE_TRANSFORM_OPS);
+        let base = StyleKeys::TRANSFORM_OP_0 as usize + slot * TRANSFORM_OP_SIZE;
+        let buf = self.data();
+        let op_type = TransformOpType::from_u8(buf[base]);
+        let a = if cfg!(target_endian = "little") {
+            f32::from_le_bytes([buf[base + 4], buf[base + 5], buf[base + 6], buf[base + 7]])
+        } else {
+            f32::from_be_bytes([buf[base + 4], buf[base + 5], buf[base + 6], buf[base + 7]])
+        };
+        let b = if cfg!(target_endian = "little") {
+            f32::from_le_bytes([buf[base + 8], buf[base + 9], buf[base + 10], buf[base + 11]])
+        } else {
+            f32::from_be_bytes([buf[base + 8], buf[base + 9], buf[base + 10], buf[base + 11]])
+        };
+        (op_type, a, b)
+    }
+
+    pub fn set_transform_matrix(&mut self, matrix: &[f32; 16]) {
+        let base = StyleKeys::TRANSFORM_MATRIX as usize;
+        let buf = self.data_mut();
+        for (i, &val) in matrix.iter().enumerate() {
+            let offset = base + i * 4;
+            let bytes = if cfg!(target_endian = "little") {
+                val.to_le_bytes()
+            } else {
+                val.to_be_bytes()
+            };
+            buf[offset..offset + 4].copy_from_slice(&bytes);
+        }
+    }
+
+    pub fn get_transform_matrix(&self) -> [f32; 16] {
+        let base = StyleKeys::TRANSFORM_MATRIX as usize;
+        let buf = self.data();
+        let mut matrix = [0f32; 16];
+        for i in 0..16 {
+            let offset = base + i * 4;
+            matrix[i] = if cfg!(target_endian = "little") {
+                f32::from_le_bytes([
+                    buf[offset],
+                    buf[offset + 1],
+                    buf[offset + 2],
+                    buf[offset + 3],
+                ])
+            } else {
+                f32::from_be_bytes([
+                    buf[offset],
+                    buf[offset + 1],
+                    buf[offset + 2],
+                    buf[offset + 3],
+                ])
+            };
+        }
+        matrix
+    }
+
+    pub fn clear_transform(&mut self) {
+        let buf = self.data_mut();
+        // Zero the entire transform region (422-559)
+        for i in StyleKeys::TRANSFORM_COUNT as usize..StyleKeys::TRANSFORM_MATRIX as usize + 64 {
+            buf[i] = 0;
+        }
     }
 }
 

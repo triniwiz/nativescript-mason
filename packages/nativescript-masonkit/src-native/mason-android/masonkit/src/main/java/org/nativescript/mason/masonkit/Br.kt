@@ -31,41 +31,43 @@ class Br(context: Context, mason: Mason) : Element, MeasureFunc {
   }
 
   override fun measure(
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
 
-    val ret = Size(0f, 0f)
-    val width = availableSpace.width?.takeIf {
+    var retWidth = 0f
+    var retHeight = 0f
+
+    val width = availableWidth.takeIf {
       it.isFinite() && it > 0
     }
 
     width?.let {
-      ret.width = it
+      retWidth = it
     }
 
     // Check if parent is a TextContainer - if so, the text layout handles the line break
     val parent = node.parent?.view
     if (parent is TextContainer) {
       // BR inside TextContainer has 0 height - the \n character handles spacing
-      ret.height = 0f
+      retHeight = 0f
     } else {
       // BR outside TextContainer needs to measure its own height
       val lineHeightType = style.resolvedLineHeightType
       val lineHeight = style.resolvedLineHeight
 
       if (lineHeightType == 1.toByte()) {
-        ret.height = lineHeight
+        retHeight = lineHeight
       } else {
         if (lineHeight > 0) {
-          ret.height = lineHeight
+          retHeight = lineHeight
         } else {
           val height = style.paint.textSize * 1.2f
-          ret.height = height
+          retHeight = height
         }
       }
     }
 
-    return ret
+    return MeasureOutput.make(retWidth, retHeight)
   }
 }

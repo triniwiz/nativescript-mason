@@ -228,11 +228,8 @@ class TextEngine(val container: TextContainer) {
       // to a plain-text concatenation of direct TextNode children so
       // the view still renders readable text instead of nothing.
       val fallback = SpannableStringBuilder()
-      try {
-        for (child in node.children) {
-          if (child is TextNode) fallback.append(child.data)
-        }
-      } catch (_: Exception) {
+      for (child in node.children) {
+        if (child is TextNode) fallback.append(child.data)
       }
       fallback
     }
@@ -249,10 +246,7 @@ class TextEngine(val container: TextContainer) {
         container.setText(spannable, BufferType.SPANNABLE)
       } catch (_: Exception) {
         // As a last resort, set plain text to avoid leaving the view blank
-        try {
-          container.setText(spannable.toString(), BufferType.NORMAL)
-        } catch (_: Exception) {
-        }
+        container.setText(spannable.toString(), BufferType.NORMAL)
       }
     }
 
@@ -281,18 +275,15 @@ class TextEngine(val container: TextContainer) {
 
     // Adjust width constraint to account for container padding so StaticLayout
     // measures the text inside the content-box (matching web behavior).
-    try {
-      val padL = container.node.computedPaddingLeft.toInt()
-      val padR = container.node.computedPaddingRight.toInt()
-      if (widthConstraint != Int.MAX_VALUE) {
-        val adjusted = widthConstraint - (padL + padR)
-        widthConstraint = if (adjusted > 0) adjusted
-        else 0
-      } else if (availableWidth.isFinite() && availableWidth > 0f) {
-        val adjusted = availableWidth.toInt() - (padL + padR)
-        if (adjusted > 0) widthConstraint = adjusted
-      }
-    } catch (_: Throwable) {
+    val padL = container.node.computedPaddingLeft.toInt()
+    val padR = container.node.computedPaddingRight.toInt()
+    if (widthConstraint != Int.MAX_VALUE) {
+      val adjusted = widthConstraint - (padL + padR)
+      widthConstraint = if (adjusted > 0) adjusted
+      else 0
+    } else if (availableWidth.isFinite() && availableWidth > 0f) {
+      val adjusted = availableWidth.toInt() - (padL + padR)
+      if (adjusted > 0) widthConstraint = adjusted
     }
 
     var allowWrap = true
@@ -349,33 +340,23 @@ class TextEngine(val container: TextContainer) {
         null
       }
       if (pFloat != null && pFloat != org.nativescript.mason.masonkit.enums.Float.None) {
-        try {
-          val pWidth = p.computedWidth
-          val pPadL = try {
-            p.computedPaddingLeft
-          } catch (_: Throwable) {
-            0f
-          }
-          val pPadR = try {
-            p.computedPaddingRight
-          } catch (_: Throwable) {
-            0f
-          }
-          val pContent = pWidth - pPadL - pPadR
-          if (pContent > 0f) {
-            val pCW = pContent.toInt()
-            val before = widthConstraint
-            widthConstraint = if (widthConstraint == Int.MAX_VALUE) pCW
-            else kotlin.math.min(widthConstraint, pCW)
-            try {
-              Log.d(
-                "com.test",
-                "measure-clamp parentFloated nodePtr=${node.nativePtr} parentPtr=${p.nativePtr} before=$before after=$widthConstraint pContent=$pContent"
-              )
-            } catch (_: Throwable) {
-            }
-          }
+        val pWidth = p.computedWidth
+        val pPadL = try {
+          p.computedPaddingLeft
         } catch (_: Throwable) {
+          0f
+        }
+        val pPadR = try {
+          p.computedPaddingRight
+        } catch (_: Throwable) {
+          0f
+        }
+        val pContent = pWidth - pPadL - pPadR
+        if (pContent > 0f) {
+          val pCW = pContent.toInt()
+          val before = widthConstraint
+          widthConstraint = if (widthConstraint == Int.MAX_VALUE) pCW
+          else kotlin.math.min(widthConstraint, pCW)
         }
       }
     }
@@ -576,25 +557,25 @@ class TextEngine(val container: TextContainer) {
 
   fun measure(
     paint: TextPaint,
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
     val pendingInvalidate = style.fontDirty
     try {
       val layout = measureLayout(
         paint,
-        knownDimensions.width ?: Float.NaN,
-        knownDimensions.height ?: Float.NaN,
-        availableSpace.width ?: Float.NaN,
-        availableSpace.height ?: Float.NaN
+        knownWidth,
+        knownHeight,
+        availableWidth,
+        availableHeight
       )
 
 
       // Use the actual measured dimensions from the layout
       val width = if (layout != null) {
-        when (availableSpace.width) {
+        when (availableWidth) {
           -1f -> minMeasuredTextWidth
           -2f -> maxMeasuredTextWidth
           else -> measuredTextWidth
@@ -604,7 +585,7 @@ class TextEngine(val container: TextContainer) {
       }
 
       val height = if (layout != null) {
-        when (availableSpace.height) {
+        when (availableHeight) {
           -1f -> minMeasuredTextHeight
           -2f -> maxMeasuredTextHeight
           else -> measuredTextHeight
@@ -623,22 +604,7 @@ class TextEngine(val container: TextContainer) {
 
       val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
 
-      try {
-        val nodePtr = node.nativePtr
-        Log.d(
-          "TextEngine.measure",
-          "nodePtr=${nodePtr} available=${availableSpace.width}x${availableSpace.height} measured=${width}x${finalHeight} layoutPresent=${layout != null}"
-        )
-        if (finalHeight != 0f && abs(finalHeight) < 1e-6f) {
-          Log.w("TextEngine.measure", "tiny finalHeight on nodePtr=${nodePtr} -> ${finalHeight}")
-        }
-        if (width != 0f && abs(width) < 1e-6f) {
-          Log.w("TextEngine.measure", "tiny width on nodePtr=${nodePtr} -> ${width}")
-        }
-      } catch (_: Throwable) {
-      }
-
-      return Size(width, finalHeight)
+      return MeasureOutput.make(width, finalHeight)
     } finally {
       style.inMeasure = false
       if (pendingInvalidate) {
@@ -999,10 +965,7 @@ class TextEngine(val container: TextContainer) {
 
       // Call the packed JNI path synchronously. This path is safe when
       // invoked inside the expected native/Java measurement flow and we
-      // prefer the fast packed primitive arrays. Removed the previous
-      // deferred-post path since writes are contained within the enclosing
-      // lock context and do not require posting to the view thread.
-      val tJniStart = System.nanoTime()
+      // prefer the fast packed primitive arrays.
       NativeHelpers.nativeNodeSetSegmentsPacked(
         node.mason.nativePtr,
         node.nativePtr,
@@ -1010,15 +973,6 @@ class TextEngine(val container: TextContainer) {
         longs,
         kinds
       )
-      val tJniEnd = System.nanoTime()
-
-      try {
-        Log.d(
-          "mason-text-bench",
-          "packed count=$count packMs=${(tPackEnd - tPackStart) / 1e6} jniMs=${(tJniEnd - tJniStart) / 1e6}"
-        )
-      } catch (_: Throwable) {
-      }
     }
 
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
@@ -1093,11 +1047,6 @@ class TextEngine(val container: TextContainer) {
       } else {
         childNode.computedHeight.toInt()
       }
-
-      Log.d(
-        "TextEngine:getSize",
-        "$width $height ..... ${childNode.cachedWidth} ${childNode.cachedHeight}"
-      )
 
       // Fallback: if computed sizes are zero, try measuring the child view
       if ((width <= 0 || height <= 0) && childNode.view is View) {
@@ -1196,39 +1145,28 @@ class TextEngine(val container: TextContainer) {
       // width so the placeholder spans the full line instead of shrinking to
       // the child's computed width (which may be zero while layouts are
       // being computed).
-      try {
-        if (childNode.style.display == Display.Block) {
-          var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
-          if (parentWidth <= 0) {
-            // Fallback to nearest ancestor Element width to get the real container width
-            val ancestorElement = findAncestorElement(childNode)
-            parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
-          }
+      if (childNode.style.display == Display.Block) {
+        var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
+        if (parentWidth <= 0) {
+          // Fallback to nearest ancestor Element width to get the real container width
+          val ancestorElement = findAncestorElement(childNode)
+          parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
+        }
 
-          if (parentWidth <= 0) {
-            // Fallback to this TextContainer's computed width
-            try {
-              val fallback = container.node.computedWidth.toInt()
-              if (fallback > 0) parentWidth = fallback
-            } catch (_: Throwable) {
-            }
-          }
-
-          // Match web semantics: if we have a parent/container width, use it.
-          // Otherwise leave the measured width as-is to allow overflow when nowrap.
-          if (parentWidth > 0) {
-            width = parentWidth
+        if (parentWidth <= 0) {
+          // Fallback to this TextContainer's computed width
+          try {
+            val fallback = container.node.computedWidth.toInt()
+            if (fallback > 0) parentWidth = fallback
+          } catch (_: Throwable) {
           }
         }
-      } catch (_: Throwable) {
-      }
 
-      try {
-        Log.d(
-          "mason-debug-text",
-          "ViewSpan.getSize node=${childNode.nativePtr} w=$width h=$height fm=${fm?.ascent},${fm?.descent}"
-        )
-      } catch (_: Throwable) {
+        // Match web semantics: if we have a parent/container width, use it.
+        // Otherwise leave the measured width as-is to allow overflow when nowrap.
+        if (parentWidth > 0) {
+          width = parentWidth
+        }
       }
       return width
     }
@@ -1255,11 +1193,6 @@ class TextEngine(val container: TextContainer) {
       } else {
         childNode.computedHeight.toInt()
       }
-
-      Log.d(
-        "TextEngine:draw",
-        "$cachedWidth $cachedHeight ..... ${childNode.cachedWidth} ${childNode.cachedHeight}"
-      )
 
       val childView = childNode.view as? View ?: return
 
@@ -1361,13 +1294,6 @@ class TextEngine(val container: TextContainer) {
       }
 
       canvas.withTranslation(x, drawY) {
-        try {
-          Log.d(
-            "mason-debug-text",
-            "ViewSpan.draw node=${childNode.nativePtr} x=$x drawTop=$drawY cachedW=$cachedWidth cachedH=$cachedHeight"
-          )
-        } catch (_: Throwable) {
-        }
         childView.draw(this)
       }
     }
@@ -1539,37 +1465,27 @@ class TextEngine(val container: TextContainer) {
       var barColor = 0xFF666666.toInt()
 
       // If the style specifies a left border width, use it (points)
-      try {
-        when (val leftWidth = container.style.borderLeftWidth) {
-          is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
-            barWidth = leftWidth.points
-          }
-
-          is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
-            // leave default
-          }
-
-          is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
-            // Percent width isn't meaningful for a hairline; ignore
-          }
+      when (val leftWidth = container.style.borderLeftWidth) {
+        is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
+          barWidth = leftWidth.points
         }
 
-        val leftColor = container.style.borderColor.left
-        if (leftColor != 0) {
-          barColor = leftColor
+        is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
+          // leave default
         }
-      } catch (_: Throwable) {
+
+        is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
+          // Percent width isn't meaningful for a hairline; ignore
+        }
+      }
+
+      val leftColor = container.style.borderColor.left
+      if (leftColor != 0) {
+        barColor = leftColor
       }
 
       // Leading margin to offset the bar + gap
       val leading = (barWidth + gap).toInt()
-      try {
-        Log.d(
-          "mason-debug-text",
-          "Blockquote span applied node=${container.node.nativePtr} barWidth=$barWidth gap=$gap leading=$leading"
-        )
-      } catch (_: Throwable) {
-      }
       spannable.setSpan(
         android.text.style.LeadingMarginSpan.Standard(leading),
         start,

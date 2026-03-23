@@ -27,6 +27,7 @@ class ViewUtils {
 
           for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
+            if (child.width <= 0 || child.height <= 0) continue
             val childStyle = (child as? Element)?.style ?: continue
             val outsetShadows = childStyle.boxShadows.filter { !it.inset }
             if (outsetShadows.isEmpty()) continue
@@ -50,6 +51,7 @@ class ViewUtils {
 
       for (i in 0 until parent.childCount) {
         val child = parent.getChildAt(i)
+        if (child.width <= 0 || child.height <= 0) continue
         val childStyle = (child as? Element)?.style ?: continue
         val outsetShadows = childStyle.boxShadows.filter { !it.inset }
         if (outsetShadows.isEmpty()) continue
@@ -150,27 +152,27 @@ class ViewUtils {
 
         Style.applyOverflowClip(style, canvas, style.node)
 
-        style.mFilter?.let { filter ->
+        val filter = style.mFilter
+        if (filter != null) {
           if (filter.filters.isEmpty() || useFastFilter) {
             // No filter or fast-path — draw content normally; fast overlay applied below
             if (filter.filters.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
               view.setRenderEffect(null)
             }
             superDraw(canvas)
-            return@let
-          }
-
-          filter.renderFilters(view, canvas) { destCanvas ->
-            if (filter.v1 != null || filter.v2 != null) {
-              superDraw(destCanvas)
+          } else {
+            filter.renderFilters(view, canvas) { destCanvas ->
+              if (filter.v1 != null || filter.v2 != null) {
+                superDraw(destCanvas)
+              }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              if ((filter.v3 as? CSSFilters.FilterHelperV3)?.hasComposite != true) {
+                superDraw(canvas)
+              }
             }
           }
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if ((filter.v3 as? CSSFilters.FilterHelperV3)?.hasComposite != true) {
-              superDraw(canvas)
-            }
-          }
-        } ?: run {
+        } else {
           superDraw(canvas)
         }
       }

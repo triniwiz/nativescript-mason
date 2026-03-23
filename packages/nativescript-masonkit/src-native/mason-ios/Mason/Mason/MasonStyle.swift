@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import QuartzCore
 
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
@@ -56,78 +57,79 @@ public struct StyleKeys {
   public static let JUSTIFY_SELF = 11
   public static let JUSTIFY_CONTENT = 12
   
+  // Contiguous types, then contiguous values per group
   public static let INSET_LEFT_TYPE = 13
-  public static let INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
-  public static let INSET_RIGHT_TYPE = 18
-  public static let INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
-  public static let INSET_TOP_TYPE = 23
-  public static let INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
-  public static let INSET_BOTTOM_TYPE = 28
-  public static let INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
-  
+  public static let INSET_RIGHT_TYPE = 14
+  public static let INSET_TOP_TYPE = 15
+  public static let INSET_BOTTOM_TYPE = 16
+  public static let INSET_LEFT_VALUE = 17   // f32 (4 bytes: 17-20)
+  public static let INSET_RIGHT_VALUE = 21  // f32 (4 bytes: 21-24)
+  public static let INSET_TOP_VALUE = 25    // f32 (4 bytes: 25-28)
+  public static let INSET_BOTTOM_VALUE = 29 // f32 (4 bytes: 29-32)
+
   public static let MARGIN_LEFT_TYPE = 33
-  public static let MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
-  public static let MARGIN_RIGHT_TYPE = 38
-  public static let MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
-  public static let MARGIN_TOP_TYPE = 43
-  public static let MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
-  public static let MARGIN_BOTTOM_TYPE = 48
-  public static let MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
-  
+  public static let MARGIN_RIGHT_TYPE = 34
+  public static let MARGIN_TOP_TYPE = 35
+  public static let MARGIN_BOTTOM_TYPE = 36
+  public static let MARGIN_LEFT_VALUE = 37   // f32 (4 bytes: 37-40)
+  public static let MARGIN_RIGHT_VALUE = 41  // f32 (4 bytes: 41-44)
+  public static let MARGIN_TOP_VALUE = 45    // f32 (4 bytes: 45-48)
+  public static let MARGIN_BOTTOM_VALUE = 49 // f32 (4 bytes: 49-52)
+
   public static let PADDING_LEFT_TYPE = 53
-  public static let PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
-  public static let PADDING_RIGHT_TYPE = 58
-  public static let PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
-  public static let PADDING_TOP_TYPE = 63
-  public static let PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
-  public static let PADDING_BOTTOM_TYPE = 68
-  public static let PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
-  
+  public static let PADDING_RIGHT_TYPE = 54
+  public static let PADDING_TOP_TYPE = 55
+  public static let PADDING_BOTTOM_TYPE = 56
+  public static let PADDING_LEFT_VALUE = 57   // f32 (4 bytes: 57-60)
+  public static let PADDING_RIGHT_VALUE = 61  // f32 (4 bytes: 61-64)
+  public static let PADDING_TOP_VALUE = 65    // f32 (4 bytes: 65-68)
+  public static let PADDING_BOTTOM_VALUE = 69 // f32 (4 bytes: 69-72)
+
   public static let BORDER_LEFT_TYPE = 73
-  public static let BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
-  public static let BORDER_RIGHT_TYPE = 78
-  public static let BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
-  public static let BORDER_TOP_TYPE = 83
-  public static let BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
-  public static let BORDER_BOTTOM_TYPE = 88
-  public static let BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
-  
-  public static let FLEX_GROW = 93 // float (4 bytes: 93-96)
-  public static let FLEX_SHRINK = 97 // float (4 bytes: 97-100)
-  
+  public static let BORDER_RIGHT_TYPE = 74
+  public static let BORDER_TOP_TYPE = 75
+  public static let BORDER_BOTTOM_TYPE = 76
+  public static let BORDER_LEFT_VALUE = 77   // f32 (4 bytes: 77-80)
+  public static let BORDER_RIGHT_VALUE = 81  // f32 (4 bytes: 81-84)
+  public static let BORDER_TOP_VALUE = 85    // f32 (4 bytes: 85-88)
+  public static let BORDER_BOTTOM_VALUE = 89 // f32 (4 bytes: 89-92)
+
+  public static let FLEX_GROW = 93   // f32 (4 bytes: 93-96)
+  public static let FLEX_SHRINK = 97 // f32 (4 bytes: 97-100)
+
   public static let FLEX_BASIS_TYPE = 101
-  public static let FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
-  
+  public static let FLEX_BASIS_VALUE = 102 // f32 (4 bytes: 102-105)
+
   public static let WIDTH_TYPE = 106
-  public static let WIDTH_VALUE = 107 // float (4 bytes: 107-110)
-  public static let HEIGHT_TYPE = 111
-  public static let HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
-  
+  public static let HEIGHT_TYPE = 107
+  public static let WIDTH_VALUE = 108  // f32 (4 bytes: 108-111)
+  public static let HEIGHT_VALUE = 112 // f32 (4 bytes: 112-115)
+
   public static let MIN_WIDTH_TYPE = 116
-  public static let MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
-  public static let MIN_HEIGHT_TYPE = 121
-  public static let MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
-  
+  public static let MIN_HEIGHT_TYPE = 117
+  public static let MIN_WIDTH_VALUE = 118  // f32 (4 bytes: 118-121)
+  public static let MIN_HEIGHT_VALUE = 122 // f32 (4 bytes: 122-125)
+
   public static let MAX_WIDTH_TYPE = 126
-  public static let MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
-  public static let MAX_HEIGHT_TYPE = 131
-  public static let MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
-  
+  public static let MAX_HEIGHT_TYPE = 127
+  public static let MAX_WIDTH_VALUE = 128  // f32 (4 bytes: 128-131)
+  public static let MAX_HEIGHT_VALUE = 132 // f32 (4 bytes: 132-135)
+
   public static let GAP_ROW_TYPE = 136
-  public static let GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
-  public static let GAP_COLUMN_TYPE = 141
-  public static let GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
-  
-  public static let ASPECT_RATIO = 146 // float (4 bytes: 146-149)
+  public static let GAP_COLUMN_TYPE = 137
+  public static let GAP_ROW_VALUE = 138    // f32 (4 bytes: 138-141)
+  public static let GAP_COLUMN_VALUE = 142 // f32 (4 bytes: 142-145)
+
+  public static let ASPECT_RATIO = 146 // f32 (4 bytes: 146-149)
   public static let GRID_AUTO_FLOW = 150
   public static let GRID_COLUMN_START_TYPE = 151
-  public static let GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
-  public static let GRID_COLUMN_END_TYPE = 156
-  public static let GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
-  public static let GRID_ROW_START_TYPE = 161
-  public static let GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
-  public static let GRID_ROW_END_TYPE = 166
-  public static let GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
+  public static let GRID_COLUMN_END_TYPE = 152
+  public static let GRID_ROW_START_TYPE = 153
+  public static let GRID_ROW_END_TYPE = 154
+  public static let GRID_COLUMN_START_VALUE = 155 // f32 (4 bytes: 155-158)
+  public static let GRID_COLUMN_END_VALUE = 159   // f32 (4 bytes: 159-162)
+  public static let GRID_ROW_START_VALUE = 163    // f32 (4 bytes: 163-166)
+  public static let GRID_ROW_END_VALUE = 167      // f32 (4 bytes: 167-170)
   public static let SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
   public static let ALIGN = 175
   public static let BOX_SIZING = 176
@@ -159,45 +161,30 @@ public struct StyleKeys {
   
   // ============================================================
   // Border Radius (elliptical + squircle exponent)
-  // Each corner = 5 fields (12 bytes total):
-  //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+  // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
   // ============================================================
-  
-  // ----------------------------
-  // Top-left corner (12 bytes)
-  // ----------------------------
   public static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
-  public static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
-  public static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
-  public static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
-  public static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
-  
-  // ----------------------------
-  // Top-right corner
-  // ----------------------------
-  public static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
-  public static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
-  public static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
-  public static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
-  public static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
-  
-  // ----------------------------
-  // Bottom-right corner
-  // ----------------------------
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
-  
-  // ----------------------------
-  // Bottom-left corner
-  // ----------------------------
-  public static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
-  public static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
-  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
-  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
-  public static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
+  public static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219
+  public static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220
+  public static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 221
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 222
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223
+  public static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224
+  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225
+
+  public static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 226      // f32 (4 bytes: 226-229)
+  public static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230      // f32 (4 bytes: 230-233)
+  public static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234     // f32 (4 bytes: 234-237)
+  public static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238     // f32 (4 bytes: 238-241)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242  // f32 (4 bytes: 242-245)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246  // f32 (4 bytes: 246-249)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250   // f32 (4 bytes: 250-253)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254   // f32 (4 bytes: 254-257)
+
+  public static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 258     // f32 (4 bytes: 258-261)
+  public static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262    // f32 (4 bytes: 262-265)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266 // f32 (4 bytes: 266-269)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270  // f32 (4 bytes: 270-273)
   
   // ----------------------------
   // Float
@@ -283,6 +270,34 @@ public struct StyleKeys {
   // font-variant-numeric bitmask (byte) + state
   public static let FONT_VARIANT_NUMERIC = 419 // byte (bitmask)
   public static let FONT_VARIANT_NUMERIC_STATE = 420 // byte
+
+  // ── Transform buffer region (bytes 422-559) ──────────────────────
+  public static let TRANSFORM_COUNT = 422     // u8: number of inline ops (0-6)
+  public static let TRANSFORM_FLAGS = 423     // u8: bit 0 = HAS_MATRIX, bit 1 = IS_3D
+  public static let TRANSFORM_OP_0 = 424      // 12 bytes: type(u8) + pad(3) + a(f32) + b(f32)
+  public static let TRANSFORM_OP_1 = 436
+  public static let TRANSFORM_OP_2 = 448
+  public static let TRANSFORM_OP_3 = 460
+  public static let TRANSFORM_OP_4 = 472
+  public static let TRANSFORM_OP_5 = 484
+  public static let TRANSFORM_MATRIX = 496    // 64 bytes: 16 x f32 (4x4 column-major)
+  public static let TRANSFORM_OP_SIZE = 12
+  public static let MAX_INLINE_TRANSFORM_OPS = 6
+  public static let TRANSFORM_FLAG_HAS_MATRIX: UInt8 = 0x01
+  public static let TRANSFORM_FLAG_IS_3D: UInt8 = 0x02
+}
+
+@objc public enum TransformOpType: UInt8 {
+  case none = 0
+  case translate = 1
+  case translateX = 2
+  case translateY = 3
+  case scale = 4
+  case scaleX = 5
+  case scaleY = 6
+  case rotate = 7
+  case skewX = 8
+  case skewY = 9
 }
 
 
@@ -797,6 +812,240 @@ public class MasonStyle: NSObject {
         notifyTextStyleChanged(state)
       }
     }
+  }
+
+  // ── Transform (buffer-backed) ───────────────────────────────────────
+
+  private struct TransformOp {
+    let type: UInt8
+    let a: Float
+    let b: Float
+  }
+
+  private func writeTransformToBuffer(_ input: String) {
+    let ops = parseTransformOps(input)
+    prepareMut()
+
+    if ops.isEmpty {
+      setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
+      setUInt8(StyleKeys.TRANSFORM_FLAGS, 0)
+      return
+    }
+
+    // Sentinel check: matrix/matrix3d already written by parser
+    if ops.count == 1 && ops[0].type == 255 { return }
+
+    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS {
+      flattenOpsToMatrix(ops)
+      return
+    }
+
+    // Write inline ops
+    setUInt8(StyleKeys.TRANSFORM_COUNT, UInt8(ops.count))
+    setUInt8(StyleKeys.TRANSFORM_FLAGS, 0)
+    for i in 0..<ops.count {
+      let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+      setUInt8(base, ops[i].type)
+      setUInt8(base + 1, 0) // padding
+      setUInt8(base + 2, 0)
+      setUInt8(base + 3, 0)
+      setFloat(base + 4, ops[i].a)
+      setFloat(base + 8, ops[i].b)
+    }
+    // Zero remaining slots
+    for i in ops.count..<StyleKeys.MAX_INLINE_TRANSFORM_OPS {
+      let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+      setUInt8(base, 0)
+      setUInt8(base + 1, 0)
+      setUInt8(base + 2, 0)
+      setUInt8(base + 3, 0)
+      setFloat(base + 4, 0)
+      setFloat(base + 8, 0)
+    }
+  }
+
+  private func parseTransformOps(_ input: String) -> [TransformOp] {
+    if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+    var ops: [TransformOp] = []
+    let fnRegex = try? NSRegularExpression(pattern: "(\\w+)\\(([^)]*)\\)", options: [])
+    let ns = input as NSString
+    guard let matches = fnRegex?.matches(in: input, options: [], range: NSRange(location: 0, length: ns.length)) else { return [] }
+    for m in matches {
+      guard m.numberOfRanges >= 3 else { continue }
+      let name = ns.substring(with: m.range(at: 1)).lowercased()
+      let rawArgs = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
+      let args = rawArgs.replacingOccurrences(of: ",", with: " ").split(separator: " ").map { String($0) }
+      switch name {
+      case "translate":
+        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: parseTransformLength(args, 0), b: parseTransformLength(args, 1)))
+      case "translatex":
+        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: parseTransformLength(args, 0), b: 0))
+      case "translatey":
+        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: parseTransformLength(args, 0)))
+      case "scale":
+        let sx = parseTransformNumber(args, 0, 1.0)
+        let sy = parseTransformNumber(args, 1, Double(sx))
+        ops.append(TransformOp(type: TransformOpType.scale.rawValue, a: sx, b: sy))
+      case "scalex":
+        ops.append(TransformOp(type: TransformOpType.scaleX.rawValue, a: parseTransformNumber(args, 0, 1.0), b: 1))
+      case "scaley":
+        ops.append(TransformOp(type: TransformOpType.scaleY.rawValue, a: 1, b: parseTransformNumber(args, 0, 1.0)))
+      case "rotate":
+        ops.append(TransformOp(type: TransformOpType.rotate.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
+      case "skewx":
+        ops.append(TransformOp(type: TransformOpType.skewX.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
+      case "skewy":
+        ops.append(TransformOp(type: TransformOpType.skewY.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
+      case "matrix":
+        let nums = args.compactMap { Float($0.replacingOccurrences(of: "px", with: "")) }
+        if nums.count >= 6 {
+          writeMatrixToBuffer(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5])
+          return [TransformOp(type: 255, a: 0, b: 0)] // sentinel
+        }
+      case "matrix3d":
+        let nums = args.compactMap { Float($0.replacingOccurrences(of: "px", with: "")) }
+        if nums.count >= 16 {
+          writeMatrix3dToBuffer(nums)
+          return [TransformOp(type: 255, a: 0, b: 0)] // sentinel
+        }
+      default: break
+      }
+    }
+    return ops
+  }
+
+  private func writeMatrixToBuffer(_ a: Float, _ b: Float, _ c: Float, _ d: Float, _ tx: Float, _ ty: Float) {
+    setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
+    setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX)
+    let base = StyleKeys.TRANSFORM_MATRIX
+    // Column 0: [a, b, 0, 0]
+    setFloat(base, a); setFloat(base + 4, b); setFloat(base + 8, 0); setFloat(base + 12, 0)
+    // Column 1: [c, d, 0, 0]
+    setFloat(base + 16, c); setFloat(base + 20, d); setFloat(base + 24, 0); setFloat(base + 28, 0)
+    // Column 2: [0, 0, 1, 0]
+    setFloat(base + 32, 0); setFloat(base + 36, 0); setFloat(base + 40, 1); setFloat(base + 44, 0)
+    // Column 3: [tx, ty, 0, 1]
+    setFloat(base + 48, tx); setFloat(base + 52, ty); setFloat(base + 56, 0); setFloat(base + 60, 1)
+  }
+
+  private func writeMatrix3dToBuffer(_ nums: [Float]) {
+    setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
+    setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX | StyleKeys.TRANSFORM_FLAG_IS_3D)
+    let base = StyleKeys.TRANSFORM_MATRIX
+    for i in 0..<16 { setFloat(base + i * 4, nums[i]) }
+  }
+
+  private func flattenOpsToMatrix(_ ops: [TransformOp]) {
+    var a: Float = 1; var b: Float = 0; var c: Float = 0; var d: Float = 1; var tx: Float = 0; var ty: Float = 0
+    for op in ops {
+      switch TransformOpType(rawValue: op.type) ?? .none {
+      case .translate: tx += a * op.a + c * op.b; ty += b * op.a + d * op.b
+      case .translateX: tx += a * op.a; ty += b * op.a
+      case .translateY: tx += c * op.b; ty += d * op.b
+      case .scale: a *= op.a; b *= op.a; c *= op.b; d *= op.b
+      case .scaleX: a *= op.a; b *= op.a
+      case .scaleY: c *= op.b; d *= op.b
+      case .rotate:
+        let rad = op.a * .pi / 180.0
+        let cosV = cos(rad); let sinV = sin(rad)
+        let na = a * cosV + c * sinV; let nb = b * cosV + d * sinV
+        let nc = a * (-sinV) + c * cosV; let nd = b * (-sinV) + d * cosV
+        a = na; b = nb; c = nc; d = nd
+      case .skewX:
+        let t = tan(op.a * .pi / 180.0)
+        let nc = a * t + c; let nd = b * t + d
+        c = nc; d = nd
+      case .skewY:
+        let t = tan(op.a * .pi / 180.0)
+        let na = a + c * t; let nb = b + d * t
+        a = na; b = nb
+      case .none: break
+      }
+    }
+    writeMatrixToBuffer(a, b, c, d, tx, ty)
+  }
+
+  internal func applyTransformFromBuffer() {
+    guard let view = node.view else { return }
+    let count = Int(getUInt8(StyleKeys.TRANSFORM_COUNT))
+    let flags = getUInt8(StyleKeys.TRANSFORM_FLAGS)
+
+    if count == 0 && (flags & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) == 0 {
+      DispatchQueue.main.async { view.transform = .identity; view.layer.transform = CATransform3DIdentity }
+      return
+    }
+
+    if (flags & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0 {
+      let base = StyleKeys.TRANSFORM_MATRIX
+      if (flags & StyleKeys.TRANSFORM_FLAG_IS_3D) != 0 {
+        // Full 4x4 matrix
+        var t = CATransform3DIdentity
+        t.m11 = CGFloat(getFloat(base));      t.m12 = CGFloat(getFloat(base + 4))
+        t.m13 = CGFloat(getFloat(base + 8));  t.m14 = CGFloat(getFloat(base + 12))
+        t.m21 = CGFloat(getFloat(base + 16)); t.m22 = CGFloat(getFloat(base + 20))
+        t.m23 = CGFloat(getFloat(base + 24)); t.m24 = CGFloat(getFloat(base + 28))
+        t.m31 = CGFloat(getFloat(base + 32)); t.m32 = CGFloat(getFloat(base + 36))
+        t.m33 = CGFloat(getFloat(base + 40)); t.m34 = CGFloat(getFloat(base + 44))
+        t.m41 = CGFloat(getFloat(base + 48)); t.m42 = CGFloat(getFloat(base + 52))
+        t.m43 = CGFloat(getFloat(base + 56)); t.m44 = CGFloat(getFloat(base + 60))
+        DispatchQueue.main.async { view.layer.transform = t }
+      } else {
+        // 2D affine embedded in 4x4
+        let a = CGFloat(getFloat(base)); let b = CGFloat(getFloat(base + 4))
+        let c = CGFloat(getFloat(base + 16)); let d = CGFloat(getFloat(base + 20))
+        let tx = CGFloat(getFloat(base + 48)); let ty = CGFloat(getFloat(base + 52))
+        let affine = CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty)
+        DispatchQueue.main.async { view.transform = affine }
+      }
+    } else {
+      // Compose inline ops
+      var affine = CGAffineTransform.identity
+      for i in 0..<count {
+        let opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
+        let type = TransformOpType(rawValue: getUInt8(opBase)) ?? .none
+        let a = CGFloat(getFloat(opBase + 4))
+        let b = CGFloat(getFloat(opBase + 8))
+        switch type {
+        case .translate: affine = affine.translatedBy(x: a, y: b)
+        case .translateX: affine = affine.translatedBy(x: a, y: 0)
+        case .translateY: affine = affine.translatedBy(x: 0, y: b)
+        case .scale: affine = affine.scaledBy(x: a, y: b)
+        case .scaleX: affine = affine.scaledBy(x: a, y: 1)
+        case .scaleY: affine = affine.scaledBy(x: 1, y: b)
+        case .rotate: affine = affine.rotated(by: a * .pi / 180.0)
+        case .skewX:
+          let t = tan(a * .pi / 180.0)
+          affine = affine.concatenating(CGAffineTransform(a: 1, b: 0, c: t, d: 1, tx: 0, ty: 0))
+        case .skewY:
+          let t = tan(a * .pi / 180.0)
+          affine = affine.concatenating(CGAffineTransform(a: 1, b: t, c: 0, d: 1, tx: 0, ty: 0))
+        case .none: break
+        }
+      }
+      DispatchQueue.main.async { view.transform = affine }
+    }
+  }
+
+  private func parseTransformLength(_ args: [String], _ index: Int) -> Float {
+    guard index < args.count else { return 0 }
+    let s = args[index].trimmingCharacters(in: .whitespaces)
+    if s.hasSuffix("px") { return Float(s.dropLast(2)) ?? 0 }
+    if s.hasSuffix("%") { return Float(s.dropLast(1)) ?? 0 }
+    return Float(s) ?? 0
+  }
+
+  private func parseTransformAngleDeg(_ s: String) -> Float {
+    let v = s.trimmingCharacters(in: .whitespaces)
+    if v.hasSuffix("deg") { return Float(v.dropLast(3)) ?? 0 }
+    if v.hasSuffix("rad") { return (Float(v.dropLast(3)) ?? 0) * 180.0 / .pi }
+    return Float(v) ?? 0
+  }
+
+  private func parseTransformNumber(_ args: [String], _ index: Int, _ defaultValue: Double) -> Float {
+    guard index < args.count else { return Float(defaultValue) }
+    let s = args[index].trimmingCharacters(in: .whitespaces)
+    let cleaned = s.replacingOccurrences(of: "px", with: "").replacingOccurrences(of: "%", with: "")
+    return Float(cleaned) ?? Float(defaultValue)
   }
   
   
@@ -2634,8 +2883,31 @@ public class MasonStyle: NSObject {
       mBorderRender.parseBorderShorthand(newValue)
     }
   }
-  
-  
+
+  public var borderLeft: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.left, borderLeft)
+    }
+  }
+
+  public var borderTop: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.top, borderTop)
+    }
+  }
+
+  public var borderRight: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.right, borderRight)
+    }
+  }
+
+  public var borderBottom: String = "" {
+    didSet {
+      mBorderRender.parseBorderSideShorthand(.bottom, borderBottom)
+    }
+  }
+
   internal var mBorderLeft: CSSBorderRenderer.BorderSide {
     return mBorderRender.left
   }
@@ -3045,6 +3317,17 @@ public class MasonStyle: NSObject {
     size = MasonSize(wh, wh)
   }
   
+  public func setSizePoints(_ width: Float, _ height: Float) {
+    prepareMut()
+    setInt8(StyleKeys.WIDTH_TYPE, MasonDimension.Kind.Points.rawValue)
+    setFloat(StyleKeys.WIDTH_VALUE, width)
+    
+    setInt8(StyleKeys.HEIGHT_TYPE, MasonDimension.Kind.Points.rawValue)
+    setFloat(StyleKeys.HEIGHT_VALUE, height)
+    
+    setOrAppendState(StateKeys.size)
+  }
+  
   
   
   public var width: MasonDimension {
@@ -3309,6 +3592,18 @@ public class MasonStyle: NSObject {
           mason_style_get_grid_template_areas_css(node.mason.nativePtr, node.nativePtr)
         } ?? ""
       })
+    }
+  }
+
+  private var _transformRaw: String?
+  public var transform: String {
+    set {
+      _transformRaw = newValue
+      writeTransformToBuffer(newValue)
+      applyTransformFromBuffer()
+    }
+    get {
+      return _transformRaw ?? ""
     }
   }
   

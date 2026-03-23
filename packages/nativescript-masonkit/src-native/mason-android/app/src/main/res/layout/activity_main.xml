@@ -67,6 +67,12 @@
         android:text="Open Text" />
 
       <Button
+        android:id="@+id/btnBug"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Bug Activity" />
+
+      <Button
         android:id="@+id/btnFloat"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -95,6 +101,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Open Superellipse Demo" />
+
+      <Button
+        android:id="@+id/transform"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Transform Demo" />
 
     </LinearLayout>
   </ScrollView>

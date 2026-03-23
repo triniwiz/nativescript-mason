@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -127,6 +126,13 @@ open class View @JvmOverloads constructor(
   }
 
   private fun dispatchToChild(child: android.view.View, ev: MotionEvent): Boolean {
+    // Check if the touch point is within the child's bounds (standard Android behavior)
+    val x = ev.x + scrollX
+    val y = ev.y + scrollY
+    if (x < child.left || x >= child.right || y < child.top || y >= child.bottom) {
+      return false
+    }
+
     val offsetX = scrollX - child.left
     val offsetY = scrollY - child.top
 
@@ -145,6 +151,11 @@ open class View @JvmOverloads constructor(
       it.shaderHeight = -1
     } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
+    // Reapply transforms now that pivot and size are known
+    try {
+      style.applyTransformToView()
+    } catch (_: Exception) {
+    }
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
@@ -197,8 +208,16 @@ open class View @JvmOverloads constructor(
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     if (parent !is Element) {
-      layoutFlat()
-      applyLayoutFlat(node, node.layoutTree)
+      // Only re-read the layout from Rust if we don't already have a
+      // valid cached layout tree (computeAndLayout populates it during
+      // onMeasure). Re-reading via layoutFlat() can pick up stale Rust
+      // state when spurious layout passes occur.
+      if (node.layoutTree.nodeCount == 0) {
+        layoutFlat()
+      }
+      if (node.layoutTree.nodeCount != 0) {
+        applyLayoutFlat(node, node.layoutTree)
+      }
     }
   }
 
@@ -230,7 +249,6 @@ open class View @JvmOverloads constructor(
           widthArg,
           heightArg
         )
-
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
           return
@@ -238,11 +256,8 @@ open class View @JvmOverloads constructor(
         setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
       } else {
         // we're currently inside a compute cycle; running computeAndLayout would
-        // deadlock, so temporarily fall back to the provided spec sizes.  post
-        // another layout for when the computation finishes so the real dimensions
-        // can be picked up.
+        // deadlock, so temporarily fall back to the provided spec sizes.
         setMeasuredDimension(specWidth, specHeight)
-        post { requestLayout() }
       }
     } else {
       setMeasuredDimension(
@@ -393,6 +408,10 @@ open class View @JvmOverloads constructor(
     node.removeChildAt(index)
 
     onChildStructureChangedSafe()
+  }
+
+  fun removeChildren(){
+    removeAllViews()
   }
 
   override fun removeAllViews() {
@@ -1298,12 +1317,10 @@ open class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Byte
   ) {
-    style.padding = Rect(
-      LengthPercentage.fromTypeValue(leftType, left) ?: style.padding.left,
-      LengthPercentage.fromTypeValue(rightType, right) ?: style.padding.right,
-      LengthPercentage.fromTypeValue(topType, top) ?: style.padding.top,
-      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.padding.bottom
-    )
+    if (LengthPercentage.isValid(leftType, left)) style.setPaddingLeft(left, leftType)
+    if (LengthPercentage.isValid(rightType, right)) style.setPaddingRight(right, rightType)
+    if (LengthPercentage.isValid(topType, top)) style.setPaddingTop(top, topType)
+    if (LengthPercentage.isValid(bottomType, bottom)) style.setPaddingBottom(bottom, bottomType)
     checkAndUpdateStyle()
   }
 
@@ -1390,12 +1407,10 @@ open class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Byte
   ) {
-    style.borderWidth = Rect(
-      LengthPercentage.fromTypeValue(leftType, left) ?: style.borderWidth.left,
-      LengthPercentage.fromTypeValue(rightType, right) ?: style.borderWidth.right,
-      LengthPercentage.fromTypeValue(topType, top) ?: style.borderWidth.top,
-      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.borderWidth.bottom
-    )
+    if (LengthPercentage.isValid(leftType, left)) style.setBorderLeftWidth(left, leftType)
+    if (LengthPercentage.isValid(rightType, right)) style.setBorderRightWidth(right, rightType)
+    if (LengthPercentage.isValid(topType, top)) style.setBorderTopWidth(top, topType)
+    if (LengthPercentage.isValid(bottomType, bottom)) style.setBorderBottomWidth(bottom, bottomType)
     checkAndUpdateStyle()
   }
 
@@ -1484,12 +1499,10 @@ open class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Byte
   ) {
-    style.margin = Rect(
-      LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.margin.left,
-      LengthPercentageAuto.fromTypeValue(rightType, right) ?: style.margin.right,
-      LengthPercentageAuto.fromTypeValue(topType, top) ?: style.margin.top,
-      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: style.margin.bottom
-    )
+    if (LengthPercentageAuto.isValid(leftType, left)) style.setMarginLeft(left, leftType)
+    if (LengthPercentageAuto.isValid(rightType, right)) style.setMarginRight(right, rightType)
+    if (LengthPercentageAuto.isValid(topType, top)) style.setMarginTop(top, topType)
+    if (LengthPercentageAuto.isValid(bottomType, bottom)) style.setMarginBottom(bottom, bottomType)
     checkAndUpdateStyle()
   }
 
@@ -1579,12 +1592,10 @@ open class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Byte
   ) {
-    style.inset = Rect(
-      LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.inset.left,
-      LengthPercentageAuto.fromTypeValue(rightType, right) ?: style.inset.right,
-      LengthPercentageAuto.fromTypeValue(topType, top) ?: style.inset.top,
-      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: style.inset.bottom
-    )
+    if (LengthPercentageAuto.isValid(leftType, left)) style.setInsetLeft(left, leftType)
+    if (LengthPercentageAuto.isValid(rightType, right)) style.setInsetRight(right, rightType)
+    if (LengthPercentageAuto.isValid(topType, top)) style.setInsetTop(top, topType)
+    if (LengthPercentageAuto.isValid(bottomType, bottom)) style.setInsetBottom(bottom, bottomType)
     checkAndUpdateStyle()
   }
 
@@ -1655,10 +1666,8 @@ open class View @JvmOverloads constructor(
     height: Float,
     heightType: Byte,
   ) {
-    style.minSize = Size(
-      Dimension.fromTypeValue(widthType, width) ?: style.minSize.width,
-      Dimension.fromTypeValue(heightType, height) ?: style.minSize.height
-    )
+    if (Dimension.isValid(widthType, width)) style.setMinSizeWidth(width, widthType)
+    if (Dimension.isValid(heightType, height)) style.setMinSizeHeight(height, heightType)
     checkAndUpdateStyle()
   }
 
@@ -1714,10 +1723,8 @@ open class View @JvmOverloads constructor(
     height: Float,
     heightType: Byte,
   ) {
-    style.size = Size(
-      Dimension.fromTypeValue(widthType, width) ?: style.size.width,
-      Dimension.fromTypeValue(heightType, height) ?: style.size.height
-    )
+    if (Dimension.isValid(widthType, width)) style.setSizeWidth(width, widthType)
+    if (Dimension.isValid(heightType, height)) style.setSizeHeight(height, heightType)
     checkAndUpdateStyle()
   }
 
@@ -1773,10 +1780,8 @@ open class View @JvmOverloads constructor(
     height: Float,
     heightType: Byte,
   ) {
-    style.maxSize = Size(
-      Dimension.fromTypeValue(widthType, width) ?: style.size.width,
-      Dimension.fromTypeValue(heightType, height) ?: style.size.height
-    )
+    if (Dimension.isValid(widthType, width)) style.setMaxSizeWidth(width, widthType)
+    if (Dimension.isValid(heightType, height)) style.setMaxSizeHeight(height, heightType)
     checkAndUpdateStyle()
   }
 
@@ -1824,10 +1829,8 @@ open class View @JvmOverloads constructor(
     height: Float,
     heightType: Byte,
   ) {
-    style.gap = Size(
-      LengthPercentage.fromTypeValue(widthType, width) ?: style.gap.width,
-      LengthPercentage.fromTypeValue(heightType, height) ?: style.gap.height
-    )
+    if (LengthPercentage.isValid(widthType, width)) style.setGapRow(width, widthType)
+    if (LengthPercentage.isValid(heightType, height)) style.setGapColumn(height, heightType)
     checkAndUpdateStyle()
   }
 

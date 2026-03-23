@@ -271,7 +271,8 @@ export class Text extends TextBase {
 
   _removeViewFromNativeVisualTree(view: ViewBase): void {
     view[isTextChild_] = false;
-    super._removeViewFromNativeVisualTree(view);
+    // todo
+    //  super._removeViewFromNativeVisualTree(view);
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {

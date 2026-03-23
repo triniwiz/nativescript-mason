@@ -108,6 +108,14 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
       return
     }
 
+    #if DEBUG
+    if node.pseudoMask != 0 {
+      let resolved = style.resolvedBackgroundColor
+      let buf = node.getPseudoBuffer(PseudoState.active.rawValue)
+      print("[Button.draw] mask=\(String(node.pseudoMask, radix:16)) hasBackground=\(hasBackground) resolvedBg=\(String(resolved, radix:16)) pseudoBuf=\(buf != nil ? "\(buf!.count)B" : "nil") bounds=\(bounds)")
+    }
+    #endif
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()

@@ -68,6 +68,9 @@
         android:value="" />
     </activity>
     <activity
+      android:name=".BugActivity"
+      android:exported="true" />
+    <activity
       android:name=".FlexActivity"
       android:exported="false">
       <meta-data
@@ -95,6 +98,9 @@
       android:exported="false" />
     <activity
       android:name=".SuperellipseActivity"
+      android:exported="true" />
+    <activity
+      android:name=".TransformActivity"
       android:exported="true" />
   </application>
 

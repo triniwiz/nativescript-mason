@@ -4,6 +4,51 @@ import android.graphics.Color
 
 private val SPLIT_REGEX = Regex("\\s+")
 
+/**
+ * Tokenise a CSS shadow value, keeping parenthesised groups (e.g.
+ * `rgba(26, 26, 46, 0.4)`) as single tokens even when they contain
+ * spaces after commas.
+ */
+private fun tokenizeShadow(value: String): List<String> {
+  val tokens = mutableListOf<String>()
+  val sb = StringBuilder()
+  var depth = 0
+  for (ch in value) {
+    when {
+      ch == '(' -> { depth++; sb.append(ch) }
+      ch == ')' -> { depth--; sb.append(ch) }
+      ch.isWhitespace() && depth == 0 -> {
+        if (sb.isNotEmpty()) { tokens.add(sb.toString()); sb.clear() }
+      }
+      else -> sb.append(ch)
+    }
+  }
+  if (sb.isNotEmpty()) tokens.add(sb.toString())
+  return tokens
+}
+
+/**
+ * Split multiple comma-separated shadow values while respecting
+ * parenthesised groups like `rgba(0, 0, 0, 0.5)`.
+ */
+private fun splitShadowLayers(value: String): List<String> {
+  val layers = mutableListOf<String>()
+  val sb = StringBuilder()
+  var depth = 0
+  for (ch in value) {
+    when {
+      ch == '(' -> { depth++; sb.append(ch) }
+      ch == ')' -> { depth--; sb.append(ch) }
+      ch == ',' && depth == 0 -> {
+        layers.add(sb.toString()); sb.clear()
+      }
+      else -> sb.append(ch)
+    }
+  }
+  if (sb.isNotEmpty()) layers.add(sb.toString())
+  return layers
+}
+
 class Shadow {
   data class TextShadow(
     val offsetX: Float,
@@ -23,9 +68,9 @@ class Shadow {
 
   companion object {
     fun parseTextShadow(style: Style, value: String): List<TextShadow> {
-      return value.split(",").mapNotNull { shadow ->
+      return splitShadowLayers(value).mapNotNull { shadow ->
         try {
-          val tokens = shadow.trim().split(SPLIT_REGEX)
+          val tokens = tokenizeShadow(shadow.trim())
 
           var offsetX: Float? = null
           var offsetY: Float? = null
@@ -72,9 +117,9 @@ class Shadow {
      * Multiple shadows separated by commas are supported.
      */
     fun parseBoxShadow(style: Style, value: String): List<BoxShadow> {
-      return value.split(",").mapNotNull { shadow ->
+      return splitShadowLayers(value).mapNotNull { shadow ->
         try {
-          val tokens = shadow.trim().split(SPLIT_REGEX)
+          val tokens = tokenizeShadow(shadow.trim())
           
           var inset = false
           var offsetX: Float? = null

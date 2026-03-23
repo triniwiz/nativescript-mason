@@ -1,11 +1,15 @@
 package org.nativescript.mason.masonkit
 
+import android.os.Build
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
+import android.view.ViewGroup
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.events.Event
+import java.util.UUID
 
 interface Element : EventTarget {
   val style: Style
@@ -17,10 +21,24 @@ interface Element : EventTarget {
       return ""
     }
     set(value) {
-      node.mason.getHtmlParser(view.context)?.let {
-        it.parseInto(value, this)
+      node.mason.getHtmlParser(view.context)?.parseInto(value, this)
+    }
+
+  override fun addEventListener(type: String, listener: (Event) -> Unit): UUID {
+    val id = node.mason.addEventListener(node, type, listener)
+    if (type == "click" && !node.hasNativeClickDispatch) {
+      node.hasNativeClickDispatch = true
+      view.isClickable = true
+      view.setOnClickListener {
+        dispatch(
+          Event(type = "click").apply {
+            target = this@Element
+          }
+        )
       }
     }
+    return id
+  }
 
   fun syncStyle(low: String, high: String) {
     fun parseDecimalToLong(s: String): Long? {
@@ -265,16 +283,64 @@ interface Element : EventTarget {
     this.node.appendChild(node)
   }
 
+
+  fun append(elements: List<*>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
+    elements.forEach {
+      when (it) {
+        is Element -> {
+          append(it)
+        }
+
+        is String -> {
+          append(it)
+        }
+
+        is Node -> {
+          append(it)
+        }
+
+      }
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
+  }
+
   fun append(texts: Array<String>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     texts.forEach { append(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun append(elements: Array<Element>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     elements.forEach { append(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun append(nodes: Array<Node>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     nodes.forEach { append(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun prepend(element: Element) {
@@ -303,15 +369,36 @@ interface Element : EventTarget {
   }
 
   fun prepend(strings: Array<String>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     strings.reversed().forEach { prepend(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun prepend(elements: Array<Element>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     elements.reversed().forEach { prepend(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun prepend(nodes: Array<Node>) {
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     nodes.reversed().forEach { prepend(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(false)
+    }
   }
 
   fun invalidateLayout() {
@@ -397,21 +484,20 @@ interface Element : EventTarget {
           root.computeCache = SizeF(width, height)
         }
 
+        // Use cached/computed root dimensions as the size input when available,
+        // but always run compute() so that child style changes (e.g. flex-direction)
+        // are picked up by the layout engine.
         val cachedW = root.cachedWidth
         val cachedH = root.cachedHeight
         val nodeW2 = root.computedWidth
         val nodeH2 = root.computedHeight
 
         if (cachedW > 0f && cachedH > 0f) {
-          root.computeCache = SizeF(cachedW, cachedH)
-          root.computeCacheDirty = false
-          return
-        }
-
-        if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
-          root.computeCache = SizeF(nodeW2, nodeH2)
-          root.computeCacheDirty = false
-          return
+          width = cachedW
+          height = cachedH
+        } else if (!nodeW2.isNaN() && !nodeH2.isNaN() && nodeW2 > 0f && nodeH2 > 0f) {
+          width = nodeW2
+          height = nodeH2
         }
 
         (root.view as Element).compute(width, height)
@@ -422,21 +508,25 @@ interface Element : EventTarget {
       root.computeScheduled = true
       // Always post compute to the view's message queue to coalesce rapid
       // invalidations and allow JNI write-backs (setComputedSize) to arrive
-      // before we decide whether to run another native compute. Executing
-      // synchronously here caused repeated immediate `native_compute_wh`
-      // calls in tight sequences.
-      targetView.post {
-        try {
-          root.computeScheduled = false
-          doCompute()
-          // Single invalidate+requestLayout at the end — doCompute early
-          // returns no longer duplicate this, avoiding redundant traversals.
-          (root.view as? View)?.let { v ->
-            v.invalidate()
+      // before we decide whether to run another native compute. Using
+      // postOnAnimation aligns the work with the next frame.
+      val oldComputedW = root.computedWidth
+      val oldComputedH = root.computedHeight
+
+      targetView.postOnAnimation {
+        root.computeScheduled = false
+        doCompute()
+        // Only requestLayout if the computed size changed; otherwise just invalidate
+        (root.view as? View)?.let { v ->
+          val newW = root.computedWidth
+          val newH = root.computedHeight
+          val sizeChanged =
+            (oldComputedW.isNaN() && !newW.isNaN()) || (oldComputedH.isNaN() && !newH.isNaN()) || (oldComputedW != newW) || (oldComputedH != newH)
+          if (sizeChanged) {
             v.requestLayout()
+          } else {
+            v.invalidate()
           }
-        } catch (_: Throwable) {
-          // swallow to avoid crashing from posted task
         }
       }
     }
@@ -480,6 +570,10 @@ interface Element : EventTarget {
 
   fun appendView(views: Array<View>) {
     // todo use a single jni call
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     views.forEach {
       appendView(it)
     }
@@ -493,6 +587,10 @@ interface Element : EventTarget {
 
   fun prependView(views: Array<View>) {
     // todo use a single jni call
+    val vg = (view as? ViewGroup)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      vg?.suppressLayout(true)
+    }
     views.reversed().forEach { prependView(it) }
   }
 
@@ -507,7 +605,7 @@ interface Element : EventTarget {
     child.apply {
       if (this@Element is TextContainer) {
         // Copy current TextView attributes to the new text node
-        attributes.sync(style)
+        attributes.sync(this@Element.node.style)
       }
     }
   }
@@ -533,7 +631,7 @@ interface Element : EventTarget {
       data = text
       if (this@Element is TextContainer) {
         // Copy current TextView attributes to the new text node
-        attributes.sync(style)
+        attributes.sync(this@Element.node.style)
       }
     }
   }
@@ -694,7 +792,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
 
 */
 
-// MARK: - Flat layout tree application (iterative DFS, zero-allocation per pass)
+// Flat layout tree application (iterative DFS, zero-allocation per pass)
 
 // Preallocated stack frame to avoid Pair allocations in DFS
 private class LayoutStackFrame {
@@ -728,168 +826,179 @@ private fun popFrame(): LayoutStackFrame {
 internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
   if (tree.nodeCount == 0) return
 
-  val nv = tree.cursor
-  layoutStackTop = -1
-  pushFrame(0, rootNode)
+  val parentVG = (this.view.parent as? ViewGroup)
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && parentVG?.isInLayout == false) {
+    parentVG.suppressLayout(true)
+  }
+  try {
+    val nv = tree.cursor
+    layoutStackTop = -1
+    pushFrame(0, rootNode)
 
-  while (layoutStackTop >= 0) {
-    val frame = popFrame()
-    val treeIdx = frame.treeIdx
-    val node = frame.node!!
-    frame.node = null // release ref
+    while (layoutStackTop >= 0) {
+      val frame = popFrame()
+      val treeIdx = frame.treeIdx
+      val node = frame.node!!
+      frame.node = null // release ref
 
-    nv.pointTo(treeIdx)
+      nv.pointTo(treeIdx)
 
-    // Store layout tree index on node for external access
-    node.layoutTreeIndex = treeIdx
-    if (node.type != NodeType.Element) continue
-    if (node.view is Br.FakeView) continue
+      // Store layout tree index on node for external access
+      node.layoutTreeIndex = treeIdx
+      if (node.type != NodeType.Element) continue
+      if (node.view is Br.FakeView) continue
 
-    (node.view as? View)?.let { view ->
-      if (view == this) {
-        // Root node: set padding so scroll-range clamping in
-        // TwoDScrollView.scrollTo uses the correct content-box size.
-        view.setPadding(
-          nv.paddingLeft.toInt(),
-          nv.paddingTop.toInt(),
-          nv.paddingRight.toInt(),
-          nv.paddingBottom.toInt()
-        )
-        // Skip positioning — the root is sized by its parent.
-      } else {
-        if (view.isGone) return@let
-
-        var overflowX = Overflow.Visible.value
-        var overflowY = Overflow.Visible.value
-        var boxing = BoxSizing.BorderBox.value
-        if (node.style.isValueInitialized) {
-          boxing = node.style.values.get(StyleKeys.BOX_SIZING)
-          overflowX = node.style.values.get(StyleKeys.OVERFLOW_X)
-          overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
-        }
-
-        val x = nv.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-        val y = nv.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-        var width = nv.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-        var height = nv.height.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-        if (view !is Element) {
-          width = view.measuredWidth
-          height = view.measuredHeight
-        }
-
-        val contentWidth = if (boxing == BoxSizing.BorderBox.value) {
-          nv.width.toInt()
-        } else {
-          nv.contentWidth.toInt()
-        }
-
-        val contentHeight = if (boxing == BoxSizing.BorderBox.value) {
-          nv.height.toInt()
-        } else {
-          nv.contentHeight.toInt()
-        }
-
-        node.overflowWidth = contentWidth
-        node.overflowHeight = contentHeight
-
-        // CSS spec: overflow does **not** change the size of the element’s box.
-        // visible/auto/scroll/hidden/clip all use the width/height computed by the
-        // layout algorithm; only the drawing (clipping/scrolling) differs.
-        // `overflowWidth`/`overflowHeight` are stored separately and used during
-        // painting or when behaving as a scroll root.
-        val layoutWidth = width
-        val layoutHeight = height
-
-        val right = x + layoutWidth
-        val bottom = y + layoutHeight
-
-        // set padding on every view; scroll roots and other containers rely
-        // on Android's padding values when performing scroll/clamp logic.
-
-        view.setPadding(
-          nv.paddingLeft.toInt(),
-          nv.paddingTop.toInt(),
-          nv.paddingRight.toInt(),
-          nv.paddingBottom.toInt()
-        )
-
-        if (view is Scroll) {
-          // Scroll is a single-view container: position it at the box
-          // dimensions (viewport) and update its content dimensions for
-          // scroll-range calculations.
-          val scrollCW = when (overflowX) {
-            Overflow.Clip.value, Overflow.Hidden.value -> nv.width.toInt()
-            Overflow.Auto.value -> if (nv.contentWidth > nv.width) nv.contentWidth.toInt() else nv.width.toInt()
-            else -> maxOf(nv.contentWidth.toInt(), nv.width.toInt())
+      (node.view as? View)?.let { view ->
+        if (view == this) {
+          // Root node: set padding so scroll-range clamping in
+          // TwoDScrollView.scrollTo uses the correct content-box size.
+          val rootPadLeft = nv.paddingLeft.toInt()
+          val rootPadTop = nv.paddingTop.toInt()
+          val rootPadRight = nv.paddingRight.toInt()
+          val rootPadBottom = nv.paddingBottom.toInt()
+          if (view.paddingLeft != rootPadLeft || view.paddingTop != rootPadTop || view.paddingRight != rootPadRight || view.paddingBottom != rootPadBottom) {
+            view.setPadding(rootPadLeft, rootPadTop, rootPadRight, rootPadBottom)
           }
-          val scrollCH = when (overflowY) {
-            Overflow.Clip.value, Overflow.Hidden.value -> nv.height.toInt()
-            Overflow.Auto.value -> if (nv.contentHeight > nv.height) nv.contentHeight.toInt() else nv.height.toInt()
-            else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
-          }
-          view.scrollContentWidth = scrollCW
-          view.scrollContentHeight = scrollCH
-
-          view.measure(
-            MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
-          )
-          view.layout(x, y, right, bottom)
-
-        } else if (view is Input) {
-          view.measure(
-            MeasureSpec.makeMeasureSpec(
-              layoutWidth, MeasureSpec.EXACTLY
-            ),
-            MeasureSpec.makeMeasureSpec(
-              layoutHeight, MeasureSpec.EXACTLY
-            )
-          )
-          view.layout(x, y, right, bottom)
-          view.layoutChild(0, 0, width, height)
+          // Skip positioning — the root is sized by its parent.
         } else {
-          view.measure(
-            MeasureSpec.makeMeasureSpec(
-              layoutWidth, MeasureSpec.EXACTLY
-            ),
-            MeasureSpec.makeMeasureSpec(
-              layoutHeight, MeasureSpec.EXACTLY
-            )
-          )
-          view.layout(x, y, right, bottom)
-        }
+          if (view.isGone) return@let
 
+          var overflowX = Overflow.Visible.value
+          var overflowY = Overflow.Visible.value
+          var boxing = BoxSizing.BorderBox.value
+          if (node.style.isValueInitialized) {
+            boxing = node.style.values.get(StyleKeys.BOX_SIZING)
+            overflowX = node.style.values.get(StyleKeys.OVERFLOW_X)
+            overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
+          }
+
+          val x = nv.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+          val y = nv.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+          var width = nv.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+          var height = nv.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+          if (view !is Element) {
+            width = view.measuredWidth
+            height = view.measuredHeight
+          }
+
+          val contentWidth = if (boxing == BoxSizing.BorderBox.value) {
+            nv.width.toInt()
+          } else {
+            nv.contentWidth.toInt()
+          }
+
+          val contentHeight = if (boxing == BoxSizing.BorderBox.value) {
+            nv.height.toInt()
+          } else {
+            nv.contentHeight.toInt()
+          }
+
+          node.overflowWidth = contentWidth
+          node.overflowHeight = contentHeight
+
+          // CSS spec: overflow does **not** change the size of the element’s box.
+          // visible/auto/scroll/hidden/clip all use the width/height computed by the
+          // layout algorithm; only the drawing (clipping/scrolling) differs.
+          // `overflowWidth`/`overflowHeight` are stored separately and used during
+          // painting or when behaving as a scroll root.
+          val layoutWidth = width
+          val layoutHeight = height
+
+          val right = x + layoutWidth
+          val bottom = y + layoutHeight
+
+          // set padding on every view; scroll roots and other containers rely
+          // on Android's padding values when performing scroll/clamp logic.
+          val padLeft = nv.paddingLeft.toInt()
+          val padTop = nv.paddingTop.toInt()
+          val padRight = nv.paddingRight.toInt()
+          val padBottom = nv.paddingBottom.toInt()
+          if (view.paddingLeft != padLeft || view.paddingTop != padTop || view.paddingRight != padRight || view.paddingBottom != padBottom) {
+            view.setPadding(padLeft, padTop, padRight, padBottom)
+          }
+
+          if (view is Scroll) {
+            // Scroll is a single-view container: position it at the box
+            // dimensions (viewport) and update its content dimensions for
+            // scroll-range calculations.
+            val scrollCW = when (overflowX) {
+              Overflow.Clip.value, Overflow.Hidden.value -> nv.width.toInt()
+              Overflow.Auto.value -> if (nv.contentWidth > nv.width) nv.contentWidth.toInt() else nv.width.toInt()
+              else -> maxOf(nv.contentWidth.toInt(), nv.width.toInt())
+            }
+            val scrollCH = when (overflowY) {
+              Overflow.Clip.value, Overflow.Hidden.value -> nv.height.toInt()
+              Overflow.Auto.value -> if (nv.contentHeight > nv.height) nv.contentHeight.toInt() else nv.height.toInt()
+              else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
+            }
+            view.scrollContentWidth = scrollCW
+            view.scrollContentHeight = scrollCH
+
+            view.measure(
+              MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
+              MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
+            )
+            view.layout(x, y, right, bottom)
+
+          } else if (view is Input) {
+            view.measure(
+              MeasureSpec.makeMeasureSpec(
+                layoutWidth, MeasureSpec.EXACTLY
+              ),
+              MeasureSpec.makeMeasureSpec(
+                layoutHeight, MeasureSpec.EXACTLY
+              )
+            )
+            view.layout(x, y, right, bottom)
+            view.layoutChild(0, 0, width, height)
+          } else {
+            view.measure(
+              MeasureSpec.makeMeasureSpec(
+                layoutWidth, MeasureSpec.EXACTLY
+              ),
+              MeasureSpec.makeMeasureSpec(
+                layoutHeight, MeasureSpec.EXACTLY
+              )
+            )
+            view.layout(x, y, right, bottom)
+          }
+
+        }
+      }
+
+      // Push children in reverse order for correct left-to-right processing.
+      // Use the filtered native children list so indices align with the
+      // layout.children provided by Rust (which omits nodes without native views).
+      val childCnt = tree.childCount[treeIdx]
+      if (childCnt > 0) {
+        val nativeChildren = node.children.filter { it.nativePtr != 0L }
+        val childStart = tree.childStart[treeIdx]
+        for (i in (0 until childCnt).reversed()) {
+          val child = nativeChildren.getOrNull(i) ?: continue
+          if (child.type == NodeType.Text) continue
+
+          if (child.parent?.view is TextContainer && child.view is TextContainer) {
+            val flatten =
+              (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+            if (flatten) {
+              (child.view as? View)?.measure(
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY)
+              )
+              continue
+            }
+          }
+
+          val childTreeIdx = tree.childIndices[childStart + i]
+          pushFrame(childTreeIdx, child)
+        }
       }
     }
-
-    // Push children in reverse order for correct left-to-right processing.
-    // Use the filtered native children list so indices align with the
-    // layout.children provided by Rust (which omits nodes without native views).
-    val childCnt = tree.childCount[treeIdx]
-    if (childCnt > 0) {
-      val nativeChildren = node.children.filter { it.nativePtr != 0L }
-      val childStart = tree.childStart[treeIdx]
-      for (i in (0 until childCnt).reversed()) {
-        val child = nativeChildren.getOrNull(i) ?: continue
-        if (child.type == NodeType.Text) continue
-
-        if (child.parent?.view is TextContainer && child.view is TextContainer) {
-          val flatten =
-            (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
-          if (flatten) {
-            (child.view as? View)?.measure(
-              MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),
-              MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY)
-            )
-            continue
-          }
-        }
-
-        val childTreeIdx = tree.childIndices[childStart + i]
-        pushFrame(childTreeIdx, child)
-      }
+  } finally {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && parentVG?.isInLayout == false) {
+      parentVG.suppressLayout(false)
     }
   }
 }

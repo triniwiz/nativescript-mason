@@ -29,6 +29,11 @@ module.exports = (env) => {
       vm: false,
       async_hooks: false,
     });
+    // Exclude native source directories from file watching to avoid
+    // "too many files" errors caused by the symlinked masonkit package
+    config.watchOptions({
+      ignored: ['**/src-native/**', '**/platforms/**'],
+    });
   });
 
   // Example of how to share common images across demo apps:

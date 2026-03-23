@@ -132,9 +132,12 @@ class Button @JvmOverloads constructor(
     minHeight = 0
     isAllCaps = false
     background = null
+    stateListAnimator = null
+    elevation = 0f
     isClickable = true
     isFocusable = true
 
+    node.hasNativeClickDispatch = true
     setOnClickListener {
       node.mason.dispatch(
         Event(
@@ -155,21 +158,18 @@ class Button @JvmOverloads constructor(
     super.drawableStateChanged()
 
     // Sync pseudo-states via Node API
-    try {
-      // Ensure engine recomputes when active (pressed) state changes so pseudo
-      // style merges are applied. Previously used `false` which skipped marking
-      // the engine dirty and prevented pseudo updates from taking effect.
-      node.setPseudo(PseudoState.ACTIVE, isPressed, true)
-      node.setPseudo(PseudoState.DISABLED, !isEnabled, false)
-      node.setPseudo(PseudoState.FOCUS, isFocused, true)
-      // Re-resolve text paint properties for pseudo-aware values
-      onChange(
-        StateKeys.FONT_COLOR.low or StateKeys.FONT_SIZE.low or StateKeys.TEXT_ALIGN.low,
-        StateKeys.FONT_COLOR.high or StateKeys.FONT_SIZE.high or StateKeys.TEXT_ALIGN.high or StateKeys.FONT_WEIGHT.high
-      )
-    } catch (_: Throwable) {
-      // ignore if node/native not ready
-    }
+
+    // Ensure engine recomputes when active (pressed) state changes so pseudo
+    // style merges are applied. Previously used `false` which skipped marking
+    // the engine dirty and prevented pseudo updates from taking effect.
+    node.setPseudo(PseudoState.ACTIVE, isPressed, true)
+    node.setPseudo(PseudoState.DISABLED, !isEnabled, false)
+    node.setPseudo(PseudoState.FOCUS, isFocused, true)
+    // Re-resolve text paint properties for pseudo-aware values
+    onChange(
+      StateKeys.FONT_COLOR.low or StateKeys.FONT_SIZE.low or StateKeys.TEXT_ALIGN.low,
+      StateKeys.FONT_COLOR.high or StateKeys.FONT_SIZE.high or StateKeys.TEXT_ALIGN.high or StateKeys.FONT_WEIGHT.high
+    )
 
     // Force background/border rebuild when pressed state changes
     style.mBackground?.layers?.forEach { it.shader = null }
@@ -201,10 +201,10 @@ class Button @JvmOverloads constructor(
 
 
   override fun measure(
-    knownDimensions: Size<Float?>,
-    availableSpace: Size<Float?>
-  ): Size<Float> {
-    return engine.measure(paint, knownDimensions, availableSpace)
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
+    return engine.measure(paint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 
   override fun onChange(low: Long, high: Long) {

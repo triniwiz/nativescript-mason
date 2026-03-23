@@ -265,16 +265,12 @@ extension MasonElement {
       root.view as? MasonElement
     }
 
+    // Schedule a main-thread compute for the root Mason element so layout
+    // is recomputed naturally after content or style changes. This ensures
+    // callers don't have to manually call computeWithViewSize everywhere.
     if let view = view {
-      if(view.computeCacheDirty){
-        let computed = view.computeCache()
-        // Preserve root view's frame — managed externally, not by Mason
-        let isRoot = !(view.uiView.superview is MasonElement)
-        let savedFrame = view.uiView.frame
-        view.computeWithSize(Float(computed.width), Float(computed.height))
-        if isRoot && view.uiView.frame != savedFrame {
-          view.uiView.frame = savedFrame
-        }
+      DispatchQueue.main.async {
+        view.computeWithViewSize(layout: true)
       }
     }
   }
@@ -649,30 +645,6 @@ class MasonElementHelpers: NSObject {
         }
       }
       
-      // remember unpadded values before possible scroll-root tweaks
-      let origX = x
-      let origY = y
-      let origWidth = width
-      let origHeight = height
-
-      // special-case scroll root: offset into parent padding and expand
-      if let scroll = view as? Scroll, let parentNode = node.parent {
-        let pad = parentNode.style.padding
-        let parentPadL = CGFloat(pad.left.value/NSCMason.scale)
-        let parentPadT = CGFloat(pad.top.value/NSCMason.scale)
-        let parentPadR = CGFloat(pad.right.value/NSCMason.scale)
-        let parentPadB = CGFloat(pad.bottom.value/NSCMason.scale)
-
-        x += parentPadL
-        y += parentPadT
-        width += parentPadL + parentPadR
-        height += parentPadT + parentPadB
-
-        #if DEBUG
-        print("Mason scrollRoot parentPad=\(parentPadL)/\(parentPadR) layoutW=\(origWidth) layoutH=\(origHeight) finalW=\(width) finalH=\(height)")
-        #endif
-      }
-
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
@@ -682,13 +654,22 @@ class MasonElementHelpers: NSObject {
         view.frame = newFrame
       }
 
-      // Apply clipsToBounds for non-visible overflow on all views
+      // Apply clipping per the CSS overflow spec.
+      // Hidden, Scroll, Clip → always clip that axis
+      // Auto → clip only when content overflows
+      // Visible → no clip
       let overflow = node.style.overflow
-      if overflow.x != .Visible || overflow.y != .Visible {
+      let clipX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Clip
+        || (overflow.x == .Auto && realLayout.contentWidth > realLayout.width)
+      let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
+        || (overflow.y == .Auto && realLayout.contentHeight > realLayout.height)
+
+      let borderRender = node.style.mBorderRender
+      borderRender.resolve(for: view.bounds)
+
+      if clipX && clipY {
+        // Both axes clip — use clipsToBounds (+ border-radius mask if needed)
         view.clipsToBounds = true
-        // Apply border-radius clipping via layer mask when radii are present
-        let borderRender = node.style.mBorderRender
-        borderRender.resolve(for: view.bounds)
         if borderRender.hasRadii() {
           let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
           let newCGPath = clipPath.cgPath
@@ -704,6 +685,37 @@ class MasonElementHelpers: NSObject {
         } else if view.layer.mask != nil {
           view.layer.mask = nil
         }
+      } else if clipX || clipY {
+        // Only one axis clips — use a layer mask that extends beyond
+        // the view on the non-clipped axis so shadows/content can overflow.
+        view.clipsToBounds = false
+//        let pad = node.style.padding
+//        let padL = CGFloat(pad.left.value / NSCMason.scale)
+//        let padR = CGFloat(pad.right.value / NSCMason.scale)
+//        let padT = CGFloat(pad.top.value / NSCMason.scale)
+//        let padB = CGFloat(pad.bottom.value / NSCMason.scale)
+
+        // Large overflow allowance for the unclipped axis
+        let overflow: CGFloat = 10000
+
+        let clipRect: CGRect
+        if clipX && !clipY {
+          clipRect = CGRect(x: 0, y: -overflow, width: view.bounds.width, height: view.bounds.height + overflow * 2)
+        } else {
+          clipRect = CGRect(x: -overflow, y: 0, width: view.bounds.width + overflow * 2, height: view.bounds.height)
+        }
+
+        if borderRender.hasRadii() {
+          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
+          let newCGPath = clipPath.cgPath
+          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
+          maskLayer.path = newCGPath
+          view.layer.mask = maskLayer
+        } else {
+          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
+          maskLayer.path = UIBezierPath(rect: clipRect).cgPath
+          view.layer.mask = maskLayer
+        }
       } else {
         view.clipsToBounds = false
         if view.layer.mask != nil {
@@ -715,25 +727,42 @@ class MasonElementHelpers: NSObject {
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
-        
-        
-        let scrollWidth =
-        max(CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale), CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale))
-        
-        let scrollHeight =
-        max(CGFloat(realLayout.contentHeight.isNaN ? 0 : realLayout.contentHeight/NSCMason.scale), CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale))
-        
-      
-        
+
+        let cw = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+        let ch = CGFloat(realLayout.contentHeight.isNaN ? 0 : realLayout.contentHeight/NSCMason.scale)
+        let bw = CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale)
+        let bh = CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale)
+
+        // For `scroll`: always use content size (allow scrolling even if smaller)
+        // For `auto`: use content size only when it overflows the box
+        // For `visible`/`hidden`/`clip`: use box size (no scrolling)
+        let scrollWidth: CGFloat
+        switch overflow.x {
+        case .Scroll:
+          scrollWidth = max(cw, bw)
+        case .Auto:
+          scrollWidth = cw > bw ? cw : bw
+        default:
+          scrollWidth = bw
+        }
+
+        let scrollHeight: CGFloat
+        switch overflow.y {
+        case .Scroll:
+          scrollHeight = max(ch, bh)
+        case .Auto:
+          scrollHeight = ch > bh ? ch : bh
+        default:
+          scrollHeight = bh
+        }
+
         let newContentSize = CGSize(width: scrollWidth, height: scrollHeight)
         if scroll.contentSize != newContentSize {
           scroll.contentSize = newContentSize
         }
-        
-        
+
         MasonElementHelpers.handleOverflow(overflow.x, scroll)
         MasonElementHelpers.handleOverflow(overflow.y, scroll, true)
-        
       }
 
     }
@@ -774,51 +803,36 @@ class MasonElementHelpers: NSObject {
     }
   }
 
+  /// Configure scroll indicators and bounce behaviour for a single axis.
+  /// Clipping (clipsToBounds / layer mask) is handled in the layout pass,
+  /// not here, so that per-axis clipping works correctly.
   internal static func handleOverflow(_ overflow: Overflow, _ scroll: UIScrollView, _ vertical: Bool = false) {
-    switch(overflow){
-    case .Visible:
-      setIfNeeded(\.clipsToBounds, on: scroll, to: false)
-      if(vertical){
-        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: false)
-        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
-      }else {
-        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: false)
-        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
-      }
-    case .Hidden:
-      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
-      if(vertical){
-        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
-        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
-      }else {
-        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
-        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
-      }
+    switch overflow {
     case .Scroll:
-      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
-      if(vertical){
+      if vertical {
         setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
         setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: true)
-      }else {
+      } else {
         setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
         setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: true)
       }
-    case .Clip:
-      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
-      if(vertical){
-        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
-        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
-      }else {
-        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: true)
-        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
-      }
     case .Auto:
-      setIfNeeded(\.clipsToBounds, on: scroll, to: true)
-      if(vertical){
-        let showIndicator = scroll.contentSize.height > scroll.bounds.size.height
-        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: showIndicator)
-        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: true)
-      }else {
+      if vertical {
+        let overflows = scroll.contentSize.height > scroll.bounds.size.height
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: overflows)
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: overflows)
+      } else {
+        let overflows = scroll.contentSize.width > scroll.bounds.size.width
+        setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: overflows)
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: overflows)
+      }
+    default:
+      // Visible, Hidden, Clip — no scrolling on this axis
+      if vertical {
+        setIfNeeded(\.alwaysBounceVertical, on: scroll, to: false)
+        setIfNeeded(\.showsVerticalScrollIndicator, on: scroll, to: false)
+      } else {
+        setIfNeeded(\.alwaysBounceHorizontal, on: scroll, to: false)
         setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     }

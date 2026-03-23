@@ -38,6 +38,8 @@ class Mason {
     private set
 
   init {
+    nativeSetDeviceScale(nativePtr, scale)
+
     // set default style font metrics
     val buffer = ObjectManager.shared[nativeGetBuffer(
       nativePtr, 0 // default handle
@@ -114,12 +116,12 @@ class Mason {
 
   /** Public wrapper for native float rects (convenience for JVM callers). */
   fun getFloatRects(node: Node): FloatArray {
-    return nativeNodeGetFloatRects(nativePtr, node.nativePtr)
+    return NativeHelpers.nativeNodeGetFloatRects(nativePtr, node.nativePtr)
   }
 
   /** Public wrapper to retrieve Android ids associated with float rects. */
   fun getFloatRectAndroidIds(node: Node): IntArray {
-    return nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
+    return NativeHelpers.nativeNodeGetFloatRectAndroidIds(nativePtr, node.nativePtr)
   }
 
   fun printArenaStats() {
@@ -371,7 +373,11 @@ class Mason {
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
       is Element -> {
-        nodes[view.node.nativePtr]?.get() ?: run {
+        val existingRef = nodes[view.node.nativePtr]
+        val existing = existingRef?.get()
+        if (existing != null) {
+          existing
+        } else {
           val node = createNode().apply {
             this.view = view
           }
@@ -381,7 +387,11 @@ class Mason {
       }
 
       else -> {
-        viewNodes[view]?.get() ?: run {
+        val existingRef = viewNodes[view]
+        val existing = existingRef?.get()
+        if (existing != null) {
+          existing
+        } else {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
             this.view = view
@@ -479,12 +489,6 @@ class Mason {
 
     @JvmStatic
     private external fun nativeGetBuffer(mason: Long, handle: Int): Int
-
-    @JvmStatic
-    private external fun nativeNodeGetFloatRects(mason: Long, node: Long): FloatArray
-
-    @JvmStatic
-    private external fun nativeNodeGetFloatRectAndroidIds(mason: Long, node: Long): IntArray
 
   }
 }

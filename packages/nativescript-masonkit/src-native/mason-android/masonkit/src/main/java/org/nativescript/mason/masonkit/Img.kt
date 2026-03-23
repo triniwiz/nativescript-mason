@@ -294,38 +294,43 @@ class Img @JvmOverloads constructor(
     }
   }
 
-  override fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float> {
-    val width = knownDimensions.width?.takeIf {
+  override fun measure(
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
+
+    val width = knownWidth.takeIf {
       !it.isNaN() && it >= 0
     }
 
-    val height = knownDimensions.height?.takeIf {
+    val height = knownHeight.takeIf {
       !it.isNaN() && it >= 0
     }
 
-    val ret = Size(0f, 0f)
+    var retWidth = 0f
+    var retHeight = 0f
 
     if (width != null) {
-      ret.width = width
+      retWidth = width
     } else {
       drawable?.intrinsicWidth?.let {
-        ret.width = it.toFloat()
+        retWidth = it.toFloat()
       }
     }
 
     if (height != null) {
-      ret.height = height
+      retHeight = height
     } else {
       drawable?.intrinsicHeight?.let {
-        ret.height = it.toFloat()
+        retHeight = it.toFloat()
       }
     }
 
     if (width != null && height != null) {
-      drawable?.setBounds(0, 0, knownDimensions.width!!.toInt(), knownDimensions.height!!.toInt())
+      drawable?.setBounds(0, 0, knownWidth.toInt(), knownHeight.toInt())
     }
 
-    return ret
+    return MeasureOutput.make(retWidth, retHeight)
   }
 
 }

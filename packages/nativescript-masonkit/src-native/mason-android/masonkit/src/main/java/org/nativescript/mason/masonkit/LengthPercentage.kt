@@ -5,11 +5,17 @@ sealed class LengthPercentage {
   data class Percent(val percentage: Float) : LengthPercentage()
   data object Zero : LengthPercentage()
 
+  enum class Kind(val value: Byte) {
+    Points(0),
+    Percent(1)
+  }
+
+
   companion object {
     @JvmStatic
     fun isValid(type: Byte, value: Float): Boolean {
       return when (type) {
-        0.toByte(), 1.toByte() -> true
+        Kind.Points.value, Kind.Percent.value -> true
         else -> false
       }
     }
@@ -26,8 +32,8 @@ sealed class LengthPercentage {
     @JvmStatic
     fun fromTypeValue(type: Byte, value: Float): LengthPercentage? {
       return when (type) {
-        0.toByte() -> Points(value)
-        1.toByte() -> Percent(value)
+        Kind.Points.value -> Points(value)
+        Kind.Percent.value -> Percent(value)
         else -> null
       }
     }
@@ -35,9 +41,9 @@ sealed class LengthPercentage {
 
   internal val type: Byte
     get() = when (this) {
-      is Points -> 0
-      is Zero -> 0
-      is Percent -> 1
+      is Points -> Kind.Points.value
+      is Zero -> Kind.Points.value
+      is Percent -> Kind.Percent.value
     }
 
   internal val value: Float

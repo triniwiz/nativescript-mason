@@ -133,6 +133,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     } else {
       layer.shouldRasterize = false
     }
+    // Re-apply transform from buffer after layout changes
+    style.applyTransformFromBuffer()
   }
 
   init(mason doc: NSCMason) {

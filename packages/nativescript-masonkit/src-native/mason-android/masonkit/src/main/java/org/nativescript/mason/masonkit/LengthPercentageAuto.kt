@@ -7,12 +7,17 @@ sealed class LengthPercentageAuto {
   data object Auto : LengthPercentageAuto()
   data object Zero : LengthPercentageAuto()
 
+  enum class Kind(val value: Byte) {
+    Auto(0),
+    Points(1),
+    Percent(2)
+  }
 
   companion object {
     @JvmStatic
     fun isValid(type: Byte, value: Float): Boolean {
       return when (type) {
-        0.toByte(), 1.toByte(), 2.toByte() -> true
+        Kind.Auto.value, Kind.Points.value, Kind.Percent.value -> true
         else -> false
       }
     }
@@ -20,9 +25,9 @@ sealed class LengthPercentageAuto {
     @JvmStatic
     fun fromTypeValue(type: Byte, value: Float): LengthPercentageAuto? {
       return when (type) {
-        0.toByte() -> Auto
-        1.toByte() -> Points(value)
-        2.toByte() -> Percent(value)
+        Kind.Auto.value -> Auto
+        Kind.Points.value-> Points(value)
+        Kind.Percent.value -> Percent(value)
         else -> null
       }
     }
@@ -30,10 +35,10 @@ sealed class LengthPercentageAuto {
 
   internal val type: Byte
     get() = when (this) {
-      is Auto -> 0
-      is Points -> 1
-      is Percent -> 2
-      is Zero -> 1
+      is Auto -> Kind.Auto.value
+      is Points -> Kind.Points.value
+      is Percent -> Kind.Percent.value
+      is Zero -> Kind.Points.value
     }
 
   internal val value: Float

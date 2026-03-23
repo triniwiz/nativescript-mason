@@ -6,12 +6,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.Layout
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.TextView
-import org.nativescript.mason.masonkit.NativeHelpers
-import org.nativescript.mason.masonkit.Layout
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextType
 
 @RunWith(AndroidJUnit4::class)
 class TextTypeDefaultsInstrumentedTest {
@@ -45,31 +44,51 @@ class TextTypeDefaultsInstrumentedTest {
   @Test
   fun strongHasInlineDisplay() {
     val tv = createTextView(TextType.Strong)
-    Assert.assertEquals("Strong should be display: inline", org.nativescript.mason.masonkit.enums.Display.Inline, tv.style.display)
+    Assert.assertEquals(
+      "Strong should be display: inline",
+      org.nativescript.mason.masonkit.enums.Display.Inline,
+      tv.style.display
+    )
   }
 
   @Test
   fun emHasInlineDisplay() {
     val tv = createTextView(TextType.Em)
-    Assert.assertEquals("Em should be display: inline", org.nativescript.mason.masonkit.enums.Display.Inline, tv.style.display)
+    Assert.assertEquals(
+      "Em should be display: inline",
+      org.nativescript.mason.masonkit.enums.Display.Inline,
+      tv.style.display
+    )
   }
 
   @Test
   fun codeHasInlineDisplay() {
     val tv = createTextView(TextType.Code)
-    Assert.assertEquals("Code should be display: inline", org.nativescript.mason.masonkit.enums.Display.Inline, tv.style.display)
+    Assert.assertEquals(
+      "Code should be display: inline",
+      org.nativescript.mason.masonkit.enums.Display.Inline,
+      tv.style.display
+    )
   }
 
   @Test
   fun spanHasInlineDisplay() {
     val tv = createTextView(TextType.Span)
-    Assert.assertEquals("Span should be display: inline", org.nativescript.mason.masonkit.enums.Display.Inline, tv.style.display)
+    Assert.assertEquals(
+      "Span should be display: inline",
+      org.nativescript.mason.masonkit.enums.Display.Inline,
+      tv.style.display
+    )
   }
 
   @Test
   fun anchorHasInlineDisplay() {
     val tv = createTextView(TextType.A)
-    Assert.assertEquals("A should be display: inline", org.nativescript.mason.masonkit.enums.Display.Inline, tv.style.display)
+    Assert.assertEquals(
+      "A should be display: inline",
+      org.nativescript.mason.masonkit.enums.Display.Inline,
+      tv.style.display
+    )
   }
 
   @Test
@@ -132,11 +151,13 @@ class TextTypeDefaultsInstrumentedTest {
     val margin = tv.style.margin
     Assert.assertTrue(
       "Blockquote should have left margin (web: 40px)",
-      (margin.left as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
+      (margin.left as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f }
+        ?: false
     )
     Assert.assertTrue(
       "Blockquote should have right margin (web: 40px)",
-      (margin.right as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
+      (margin.right as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f }
+        ?: false
     )
   }
 
@@ -146,11 +167,13 @@ class TextTypeDefaultsInstrumentedTest {
     val margin = tv.style.margin
     Assert.assertTrue(
       "Blockquote should have top margin (web: 1em ≈ 16px)",
-      (margin.top as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
+      (margin.top as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f }
+        ?: false
     )
     Assert.assertTrue(
       "Blockquote should have bottom margin (web: 1em ≈ 16px)",
-      (margin.bottom as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
+      (margin.bottom as? org.nativescript.mason.masonkit.LengthPercentageAuto.Points)?.points?.let { it > 0f }
+        ?: false
     )
   }
 
@@ -186,11 +209,11 @@ class TextTypeDefaultsInstrumentedTest {
 
     // Infer flattening via public compute API: parent should have non-zero layout and not inflate
     val layout = bq.computeAndLayout(400f, -1f)
-    Log.i(TAG, "Blockquote with Em: ${layout.width}x${layout.height}")
+    Log.i(TAG, "Blockquote with Em: ${layout.cursor.width}x${layout.cursor.height}")
 
     Assert.assertTrue(
-      "Blockquote height (${layout.height}) should be non-zero",
-      layout.height > 0f
+      "Blockquote height (${layout.cursor.height}) should be non-zero",
+      layout.cursor.height > 0f
     )
   }
 
@@ -221,6 +244,6 @@ class TextTypeDefaultsInstrumentedTest {
   private fun computeAndLayout(
     tv: TextView, mason: Mason, width: Float, height: Float
   ): Layout {
-    return tv.computeAndLayout(width, height)
+    return Layout.fromMasonTree(tv.computeAndLayout(width, height), 0)
   }
 }

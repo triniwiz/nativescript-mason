@@ -3749,6 +3749,10 @@ declare module org {
 					public getGridRow(this_: globalAndroid.view.View): string;
 					public setMarginLeft(this_: globalAndroid.view.View, view: number, value: number): void;
 					public setBorder(this_: globalAndroid.view.View, view: string): void;
+					public setBorderLeft(this_: globalAndroid.view.View, value: string): void;
+					public setBorderTop(this_: globalAndroid.view.View, value: string): void;
+					public setBorderRight(this_: globalAndroid.view.View, value: string): void;
+					public setBorderBottom(this_: globalAndroid.view.View, value: string): void;
 					public setPosition(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
 					public setPosition(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentageAuto, left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
 					public setGap(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
@@ -3763,6 +3767,10 @@ declare module org {
 					public setCornerShapeBottomRight(this_: globalAndroid.view.View, value: string): void;
 					public getCornerShapeBottomLeft(this_: globalAndroid.view.View): string;
 					public setCornerShapeBottomLeft(this_: globalAndroid.view.View, value: string): void;
+					public getBoxShadow(this_: globalAndroid.view.View): string;
+					public setBoxShadow(this_: globalAndroid.view.View, value: string): void;
+					public getTransform(this_: globalAndroid.view.View): string;
+					public setTransform(this_: globalAndroid.view.View, value: string): void;
 				}
 			}
 		}

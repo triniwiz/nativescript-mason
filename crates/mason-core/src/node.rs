@@ -2,7 +2,6 @@ use crate::style::Style;
 use crate::tree::{Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
-use log::warn;
 
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
@@ -56,31 +55,9 @@ impl AndroidNode {
                 let width_bits = width.to_bits();
                 let height_bits = height.to_bits();
                 let is_subnormal = height.is_subnormal();
-                warn!(
-                    "AndroidNode.set_computed_size raw node={} width={} height={} width_bits=0x{:08x} height_bits=0x{:08x} is_subnormal={}",
-                    self.0,
-                    width,
-                    height,
-                    width_bits,
-                    height_bits,
-                    is_subnormal
-                );
-
-                let mut clamped_height = height;
-                // Clamp very small positive heights to zero to avoid visual
-                // glitches caused by tiny non-zero floats originating in
-                // native layout math or rounding.
-                if clamped_height > 0.0 && clamped_height.abs() < 1e-6_f32 {
-                    warn!(
-                        "AndroidNode.clamp tiny height node={} orig={} -> 0.0",
-                        self.0, clamped_height
-                    );
-                    clamped_height = 0.0;
-                }
 
                 let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                 let _ = unsafe {
-                    warn!("AndroidNode.set_computed_size node={} w={} h={}", self.0, width, clamped_height);
                     env.call_static_method_unchecked(
                         node,
                         cache.node_set_computed_size_id,
@@ -88,7 +65,7 @@ impl AndroidNode {
                         &[
                             jni::sys::jvalue { i: self.0 },
                             jni::sys::jvalue { f: width },
-                            jni::sys::jvalue { f: clamped_height },
+                            jni::sys::jvalue { f: height },
                         ],
                     )
                 };
@@ -143,20 +120,20 @@ impl NodeMeasure {
                 if let Some(cache) = crate::JVM_CACHE.get() {
                     let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                     // Trace inputs to the JVM measure call for auditing.
-                    let packed_known = MeasureOutput::make(
-                        known_dimensions.width.unwrap_or(f32::NAN),
-                        known_dimensions.height.unwrap_or(f32::NAN),
+                    let packed_known = MeasureOutput::make_bits(
+                        known_dimensions.width.unwrap_or(-3.0).to_bits(),
+                        known_dimensions.height.unwrap_or(-3.0).to_bits(),
                     );
-                    let packed_avail = MeasureOutput::make(
+                    let packed_avail = MeasureOutput::make_bits(
                         match available_space.width {
-                            AvailableSpace::MinContent => -1.,
-                            AvailableSpace::MaxContent => -2.,
-                            AvailableSpace::Definite(value) => value,
+                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                            AvailableSpace::Definite(value) => value.to_bits(),
                         },
                         match available_space.height {
-                            AvailableSpace::MinContent => -1.,
-                            AvailableSpace::MaxContent => -2.,
-                            AvailableSpace::Definite(value) => value,
+                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                            AvailableSpace::Definite(value) => value.to_bits(),
                         },
                     );
 
@@ -329,26 +306,22 @@ impl NodeData {
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
                                 jni::sys::jvalue { i: self.measure },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        known_dimensions.width.unwrap_or(f32::NAN),
-                                        known_dimensions.height.unwrap_or(f32::NAN),
-                                    ),
-                                },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make(
-                                        match available_space.width {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                        match available_space.height {
-                                            AvailableSpace::MinContent => -1.,
-                                            AvailableSpace::MaxContent => -2.,
-                                            AvailableSpace::Definite(value) => value,
-                                        },
-                                    ),
-                                },
+                                jni::sys::jvalue { j: MeasureOutput::make_bits(
+                                    known_dimensions.width.unwrap_or(-3.0).to_bits(),
+                                    known_dimensions.height.unwrap_or(-3.0).to_bits(),
+                                ) },
+                                jni::sys::jvalue { j: MeasureOutput::make_bits(
+                                    match available_space.width {
+                                        AvailableSpace::MinContent => (-1f32).to_bits(),
+                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                        AvailableSpace::Definite(value) => value.to_bits(),
+                                    },
+                                    match available_space.height {
+                                        AvailableSpace::MinContent => (-1f32).to_bits(),
+                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                        AvailableSpace::Definite(value) => value.to_bits(),
+                                    },
+                                ) },
                             ],
                         );
 
@@ -1098,10 +1071,8 @@ pub(crate) fn drain_deferred_cleanup(
             .map(|children| !children.is_empty())
             .unwrap_or(false);
         if !has_parent && !has_children {
-            if let Some(node) = tree.nodes.remove(id) {
-                let _ = id;
-                tree.style_arena.release(node.style.handle);
-            }
+            // Remove the node; Style::drop will release the arena handle
+            tree.nodes.remove(id);
             nd.remove(id);
         }
     }
@@ -1125,10 +1096,8 @@ impl Drop for NodeRef {
                     .map(|children| !children.is_empty())
                     .unwrap_or(false);
                 if !has_parent && !has_children {
-                    if let Some(node) = tree.nodes.remove(self.id) {
-                            let _ = self.id;
-                            tree.style_arena.release(node.style.handle);
-                    }
+                    // Remove the node; Style::drop will release the arena handle
+                    tree.nodes.remove(self.id);
                     if let Some(mut nd) = self.node_data.try_write() {
                         nd.remove(self.id);
                     }

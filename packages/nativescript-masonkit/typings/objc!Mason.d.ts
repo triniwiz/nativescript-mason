@@ -2051,6 +2051,14 @@ declare class MasonStyle extends NSObject {
 
 	border: string;
 
+	borderLeft: string;
+
+	borderTop: string;
+
+	borderRight: string;
+
+	borderBottom: string;
+
 	borderRadius: string;
 
 	borderWidthCompat: MasonLengthPercentageRectCompat;
@@ -2058,6 +2066,8 @@ declare class MasonStyle extends NSObject {
 	boxShadow: string;
 
 	boxSizing: MasonBoxSizing;
+
+	transform: string;
 
 	clear: MasonClear;
 

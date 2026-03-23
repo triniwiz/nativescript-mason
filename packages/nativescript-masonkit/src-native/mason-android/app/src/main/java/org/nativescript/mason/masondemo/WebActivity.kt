@@ -12,13 +12,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
+import org.nativescript.mason.masonkit.Li
+import org.nativescript.mason.masonkit.ListView
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
@@ -45,6 +49,7 @@ class WebActivity : AppCompatActivity() {
   lateinit var root: View
   lateinit var contentRoot: View
   lateinit var container: View
+  lateinit var demoList: ListView
 
   // Hacker News live state
   private var hnIds: List<Int> = listOf()
@@ -53,109 +58,144 @@ class WebActivity : AppCompatActivity() {
   private var hnLoading: Boolean = false
   private val mainHandler = Handler(Looper.getMainLooper())
 
+  private val demoNames = listOf(
+    "Web Sample",
+    "Pricing",
+    "FAQ",
+    "Grid Demo",
+    "Gallery",
+    "Hacker News"
+  )
+
   private fun clearContent() {
     contentRoot.removeAllViews()
+    // Add a back bar at the top of every demo
+    val backBar = mason.createView(this)
+    backBar.display = Display.Flex
+    backBar.flexDirection = FlexDirection.Row
+    backBar.style.alignItems = AlignItems.Center
+    backBar.style.padding = Rect.withPx(toPx(12f), toPx(12f), toPx(12f), toPx(12f))
+    backBar.style.background = "#FFFFFF"
+    backBar.style.border = "0 0 1px 0 solid #E5E7EB"
+
+    val backBtn = mason.createButton(this)
+    backBtn.append("< Back")
+    backBtn.style.fontSize = 16
+    backBtn.style.fontWeight = FontFace.NSCFontWeight.Medium
+    backBtn.style.color = "#2196F3".toCSSColorInt()
+    backBtn.addEventListener("click") {
+      contentRoot.post {
+        clearContent()
+        showDemoList()
+      }
+    }
+    backBar.addView(backBtn)
+    contentRoot.append(backBar)
+  }
+
+  private fun showDemoList() {
+    body.style.padding = Rect.withPx(0f, 0f, 0f, 0f)
+    contentRoot.style.display = Display.None
+    demoList.style.display = Display.Flex
+  }
+
+  private fun showDemo(index: Int) {
+    demoList.style.display = Display.None
+    contentRoot.style.display = Display.Flex
+    when (index) {
+      0 -> webTextSample()
+      1 -> pricingSample()
+      2 -> faqSample()
+      3 -> gridDemoSample()
+      4 -> galleryDemoSample()
+      5 -> hackerNewsSample()
+    }
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    // Build a container so the picker can sit above the scrolling content
+
     container = mason.createView(this)
     container.display = Display.Flex
     container.flexDirection = FlexDirection.Column
+    container.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
 
     body = mason.createScrollView(this)
     root = mason.createView(this)
-    // top-level root (inside the scroll) holds the content container
     contentRoot = mason.createView(this)
     body.addView(root)
     body.style.overflowY = Overflow.Scroll
 
-    // container: picker (added below) + scroll body
     body.addView(container)
 
     enableEdgeToEdge()
     setContentView(body)
     ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      // apply padding to container so content respects system bars
       root.style.setPadding(
         systemBars.left, systemBars.top, systemBars.right, systemBars.bottom
       )
       insets
     }
 
-    // build the example picker and default content
-    val pickerBar = mason.createView(this)
-    pickerBar.display = Display.Flex
-    pickerBar.flexDirection = FlexDirection.Row
-    pickerBar.style.justifyContent = JustifyContent.SpaceAround
-    pickerBar.style.alignItems = AlignItems.Center
-    pickerBar.style.padding = Rect.withPx(toPx(8f), toPx(8f), toPx(8f), toPx(8f))
-    pickerBar.style.background = "#FFFFFF"
-    pickerBar.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
-    // Ensure picker sits above content (touchable) by using a high z-index
-    pickerBar.style.zIndex = 10000
-    // Ensure contentRoot is behind picker
-    contentRoot.style.zIndex = 0
+    // ── Demo selection list ─────────────────────────────────────────────
+    demoList = mason.createListView(this)
+    demoList.configure {
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    }
+    demoList.count = demoNames.size
 
-    fun addPickerButton(title: String, onClick: () -> Unit) {
-      val btn = mason.createButton(this)
-      btn.append(title)
-      btn.style.fontSize = 14
-      btn.style.fontWeight = FontFace.NSCFontWeight.Medium
-      btn.style.color = "#0F172A".toCSSColorInt()
-      btn.style.padding = Rect.withPx(toPx(8f), toPx(12f), toPx(8f), toPx(12f))
-      btn.style.borderRadius = "8px"
-      btn.style.background = "#F8FAFC"
-      // Ensure native clicks also trigger the sample switch (defensive)
-      btn.isClickable = true
-      // Also register at the Mason event layer
-      btn.addEventListener("click") {
-        contentRoot.post {
-          try {
-            onClick()
-          } catch (ex: Exception) {
-            Log.e("WebActivity", "error switching sample (mason)", ex)
+    demoList.listener = object : ListView.Listener {
+      override fun onCreate(type: Int): android.view.View {
+        val item = mason.createListItem(this@WebActivity)
+        val row = mason.createView(this@WebActivity)
+        row.configure {
+          it.display = Display.Flex
+          it.flexDirection = FlexDirection.Row
+          it.alignItems = AlignItems.Center
+          it.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+        }
+        row.style.border = "0 0 1px 0 solid #E5E7EB"
+
+        val label = mason.createTextView(this@WebActivity)
+        label.fontSize = 18
+        label.fontWeight = FontFace.NSCFontWeight.Medium
+        label.color = "#0F172A".toCSSColorInt()
+        label.style.flexGrow = 1f
+        row.addView(label)
+
+        val chevron = mason.createTextView(this@WebActivity)
+        chevron.textContent = ">"
+        chevron.fontSize = 18
+        chevron.color = "#94A3B8".toCSSColorInt()
+        row.addView(chevron)
+
+        item.addView(row)
+        return item
+      }
+
+      override fun onBind(holder: ListView.Holder, index: Int) {
+        (holder.view as? Li)?.let { li ->
+          val row = li.getChildAt(0) as? android.view.ViewGroup
+          val label = row?.getChildAt(0) as? TextView
+          label?.textContent = demoNames[index]
+          li.addEventListener("click") {
+            showDemo(index)
           }
         }
       }
-      pickerBar.addView(btn)
+
+      override fun getItemViewType(position: Int): Int = 0
     }
 
-    addPickerButton("Web Sample") { webTextSample() }
-    addPickerButton("Pricing") { pricingSample() }
-    addPickerButton("FAQ") { faqSample() }
-    addPickerButton("Grid Demo") { gridDemoSample() }
-    addPickerButton("Gallery") { galleryDemoSample() }
-    addPickerButton("Hacker News") { hackerNewsSample() }
+    container.addView(demoList)
 
-    // place picker above the scroll body in the container
-    container.addView(pickerBar, 0)
-    // root already contains contentRoot
+    // contentRoot starts hidden; shown when a demo is selected
+    contentRoot.style.display = Display.None
     root.addView(contentRoot)
 
-    // Ensure native Android view for picker is front-most and clickable
-    try {
-      val nativePicker = pickerBar.view
-      nativePicker.isClickable = true
-      nativePicker.bringToFront()
-      nativePicker.requestLayout()
-      nativePicker.invalidate()
-      // make sure contentRoot doesn't intercept touches
-      try {
-        contentRoot.view.isClickable = false
-      } catch (_: Exception) {
-      }
-    } catch (ex: Exception) {
-      Log.w("WebActivity", "unable to bring picker to front", ex)
-    }
-
-    // load default
-    // webTextSample()
-    //hackerNewsSample()
-    //gridDemoSample()
-    galleryDemoSample()
+    // Add a back button area above contentRoot
+    showDemoList()
   }
 
   private fun fetchTopStoriesAndLoadInitial(hnContainer: View) {
@@ -381,7 +421,8 @@ class WebActivity : AppCompatActivity() {
     val root = mason.createView(this)
     root.display = Display.Flex
     root.flexDirection = FlexDirection.Column
-    root.style.maxWidth = org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
+    root.style.maxWidth =
+      org.nativescript.mason.masonkit.Dimension.Points(resources.displayMetrics.widthPixels.toFloat())
     root.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
     contentRoot.append(root)
 
@@ -395,7 +436,7 @@ class WebActivity : AppCompatActivity() {
     root.addView(gallery)
 
     for (i in 1..8) {
-      val minWidth =  (resources.displayMetrics.widthPixels / 2).toFloat()
+      val minWidth = (resources.displayMetrics.widthPixels / 2).toFloat()
       val card = mason.createView(this)
       card.display = Display.Flex
       card.flexDirection = FlexDirection.Column

@@ -27,25 +27,33 @@ class Scroll @JvmOverloads constructor(
   override val style: Style
     get() = node.style
 
+  // Effective scroll enable — updated after measurement for `auto` mode.
+  private var _enableScrollX: Boolean = false
+  private var _enableScrollY: Boolean = false
+
   override var enableScrollX: Boolean
-    get() {
-      return when (val value = node.style.values.get(StyleKeys.OVERFLOW_X)) {
-        Overflow.Scroll.value, Overflow.Auto.value -> true
-        Overflow.Visible.value, Overflow.Hidden.value, Overflow.Clip.value -> false
-        else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
-      }
-    }
-    set(value) {}
+    get() = _enableScrollX
+    set(value) { _enableScrollX = value }
 
   override var enableScrollY: Boolean
-    get() {
-      return when (val value = node.style.values.get(StyleKeys.OVERFLOW_Y)) {
-        Overflow.Scroll.value, Overflow.Auto.value -> true
-        Overflow.Visible.value, Overflow.Hidden.value, Overflow.Clip.value -> false
-        else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
-      }
-    }
-    set(value) {}
+    get() = _enableScrollY
+    set(value) { _enableScrollY = value }
+
+  private fun isScrollableX(): Boolean {
+    return node.style.values.get(StyleKeys.OVERFLOW_X) == Overflow.Scroll.value
+  }
+
+  private fun isScrollableY(): Boolean {
+    return node.style.values.get(StyleKeys.OVERFLOW_Y) == Overflow.Scroll.value
+  }
+
+  private fun isAutoX(): Boolean {
+    return node.style.values.get(StyleKeys.OVERFLOW_X) == Overflow.Auto.value
+  }
+
+  private fun isAutoY(): Boolean {
+    return node.style.values.get(StyleKeys.OVERFLOW_Y) == Overflow.Auto.value
+  }
 
   constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
     node = mason.createNode().apply {
@@ -147,19 +155,10 @@ class Scroll @JvmOverloads constructor(
           return
         }
 
+        updateScrollState()
+
         val computedW = node.computedWidth.toInt()
         val computedH = node.computedHeight.toInt()
-
-        // Read content dimensions from the layout tree root (index 0).
-        val nv = node.layoutTree.cursor
-        nv.pointTo(0)
-        val cw = nv.contentWidth.toInt()
-        val ch = nv.contentHeight.toInt()
-
-        // Update scroll content dimensions — use content size when the axis
-        // is scrollable, otherwise use the box size (no scrolling needed).
-        scrollContentWidth = if (enableScrollX) maxOf(cw, computedW) else computedW
-        scrollContentHeight = if (enableScrollY) maxOf(ch, computedH) else computedH
 
         val measuredW = if (specWidthMode == MeasureSpec.EXACTLY) specWidth else computedW
         val measuredH = when (specHeightMode) {
@@ -171,11 +170,31 @@ class Scroll @JvmOverloads constructor(
         setMeasuredDimension(measuredW, measuredH)
       } else {
         setMeasuredDimension(specWidth, specHeight)
-        post { requestLayout() }
       }
     } else {
       setMeasuredDimension(specWidth, specHeight)
     }
+  }
+
+  /**
+   * Update [_enableScrollX], [_enableScrollY], [scrollContentWidth], and
+   * [scrollContentHeight] from the current layout-tree data.  Called after
+   * the layout engine has computed this node.
+   */
+  private fun updateScrollState() {
+    val computedW = node.computedWidth.toInt()
+    val computedH = node.computedHeight.toInt()
+
+    val nv = node.layoutTree.cursor
+    nv.pointTo(0)
+    val cw = nv.contentWidth.toInt()
+    val ch = nv.contentHeight.toInt()
+
+    _enableScrollX = isScrollableX() || (isAutoX() && cw > computedW)
+    _enableScrollY = isScrollableY() || (isAutoY() && ch > computedH)
+
+    scrollContentWidth = if (_enableScrollX) maxOf(cw, computedW) else computedW
+    scrollContentHeight = if (_enableScrollY) maxOf(ch, computedH) else computedH
   }
 
   // ── Layout ─────────────────────────────────────────────────────────────
@@ -194,6 +213,12 @@ class Scroll @JvmOverloads constructor(
       }
       if (node.layoutTree.nodeCount != 0) {
         applyLayoutFlat(node, node.layoutTree)
+      }
+    } else {
+      // When laid out by a parent Element, the parent computed our layout.
+      // Read content dimensions to determine scroll state.
+      if (node.layoutTree.nodeCount > 0) {
+        updateScrollState()
       }
     }
 

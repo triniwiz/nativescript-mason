@@ -68,9 +68,7 @@ class Li @JvmOverloads constructor(
     if (listType == ListStyleType.None.value) return
 
     val fm = style.paint.fontMetrics
-    val baseline = findFirstTextBaseline(this@Li).takeIf { it != -1 } ?: run {
-      (-fm.ascent).toInt()
-    }
+    val baseline = findFirstTextBaseline(this@Li).takeIf { it != -1 } ?: (-fm.ascent).toInt()
 
     val oldPaintStyle = style.paint.style
     val oldStroke = style.paint.strokeWidth
@@ -284,8 +282,9 @@ class Li @JvmOverloads constructor(
   }
 
   override fun measure(
-    knownDimensions: Size<Float?>, availableSpace: Size<Float?>
-  ): Size<Float> {
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
     // Use the Android view hierarchy (same as resolveListStyleType) so that
     // recycled items inside the RecyclerView correctly pick up the parent
     // ListView's ordered flag — node.parent (Taffy tree) may not reflect the
@@ -301,7 +300,7 @@ class Li @JvmOverloads constructor(
       markerWidth = 0f
       markerHeight = 0f
       markerSize = 0f
-      return Size.uniform(0f)
+      return MeasureOutput.ZERO
     }
 
     val paint = style.paint
@@ -340,6 +339,6 @@ class Li @JvmOverloads constructor(
     markerWidth = width + gap
     markerHeight = textHeight
 
-    return Size(markerWidth, markerHeight)
+    return MeasureOutput.make(markerWidth, markerHeight)
   }
 }

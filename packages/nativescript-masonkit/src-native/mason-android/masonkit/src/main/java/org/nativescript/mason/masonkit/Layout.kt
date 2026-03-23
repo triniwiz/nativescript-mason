@@ -79,20 +79,6 @@ class MasonLayoutTree {
       frames[f4 + 2] = width
       frames[f4 + 3] = height
 
-      // Clamp tiny positive frame heights to zero to avoid subnormal artifacts
-      try {
-        val tinyThreshold = 1e-6f
-        if (frames[f4 + 3] > 0f && abs(frames[f4 + 3]) < tinyThreshold) {
-          Log.w(
-            "MasonLayout",
-            "fromFloatArray: clamping tiny frame height node=$nodeIndex orig=${frames[f4 + 3]} -> 0.0"
-          )
-          frames[f4 + 3] = 0f
-        }
-      } catch (_: Throwable) {
-        // non-fatal
-      }
-
       borders[f4] = args[arrayIndex++]
       borders[f4 + 1] = args[arrayIndex++]
       borders[f4 + 2] = args[arrayIndex++]
@@ -111,20 +97,6 @@ class MasonLayoutTree {
       val s2 = nodeIndex * 2
       contentSizes[s2] = args[arrayIndex++]
       contentSizes[s2 + 1] = args[arrayIndex++]
-
-      // Clamp tiny positive content heights to zero as a defensive measure
-      try {
-        val tinyThreshold = 1e-6f
-        if (contentSizes[s2 + 1] > 0f && abs(contentSizes[s2 + 1]) < tinyThreshold) {
-          Log.w(
-            "MasonLayout",
-            "fromFloatArray: clamping tiny contentSize height node=$nodeIndex orig=${contentSizes[s2 + 1]} -> 0.0"
-          )
-          contentSizes[s2 + 1] = 0f
-        }
-      } catch (_: Throwable) {
-        // non-fatal
-      }
 
       scrollbarSizes[s2] = args[arrayIndex++]
       scrollbarSizes[s2 + 1] = args[arrayIndex++]
@@ -382,7 +354,7 @@ data class Layout(
         val fIdx = i * 4
         val sIdx = i * 2
 
-        val order = tree.order.getOrNull(i)?.toInt() ?: 0
+        val order = tree.order.getOrNull(i) ?: 0
         val x = tree.frames.getOrNull(fIdx) ?: 0f
         val y = tree.frames.getOrNull(fIdx + 1) ?: 0f
         val width = tree.frames.getOrNull(fIdx + 2) ?: 0f

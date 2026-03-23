@@ -623,6 +623,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     case .A:
       node.style.display = Display.Inline
       node.style.decorationLine = DecorationLine.Underline
+      node.hasClickGesture = true
       let recognizer = MasonGestureRecognizer(targetView: self)
       recognizer.owner = self
       addGestureRecognizer(recognizer)

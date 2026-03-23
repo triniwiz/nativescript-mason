@@ -1,7 +1,18 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import org.nativescript.mason.masonkit.enums.*
+import android.os.Build
+import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 
 class HTMLParser(private val mason: Mason, internal var context: Context) {
 
@@ -14,8 +25,14 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
   fun parseInto(html: String, element: Element) {
     val children = parse(html)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      (element.view as? ViewGroup)?.suppressLayout(true)
+    }
     for (child in children) {
       element.append(child)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      (element.view as? ViewGroup)?.suppressLayout(false)
     }
   }
 
@@ -24,14 +41,31 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   // region Tokenizer
 
   private sealed class Token {
-    data class OpenTag(val name: String, val attributes: Map<String, String>, val selfClosing: Boolean) : Token()
+    data class OpenTag(
+      val name: String,
+      val attributes: Map<String, String>,
+      val selfClosing: Boolean
+    ) : Token()
+
     data class CloseTag(val name: String) : Token()
     data class Text(val content: String) : Token()
   }
 
   companion object {
     private val VOID_ELEMENTS = setOf(
-      "br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "source", "track", "wbr"
+      "br",
+      "hr",
+      "img",
+      "input",
+      "meta",
+      "link",
+      "area",
+      "base",
+      "col",
+      "embed",
+      "source",
+      "track",
+      "wbr"
     )
   }
 
@@ -405,18 +439,22 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "padding" -> parseLengthPercentage(value)?.let { v ->
         style.padding = Rect(v, v, v, v)
       }
+
       "padding-left" -> parseLengthPercentage(value)?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, current.right, current.bottom, v)
       }
+
       "padding-right" -> parseLengthPercentage(value)?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, v, current.bottom, current.left)
       }
+
       "padding-top" -> parseLengthPercentage(value)?.let { v ->
         val current = style.padding
         style.padding = Rect(v, current.right, current.bottom, current.left)
       }
+
       "padding-bottom" -> parseLengthPercentage(value)?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, current.right, v, current.left)
@@ -425,6 +463,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "margin" -> parseLengthPercentageAuto(value)?.let { v ->
         style.margin = Rect(v, v, v, v)
       }
+
       "margin-left" -> parseLengthPercentageAuto(value)?.let { style.marginLeft = it }
       "margin-right" -> parseLengthPercentageAuto(value)?.let { style.marginRight = it }
       "margin-top" -> parseLengthPercentageAuto(value)?.let { style.marginTop = it }
@@ -467,8 +506,12 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   private fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
     if (value == "auto") return LengthPercentageAuto.Auto
     return when {
-      value.endsWith("%") -> value.dropLast(1).toFloatOrNull()?.let { LengthPercentageAuto.Percent(it) }
-      value.endsWith("px") -> value.dropLast(2).toFloatOrNull()?.let { LengthPercentageAuto.Points(it) }
+      value.endsWith("%") -> value.dropLast(1).toFloatOrNull()
+        ?.let { LengthPercentageAuto.Percent(it) }
+
+      value.endsWith("px") -> value.dropLast(2).toFloatOrNull()
+        ?.let { LengthPercentageAuto.Points(it) }
+
       else -> value.toFloatOrNull()?.let { LengthPercentageAuto.Points(it) }
     }
   }
@@ -504,10 +547,12 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
           val b = hex[2].digitToInt(16)
           (0xFF shl 24) or (r * 0x11 shl 16) or (g * 0x11 shl 8) or (b * 0x11)
         }
+
         6 -> {
           val rgb = hex.toLongOrNull(16) ?: return null
           (0xFF000000 or rgb).toInt()
         }
+
         8 -> {
           // #RRGGBBAA
           val rgba = hex.toLongOrNull(16) ?: return null
@@ -517,6 +562,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
           val a = rgba and 0xFF
           ((a shl 24) or (r shl 16) or (g shl 8) or b).toInt()
         }
+
         else -> null
       }
     }

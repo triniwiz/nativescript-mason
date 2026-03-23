@@ -56,8 +56,7 @@ struct BoxShadow: Hashable {
 enum ShadowParser {
 
   static func parseTextShadow(style: MasonStyle, value: String) -> [TextShadow] {
-    return value
-      .split(separator: ",")
+    return splitShadowLayers(value)
       .compactMap { rawShadow in
         let shadow = rawShadow.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -103,8 +102,7 @@ enum ShadowParser {
   /// Syntax: [inset] <offset-x> <offset-y> [blur-radius] [spread-radius] <color>
   /// Multiple shadows separated by commas are supported.
   static func parseBoxShadow(style: MasonStyle, value: String) -> [BoxShadow] {
-    return value
-      .split(separator: ",")
+    return splitShadowLayers(value)
       .compactMap { rawShadow in
         let shadow = rawShadow.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokens = splitByWhitespace(shadow)
@@ -155,28 +153,39 @@ enum ShadowParser {
 
   // MARK: - Helpers
 
+  /// Tokenise keeping parenthesised groups (e.g. `rgba(0, 0, 0, 0.5)`) intact.
   private static func splitByWhitespace(_ string: String) -> [String] {
-    let range = NSRange(string.startIndex..<string.endIndex, in: string)
-    let matches = SPLIT_REGEX.matches(in: string, range: range)
-
     var tokens: [String] = []
-    var lastIndex = string.startIndex
-
-    for match in matches {
-      if let r = Range(match.range, in: string) {
-        let token = String(string[lastIndex..<r.lowerBound])
-        if !token.isEmpty {
-          tokens.append(token)
-        }
-        lastIndex = r.upperBound
+    var current = ""
+    var depth = 0
+    for ch in string {
+      switch ch {
+      case "(": depth += 1; current.append(ch)
+      case ")": depth -= 1; current.append(ch)
+      case _ where ch.isWhitespace && depth == 0:
+        if !current.isEmpty { tokens.append(current); current = "" }
+      default: current.append(ch)
       }
     }
-
-    let tail = String(string[lastIndex...])
-    if !tail.isEmpty {
-      tokens.append(tail)
-    }
-
+    if !current.isEmpty { tokens.append(current) }
     return tokens
+  }
+
+  /// Split comma-separated shadow layers while respecting parenthesised groups.
+  private static func splitShadowLayers(_ value: String) -> [String] {
+    var layers: [String] = []
+    var current = ""
+    var depth = 0
+    for ch in value {
+      switch ch {
+      case "(": depth += 1; current.append(ch)
+      case ")": depth -= 1; current.append(ch)
+      case "," where depth == 0:
+        layers.append(current); current = ""
+      default: current.append(ch)
+      }
+    }
+    if !current.isEmpty { layers.append(current) }
+    return layers
   }
 }

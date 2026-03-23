@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.os.Build
 import android.text.StaticLayout
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
@@ -94,8 +93,10 @@ class TextView @JvmOverloads constructor(
   // Cached StaticLayout and width used for drawing when we render our own layout
   internal var cachedStaticLayout: StaticLayout? = null
   internal var cachedStaticLayoutWidth: Int = -1
+
   // Float-aware StaticLayout: wraps text around floated sibling elements
   internal var floatAwareStaticLayout: StaticLayout? = null
+
   // Height applied by float-aware expansion so onSizeChanged can skip clearing the cache
   private var floatExpandedHeight: Int = -1
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -125,9 +126,7 @@ class TextView @JvmOverloads constructor(
       // when applyLayoutFlat positions the view), so try building float-aware
       // layout unconditionally.
       if (floatAwareStaticLayout == null) {
-        try {
-          floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
-        } catch (_: Throwable) {}
+        floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(paint)
       }
 
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
@@ -153,10 +152,17 @@ class TextView @JvmOverloads constructor(
               while (anc != null && anc is Element) {
                 val ancElement = anc as Element
                 val childMarginBottom = childNode?.let {
-                  resolveMarginValue(try { it.style.margin.bottom } catch (_: Throwable) { null })
+                  resolveMarginValue(
+                    try {
+                      it.style.margin.bottom
+                    } catch (_: Throwable) {
+                      null
+                    }
+                  )
                 } ?: 0f
                 val ancBorderBottom = ancElement.node.computedBorderBottom
-                val needed = child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
+                val needed =
+                  child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
                 val available = anc.height
                 if (needed <= available) break
                 anc.layout(anc.left, anc.top, anc.right, anc.top + needed)
@@ -319,6 +325,7 @@ class TextView @JvmOverloads constructor(
           isFocusable = true
           isFocusableInTouchMode = true
 
+          node.hasNativeClickDispatch = true
           setOnClickListener {
             node.mason.dispatch(
               Event(
@@ -587,8 +594,11 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  override fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float> {
-    return engine.measure(paint, knownDimensions, availableSpace)
+  override fun measure(
+    knownWidth: Float, knownHeight: Float,
+    availableWidth: Float, availableHeight: Float
+  ): Long {
+    return engine.measure(paint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 
   internal fun attachTextNode(node: TextNode, index: Int = -1) {
