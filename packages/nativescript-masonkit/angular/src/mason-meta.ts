@@ -7,7 +7,7 @@ import type { ViewClassMeta } from '@nativescript/angular';
  * attached to subclasses declared outside this package (e.g. an app's own
  * `View` subclass) without a nominal dependency.
  */
-export interface MasonChildOps {
+interface MasonChildOps {
   /**
    * MasonKit's raw child list. Unlike `_viewChildren` it includes text-node and
    * placeholder (`<br>`) entries, and it is the list `insertChild` splices into.

@@ -151,9 +151,8 @@ Components _below_ a page root are unaffected and stay real MasonKit boxes.
 | ----------------------- | ---------------------- | ------- | ------------------------------------------------------------------------- |
 | `enabled`               | `boolean`              | `true`  | Turn host mode off, keeping element registration                          |
 | `passthrough`           | `PassthroughMatcher[]` | `[]`    | Elements to keep transparent. Strings, regexes or predicates              |
-| `autoDetectPassthrough` | `boolean`              | `true`  | Detect page-level components and correct them on later renders            |
+| `autoDetectPassthrough` | `boolean`              | `true`  | Recognise page roots automatically                                        |
 | `rootAsPassthrough`     | `boolean`              | `true`  | Keep the app's root component transparent so the tree gets a sized parent |
-| `fillClassicParent`     | `boolean`              | `true`  | Stretch a host that sits directly inside a `Page`/`ContentView`/layout    |
 
 Router outlets (`page-router-outlet`, `ns-empty-outlet`, `router-outlet`) are
 always transparent; your `passthrough` entries are added to that list.
@@ -166,10 +165,6 @@ always transparent; your `passthrough` entries are added to that list.
 | `registerMasonKitElements(options?)`  | Element registration only                                  |
 | `enableMasonComponentHosts(options?)` | Component-host mode only                                   |
 | `masonMeta`                           | `ViewClassMeta` for registering your own MasonKit subclass |
-| `MasonComponentHost`                  | The container class used for component host elements       |
-| `DEFAULT_PASSTHROUGH_ELEMENTS`        | The built-in transparent element list                      |
-| `getComponentHostConfig()`            | Current host configuration, for debugging                  |
-| `learnPassthroughElement(name)`       | Mark an element transparent at runtime                     |
 
 Registering your own MasonKit subclass:
 

@@ -15,27 +15,20 @@ const COMPONENT_HOST_TAG = 'mason-component-host';
 export type PassthroughMatcher = string | RegExp | ((elementName: string) => boolean);
 
 /**
- * Element selectors that must stay a transparent `ProxyViewContainer` rather
- * than becoming a MasonKit host.
+ * Framework router outlets, which must stay transparent.
  *
- * These are the framework router outlets. They host a classic `Frame`/`Page`
- * that fills its parent by classic measurement. A `ProxyViewContainer` is a
- * logical passthrough - its child is hoisted into the nearest real native
- * ancestor and measured with an exact, fill-parent size. A MasonKit host is
- * instead a real Taffy box, and Taffy *content-sizes* a foreign (non-MasonKit)
- * child; it does not honour a `Frame`'s "fill parent" intent, so the `Frame`
- * collapses to ~0 and nothing from the outlet down renders.
+ * They host a classic `Frame`/`Page` that fills its parent by classic
+ * measurement. A `ProxyViewContainer` is a logical passthrough - its child is
+ * hoisted into the nearest real native ancestor and measured with an exact,
+ * fill-parent size. A MasonKit host is instead a real Taffy box, and Taffy
+ * *content-sizes* a foreign (non-MasonKit) child, so the `Frame` collapses to
+ * ~0 and nothing from the outlet down renders.
  *
  * Most `@nativescript/angular` views (`ActionBar`, `ActionItem`, ...) are
- * already `registerElement`'d, so they are known views and keep classic
- * behaviour without needing to be listed here - only the outlets leak through
- * as unregistered elements.
- *
- * The Angular root component is deliberately *not* listed: it is handled by
- * {@link ComponentHostOptions.rootAsPassthrough} instead, which detects it
- * rather than assuming it is called `app-root`.
+ * already `registerElement`'d, so only the outlets reach us as unregistered
+ * elements.
  */
-export const DEFAULT_PASSTHROUGH_ELEMENTS: PassthroughMatcher[] = ['page-router-outlet', 'ns-empty-outlet', 'router-outlet'];
+const DEFAULT_PASSTHROUGH_ELEMENTS = ['page-router-outlet', 'ns-empty-outlet', 'router-outlet'];
 
 export interface ComponentHostOptions {
   /**
@@ -45,20 +38,18 @@ export interface ComponentHostOptions {
    */
   enabled?: boolean;
   /**
-   * Extra elements to keep as a transparent `ProxyViewContainer`. Merged with
-   * {@link DEFAULT_PASSTHROUGH_ELEMENTS}. Strings are compared
-   * case-insensitively; regexes and predicates receive the raw element name.
+   * Extra elements to keep as a transparent `ProxyViewContainer`. Strings are
+   * compared case-insensitively; regexes and predicates receive the raw element
+   * name.
    *
-   * Use this for any component whose template root is a classic fill-parent
-   * view (another router outlet, a `Frame`, a `Page`).
+   * Routed components are handled automatically, so this is only needed for a
+   * component whose template root is a classic fill-parent view that this
+   * cannot see coming - another router outlet, a `Frame`, a `Page`.
    */
   passthrough?: PassthroughMatcher[];
   /**
-   * Watch what each host actually receives as a child and, when a classic
-   * fill-parent view (`Frame`/`Page`) shows up, remember that element name as a
-   * passthrough so later instances are created as proxies.
-   *
-   * See {@link learnPassthroughElement} for what this does and does not fix.
+   * Recognise page roots automatically: routed components at creation time, and
+   * any host that turns out to hold a `Frame`, `Page` or `ActionBar`.
    *
    * @default true
    */
@@ -78,46 +69,23 @@ export interface ComponentHostOptions {
    * @default true
    */
   rootAsPassthrough?: boolean;
-  /**
-   * Make a host whose parent is a *classic* NativeScript view (a `Page`,
-   * `ContentView`, `GridLayout`, ...) fill that parent.
-   *
-   * This restores the behaviour of the `ProxyViewContainer` the host replaced.
-   * A proxy is hoisted into its nearest real native ancestor and measured with
-   * that ancestor's exact size, so the tree below it inherits a real box to
-   * resolve `height: 100%` and `flex: 1` against. A Taffy box left at its
-   * `auto` default content-sizes instead, so a route component's host would
-   * shrink-wrap its content in the middle of a full-screen `Page`.
-   *
-   * Only applied at the Mason/classic boundary - a host nested inside another
-   * MasonKit view is left as a normal in-flow box.
-   *
-   * The size is written straight to the Mason style rather than through the
-   * NativeScript `width`/`height` properties, deliberately: `View.onMeasure`
-   * only forwards the incoming measure spec to Taffy while both NativeScript
-   * dimensions are still `auto`, so going through the properties would push it
-   * onto the max-content path and defeat the fill.
-   *
-   * @default true
-   */
-  fillClassicParent?: boolean;
 }
 
 /**
- * Live configuration. Read at element-creation time rather than captured at
- * install time, so `MasonKitModule.forRoot()` can adjust it regardless of
- * whether it is evaluated before or after the install call.
+ * Live configuration, read at element-creation time rather than captured at
+ * install time so a later `installMasonKit()` call can still adjust it.
+ *
+ * `passthrough` is not mirrored here: matchers are compiled straight into
+ * {@link passthroughNames} / {@link passthroughTests} when they arrive.
  */
-const config: Required<ComponentHostOptions> = {
+const config = {
   enabled: true,
-  passthrough: [...DEFAULT_PASSTHROUGH_ELEMENTS],
   autoDetectPassthrough: true,
   rootAsPassthrough: true,
-  fillClassicParent: true,
 };
 
 /** Lowercased string matchers, kept separate for O(1) lookup. */
-const passthroughNames = new Set<string>(DEFAULT_PASSTHROUGH_ELEMENTS as string[]);
+const passthroughNames = new Set<string>(DEFAULT_PASSTHROUGH_ELEMENTS);
 /** Regex and predicate matchers. */
 const passthroughTests: Array<RegExp | ((name: string) => boolean)> = [];
 
@@ -141,7 +109,7 @@ let creatingPageRoot = false;
  * with the full style surface, and `flex`/`grid` on a component element does
  * what it says.
  */
-export class MasonComponentHost extends View {
+class MasonComponentHost extends View {
   /** The element name from the template, kept for diagnostics and auto-detect. */
   masonHostElementName?: string;
 
@@ -154,52 +122,16 @@ export class MasonComponentHost extends View {
     inspectChild(this, child);
     super.insertChild(child, atIndex);
   }
-
-  onLoaded(): void {
-    super.onLoaded();
-    applyClassicParentFill(this);
-  }
 }
-
-/** True when `view` manages children through MasonKit's own child list. */
-function isMasonView(view: unknown): boolean {
-  const candidate = view as { _children?: unknown; insertChild?: unknown };
-  return !!candidate && Array.isArray(candidate._children) && typeof candidate.insertChild === 'function';
-}
-
-/**
- * Stretch a host that sits directly under a classic NativeScript parent.
- * See {@link ComponentHostOptions.fillClassicParent}.
- */
-function applyClassicParentFill(host: MasonComponentHost): void {
-  if (!config.fillClassicParent || filled.has(host)) {
-    return;
-  }
-  const parent = host.parent;
-  if (!parent || isMasonView(parent)) {
-    return;
-  }
-  const style = (host as unknown as { _styleHelper?: { width: string; height: string } })._styleHelper;
-  if (!style) {
-    return;
-  }
-  filled.add(host);
-  style.width = '100%';
-  style.height = '100%';
-}
-
-/** Hosts already stretched, so a re-`loaded` does not redo the work. */
-const filled = new WeakSet<MasonComponentHost>();
 
 /**
  * True when `child` cannot lay out under a Taffy box at all, so its host has to
  * become transparent.
  *
- * Only `Frame` and `Page` qualify. Both fill their parent by classic
- * measurement, and Taffy *content-sizes* a foreign (non-MasonKit) child, so
- * under a MasonKit host they collapse to ~0 and nothing below them renders.
- * There is no styling or sizing an app can apply to work around that, which is
- * what makes forcing a passthrough the right call.
+ * `Frame` and `Page` fill their parent by classic measurement, and Taffy
+ * content-sizes a foreign (non-MasonKit) child, so under a MasonKit host they
+ * collapse to ~0 and nothing below them renders. No styling an app can apply
+ * works around that, which is what makes forcing a passthrough right.
  */
 function needsTransparentParent(child: unknown): boolean {
   if (child instanceof Frame || child instanceof Page) {
@@ -218,16 +150,6 @@ function needsTransparentParent(child: unknown): boolean {
   return false;
 }
 
-/**
- * Record an element name as a page root without logging.
- *
- * Used when `PageRouterOutlet` told us outright, which is the expected path and
- * not worth a console message on every route.
- */
-function rememberPassthrough(elementName: string): void {
-  passthroughNames.add(elementName.toLowerCase());
-}
-
 function inspectChild(host: MasonComponentHost, child: unknown): void {
   if (!config.autoDetectPassthrough || !host.masonHostElementName) {
     return;
@@ -235,17 +157,46 @@ function inspectChild(host: MasonComponentHost, child: unknown): void {
   if (!(child instanceof NSView)) {
     return;
   }
-  // A Frame or Page cannot be laid out by Taffy at all.
-  //
   // An ActionBar means this component is a page root: its siblings are
   // page-level content that fills the `Page` by classic measurement, and a
-  // Taffy box between the two content-sizes them away. This is the backstop for
-  // the outlet hook in `patchPageRouterOutlet()` - if that hook ever stops
-  // firing (a different routing path, an upstream refactor), this still catches
-  // the case, just one render late.
+  // Taffy box between the two content-sizes them away.
+  //
+  // This is the backstop for the outlet hook in `patchPageRouterOutlet()`. If
+  // that hook stops firing - a different routing path, an upstream refactor -
+  // this still catches the case, one render late.
   if (needsTransparentParent(child) || child instanceof ActionBar) {
     learnPassthroughElement(host.masonHostElementName);
   }
+}
+
+/**
+ * Record an element name as a passthrough after the fact, and say so.
+ *
+ * The host that triggered detection already exists and cannot change class:
+ * Angular's `ViewUtil` holds it in a sibling linked list, so swapping it
+ * mid-render would corrupt that list. Every *later* creation of the element
+ * becomes a proxy, so the second render onwards is correct - and the log names
+ * the selector to put in `passthrough` to fix the first render too.
+ */
+function learnPassthroughElement(elementName: string): void {
+  const name = elementName.toLowerCase();
+  if (passthroughNames.has(name)) {
+    return;
+  }
+  passthroughNames.add(name);
+  console.log(`[masonkit/angular] <${elementName}> holds a page-level view (Frame, Page or ActionBar) that Taffy cannot size as a Mason box. ` + `It will be created as a transparent ProxyViewContainer from now on. Add '${elementName}' to the ` + `passthrough option to apply this from the first render too.`);
+}
+
+function isPassthrough(elementName: string): boolean {
+  if (passthroughNames.has(elementName.toLowerCase())) {
+    return true;
+  }
+  for (const test of passthroughTests) {
+    if (test instanceof RegExp ? test.test(elementName) : test(elementName)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -259,19 +210,16 @@ function inspectChild(host: MasonComponentHost, child: unknown): void {
  * the ActionBar still renders because it is hoisted onto the `Page`, and
  * everything below it disappears.
  *
- * Detection alone cannot fix this. By the time a host reports an ActionBar
- * child, the host exists and cannot change class - Angular's `ViewUtil` holds
- * it in a sibling linked list. That is why this used to need every route
- * selector listing in `passthrough` by hand.
- *
- * `activateOnGoForward` closes the gap: it builds the routed component inside
- * its own call, so the first unregistered element created while it runs *is*
- * the route's host element. Bracketing it gives `createView` the one piece of
- * information it was missing, with no per-app configuration.
+ * Detection alone cannot fix that, because by the time a host reports an
+ * ActionBar child the host exists and cannot change class. `activateOnGoForward`
+ * closes the gap: it builds the routed component inside its own call, so the
+ * first unregistered element created while it runs *is* the route's host
+ * element. Bracketing it gives `createView` the one piece of information it was
+ * missing, with no per-app configuration.
  *
  * Nothing is lost by making these transparent: a page root is a full-screen
  * container, not a box anyone styles. Components *below* it stay real MasonKit
- * hosts, which is where component-host mode actually earns its keep.
+ * hosts, which is where component-host mode earns its keep.
  */
 function patchPageRouterOutlet(): void {
   // `activateOnGoForward` is private on the class, so reach it through an
@@ -294,41 +242,6 @@ function patchPageRouterOutlet(): void {
   };
 }
 
-/**
- * Record an element name as a passthrough after the fact.
- *
- * Scope of the fix, stated plainly: the host that triggered the detection has
- * already been created and cannot change class - Angular's `ViewUtil` holds it
- * in a sibling linked list, so swapping it out mid-render would corrupt that
- * list. What this does is make *every later creation* of that element a proxy,
- * which covers the second and subsequent renders (a re-navigation, a second
- * instance, the next `*ngIf` toggle) and logs the name so it can be added to
- * `passthrough` to fix the very first render too.
- *
- * In practice the first render rarely breaks: the framework outlets that hit
- * this are already in {@link DEFAULT_PASSTHROUGH_ELEMENTS}.
- */
-export function learnPassthroughElement(elementName: string): void {
-  const name = elementName.toLowerCase();
-  if (passthroughNames.has(name)) {
-    return;
-  }
-  passthroughNames.add(name);
-  console.log(`[masonkit/angular] <${elementName}> holds a Frame or Page, which Taffy cannot size as a Mason box. ` + `It will be created as a transparent ProxyViewContainer from now on. Add '${elementName}' to the ` + `passthrough option to apply this from the first render too.`);
-}
-
-function isPassthrough(elementName: string): boolean {
-  if (passthroughNames.has(elementName.toLowerCase())) {
-    return true;
-  }
-  for (const test of passthroughTests) {
-    if (test instanceof RegExp ? test.test(elementName) : test(elementName)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function applyOptions(options: ComponentHostOptions): void {
   if (options.enabled !== undefined) {
     config.enabled = options.enabled;
@@ -339,16 +252,12 @@ function applyOptions(options: ComponentHostOptions): void {
   if (options.rootAsPassthrough !== undefined) {
     config.rootAsPassthrough = options.rootAsPassthrough;
   }
-  if (options.fillClassicParent !== undefined) {
-    config.fillClassicParent = options.fillClassicParent;
-  }
   for (const matcher of options.passthrough ?? []) {
     if (typeof matcher === 'string') {
       passthroughNames.add(matcher.toLowerCase());
     } else {
       passthroughTests.push(matcher);
     }
-    config.passthrough.push(matcher);
   }
 }
 
@@ -404,7 +313,7 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
     if (unregistered && creatingPageRoot) {
       creatingPageRoot = false;
       isPageRoot = true;
-      rememberPassthrough(name);
+      passthroughNames.add(name.toLowerCase());
     }
 
     if (!config.enabled || !unregistered || isPageRoot || isPassthrough(name) || (config.rootAsPassthrough && isFirstElement)) {
@@ -450,9 +359,4 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
     // decides between a host and a proxy and stamps `customCSSName` either way.
     return this.viewUtil.createView(name);
   };
-}
-
-/** Current component-host configuration. Exposed for diagnostics and tests. */
-export function getComponentHostConfig(): Readonly<Required<ComponentHostOptions>> {
-  return config;
 }
