@@ -39,10 +39,8 @@ $dim: #828282;
   background-color: $bg;
   padding: 12;
   gap: 10;
-  // DIAGNOSTIC: `stretch` is the CSS default for align-items, so this line
-  // should be a no-op. If adding it changes anything, MasonKit is not
-  // defaulting the cross-axis alignment to stretch.
   align-items: stretch;
+  width: 100%;
 }
 
 // ---------------------------------------------------------------- feed
