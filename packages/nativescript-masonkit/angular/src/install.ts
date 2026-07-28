@@ -6,7 +6,7 @@ export interface InstallMasonKitOptions extends RegisterElementsOptions {
    * Component-host mode: make every Angular component host element a real
    * MasonKit view instead of an invisible `ProxyViewContainer`.
    *
-   * On by default — installing this is taken as the statement that MasonKit is
+   * On by default - installing this is taken as the statement that MasonKit is
    * how the app lays out. Pass `false`, or an options object with
    * `enabled: false`, to opt out and keep stock `@nativescript/angular`
    * behaviour while still getting the element registrations.
@@ -37,7 +37,7 @@ export interface InstallMasonKitOptions extends RegisterElementsOptions {
  * would both be too late for some of that. A plain function call at the top of
  * the entry file is unambiguous about when it happens.
  *
- * Idempotent — element registration is deduplicated and the component-host
+ * Idempotent - element registration is deduplicated and the component-host
  * patches are installed once, then only reconfigured.
  */
 export function installMasonKit(options: InstallMasonKitOptions = {}): void {

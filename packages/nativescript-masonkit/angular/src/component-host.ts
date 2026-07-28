@@ -20,7 +20,7 @@ export type PassthroughMatcher = string | RegExp | ((elementName: string) => boo
  *
  * These are the framework router outlets. They host a classic `Frame`/`Page`
  * that fills its parent by classic measurement. A `ProxyViewContainer` is a
- * logical passthrough — its child is hoisted into the nearest real native
+ * logical passthrough - its child is hoisted into the nearest real native
  * ancestor and measured with an exact, fill-parent size. A MasonKit host is
  * instead a real Taffy box, and Taffy *content-sizes* a foreign (non-MasonKit)
  * child; it does not honour a `Frame`'s "fill parent" intent, so the `Frame`
@@ -28,7 +28,7 @@ export type PassthroughMatcher = string | RegExp | ((elementName: string) => boo
  *
  * Most `@nativescript/angular` views (`ActionBar`, `ActionItem`, ...) are
  * already `registerElement`'d, so they are known views and keep classic
- * behaviour without needing to be listed here — only the outlets leak through
+ * behaviour without needing to be listed here - only the outlets leak through
  * as unregistered elements.
  *
  * The Angular root component is deliberately *not* listed: it is handled by
@@ -89,7 +89,7 @@ export interface ComponentHostOptions {
    * `auto` default content-sizes instead, so a route component's host would
    * shrink-wrap its content in the middle of a full-screen `Page`.
    *
-   * Only applied at the Mason/classic boundary — a host nested inside another
+   * Only applied at the Mason/classic boundary - a host nested inside another
    * MasonKit view is left as a normal in-flow box.
    *
    * The size is written straight to the Mason style rather than through the
@@ -186,15 +186,15 @@ const filled = new WeakSet<MasonComponentHost>();
 
 /**
  * True when `child` is a view that only lays out correctly if its parent is
- * transparent — i.e. one that expects classic fill-parent measurement from a
+ * transparent - i.e. one that expects classic fill-parent measurement from a
  * real native ancestor.
  *
  * Two shapes qualify:
  *
- * - `Frame` / `Page` — they fill their parent by classic measurement. Taffy
+ * - `Frame` / `Page` - they fill their parent by classic measurement. Taffy
  *   *content-sizes* a foreign (non-MasonKit) child, so under a MasonKit host
  *   they collapse to ~0 and nothing below them renders.
- * - `ActionBar` — it never renders in place; it is hoisted to the owning
+ * - `ActionBar` - it never renders in place; it is hoisted to the owning
  *   `Page`. Its presence is the tell that this component *is* a page root, so
  *   its siblings are page-level content (typically a fill-parent `ScrollView`
  *   or layout) with the same requirement. This is the case every routed
@@ -232,7 +232,7 @@ function inspectChild(host: MasonComponentHost, child: unknown): void {
  * Record an element name as a passthrough after the fact.
  *
  * Scope of the fix, stated plainly: the host that triggered the detection has
- * already been created and cannot change class — Angular's `ViewUtil` holds it
+ * already been created and cannot change class - Angular's `ViewUtil` holds it
  * in a sibling linked list, so swapping it out mid-render would corrupt that
  * list. What this does is make *every later creation* of that element a proxy,
  * which covers the second and subsequent renders (a re-navigation, a second
@@ -290,7 +290,7 @@ function applyOptions(options: ComponentHostOptions): void {
  * Turn every Angular component host element into a real MasonKit view.
  *
  * Stock `@nativescript/angular` creates a `ProxyViewContainer` for every element
- * that is not `registerElement`'d — i.e. every Angular component selector. That
+ * that is not `registerElement`'d - i.e. every Angular component selector. That
  * container creates no native view, so anything placed on a component element
  * (`backgroundColor`, `margin`, `class="..."`, host bindings) is set on an
  * invisible logical wrapper with no visual effect, and the component is
@@ -364,7 +364,7 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
   const originalCreateElement = rendererProto.createElement;
   rendererProto.createElement = function (name: string, namespace?: string) {
     if (isKnownView(name)) {
-      // Nothing to intercept — keep the stock path, including its tracing.
+      // Nothing to intercept - keep the stock path, including its tracing.
       return originalCreateElement.call(this, name, namespace);
     }
     // Unregistered: hand the *original* tag to the patched `createView`, which

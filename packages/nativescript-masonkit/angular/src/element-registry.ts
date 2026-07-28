@@ -62,7 +62,7 @@ function register(name: string, cls: ElementClass): void {
  *
  * Registered *after* the `/web` elements on purpose: `/web` also exports `Ul`,
  * `Ol` and `Li`, and where the two overlap the rule is "the more specific one
- * wins" — `/web`'s `Li` is an inline `Text` subclass, so `<li>` stays inline,
+ * wins" - `/web`'s `Li` is an inline `Text` subclass, so `<li>` stays inline,
  * while `<view>`, `<img>`, `<button>`, `<input>` and `<br>` resolve to the base
  * package's fully-featured widgets.
  */
@@ -84,15 +84,15 @@ const MASON_ELEMENTS: Array<[string, ElementClass]> = [
  * Register MasonKit's elements with `@nativescript/angular`, each with the child
  * bookkeeping meta it needs (see {@link masonMeta}).
  *
- * Safe to call more than once — later calls skip names already registered here.
+ * Safe to call more than once - later calls skip names already registered here.
  *
  * ## Shadowing
  *
  * `registerElement` overwrites silently, and `@nativescript/angular` registers
  * every element under its original, lowercase and kebab spellings. MasonKit's
  * `Button`, `Img` and `/web`'s `Span` therefore *replace* core's `Button`,
- * `img` (`Image`) and `Span` for Angular templates. That is the intent — these
- * are the MasonKit-laid-out equivalents — but it is why `mason`/`web` can each
+ * `img` (`Image`) and `Span` for Angular templates. That is the intent - these
+ * are the MasonKit-laid-out equivalents - but it is why `mason`/`web` can each
  * be turned off if an app wants to keep the classic widgets.
  */
 export function registerMasonKitElements(options: RegisterElementsOptions = {}): void {
@@ -104,8 +104,8 @@ export function registerMasonKitElements(options: RegisterElementsOptions = {}):
         continue;
       }
       // Every `/web` class carries its tag via `@CSSType('div')`, which the
-      // decorator stamps onto the prototype. Reading it there — rather than
-      // `constructor.name` — survives the demo's `uglify: true` release build,
+      // decorator stamps onto the prototype. Reading it there - rather than
+      // `constructor.name` - survives the demo's `uglify: true` release build,
       // where class names are mangled to single letters.
       register(exported.prototype.cssType, exported);
     }

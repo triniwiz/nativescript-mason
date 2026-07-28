@@ -59,7 +59,7 @@ function rawChildIndex(parent: MasonChildOps, child: unknown): number {
  *   MasonKit's `removeChild()` entirely. The native view detaches but the entry
  *   stays in `_children`, and since `_children` is what drives native insertion
  *   indices (`_nativeIndexFor`), every later insert into that container is
- *   misplaced — the classic "nested components lay out wrong" symptom.
+ *   misplaced - the classic "nested components lay out wrong" symptom.
  *
  * Routing through `insertChild`/`addChild`/`removeChild` keeps the Taffy tree,
  * the `_children` bookkeeping and the native view tree in step. This is the same
