@@ -1,11 +1,8 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, NO_ERRORS_SCHEMA } from '@angular/core';
+import { NativeScriptCommonModule } from '@nativescript/angular';
 import { DemoSharedNativescriptMasonkit } from '@demo/shared';
-import {} from '@triniwiz/nativescript-masonkit';
 
-@Component({
-  selector: 'demo-nativescript-masonkit',
-  templateUrl: 'nativescript-masonkit.component.html',
-})
+@Component({ selector: 'demo-nativescript-masonkit', templateUrl: 'nativescript-masonkit.component.html', imports: [NativeScriptCommonModule], schemas: [NO_ERRORS_SCHEMA] })
 export class NativescriptMasonkitComponent {
   demoShared: DemoSharedNativescriptMasonkit;
 

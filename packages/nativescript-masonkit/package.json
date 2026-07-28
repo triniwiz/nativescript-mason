@@ -41,6 +41,8 @@
   },
   "bootstrapper": "@nativescript/plugin-seed",
   "optionalDependencies": {
+    "@angular/core": ">=19.0.0",
+    "@nativescript/angular": ">=19.0.0",
     "nativescript-vue": "^3.0.0",
     "react-nativescript": "^5.0.0"
   }

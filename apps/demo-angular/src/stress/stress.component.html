@@ -1,0 +1,106 @@
+<ActionBar title="Layout stress" class="action-bar">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+</ActionBar>
+
+<!--
+  This route deliberately uses the base <View>/<Text> elements rather than the
+  /web tags the HN screens use, so both halves of the element registration get
+  exercised.
+-->
+<ScrollView>
+  <View class="page">
+    <View class="case">
+      <Text class="section-title">1. Insert / remove in the middle</Text>
+      <Text class="case-note">Without a meta, ViewUtil falls back to _addChildFromBuilder (append, ignores next) and core _removeView (skips MasonKit's removeChild). Rendered order below must match Expected.</Text>
+
+      <View class="expected-row">
+        <Text class="expected-label">Expected:</Text>
+        <Text class="expected-value">{{ expectedOrder }}</Text>
+      </View>
+
+      <View class="chip-row">
+        @for (item of items; track item.id) {
+          <stress-chip class="chip" [label]="item.label"></stress-chip>
+        }
+      </View>
+
+      <View class="btn-row">
+        <button class="btn" (tap)="insertMiddle()">Insert mid</button>
+        <button class="btn" (tap)="removeMiddle()">Remove mid</button>
+        <button class="btn" (tap)="prepend()">Prepend</button>
+      </View>
+      <View class="btn-row">
+        <button class="btn" (tap)="reverse()">Reverse</button>
+        <button class="btn" (tap)="shuffle()">Shuffle</button>
+        <button class="btn" (tap)="reset()">Reset</button>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">2. Conditional between static siblings</Text>
+      <Text class="case-note">Toggling must put the middle chip back between first and last, not at the end.</Text>
+
+      <View class="chip-row">
+        <stress-chip class="chip" label="first"></stress-chip>
+        @if (showMiddle) {
+          <stress-chip class="chip chip-accent" label="middle"></stress-chip>
+        }
+        <stress-chip class="chip" label="last"></stress-chip>
+      </View>
+
+      <View class="btn-row">
+        <button class="btn" (tap)="toggleMiddle()">{{ showMiddle ? 'Hide middle' : 'Show middle' }}</button>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">3. Styling the host element</Text>
+      <Text class="case-note">These chips carry their background, padding and margin on the &lt;stress-chip&gt; element itself. Unstyled text here means hosts are still ProxyViewContainers.</Text>
+
+      <View class="chip-row">
+        @for (n of hostBoxes; track n) {
+          <stress-chip class="chip chip-accent" [label]="'host ' + n"></stress-chip>
+        }
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">4. Swapping component types in a slot</Text>
+      <Text class="case-note">Removes one host and inserts a different one at the same index. The swapped chip must stay in the middle.</Text>
+
+      <View class="chip-row">
+        <stress-chip class="chip" label="before"></stress-chip>
+        @if (useAlternate) {
+          <stress-chip-alt class="chip chip-accent" label="swapped"></stress-chip-alt>
+        } @else {
+          <stress-chip class="chip chip-accent" label="original"></stress-chip>
+        }
+        <stress-chip class="chip" label="after"></stress-chip>
+      </View>
+
+      <View class="btn-row">
+        <button class="btn" (tap)="toggleAlternate()">Swap</button>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">5. Hosts as grid cells</Text>
+      <Text class="case-note">A grid container whose cells are component hosts. Cells must land on the grid, not stack.</Text>
+
+      <View class="grid-cases">
+        @for (n of gridCells; track n) {
+          <stress-chip class="grid-cell" [label]="'cell ' + n"></stress-chip>
+        }
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">Elsewhere</Text>
+      <View class="btn-row">
+        <button class="btn" [nsRouterLink]="['/hn']">Feed</button>
+        <button class="btn" [nsRouterLink]="['/hn/list']">ListView items</button>
+        <button class="btn" [nsRouterLink]="['/nativescript-masonkit']">Plugin demo</button>
+      </View>
+    </View>
+  </View>
+</ScrollView>

@@ -1,0 +1,42 @@
+<!--
+  HTML-shaped elements from @triniwiz/nativescript-masonkit/web. Two columns: a
+  fixed rank gutter and a flexible content column. The content column grows
+  against an auto-width row, which is the case that goes wrong when a
+  container's children are appended in the wrong order.
+-->
+<article class="card-row">
+  <div class="rank-gutter">
+    <span class="rank">{{ rank }}</span>
+  </div>
+
+  <div class="card-body">
+    <h3 class="story-title">{{ story.title }}</h3>
+    <span class="story-domain">{{ story.domain }}</span>
+
+    <div class="meta-row">
+      <span class="meta-score">{{ story.score }} points</span>
+      <span class="meta-dim">
+        <p>by</p>
+        <b> {{ story.by }}</b>
+      </span>
+      <span class="meta-dim">{{ story.agoHours }}h ago</span>
+      <span class="meta-dim">{{ story.descendants }} comments</span>
+    </div>
+
+    <!--
+      @for inside a flex-wrap row: each tag is inserted as a sibling, so the
+      rendered order here is a direct read-out of whether insertion order is
+      tracked correctly. <li> is an inline Text subclass in /web, so the <span>
+      inside it also exercises inline text nesting.
+    -->
+    @if (story.tags.length) {
+      <ul class="tag-row">
+        @for (tag of story.tags; track tag) {
+          <li class="tag">
+            <span class="tag-text">{{ tag }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</article>

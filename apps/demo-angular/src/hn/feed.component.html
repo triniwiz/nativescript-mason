@@ -1,0 +1,34 @@
+<!-- Core NativeScript ActionBar above a MasonKit tree: the mixed-view case. -->
+<ActionBar title="MasonKit News" class="action-bar">
+  <ActionItem text="Stress" ios.position="right" android.position="actionBar" [nsRouterLink]="['/stress']"></ActionItem>
+</ActionBar>
+
+<!--
+  A core ScrollView wrapping MasonKit content. The MasonKit column has to
+  content-size vertically for the ScrollView to have anything to scroll, while
+  filling horizontally.
+-->
+<ScrollView>
+  <main class="page">
+    <nav class="sort-row">
+      <button class="sort-btn" [class.sort-btn-active]="sort === 'top'" (tap)="setSort('top')">Top</button>
+      <button class="sort-btn" [class.sort-btn-active]="sort === 'new'" (tap)="setSort('new')">New</button>
+      <button class="sort-btn" [class.sort-btn-active]="sort === 'discussed'" (tap)="setSort('discussed')">Discussed</button>
+    </nav>
+
+    <!--
+      Re-sorting moves existing hosts around rather than recreating them, which
+      is the insertion-order path. Tracking by id keeps Angular reusing the same
+      host instances, so a re-sort is a real set of moves.
+    -->
+    <section class="feed">
+      @for (story of stories; track story.id; let i = $index) {
+        <hn-story-card class="card" [story]="story" [rank]="i + 1" (tap)="open(story)"></hn-story-card>
+      }
+    </section>
+
+    <footer class="feed-footer">
+      <span class="meta-dim">Fixture data — see src/hn/fixtures.ts</span>
+    </footer>
+  </main>
+</ScrollView>
