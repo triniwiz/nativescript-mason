@@ -1,24 +1,32 @@
-import { runNativeScriptAngularApp, platformNativeScript, registerElement } from '@nativescript/angular';
-import { AppModule } from './app.module';
-import { View, Text, Scroll, Img } from '@triniwiz/nativescript-masonkit';
+import { bootstrapApplication, provideNativeScriptRouter, runNativeScriptAngularApp } from '@nativescript/angular';
+import { installMasonKit } from '@triniwiz/nativescript-masonkit/angular';
 
-registerElement('View', () => View);
-registerElement('Text', () => Text);
-registerElement('Scroll', () => Scroll);
-registerElement('Img', () => Img);
+import { AppComponent } from './app.component';
+import { routes } from './app.routes';
 
-const handler = java.lang.Thread.getDefaultUncaughtExceptionHandler();
-java.lang.Thread.setDefaultUncaughtExceptionHandler(
-  new java.lang.Thread.UncaughtExceptionHandler({
-    uncaughtException(t, e) {
-      if (t.getName() === 'FinalizerWatchdogDaemon' && e instanceof java.util.concurrent.TimeoutException) {
-      } else {
-        handler.uncaughtException(t, e);
-      }
-    },
-  })
-);
+// Before the bootstrap: registers every MasonKit element with the child
+// bookkeeping meta it needs, and makes Angular component host elements real
+// MasonKit views instead of invisible ProxyViewContainers. This has to happen
+// before Angular creates the root component's host element.
+installMasonKit();
+
+if (__ANDROID__) {
+  const handler = java.lang.Thread.getDefaultUncaughtExceptionHandler();
+  java.lang.Thread.setDefaultUncaughtExceptionHandler(
+    new java.lang.Thread.UncaughtExceptionHandler({
+      uncaughtException(t, e) {
+        if (t.getName() === 'FinalizerWatchdogDaemon' && e instanceof java.util.concurrent.TimeoutException) {
+        } else {
+          handler.uncaughtException(t, e);
+        }
+      },
+    }),
+  );
+}
 
 runNativeScriptAngularApp({
-  appModuleBootstrap: () => platformNativeScript().bootstrapModule(AppModule),
+  appModuleBootstrap: () =>
+    bootstrapApplication(AppComponent, {
+      providers: [provideNativeScriptRouter(routes)],
+    }),
 });

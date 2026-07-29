@@ -1,0 +1,25 @@
+<article class="comment">
+  <header class="comment-head">
+    <span class="comment-by">{{ comment.by }}</span>
+    <span class="meta-dim">{{ comment.agoHours }}h</span>
+    <span class="depth-badge">depth {{ depth }}</span>
+    <button class="collapse-btn" (tap)="toggle()">{{ collapsed ? '[+' + replyCount + ']' : '[-]' }}</button>
+  </header>
+
+  @if (!collapsed) {
+    <p class="comment-text">{{ comment.text }}</p>
+  }
+
+  <!--
+    The recursion. Each reply is another component host, indented by its own
+    host margin — so the visible indent staircase is proof that nested hosts are
+    real boxes that nest.
+  -->
+  @if (!collapsed && comment.kids.length) {
+    <section class="replies">
+      @for (kid of comment.kids; track kid.id) {
+        <hn-comment [comment]="kid" [depth]="depth + 1"></hn-comment>
+      }
+    </section>
+  }
+</article>

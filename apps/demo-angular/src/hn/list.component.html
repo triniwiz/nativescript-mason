@@ -1,0 +1,30 @@
+<ActionBar title="ListView + MasonKit" class="action-bar">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+</ActionBar>
+
+<!--
+  Core ListView, MasonKit item template. The item root is a MasonKit box being
+  measured by classic ListView measurement. No component host is involved here
+  on purpose, so this isolates the plain-element case from the host case.
+
+  ListView still takes an ng-template — @for is for content, not for a
+  virtualising list's item template.
+-->
+<ListView [items]="stories" class="list">
+  <ng-template let-story="item" let-i="index">
+    <div class="list-item">
+      <div class="rank-gutter">
+        <span class="rank">{{ i + 1 }}</span>
+      </div>
+      <div class="card-body">
+        <h3 class="story-title">{{ story.title }}</h3>
+        <div class="meta-row">
+          <span class="meta-score">{{ story.score }} points</span>
+          <span class="meta-dim"
+            >by <b>{{ story.by }}</b></span
+          >
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</ListView>

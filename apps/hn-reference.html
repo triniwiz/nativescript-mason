@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MasonKit News — Web Reference</title>
+    <!--
+      Browser reference for apps/demo-angular.
+
+      Deliberately faithful, not "fixed": the markup, the class names, the CSS
+      values and the fixture data are transcribed from the Angular app, so any
+      difference you see between this page and the device is a MasonKit/Taffy
+      difference rather than an authoring difference.
+
+      Two things worth knowing when comparing:
+
+      - The custom element names are real here too. `<hn-story-card>`,
+        `<hn-comment>` and `<stress-chip>` are unknown elements in the browser,
+        which makes them plain boxes styled by the same element selectors the app
+        uses. That is exactly the thing component-host mode makes true on device,
+        so the host-as-a-real-box behaviour is compared like for like.
+      - `<ul>`/`<li>` keep their browser defaults (marker, inline padding),
+        matching the app, which does not enable MasonKit's preflight reset.
+
+      Mirrors: apps/demo-angular/src/app.scss
+               apps/demo-angular/src/hn/*.html
+               apps/demo-angular/src/stress/stress.component.html
+               apps/demo-angular/src/hn/fixtures.ts
+    -->
+    <style>
+      /* ---- transcribed from apps/demo-angular/src/app.scss ---- */
+      :root {
+        --bg: #f6f6ef;
+        --surface: #ffffff;
+        --accent: #ff6600;
+        --ink: #1a1a1a;
+        --dim: #828282;
+      }
+
+      .action-bar {
+        background-color: var(--accent);
+        color: #ffffff;
+      }
+
+      .page {
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg);
+        padding: 12px;
+        gap: 10px;
+      }
+
+      /* feed */
+      .sort-row {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+      }
+      .sort-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+        color: var(--dim);
+        background-color: var(--surface);
+        border-radius: 6px;
+      }
+      .sort-btn-active {
+        color: #ffffff;
+        background-color: var(--accent);
+      }
+      .feed {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* The component host element itself. */
+      hn-story-card,
+      .card {
+        display: flex;
+        flex-direction: column;
+        background-color: var(--surface);
+        border-radius: 8px;
+        padding: 10px;
+      }
+
+      .card-row {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+      }
+      .rank-gutter {
+        display: flex;
+        width: 28px;
+        justify-content: center;
+      }
+      .rank {
+        font-size: 16px;
+        color: var(--dim);
+      }
+      .card-body {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        flex-shrink: 1;
+        gap: 4px;
+      }
+      .story-title {
+        font-size: 15px;
+        color: var(--ink);
+      }
+      .story-title-lg {
+        font-size: 19px;
+        color: var(--ink);
+      }
+      .story-domain {
+        font-size: 11px;
+        color: var(--dim);
+      }
+      .meta-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .meta-score {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .meta-dim {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .tag-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        background-color: #eeeee4;
+        border-radius: 4px;
+        padding: 2px 6px;
+      }
+      .tag-text {
+        font-size: 10px;
+        color: var(--dim);
+      }
+      .feed-footer {
+        display: flex;
+        justify-content: center;
+        padding: 8px;
+      }
+
+      /* item */
+      .story-header {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background-color: var(--surface);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .comment-bar {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .section-title {
+        font-size: 15px;
+        color: var(--ink);
+      }
+      .comment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* The recursive host. */
+      hn-comment {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .comment {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        background-color: var(--surface);
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .comment-head {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+      .comment-by {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .depth-badge {
+        font-size: 10px;
+        color: var(--dim);
+      }
+      .comment-text {
+        font-size: 13px;
+        color: var(--ink);
+      }
+      .collapse-btn {
+        font-size: 12px;
+        color: var(--dim);
+        padding: 2px 6px;
+        background-color: transparent;
+      }
+      .replies {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-left: 12px;
+        margin-top: 6px;
+      }
+      .empty {
+        display: flex;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      /* listview */
+      .list {
+        background-color: var(--bg);
+      }
+      .list-item {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        padding: 10px;
+        background-color: var(--surface);
+      }
+
+      /* stress */
+      .case {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background-color: var(--surface);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .case-note {
+        font-size: 11px;
+        color: var(--dim);
+      }
+      .expected-row {
+        display: flex;
+        flex-direction: row;
+        gap: 6px;
+      }
+      .expected-label {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .expected-value {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .chip-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px;
+        background-color: #f0f0e8;
+        border-radius: 6px;
+      }
+
+      stress-chip,
+      stress-chip-alt,
+      .chip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 10px;
+        background-color: #dddddd;
+        border-radius: 4px;
+      }
+      .chip-accent {
+        background-color: var(--accent);
+      }
+      .chip-text {
+        font-size: 12px;
+        color: var(--ink);
+      }
+      .btn-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .btn {
+        font-size: 13px;
+        padding: 6px 10px;
+        color: #ffffff;
+        background-color: #444444;
+        border-radius: 6px;
+      }
+      .grid-cases {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+      }
+      .grid-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        background-color: #eeeee4;
+        border-radius: 4px;
+      }
+
+      /* ---- harness only: not part of the app, kept visually separate ---- */
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #30303a;
+        color: var(--ink);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        padding: 24px;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .device {
+        width: 402px;
+        background: var(--bg);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+      }
+      .device-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        font-size: 22px;
+        font-weight: 600;
+        background-color: var(--accent);
+        color: #ffffff;
+      }
+      .device-bar .action-item {
+        font-size: 13px;
+        letter-spacing: 0.5px;
+      }
+      .scroll {
+        height: 780px;
+        overflow-y: auto;
+      }
+      /* Buttons: strip the browser chrome so the comparison is about layout,
+         not about native <button> defaults MasonKit does not reproduce. */
+      button {
+        font-family: inherit;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Feed -->
+    <div class="device">
+      <div class="device-bar"><span>MasonKit News</span><span class="action-item">STRESS</span></div>
+      <div class="scroll">
+        <main class="page" id="feed-page">
+          <nav class="sort-row">
+            <button class="sort-btn sort-btn-active" data-sort="top">Top</button>
+            <button class="sort-btn" data-sort="new">New</button>
+            <button class="sort-btn" data-sort="discussed">Discussed</button>
+          </nav>
+          <section class="feed" id="feed"></section>
+          <footer class="feed-footer"><span class="meta-dim">Fixture data — see src/hn/fixtures.ts</span></footer>
+        </main>
+      </div>
+    </div>
+
+    <!-- Item + recursive comments -->
+    <div class="device">
+      <div class="device-bar"><span>Story</span></div>
+      <div class="scroll">
+        <main class="page" id="item-page"></main>
+      </div>
+    </div>
+
+    <!-- Stress cases -->
+    <div class="device">
+      <div class="device-bar"><span>Layout stress</span></div>
+      <div class="scroll">
+        <div class="page">
+          <div class="case">
+            <div class="section-title">1. Insert / remove in the middle</div>
+            <div class="case-note">Rendered order below must match Expected.</div>
+            <div class="expected-row"><span class="expected-label">Expected:</span><span class="expected-value" id="expected"></span></div>
+            <div class="chip-row" id="chips"></div>
+            <div class="btn-row">
+              <button class="btn" data-act="insertMiddle">Insert mid</button>
+              <button class="btn" data-act="removeMiddle">Remove mid</button>
+              <button class="btn" data-act="prepend">Prepend</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn" data-act="reverse">Reverse</button>
+              <button class="btn" data-act="shuffle">Shuffle</button>
+              <button class="btn" data-act="reset">Reset</button>
+            </div>
+          </div>
+
+          <div class="case">
+            <div class="section-title">2. Conditional between static siblings</div>
+            <div class="case-note">Toggling must put the middle chip back between first and last, not at the end.</div>
+            <div class="chip-row" id="cond-row">
+              <stress-chip class="chip"><span class="chip-text">first</span></stress-chip>
+              <stress-chip class="chip chip-accent" id="cond-middle"><span class="chip-text">middle</span></stress-chip>
+              <stress-chip class="chip"><span class="chip-text">last</span></stress-chip>
+            </div>
+            <div class="btn-row"><button class="btn" id="cond-btn">Hide middle</button></div>
+          </div>
+
+          <div class="case">
+            <div class="section-title">3. Styling the host element</div>
+            <div class="case-note">These chips carry their background, padding and margin on the &lt;stress-chip&gt; element itself.</div>
+            <div class="chip-row">
+              <stress-chip class="chip chip-accent"><span class="chip-text">host 1</span></stress-chip>
+              <stress-chip class="chip chip-accent"><span class="chip-text">host 2</span></stress-chip>
+              <stress-chip class="chip chip-accent"><span class="chip-text">host 3</span></stress-chip>
+            </div>
+          </div>
+
+          <div class="case">
+            <div class="section-title">4. Swapping component types in a slot</div>
+            <div class="case-note">The swapped chip must stay in the middle.</div>
+            <div class="chip-row" id="swap-row">
+              <stress-chip class="chip"><span class="chip-text">before</span></stress-chip>
+              <stress-chip class="chip chip-accent" id="swap-slot"><span class="chip-text">original</span></stress-chip>
+              <stress-chip class="chip"><span class="chip-text">after</span></stress-chip>
+            </div>
+            <div class="btn-row"><button class="btn" id="swap-btn">Swap</button></div>
+          </div>
+
+          <div class="case">
+            <div class="section-title">5. Hosts as grid cells</div>
+            <div class="case-note">Cells must land on the grid, not stack.</div>
+            <div class="grid-cases">
+              <stress-chip class="grid-cell"><span class="chip-text">cell 1</span></stress-chip>
+              <stress-chip class="grid-cell"><span class="chip-text">cell 2</span></stress-chip>
+              <stress-chip class="grid-cell"><span class="chip-text">cell 3</span></stress-chip>
+              <stress-chip class="grid-cell"><span class="chip-text">cell 4</span></stress-chip>
+              <stress-chip class="grid-cell"><span class="chip-text">cell 5</span></stress-chip>
+              <stress-chip class="grid-cell"><span class="chip-text">cell 6</span></stress-chip>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ---- fixtures: transcribed from apps/demo-angular/src/hn/fixtures.ts ----
+      let nextId = 1000;
+      const c = (by, agoHours, text, kids = []) => ({ id: nextId++, by, agoHours, text, kids });
+
+      function chain(depth, by, text) {
+        let node = c(by(depth), depth, text(depth));
+        for (let level = depth - 1; level >= 1; level--) {
+          node = c(by(level), level * 2, text(level), [node]);
+        }
+        return node;
+      }
+
+      const STORIES = [
+        {
+          id: 1,
+          title: 'Taffy: a flexbox and CSS grid implementation in Rust',
+          domain: 'github.com',
+          by: 'dioxus',
+          score: 482,
+          agoHours: 3,
+          descendants: 14,
+          tags: ['rust', 'layout'],
+          comments: [
+            chain(
+              8,
+              (l) => `deep_thread_${l}`,
+              (l) => `Reply at depth ${l}. Every level here is a separate component host, so this thread is ${l} nested MasonKit boxes deep. If nesting is broken this collapses or renders out of order.`,
+            ),
+            c('layout_nerd', 5, 'The grid implementation is the part I care about. Subgrid support is what pushed us over the line.', [c('gridder', 4, 'Same. We were faking subgrid with nested containers and the measure cost was brutal.', [c('layout_nerd', 3, 'How brutal? We measured ~4ms per pass on a mid-range Android device.')]), c('skeptic', 4, 'Does it handle percentage gaps against an indefinite container?')]),
+            c('mobile_dev', 6, 'Being able to write the same flex rules on iOS, Android and Windows is the whole pitch for me.', [c('crossplat', 5, 'Agreed, though the interesting question is always what happens at the boundary with the platform layout system.')]),
+            c('quiet_one', 9, 'No notes. Good work.'),
+          ],
+        },
+        { id: 2, title: 'Show HN: I rewrote my layout engine three times and here is what I learned', domain: 'example.com', by: 'threetimes', score: 217, agoHours: 7, descendants: 6, tags: ['showhn'], comments: [c('been_there', 6, 'The third rewrite is always the one that works, because by then you know what the problem actually is.', [c('threetimes', 5, 'That matches my experience exactly. The first two were me solving the wrong problem faster.'), c('cynic', 5, 'Or you just ran out of budget to rewrite it a fourth time.', [c('been_there', 4, 'Also true.')])]), c('measurer', 4, 'Did you keep the intermediate versions around to benchmark against?')] },
+        { id: 3, title: 'The measure-layout-paint pipeline, explained without the hand-waving', domain: 'example.org', by: 'pipeline', score: 96, agoHours: 11, descendants: 3, tags: ['rendering'], comments: [c('curious', 9, 'Is there a version of this that covers incremental relayout?', [c('pipeline', 8, 'Part two. It is mostly about dirty-marking and how little of the tree you actually need to touch.')]), c('drive_by', 10, 'Bookmarked.')] },
+        { id: 4, title: 'Why your list scrolls badly and it is probably not the list', domain: 'example.net', by: 'scrolls', score: 63, agoHours: 14, descendants: 0, tags: ['performance'], comments: [] },
+      ];
+
+      const el = (tag, cls, html) => {
+        const node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (html != null) node.innerHTML = html;
+        return node;
+      };
+
+      // ---- feed: mirrors feed.component.html + story-card.component.html ----
+      let sort = 'top';
+
+      function sortedStories() {
+        const s = [...STORIES];
+        if (sort === 'new') return s.sort((a, b) => a.agoHours - b.agoHours);
+        if (sort === 'discussed') return s.sort((a, b) => b.descendants - a.descendants);
+        return s.sort((a, b) => b.score - a.score);
+      }
+
+      function storyCard(story, rank) {
+        const host = el('hn-story-card', 'card');
+        const article = el('article', 'card-row');
+
+        const gutter = el('div', 'rank-gutter');
+        gutter.append(el('span', 'rank', String(rank)));
+
+        const body = el('div', 'card-body');
+        body.append(el('h3', 'story-title', story.title), el('span', 'story-domain', story.domain));
+
+        const meta = el('div', 'meta-row');
+        meta.append(el('span', 'meta-score', `${story.score} points`), el('span', 'meta-dim', `by <b>${story.by}</b>`), el('span', 'meta-dim', `${story.agoHours}h ago`), el('span', 'meta-dim', `${story.descendants} comments`));
+        body.append(meta);
+
+        if (story.tags.length) {
+          const ul = el('ul', 'tag-row');
+          for (const tag of story.tags) {
+            const li = el('li', 'tag');
+            li.append(el('span', 'tag-text', tag));
+            ul.append(li);
+          }
+          body.append(ul);
+        }
+
+        article.append(gutter, body);
+        host.append(article);
+        return host;
+      }
+
+      function renderFeed() {
+        const feed = document.getElementById('feed');
+        feed.textContent = '';
+        sortedStories().forEach((story, i) => feed.append(storyCard(story, i + 1)));
+      }
+
+      document.querySelectorAll('[data-sort]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          sort = btn.dataset.sort;
+          document.querySelectorAll('[data-sort]').forEach((b) => b.classList.toggle('sort-btn-active', b === btn));
+          renderFeed();
+        });
+      });
+
+      // ---- item + recursive comments: mirrors item/comment component html ----
+      function countDescendants(comment) {
+        return comment.kids.reduce((total, kid) => total + 1 + countDescendants(kid), 0);
+      }
+
+      function commentNode(comment, depth) {
+        const host = el('hn-comment');
+        const article = el('article', 'comment');
+
+        const head = el('header', 'comment-head');
+        const btn = el('button', 'collapse-btn', '[-]');
+        head.append(el('span', 'comment-by', comment.by), el('span', 'meta-dim', `${comment.agoHours}h`), el('span', 'depth-badge', `depth ${depth}`), btn);
+
+        const text = el('p', 'comment-text', comment.text);
+        article.append(head, text);
+
+        let replies = null;
+        if (comment.kids.length) {
+          replies = el('section', 'replies');
+          comment.kids.forEach((kid) => replies.append(commentNode(kid, depth + 1)));
+          article.append(replies);
+        }
+
+        let collapsed = false;
+        btn.addEventListener('click', () => {
+          collapsed = !collapsed;
+          // Remove/insert rather than toggling visibility, to match what Angular
+          // does to the view tree — that is the operation under test.
+          if (collapsed) {
+            text.remove();
+            if (replies) replies.remove();
+            btn.textContent = `[+${countDescendants(comment)}]`;
+          } else {
+            article.append(text);
+            if (replies) article.append(replies);
+            btn.textContent = '[-]';
+          }
+        });
+
+        host.append(article);
+        return host;
+      }
+
+      function renderItem() {
+        const story = STORIES[0];
+        const page = document.getElementById('item-page');
+        page.textContent = '';
+
+        const header = el('header', 'story-header');
+        const meta = el('div', 'meta-row');
+        meta.append(el('span', 'meta-score', `${story.score} points`), el('span', 'meta-dim', `by <b>${story.by}</b>`), el('span', 'meta-dim', `${story.agoHours}h ago`));
+        header.append(el('h1', 'story-title-lg', story.title), el('span', 'story-domain', story.domain), meta);
+
+        const bar = el('div', 'comment-bar');
+        const toggle = el('button', 'collapse-btn', 'Hide all');
+        bar.append(el('h4', 'section-title', `${story.descendants} comments`), toggle);
+
+        const list = el('section', 'comment-list');
+        story.comments.forEach((comment) => list.append(commentNode(comment, 0)));
+
+        let shown = true;
+        toggle.addEventListener('click', () => {
+          shown = !shown;
+          if (shown) page.insertBefore(list, null);
+          else list.remove();
+          toggle.textContent = shown ? 'Hide all' : 'Show all';
+        });
+
+        page.append(header, bar, list);
+      }
+
+      // ---- stress case 1: mirrors stress.component.ts ----
+      let stressNextId = 4;
+      let items = [
+        { id: 1, label: 'A' },
+        { id: 2, label: 'B' },
+        { id: 3, label: 'C' },
+      ];
+
+      function renderChips() {
+        const row = document.getElementById('chips');
+        row.textContent = '';
+        items.forEach((item) => {
+          const chip = el('stress-chip', 'chip');
+          chip.append(el('span', 'chip-text', item.label));
+          row.append(chip);
+        });
+        document.getElementById('expected').textContent = items.map((i) => i.label).join(', ');
+      }
+
+      const actions = {
+        insertMiddle: () => items.splice(Math.floor(items.length / 2), 0, { id: stressNextId, label: `M${stressNextId++}` }),
+        removeMiddle: () => items.length > 1 && items.splice(Math.floor(items.length / 2), 1),
+        prepend: () => items.unshift({ id: stressNextId, label: `P${stressNextId++}` }),
+        reverse: () => (items = [...items].reverse()),
+        shuffle: () => {
+          for (let i = items.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [items[i], items[j]] = [items[j], items[i]];
+          }
+        },
+        reset: () => {
+          stressNextId = 4;
+          items = [
+            { id: 1, label: 'A' },
+            { id: 2, label: 'B' },
+            { id: 3, label: 'C' },
+          ];
+        },
+      };
+
+      document.querySelectorAll('[data-act]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          actions[btn.dataset.act]();
+          renderChips();
+        });
+      });
+
+      // ---- stress cases 2 and 4 ----
+      const condMiddle = document.getElementById('cond-middle');
+      const condRow = document.getElementById('cond-row');
+      const condAnchor = condMiddle.nextElementSibling;
+      let condShown = true;
+      document.getElementById('cond-btn').addEventListener('click', (e) => {
+        condShown = !condShown;
+        if (condShown) condRow.insertBefore(condMiddle, condAnchor);
+        else condMiddle.remove();
+        e.target.textContent = condShown ? 'Hide middle' : 'Show middle';
+      });
+
+      const swapRow = document.getElementById('swap-row');
+      let swapSlot = document.getElementById('swap-slot');
+      let swapped = false;
+      document.getElementById('swap-btn').addEventListener('click', () => {
+        swapped = !swapped;
+        const anchor = swapSlot.nextElementSibling;
+        const next = el(swapped ? 'stress-chip-alt' : 'stress-chip', 'chip chip-accent');
+        next.append(el('span', 'chip-text', swapped ? 'alt swapped' : 'original'));
+        swapSlot.remove();
+        swapRow.insertBefore(next, anchor);
+        swapSlot = next;
+      });
+
+      renderFeed();
+      renderItem();
+      renderChips();
+    </script>
+  </body>
+</html>

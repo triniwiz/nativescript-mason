@@ -1,24 +1,363 @@
-﻿@import 'nativescript-theme-core/scss/light';
-@import 'nativescript-theme-core/scss/index';
+// MasonKit demo app styles.
+//
+// Almost every rule here is a Taffy (flex/grid) rule applied to a MasonKit
+// element or, more interestingly, to a *component host element* — `hn-comment`,
+// `hn-story-card`, `stress-chip`. Those selectors only do anything because
+// installMasonKit() turns component hosts into real MasonKit boxes.
+//
+// ## Lengths are unitless on purpose — do not "fix" them to px
+//
+// In MasonKit, as in NativeScript generally, `px` means *physical device
+// pixels*, not CSS pixels: `Style.width` and friends pass a `px` value straight
+// through and only run `toDevicePixels()` on unitless/dip values. Unitless is
+// therefore the dip value, which is what lines up 1:1 with a CSS pixel in the
+// browser.
+//
+// Font sizes are the exception that hides the problem: core's `fontSize`
+// converter is `parseFloat`, so it drops the unit and treats `13px` as 13 dip.
+// The result of mixing the two is a screen where the text looks about right and
+// every gap, padding and radius is a density-factor too small — on a 2.75x
+// device, `padding: 12px` lands at 4.4 dip.
+//
+// Keep these unitless so the layout matches apps/hn-reference.html, which is the
+// same design in a browser at 1 CSS px = 1 dip.
 
-button,
-label,
-stack-layout {
-  horizontal-align: center;
+$bg: #f6f6ef;
+$surface: #ffffff;
+$accent: #ff6600;
+$ink: #1a1a1a;
+$dim: #828282;
+
+.action-bar {
+  background-color: $accent;
+  color: #ffffff;
 }
 
-button {
-  font-size: 36;
+.page {
+  display: flex;
+  flex-direction: column;
+  background-color: $bg;
+  padding: 12;
+  gap: 10;
+  align-items: stretch;
+  width: 100%;
 }
 
-.title {
-  font-size: 30;
-  margin: 20;
+// ---------------------------------------------------------------- feed
+
+.sort-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
 }
 
-.message {
-  font-size: 20;
-  color: #284848;
-  text-align: center;
-  margin: 0 20;
+.sort-btn {
+  padding: 6 12;
+  font-size: 13;
+  color: $dim;
+  background-color: $surface;
+  border-radius: 6;
+}
+
+.sort-btn-active {
+  color: #ffffff;
+  background-color: $accent;
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+// The component host element itself. This is the rule that proves hosts are
+// real boxes — turn component-host mode off and every card loses its card-ness.
+hn-story-card,
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: $surface;
+  border-radius: 8;
+  padding: 10;
+}
+
+.card-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10;
+}
+
+.rank-gutter {
+  display: flex;
+  width: 28;
+  justify-content: center;
+}
+
+.rank {
+  font-size: 16;
+  color: $dim;
+}
+
+// flex-grow against an auto-width row — the case that misrenders when children
+// are appended in the wrong order.
+.card-body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  flex-shrink: 1;
+  gap: 4;
+}
+
+.story-title {
+  font-size: 15;
+  color: $ink;
+}
+
+.story-title-lg {
+  font-size: 19;
+  color: $ink;
+}
+
+.story-domain {
+  font-size: 11;
+  color: $dim;
+}
+
+.meta-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8;
+}
+
+.meta-score {
+  font-size: 12;
+  color: $accent;
+}
+
+.meta-dim {
+  font-size: 12;
+  color: $dim;
+}
+
+.tag-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6;
+}
+
+.tag {
+  background-color: #eeeee4;
+  border-radius: 4;
+  padding: 2 6;
+}
+
+.tag-text {
+  font-size: 10;
+  color: $dim;
+}
+
+.feed-footer {
+  display: flex;
+  justify-content: center;
+  padding: 8;
+}
+
+// ---------------------------------------------------------------- item
+
+.story-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+  background-color: $surface;
+  border-radius: 8;
+  padding: 12;
+}
+
+.comment-bar {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 15;
+  color: $ink;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+// The recursive host. Each `hn-comment` inside `.replies` is indented purely by
+// the host-element rule below, so the indent staircase in a deep thread is a
+// direct visual read-out of whether nested hosts actually nest.
+hn-comment {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment {
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+  background-color: $surface;
+  border-radius: 6;
+  padding: 8;
+}
+
+.comment-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8;
+}
+
+.comment-by {
+  font-size: 12;
+  color: $accent;
+}
+
+.depth-badge {
+  font-size: 10;
+  color: $dim;
+}
+
+.comment-text {
+  font-size: 13;
+  color: $ink;
+}
+
+.collapse-btn {
+  font-size: 12;
+  color: $dim;
+  padding: 2 6;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.replies {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+  margin-left: 12;
+  margin-top: 6;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  padding: 16;
+}
+
+// ---------------------------------------------------------------- listview
+
+.list {
+  background-color: $bg;
+}
+
+.list-item {
+  display: flex;
+  flex-direction: row;
+  gap: 10;
+  padding: 10;
+  background-color: $surface;
+}
+
+// ---------------------------------------------------------------- stress
+
+.case {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+  background-color: $surface;
+  border-radius: 8;
+  padding: 12;
+}
+
+.case-note {
+  font-size: 11;
+  color: $dim;
+}
+
+.expected-row {
+  display: flex;
+  flex-direction: row;
+  gap: 6;
+}
+
+.expected-label {
+  font-size: 12;
+  color: $dim;
+}
+
+.expected-value {
+  font-size: 12;
+  color: $accent;
+}
+
+.chip-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6;
+  padding: 6;
+  background-color: #f0f0e8;
+  border-radius: 6;
+}
+
+// Host-element styling for components with no wrapper of their own.
+stress-chip,
+stress-chip-alt,
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6 10;
+  background-color: #dddddd;
+  border-radius: 4;
+}
+
+.chip-accent {
+  background-color: $accent;
+}
+
+.chip-text {
+  font-size: 12;
+  color: $ink;
+}
+
+.btn-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6;
+}
+
+.btn {
+  font-size: 13;
+  padding: 6 10;
+  color: #ffffff;
+  background-color: #444444;
+  border-radius: 6;
+}
+
+// Grid of component hosts: cells must land on the grid, not stack.
+.grid-cases {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6;
+}
+
+.grid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10;
+  background-color: #eeeee4;
+  border-radius: 4;
 }

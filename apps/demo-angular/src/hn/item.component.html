@@ -1,0 +1,43 @@
+<ActionBar [title]="story?.title || 'Story'" class="action-bar">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+</ActionBar>
+
+<ScrollView>
+  @if (story; as s) {
+    <main class="page">
+      <header class="story-header">
+        <h1 class="story-title-lg">{{ s.title }}</h1>
+        <span class="story-domain">{{ s.domain }}</span>
+        <div class="meta-row">
+          <span class="meta-score">{{ s.score }} points</span>
+          <span class="meta-dim"
+            >by <b>{{ s.by }}</b></span
+          >
+          <span class="meta-dim">{{ s.agoHours }}h ago</span>
+        </div>
+      </header>
+
+      <div class="comment-bar">
+        <h4 class="section-title">{{ s.descendants }} comments</h4>
+        <button class="collapse-btn" (tap)="toggleComments()">{{ showComments ? 'Hide all' : 'Show all' }}</button>
+      </div>
+
+      <!--
+        Toggling this removes and re-inserts the whole comment forest in the
+        middle of the page's children. If removal does not go through MasonKit's
+        own removeChild, the re-insert lands in the wrong place.
+      -->
+      @if (showComments) {
+        <section class="comment-list">
+          @for (comment of s.comments; track comment.id) {
+            <hn-comment [comment]="comment" [depth]="0"></hn-comment>
+          }
+        </section>
+      }
+
+      @if (!s.comments.length) {
+        <div class="empty"><span class="meta-dim">No comments yet.</span></div>
+      }
+    </main>
+  }
+</ScrollView>

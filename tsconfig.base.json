@@ -22,6 +22,8 @@
     "paths": {
       "@demo/shared": ["tools/demo/index.ts"],
       "@triniwiz/nativescript-masonkit": ["packages/nativescript-masonkit/index.d.ts"],
+      "@triniwiz/nativescript-masonkit/angular": ["packages/nativescript-masonkit/angular/index.ts"],
+      "@triniwiz/nativescript-masonkit/web": ["packages/nativescript-masonkit/web.ts"],
       "@triniwiz/*": ["packages/*"]
     }
   },
