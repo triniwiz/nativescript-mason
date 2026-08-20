@@ -30,7 +30,10 @@ fn long_unbreakable_text_runs_wrap_into_lines() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(200.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(200.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     // a pure inline text container (no native measure) containing a single very wide text run
@@ -42,16 +45,30 @@ fn long_unbreakable_text_runs_wrap_into_lines() {
     });
 
     // set a huge measured text run; our reflow should split this across multiple lines
-    mason.set_segments(iid, vec![InlineSegment::Text { flags: 0, width: 1000.0, ascent: 10.0, descent: 4.0 }]);
+    mason.set_segments(
+        iid,
+        vec![InlineSegment::Text {
+            flags: 0,
+            width: 1000.0,
+            ascent: 10.0,
+            descent: 4.0,
+        }],
+    );
     mason.append_node(rid, &[iid]);
 
     mason.compute_wh(rid, 200.0, f32::NAN);
 
     let lay = mason.layout_raw(iid);
     // content width should not exceed container width after wrapping
-    assert!(lay.size.width <= 200.0 + 1e-3, "inline width should be constrained by container width");
+    assert!(
+        lay.size.width <= 200.0 + 1e-3,
+        "inline width should be constrained by container width"
+    );
     // content height should be > single line height (indicates wrapping occurred)
-    assert!(lay.size.height > 10.0 + 4.0, "expected multiple lines after wrapping");
+    assert!(
+        lay.size.height > 10.0 + 4.0,
+        "expected multiple lines after wrapping"
+    );
 }
 
 #[test]
@@ -62,7 +79,10 @@ fn drop_cap_float_causes_wrapping_around_float() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     // drop cap float
@@ -83,7 +103,15 @@ fn drop_cap_float_causes_wrapping_around_float() {
     });
 
     // a large text run that should wrap and flow around the float
-    mason.set_segments(pid, vec![InlineSegment::Text { flags: 0, width: 600.0, ascent: 12.0, descent: 4.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::Text {
+            flags: 0,
+            width: 600.0,
+            ascent: 12.0,
+            descent: 4.0,
+        }],
+    );
 
     // assemble: place float and prose directly in the root container
     mason.append_node(rid, &[drop_id, pid]);
@@ -105,7 +133,10 @@ fn inline_block_increases_line_height_for_baseline() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(200.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(200.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     // parent text container
@@ -126,9 +157,18 @@ fn inline_block_increases_line_height_for_baseline() {
     });
 
     // Quick check immediately after creation
-    println!("after create: mason.is_node_virtual(cid) = {}", mason.is_node_virtual(cid));
+    println!(
+        "after create: mason.is_node_virtual(cid) = {}",
+        mason.is_node_virtual(cid)
+    );
     // Place the inline-child into the parent's segments
-    mason.set_segments(pid, vec![InlineSegment::InlineChild { id: Some(cid), baseline: 0.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(cid),
+            baseline: 0.0,
+        }],
+    );
     mason.append_node(pid, &[cid]);
     mason.append_node(rid, &[pid]);
 
@@ -140,19 +180,35 @@ fn inline_block_increases_line_height_for_baseline() {
     use mason_core::style::StyleKeys;
 
     // Use test helpers to query node flags safely.
-    println!("mason.is_node_virtual(cid) = {}", mason.is_node_virtual(cid));
-    println!("mason.is_node_list_item(cid) = {}", mason.is_node_list_item(cid));
+    println!(
+        "mason.is_node_virtual(cid) = {}",
+        mason.is_node_virtual(cid)
+    );
+    println!(
+        "mason.is_node_list_item(cid) = {}",
+        mason.is_node_list_item(cid)
+    );
 
     mason.compute_wh(pid, 200.0, f32::NAN);
 
     let child_layout = mason.layout_raw(cid);
     // Debug print to help diagnose measurements
-    println!("child layout: w={} h={}", child_layout.size.width, child_layout.size.height);
+    println!(
+        "child layout: w={} h={}",
+        child_layout.size.width, child_layout.size.height
+    );
     // Child should have been measured to the expected size
-    assert!((child_layout.size.width - 80.0).abs() < 1e-3 && (child_layout.size.height - 50.0).abs() < 1e-3, "inline-block child measured size should be preserved");
+    assert!(
+        (child_layout.size.width - 80.0).abs() < 1e-3
+            && (child_layout.size.height - 50.0).abs() < 1e-3,
+        "inline-block child measured size should be preserved"
+    );
 
     let lay = mason.layout_raw(pid);
     // Parent's computed height should be at least the child's height (line expanded)
     println!("parent layout: w={} h={}", lay.size.width, lay.size.height);
-    assert!(lay.size.height + 1e-3 >= 50.0, "parent should accommodate inline-block height");
+    assert!(
+        lay.size.height + 1e-3 >= 50.0,
+        "parent should accommodate inline-block height"
+    );
 }

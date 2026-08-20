@@ -243,6 +243,15 @@ impl From<Size<LengthPercentage>> for DisplaySize<LengthPercentage> {
     }
 }
 
+impl From<Size<LengthPercentageAuto>> for DisplaySize<LengthPercentageAuto> {
+    fn from(value: Size<LengthPercentageAuto>) -> Self {
+        Self {
+            width: value.width,
+            height: value.height,
+        }
+    }
+}
+
 impl std::fmt::Display for DisplaySize<Dimension> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -272,6 +281,23 @@ impl std::fmt::Display for DisplaySize<LengthPercentage> {
 }
 
 impl Debug for DisplaySize<LengthPercentage> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::fmt::Display for DisplaySize<LengthPercentageAuto> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Size {{ width: {}, height: {} }}",
+            length_percentage_auto_to_format_type_value(self.width),
+            length_percentage_auto_to_format_type_value(self.height)
+        )
+    }
+}
+
+impl Debug for DisplaySize<LengthPercentageAuto> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }

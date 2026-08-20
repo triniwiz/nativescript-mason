@@ -20,11 +20,16 @@ fn flex_grow_allocates_space_proportionally() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Flex);
-        s.set_size(Size { width: Dimension::length(300.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(300.0),
+            height: Dimension::auto(),
+        });
     });
 
-    let a = mason.create_node(); let aid = a.id();
-    let b = mason.create_node(); let bid = b.id();
+    let a = mason.create_node();
+    let aid = a.id();
+    let b = mason.create_node();
+    let bid = b.id();
 
     mason.append_node(rid, &[aid, bid]);
 
@@ -46,6 +51,14 @@ fn flex_grow_allocates_space_proportionally() {
     let lb = mason.layout_raw(bid);
 
     // available width should be split 1:2 ⇒ a ~100, b ~200 (allow small epsilon)
-    assert!((la.size.width - 100.0).abs() < 1.0, "flex a width expected ≈100, got {}", la.size.width);
-    assert!((lb.size.width - 200.0).abs() < 1.0, "flex b width expected ≈200, got {}", lb.size.width);
+    assert!(
+        (la.size.width - 100.0).abs() < 1.0,
+        "flex a width expected ≈100, got {}",
+        la.size.width
+    );
+    assert!(
+        (lb.size.width - 200.0).abs() < 1.0,
+        "flex b width expected ≈200, got {}",
+        lb.size.width
+    );
 }

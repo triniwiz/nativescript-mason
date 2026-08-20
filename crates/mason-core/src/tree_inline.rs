@@ -4,8 +4,8 @@ use crate::{Id, InlineSegment, Tree};
 
 use taffy::{
     compute_leaf_layout, AvailableSpace, BlockContext, BoxSizing, CoreStyle, Dimension, Display,
-    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point,
-    Position, ResolveOrZero, Size, SizingMode,
+    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point, Position,
+    ResolveOrZero, Size, SizingMode,
 };
 
 /// Represents an item in a line during inline layout
@@ -1378,7 +1378,8 @@ impl Tree {
                 child.unrounded_layout.border = border;
                 child.unrounded_layout.size = layout.size;
                 child.unrounded_layout.padding = padding;
-                child.unrounded_layout.content_size = content_size;
+                child.unrounded_layout.scrollable_overflow_rect =
+                    crate::scrollable_overflow_rect_from_size(content_size);
             }
 
             #[cfg(target_vendor = "apple")]
@@ -1407,15 +1408,15 @@ impl Tree {
             if let Some(child) = self.nodes_mut().get_mut(child_id) {
                 child.unrounded_layout.location = Point::zero();
                 child.unrounded_layout.size = Size::ZERO;
-                child.unrounded_layout.content_size = Size::ZERO;
+                child.unrounded_layout.scrollable_overflow_rect = taffy::Rect::ZERO;
                 child.unrounded_layout.padding = taffy::Rect::zero();
                 child.unrounded_layout.border = taffy::Rect::zero();
             }
 
             return LayoutOutput {
                 size: Size::ZERO,
-                content_size: Size::ZERO,
-                first_baselines: Point::NONE,
+                scrollable_overflow_rect: taffy::Rect::ZERO,
+                baselines: taffy::Baselines::NONE,
                 top_margin: taffy::CollapsibleMarginSet::ZERO,
                 bottom_margin: taffy::CollapsibleMarginSet::ZERO,
                 margins_can_collapse_through: true,
@@ -1486,7 +1487,7 @@ impl Tree {
 
                 child.unrounded_layout.location = Point::zero();
                 child.unrounded_layout.size = layout.size;
-                child.unrounded_layout.content_size = layout.content_size;
+                child.unrounded_layout.scrollable_overflow_rect = layout.scrollable_overflow_rect;
                 child.unrounded_layout.padding = padding;
                 child.unrounded_layout.border = border;
             }
@@ -1695,7 +1696,7 @@ impl Tree {
 
                 child.unrounded_layout.location = Point::zero();
                 child.unrounded_layout.size = layout.size;
-                child.unrounded_layout.content_size = layout.content_size;
+                child.unrounded_layout.scrollable_overflow_rect = layout.scrollable_overflow_rect;
                 child.unrounded_layout.padding = padding;
                 child.unrounded_layout.border = border;
             }
@@ -1768,7 +1769,8 @@ impl Tree {
                 if let Some(child) = self.nodes_mut().get_mut(child_id) {
                     child.unrounded_layout.location = Point::zero();
                     child.unrounded_layout.size = size;
-                    child.unrounded_layout.content_size = content_size;
+                    child.unrounded_layout.scrollable_overflow_rect =
+                        crate::scrollable_overflow_rect_from_size(content_size);
                     child.unrounded_layout.padding = padding;
                     child.unrounded_layout.border = border;
                 }
@@ -1781,11 +1783,7 @@ impl Tree {
                 }
 
                 #[cfg(test)]
-                crate::test_helpers::call_computed_size(
-                    child_id,
-                    size.width,
-                    size.height,
-                );
+                crate::test_helpers::call_computed_size(child_id, size.width, size.height);
 
                 #[cfg(target_os = "android")]
                 if let Some(data) = self.node_data_mut().get_mut(child_id) {
@@ -1796,8 +1794,10 @@ impl Tree {
 
                 return LayoutOutput {
                     size,
-                    content_size,
-                    first_baselines: Point::NONE,
+                    scrollable_overflow_rect: crate::scrollable_overflow_rect_from_size(
+                        content_size,
+                    ),
+                    baselines: taffy::Baselines::NONE,
                     top_margin: taffy::CollapsibleMarginSet::ZERO,
                     bottom_margin: taffy::CollapsibleMarginSet::ZERO,
                     margins_can_collapse_through: false,
@@ -1855,23 +1855,24 @@ impl Tree {
 
             if is_scroll_container {
                 // For scroll containers, preserve the full content extent
-                child.unrounded_layout.content_size = layout.content_size;
+                child.unrounded_layout.scrollable_overflow_rect = layout.scrollable_overflow_rect;
             } else {
                 // For non-scroll containers, content_size is the visible content area
-                child.unrounded_layout.content_size = Size {
-                    width: (layout.size.width
-                        - padding.left
-                        - padding.right
-                        - border.left
-                        - border.right)
-                        .max(0.0),
-                    height: (layout.size.height
-                        - padding.top
-                        - padding.bottom
-                        - border.top
-                        - border.bottom)
-                        .max(0.0),
-                };
+                child.unrounded_layout.scrollable_overflow_rect =
+                    crate::scrollable_overflow_rect_from_size(Size {
+                        width: (layout.size.width
+                            - padding.left
+                            - padding.right
+                            - border.left
+                            - border.right)
+                            .max(0.0),
+                        height: (layout.size.height
+                            - padding.top
+                            - padding.bottom
+                            - border.top
+                            - border.bottom)
+                            .max(0.0),
+                    });
             }
         }
 
@@ -1964,14 +1965,14 @@ impl Tree {
                     | crate::style::Overflow::Auto
                     | crate::style::Overflow::Hidden
             );
-            if !is_scroll_container && layout.content_size.width > value {
-                layout.content_size.width = value;
+            if !is_scroll_container && layout.scrollable_overflow_rect.right > value {
+                layout.scrollable_overflow_rect.right = value;
             }
         }
 
         if let Some(child) = self.nodes_mut().get_mut(child_id) {
             child.unrounded_layout.size = layout.size;
-            child.unrounded_layout.content_size = layout.content_size;
+            child.unrounded_layout.scrollable_overflow_rect = layout.scrollable_overflow_rect;
         }
 
         // Notify platform of computed size
@@ -2054,18 +2055,34 @@ impl Tree {
             let child_node_id = NodeId::from(child_id);
 
             // Resolve child's own size constraints
-            let child_size = child_style
-                .size()
-                .maybe_resolve(Size { width: Some(cb_width), height: Some(cb_height) }, |_v, _b| 0.0);
-            let _child_min_size = child_style
-                .min_size()
-                .maybe_resolve(Size { width: Some(cb_width), height: Some(cb_height) }, |_v, _b| 0.0);
-            let _child_max_size = child_style
-                .max_size()
-                .maybe_resolve(Size { width: Some(cb_width), height: Some(cb_height) }, |_v, _b| 0.0);
-            let child_margin = child_style
-                .get_margin()
-                .resolve_or_zero(Size { width: Some(cb_width), height: Some(cb_height) }, |_v, _b| 0.0);
+            let child_size = child_style.size().maybe_resolve(
+                Size {
+                    width: Some(cb_width),
+                    height: Some(cb_height),
+                },
+                |_v, _b| 0.0,
+            );
+            let _child_min_size = child_style.min_size().maybe_resolve(
+                Size {
+                    width: Some(cb_width),
+                    height: Some(cb_height),
+                },
+                |_v, _b| 0.0,
+            );
+            let _child_max_size = child_style.max_size().maybe_resolve(
+                Size {
+                    width: Some(cb_width),
+                    height: Some(cb_height),
+                },
+                |_v, _b| 0.0,
+            );
+            let child_margin = child_style.get_margin().resolve_or_zero(
+                Size {
+                    width: Some(cb_width),
+                    height: Some(cb_height),
+                },
+                |_v, _b| 0.0,
+            );
 
             let inset = child_style.get_inset();
             let inset_left = inset.left.maybe_resolve(Some(cb_width), |_v, _b| 0.0);
@@ -2075,23 +2092,23 @@ impl Tree {
 
             // Determine known width: if left+right are both specified
             // and width is auto, shrink to fit. Otherwise use explicit width.
-            let known_width = child_size.width.or_else(|| {
-                match (inset_left, inset_right) {
+            let known_width = child_size
+                .width
+                .or_else(|| match (inset_left, inset_right) {
                     (Some(l), Some(r)) => {
                         Some((cb_width - l - r - child_margin.left - child_margin.right).max(0.0))
                     }
                     _ => None,
-                }
-            });
+                });
 
-            let known_height = child_size.height.or_else(|| {
-                match (inset_top, inset_bottom) {
+            let known_height = child_size
+                .height
+                .or_else(|| match (inset_top, inset_bottom) {
                     (Some(t), Some(b)) => {
                         Some((cb_height - t - b - child_margin.top - child_margin.bottom).max(0.0))
                     }
                     _ => None,
-                }
-            });
+                });
 
             let child_inputs = LayoutInput {
                 known_dimensions: Size {
@@ -2135,7 +2152,8 @@ impl Tree {
             if let Some(node) = self.nodes_mut().get_mut(child_id) {
                 node.unrounded_layout.location = Point { x, y };
                 node.unrounded_layout.size = child_layout.size;
-                node.unrounded_layout.content_size = child_layout.content_size;
+                node.unrounded_layout.scrollable_overflow_rect =
+                    child_layout.scrollable_overflow_rect;
                 let child_padding = child_style
                     .get_padding()
                     .resolve_or_zero(parent_size, |_v, _b| 0.0);
@@ -2253,20 +2271,26 @@ impl Tree {
         let is_inline_container = matches!(style.display_mode(), DisplayMode::Inline);
         let content_box_child_base = if !is_inline_container {
             let content_box_parent_size = Size {
-                width: _node_size.width
+                width: _node_size
+                    .width
                     .or(known_dimensions.width)
                     .map(|w| (w - pb.left - pb.right).max(0.0)),
-                height: _node_size.height
+                height: _node_size
+                    .height
                     .or(known_dimensions.height)
                     .map(|h| (h - pb.top - pb.bottom).max(0.0)),
             };
             let content_box_available_space = Size {
                 width: match available_space.width {
-                    AvailableSpace::Definite(w) => AvailableSpace::Definite((w - pb.left - pb.right).max(0.0)),
+                    AvailableSpace::Definite(w) => {
+                        AvailableSpace::Definite((w - pb.left - pb.right).max(0.0))
+                    }
                     other => other,
                 },
                 height: match available_space.height {
-                    AvailableSpace::Definite(h) => AvailableSpace::Definite((h - pb.top - pb.bottom).max(0.0)),
+                    AvailableSpace::Definite(h) => {
+                        AvailableSpace::Definite((h - pb.top - pb.bottom).max(0.0))
+                    }
                     other => other,
                 },
             };
@@ -2306,7 +2330,11 @@ impl Tree {
                 if self.is_inline_level(child_id) {
                     self.measure_inline_child(child_id, child_inputs);
                 } else {
-                    self.measure_block_child(child_id, child_inputs.available_space.width, content_box_child_base);
+                    self.measure_block_child(
+                        child_id,
+                        child_inputs.available_space.width,
+                        content_box_child_base,
+                    );
                 }
             }
 
@@ -2343,8 +2371,10 @@ impl Tree {
                     // tree locks; we copy the measure earlier to enforce this.
                     let meas = measure.measure(measure_known, available_space);
                     #[cfg(test)]
-                    eprintln!("MEASURE_TRACE node={:?} known={:?} avail={:?} => size={:?}",
-                        node_id, measure_known, available_space, meas);
+                    eprintln!(
+                        "MEASURE_TRACE node={:?} known={:?} avail={:?} => size={:?}",
+                        node_id, measure_known, available_space, meas
+                    );
                     meas
                 },
             );
@@ -2368,8 +2398,11 @@ impl Tree {
                 vec
             };
 
-            // If there are children, we need to position them using IFC
-            if !flow_child_ids.is_empty() {
+            // If there are children, IFC is needed for placement. For direct text-only
+            // segments, use IFC only when native measurement did not provide a size.
+            if !flow_child_ids.is_empty()
+                || (!segments.is_empty() && ret.size.width <= 1e-6 && ret.size.height <= 1e-6)
+            {
                 let mut prepared_items: Vec<PreparedItem> = Vec::new();
 
                 // Build prepared items from segments (which include text and inline children)
@@ -2520,14 +2553,14 @@ impl Tree {
                 let visible_content_width = (ret.size.width - pb.left - pb.right).max(0.0);
                 let visible_content_height = (ret.size.height - pb.top - pb.bottom).max(0.0);
 
-                ret.content_size.width = ret
-                    .content_size
-                    .width
+                ret.scrollable_overflow_rect.right = ret
+                    .scrollable_overflow_rect
+                    .right
                     .max(visible_content_width)
                     .max(ifc_width);
-                ret.content_size.height = ret
-                    .content_size
-                    .height
+                ret.scrollable_overflow_rect.bottom = ret
+                    .scrollable_overflow_rect
+                    .bottom
                     .max(visible_content_height)
                     .max(ifc_height);
 
@@ -2564,17 +2597,18 @@ impl Tree {
             if is_scroll_container {
                 // For scroll containers, content_size should be the actual measured content
                 // which may be larger than the layout size (enabling scroll)
-                let measured_content = ret.content_size;
-                ret.content_size = Size {
+                let measured_content =
+                    crate::scrollable_overflow_size(ret.scrollable_overflow_rect);
+                ret.scrollable_overflow_rect = crate::scrollable_overflow_rect_from_size(Size {
                     width: measured_content.width.max(ret.size.width),
                     height: measured_content.height.max(ret.size.height),
-                };
+                });
             }
 
             // Update the node's layout
             if let Some(node) = self.nodes_mut().get_mut(id) {
                 node.unrounded_layout.size = ret.size;
-                node.unrounded_layout.content_size = ret.content_size;
+                node.unrounded_layout.scrollable_overflow_rect = ret.scrollable_overflow_rect;
                 node.unrounded_layout.padding = padding;
                 node.unrounded_layout.border = border;
             }
@@ -2629,7 +2663,13 @@ impl Tree {
                 compute_leaf_layout(inputs, &style, |_val, _basis| 0.0, |_, _| Size::ZERO)
             };
             if !abs_child_ids.is_empty() {
-                self.layout_absolute_children(&abs_child_ids, leaf_output.size, pb, parent_size, inputs);
+                self.layout_absolute_children(
+                    &abs_child_ids,
+                    leaf_output.size,
+                    pb,
+                    parent_size,
+                    inputs,
+                );
             }
             return leaf_output;
         }
@@ -2648,7 +2688,11 @@ impl Tree {
             if self.is_inline_level(child_id) {
                 self.measure_inline_child(child_id, child_inputs);
             } else {
-                self.measure_block_child(child_id, child_inputs.available_space.width, content_box_child_base);
+                self.measure_block_child(
+                    child_id,
+                    child_inputs.available_space.width,
+                    content_box_child_base,
+                );
             }
         }
 
@@ -2811,22 +2855,22 @@ impl Tree {
 
             // content_size should be the larger of computed content and layout size
             // to ensure scroll views know the full scrollable area
-            output.content_size = Size {
+            output.scrollable_overflow_rect = crate::scrollable_overflow_rect_from_size(Size {
                 width: full_content_width.max(output.size.width),
                 height: full_content_height.max(output.size.height),
-            };
+            });
         } else {
             // For non-scroll containers, content_size is the actual content (without padding/border)
-            output.content_size = Size {
+            output.scrollable_overflow_rect = crate::scrollable_overflow_rect_from_size(Size {
                 width: content_width,
                 height: content_height,
-            };
+            });
         }
 
         // Update the node's layout with proper content_size
         if let Some(node) = self.nodes_mut().get_mut(id) {
             node.unrounded_layout.size = output.size;
-            node.unrounded_layout.content_size = output.content_size;
+            node.unrounded_layout.scrollable_overflow_rect = output.scrollable_overflow_rect;
             node.unrounded_layout.padding = padding;
             node.unrounded_layout.border = border;
         }

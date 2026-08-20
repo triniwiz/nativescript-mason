@@ -24,8 +24,8 @@ use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
 use crate::style::arena::{StyleArena, StyleHandle};
 use crate::style::utils::{
-    get_style_data_i8_raw, set_style_data_i8_raw,
-    get_style_data_i32, set_style_data_i32, get_style_data_u8, set_style_data_u8,
+    get_style_data_i32, get_style_data_i8_raw, get_style_data_u8, set_style_data_i32,
+    set_style_data_i8_raw, set_style_data_u8,
 };
 #[cfg(target_os = "android")]
 use crate::{JVM, JVM_CACHE};
@@ -300,22 +300,26 @@ impl NodeData {
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
                                 jni::sys::jvalue { i: self.measure },
-                                jni::sys::jvalue { j: MeasureOutput::make_bits(
-                                    known_dimensions.width.unwrap_or(-3.0).to_bits(),
-                                    known_dimensions.height.unwrap_or(-3.0).to_bits(),
-                                ) },
-                                jni::sys::jvalue { j: MeasureOutput::make_bits(
-                                    match available_space.width {
-                                        AvailableSpace::MinContent => (-1f32).to_bits(),
-                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
-                                        AvailableSpace::Definite(value) => value.to_bits(),
-                                    },
-                                    match available_space.height {
-                                        AvailableSpace::MinContent => (-1f32).to_bits(),
-                                        AvailableSpace::MaxContent => (-2f32).to_bits(),
-                                        AvailableSpace::Definite(value) => value.to_bits(),
-                                    },
-                                ) },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make_bits(
+                                        known_dimensions.width.unwrap_or(-3.0).to_bits(),
+                                        known_dimensions.height.unwrap_or(-3.0).to_bits(),
+                                    ),
+                                },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make_bits(
+                                        match available_space.width {
+                                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                            AvailableSpace::Definite(value) => value.to_bits(),
+                                        },
+                                        match available_space.height {
+                                            AvailableSpace::MinContent => (-1f32).to_bits(),
+                                            AvailableSpace::MaxContent => (-2f32).to_bits(),
+                                            AvailableSpace::Definite(value) => value.to_bits(),
+                                        },
+                                    ),
+                                },
                             ],
                         );
 
@@ -428,11 +432,31 @@ impl PseudoStyles {
     /// Return immutable reference to the first matching pseudo style by priority.
     pub fn resolve(&self, flags: u16) -> Option<&crate::style::Style> {
         let bits = PseudoStates::from_bits_truncate(flags);
-        if bits.contains(PseudoStates::HOVER) { if let Some(s) = &self.hover { return Some(s); } }
-        if bits.contains(PseudoStates::ACTIVE) { if let Some(s) = &self.active { return Some(s); } }
-        if bits.contains(PseudoStates::FOCUS) { if let Some(s) = &self.focus { return Some(s); } }
-        if bits.contains(PseudoStates::DISABLED) { if let Some(s) = &self.disabled { return Some(s); } }
-        if bits.contains(PseudoStates::CHECKED) { if let Some(s) = &self.checked { return Some(s); } }
+        if bits.contains(PseudoStates::HOVER) {
+            if let Some(s) = &self.hover {
+                return Some(s);
+            }
+        }
+        if bits.contains(PseudoStates::ACTIVE) {
+            if let Some(s) = &self.active {
+                return Some(s);
+            }
+        }
+        if bits.contains(PseudoStates::FOCUS) {
+            if let Some(s) = &self.focus {
+                return Some(s);
+            }
+        }
+        if bits.contains(PseudoStates::DISABLED) {
+            if let Some(s) = &self.disabled {
+                return Some(s);
+            }
+        }
+        if bits.contains(PseudoStates::CHECKED) {
+            if let Some(s) = &self.checked {
+                return Some(s);
+            }
+        }
         None
     }
 
@@ -725,12 +749,16 @@ impl Node {
             // Read the pseudo set bitmask from the source buffer
             let src_data = src.data();
             let pseudo_set_low = i64::from_ne_bytes(
-                src_data[StyleKeys::PSEUDO_SET_MASK_LOW as usize..StyleKeys::PSEUDO_SET_MASK_LOW as usize + 8]
-                    .try_into().unwrap_or([0u8; 8])
+                src_data[StyleKeys::PSEUDO_SET_MASK_LOW as usize
+                    ..StyleKeys::PSEUDO_SET_MASK_LOW as usize + 8]
+                    .try_into()
+                    .unwrap_or([0u8; 8]),
             ) as u64;
             let pseudo_set_high = i64::from_ne_bytes(
-                src_data[StyleKeys::PSEUDO_SET_MASK_HIGH as usize..StyleKeys::PSEUDO_SET_MASK_HIGH as usize + 8]
-                    .try_into().unwrap_or([0u8; 8])
+                src_data[StyleKeys::PSEUDO_SET_MASK_HIGH as usize
+                    ..StyleKeys::PSEUDO_SET_MASK_HIGH as usize + 8]
+                    .try_into()
+                    .unwrap_or([0u8; 8]),
             ) as u64;
             let pseudo_set = (pseudo_set_high as u128) << 64 | pseudo_set_low as u128;
 
@@ -775,7 +803,8 @@ impl Node {
                 let v = get_style_data_i32(src.data(), StyleKeys::BACKGROUND_COLOR);
                 set_style_data_i32(dst.data_mut(), StyleKeys::BACKGROUND_COLOR, v);
                 set_style_data_u8(dst.data_mut(), StyleKeys::BACKGROUND_COLOR_STATE, 1);
-                let t = get_style_data_i8_raw(src.data(), StyleKeys::BACKGROUND_COLOR_TYPE as usize);
+                let t =
+                    get_style_data_i8_raw(src.data(), StyleKeys::BACKGROUND_COLOR_TYPE as usize);
                 set_style_data_i8_raw(dst.data_mut(), StyleKeys::BACKGROUND_COLOR_TYPE as usize, t);
             }
 
@@ -827,13 +856,22 @@ impl Node {
             merge_u8!(StyleKeys::DECORATION_LINE, StyleKeys::DECORATION_LINE_STATE);
 
             // Decoration color (i32)
-            merge_i32!(StyleKeys::DECORATION_COLOR, StyleKeys::DECORATION_COLOR_STATE);
+            merge_i32!(
+                StyleKeys::DECORATION_COLOR,
+                StyleKeys::DECORATION_COLOR_STATE
+            );
 
             // Decoration style (u8)
-            merge_u8!(StyleKeys::DECORATION_STYLE, StyleKeys::DECORATION_STYLE_STATE);
+            merge_u8!(
+                StyleKeys::DECORATION_STYLE,
+                StyleKeys::DECORATION_STYLE_STATE
+            );
 
             // Decoration thickness (i32)
-            merge_i32!(StyleKeys::DECORATION_THICKNESS, StyleKeys::DECORATION_THICKNESS_STATE);
+            merge_i32!(
+                StyleKeys::DECORATION_THICKNESS,
+                StyleKeys::DECORATION_THICKNESS_STATE
+            );
 
             // Letter spacing (i32)
             merge_i32!(StyleKeys::LETTER_SPACING, StyleKeys::LETTER_SPACING_STATE);
@@ -862,7 +900,10 @@ impl Node {
             }
 
             // List style position (u8)
-            merge_u8!(StyleKeys::LIST_STYLE_POSITION, StyleKeys::LIST_STYLE_POSITION_STATE);
+            merge_u8!(
+                StyleKeys::LIST_STYLE_POSITION,
+                StyleKeys::LIST_STYLE_POSITION_STATE
+            );
 
             // List style type (u8)
             merge_u8!(StyleKeys::LIST_STYLE_TYPE, StyleKeys::LIST_STYLE_TYPE_STATE);

@@ -1,7 +1,7 @@
-use mason_core::*;
 use mason_core::style::DisplayMode;
-use taffy::style::{LengthPercentage, LengthPercentageAuto, Display};
+use mason_core::*;
 use taffy::geometry::Rect;
+use taffy::style::{Display, LengthPercentage, LengthPercentageAuto};
 
 // This test mirrors the ANDROID structure more closely:
 // Text containers are NOT leaf nodes — they have inline children (TextNodes)
@@ -61,7 +61,11 @@ extern "C" fn text_measure_content(
     };
 
     let content_lines = (natural_w / w.max(1.0)).ceil().max(1.0);
-    let h = if known_h > 0.0 { known_h } else { content_lines * line_h };
+    let h = if known_h > 0.0 {
+        known_h
+    } else {
+        content_lines * line_h
+    };
     MeasureOutput::make(w, h)
 }
 
@@ -101,7 +105,7 @@ fn grid_text_container_with_children_no_overflow() {
     mason.with_style_mut(grid_id, |s| {
         s.set_display(Display::Grid);
         s.set_grid_template_areas_css(
-            "\"header header\"\n\"sidebar content\"\n\"sidebar2 sidebar2\"\n\"footer footer\""
+            "\"header header\"\n\"sidebar content\"\n\"sidebar2 sidebar2\"\n\"footer footer\"",
         );
         s.set_grid_template_columns_css("275px auto");
         s.set_gap(taffy::geometry::Size {
@@ -172,7 +176,10 @@ fn grid_text_container_with_children_no_overflow() {
     mason.with_style_mut(content_text2_id, |s| {
         s.set_display_mode(DisplayMode::Inline);
     });
-    mason.append_node(content_id, &[content_text1_id, content_br_id, content_text2_id]);
+    mason.append_node(
+        content_id,
+        &[content_text1_id, content_br_id, content_text2_id],
+    );
 
     // Sidebar2
     let sidebar2 = mason.create_text_node();
@@ -205,7 +212,10 @@ fn grid_text_container_with_children_no_overflow() {
     mason.append_node(footer_id, &[footer_text_id]);
 
     // Build tree
-    mason.append_node(grid_id, &[header_id, sidebar_id, sidebar2_id, content_id, footer_id]);
+    mason.append_node(
+        grid_id,
+        &[header_id, sidebar_id, sidebar2_id, content_id, footer_id],
+    );
     mason.append_node(body_id, &[grid_id]);
     mason.append_node(scroll_id, &[body_id]);
 
@@ -217,20 +227,36 @@ fn grid_text_container_with_children_no_overflow() {
     let header_layout = mason.layout_raw(header_id);
 
     eprintln!("grid:    size={:?}", grid_layout.size);
-    eprintln!("header:  size={:?} loc={:?}", header_layout.size, header_layout.location);
-    eprintln!("content: size={:?} loc={:?}", content_layout.size, content_layout.location);
+    eprintln!(
+        "header:  size={:?} loc={:?}",
+        header_layout.size, header_layout.location
+    );
+    eprintln!(
+        "content: size={:?} loc={:?}",
+        content_layout.size, content_layout.location
+    );
 
     let expected_body_w = 1080.0 - 80.0;
     let expected_auto_col = expected_body_w - 275.0 - 8.0;
 
-    assert!((grid_layout.size.width - expected_body_w).abs() < 1.0,
-        "grid width {} should be {}", grid_layout.size.width, expected_body_w);
+    assert!(
+        (grid_layout.size.width - expected_body_w).abs() < 1.0,
+        "grid width {} should be {}",
+        grid_layout.size.width,
+        expected_body_w
+    );
 
-    assert!(content_layout.size.width <= expected_auto_col + 1.0,
+    assert!(
+        content_layout.size.width <= expected_auto_col + 1.0,
         "content width {} should be <= auto column {} (not overflowing!)",
-        content_layout.size.width, expected_auto_col);
+        content_layout.size.width,
+        expected_auto_col
+    );
 
-    assert!(header_layout.size.width <= grid_layout.size.width + 1.0,
+    assert!(
+        header_layout.size.width <= grid_layout.size.width + 1.0,
         "header width {} should be <= grid width {}",
-        header_layout.size.width, grid_layout.size.width);
+        header_layout.size.width,
+        grid_layout.size.width
+    );
 }

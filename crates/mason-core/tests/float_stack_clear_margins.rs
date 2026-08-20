@@ -21,7 +21,10 @@ fn stacked_floats_with_margins_and_clear() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Block);
-        s.set_size(Size { width: Dimension::length(200.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(200.0),
+            height: Dimension::auto(),
+        });
     });
 
     // three float children appended in order
@@ -41,10 +44,10 @@ fn stacked_floats_with_margins_and_clear() {
     mason.with_style_mut(aid, |s| {
         s.set_float(Float::Left);
         s.set_margin(Rect {
-                left: LengthPercentageAuto::length(8.0),
-                right: LengthPercentageAuto::length(0.0),
-                top: LengthPercentageAuto::length(0.0),
-                bottom: LengthPercentageAuto::length(0.0),
+            left: LengthPercentageAuto::length(8.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
         });
     });
 
@@ -53,10 +56,10 @@ fn stacked_floats_with_margins_and_clear() {
         s.set_float(Float::Left);
         s.set_clear(taffy::Clear::Left);
         s.set_margin(Rect {
-                left: LengthPercentageAuto::length(5.0),
-                right: LengthPercentageAuto::length(0.0),
-                top: LengthPercentageAuto::length(0.0),
-                bottom: LengthPercentageAuto::length(0.0),
+            left: LengthPercentageAuto::length(5.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
         });
     });
 
@@ -64,10 +67,10 @@ fn stacked_floats_with_margins_and_clear() {
     mason.with_style_mut(cid, |s| {
         s.set_float(Float::Left);
         s.set_margin(Rect {
-                left: LengthPercentageAuto::length(3.0),
-                right: LengthPercentageAuto::length(0.0),
-                top: LengthPercentageAuto::length(0.0),
-                bottom: LengthPercentageAuto::length(0.0),
+            left: LengthPercentageAuto::length(3.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
         });
     });
 
@@ -88,11 +91,22 @@ fn stacked_floats_with_margins_and_clear() {
 
     // A should start at y=0 and include left margin offset
     assert!((a_top - 0.0).abs() < 0.001, "A should be at top");
-    assert!((a_left - 8.0).abs() < 0.001, "A left should include left margin");
-    assert!((a_w - 30.0).abs() < 0.001, "A width should be measured width");
+    assert!(
+        (a_left - 8.0).abs() < 0.001,
+        "A left should include left margin"
+    );
+    assert!(
+        (a_w - 30.0).abs() < 0.001,
+        "A width should be measured width"
+    );
 
     // B must be pushed below A because of clear:left
-    assert!(b_top >= a_top + a_w * 0.0 + 9.9, "B should be placed below A (b_top={}, a_h={})", b_top, a_w);
+    assert!(
+        b_top >= a_top + a_w * 0.0 + 9.9,
+        "B should be placed below A (b_top={}, a_h={})",
+        b_top,
+        a_w
+    );
 
     // C should be after B vertically (y >= b_top)
     assert!(c_top >= b_top - 0.001, "C should be at or below B");

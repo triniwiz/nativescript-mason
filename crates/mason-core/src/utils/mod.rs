@@ -1,14 +1,14 @@
 mod grid;
-use crate::style::{BorderStyle, DisplayMode, Hyphens, ObjectFit, Overflow, UnicodeBidi, WritingMode};
+use crate::style::{
+    BorderStyle, DisplayMode, Hyphens, ObjectFit, Overflow, UnicodeBidi, WritingMode,
+};
 use crate::Style;
 pub use grid::*;
 use style_atoms::Atom;
 use taffy::{
-    AlignContent, AlignItems, AlignSelf, BoxSizing, Clear, Direction, Display, FlexDirection,
-    FlexWrap, Float, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
-    TextAlign,
-    AlignContentKeyword,
-    AlignItemsKeyword
+    AlignContent, AlignContentKeyword, AlignItems, AlignItemsKeyword, AlignSelf, BoxSizing, Clear,
+    Direction, Display, FlexDirection, FlexWrap, Float, GridAutoFlow, GridPlacement,
+    GridTemplateArea, JustifyContent, Line, Position, TextAlign,
 };
 
 pub const fn border_style_from_enum(value: i8) -> Option<BorderStyle> {
@@ -112,6 +112,8 @@ pub const fn align_items_from_enum(value: i8) -> Option<AlignItems> {
         4 => Some(AlignItems::STRETCH),
         5 => Some(AlignItems::FLEX_START),
         6 => Some(AlignItems::FLEX_END),
+        7 => Some(AlignItems::SELF_START),
+        8 => Some(AlignItems::SELF_END),
         _ => None,
     }
 }
@@ -146,6 +148,8 @@ pub const fn align_items_to_enum(value: AlignItems) -> i8 {
         AlignItemsKeyword::Stretch => 4,
         AlignItemsKeyword::FlexStart => 5,
         AlignItemsKeyword::FlexEnd => 6,
+        AlignItemsKeyword::SelfStart => 7,
+        AlignItemsKeyword::SelfEnd => 8,
     }
 }
 
@@ -158,12 +162,14 @@ pub const fn align_self_from_enum(value: i8) -> Option<AlignSelf> {
         4 => Some(AlignSelf::STRETCH),
         5 => Some(AlignSelf::FLEX_START),
         6 => Some(AlignSelf::FLEX_END),
+        7 => Some(AlignSelf::SELF_START),
+        8 => Some(AlignSelf::SELF_END),
         _ => None,
     }
 }
 
 pub const fn align_self_to_enum(value: AlignSelf) -> i8 {
-    match value .keyword{
+    match value.keyword {
         AlignItemsKeyword::Start => 0,
         AlignItemsKeyword::End => 1,
         AlignItemsKeyword::Center => 2,
@@ -171,6 +177,8 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i8 {
         AlignItemsKeyword::Stretch => 4,
         AlignItemsKeyword::FlexStart => 5,
         AlignItemsKeyword::FlexEnd => 6,
+        AlignItemsKeyword::SelfStart => 7,
+        AlignItemsKeyword::SelfEnd => 8,
     }
 }
 
@@ -185,6 +193,8 @@ pub const fn align_self_op_to_enum(value: Option<AlignSelf>) -> Option<i8> {
             AlignItemsKeyword::Stretch => 4,
             AlignItemsKeyword::FlexStart => 5,
             AlignItemsKeyword::FlexEnd => 6,
+            AlignItemsKeyword::SelfStart => 7,
+            AlignItemsKeyword::SelfEnd => 8,
         }),
     }
 }
@@ -195,6 +205,7 @@ pub const fn display_from_enum(value: i8) -> Option<Display> {
         1 => Some(Display::Flex),
         2 => Some(Display::Grid),
         3 => Some(Display::Block),
+        4 => Some(Display::FlowRoot),
         _ => None,
     }
 }
@@ -205,6 +216,7 @@ pub const fn display_to_enum(value: Display) -> i8 {
         Display::Flex => 1,
         Display::Grid => 2,
         Display::Block => 3,
+        Display::FlowRoot => 4,
     }
 }
 
@@ -232,6 +244,8 @@ pub const fn flex_wrap_from_enum(value: i8) -> Option<FlexWrap> {
         0 => Some(FlexWrap::NoWrap),
         1 => Some(FlexWrap::Wrap),
         2 => Some(FlexWrap::WrapReverse),
+        3 => Some(FlexWrap::Balance),
+        4 => Some(FlexWrap::BalanceReverse),
         _ => None,
     }
 }
@@ -241,6 +255,8 @@ pub const fn flex_wrap_to_enum(value: FlexWrap) -> i8 {
         FlexWrap::NoWrap => 0,
         FlexWrap::Wrap => 1,
         FlexWrap::WrapReverse => 2,
+        FlexWrap::Balance => 3,
+        FlexWrap::BalanceReverse => 4,
     }
 }
 
@@ -337,7 +353,7 @@ pub const fn display_mode_to_enum(value: DisplayMode) -> i8 {
         DisplayMode::None => 0,
         DisplayMode::Inline => 1,
         DisplayMode::Box => 2,
-        DisplayMode::ListItem => 3
+        DisplayMode::ListItem => 3,
     }
 }
 

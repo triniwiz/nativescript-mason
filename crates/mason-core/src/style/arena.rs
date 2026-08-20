@@ -254,7 +254,16 @@ impl StyleArena {
         default_snapshots[Handle::Button as usize].copy_from_slice(button.bytes());
 
         let mut arena = Self {
-            buffers: vec![default_buffer, inline, img, flex, grid, list, list_item, button],
+            buffers: vec![
+                default_buffer,
+                inline,
+                img,
+                flex,
+                grid,
+                list,
+                list_item,
+                button,
+            ],
             free_list: Vec::new(),
             hash_index: std::collections::HashMap::new(),
             default_snapshots,
@@ -355,7 +364,8 @@ impl StyleArena {
 
         if buf.ref_count == 0 {
             // Remove from hash index before clearing buffer data
-            let hash = Self::hash_buffer(<&[u8; STYLE_BUFFER_SIZE]>::try_from(buf.bytes()).unwrap());
+            let hash =
+                Self::hash_buffer(<&[u8; STYLE_BUFFER_SIZE]>::try_from(buf.bytes()).unwrap());
             if let Some(indices) = self.hash_index.get_mut(&hash) {
                 indices.retain(|&i| i != idx as u32);
                 if indices.is_empty() {
@@ -377,7 +387,6 @@ impl StyleArena {
         data.hash(&mut hasher);
         hasher.finish()
     }
-
 
     pub fn stats(&self) -> ArenaStats {
         let active = self.buffers.iter().filter(|b| b.ref_count > 0).count();
@@ -540,7 +549,6 @@ impl StyleArena {
 
 #[cfg(target_vendor = "apple")]
 impl StyleArena {
-
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> objc2::rc::Retained<NSMutableData> {
         self.buffers[handle.index()].buffer()
@@ -550,7 +558,6 @@ impl StyleArena {
     pub fn buffer_opt(&self, handle: StyleHandle) -> Option<objc2::rc::Retained<NSMutableData>> {
         self.buffers.get(handle.index()).map(|b| b.buffer())
     }
-
 
     /// Allocate a new buffer with the given data
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
@@ -590,7 +597,10 @@ impl StyleArena {
         }
 
         let handle = self.alloc(data);
-        self.hash_index.entry(hash).or_insert_with(Vec::new).push(handle.index() as u32);
+        self.hash_index
+            .entry(hash)
+            .or_insert_with(Vec::new)
+            .push(handle.index() as u32);
         handle
     }
 
@@ -638,7 +648,6 @@ impl StyleArena {
         self.buffers[handle.index()].mut_bytes().as_mut_ptr()
     }
 
-
     pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
         self.buffers
             .get_mut(handle.index())
@@ -650,7 +659,6 @@ impl StyleArena {
         <&[u8; STYLE_BUFFER_SIZE]>::try_from(self.buffers[handle.index()].bytes()).unwrap()
     }
 }
-
 
 #[cfg(not(target_vendor = "apple"))]
 impl StyleArena {
@@ -665,7 +673,11 @@ impl StyleArena {
     pub fn buffer_opt(&self, handle: StyleHandle) -> Option<jni::sys::jint> {
         self.buffers.get(handle.index()).and_then(|b| {
             let id = b.buffer();
-            if id >= 0 { Some(id) } else { None }
+            if id >= 0 {
+                Some(id)
+            } else {
+                None
+            }
         })
     }
 
@@ -700,17 +712,23 @@ impl StyleArena {
                 let buf = &mut self.buffers[idx as usize];
                 if buf.ref_count > 0 && buf.data.as_ref() == data {
                     buf.ref_count += 1;
-                    set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, buf.ref_count);
+                    set_style_data_u32(
+                        buf.data.as_mut_slice(),
+                        StyleKeys::REF_COUNT,
+                        buf.ref_count,
+                    );
                     return StyleHandle(idx);
                 }
             }
         }
 
         let handle = self.alloc(data);
-        self.hash_index.entry(hash).or_insert_with(Vec::new).push(handle.index() as u32);
+        self.hash_index
+            .entry(hash)
+            .or_insert_with(Vec::new)
+            .push(handle.index() as u32);
         handle
     }
-
 
     /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
     pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {

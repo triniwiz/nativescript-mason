@@ -33,12 +33,7 @@ enum Variant {
 
 #[test]
 fn basic_display_types_do_not_crash() {
-    let variants = [
-        Variant::Block,
-        Variant::Flex,
-        Variant::Grid,
-        Variant::None,
-    ];
+    let variants = [Variant::Block, Variant::Flex, Variant::Grid, Variant::None];
 
     for disp in variants {
         let mut mason = Mason::new();
@@ -188,7 +183,10 @@ fn android_float_activity_repro() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Block);
-        s.set_size(Size { width: Dimension::length(300.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(300.0),
+            height: Dimension::auto(),
+        });
     });
 
     // helper variants for a few common sizes (avoids closure capture)
@@ -226,7 +224,9 @@ fn android_float_activity_repro() {
         m.set_measure(nid, Some(meas), std::ptr::null_mut());
         m.with_style_mut(nid, |s| {
             s.set_display(Display::Block);
-            if let Some(fl) = f { s.set_float(fl); }
+            if let Some(fl) = f {
+                s.set_float(fl);
+            }
         });
         n
     }
@@ -234,7 +234,9 @@ fn android_float_activity_repro() {
     // card container
     let card = mason.create_node();
     let cid = card.id();
-    mason.with_style_mut(cid, |s| { s.set_display(Display::Block); });
+    mason.with_style_mut(cid, |s| {
+        s.set_display(Display::Block);
+    });
 
     // drop‑cap left float
     let drop = make_box(&mut mason, 68.0, 68.0, Some(Float::Left));

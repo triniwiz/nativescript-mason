@@ -1,8 +1,8 @@
-use mason_core::*;
 use mason_core::style::DisplayMode;
+use mason_core::*;
+use taffy::geometry::Rect;
 use taffy::style::Display;
 use taffy::style::{Dimension, LengthPercentage};
-use taffy::geometry::Rect;
 
 // Ensure inline root containers are not treated like block roots for
 // content-box percent resolution — we should leave inline-root behavior unchanged.
@@ -19,8 +19,16 @@ fn inline_root_child_percent_resolves_to_outer_width() {
         // root is treated as an inline-flow root for this test.
         s.set_display(Display::Block);
         s.set_display_mode(DisplayMode::Inline);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
-        s.set_padding(Rect { left: LengthPercentage::length(20.0), right: LengthPercentage::length(20.0), top: LengthPercentage::length(0.0), bottom: LengthPercentage::length(0.0) });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
+        s.set_padding(Rect {
+            left: LengthPercentage::length(20.0),
+            right: LengthPercentage::length(20.0),
+            top: LengthPercentage::length(0.0),
+            bottom: LengthPercentage::length(0.0),
+        });
     });
 
     // child with 100% width
@@ -28,7 +36,10 @@ fn inline_root_child_percent_resolves_to_outer_width() {
     let cid = child.id();
     mason.with_style_mut(cid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: Dimension::percent(1.0), height: Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: Dimension::percent(1.0),
+            height: Dimension::auto(),
+        });
     });
 
     mason.append_node(rid, &[cid]);
@@ -40,5 +51,10 @@ fn inline_root_child_percent_resolves_to_outer_width() {
 
     // For inline-root we expect child percent to resolve against outer width (300)
     let expected = 300.0;
-    assert!((child_layout.size.width - expected).abs() < 0.01, "inline-root child width expected {} got {}", expected, child_layout.size.width);
+    assert!(
+        (child_layout.size.width - expected).abs() < 0.01,
+        "inline-root child width expected {} got {}",
+        expected,
+        child_layout.size.width
+    );
 }

@@ -18,7 +18,10 @@ fn print_float_rects_for_debug() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Block);
-        s.set_size(Size { width: Dimension::length(200.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(200.0),
+            height: Dimension::auto(),
+        });
     });
 
     let a = mason.create_node();
@@ -35,16 +38,31 @@ fn print_float_rects_for_debug() {
 
     mason.with_style_mut(aid, |s| {
         s.set_float(Float::Left);
-        s.set_margin(Rect { left: LengthPercentageAuto::length(8.0), right: LengthPercentageAuto::length(0.0), top: LengthPercentageAuto::length(0.0), bottom: LengthPercentageAuto::length(0.0) });
+        s.set_margin(Rect {
+            left: LengthPercentageAuto::length(8.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
+        });
     });
     mason.with_style_mut(bid, |s| {
         s.set_float(Float::Left);
         s.set_clear(taffy::Clear::Left);
-        s.set_margin(Rect { left: LengthPercentageAuto::length(5.0), right: LengthPercentageAuto::length(0.0), top: LengthPercentageAuto::length(0.0), bottom: LengthPercentageAuto::length(0.0) });
+        s.set_margin(Rect {
+            left: LengthPercentageAuto::length(5.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
+        });
     });
     mason.with_style_mut(cid, |s| {
         s.set_float(Float::Left);
-        s.set_margin(Rect { left: LengthPercentageAuto::length(3.0), right: LengthPercentageAuto::length(0.0), top: LengthPercentageAuto::length(0.0), bottom: LengthPercentageAuto::length(0.0) });
+        s.set_margin(Rect {
+            left: LengthPercentageAuto::length(3.0),
+            right: LengthPercentageAuto::length(0.0),
+            top: LengthPercentageAuto::length(0.0),
+            bottom: LengthPercentageAuto::length(0.0),
+        });
     });
 
     mason.compute_wh(rid, 200.0, f32::NAN);

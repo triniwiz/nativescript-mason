@@ -31,7 +31,6 @@ extern "C" fn measure_60x30(
     MeasureOutput::make(60.0, 30.0)
 }
 
-
 #[test]
 fn spec_inline_table_increases_line_height() {
     let mut mason = Mason::new();
@@ -40,7 +39,10 @@ fn spec_inline_table_increases_line_height() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -58,16 +60,24 @@ fn spec_inline_table_increases_line_height() {
         s.set_display_mode(mason_core::style::DisplayMode::Box);
     });
 
-    mason.set_segments(pid, vec![InlineSegment::InlineChild { id: Some(itid), baseline: 0.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(itid),
+            baseline: 0.0,
+        }],
+    );
     mason.append_node(pid, &[itid]);
     mason.append_node(rid, &[pid]);
 
     mason.compute_wh(pid, 300.0, f32::NAN);
 
     let pl = mason.layout_raw(pid);
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate inline-table height");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate inline-table height"
+    );
 }
-
 
 #[test]
 fn spec_inline_grid_baseline_influence() {
@@ -77,7 +87,10 @@ fn spec_inline_grid_baseline_influence() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -96,10 +109,21 @@ fn spec_inline_grid_baseline_influence() {
     });
 
     // tiny text run next to grid
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(igid), baseline: 0.0 },
-        InlineSegment::Text { flags: 0, width: 10.0, ascent: 8.0, descent: 2.0 }
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(igid),
+                baseline: 0.0,
+            },
+            InlineSegment::Text {
+                flags: 0,
+                width: 10.0,
+                ascent: 8.0,
+                descent: 2.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[igid]);
     mason.append_node(rid, &[pid]);
@@ -107,9 +131,11 @@ fn spec_inline_grid_baseline_influence() {
     mason.compute_wh(pid, 300.0, f32::NAN);
 
     let pl = mason.layout_raw(pid);
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate inline-grid height");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate inline-grid height"
+    );
 }
-
 
 #[test]
 fn spec_vertical_align_baseline_vs_middle_positions_differ() {
@@ -119,7 +145,10 @@ fn spec_vertical_align_baseline_vs_middle_positions_differ() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(400.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(400.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -147,10 +176,19 @@ fn spec_vertical_align_baseline_vs_middle_positions_differ() {
         s.set_vertical_align(mason_core::style::VerticalAlignValue::MIDDLE);
     });
 
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(aid), baseline: 0.0 },
-        InlineSegment::InlineChild { id: Some(bid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(aid),
+                baseline: 0.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(bid),
+                baseline: 0.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[aid, bid]);
     mason.append_node(rid, &[pid]);
@@ -160,7 +198,10 @@ fn spec_vertical_align_baseline_vs_middle_positions_differ() {
     let la = mason.layout_raw(aid);
     let lb = mason.layout_raw(bid);
     // Their y positions should differ when one is vertically-middle aligned
-    assert!((la.location.y - lb.location.y).abs() > 0.1, "baseline vs middle aligned children should have different y positions");
+    assert!(
+        (la.location.y - lb.location.y).abs() > 0.1,
+        "baseline vs middle aligned children should have different y positions"
+    );
 }
 
 #[test]
@@ -171,7 +212,10 @@ fn spec_inline_block_increases_line_height() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(200.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(200.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -190,17 +234,29 @@ fn spec_inline_block_increases_line_height() {
         s.set_item_is_list_item(false);
     });
 
-    mason.set_segments(pid, vec![InlineSegment::InlineChild { id: Some(cid), baseline: 0.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(cid),
+            baseline: 0.0,
+        }],
+    );
     mason.append_node(pid, &[cid]);
     mason.append_node(rid, &[pid]);
 
     mason.compute_wh(pid, 200.0, f32::NAN);
 
     let child_layout = mason.layout_raw(cid);
-    assert!((child_layout.size.width - 80.0).abs() < 1e-3 && (child_layout.size.height - 50.0).abs() < 1e-3);
+    assert!(
+        (child_layout.size.width - 80.0).abs() < 1e-3
+            && (child_layout.size.height - 50.0).abs() < 1e-3
+    );
 
     let lay = mason.layout_raw(pid);
-    assert!(lay.size.height + 1e-3 >= 50.0, "parent should accommodate inline-block height");
+    assert!(
+        lay.size.height + 1e-3 >= 50.0,
+        "parent should accommodate inline-block height"
+    );
 }
 
 #[test]
@@ -211,7 +267,10 @@ fn spec_vertical_align_middle_works() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -233,7 +292,13 @@ fn spec_vertical_align_middle_works() {
     });
 
     // text container segment (simulate text run)
-    mason.set_segments(pid, vec![InlineSegment::InlineChild { id: Some(aid), baseline: 5.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(aid),
+            baseline: 5.0,
+        }],
+    );
     mason.append_node(pid, &[aid]);
     mason.append_node(rid, &[pid]);
 

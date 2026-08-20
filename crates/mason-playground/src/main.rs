@@ -234,8 +234,6 @@ fn list() {
     mason.add_child(root.id(), container.id());
     mason.add_child(root.id(), content_root.id());
 
-
-
     mason.with_style_mut(content_root.id(), |style| {
         style.set_display(Display::None);
     });
@@ -244,11 +242,8 @@ fn list() {
         style.set_display(Display::Flex);
     });
 
-
     mason.compute_wh(root.id(), 1080., 4000.);
     mason.print_tree(root.id());
-
-
 
     mason.with_style_mut(content_root.id(), |style| {
         style.set_display(Display::Flex);
@@ -848,17 +843,24 @@ fn grid_sizing_taffy() -> Result<(), ()> {
         .compute_layout_with_measure(
             root,
             Size::length(3000f32),
-            |known, available_space, id, context, style| {
-                if context.is_some() {
-                    println!("{:?} ... {:?}", known, available_space);
-                }
-                if available_space.width == AvailableSpace::MinContent {
-                    return Size::length(100.);
-                } else if available_space.width == AvailableSpace::MaxContent {
-                    return Size::length(1000.);
-                }
-
-                Size::length(50.)
+            |inputs, _id, context, style| {
+                taffy::compute_leaf_layout(
+                    inputs,
+                    style,
+                    |_, _| 0.0,
+                    |known, available_space| {
+                        if context.is_some() {
+                            println!("{:?} ... {:?}", known, available_space);
+                        }
+                        if available_space.width == AvailableSpace::MinContent {
+                            Size::length(100.)
+                        } else if available_space.width == AvailableSpace::MaxContent {
+                            Size::length(1000.)
+                        } else {
+                            Size::length(50.)
+                        }
+                    },
+                )
             },
         )
         .map_err(|_| ())?;
@@ -1031,18 +1033,25 @@ fn taffy_g_names() -> Result<(), ()> {
                 width: AvailableSpace::MaxContent,
                 height: AvailableSpace::MaxContent,
             },
-            |known, available, id, context, c| {
-                if known.width.is_some() && known.height.is_some() {
-                    return Size {
-                        width: known.width.unwrap(),
-                        height: known.height.unwrap(),
-                    };
-                }
-
-                Size {
-                    width: 10.,
-                    height: 10.,
-                }
+            |inputs, _id, _context, style| {
+                taffy::compute_leaf_layout(
+                    inputs,
+                    style,
+                    |_, _| 0.0,
+                    |known, _available| {
+                        if known.width.is_some() && known.height.is_some() {
+                            Size {
+                                width: known.width.unwrap(),
+                                height: known.height.unwrap(),
+                            }
+                        } else {
+                            Size {
+                                width: 10.,
+                                height: 10.,
+                            }
+                        }
+                    },
+                )
             },
         )
         .map_err(|_| ())?;
@@ -1166,17 +1175,25 @@ fn taffy_g_names_xp() -> Result<(), ()> {
                 width: AvailableSpace::Definite(500.),
                 height: AvailableSpace::MaxContent,
             },
-            |known, available, id, context, c| {
-                if known.width.is_some() && known.height.is_some() {
-                    return Size {
-                        width: known.width.unwrap(),
-                        height: known.height.unwrap(),
-                    };
-                }
-                Size {
-                    width: 10.,
-                    height: 10.,
-                }
+            |inputs, _id, _context, style| {
+                taffy::compute_leaf_layout(
+                    inputs,
+                    style,
+                    |_, _| 0.0,
+                    |known, _available| {
+                        if known.width.is_some() && known.height.is_some() {
+                            Size {
+                                width: known.width.unwrap(),
+                                height: known.height.unwrap(),
+                            }
+                        } else {
+                            Size {
+                                width: 10.,
+                                height: 10.,
+                            }
+                        }
+                    },
+                )
             },
         )
         .map_err(|_| ())?;

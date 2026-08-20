@@ -1,6 +1,6 @@
 use mason_core::*;
-use taffy::style::{Display, FlexDirection, FlexWrap};
 use taffy::geometry::Size;
+use taffy::style::{Display, FlexDirection, FlexWrap};
 
 /// Verify that a scroll container (Flex) with overflow-x: scroll
 /// clamps its visible width while preserving full content width.
@@ -43,12 +43,21 @@ fn scroll_overflow_x_flex_direct() {
     mason.compute_wh(root_id, 400.0, f32::NAN);
 
     let scroll_layout = mason.layout_raw(scroll_id);
-    eprintln!("flex_direct: size={:?} content_size={:?}", scroll_layout.size, scroll_layout.content_size);
+    eprintln!(
+        "flex_direct: size={:?} scrollable_overflow_rect={:?}",
+        scroll_layout.size, scroll_layout.scrollable_overflow_rect
+    );
 
-    assert!(scroll_layout.size.width <= 401.0,
-        "scroll visible width {} should be <= 400", scroll_layout.size.width);
-    assert!(scroll_layout.content_size.width >= 999.0,
-        "scroll content width {} should be >= 1000", scroll_layout.content_size.width);
+    assert!(
+        scroll_layout.size.width <= 401.0,
+        "scroll visible width {} should be <= 400",
+        scroll_layout.size.width
+    );
+    assert!(
+        scroll_layout.scrollable_overflow_rect.right >= 999.0,
+        "scroll content width {} should be >= 1000",
+        scroll_layout.scrollable_overflow_rect.right
+    );
 }
 
 /// Mirrors TransformActivity: Scroll is Block, contains a Flex Row child.
@@ -106,20 +115,33 @@ fn scroll_overflow_x_block_with_flex_child() {
     let scroll_layout = mason.layout_raw(scroll_id);
     let row_layout = mason.layout_raw(row_id);
 
-    eprintln!("block_scroll: size={:?} content_size={:?}", scroll_layout.size, scroll_layout.content_size);
-    eprintln!("flex_row:     size={:?} content_size={:?}", row_layout.size, row_layout.content_size);
+    eprintln!(
+        "block_scroll: size={:?} scrollable_overflow_rect={:?}",
+        scroll_layout.size, scroll_layout.scrollable_overflow_rect
+    );
+    eprintln!(
+        "flex_row:     size={:?} scrollable_overflow_rect={:?}",
+        row_layout.size, row_layout.scrollable_overflow_rect
+    );
 
     // Scroll visible width should be clamped to parent (400)
-    assert!(scroll_layout.size.width <= 401.0,
-        "scroll visible width {} should be <= 400", scroll_layout.size.width);
+    assert!(
+        scroll_layout.size.width <= 401.0,
+        "scroll visible width {} should be <= 400",
+        scroll_layout.size.width
+    );
 
     // Content width should reflect the full row width (1000)
-    assert!(scroll_layout.content_size.width >= 999.0,
+    assert!(
+        scroll_layout.scrollable_overflow_rect.right >= 999.0,
         "scroll content width {} should be >= 1000 (row has 5 × 200px children)",
-        scroll_layout.content_size.width);
+        scroll_layout.scrollable_overflow_rect.right
+    );
 
     // The row inside the scroll should be unconstrained
-    assert!(row_layout.size.width >= 999.0,
+    assert!(
+        row_layout.size.width >= 999.0,
         "row width {} should be >= 1000 (unconstrained by scroll)",
-        row_layout.size.width);
+        row_layout.size.width
+    );
 }

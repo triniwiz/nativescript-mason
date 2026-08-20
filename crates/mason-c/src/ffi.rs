@@ -1,7 +1,4 @@
-use mason_core::{
-    AvailableSpace, CompactLength, Size,
-    TrackSizingFunction,
-};
+use mason_core::{AvailableSpace, CompactLength, Size, TrackSizingFunction};
 use std::borrow::Cow;
 
 use crate::{CMason, CMasonNode};

@@ -1,7 +1,7 @@
-use mason_core::*;
 use mason_core::style::DisplayMode;
-use taffy::style::{Dimension, LengthPercentage, Display};
+use mason_core::*;
 use taffy::geometry::{Rect, Size};
+use taffy::style::{Dimension, Display, LengthPercentage};
 
 // Mimic grid_template_areas_500: Scroll(padding) → body → grid(gap, template) → items(padding+text)
 // The grid children should NOT overflow the grid bounds.
@@ -25,7 +25,11 @@ extern "C" fn text_measure_content(
         natural_w
     };
     let lines = (natural_w / w).ceil().max(1.0);
-    let h = if known_h > 0.0 { known_h } else { lines * line_h };
+    let h = if known_h > 0.0 {
+        known_h
+    } else {
+        lines * line_h
+    };
     MeasureOutput::make(w, h)
 }
 
@@ -38,7 +42,13 @@ extern "C" fn text_measure_short(
 ) -> std::ffi::c_longlong {
     let natural_w = 60.0_f32;
     let line_h = 18.0_f32;
-    let w = if known_w > 0.0 { known_w } else if avail_w > 0.0 && avail_w < f32::INFINITY { avail_w.min(natural_w) } else { natural_w };
+    let w = if known_w > 0.0 {
+        known_w
+    } else if avail_w > 0.0 && avail_w < f32::INFINITY {
+        avail_w.min(natural_w)
+    } else {
+        natural_w
+    };
     let h = if known_h > 0.0 { known_h } else { line_h };
     MeasureOutput::make(w, h)
 }
@@ -52,7 +62,10 @@ fn grid_areas_children_do_not_overflow() {
     let scroll_id = scroll.id();
     mason.with_style_mut(scroll_id, |s| {
         s.set_display(Display::Block);
-        s.set_size(taffy::geometry::Size { width: Dimension::auto(), height: Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: Dimension::auto(),
+            height: Dimension::auto(),
+        });
         // System bar padding: top=100, bottom=80, left=0, right=0
         s.set_padding(Rect {
             left: LengthPercentage::length(0.0),
@@ -74,7 +87,9 @@ fn grid_areas_children_do_not_overflow() {
     let grid_id = grid.id();
     mason.with_style_mut(grid_id, |s| {
         s.set_display(Display::Grid);
-        s.set_grid_template_areas_css("header header\nsidebar content\nsidebar2 sidebar2\nfooter footer");
+        s.set_grid_template_areas_css(
+            "header header\nsidebar content\nsidebar2 sidebar2\nfooter footer",
+        );
         s.set_grid_template_columns_css("100px auto");
         s.set_gap(taffy::geometry::Size {
             width: LengthPercentage::length(8.0),
@@ -135,7 +150,10 @@ fn grid_areas_children_do_not_overflow() {
     mason.set_measure(footer_id, Some(text_measure_short), std::ptr::null_mut());
 
     // Build tree
-    mason.append_node(grid_id, &[header_id, sidebar_id, content_id, sidebar2_id, footer_id]);
+    mason.append_node(
+        grid_id,
+        &[header_id, sidebar_id, content_id, sidebar2_id, footer_id],
+    );
     mason.append_node(body_id, &[grid_id]);
     mason.append_node(scroll_id, &[body_id]);
 
@@ -149,29 +167,57 @@ fn grid_areas_children_do_not_overflow() {
     let content_layout = mason.layout_raw(content_id);
     let sidebar_layout = mason.layout_raw(sidebar_id);
 
-    eprintln!("scroll: size={:?} padding={:?}", scroll_layout.size, scroll_layout.padding);
-    eprintln!("body:   size={:?} loc={:?}", body_layout.size, body_layout.location);
-    eprintln!("grid:   size={:?} loc={:?}", grid_layout.size, grid_layout.location);
-    eprintln!("header: size={:?} loc={:?}", header_layout.size, header_layout.location);
-    eprintln!("sidebar:size={:?} loc={:?}", sidebar_layout.size, sidebar_layout.location);
-    eprintln!("content:size={:?} loc={:?}", content_layout.size, content_layout.location);
+    eprintln!(
+        "scroll: size={:?} padding={:?}",
+        scroll_layout.size, scroll_layout.padding
+    );
+    eprintln!(
+        "body:   size={:?} loc={:?}",
+        body_layout.size, body_layout.location
+    );
+    eprintln!(
+        "grid:   size={:?} loc={:?}",
+        grid_layout.size, grid_layout.location
+    );
+    eprintln!(
+        "header: size={:?} loc={:?}",
+        header_layout.size, header_layout.location
+    );
+    eprintln!(
+        "sidebar:size={:?} loc={:?}",
+        sidebar_layout.size, sidebar_layout.location
+    );
+    eprintln!(
+        "content:size={:?} loc={:?}",
+        content_layout.size, content_layout.location
+    );
 
     // Grid should not exceed scroll's content box width
-    let scroll_content_w = scroll_layout.size.width - scroll_layout.padding.left - scroll_layout.padding.right;
-    assert!(grid_layout.size.width <= scroll_content_w + 1.0,
+    let scroll_content_w =
+        scroll_layout.size.width - scroll_layout.padding.left - scroll_layout.padding.right;
+    assert!(
+        grid_layout.size.width <= scroll_content_w + 1.0,
         "grid width {} should not exceed scroll content width {}",
-        grid_layout.size.width, scroll_content_w);
+        grid_layout.size.width,
+        scroll_content_w
+    );
 
     // Content cell should not extend past the grid's right edge
     let content_right = content_layout.location.x + content_layout.size.width;
-    assert!(content_right <= grid_layout.size.width + 1.0,
+    assert!(
+        content_right <= grid_layout.size.width + 1.0,
         "content right edge {} should not exceed grid width {}",
-        content_right, grid_layout.size.width);
+        content_right,
+        grid_layout.size.width
+    );
 
     // Header should span full grid width (2 columns)
-    assert!(header_layout.size.width <= grid_layout.size.width + 1.0,
+    assert!(
+        header_layout.size.width <= grid_layout.size.width + 1.0,
         "header width {} should not exceed grid width {}",
-        header_layout.size.width, grid_layout.size.width);
+        header_layout.size.width,
+        grid_layout.size.width
+    );
 }
 
 // Same test but with horizontal padding on scroll root
@@ -219,22 +265,34 @@ fn grid_areas_with_horizontal_padding() {
 
     let header = mason.create_text_node();
     let hid = header.id();
-    mason.with_style_mut(hid, |s| { s.set_grid_area("header"); s.set_padding(box_pad.clone()); });
+    mason.with_style_mut(hid, |s| {
+        s.set_grid_area("header");
+        s.set_padding(box_pad.clone());
+    });
     mason.set_measure(hid, Some(text_measure_short), std::ptr::null_mut());
 
     let sidebar = mason.create_text_node();
     let sid = sidebar.id();
-    mason.with_style_mut(sid, |s| { s.set_grid_area("sidebar"); s.set_padding(box_pad.clone()); });
+    mason.with_style_mut(sid, |s| {
+        s.set_grid_area("sidebar");
+        s.set_padding(box_pad.clone());
+    });
     mason.set_measure(sid, Some(text_measure_short), std::ptr::null_mut());
 
     let content = mason.create_text_node();
     let cid = content.id();
-    mason.with_style_mut(cid, |s| { s.set_grid_area("content"); s.set_padding(box_pad.clone()); });
+    mason.with_style_mut(cid, |s| {
+        s.set_grid_area("content");
+        s.set_padding(box_pad.clone());
+    });
     mason.set_measure(cid, Some(text_measure_content), std::ptr::null_mut());
 
     let footer = mason.create_text_node();
     let fid = footer.id();
-    mason.with_style_mut(fid, |s| { s.set_grid_area("footer"); s.set_padding(box_pad.clone()); });
+    mason.with_style_mut(fid, |s| {
+        s.set_grid_area("footer");
+        s.set_padding(box_pad.clone());
+    });
     mason.set_measure(fid, Some(text_measure_short), std::ptr::null_mut());
 
     mason.append_node(grid_id, &[hid, sid, cid, fid]);
@@ -248,28 +306,54 @@ fn grid_areas_with_horizontal_padding() {
     let grid_layout = mason.layout_raw(grid_id);
     let content_layout = mason.layout_raw(cid);
 
-    eprintln!("scroll: size={:?} padding={:?}", scroll_layout.size, scroll_layout.padding);
-    eprintln!("body:   size={:?} loc={:?}", body_layout.size, body_layout.location);
-    eprintln!("grid:   size={:?} loc={:?}", grid_layout.size, grid_layout.location);
-    eprintln!("content:size={:?} loc={:?}", content_layout.size, content_layout.location);
+    eprintln!(
+        "scroll: size={:?} padding={:?}",
+        scroll_layout.size, scroll_layout.padding
+    );
+    eprintln!(
+        "body:   size={:?} loc={:?}",
+        body_layout.size, body_layout.location
+    );
+    eprintln!(
+        "grid:   size={:?} loc={:?}",
+        grid_layout.size, grid_layout.location
+    );
+    eprintln!(
+        "content:size={:?} loc={:?}",
+        content_layout.size, content_layout.location
+    );
 
     // Scroll content width = 1080 - 40 - 40 = 1000
-    let scroll_content_w = scroll_layout.size.width - scroll_layout.padding.left - scroll_layout.padding.right;
-    assert!((scroll_content_w - 1000.0).abs() < 1.0, "scroll content width should be 1000, got {}", scroll_content_w);
+    let scroll_content_w =
+        scroll_layout.size.width - scroll_layout.padding.left - scroll_layout.padding.right;
+    assert!(
+        (scroll_content_w - 1000.0).abs() < 1.0,
+        "scroll content width should be 1000, got {}",
+        scroll_content_w
+    );
 
     // Body should fit within scroll content box
-    assert!(body_layout.size.width <= scroll_content_w + 1.0,
+    assert!(
+        body_layout.size.width <= scroll_content_w + 1.0,
         "body width {} should not exceed scroll content width {}",
-        body_layout.size.width, scroll_content_w);
+        body_layout.size.width,
+        scroll_content_w
+    );
 
     // Grid should fit within body
-    assert!(grid_layout.size.width <= body_layout.size.width + 1.0,
+    assert!(
+        grid_layout.size.width <= body_layout.size.width + 1.0,
         "grid width {} should not exceed body width {}",
-        grid_layout.size.width, body_layout.size.width);
+        grid_layout.size.width,
+        body_layout.size.width
+    );
 
     // Content should not overflow grid
     let content_right = content_layout.location.x + content_layout.size.width;
-    assert!(content_right <= grid_layout.size.width + 1.0,
+    assert!(
+        content_right <= grid_layout.size.width + 1.0,
         "content right edge {} should not exceed grid width {}",
-        content_right, grid_layout.size.width);
+        content_right,
+        grid_layout.size.width
+    );
 }

@@ -1,6 +1,6 @@
 use mason_core::*;
-use taffy::style::{Dimension, LengthPercentage, Display};
 use taffy::geometry::Rect;
+use taffy::style::{Dimension, Display, LengthPercentage};
 
 // Trace what available width the text measure function receives when a text container
 // with padding is a grid item inside a grid with "100px auto" columns,
@@ -32,7 +32,11 @@ extern "C" fn text_measure_trace(
         natural_w
     };
     let lines = (natural_w / w).ceil().max(1.0);
-    let h = if known_h > 0.0 { known_h } else { lines * line_h };
+    let h = if known_h > 0.0 {
+        known_h
+    } else {
+        lines * line_h
+    };
     MeasureOutput::make(w, h)
 }
 
@@ -98,10 +102,22 @@ fn grid_text_item_with_padding_receives_correct_available_width() {
     let left_layout = mason.layout_raw(lid);
     let right_layout = mason.layout_raw(rid_right);
 
-    eprintln!("parent: size={:?} padding={:?}", parent_layout.size, parent_layout.padding);
-    eprintln!("grid:   size={:?} loc={:?}", grid_layout.size, grid_layout.location);
-    eprintln!("left:   size={:?} loc={:?}", left_layout.size, left_layout.location);
-    eprintln!("right:  size={:?} loc={:?} padding={:?}", right_layout.size, right_layout.location, right_layout.padding);
+    eprintln!(
+        "parent: size={:?} padding={:?}",
+        parent_layout.size, parent_layout.padding
+    );
+    eprintln!(
+        "grid:   size={:?} loc={:?}",
+        grid_layout.size, grid_layout.location
+    );
+    eprintln!(
+        "left:   size={:?} loc={:?}",
+        left_layout.size, left_layout.location
+    );
+    eprintln!(
+        "right:  size={:?} loc={:?} padding={:?}",
+        right_layout.size, right_layout.location, right_layout.padding
+    );
 
     // Parent content box = 1000 - 40 - 40 = 920
     // Grid should be 920 wide
@@ -111,15 +127,27 @@ fn grid_text_item_with_padding_receives_correct_available_width() {
     // Text measure should receive avail_w ~= 792
 
     let parent_content_w = 1000.0 - 40.0 - 40.0;
-    assert!((grid_layout.size.width - parent_content_w).abs() < 1.0,
-        "grid width {} should be parent content width {}", grid_layout.size.width, parent_content_w);
+    assert!(
+        (grid_layout.size.width - parent_content_w).abs() < 1.0,
+        "grid width {} should be parent content width {}",
+        grid_layout.size.width,
+        parent_content_w
+    );
 
     let expected_auto_col = parent_content_w - 100.0 - 8.0; // 812
-    assert!((right_layout.size.width - expected_auto_col).abs() < 1.0,
-        "right item width {} should be auto column width {}", right_layout.size.width, expected_auto_col);
+    assert!(
+        (right_layout.size.width - expected_auto_col).abs() < 1.0,
+        "right item width {} should be auto column width {}",
+        right_layout.size.width,
+        expected_auto_col
+    );
 
     // Right item should not overflow grid
     let right_edge = right_layout.location.x + right_layout.size.width;
-    assert!(right_edge <= grid_layout.size.width + 1.0,
-        "right edge {} should not exceed grid width {}", right_edge, grid_layout.size.width);
+    assert!(
+        right_edge <= grid_layout.size.width + 1.0,
+        "right edge {} should not exceed grid width {}",
+        right_edge,
+        grid_layout.size.width
+    );
 }

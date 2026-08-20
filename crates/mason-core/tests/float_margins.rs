@@ -21,7 +21,10 @@ fn float_respects_margins_in_placement() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Block);
-        s.set_size(Size { width: Dimension::length(200.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(200.0),
+            height: Dimension::auto(),
+        });
     });
 
     // single float child
@@ -50,7 +53,13 @@ fn float_respects_margins_in_placement() {
     let a_w = rects[2];
 
     // The float's border-box left should be offset by the left margin (10.0)
-    assert!((a_left - 10.0).abs() < 0.001, "float left should include left margin");
+    assert!(
+        (a_left - 10.0).abs() < 0.001,
+        "float left should include left margin"
+    );
     // width should remain measured content width (30.0)
-    assert!((a_w - 30.0).abs() < 0.001, "float width should be measured width");
+    assert!(
+        (a_w - 30.0).abs() < 0.001,
+        "float width should be measured width"
+    );
 }

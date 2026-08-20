@@ -1,7 +1,7 @@
-use mason_core::*;
 use mason_core::style::DisplayMode;
-use taffy::style::Display;
+use mason_core::*;
 use std::ffi::{c_float, c_longlong, c_void};
+use taffy::style::Display;
 
 extern "C" fn measure_40x20(
     _data: *const c_void,
@@ -34,7 +34,9 @@ extern "C" fn measure_80x25(
 }
 
 // Helper approx
-fn approx(a: f32, b: f32) -> bool { (a - b).abs() < 0.5 }
+fn approx(a: f32, b: f32) -> bool {
+    (a - b).abs() < 0.5
+}
 
 // Test: inline parent with an inline-block and an inline-grid child
 #[test]
@@ -45,7 +47,10 @@ fn inline_mixed_inline_block_and_inline_grid() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     // inline parent (text container)
@@ -75,10 +80,19 @@ fn inline_mixed_inline_block_and_inline_grid() {
     });
 
     // Place both as inline children in the parent's segments
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(ibid), baseline: 0.0 },
-        InlineSegment::InlineChild { id: Some(igid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(ibid),
+                baseline: 0.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(igid),
+                baseline: 0.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[ibid, igid]);
     mason.append_node(rid, &[pid]);
@@ -87,7 +101,10 @@ fn inline_mixed_inline_block_and_inline_grid() {
 
     let pl = mason.layout_raw(pid);
     // Parent height should be at least the height of the taller inline child (30)
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate taller inline child");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate taller inline child"
+    );
 }
 
 // Test: inline parent mixing inline-flex (measured) and an inline-block child
@@ -99,7 +116,10 @@ fn inline_mixed_inline_flex_and_inline_block() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(400.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(400.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -127,10 +147,19 @@ fn inline_mixed_inline_flex_and_inline_block() {
         s.set_display_mode(DisplayMode::Box);
     });
 
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(ifid), baseline: 0.0 },
-        InlineSegment::InlineChild { id: Some(ibid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(ifid),
+                baseline: 0.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(ibid),
+                baseline: 0.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[ifid, ibid]);
     mason.append_node(rid, &[pid]);
@@ -139,7 +168,10 @@ fn inline_mixed_inline_flex_and_inline_block() {
 
     let pl = mason.layout_raw(pid);
     // Parent height should be at least 30 (taller child)
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate taller inline child");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate taller inline child"
+    );
 }
 
 // Test: inline replaced element and text run
@@ -151,7 +183,10 @@ fn inline_replaced_and_text_runs() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(200.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(200.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -171,10 +206,21 @@ fn inline_replaced_and_text_runs() {
     });
 
     // text run tiny ascent/descent
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(ridn), baseline: 0.0 },
-        InlineSegment::Text { flags: 0, width: 10.0, ascent: 8.0, descent: 2.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(ridn),
+                baseline: 0.0,
+            },
+            InlineSegment::Text {
+                flags: 0,
+                width: 10.0,
+                ascent: 8.0,
+                descent: 2.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[ridn]);
     mason.append_node(rid, &[pid]);
@@ -183,5 +229,8 @@ fn inline_replaced_and_text_runs() {
 
     let pl = mason.layout_raw(pid);
     // replaced element is taller (20) than text (10) so parent must be >=20
-    assert!(pl.size.height + 1e-3 >= 20.0, "parent should accommodate replaced inline element");
+    assert!(
+        pl.size.height + 1e-3 >= 20.0,
+        "parent should accommodate replaced inline element"
+    );
 }

@@ -1,6 +1,9 @@
 use std::ffi::{c_char, CString};
 
-use mason_core::{auto, fit_content, flex, length, max_content, min_content, percent, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction};
+use mason_core::{
+    auto, fit_content, flex, length, max_content, min_content, percent, LengthPercentage,
+    LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction,
+};
 
 use crate::ffi;
 use crate::style::CMasonMinMax;
@@ -58,7 +61,6 @@ pub extern "C" fn mason_util_create_track_sizing_function_with_type_value(
 
     value.into()
 }
-
 
 #[no_mangle]
 pub extern "C" fn mason_util_destroy_string(string: *mut c_char) {

@@ -22,7 +22,13 @@ fn detect_suspicious_writebacks() {
     let cid = child.id();
 
     // Parent has one inline child segment
-    mason.set_segments(pid, vec![InlineSegment::InlineChild { id: Some(cid), baseline: 0.0 }]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(cid),
+            baseline: 0.0,
+        }],
+    );
     mason.append_node(pid, &[cid]);
 
     // Child measure returns zero (simulate invisible/native measure edgecase)
@@ -46,7 +52,13 @@ fn detect_suspicious_writebacks() {
         let layout = mason.layout(*id);
         let engine_h = layout[4];
         // Fail if engine computed height is zero but a non-zero write-back was issued
-        assert!(!(engine_h == 0.0 && *h > 0.1), "Suspicious writeback for id={:?}: engine_h=0.0 but callback h={} (w={})", id, h, w);
+        assert!(
+            !(engine_h == 0.0 && *h > 0.1),
+            "Suspicious writeback for id={:?}: engine_h=0.0 but callback h={} (w={})",
+            id,
+            h,
+            w
+        );
     }
 
     // Clear callback

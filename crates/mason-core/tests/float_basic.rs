@@ -30,7 +30,9 @@ fn floats_basic_positions_and_sizes() {
     // root container
     let root = mason.create_node();
     let rid = root.id();
-    mason.with_style_mut(rid, |s| { s.set_display(Display::Block); });
+    mason.with_style_mut(rid, |s| {
+        s.set_display(Display::Block);
+    });
 
     // two inline children that will float
     let a = mason.create_node();
@@ -45,8 +47,12 @@ fn floats_basic_positions_and_sizes() {
     mason.set_measure(bid, Some(measure_medium), std::ptr::null_mut());
 
     // Set floats
-    mason.with_style_mut(aid, |s| { s.set_float(Float::Left); });
-    mason.with_style_mut(bid, |s| { s.set_float(Float::Right); });
+    mason.with_style_mut(aid, |s| {
+        s.set_float(Float::Left);
+    });
+    mason.with_style_mut(bid, |s| {
+        s.set_float(Float::Right);
+    });
 
     // Compute layout with a definite width
     mason.compute_wh(rid, 200.0, f32::NAN);
@@ -54,7 +60,11 @@ fn floats_basic_positions_and_sizes() {
     // Get float rects
     let rects = mason.get_float_rects(rid);
     // Expect two rects: [l,t,w,h, l2,t2,w2,h2]
-    assert!(rects.len() == 8, "expected 8 floats entries, got {}", rects.len());
+    assert!(
+        rects.len() == 8,
+        "expected 8 floats entries, got {}",
+        rects.len()
+    );
 
     // first rect is left float (a)
     let a_left = rects[0];
@@ -88,25 +98,43 @@ fn floats_clamp_to_max_size() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Block);
-        s.set_size(Size { width: Dimension::length(100.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(100.0),
+            height: Dimension::auto(),
+        });
     });
 
     let f = mason.create_node();
     let fid = f.id();
     mason.append_node(rid, &[fid]);
 
-    extern "C" fn big(_data: *const c_void, _known_w: c_float, _known_h: c_float, _avail_w: c_float, _avail_h: c_float) -> c_longlong {
+    extern "C" fn big(
+        _data: *const c_void,
+        _known_w: c_float,
+        _known_h: c_float,
+        _avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
         MeasureOutput::make(80.0, 20.0)
     }
 
     mason.set_measure(fid, Some(big), std::ptr::null_mut());
     mason.with_style_mut(fid, |s| {
         s.set_float(Float::Left);
-        s.set_max_size(Size { width: Dimension::length(30.0), height: Dimension::length(15.0) });
+        s.set_max_size(Size {
+            width: Dimension::length(30.0),
+            height: Dimension::length(15.0),
+        });
     });
 
     mason.compute_wh(rid, 100.0, f32::NAN);
     let rects = mason.get_float_rects(rid);
-    assert!((rects[2] - 30.0).abs() < 0.001, "float width should not exceed max-width");
-    assert!((rects[3] - 15.0).abs() < 0.001, "float height should not exceed max-height");
+    assert!(
+        (rects[2] - 30.0).abs() < 0.001,
+        "float width should not exceed max-width"
+    );
+    assert!(
+        (rects[3] - 15.0).abs() < 0.001,
+        "float height should not exceed max-height"
+    );
 }

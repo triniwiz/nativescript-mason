@@ -1,7 +1,7 @@
-use mason_core::*;
 use mason_core::style::DisplayMode;
-use taffy::style::Display;
+use mason_core::*;
 use std::ffi::{c_float, c_longlong, c_void};
+use taffy::style::Display;
 
 extern "C" fn measure_40x30(
     _data: *const c_void,
@@ -45,7 +45,10 @@ fn baseline_synthesis_001() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -65,10 +68,21 @@ fn baseline_synthesis_001() {
     });
 
     // text run with small ascent/descent
-    mason.set_segments(pid, vec![
-        InlineSegment::Text { flags: 0, width: 20.0, ascent: 8.0, descent: 2.0 },
-        InlineSegment::InlineChild { id: Some(ibid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::Text {
+                flags: 0,
+                width: 20.0,
+                ascent: 8.0,
+                descent: 2.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(ibid),
+                baseline: 0.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[ibid]);
     mason.append_node(rid, &[pid]);
@@ -77,7 +91,10 @@ fn baseline_synthesis_001() {
 
     let pl = mason.layout_raw(pid);
     // parent must accommodate taller inline-block (30)
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate taller inline-block child");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate taller inline-block child"
+    );
 }
 
 // Ported from css-flexbox/baseline-outside-flex-item.html
@@ -90,7 +107,10 @@ fn baseline_outside_flex_item() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(320.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(320.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -116,10 +136,19 @@ fn baseline_outside_flex_item() {
         s.set_display_mode(DisplayMode::Box);
     });
 
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(ifid), baseline: 0.0 },
-        InlineSegment::InlineChild { id: Some(ibid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::InlineChild {
+                id: Some(ifid),
+                baseline: 0.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(ibid),
+                baseline: 0.0,
+            },
+        ],
+    );
 
     mason.append_node(pid, &[ifid, ibid]);
     mason.append_node(rid, &[pid]);
@@ -127,7 +156,10 @@ fn baseline_outside_flex_item() {
     mason.compute_wh(pid, 320.0, f32::NAN);
 
     let pl = mason.layout_raw(pid);
-    assert!(pl.size.height + 1e-3 >= 30.0, "parent should accommodate taller inline child");
+    assert!(
+        pl.size.height + 1e-3 >= 30.0,
+        "parent should accommodate taller inline child"
+    );
 }
 
 // Ported from css-flexbox/inline-flex.html
@@ -140,7 +172,10 @@ fn inline_flex() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(280.0), height: taffy::style::Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(280.0),
+            height: taffy::style::Dimension::auto(),
+        });
     });
 
     let parent = mason.create_text_node();
@@ -158,9 +193,13 @@ fn inline_flex() {
         s.set_display_mode(DisplayMode::Box);
     });
 
-    mason.set_segments(pid, vec![
-        InlineSegment::InlineChild { id: Some(ifid), baseline: 0.0 },
-    ]);
+    mason.set_segments(
+        pid,
+        vec![InlineSegment::InlineChild {
+            id: Some(ifid),
+            baseline: 0.0,
+        }],
+    );
 
     mason.append_node(pid, &[ifid]);
     mason.append_node(rid, &[pid]);
@@ -168,5 +207,8 @@ fn inline_flex() {
     mason.compute_wh(pid, 280.0, f32::NAN);
 
     let pl = mason.layout_raw(pid);
-    assert!(pl.size.height + 1e-3 >= 25.0, "parent should accommodate inline-flex child's height");
+    assert!(
+        pl.size.height + 1e-3 >= 25.0,
+        "parent should accommodate inline-flex child's height"
+    );
 }

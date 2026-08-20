@@ -1,7 +1,7 @@
 use jni::objects::{JClass, JString};
+use jni::signature::ReturnType;
 use jni::sys::{jbyte, jfloat, jint, jlong, jstring};
 use jni::JNIEnv;
-use jni::signature::ReturnType;
 use mason_core::{Mason, NodeRef, JVM_CACHE};
 
 #[cfg(target_os = "android")]

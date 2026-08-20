@@ -5,7 +5,7 @@ use std::ops::Deref;
 use style_atoms::Atom;
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
-    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CoreStyle, Direction, Dimension, Display,
+    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CoreStyle, Dimension, Direction, Display,
     FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
     GenericGridTemplateComponent, GridAutoFlow, GridContainerStyle, GridItemStyle, GridPlacement,
     GridTemplateArea, GridTemplateComponent, GridTemplateRepetition, JustifyContent,
@@ -81,13 +81,15 @@ impl<'a> CoreStyle for StyleGuard<'a> {
     }
 
     #[inline(always)]
-    fn min_size(&self) -> Size<Dimension> {
+    fn min_size(&self) -> Size<LengthPercentageAuto> {
         self.get_min_size()
+            .map(crate::style::dimension_to_length_percentage_auto)
     }
 
     #[inline(always)]
-    fn max_size(&self) -> Size<Dimension> {
+    fn max_size(&self) -> Size<LengthPercentageAuto> {
         self.get_max_size()
+            .map(crate::style::dimension_to_length_percentage_auto)
     }
 
     #[inline(always)]

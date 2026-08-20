@@ -10,9 +10,9 @@ use crate::utils::{
     align_self_from_enum, align_self_to_enum, boxing_size_from_enum, boxing_size_to_enum,
     clear_from_enum, clear_to_enum, direction_from_enum, direction_to_enum, display_from_enum,
     display_mode_from_enum, display_mode_to_enum, display_to_enum, flex_direction_from_enum,
-    flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum, float_from_enum,
-    float_to_enum, grid_auto_flow_from_enum, grid_auto_flow_to_enum, object_to_enum,
-    overflow_from_enum, overflow_to_enum, position_from_enum, position_to_enum, text_align_from_enum,
+    flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum, float_from_enum, float_to_enum,
+    grid_auto_flow_from_enum, grid_auto_flow_to_enum, object_to_enum, overflow_from_enum,
+    overflow_to_enum, position_from_enum, position_to_enum, text_align_from_enum,
     text_align_to_enum,
 };
 #[cfg(target_os = "android")]
@@ -31,8 +31,8 @@ use std::sync::Arc;
 use style_atoms::Atom;
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
-    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CoreStyle, Direction, Dimension, Display,
-    FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
+    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CompactLength, CoreStyle, Dimension,
+    Direction, Display, FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
     GenericGridTemplateComponent, GridAutoFlow, GridContainerStyle, GridItemStyle, GridPlacement,
     GridTemplateArea, GridTemplateComponent, GridTemplateRepetition, JustifyContent, JustifyItems,
     JustifySelf, LengthPercentage, LengthPercentageAuto, Line, Point, Position, Rect, Size,
@@ -43,6 +43,16 @@ pub mod arena;
 pub mod debug;
 pub mod style_guard;
 pub mod utils;
+
+#[inline]
+pub(crate) fn dimension_to_length_percentage_auto(value: Dimension) -> LengthPercentageAuto {
+    match value.tag() {
+        CompactLength::LENGTH_TAG => LengthPercentageAuto::length(value.value()),
+        CompactLength::PERCENT_TAG => LengthPercentageAuto::percent(value.value()),
+        CompactLength::AUTO_TAG => LengthPercentageAuto::auto(),
+        _ => LengthPercentageAuto::auto(),
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub enum ListStylePosition {
@@ -682,25 +692,25 @@ pub enum StyleKeys {
     // ============================================================
     // New CSS properties (bytes 560-595)
     // ============================================================
-    OBJECT_POSITION_X_TYPE = 560,          // u8  (0=px, 1=%, 2=keyword)
-    OBJECT_POSITION_Y_TYPE = 561,          // u8
-    OBJECT_POSITION_X_VALUE = 562,         // f32 (4 bytes: 562-565)
-    OBJECT_POSITION_Y_VALUE = 566,         // f32 (4 bytes: 566-569)
-    OBJECT_POSITION_STATE = 570,           // u8
-    WRITING_MODE = 571,                    // u8
-    WRITING_MODE_STATE = 572,              // u8
-    UNICODE_BIDI = 573,                    // u8
-    UNICODE_BIDI_STATE = 574,              // u8
-    HYPHENS = 575,                         // u8
-    HYPHENS_STATE = 576,                   // u8
-    CARET_COLOR = 577,                     // u32 (4 bytes: 577-580)
-    CARET_COLOR_STATE = 581,               // u8
-    WORD_SPACING = 582,                    // f32 (4 bytes: 582-585)
-    WORD_SPACING_TYPE = 586,               // u8 (0=px, 1=%, 2=normal)
-    WORD_SPACING_STATE = 587,              // u8
-    FONT_STRETCH = 588,                    // i32 (4 bytes: 588-591) percentage * 100
-    FONT_STRETCH_STATE = 592,              // u8
-    // End of buffer at 593, padded to 596
+    OBJECT_POSITION_X_TYPE = 560,  // u8  (0=px, 1=%, 2=keyword)
+    OBJECT_POSITION_Y_TYPE = 561,  // u8
+    OBJECT_POSITION_X_VALUE = 562, // f32 (4 bytes: 562-565)
+    OBJECT_POSITION_Y_VALUE = 566, // f32 (4 bytes: 566-569)
+    OBJECT_POSITION_STATE = 570,   // u8
+    WRITING_MODE = 571,            // u8
+    WRITING_MODE_STATE = 572,      // u8
+    UNICODE_BIDI = 573,            // u8
+    UNICODE_BIDI_STATE = 574,      // u8
+    HYPHENS = 575,                 // u8
+    HYPHENS_STATE = 576,           // u8
+    CARET_COLOR = 577,             // u32 (4 bytes: 577-580)
+    CARET_COLOR_STATE = 581,       // u8
+    WORD_SPACING = 582,            // f32 (4 bytes: 582-585)
+    WORD_SPACING_TYPE = 586,       // u8 (0=px, 1=%, 2=normal)
+    WORD_SPACING_STATE = 587,      // u8
+    FONT_STRETCH = 588,            // i32 (4 bytes: 588-591) percentage * 100
+    FONT_STRETCH_STATE = 592,      // u8
+                                   // End of buffer at 593, padded to 596
 }
 
 pub const MAX_INLINE_TRANSFORM_OPS: usize = 6;
@@ -1116,7 +1126,7 @@ impl Style {
             set_style_data_f32(buffer, StyleKeys::BORDER_BOTTOM_VALUE, 0.0);
         }
 
-        set_style_data_i8(buffer, StyleKeys::BORDER_LEFT_STYLE, 4);   // Solid = 4
+        set_style_data_i8(buffer, StyleKeys::BORDER_LEFT_STYLE, 4); // Solid = 4
         set_style_data_i8(buffer, StyleKeys::BORDER_RIGHT_STYLE, 4);
         set_style_data_i8(buffer, StyleKeys::BORDER_TOP_STYLE, 4);
         set_style_data_i8(buffer, StyleKeys::BORDER_BOTTOM_STYLE, 4);
@@ -2340,12 +2350,17 @@ impl Style {
     }
 
     pub fn get_direction(&self) -> Direction {
-        direction_from_enum(get_style_data_i8(self.data(), StyleKeys::DIRECTION)).unwrap_or(Direction::Ltr)
+        direction_from_enum(get_style_data_i8(self.data(), StyleKeys::DIRECTION))
+            .unwrap_or(Direction::Ltr)
     }
 
     pub fn set_direction(&mut self, value: Direction) {
         self.prepare_mut();
-        set_style_data_i8(self.data_mut(), StyleKeys::DIRECTION, direction_to_enum(value))
+        set_style_data_i8(
+            self.data_mut(),
+            StyleKeys::DIRECTION,
+            direction_to_enum(value),
+        )
     }
 
     pub fn get_flex_direction(&self) -> FlexDirection {
@@ -2933,13 +2948,13 @@ impl CoreStyle for Style {
     }
 
     #[inline(always)]
-    fn min_size(&self) -> Size<Dimension> {
-        self.get_min_size()
+    fn min_size(&self) -> Size<LengthPercentageAuto> {
+        self.get_min_size().map(dimension_to_length_percentage_auto)
     }
 
     #[inline(always)]
-    fn max_size(&self) -> Size<Dimension> {
-        self.get_max_size()
+    fn max_size(&self) -> Size<LengthPercentageAuto> {
+        self.get_max_size().map(dimension_to_length_percentage_auto)
     }
 
     #[inline(always)]

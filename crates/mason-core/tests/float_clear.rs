@@ -26,7 +26,9 @@ fn clear_left_pushes_below_left_floats() {
     let mut mason = Mason::new();
     let root = mason.create_node();
     let rid = root.id();
-    mason.with_style_mut(rid, |s| { s.set_display(Display::Block); });
+    mason.with_style_mut(rid, |s| {
+        s.set_display(Display::Block);
+    });
 
     let a = mason.create_node();
     let b = mason.create_node();
@@ -37,8 +39,13 @@ fn clear_left_pushes_below_left_floats() {
     mason.set_measure(aid, Some(measure_small), std::ptr::null_mut());
     mason.set_measure(bid, Some(measure_medium), std::ptr::null_mut());
 
-    mason.with_style_mut(aid, |s| { s.set_float(Float::Left); });
-    mason.with_style_mut(bid, |s| { s.set_float(Float::Left); s.set_clear(taffy::Clear::Left); });
+    mason.with_style_mut(aid, |s| {
+        s.set_float(Float::Left);
+    });
+    mason.with_style_mut(bid, |s| {
+        s.set_float(Float::Left);
+        s.set_clear(taffy::Clear::Left);
+    });
 
     mason.compute_wh(rid, 200.0, f32::NAN);
     let rects = mason.get_float_rects(rid);

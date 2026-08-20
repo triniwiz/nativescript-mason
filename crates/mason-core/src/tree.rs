@@ -460,10 +460,7 @@ impl Tree {
                 let (style_min, style_max) = {
                     let lock = self.0.read();
                     let node = lock.nodes.get(child_id).unwrap();
-                    (
-                        node.style().get_min_size(),
-                        node.style().get_max_size(),
-                    )
+                    (node.style().get_min_size(), node.style().get_max_size())
                 };
 
                 if let Some(min_w) = style_min.width.maybe_resolve(parent_w, |_, _| 0.0) {
@@ -575,7 +572,11 @@ impl Tree {
                     let width = fr.right;
                     let height = fr.bottom;
                     let side = fr.side;
-                    let clear = clear_list.iter().find(|(id, _)| *id == fr.node).map(|(_, c)| *c).unwrap_or(Clear::None);
+                    let clear = clear_list
+                        .iter()
+                        .find(|(id, _)| *id == fr.node)
+                        .map(|(_, c)| *c)
+                        .unwrap_or(Clear::None);
 
                     let mut y = 0.0_f32;
                     // apply clear constraints initially
@@ -583,8 +584,11 @@ impl Tree {
                         let mut max_bot = 0.0_f32;
                         for p in &placed {
                             if p.side == Float::Left {
-                                let (_pl, _pr, _pt, pb) =
-                                    margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                                let (_pl, _pr, _pt, pb) = margin_list
+                                    .iter()
+                                    .find(|(id, _)| *id == p.node)
+                                    .map(|(_, m)| *m)
+                                    .unwrap_or((0.0, 0.0, 0.0, 0.0));
                                 max_bot = max_bot.max(p.top + p.bottom + pb);
                             }
                         }
@@ -594,8 +598,11 @@ impl Tree {
                         let mut max_bot = 0.0_f32;
                         for p in &placed {
                             if p.side == Float::Right {
-                                let (_pl, _pr, _pt, pb) =
-                                    margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                                let (_pl, _pr, _pt, pb) = margin_list
+                                    .iter()
+                                    .find(|(id, _)| *id == p.node)
+                                    .map(|(_, m)| *m)
+                                    .unwrap_or((0.0, 0.0, 0.0, 0.0));
                                 max_bot = max_bot.max(p.top + p.bottom + pb);
                             }
                         }
@@ -609,7 +616,11 @@ impl Tree {
                     let mut min_after_cleared = 0.0_f32;
                     for p in &placed {
                         if p.side == side {
-                            if let Some(c) = clear_list.iter().find(|(id, _)| *id == p.node).map(|(_, c)| c) {
+                            if let Some(c) = clear_list
+                                .iter()
+                                .find(|(id, _)| *id == p.node)
+                                .map(|(_, c)| c)
+                            {
                                 if matches!(c, Clear::Left | Clear::Right | Clear::Both) {
                                     min_after_cleared = min_after_cleared.max(p.top);
                                 }
@@ -626,8 +637,11 @@ impl Tree {
                     let mut candidates: Vec<f32> = Vec::new();
                     candidates.push(y);
                     for p in &placed {
-                        let (_, _, _p_mt, p_mb) =
-                            margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                        let (_, _, _p_mt, p_mb) = margin_list
+                            .iter()
+                            .find(|(id, _)| *id == p.node)
+                            .map(|(_, m)| *m)
+                            .unwrap_or((0.0, 0.0, 0.0, 0.0));
                         candidates.push(p.top);
                         candidates.push(p.top + p.bottom + p_mb);
                     }
@@ -635,8 +649,11 @@ impl Tree {
                     candidates.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
 
                     // Precompute margins for this float
-                    let (ml, mr, mt, _mb) =
-                        margin_list.iter().find(|(id, _)| *id == fr.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                    let (ml, mr, mt, _mb) = margin_list
+                        .iter()
+                        .find(|(id, _)| *id == fr.node)
+                        .map(|(_, m)| *m)
+                        .unwrap_or((0.0, 0.0, 0.0, 0.0));
 
                     let mut placed_this = false;
 
@@ -645,8 +662,11 @@ impl Tree {
                         let mut left_occupied = 0.0_f32;
                         let mut right_occupied = 0.0_f32;
                         for p in &placed {
-                            let (p_ml, p_mr, _p_mt, p_mb) =
-                                margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                            let (p_ml, p_mr, _p_mt, p_mb) = margin_list
+                                .iter()
+                                .find(|(id, _)| *id == p.node)
+                                .map(|(_, m)| *m)
+                                .unwrap_or((0.0, 0.0, 0.0, 0.0));
                             let p_top = p.top;
                             let p_bot = p.top + p.bottom + p_mb; // include bottom margin for overlap
                             if !(p_bot <= cand || p_top >= cand + height) {
@@ -702,8 +722,11 @@ impl Tree {
                         // No candidate fit: place below current floats (include bottom margins)
                         let mut max_bot = 0.0_f32;
                         for p in &placed {
-                            let (_p_ml, _p_mr, _p_mt, p_mb) =
-                                margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                            let (_p_ml, _p_mr, _p_mt, p_mb) = margin_list
+                                .iter()
+                                .find(|(id, _)| *id == p.node)
+                                .map(|(_, m)| *m)
+                                .unwrap_or((0.0, 0.0, 0.0, 0.0));
                             max_bot = max_bot.max(p.top + p.bottom + p_mb);
                         }
                         y = max_bot;
@@ -712,8 +735,11 @@ impl Tree {
                         let mut left_occupied = 0.0_f32;
                         let mut right_occupied = 0.0_f32;
                         for p in &placed {
-                            let (p_ml, p_mr, _p_mt, p_mb) =
-                                margin_list.iter().find(|(id, _)| *id == p.node).map(|(_, m)| *m).unwrap_or((0.0, 0.0, 0.0, 0.0));
+                            let (p_ml, p_mr, _p_mt, p_mb) = margin_list
+                                .iter()
+                                .find(|(id, _)| *id == p.node)
+                                .map(|(_, m)| *m)
+                                .unwrap_or((0.0, 0.0, 0.0, 0.0));
                             let p_top = p.top;
                             let p_bot = p.top + p.bottom + p_mb;
                             if !(p_bot <= y || p_top >= y + height) {
@@ -945,10 +971,10 @@ impl Tree {
                 let mut inner = self.0.write();
                 if let Some(node) = inner.nodes.get_mut(id) {
                     if node.unrounded_layout.size.height > constraint_h {
-                        if node.unrounded_layout.content_size.height
+                        if node.unrounded_layout.scrollable_overflow_rect.bottom
                             < node.unrounded_layout.size.height
                         {
-                            node.unrounded_layout.content_size.height =
+                            node.unrounded_layout.scrollable_overflow_rect.bottom =
                                 node.unrounded_layout.size.height;
                         }
                         node.unrounded_layout.size.height = constraint_h;
@@ -962,10 +988,10 @@ impl Tree {
                 let mut inner = self.0.write();
                 if let Some(node) = inner.nodes.get_mut(id) {
                     if node.unrounded_layout.size.width > constraint_w {
-                        if node.unrounded_layout.content_size.width
+                        if node.unrounded_layout.scrollable_overflow_rect.right
                             < node.unrounded_layout.size.width
                         {
-                            node.unrounded_layout.content_size.width =
+                            node.unrounded_layout.scrollable_overflow_rect.right =
                                 node.unrounded_layout.size.width;
                         }
                         node.unrounded_layout.size.width = constraint_w;
@@ -1336,7 +1362,6 @@ impl Tree {
             .unwrap_or(false)
     }
 
-
     pub fn insert_after(&mut self, parent: Id, node: Id, reference: Id) {
         let mut tree = self.0.write();
         // Find the position of the reference node
@@ -1697,7 +1722,7 @@ impl LayoutPartialTree for Tree {
             let node = tree.node_from_id_mut(node_id);
             // preserve location, update size/metrics from the computed layout
             node.unrounded_layout.size = layout.size;
-            node.unrounded_layout.content_size = layout.content_size;
+            node.unrounded_layout.scrollable_overflow_rect = layout.scrollable_overflow_rect;
             node.unrounded_layout.border = layout.border;
             node.unrounded_layout.padding = layout.padding;
             node.unrounded_layout.margin = layout.margin;
@@ -1817,14 +1842,7 @@ impl LayoutBlockContainer for Tree {
     ) -> LayoutOutput {
         compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
-            let (
-                has_children,
-                display_mode,
-                display,
-                size,
-                is_text_container,
-                overflow,
-            ) = {
+            let (has_children, display_mode, display, size, is_text_container, overflow) = {
                 let inner = tree.0.read();
                 let node = inner.nodes.get(id).unwrap();
                 let style = node.style();
@@ -1854,7 +1872,7 @@ impl LayoutBlockContainer for Tree {
             // scroll views know the full scrollable area.  We therefore do NOT
             // inject `known_dimensions` before the compute.  Instead we
             // save the viewport constraint and apply it *after* the compute,
-            // clamping `size` while preserving `content_size`.
+            // clamping `size` while preserving `scrollable_overflow_rect`.
             let mut inputs = inputs;
             let is_scroll_container_y = matches!(
                 overflow.y,
@@ -1905,7 +1923,7 @@ impl LayoutBlockContainer for Tree {
             match display_mode {
                 DisplayMode::None => match (display, has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),
-                    (Display::Block, true) => {
+                    (Display::Block | Display::FlowRoot, true) => {
                         let analysis = tree.analyze_subtree(id);
 
                         let mut computed_layout = if analysis.all_inline {
@@ -1935,18 +1953,18 @@ impl LayoutBlockContainer for Tree {
                         // viewport while preserving full content extent.
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.content_size.height = computed_layout
-                                    .content_size
-                                    .height
+                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
+                                    .scrollable_overflow_rect
+                                    .bottom
                                     .max(computed_layout.size.height);
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.content_size.width = computed_layout
-                                    .content_size
-                                    .width
+                                computed_layout.scrollable_overflow_rect.right = computed_layout
+                                    .scrollable_overflow_rect
+                                    .right
                                     .max(computed_layout.size.width);
                                 computed_layout.size.width = constrained_w;
                             }
@@ -1971,18 +1989,18 @@ impl LayoutBlockContainer for Tree {
                         // Clamp scroll container visible size, preserve content extent
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.content_size.height = computed_layout
-                                    .content_size
-                                    .height
+                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
+                                    .scrollable_overflow_rect
+                                    .bottom
                                     .max(computed_layout.size.height);
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.content_size.width = computed_layout
-                                    .content_size
-                                    .width
+                                computed_layout.scrollable_overflow_rect.right = computed_layout
+                                    .scrollable_overflow_rect
+                                    .right
                                     .max(computed_layout.size.width);
                                 computed_layout.size.width = constrained_w;
                             }
@@ -1996,22 +2014,25 @@ impl LayoutBlockContainer for Tree {
                             inputs.parent_size.width, inputs.sizing_mode);
                         let mut computed_layout = compute_grid_layout(tree, node_id, inputs);
                         #[cfg(test)]
-                        eprintln!("GRID_TRACE result size={:?} content_size={:?}", computed_layout.size, computed_layout.content_size);
+                        eprintln!(
+                            "GRID_TRACE result size={:?} scrollable_overflow_rect={:?}",
+                            computed_layout.size, computed_layout.scrollable_overflow_rect
+                        );
                         // Clamp scroll container visible size, preserve content extent
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.content_size.height = computed_layout
-                                    .content_size
-                                    .height
+                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
+                                    .scrollable_overflow_rect
+                                    .bottom
                                     .max(computed_layout.size.height);
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.content_size.width = computed_layout
-                                    .content_size
-                                    .width
+                                computed_layout.scrollable_overflow_rect.right = computed_layout
+                                    .scrollable_overflow_rect
+                                    .right
                                     .max(computed_layout.size.width);
                                 computed_layout.size.width = constrained_w;
                             }
@@ -2145,9 +2166,9 @@ impl LayoutBlockContainer for Tree {
                     if is_scroll_container_y {
                         if let Some(constrained_h) = inputs.known_dimensions.height {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.content_size.height = computed_layout
-                                    .content_size
-                                    .height
+                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
+                                    .scrollable_overflow_rect
+                                    .bottom
                                     .max(computed_layout.size.height);
                                 computed_layout.size.height = constrained_h;
                             }
@@ -2155,9 +2176,9 @@ impl LayoutBlockContainer for Tree {
                     }
                     if let Some(constrained_w) = scroll_constraint_x {
                         if computed_layout.size.width > constrained_w {
-                            computed_layout.content_size.width = computed_layout
-                                .content_size
-                                .width
+                            computed_layout.scrollable_overflow_rect.right = computed_layout
+                                .scrollable_overflow_rect
+                                .right
                                 .max(computed_layout.size.width);
                             computed_layout.size.width = constrained_w;
                         }
@@ -2179,7 +2200,7 @@ impl LayoutBlockContainer for Tree {
                         match (display, has_children) {
                             (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
                             (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
-                            (Display::Block, true) => {
+                            (Display::Block | Display::FlowRoot, true) => {
                                 let analysis = tree.analyze_subtree(id);
                                 if analysis.all_inline {
                                     tree.compute_inline_layout(node_id, inputs, block_ctx)
@@ -2206,9 +2227,9 @@ impl LayoutBlockContainer for Tree {
                     if is_scroll_container_y {
                         if let Some(constrained_h) = inputs.known_dimensions.height {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.content_size.height = computed_layout
-                                    .content_size
-                                    .height
+                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
+                                    .scrollable_overflow_rect
+                                    .bottom
                                     .max(computed_layout.size.height);
                                 computed_layout.size.height = constrained_h;
                             }
@@ -2216,9 +2237,9 @@ impl LayoutBlockContainer for Tree {
                     }
                     if let Some(constrained_w) = scroll_constraint_x {
                         if computed_layout.size.width > constrained_w {
-                            computed_layout.content_size.width = computed_layout
-                                .content_size
-                                .width
+                            computed_layout.scrollable_overflow_rect.right = computed_layout
+                                .scrollable_overflow_rect
+                                .right
                                 .max(computed_layout.size.width);
                             computed_layout.size.width = constrained_w;
                         }
@@ -2296,7 +2317,7 @@ impl LayoutBlockContainer for Tree {
 
                     // Add reserved marker space back into reported size
                     computed_layout.size.width += reserved;
-                    computed_layout.content_size.width += reserved;
+                    computed_layout.scrollable_overflow_rect.right += reserved;
 
                     // Honor explicit size on text-containers like other blocks
                     if is_text_container {
@@ -2344,6 +2365,7 @@ impl PrintTree for Tree {
             return match mode {
                 DisplayMode::None => match node.style().get_display() {
                     Display::Block => "ANONYMOUS-BLOCK",
+                    Display::FlowRoot => "ANONYMOUS-FLOW-ROOT",
                     Display::Flex => "ANONYMOUS-FLEX",
                     Display::Grid => "ANONYMOUS-GRID",
                     Display::None => "ANONYMOUS-NONE",
@@ -2356,6 +2378,7 @@ impl PrintTree for Tree {
                 }
                 DisplayMode::Box => match node.style().get_display() {
                     Display::Block => "ANONYMOUS-INLINE-BLOCK",
+                    Display::FlowRoot => "ANONYMOUS-INLINE-FLOW-ROOT",
                     Display::Flex => "ANONYMOUS-INLINE-FLEX",
                     Display::Grid => "ANONYMOUS-INLINE-GRID",
                     Display::None => "NONE",
@@ -2371,6 +2394,7 @@ impl PrintTree for Tree {
         match mode {
             DisplayMode::None => match node.style().get_display() {
                 Display::Block => "BLOCK",
+                Display::FlowRoot => "FLOW-ROOT",
                 Display::Flex => "FLEX",
                 Display::Grid => "GRID",
                 Display::None => "NONE",
@@ -2378,6 +2402,7 @@ impl PrintTree for Tree {
             DisplayMode::Inline => "INLINE",
             DisplayMode::Box => match node.style().get_display() {
                 Display::Block => "INLINE-BLOCK",
+                Display::FlowRoot => "INLINE-FLOW-ROOT",
                 Display::Flex => "INLINE-FLEX",
                 Display::Grid => "INLINE-GRID",
                 Display::None => "NONE",
@@ -2417,8 +2442,8 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             y = layout.location.y,
             width = layout.size.width,
             height = layout.size.height,
-            content_width = layout.content_size.width,
-            content_height = layout.content_size.height,
+            content_width = layout.scrollable_overflow_rect.right,
+            content_height = layout.scrollable_overflow_rect.bottom,
             bl = layout.border.left,
             br = layout.border.right,
             bt = layout.border.top,
@@ -2466,8 +2491,8 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             y = layout.location.y,
             width = layout.size.width,
             height = layout.size.height,
-            content_width = layout.content_size.width,
-            content_height = layout.content_size.height,
+            content_width = layout.scrollable_overflow_rect.right,
+            content_height = layout.scrollable_overflow_rect.bottom,
             bl = layout.border.left,
             br = layout.border.right,
             bt = layout.border.top,

@@ -314,7 +314,7 @@ pub fn parse_grid_template<S: CheapCloneStr>(
         let single_repeat = GridTemplateComponent::Repeat(GridTemplateRepetition {
             count: RepetitionCount::Count(1),
             tracks: vec![track],
-            line_names: vec![names],
+            line_names: vec![names, Vec::new()],
         });
         components.push(single_repeat);
     }

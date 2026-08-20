@@ -1,6 +1,6 @@
 use mason_core::*;
-use taffy::style::{Dimension, LengthPercentage, LengthPercentageAuto, Display};
 use taffy::geometry::Rect;
+use taffy::style::{Dimension, Display, LengthPercentage, LengthPercentageAuto};
 
 // Reproduce the Android grid_template_areas_500 layout exactly:
 // Scroll(vertical padding) → body(40px margin) → grid("275px auto", 8px gap) → text containers with children
@@ -55,7 +55,11 @@ extern "C" fn text_measure_content(
     };
 
     let content_lines = (natural_w / w.max(1.0)).ceil().max(1.0);
-    let h = if known_h > 0.0 { known_h } else { content_lines * line_h };
+    let h = if known_h > 0.0 {
+        known_h
+    } else {
+        content_lines * line_h
+    };
     MeasureOutput::make(w, h)
 }
 
@@ -96,7 +100,7 @@ fn grid_android_repro_no_overflow() {
     mason.with_style_mut(grid_id, |s| {
         s.set_display(Display::Grid);
         s.set_grid_template_areas_css(
-            "\"header header\"\n\"sidebar content\"\n\"sidebar2 sidebar2\"\n\"footer footer\""
+            "\"header header\"\n\"sidebar content\"\n\"sidebar2 sidebar2\"\n\"footer footer\"",
         );
         s.set_grid_template_columns_css("275px auto");
         s.set_gap(taffy::geometry::Size {
@@ -158,7 +162,10 @@ fn grid_android_repro_no_overflow() {
     mason.set_measure(footer_id, Some(text_measure_short), std::ptr::null_mut());
 
     // Build tree: scroll → body → grid → items
-    mason.append_node(grid_id, &[header_id, sidebar_id, sidebar2_id, content_id, footer_id]);
+    mason.append_node(
+        grid_id,
+        &[header_id, sidebar_id, sidebar2_id, content_id, footer_id],
+    );
     mason.append_node(body_id, &[grid_id]);
     mason.append_node(scroll_id, &[body_id]);
 
@@ -173,13 +180,34 @@ fn grid_android_repro_no_overflow() {
     let content_layout = mason.layout_raw(content_id);
     let footer_layout = mason.layout_raw(footer_id);
 
-    eprintln!("scroll: size={:?} padding={:?}", scroll_layout.size, scroll_layout.padding);
-    eprintln!("body:   size={:?} loc={:?}", body_layout.size, body_layout.location);
-    eprintln!("grid:   size={:?} loc={:?} content_size={:?}", grid_layout.size, grid_layout.location, grid_layout.content_size);
-    eprintln!("header: size={:?} loc={:?}", header_layout.size, header_layout.location);
-    eprintln!("sidebar:size={:?} loc={:?}", sidebar_layout.size, sidebar_layout.location);
-    eprintln!("content:size={:?} loc={:?}", content_layout.size, content_layout.location);
-    eprintln!("footer: size={:?} loc={:?}", footer_layout.size, footer_layout.location);
+    eprintln!(
+        "scroll: size={:?} padding={:?}",
+        scroll_layout.size, scroll_layout.padding
+    );
+    eprintln!(
+        "body:   size={:?} loc={:?}",
+        body_layout.size, body_layout.location
+    );
+    eprintln!(
+        "grid:   size={:?} loc={:?} scrollable_overflow_rect={:?}",
+        grid_layout.size, grid_layout.location, grid_layout.scrollable_overflow_rect
+    );
+    eprintln!(
+        "header: size={:?} loc={:?}",
+        header_layout.size, header_layout.location
+    );
+    eprintln!(
+        "sidebar:size={:?} loc={:?}",
+        sidebar_layout.size, sidebar_layout.location
+    );
+    eprintln!(
+        "content:size={:?} loc={:?}",
+        content_layout.size, content_layout.location
+    );
+    eprintln!(
+        "footer: size={:?} loc={:?}",
+        footer_layout.size, footer_layout.location
+    );
 
     // Expected:
     // scroll width = 1080, no horizontal padding
@@ -189,25 +217,42 @@ fn grid_android_repro_no_overflow() {
     // content item width = 717 (not 1292!)
 
     let expected_body_w = 1080.0 - 40.0 - 40.0;
-    assert!((body_layout.size.width - expected_body_w).abs() < 1.0,
-        "body width {} should be {}", body_layout.size.width, expected_body_w);
+    assert!(
+        (body_layout.size.width - expected_body_w).abs() < 1.0,
+        "body width {} should be {}",
+        body_layout.size.width,
+        expected_body_w
+    );
 
-    assert!((grid_layout.size.width - expected_body_w).abs() < 1.0,
-        "grid width {} should be {}", grid_layout.size.width, expected_body_w);
+    assert!(
+        (grid_layout.size.width - expected_body_w).abs() < 1.0,
+        "grid width {} should be {}",
+        grid_layout.size.width,
+        expected_body_w
+    );
 
     let expected_auto_col = expected_body_w - 275.0 - 8.0; // 717
-    assert!(content_layout.size.width <= expected_auto_col + 1.0,
+    assert!(
+        content_layout.size.width <= expected_auto_col + 1.0,
         "content width {} should be <= auto column {} (not overflowing!)",
-        content_layout.size.width, expected_auto_col);
+        content_layout.size.width,
+        expected_auto_col
+    );
 
     // Header spans 2 columns: should be <= grid width
-    assert!(header_layout.size.width <= grid_layout.size.width + 1.0,
+    assert!(
+        header_layout.size.width <= grid_layout.size.width + 1.0,
         "header width {} should be <= grid width {}",
-        header_layout.size.width, grid_layout.size.width);
+        header_layout.size.width,
+        grid_layout.size.width
+    );
 
     // No item should overflow the grid
     let content_right = content_layout.location.x + content_layout.size.width;
-    assert!(content_right <= grid_layout.size.width + 1.0,
+    assert!(
+        content_right <= grid_layout.size.width + 1.0,
         "content right edge {} should not exceed grid width {}",
-        content_right, grid_layout.size.width);
+        content_right,
+        grid_layout.size.width
+    );
 }

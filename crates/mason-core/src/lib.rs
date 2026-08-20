@@ -36,6 +36,24 @@ mod tree;
 mod tree_inline;
 pub mod utils;
 
+#[inline]
+pub(crate) fn scrollable_overflow_rect_from_size(size: Size<f32>) -> Rect<f32> {
+    Rect {
+        left: 0.0,
+        right: size.width.max(0.0),
+        top: 0.0,
+        bottom: size.height.max(0.0),
+    }
+}
+
+#[inline]
+pub(crate) fn scrollable_overflow_size(rect: Rect<f32>) -> Size<f32> {
+    Size {
+        width: rect.right.max(0.0),
+        height: rect.bottom.max(0.0),
+    }
+}
+
 #[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
 
@@ -77,7 +95,8 @@ use jni::sys::jint;
 fn initialize_pseudo_style_from_base(style: &mut Style) {
     style.prepare_mut();
     let data = style.data_mut();
-    data[style::StyleKeys::PSEUDO_SET_MASK_LOW as usize..style::StyleKeys::PSEUDO_SET_MASK_HIGH as usize + 8]
+    data[style::StyleKeys::PSEUDO_SET_MASK_LOW as usize
+        ..style::StyleKeys::PSEUDO_SET_MASK_HIGH as usize + 8]
         .fill(0);
 }
 
@@ -134,9 +153,18 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
     copy_output_inner(&inner, node, output, use_rounding);
 }
 
-fn copy_output_inner(inner: &crate::tree::TreeInner, node: Id, output: &mut Vec<f32>, use_rounding: bool) {
+fn copy_output_inner(
+    inner: &crate::tree::TreeInner,
+    node: Id,
+    output: &mut Vec<f32>,
+    use_rounding: bool,
+) {
     let n = &inner.nodes[node];
-    let layout = if use_rounding { n.final_layout } else { n.unrounded_layout };
+    let layout = if use_rounding {
+        n.final_layout
+    } else {
+        n.unrounded_layout
+    };
 
     let children = inner.children.get(node);
     let len = children.map(|c| c.len()).unwrap_or(0);
@@ -147,8 +175,8 @@ fn copy_output_inner(inner: &crate::tree::TreeInner, node: Id, output: &mut Vec<
         let h = layout.size.height;
         // Promote a near-zero (degenerate) height to content_size.height when
         // the content itself is larger — avoids invisible collapsed containers.
-        if h.abs() <= 1e-6 && layout.content_size.height > h {
-            layout.content_size.height
+        if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom > h {
+            layout.scrollable_overflow_rect.bottom
         } else {
             h
         }
@@ -172,8 +200,8 @@ fn copy_output_inner(inner: &crate::tree::TreeInner, node: Id, output: &mut Vec<
         layout.padding.right,
         layout.padding.bottom,
         layout.padding.left,
-        layout.content_size.width,
-        layout.content_size.height,
+        layout.scrollable_overflow_rect.right,
+        layout.scrollable_overflow_rect.bottom,
         layout.scrollbar_size.width,
         layout.scrollbar_size.height,
         len as f32,
@@ -365,7 +393,8 @@ impl Mason {
             .nodes_mut()
             .get_mut(node)
             .and_then(|node| {
-                node.pseudo_styles.as_ref()
+                node.pseudo_styles
+                    .as_ref()
                     .and_then(|p| p.resolve(flags))
                     .map(|s| s.buffer())
             })
@@ -378,7 +407,8 @@ impl Mason {
             .nodes()
             .get(node)
             .and_then(|node| {
-                node.pseudo_styles.as_ref()
+                node.pseudo_styles
+                    .as_ref()
                     .and_then(|p| p.resolve(flags))
                     .map(|s| s.raw())
             })
@@ -389,7 +419,8 @@ impl Mason {
     #[track_caller]
     pub fn pseudo_style_handle(&self, node: Id, flags: u16) -> Option<u32> {
         self.0.nodes().get(node).and_then(|node| {
-            node.pseudo_styles.as_ref()
+            node.pseudo_styles
+                .as_ref()
                 .and_then(|p| p.resolve(flags))
                 .map(|s| s.handle.index() as u32)
         })
@@ -407,7 +438,9 @@ impl Mason {
                 if node.pseudo_styles.is_none() {
                     node.pseudo_styles = Some(node::PseudoStyles::default());
                 }
-                node.pseudo_styles.as_mut().unwrap()
+                node.pseudo_styles
+                    .as_mut()
+                    .unwrap()
                     .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
                     .map(|s| s.raw_mut())
             })
@@ -421,7 +454,8 @@ impl Mason {
             .nodes()
             .get(node)
             .and_then(|node| {
-                node.pseudo_styles.as_ref()
+                node.pseudo_styles
+                    .as_ref()
                     .and_then(|p| p.resolve(flags))
                     .map(|s| objc2::rc::Retained::into_raw(s.buffer()) as _)
             })
@@ -438,7 +472,9 @@ impl Mason {
                 if node.pseudo_styles.is_none() {
                     node.pseudo_styles = Some(node::PseudoStyles::default());
                 }
-                node.pseudo_styles.as_mut().unwrap()
+                node.pseudo_styles
+                    .as_mut()
+                    .unwrap()
                     .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
                     .map(|s| objc2::rc::Retained::into_raw(s.buffer()) as *mut c_void)
             })
@@ -453,7 +489,9 @@ impl Mason {
             if node.pseudo_styles.is_none() {
                 node.pseudo_styles = Some(crate::node::PseudoStyles::default());
             }
-            node.pseudo_styles.as_mut().unwrap()
+            node.pseudo_styles
+                .as_mut()
+                .unwrap()
                 .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
                 .map(|s| s.handle.index() as u32)
         })
@@ -469,7 +507,9 @@ impl Mason {
                 if node.pseudo_styles.is_none() {
                     node.pseudo_styles = Some(crate::node::PseudoStyles::default());
                 }
-                node.pseudo_styles.as_mut().unwrap()
+                node.pseudo_styles
+                    .as_mut()
+                    .unwrap()
                     .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
                     .map(|s| s.buffer())
             })

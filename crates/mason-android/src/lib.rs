@@ -15,8 +15,6 @@ use std::ffi::c_void;
 mod node;
 pub mod style;
 
-
-
 const INLINE_SEGMENT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment";
 
 const INLINE_SEGMENT_TEXT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment$Text";
@@ -209,7 +207,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeGetStateBuffer",
                 "nativeGetPseudoStyleBuffer",
                 "nativePreparePseudoMut",
-                "nativeNodeSetSegmentsPacked"
+                "nativeNodeSetSegmentsPacked",
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
@@ -257,7 +255,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJ)I",
                     "(JJI)I",
                     "(JJI)I",
-                    "(JJ[F[J[I)V"
+                    "(JJ[F[J[I)V",
                 ]
             } else {
                 [
@@ -304,7 +302,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ)I",
                     "!(JJI)I",
                     "!(JJI)I",
-                    "!(JJ[F[J[I)V"
+                    "!(JJ[F[J[I)V",
                 ]
             };
 
@@ -353,7 +351,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetStateBuffer as *mut c_void,
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
-                    node::NodeNativeSetSegmentsPacked as *mut c_void
+                    node::NodeNativeSetSegmentsPacked as *mut c_void,
                 ]
             } else {
                 [
@@ -400,7 +398,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetStateBuffer as *mut c_void,
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
-                    node::NodeNativeSetSegmentsPacked as *mut c_void
+                    node::NodeNativeSetSegmentsPacked as *mut c_void,
                 ]
             };
 
@@ -673,15 +671,15 @@ pub extern "system" fn MasonNativeGetBuffer(
                                         Ok(result) => {
                                             let ret = result.i().unwrap_or(-1);
                                             mason.set_handle_buffer(handle, ret);
-                                             ret
+                                            ret
                                         }
                                         Err(_) => -1,
-                                    }
+                                    };
                                 }
                                 None => -1,
                             },
                             Err(_) => -1,
-                        }
+                        };
                     }
                 }
 
@@ -728,7 +726,6 @@ fn native_set_device_scale(taffy: jlong, scale: jfloat) {
 pub extern "system" fn MasonNativeSetDeviceScale(taffy: jlong, scale: jfloat) {
     native_set_device_scale(taffy, scale);
 }
-
 
 #[no_mangle]
 pub extern "system" fn MasonNativeSetDeviceScaleNormal(
@@ -794,7 +791,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintAre
     }
 }
 
-
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetPreflight(
     _: JNIEnv,
@@ -802,10 +798,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetPrefl
     mason: jlong,
     enabled: jni::sys::jboolean,
 ) {
-    mason_core::PREFLIGHT_ENABLED.store(
-        enabled != 0,
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    mason_core::PREFLIGHT_ENABLED.store(enabled != 0, std::sync::atomic::Ordering::Relaxed);
     if mason == 0 {
         return;
     }
@@ -814,7 +807,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetPrefl
         mason.reset_arena_defaults();
     }
 }
-
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGetPreflight(

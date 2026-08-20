@@ -1,6 +1,6 @@
 use mason_core::*;
-use taffy::style::{Dimension, LengthPercentage};
 use taffy::geometry::Rect;
+use taffy::style::{Dimension, LengthPercentage};
 
 // Regression test: when the root/topmost block sets horizontal padding,
 // child percentage widths should resolve against the *content* box width
@@ -15,8 +15,16 @@ fn child_percent_width_resolves_to_parent_content_box() {
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: taffy::style::Dimension::length(300.0), height: taffy::style::Dimension::auto() });
-        s.set_padding(Rect { left: LengthPercentage::length(20.0), right: LengthPercentage::length(20.0), top: LengthPercentage::length(0.0), bottom: LengthPercentage::length(0.0) });
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
+        s.set_padding(Rect {
+            left: LengthPercentage::length(20.0),
+            right: LengthPercentage::length(20.0),
+            top: LengthPercentage::length(0.0),
+            bottom: LengthPercentage::length(0.0),
+        });
     });
 
     // child with 100% width
@@ -24,7 +32,10 @@ fn child_percent_width_resolves_to_parent_content_box() {
     let cid = child.id();
     mason.with_style_mut(cid, |s| {
         s.set_display(taffy::style::Display::Block);
-        s.set_size(taffy::geometry::Size { width: Dimension::percent(1.0), height: Dimension::auto() });
+        s.set_size(taffy::geometry::Size {
+            width: Dimension::percent(1.0),
+            height: Dimension::auto(),
+        });
     });
 
     mason.append_node(rid, &[cid]);
@@ -36,5 +47,10 @@ fn child_percent_width_resolves_to_parent_content_box() {
 
     // expected child width = parent content width = 300 - 20 - 20 = 260
     let expected = 300.0 - 20.0 - 20.0;
-    assert!((child_layout.size.width - expected).abs() < 0.01, "child width should resolve to parent content box: got {} expected {}", child_layout.size.width, expected);
+    assert!(
+        (child_layout.size.width - expected).abs() < 0.01,
+        "child width should resolve to parent content box: got {} expected {}",
+        child_layout.size.width,
+        expected
+    );
 }

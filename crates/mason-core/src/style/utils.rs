@@ -550,7 +550,6 @@ pub(crate) fn get_style_data_i32(style: &[u8], position: StyleKeys) -> i32 {
     }
 }
 
-
 #[inline(always)]
 pub(crate) fn get_style_data_f32(style: &[u8], position: StyleKeys) -> f32 {
     let offset = position as usize;

@@ -15,15 +15,21 @@ extern "C" fn measure_20x10(
 fn grid_two_columns_positions() {
     let mut mason = Mason::new();
 
-    let root = mason.create_node(); let rid = root.id();
+    let root = mason.create_node();
+    let rid = root.id();
     mason.with_style_mut(rid, |s| {
         s.set_display(Display::Grid);
-        s.set_size(Size { width: Dimension::length(200.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(200.0),
+            height: Dimension::auto(),
+        });
         s.set_grid_template_columns_css("100px 100px");
     });
 
-    let a = mason.create_node(); let aid = a.id();
-    let b = mason.create_node(); let bid = b.id();
+    let a = mason.create_node();
+    let aid = a.id();
+    let b = mason.create_node();
+    let bid = b.id();
 
     mason.append_node(rid, &[aid, bid]);
 
@@ -36,6 +42,14 @@ fn grid_two_columns_positions() {
     let lb = mason.layout_raw(bid);
 
     // Expect first cell at x=0, second cell at x≈100
-    assert!((la.location.x - 0.0).abs() < 1.0, "grid a x expected ≈0, got {}", la.location.x);
-    assert!((lb.location.x - 100.0).abs() < 1.0, "grid b x expected ≈100, got {}", lb.location.x);
+    assert!(
+        (la.location.x - 0.0).abs() < 1.0,
+        "grid a x expected ≈0, got {}",
+        la.location.x
+    );
+    assert!(
+        (lb.location.x - 100.0).abs() < 1.0,
+        "grid b x expected ≈100, got {}",
+        lb.location.x
+    );
 }
