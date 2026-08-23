@@ -9,6 +9,10 @@ export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthP
 
 export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip`;
 
+export type DimensionKeyword = 'min-content' | 'max-content' | 'fit-content' | 'stretch' | 'content' | `fit-content(${string})`;
+
+export type DimensionLength = LengthAuto | DimensionKeyword;
+
 export type SizeLength = { width: LengthType; height: LengthType };
 
 export type Position = 'absolute' | 'relative';
@@ -19,7 +23,7 @@ export type BoxSizing = 'border-box' | 'content-box';
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
-export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse';
+export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse';
 
 export type FlexDirection = 'column' | 'row' | 'column-reverse' | 'row-reverse';
 
@@ -58,8 +62,8 @@ declare module '@nativescript/core/ui/styling/style' {
     flexFlow: string;
     minWidth: LengthAuto;
     minHeight: LengthAuto;
-    width: LengthAuto;
-    height: LengthAuto;
+    width: DimensionLength;
+    height: DimensionLength;
     maxWidth: LengthAuto;
     maxHeight: LengthAuto;
     left: LengthAuto;
@@ -71,7 +75,7 @@ declare module '@nativescript/core/ui/styling/style' {
     rowGap: Length;
     columnGap: Length;
     aspectRatio: number;
-    flexBasis: LengthPercentage | string | number;
+    flexBasis: LengthPercentage | DimensionKeyword | string | number;
     alignItems: AlignItems;
     alignSelf: AlignSelf;
     alignContent: AlignContent;
@@ -134,8 +138,8 @@ interface Style {
   flexFlow: string;
   minWidth: LengthAuto;
   minHeight: LengthAuto;
-  width: LengthAuto;
-  height: LengthAuto;
+  width: DimensionLength;
+  height: DimensionLength;
   maxWidth: LengthAuto;
   maxHeight: LengthAuto;
   left: LengthAuto;
@@ -147,7 +151,7 @@ interface Style {
   rowGap: Length;
   columnGap: Length;
   aspectRatio: number;
-  flexBasis: LengthPercentage | string | number;
+  flexBasis: LengthPercentage | DimensionKeyword | string | number;
   alignItems: AlignItems;
   alignSelf: AlignSelf;
   alignContent: AlignContent;
@@ -208,8 +212,8 @@ interface IViewBase {
   flexWrap: FlexWrap;
   flex: string | 'auto' | 'none' | number | 'initial';
   flexFlow: string;
-  width: LengthAuto;
-  height: LengthAuto;
+  width: DimensionLength;
+  height: DimensionLength;
   maxWidth: LengthAuto;
   maxHeight: LengthAuto;
   left: Length;
@@ -221,7 +225,7 @@ interface IViewBase {
   rowGap: Length;
   columnGap: Length;
   aspectRatio: number;
-  flexBasis: Length;
+  flexBasis: DimensionLength;
   alignItems: AlignItems;
   alignSelf: AlignSelf;
   alignContent: AlignContent;

@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -41,26 +42,14 @@ interface Element : EventTarget {
     return id
   }
 
-  fun syncStyle(low: String, high: String) {
-    fun parseDecimalToLong(s: String): Long? {
-      if (s.isEmpty()) return null
-      return try {
-        java.lang.Long.parseUnsignedLong(s)
-      } catch (_: NumberFormatException) {
-        try {
-          java.math.BigInteger(s).toLong()
-        } catch (_: Exception) {
-          null
-        }
-      }
-    }
-
-    val low = parseDecimalToLong(low)
-    val high = parseDecimalToLong(high)
-
-    if (low != null || high != null) {
-      syncStyle(low ?: 0L, high ?: 0L)
-    }
+  // Reconstructs the two 64-bit dirty-mask halves from four signed 32-bit
+  // words (see style.ts's splitBigIntToInt32Parts) - bit-exact, avoids the
+  // decimal-string encode/parse round trip the old syncStyle(String, String)
+  // overload used on every single style write.
+  fun syncStyleParts(lowLow: Int, lowHigh: Int, highLow: Int, highHigh: Int) {
+    val low = (lowHigh.toLong() shl 32) or (lowLow.toLong() and 0xFFFFFFFFL)
+    val high = (highHigh.toLong() shl 32) or (highLow.toLong() and 0xFFFFFFFFL)
+    syncStyle(low, high)
   }
 
   fun syncStyle(low: Long, high: Long) {
@@ -201,8 +190,12 @@ interface Element : EventTarget {
   }
 
   fun computeAndLayout(width: Float, height: Float): MasonLayoutTree {
+    Log.w("MASON_DIAG2", "computeAndLayout(w,h) CALLED node=${node.nativePtr} w=$width h=$height cacheDirty=${node.computeCacheDirty} cacheW=${node.computeCache.width} cacheH=${node.computeCache.height} treeCount=${node.layoutTree.nodeCount}")
     val mason = node.mason
-    if (mason.inCompute) return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
+    if (mason.inCompute) {
+      Log.w("MASON_DIAG2", "  -> SKIPPED (inCompute)")
+      return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
+    }
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native
@@ -213,9 +206,11 @@ interface Element : EventTarget {
       && node.computeCache.height == height
       && node.layoutTree.nodeCount > 0
     ) {
+      Log.w("MASON_DIAG2", "  -> SKIPPED (cache hit)")
       return node.layoutTree
     }
 
+    Log.w("MASON_DIAG2", "  -> RUNNING native compute")
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
@@ -757,26 +752,62 @@ private class LayoutStackFrame {
   var node: Node? = null
 }
 
-// Pool of stack frames — grown once, reused every pass
-private val layoutStack = ArrayList<LayoutStackFrame>(32)
-private var layoutStackTop = -1
+// One DFS traversal's stack + position. Pooled per re-entrancy depth (see
+// below) rather than per-call, so normal (non-reentrant) passes still pay
+// zero allocation cost after warmup.
+private class LayoutDfsState {
+  val stack = ArrayList<LayoutStackFrame>(32)
+  var top = -1
+}
 
-private fun pushFrame(treeIdx: Int, node: Node) {
-  layoutStackTop++
+// applyLayoutFlat can re-enter itself: a child's view.measure()/view.layout()
+// call below can synchronously trigger another top-level layout pass
+// elsewhere in the tree (e.g. a nested Scroll/Input, or Android deciding a
+// sibling also needs a fresh traversal) before this DFS finishes. A single
+// shared stack+index used to corrupt the outer call's traversal: the inner
+// call reset the shared top to -1 and overwrote in-flight frames, so the
+// outer while loop below saw a negative top and exited early having laid
+// out only part of its subtree — permanently leaving the rest of that
+// fixture/screen stuck with stale or default (zero) geometry, since nothing
+// ever re-drives a layout pass for nodes a truncated DFS never reached.
+// Each re-entrancy depth now gets its own independent pooled state instead
+// of sharing one.
+private val dfsStatePool = ArrayList<LayoutDfsState>()
+private var dfsDepth = 0
+
+private fun acquireDfsState(): LayoutDfsState {
+  val state = if (dfsDepth < dfsStatePool.size) {
+    dfsStatePool[dfsDepth]
+  } else {
+    val s = LayoutDfsState()
+    dfsStatePool.add(s)
+    s
+  }
+  state.top = -1
+  dfsDepth++
+  return state
+}
+
+private fun releaseDfsState() {
+  dfsDepth--
+}
+
+private fun pushFrame(state: LayoutDfsState, treeIdx: Int, node: Node) {
+  state.top++
   val frame: LayoutStackFrame
-  if (layoutStackTop < layoutStack.size) {
-    frame = layoutStack[layoutStackTop]
+  if (state.top < state.stack.size) {
+    frame = state.stack[state.top]
   } else {
     frame = LayoutStackFrame()
-    layoutStack.add(frame)
+    state.stack.add(frame)
   }
   frame.treeIdx = treeIdx
   frame.node = node
 }
 
-private fun popFrame(): LayoutStackFrame {
-  val frame = layoutStack[layoutStackTop]
-  layoutStackTop--
+private fun popFrame(state: LayoutDfsState): LayoutStackFrame {
+  val frame = state.stack[state.top]
+  state.top--
   return frame
 }
 
@@ -784,11 +815,12 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
   if (tree.nodeCount == 0) return
 
   val nv = tree.cursor
-    layoutStackTop = -1
-    pushFrame(0, rootNode)
+  val dfs = acquireDfsState()
+  try {
+    pushFrame(dfs, 0, rootNode)
 
-    while (layoutStackTop >= 0) {
-      val frame = popFrame()
+    while (dfs.top >= 0) {
+      val frame = popFrame(dfs)
       val treeIdx = frame.treeIdx
       val node = frame.node!!
       frame.node = null // release ref
@@ -900,6 +932,27 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
            // view.setPadding(padLeft, padTop, padRight, padBottom)
           }
 
+          // P14: skip the measure()/layout() pair when this view's frame
+          // already matches the target - same equality-guard pattern already
+          // used for setPadding() above. Safe for Scroll/Input/generic Element
+          // views: their children are walked by this function's own DFS
+          // (pushed below from `tree.childIndices`), not by a nested
+          // applyLayoutFlat re-triggered from onLayout, so skipping the
+          // Android-side measure/layout call here doesn't skip any of Mason's
+          // own child processing for them.
+          //
+          // Li is excluded: its onLayout unconditionally calls
+          // `applyLayoutFlat(node, node.layoutTree)` against its OWN separate
+          // layout tree (RecyclerView items aren't part of the parent's flat
+          // tree, since RecyclerView virtualizes/recycles them) - that nested
+          // call is the only thing that drives Li's own children, so it must
+          // still fire on every pass regardless of whether Li's own frame
+          // changed. Any other view type with a similar own-layoutTree-via-
+          // onLayout pattern would need the same exclusion.
+          val skipMeasureAndLayout = view !is Li &&
+            view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
+            view.left == x && view.top == y && view.right == right && view.bottom == bottom
+
           if (view is Scroll) {
             // Scroll is a single-view container: position it at the box
             // dimensions (viewport) and update its content dimensions for
@@ -925,33 +978,39 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             view.enableScrollY = overflowY == Overflow.Scroll.value ||
               (overflowY == Overflow.Auto.value && scrollCH > layoutHeight)
 
-            view.measure(
-              MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
-              MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
-            )
-            view.layout(x, y, right, bottom)
+            if (!skipMeasureAndLayout) {
+              view.measure(
+                MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
+              )
+              view.layout(x, y, right, bottom)
+            }
 
           } else if (view is Input) {
-            view.measure(
-              MeasureSpec.makeMeasureSpec(
-                layoutWidth, MeasureSpec.EXACTLY
-              ),
-              MeasureSpec.makeMeasureSpec(
-                layoutHeight, MeasureSpec.EXACTLY
+            if (!skipMeasureAndLayout) {
+              view.measure(
+                MeasureSpec.makeMeasureSpec(
+                  layoutWidth, MeasureSpec.EXACTLY
+                ),
+                MeasureSpec.makeMeasureSpec(
+                  layoutHeight, MeasureSpec.EXACTLY
+                )
               )
-            )
-            view.layout(x, y, right, bottom)
-            view.layoutChild(0, 0, width, height)
+              view.layout(x, y, right, bottom)
+              view.layoutChild(0, 0, width, height)
+            }
           } else {
-            view.measure(
-              MeasureSpec.makeMeasureSpec(
-                layoutWidth, MeasureSpec.EXACTLY
-              ),
-              MeasureSpec.makeMeasureSpec(
-                layoutHeight, MeasureSpec.EXACTLY
+            if (!skipMeasureAndLayout) {
+              view.measure(
+                MeasureSpec.makeMeasureSpec(
+                  layoutWidth, MeasureSpec.EXACTLY
+                ),
+                MeasureSpec.makeMeasureSpec(
+                  layoutHeight, MeasureSpec.EXACTLY
+                )
               )
-            )
-            view.layout(x, y, right, bottom)
+              view.layout(x, y, right, bottom)
+            }
           }
 
         }
@@ -981,8 +1040,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           }
 
           val childTreeIdx = tree.childIndices[childStart + i]
-          pushFrame(childTreeIdx, child)
+          pushFrame(dfs, childTreeIdx, child)
         }
       }
     }
+  } finally {
+    releaseDfsState()
+  }
 }

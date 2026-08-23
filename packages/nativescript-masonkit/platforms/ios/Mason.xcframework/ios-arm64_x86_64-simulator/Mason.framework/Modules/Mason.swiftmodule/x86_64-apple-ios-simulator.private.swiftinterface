@@ -467,6 +467,7 @@ extension Mason.MasonElement {
   public func addView(_ view: UIKit.UIView)
   public func addView(_ view: UIKit.UIView, at: Swift.Int)
   public func autoComputeIfRoot()
+  public func markRootComputeApplied()
   public func append(_ element: any Mason.MasonElement)
   public func append(text: Swift.String)
   public func append(node childNode: Mason.MasonNode)
@@ -866,6 +867,8 @@ public struct MasonNodeView {
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionCompat) public class MasonDimensionCompat : ObjectiveC.NSObject, Swift.Codable {
   @objc public init(points: Swift.Float)
   @objc public init(percent: Swift.Float)
+  @objc public init(fitContentPoints: Swift.Float)
+  @objc public init(fitContentPercent: Swift.Float)
   @objc public var type: Mason.MasonDimensionCompatType {
     @objc get
   }
@@ -879,6 +882,11 @@ public struct MasonNodeView {
     @objc get
   }
   @objc public static let Auto: Mason.MasonDimensionCompat
+  @objc public static let MinContent: Mason.MasonDimensionCompat
+  @objc public static let MaxContent: Mason.MasonDimensionCompat
+  @objc public static let FitContent: Mason.MasonDimensionCompat
+  @objc public static let Stretch: Mason.MasonDimensionCompat
+  @objc public static let Content: Mason.MasonDimensionCompat
   @objc public static let Zero: Mason.MasonDimensionCompat
   @objc deinit
   public func encode(to encoder: any Swift.Encoder) throws
@@ -2153,6 +2161,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_computeWithViewSize()
   @objc dynamic public func mason_computeWithViewSize(layout: Swift.Bool)
   @objc dynamic public func mason_computeWithMaxContent()
+  @objc dynamic public func mason_markRootComputeApplied()
   @objc dynamic public func mason_computeWithMinContent()
   @objc dynamic public func mason_attachAndApply()
   @objc dynamic public func mason_requestLayout()
@@ -2465,6 +2474,13 @@ extension Mason.TextContainer {
   case Auto
   case Points
   case Percent
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints
+  case FitContentPercent
+  case Stretch
+  case Content
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.MasonDimensionCompatType.RawValue {
     get
@@ -2531,10 +2547,24 @@ public enum MasonDimension : Swift.Codable, Swift.Equatable {
   case Auto
   case Points(Swift.Float)
   case Percent(Swift.Float)
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints(Swift.Float)
+  case FitContentPercent(Swift.Float)
+  case Stretch
+  case Content
   public enum Kind : Swift.RawRepresentable {
     case Auto
     case Points
     case Percent
+    case MinContent
+    case MaxContent
+    case FitContent
+    case FitContentPoints
+    case FitContentPercent
+    case Stretch
+    case Content
     public typealias RawValue = Swift.Int8
     public init?(rawValue: Swift.Int8)
     public var rawValue: Swift.Int8 {
@@ -2748,6 +2778,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable, Swift.Equatable {
   case NoWrap
   case Wrap
   case WrapReverse
+  case Balance
+  case BalanceReverse
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.FlexWrap.RawValue {
     get

@@ -14,6 +14,7 @@ import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 
 
 class Mason {
@@ -27,7 +28,10 @@ class Mason {
   }
   private var isAlive = true
 
-  internal val nodes = HashMap<Long, WeakReference<Node>>()
+  // ConcurrentHashMap: written from the UI thread on node creation but removed
+  // from GC.kt's Cleaner/PhantomReference callback thread — a plain HashMap
+  // raced between those two can corrupt its bucket list and hang a lookup.
+  internal val nodes = ConcurrentHashMap<Long, WeakReference<Node>>()
   private val viewNodes = WeakHashMap<android.view.View, WeakReference<Node>>()
 
   private val nodeEventListeners =

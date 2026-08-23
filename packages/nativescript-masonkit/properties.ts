@@ -846,7 +846,7 @@ alignSelfProperty.overrideHandlers({
   },
 });
 
-export const AlignContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'stretch');
+export const AlignContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly', 'stretch', 'normal', 'start', 'end');
 export const AlignContentParse = makeParser(AlignContentIsValid);
 
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
@@ -909,7 +909,7 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   },
 });
 
-export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around');
+export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly', 'stretch', 'normal', 'start', 'end');
 export const JustifyContentParse = makeParser(JustifyContentIsValid);
 
 justifyContentProperty.overrideHandlers({

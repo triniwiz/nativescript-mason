@@ -1,5 +1,5 @@
 import { layout } from '@nativescript/core/utils';
-import type { GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
+import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
 
@@ -286,7 +286,7 @@ function windowsSetGrid(nativeView: any, field: string, value: string) {
   } catch (_) {}
 }
 
-function parseLengthPercentageAuto(type: number, value: number): LengthAuto {
+function parseDimension(type: number, value: number): DimensionLength {
   switch (type) {
     case 0:
       return 'auto';
@@ -294,7 +294,57 @@ function parseLengthPercentageAuto(type: number, value: number): LengthAuto {
       return { value, unit: 'px' };
     case 2:
       return { value, unit: '%' };
+    case 3:
+      return 'min-content';
+    case 4:
+      return 'max-content';
+    case 5:
+      return 'fit-content';
+    case 6:
+      return `fit-content(${value}px)`;
+    case 7:
+      return `fit-content(${value}%)`;
+    case 8:
+      return 'stretch';
+    case 9:
+      return 'content';
   }
+}
+
+function parseLengthPercentageAuto(type: number, value: number): LengthAuto {
+  return parseDimension(type, value) as LengthAuto;
+}
+
+function dimensionFromString(value: string): { type: number; value: number } {
+  const t = value.trim();
+  if (t === '' || t === 'auto') {
+    return { type: 0, value: 0 };
+  }
+  switch (t) {
+    case 'min-content':
+      return { type: 3, value: 0 };
+    case 'max-content':
+      return { type: 4, value: 0 };
+    case 'fit-content':
+      return { type: 5, value: 0 };
+    case 'stretch':
+      return { type: 8, value: 0 };
+    case 'content':
+      return { type: 9, value: 0 };
+  }
+  if (t.startsWith('fit-content(') && t.endsWith(')')) {
+    const limit = t.slice('fit-content('.length, -1).trim();
+    if (limit.endsWith('%')) {
+      return { type: 7, value: parseFloat(limit) || 0 };
+    }
+    const n = parseFloat(limit) || 0;
+    return { type: 6, value: limit.endsWith('px') ? n : layout.toDevicePixels(n) };
+  }
+  if (t.endsWith('%')) {
+    return { type: 2, value: parseFloat(t) || 0 };
+  }
+  const n = parseFloat(t) || 0;
+  return { type: 1, value: t.endsWith('px') ? n : layout.toDevicePixels(n) };
 }
 
 function parseLengthPercentage(type: number, value: number): Length {
@@ -452,6 +502,28 @@ const splitBigIntToInt64Parts = (value: bigint): [string, string] => {
   }
 
   return [lowSigned.toString(), HIGH.toString()];
+};
+
+// Android-only fast path for syncStyle(): splits the 128-bit dirty mask into
+// four signed 32-bit words instead of two 64-bit decimal strings. Plain JS
+// `number` <-> Java `int` marshalling is a completely standard, unambiguous
+// {N} bridge path; encoding as decimal strings instead forced the receiving
+// side (Element.syncStyle(String,String)) through Long.parseUnsignedLong with
+// a BigInteger fallback on every single style write. Recombined bit-exactly
+// on the Kotlin side via (high32 << 32) | (low32 & 0xffffffff) - see
+// Element.syncStyleParts.
+const splitBigIntToInt32Parts = (value: bigint): [number, number, number, number] => {
+  const MASK64 = (1n << 64n) - 1n;
+  const MASK32 = 0xffffffffn;
+  const LOW = value & MASK64;
+  const HIGH = (value >> 64n) & MASK64;
+
+  const lowLow32 = Number(BigInt.asIntN(32, LOW & MASK32));
+  const lowHigh32 = Number(BigInt.asIntN(32, (LOW >> 32n) & MASK32));
+  const highLow32 = Number(BigInt.asIntN(32, HIGH & MASK32));
+  const highHigh32 = Number(BigInt.asIntN(32, (HIGH >> 32n) & MASK32));
+
+  return [lowLow32, lowHigh32, highLow32, highHigh32];
 };
 
 const getInt16 = (view: DataView, offset: number) => {
@@ -1113,17 +1185,20 @@ export class Style {
   }
 
   private syncStyle() {
-    const [low, high] = splitBigIntToInt64Parts(this.isDirty);
     if (__ANDROID__) {
+      const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
       const view = this.view?.android ?? (this.view._view as never as org.nativescript.mason.masonkit.Element);
-      view.syncStyle(low, high);
+      // @ts-ignore - syncStyleParts is a newer native method; typings regenerate from the AAR separately.
+      view.syncStyleParts(lowLow, lowHigh, highLow, highHigh);
     } else if (__APPLE__) {
+      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
       //@ts-ignore
       const view = this.view?.ios ?? (this.view._view as never as MasonText);
       // @ts-ignore
       view.mason_syncStyle(low, high);
     } else if (__WINDOWS__) {
+      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
       // @ts-ignore
       const view = (this.view as any)?.windows ?? this.view._view;
       (view as NativeScript.Mason.IMasonElement).SyncStyle(low, high);
@@ -1644,10 +1719,14 @@ export class Style {
         return 'wrap';
       case 2:
         return 'wrap-reverse';
+      case 3:
+        return 'balance';
+      case 4:
+        return 'balance-reverse';
     }
   }
 
-  set flexWrap(value: 'no-wrap' | 'wrap' | 'wrap-reverse') {
+  set flexWrap(value: 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
     let wrap = -1;
     switch (value) {
       case 'no-wrap':
@@ -1658,6 +1737,12 @@ export class Style {
         break;
       case 'wrap-reverse':
         wrap = 2;
+        break;
+      case 'balance':
+        wrap = 3;
+        break;
+      case 'balance-reverse':
+        wrap = 4;
         break;
     }
     if (wrap != -1) {
@@ -1754,27 +1839,15 @@ export class Style {
   get width() {
     const type = getInt8(this.style_view, StyleKeys.WIDTH_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.WIDTH_VALUE);
-    return parseLengthPercentageAuto(type, value);
+    return parseDimension(type, value);
   }
-  set width(value: LengthAuto) {
+  set width(value: DimensionLength) {
     switch (typeof value) {
       case 'string': {
-        // Parse the string instead of forcing `auto`. Reactively-applied sizes arrive as strings
-        // ("48", "48px", "50%") — the old stub dropped them to auto (0), so dynamically-added boxes
-        // rendered 0x0. unitless/dip → device pixels; px → as-is; % → percent.
         this.prepareMut();
-        const t = (value as string).trim();
-        if (t === '' || t === 'auto') {
-          setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 0);
-          setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, 0);
-        } else if (t.endsWith('%')) {
-          setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 2);
-          setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, parseFloat(t) || 0);
-        } else {
-          const n = parseFloat(t) || 0;
-          setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 1);
-          setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, t.endsWith('px') ? n : layout.toDevicePixels(n));
-        }
+        const dim = dimensionFromString(value);
+        setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
         break;
       }
       case 'number':
@@ -1808,25 +1881,15 @@ export class Style {
   get height() {
     const type = getInt8(this.style_view, StyleKeys.HEIGHT_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.HEIGHT_VALUE);
-    return parseLengthPercentageAuto(type, value);
+    return parseDimension(type, value);
   }
-  set height(value: LengthAuto) {
+  set height(value: DimensionLength) {
     switch (typeof value) {
       case 'string': {
-        // Parse the string (see width setter) — the old stub forced auto/0, breaking string sizes.
         this.prepareMut();
-        const t = (value as string).trim();
-        if (t === '' || t === 'auto') {
-          setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 0);
-          setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, 0);
-        } else if (t.endsWith('%')) {
-          setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
-          setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, parseFloat(t) || 0);
-        } else {
-          const n = parseFloat(t) || 0;
-          setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
-          setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, t.endsWith('px') ? n : layout.toDevicePixels(n));
-        }
+        const dim = dimensionFromString(value);
+        setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
         break;
       }
       case 'number':
@@ -2767,18 +2830,21 @@ export class Style {
     this.commitState(StateKeys.ASPECT_RATIO);
   }
 
-  get flexBasis(): LengthAuto {
+  get flexBasis(): DimensionLength {
     const type = getInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE);
-    return parseLengthPercentageAuto(type, value);
+    return parseDimension(type, value);
   }
 
-  set flexBasis(value: LengthAuto) {
+  set flexBasis(value: DimensionLength) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 0);
+        const dim = dimensionFromString(value);
+        setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
@@ -3136,6 +3202,12 @@ export class Style {
         break;
       case 'stretch':
         v = JustifyContent.Stretch;
+        break;
+      case 'flex-start':
+        v = JustifyContent.FlexStart;
+        break;
+      case 'flex-end':
+        v = JustifyContent.FlexEnd;
         break;
     }
     if (v !== -1) {

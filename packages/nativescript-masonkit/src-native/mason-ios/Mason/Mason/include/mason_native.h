@@ -76,6 +76,17 @@ typedef struct CMasonMinMax {
 
 struct CMason *mason_init(void);
 
+/**
+ * Like `mason_init`, but pre-reserves storage for `capacity` nodes up
+ * front instead of `Mason::new()`'s built-in default (512). Callers who
+ * know roughly how many nodes their screen/tree will have (e.g. a known
+ * list length) can pass that here to avoid the SlotMap/SecondaryMap
+ * doubling-reallocation churn that shows up as noisy compute_wh timings
+ * and ~2x extra peak memory on very large trees. `capacity` is a soft
+ * hint, not a hard limit - the tree still grows past it if needed.
+ */
+struct CMason *mason_init_with_capacity(uintptr_t capacity);
+
 void mason_clear(struct CMason *mason);
 
 void mason_release(struct CMason *mason);
@@ -354,9 +365,7 @@ void mason_node_set_context(struct CMason *mason,
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
 #endif
 
-#if !defined(TARGET_OS_ANDROID)
 void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
-#endif
 
 void mason_style_update_non_buffer_data(struct CMason *mason,
                                         struct CMasonNode *node,

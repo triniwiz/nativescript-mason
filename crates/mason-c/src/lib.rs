@@ -30,6 +30,18 @@ pub extern "C" fn mason_init() -> *mut CMason {
     Box::into_raw(Box::new(CMason(Mason::new())))
 }
 
+/// Like `mason_init`, but pre-reserves storage for `capacity` nodes up
+/// front instead of `Mason::new()`'s built-in default (512). Callers who
+/// know roughly how many nodes their screen/tree will have (e.g. a known
+/// list length) can pass that here to avoid the SlotMap/SecondaryMap
+/// doubling-reallocation churn that shows up as noisy compute_wh timings
+/// and ~2x extra peak memory on very large trees. `capacity` is a soft
+/// hint, not a hard limit - the tree still grows past it if needed.
+#[no_mangle]
+pub extern "C" fn mason_init_with_capacity(capacity: usize) -> *mut CMason {
+    Box::into_raw(Box::new(CMason(Mason::with_capacity(capacity))))
+}
+
 #[no_mangle]
 pub extern "C" fn mason_clear(mason: *mut CMason) {
     if mason.is_null() {

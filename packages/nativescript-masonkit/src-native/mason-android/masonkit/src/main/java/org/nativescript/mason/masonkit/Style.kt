@@ -613,6 +613,42 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
 
+    /**
+     * The text-affecting subset of [ALL_TEXT] that changes what the native
+     * text measure function returns (line breaking, intrinsic width/height) —
+     * mirrors TextEngine.hasTextLayoutFlags exactly; keep both in sync.
+     */
+    val TEXT_LAYOUT: StateKeys = FONT_SIZE or FONT_WEIGHT or FONT_STYLE or FONT_FAMILY or
+      FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or TEXT_TRANSFORM or LETTER_SPACING or
+      TEXT_JUSTIFY or LINE_HEIGHT or TEXT_ALIGN or TEXT_OVERFLOW or WORD_SPACING or
+      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
+
+    /**
+     * Properties whose change can affect this node's contribution to Taffy
+     * layout (size, flex basis, intrinsic text size, etc.) — as opposed to
+     * purely visual properties (colors, border-style/-radius, shadows,
+     * decorations, list-style-type, object-fit, z-index, caret-color,
+     * object-position) which only need a repaint. Used to gate
+     * `invalidateLayout()` in `updateNativeStyle()`: a write outside this mask
+     * can't change layout, so scheduling a native recompute + relayout for it
+     * is pure waste (and, for animated visual properties, actively harmful —
+     * it can shift sibling views every frame for no layout-relevant reason).
+     *
+     * When adding a new StateKeys flag: if it's unclear whether the property
+     * affects layout, default to including it here — the cost of a false
+     * positive is a skipped optimization, the cost of a false negative is a
+     * stale layout.
+     */
+    val LAYOUT_MASK: StateKeys = DISPLAY or POSITION or DIRECTION or FLEX_DIRECTION or
+      FLEX_WRAP or OVERFLOW_X or OVERFLOW_Y or ALIGN_ITEMS or ALIGN_SELF or ALIGN_CONTENT or
+      JUSTIFY_ITEMS or JUSTIFY_SELF or JUSTIFY_CONTENT or INSET or MARGIN or PADDING or
+      BORDER or FLEX_GROW or FLEX_SHRINK or FLEX_BASIS or SIZE or MIN_SIZE or MAX_SIZE or
+      GAP or ASPECT_RATIO or GRID_AUTO_FLOW or GRID_COLUMN or GRID_ROW or SCROLLBAR_WIDTH or
+      ALIGN or BOX_SIZING or OVERFLOW or ITEM_IS_TABLE or ITEM_IS_REPLACED or DISPLAY_MODE or
+      FORCE_INLINE or MIN_CONTENT_WIDTH or MIN_CONTENT_HEIGHT or MAX_CONTENT_WIDTH or
+      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or
+      TEXT_LAYOUT
+
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
       ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
 
@@ -729,14 +765,32 @@ class Style internal constructor(@Transient internal var node: Node) {
     syncFontMetrics()
   }
 
-  var font: FontFace = FontFace("sans-serif").apply {
-    addOnReloadListener(reloadListener)
-  }
+  // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
+  // dedicated single-thread Executor with no way to ever shut it down, so
+  // eagerly creating one per Style - i.e. per node, including plain non-text
+  // layout divs that never touch a font property - leaked one OS thread per
+  // node. Under rapid mount/unmount (e.g. the WebSpec conformance harness)
+  // that reached hundreds of live threads within ~30 mounted trees, degrading
+  // the whole process until native ops silently missed their deadline with no
+  // crash or error. Deferring construction until font is actually read or
+  // written means pure-layout nodes (the common case) never allocate one.
+  private var _font: FontFace? = null
+  var font: FontFace
+    get() {
+      var current = _font
+      if (current == null) {
+        current = FontFace("sans-serif").apply {
+          addOnReloadListener(reloadListener)
+        }
+        _font = current
+      }
+      return current
+    }
     set(value) {
-      val old = field
+      val old = _font
       if (old !== value) {
-        field = value
-        old.removeOnReloadListener(reloadListener)
+        _font = value
+        old?.removeOnReloadListener(reloadListener)
         value.addOnReloadListener(reloadListener)
         invalidateResolvedFontFace()
       }
@@ -1110,7 +1164,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       val changed = field && !value
       field = value
       if (changed) {
-        updateTextStyle()
+        // updateNativeStyle() already calls updateTextStyle() internally —
+        // calling it here too walked the text-style subtree twice per batch.
         updateNativeStyle()
       }
     }
@@ -4256,13 +4311,25 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
     if (isDirty != -1L) {
+      // Purely-visual writes (colors, border-style/-radius, shadows,
+      // decorations, list-style-type, object-fit, z-index, caret-color,
+      // object-position, ...) can't change this node's contribution to Taffy
+      // layout — their own targeted repaint already happened above (border
+      // renderer, caret/object-position dispatch) or happens via the fallback
+      // View.invalidate() below, so skip the native recompute + relayout.
+      val layoutAffecting = (isDirty and StateKeys.LAYOUT_MASK.low) != 0L ||
+        (isDirtyHigh and StateKeys.LAYOUT_MASK.high) != 0L
 
       if (zIndex != 0L) {
         (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
       resetState()
-      (node.view as? Element)?.invalidateLayout()
+      if (layoutAffecting) {
+        (node.view as? Element)?.invalidateLayout()
+      } else {
+        (node.view as? View)?.invalidate()
+      }
       return
     }
   }

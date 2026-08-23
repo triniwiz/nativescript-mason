@@ -62,6 +62,10 @@ export const enum FlexWrap {
   Wrap = 1,
 
   WrapReverse = 2,
+
+  Balance = 3,
+
+  BalanceReverse = 4,
 }
 
 export const enum FlexDirection {
@@ -94,6 +98,20 @@ export const enum MasonDimensionCompatType {
   Points = 1,
 
   Percent = 2,
+
+  MinContent = 3,
+
+  MaxContent = 4,
+
+  FitContent = 5,
+
+  FitContentPoints = 6,
+
+  FitContentPercent = 7,
+
+  Stretch = 8,
+
+  Content = 9,
 }
 
 export const enum PositionType {
@@ -242,7 +260,7 @@ export function _markDirty(instance: View);
 
 export function _isDirty(instance: View): boolean;
 
-export function _intoType(type: 'auto' | 'points' | 'percent'): MasonDimensionCompatType;
+export function _intoType(type: 'auto' | 'points' | 'percent' | 'min-content' | 'max-content' | 'fit-content' | 'fit-content-points' | 'fit-content-percent' | 'stretch' | 'content'): MasonDimensionCompatType;
 
 export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0): Length;
 
@@ -252,7 +270,7 @@ export function _parseLengthPercentage(dim: org.nativescript.mason.masonkit.Leng
 
 export function _parseLengthPercentageAuto(dim: org.nativescript.mason.masonkit.LengthPercentageAuto | MasonLengthPercentageAutoCompat): LengthAuto;
 
-export function _toMasonDimension(value): { value: number; type: 'auto' | 'points' | 'percent'; native_type: MasonDimensionCompatType };
+export function _toMasonDimension(value): { value: number; type: 'auto' | 'points' | 'percent' | 'min-content' | 'max-content' | 'fit-content' | 'fit-content-points' | 'fit-content-percent' | 'stretch' | 'content'; native_type: MasonDimensionCompatType };
 
 export function _intoMasonDimension(value): org.nativescript.mason.masonkit.Dimension;
 

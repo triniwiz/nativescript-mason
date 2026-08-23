@@ -245,7 +245,17 @@ impl Mason {
         self.0.inner().style_arena.stats()
     }
     pub fn new() -> Self {
-        Self::with_capacity(128)
+        // 128 measurably undershoots a typical real screen (the perf-audit
+        // baseline scenario alone was 287 nodes) - every platform's default
+        // init path (Android nativeInit, iOS mason_init, Windows) goes
+        // through this constructor, so undersizing here means every app
+        // pays several SlotMap/SecondaryMap doubling-reallocation events
+        // during its very first layout pass. 512 comfortably covers a
+        // single small-to-medium screen without materially increasing
+        // memory for trivial ones (each pre-reserved slot is a few hundred
+        // bytes, not the multi-KB per-node cost of an actually-populated
+        // node - see Node's Style/Cache/inline_measure_cache fields).
+        Self::with_capacity(512)
     }
 
     pub fn clear(&mut self) {
@@ -649,9 +659,22 @@ impl Mason {
     }
 
     pub fn layout(&self, node_id: Id) -> Vec<f32> {
-        let mut output = vec![];
-        copy_output(&self.0, node_id, &mut output);
-        output
+        // Reuse a thread-local scratch buffer across calls instead of walking
+        // the tree into a fresh, zero-capacity Vec every time - the walk in
+        // copy_output grows the buffer incrementally as it recurses, which
+        // otherwise reallocates repeatedly on every single `layout()` call.
+        // The final clone is still one allocation (this fn's signature
+        // returns an owned Vec), but that's one copy instead of several
+        // grow-and-copy steps during the walk itself.
+        thread_local! {
+            static SCRATCH: std::cell::RefCell<Vec<f32>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+        SCRATCH.with(|scratch| {
+            let mut output = scratch.borrow_mut();
+            output.clear();
+            copy_output(&self.0, node_id, &mut output);
+            output.clone()
+        })
     }
 
     pub fn layout_raw(&self, node_id: Id) -> Layout {

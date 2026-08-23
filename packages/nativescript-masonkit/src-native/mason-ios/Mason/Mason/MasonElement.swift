@@ -410,6 +410,21 @@ extension MasonElement {
     }
   }
 
+  /// NativeScript's JS measure pass drives a root Mason view's compute+apply
+  /// itself (mason_computeWithSize/mason_computeWithMaxContent) before setting
+  /// this view's frame. That frame write triggers layoutSubviews, and without
+  /// this call autoComputeIfRoot would see `computeCacheDirty` (set by every
+  /// compute call) and immediately recompute a second time — via computeWithSize
+  /// only, which silently overrides a max-content measurement with the parent's
+  /// exact bounds. Call right after the JS-driven compute to tell
+  /// autoComputeIfRoot the current parent size is already satisfied.
+  public func markRootComputeApplied() {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    _lastAutoComputeSize = parentSize
+    computeCacheDirty = false
+  }
+
   public func append(_ element: MasonElement){
     node.appendChild(element.node)
   }

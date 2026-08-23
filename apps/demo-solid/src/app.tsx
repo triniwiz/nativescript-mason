@@ -8,6 +8,7 @@ import Transforms from './components/transforms'
 import Backgrounds from './components/backgrounds'
 import Position from './components/position'
 import QA from './components/qa'
+import WebSpec from './webspec/WebSpec'
 
 declare module 'solid-navigation' {
   export interface Routers {
@@ -21,6 +22,7 @@ declare module 'solid-navigation' {
       Backgrounds: RouteDefinition
       Position: RouteDefinition
       QA: RouteDefinition
+      WebSpec: RouteDefinition
     }
   }
 }
@@ -37,6 +39,7 @@ const App = () => {
       <Route name="Backgrounds" component={Backgrounds} />
       <Route name="Position" component={Position} />
       <Route name="QA" component={QA} />
+      <Route name="WebSpec" component={WebSpec} />
     </StackRouter>
   )
 }

@@ -43,6 +43,13 @@ open class Node internal constructor(
   internal var hasNativeClickDispatch = false
   internal var isPlaceholder = false
   internal var isImage = false
+
+  // Sticky (only ever set true, never cleared) hint that this node's own
+  // view is a TextContainer or some descendant's is, maintained by
+  // appendChild. Lets invalidateDescendantTextViews skip walking subtrees
+  // that contain no text at all, instead of unconditionally recursing into
+  // every child on every text-style write.
+  internal var hasTextDescendant = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
       computeCacheDirty = true
@@ -145,6 +152,14 @@ open class Node internal constructor(
   open var parent: Node?
     internal set(value) {
       layoutParent = value
+      // Every insertion path (appendChild, replaceChildAt, insertChildBefore/
+      // After, addChildAt, ...) assigns `parent` to attach a node somewhere in
+      // the tree, so hooking it here — rather than each call site — is the one
+      // place that reliably keeps `hasTextDescendant` in sync no matter how a
+      // text-bearing node got attached.
+      if (value != null && (view is TextContainer || hasTextDescendant)) {
+        markHasTextDescendant(value)
+      }
     }
     get() {
       var p = layoutParent
@@ -721,10 +736,13 @@ open class Node internal constructor(
     }
 
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
-      // Early exit if node has no initialized text values
-      // if (!node.style.isTextValueInitialized) {
-      //  return
-      // }
+      // Early exit for subtrees that contain no text at all (see
+      // Node.hasTextDescendant / markHasTextDescendant, maintained by
+      // appendChild) — avoids an unconditional O(subtree) walk on every
+      // text-style write when most of the subtree isn't text.
+      if (!node.hasTextDescendant && node.view !is TextContainer) {
+        return
+      }
 
       // Direct invalidation if this is a TextView
       if (node.view is TextContainer) {
@@ -757,6 +775,17 @@ open class Node internal constructor(
         StyleKeys.PSEUDO_SET_MASK_HIGH,
         buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high
       )
+    }
+  }
+
+  // Marks `start` and its ancestors as having a text descendant, stopping at
+  // the first ancestor that's already marked (either it was marked earlier,
+  // or one of its own ancestors was, which already covers `start`).
+  private fun markHasTextDescendant(start: Node) {
+    var anc: Node? = start
+    while (anc != null && !anc.hasTextDescendant) {
+      anc.hasTextDescendant = true
+      anc = anc.parent
     }
   }
 
@@ -801,6 +830,8 @@ open class Node internal constructor(
         child.container = it
         it.engine.invalidateInlineSegments()
       }
+      // `container.view` is a TextContainer by construction above.
+      markHasTextDescendant(container)
       NodeUtils.invalidateLayout(this)
     } else {
       children.add(child)
@@ -815,6 +846,8 @@ open class Node internal constructor(
       if (child is TextContainer) {
         (child as? TextContainer)?.engine?.invalidateInlineSegments()
       }
+      // hasTextDescendant propagation already happened via the `child.parent =
+      // this` assignment above (see the `parent` property setter).
 
       // Single pass invalidation of descendants with text styles
       val descendantTextViews = if (view is TextContainer) {
@@ -1321,6 +1354,13 @@ open class Node internal constructor(
     // During compute Rust holds the lock — skip JNI to avoid deadlock
     if (mason.inCompute) {
       computeCacheDirty = true
+      return
+    }
+    // computeCacheDirty stays true from the first dirty() until the next
+    // compute consumes it (setComputedSize clears it) — so if it's already
+    // true, the native side is already marked dirty and this call would
+    // just be a redundant JNI crossing.
+    if (computeCacheDirty) {
       return
     }
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)

@@ -11,13 +11,7 @@ import QuartzCore
 import FontManager
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
-  switch (type) {
-  case 0: return .Auto
-  case 1: return .Points(value)
-  case 2: return .Percent(value)
-  default:
-    return nil
-  }
+  return MasonDimension.fromValueType(value, type)
 }
 
 private func getLengthPercentageAuto(_ value: Float,_ type: Int) -> MasonLengthPercentageAuto? {
@@ -3185,15 +3179,7 @@ public class MasonStyle: NSObject {
   public var flexBasis: MasonDimension {
     get {
       let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      switch(getInt8(StyleKeys.FLEX_BASIS_TYPE)){
-      case 0:
-        return MasonDimension.Auto
-      case 1:
-        return MasonDimension.Points(value)
-      case 2:
-        return MasonDimension.Percent(value)
-      default: return MasonDimension.Auto // assert ??
-      }
+      return MasonDimension.fromValueType(value, getInt8(StyleKeys.FLEX_BASIS_TYPE)) ?? MasonDimension.Auto
       
     }
     set {
@@ -3206,18 +3192,8 @@ public class MasonStyle: NSObject {
   }
   
   public func setFlexBasis(_ value: Float,_ type: Int) {
-    switch(type){
-    case 0:
-      flexBasis = MasonDimension.Auto
-      break
-    case 1:
-      flexBasis =  MasonDimension.Points(value)
-      break
-    case 2:
-      flexBasis =  MasonDimension.Percent(value)
-      break
-    default: break
-      //noop
+    if let basis = MasonDimension.fromValueType(value, type) {
+      flexBasis = basis
     }
   }
   

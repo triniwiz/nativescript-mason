@@ -338,6 +338,10 @@ func computeWithMaxContent<T: MasonElement>(_ element: T) {
   element.computeWithMaxContent()
 }
 
+func markRootComputeApplied<T: MasonElement>(_ element: T) {
+  element.markRootComputeApplied()
+}
+
 func attachAndApply<T: MasonElement>(_ element: T) {
   element.attachAndApply()
 }
@@ -562,7 +566,12 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     guard let element = self as? MasonElement else { return }
     computeWithMaxContent(element)
   }
-  
+
+  @objc public func mason_markRootComputeApplied(){
+    guard let element = self as? MasonElement else { return }
+    markRootComputeApplied(element)
+  }
+
   @objc public func mason_computeWithMinContent(){
     guard let element = self as? MasonElement else { return }
     computeWithMinContent(element)

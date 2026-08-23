@@ -558,6 +558,13 @@ public class TextEngine: NSObject {
   private var segmentsInvalidateVersion: UInt64 = 0
   private var attributedStringVersion: UInt64 = 0
 
+  // Last (version, constraintSize) collectAndCacheSegments() sent for. The
+  // CTFrame itself is rebuilt every call, so it can't signal "unchanged"
+  // the way Android's cached StaticLayout instance does — this pair is the
+  // narrowest substitute.
+  private var lastSegmentsVersion: UInt64 = UInt64.max
+  private var lastSegmentsConstraintSize = CGSize(width: -1, height: -1)
+
   private func currentFontMetrics() -> FontMetrics {
     let metrics = style.fontMetrics
     if metrics.ascent > 0 || metrics.descent > 0 {
@@ -1576,15 +1583,22 @@ public class TextEngine: NSObject {
   /// Collect inline segments and push to Rust
   /// This is called during measure to provide segments before Rust's inline layout runs
   private func collectAndCacheSegments(from frame: CTFrame, _ constraints: CGSize) {
-    
+    // Nothing relevant changed since the segments already sent for this
+    // exact (content, constraint) pair — skip the frame/line walk + FFI push.
+    if lastSegmentsVersion == segmentsInvalidateVersion && lastSegmentsConstraintSize == constraints {
+      return
+    }
+
     let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
-    
+
     guard !lines.isEmpty else {
       // Empty text - send empty segments
       if let ptr = node.nativePtr {
         mason_node_clear_segments(node.mason.nativePtr, ptr)
       }
       attributedStringVersion = segmentsInvalidateVersion
+      lastSegmentsVersion = segmentsInvalidateVersion
+      lastSegmentsConstraintSize = constraints
       return
     }
     
@@ -1651,5 +1665,7 @@ public class TextEngine: NSObject {
     
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
     attributedStringVersion = segmentsInvalidateVersion
+    lastSegmentsVersion = segmentsInvalidateVersion
+    lastSegmentsConstraintSize = constraints
   }
 }

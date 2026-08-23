@@ -63,6 +63,10 @@ export const enum FlexWrap {
   Wrap = 1,
 
   WrapReverse = 2,
+
+  Balance = 3,
+
+  BalanceReverse = 4,
 }
 
 export const enum FlexDirection {
@@ -95,6 +99,20 @@ export const enum MasonDimensionCompatType {
   Points = 1,
 
   Percent = 2,
+
+  MinContent = 3,
+
+  MaxContent = 4,
+
+  FitContent = 5,
+
+  FitContentPoints = 6,
+
+  FitContentPercent = 7,
+
+  Stretch = 8,
+
+  Content = 9,
 }
 
 export const enum PositionType {
@@ -300,7 +318,7 @@ export function _isDirty(instance: View) {
   return getNode(instance).isDirty;
 }
 
-export function _intoType(type: 'auto' | 'points' | 'percent') {
+export function _intoType(type: 'auto' | 'points' | 'percent' | 'min-content' | 'max-content' | 'fit-content' | 'fit-content-points' | 'fit-content-percent' | 'stretch' | 'content') {
   switch (type) {
     case 'auto':
       return MasonDimensionCompatType.Auto;
@@ -308,6 +326,20 @@ export function _intoType(type: 'auto' | 'points' | 'percent') {
       return MasonDimensionCompatType.Points;
     case 'percent':
       return MasonDimensionCompatType.Percent;
+    case 'min-content':
+      return MasonDimensionCompatType.MinContent;
+    case 'max-content':
+      return MasonDimensionCompatType.MaxContent;
+    case 'fit-content':
+      return MasonDimensionCompatType.FitContent;
+    case 'fit-content-points':
+      return MasonDimensionCompatType.FitContentPoints;
+    case 'fit-content-percent':
+      return MasonDimensionCompatType.FitContentPercent;
+    case 'stretch':
+      return MasonDimensionCompatType.Stretch;
+    case 'content':
+      return MasonDimensionCompatType.Content;
     default:
       return MasonDimensionCompatType.Auto;
   }
@@ -323,6 +355,20 @@ export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension |
       return { value: value, unit: 'px' };
     case MasonDimensionCompatType.Percent:
       return { value: value, unit: '%' };
+    case MasonDimensionCompatType.MinContent:
+      return 'min-content';
+    case MasonDimensionCompatType.MaxContent:
+      return 'max-content';
+    case MasonDimensionCompatType.FitContent:
+      return 'fit-content';
+    case MasonDimensionCompatType.FitContentPoints:
+      return `fit-content(${value}px)`;
+    case MasonDimensionCompatType.FitContentPercent:
+      return `fit-content(${value}%)`;
+    case MasonDimensionCompatType.Stretch:
+      return 'stretch';
+    case MasonDimensionCompatType.Content:
+      return 'content';
   }
 }
 
@@ -361,12 +407,18 @@ export function _parseLengthPercentageAuto(dim: org.nativescript.mason.masonkit.
   }
 }
 
-export function _toMasonDimension(value): { value: number; type: 'auto' | 'points' | 'percent'; native_type: MasonDimensionCompatType } {
+export function _toMasonDimension(value): { value: number; type: 'auto' | 'points' | 'percent' | 'min-content' | 'max-content' | 'fit-content' | 'fit-content-points' | 'fit-content-percent' | 'stretch' | 'content'; native_type: MasonDimensionCompatType } {
   if (value === undefined || value === null) {
     return value;
   }
   if (value === 'auto') {
     return { value: 0, type: 'auto', native_type: 0 /* MasonDimensionCompatType.Auto */ };
+  }
+  if (typeof value === 'string') {
+    const parsed = _parseDimensionString(value);
+    if (parsed) {
+      return parsed;
+    }
   }
 
   let typeOf = typeof value;
@@ -393,13 +445,61 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
   return { value: value, type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
 }
 
+function _parseDimensionString(value: string): ReturnType<typeof _toMasonDimension> | null {
+  const t = value.trim();
+  switch (t) {
+    case 'auto':
+      return { value: 0, type: 'auto', native_type: MasonDimensionCompatType.Auto };
+    case 'min-content':
+      return { value: 0, type: 'min-content', native_type: MasonDimensionCompatType.MinContent };
+    case 'max-content':
+      return { value: 0, type: 'max-content', native_type: MasonDimensionCompatType.MaxContent };
+    case 'fit-content':
+      return { value: 0, type: 'fit-content', native_type: MasonDimensionCompatType.FitContent };
+    case 'stretch':
+      return { value: 0, type: 'stretch', native_type: MasonDimensionCompatType.Stretch };
+    case 'content':
+      return { value: 0, type: 'content', native_type: MasonDimensionCompatType.Content };
+  }
+  if (t.startsWith('fit-content(') && t.endsWith(')')) {
+    const limit = t.slice('fit-content('.length, -1).trim();
+    if (limit.endsWith('%')) {
+      return { value: parseFloat(limit) || 0, type: 'fit-content-percent', native_type: MasonDimensionCompatType.FitContentPercent };
+    }
+    const n = parseFloat(limit) || 0;
+    return { value: limit.endsWith('px') ? n : Utils.layout.toDevicePixels(n), type: 'fit-content-points', native_type: MasonDimensionCompatType.FitContentPoints };
+  }
+  return null;
+}
+
 export function _intoMasonDimension(value) {
   if (value === undefined || value === null) {
     return null;
   }
 
-  if (value === 'auto') {
-    return MasonDimensionCompat.Auto;
+  if (typeof value === 'string') {
+    const parsed = _parseDimensionString(value);
+    if (parsed) {
+      const DimensionCompat = MasonDimensionCompat as any;
+      switch (parsed.native_type) {
+        case MasonDimensionCompatType.Auto:
+          return DimensionCompat.Auto;
+        case MasonDimensionCompatType.MinContent:
+          return DimensionCompat.MinContent;
+        case MasonDimensionCompatType.MaxContent:
+          return DimensionCompat.MaxContent;
+        case MasonDimensionCompatType.FitContent:
+          return DimensionCompat.FitContent;
+        case MasonDimensionCompatType.FitContentPoints:
+          return DimensionCompat.alloc().initWithFitContentPoints(parsed.value);
+        case MasonDimensionCompatType.FitContentPercent:
+          return DimensionCompat.alloc().initWithFitContentPercent(parsed.value);
+        case MasonDimensionCompatType.Stretch:
+          return DimensionCompat.Stretch;
+        case MasonDimensionCompatType.Content:
+          return DimensionCompat.Content;
+      }
+    }
   }
 
   const typeOf = typeof value;

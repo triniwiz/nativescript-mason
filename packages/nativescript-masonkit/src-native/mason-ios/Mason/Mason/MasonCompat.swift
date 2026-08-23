@@ -21,6 +21,16 @@ public class MasonDimensionCompat: NSObject, Codable {
         dimension = .Percent(percent)
         dimensionType = .Percent
     }
+
+    public init(fitContentPoints: Float) {
+        dimension = .FitContentPoints(fitContentPoints)
+        dimensionType = .FitContentPoints
+    }
+
+    public init(fitContentPercent: Float) {
+        dimension = .FitContentPercent(fitContentPercent)
+        dimensionType = .FitContentPercent
+    }
     
     internal init(value: MasonDimension) {
         dimension = value
@@ -31,6 +41,20 @@ public class MasonDimensionCompat: NSObject, Codable {
             dimensionType = .Percent
         case .Auto:
             dimensionType = .Auto
+        case .MinContent:
+            dimensionType = .MinContent
+        case .MaxContent:
+            dimensionType = .MaxContent
+        case .FitContent:
+            dimensionType = .FitContent
+        case .FitContentPoints(_):
+            dimensionType = .FitContentPoints
+        case .FitContentPercent(_):
+            dimensionType = .FitContentPercent
+        case .Stretch:
+            dimensionType = .Stretch
+        case .Content:
+            dimensionType = .Content
         }
     }
     
@@ -47,7 +71,13 @@ public class MasonDimensionCompat: NSObject, Codable {
                 return points
             case .Percent(let percent):
                 return percent
+            case .FitContentPoints(let points):
+                return points
+            case .FitContentPercent(let percent):
+                return percent
             case .Auto:
+                return 0
+            default:
                 return 0
             }
         }
@@ -65,6 +95,11 @@ public class MasonDimensionCompat: NSObject, Codable {
     }
     
     public static let Auto = MasonDimensionCompat(value: .Auto)
+    public static let MinContent = MasonDimensionCompat(value: .MinContent)
+    public static let MaxContent = MasonDimensionCompat(value: .MaxContent)
+    public static let FitContent = MasonDimensionCompat(value: .FitContent)
+    public static let Stretch = MasonDimensionCompat(value: .Stretch)
+    public static let Content = MasonDimensionCompat(value: .Content)
     
     public static let Zero = MasonDimensionCompat(value: .Points(0))
 }

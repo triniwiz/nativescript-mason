@@ -26,15 +26,32 @@ pub enum Handle {
     Button,
 }
 
+/// Packs a slot index (low 24 bits) and a reuse generation (high 8 bits).
+/// The generation rejects a handle from before a `release()` once its slot
+/// is reused — raw handles cross the FFI boundary as plain integers and can
+/// outlive the node that produced them.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StyleHandle(u32);
 impl StyleHandle {
+    const INDEX_BITS: u32 = 24;
+    const INDEX_MASK: u32 = (1 << Self::INDEX_BITS) - 1;
+
     pub const fn new(handle: Handle) -> Self {
         Self(handle as u32)
     }
 
     pub const fn from_raw(id: u32) -> Self {
         Self(id)
+    }
+
+    #[inline]
+    fn pack(index: u32, generation: u8) -> Self {
+        Self(((generation as u32) << Self::INDEX_BITS) | (index & Self::INDEX_MASK))
+    }
+
+    #[inline]
+    fn generation(self) -> u8 {
+        (self.0 >> Self::INDEX_BITS) as u8
     }
 }
 
@@ -50,7 +67,7 @@ impl StyleHandle {
 
     #[inline]
     pub fn index(self) -> usize {
-        self.0 as usize
+        (self.0 & Self::INDEX_MASK) as usize
     }
 }
 
@@ -131,6 +148,8 @@ const NUM_DEFAULTS: usize = 8;
 pub struct StyleArena {
     buffers: Vec<StyleBuffer>,
     free_list: Vec<u32>,
+    /// Reuse generation per slot, parallel to `buffers`; bumped in `release`.
+    generations: Vec<u8>,
     /// Hash index from buffer content hash → buffer indices for O(1) intern lookup
     hash_index: std::collections::HashMap<u64, Vec<u32>>,
     /// Pristine copies of each default buffer, used to restore them after COW
@@ -265,6 +284,7 @@ impl StyleArena {
                 button,
             ],
             free_list: Vec::new(),
+            generations: vec![0u8; NUM_DEFAULTS],
             hash_index: std::collections::HashMap::new(),
             default_snapshots,
         };
@@ -275,6 +295,27 @@ impl StyleArena {
 
         arena
     }
+
+    /// Like `new`, but pre-sizes the slot storage for `capacity` non-default
+    /// buffers to avoid `Vec` reallocation churn during bulk node creation.
+    pub fn with_capacity(default_data: &[u8; STYLE_BUFFER_SIZE], capacity: usize) -> Self {
+        let mut arena = Self::new(default_data);
+        arena.buffers.reserve(capacity);
+        arena.generations.reserve(capacity);
+        arena.free_list.reserve(capacity);
+        arena.hash_index.reserve(capacity);
+        arena
+    }
+
+    /// Whether `handle`'s slot hasn't been freed and reused since. FFI call
+    /// sites must check this; internal callers use `debug_assert!` instead.
+    #[inline]
+    fn is_current(&self, handle: StyleHandle) -> bool {
+        self.generations
+            .get(handle.index())
+            .is_some_and(|&g| g == handle.generation())
+    }
+
     #[inline]
     fn is_default_index(idx: usize) -> bool {
         idx < NUM_DEFAULTS
@@ -319,11 +360,13 @@ impl StyleArena {
 
     /// Get the reference count for a handle
     pub fn ref_count(&self, handle: StyleHandle) -> u32 {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to ref_count");
         self.buffers[handle.index()].ref_count
     }
 
     /// Increment reference count (for when a node copies another's handle)
     pub fn retain(&mut self, handle: StyleHandle) {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to retain");
         let buffer = &mut self.buffers[handle.index()];
         buffer.ref_count += 1;
         let ref_count = buffer.ref_count;
@@ -332,6 +375,7 @@ impl StyleArena {
 
     /// Release a handle (decrement ref count, free if zero)
     pub fn release(&mut self, handle: StyleHandle) {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to release");
         if matches!(
             handle,
             StyleHandle::DEFAULT
@@ -363,7 +407,7 @@ impl StyleArena {
         set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, ref_count);
 
         if buf.ref_count == 0 {
-            // Remove from hash index before clearing buffer data
+            // Remove from hash index before the slot is reused
             let hash =
                 Self::hash_buffer(<&[u8; STYLE_BUFFER_SIZE]>::try_from(buf.bytes()).unwrap());
             if let Some(indices) = self.hash_index.get_mut(&hash) {
@@ -372,12 +416,13 @@ impl StyleArena {
                     self.hash_index.remove(&hash);
                 }
             }
-            // Clear stale data from the freed buffer
-            buf.mut_bytes().fill(0);
+            // alloc() overwrites this slot on reuse, and the generation bump
+            // below rejects stale reads in the meantime — no need to zero.
             #[cfg(target_os = "android")]
             {
                 buf.buffer = -1;
             }
+            self.generations[idx] = self.generations[idx].wrapping_add(1);
             self.free_list.push(idx as u32);
         }
     }
@@ -551,32 +596,39 @@ impl StyleArena {
 impl StyleArena {
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> objc2::rc::Retained<NSMutableData> {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to buffer");
         self.buffers[handle.index()].buffer()
     }
 
+    /// FFI entry point: a stale handle returns `None` instead of aliasing
+    /// the slot's new occupant (Swift may hold `handle` past a `release()`).
     #[track_caller]
     pub fn buffer_opt(&self, handle: StyleHandle) -> Option<objc2::rc::Retained<NSMutableData>> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers.get(handle.index()).map(|b| b.buffer())
     }
 
     /// Allocate a new buffer with the given data
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
-        let idx = if let Some(free_idx) = self.free_list.pop() {
+        let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
             buf.ref_count = 1;
             buf.buffer.set_bytes(data);
             set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
-            free_idx
+            (free_idx, self.generations[free_idx as usize])
         } else {
             let idx = self.buffers.len() as u32;
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
             set_style_data_u32(buffer.mut_bytes(), StyleKeys::REF_COUNT, 1);
             self.buffers.push(buffer);
-            idx
+            self.generations.push(0);
+            (idx, 0)
         };
 
-        StyleHandle(idx)
+        StyleHandle::pack(idx, generation)
     }
 
     /// Intern: find an existing identical buffer or allocate a new one
@@ -591,7 +643,7 @@ impl StyleArena {
                     buf.ref_count += 1;
                     let ref_count = buf.ref_count;
                     set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, ref_count);
-                    return StyleHandle(idx);
+                    return StyleHandle::pack(idx, self.generations[idx as usize]);
                 }
             }
         }
@@ -606,6 +658,7 @@ impl StyleArena {
 
     /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
     pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to prepare_mut");
         let idx = handle.index();
 
         if self.buffers[idx].ref_count == 1 {
@@ -613,8 +666,9 @@ impl StyleArena {
             return (handle, ptr);
         }
 
-        // COW: capture current data (may include JS writes — correct for new buffer)
-        let data = self.buffers[idx].bytes().to_vec();
+        // COW: capture current data (may include JS writes — correct for new
+        // buffer) as a stack array, not a heap-allocated Vec.
+        let data: [u8; STYLE_BUFFER_SIZE] = self.buffers[idx].bytes().try_into().unwrap();
 
         {
             let current = &mut self.buffers[idx];
@@ -629,26 +683,36 @@ impl StyleArena {
             self.restore_default(idx);
         }
 
-        let new_handle = self.alloc(<&[u8; STYLE_BUFFER_SIZE]>::try_from(data.as_slice()).unwrap());
+        let new_handle = self.alloc(&data);
         let ptr = self.buffers[new_handle.index()].mut_bytes().as_mut_ptr();
         (new_handle, ptr)
     }
 
     /// Get read-only pointer to buffer data
     pub fn get_ptr(&self, handle: StyleHandle) -> *const u8 {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr");
         self.buffers[handle.index()].bytes().as_ptr()
     }
 
+    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
     pub fn get_ptr_opt(&self, handle: StyleHandle) -> Option<*const u8> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers.get(handle.index()).map(|b| b.bytes().as_ptr())
     }
 
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
     pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr_mut");
         self.buffers[handle.index()].mut_bytes().as_mut_ptr()
     }
 
+    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
     pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers
             .get_mut(handle.index())
             .map(|b| b.mut_bytes().as_mut_ptr())
@@ -656,6 +720,7 @@ impl StyleArena {
 
     /// Get read-only reference to buffer data
     pub fn get(&self, handle: StyleHandle) -> &[u8; STYLE_BUFFER_SIZE] {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get");
         <&[u8; STYLE_BUFFER_SIZE]>::try_from(self.buffers[handle.index()].bytes()).unwrap()
     }
 }
@@ -665,12 +730,18 @@ impl StyleArena {
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> jni::sys::jint {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to buffer");
         self.buffers[handle.index()].buffer()
     }
 
+    /// FFI entry point: a stale handle returns `None` instead of aliasing
+    /// the slot's new occupant (Kotlin may hold `handle` past a `release()`).
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn buffer_opt(&self, handle: StyleHandle) -> Option<jni::sys::jint> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers.get(handle.index()).and_then(|b| {
             let id = b.buffer();
             if id >= 0 {
@@ -682,24 +753,24 @@ impl StyleArena {
     }
 
     /// Allocate a new buffer with the given data
-
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
-        let idx = if let Some(free_idx) = self.free_list.pop() {
+        let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
             buf.data.copy_from_slice(data);
             buf.ref_count = 1;
             set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
-            free_idx
+            (free_idx, self.generations[free_idx as usize])
         } else {
             let idx = self.buffers.len() as u32;
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
             set_style_data_u32(buffer.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
             self.buffers.push(buffer);
-            idx
+            self.generations.push(0);
+            (idx, 0)
         };
 
-        StyleHandle(idx)
+        StyleHandle::pack(idx, generation)
     }
 
     /// Intern: find an existing identical buffer or allocate a new one
@@ -717,7 +788,7 @@ impl StyleArena {
                         StyleKeys::REF_COUNT,
                         buf.ref_count,
                     );
-                    return StyleHandle(idx);
+                    return StyleHandle::pack(idx, self.generations[idx as usize]);
                 }
             }
         }
@@ -732,6 +803,7 @@ impl StyleArena {
 
     /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
     pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to prepare_mut");
         let idx = handle.index();
 
         if self.buffers[idx].ref_count == 1 {
@@ -762,19 +834,29 @@ impl StyleArena {
 
     /// Get read-only pointer to buffer data
     pub fn get_ptr(&self, handle: StyleHandle) -> *const u8 {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr");
         self.buffers[handle.index()].data.as_ptr()
     }
 
+    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
     pub fn get_ptr_opt(&self, handle: StyleHandle) -> Option<*const u8> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers.get(handle.index()).map(|b| b.data.as_ptr())
     }
 
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
     pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr_mut");
         self.buffers[handle.index()].data.as_mut_ptr()
     }
 
+    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
     pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
+        if !self.is_current(handle) {
+            return None;
+        }
         self.buffers
             .get_mut(handle.index())
             .map(|b| b.data.as_mut_ptr())
@@ -782,11 +864,17 @@ impl StyleArena {
 
     /// Get read-only reference to buffer data
     pub fn get(&self, handle: StyleHandle) -> &[u8; STYLE_BUFFER_SIZE] {
+        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get");
         &self.buffers[handle.index()].data
     }
 
+    /// FFI entry point — a stale `handle` (see `buffer_opt`) is a no-op
+    /// rather than attaching the buffer id to the wrong slot.
     #[cfg(target_os = "android")]
     pub(crate) fn set_handle_buffer(&mut self, handle: StyleHandle, buffer_id: i32) {
+        if !self.is_current(handle) {
+            return;
+        }
         if let Some(data) = self.buffers.get_mut(handle.index()) {
             if data.buffer != -1 {
                 return;
@@ -804,4 +892,58 @@ pub struct ArenaStats {
     pub total_refs: usize,
     pub free_slots: usize,
     pub buffer_memory: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn released_slot_reuse_invalidates_stale_handle() {
+        let mut arena = StyleArena::default();
+        let data = [0u8; STYLE_BUFFER_SIZE];
+
+        let a = arena.alloc(&data);
+        arena.release(a);
+        // Slot `a` is now free; the next alloc reuses it with a bumped generation.
+        let b = arena.alloc(&data);
+
+        assert_eq!(a.index(), b.index(), "expected the freed slot to be reused");
+        assert_ne!(
+            a, b,
+            "handles into the same reused slot must differ by generation"
+        );
+        assert!(!arena.is_current(a), "stale handle must be rejected");
+        assert!(arena.is_current(b), "freshly issued handle must be valid");
+
+        // FFI accessors must refuse the stale handle, not alias the new occupant.
+        assert!(arena.get_ptr_opt(a).is_none());
+        assert!(arena.get_ptr_opt(b).is_some());
+    }
+
+    #[test]
+    fn intern_hit_stamps_the_slots_current_generation() {
+        let mut arena = StyleArena::default();
+        let mut data = [7u8; STYLE_BUFFER_SIZE];
+        // alloc() always stamps REF_COUNT = 1 into the buffer after copying
+        // `data` in, so a byte-for-byte re-match requires the same stamp.
+        set_style_data_u32(&mut data, StyleKeys::REF_COUNT, 1);
+
+        // Bump some slot's generation past 0 by freeing and reusing it, then
+        // have intern() land a fresh allocation of `data` on that same slot.
+        let filler = arena.alloc(&[1u8; STYLE_BUFFER_SIZE]);
+        arena.release(filler);
+        let a = arena.intern(&data);
+        assert_eq!(a.index(), filler.index(), "expected the freed slot reused");
+        assert!(arena.is_current(a));
+
+        // The hash-index hit path must stamp the slot's real generation,
+        // not fabricate generation 0.
+        let b = arena.intern(&data);
+        assert_eq!(
+            a, b,
+            "intern() hit must reproduce the slot's actual generation"
+        );
+        assert!(arena.is_current(b));
+    }
 }

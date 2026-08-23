@@ -14,6 +14,13 @@ public enum MasonDimensionCompatType: Int, RawRepresentable, Codable {
   case Auto
   case Points
   case Percent
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints
+  case FitContentPercent
+  case Stretch
+  case Content
   
   public typealias RawValue = Int8
   
@@ -25,6 +32,20 @@ public enum MasonDimensionCompatType: Int, RawRepresentable, Codable {
       return 1
     case .Percent:
       return 2
+    case .MinContent:
+      return 3
+    case .MaxContent:
+      return 4
+    case .FitContent:
+      return 5
+    case .FitContentPoints:
+      return 6
+    case .FitContentPercent:
+      return 7
+    case .Stretch:
+      return 8
+    case .Content:
+      return 9
     }
   }
   
@@ -37,6 +58,20 @@ public enum MasonDimensionCompatType: Int, RawRepresentable, Codable {
       self = .Points
     case 2:
       self = .Percent
+    case 3:
+      self = .MinContent
+    case 4:
+      self = .MaxContent
+    case 5:
+      self = .FitContent
+    case 6:
+      self = .FitContentPoints
+    case 7:
+      self = .FitContentPercent
+    case 8:
+      self = .Stretch
+    case 9:
+      self = .Content
     default:
       return nil
     }
@@ -255,12 +290,26 @@ public enum MasonDimension: Codable, Equatable {
   case Auto
   case Points(Float)
   case Percent(Float)
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints(Float)
+  case FitContentPercent(Float)
+  case Stretch
+  case Content
   
   
   public enum Kind: RawRepresentable {
     case Auto
     case Points
     case Percent
+    case MinContent
+    case MaxContent
+    case FitContent
+    case FitContentPoints
+    case FitContentPercent
+    case Stretch
+    case Content
     
     public typealias RawValue = Int8
     
@@ -272,6 +321,20 @@ public enum MasonDimension: Codable, Equatable {
         self = .Points
       case 2:
         self = .Percent
+      case 3:
+        self = .MinContent
+      case 4:
+        self = .MaxContent
+      case 5:
+        self = .FitContent
+      case 6:
+        self = .FitContentPoints
+      case 7:
+        self = .FitContentPercent
+      case 8:
+        self = .Stretch
+      case 9:
+        self = .Content
       default:
         return nil
       }
@@ -285,6 +348,20 @@ public enum MasonDimension: Codable, Equatable {
         return 1
       case .Percent:
         return 2
+      case .MinContent:
+        return 3
+      case .MaxContent:
+        return 4
+      case .FitContent:
+        return 5
+      case .FitContentPoints:
+        return 6
+      case .FitContentPercent:
+        return 7
+      case .Stretch:
+        return 8
+      case .Content:
+        return 9
       }
     }
   }
@@ -303,6 +380,20 @@ public enum MasonDimension: Codable, Equatable {
       return Points(value)
     case 2:
       return Percent(value)
+    case 3:
+      return MinContent
+    case 4:
+      return MaxContent
+    case 5:
+      return FitContent
+    case 6:
+      return FitContentPoints(value)
+    case 7:
+      return FitContentPercent(value)
+    case 8:
+      return Stretch
+    case 9:
+      return Content
     default:
       return nil
     }
@@ -317,6 +408,12 @@ public enum MasonDimension: Codable, Equatable {
         return value <= 0
       case .Percent(let value):
         return value <= 0
+      case .FitContentPoints(let value):
+        return value <= 0
+      case .FitContentPercent(let value):
+        return value <= 0
+      default:
+        return false
       }
     }
   }
@@ -327,6 +424,13 @@ public enum MasonDimension: Codable, Equatable {
       case .Auto: return Kind.Auto.rawValue
       case .Points: return Kind.Points.rawValue
       case .Percent: return Kind.Percent.rawValue
+      case .MinContent: return Kind.MinContent.rawValue
+      case .MaxContent: return Kind.MaxContent.rawValue
+      case .FitContent: return Kind.FitContent.rawValue
+      case .FitContentPoints: return Kind.FitContentPoints.rawValue
+      case .FitContentPercent: return Kind.FitContentPercent.rawValue
+      case .Stretch: return Kind.Stretch.rawValue
+      case .Content: return Kind.Content.rawValue
       }
     }
   }
@@ -337,7 +441,10 @@ public enum MasonDimension: Codable, Equatable {
       switch (self) {
       case .Points(let points): return points
       case .Percent(let percent): return percent
+      case .FitContentPoints(let points): return points
+      case .FitContentPercent(let percent): return percent
       case .Auto: return 0
+      default: return 0
       }
     }
   }
@@ -352,6 +459,20 @@ public enum MasonDimension: Codable, Equatable {
         return "\(percent)%"
       case .Auto:
         return "auto"
+      case .MinContent:
+        return "min-content"
+      case .MaxContent:
+        return "max-content"
+      case .FitContent:
+        return "fit-content"
+      case .FitContentPoints(let points):
+        return "fit-content(\(points)px)"
+      case .FitContentPercent(let percent):
+        return "fit-content(\(percent)%)"
+      case .Stretch:
+        return "stretch"
+      case .Content:
+        return "content"
       }
     }
   }
@@ -370,6 +491,21 @@ public enum MasonDimension: Codable, Equatable {
       switch(value){
       case "auto":
         self = .Auto
+        break
+      case "min-content":
+        self = .MinContent
+        break
+      case "max-content":
+        self = .MaxContent
+        break
+      case "fit-content":
+        self = .FitContent
+        break
+      case "stretch":
+        self = .Stretch
+        break
+      case "content":
+        self = .Content
         break
       default:
         // todo
@@ -393,6 +529,12 @@ public enum MasonDimension: Codable, Equatable {
         break
       case "%", "percent":
         self = .Percent(value)
+        break
+      case "fit-content-px", "fit-content-points":
+        self = .FitContentPoints(value)
+        break
+      case "fit-content-%", "fit-content-percent":
+        self = .FitContentPercent(value)
         break
         
       default:
@@ -418,6 +560,29 @@ public enum MasonDimension: Codable, Equatable {
       var container = encoder.singleValueContainer()
       try container.encode("auto")
       break
+    case .MinContent:
+      var container = encoder.singleValueContainer()
+      try container.encode("min-content")
+    case .MaxContent:
+      var container = encoder.singleValueContainer()
+      try container.encode("max-content")
+    case .FitContent:
+      var container = encoder.singleValueContainer()
+      try container.encode("fit-content")
+    case .FitContentPoints:
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(value, forKey: .value)
+      try container.encode("fit-content-points", forKey: .unit)
+    case .FitContentPercent:
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(value, forKey: .value)
+      try container.encode("fit-content-percent", forKey: .unit)
+    case .Stretch:
+      var container = encoder.singleValueContainer()
+      try container.encode("stretch")
+    case .Content:
+      var container = encoder.singleValueContainer()
+      try container.encode("content")
     }
   }
   
@@ -1545,6 +1710,8 @@ public enum FlexWrap: Int, RawRepresentable {
   case NoWrap
   case Wrap
   case WrapReverse
+  case Balance
+  case BalanceReverse
   
   
   public typealias RawValue = Int8
@@ -1557,6 +1724,10 @@ public enum FlexWrap: Int, RawRepresentable {
       return 1
     case .WrapReverse:
       return 2
+    case .Balance:
+      return 3
+    case .BalanceReverse:
+      return 4
     }
   }
   
@@ -1569,6 +1740,10 @@ public enum FlexWrap: Int, RawRepresentable {
       self = .Wrap
     case 2:
       self = .WrapReverse
+    case 3:
+      self = .Balance
+    case 4:
+      self = .BalanceReverse
     default:
       return nil
     }
@@ -1582,6 +1757,10 @@ public enum FlexWrap: Int, RawRepresentable {
       return "wrap"
     case .WrapReverse:
       return "wrap-reverse"
+    case .Balance:
+      return "balance"
+    case .BalanceReverse:
+      return "balance-reverse"
     }
   }
 }

@@ -14,10 +14,12 @@
     "remove-package": "nx g @nativescript/plugin-tools:remove-package",
     "add-demo": "nx g @nativescript/plugin-tools:add-demo",
     "gen:tests": "cd tools/scripts/gentests/ && node index.js && cd ../../../",
+    "gen:webspec": "node tools/scripts/webspec-tests/generate.mjs",
     "build:all": "nx run-many --target=build.all --all"
   },
   "private": true,
   "devDependencies": {
+    "@angular-devkit/build-angular": "^21.0.0",
     "@angular/animations": "^21.0.0",
     "@angular/common": "^21.0.0",
     "@angular/compiler": "^21.0.0",
@@ -33,14 +35,14 @@
     "@nativescript/types": "~9.0.0",
     "@nativescript/webpack": "~5.0.5",
     "@ngtools/webpack": "^21.0.0",
+    "cheerio": "^1.0.0-rc.12",
     "husky": "~9.0.0",
     "ng-packagr": "^21.0.0",
+    "playwright": "^1.62.1",
     "rxjs": "~7.8.0",
     "sass": "1.53.0",
     "typescript": "~5.9.0",
-    "zone.js": "~0.16.0",
-    "@angular-devkit/build-angular": "^21.0.0",
-    "cheerio": "^1.0.0-rc.12"
+    "zone.js": "~0.16.0"
   },
   "resolutions": {
     "sass": "1.53.0"

@@ -1,4 +1,4 @@
-use crate::node::NodeType;
+use crate::node::{NodeMeasure, NodeType};
 use crate::style::{DisplayMode, FontMetrics, VerticalAlign, VerticalAlignValue};
 use crate::{Id, InlineSegment, Tree};
 
@@ -413,6 +413,12 @@ struct InlineFormattingContext {
     base_available: f32,
     content_box_left_base: f32,
     float_rects: Vec<taffy::Rect<f32>>,
+    // Running total of `line.height()` for every line already pushed to
+    // `lines`, kept in sync at each of the 3 push sites. `current_y_offset()`
+    // used to re-sum all of `lines` on every call, and it's called from
+    // `update_available_for_current_line()` at up to 8 sites during
+    // float-aware layout - O(n^2) in line count. This makes it O(1).
+    y_offset_accum: f32,
 }
 
 impl InlineFormattingContext {
@@ -435,6 +441,7 @@ impl InlineFormattingContext {
             base_available: available_width,
             content_box_left_base: content_box_left,
             float_rects,
+            y_offset_accum: 0.0,
         };
 
         // Initialize available width for the first line
@@ -443,11 +450,7 @@ impl InlineFormattingContext {
     }
 
     fn current_y_offset(&self) -> f32 {
-        let mut sum = 0.0_f32;
-        for line in &self.lines {
-            sum += line.height();
-        }
-        sum + self.content_box_top
+        self.y_offset_accum + self.content_box_top
     }
 
     fn update_available_for_current_line(&mut self) {
@@ -481,6 +484,7 @@ impl InlineFormattingContext {
     fn wrap_line(&mut self) {
         if !self.current_line.is_empty() {
             let line = std::mem::replace(&mut self.current_line, Line::new(self.parent_font));
+            self.y_offset_accum += line.height();
             self.lines.push(line);
         }
     }
@@ -495,6 +499,7 @@ impl InlineFormattingContext {
             line.max_descent = line.max_descent.max(self.parent_font.descent);
         }
 
+        self.y_offset_accum += line.height();
         self.lines.push(line);
     }
 
@@ -595,6 +600,7 @@ impl InlineFormattingContext {
             margin.bottom,
             false,
         );
+        self.y_offset_accum += block_line.height();
         self.lines.push(block_line);
     }
 
@@ -1326,6 +1332,32 @@ impl Tree {
         })
     }
 
+    /// Measure a leaf via its JNI-backed `NodeMeasure`, going through `child_id`'s
+    /// `inline_measure_cache` first. `compute_leaf_layout` (taffy) can invoke its
+    /// measure closure several times per call with the same exact
+    /// known-dimensions/available-space combo (e.g. once per line-breaking probe at
+    /// a given width) - this avoids re-crossing into Java for repeats.
+    #[inline]
+    fn cached_leaf_measure(
+        &mut self,
+        child_id: Id,
+        measure: &NodeMeasure,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Size<f32> {
+        if let Some(cached) = self.nodes()[child_id]
+            .inline_measure_cache
+            .get(known_dimensions, available_space)
+        {
+            return cached;
+        }
+        let result = measure.measure(known_dimensions, available_space);
+        self.nodes_mut()[child_id]
+            .inline_measure_cache
+            .store(known_dimensions, available_space, result);
+        result
+    }
+
     fn measure_inline_child(&mut self, child_id: Id, inputs: LayoutInput) -> LayoutOutput {
         // Check if this is a replaced element (image, video, etc.)
         let is_replaced = self.nodes()[child_id].style().get_item_is_replaced();
@@ -1442,10 +1474,12 @@ impl Tree {
         // here.
         if has_measure && !is_text_container {
             let measure = self.node_data().get(child_id).unwrap().copy_measure();
-            let style = self.nodes()[child_id].style().clone();
-            let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
+            let is_inline =
+                matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            let mut adjusted_style = style.clone();
+            // Only the mutated copy needs cloning - reading display_mode() above
+            // doesn't require its own clone.
+            let mut adjusted_style = self.nodes()[child_id].style().clone();
             if is_inline {
                 let mut size = adjusted_style.size();
                 if !size.width.is_auto() && size.width.value() == 0.0 {
@@ -1471,7 +1505,7 @@ impl Tree {
                     // we invoke it outside long-lived tree locks. This log
                     // helps detect accidental lock-holding during tests.
 
-                    measure.measure(measure_known, available_space)
+                    self.cached_leaf_measure(child_id, &measure, measure_known, available_space)
                 },
             );
 
@@ -1552,11 +1586,12 @@ impl Tree {
             }
 
             let measure = self.node_data().get(child_id).unwrap().copy_measure();
-            let style = self.nodes()[child_id].style().clone();
+            let is_inline =
+                matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
-
-            let mut adjusted_style = style.clone();
+            // Only the mutated copy needs cloning - reading display_mode() above
+            // doesn't require its own clone.
+            let mut adjusted_style = self.nodes()[child_id].style().clone();
 
             if is_inline {
                 let mut size = adjusted_style.size();
@@ -1680,7 +1715,7 @@ impl Tree {
                     };
                     // debug prints removed
 
-                    measure.measure(measure_known, available_space)
+                    self.cached_leaf_measure(child_id, &measure, measure_known, available_space)
                 },
             );
 
@@ -2369,7 +2404,7 @@ impl Tree {
                     };
                     // Measure callback must be invoked outside of long-held
                     // tree locks; we copy the measure earlier to enforce this.
-                    let meas = measure.measure(measure_known, available_space);
+                    let meas = self.cached_leaf_measure(id, &measure, measure_known, available_space);
                     #[cfg(test)]
                     eprintln!(
                         "MEASURE_TRACE node={:?} known={:?} avail={:?} => size={:?}",
@@ -2656,7 +2691,7 @@ impl Tree {
                     &style,
                     |_val, _basis| 0.0,
                     |known_dimensions, available_space| {
-                        measure.measure(known_dimensions, available_space)
+                        self.cached_leaf_measure(id, &measure, known_dimensions, available_space)
                     },
                 )
             } else {

@@ -536,6 +536,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonFlexWrap, "FlexWrap", open) {
   MasonFlexWrapNoWrap = 0,
   MasonFlexWrapWrap = 1,
   MasonFlexWrapWrapReverse = 2,
+  MasonFlexWrapBalance = 3,
+  MasonFlexWrapBalanceReverse = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFontStyle, "FontStyle", open) {
@@ -714,12 +716,24 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
 - (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPoints:(float)fitContentPoints OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPercent:(float)fitContentPercent OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic, readonly) enum MasonDimensionCompatType type;
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
 + (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MinContent;)
++ (MasonDimensionCompat * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MaxContent;)
++ (MasonDimensionCompat * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull FitContent;)
++ (MasonDimensionCompat * _Nonnull)FitContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Stretch;)
++ (MasonDimensionCompat * _Nonnull)Stretch SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Content;)
++ (MasonDimensionCompat * _Nonnull)Content SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Zero;)
 + (MasonDimensionCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
@@ -730,6 +744,13 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCom
   MasonDimensionCompatTypeAuto = 0,
   MasonDimensionCompatTypePoints = 1,
   MasonDimensionCompatTypePercent = 2,
+  MasonDimensionCompatTypeMinContent = 3,
+  MasonDimensionCompatTypeMaxContent = 4,
+  MasonDimensionCompatTypeFitContent = 5,
+  MasonDimensionCompatTypeFitContentPoints = 6,
+  MasonDimensionCompatTypeFitContentPercent = 7,
+  MasonDimensionCompatTypeStretch = 8,
+  MasonDimensionCompatTypeContent = 9,
 };
 
 SWIFT_CLASS_NAMED("MasonDimensionPointCompat")
@@ -1766,6 +1787,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSize;
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
+- (void)mason_markRootComputeApplied;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;
@@ -2514,6 +2536,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonFlexWrap, "FlexWrap", open) {
   MasonFlexWrapNoWrap = 0,
   MasonFlexWrapWrap = 1,
   MasonFlexWrapWrapReverse = 2,
+  MasonFlexWrapBalance = 3,
+  MasonFlexWrapBalanceReverse = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFontStyle, "FontStyle", open) {
@@ -2692,12 +2716,24 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
 - (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPoints:(float)fitContentPoints OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPercent:(float)fitContentPercent OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic, readonly) enum MasonDimensionCompatType type;
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
 + (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MinContent;)
++ (MasonDimensionCompat * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MaxContent;)
++ (MasonDimensionCompat * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull FitContent;)
++ (MasonDimensionCompat * _Nonnull)FitContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Stretch;)
++ (MasonDimensionCompat * _Nonnull)Stretch SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Content;)
++ (MasonDimensionCompat * _Nonnull)Content SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Zero;)
 + (MasonDimensionCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
@@ -2708,6 +2744,13 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCom
   MasonDimensionCompatTypeAuto = 0,
   MasonDimensionCompatTypePoints = 1,
   MasonDimensionCompatTypePercent = 2,
+  MasonDimensionCompatTypeMinContent = 3,
+  MasonDimensionCompatTypeMaxContent = 4,
+  MasonDimensionCompatTypeFitContent = 5,
+  MasonDimensionCompatTypeFitContentPoints = 6,
+  MasonDimensionCompatTypeFitContentPercent = 7,
+  MasonDimensionCompatTypeStretch = 8,
+  MasonDimensionCompatTypeContent = 9,
 };
 
 SWIFT_CLASS_NAMED("MasonDimensionPointCompat")
@@ -3744,6 +3787,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSize;
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
+- (void)mason_markRootComputeApplied;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;

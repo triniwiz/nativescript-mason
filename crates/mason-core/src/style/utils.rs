@@ -91,6 +91,13 @@ pub fn dimension_from_type_value(value_type: i8, value: f32) -> Dimension {
         0 => Dimension::auto(),
         1 => Dimension::length(value),
         2 => Dimension::percent(value),
+        3 => Dimension::min_content(),
+        4 => Dimension::max_content(),
+        5 => Dimension::fit_content(),
+        6 => Dimension::fit_content_px(value),
+        7 => Dimension::fit_content_percent(value),
+        8 => Dimension::stretch(),
+        9 => Dimension::content(),
         _ => unreachable!(),
     }
 }
@@ -104,6 +111,13 @@ pub fn dimension_to_type_value(value: Dimension) -> (i8, f32) {
     match raw.tag() {
         CompactLength::LENGTH_TAG => (1, raw.value()),
         CompactLength::PERCENT_TAG => (2, raw.value()),
+        CompactLength::MIN_CONTENT_TAG => (3, 0.0),
+        CompactLength::MAX_CONTENT_TAG => (4, 0.0),
+        CompactLength::FIT_CONTENT_KEYWORD_TAG => (5, 0.0),
+        CompactLength::FIT_CONTENT_PX_TAG => (6, raw.value()),
+        CompactLength::FIT_CONTENT_PERCENT_TAG => (7, raw.value()),
+        CompactLength::STRETCH_TAG => (8, 0.0),
+        CompactLength::CONTENT_TAG => (9, 0.0),
         _ => unreachable!(),
     }
 }
@@ -117,6 +131,13 @@ pub fn dimension_to_format_type_value(value: Dimension) -> String {
     match raw.tag() {
         CompactLength::LENGTH_TAG => std::format!("{:?}", raw.value()),
         CompactLength::PERCENT_TAG => std::format!("{:?}%", raw.value()),
+        CompactLength::MIN_CONTENT_TAG => "min-content".to_string(),
+        CompactLength::MAX_CONTENT_TAG => "max-content".to_string(),
+        CompactLength::FIT_CONTENT_KEYWORD_TAG => "fit-content".to_string(),
+        CompactLength::FIT_CONTENT_PX_TAG => std::format!("fit-content({:?})", raw.value()),
+        CompactLength::FIT_CONTENT_PERCENT_TAG => std::format!("fit-content({:?}%)", raw.value()),
+        CompactLength::STRETCH_TAG => "stretch".to_string(),
+        CompactLength::CONTENT_TAG => "content".to_string(),
         _ => unreachable!(),
     }
 }
