@@ -897,6 +897,8 @@ open class Node internal constructor(
         }
       } else {
         val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+        // must be linked before attributes.sync() below (inherits via node.parent)
+        container.parent = this
         container.children.add(child)
         (container.view as? TextView)?.let {
           child.attributes.sync(it.node.style)
@@ -934,6 +936,8 @@ open class Node internal constructor(
             if (hasRight) {
               afterContainer =
                 getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+              // must be linked before attributes.sync() below (inherits via node.parent)
+              afterContainer.parent = this
               // move right-side text nodes into afterContainer
               val moved =
                 containerNode.children.subList(idxInContainer + 1, containerNode.children.size)
@@ -952,7 +956,6 @@ open class Node internal constructor(
               // insert afterContainer into parent's layout children immediately after original container
               if (containerIndexInParent >= 0) {
                 children.add(containerIndexInParent + 1, afterContainer)
-                afterContainer.parent = this
                 (view as? ViewGroup)?.let { view ->
                   view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
                     view.addView(afterContainer.view as? View, it + 1)
@@ -968,8 +971,6 @@ open class Node internal constructor(
               } else {
                 // fallback: append
                 children.add(afterContainer)
-                afterContainer.parent = this
-
 
                 (view as? ViewGroup)?.let { view ->
                   view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
@@ -1132,6 +1133,8 @@ open class Node internal constructor(
       // Reference is not a text node (or not in an anonymous text container).
       // Create an anonymous text container and insert it at the index.
       val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+      // must be linked before attributes.sync() below (inherits via node.parent)
+      container.parent = this
       container.children.clear()
       container.children.add(child)
       child.parent = container
@@ -1143,7 +1146,6 @@ open class Node internal constructor(
 
       val refPos = children.indexOf(reference).takeIf { it >= 0 } ?: 0
       children.add(refPos, container)
-      container.parent = this
       // ensure the view/native tree gets updated via NodeUtils
       NodeUtils.addView(this, container.view as? View)
 
@@ -1207,6 +1209,8 @@ open class Node internal constructor(
           var afterContainer: Node? = null
           if (rightSlice.isNotEmpty()) {
             afterContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+            // must be linked before attributes.sync() below (inherits via node.parent)
+            afterContainer.parent = this
             afterContainer.children.clear()
             for (n in rightSlice) {
               afterContainer.children.add(n)
@@ -1230,7 +1234,6 @@ open class Node internal constructor(
             child.parent = this
             if (afterContainer != null) {
               children.add(insertPos + 1, afterContainer)
-              afterContainer.parent = this
               // add view for after-container
               NodeUtils.addView(this, afterContainer.view as? View)
             }
@@ -1242,7 +1245,6 @@ open class Node internal constructor(
             child.parent = this
             if (afterContainer != null) {
               children.add(replacePos + 1, afterContainer)
-              afterContainer.parent = this
               if (afterContainer.nativePtr != 0L) {
                 NativeHelpers.nativeNodeAddChild(
                   mason.nativePtr,
@@ -1356,13 +1358,8 @@ open class Node internal constructor(
       computeCacheDirty = true
       return
     }
-    // computeCacheDirty stays true from the first dirty() until the next
-    // compute consumes it (setComputedSize clears it) — so if it's already
-    // true, the native side is already marked dirty and this call would
-    // just be a redundant JNI crossing.
-    if (computeCacheDirty) {
-      return
-    }
+    // always cross the JNI boundary; computeCacheDirty isn't a reliable
+    // "native already knows" signal and skipping here dropped dirty marks
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }

@@ -64,6 +64,9 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
 
 func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentageAuto? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  // "auto" has no numeric part, so it can never match lengthPercentageRegex
+  // below (its first group is a mandatory digit run) — check it separately.
+  if v == "auto" { return .Auto }
   guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
     return nil
   }
@@ -76,9 +79,8 @@ func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -
       unitRange.location != NSNotFound
       ? String(v[Range(unitRange, in: v)!])
       : nil
-  
+
   switch unit {
-  case "auto": return .Auto
   case "px": return .Points(num * scale)
   case "%": return .Percent(num / 100)
   case "dip": return .Points(num * scale)
@@ -385,8 +387,12 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentage($0) }
-    if tokens.isEmpty { return }
+    // CSS spec: an invalid token anywhere invalidates the whole shorthand
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentage($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentage]
     switch tokens.count {
@@ -425,8 +431,13 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentageAuto($0) }
-    if tokens.isEmpty { return }
+    // See the comment in parsePaddingShorthand above: an invalid token must
+    // invalidate the whole shorthand, not just get silently dropped.
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentageAuto($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentageAuto]
     switch tokens.count {
@@ -465,8 +476,13 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentageAuto($0) }
-    if tokens.isEmpty { return }
+    // See the comment in parsePaddingShorthand above: an invalid token must
+    // invalidate the whole shorthand, not just get silently dropped.
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentageAuto($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentageAuto]
     switch tokens.count {

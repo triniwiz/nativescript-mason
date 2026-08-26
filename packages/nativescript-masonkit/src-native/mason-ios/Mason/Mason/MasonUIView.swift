@@ -104,7 +104,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       style.mBorderRender.draw(in: context, rect: bounds)
     }
 
-    style.applyResolvedFilter(in: context, rect: bounds, view: self)
+    if hasFilter {
+      style.applyResolvedFilter(in: context, rect: bounds, view: self)
+    }
   }
 
   private func drawListItemMarkers(in context: CGContext) {

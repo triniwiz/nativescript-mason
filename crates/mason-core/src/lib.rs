@@ -582,6 +582,8 @@ impl Mason {
         if let Some(n) = self.0.nodes_mut().get_mut(node) {
             n.has_measure = has_measure;
         }
+        // measure fn changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     /// Alias for [`set_measure`]; kept for ABI compatibility.
@@ -617,6 +619,8 @@ impl Mason {
         if let Some(node) = self.0.nodes_mut().get_mut(node) {
             node.has_measure = has_measure;
         }
+        // measure fn changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     #[cfg(target_vendor = "apple")]
@@ -769,18 +773,22 @@ impl Mason {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().push(segment);
         }
+        // segments changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     pub fn clear_segments(&mut self, node: Id) {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().clear();
         }
+        self.0.mark_dirty(node);
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
         if let Some(data) = self.0.node_data().get(node) {
             *data.inline_segments.lock() = segments;
         }
+        self.0.mark_dirty(node);
     }
 
     pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {
@@ -1529,17 +1537,35 @@ mod tests {
 
         drop(inner);
 
-        // Mutate parent style which should mark it dirty and clear its cache
+        // mutate to a different value; should mark dirty and clear cache
         mason.with_style_mut(pid, |s| {
-            s.set_display(taffy::style::Display::Block);
+            s.set_display(taffy::style::Display::Flex);
         });
 
-        // After mutation, cache should be cleared
         let inner2 = mason.0.inner();
         let node2 = inner2.nodes.get(pid).unwrap();
         assert!(
             node2.cache.is_empty(),
-            "expected cache to be cleared after style change"
+            "expected cache to be cleared after a real style change"
+        );
+        drop(inner2);
+
+        // recompute, then re-apply the same value as a no-op write
+        mason.compute(pid);
+        let inner3 = mason.0.inner();
+        assert!(
+            !inner3.nodes.get(pid).unwrap().cache.is_empty(),
+            "expected cache to be populated after recompute"
+        );
+        drop(inner3);
+
+        mason.with_style_mut(pid, |s| {
+            s.set_display(taffy::style::Display::Flex);
+        });
+        let inner4 = mason.0.inner();
+        assert!(
+            !inner4.nodes.get(pid).unwrap().cache.is_empty(),
+            "expected cache to survive a no-op style write (same value re-applied)"
         );
     }
 

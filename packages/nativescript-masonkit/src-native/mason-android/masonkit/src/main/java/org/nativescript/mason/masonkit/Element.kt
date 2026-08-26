@@ -1,7 +1,8 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -84,11 +85,21 @@ interface Element : EventTarget {
     if (node.mason.inCompute) {
       return node.layoutTree
     }
+    // fast-path: skip the JNI round-trip + DFS reparse if a prior compute()
+    // already left a clean, non-empty tree (same as computeAndLayout(w, h))
+    if (!node.computeCacheDirty && node.layoutTree.nodeCount > 0) {
+      return node.layoutTree
+    }
     val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
     if (layouts.isEmpty()) {
       return MasonLayoutTree.empty
     }
-    node.layoutTree.fromFloatArray(layouts)
+    if (!node.layoutTree.fromFloatArray(layouts)) {
+      // another applyLayoutFlat DFS is mid-walk on this tree; keep it dirty
+      // and schedule a follow-up instead of trusting this skipped refill
+      node.computeCacheDirty = true
+      invalidateLayout()
+    }
     return node.layoutTree
   }
 
@@ -163,17 +174,21 @@ interface Element : EventTarget {
   fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
+    var applied = true
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
       if (layout.isEmpty()) {
         return MasonLayoutTree.empty
       }
-      node.layoutTree.fromFloatArray(layout)
+      applied = node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
       node.computeCache = SizeF(-1f, -1f)
-      node.computeCacheDirty = false // compute just ran — cache is clean
+      node.computeCacheDirty = !applied // compute just ran — cache is clean, unless the refill was skipped (see MasonLayoutTree.reading)
+      if (!applied) {
+        invalidateLayout()
+      }
     }
     return node.layoutTree
   }
@@ -190,10 +205,8 @@ interface Element : EventTarget {
   }
 
   fun computeAndLayout(width: Float, height: Float): MasonLayoutTree {
-    Log.w("MASON_DIAG2", "computeAndLayout(w,h) CALLED node=${node.nativePtr} w=$width h=$height cacheDirty=${node.computeCacheDirty} cacheW=${node.computeCache.width} cacheH=${node.computeCache.height} treeCount=${node.layoutTree.nodeCount}")
     val mason = node.mason
     if (mason.inCompute) {
-      Log.w("MASON_DIAG2", "  -> SKIPPED (inCompute)")
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     }
 
@@ -206,11 +219,10 @@ interface Element : EventTarget {
       && node.computeCache.height == height
       && node.layoutTree.nodeCount > 0
     ) {
-      Log.w("MASON_DIAG2", "  -> SKIPPED (cache hit)")
       return node.layoutTree
     }
 
-    Log.w("MASON_DIAG2", "  -> RUNNING native compute")
+    var applied = true
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
@@ -222,11 +234,15 @@ interface Element : EventTarget {
       if (layout.isEmpty()) {
         return MasonLayoutTree.empty
       }
-      node.layoutTree.fromFloatArray(layout)
+      applied = node.layoutTree.fromFloatArray(layout)
     } finally {
       mason.inCompute = false
       node.computeCache = SizeF(width, height)
-      node.computeCacheDirty = false // compute just ran — cache is clean
+      // clean unless the refill was skipped (see MasonLayoutTree.reading)
+      node.computeCacheDirty = !applied
+      if (!applied) {
+        invalidateLayout()
+      }
     }
     return node.layoutTree
   }
@@ -456,24 +472,32 @@ interface Element : EventTarget {
       // to return a stale layout tree.  By only requesting a layout pass we
       // let computeAndLayout() (called from onMeasure) do the compute AND
       // serialize the layout in one shot, giving applyLayoutFlat correct data.
-      targetView.postOnAnimation {
-        root.computeScheduled = false
-        if (root.type == NodeType.Document) {
-          root.document?.documentElement?.let { docEl ->
-            docEl.compute(
-              if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width,
-              if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
-            )
-            docEl.view?.invalidate()
-            docEl.view?.requestLayout()
+      var finished = false
+      val runCompute = {
+        if (!finished) {
+          finished = true
+          root.computeScheduled = false
+          if (root.type == NodeType.Document) {
+            root.document?.documentElement?.let { docEl ->
+              docEl.compute(
+                if (root.computeCache.width == Float.MIN_VALUE) -2f else root.computeCache.width,
+                if (root.computeCache.height == Float.MIN_VALUE) -2f else root.computeCache.height
+              )
+              docEl.view?.invalidate()
+              docEl.view?.requestLayout()
+            }
+          } else {
+            // For normal Element roots, just request a full layout pass.
+            // computeCacheDirty is still true (set by node.dirty() above),
+            // so computeAndLayout() in onMeasure will recompute + serialize.
+            (root.view as? View)?.requestLayout()
           }
-          return@postOnAnimation
         }
-        // For normal Element roots, just request a full layout pass.
-        // computeCacheDirty is still true (set by node.dirty() above),
-        // so computeAndLayout() in onMeasure will recompute + serialize.
-        (root.view as? View)?.requestLayout()
       }
+      targetView.postOnAnimation(runCompute)
+      // Fallback: postOnAnimation is dropped if the view detaches before the
+      // next vsync, which would leave computeScheduled latched true forever.
+      Handler(Looper.getMainLooper()).postDelayed(runCompute, 32)
     }
   }
 
@@ -816,6 +840,10 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
 
   val nv = tree.cursor
   val dfs = acquireDfsState()
+  // marks this tree as being walked, so a reentrant fromFloatArray() skips
+  // its refill (see MasonLayoutTree.reading); save/restore to nest safely
+  val wasReading = tree.reading
+  tree.reading = true
   try {
     pushFrame(dfs, 0, rootNode)
 
@@ -1021,7 +1049,10 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       // layout.children provided by Rust (which omits nodes without native views).
       val childCnt = tree.childCount[treeIdx]
       if (childCnt > 0) {
-        val nativeChildren = node.children.filter { it.nativePtr != 0L }
+        // skip the filter allocation on the common path (every child has a native view)
+        val rawChildren = node.children
+        val nativeChildren =
+          if (rawChildren.any { it.nativePtr == 0L }) rawChildren.filter { it.nativePtr != 0L } else rawChildren
         val childStart = tree.childStart[treeIdx]
         for (i in (0 until childCnt).reversed()) {
           val child = nativeChildren.getOrNull(i) ?: continue
@@ -1045,6 +1076,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       }
     }
   } finally {
+    tree.reading = wasReading
     releaseDfsState()
   }
 }

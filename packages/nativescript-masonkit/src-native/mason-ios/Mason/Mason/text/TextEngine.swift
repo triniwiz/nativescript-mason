@@ -1028,7 +1028,16 @@ public class TextEngine: NSObject {
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
 
-    let framesetter = CTFramesetterCreateWithAttributedString(text)
+    // reuse the framesetter measure() already cached for this string,
+    // instead of rebuilding it on every redraw
+    let framesetter: CTFramesetter
+    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
+      framesetter = cached
+    } else {
+      framesetter = CTFramesetterCreateWithAttributedString(text)
+      cachedFramesetter = framesetter
+      framesetterStringVersion = segmentsInvalidateVersion
+    }
 
     var paddingRestore =  false
     var drawBounds = bounds

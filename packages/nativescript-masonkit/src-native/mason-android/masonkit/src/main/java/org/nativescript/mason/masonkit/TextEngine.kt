@@ -929,7 +929,7 @@ class TextEngine(val container: TextContainer) {
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint = TextPaint(paint)
+    val textPaint = scratchSegmentPaint.apply { set(paint) }
 
     // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position.
     // This replaces the per-iteration findNextViewSpan() call — which re-scanned the
@@ -1120,7 +1120,6 @@ class TextEngine(val container: TextContainer) {
       val floats = FloatArray(count * 4)
       val longs = LongArray(count)
 
-      val tPackStart = System.nanoTime()
       for (i in 0 until count) {
         when (val seg = segments[i]) {
           is InlineSegment.Text -> {
@@ -1146,8 +1145,6 @@ class TextEngine(val container: TextContainer) {
           }
         }
       }
-      val tPackEnd = System.nanoTime()
-
       // Call the packed JNI path synchronously. This path is safe when
       // invoked inside the expected native/Java measurement flow and we
       // prefer the fast packed primitive arrays.
@@ -1592,6 +1589,9 @@ class TextEngine(val container: TextContainer) {
   // used to read the run's font metrics after applying its character-style
   // spans; nothing retains this instance across runs.
   private val scratchRunPaint = TextPaint()
+
+  // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
+  private val scratchSegmentPaint = TextPaint()
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true

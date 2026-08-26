@@ -14,5 +14,9 @@ debug-assertions = false
 overflow-checks = false
 
 [workspace.dependencies]
-taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "4ae4219" }
+# Pinned to our fork's `mason-fixes` branch. Carries two patches not yet
+# upstream: determine_container_main_size's Definite branch now honours a
+# flex item's max-size AND its automatic minimum content size when computing
+# a shrink-to-fit flex container's main size.
+taffy = { git = "https://github.com/triniwiz/taffy.git", rev = "dc15d248" }
 style_atoms = { git = "https://github.com/servo/stylo", rev = "85ae0b1", package = "stylo_atoms" }

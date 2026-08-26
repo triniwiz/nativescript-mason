@@ -1401,9 +1401,12 @@ public class MasonStyle: NSObject {
   /// Resolve filter string with pseudo-aware cascade. Returns the active pseudo's filter string
   /// according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
   internal var resolvedFilterString: String {
+    // read once - pseudoMask is a fresh FFI round-trip on every access
+    let mask = node.pseudoMask
     // Check pseudo string storage on node (Swift-side) using cascade order
     for state in PSEUDO_CSS_ORDER.reversed() {
-      if node.hasPseudo(state) {
+      let isActive = state == .default ? (mask == 0) : (mask & state.rawValue) != 0
+      if isActive {
         if let s = node.getPseudoString(state.rawValue,"filter"), !s.isEmpty {
           return s
         }

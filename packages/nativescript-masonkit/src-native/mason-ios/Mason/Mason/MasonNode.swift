@@ -183,7 +183,12 @@ public class MasonNode: NSObject {
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
   internal weak var view: UIView? = nil
-  
+
+  // `view` above is weak. An anonymous text container inside another text
+  // container is never added as a real subview, so nothing else keeps it
+  // alive - retain it here instead.
+  internal var retainedAnonymousView: UIView? = nil
+
   internal var children: [MasonNode] = []
   
   internal var measureFunc: MeasureFunc? = nil
@@ -908,6 +913,9 @@ extension MasonNode {
       suppressChildOperations {
         view?.addSubview(textView)
       }
+    } else {
+      // a text container renders attributed-string runs, not subviews
+      textView.node.retainedAnonymousView = textView
     }
 
     if(append){
@@ -980,14 +988,16 @@ extension MasonNode {
       } else {
         let container = getOrCreateAnonymousTextContainer(false, checkLast: false)
         container.children.append(textChild)
-        
+        // must be linked before getDefaultAttributes() below (inherits via node.parent)
+        container.parent = self
+
         if let textView = container.view as? MasonText {
           textChild.attributes.removeAll()
           textChild.attributes.merge(textView.getDefaultAttributes()) { _, new in new }
           textChild.container = textView
           textView.engine.invalidateInlineSegments()
         }
-        
+
         guard let idx = children.firstIndex(where: { $0 === reference }) else { return }
         children[idx] = container
         reference.parent = nil
@@ -1026,7 +1036,9 @@ extension MasonNode {
           var afterContainer: MasonNode? = nil
           if hasRight {
             afterContainer = getOrCreateAnonymousTextContainer(false, checkLast: false)
-            
+            // must be linked before getDefaultAttributes() below (inherits via node.parent)
+            afterContainer?.parent = self
+
             // Move right-side text nodes into afterContainer
             let start = idxInContainer + 1
             let moved = Array(containerNode.children[start...])
@@ -1036,19 +1048,18 @@ extension MasonNode {
               }
               m.parent = afterContainer
               afterContainer?.children.append(m)
-              
+
               if let tv = afterContainer?.view as? MasonText, let mText = m as? MasonTextNode {
                 mText.attributes = tv.getDefaultAttributes()
                 mText.container = tv
               }
             }
-            
+
             // Insert afterContainer into parent’s layout children immediately after original container
             if containerIndexInParent >= 0 {
               let insertAt = containerIndexInParent + 1
               children.insert(afterContainer!, at: insertAt)
-              afterContainer?.parent = self
-              
+
               if let viewGroup = view,
                  let refContainerView = referenceText.container?.node.view,
                  let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
@@ -1066,8 +1077,7 @@ extension MasonNode {
             } else {
               // Fallback: append
               children.append(afterContainer!)
-              afterContainer?.parent = self
-              
+
               if let viewGroup = view,
                  let refContainerView = referenceText.container?.node.view,
                  let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
@@ -1233,17 +1243,18 @@ extension MasonNode {
       container.children.removeAll()
       container.children.append(textChild)
       textChild.parent = container
-      
+      // must be linked before getDefaultAttributes() below (inherits via node.parent)
+      container.parent = self
+
       if let tv = container.view as? MasonText {
         textChild.attributes.removeAll()
         textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
         textChild.container = tv
         tv.engine.invalidateInlineSegments()
       }
-      
+
       let refPos = children.firstIndex(of: reference) ?? 0
       children.insert(container, at: refPos)
-      container.parent = self
       NodeUtils.addView(self, container.view)
       NodeUtils.syncNode(self, children)
       
@@ -1298,6 +1309,8 @@ extension MasonNode {
           // append=false: the split logic inserts the container at the right
           // position itself — appending here would leave a duplicate entry.
           afterContainer = getOrCreateAnonymousTextContainer(false, checkLast: false)
+          // must be linked before getDefaultAttributes() below (inherits via node.parent)
+          afterContainer?.parent = self
           afterContainer?.children.removeAll()
           for n in rightSlice {
             afterContainer?.children.append(n)

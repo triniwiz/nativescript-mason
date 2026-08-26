@@ -16,21 +16,25 @@ private let deviceRGB = CGColorSpaceCreateDeviceRGB()
 extension Background {
   
   
-  func draw(on layer: CALayer, in context: CGContext, rect: CGRect) {
-    let resolved = style.resolvedBackgroundColor
+  // See the `on view:` overload below for what `precomputedColor` is for.
+  func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
+    let resolved = precomputedColor ?? style.resolvedBackgroundColor
     if resolved != 0 {
       context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
     }
-    
+
     for bgLayer in layers.reversed() {
       drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
     }
 
   }
 
-  func draw(on view: UIView, in context: CGContext, rect: CGRect) {
-    let resolved = style.resolvedBackgroundColor
+  // `precomputedColor`: pass an already-resolved color to avoid resolving
+  // it twice when the caller needed it anyway (resolution isn't a plain
+  // buffer read - it walks the pseudo-state chain).
+  func draw(on view: UIView, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
+    let resolved = precomputedColor ?? style.resolvedBackgroundColor
     if resolved != 0 {
       context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)

@@ -440,9 +440,10 @@ pub fn update_from_ffi(
         bottom: dimension(border_bottom_type, border_bottom_value),
     });
 
+    // width = column-gap, height = row-gap
     style.set_gap(Size {
-        width: dimension(gap_row_type, gap_row_value),
-        height: dimension(gap_column_type, gap_column_value),
+        width: dimension(gap_column_type, gap_column_value),
+        height: dimension(gap_row_type, gap_row_value),
     });
     style.set_flex_grow(flex_grow);
     style.set_flex_shrink(flex_shrink);

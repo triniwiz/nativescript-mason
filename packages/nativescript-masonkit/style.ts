@@ -335,16 +335,41 @@ function dimensionFromString(value: string): { type: number; value: number } {
   if (t.startsWith('fit-content(') && t.endsWith(')')) {
     const limit = t.slice('fit-content('.length, -1).trim();
     if (limit.endsWith('%')) {
-      return { type: 7, value: parseFloat(limit) || 0 };
+      // taffy percentages are a [0.0, 1.0] fraction, not [0.0, 100.0]
+      return { type: 7, value: (parseFloat(limit) || 0) / 100 };
     }
     const n = parseFloat(limit) || 0;
     return { type: 6, value: limit.endsWith('px') ? n : layout.toDevicePixels(n) };
   }
   if (t.endsWith('%')) {
-    return { type: 2, value: parseFloat(t) || 0 };
+    // percentages are stored as a [0.0, 1.0] fraction, not percentage points
+    return { type: 2, value: (parseFloat(t) || 0) / 100 };
   }
   const n = parseFloat(t) || 0;
   return { type: 1, value: t.endsWith('px') ? n : layout.toDevicePixels(n) };
+}
+
+// Shared parser for LengthPercentageAuto props (min/max width/height, margin, inset)
+function lengthPercentageAutoFromString(value: string): { type: number; value: number } {
+  const t = value.trim();
+  if (t === '' || t === 'auto') {
+    return { type: 0, value: 0 };
+  }
+  if (t.endsWith('%')) {
+    return { type: 2, value: (parseFloat(t) || 0) / 100 };
+  }
+  const n = parseFloat(t) || 0;
+  return { type: 1, value: t.endsWith('px') ? n : layout.toDevicePixels(n) };
+}
+
+// Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
+function lengthPercentageFromString(value: string): { type: number; value: number } {
+  const t = value.trim();
+  if (t.endsWith('%')) {
+    return { type: 1, value: (parseFloat(t) || 0) / 100 };
+  }
+  const n = parseFloat(t) || 0;
+  return { type: 0, value: t.endsWith('px') ? n : layout.toDevicePixels(n) };
 }
 
 function parseLengthPercentage(type: number, value: number): Length {
@@ -805,20 +830,21 @@ function borderStyleFromEnum(value: number): string {
   return BORDER_STYLE_VALUES[value] ?? 'none';
 }
 
-function parseObjectPosition(value: string): { xType: number; xVal: number; yType: number; yVal: number } | null {
-  const keywords: Record<string, { type: number; val: number }> = {
-    left: { type: 1, val: 0 },
-    center: { type: 1, val: 50 },
-    right: { type: 1, val: 100 },
-    top: { type: 1, val: 0 },
-    bottom: { type: 1, val: 100 },
-  };
+// hoisted so it's not rebuilt on every parseObjectPosition call
+const OBJECT_POSITION_KEYWORDS: Record<string, { type: number; val: number }> = {
+  left: { type: 1, val: 0 },
+  center: { type: 1, val: 50 },
+  right: { type: 1, val: 100 },
+  top: { type: 1, val: 0 },
+  bottom: { type: 1, val: 100 },
+};
 
+function parseObjectPosition(value: string): { xType: number; xVal: number; yType: number; yVal: number } | null {
   const parts = value.trim().split(/\s+/);
   if (parts.length === 0) return null;
 
   function parseComponent(s: string): { type: number; val: number } | null {
-    const kw = keywords[s];
+    const kw = OBJECT_POSITION_KEYWORDS[s];
     if (kw) return kw;
     if (s.endsWith('%')) return { type: 1, val: parseFloat(s) };
     return { type: 0, val: parseFloat(s) };
@@ -860,10 +886,12 @@ function fontStretchToValue(value: string): number {
   return -1;
 }
 
+// built once instead of scanning FONT_STRETCH_KEYWORDS on every getter read
+const FONT_STRETCH_REVERSE = new Map<number, string>(Object.entries(FONT_STRETCH_KEYWORDS).map(([kw, val]) => [val, kw]));
+
 function fontStretchFromValue(v: number): string {
-  for (const [kw, val] of Object.entries(FONT_STRETCH_KEYWORDS)) {
-    if (val === v) return kw;
-  }
+  const kw = FONT_STRETCH_REVERSE.get(v);
+  if (kw !== undefined) return kw;
   return `${v / 100}%`;
 }
 
@@ -1645,7 +1673,8 @@ export class Style {
       } else {
         this.isDirty = this.isDirty | StateKeys.DISPLAY_MODE.bits;
       }
-      this.commitState(StateKeys.DISPLAY.and(StateKeys.DISPLAY_MODE));
+      // DISPLAY/DISPLAY_MODE are disjoint bits; use .or(), not .and()
+      this.commitState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE));
     }
   }
 
@@ -1763,10 +1792,13 @@ export class Style {
   }
   set minWidth(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
@@ -1804,10 +1836,13 @@ export class Style {
 
   set minHeight(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
@@ -1927,10 +1962,13 @@ export class Style {
   }
   set maxWidth(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
@@ -1966,10 +2004,13 @@ export class Style {
   }
   set maxHeight(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
@@ -2147,10 +2188,12 @@ export class Style {
     var insetValue;
 
     switch (typeof value) {
-      case 'string':
-        type = 0;
-        insetValue = 0;
+      case 'string': {
+        const dim = lengthPercentageAutoFromString(value);
+        type = dim.type;
+        insetValue = dim.value;
         break;
+      }
       case 'number':
         type = 1;
         insetValue = layout.toDevicePixels(value);
@@ -2194,13 +2237,14 @@ export class Style {
   }
 
   set left(value: LengthAuto) {
-    if (value === 'auto') {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 0);
-      setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, 0);
-      return;
-    }
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 1);
@@ -2236,13 +2280,14 @@ export class Style {
   }
 
   set right(value: LengthAuto) {
-    if (value === 'auto') {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 0);
-      setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, 0);
-      return;
-    }
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 1);
@@ -2278,13 +2323,14 @@ export class Style {
   }
 
   set top(value: LengthAuto) {
-    if (value === 'auto') {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 0);
-      setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, 0);
-      return;
-    }
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 1);
@@ -2320,13 +2366,14 @@ export class Style {
   }
 
   set bottom(value: LengthAuto) {
-    if (value === 'auto') {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 0);
-      setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, 0);
-      return;
-    }
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 1);
@@ -2360,10 +2407,12 @@ export class Style {
     var marginValue;
 
     switch (typeof value) {
-      case 'string':
-        type = 0;
-        marginValue = 0;
+      case 'string': {
+        const dim = lengthPercentageAutoFromString(value);
+        type = dim.type;
+        marginValue = dim.value;
         break;
+      }
       case 'number':
         type = 1;
         marginValue = layout.toDevicePixels(value);
@@ -2408,10 +2457,13 @@ export class Style {
 
   set marginLeft(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
@@ -2448,10 +2500,13 @@ export class Style {
 
   set marginRight(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
@@ -2488,10 +2543,13 @@ export class Style {
 
   set marginTop(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
@@ -2527,10 +2585,13 @@ export class Style {
   }
   set marginBottom(value: LengthAuto) {
     switch (typeof value) {
-      case 'string':
+      case 'string': {
         this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 0);
+        const dim = lengthPercentageAutoFromString(value);
+        setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, dim.value);
         break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
@@ -2574,6 +2635,13 @@ export class Style {
 
   set paddingLeft(value: Length) {
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageFromString(value);
+        setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
@@ -2609,6 +2677,13 @@ export class Style {
   }
   set paddingRight(value: Length) {
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageFromString(value);
+        setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
@@ -2645,6 +2720,13 @@ export class Style {
 
   set paddingTop(value: Length) {
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageFromString(value);
+        setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
@@ -2680,6 +2762,13 @@ export class Style {
   }
   set paddingBottom(value: Length) {
     switch (typeof value) {
+      case 'string': {
+        this.prepareMut();
+        const dim = lengthPercentageFromString(value);
+        setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, dim.type);
+        setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, dim.value);
+        break;
+      }
       case 'number':
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
@@ -2825,6 +2914,7 @@ export class Style {
   }
 
   set aspectRatio(value: number) {
+    if (getFloat32(this.style_view, StyleKeys.ASPECT_RATIO) === value) return;
     this.prepareMut();
     setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, value);
     this.commitState(StateKeys.ASPECT_RATIO);
@@ -3002,10 +3092,15 @@ export class Style {
         return 'start';
       case AlignContent.Stretch:
         return 'stretch';
+      case AlignContent.FlexStart:
+        return 'flex-start';
+      case AlignContent.FlexEnd:
+        return 'flex-end';
     }
   }
 
-  set alignContent(value: 'normal' | 'space-around' | 'space-between' | 'space-evenly' | 'center' | 'end' | 'start' | 'stretch') {
+  // 'flex-start'/'flex-end' were missing from this switch entirely
+  set alignContent(value: 'normal' | 'space-around' | 'space-between' | 'space-evenly' | 'center' | 'end' | 'start' | 'stretch' | 'flex-start' | 'flex-end') {
     let align = -1;
     switch (value) {
       case 'normal':
@@ -3031,6 +3126,12 @@ export class Style {
         break;
       case 'stretch':
         align = AlignContent.Stretch;
+        break;
+      case 'flex-start':
+        align = AlignContent.FlexStart;
+        break;
+      case 'flex-end':
+        align = AlignContent.FlexEnd;
         break;
     }
     if (align !== -1) {
@@ -3236,6 +3337,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // A bare number can't marshal over JNI into the native String setter.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
     }
@@ -3268,6 +3371,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoColumns(this.nativeView, value);
     }
@@ -3323,6 +3428,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumn(this.nativeView, value);
     }
@@ -3370,6 +3477,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnStart(this.nativeView, value);
     }
@@ -3402,6 +3511,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnEnd(this.nativeView, value);
     }
@@ -3419,6 +3530,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRow(this.nativeView, value);
     }
@@ -3466,6 +3579,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowStart(this.nativeView, value);
     }
@@ -3498,6 +3613,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowEnd(this.nativeView, value);
     }
@@ -3515,6 +3632,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
+    // See gridAutoRows above.
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridArea(this.nativeView, value);
     }
@@ -3547,9 +3666,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
-    // Reset (e.g. a media query toggling grid-rows off) passes null; the native
-    // setters are non-null, so coerce to '' which clears the template.
-    value = value ?? '';
+    // null clears the template; also guards against a bare number (see gridAutoRows above).
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(this.nativeView, value);
     }
@@ -3597,9 +3715,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
-    // Reset (e.g. a media query toggling grid-cols off) passes null; the native
-    // setters are non-null, so coerce to '' which clears the template.
-    value = value ?? '';
+    // null clears the template; also guards against a bare number (see gridAutoRows above).
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateColumns(this.nativeView, value);
     }
@@ -3632,8 +3749,8 @@ export class Style {
     if (!this.nativeView) {
       return;
     }
-    // Reset passes null; the native setters are non-null, coerce to '' (clears it).
-    value = value ?? '';
+    // null clears it; also guards against a bare number (see gridAutoRows above).
+    value = value == null ? '' : String(value);
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateAreas(this.nativeView, value);
     }
@@ -3730,6 +3847,8 @@ export class Style {
   }
 
   set flexGrow(value: number) {
+    // skip invalidation on a no-op re-apply of the same value
+    if (getFloat32(this.style_view, StyleKeys.FLEX_GROW) === value) return;
     this.prepareMut();
     setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
     this.commitState(StateKeys.FLEX_GROW);
@@ -3740,6 +3859,7 @@ export class Style {
   }
 
   set flexShrink(value: number) {
+    if (getFloat32(this.style_view, StyleKeys.FLEX_SHRINK) === value) return;
     this.prepareMut();
     setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
     this.commitState(StateKeys.FLEX_SHRINK);
@@ -4201,7 +4321,9 @@ export class Style {
   }
 
   set paddingCss(value: string | number) {
-    const strValue = typeof value === 'number' ? `${value}px` : value;
+    // a bare number is dip, matching other numeric setters; Android's
+    // native parser treats "px" as unscaled device pixels, "dip" as scaled
+    const strValue = typeof value === 'number' ? `${value}dip` : value;
     this.setPseudoCssStringValue(
       'padding',
       strValue,
@@ -4222,7 +4344,8 @@ export class Style {
   }
 
   set marginCss(value: string | number) {
-    const strValue = typeof value === 'number' ? `${value}px` : value;
+    // See the comment on `paddingCss` above — same dip-vs-px mislabeling fix.
+    const strValue = typeof value === 'number' ? `${value}dip` : value;
     this.setPseudoCssStringValue(
       'margin',
       strValue,
@@ -4243,7 +4366,8 @@ export class Style {
   }
 
   set insetCss(value: string | number) {
-    const strValue = typeof value === 'number' ? `${value}px` : value;
+    // See the comment on `paddingCss` above — same dip-vs-px mislabeling fix.
+    const strValue = typeof value === 'number' ? `${value}dip` : value;
     this.setPseudoCssStringValue(
       'inset',
       strValue,
@@ -4562,6 +4686,7 @@ export class Style {
   }
 
   set zIndex(value: number) {
+    if (getInt32(this.style_view, StyleKeys.Z_INDEX) === value) return;
     this.prepareMut();
     setInt32(this.style_view, StyleKeys.Z_INDEX, value);
     this.commitState(StateKeys.Z_INDEX);

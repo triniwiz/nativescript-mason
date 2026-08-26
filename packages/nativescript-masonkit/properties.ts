@@ -1,4 +1,4 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty } from '@nativescript/core';
+import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonChild_, isMasonView_ } from './symbols';
@@ -298,7 +298,8 @@ flexGrowProperty.overrideHandlers({
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      if (newValue) {
+      // 0 is a valid flex-grow; don't treat it as falsy/invalid
+      if (typeof newValue === 'number' && !isNaN(newValue)) {
         view.flexGrow = newValue as never;
       } else {
         // Revert to old value if newValue is invalid
@@ -382,11 +383,14 @@ export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
   defaultValue: 0,
+  // Length.parse has no '%' handling; use masonLengthPercentParse instead.
   valueConverter(value) {
-    const parsed = CoreLength.parse(value);
-    if (typeof parsed === 'string') {
+    // @ts-ignore
+    const parsed = masonLengthPercentParse(value);
+    if (parsed === undefined || typeof parsed === 'string') {
       return 0;
     }
+    // @ts-ignore
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
@@ -402,10 +406,12 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   cssName: 'column-gap',
   defaultValue: 0,
   valueConverter(value) {
-    const parsed = CoreLength.parse(value);
-    if (typeof parsed === 'string') {
+    // @ts-ignore
+    const parsed = masonLengthPercentParse(value);
+    if (parsed === undefined || typeof parsed === 'string') {
       return 0;
     }
+    // @ts-ignore
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
@@ -583,9 +589,10 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'max-width',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
+  // masonLengthParse has no '%' handling; match width/height's converter.
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -601,15 +608,31 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'max-height',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.maxHeight = newValue;
     }
   },
+});
+
+// Core's minWidth/minHeight already route into this Style via setNative
+// (common.ts), so no new CssProperty is needed — just fix the '%' handling.
+minWidthProperty.overrideHandlers({
+  // @ts-ignore
+  equalityComparer: CorePercentLength.equals,
+  // @ts-ignore
+  valueConverter: masonLengthPercentParse,
+});
+
+minHeightProperty.overrideHandlers({
+  // @ts-ignore
+  equalityComparer: CorePercentLength.equals,
+  // @ts-ignore
+  valueConverter: masonLengthPercentParse,
 });
 
 export const insetProperty = new ShorthandProperty<Style, LengthAuto>({
@@ -812,9 +835,24 @@ export const borderRadiusProperty = new CssProperty<Style, string>({
   cssName: 'border-radius',
 });
 
+// Core's alignItems/alignSelf validator rejects Box Alignment keywords
+// ("start"/"end") masonkit's own Style setter accepts fine; bypass it for
+// Mason views/children like alignContent/justifyContent already do below.
+export const AlignItemsIsValid = makeValidator('normal', 'start', 'end', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch');
+export const AlignItemsParse = makeParser(AlignItemsIsValid);
+
+export const AlignSelfIsValid = makeValidator('normal', 'start', 'end', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch');
+export const AlignSelfParse = makeParser(AlignSelfIsValid);
+
 alignItemsProperty.overrideHandlers({
   name: 'alignItems',
   cssName: 'align-items',
+  valueConverter: function (value) {
+    if (isMasonViewOrChild(this as unknown as Style)) {
+      return value as never;
+    }
+    return AlignItemsParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -832,6 +870,12 @@ alignItemsProperty.overrideHandlers({
 alignSelfProperty.overrideHandlers({
   name: 'alignSelf',
   cssName: 'align-self',
+  valueConverter: function (value) {
+    if (isMasonViewOrChild(this as unknown as Style)) {
+      return value as never;
+    }
+    return AlignSelfParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -940,9 +984,10 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'flex-basis',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
+  // masonLengthParse has no '%' support; see maxWidthProperty above.
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -1198,9 +1243,11 @@ const flexProperty = new ShorthandProperty({
               properties.push([flexBasisProperty, 'auto']);
               break;
             default:
+              // CSS spec: `flex: <number>` = `<number> 1 0%`, not `auto` —
+              // a bare positive number always zeroes the basis.
               properties.push([flexGrowProperty, values[0]]);
               properties.push([flexShrinkProperty, 1]);
-              properties.push([flexBasisProperty, 'auto']);
+              properties.push([flexBasisProperty, '0%']);
           }
         }
         if (values.length >= 2) {

@@ -1434,11 +1434,14 @@ fun parseLengthPercentage(value: String): LengthPercentage? {
 }
 
 fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
-  val match = lengthPercentageRegex.matchEntire(value.trim()) ?: return null
+  val trimmed = value.trim()
+  // "auto" has no numeric part, so it can never match lengthPercentageRegex
+  // below (its first group is a mandatory digit run) — check it separately.
+  if (trimmed == "auto") return LengthPercentageAuto.Auto
+  val match = lengthPercentageRegex.matchEntire(trimmed) ?: return null
   val num = match.groupValues[1].toFloatOrNull() ?: return null
   val unit = match.groupValues.getOrNull(2)
   return when (unit) {
-    "auto" -> LengthPercentageAuto.Auto
     "px" -> LengthPercentageAuto.Points(num)
     "%" -> LengthPercentageAuto.Percent(num / 100f)
     "dip" -> LengthPercentageAuto.Points(num * Mason.shared.scale)

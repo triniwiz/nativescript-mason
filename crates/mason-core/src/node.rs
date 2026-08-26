@@ -1142,6 +1142,7 @@ pub(crate) fn drain_deferred_cleanup(
             tree.children.remove(id);
             tree.float_context.remove(id);
             nd.remove(id);
+            tree.structure_dirty = true;
         }
     }
 }
@@ -1169,6 +1170,7 @@ impl Drop for NodeRef {
                     tree.parents.remove(self.id);
                     tree.children.remove(self.id);
                     tree.float_context.remove(self.id);
+                    tree.structure_dirty = true;
                     if let Some(mut nd) = self.node_data.try_write() {
                         nd.remove(self.id);
                     } else {

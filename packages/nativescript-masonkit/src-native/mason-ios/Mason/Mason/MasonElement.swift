@@ -898,17 +898,18 @@ class MasonElementHelpers: NSObject {
 
     }
     
-    if(!layout.children.isEmpty){
+    // `layout.children` allocates on every access; hoist it out of the loop
+    let childLayouts = layout.children
+    if !childLayouts.isEmpty {
       // Only children with nativePtr, matching Rust layout tree order. Keep
-      // flattened text containers so indices stay aligned with layout.children.
+      // flattened text containers so indices stay aligned with childLayouts.
       let children = node.children.filter { $0.nativePtr != nil }
 
-      let count = children.count
+      let count = min(children.count, childLayouts.count)
       // Sweep orphaned outset-shadow layers (safety net for missed per-child
       // willMove cleanup under heavy churn).
       reconcileShadowLayers(node.view)
-      for i in 0..<count{
-        guard i < layout.children.count else { break }
+      for i in 0..<count {
         let child = children[i]
         if(child.type == .text){
           continue
@@ -922,8 +923,7 @@ class MasonElementHelpers: NSObject {
           }
         }
 
-        let childLayout = layout.children[i]
-        applyToView(child, childLayout)
+        applyToView(child, childLayouts[i])
       }
     }
     

@@ -437,7 +437,7 @@
   },
   {
     "name": "align_flex_start_with_stretching_children",
-    "tree": { "seq": 0, "style": { "height": "500px", "width": "500px" }, "children": [{ "seq": 1, "style": { "align-items": "strech" }, "children": [{ "seq": 2, "style": { "flex-grow": "1", "flex-shrink": "1" }, "children": [{ "seq": 3, "style": { "flex-grow": "1", "flex-shrink": "1" }, "children": [] }] }] }] },
+    "tree": { "seq": 0, "style": { "height": "500px", "width": "500px" }, "children": [{ "seq": 1, "style": { "align-items": "stretch" }, "children": [{ "seq": 2, "style": { "flex-grow": "1", "flex-shrink": "1" }, "children": [{ "seq": 3, "style": { "flex-grow": "1", "flex-shrink": "1" }, "children": [] }] }] }] },
     "expected": [
       { "seq": 0, "x": 0, "y": 0, "width": 500, "height": 500 },
       { "seq": 1, "x": 0, "y": 0, "width": 0, "height": 500 },

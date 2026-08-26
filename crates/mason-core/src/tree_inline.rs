@@ -2090,27 +2090,31 @@ impl Tree {
             let child_node_id = NodeId::from(child_id);
 
             // Resolve child's own size constraints
-            let child_size = child_style.size().maybe_resolve(
+            let child_min_size = child_style.min_size().maybe_resolve(
                 Size {
                     width: Some(cb_width),
                     height: Some(cb_height),
                 },
                 |_v, _b| 0.0,
             );
-            let _child_min_size = child_style.min_size().maybe_resolve(
+            let child_max_size = child_style.max_size().maybe_resolve(
                 Size {
                     width: Some(cb_width),
                     height: Some(cb_height),
                 },
                 |_v, _b| 0.0,
             );
-            let _child_max_size = child_style.max_size().maybe_resolve(
-                Size {
-                    width: Some(cb_width),
-                    height: Some(cb_height),
-                },
-                |_v, _b| 0.0,
-            );
+            // clamp specified size to min/max before use
+            let child_size = child_style
+                .size()
+                .maybe_resolve(
+                    Size {
+                        width: Some(cb_width),
+                        height: Some(cb_height),
+                    },
+                    |_v, _b| 0.0,
+                )
+                .maybe_clamp(child_min_size, child_max_size);
             let child_margin = child_style.get_margin().resolve_or_zero(
                 Size {
                     width: Some(cb_width),
@@ -2145,6 +2149,19 @@ impl Tree {
                     _ => None,
                 });
 
+            // re-clamp: the inset-derived shrink-to-fit fallback too
+            let Size {
+                width: known_width,
+                height: known_height,
+            } = Size {
+                width: known_width,
+                height: known_height,
+            }
+            .maybe_clamp(child_min_size, child_max_size);
+
+            // available_space should be MaxContent when the axis isn't
+            // resolved, so percentage tracks re-resolve against real content
+            // size instead of this placeholder container size.
             let child_inputs = LayoutInput {
                 known_dimensions: Size {
                     width: known_width,
@@ -2155,8 +2172,8 @@ impl Tree {
                     height: Some(cb_height),
                 },
                 available_space: Size {
-                    width: AvailableSpace::Definite(cb_width),
-                    height: AvailableSpace::Definite(cb_height),
+                    width: known_width.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
+                    height: known_height.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
                 },
                 ..inputs
             };

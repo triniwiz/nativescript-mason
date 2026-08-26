@@ -284,15 +284,18 @@ public class MasonTextLayer: CALayer {
     // the text layer filling the whole paragraph when the visual background
     // should be painted by the containing view instead of the flattened text.
     var skipBackground = false
+    var resolvedBg: UInt32? = nil
     if let tv = textView as? MasonText {
-      let hasOwnBg = tv.style.resolvedBackgroundColor != 0
+      let bg = tv.style.resolvedBackgroundColor
+      resolvedBg = bg
+      let hasOwnBg = bg != 0
       if tv.type == .P && !hasOwnBg { skipBackground = true }
       let parentBg = tv.node.parent?.style.background.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
       if !parentBg.isEmpty && !hasOwnBg { skipBackground = true }
     }
 
     if !skipBackground {
-      textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+      textView.style.mBackground.draw(on: self, in: context, rect: bounds, precomputedColor: resolvedBg)
     }
 
     // If this is a flattened blockquote, draw an inline left bar (on top of background)

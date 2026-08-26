@@ -235,8 +235,8 @@ class MasonLayoutTreeTests {
     assertEquals(legacy.contentSize.height, flatRoot.contentHeight, 0.001f)
 
     // Check children match
-    assertEquals(legacy.children.size, flatRoot.childNodeCount)
-    for (i in 0 until flatRoot.childNodeCount) {
+    assertEquals(legacy.children.size, flatRoot.childNodeCount.toInt())
+    for (i in 0 until flatRoot.childNodeCount.toInt()) {
       val flatChild = flatRoot.childAt(i)
       val legacyChild = legacy.children[i]
       assertEquals(legacyChild.x, flatChild.x, 0.001f)
@@ -389,5 +389,39 @@ class MasonLayoutTreeTests {
     println("perfNodeViewAccess: ${tree.nodeCount} nodes, avgPerNodeNs=$avgPerNodeNs sink=$sink")
     // Direct array access should be under 50ns per node
     assertTrue("node view access too slow: ${avgPerNodeNs}ns", avgPerNodeNs < 100L)
+  }
+
+  @Test
+  fun fromFloatArrayReturnsTrueOnNormalRefill() {
+    val tree = MasonLayoutTree()
+    assertTrue(tree.fromFloatArray(singleNodeArray(width = 100f)))
+    assertEquals(1, tree.nodeCount)
+  }
+
+  // fromFloatArray() must refuse to mutate a tree flagged `reading` — a
+  // reentrant refill mid-DFS (e.g. a child's measure/layout re-triggering
+  // this same root) would otherwise corrupt not-yet-visited node slots.
+  @Test
+  fun fromFloatArrayRefusesWhileReading() {
+    val tree = MasonLayoutTree()
+    assertTrue(tree.fromFloatArray(singleNodeArray(width = 300f)))
+    assertEquals(300f, tree.cursor.apply { pointTo(0) }.width, 0.001f)
+
+    tree.reading = true
+    try {
+      // simulates a reentrant refill while a DFS is reading this tree
+      val refilled = tree.fromFloatArray(singleNodeArray(width = 600f))
+      assertFalse("fromFloatArray must refuse while a DFS is reading this tree", refilled)
+    } finally {
+      tree.reading = false
+    }
+
+    // the refused write must leave the in-flight reader's view untouched
+    assertEquals(300f, tree.cursor.apply { pointTo(0) }.width, 0.001f)
+    assertEquals(1, tree.nodeCount)
+
+    // Once reading clears, a normal refill goes through again.
+    assertTrue(tree.fromFloatArray(singleNodeArray(width = 600f)))
+    assertEquals(600f, tree.cursor.apply { pointTo(0) }.width, 0.001f)
   }
 }

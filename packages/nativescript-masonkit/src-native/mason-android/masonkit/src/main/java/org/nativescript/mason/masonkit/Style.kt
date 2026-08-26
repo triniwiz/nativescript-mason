@@ -70,8 +70,14 @@ fun parsePaddingShorthand(style: Style, value: String) {
     return
   }
 
-  val tokens = SPLIT_REGEX.split(cleaned).mapNotNull { parseLengthPercentage(it) }
-  if (tokens.isEmpty()) return
+  // CSS spec: if any value in a shorthand fails to parse, the whole
+  // declaration is invalid — don't drop the bad token and reinterpret the
+  // rest under a different shorthand arity.
+  val rawTokens = SPLIT_REGEX.split(cleaned)
+  if (rawTokens.isEmpty() || rawTokens.size > 4) return
+  val parsedTokens = rawTokens.map { parseLengthPercentage(it) }
+  if (parsedTokens.any { it == null }) return
+  val tokens = parsedTokens.filterNotNull()
 
   var topType: Byte
   var topValue: Float
@@ -194,9 +200,14 @@ fun parseMarginShorthand(style: Style, value: String) {
     return
   }
 
-  val parts = SPLIT_REGEX.split(cleaned)
-  val tokens = parts.mapNotNull { parseLengthPercentageAuto(it) }
-  if (tokens.isEmpty()) return
+  // See the comment in parsePaddingShorthand above: an invalid token must
+  // invalidate the whole shorthand, not just get silently dropped (which
+  // reinterprets the remaining valid tokens under the wrong arity).
+  val rawParts = SPLIT_REGEX.split(cleaned)
+  if (rawParts.isEmpty() || rawParts.size > 4) return
+  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
+  if (parsedParts.any { it == null }) return
+  val tokens = parsedParts.filterNotNull()
 
   val rect = when (tokens.size) {
     1 -> Rect.uniform(tokens[0])
@@ -227,9 +238,14 @@ fun parseInsetShorthand(style: Style, value: String) {
     return
   }
 
-  val parts = SPLIT_REGEX.split(cleaned)
-  val tokens = parts.mapNotNull { parseLengthPercentageAuto(it) }
-  if (tokens.isEmpty()) return
+  // See the comment in parsePaddingShorthand above: an invalid token must
+  // invalidate the whole shorthand, not just get silently dropped (which
+  // reinterprets the remaining valid tokens under the wrong arity).
+  val rawParts = SPLIT_REGEX.split(cleaned)
+  if (rawParts.isEmpty() || rawParts.size > 4) return
+  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
+  if (parsedParts.any { it == null }) return
+  val tokens = parsedParts.filterNotNull()
 
   val rect = when (tokens.size) {
     1 -> Rect.uniform(tokens[0])

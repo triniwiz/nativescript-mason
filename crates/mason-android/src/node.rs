@@ -22,14 +22,14 @@ static CALL_SEQ: AtomicU64 = AtomicU64::new(0);
 #[inline]
 fn call_enter(name: &str, taffy: jlong, node: jlong) -> (u64, Instant) {
     let id = CALL_SEQ.fetch_add(1, Ordering::Relaxed);
-    log::info!("[mason-jni] #{id} {name} enter taffy={taffy:#x} node={node:#x}");
+    log::trace!("[mason-jni] #{id} {name} enter taffy={taffy:#x} node={node:#x}");
     (id, Instant::now())
 }
 
 #[inline]
 fn call_exit(name: &str, call: (u64, Instant)) {
     let (id, started) = call;
-    log::info!(
+    log::trace!(
         "[mason-jni] #{id} {name} exit elapsed_ms={:.3}",
         started.elapsed().as_secs_f64() * 1000.0
     );
@@ -40,9 +40,11 @@ pub extern "system" fn NodeNativeDestroy(node: jlong) {
     if node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeDestroy", 0, node);
     unsafe {
         let _ = Box::from_raw(node as *mut NodeRef);
     }
+    call_exit("NodeNativeDestroy", call);
 }
 
 #[no_mangle]
@@ -50,9 +52,11 @@ pub extern "system" fn NodeNativeDestroyNormal(_env: JNIEnv, _: JClass, node: jl
     if node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeDestroyNormal", 0, node);
     unsafe {
         let _ = Box::from_raw(node as *mut NodeRef);
     }
+    call_exit("NodeNativeDestroyNormal", call);
 }
 
 fn native_new_node(taffy: jlong, is_anonymous: jboolean) -> jlong {

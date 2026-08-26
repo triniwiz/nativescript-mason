@@ -39,11 +39,25 @@ function makeMasonElement(base: any) {
     }
 
     __dominative_onInsertChild(child: any, ref: any) {
-      // Text node → mason's text-node-aware insert (ref is a native element
-      // sibling or null; dominative already skipped non-native refs).
+      // Text node → mason's text-node-aware insert. `ref` can be null even
+      // when it's not the last child (dominative only tracks native element
+      // refs); recover via the DOM next-sibling like the element branch below.
       if (child.nodeType === 3) {
-        super.insertBefore(child, ref ?? null);
-        return;
+        let effectiveRef = ref;
+        if (!effectiveRef) {
+          const nextSib = (child as any).nextSibling;
+          if (nextSib != null) {
+            effectiveRef = nextSib;
+          }
+        }
+        try {
+          super.insertBefore(child, effectiveRef ?? null);
+          return;
+        } catch (e) {
+          // effectiveRef not trackable in the tree; fall back to plain insert
+          super.insertBefore(child, ref ?? null);
+          return;
+        }
       }
       // Element child with no ref: dominative may have null-ified a text-node
       // anchor (e.g. SolidJS inserts br/span before a text sibling).

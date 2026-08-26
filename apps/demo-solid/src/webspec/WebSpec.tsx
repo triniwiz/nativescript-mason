@@ -66,6 +66,7 @@ export default function WebSpec() {
     if (idx >= fixtures.length) {
       setBatchRunning(false)
       setRunToken(0)
+      dumpFailures()
       return
     }
     setBatchRunning(true)
@@ -126,6 +127,24 @@ export default function WebSpec() {
   function advance(idx: number) {
     if (batchRunning()) runFrom(idx + 1)
     else setRunToken(0)
+  }
+
+  // dumps the full failure list to a file for `adb pull`, since logcat
+  // truncates a console.log of this size
+  function dumpFailures() {
+    const rs = results()
+    const failures = fixtures
+      .map((fx, idx) => ({ name: fx.name, diffs: rs[idx]?.diffs ?? [] }))
+      .filter((_, idx) => rs[idx]?.status === 'fail')
+    const payload = JSON.stringify({ pass: summary().pass, fail: summary().fail, total: fixtures.length, failures }, null, 2)
+    try {
+      const { knownFolders } = require('@nativescript/core')
+      const file = knownFolders.documents().getFile('webspec-failures.json')
+      file.writeTextSync(payload)
+      console.log('WEBSPEC_DUMP_WRITTEN ' + file.path)
+    } catch (err) {
+      console.error('[WebSpec] dumpFailures failed:', err)
+    }
   }
 
   // A rejected/invalid style value (e.g. a masonkit CssProperty validator
@@ -290,6 +309,7 @@ export default function WebSpec() {
         <div style={{ position: 'absolute', top: -20000, left: 0, width: 1024, opacity: 0 }}>
           <ErrorBoundary
             fallback={(err) => {
+              console.error(`[WebSpec] fixture ${fixtures[runToken() - 1]?.name} threw during mount:`, err)
               handleFixtureError(runToken() - 1, err)
               return null
             }}

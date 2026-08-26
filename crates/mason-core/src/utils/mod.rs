@@ -96,8 +96,9 @@ pub const fn align_content_to_enum(value: AlignContent) -> i8 {
         AlignContentKeyword::Center => 2,
         AlignContentKeyword::Stretch => 3,
         AlignContentKeyword::SpaceBetween => 4,
-        AlignContentKeyword::SpaceEvenly => 5,
-        AlignContentKeyword::SpaceAround => 6,
+        // must agree with align_content_from_enum above
+        AlignContentKeyword::SpaceAround => 5,
+        AlignContentKeyword::SpaceEvenly => 6,
         AlignContentKeyword::FlexStart => 7,
         AlignContentKeyword::FlexEnd => 8,
     }
