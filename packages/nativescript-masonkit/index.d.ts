@@ -275,6 +275,7 @@ interface IViewBase {
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   caretColor: string | Color;
+  elementFromPoint(x: number, y: number): ViewBase | null;
 }
 
 class VBase extends ViewBase implements IViewBase {
@@ -301,6 +302,12 @@ class VBase extends ViewBase implements IViewBase {
    * ```
    */
   static preflight: boolean;
+
+  /**
+   * Returns the top-most Mason/NativeScript element at a point in this view's
+   * local coordinate space.
+   */
+  elementFromPoint(x: number, y: number): ViewBase | null;
 }
 
 export class View extends VBase {}

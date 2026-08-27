@@ -448,6 +448,7 @@ extension Mason.MasonElement {
     set
   }
   public func dispatch(_ event: Mason.MasonEvent)
+  public func elementFromPoint(_ x: CoreFoundation.CGFloat, _ y: CoreFoundation.CGFloat) -> UIKit.UIView?
   public func getDefaultAttributes() -> [Foundation.NSAttributedString.Key : Any]
   public func syncStyle(_ low: Swift.String, _ high: Swift.String)
   public func addChildAt(text: Swift.String, _ index: Swift.Int)
@@ -496,6 +497,9 @@ extension Mason.MasonElement {
   public func prepend(strings: [Swift.String])
   public func prepend(elements: [any Mason.MasonElement])
   public func prepend(nodes: [Mason.MasonNode])
+}
+extension UIKit.UIView {
+  @objc(mason_elementFromPoint:y:) @_Concurrency.MainActor @preconcurrency dynamic public func mason_elementFromPoint(_ x: CoreFoundation.CGFloat, y: CoreFoundation.CGFloat) -> UIKit.UIView?
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MinSizing) public class MinSizing : ObjectiveC.NSObject, Swift.Codable {
   @objc public var value: Swift.Float {

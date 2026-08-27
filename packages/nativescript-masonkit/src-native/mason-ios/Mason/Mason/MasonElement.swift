@@ -199,6 +199,10 @@ extension MasonElement {
   public func dispatch(_ event: MasonEvent) {
     node.mason.dispatch(event, node)
   }
+
+  public func elementFromPoint(_ x: CGFloat, _ y: CGFloat) -> UIView? {
+    return MasonElementHelpers.elementFromPoint(uiView, x: x, y: y)
+  }
   
   /// Helper to get default text attributes for new text nodes
   public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
@@ -671,8 +675,82 @@ extension MasonElement {
   }
 }
 
+extension UIView {
+  @objc(mason_elementFromPoint:y:)
+  public func mason_elementFromPoint(_ x: CGFloat, y: CGFloat) -> UIView? {
+    return MasonElementHelpers.elementFromPoint(self, x: x, y: y)
+  }
+}
+
 
 class MasonElementHelpers: NSObject {
+  @objc public static func elementFromPoint(_ root: UIView, x: CGFloat, y: CGFloat) -> UIView? {
+    return hitTest(root, CGPoint(x: x + root.bounds.origin.x, y: y + root.bounds.origin.y))
+  }
+
+  private static func contains(_ view: UIView, _ point: CGPoint) -> Bool {
+    return view.bounds.contains(point)
+  }
+
+  private static func clipsAxis(_ value: Overflow, _ contentExtent: CGFloat, _ viewExtent: CGFloat) -> Bool {
+    switch value {
+    case .Hidden, .Scroll, .Clip:
+      return true
+    case .Auto:
+      return contentExtent > viewExtent
+    default:
+      return false
+    }
+  }
+
+  private static func clippedOutside(_ view: UIView, _ point: CGPoint) -> Bool {
+    guard let element = view as? MasonElement else {
+      return !contains(view, point)
+    }
+    if !element.style.isValueInitialized {
+      return false
+    }
+
+    let overflow = element.style.overflow
+    let layout = element.node.computedLayout
+    let contentWidth = CGFloat(layout.contentWidth.isNaN ? 0 : layout.contentWidth / NSCMason.scale)
+    let contentHeight = CGFloat(layout.contentHeight.isNaN ? 0 : layout.contentHeight / NSCMason.scale)
+    let clipsX = clipsAxis(overflow.x, contentWidth, view.bounds.width)
+    let clipsY = clipsAxis(overflow.y, contentHeight, view.bounds.height)
+
+    return (clipsX && (point.x < view.bounds.minX || point.x >= view.bounds.maxX))
+      || (clipsY && (point.y < view.bounds.minY || point.y >= view.bounds.maxY))
+  }
+
+  private static func zSortedSubviews(_ view: UIView) -> [UIView] {
+    return view.subviews.enumerated().sorted { lhs, rhs in
+      let left = lhs.element
+      let right = rhs.element
+      if left.layer.zPosition == right.layer.zPosition {
+        return lhs.offset < rhs.offset
+      }
+      return left.layer.zPosition < right.layer.zPosition
+    }.map { $0.element }
+  }
+
+  private static func hitTest(_ view: UIView, _ point: CGPoint) -> UIView? {
+    if view.isHidden || view.bounds.width <= 0 || view.bounds.height <= 0 || view.alpha <= 0.01 {
+      return nil
+    }
+    if clippedOutside(view, point) {
+      return nil
+    }
+
+    let children = zSortedSubviews(view)
+    for child in children.reversed() {
+      let childPoint = child.convert(point, from: view)
+      if let hit = hitTest(child, childPoint) {
+        return hit
+      }
+    }
+
+    return contains(view, point) ? view : nil
+  }
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout

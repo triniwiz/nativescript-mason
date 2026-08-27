@@ -1981,6 +1981,10 @@ typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
   TransformOpTypeSkewY = 9,
 };
 
+@interface UIView (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)mason_elementFromPoint:(CGFloat)x y:(CGFloat)y SWIFT_WARN_UNUSED_RESULT;
+@end
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpaceNormal = 0,
   MasonWhiteSpacePre = 1,
@@ -3980,6 +3984,10 @@ typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
   TransformOpTypeSkewX = 8,
   TransformOpTypeSkewY = 9,
 };
+
+@interface UIView (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)mason_elementFromPoint:(CGFloat)x y:(CGFloat)y SWIFT_WARN_UNUSED_RESULT;
+@end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpaceNormal = 0,

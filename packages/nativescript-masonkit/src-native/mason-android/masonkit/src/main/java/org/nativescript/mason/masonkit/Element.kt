@@ -78,6 +78,10 @@ interface Element : EventTarget {
 
   val view: View
 
+  fun elementFromPoint(x: Float, y: Float): View? {
+    return HitTesting.elementFromPoint(view, x, y)
+  }
+
   fun layoutFlat(): MasonLayoutTree {
     if (node.nativePtr == 0L) {
       return MasonLayoutTree.empty
