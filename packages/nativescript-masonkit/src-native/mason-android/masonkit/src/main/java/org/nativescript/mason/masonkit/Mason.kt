@@ -552,6 +552,18 @@ class Mason {
     @JvmStatic
     private external fun nativeGetPreflight(): Boolean
 
+    /**
+     * User-agent default (font-size, margin) for a block text tag ("p",
+     * "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Returns a
+     * 5-element array `[fontSize, marginTop, marginBottom, marginLeft,
+     * marginRight]`, or an empty array if the tag has no UA default.
+     *
+     * Single source of truth lives in mason-core (`ua_default_for_tag`);
+     * must stay in sync with iOS MasonText.swift's equivalent call.
+     */
+    @JvmStatic
+    external fun nativeUaDefaultForTag(tag: String): FloatArray
+
   }
 
   // Preflight

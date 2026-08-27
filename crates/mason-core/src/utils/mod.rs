@@ -1,9 +1,11 @@
 mod grid;
+mod ua_defaults;
 use crate::style::{
     BorderStyle, DisplayMode, Hyphens, ObjectFit, Overflow, UnicodeBidi, WritingMode,
 };
 use crate::Style;
 pub use grid::*;
+pub use ua_defaults::*;
 use style_atoms::Atom;
 use taffy::{
     AlignContent, AlignContentKeyword, AlignItems, AlignItemsKeyword, AlignSelf, BoxSizing, Clear,

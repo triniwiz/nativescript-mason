@@ -1,5 +1,5 @@
 use mason_core::{Mason, NodeRef};
-use std::ffi::{c_int, c_void};
+use std::ffi::{c_char, c_int, c_void, CStr};
 
 pub mod ffi;
 pub mod node;
@@ -100,6 +100,48 @@ pub extern "C" fn mason_set_preflight(mason: *mut CMason, enabled: bool) {
 #[no_mangle]
 pub extern "C" fn mason_get_preflight() -> bool {
     mason_core::PREFLIGHT_ENABLED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// User-agent default (font-size, margin) for a block text tag ("p",
+/// "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Callers apply their
+/// own device-scale multiplier. Returns `false` (and leaves `out` untouched)
+/// if `tag` is null, not valid UTF-8, or has no UA default.
+#[repr(C)]
+pub struct CMasonUaDefault {
+    pub font_size: f32,
+    pub margin_top: f32,
+    pub margin_bottom: f32,
+    pub margin_left: f32,
+    pub margin_right: f32,
+}
+
+#[no_mangle]
+pub extern "C" fn mason_ua_default_for_tag(
+    tag: *const c_char,
+    out: *mut CMasonUaDefault,
+) -> bool {
+    if tag.is_null() || out.is_null() {
+        return false;
+    }
+    let tag = match unsafe { CStr::from_ptr(tag) }.to_str() {
+        Ok(tag) => tag,
+        Err(_) => return false,
+    };
+    match mason_core::utils::ua_default_for_tag(tag) {
+        Some(value) => {
+            unsafe {
+                *out = CMasonUaDefault {
+                    font_size: value.font_size,
+                    margin_top: value.margin_top,
+                    margin_bottom: value.margin_bottom,
+                    margin_left: value.margin_left,
+                    margin_right: value.margin_right,
+                };
+            }
+            true
+        }
+        None => false,
+    }
 }
 
 #[cfg(target_vendor = "apple")]

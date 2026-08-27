@@ -679,6 +679,16 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
   infix fun and(other: StateKeys): StateKeys = StateKeys(low and other.low, high and other.high)
   infix fun hasFlag(flag: StateKeys): Boolean =
     ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
+
+  // `and`/`or` always allocate a new instance, so reference equality (the
+  // default for a plain class) never matches StateKeys.NONE even when both
+  // bit-fields are actually zero. Value equality is required for callers
+  // that compare a masked result against StateKeys.NONE (e.g. Button.kt's
+  // `activeTextKeys != StateKeys.NONE`).
+  override fun equals(other: Any?): Boolean =
+    other is StateKeys && low == other.low && high == other.high
+
+  override fun hashCode(): Int = 31 * low.hashCode() + high.hashCode()
 }
 
 @JvmInline

@@ -172,7 +172,7 @@ data class Gradient(
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
-  layer.gradient?.let { drawGradient(layer, canvas, width, height) }
+  layer.gradient?.let { drawGradient(layer, canvas, width, height, view) }
 
   layer.image?.let { imageUrl ->
     // Use cached bitmap if available
@@ -195,7 +195,7 @@ fun drawBackground(
   }
 }
 
-fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int) {
+fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int, view: View? = null) {
   val gradient = layer.gradient ?: return
 
   // invalidate cached shader if size has changed; without this the first draw
@@ -275,6 +275,17 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
     // remember the size used to create this shader
     layer.shaderWidth = width
     layer.shaderHeight = height
+
+    // A freshly (re)built gradient Shader can miss painting on the very draw
+    // call that creates it — e.g. a deeply nested scroll child whose first
+    // real-size onDraw races the GPU texture upload for the new Shader.
+    // Solid-color fills need no texture upload so they never hit this; a
+    // gradient does, and without a follow-up invalidate it stays blank until
+    // something else (scroll, rotation) forces a redraw. Schedule one
+    // guaranteed extra draw pass so the shader is actually visible.
+    if (width > 0 && height > 0) {
+      view?.postInvalidateOnAnimation()
+    }
   }
 
   // Fail-safe: if no shader could be built (e.g. an unrecognised gradient type

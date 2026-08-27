@@ -12,6 +12,20 @@ typedef struct CMason CMason;
 
 typedef struct CMasonNode CMasonNode;
 
+/**
+ * User-agent default (font-size, margin) for a block text tag ("p",
+ * "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Callers apply their
+ * own device-scale multiplier. Returns `false` (and leaves `out` untouched)
+ * if `tag` is null, not valid UTF-8, or has no UA default.
+ */
+typedef struct CMasonUaDefault {
+  float font_size;
+  float margin_top;
+  float margin_bottom;
+  float margin_left;
+  float margin_right;
+} CMasonUaDefault;
+
 typedef struct CMasonInlineTextSegment {
   float width;
   float ascent;
@@ -98,6 +112,8 @@ void mason_set_device_scale(struct CMason *mason, float scale);
 void mason_set_preflight(struct CMason *mason, bool enabled);
 
 bool mason_get_preflight(void);
+
+bool mason_ua_default_for_tag(const char *tag, struct CMasonUaDefault *out);
 
 void *mason_get_buffer(struct CMason *mason, int handle);
 

@@ -586,6 +586,32 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   }
   
   
+  // User-agent default (font-size, margin) for a block text tag ("p",
+  // "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Single source of
+  // truth lives in mason-core (`ua_default_for_tag`); must stay in sync with
+  // Android TextView.kt's equivalent call. Returns a zeroed struct if the
+  // tag has no UA default.
+  static func uaDefault(_ tag: String) -> CMasonUaDefault {
+    var value = CMasonUaDefault(font_size: 0, margin_top: 0, margin_bottom: 0, margin_left: 0, margin_right: 0)
+    _ = tag.withCString { cTag in
+      mason_ua_default_for_tag(cTag, &value)
+    }
+    return value
+  }
+
+  static func uaMargin(_ ua: CMasonUaDefault, _ scale: Float) -> MasonRect<MasonLengthPercentageAuto> {
+    return MasonRect(
+      .Points(ua.margin_top * scale),
+      .Points(ua.margin_right * scale),
+      .Points(ua.margin_bottom * scale),
+      .Points(ua.margin_left * scale)
+    )
+  }
+
+  static func uaMargin(_ tag: String, _ scale: Float) -> MasonRect<MasonLengthPercentageAuto> {
+    return uaMargin(uaDefault(tag), scale)
+  }
+
   private func initText(){
     isOpaque = false
     backgroundColor = .clear
@@ -606,12 +632,13 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     switch(type){
     case .None:
       break
-    // Web user-agent defaults (16px base). Margins are the browser em values
-    // resolved to CSS px, then × scale to mason's device-pixel space. Must stay
-    // in sync with Android TextView.kt.
+    // Web user-agent default font-size/margin numbers live in mason-core
+    // (single source of truth, see ua_default_for_tag), scaled here from CSS
+    // px to mason's device-pixel space. Must stay in sync with Android
+    // TextView.kt's equivalent call.
     case .P:
       style.display = .Block
-      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0)) // 1em
+      style.margin = MasonText.uaMargin("p", scale) // 1em
       break
     case .Span:
       style.display = .Inline
@@ -623,46 +650,52 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     style.fontFamily = "ui-monospace"
       break
     case .H1:
-      fontSize = 32 // 2em
+      let ua1 = MasonText.uaDefault("h1") // fontSize 2em, margin 0.67em
+      fontSize = Int32(ua1.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(21.44 * scale), .Points(0), .Points(21.44 * scale), .Points(0)) // 0.67em
+      style.margin = MasonText.uaMargin(ua1, scale)
       break
     case .H2:
-      fontSize = 24 // 1.5em
+      let ua2 = MasonText.uaDefault("h2") // fontSize 1.5em, margin 0.83em
+      fontSize = Int32(ua2.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(19.92 * scale), .Points(0), .Points(19.92 * scale), .Points(0)) // 0.83em
+      style.margin = MasonText.uaMargin(ua2, scale)
       break
     case .H3:
-      fontSize = 19 // 1.17em ≈ 18.72
+      let ua3 = MasonText.uaDefault("h3") // fontSize 1.17em ≈ 18.72, margin 1em
+      fontSize = Int32(ua3.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(18.72 * scale), .Points(0), .Points(18.72 * scale), .Points(0)) // 1em
+      style.margin = MasonText.uaMargin(ua3, scale)
       break
     case .H4:
-      fontSize = 16 // 1em
+      let ua4 = MasonText.uaDefault("h4") // fontSize 1em, margin 1.33em
+      fontSize = Int32(ua4.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(21.28 * scale), .Points(0), .Points(21.28 * scale), .Points(0)) // 1.33em
+      style.margin = MasonText.uaMargin(ua4, scale)
       break
     case .H5:
-      fontSize = 13 // 0.83em ≈ 13.28
+      let ua5 = MasonText.uaDefault("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
+      fontSize = Int32(ua5.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(22.18 * scale), .Points(0), .Points(22.18 * scale), .Points(0)) // 1.67em
+      style.margin = MasonText.uaMargin(ua5, scale)
       break
     case .H6:
-      fontSize = 11 // 0.67em ≈ 10.72
+      let ua6 = MasonText.uaDefault("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
+      fontSize = Int32(ua6.font_size)
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonRect(.Points(24.98 * scale), .Points(0), .Points(24.98 * scale), .Points(0)) // 2.33em
+      style.margin = MasonText.uaMargin(ua6, scale)
       break
     case .Li:
       break
     case .Blockquote:
       style.display = .Block
-      style.margin = MasonRect(.Points(16 * scale), .Points(40 * scale), .Points(16 * scale), .Points(40 * scale)) // 1em 40px
+      style.margin = MasonText.uaMargin("blockquote", scale) // 1em 40px
       break
     case .B, .Strong:
       style.display = .Inline
@@ -674,7 +707,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     // wide/loose next to Android's clean mono.
     style.fontFamily = "ui-monospace"
       whiteSpace = .Pre
-      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0)) // 1em
+      style.margin = MasonText.uaMargin("pre", scale) // 1em
       break
     case .I, .Em:
       style.display = .Inline

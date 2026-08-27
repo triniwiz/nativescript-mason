@@ -259,13 +259,60 @@ public class CSSFilters {
     }
     return CIImage(image: image)
   }
-  
+
+  /// Snapshots the content behind `view` (walks to the topmost ancestor and
+  /// renders just the region `view` occupies), excluding `view`'s own subtree —
+  /// the "hole" needed so backdrop-filter never filters the element's own content.
+  private static func captureBackdropToCIImage(view: UIView, scale: CGFloat) -> CIImage? {
+    guard view.bounds.width > 0 && view.bounds.height > 0 else { return nil }
+
+    var root: UIView = view
+    while let superview = root.superview { root = superview }
+    guard root !== view else { return nil }
+
+    let frameInRoot = view.convert(view.bounds, to: root)
+    guard frameInRoot.width > 0 && frameInRoot.height > 0 else { return nil }
+
+    let fmt = UIGraphicsImageRendererFormat()
+    fmt.scale = scale
+    fmt.opaque = false
+    let renderer = UIGraphicsImageRenderer(size: frameInRoot.size, format: fmt)
+
+    let wasHidden = view.isHidden
+    view.isHidden = true
+    let image = renderer.image { _ in
+      // Offset so `view`'s region lands at the image origin; unscaled, so this
+      // is a crop, not a stretch.
+      let drawRect = CGRect(
+        x: -frameInRoot.origin.x,
+        y: -frameInRoot.origin.y,
+        width: root.bounds.width,
+        height: root.bounds.height
+      )
+      root.drawHierarchy(in: drawRect, afterScreenUpdates: false)
+    }
+    view.isHidden = wasHidden
+
+    if let cg = image.cgImage {
+      return CIImage(cgImage: cg)
+    }
+    return CIImage(image: image)
+  }
+
 
   public class CSSFilter: NSObject {
     let layer = CAMetalLayer()
     var filters: [Filter]
     private var ciFilters: [CIFilter] = []
     private weak var view: UIView?
+
+    // MARK: - backdrop-filter live-render state
+    private weak var backdropView: UIView?
+    private var backdropRenderLayer: CALayer?
+    private var backdropBlurView: UIVisualEffectView?
+    private var backdropDisplayLink: CADisplayLink?
+    private var backdropClipPathProvider: (() -> UIBezierPath?)?
+    private var backdropFrameParity = false
     
     public override init() {
       filters = []
@@ -292,6 +339,21 @@ public class CSSFilters {
       sublayersObservation = nil
       sublayerContentObservations.removeAll()
       view = nil
+      tearDownBackdropRendering()
+    }
+
+    /// Stops the live backdrop CADisplayLink and removes the render layer /
+    /// blur view. Does not touch `filters` — called both from `reset()` and
+    /// at the top of `applyAsBackdrop` before rebuilding.
+    private func tearDownBackdropRendering() {
+      backdropDisplayLink?.invalidate()
+      backdropDisplayLink = nil
+      backdropRenderLayer?.removeFromSuperlayer()
+      backdropRenderLayer = nil
+      backdropBlurView?.removeFromSuperview()
+      backdropBlurView = nil
+      backdropClipPathProvider = nil
+      backdropView = nil
     }
     
     public func parse(css: String) {
@@ -675,129 +737,241 @@ public class CSSFilters {
     /// Unlike `apply(to:)` which overlays the view's own content,
     /// this blurs/filters the content _behind_ the view.
     ///
-    /// Uses CALayer.backgroundFilters (CoreImage filters on the backdrop)
-    /// for all supported filter types with exact CSS-matching values.
-    /// Falls back to UIVisualEffectView only for blur when needed.
-    public func applyAsBackdrop(to view: UIView) {
+    /// `CALayer.backgroundFilters` is macOS-only and silently ignored on iOS,
+    /// so non-blur filters (and any mix with blur) are done by hand: snapshot
+    /// the backdrop, run the CIFilter chain over it, and re-render on a
+    /// CADisplayLink so it tracks whatever is scrolling/animating behind it.
+    /// Pure blur (no other filters) still uses UIVisualEffectView — it's
+    /// compositor-backed and already tracks the backdrop live for free.
+    ///
+    /// `clipPathProvider` supplies the element's border-radius clip path
+    /// (independent of `overflow`, like its own background) — re-queried each
+    /// render so it tracks layout changes.
+    public func applyAsBackdrop(to view: UIView, clipPathProvider: (() -> UIBezierPath?)? = nil) {
       isApplying = true
       defer { isApplying = false }
 
-      // Remove stale backdrop views/layers
+      // Remove stale backdrop views/layers/link from a previous call.
       view.subviews.filter { $0.layer.name == "_mason_backdrop" }.forEach { $0.removeFromSuperview() }
       view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+      tearDownBackdropRendering()
 
       guard !filters.isEmpty else { return }
 
-      // Collect blur radius and CIFilter-based color adjustments
+      if device == nil {
+        device = MTLCreateSystemDefaultDevice()
+        guard let device = device else { return }
+        commandQueue = device.makeCommandQueue()
+        ciContext = CIContext(mtlDevice: device)
+      }
+
       var blurRadius: CGFloat = 0
-      var ciFilters: [CIFilter] = []
+      var hasOtherFilters = false
+      for filter in filters {
+        switch filter {
+        case .blur(let r): blurRadius = max(blurRadius, r)
+        case .dropShadow: break // not applicable to backdrop-filter
+        default: hasOtherFilters = true
+        }
+      }
+
+      guard blurRadius > 0 || hasOtherFilters else { return }
+
+      backdropView = view
+      backdropClipPathProvider = clipPathProvider
+
+      if blurRadius > 0 && !hasOtherFilters {
+        setupBackdropBlurView(on: view, radius: blurRadius)
+        return
+      }
+
+      setupBackdropRenderLayer(on: view)
+      renderBackdropFrame()
+
+      let link = CADisplayLink(target: self, selector: #selector(backdropDisplayLinkStep))
+      link.add(to: .main, forMode: .common)
+      backdropDisplayLink = link
+    }
+
+    private func setupBackdropBlurView(on view: UIView, radius: CGFloat) {
+      let blurEffect = UIBlurEffect(style: .regular)
+      let effectView = UIVisualEffectView(effect: nil)
+      effectView.frame = view.bounds
+      effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      effectView.layer.name = "_mason_backdrop"
+      effectView.isUserInteractionEnabled = false
+      view.insertSubview(effectView, at: 0)
+      UIView.animate(withDuration: 0) {
+        effectView.effect = blurEffect
+      }
+      // Set custom radius on the gaussian blur sublayer if accessible
+      if let backdropLayers = effectView.layer.sublayers {
+        for sublayer in backdropLayers {
+          if let bgFilters = sublayer.value(forKey: "filters") as? [NSObject] {
+            for bgFilter in bgFilters {
+              let filterName = String(describing: type(of: bgFilter))
+              if filterName.localizedCaseInsensitiveContains("blur") {
+                bgFilter.setValue(radius, forKey: "inputRadius")
+              }
+            }
+          }
+        }
+      }
+      backdropBlurView = effectView
+    }
+
+    private func setupBackdropRenderLayer(on view: UIView) {
+      let renderLayer = CALayer()
+      renderLayer.name = "_mason_backdrop_layer"
+      renderLayer.frame = view.bounds
+      renderLayer.masksToBounds = true
+      renderLayer.contentsScale = CGFloat(NSCMason.scale)
+      view.layer.insertSublayer(renderLayer, at: 0)
+      backdropRenderLayer = renderLayer
+    }
+
+    private func updateBackdropMask(_ renderLayer: CALayer) {
+      guard let provider = backdropClipPathProvider, let path = provider() else {
+        if renderLayer.mask != nil { renderLayer.mask = nil }
+        return
+      }
+      if let existing = renderLayer.mask as? CAShapeLayer {
+        existing.path = path.cgPath
+      } else {
+        let maskLayer = CAShapeLayer()
+        maskLayer.path = path.cgPath
+        renderLayer.mask = maskLayer
+      }
+    }
+
+    @objc private func backdropDisplayLinkStep() {
+      guard let view = backdropView else {
+        backdropDisplayLink?.invalidate()
+        backdropDisplayLink = nil
+        return
+      }
+      // Skip the (relatively costly) snapshot+filter pass while off-window
+      // rather than tearing the link down — it self-resumes on reattach.
+      guard view.window != nil else { return }
+
+      // Throttle to ~30fps: a full 60fps snapshot+CIFilter pass per frame is
+      // unnecessary for a background effect and doubles the per-frame cost.
+      backdropFrameParity.toggle()
+      guard backdropFrameParity else { return }
+
+      renderBackdropFrame()
+    }
+
+    private func renderBackdropFrame() {
+      guard let view = backdropView, let renderLayer = backdropRenderLayer else {
+        return
+      }
+      guard view.bounds.width > 0, view.bounds.height > 0 else {
+        return
+      }
+      guard let context = ciContext else {
+        return
+      }
+
+      let scale = CGFloat(NSCMason.scale)
+      guard var output = CSSFilters.captureBackdropToCIImage(view: view, scale: scale) else {
+        return
+      }
+      let extent = output.extent
 
       for filter in filters {
         switch filter {
-        case .blur(let r):
-          blurRadius = max(blurRadius, r)
+        case .blur(let radius):
+          let blurPx = Float(radius * scale)
+          guard blurPx > 0 else { continue }
+          let blurFilter = CIFilter.gaussianBlur()
+          blurFilter.radius = blurPx
+          if let clamp = CIFilter(name: "CIAffineClamp") {
+            clamp.setValue(output, forKey: kCIInputImageKey)
+            clamp.setValue(CGAffineTransform.identity, forKey: "inputTransform")
+            if let clamped = clamp.outputImage {
+              blurFilter.inputImage = clamped
+            } else {
+              blurFilter.inputImage = output
+            }
+          } else {
+            blurFilter.inputImage = output
+          }
+          if let result = blurFilter.outputImage { output = result.cropped(to: extent) }
 
         case .brightness(let value):
-          if let f = CIFilter(name: "CIColorControls") {
-            f.setValue(Float(value - 1), forKey: kCIInputBrightnessKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.colorControls()
+          f.brightness = Float(value - 1)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .contrast(let value):
-          if let f = CIFilter(name: "CIColorControls") {
-            f.setValue(Float(value), forKey: kCIInputContrastKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.colorControls()
+          f.contrast = Float(value)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .saturate(let value):
-          if let f = CIFilter(name: "CIColorControls") {
-            f.setValue(Float(value), forKey: kCIInputSaturationKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.colorControls()
+          f.saturation = Float(value)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .hueRotate(let degrees):
-          if let f = CIFilter(name: "CIHueAdjust") {
-            f.setValue(Float(degrees * .pi / 180), forKey: kCIInputAngleKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.hueAdjust()
+          f.angle = Float(degrees * .pi / 180)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .invert(let amount):
-          if let f = CIFilter(name: "CIColorMatrix") {
-            let t = Float(1 - 2 * amount)
-            let o = Float(amount)
-            f.setValue(CIVector(x: CGFloat(t), y: 0, z: 0, w: 0), forKey: "inputRVector")
-            f.setValue(CIVector(x: 0, y: CGFloat(t), z: 0, w: 0), forKey: "inputGVector")
-            f.setValue(CIVector(x: 0, y: 0, z: CGFloat(t), w: 0), forKey: "inputBVector")
-            f.setValue(CIVector(x: 0, y: 0, z: 0, w: 1), forKey: "inputAVector")
-            f.setValue(CIVector(x: CGFloat(o), y: CGFloat(o), z: CGFloat(o), w: 0), forKey: "inputBiasVector")
-            ciFilters.append(f)
-          }
+          let t = CGFloat(1 - 2 * amount)
+          let o = CGFloat(amount)
+          let f = CIFilter.colorMatrix()
+          f.rVector = CIVector(x: t, y: 0, z: 0, w: 0)
+          f.gVector = CIVector(x: 0, y: t, z: 0, w: 0)
+          f.bVector = CIVector(x: 0, y: 0, z: t, w: 0)
+          f.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+          f.biasVector = CIVector(x: o, y: o, z: o, w: 0)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .opacity(let amount):
-          // backdrop-filter opacity: reduce alpha of backdrop content
-          if let f = CIFilter(name: "CIColorMatrix") {
-            f.setValue(CIVector(x: 1, y: 0, z: 0, w: 0), forKey: "inputRVector")
-            f.setValue(CIVector(x: 0, y: 1, z: 0, w: 0), forKey: "inputGVector")
-            f.setValue(CIVector(x: 0, y: 0, z: 1, w: 0), forKey: "inputBVector")
-            f.setValue(CIVector(x: 0, y: 0, z: 0, w: CGFloat(amount)), forKey: "inputAVector")
-            f.setValue(CIVector(x: 0, y: 0, z: 0, w: 0), forKey: "inputBiasVector")
-            ciFilters.append(f)
-          }
+          // backdrop-filter opacity: reduce alpha of the backdrop content
+          let f = CIFilter.colorMatrix()
+          f.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
+          f.gVector = CIVector(x: 0, y: 1, z: 0, w: 0)
+          f.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
+          f.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(amount))
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .sepia(let amount):
-          if let f = CIFilter(name: "CISepiaTone") {
-            f.setValue(Float(amount), forKey: kCIInputIntensityKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.sepiaTone()
+          f.intensity = Float(amount)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .grayscale(let amount):
-          if let f = CIFilter(name: "CIColorControls") {
-            f.setValue(Float(1 - amount), forKey: kCIInputSaturationKey)
-            ciFilters.append(f)
-          }
+          let f = CIFilter.colorControls()
+          f.saturation = Float(1 - amount)
+          f.setValue(output, forKey: kCIInputImageKey)
+          if let result = f.outputImage { output = result }
 
         case .dropShadow:
           break // drop-shadow not applicable for backdrop-filter
         }
       }
 
-      // Apply blur via UIVisualEffectView (only way to blur live backdrop content)
-      if blurRadius > 0 {
-        let blurEffect = UIBlurEffect(style: .regular)
-        let effectView = UIVisualEffectView(effect: nil)
-        effectView.frame = view.bounds
-        effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        effectView.layer.name = "_mason_backdrop"
-        effectView.isUserInteractionEnabled = false
-        // Use custom blur radius via the animatable property
-        view.insertSubview(effectView, at: 0)
-        UIView.animate(withDuration: 0) {
-          effectView.effect = blurEffect
-        }
-        // Set custom radius on the gaussian blur sublayer if accessible
-        if let backdropLayers = effectView.layer.sublayers {
-          for sublayer in backdropLayers {
-            if let bgFilters = sublayer.value(forKey: "filters") as? [NSObject] {
-              for bgFilter in bgFilters {
-                let filterName = String(describing: type(of: bgFilter))
-                if filterName.contains("Blur") || filterName.contains("blur") {
-                  bgFilter.setValue(blurRadius, forKey: "inputRadius")
-                }
-              }
-            }
-          }
-        }
+      guard let cgImage = context.createCGImage(output, from: extent, format: .BGRA8, colorSpace: CSSFilters.deviceRGB) else {
+        return
       }
 
-      // Apply CIFilter-based color adjustments via a backgroundFilters layer
-      if !ciFilters.isEmpty {
-        let backdropLayer = CALayer()
-        backdropLayer.name = "_mason_backdrop_layer"
-        backdropLayer.frame = view.bounds
-        // CALayer.backgroundFilters applies CIFilters to content behind the layer
-        backdropLayer.setValue(ciFilters, forKey: "backgroundFilters")
-        view.layer.addSublayer(backdropLayer)
-      }
+      updateBackdropMask(renderLayer)
+
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      renderLayer.contents = cgImage
+      CATransaction.commit()
     }
   }
   

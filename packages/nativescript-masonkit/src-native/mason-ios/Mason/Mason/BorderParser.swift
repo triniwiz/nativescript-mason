@@ -227,7 +227,7 @@ extension CSSBorderRenderer {
     self.left.style = style; self.left.color = color
 
     self.invalidateCache()
-    self.style.node.view?.setNeedsDisplay()
+    (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   /// Parse a side-specific CSS border shorthand, e.g. `border-left: 4px solid #00B894`.
@@ -245,7 +245,7 @@ extension CSSBorderRenderer {
       borderSide.style = .none
       borderSide.color = .clear
       self.invalidateCache()
-      self.style.node.view?.setNeedsDisplay()
+      (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
       return
     }
 
@@ -263,7 +263,7 @@ extension CSSBorderRenderer {
     borderSide.color = color
 
     self.invalidateCache()
-    self.style.node.view?.setNeedsDisplay()
+    (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   /// Parse CSS shorthand border: "1px solid red"

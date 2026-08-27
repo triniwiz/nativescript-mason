@@ -60,7 +60,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     let size = state.contains(.fontSize)
     let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
-    case .Text, .Number, .Email, .Password, .Tel, .Url:
+    case .Text, .Email, .Password, .Tel, .Url:
       if(color){
         textInput.textColor = UIColor.colorFromARGB(style.resolvedColor)
         textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
@@ -71,6 +71,19 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         let resolved = style.resolvedFontFace
         if let uiFont = resolved.uiFont {
           textInput.font = uiFont
+        }
+      }
+    case .Number:
+      if(color){
+        numberInput.textField.textColor = UIColor.colorFromARGB(style.resolvedColor)
+        numberInput.textField.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
+      } else if(caretColorChanged){
+        numberInput.textField.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
+      }
+      if(font || size){
+        let resolved = style.resolvedFontFace
+        if let uiFont = resolved.uiFont {
+          numberInput.textField.font = uiFont
         }
       }
     case .Button:
@@ -231,13 +244,25 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   private var initializing = true
+  // Captured in `willSet` (old widget), re-applied in `didSet` after
+  // `configureInput` rebuilds the widget for the new type.
+  private var pendingTypeSwitchValue: String?
   public var type: MasonInputType = .Text {
+    willSet {
+      if !initializing {
+        pendingTypeSwitchValue = self.value
+      }
+    }
     didSet {
       if(initializing){
         return
       }
       configureInput(type)
       invalidateLayout()
+      if let previousValue = pendingTypeSwitchValue {
+        self.value = previousValue
+        pendingTypeSwitchValue = nil
+      }
     }
   }
   
@@ -689,6 +714,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         style.textAlign = TextAlign.Center
       }
       addSubview(numberInput)
+      numberInput.textField.textColor = UIColor.colorFromARGB(style.resolvedColor)
+      numberInput.textField.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
+      if let uiFont = style.resolvedFontFace.uiFont {
+        numberInput.textField.font = uiFont
+      }
       break
     case .Color:
       addSubview(colorInput)

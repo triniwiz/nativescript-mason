@@ -524,11 +524,18 @@ class Input @JvmOverloads constructor(
   private var initializing = true
   var type: Type = Type.Text
     set(value) {
+      // Capture the current value (read against the old type/widget) before
+      // switching - setupType() tears down and rebuilds the underlying
+      // native widget, so anything already set (e.g. a `value` applied while
+      // the default Text widget was still active) would otherwise be lost
+      // when the real type is applied right after.
+      val previousValue = if (!initializing) this.value else null
       field = value
       if (initializing) {
         return
       }
       setupType()
+      previousValue?.let { this.value = it }
     }
 
   private fun setupType(initial: Boolean = false) {
@@ -638,6 +645,7 @@ class Input @JvmOverloads constructor(
           style.textAlign = TextAlign.Center
         }
         addView(numberInput)
+        syncNumberInputStyle()
       }
 
       Type.Range -> {
@@ -764,6 +772,14 @@ class Input @JvmOverloads constructor(
     }
     TextNode.applyAttributes(text, 0, text.length, attributes)
     view.setText(text, TextView.BufferType.SPANNABLE)
+  }
+
+  // `numberInput` is a plain EditText (see NumberControl), not a TextView we
+  // control via TextNode/spans - it defaults to a hardcoded black text color,
+  // so it needs its CSS-resolved color/size applied directly.
+  private fun syncNumberInputStyle() {
+    numberInput.editText.setTextColor(style.resolvedColor)
+    numberInput.editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, style.resolvedFontSize.toFloat())
   }
 
   var value: String
@@ -1185,7 +1201,7 @@ class Input @JvmOverloads constructor(
     val textAlign = StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN)
 
     when (type) {
-      Type.Text, Type.Email, Type.Password, Type.Number, Type.Tel, Type.Url -> {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
         if (fontSize || fontColor || font || textAlign) {
           textInput.cursorPaint.textSize = style.resolvedFontSize.toFloat()
           textInput.cursorPaint.color = style.resolvedCaretColor
@@ -1193,6 +1209,16 @@ class Input @JvmOverloads constructor(
         } else if (caretColorChanged) {
           textInput.cursorPaint.color = style.resolvedCaretColor
           textInput.invalidate()
+        }
+      }
+
+      Type.Number -> {
+        // Number's actual displayed widget is `numberInput` (a plain EditText
+        // wrapped with +/- stepper buttons), not `textInput` - it was falling
+        // through to the Text branch above, which synced style onto the
+        // unrelated, never-attached `textInput` widget instead.
+        if (fontSize || fontColor || font || textAlign) {
+          syncNumberInputStyle()
         }
       }
 

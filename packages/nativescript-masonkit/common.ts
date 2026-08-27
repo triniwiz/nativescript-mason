@@ -59,6 +59,7 @@ import {
   boxShadowProperty,
   transformProperty,
   borderColorProperty,
+  borderStyleProperty,
   backgroundImageProperty,
   listStyleTypeProperty,
   listStylePositionProperty,
@@ -1097,6 +1098,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Splices a text-node entry in at `index`, shifting existing children right.
+  private _spliceOrPushChild(index: number, entry: any) {
+    if (this._children.length > index) {
+      //@ts-ignore
+      this._children.splice(index, 0, entry);
+    } else {
+      //@ts-ignore
+      this._children.push(entry);
+    }
+  }
+
   // -- Unified text node update (cross-platform) --
 
   private _updateTextNode(
@@ -1130,7 +1142,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         break;
       case 'insert':
         this._nativeAddChild(textNode, operation.index);
-        this._setOrPushChild(operation.index, entry);
+        this._spliceOrPushChild(operation.index, entry);
         break;
     }
     this._syncTextRunLayout();
@@ -1461,6 +1473,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const style = this._styleHelper;
       // @ts-ignore
       if (style) style.setBorderColor(String(value));
+    }
+  }
+
+  // @ts-ignore
+  [borderStyleProperty.setNative](value: any) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderStyle = String(value ?? '');
     }
   }
 

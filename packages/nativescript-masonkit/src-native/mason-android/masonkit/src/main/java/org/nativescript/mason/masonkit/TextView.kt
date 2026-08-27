@@ -244,16 +244,18 @@ class TextView @JvmOverloads constructor(
       view = this@TextView
       this.isAnonymous = isAnonymous
     }
-    // Web user-agent default margins are authored in CSS px; mason stores
-    // layout in device pixels, so scale by display density (mirrors how CSS px
-    // values are scaled). Must stay in sync with iOS MasonText.swift.
+    // Web user-agent default font-size/margin numbers live in mason-core
+    // (single source of truth, see ua_default_for_tag); this scales them from
+    // CSS px to device pixels by display density. Must stay in sync with iOS
+    // MasonText.swift's equivalent call.
     val density = resources.displayMetrics.density
-    val margin = { top: Float, bottom: Float ->
+    // ua = [fontSize, marginTop, marginBottom, marginLeft, marginRight]
+    val uaMargin = { ua: FloatArray ->
       Rect<LengthPercentageAuto>(
-        top = LengthPercentageAuto.Points(top * density),
-        right = LengthPercentageAuto.Points(0f),
-        bottom = LengthPercentageAuto.Points(bottom * density),
-        left = LengthPercentageAuto.Points(0f),
+        top = LengthPercentageAuto.Points(ua[1] * density),
+        right = LengthPercentageAuto.Points(ua[4] * density),
+        bottom = LengthPercentageAuto.Points(ua[2] * density),
+        left = LengthPercentageAuto.Points(ua[3] * density),
       )
     }
 
@@ -278,43 +280,49 @@ class TextView @JvmOverloads constructor(
         TextType.H1 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = 32 // 2em
-          node.style.margin = margin(21.44f, 21.44f) // 0.67em
+          val ua = Mason.nativeUaDefaultForTag("h1") // fontSize 2em, margin 0.67em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.H2 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = 24 // 1.5em
-          node.style.margin = margin(19.92f, 19.92f) // 0.83em
+          val ua = Mason.nativeUaDefaultForTag("h2") // fontSize 1.5em, margin 0.83em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.H3 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = 19 // 1.17em ≈ 18.72
-          node.style.margin = margin(18.72f, 18.72f) // 1em
+          val ua = Mason.nativeUaDefaultForTag("h3") // fontSize 1.17em ≈ 18.72, margin 1em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.H4 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = Constants.DEFAULT_FONT_SIZE // 1em (16)
-          node.style.margin = margin(21.28f, 21.28f) // 1.33em
+          val ua = Mason.nativeUaDefaultForTag("h4") // fontSize 1em (16), margin 1.33em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.H5 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = 13 // 0.83em ≈ 13.28
-          node.style.margin = margin(22.18f, 22.18f) // 1.67em
+          val ua = Mason.nativeUaDefaultForTag("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.H6 -> {
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
-          fontSize = 11 // 0.67em ≈ 10.72
-          node.style.margin = margin(24.98f, 24.98f) // 2.33em
+          val ua = Mason.nativeUaDefaultForTag("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
+          fontSize = ua[0].toInt()
+          node.style.margin = uaMargin(ua)
         }
 
         TextType.Li -> {
@@ -322,12 +330,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           node.style.display = Display.Block
-          node.style.margin = Rect(
-            top = LengthPercentageAuto.Points(16f * density),
-            right = LengthPercentageAuto.Points(40f * density),
-            bottom = LengthPercentageAuto.Points(16f * density),
-            left = LengthPercentageAuto.Points(40f * density),
-          )
+          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("blockquote")) // 1em 40px
         }
 
         TextType.B, TextType.Strong -> {
@@ -338,9 +341,8 @@ class TextView @JvmOverloads constructor(
         TextType.Pre -> {
           node.style.display = Display.Block
           style.fontFamily = "monospace"
-          fontSize = Constants.DEFAULT_FONT_SIZE
           whiteSpace = Styles.WhiteSpace.Pre
-          node.style.margin = margin(16f, 16f)
+          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("pre")) // 1em
         }
 
         TextType.I, TextType.Em -> {
@@ -350,7 +352,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.P -> {
           node.style.display = Display.Block
-          node.style.margin = margin(16f, 16f)
+          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("p")) // 1em
         }
 
         TextType.A -> {

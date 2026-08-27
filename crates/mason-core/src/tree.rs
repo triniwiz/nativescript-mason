@@ -1317,17 +1317,18 @@ impl Tree {
     }
 
     pub fn prepend_children(&mut self, parent: Id, children: &[Id]) {
-        let has_parent = self.inner().children.contains_key(parent);
-        if has_parent {
-            for child in children.iter() {
-                self.detach(*child);
-            }
+        let mut tree = self.0.write();
+        for child in children.iter() {
+            Tree::detach_inner(&mut tree, *child);
+            Tree::set_parent_inner(&mut tree, *child, Some(parent));
         }
-        if let Some(nodes) = self.children_mut().get_mut(parent) {
+        if let Some(nodes) = tree.children.get_mut(parent) {
             let mut joined = children.to_vec();
             joined.append(nodes);
             let _ = std::mem::replace(nodes, joined);
         }
+        // Mark the parent dirty, matching `append`/`add_child_at_index`.
+        Tree::mark_dirty_inner(&mut tree, parent);
     }
 
     pub fn child_count(&self, node: Id) -> usize {

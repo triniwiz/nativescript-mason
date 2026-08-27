@@ -1172,18 +1172,11 @@ public class TextEngine: NSObject {
         for i in 0..<linesCount {
           let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
           let lineOrigin = origins[i]
-          let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-          // Compute horizontal offset based on resolved text alignment
-          var horizontalOffset: CGFloat = 0
-          switch style.resolvedTextAlign {
-          case .Center:
-            horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
-          case .Right, .End:
-            horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
-          case .Left, .Auto, .Start, .Justify:
-            horizontalOffset = 0
-          }
-          let textPos = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY)
+          // The frame was laid out with `paragraphStyle.alignment` already set
+          // (getDefaultAttributes), so CoreText has already centered/right-aligned
+          // this line's origin within the frame's full column width - adding a
+          // second manual offset here double-applies the alignment.
+          let textPos = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
           context.saveGState()
           context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
           
@@ -1207,17 +1200,9 @@ public class TextEngine: NSObject {
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-      var horizontalOffset: CGFloat = 0
-      switch style.resolvedTextAlign {
-      case .Center:
-        horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
-      case .Right, .End:
-        horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
-      case .Left, .Auto, .Start, .Justify:
-        horizontalOffset = 0
-      }
-      context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY)
+      // Same double-alignment pitfall as the shadow pass above - `lineOrigin.x`
+      // already reflects the paragraph style's alignment.
+      context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -1235,7 +1220,7 @@ public class TextEngine: NSObject {
           // Fake-bold only when a bold weight is requested but no real bold face
           // exists. `weight` is the CSS weight (100–900), so threshold is 600.
           if !isBold && weight >= 600 {
-              drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY))
+              drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY))
             } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
@@ -1245,7 +1230,7 @@ public class TextEngine: NSObject {
       }
 
       // Draw text decorations (underline, strikethrough) for this line
-      drawTextDecorations(for: line, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY), in: context)
+      drawTextDecorations(for: line, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY), in: context)
     }
 
     context.restoreGState()

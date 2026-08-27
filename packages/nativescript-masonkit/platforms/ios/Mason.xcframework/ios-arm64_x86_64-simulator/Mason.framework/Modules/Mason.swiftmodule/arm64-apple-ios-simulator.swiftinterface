@@ -859,7 +859,7 @@ public struct MasonNodeView {
     public func invalidate()
     public func applyFast(in context: CoreGraphics.CGContext, rect: CoreFoundation.CGRect) -> Swift.Bool
     public func apply(to view: UIKit.UIView)
-    public func applyAsBackdrop(to view: UIKit.UIView)
+    public func applyAsBackdrop(to view: UIKit.UIView, clipPathProvider: (() -> UIKit.UIBezierPath?)? = nil)
     @objc deinit
   }
   @objc deinit
