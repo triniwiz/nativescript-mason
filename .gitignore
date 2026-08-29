@@ -58,3 +58,5 @@ packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason.xcodeproj/xcuser
 .nx/workspace-data
 /apps/demo-solid/platforms
 /tools/assets/App_Resources/Android/.gradle
+/apps/demo-react/platforms
+/apps/demo-react/hooks

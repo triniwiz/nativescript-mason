@@ -1784,7 +1784,7 @@ public enum GridAutoFlow: Int, RawRepresentable {
     case .RowDense:
       return 2
     case .ColumnDense:
-      return 2
+      return 3
     }
   }
   
@@ -2881,6 +2881,12 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
   case Color
   case File
   case Submit
+  case Search
+  case Time
+  case DatetimeLocal
+  case Month
+  case Week
+  case Reset
   public var description: String {
     switch(self){case .Text:
       return "text"
@@ -2910,6 +2916,18 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       return "file"
     case .Submit:
       return "submit"
+    case .Search:
+      return "search"
+    case .Time:
+      return "time"
+    case .DatetimeLocal:
+      return "datetime-local"
+    case .Month:
+      return "month"
+    case .Week:
+      return "week"
+    case .Reset:
+      return "reset"
     }
   }
   
@@ -2941,6 +2959,20 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       self = .Color
     case 12:
       self = .File
+    case 13:
+      self = .Submit
+    case 14:
+      self = .Search
+    case 15:
+      self = .Time
+    case 16:
+      self = .DatetimeLocal
+    case 17:
+      self = .Month
+    case 18:
+      self = .Week
+    case 19:
+      self = .Reset
     default:
       return nil
     }
@@ -2975,6 +3007,18 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       12
     case .Submit:
       13
+    case .Search:
+      14
+    case .Time:
+      15
+    case .DatetimeLocal:
+      16
+    case .Month:
+      17
+    case .Week:
+      18
+    case .Reset:
+      19
     }
   }
 }

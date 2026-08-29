@@ -394,7 +394,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   /**
    * Returns the top-most Mason/NativeScript element at a point in this view's
-   * local coordinate space, similar to the browser's elementFromPoint().
+   * visible local coordinate space, similar to the browser's elementFromPoint().
    */
   public elementFromPoint(x: number, y: number): ViewBase | NSViewBase | null {
     const nativeView = nativeViewFor(this) ?? (this as any)._view;

@@ -956,13 +956,19 @@ public class HTMLParser: NSObject {
     case "number": return .Number
     case "tel", "telephone": return .Tel
     case "url": return .Url
+    case "search": return .Search
     case "date": return .Date
+    case "time": return .Time
+    case "datetime-local": return .DatetimeLocal
+    case "month": return .Month
+    case "week": return .Week
     case "color": return .Color
     case "checkbox": return .Checkbox
     case "radio": return .Radio
     case "range": return .Range
     case "file": return .File
     case "submit": return .Submit
+    case "reset": return .Reset
     case "button": return .Button
     default: return .Text
     }

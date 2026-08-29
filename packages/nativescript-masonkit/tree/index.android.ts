@@ -135,16 +135,19 @@ export class Tree {
         //@ts-ignore
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Tel);
       case 'url':
-        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Email);
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Url);
       case 'search':
-        return this.native.createInput(context);
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Search);
       case 'date':
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Date);
       case 'time':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Time);
       case 'datetime-local':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.DatetimeLocal);
       case 'month':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Month);
       case 'week':
-        return this.native.createInput(context);
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Week);
       case 'color':
         //@ts-ignore
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Color);
@@ -155,8 +158,9 @@ export class Tree {
       case 'button':
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Button);
       case 'submit':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Submit);
       case 'reset':
-        return this.native.createInput(context);
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Reset);
       case 'file':
         //@ts-ignore
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.File);

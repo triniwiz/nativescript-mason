@@ -887,6 +887,12 @@ typedef SWIFT_ENUM_NAMED(int8_t, MasonInputType, "MasonInputType", open) {
   MasonInputTypeColor = 11,
   MasonInputTypeFile = 12,
   MasonInputTypeSubmit = 13,
+  MasonInputTypeSearch = 14,
+  MasonInputTypeTime = 15,
+  MasonInputTypeDatetimeLocal = 16,
+  MasonInputTypeMonth = 17,
+  MasonInputTypeWeek = 18,
+  MasonInputTypeReset = 19,
 };
 
 @class MasonRectHelper;
@@ -2891,6 +2897,12 @@ typedef SWIFT_ENUM_NAMED(int8_t, MasonInputType, "MasonInputType", open) {
   MasonInputTypeColor = 11,
   MasonInputTypeFile = 12,
   MasonInputTypeSubmit = 13,
+  MasonInputTypeSearch = 14,
+  MasonInputTypeTime = 15,
+  MasonInputTypeDatetimeLocal = 16,
+  MasonInputTypeMonth = 17,
+  MasonInputTypeWeek = 18,
+  MasonInputTypeReset = 19,
 };
 
 @class MasonRectHelper;

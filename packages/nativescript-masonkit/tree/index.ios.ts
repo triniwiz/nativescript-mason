@@ -119,15 +119,23 @@ export class Tree {
       case 'email':
         return this.native.createInput(MasonInputType.Email);
       case 'tel':
+        return this.native.createInput(MasonInputType.Tel);
       case 'url':
+        return this.native.createInput(MasonInputType.Url);
       case 'search':
+        return this.native.createInput(MasonInputType.Search);
       case 'date':
         return this.native.createInput(MasonInputType.Date);
       case 'time':
+        return this.native.createInput(MasonInputType.Time);
       case 'datetime-local':
+        return this.native.createInput(MasonInputType.DatetimeLocal);
       case 'month':
+        return this.native.createInput(MasonInputType.Month);
       case 'week':
+        return this.native.createInput(MasonInputType.Week);
       case 'color':
+        return this.native.createInput(MasonInputType.Color);
       case 'checkbox':
         return this.native.createInput(MasonInputType.Checkbox);
       case 'radio':
@@ -135,8 +143,11 @@ export class Tree {
       case 'button':
         return this.native.createInput(MasonInputType.Button);
       case 'submit':
+        return this.native.createInput(MasonInputType.Submit);
       case 'reset':
+        return this.native.createInput(MasonInputType.Reset);
       case 'file':
+        return this.native.createInput(MasonInputType.File);
       default:
         return this.native.createInput(MasonInputType.Text);
     }

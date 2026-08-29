@@ -11,6 +11,12 @@ import CoreGraphics
 
 // Shared color space — avoids deviceRGB allocation per gradient draw
 private let deviceRGB = CGColorSpaceCreateDeviceRGB()
+private let svgDimensionRegex = try! NSRegularExpression(pattern: #"(?i)\b(width|height)=["']?([0-9.]+)["']?"#, options: [])
+private let svgViewBoxRegex = try! NSRegularExpression(pattern: #"(?i)\bviewBox=["']?\s*([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)"#, options: [])
+private let svgFillRegex = try! NSRegularExpression(pattern: #"(?i)\bfill=["']([^"']+)["']"#, options: [])
+private let svgFillOpacityRegex = try! NSRegularExpression(pattern: #"(?i)\bfill-opacity=["']([0-9.]+)["']"#, options: [])
+private let svgPathRegex = try! NSRegularExpression(pattern: #"(?i)<path\b[^>]*\bd=["']([^"']+)["'][^>]*/?>"#, options: [])
+private let svgPathTokenRegex = try! NSRegularExpression(pattern: #"[MmLlHhVvZz]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?"#, options: [])
 
 // MARK: - Background
 extension Background {
@@ -65,6 +71,9 @@ extension Background {
     if let urlStr = layer.image {
       if let cached = layer.bitmap {
         drawBitmap(layer: layer, bitmap: cached, context: context, rect: rect)
+      } else if let image = decodeDataUrlImage(url: urlStr) {
+        layer.bitmap = image
+        drawBitmap(layer: layer, bitmap: image, context: context, rect: rect)
       } else {
         loadImageCached(url: urlStr) { image in
           layer.bitmap = image
@@ -143,8 +152,9 @@ extension Background {
     } else {
       drawSize = CGSize(width: cgImage.width, height: cgImage.height)
     }
+    if drawSize.width <= 0 || drawSize.height <= 0 { return }
     
-    let pos = layer.position ?? (0.5, 0.5)
+    let pos = layer.position ?? (0, 0)
     let x = pos.0 * (width - drawSize.width)
     let y = pos.1 * (height - drawSize.height)
     
@@ -178,6 +188,11 @@ extension Background {
   
   // MARK: - Cached Image Loader
   private func loadImageCached(url: String, completion: @escaping (UIImage?) -> Void) {
+    if let image = decodeDataUrlImage(url: url) {
+      completion(image)
+      return
+    }
+
     guard let u = URL(string: url) else { completion(nil); return }
     
     // Check URLCache first
@@ -221,6 +236,12 @@ func drawBackground(
   if let imageUrl = layer.image {
     if let cached = layer.bitmap {
       drawBitmapLayer(bitmap: cached, layer: layer, context: context, rect: rect)
+      return
+    }
+
+    if let image = decodeDataUrlImage(url: imageUrl) {
+      layer.bitmap = image
+      drawBitmapLayer(bitmap: image, layer: layer, context: context, rect: rect)
       return
     }
     
@@ -398,9 +419,10 @@ private func drawBitmapLayer(
     drawWidth = CGFloat(cgImage.width)
     drawHeight = CGFloat(cgImage.height)
   }
+  if drawWidth <= 0 || drawHeight <= 0 { return }
   
   // Position
-  let pos = layer.position ?? (0.5, 0.5)
+  let pos = layer.position ?? (0, 0)
   let x = pos.0 * (width - drawWidth)
   let y = pos.1 * (height - drawHeight)
   
@@ -503,6 +525,11 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
 
 // MARK: - Image Loading
 func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
+  if let image = decodeDataUrlImage(url: url) {
+    completion(image)
+    return
+  }
+
   guard let u = URL(string: url) else {
     completion(nil)
     return
@@ -524,4 +551,200 @@ func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
     }
     completion(UIImage(data: data))
   }.resume()
+}
+
+private func decodeDataUrlImage(url: String) -> UIImage? {
+  guard url.range(of: "data:", options: [.caseInsensitive, .anchored]) != nil,
+        let comma = url.firstIndex(of: ",") else {
+    return nil
+  }
+
+  let meta = String(url[url.index(url.startIndex, offsetBy: 5)..<comma]).lowercased()
+  let payload = String(url[url.index(after: comma)...])
+  let data: Data?
+  if meta.contains(";base64") {
+    data = Data(base64Encoded: payload, options: .ignoreUnknownCharacters)
+  } else {
+    data = payload.removingPercentEncoding?.data(using: .utf8)
+  }
+
+  guard let imageData = data else { return nil }
+  if meta.hasPrefix("image/svg+xml") {
+    guard let svg = String(data: imageData, encoding: .utf8) else { return nil }
+    return rasterizeSimpleSvg(svg)
+  }
+  return UIImage(data: imageData)
+}
+
+private func rasterizeSimpleSvg(_ svg: String) -> UIImage? {
+  let dimensions = svgDimensions(svg)
+  let viewBox = captureGroups(svgViewBoxRegex, in: svg)
+  let vbX = CGFloat(Double(viewBox[safe: 0] ?? "") ?? 0)
+  let vbY = CGFloat(Double(viewBox[safe: 1] ?? "") ?? 0)
+  let vbW = CGFloat(Double(viewBox[safe: 2] ?? "") ?? Double(dimensions["width"] ?? 0))
+  let vbH = CGFloat(Double(viewBox[safe: 3] ?? "") ?? Double(dimensions["height"] ?? 0))
+  let imageWidth = max(CGFloat(dimensions["width"] ?? Float(vbW)), 1)
+  let imageHeight = max(CGFloat(dimensions["height"] ?? Float(vbH)), 1)
+  guard vbW > 0, vbH > 0 else { return nil }
+
+  let fill = captureGroups(svgFillRegex, in: svg).first ?? "#000"
+  let baseColor = parseColor(fill) ?? UIColor.black
+  let fillOpacity = CGFloat(Double(captureGroups(svgFillOpacityRegex, in: svg).first ?? "") ?? 1)
+  let color = baseColor.withAlphaComponent(baseColor.alphaComponent * min(max(fillOpacity, 0), 1))
+
+  var drewPath = false
+  let size = CGSize(width: imageWidth, height: imageHeight)
+  let format = UIGraphicsImageRendererFormat.default()
+  format.opaque = false
+  let image = UIGraphicsImageRenderer(size: size, format: format).image { rendererContext in
+    let cgContext = rendererContext.cgContext
+    cgContext.setFillColor(color.cgColor)
+    let range = NSRange(svg.startIndex..., in: svg)
+    svgPathRegex.enumerateMatches(in: svg, options: [], range: range) { match, _, _ in
+      guard let match = match,
+            let pathDataRange = Range(match.range(at: 1), in: svg),
+            let path = parseSimpleSvgPath(String(svg[pathDataRange])) else {
+        return
+      }
+      path.apply(CGAffineTransform(a: imageWidth / vbW, b: 0, c: 0, d: imageHeight / vbH, tx: -vbX * imageWidth / vbW, ty: -vbY * imageHeight / vbH))
+      path.fill()
+      drewPath = true
+    }
+  }
+
+  return drewPath ? image : nil
+}
+
+private func svgDimensions(_ svg: String) -> [String: Float] {
+  var dimensions: [String: Float] = [:]
+  let range = NSRange(svg.startIndex..., in: svg)
+  svgDimensionRegex.enumerateMatches(in: svg, options: [], range: range) { match, _, _ in
+    guard let match = match,
+          let keyRange = Range(match.range(at: 1), in: svg),
+          let valueRange = Range(match.range(at: 2), in: svg),
+          let value = Float(svg[valueRange]) else {
+      return
+    }
+    dimensions[String(svg[keyRange]).lowercased()] = value
+  }
+  return dimensions
+}
+
+private func captureGroups(_ regex: NSRegularExpression, in value: String) -> [String] {
+  let range = NSRange(value.startIndex..., in: value)
+  guard let match = regex.firstMatch(in: value, options: [], range: range) else { return [] }
+  return (1..<match.numberOfRanges).compactMap { index in
+    guard let groupRange = Range(match.range(at: index), in: value) else { return nil }
+    return String(value[groupRange])
+  }
+}
+
+private func parseSimpleSvgPath(_ data: String) -> UIBezierPath? {
+  let tokens = svgPathTokens(data)
+  guard !tokens.isEmpty else { return nil }
+
+  let path = UIBezierPath()
+  var index = 0
+  var command: Character?
+  var current = CGPoint.zero
+  var subpathStart = CGPoint.zero
+  var drew = false
+
+  func isCommand(_ token: String) -> Bool {
+    guard token.count == 1, let first = token.first else { return false }
+    return "MmLlHhVvZz".contains(first)
+  }
+
+  func readNumber() -> CGFloat? {
+    guard index < tokens.count, !isCommand(tokens[index]) else { return nil }
+    defer { index += 1 }
+    return CGFloat(Double(tokens[index]) ?? .nan)
+  }
+
+  while index < tokens.count {
+    if isCommand(tokens[index]) {
+      command = tokens[index].first
+      index += 1
+    }
+    guard let activeCommand = command else { return nil }
+
+    switch activeCommand {
+    case "M", "m":
+      var firstPoint = true
+      while let xValue = readNumber(), let yValue = readNumber() {
+        let point = activeCommand == "m"
+          ? CGPoint(x: current.x + xValue, y: current.y + yValue)
+          : CGPoint(x: xValue, y: yValue)
+        if firstPoint {
+          path.move(to: point)
+          subpathStart = point
+          firstPoint = false
+        } else {
+          path.addLine(to: point)
+          drew = true
+        }
+        current = point
+        if index < tokens.count, isCommand(tokens[index]) { break }
+      }
+      command = activeCommand == "m" ? "l" : "L"
+
+    case "L", "l":
+      while let xValue = readNumber(), let yValue = readNumber() {
+        current = activeCommand == "l"
+          ? CGPoint(x: current.x + xValue, y: current.y + yValue)
+          : CGPoint(x: xValue, y: yValue)
+        path.addLine(to: current)
+        drew = true
+        if index < tokens.count, isCommand(tokens[index]) { break }
+      }
+
+    case "H", "h":
+      while let xValue = readNumber() {
+        current.x = activeCommand == "h" ? current.x + xValue : xValue
+        path.addLine(to: current)
+        drew = true
+        if index < tokens.count, isCommand(tokens[index]) { break }
+      }
+
+    case "V", "v":
+      while let yValue = readNumber() {
+        current.y = activeCommand == "v" ? current.y + yValue : yValue
+        path.addLine(to: current)
+        drew = true
+        if index < tokens.count, isCommand(tokens[index]) { break }
+      }
+
+    case "Z", "z":
+      path.close()
+      current = subpathStart
+      drew = true
+
+    default:
+      return nil
+    }
+  }
+
+  return drew ? path : nil
+}
+
+private func svgPathTokens(_ data: String) -> [String] {
+  let range = NSRange(data.startIndex..., in: data)
+  return svgPathTokenRegex.matches(in: data, options: [], range: range).compactMap { match in
+    guard let tokenRange = Range(match.range, in: data) else { return nil }
+    return String(data[tokenRange])
+  }
+}
+
+private extension UIColor {
+  var alphaComponent: CGFloat {
+    var alpha: CGFloat = 0
+    getRed(nil, green: nil, blue: nil, alpha: &alpha)
+    return alpha
+  }
+}
+
+private extension Collection {
+  subscript(safe index: Index) -> Element? {
+    indices.contains(index) ? self[index] : nil
+  }
 }

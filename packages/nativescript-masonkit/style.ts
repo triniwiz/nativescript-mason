@@ -1053,6 +1053,16 @@ export class Style {
     }
   }
 
+  private coerceCssStringValue(value: any): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (value == null) {
+      return '';
+    }
+    return String(value);
+  }
+
   private setPseudoCssStringValue(name: string, value: string, applyAndroid: () => void, applyApple: () => void) {
     if (!this.nativeView) {
       return;
@@ -4125,6 +4135,7 @@ export class Style {
   }
 
   set background(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background',
       value,
@@ -4149,6 +4160,7 @@ export class Style {
   }
 
   set backgroundImage(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background-image',
       value,
@@ -4173,6 +4185,7 @@ export class Style {
   }
 
   set backgroundRepeat(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background-repeat',
       value,
@@ -4197,6 +4210,7 @@ export class Style {
   }
 
   set backgroundPosition(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background-position',
       value,
@@ -4221,6 +4235,7 @@ export class Style {
   }
 
   set backgroundSize(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background-size',
       value,
@@ -4245,6 +4260,7 @@ export class Style {
   }
 
   set backgroundClip(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'background-clip',
       value,
@@ -4269,6 +4285,7 @@ export class Style {
   }
 
   set borderRadius(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-radius',
       value,
@@ -4278,6 +4295,7 @@ export class Style {
   }
 
   set textDecoration(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'text-decoration',
       value,
@@ -4301,6 +4319,7 @@ export class Style {
   }
 
   set border(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border',
       value,
@@ -4381,6 +4400,7 @@ export class Style {
   }
 
   set borderLeft(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-left',
       value,
@@ -4394,6 +4414,7 @@ export class Style {
   }
 
   set borderTop(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-top',
       value,
@@ -4407,6 +4428,7 @@ export class Style {
   }
 
   set borderRight(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-right',
       value,
@@ -4420,6 +4442,7 @@ export class Style {
   }
 
   set borderBottom(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-bottom',
       value,
@@ -4444,6 +4467,7 @@ export class Style {
   }
 
   set filter(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'filter',
       value,
@@ -4476,6 +4500,7 @@ export class Style {
   }
 
   set boxShadow(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'box-shadow',
       value,
@@ -4500,6 +4525,7 @@ export class Style {
   }
 
   set transform(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'transform',
       value,
@@ -4673,6 +4699,7 @@ export class Style {
   }
 
   set textShadow(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'text-shadow',
       value,
@@ -4767,6 +4794,7 @@ export class Style {
   }
 
   set cornerShape(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'corner-shape',
       value,
@@ -4802,6 +4830,7 @@ export class Style {
   }
 
   set cornerShapeTopLeft(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'corner-shape-top-left',
       value,
@@ -4822,6 +4851,7 @@ export class Style {
   }
 
   set cornerShapeTopRight(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'corner-shape-top-right',
       value,
@@ -4842,6 +4872,7 @@ export class Style {
   }
 
   set cornerShapeBottomRight(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'corner-shape-bottom-right',
       value,
@@ -4862,6 +4893,7 @@ export class Style {
   }
 
   set cornerShapeBottomLeft(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'corner-shape-bottom-left',
       value,
@@ -5020,6 +5052,7 @@ export class Style {
   }
 
   set borderImage(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'border-image',
       value,
@@ -5074,6 +5107,7 @@ export class Style {
   }
 
   set fontFeatureSettings(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'font-feature-settings',
       value,
@@ -5182,6 +5216,7 @@ export class Style {
   }
 
   set backdropFilter(value: string) {
+    value = this.coerceCssStringValue(value);
     this.setPseudoCssStringValue(
       'backdrop-filter',
       value,

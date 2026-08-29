@@ -36,12 +36,24 @@ export class Input extends InputBase {
         return MasonInputType.Tel;
       case 'url':
         return MasonInputType.Url;
+      case 'search':
+        return MasonInputType.Search;
+      case 'time':
+        return MasonInputType.Time;
+      case 'datetime-local':
+        return MasonInputType.DatetimeLocal;
+      case 'month':
+        return MasonInputType.Month;
+      case 'week':
+        return MasonInputType.Week;
       case 'color':
         return MasonInputType.Color;
       case 'file':
         return MasonInputType.File;
       case 'submit':
         return MasonInputType.Submit;
+      case 'reset':
+        return MasonInputType.Reset;
     }
     return MasonInputType.Text;
   }
@@ -52,7 +64,6 @@ export class Input extends InputBase {
   }
 
   [multipleProperty.setNative](value) {
-    this._type = value;
     if (this._view) {
       this._view.multiple = value;
     }

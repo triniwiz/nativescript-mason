@@ -874,13 +874,19 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "number" -> Input.Type.Number
       "tel", "telephone" -> Input.Type.Tel
       "url" -> Input.Type.Url
+      "search" -> Input.Type.Search
       "date" -> Input.Type.Date
+      "time" -> Input.Type.Time
+      "datetime-local" -> Input.Type.DatetimeLocal
+      "month" -> Input.Type.Month
+      "week" -> Input.Type.Week
       "color" -> Input.Type.Color
       "checkbox" -> Input.Type.Checkbox
       "radio" -> Input.Type.Radio
       "range" -> Input.Type.Range
       "file" -> Input.Type.File
       "submit" -> Input.Type.Submit
+      "reset" -> Input.Type.Reset
       "button" -> Input.Type.Button
       else -> Input.Type.Text
     }

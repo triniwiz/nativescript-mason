@@ -995,7 +995,7 @@ class MasonElementHelpers: NSObject {
 
         // Skip flattened text containers — parent draws their text
         if child.parent?.view is TextContainer && child.view is TextContainer {
-          if (child.parent!.view as! MasonText).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
+          if (child.parent!.view as! TextContainer).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
             child.view?.frame = .zero
             continue
           }

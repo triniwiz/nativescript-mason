@@ -2226,6 +2226,12 @@ declare module org {
 						public static Color: org.nativescript.mason.masonkit.Input.Type;
 						public static File: org.nativescript.mason.masonkit.Input.Type;
 						public static Submit: org.nativescript.mason.masonkit.Input.Type;
+						public static Search: org.nativescript.mason.masonkit.Input.Type;
+						public static Time: org.nativescript.mason.masonkit.Input.Type;
+						public static DatetimeLocal: org.nativescript.mason.masonkit.Input.Type;
+						public static Month: org.nativescript.mason.masonkit.Input.Type;
+						public static Week: org.nativescript.mason.masonkit.Input.Type;
+						public static Reset: org.nativescript.mason.masonkit.Input.Type;
 						public static getEntries(): any;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Type>;
 						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Type;
@@ -7307,4 +7313,3 @@ declare module org {
 //org.nativescript.mason.masonkit.Point:1
 //org.nativescript.mason.masonkit.Rect:1
 //org.nativescript.mason.masonkit.Size:1
-

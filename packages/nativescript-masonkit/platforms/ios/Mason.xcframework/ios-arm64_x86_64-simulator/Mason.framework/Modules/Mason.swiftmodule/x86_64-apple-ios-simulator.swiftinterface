@@ -3058,6 +3058,12 @@ public enum VerticalAlign {
   case Color
   case File
   case Submit
+  case Search
+  case Time
+  case DatetimeLocal
+  case Month
+  case Week
+  case Reset
   public var description: Swift.String {
     get
   }

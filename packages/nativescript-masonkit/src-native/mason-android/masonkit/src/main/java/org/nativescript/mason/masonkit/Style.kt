@@ -5246,9 +5246,15 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
-    internal fun applyOverflowClip(style: Style, canvas: Canvas, node: Node) {
-      val width = node.computedWidth
-      val height = node.computedHeight
+    internal fun applyOverflowClip(
+      style: Style,
+      canvas: Canvas,
+      node: Node,
+      widthOverride: Float = node.computedWidth,
+      heightOverride: Float = node.computedHeight
+    ) {
+      val width = if (widthOverride > 0f) widthOverride else node.computedWidth
+      val height = if (heightOverride > 0f) heightOverride else node.computedHeight
 
       val paddingLeft = node.computedPaddingLeft
       val paddingTop = node.computedPaddingTop

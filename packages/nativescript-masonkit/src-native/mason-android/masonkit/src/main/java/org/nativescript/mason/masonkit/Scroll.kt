@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.ViewGroup
+import androidx.core.graphics.withSave
 import org.nativescript.mason.masonkit.enums.Overflow
 import kotlin.math.min
 
@@ -94,9 +95,26 @@ class Scroll @JvmOverloads constructor(
 
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(this, canvas, style, beforeChildren = { c ->
-      ViewUtils.drawChildrenOutsetShadows(this, c)
+      c.withSave {
+        clipScrollViewport(this)
+        ViewUtils.drawChildrenOutsetShadows(this@Scroll, this)
+      }
     }) {
-      super.dispatchDraw(it)
+      it.withSave {
+        clipScrollViewport(this)
+        super.dispatchDraw(this)
+      }
+    }
+  }
+
+  private fun clipScrollViewport(canvas: Canvas) {
+    val left = scrollX + paddingLeft
+    val top = scrollY + paddingTop
+    val right = scrollX + width - paddingRight
+    val bottom = scrollY + height - paddingBottom
+
+    if (right > left && bottom > top) {
+      canvas.clipRect(left, top, right, bottom)
     }
   }
 

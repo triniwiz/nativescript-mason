@@ -305,7 +305,7 @@ class VBase extends ViewBase implements IViewBase {
 
   /**
    * Returns the top-most Mason/NativeScript element at a point in this view's
-   * local coordinate space.
+   * visible local coordinate space.
    */
   elementFromPoint(x: number, y: number): ViewBase | null;
 }
