@@ -419,10 +419,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         break
       case .Range:
         break
-      case .Tel:
-        break
-      case .Url:
-        break
       case .Color:
         break
       case .File:

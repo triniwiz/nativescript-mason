@@ -326,6 +326,10 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.Li -> {
+          // Browsers give <li> `display:list-item`; marker rendering here is
+          // handled separately by View.kt's drawListItemMarkers, so plain
+          // Block is enough to keep siblings from running together inline.
+          node.style.display = Display.Block
         }
 
         TextType.Blockquote -> {

@@ -37,6 +37,21 @@ enum class PseudoState(val mask: Int) {
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) : NativeObject {
+  /**
+   * The markup last assigned through [Element.innerHTML], so the getter can
+   * return it. Serialising the live tree back to HTML is a separate concern.
+   */
+  internal var assignedInnerHTML: String = ""
+
+  /**
+   * Attributes carried over from parsed HTML (`class`, `id`, `href`, `alt`,
+   * `title`). These are recorded, not acted on by the cascade: a node built by
+   * the HTML parser is a native view with a mason node, not a NativeScript
+   * ViewBase, so NativeScript's selector engine never sees it. Keeping them lets
+   * an app find and style a parsed subtree itself.
+   */
+  val htmlAttributes: MutableMap<String, String> = mutableMapOf()
+
 
   internal var computeCacheDirty = false
   internal var computeScheduled = false
@@ -60,14 +75,19 @@ open class Node internal constructor(
       }
     }
 
-  // Flat layout tree — reused across layout passes to avoid allocation
+  // Flat layout tree this node owns — only ever filled with real data when
+  // THIS node drives its own layout pass (a root Element, or a self-computing
+  // View/Scroll/Li applying its own subtree). Most nodes never do that.
   internal val layoutTree = MasonLayoutTree()
 
-  // Index of this node in the flat layout tree (set during applyLayoutFlat)
+  // Where this node's geometry actually landed; `nv()` reads through this
+  // pair rather than `layoutTree` directly, since a descendant's own
+  // `layoutTree` may stay unset. Set together by applyLayoutFlat's DFS.
+  internal var layoutTreeRef: MasonLayoutTree = layoutTree
   internal var layoutTreeIndex: Int = 0
 
   // Helper to ensure the shared cursor points at this node's index before reads.
-  private fun nv() = layoutTree.cursor.apply { pointTo(layoutTreeIndex) }
+  private fun nv() = layoutTreeRef.cursor.apply { pointTo(layoutTreeIndex) }
 
   val computedWidth get() = nv().width
   val computedHeight get() = nv().height
@@ -122,13 +142,13 @@ open class Node internal constructor(
   }
 
   // Compatibility accessor: derive a recursive `Layout` representation
-  // from the current `layoutTree` at `layoutTreeIndex`. This avoids
+  // from the current `layoutTreeRef` at `layoutTreeIndex`. This avoids
   // storing a separate `computedLayout` snapshot while preserving the
   // legacy read API used by tests and callers.
   val computedLayout: Layout
     get() {
-      if (layoutTree.nodeCount == 0) return Layout.empty
-      return Layout.fromMasonTree(layoutTree, layoutTreeIndex)
+      if (layoutTreeRef.nodeCount == 0) return Layout.empty
+      return Layout.fromMasonTree(layoutTreeRef, layoutTreeIndex)
     }
 
   val computedPaddingIsEmpty get() = nv().paddingIsEmpty
@@ -735,6 +755,21 @@ open class Node internal constructor(
       invalidateDescendantTextViews(node, state.low, state.high)
     }
 
+    // A text descendant may have already built (and cached) its attributed
+    // string -- font-size, line-height, color, ... -- while this subtree
+    // wasn't yet reachable from its real ancestor, so CSS inheritance
+    // resolved to nothing. cachedAttributedString has no way to notice an
+    // ancestor changing on its own, so force a rebuild explicitly on attach.
+    internal fun invalidateDescendantInlineSegments(node: Node) {
+      if (node.view is TextContainer) {
+        (node.view as TextContainer).engine.invalidateInlineSegments()
+      }
+      val size = node.children.size
+      for (i in 0 until size) {
+        invalidateDescendantInlineSegments(node.children[i])
+      }
+    }
+
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
       // Early exit for subtrees that contain no text at all (see
       // Node.hasTextDescendant / markHasTextDescendant, maintained by
@@ -743,6 +778,11 @@ open class Node internal constructor(
       if (!node.hasTextDescendant && node.view !is TextContainer) {
         return
       }
+
+      // The resolved FontFace is cached per Style and inherits through
+      // node.parent, so a face resolved before this subtree was reachable
+      // from its real ancestor is stale -- drop it before re-notifying.
+      node.style.invalidateInheritedTextCaches()
 
       // Direct invalidation if this is a TextView
       if (node.view is TextContainer) {
@@ -857,6 +897,12 @@ open class Node internal constructor(
       }
       computeCacheDirty = true
       invalidateDescendantTextViews(descendantTextViews, StateKeys.INVALIDATE_TEXT)
+      // onChange(-1,-1) above only rebuilds a TextContainer's spans when a
+      // StateKeys flag it already checks for flipped -- it never notices that
+      // an *ancestor* just became reachable. A text run built while `child`'s
+      // subtree was still unparented cached a spannable resolved against no
+      // inheritance at all; force it to rebuild against the now-real parent.
+      invalidateDescendantInlineSegments(descendantTextViews)
 
       onNodeAttached?.let { it() }
     }

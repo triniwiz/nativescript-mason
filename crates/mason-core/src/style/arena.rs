@@ -385,6 +385,7 @@ impl StyleArena {
                 | StyleHandle::DEFAULT_GRID
                 | StyleHandle::DEFAULT_LIST
                 | StyleHandle::DEFAULT_LIST_ITEM
+                | StyleHandle::DEFAULT_BUTTON
         ) {
             let idx = handle.index();
             let buf = &mut self.buffers[idx];

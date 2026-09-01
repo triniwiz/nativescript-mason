@@ -302,6 +302,11 @@ declare module '@nativescript/core/ui/styling/style' {
   }
 }
 
+/** "background-color" -> "backgroundColor". */
+function toCamelCase(prop: string): string {
+  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
@@ -608,11 +613,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
       if (style) {
         for (const prop in current) {
-          style[prop] = current[prop];
+          // ruleset props are kebab-case; Style only has camelCase accessors.
+          style[toCamelCase(prop)] = current[prop];
         }
         this[pseudoStyles_][pseudoClass] = style;
       }
     }
+  }
+
+  @PseudoClassHandler('hover')
+  _hoverHandler(subscribe: boolean) {
+    const styles = compile(this);
+    //@ts-ignore
+    this._applyPseudoClassStyles('hover', this._view, styles);
   }
 
   @PseudoClassHandler('highlighted', 'pressed', 'active')

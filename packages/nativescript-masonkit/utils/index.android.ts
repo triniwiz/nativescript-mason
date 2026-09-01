@@ -251,7 +251,7 @@ export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPx
     case 'dip':
       return Utils.layout.toDevicePixels(length.value);
     case 'px':
-      return length.value;
+      return Utils.layout.toDevicePixels(length.value);
   }
 }
 
@@ -414,7 +414,7 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
       case '%':
         return { value: value.value, type: 'percent', native_type: 2 /* MasonDimensionCompatType.Percent */ };
       case 'px':
-        return { value: value.value, type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
+        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
       case 'dip':
         return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
     }
@@ -486,7 +486,7 @@ export function _intoMasonDimension(value) {
       case '%':
         return new org.nativescript.mason.masonkit.Dimension.Percent(value.value);
       case 'px':
-        return new org.nativescript.mason.masonkit.Dimension.Points(value.value);
+        return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value.value));
       case 'dip':
         return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value.value));
     }
@@ -513,7 +513,7 @@ export function _toLengthPercentageAuto(value): { value: number; type: 'auto' | 
       case '%':
         return { value: value.value, type: 'percent', native_type: MasonLengthPercentageAutoCompatType.Percent };
       case 'px':
-        return { value: value.value, type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
+        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
       case 'dip':
         return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
     }
@@ -544,7 +544,7 @@ export function _toLengthPercentage(value): { value: number; type: 'points' | 'p
       case '%':
         return { value: value.value, type: 'percent', native_type: MasonLengthPercentageCompatType.Percent };
       case 'px':
-        return { value: value.value, type: 'points', native_type: MasonLengthPercentageCompatType.Points };
+        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
       case 'dip':
         return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
     }

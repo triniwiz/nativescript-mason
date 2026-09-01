@@ -36,14 +36,6 @@ public class NSCMason: NSObject {
           
             guard let font = font.uiFont else {return}
             
-            // UIFont properties:
-            // - ascender: positive value, distance from baseline to top
-            // - descender: negative value, distance from baseline to bottom
-            // - lineHeight: total recommended line height
-            // - xHeight: height of lowercase 'x'
-            // - capHeight: height of capital letters
-            // - leading: extra spacing between lines (usually small or 0)
-            
             let scale = NSCMason.scale
             let ascent = Float(font.ascender) * scale
             let descent = Float(-font.descender) * scale  // Make it positive
@@ -286,6 +278,27 @@ public class NSCMason: NSObject {
   @objc public var preflight: Bool {
     get { mason_get_preflight() }
     set { mason_set_preflight(nativePtr, newValue) }
+  }
+
+  /**
+   * The context CSS relative units resolve against, mirroring the TS side's
+   * `units.ts` and Android's `Mason.shared`. `rem` needs a root font size (the
+   * CSS default is 16); the viewport is read from the key window, and is 0 until
+   * one exists — an unresolvable viewport unit collapses to 0 rather than
+   * silently becoming a bare number in the wrong unit.
+   */
+  @objc public static var rootFontSize: Float = 16
+
+  @objc public static var viewportSize: CGSize {
+    get {
+      for scene in UIApplication.shared.connectedScenes {
+        guard let windowScene = scene as? UIWindowScene else { continue }
+        for window in windowScene.windows where window.isKeyWindow {
+          return window.bounds.size
+        }
+      }
+      return .zero
+    }
   }
 
   @objc public static var scale: Float {

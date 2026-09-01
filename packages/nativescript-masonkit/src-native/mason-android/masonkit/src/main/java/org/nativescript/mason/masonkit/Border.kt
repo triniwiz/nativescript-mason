@@ -1404,7 +1404,32 @@ class BorderRenderer(private val style: Style) {
   enum class Side { Left, Top, Right, Bottom }
 }
 
-private val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(px|%|dip|em)?$""")
+// `px` is a CSS pixel (the same size as a dip), matching the web and iOS's
+// BorderParser; `dppx` is the escape hatch for a literal device pixel.
+// Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
+private val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
+
+/** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
+private const val PX_PER_PT = 96f / 72f
+
+/**
+ * CSS px for one length token, before the density multiply. `em` resolves
+ * against [emBasis] (the element's own font size) when given, else the root
+ * font size — matching `tokenToDevicePx` in style.ts.
+ */
+private fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
+  val mason = Mason.shared
+  return when (unit) {
+    "rem" -> num * mason.rootFontSize
+    "em" -> num * (emBasis?.takeIf { it > 0f } ?: mason.rootFontSize)
+    "pt" -> num * PX_PER_PT
+    "vw" -> (num / 100f) * mason.viewportWidth
+    "vh" -> (num / 100f) * mason.viewportHeight
+    "vmin" -> (num / 100f) * minOf(mason.viewportWidth, mason.viewportHeight)
+    "vmax" -> (num / 100f) * maxOf(mason.viewportWidth, mason.viewportHeight)
+    else -> num
+  }
+}
 
 // allow hex, simple names, and functional color forms like rgb(...), rgba(...), hsl(...)
 private val colorRegex = Regex("""^(#\w{3,8}|[a-zA-Z]+|(?:rgb|rgba|hsl|hsla|hsv|hsva)\([^)]*\))$""")
@@ -1418,12 +1443,9 @@ fun parseLengthPercentage(value: String): LengthPercentage? {
   val num = raw.coerceIn(-9999f, 9999f)
   val unit = match.groupValues.getOrNull(2)
   return when (unit) {
-    "px" -> Points(num)
+    "dppx" -> Points(num)
     "%" -> Percent(raw / 100f)  // percentages don't overflow so use raw
-    "dip" -> Points(num * Mason.shared.scale)
-    else -> {
-      return Points(num * Mason.shared.scale)
-    }
+    else -> Points(cssPxForUnit(num, unit, null) * Mason.shared.scale)
   }
 }
 
@@ -1436,12 +1458,9 @@ fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
   val num = match.groupValues[1].toFloatOrNull() ?: return null
   val unit = match.groupValues.getOrNull(2)
   return when (unit) {
-    "px" -> LengthPercentageAuto.Points(num)
+    "dppx" -> LengthPercentageAuto.Points(num)
     "%" -> LengthPercentageAuto.Percent(num / 100f)
-    "dip" -> LengthPercentageAuto.Points(num * Mason.shared.scale)
-    else -> {
-      LengthPercentageAuto.Points(num * Mason.shared.scale)
-    }
+    else -> LengthPercentageAuto.Points(cssPxForUnit(num, unit, null) * Mason.shared.scale)
   }
 }
 
@@ -1450,16 +1469,10 @@ fun parseLength(style: Style, value: String): Float? {
   val num = match.groupValues[1].toFloatOrNull() ?: return null
   val unit = match.groupValues.getOrNull(2)
   return when (unit) {
-    "px" -> num
+    "dppx" -> num
     "%" -> 0f // don't parse
-    "dip" -> num * Mason.shared.scale
-    "em" -> {
-      (style.fontSize * Mason.shared.scale) * num
-    }
-
-    else -> {
-      return num * Mason.shared.scale
-    }
+    // This one has a style in hand, so `em` can use the element's own font size.
+    else -> cssPxForUnit(num, unit, style.fontSize.toFloat()) * Mason.shared.scale
   }
 }
 

@@ -19,7 +19,7 @@
     "noEmit": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "typeRoots": ["../../packages/nativescript-masonkit/typings/"],
+    "typeRoots": ["./node_modules/@types", "../../packages/nativescript-masonkit/typings/"],
     "types": ["node"],
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,

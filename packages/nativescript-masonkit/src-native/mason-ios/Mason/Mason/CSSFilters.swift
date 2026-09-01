@@ -487,11 +487,11 @@ public class CSSFilters {
         }
         return true
 
-      case .grayscale(let amount):
+      case .grayscale:
         // Desaturate via luminance overlay isn't accurate enough for a fast path
         return false
 
-      case .opacity(let amount):
+      case .opacity:
         // Opacity is already handled by the view's alpha — no CGContext trick
         return false
 

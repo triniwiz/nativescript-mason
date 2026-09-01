@@ -237,6 +237,10 @@ extension Mason.Button {
     @objc get
     @objc set
   }
+  @objc public static var rootFontSize: Swift.Float
+  @objc public static var viewportSize: CoreFoundation.CGSize {
+    @objc get
+  }
   @objc public static var scale: Swift.Float {
     @objc get
   }
@@ -336,6 +340,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var mason: Mason.NSCMason {
     get
   }
+  @objc public var htmlAttributes: [Swift.String : Swift.String]
   @objc public var onNodeAttached: (() -> Swift.Void)?
   @objc public var onNodeDetached: (() -> Swift.Void)?
   @objc public var nativePtr: Swift.OpaquePointer? {
@@ -3151,6 +3156,7 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toWindow newWindow: UIKit.UIWindow?)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toSuperview newSuperview: UIKit.UIView?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToSuperview()
   @objc @_Concurrency.MainActor @preconcurrency public static func createGridView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createFlexView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createBlockView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
@@ -3368,6 +3374,7 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, UIKit.UIScrollViewDelegate, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToSuperview()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode

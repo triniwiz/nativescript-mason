@@ -16,6 +16,7 @@ module.exports = (env) => {
     // resolves its `@nativescript/core` import to a different copy than the app
     // does, producing two `Color` classes etc. and silently dropping style props.
     config.resolve.alias.set('@nativescript/core', resolve(__dirname, 'node_modules', '@nativescript', 'core'));
+    config.resolve.alias.set('react-dom', resolve(__dirname, 'node_modules', '@tanstack', 'react-nativescript-router', 'dist', 'esm', 'react-dom.js'));
 
     // MasonKit branches on __ANDROID__ / __APPLE__ / __WINDOWS__ via DefinePlugin
     // substitution. @nativescript/webpack defines the others but not __WINDOWS__,

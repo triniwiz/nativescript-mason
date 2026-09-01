@@ -1420,6 +1420,32 @@ class NodeHelper(val mason: Mason) {
       node.style.borderRadius = value
     }
 
+    /**
+     * `font-family` is a native `Style` property (it builds a FontFace), not a
+     * style-buffer field, so JS can't write it through the shared buffer the way
+     * it writes lengths — it has to come through here.
+     */
+    fun setFontFamily(
+      view: android.view.View,
+      value: String
+    ) {
+      // Same reasoning as setTextDecoration below: a TextView's own node is the
+      // one that renders, and nodeForView() would hand back a detached proxy.
+      val node = when (view) {
+        is TextView -> view.node
+        else -> mason.nodeForView(view)
+      }
+      node.style.fontFamily = value
+    }
+
+    fun getFontFamily(view: android.view.View): String {
+      val node = when (view) {
+        is TextView -> view.node
+        else -> mason.nodeForView(view)
+      }
+      return node.style.fontFamily
+    }
+
     fun setTextDecoration(
       view: android.view.View,
       value: String

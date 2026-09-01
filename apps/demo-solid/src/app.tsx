@@ -31,7 +31,7 @@ declare module 'solid-navigation' {
 
 const App = () => {
   return (
-    <StackRouter initialRouteName="QA">
+    <StackRouter initialRouteName="WebSpec">
       <Route name="Home" component={Home} />
       <Route name="Typography" component={Typography} />
       <Route name="Flexbox" component={Flexbox} />

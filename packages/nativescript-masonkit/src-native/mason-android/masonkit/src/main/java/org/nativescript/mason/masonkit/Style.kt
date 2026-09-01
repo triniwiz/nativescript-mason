@@ -683,8 +683,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
   // `and`/`or` always allocate a new instance, so reference equality (the
   // default for a plain class) never matches StateKeys.NONE even when both
   // bit-fields are actually zero. Value equality is required for callers
-  // that compare a masked result against StateKeys.NONE (e.g. Button.kt's
-  // `activeTextKeys != StateKeys.NONE`).
+  // that compare a masked result against StateKeys.NONE.
   override fun equals(other: Any?): Boolean =
     other is StateKeys && low == other.low && high == other.high
 
@@ -792,14 +791,10 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
-  // dedicated single-thread Executor with no way to ever shut it down, so
-  // eagerly creating one per Style - i.e. per node, including plain non-text
-  // layout divs that never touch a font property - leaked one OS thread per
-  // node. Under rapid mount/unmount (e.g. the WebSpec conformance harness)
-  // that reached hundreds of live threads within ~30 mounted trees, degrading
-  // the whole process until native ops silently missed their deadline with no
-  // crash or error. Deferring construction until font is actually read or
-  // written means pure-layout nodes (the common case) never allocate one.
+  // dedicated single-thread Executor with no way to shut it down, so eagerly
+  // creating one per Style would leak an OS thread per node, including plain
+  // layout divs that never touch a font property. Deferring construction
+  // until font is actually read or written avoids that for the common case.
   private var _font: FontFace? = null
   var font: FontFace
     get() {
@@ -826,10 +821,41 @@ class Style internal constructor(@Transient internal var node: Node) {
   private var _cachedResolvedFontFace: FontFace? = null
   private var _resolvedFontFaceDirty = true
 
+  /**
+   * Called when this node's place in the tree changes: `resolvedFontFace`
+   * inherits through `node.parent`, and a face resolved while the subtree was
+   * still unparented resolved against no inheritance at all.
+   */
+  internal fun invalidateInheritedTextCaches() {
+    invalidateResolvedFontFace()
+  }
+
   private fun invalidateResolvedFontFace() {
     _resolvedFontFaceDirty = true
     _cachedResolvedFontFace = null
     fontDirty = true
+  }
+
+  /**
+   * A FontFace only gets a Typeface once something calls `load()`. The face
+   * that ends up rendering text is often an *ancestor's* (font-family
+   * inherits), and the ancestor is usually a plain layout div that never
+   * measures text -- so nothing on its own side ever loads it. Kick the load
+   * off from whoever actually resolved to it, and re-apply once it lands.
+   */
+  private fun ensureResolvedFontLoaded(face: FontFace) {
+    if (face.font != null) return
+    val v = node.view as? android.view.View ?: return
+    face.load(v.context) { _ ->
+      v.post {
+        invalidateResolvedFontFace()
+        syncFontMetrics()
+        notifyTextStyleChanged(StateKeys.FONT_FAMILY)
+        node.dirty()
+        v.invalidate()
+        v.requestLayout()
+      }
+    }
   }
 
   data class FontMetrics(
@@ -1029,7 +1055,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       return
     }
 
-    val mutable = values[StyleKeys.REF_COUNT] == 1.toByte()
+    // REF_COUNT is a u32 - must read the full width, not just the low byte,
+    // or a shared count whose low byte happens to be 1 (257, 513, ...) looks
+    // exclusively owned and the write corrupts every node sharing the buffer.
+    val mutable = values.getInt(StyleKeys.REF_COUNT) == 1
 
     if (!mutable) {
       // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
@@ -1220,7 +1249,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private inline val isMutable: Boolean
     get() {
-      return values[StyleKeys.REF_COUNT] == 1.toByte()
+      return values.getInt(StyleKeys.REF_COUNT) == 1
     }
 
   // allow overriding of the display
@@ -1813,7 +1842,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         val oldFont = font
         // Create new font with updated family
         font.removeOnReloadListener(reloadListener)
-        font = FontFace(value).apply {
+        val ctx = (node.view as? android.view.View)?.context
+        font = FontFace(value, AppFonts.resolve(value, ctx)).apply {
           weight = oldFont.weight
           style = oldFont.style
           display = oldFont.display
@@ -4491,25 +4521,18 @@ class Style internal constructor(@Transient internal var node: Node) {
       return null
     }
 
-  // Helper to find parent style with text values initialized
+  // Parent's style for inherited text properties. Must NOT gate on
+  // isValueInitialized: that flag lags JS style writes by a microtask, but
+  // the underlying buffer is already correct, so gating on it can find no
+  // "initialized" ancestor and silently fall back to unset (0) values.
   private val parentStyleWithTextValues: Style?
-    get() {
-      var parent = node.parent
-      while (parent != null) {
-        // Check if parent has text values initialized
-        if (parent.style.isValueInitialized) {
-          return parent.style
-        }
-        parent = parent.parent
-      }
-      return null
-    }
+    get() = node.parent?.style
 
   // Store the resolved FontFace - cached and invalidated when font properties change
   internal val resolvedFontFace: FontFace
     get() {
       if (!_resolvedFontFaceDirty && _cachedResolvedFontFace != null) {
-        return _cachedResolvedFontFace!!
+        return _cachedResolvedFontFace!!.also { ensureResolvedFontLoaded(it) }
       }
 
       val familyState = values.get(StyleKeys.FONT_FAMILY_STATE)
@@ -4521,6 +4544,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         val result = parentStyleWithTextValues?.resolvedFontFace ?: font
         _cachedResolvedFontFace = result
         _resolvedFontFaceDirty = false
+        ensureResolvedFontLoaded(result)
         return result
       }
 
@@ -4548,33 +4572,34 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (font.fontFamily == baseFamily && font.weight == resolvedWeight && font.style == resolvedStyle) {
         _cachedResolvedFontFace = font
         _resolvedFontFaceDirty = false
+        ensureResolvedFontLoaded(font)
         return font
       }
 
-      // Create a new FontFace with resolved properties
-      val resolvedFont = FontFace(baseFamily).apply {
-        weight = resolvedWeight
-        style = resolvedStyle
-        addOnReloadListener(reloadListener)
-      }
-
-      // Eagerly load so resolvedFont.font is non-null (cheap with Typeface cache)
-      if (resolvedFont.font == null) {
-        (node.view as? View)?.let { view ->
-          resolvedFont.load(view.context) { _ ->
-            view.post {
-              fontDirty = true
-              syncFontMetrics()
-              node.dirty()
-              view.invalidate()
-              view.requestLayout()
-            }
+      // Nothing here has customized feature-settings/kerning/etc. yet, so this
+      // (family, weight, style) descriptor can safely be resolved from the
+      // shared cache instead of paying its own private load() round-trip.
+      val view = node.view as? View
+      val resolvedFont = if (view != null) {
+        sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
+          view.post {
+            fontDirty = true
+            syncFontMetrics()
+            node.dirty()
+            view.invalidate()
+            view.requestLayout()
           }
+        }
+      } else {
+        FontFace(baseFamily, AppFonts.resolve(baseFamily)).apply {
+          weight = resolvedWeight
+          style = resolvedStyle
         }
       }
 
       _cachedResolvedFontFace = resolvedFont
       _resolvedFontFaceDirty = false
+      ensureResolvedFontLoaded(resolvedFont)
       return resolvedFont
     }
 
@@ -5177,6 +5202,49 @@ class Style internal constructor(@Transient internal var node: Node) {
   companion object {
     init {
       Mason.initLib()
+    }
+
+    // Shared per (family, weight, style): constructing a FontFace always hops
+    // through its own single-thread Executor before `.font` is non-null, so
+    // sharing one instance across nodes with the same descriptor avoids
+    // paying that load round-trip more than once.
+    private val sharedFontFaces = java.util.concurrent.ConcurrentHashMap<String, FontFace>()
+
+    private fun fontFaceCacheKey(family: String, weight: FontWeight, style: FontStyle): String {
+      val italic = style is FontStyle.Italic
+      return "$family|${weight.weight}|$italic"
+    }
+
+    /**
+     * Returns a shared FontFace for (family, weight, style), constructing and
+     * kicking off its load only the first time. Safe only for a freshly
+     * resolved descriptor that nothing has customized yet (feature-settings,
+     * kerning, ...) -- callers that later mutate those on the returned
+     * instance would leak the change to every other sharer.
+     */
+    internal fun sharedFontFace(
+      family: String,
+      weight: FontWeight,
+      style: FontStyle,
+      context: android.content.Context,
+      onReady: () -> Unit
+    ): FontFace {
+      val key = fontFaceCacheKey(family, weight, style)
+      sharedFontFaces[key]?.let { existing ->
+        if (existing.font != null) onReady()
+        return existing
+      }
+      val face = FontFace(family, AppFonts.resolve(family, context)).apply {
+        this.weight = weight
+        this.style = style
+      }
+      val winner = sharedFontFaces.putIfAbsent(key, face) ?: face
+      if (winner.font == null) {
+        winner.load(context) { _ -> onReady() }
+      } else {
+        onReady()
+      }
+      return winner
     }
 
     /**

@@ -558,14 +558,6 @@ public class MasonStyle: NSObject {
     let size = CGFloat(resolvedFontSize)
     let font = size > 0 ? baseFont.withSize(size) : baseFont
 
-    // UIFont properties:
-    // - ascender: positive value, distance from baseline to top
-    // - descender: negative value, distance from baseline to bottom
-    // - lineHeight: total recommended line height
-    // - xHeight: height of lowercase 'x'
-    // - capHeight: height of capital letters
-    // - leading: extra spacing between lines (usually small or 0)
-    
     let scale = NSCMason.scale
     let ascent = Float(font.ascender) * scale
     let descent = Float(-font.descender) * scale  // Make it positive
@@ -1711,11 +1703,9 @@ public class MasonStyle: NSObject {
     mBorderRight.color = color
     mBorderBottom.color = color
     setOrAppendState(.borderColor)
-    // setNeedsDisplay() alone schedules a redraw but does not refresh
-    // MasonUIView's cached hasBorder flag - border-width/border-style set as
-    // separate longhand declarations (the common case) never call
-    // notifyTextStyleChanged, so without this the border stays permanently
-    // gated off for any view whose first draw pass ran before this call.
+    // setNeedsDisplay() alone doesn't refresh MasonUIView's cached hasBorder
+    // flag; longhand border-width/border-style declarations never trigger
+    // that refresh otherwise, so call it directly here.
     (node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
@@ -3488,10 +3478,6 @@ public class MasonStyle: NSObject {
   
   public var height: MasonDimension {
     get {
-      let type = getInt8(StyleKeys.HEIGHT_TYPE)
-      
-      let value = getFloat(StyleKeys.HEIGHT_VALUE)
-      
       return MasonDimension.fromValueType(getFloat(StyleKeys.HEIGHT_VALUE), getInt8(StyleKeys.HEIGHT_TYPE))!
     }
     set {
@@ -4264,17 +4250,12 @@ public class MasonStyle: NSObject {
 
 // Mark resolved props
 extension MasonStyle {
-  // Helper to find parent style with text values initialized
+  // Parent's style for inherited text properties. Must NOT gate on
+  // isValueInitialized: that flag lags JS style writes by a beat, but the
+  // underlying buffer is already correct, so gating on it can find no
+  // "initialized" ancestor and silently fall back to unset (0) values.
   private var parentStyleWithTextValues: MasonStyle? {
-    var parent = node.parent
-    while (parent != nil) {
-      // Check if parent has text values initialized
-      if (parent?.style.isValueInitialized == true) {
-        return parent?.style
-      }
-      parent = parent?.parent
-    }
-    return nil
+    return node.parent?.style
   }
   
   private static func resolvedFontCacheKey(family: String, weight: NSCFontWeight, style: NSCFontStyle) -> UInt64 {

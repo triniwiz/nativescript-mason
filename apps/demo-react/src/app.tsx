@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import { Link, Outlet, createRootRoute, createRoute, createNativeScriptRouter, useRouter } from '@tanstack/react-nativescript-router';
 
 const PILLS = ['Flexbox', 'Grid', 'CSS', 'React'];
 
-export function App() {
+function Layout() {
+  return <Outlet />;
+}
+
+function HomeScreen() {
   const [count, setCount] = useState(0);
 
   return (
@@ -10,6 +15,13 @@ export function App() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <span style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>Mason + React</span>
         <span style={{ fontSize: 14, color: '#94a3b8' }}>Real CSS flexbox/grid syntax, rendered through @nativescript-community/react</span>
+        <Link
+          href="/details/router-pr-7874"
+          style={{ backgroundColor: '#f97316', borderRadius: '8px', paddingTop: 14, paddingBottom: 14 }}
+          stackBehavior="push"
+        >
+          Open Router Details
+        </Link>
 
         <div>
           <span style={{ color: 'red', fontWeight: 600, fontSize: 20 }}>PLAIN TEST</span>
@@ -76,4 +88,69 @@ export function App() {
       </div>
     </scroll>
   );
+}
+
+function DetailsScreen() {
+  const router = useRouter();
+
+  return (
+    <scroll style={{ backgroundColor: '#111827', padding: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <span style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>TanStack Router Details</span>
+        <span style={{ fontSize: 14, color: '#a7f3d0' }}>This route is rendered through @tanstack/react-nativescript-router.</span>
+        <Link
+          to="/"
+          style={{ backgroundColor: '#38bdf8', borderRadius: '8px', paddingTop: 14, paddingBottom: 14 }}
+          stackBehavior="replace"
+        >
+          Replace With Home
+        </Link>
+        <div onClick={() => router.back()} style={{ backgroundColor: '#22c55e', borderRadius: '8px', paddingTop: 14, paddingBottom: 14 }}>
+          <span style={{ color: 'white', fontWeight: 600 }}>Go Back</span>
+        </div>
+      </div>
+    </scroll>
+  );
+}
+
+const rootRoute = createRootRoute({
+  component: Layout,
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: HomeScreen,
+  native: {
+    title: 'Mason + React',
+  },
+});
+
+const detailsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'details/$id',
+  component: DetailsScreen,
+  native: ({ params }) => ({
+    title: `Details ${params.id}`,
+    animation: 'slide_from_right',
+  }),
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, detailsRoute]);
+
+export const router = createNativeScriptRouter({
+  routeTree,
+  initialPath: '/',
+});
+
+declare module '@tanstack/react-nativescript-router' {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+declare module '@tanstack/react-router/native' {
+  interface Register {
+    router: typeof router;
+  }
 }

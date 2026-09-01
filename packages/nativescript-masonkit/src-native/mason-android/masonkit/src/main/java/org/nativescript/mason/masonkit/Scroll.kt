@@ -102,6 +102,10 @@ class Scroll @JvmOverloads constructor(
     }) {
       it.withSave {
         clipScrollViewport(this)
+        // `<ul>`/`<ol>` are ordinary block containers, so with Div extending
+        // Scroll a list is a Scroll too — markers have to be drawn here as well
+        // as in View, or every bullet silently disappears.
+        ListMarkers.draw(this@Scroll, style, this)
         super.dispatchDraw(this)
       }
     }
@@ -227,8 +231,11 @@ class Scroll @JvmOverloads constructor(
     val computedW = node.computedWidth.toInt()
     val computedH = node.computedHeight.toInt()
 
-    val nv = node.layoutTree.cursor
-    nv.pointTo(0)
+    // Read through layoutTreeRef, not the node's own (often-empty) layoutTree
+    // — when this Scroll is nested under an Element parent, its geometry
+    // lives in the ancestor's flat tree, not its own.
+    val nv = node.layoutTreeRef.cursor
+    nv.pointTo(node.layoutTreeIndex)
     val cw = nv.contentWidth.toInt()
     val ch = nv.contentHeight.toInt()
 

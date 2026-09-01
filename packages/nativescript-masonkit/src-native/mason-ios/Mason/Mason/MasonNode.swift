@@ -103,6 +103,15 @@ public class MasonNode: NSObject {
   
   internal var isAnonymous = false
   internal var isPlaceholder: Bool = false
+
+  /// The markup last assigned through `innerHTML`, so the getter can return it.
+  /// Serialising the live tree back to HTML is a separate piece of work.
+  internal var assignedInnerHTML: String = ""
+
+  /// Attributes carried over from parsed HTML (`class`, `id`, `href`, `alt`,
+  /// `title`). Recorded, not acted on by the cascade — see applyAttributes in
+  /// HTMLParser for why.
+  public var htmlAttributes: [String: String] = [:]
   
   internal var cachedWidth: CGFloat = 0
   internal var cachedHeight: CGFloat = 0
@@ -133,6 +142,18 @@ public class MasonNode: NSObject {
   static func invalidateDescendantTextViews(_ node: MasonNode, _ low: UInt64, _ high: UInt64) {
     invalidateDescendantTextViews(node,StateKeys(low: low, high: high))
   }
+
+  // getDefaultAttributes() only recomputes when style.styleVersion changes on
+  // the node itself -- it has no way to notice that an *ancestor* newly
+  // became reachable (or changed), so a text run built while its subtree was
+  // still unparented keeps its stale, uninherited attributes (font-size,
+  // line-height, color, ...) forever unless something calls this explicitly.
+  static func invalidateDescendantDefaultAttributes(_ node: MasonNode) {
+    node.invalidateDefaultAttributes()
+    for child in node.children {
+      invalidateDescendantDefaultAttributes(child)
+    }
+  }
   
   
   internal var suppressChildOps = 0
@@ -150,12 +171,20 @@ public class MasonNode: NSObject {
   }
   
   
+  // `cachedWidth`/`cachedHeight` are written only from the measure-function
+  // path, so they stay 0 for a plain container node with no custom measure
+  // callback. Fall back to `computedLayout` (set every layout pass), which is
+  // what's actually trusted elsewhere as the node's real box size.
   @objc private dynamic var computedWidth: CGFloat {
-    return cachedWidth
+    if cachedWidth > 0 { return cachedWidth }
+    let w = computedLayout.width
+    return w.isNaN ? 0 : CGFloat(w)
   }
-  
+
   @objc private dynamic var computedHeight: CGFloat {
-    return cachedHeight
+    if cachedHeight > 0 { return cachedHeight }
+    let h = computedLayout.height
+    return h.isNaN ? 0 : CGFloat(h)
   }
   
   
@@ -593,8 +622,6 @@ public class MasonNode: NSObject {
       type = view.type
     }
     
-    let scale = NSCMason.scale
-    
     switch(type){
     case .H1:
       paragraphStyle.paragraphSpacing = CGFloat(8)
@@ -630,7 +657,6 @@ public class MasonNode: NSObject {
     if let font = fontFace.font {
       // Font
       let fontSize = style.resolvedFontSize
-      let scale = NSCMason.scale
       let weight = style.resolvedFontWeight
       let fontStyle = style.resolvedInternalFontStyle
       var font = ctFont(from: font, fontSize: CGFloat(fontSize), weight: NSCUIFontWeight(weight), style: fontStyle)
@@ -769,7 +795,6 @@ public class MasonNode: NSObject {
     
     // Base writing direction from unicode-bidi + direction
     let bidi = Int(style.resolvedUnicodeBidi)
-    let writingMode = Int(style.resolvedWritingMode)
     let direction = style.direction
     
     switch bidi {
@@ -905,10 +930,9 @@ extension MasonNode {
     textView.style.display = .Inline
 
     // MasonNode.view is WEAK: the view hierarchy is what keeps the anonymous
-    // MasonText alive. Attach it here even when `append` is false — otherwise
-    // the view deallocates the moment this function returns and the caller's
-    // `node.view` is already nil. Callers that position the node themselves
-    // (append=false) only manage the `children`/native bookkeeping below.
+    // MasonText alive, so attach it here even when `append` is false, or it
+    // deallocates the moment this function returns. Callers with append=false
+    // position the node themselves and only need the bookkeeping below.
     if !(view is TextContainer) {
       suppressChildOperations {
         view?.addSubview(textView)

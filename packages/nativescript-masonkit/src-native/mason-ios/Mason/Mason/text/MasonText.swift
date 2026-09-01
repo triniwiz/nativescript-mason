@@ -371,12 +371,11 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     let availableHeight = max(self.bounds.height, fallbackHeight)
     let outerRect = CGRect(x: 0, y: 0, width: width, height: availableHeight)
     
-    var bezier = UIBezierPath(rect: outerRect)
+    let bezier = UIBezierPath(rect: outerRect)
     bezier.usesEvenOddFillRule = true
     // Ask for float rects on the containing layout node (parent) so sibling floats are included.
     let containerNode = node.parent ?? node
-    let containerViewRef = containerNode.view
-    
+
     // Fetch float rects from engine: each entry is (nativePtr, rect) in logical units
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
     let scale = CGFloat(NSCMason.scale)
@@ -402,8 +401,6 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     let path = bezier.cgPath
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
     
-    let linesCF = CTFrameGetLines(frame)
-    let linesCount = CFArrayGetCount(linesCF)
     frameCache[key] = frame
     return frame
   }
@@ -692,6 +689,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       style.margin = MasonText.uaMargin(ua6, scale)
       break
     case .Li:
+      // Real browsers give <li> `display: list-item` (block box + ::marker).
+      // Marker rendering here is handled separately, so `.Block` alone is
+      // enough to stop siblings from running together on one line.
+      style.display = .Block
       break
     case .Blockquote:
       style.display = .Block

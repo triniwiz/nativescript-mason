@@ -2822,6 +2822,14 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class AppFonts {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.AppFonts>;
+					public static INSTANCE: org.nativescript.mason.masonkit.AppFonts;
+					public static getFontsDirectory(): string;
+					public static setFontsDirectory(value: string): void;
+					public static resolve(family: string, context: android.content.Context): string;
+					public static resolve(family: string): string;
+				}
 				export class Mason {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason>;
 					public inCompute: boolean;
@@ -3553,6 +3561,8 @@ declare module org {
 			export module masonkit {
 				export class NodeHelper {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper>;
+					public setFontFamily(this_: globalAndroid.view.View, view: string): void;
+					public getFontFamily(this_: globalAndroid.view.View): string;
 					public setTextDecoration(this_: globalAndroid.view.View, view: string): void;
 					public getGridAutoColumns(this_: globalAndroid.view.View): string;
 					public setGridColumnStart(this_: globalAndroid.view.View, view: string): void;

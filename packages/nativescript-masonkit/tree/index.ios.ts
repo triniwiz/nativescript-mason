@@ -1,4 +1,6 @@
+import { Screen } from '@nativescript/core';
 import { InputType } from '..';
+import { setCssUnitContext } from '../units';
 
 enum TextType {
   None = 0,
@@ -28,6 +30,14 @@ enum TextType {
   B = 12,
 
   Pre = 13,
+
+  Strong = 14,
+
+  Em = 15,
+
+  I = 16,
+
+  A = 17,
 }
 
 export class Tree {
@@ -40,6 +50,8 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree(NSCMason.shared);
+      // `vw`/`vh` have nothing to resolve against until the viewport is known.
+      setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
     }
     return Tree._tree;
   }
@@ -78,6 +90,16 @@ export class Tree {
         return this.native.createTextViewWithType(MasonTextType.Blockquote);
       case TextType.B:
         return this.native.createTextViewWithType(MasonTextType.B);
+      case TextType.Pre:
+        return this.native.createTextViewWithType(MasonTextType.Pre);
+      case TextType.Strong:
+        return this.native.createTextViewWithType(MasonTextType.Strong);
+      case TextType.Em:
+        return this.native.createTextViewWithType(MasonTextType.Em);
+      case TextType.I:
+        return this.native.createTextViewWithType(MasonTextType.I);
+      case TextType.A:
+        return this.native.createTextViewWithType(MasonTextType.A);
       default:
         return this.native.createTextView();
     }

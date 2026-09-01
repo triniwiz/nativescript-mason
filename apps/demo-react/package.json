@@ -6,9 +6,13 @@
   "dependencies": {
     "@nativescript-community/react": "^19.0.0",
     "@nativescript/core": "^9.1.0-dev.0",
+    "@tanstack/react-nativescript-router": "https://pkg.pr.new/TanStack/router/@tanstack/react-nativescript-router@7874",
+    "@tanstack/react-router": "https://pkg.pr.new/TanStack/router/@tanstack/react-router@6392560ca335a5e0a05a5b9e9d3776efcc48e8bb",
+    "@tanstack/router-core": "https://pkg.pr.new/TanStack/router/@tanstack/router-core@6392560ca335a5e0a05a5b9e9d3776efcc48e8bb",
     "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit",
     "dominative": "^0.1.3",
     "react": "^19.0.0",
+    "react-nativescript": "npm:@nativescript-community/react@^19.0.0",
     "undom-ng": "^1.1.2"
   },
   "devDependencies": {
@@ -16,6 +20,7 @@
     "@nativescript/ios": "9.1.0-dev.10",
     "@nativescript/types": "~9.0.0",
     "@nativescript/webpack": "^5.0.37-dev.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.0.0",
     "nativescript": "dev",
     "typescript": "~5.9.0"

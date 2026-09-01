@@ -45,6 +45,19 @@ class Mason {
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 
+  /**
+   * The context CSS relative units resolve against, mirroring the TS side's
+   * `units.ts`. `rem` needs a root font size (the CSS default is 16) and
+   * `vw`/`vh`/`vmin`/`vmax` need the viewport, which is 0 until it is known —
+   * an unresolvable viewport unit collapses to 0 rather than silently becoming
+   * a bare number in the wrong unit.
+   */
+  var rootFontSize: Float = Constants.DEFAULT_FONT_SIZE.toFloat()
+
+  var viewportWidth: Float = Resources.getSystem().displayMetrics.widthPixels / scale
+
+  var viewportHeight: Float = Resources.getSystem().displayMetrics.heightPixels / scale
+
   init {
     nativeSetDeviceScale(nativePtr, scale)
 

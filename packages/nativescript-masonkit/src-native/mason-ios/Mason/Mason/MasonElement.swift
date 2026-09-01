@@ -186,12 +186,17 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 
 extension MasonElement {
   
+  /**
+   * Serialising the live tree back to HTML is not implemented; the getter
+   * returns the markup last assigned, which is what a round-trip through
+   * `innerHTML` needs and is honest about the rest.
+   */
   public var innerHTML: String {
     get {
-      //todo
-      return ""
+      return node.assignedInnerHTML
     }
     set {
+      node.assignedInnerHTML = newValue
       node.mason.htmlParser.parseInto(newValue, element: self)
     }
   }
@@ -414,14 +419,10 @@ extension MasonElement {
     }
   }
 
-  /// NativeScript's JS measure pass drives a root Mason view's compute+apply
-  /// itself (mason_computeWithSize/mason_computeWithMaxContent) before setting
-  /// this view's frame. That frame write triggers layoutSubviews, and without
-  /// this call autoComputeIfRoot would see `computeCacheDirty` (set by every
-  /// compute call) and immediately recompute a second time — via computeWithSize
-  /// only, which silently overrides a max-content measurement with the parent's
-  /// exact bounds. Call right after the JS-driven compute to tell
-  /// autoComputeIfRoot the current parent size is already satisfied.
+  /// NativeScript's JS measure pass computes+applies a root view directly,
+  /// then sets its frame (triggering layoutSubviews). Call this right after so
+  /// autoComputeIfRoot treats the parent size as already satisfied, instead of
+  /// recomputing and overriding a max-content measurement with exact bounds.
   public func markRootComputeApplied() {
     guard !(uiView.superview is MasonElement) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
@@ -819,14 +820,10 @@ class MasonElementHelpers: NSObject {
         newFrame.inset(by: insets)
       }
 
-      // Root scroll container is a VIEWPORT: Mason sizes a height:auto / visible
-      // node to its full content, but the on-screen box must not exceed the
-      // available space, or there is no scrollable delta (box == contentSize).
-      // Clamp the box to the superview (the NativeScript-managed viewport); the
-      // children stay laid out in the full content space and `contentSize`
-      // (computed below from the unclamped layout) overflows it → scroll engages.
-      // Only roots (superview is not a MasonElement) self-size; nested nodes are
-      // positioned by their Mason parent and must keep the computed frame.
+      // Root scroll container is a VIEWPORT: Mason sizes a height:auto/visible
+      // node to its full content, but the on-screen box must be clamped to the
+      // superview so content can overflow it and scrolling engages. Only roots
+      // self-size; nested nodes keep their Mason-computed frame.
       if let mv = view as? MasonUIView, mv.isScrollContainer,
          !(view.superview is MasonElement),
          let avail = view.superview?.bounds.size,

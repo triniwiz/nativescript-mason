@@ -5,7 +5,8 @@
     "baseUrl": ".",
     "paths": {
       "@triniwiz/nativescript-masonkit": ["../../../dist/packages/nativescript-masonkit"],
-      "@triniwiz/nativescript-masonkit/web": ["../../../dist/packages/nativescript-masonkit/web"]
+      "@triniwiz/nativescript-masonkit/web": ["../../../dist/packages/nativescript-masonkit/web"],
+      "@triniwiz/nativescript-masonkit/elements": ["../../../dist/packages/nativescript-masonkit/elements"]
     },
     "outDir": "../../../dist/out-tsc",
     "declarationDir": "../../../dist/out-tsc"

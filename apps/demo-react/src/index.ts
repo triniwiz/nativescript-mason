@@ -1,9 +1,8 @@
-import { startReactApp } from '@nativescript-community/react';
-import { Application } from '@nativescript/core';
 import { document, makeView, registerElement, scope } from 'dominative';
-import { App } from './app';
-import { Div, Span } from '@triniwiz/nativescript-masonkit/web';
-import { Button, Scroll, View } from '@triniwiz/nativescript-masonkit';
+import { startNativeScriptApp } from '@tanstack/react-nativescript-router';
+import { router } from './app';
+import { View } from '@triniwiz/nativescript-masonkit';
+import { getMasonKitElements } from '@triniwiz/nativescript-masonkit/elements';
 
 // Enable CSS preflight — browser-style normalization (box-sizing: border-box, margin: 0, etc.)
 View.preflight = true;
@@ -75,14 +74,21 @@ function safeRegister(key: string, maker: () => any) {
   }
 }
 
-safeRegister('div', () => makeMasonElement(Div));
-safeRegister('scroll', () => makeMasonElement(Scroll));
-delete scope['span'];
-safeRegister('span', () => makeMasonElement(Span));
-delete scope['button'];
-safeRegister('button', () => makeMasonElement(Button));
+// Register every tag MasonKit can back, from the single canonical list
+// (`@triniwiz/nativescript-masonkit/elements`) shared with demo-solid and the
+// Angular integration — so this demo can't silently drift out of parity
+// with them (previously only div/scroll/span/button were wired up here).
+for (const { tag, ctor, isContainer } of getMasonKitElements()) {
+  const key = tag.toLowerCase();
+  // dominative pre-registers some tags (e.g. `span`, `button`) against core
+  // NativeScript's own widgets; clear those so MasonKit's version wins.
+  if (scope[key]) {
+    delete scope[key];
+  }
+  safeRegister(key, () => (isContainer ? makeMasonElement(ctor) : makeView(ctor, {})));
+}
 
-startReactApp({
-  Application,
-  root: App,
+void startNativeScriptApp({
+  router,
+  actionBarVisibility: 'always',
 });

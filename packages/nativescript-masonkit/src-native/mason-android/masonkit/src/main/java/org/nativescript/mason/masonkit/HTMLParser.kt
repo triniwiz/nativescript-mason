@@ -40,6 +40,8 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       (element.view as? ViewGroup)?.suppressLayout(true)
     }
+    // `innerHTML =` replaces content rather than appending to it.
+    element.node.removeChildren()
     for (child in children) {
       element.append(child)
     }
@@ -67,6 +69,12 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
     // Single shared splitter reused for every space-delimited shorthand
     // (gap, inset, flex, grid-auto-flow, text-decoration, …).
     private val WHITESPACE = Regex("\\s+")
+
+    /**
+     * Elements whose content is raw text rather than markup. Their body has to be
+     * consumed verbatim up to the matching close tag.
+     */
+    private val RAW_TEXT_ELEMENTS = setOf("style", "script", "textarea", "title")
 
     private val VOID_ELEMENTS = setOf(
       "br",
@@ -100,6 +108,15 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
             i = endIdx
             continue
           }
+        }
+
+        // `<!doctype html>`, `<?xml ...?>` and `<![CDATA[...]]>` are not tags;
+        // skip them here rather than parsing them as a generic tag.
+        if (i + 1 < len && (chars[i + 1] == '!' || chars[i + 1] == '?')) {
+          var j = i + 2
+          while (j < len && chars[j] != '>') j++
+          i = if (j < len) j + 1 else len
+          continue
         }
 
         val tagStart = i
@@ -178,6 +195,34 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         }
         if (i < len && chars[i] == '>') i++
 
+        // <style>, <script>, <textarea> and <title> hold raw text, not markup:
+        // their body must be consumed verbatim instead of tokenized as tags.
+        if (!selfClosing && tagName in RAW_TEXT_ELEMENTS) {
+          tokens.add(Token.OpenTag(tagName, attributes, false))
+          val closing = "</$tagName"
+          val bodyStart = i
+          var j = i
+          var found = -1
+          while (j <= len - closing.length) {
+            if (String(chars, j, closing.length).lowercase() == closing) {
+              found = j
+              break
+            }
+            j++
+          }
+          val bodyEnd = if (found >= 0) found else len
+          if (bodyEnd > bodyStart) {
+            tokens.add(Token.Text(String(chars, bodyStart, bodyEnd - bodyStart)))
+          }
+          i = bodyEnd
+          if (found >= 0) {
+            while (i < len && chars[i] != '>') i++
+            if (i < len) i++
+            tokens.add(Token.CloseTag(tagName))
+          }
+          continue
+        }
+
         if (tagName in VOID_ELEMENTS) {
           selfClosing = true
         }
@@ -245,7 +290,10 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         }
 
         is Token.Text -> {
-          val text = token.content
+          val parentIsRawText = stack.lastOrNull()?.first in RAW_TEXT_ELEMENTS
+          // Outside a raw-text element, HTML collapses whitespace runs to a
+          // single space and drops whitespace-only text nodes.
+          val text = if (parentIsRawText) token.content else collapseWhitespace(token.content)
           if (text.isEmpty()) continue
 
           val parent = stack.lastOrNull()
@@ -269,6 +317,54 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   // endregion
 
   // region Element Factory
+
+  /**
+   * The browser UA default for `<ul>`/`<ol>`: `margin: 1em 0` and a
+   * `padding-inline-start: 40px` gutter, which is what reserves the space
+   * `ListMarkers` draws each bullet into. Mirrors `applyListUaDefaults` in
+   * web.ts so markup and JSX produce the same box.
+   */
+  /**
+   * Collapse whitespace the way HTML does outside a `white-space: pre` context:
+   * every run of whitespace becomes one space, and a run that is *only*
+   * whitespace disappears. Leading and trailing spaces around markup are kept as
+   * a single space, because `a <b>b</b>` needs the gap.
+   */
+  private fun collapseWhitespace(text: String): String {
+    if (text.isEmpty()) return text
+    if (text.isBlank()) return ""
+    val collapsed = StringBuilder(text.length)
+    var inWhitespace = false
+    for (ch in text) {
+      if (ch.isWhitespace()) {
+        inWhitespace = true
+      } else {
+        if (inWhitespace && collapsed.isNotEmpty()) collapsed.append(' ')
+        else if (inWhitespace && collapsed.isEmpty()) collapsed.append(' ')
+        inWhitespace = false
+        collapsed.append(ch)
+      }
+    }
+    if (inWhitespace) collapsed.append(' ')
+    return collapsed.toString()
+  }
+
+  private fun applyListUaDefaults(view: org.nativescript.mason.masonkit.View, ordered: Boolean) {
+    val scale = Mason.shared.scale
+    view.node.style.also { style ->
+      val vertical = LengthPercentageAuto.Points(16f * scale)
+      val margin = style.margin
+      style.margin = Rect(top = vertical, right = margin.right, bottom = vertical, left = margin.left)
+      val padding = style.padding
+      style.padding = Rect(
+        top = padding.top,
+        right = padding.right,
+        bottom = padding.bottom,
+        left = LengthPercentage.Points(40f * scale),
+      )
+      style.listStyleType = if (ordered) ListStyleType.Decimal else ListStyleType.Disc
+    }
+  }
 
   private fun createElement(name: String, attributes: Map<String, String>): Node {
     val element: Element = when (name) {
@@ -301,10 +397,13 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "a" -> mason.createTextView(context, TextType.A)
       "blockquote" -> mason.createTextView(context, TextType.Blockquote)
 
-      // List elements
-      "ul" -> mason.createListView(context, isOrdered = false)
-      "ol" -> mason.createListView(context, isOrdered = true)
-      "li" -> mason.createListItem(context)
+      // List elements. Plain containers whose `<li>` children are TextType.Li
+      // text views — the only arrangement `ListMarkers` can draw a bullet for.
+      // `createListView`/`createListItem` build the data-bound RecyclerView
+      // widget instead, which draws nothing for static markup.
+      "ul" -> mason.createView(context).also { applyListUaDefaults(it, ordered = false) }
+      "ol" -> mason.createView(context).also { applyListUaDefaults(it, ordered = true) }
+      "li" -> mason.createTextView(context, TextType.Li)
 
       // Self-closing / special elements
       "br" -> mason.createBr(context)
@@ -352,6 +451,44 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
             element.src = value
           }
         }
+        // `class` and `id` are recorded but do NOT drive the CSS cascade: these
+        // are native views with mason nodes, not NativeScript ViewBase instances,
+        // so NativeScript's selector engine never sees them. Kept so an app can
+        // find and style a parsed subtree itself.
+        "class" -> element.node.htmlAttributes["class"] = value
+        "id" -> element.node.htmlAttributes["id"] = value
+        "href" -> element.node.htmlAttributes["href"] = value
+        "alt", "title" -> element.node.htmlAttributes[key] = value
+        "width" -> parseDimension(value)?.let { d ->
+          element.configure { style ->
+            val current = style.size
+            style.size = Size(d, current.height)
+          }
+        }
+        "height" -> parseDimension(value)?.let { d ->
+          element.configure { style ->
+            val current = style.size
+            style.size = Size(current.width, d)
+          }
+        }
+        "value" -> {
+          when (element) {
+            is Input -> element.value = value
+            is TextArea -> element.value = value
+            else -> {}
+          }
+        }
+        "placeholder" -> {
+          when (element) {
+            is Input -> element.placeholder = value
+            is TextArea -> element.placeholder = value
+            else -> {}
+          }
+        }
+        "disabled" -> {
+          // A boolean attribute is true whenever present, whatever its value.
+          element.view.isEnabled = false
+        }
       }
     }
   }
@@ -360,14 +497,82 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
   // region Inline Style Parsing
 
+  /**
+   * Split an inline `style` attribute into (property, value) pairs.
+   *
+   * Splits on `;` and `:` while ignoring both inside parentheses or quotes,
+   * so values like `url(data:image/png;base64,...)` and `"A;B"` stay intact.
+   */
+  private fun splitDeclarations(styleString: String): List<Pair<String, String>> {
+    val out = mutableListOf<Pair<String, String>>()
+    for (declaration in splitTopLevel(styleString, ';')) {
+      if (declaration.isBlank()) continue
+      val colon = indexOfTopLevel(declaration, ':')
+      if (colon <= 0) continue
+      val property = declaration.substring(0, colon).trim().lowercase()
+      val value = declaration.substring(colon + 1).trim()
+      if (property.isNotEmpty() && value.isNotEmpty()) {
+        out.add(property to value)
+      }
+    }
+    return out
+  }
+
+  /** Split on [separator], ignoring occurrences inside quotes or parentheses. */
+  private fun splitTopLevel(input: String, separator: Char): List<String> {
+    val out = mutableListOf<String>()
+    val current = StringBuilder()
+    var depth = 0
+    var quote: Char? = null
+    for (ch in input) {
+      when {
+        quote != null -> {
+          if (ch == quote) quote = null
+          current.append(ch)
+        }
+        ch == '"' || ch == '\'' -> {
+          quote = ch
+          current.append(ch)
+        }
+        ch == '(' -> {
+          depth++
+          current.append(ch)
+        }
+        ch == ')' -> {
+          if (depth > 0) depth--
+          current.append(ch)
+        }
+        ch == separator && depth == 0 -> {
+          out.add(current.toString())
+          current.setLength(0)
+        }
+        else -> current.append(ch)
+      }
+    }
+    out.add(current.toString())
+    return out
+  }
+
+  /** Index of the first [target] outside quotes and parentheses, or -1. */
+  private fun indexOfTopLevel(input: String, target: Char): Int {
+    var depth = 0
+    var quote: Char? = null
+    for ((index, ch) in input.withIndex()) {
+      when {
+        quote != null -> if (ch == quote) quote = null
+        ch == '"' || ch == '\'' -> quote = ch
+        ch == '(' -> depth++
+        ch == ')' -> if (depth > 0) depth--
+        ch == target && depth == 0 -> return index
+      }
+    }
+    return -1
+  }
+
   private fun applyInlineStyle(styleString: String, element: Element) {
-    val declarations = styleString.split(";")
+    val declarations = splitDeclarations(styleString)
     element.configure { style ->
-      for (declaration in declarations) {
-        val parts = declaration.split(":", limit = 2)
-        if (parts.size != 2) continue
-        val property = parts[0].trim().lowercase()
-        val value = parts[1].trim()
+      for ((property, value) in declarations) {
         applyStyleProperty(property, value, style)
       }
     }

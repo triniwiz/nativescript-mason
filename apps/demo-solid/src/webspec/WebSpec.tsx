@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, Show, ErrorBoundary } from 'solid-js'
+import { createSignal, createMemo, For, Show, ErrorBoundary, onMount } from 'solid-js'
 import { BG, MUTED, TEXT, CARD } from '../components/controls'
 import { FixtureTree } from './FixtureTree'
 import fixturesData from './fixtures.generated.json'
@@ -32,6 +32,16 @@ export default function WebSpec() {
   // people page through it or filter down to just the failures.
   const [visibleCount, setVisibleCount] = createSignal(60)
   const [onlyFailures, setOnlyFailures] = createSignal(false)
+
+  // TEMP: auto-start the run on mount for unattended device runs (tapping a
+  // simulator from a script isn't possible). Revert before merging.
+  onMount(() => {
+    setTimeout(() => {
+      setResults(emptyResults())
+      setExpanded(null)
+      runFrom(0)
+    }, 800)
+  })
 
   const rows = createMemo(() => {
     if (onlyFailures()) {
@@ -179,6 +189,14 @@ export default function WebSpec() {
 
   return (
     <>
+      {/* Warms the shared Ahem FontFace before the run starts: the first node
+          anywhere to resolve a given (family, weight, style) still pays its
+          own async load() round-trip (see Style.kt's sharedFontFace), so
+          without this the very first Ahem fixture in the run would measure
+          against fallback metrics for one frame. */}
+      <div style={{ width: 0, height: 0, overflow: 'hidden' }}>
+        <span style={{ fontFamily: 'ahem', fontSize: 1 }}>X</span>
+      </div>
       <actionbar title="WebSpec Conformance" />
       <scroll style={{ backgroundColor: BG, padding: 16, overflowY: 'scroll' }}>
         <div

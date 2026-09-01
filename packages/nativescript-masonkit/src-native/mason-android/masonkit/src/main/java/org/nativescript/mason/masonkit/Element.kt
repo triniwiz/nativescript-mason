@@ -19,11 +19,17 @@ interface Element : EventTarget {
 
   override val node: Node
 
+  /**
+   * Serialising the live tree back to HTML is not implemented; the getter
+   * returns the markup last assigned, which is what a round-trip through
+   * `innerHTML` needs and is honest about the rest.
+   */
   var innerHTML: String
     get() {
-      return ""
+      return node.assignedInnerHTML
     }
     set(value) {
+      node.assignedInnerHTML = value
       node.mason.getHtmlParser(view.context)?.parseInto(value, this)
     }
 
@@ -44,9 +50,8 @@ interface Element : EventTarget {
   }
 
   // Reconstructs the two 64-bit dirty-mask halves from four signed 32-bit
-  // words (see style.ts's splitBigIntToInt32Parts) - bit-exact, avoids the
-  // decimal-string encode/parse round trip the old syncStyle(String, String)
-  // overload used on every single style write.
+  // words (see style.ts's splitBigIntToInt32Parts), avoiding a decimal-string
+  // encode/parse round trip on every style write.
   fun syncStyleParts(lowLow: Int, lowHigh: Int, highLow: Int, highHigh: Int) {
     val low = (lowHigh.toLong() shl 32) or (lowLow.toLong() and 0xFFFFFFFFL)
     val high = (highHigh.toLong() shl 32) or (highLow.toLong() and 0xFFFFFFFFL)
@@ -425,12 +430,10 @@ interface Element : EventTarget {
     node.dirty()
     val root = node.getRootNode() ?: node
 
-    // Ensure the ROOT node's computeCacheDirty is true so that the
-    // fast-path cache check in computeAndLayout() (which only inspects the
-    // root's flag) doesn't return a stale layout tree.  node.dirty() only
-    // sets the flag on the child whose style changed; Rust propagates dirty
-    // marks internally but the Kotlin-side cache on the root stays clean
-    // unless we explicitly mark it here.
+    // node.dirty() only flags the child that changed; the root's
+    // computeCacheDirty must be set explicitly so the fast-path cache check
+    // in computeAndLayout() (which only inspects the root's flag) doesn't
+    // return a stale layout tree.
     if (root !== node) {
       root.computeCacheDirty = true
     }
@@ -461,21 +464,15 @@ interface Element : EventTarget {
       root.dirty()
     }
 
-    // Schedule a one‑shot compute on the view's message queue to coalesce rapid invalidations.
-    // We no longer gate on `node.mason.inCompute` – if a view is attached we always
-    // post a runnable (unless one is already scheduled).  This keeps layout work
-    // off the caller thread, batches rapid calls and avoids re‑entrancy.  Only when
-    // there is *no* view available do we compute synchronously as a fallback.
+    // Schedule a one-shot compute on the view's message queue to coalesce
+    // rapid invalidations and keep layout work off the caller thread. Falls
+    // back to a synchronous compute only when no view is available.
 
     if (!root.computeScheduled) {
       root.computeScheduled = true
-      // Schedule a single requestLayout on the next animation frame to
-      // coalesce rapid invalidations.  The previous approach ran compute()
-      // (without serialization) here, which set computeCacheDirty=false and
-      // poisoned the cache that computeAndLayout() relies on — causing it
-      // to return a stale layout tree.  By only requesting a layout pass we
-      // let computeAndLayout() (called from onMeasure) do the compute AND
-      // serialize the layout in one shot, giving applyLayoutFlat correct data.
+      // Only request a layout pass here; computeAndLayout() (called from
+      // onMeasure) performs the compute and serializes the layout in one
+      // shot, so applyLayoutFlat gets correct data.
       var finished = false
       val runCompute = {
         if (!finished) {
@@ -791,15 +788,9 @@ private class LayoutDfsState {
 // applyLayoutFlat can re-enter itself: a child's view.measure()/view.layout()
 // call below can synchronously trigger another top-level layout pass
 // elsewhere in the tree (e.g. a nested Scroll/Input, or Android deciding a
-// sibling also needs a fresh traversal) before this DFS finishes. A single
-// shared stack+index used to corrupt the outer call's traversal: the inner
-// call reset the shared top to -1 and overwrote in-flight frames, so the
-// outer while loop below saw a negative top and exited early having laid
-// out only part of its subtree — permanently leaving the rest of that
-// fixture/screen stuck with stale or default (zero) geometry, since nothing
-// ever re-drives a layout pass for nodes a truncated DFS never reached.
-// Each re-entrancy depth now gets its own independent pooled state instead
-// of sharing one.
+// sibling also needs a fresh traversal) before this DFS finishes. Each
+// re-entrancy depth gets its own pooled DFS state so an inner call can't
+// corrupt an outer call's in-flight traversal.
 private val dfsStatePool = ArrayList<LayoutDfsState>()
 private var dfsDepth = 0
 
@@ -859,7 +850,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
 
       nv.pointTo(treeIdx)
 
-      // Store layout tree index on node for external access
+      // Must be set together: Node.computedWidth/Height read them back as a pair.
+      node.layoutTreeRef = tree
       node.layoutTreeIndex = treeIdx
       if (node.type != NodeType.Element) continue
       if (node.view is Br.FakeView) continue
@@ -964,23 +956,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
            // view.setPadding(padLeft, padTop, padRight, padBottom)
           }
 
-          // P14: skip the measure()/layout() pair when this view's frame
-          // already matches the target - same equality-guard pattern already
-          // used for setPadding() above. Safe for Scroll/Input/generic Element
-          // views: their children are walked by this function's own DFS
-          // (pushed below from `tree.childIndices`), not by a nested
-          // applyLayoutFlat re-triggered from onLayout, so skipping the
-          // Android-side measure/layout call here doesn't skip any of Mason's
-          // own child processing for them.
-          //
-          // Li is excluded: its onLayout unconditionally calls
-          // `applyLayoutFlat(node, node.layoutTree)` against its OWN separate
-          // layout tree (RecyclerView items aren't part of the parent's flat
-          // tree, since RecyclerView virtualizes/recycles them) - that nested
-          // call is the only thing that drives Li's own children, so it must
-          // still fire on every pass regardless of whether Li's own frame
-          // changed. Any other view type with a similar own-layoutTree-via-
-          // onLayout pattern would need the same exclusion.
+          // Skip the measure()/layout() pair when the view's frame already
+          // matches the target (mirrors the setPadding() guard above); safe
+          // since this function's own DFS drives child layout directly. Li
+          // is excluded: its onLayout re-triggers applyLayoutFlat against
+          // its own RecyclerView-backed layout tree and must always run.
           val skipMeasureAndLayout = view !is Li &&
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom

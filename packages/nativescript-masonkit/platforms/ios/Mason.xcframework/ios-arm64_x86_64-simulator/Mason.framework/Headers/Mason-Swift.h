@@ -1146,6 +1146,10 @@ SWIFT_ENUM_FWD_DECL(int32_t, MasonNodeType)
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+/// Attributes carried over from parsed HTML (<code>class</code>, <code>id</code>, <code>href</code>, <code>alt</code>,
+/// <code>title</code>). Recorded, not acted on by the cascade — see applyAttributes in
+/// HTMLParser for why.
+@property (nonatomic, copy) NSDictionary<NSString *, NSString *> * _Nonnull htmlAttributes;
 @property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
 @property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
@@ -1549,6 +1553,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 - (void)layoutSubviews;
 - (void)willMoveToWindow:(UIWindow * _Nullable)newWindow;
 - (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
+- (void)didMoveToSuperview;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
@@ -1768,6 +1773,16 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonLi * _Nonnull)createListItem SWIFT_WARN_UNUSED_RESULT;
 - (MasonTextArea * _Nonnull)createTextArea SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic) BOOL preflight;
+/// The context CSS relative units resolve against, mirroring the TS side’s
+/// <code>units.ts</code> and Android’s <code>Mason.shared</code>. <code>rem</code> needs a root font size (the
+/// CSS default is 16); the viewport is read from the key window, and is 0 until
+/// one exists — an unresolvable viewport unit collapses to 0 rather than
+/// silently becoming a bare number in the wrong unit.
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
++ (float)rootFontSize SWIFT_WARN_UNUSED_RESULT;
++ (void)setRootFontSize:(float)value;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
++ (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 + (float)scale SWIFT_WARN_UNUSED_RESULT;
 @end
@@ -1859,6 +1874,7 @@ typedef SWIFT_ENUM_NAMED(uint16_t, PseudoState, "PseudoState", open) {
 
 SWIFT_CLASS_NAMED("Scroll")
 @interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
+- (void)didMoveToSuperview;
 - (void)drawRect:(CGRect)rect;
 - (void)layoutSubviews;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
@@ -3156,6 +3172,10 @@ SWIFT_ENUM_FWD_DECL(int32_t, MasonNodeType)
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+/// Attributes carried over from parsed HTML (<code>class</code>, <code>id</code>, <code>href</code>, <code>alt</code>,
+/// <code>title</code>). Recorded, not acted on by the cascade — see applyAttributes in
+/// HTMLParser for why.
+@property (nonatomic, copy) NSDictionary<NSString *, NSString *> * _Nonnull htmlAttributes;
 @property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
 @property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
@@ -3559,6 +3579,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 - (void)layoutSubviews;
 - (void)willMoveToWindow:(UIWindow * _Nullable)newWindow;
 - (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
+- (void)didMoveToSuperview;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
@@ -3778,6 +3799,16 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonLi * _Nonnull)createListItem SWIFT_WARN_UNUSED_RESULT;
 - (MasonTextArea * _Nonnull)createTextArea SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic) BOOL preflight;
+/// The context CSS relative units resolve against, mirroring the TS side’s
+/// <code>units.ts</code> and Android’s <code>Mason.shared</code>. <code>rem</code> needs a root font size (the
+/// CSS default is 16); the viewport is read from the key window, and is 0 until
+/// one exists — an unresolvable viewport unit collapses to 0 rather than
+/// silently becoming a bare number in the wrong unit.
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
++ (float)rootFontSize SWIFT_WARN_UNUSED_RESULT;
++ (void)setRootFontSize:(float)value;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
++ (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 + (float)scale SWIFT_WARN_UNUSED_RESULT;
 @end
@@ -3869,6 +3900,7 @@ typedef SWIFT_ENUM_NAMED(uint16_t, PseudoState, "PseudoState", open) {
 
 SWIFT_CLASS_NAMED("Scroll")
 @interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
+- (void)didMoveToSuperview;
 - (void)drawRect:(CGRect)rect;
 - (void)layoutSubviews;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;

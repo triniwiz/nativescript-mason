@@ -1,5 +1,6 @@
 import { Screen } from '@nativescript/core';
 import { InputType } from '..';
+import { setCssUnitContext } from '../units';
 
 enum TextType {
   None = 0,
@@ -46,6 +47,8 @@ export class Tree {
     if (!Tree._tree) {
       Tree._tree = new Tree(org.nativescript.mason.masonkit.Mason.getShared());
       Tree._tree._base.setDeviceScale(Screen.mainScreen.scale);
+      // `vw`/`vh` have nothing to resolve against until the viewport is known.
+      setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
     }
     return Tree._tree;
   }

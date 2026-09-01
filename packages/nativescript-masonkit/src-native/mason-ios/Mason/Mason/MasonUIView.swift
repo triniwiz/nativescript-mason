@@ -72,7 +72,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
 
     style.mBorderRender.resolve(for: bounds)
-    let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()
 
     // Outset shadows are handled by MasonShadowLayer
@@ -344,6 +343,27 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // owns it) is still current, else it's orphaned.
     if newSuperview == nil {
       style.removeShadowLayer()
+    }
+  }
+
+  // Non-placeholder view composition attaches via UIKit's generic addSubview
+  // path, which skips the Mason-aware append that sets `node.parent` (layout
+  // still works via the Rust/taffy tree, linked separately). Sync it here —
+  // the one hook every subview attach goes through — so resolvedFontSize/
+  // resolvedColor/etc. can walk up through a plain element ancestor.
+  public override func didMoveToSuperview() {
+    super.didMoveToSuperview()
+    guard let sv = superview as? MasonElement else { return }
+    if node.layoutParent !== sv.node {
+      node.parent = sv.node
+    }
+    // A text descendant may have cached default attributes (font-size,
+    // line-height, color, ...) while unreachable from `sv`, resolving
+    // inheritance to nothing. The cache can't detect an ancestor change,
+    // so force a rebuild on attach.
+    MasonNode.invalidateDescendantDefaultAttributes(node)
+    if !style.inBatch {
+      invalidateLayout()
     }
   }
 

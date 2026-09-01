@@ -208,6 +208,10 @@ public class TextEngine: NSObject {
   
 
   private static let whitespaceRegex = try! NSRegularExpression(pattern: "\\s+")
+  // Soft wrap opportunities for min-content, which is wider than `\s`: U+200B
+  // ZERO WIDTH SPACE breaks a line without being whitespace, so splitting on
+  // whitespace alone reported a whole ZWSP-joined run as one unbreakable word.
+  private static let softWrapRegex = try! NSRegularExpression(pattern: "[\\s\\x{200B}]+")
   private static let horizontalWsRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "[ \\t]+", options: [])
 
   private static func splitByWhitespace(
@@ -251,14 +255,14 @@ public class TextEngine: NSObject {
   }
 
   internal static func minContentWidth(for text: NSAttributedString) -> CGFloat {
-    // Single-pass: measure each whitespace-delimited word without creating
-    // an intermediate [NSAttributedString] array.
+    // Single-pass: measure each segment between soft wrap opportunities
+    // without creating an intermediate [NSAttributedString] array.
     var maxWidth: CGFloat = 0
     let nsText = text.string as NSString
     let fullRange = NSRange(location: 0, length: nsText.length)
     var lastLocation = 0
 
-    let matches = whitespaceRegex.matches(in: text.string, range: fullRange)
+    let matches = softWrapRegex.matches(in: text.string, range: fullRange)
     for match in matches {
       let r = match.range
       if r.location > lastLocation {
@@ -394,13 +398,10 @@ public class TextEngine: NSObject {
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode)
     let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
 
-    // When there are floats we need to size the exclusion path correctly, which
-    // requires knowing the actual text height first — so we call SuggestFrameSize.
-    // When there are no floats the simple outer rect is sufficient and we can skip
-    // the suggest call entirely, computing height from the frame afterwards instead.
-    //
-    // `suggestedSize` is set only for the float path; for the no-float path it
-    // stays nil and the size is derived from the frame's line origins instead.
+    // With floats we need the actual text height first to size the exclusion
+    // path, so call SuggestFrameSize (`suggestedSize` holds that result). With
+    // no floats the outer rect is enough, and height is derived from the
+    // frame's line origins instead.
     var suggestedSize: CGSize? = nil
     let pathHeight: CGFloat
     if floatEntries.isEmpty {
@@ -438,16 +439,10 @@ public class TextEngine: NSObject {
 
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
 
-    // Compute the measured size.
-    //
-    // No-float path: derive size from the frame's line origins — one CT pass total.
-    // In CoreText's Y-up coordinate space, lineOrigin.y is the baseline distance
-    // from the BOTTOM of the frame rect:
-    //   textTop    = firstLineOrigin.y + firstAscent
-    //   textBottom = lastLineOrigin.y  - lastDescent
-    //   height     = textTop - textBottom
-    //
-    // Float path: SuggestFrameSize already ran above, reuse its result.
+    // No-float path: derive size from the frame's line origins (CoreText's Y-up
+    // coordinate space measures lineOrigin.y from the frame's bottom):
+    //   height = (firstLineOrigin.y + firstAscent) - (lastLineOrigin.y - lastDescent)
+    // Float path: SuggestFrameSize already ran above; reuse its result.
     var size: CGSize
     if let s = suggestedSize {
       size = s  // float path: already have the correct size
@@ -1076,7 +1071,7 @@ public class TextEngine: NSObject {
     // Build exclusion path in layout-local coordinates (origin at zero).
     // We'll flip Y so CoreText's frame-coordinate space matches the engine's top-based Y.
     let localOuter = CGRect(origin: .zero, size: layoutBounds.size)
-    var bezier = UIBezierPath(rect: localOuter)
+    let bezier = UIBezierPath(rect: localOuter)
     bezier.usesEvenOddFillRule = true
     let containerNode = node.parent ?? node
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
@@ -1139,15 +1134,10 @@ public class TextEngine: NSObject {
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
 
-    // Re-anchor the vertical baseline using the font's true metrics rather than
-    // CoreText's frame positioning, which is driven by the (possibly clamped)
-    // line-height and leaves the glyph box off-centre or clipped.
-    //   • A single line is centred within the content box — same rule as
-    //     drawSingleLine — so padded inline-blocks (links, buttons, pills) sit in
-    //     the middle instead of riding high/low from font ascent/descent asymmetry.
-    //   • A tight multi-line block (line-height < the font's natural line box) has
-    //     its first baseline pinned to the full font ascent so the first line's
-    //     ascenders and the last line's descenders stay inside the reserved box.
+    // Re-anchor the vertical baseline using the font's true metrics, not
+    // CoreText's frame positioning (driven by the possibly-clamped line-height).
+    // A single line centers in the content box; a tight multi-line block pins
+    // its first baseline to the full font ascent so ascenders/descenders fit.
     var textBaseY = layoutBounds.origin.y
     if text.length > 0,
        let fontValue = node.getDefaultAttributes()[.font],
@@ -1355,7 +1345,6 @@ public class TextEngine: NSObject {
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = CharacterSet.whitespacesAndNewlines
-    let horizontalWsSet = CharacterSet(charactersIn: " \t")
     // Use [ \t]+ to only match horizontal whitespace, not newlines or line separators
     let collapseRegex = TextEngine.horizontalWsRegex
 

@@ -35,8 +35,14 @@ import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import kotlin.math.ceil
 
+/** U+200B ZERO WIDTH SPACE breaks a line without being whitespace (Java
+ *  classifies it as a format char), so `isWhitespace` alone reports a whole
+ *  ZWSP-joined run as one unbreakable word. */
+private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
+
 /**
- * Compute the widest word in [text] without allocating a split array.
+ * Compute the widest segment between soft wrap opportunities in [text] without
+ * allocating a split array.
  * When [useLayout] is true, uses [Layout.getDesiredWidth] for rich text;
  * otherwise uses [Paint.measureText] for plain text.
  */
@@ -46,7 +52,7 @@ private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolea
   var start = 0
   var i = 0
   while (i <= len) {
-    val isWs = i < len && text[i].isWhitespace()
+    val isWs = i < len && text[i].isSoftWrapOpportunity()
     if (i == len || isWs) {
       if (i > start) {
         val sub = text.subSequence(start, i)
@@ -181,7 +187,7 @@ class TextEngine(val container: TextContainer) {
         low, high, StateKeys.FONT_FAMILY
       )
     ) {
-      style.resolvedFontFace.font?.let {
+      style.resolvedFontFace.resolvedTypeface?.let {
         paint.typeface = it
         dirty = true
       }
@@ -275,11 +281,10 @@ class TextEngine(val container: TextContainer) {
       )
   }
 
-  // Builds (or reuses a cached) StaticLayout for the given shape. This is the
-  // actual expensive step in measureLayout() (text shaping + line breaking) -
-  // everything else in that function (width-constraint resolution, measured-
-  // width derivation, segment collection) still runs every call regardless of
-  // whether this hits the cache, so their side effects are unaffected.
+  // Builds (or reuses a cached) StaticLayout for the given shape — the
+  // expensive step (text shaping + line breaking) in measureLayout(). Other
+  // work in that function (width resolution, segment collection) still runs
+  // every call regardless of cache hits.
   private fun buildStaticLayoutCached(
     spannable: CharSequence,
     paint: TextPaint,
@@ -435,18 +440,14 @@ class TextEngine(val container: TextContainer) {
       widthConstraint = availableWidth.toInt()
     }
 
-    // Respect style `max-width` when present (Points only). Clamp the
-    // width constraint so StaticLayout won't measure wider than the author
-    // intended. Percent/Auto cases require context-dependent resolution
-    // and are not handled here.
+    // Respect style `max-width` when present (Points only), clamping so
+    // StaticLayout won't measure wider than intended. Percent/Auto need
+    // context-dependent resolution and aren't handled here.
     //
-    // Skip this during the min-content pass (availableWidth == -1): min-content
-    // is the widest unbreakable word and is NOT reduced by `max-width`. Clamping
-    // here forces widthConstraint to the max-width, so the min-content branch
-    // below returns the wrapped line width (~max-width) instead of the widest
-    // word. A grid item then reports a min-content as large as its max-width,
-    // which becomes an `auto` track's base size — the track can no longer shrink
-    // to its container and overflows (e.g. a heading with `max-w-*` never wraps).
+    // Skipped during the min-content pass (availableWidth == -1): min-content
+    // is the widest unbreakable word and isn't reduced by max-width. Clamping
+    // there would make a grid item's min-content as large as its max-width,
+    // preventing an `auto` track from shrinking to fit its container.
     if (availableWidth != -1f) when (val msw = style.maxSize.width) {
       is Dimension.Points -> {
         val resolvedMax = msw.points.toInt()
@@ -931,10 +932,8 @@ class TextEngine(val container: TextContainer) {
     // Use a TextPaint matching the current TextView properties for consistent measurement
     val textPaint = scratchSegmentPaint.apply { set(paint) }
 
-    // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position.
-    // This replaces the per-iteration findNextViewSpan() call — which re-scanned the
-    // full span array from currentPos to attributed.length on every text run — with a
-    // single upfront O(spans) pass.  Subsequent lookups are O(1) via index cursor.
+    // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position
+    // in a single O(spans) pass; subsequent lookups are O(1) via index cursor.
     data class SpanBoundary(val start: Int, val end: Int, val viewSpan: ViewSpan?, val isBr: Boolean)
     val spBoundaries = ArrayList<SpanBoundary>(8)
     for (sp in attributed.getSpans(0, attributed.length, ViewSpan::class.java)) {
@@ -1055,18 +1054,14 @@ class TextEngine(val container: TextContainer) {
         val end = if (bIdx < spBoundaries.size) spBoundaries[bIdx].start else attributed.length
 
         if (end > currentPos) {
-          // Width via StaticLayout horizontal positions.  Avoids creating a
-          // subSequence CharSequence copy; the attributed string is used directly
-          // in the fallback path instead.
+          // Width via StaticLayout horizontal positions, using the attributed
+          // string directly to avoid a subSequence copy.
           //
-          // getPrimaryHorizontal() resolves a full bidi-aware visual position
-          // for each offset - calling it twice re-does that resolution twice.
-          // For a run that's confined to one line and contains no RTL
-          // characters (the common case for plain LTR UI text), a run's total
-          // glyph advance is the same whether read in logical or visual order,
-          // so Layout.getDesiredWidth() (a single, direct sum of advances) is
-          // equivalent and cheaper. Anything else (multi-line run, any RTL
-          // content) keeps the exact original bidi-safe path.
+          // getPrimaryHorizontal() resolves a full bidi-aware position per
+          // offset, so calling it twice repeats that work. For a single-line,
+          // non-RTL run, glyph advance is the same in logical or visual order,
+          // so Layout.getDesiredWidth() gives an equivalent result more
+          // cheaply. Multi-line or RTL runs use the exact bidi-safe path.
           val singleLine = layout.getLineForOffset(currentPos) == layout.getLineForOffset(end)
           val width = if (singleLine &&
             !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
@@ -1550,17 +1545,11 @@ class TextEngine(val container: TextContainer) {
   private var maxMeasuredTextWidth: Float = 0f
   private var maxMeasuredTextHeight: Float = 0f
 
-  // P4: cache for the StaticLayout construction inside measureLayout(). A
-  // single call to measureLayout() can build up to two StaticLayouts (an
-  // unconstrained probe, then a rebuild at the measured width) with distinct
-  // shapes, and repeated calls tend to alternate between only a handful of
-  // distinct probes per pass (min-content, max-content, 1-2 definite-width
-  // finalizations) - a single cache slot would have both builds in one call
-  // evict each other, missing every time. Sized at 4 slots, round-robin
-  // eviction; keyed on everything that actually changes StaticLayout's shape,
-  // gated by segmentsInvalidateVersion (already the trusted "did the
-  // spannable/paint-affecting style change" signal - see cachedAttributedString
-  // above, which uses the same version for the same reason).
+  // Cache for the StaticLayout built inside measureLayout(). A single call
+  // can build up to two distinct-shaped StaticLayouts (an unconstrained
+  // probe, then a rebuild at the measured width), so a single slot would
+  // have both evict each other. Sized at 4 slots, round-robin eviction;
+  // gated by segmentsInvalidateVersion, same as cachedAttributedString.
   private class StaticLayoutCacheEntry(
     val version: Int,
     val widthConstraint: Int,
@@ -1576,18 +1565,14 @@ class TextEngine(val container: TextContainer) {
   private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
   private var staticLayoutCacheNextIdx = 0
 
-  // P20: reused across paint.getFontMetrics() call sites in this class instead
-  // of the allocating no-arg `paint.fontMetrics` property, which returns a
-  // fresh Paint.FontMetrics every call. Every use reads the fields immediately
-  // and doesn't retain the instance, so sharing one scratch object across call
-  // sites is safe (Android text measurement/draw all happen on the UI thread).
+  // Reused across paint.getFontMetrics() call sites instead of the allocating
+  // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
+  // fields immediately and text measurement/draw all happen on the UI thread.
   private val scratchFontMetrics = android.graphics.Paint.FontMetrics()
 
-  // P17/P20: reused per text-run in collectAndCacheSegments() instead of a
-  // fresh `TextPaint(textPaint)` copy per run - `.set()` overwrites all fields
-  // cheaply, same effect as the copy constructor without the allocation. Only
-  // used to read the run's font metrics after applying its character-style
-  // spans; nothing retains this instance across runs.
+  // Reused per text-run in collectAndCacheSegments() instead of a fresh
+  // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
+  // Nothing retains this instance across runs.
   private val scratchRunPaint = TextPaint()
 
   // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
@@ -1706,7 +1691,7 @@ class TextEngine(val container: TextContainer) {
 
     val fontFace = container.style.resolvedFontFace
     // Apply typeface with bold/italic hints so we can synthesize when needed
-    fontFace.font?.let { typeface ->
+    fontFace.resolvedTypeface?.let { typeface ->
       val isBold = fontFace.weight.weight >= 600
       val isItalic = fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
       spannable.setSpan(

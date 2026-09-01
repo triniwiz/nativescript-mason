@@ -4,6 +4,12 @@
   "license": "MIT",
   "scripts": {
     "postinstall": "husky install && npx ts-patch install",
+    "test": "vitest run --config tools/testing/vitest.config.ts",
+    "test:watch": "vitest --config tools/testing/vitest.config.ts",
+    "test:keys": "node tools/scripts/style-keys/check-drift.mjs",
+    "test:rust": "cargo test -p mason-core --all-targets",
+    "gen:jsx-types": "node tools/scripts/gen-jsx-types/generate.mjs",
+    "test:jsx-types": "node tools/scripts/gen-jsx-types/generate.mjs --check",
     "setup": "npx rimraf node_modules package-lock.json dist tmp yarn.lock && npm install",
     "start": "nps",
     "add": "nx g @nativescript/plugin-tools:add-package",
@@ -42,6 +48,7 @@
     "rxjs": "~7.8.0",
     "sass": "1.53.0",
     "typescript": "~5.9.0",
+    "vitest": "^4.1.11",
     "zone.js": "~0.16.0"
   },
   "resolutions": {
