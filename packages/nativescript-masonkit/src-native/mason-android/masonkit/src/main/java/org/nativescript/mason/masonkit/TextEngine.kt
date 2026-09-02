@@ -296,6 +296,10 @@ class TextEngine(val container: TextContainer) {
     val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
       style.resolvedTextAlign == TextAlign.Justify
 
+    // StaticLayout's internal Int arithmetic overflows on Int.MAX_VALUE ("unconstrained"),
+    // producing garbage line breaks. Match iOS's finite fallback instead.
+    val safeWidthConstraint = if (widthConstraint == Int.MAX_VALUE) 1_000_000 else widthConstraint
+
     for (entry in staticLayoutCache) {
       if (entry != null &&
         entry.version == segmentsInvalidateVersion &&
@@ -313,7 +317,7 @@ class TextEngine(val container: TextContainer) {
 
     val built = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, paint, widthConstraint
+        spannable, 0, spannable.length, paint, safeWidthConstraint
       )
         .setAlignment(alignment)
         .setLineSpacing(0f, 1f)
@@ -335,7 +339,7 @@ class TextEngine(val container: TextContainer) {
       builder.build()
     } else {
       StaticLayout(
-        spannable, paint, widthConstraint, alignment, 1f, // lineSpacingMultiplier
+        spannable, paint, safeWidthConstraint, alignment, 1f, // lineSpacingMultiplier
         0f, // lineSpacingExtra
         includePadding // includePad
       )
@@ -401,28 +405,6 @@ class TextEngine(val container: TextContainer) {
     // For inline elements, we want to measure to content, not fill available width
     val isInline = NodeUtils.isInlineLike(node)
 
-    var widthConstraint = Int.MAX_VALUE
-    var heightConstraint = Int.MAX_VALUE
-
-    if (knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
-      widthConstraint = knownWidth.toInt()
-    }
-
-    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
-      heightConstraint = knownHeight.toInt()
-    }
-
-    if (isInline) {
-      widthConstraint = Int.MAX_VALUE
-    }
-
-    // The available space from the layout engine (Taffy's compute_leaf_layout)
-    // is already content-box (padding+border subtracted). Do NOT subtract
-    // padding again here — that would double-count it.
-    if (widthConstraint == Int.MAX_VALUE && availableWidth.isFinite() && availableWidth > 0f) {
-      widthConstraint = availableWidth.toInt()
-    }
-
     var allowWrap = true
     if (node.style.isValueInitialized) {
       val ws = node.style.whiteSpace
@@ -436,7 +418,28 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
+    var widthConstraint = Int.MAX_VALUE
+    var heightConstraint = Int.MAX_VALUE
+
+    // `knownWidth` is Taffy's resolved box width, which may be narrower than nowrap
+    // content's intrinsic width (e.g. under overflow:hidden); don't wrap to it in that case.
+    if (allowWrap && knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
+      widthConstraint = knownWidth.toInt()
+    }
+
+    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
+      heightConstraint = knownHeight.toInt()
+    }
+
+    if (isInline) {
+      widthConstraint = Int.MAX_VALUE
+    }
+
+    // The available space from the layout engine (Taffy's compute_leaf_layout)
+    // is already content-box (padding+border subtracted). Do NOT subtract
+    // padding again here — that would double-count it. Skip entirely when
+    // wrapping is disabled so nowrap text stays unconstrained.
+    if (allowWrap && widthConstraint == Int.MAX_VALUE && availableWidth.isFinite() && availableWidth > 0f) {
       widthConstraint = availableWidth.toInt()
     }
 
@@ -536,8 +539,10 @@ class TextEngine(val container: TextContainer) {
             maxOf(measuredWidth, desiredWidth)
           }
 
+          // Reached on the final layout pass when nowrap keeps widthConstraint
+          // at Int.MAX_VALUE; fall back to natural width, same as -2f above.
           else -> {
-            0f
+            Layout.getDesiredWidth(spannable, paint)
           }
         }
       } else {
@@ -588,9 +593,13 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (widthConstraint == Int.MAX_VALUE) {
-      // rebuild static layout with the measuredWidth
+      // Rebuild at the spannable's own natural width, not `measuredWidth` — during
+      // min-content that's just the widest word, which is too narrow to fit the
+      // full spannable and wraps leading/trailing whitespace onto its own line.
+      // Round up: truncating can land a hair under the true natural width.
+      val rebuildWidth = ceil(Layout.getDesiredWidth(spannable, paint)).toInt()
       layout = buildStaticLayoutCached(
-        spannable, paint, measuredWidth.toInt(), availableWidth, alignment, textDirectionHeuristic
+        spannable, paint, rebuildWidth, availableWidth, alignment, textDirectionHeuristic
       )
     }
 
@@ -714,9 +723,20 @@ class TextEngine(val container: TextContainer) {
 
       val measuredHeight = layout?.height?.toFloat()
 
-      val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
+      // A text node holding only collapsible whitespace (e.g. a JSX/HTML
+      // newline+indent between sibling elements) must collapse to 0x0 rather
+      // than floor to minLineHeight. `white-space: pre*`/`break-spaces` opt out.
+      val preservesWhitespace = node.style.isValueInitialized && when (node.style.whiteSpace) {
+        Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap,
+        Styles.WhiteSpace.PreLine, Styles.WhiteSpace.BreakSpaces -> true
+        else -> false
+      }
+      val isCollapsibleWhitespace = !preservesWhitespace && textContent.isBlank()
 
-      return MeasureOutput.make(width, finalHeight)
+      val finalHeight = if (isCollapsibleWhitespace) 0f else measuredHeight?.coerceAtLeast(minLineHeight) ?: height
+      val finalWidth = if (isCollapsibleWhitespace) 0f else width
+
+      return MeasureOutput.make(finalWidth, finalHeight)
     } finally {
       style.inMeasure = false
       if (pendingInvalidate) {
@@ -886,10 +906,25 @@ class TextEngine(val container: TextContainer) {
     val text = (container as? android.widget.TextView)?.text as? Spannable ?: return null
     if (text.isEmpty()) return null
 
+    var allowWrap = true
+    if (node.style.isValueInitialized) {
+      val ws = node.style.whiteSpace
+      if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
+        allowWrap = false
+      }
+      if (node.style.textWrap == TextWrap.NoWrap) {
+        allowWrap = false
+      }
+    }
+
+    // Clamp like buildStaticLayoutCached's safeWidthConstraint, and stay
+    // unconstrained when wrapping is disabled (this path didn't check nowrap before).
+    val safeContentWidth = if (!allowWrap) 1_000_000 else contentWidth.coerceAtMost(1_000_000)
+
     val alignment = getLayoutAlignment()
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       val heuristic = getTextDirectionHeuristic()
-      var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, contentWidth)
+      var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, safeContentWidth)
         .setAlignment(alignment)
         .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
@@ -906,7 +941,7 @@ class TextEngine(val container: TextContainer) {
       }
       builder.build()
     } else {
-      StaticLayout(text, paint, contentWidth, alignment, 1f, 0f, includePadding)
+      StaticLayout(text, paint, safeContentWidth, alignment, 1f, 0f, includePadding)
     }
 
     if (container is TextView) {

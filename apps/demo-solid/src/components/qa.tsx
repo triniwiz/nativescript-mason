@@ -33,17 +33,17 @@ export default function QA() {
       */}
       <scroll style={{ backgroundColor: BG, padding: 16 }}>
         {/* ── 0. Repro: nested div>span text disappearing at depth 2 ── */}
-        <div style={{ 'background-color': '#0f172a', padding: '8px', 'margin-bottom': '12px' }}>
-          <span style={{ color: 'red', 'font-weight': 600, 'font-size': '18px' }}>DEPTH-1 (should show)</span>
+        <div style={{ 'background-color': '#0f172a', padding: '8px', 'margin-bottom': 12 }}>
+          <span style={{ color: 'red', 'font-weight': 600, 'font-size': 18 }}>DEPTH-1 (should show)</span>
         </div>
-        <div style={{ display: 'flex', 'flex-direction': 'row', 'margin-bottom': '12px' }}>
+        <div style={{ display: 'flex', 'flex-direction': 'row', 'margin-bottom': 12 }}>
           <div style={{ 'background-color': '#38bdf8' }}>
-            <span style={{ color: 'red', 'font-weight': 600, 'font-size': '18px' }}>DEPTH-2 ROW (bug: blank on iOS)</span>
+            <span style={{ color: 'red', 'font-weight': 600, 'font-size': 18 }}>DEPTH-2 ROW (bug: blank on iOS)</span>
           </div>
         </div>
-        <div style={{ display: 'flex', 'flex-direction': 'column', 'margin-bottom': '12px' }}>
+        <div style={{ display: 'flex', 'flex-direction': 'column', 'margin-bottom': 12 }}>
           <div style={{ 'background-color': '#38bdf8' }}>
-            <span style={{ color: 'red', 'font-weight': 600, 'font-size': '18px' }}>DEPTH-2 COLUMN (bug: blank on iOS)</span>
+            <span style={{ color: 'red', 'font-weight': 600, 'font-size': 18 }}>DEPTH-2 COLUMN (bug: blank on iOS)</span>
           </div>
         </div>
         {/* ── 1. Backdrop-filter: content must stay SHARP ── */}

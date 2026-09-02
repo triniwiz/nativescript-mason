@@ -208,21 +208,23 @@ export default function WebSpec() {
             boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
           }}
         >
-          <p style={{ fontSize: 13, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>
+          {/* margin:0 on every <p> below — <p> has a default block margin
+              (web-faithful) that otherwise inflates these compact UI labels. */}
+          <p style={{ fontSize: 13, color: MUTED, margin: 0, marginBottom: 10, lineHeight: 1.5 }}>
             {fixtures.length} layout fixtures ported from real CSS test cases. Expected rects come from rendering
             each one in headless Chromium; actual rects come from measuring masonkit's own native layout.
           </p>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '8px 16px', marginBottom: 12 }}>
-            <p style={{ fontSize: 12, color: '#00b894', fontWeight: 'bold' }}>{summary().pass} pass</p>
-            <p style={{ fontSize: 12, color: '#e84393', fontWeight: 'bold' }}>{summary().fail} fail</p>
-            <p style={{ fontSize: 12, color: MUTED }}>{summary().pending} pending</p>
+            <p style={{ fontSize: 12, color: '#00b894', fontWeight: 'bold', margin: 0 }}>{summary().pass} pass</p>
+            <p style={{ fontSize: 12, color: '#e84393', fontWeight: 'bold', margin: 0 }}>{summary().fail} fail</p>
+            <p style={{ fontSize: 12, color: MUTED, margin: 0 }}>{summary().pending} pending</p>
           </div>
           <div
             style={{ marginBottom: 12 }}
             //@ts-ignore
             on:click={() => setOnlyFailures(!onlyFailures())}
           >
-            <p style={{ fontSize: 11, color: onlyFailures() ? '#e84393' : MUTED, fontWeight: 'bold' }}>
+            <p style={{ fontSize: 11, color: onlyFailures() ? '#e84393' : MUTED, fontWeight: 'bold', margin: 0 }}>
               {onlyFailures() ? '☑ only showing failures' : '☐ only show failures'}
             </p>
           </div>
@@ -232,6 +234,8 @@ export default function WebSpec() {
               borderRadius: '12px',
               paddingTop: 10,
               paddingBottom: 10,
+              display: 'flex',
+              justifyContent: 'center',
               alignItems: 'center',
             }}
             //@ts-ignore
@@ -242,7 +246,7 @@ export default function WebSpec() {
               runFrom(0)
             }}
           >
-            <p style={{ color: runToken() ? MUTED : 'white', fontSize: 13, fontWeight: 'bold' }}>
+            <p style={{ color: runToken() ? MUTED : 'white', fontSize: 13, fontWeight: 'bold', margin: 0 }}>
               {runToken() ? `Running ${runToken()}/${fixtures.length}…` : 'Run All'}
             </p>
           </div>
@@ -285,21 +289,21 @@ export default function WebSpec() {
                       flexGrow: 1,
                       flexShrink: 1,
                       minWidth: 0,
+                      margin: 0,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
                     }}
                   >
-                    {/* Mason's text engine doesn't clip/truncate an unbreakable (no
-                    whitespace) run to its box even with overflow:hidden — it paints
-                    past the box and overlaps whatever's next in the row. Truncate in
-                    JS instead of relying on textWrap/textOverflow here. */}
-                    {fx.name.length > 42 ? `${fx.name.slice(0, 42)}…` : fx.name}
+                    {fx.name}
                   </p>
-                  <p style={{ fontSize: 10, color: MUTED, flexShrink: 0, marginLeft: 6 }}>{result().status}</p>
+                  <p style={{ fontSize: 10, color: MUTED, flexShrink: 0, margin: 0, marginLeft: 6 }}>{result().status}</p>
                 </div>
                 <Show when={isExpanded() && result().diffs.length}>
                   <div style={{ marginTop: 10, paddingTop: 10, backgroundColor: '#f8f9fb', borderRadius: '8px' }}>
                     <For each={result().diffs}>
                       {(d) => (
-                        <p style={{ fontSize: 10, color: '#e84393', marginBottom: 4, lineHeight: 1.5 }}>
+                        <p style={{ fontSize: 10, color: '#e84393', margin: 0, marginBottom: 4, lineHeight: 1.5 }}>
                           seq {d.seq}: {d.error ?? `expected (${d.expected.x.toFixed(1)}, ${d.expected.y.toFixed(1)}, ${d.expected.width.toFixed(1)}x${d.expected.height.toFixed(1)}) got (${d.actual!.x.toFixed(1)}, ${d.actual!.y.toFixed(1)}, ${d.actual!.width.toFixed(1)}x${d.actual!.height.toFixed(1)})`}
                         </p>
                       )}
@@ -313,11 +317,11 @@ export default function WebSpec() {
 
         <Show when={!onlyFailures() && visibleCount() < fixtures.length}>
           <div
-            style={{ backgroundColor: CARD, borderRadius: '12px', padding: 12, marginBottom: 14, alignItems: 'center' }}
+            style={{ backgroundColor: CARD, borderRadius: '12px', padding: 12, marginBottom: 14 }}
             //@ts-ignore
             on:click={() => setVisibleCount(Math.min(fixtures.length, visibleCount() + 60))}
           >
-            <p style={{ fontSize: 12, color: '#6c5ce7', fontWeight: 'bold' }}>
+            <p style={{ fontSize: 12, color: '#6c5ce7', fontWeight: 'bold', margin: 0 }}>
               Show 60 more ({fixtures.length - visibleCount()} remaining)
             </p>
           </div>

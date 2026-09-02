@@ -780,11 +780,14 @@ class MasonElementHelpers: NSObject {
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
       
       if(isTextView){
-        if(!hasWidthConstraint && realLayout.contentWidth > realLayout.width){
+        // Only grow past the resolved size for overflow:visible content. With
+        // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
+        let overflow = node.style.overflow
+        if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
           width = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
         }
-        
-        if(!hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
+
+        if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
           height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
         }
       }

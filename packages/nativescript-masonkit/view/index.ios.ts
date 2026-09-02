@@ -212,7 +212,7 @@ export class View extends ViewBase {
     view[isMasonView_] = false;
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
-    // Inverse of `_addViewToNativeVisualTree` — unlink the mason node so removal detaches
+    // Unlink the mason node so removal detaches
     // the Rust node + native view instead of orphaning it (super only does removeFromSuperview).
     const nativeView = this._view as any;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {

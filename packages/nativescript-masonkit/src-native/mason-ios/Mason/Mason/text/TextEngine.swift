@@ -522,12 +522,15 @@ public class TextEngine: NSObject {
 
     size.height = (size.height * scale).rounded(.up)
 
+    // A `known` dimension of exactly 0 is often a transient probe, not an
+    // authoritative constraint; only treat a positive value as authoritative,
+    // matching Android's TextEngine.kt (`knownWidth/knownHeight > 0`).
     if let known = known {
-      if !known.width.isNaN && known.width >= 0 {
+      if !known.width.isNaN && known.width > 0 {
         size.width = known.width
       }
-      
-      if !known.height.isNaN && known.height >= 0 {
+
+      if !known.height.isNaN && known.height > 0 {
         size.height = known.height
       }
     }
@@ -1314,8 +1317,12 @@ public class TextEngine: NSObject {
     // Check if text contains explicit line breaks (from <br> tags)
     let hasExplicitLineBreaks = text.string.contains("\n")
 
+    // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
+    // properties that both force single-line drawing; match Android's OR.
+    let noWrap = style.textWrap == .NoWrap || style.whiteSpace == .NoWrap || style.whiteSpace == .Pre
+
     // Handle nowrap case - but still respect explicit line breaks from <br>
-    if style.textWrap == .NoWrap && !hasExplicitLineBreaks {
+    if noWrap && !hasExplicitLineBreaks {
       drawSingleLine(text: text, in: context, bounds: rect)
       context.restoreGState()
       drawState = .idle
