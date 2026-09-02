@@ -21,6 +21,7 @@ pub use taffy::style::{
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
 pub use taffy::Overflow;
+mod layout_cache;
 mod node;
 
 #[cfg(target_vendor = "apple")]
@@ -339,7 +340,14 @@ impl Mason {
         self.0
             .nodes_mut()
             .get_mut(node)
-            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
+            // Same exposure invariant as `style_data` - see the note there.
+            // NOTE: despite the name this hands out the *style* buffer, not the
+            // node state buffer (the Android sibling returns `state_buffer`).
+            // Left as-is to avoid changing behaviour, but it looks wrong.
+            .map(|data| {
+                let style = data.style_mut();
+                objc2::rc::Retained::into_raw(style.buffer()) as *mut c_void
+            })
             .unwrap_or(0 as _)
     }
 
@@ -522,7 +530,21 @@ impl Mason {
         self.0
             .nodes_mut()
             .get_mut(node)
-            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
+            .map(|data| {
+                // Exposure invariant: platform code writes *through* this
+                // buffer (it retains the NSMutableData and mutates in place),
+                // so the slot must be exclusively owned before we hand it out.
+                // `style_mut` runs prepare_mut, which COWs a shared slot.
+                //
+                // Without this, a write for one node lands in a slot shared by
+                // others — in particular one of the immortal DEFAULT_* slots,
+                // which carry hundreds of refs — and every node sharing it
+                // silently inherits that node's styles.
+                //
+                // Mirrors `nativeGetStyleBuffer` on Android.
+                let style = data.style_mut();
+                objc2::rc::Retained::into_raw(style.buffer()) as *mut c_void
+            })
             .unwrap_or(0 as _)
     }
 

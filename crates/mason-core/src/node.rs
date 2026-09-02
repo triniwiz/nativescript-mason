@@ -20,7 +20,8 @@ use objc2::runtime::NSObject;
 use parking_lot::{Mutex, RwLock};
 use slotmap::SecondaryMap;
 use std::sync::Arc;
-use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
+use crate::layout_cache::LayoutCache;
+use taffy::{AvailableSpace, ClearState, Layout, Size};
 
 use crate::style::arena::{StyleArena, StyleHandle};
 use crate::style::utils::{
@@ -532,7 +533,10 @@ pub const NODE_STATE_BUFFER_SIZE: usize = 5;
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
-    pub(crate) cache: Cache,
+    /// Not `taffy::Cache`: its 9 fixed slots put MaxContent and every
+    /// Definite(_) in one slot, so alternating probes evict each other and the
+    /// misses compound per nesting level. See [`crate::layout_cache`].
+    pub(crate) cache: LayoutCache,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
     pub(crate) guard: Arc<()>,
