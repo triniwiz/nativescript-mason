@@ -3,6 +3,7 @@
   "description": "NativeScript Application",
   "dependencies": {
     "@nativescript/core": "~9.0.20",
+    "@nativescript/font-manager": "file:../../../font-manager/dist/packages/font-manager",
     "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit",
     "nativescript-vue": "~3.0.2"
   },

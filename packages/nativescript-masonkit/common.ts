@@ -1279,8 +1279,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         this._setOrPushChild(operation.index, entry);
         break;
       case 'insert':
-        this._nativeAddChild(textNode, operation.index);
-        this._spliceOrPushChild(operation.index, entry);
+        {
+          const index = Math.max(0, Math.min(operation.index ?? this._children.length, this._children.length));
+          const nativeIndex = this._nativeIndexFor(index);
+          this._nativeAddChild(textNode, nativeIndex);
+          this._children.splice(index, 0, { ...entry, [textNodeIndex_]: index } as any);
+        }
         break;
     }
     this._syncTextRunLayout();
@@ -1338,24 +1342,40 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           }
         }
 
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i];
+        const frameworkTextNodes = new Set(nodes.filter((node) => node.nodeType === 'text' || node.nodeType === 3));
+
+        // Remove native text runs whose framework nodes no longer exist.
+        for (let i = this._children.length - 1; i >= 0; i--) {
+          const child = this._children[i] as any;
+          const raw = child?.[textNode_]?.['__raw__'];
+          if (raw && !frameworkTextNodes.has(raw)) {
+            this._nativeRemoveChildNode(child[textNode_], i);
+            this._children.splice(i, 1);
+          }
+        }
+
+        // Vue indices include comment anchors; MasonKit's raw list does not.
+        // Track only element/text slots so fragment anchors cannot shift a text
+        // run onto an existing visual child.
+        let rawIndex = 0;
+        for (const node of nodes) {
           const isTextNode = node.nodeType === 'text' || node.nodeType === 3;
+          const isElement = node.nodeType === 'element' || node.nodeType === 1;
           if (isTextNode) {
-            let type: 'add' | 'replace' | 'insert' = i === 0 && nodes.length === 1 && !this._children.length ? 'add' : 'replace';
-
-            if (type === 'replace') {
-              const toReplace = this._children[i] as any;
-              // Replace in place only if this slot already holds THIS framework
-              // node (its native node back-references it via '__raw__'); otherwise
-              // a different node lives here, so shift via insert instead of
-              // overwriting it.
-              if (!toReplace || toReplace[textNode_]?.['__raw__'] !== node) {
-                type = 'insert';
+            const existingIndex = this._children.findIndex((child: any) => child?.[textNode_]?.['__raw__'] === node);
+            if (existingIndex === rawIndex) {
+              this._updateTextNode(node, null);
+            } else {
+              if (existingIndex > -1) {
+                const existing = this._children[existingIndex] as any;
+                this._nativeRemoveChildNode(existing[textNode_], existingIndex);
+                this._children.splice(existingIndex, 1);
               }
+              this._updateTextNode(node, { type: 'insert', index: rawIndex, isBreak: node.nodeName === 'br' });
             }
-
-            this._updateTextNode(node, { type, index: i, isBreak: node.nodeName === 'br' });
+          }
+          if (isTextNode || isElement) {
+            rawIndex++;
           }
         }
         return;

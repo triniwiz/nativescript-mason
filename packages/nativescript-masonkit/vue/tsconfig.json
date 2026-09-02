@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@triniwiz/nativescript-masonkit": ["../../../dist/packages/nativescript-masonkit"],
+      "@triniwiz/nativescript-masonkit/web": ["../../../dist/packages/nativescript-masonkit/web"]
+    },
+    "outDir": "../../../dist/packages/nativescript-masonkit/vue",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": ["index.ts", "src/**/*.ts"]
+}

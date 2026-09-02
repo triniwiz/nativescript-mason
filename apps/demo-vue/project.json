@@ -36,7 +36,7 @@
         "uglify": false,
         "release": false,
         "forDevice": false,
-        "prepare": false
+        "prepare": true
       }
     }
   }

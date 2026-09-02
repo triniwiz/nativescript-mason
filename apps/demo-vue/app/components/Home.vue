@@ -2,14 +2,32 @@
   <Frame>
     <Page>
       <ActionBar actionBarHidden="true">
-        <span text="Mason Demos" class="text-white" style="font-size: 20; font-weight: bold;" />
+        <span text="Mason Demos" class="text-white" style="font-size: 20; font-weight: bold" />
       </ActionBar>
-      <div class="page" style="overflow-y: scroll;">
+      <Scroll class="page" style="overflow-y: scroll">
         <div class="hero">
-          <p style="font-size: 18; font-weight: bold; color: white;">Mason Demos — Examples</p>
+          <p style="font-size: 18; font-weight: bold; color: white">Mason Demos — Examples</p>
           <p style="font-size: 12; color: #eee; margin-top: 6">Quick access to plugin demos and web-style samples</p>
         </div>
         <div class="demo-grid">
+          <div class="demo-card">
+            <p class="card-title">Fibonacci 30</p>
+            <p class="card-desc">{{ fibStatus }}</p>
+            <button class="btn-primary" :text="'Run'" @click="runFibTest" />
+          </div>
+
+          <div class="demo-card">
+            <p class="card-title">Layout Stress</p>
+            <p class="card-desc">Reconciliation and border regressions</p>
+            <button class="btn-primary" :text="'Open'" @click="() => navigate('stress')" />
+          </div>
+
+          <div class="demo-card">
+            <p class="card-title">MasonKit News</p>
+            <p class="card-desc">Sortable Hacker News layout</p>
+            <button class="btn-primary" :text="'Open'" @click="() => navigate('hacker-news')" />
+          </div>
+
           <div class="demo-card">
             <p class="card-title">Flexbox</p>
             <p class="card-desc">Flex layout patterns</p>
@@ -52,14 +70,13 @@
             <button class="btn-primary" :text="'Open'" @click="() => navigate('react-native')" />
           </div>
         </div>
-
-      </div>
+      </Scroll>
     </Page>
   </Frame>
 </template>
 
 <script lang="ts" setup>
-import { $navigateTo } from 'nativescript-vue';
+import { $navigateTo, ref } from 'nativescript-vue';
 import FlexboxDemo from '~/plugin-demos/FlexboxDemo.vue';
 import GridDemo from '~/plugin-demos/GridDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
@@ -72,9 +89,25 @@ import WebSamplesIndex from '~/web-samples/WebSamplesIndex.vue';
 import ProfessionList from '~/web-samples/ProfessionList.vue';
 import LynxIndex from '~/lynx/LynxIndex.vue';
 import ReactNative from '~/react-native/sample.vue';
+import HackerNews from '~/hn/HackerNews.vue';
+import Stress from '~/stress/Stress.vue';
+
+const fibStatus = ref('Recursive fib(30) smoke test');
+
+const fibonacci = (n: number): number => (n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2));
+
+const runFibTest = () => {
+  const startedAt = Date.now();
+  const result = fibonacci(30);
+  const elapsed = Date.now() - startedAt;
+  fibStatus.value = `fib(30) = ${result} (${elapsed} ms)`;
+  console.log(`[fib test] ${fibStatus.value}`);
+};
 
 const navigate = (demo: string) => {
   const demos = {
+    stress: Stress,
+    'hacker-news': HackerNews,
     flexbox: FlexboxDemo,
     grid: GridDemo,
     shadows: BoxShadowDemo,
@@ -86,7 +119,7 @@ const navigate = (demo: string) => {
     'web-samples': WebSamplesIndex,
     professions: ProfessionList,
     lynx: LynxIndex,
-    'react-native': ReactNative
+    'react-native': ReactNative,
   };
   $navigateTo(demos[demo]);
 };

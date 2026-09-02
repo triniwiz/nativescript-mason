@@ -43,6 +43,7 @@
     "@ngtools/webpack": "^21.0.0",
     "cheerio": "^1.0.0-rc.12",
     "husky": "~9.0.0",
+    "nativescript-vue": "^3.0.2",
     "ng-packagr": "^21.0.0",
     "playwright": "^1.62.1",
     "rxjs": "~7.8.0",

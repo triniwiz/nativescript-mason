@@ -1,0 +1,7 @@
+{
+  "name": "@triniwiz/nativescript-masonkit-vue",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "sideEffects": true
+}

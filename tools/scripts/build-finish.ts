@@ -9,7 +9,8 @@ const npmScope = nxConfig.npmScope;
 
 const cmdArgs = process.argv.slice(2);
 const packageName = cmdArgs[0];
-const publish = cmdArgs[1] === 'publish';
+const publish = cmdArgs.includes('publish');
+const skipAngular = cmdArgs.includes('--skip-angular');
 
 const packagePath = path.join('packages', packageName, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packagePath));
@@ -50,7 +51,7 @@ function finishPreparation() {
     .catch((err) => console.error(err));
 }
 
-if (fs.existsSync(path.join(rootDir, 'packages', packageName, 'angular'))) {
+if (!skipAngular && fs.existsSync(path.join(rootDir, 'packages', packageName, 'angular'))) {
   // package has angular specific src, build it first
   buildAngular();
 } else {
