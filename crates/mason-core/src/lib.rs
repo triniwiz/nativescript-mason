@@ -1800,4 +1800,39 @@ mod tests {
             expected
         );
     }
+
+    /// Regression: the per-node state buffer is handed to platform code as a raw
+    /// pointer (a direct ByteBuffer on Android) and cached, so its address must
+    /// stay stable when the tree's SlotMap reallocates on growth.
+    #[test]
+    fn node_state_buffer_stable_across_tree_growth() {
+        use crate::node::{NodeStateKeys, NODE_STATE_BUFFER_SIZE};
+
+        let mut mason = Mason::new();
+        let first = mason.create_node();
+        let first_id = first.id();
+
+        let (ptr_before, len) = mason.node_state_data_raw_mut(first_id);
+        assert!(!ptr_before.is_null());
+        assert_eq!(len, NODE_STATE_BUFFER_SIZE);
+
+        unsafe {
+            *ptr_before.add(NodeStateKeys::IS_VIRTUAL as usize) = 1;
+        }
+
+        // Grow past the SlotMap's initial capacity to force reallocation.
+        let mut nodes = Vec::new();
+        for _ in 0..4096 {
+            nodes.push(mason.create_node());
+        }
+
+        let (ptr_after, len_after) = mason.node_state_data_raw(first_id);
+        assert_eq!(len_after, NODE_STATE_BUFFER_SIZE);
+        assert_eq!(
+            ptr_before, ptr_after as *mut u8,
+            "state buffer address changed after tree growth"
+        );
+        let sentinel = unsafe { *ptr_after.add(NodeStateKeys::IS_VIRTUAL as usize) };
+        assert_eq!(sentinel, 1, "state buffer contents lost after tree growth");
+    }
 }
