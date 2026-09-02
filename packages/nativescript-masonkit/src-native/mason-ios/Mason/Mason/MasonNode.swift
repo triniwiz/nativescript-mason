@@ -1015,9 +1015,9 @@ extension MasonNode {
         // must be linked before getDefaultAttributes() below (inherits via node.parent)
         container.parent = self
 
-        if let textView = container.view as? MasonText {
+        if let textView = container.view as? TextContainer {
           textChild.attributes.removeAll()
-          textChild.attributes.merge(textView.getDefaultAttributes()) { _, new in new }
+          textChild.attributes.merge(textView.defaultAttributes) { _, new in new }
           textChild.container = textView
           textView.engine.invalidateInlineSegments()
         }
@@ -1050,7 +1050,7 @@ extension MasonNode {
     // Text node inside anonymous container (split handling)
     if let referenceText = reference as? MasonTextNode {
       let containerNode = referenceText.layoutParent ?? referenceText.container?.node
-      if let containerNode = containerNode, containerNode.parent === self {
+      if let containerNode = containerNode, containerNode === self || containerNode.parent === self {
         let idxInContainer = containerNode.children.firstIndex(where: { $0 === referenceText }) ?? -1
         if idxInContainer >= 0 {
           let hasLeft = idxInContainer > 0
@@ -1073,8 +1073,8 @@ extension MasonNode {
               m.parent = afterContainer
               afterContainer?.children.append(m)
 
-              if let tv = afterContainer?.view as? MasonText, let mText = m as? MasonTextNode {
-                mText.attributes = tv.getDefaultAttributes()
+              if let tv = afterContainer?.view as? TextContainer, let mText = m as? MasonTextNode {
+                mText.attributes = tv.defaultAttributes
                 mText.container = tv
               }
             }
@@ -1241,14 +1241,17 @@ extension MasonNode {
     // Inserting a TextNode
     if let textChild = child as? MasonTextNode {
       if let referenceText = reference as? MasonTextNode {
-        if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode.parent === self {
+        // `containerNode` is `self` when self itself is the TextContainer
+        // (e.g. a <p> hosting its text runs directly), not just when it's an
+        // anonymous wrapper child of self — both need the fast in-place path.
+        if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode === self || containerNode.parent === self {
           if let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
             containerNode.children.insert(textChild, at: idxInContainer)
             textChild.parent = containerNode
-            
-            if let tv = containerNode.view as? MasonText {
+
+            if let tv = containerNode.view as? TextContainer {
               textChild.attributes.removeAll()
-              textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              textChild.attributes.merge(tv.defaultAttributes) { _, new in new }
               textChild.container = tv
               tv.engine.invalidateInlineSegments()
             }
@@ -1270,9 +1273,9 @@ extension MasonNode {
       // must be linked before getDefaultAttributes() below (inherits via node.parent)
       container.parent = self
 
-      if let tv = container.view as? MasonText {
+      if let tv = container.view as? TextContainer {
         textChild.attributes.removeAll()
-        textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+        textChild.attributes.merge(tv.defaultAttributes) { _, new in new }
         textChild.container = tv
         tv.engine.invalidateInlineSegments()
       }
@@ -1290,7 +1293,7 @@ extension MasonNode {
     
     // Inserting a non-TextNode
     if let referenceText = reference as? MasonTextNode {
-      if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode.parent === self, let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
+      if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode === self || containerNode.parent === self, let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
         
         let containerIndexInParent = children.firstIndex(of: containerNode) ?? -1
         
@@ -1315,11 +1318,11 @@ extension MasonNode {
           n.parent = containerNode
         }
         
-        if let tv = containerNode.view as? MasonText {
+        if let tv = containerNode.view as? TextContainer {
           for tn in containerNode.children {
             if let tnText = tn as? MasonTextNode {
               tnText.attributes.removeAll()
-              tnText.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              tnText.attributes.merge(tv.defaultAttributes) { _, new in new }
               tnText.container = tv
             }
           }
@@ -1339,9 +1342,9 @@ extension MasonNode {
           for n in rightSlice {
             afterContainer?.children.append(n)
             n.parent = afterContainer
-            if let tv = afterContainer?.view as? MasonText, let tnText = n as? MasonTextNode {
+            if let tv = afterContainer?.view as? TextContainer, let tnText = n as? MasonTextNode {
               tnText.attributes.removeAll()
-              tnText.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              tnText.attributes.merge(tv.defaultAttributes) { _, new in new }
               tnText.container = tv
             }
           }
