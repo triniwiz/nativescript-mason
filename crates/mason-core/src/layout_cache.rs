@@ -209,6 +209,10 @@ mod tests {
                 height: AvailableSpace::MaxContent,
             },
             vertical_margins_are_collapsible: taffy::Line::FALSE,
+            known_dimensions_are_definite: Size {
+                width: false,
+                height: false,
+            },
         }
     }
 
