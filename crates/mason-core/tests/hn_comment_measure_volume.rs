@@ -1,24 +1,8 @@
 //! Reproduce the HN comment thread's measure-callback volume in pure Rust.
 //!
-//! On device, one correct layout of a 15-comment / depth-8 thread issues
-//! **47,387** measure callbacks that resolve to only ~493 distinct layouts
-//! (~99% absorbed by the Kotlin measure cache). `deep_flex_profile.rs` models
-//! the same nesting with plain flex leaves and is *linear* — 31 calls per level,
-//! 310 at depth 10 — so the 100x gap comes from something that profile doesn't
-//! model.
-//!
-//! Difference under test: the real text leaves are `display: block` / `inline`
-//! (mason's own inline formatting path, `tree_inline.rs`), not measure-func
-//! leaves inside a flex row. This models the actual shape:
-//!
-//! ```text
-//! hn-comment            flex column
-//!   article.comment     flex column, padding 8
-//!     header            flex row, gap 8      <- 4 inline leaves
-//!     p.comment-text    block                <- long text leaf
-//!     section.replies   flex column, margin-left 12
-//!       hn-comment ...  (recursion)
-//! ```
+//! On device a depth-8 thread issued 47k measure callbacks; this test models the
+//! same nesting with inline/block text leaves so cache improvements can be
+//! validated without the full app.
 
 use mason_core::style::DisplayMode;
 use mason_core::*;

@@ -1,36 +1,17 @@
 //! Per-node layout cache.
 //!
-//! Drop-in replacement for `taffy::Cache`, which stores measure results in 9
-//! fixed slots chosen by `compute_cache_slot`. That mapping puts `MaxContent`
-//! and *every* `Definite(_)` value in the same slot:
-//!
-//! ```text
-//! (MaxContent | Definite(_), MaxContent | Definite(_)) => 5,
-//! ```
-//!
-//! Lookups scan all nine entries, but stores overwrite the computed slot — so a
-//! node probed alternately at max-content and at a definite width evicts its own
-//! entry on every store and misses on every lookup. Each miss makes the parent
-//! re-lay-out the subtree, so the waste compounds per nesting level.
-//!
-//! Measured on a depth-8 comment thread: 47,387 measure callbacks for 84 text
-//! nodes, with single nodes measured 6,835 times for **3** distinct constraints
-//! (3 probe kinds ^ 8 levels = 6,561).
-//!
-//! This keeps taffy's matching semantics exactly — including the near-match
-//! rules that let a probe hit an entry recorded under different-but-compatible
-//! inputs — and only changes the storage: entries are keyed on their own
-//! inputs and coexist up to [`MEASURE_CAPACITY`], so distinct constraints stop
-//! evicting each other.
+//! Drop-in replacement for `taffy::Cache`. Taffy stores measure results in 9 fixed
+//! slots; `MaxContent` and every `Definite(_)` width share one slot, so
+//! alternating probes evict each other and misses compound per nesting level.
+//! This cache keeps taffy's matching semantics but stores entries by their own
+//! inputs, letting distinct constraints coexist up to [`MEASURE_CAPACITY`].
 
 use taffy::{AvailableSpace, ClearState, LayoutInput, LayoutOutput, RunMode, Size};
 
-/// Maximum distinct measure results held per node.
-///
-/// Bounded so a node whose constraints genuinely churn (an animation driving a
-/// width, say) cannot grow without limit. The worst node observed on a real
-/// screen used 20; beyond the cap the cache degrades to round-robin eviction,
-/// which is still never worse than taffy's 9 slots.
+/// Maximum distinct measure results held per node. Beyond this, entries are
+/// evicted round-robin. The cap prevents unbounded growth for nodes whose
+/// constraints churn, while still exceeding the ~20-entry high water mark seen
+/// in practice.
 const MEASURE_CAPACITY: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
@@ -65,10 +46,9 @@ impl LayoutCache {
         }
     }
 
-    /// Taffy's cache-hit predicate, preserved verbatim: an entry matches when
-    /// each known dimension either equals the entry's, or equals the size the
-    /// entry produced; and, for axes with no known dimension, the available
-    /// space is roughly equal.
+    /// Taffy's cache-hit predicate: an entry matches when each known dimension
+    /// equals the entry's or the cached size, and unspecified axes have roughly
+    /// equal available space.
     #[inline]
     fn matches<T>(
         entry: &CacheEntry<T>,
@@ -154,9 +134,8 @@ impl LayoutCache {
                     content: layout_output.size,
                 };
 
-                // Overwrite the entry for these exact inputs if we already have
-                // one, so re-measuring the same constraint refreshes rather
-                // than accumulates.
+                // Overwrite an existing entry for the same inputs instead of
+                // growing the cache.
                 if let Some(existing) = self
                     .measure_entries
                     .iter_mut()

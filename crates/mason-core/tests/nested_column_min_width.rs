@@ -1,15 +1,7 @@
-//! Repro for the HN comment-thread overflow: a wide, non-shrinkable flex ROW
-//! buried inside N nested column flex containers.
-//!
-//! Per CSS Flexbox §4.5, `min-width: auto` resolves to the content-based
-//! minimum size only on the *main* axis. For `flex-direction: column` the main
-//! axis is vertical, so a column flex item's *width* minimum is 0 and it should
-//! stretch to its container. The inner row should overflow its own box; the
-//! ancestors should stay at the container width.
-//!
-//! If the content-based minimum is being applied to the cross axis instead,
-//! every ancestor inflates to `row_width + sum(insets)` — which is exactly the
-//! staircase seen on device.
+//! Regression: a wide row inside nested column flex containers should not
+//! inflate every ancestor's width. `min-width: auto` applies only on the main
+//! axis, so a column item's width minimum is 0 and it should stretch to the
+//! container.
 
 use mason_core::*;
 use std::ffi::{c_float, c_longlong, c_void};
@@ -98,9 +90,7 @@ fn nested_column_items_should_not_inflate_past_container() {
     for depth in [1usize, 2, 4, 8] {
         let mut mason = Mason::new();
         let root = flex(&mut mason, FlexDirection::Column);
-        // Definite root width. Without this the root is auto-sized and sizing
-        // it to content is correct taffy behaviour, not a bug — the app's real
-        // root has `width: 100%`, so pin it here too.
+        // Pin the root width like the app does with `width: 100%`.
         mason.with_style_mut(root, |style| {
             style.set_width(Dimension::length(CONTAINER));
         });
@@ -126,9 +116,7 @@ fn nested_column_items_should_not_inflate_past_container() {
 
         assert!(
             outer_w <= CONTAINER + 0.5,
-            "depth={depth}: outermost column box is {outer_w}, wider than the \
-             {CONTAINER} container — the inner row's content-based minimum is \
-             inflating the cross axis of every ancestor"
+            "depth={depth}: outermost column box is {outer_w}, wider than {CONTAINER}"
         );
     }
 }

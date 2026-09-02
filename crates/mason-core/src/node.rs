@@ -533,9 +533,8 @@ pub const NODE_STATE_BUFFER_SIZE: usize = 5;
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
-    /// Not `taffy::Cache`: its 9 fixed slots put MaxContent and every
-    /// Definite(_) in one slot, so alternating probes evict each other and the
-    /// misses compound per nesting level. See [`crate::layout_cache`].
+    /// Per-node cache that lets distinct measure constraints coexist instead of
+    /// evicting each other through taffy's fixed 9-slot cache.
     pub(crate) cache: LayoutCache,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
