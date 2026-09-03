@@ -5319,7 +5319,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       canvas: Canvas,
       node: Node,
       widthOverride: Float = node.computedWidth,
-      heightOverride: Float = node.computedHeight
+      heightOverride: Float = node.computedHeight,
+      includeBorderRadius: Boolean = false
     ) {
       val width = if (widthOverride > 0f) widthOverride else node.computedWidth
       val height = if (heightOverride > 0f) heightOverride else node.computedHeight
@@ -5369,6 +5370,12 @@ class Style internal constructor(@Transient internal var node: Node) {
 
       // Defensive guard: if computed clip rect is inverted or degenerate, skip clipping
       if (clipRight > clipLeft && clipBottom > clipTop) {
+        if (includeBorderRadius) {
+          style.mBorderRenderer.updateCache(width, height)
+          if (style.mBorderRenderer.hasRadii()) {
+            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+          }
+        }
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
       }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getMasonKitElements } from './elements';
+import { Button, Input, TextArea } from '.';
 
 // `getMasonKitElements()` is load-bearing and was untested: Angular builds its
 // whole registerElement loop from it, and demo-solid/react/vue each loop over it
@@ -104,6 +105,14 @@ describe('the element registry', () => {
     for (const tag of ['div', 'section', 'ul', 'ol', 'figure', 'form', 'scroll']) {
       expect(byTag.get(tag)?.isContainer, tag).toBe(true);
     }
+  });
+
+  it('maps lowercase form controls to native Mason widgets', () => {
+    expect(byTag.get('input')?.ctor).toBe(Input);
+    expect(byTag.get('input')?.isContainer).toBe(false);
+    expect(byTag.get('textarea')?.ctor).toBe(TextArea);
+    expect(byTag.get('textarea')?.isContainer).toBe(false);
+    expect(byTag.get('button')?.ctor).toBe(Button);
   });
 
   it("keeps /web's more specific class where it overlaps the base package", () => {

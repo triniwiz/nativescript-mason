@@ -2191,9 +2191,6 @@ public class MasonStyle: NSObject {
       setOrAppendState(StateKeys.position)
     }
   }
-  
-  
-  // TODO
   public var direction: Direction{
     get {
       return Direction(rawValue: getInt8(StyleKeys.DIRECTION))!
@@ -3929,19 +3926,6 @@ public class MasonStyle: NSObject {
 
   @objc public var backdropFilter: String = "" {
     didSet {
-      NSLog("MASONDBG didSet ENTRY backdropFilter='\(backdropFilter)' view=\(String(describing: node.view))")
-      print("MASONDBG-PRINT didSet ENTRY backdropFilter='\(backdropFilter)'")
-      FileHandle.standardError.write("MASONDBG-STDERR didSet ENTRY backdropFilter='\(backdropFilter)'\n".data(using: .utf8)!)
-      if let view = node.view {
-        let marker = UILabel()
-        marker.text = "MASONDBG-FIRED"
-        marker.backgroundColor = .red
-        marker.textColor = .white
-        marker.frame = CGRect(x: 0, y: 0, width: 160, height: 24)
-        marker.tag = 999888
-        view.subviews.first(where: { $0.tag == 999888 })?.removeFromSuperview()
-        view.addSubview(marker)
-      }
       if backdropFilter.isEmpty && !mBackdropFilter.filters.isEmpty {
         mBackdropFilter.reset()
         if let view = node.view {
@@ -3952,12 +3936,9 @@ public class MasonStyle: NSObject {
       }
 
       mBackdropFilter.parse(css: backdropFilter)
-      NSLog("MASONDBG didSet backdropFilter='\(backdropFilter)' parsedFilters=\(mBackdropFilter.filters.count) view=\(String(describing: node.view))")
 
       if !mBackdropFilter.filters.isEmpty {
         if let view = node.view {
-          view.layer.borderWidth = 6 // MASONDBG forced-visible test
-          view.layer.borderColor = UIColor.red.cgColor // MASONDBG forced-visible test
           // Border-radius clip is independent of `overflow` (like the
           // element's own background) — re-queried each render frame.
           mBackdropFilter.applyAsBackdrop(to: view, clipPathProvider: { [weak self, weak view] in

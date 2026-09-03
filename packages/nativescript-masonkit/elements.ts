@@ -55,6 +55,9 @@ export interface MasonKitElementEntry {
  * `ViewBase` and attaches straight to the Mason tree, so it has no child API.
  */
 function isMasonContainer(cls: ElementClass): boolean {
+  if (cls === Img || cls === Br || cls === Input || cls === TextArea) {
+    return false;
+  }
   const proto = cls?.prototype;
   return !!proto && typeof proto.insertChild === 'function' && typeof proto.addChild === 'function' && typeof proto.removeChild === 'function';
 }

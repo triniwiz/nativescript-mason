@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
@@ -66,6 +66,12 @@ export class Input extends InputBase {
     if (this._view) {
       //@ts-ignore
       this._view.setMultiple(value);
+    }
+  }
+
+  [acceptProperty.setNative](value: string) {
+    if (this._view) {
+      this._view.setAccept(value);
     }
   }
 

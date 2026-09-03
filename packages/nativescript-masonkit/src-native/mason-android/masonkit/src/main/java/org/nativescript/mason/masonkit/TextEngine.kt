@@ -55,12 +55,10 @@ private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolea
     val isWs = i < len && text[i].isSoftWrapOpportunity()
     if (i == len || isWs) {
       if (i > start) {
-        val sub = text.subSequence(start, i)
-        val w = if (useLayout) Layout.getDesiredWidth(sub, paint) else paint.measureText(
-          sub,
-          0,
-          sub.length
-        )
+        // Measure the range directly; slicing a Spannable per word copies
+        // overlapping spans and turns this loop quadratic.
+        val w = if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
+        else paint.measureText(text, start, i)
         if (w > maxW) maxW = w
       }
       start = i + 1

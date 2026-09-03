@@ -402,6 +402,9 @@ extension MasonElement {
     // Zero parent bounds (transitions, pre-Auto-Layout): skip but keep dirty
     // flags so the next real-size call recomputes instead of hitting stale cache.
     guard parentSize.width > 0 || parentSize.height > 0 else { return }
+    // Once a view has measured, stop recomputing it while it sits off-window in
+    // a navigation back stack. New pages still get their first pre-window pass.
+    if _lastAutoComputeSize != .zero, uiView.window == nil { return }
     if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
       _lastAutoComputeSize = parentSize
       let scale = NSCMason.scale
@@ -969,8 +972,16 @@ class MasonElementHelpers: NSObject {
           if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
           MasonElementHelpers.handleOverflow(_overflow.x, scroll)
           MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
+          // A shrinking contentSize can leave contentOffset past the new range.
+          let maxX = max(0, newContentSize.width - scroll.bounds.width)
+          let maxY = max(0, newContentSize.height - scroll.bounds.height)
+          let off = scroll.contentOffset
+          let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
+          if clamped != off { scroll.setContentOffset(clamped, animated: false) }
         } else if let masonView = node.view as? MasonUIView {
           if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
+          // Reassigning through the setter re-clamps after the size change.
+          masonView.contentOffset = masonView.contentOffset
         }
       }
 

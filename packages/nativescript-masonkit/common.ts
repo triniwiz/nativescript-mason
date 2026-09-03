@@ -224,6 +224,19 @@ function nativeViewFor(owner: any): any {
   return owner?.nativeViewProtected ?? owner?.[native_];
 }
 
+function masonNativeEventName(eventName: string): string | null {
+  switch (eventName) {
+    case 'tap':
+    case 'click':
+      return 'click';
+    case 'input':
+    case 'change':
+      return eventName;
+    default:
+      return null;
+  }
+}
+
 function findOwnerForNativeView(owner: any, nativeView: any): ViewBase | NSViewBase | null {
   if (!owner || !nativeView) return null;
 
@@ -517,7 +530,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     //@ts-ignore
     if (this._view) {
       if (__ANDROID__) {
-        if (!id) {
+        if (id) {
           //@ts-ignore
           const removed = (this._view as org.nativescript.mason.masonkit.Element).removeEventListener(arg, id);
 
@@ -525,7 +538,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         }
       }
       if (__APPLE__) {
-        if (!id) {
+        if (id) {
           //@ts-ignore
           const removed = (this._view as NSObject).mason_removeEventListenerId(arg, id);
 
@@ -571,18 +584,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         capture: thisArg,
       };
     }
-    super.addEventListener(arg, callback, thisArg);
     if (typeof arg !== 'string') {
+      super.addEventListener(arg, callback, thisArg);
       return;
     }
 
-    switch (arg) {
-      case 'input':
-      case 'change':
-      case 'click':
-        this._registerNativeEvent(arg, callback, thisArg);
-        break;
+    const nativeEventName = masonNativeEventName(arg);
+    if (nativeEventName) {
+      super.addEventListener(nativeEventName, callback, thisArg);
+      this._registerNativeEvent(nativeEventName, callback, thisArg);
+      return;
     }
+
+    super.addEventListener(arg, callback, thisArg);
   }
 
   public removeEventListener(arg: string, callback: any, thisArg?: any) {
@@ -592,15 +606,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       };
     }
 
-    super.removeEventListener(arg, callback, thisArg);
-
-    switch (arg) {
-      case 'input':
-      case 'change':
-      case 'click':
-        this._unregisterNativeEvent(arg, callback, thisArg);
-        break;
+    if (typeof arg === 'string') {
+      const nativeEventName = masonNativeEventName(arg);
+      if (nativeEventName) {
+        super.removeEventListener(nativeEventName, callback, thisArg);
+        this._unregisterNativeEvent(nativeEventName, callback, thisArg);
+        return;
+      }
     }
+
+    super.removeEventListener(arg, callback, thisArg);
   }
 
   private _applyPseudoClassStyles(pseudoClass: string, view, styles: Record<string, any>) {

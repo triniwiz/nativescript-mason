@@ -32,12 +32,7 @@ class MasonDateInput: UIView {
     set {
       let parts = newValue.split(separator: "-")
       if parts.count == 3 {
-        yearInput.text = String(parts[0])
-        yearInput.textColor = .label
-        monthInput.text = String(parts[1])
-        monthInput.textColor = .label
-        dayInput.text = String(parts[2])
-        dayInput.textColor = .label
+        setFields(year: String(parts[0]), month: String(parts[1]), day: String(parts[2]))
       }
     }
   }
@@ -195,6 +190,38 @@ class MasonDateInput: UIView {
     
     return range.count
   }
+
+  private func currentDate() -> Date? {
+    guard let yearText = yearInput.text, let year = Int(yearText),
+          let monthText = monthInput.text, let month = Int(monthText),
+          let dayText = dayInput.text, let day = Int(dayText) else {
+      return nil
+    }
+
+    var components = DateComponents()
+    components.year = year
+    components.month = month
+    components.day = day
+    return Calendar.current.date(from: components)
+  }
+
+  private func setFields(year: String, month: String, day: String) {
+    yearInput.text = year
+    yearInput.textColor = .label
+    monthInput.text = month
+    monthInput.textColor = .label
+    dayInput.text = day
+    dayInput.textColor = .label
+  }
+
+  private func setFields(from date: Date) {
+    let comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+    setFields(
+      year: String(format: "%04d", comps.year ?? 0),
+      month: String(format: "%02d", comps.month ?? 0),
+      day: String(format: "%02d", comps.day ?? 0)
+    )
+  }
   
   @objc private func textChanged(_ sender: UITextField) {
     guard let owner = owner else { return }
@@ -260,83 +287,141 @@ class MasonDateInput: UIView {
   
   @objc private func showDatePicker() {
     guard let parentVC = self.parentViewController else { return }
-    
-    let picker = UIDatePicker()
+
+    let pickerController = MasonDatePickerController()
+    pickerController.initialDate = currentDate() ?? Date()
+    pickerController.preferredContentSize = CGSize(
+      width: min(max(parentVC.view.bounds.width - 32, 320), 380),
+      height: 430
+    )
+    pickerController.onDone = { [weak self] date in
+      self?.commitPickerDate(date) ?? true
+    }
+    pickerController.modalPresentationStyle = .popover
+
+    if let popover = pickerController.popoverPresentationController {
+      popover.sourceView = showButton
+      popover.sourceRect = showButton.bounds
+      popover.permittedArrowDirections = [.up, .down]
+      popover.delegate = pickerController
+    }
+
+    parentVC.present(pickerController, animated: true)
+  }
+
+  private func commitPickerDate(_ date: Date) -> Bool {
+    guard let owner = owner else { return true }
+
+    let before = MasonInputEvent(
+      type: "beforeinput",
+      data: nil,
+      inputType: "insertReplacementText",
+      options: MasonEventOptions(
+        isComposing: true
+      )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = true
+    }
+    before.target = owner
+    owner.node.mason.dispatch(before, owner.node)
+
+    if before.defaultPrevented {
+      return false
+    }
+
+    setFields(from: date)
+
+    let input = MasonInputEvent(
+      type: "input",
+      data: value,
+      inputType: "insertReplacementText",
+      options: MasonEventOptions(
+        isComposing: true
+      )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = false
+    }
+    input.target = owner
+    owner.node.mason.dispatch(input, owner.node)
+
+    let change = MasonInputEvent(
+      type: "change",
+      data: value,
+      inputType: "insertReplacementText",
+      options: MasonEventOptions(
+        isComposing: true
+      )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = false
+    }
+    change.target = owner
+    owner.node.mason.dispatch(change, owner.node)
+
+    return true
+  }
+}
+
+private final class MasonDatePickerController: UIViewController, UIPopoverPresentationControllerDelegate {
+  let picker = UIDatePicker()
+  var initialDate = Date()
+  var onDone: ((Date) -> Bool)?
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    view.backgroundColor = .systemBackground
+
     picker.datePickerMode = .date
-    picker.preferredDatePickerStyle = .inline
-    
-    let alert = UIAlertController(title: "", message: nil, preferredStyle: .actionSheet)
-    alert.view.addSubview(picker)
-    
-    picker.translatesAutoresizingMaskIntoConstraints = false
+    picker.date = initialDate
+    if #available(iOS 14.0, *) {
+      picker.preferredDatePickerStyle = .inline
+    }
+
+    let cancelButton = UIButton(type: .system)
+    cancelButton.setTitle("Cancel", for: .normal)
+    cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
+
+    let doneButton = UIButton(type: .system)
+    doneButton.setTitle("Done", for: .normal)
+    doneButton.titleLabel?.font = .boldSystemFont(ofSize: UIFont.buttonFontSize)
+    doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
+
+    let spacer = UIView()
+    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+    let toolbar = UIStackView(arrangedSubviews: [cancelButton, spacer, doneButton])
+    toolbar.axis = .horizontal
+    toolbar.alignment = .center
+
+    let content = UIStackView(arrangedSubviews: [toolbar, picker])
+    content.axis = .vertical
+    content.spacing = 8
+    content.translatesAutoresizingMaskIntoConstraints = false
+
+    view.addSubview(content)
     NSLayoutConstraint.activate([
-      picker.leadingAnchor.constraint(equalTo: alert.view.leadingAnchor),
-      picker.trailingAnchor.constraint(equalTo: alert.view.trailingAnchor),
-      picker.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 8),
-      picker.heightAnchor.constraint(equalToConstant: 360)
+      content.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+      content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+      content.topAnchor.constraint(equalTo: view.topAnchor, constant: 12),
+      content.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12)
     ])
-    
-    alert.addAction(UIAlertAction(title: "Done", style: .default, handler: { _ in
-      guard let owner = self.owner else { return }
+  }
 
-          let before = MasonInputEvent(
-              type: "beforeinput",
-              data: nil,
-              inputType: "insertReplacementText",
-              options: MasonEventOptions(
-                  isComposing: true
-              )
-          ).apply{ event in
-            event.bubbles = true
-            event.cancelable = true
-          }
-          before.target = owner
-          owner.node.mason.dispatch(before, owner.node)
+  @objc private func cancelTapped() {
+    dismiss(animated: true)
+  }
 
-          if before.defaultPrevented {
-              return
-          }
+  @objc private func doneTapped() {
+    let shouldDismiss = onDone?(picker.date) ?? true
+    if shouldDismiss {
+      dismiss(animated: true)
+    }
+  }
 
-          let calendar = Calendar.current
-          let comps = calendar.dateComponents([.year, .month, .day], from: picker.date)
-
-          self.yearInput.text = String(format: "%04d", comps.year ?? 0)
-          self.yearInput.textColor = .label
-          self.monthInput.text = String(format: "%02d", comps.month ?? 0)
-          self.monthInput.textColor = .label
-          self.dayInput.text = String(format: "%02d", comps.day ?? 0)
-          self.dayInput.textColor = .label
-
-          let input = MasonInputEvent(
-              type: "input",
-              data: self.value,
-              inputType: "insertReplacementText",
-              options: MasonEventOptions(
-                  isComposing: true
-              )
-          ).apply{ event in
-            event.bubbles = true
-            event.cancelable = false
-          }
-          input.target = owner
-          owner.node.mason.dispatch(input, owner.node)
-
-          let change = MasonInputEvent(
-              type: "change",
-              data: self.value,
-              inputType: "insertReplacementText",
-              options: MasonEventOptions(
-                  isComposing: true
-              )
-          ).apply{ event in
-            event.bubbles = true
-            event.cancelable = false
-          }
-          change.target = owner
-          owner.node.mason.dispatch(change, owner.node)
-    }))
-    
-    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-    parentVC.present(alert, animated: true)
+  func adaptivePresentationStyle(for controller: UIPresentationController) -> UIModalPresentationStyle {
+    return .none
   }
 }
