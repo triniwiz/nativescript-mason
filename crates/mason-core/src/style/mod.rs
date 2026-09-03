@@ -898,6 +898,54 @@ impl Drop for Style {
     }
 }
 
+/// Snapshot of the `Style` fields that live outside the flat byte buffer
+/// (grid placement/template, owned as `Vec`/`Atom`). Used alongside a
+/// buffer comparison to detect a no-op style write in `Tree::with_style_mut`.
+#[derive(PartialEq)]
+pub(crate) struct NonBufferStyleSnapshot {
+    grid_area: Option<Atom>,
+    grid_column_start: GridPlacement<Atom>,
+    grid_column_end: GridPlacement<Atom>,
+    grid_row_start: GridPlacement<Atom>,
+    grid_row_end: GridPlacement<Atom>,
+    grid_template_rows: Vec<GridTemplateComponent<Atom>>,
+    grid_template_rows_raw: Option<Atom>,
+    grid_template_columns: Vec<GridTemplateComponent<Atom>>,
+    grid_template_columns_raw: Option<Atom>,
+    grid_auto_rows: Vec<TrackSizingFunction>,
+    grid_auto_rows_raw: Option<Atom>,
+    grid_auto_columns: Vec<TrackSizingFunction>,
+    grid_auto_columns_raw: Option<Atom>,
+    grid_template_areas: Vec<GridTemplateArea<Atom>>,
+    grid_template_areas_raw: Atom,
+    grid_template_column_names: Vec<Vec<Atom>>,
+    grid_template_row_names: Vec<Vec<Atom>>,
+}
+
+impl Style {
+    pub(crate) fn non_buffer_snapshot(&self) -> NonBufferStyleSnapshot {
+        NonBufferStyleSnapshot {
+            grid_area: self.grid_area.clone(),
+            grid_column_start: self.grid_column_start.clone(),
+            grid_column_end: self.grid_column_end.clone(),
+            grid_row_start: self.grid_row_start.clone(),
+            grid_row_end: self.grid_row_end.clone(),
+            grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_rows_raw: self.grid_template_rows_raw.clone(),
+            grid_template_columns: self.grid_template_columns.clone(),
+            grid_template_columns_raw: self.grid_template_columns_raw.clone(),
+            grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_rows_raw: self.grid_auto_rows_raw.clone(),
+            grid_auto_columns: self.grid_auto_columns.clone(),
+            grid_auto_columns_raw: self.grid_auto_columns_raw.clone(),
+            grid_template_areas: self.grid_template_areas.clone(),
+            grid_template_areas_raw: self.grid_template_areas_raw.clone(),
+            grid_template_column_names: self.grid_template_column_names.clone(),
+            grid_template_row_names: self.grid_template_row_names.clone(),
+        }
+    }
+}
+
 const DEFAULT_FONT_SIZE: i32 = 16;
 const UNSET_COLOR: u32 = 0xDEADBEEF;
 
@@ -2219,14 +2267,15 @@ impl Style {
 
             let ptr = data.as_ptr().add(StyleKeys::GAP_ROW_VALUE as usize) as *const u32;
 
+            // width = column-gap (slot 1), height = row-gap (slot 0)
             Size {
                 width: length_percentage_from_type_value(
-                    gap_type[0],
-                    f32::from_bits(ptr.add(0).read_unaligned()),
-                ),
-                height: length_percentage_from_type_value(
                     gap_type[1],
                     f32::from_bits(ptr.add(1).read_unaligned()),
+                ),
+                height: length_percentage_from_type_value(
+                    gap_type[0],
+                    f32::from_bits(ptr.add(0).read_unaligned()),
                 ),
             }
         }
@@ -2234,8 +2283,8 @@ impl Style {
 
     pub fn set_gap(&mut self, value: Size<LengthPercentage>) {
         self.prepare_mut();
-        let (rt, rv) = length_percentage_to_type_value(value.width);
-        let (ct, cv) = length_percentage_to_type_value(value.height);
+        let (rt, rv) = length_percentage_to_type_value(value.height);
+        let (ct, cv) = length_percentage_to_type_value(value.width);
 
         let gap_type = [rt, ct];
         let gap_value = [rv.to_bits(), cv.to_bits()];

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
+		1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */; };
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
@@ -135,6 +136,7 @@
 
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
+		AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyToViewPerfTests.swift; sourceTree = "<group>"; };
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
 		F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShadowRenderer.swift; sourceTree = "<group>"; };
@@ -373,6 +375,7 @@
 			children = (
 				F184839B293534D800EC35F4 /* MasonTests.swift */,
 				A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */,
+				AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */,
 			);
 			path = MasonTests;
 			sourceTree = "<group>";
@@ -705,6 +708,7 @@
 			files = (
 				F184839C293534D800EC35F4 /* MasonTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */,
+				1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -925,6 +929,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				XROS_DEPLOYMENT_TARGET = 1.0;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1001,6 +1006,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				XROS_DEPLOYMENT_TARGET = 1.0;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

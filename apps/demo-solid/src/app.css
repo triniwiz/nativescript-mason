@@ -9,3 +9,15 @@
 .ns-dark Page {
   background-color: #1b1f28;
 }
+
+/* The Ahem font, used by the WebSpec fixtures. Its "X" glyph is exactly 1em wide
+   and tall, so a run of X's at a known font-size has an exactly predictable
+   size — which is what makes min-content/max-content comparable against a real
+   browser. Converted from the woff2 inlined in tools/scripts/webspec-tests/base.css,
+   because neither platform's font loader accepts woff2. */
+@font-face {
+  font-family: 'ahem';
+  src: url('~/fonts/Ahem.ttf');
+  font-weight: normal;
+  font-style: normal;
+}

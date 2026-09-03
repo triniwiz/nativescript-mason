@@ -277,115 +277,6 @@ impl NodeData {
         }
     }
 
-    #[cfg(target_os = "android")]
-    pub fn measure(
-        &self,
-        known_dimensions: taffy::Size<Option<f32>>,
-        available_space: taffy::Size<AvailableSpace>,
-    ) -> taffy::geometry::Size<f32> {
-        match crate::JVM.get() {
-            Some(jvm) => {
-                let Ok(mut env) = jvm.get_env() else {
-                    return known_dimensions.map(|v| v.unwrap_or(0.0));
-                };
-
-                if let Some(cache) = crate::JVM_CACHE.get() {
-                    unsafe {
-                        let node = unsafe {
-                            jni::objects::JClass::from_raw(cache.node_clazz.clone().as_raw())
-                        };
-                        let result = env.call_static_method_unchecked(
-                            node,
-                            cache.measure_measure_id,
-                            jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
-                            &[
-                                jni::sys::jvalue { i: self.measure },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make_bits(
-                                        known_dimensions.width.unwrap_or(-3.0).to_bits(),
-                                        known_dimensions.height.unwrap_or(-3.0).to_bits(),
-                                    ),
-                                },
-                                jni::sys::jvalue {
-                                    j: MeasureOutput::make_bits(
-                                        match available_space.width {
-                                            AvailableSpace::MinContent => (-1f32).to_bits(),
-                                            AvailableSpace::MaxContent => (-2f32).to_bits(),
-                                            AvailableSpace::Definite(value) => value.to_bits(),
-                                        },
-                                        match available_space.height {
-                                            AvailableSpace::MinContent => (-1f32).to_bits(),
-                                            AvailableSpace::MaxContent => (-2f32).to_bits(),
-                                            AvailableSpace::Definite(value) => value.to_bits(),
-                                        },
-                                    ),
-                                },
-                            ],
-                        );
-
-                        return match result {
-                            Ok(result) => {
-                                let size = result.j().unwrap_or_default();
-                                let width = MeasureOutput::get_width(size);
-                                let height = MeasureOutput::get_height(size);
-
-                                Size { width, height }
-                            }
-                            Err(_) => {
-                                let _ = env.exception_clear();
-                                known_dimensions.map(|v| v.unwrap_or(0.0))
-                            }
-                        };
-                    }
-                }
-
-                known_dimensions.map(|v| v.unwrap_or(0.0))
-            }
-            _ => known_dimensions.map(|v| v.unwrap_or(0.0)),
-        }
-    }
-
-    #[cfg(not(target_os = "android"))]
-    pub fn measure(
-        &self,
-        known_dimensions: Size<Option<f32>>,
-        available_space: Size<AvailableSpace>,
-    ) -> Size<f32> {
-        match self.measure.as_ref() {
-            None => Size {
-                width: known_dimensions.width.unwrap_or_default(),
-                height: known_dimensions.height.unwrap_or_default(),
-            },
-            Some(measure) => {
-                let measure_data = self.data;
-                let available_space_width = match available_space.width {
-                    AvailableSpace::MinContent => -1.,
-                    AvailableSpace::MaxContent => -2.,
-                    AvailableSpace::Definite(value) => value,
-                };
-
-                let available_space_height = match available_space.height {
-                    AvailableSpace::MinContent => -1.,
-                    AvailableSpace::MaxContent => -2.,
-                    AvailableSpace::Definite(value) => value,
-                };
-
-                let size = measure(
-                    measure_data,
-                    known_dimensions.width.unwrap_or(f32::NAN),
-                    known_dimensions.height.unwrap_or(f32::NAN),
-                    available_space_width,
-                    available_space_height,
-                );
-
-                let width = MeasureOutput::get_width(size);
-                let height = MeasureOutput::get_height(size);
-
-                Size { width, height }
-            }
-        }
-    }
-
     // copy measure
     pub(crate) fn copy_measure(&self) -> NodeMeasure {
         NodeMeasure {
@@ -529,17 +420,104 @@ pub enum NodeStateKeys {
 
 pub const NODE_STATE_BUFFER_SIZE: usize = 5;
 
+/// Exact-value-keyed cache for inline/text leaf measurement results.
+///
+/// Taffy's own [`Cache`] buckets by *combo-class* (which of known-width/height
+/// are set, and whether the other axis is under a min/max-content or definite
+/// constraint) - see `taffy::tree::cache::Cache::compute_cache_slot`. That's a
+/// fine strategy for block-level layout, but the inline/text-measurement path
+/// probes the same leaf at many distinct `Definite(width)` values while
+/// line-breaking (one per candidate width), and all of those collide into a
+/// single combo-class slot and clobber each other. This cache instead matches
+/// on the exact known-dimensions/available-space values, so repeated probes at
+/// the same width still hit.
+///
+/// Sized at 20 entries per the reviewer note on the P1 audit item: cheaper
+/// than a 32-slot design (~24 bytes/entry here vs. an assumed ~40 bytes/entry
+/// for 32) while still covering the realistic probe count per inline leaf per
+/// compute pass (min-content, max-content, a couple of definite finalization
+/// passes, plus a bounded number of line-candidate widths). Overflow beyond 20
+/// just evicts round-robin - it degrades to a cache miss, never a wrong
+/// result.
+const INLINE_MEASURE_CACHE_SIZE: usize = 20;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct InlineMeasureCacheEntry {
+    known_width: Option<f32>,
+    known_height: Option<f32>,
+    available_width: AvailableSpace,
+    available_height: AvailableSpace,
+    result: Size<f32>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct InlineMeasureCache {
+    entries: [Option<InlineMeasureCacheEntry>; INLINE_MEASURE_CACHE_SIZE],
+    next_write_idx: u8,
+}
+
+impl InlineMeasureCache {
+    const fn new() -> Self {
+        Self {
+            entries: [None; INLINE_MEASURE_CACHE_SIZE],
+            next_write_idx: 0,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get(
+        &self,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Option<Size<f32>> {
+        self.entries.iter().flatten().find_map(|entry| {
+            (entry.known_width == known_dimensions.width
+                && entry.known_height == known_dimensions.height
+                && entry.available_width == available_space.width
+                && entry.available_height == available_space.height)
+                .then_some(entry.result)
+        })
+    }
+
+    #[inline]
+    pub(crate) fn store(
+        &mut self,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+        result: Size<f32>,
+    ) {
+        let idx = self.next_write_idx as usize % INLINE_MEASURE_CACHE_SIZE;
+        self.entries[idx] = Some(InlineMeasureCacheEntry {
+            known_width: known_dimensions.width,
+            known_height: known_dimensions.height,
+            available_width: available_space.width,
+            available_height: available_space.height,
+            result,
+        });
+        self.next_write_idx = self.next_write_idx.wrapping_add(1);
+    }
+
+    #[inline]
+    pub(crate) fn clear(&mut self) {
+        self.entries = [None; INLINE_MEASURE_CACHE_SIZE];
+        self.next_write_idx = 0;
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
     pub(crate) cache: Cache,
+    pub(crate) inline_measure_cache: InlineMeasureCache,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
     pub(crate) guard: Arc<()>,
     pub(crate) has_measure: bool,
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
-    pub(crate) state: [u8; NODE_STATE_BUFFER_SIZE],
+    // Boxed because platform code maps this buffer as a raw pointer and caches it;
+    // the pointee must not move when the SlotMap reallocates.
+    pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<PseudoStyles>,
     #[cfg(target_os = "android")]
@@ -551,13 +529,14 @@ impl Node {
         Self {
             style: Style::new(arena),
             cache: Default::default(),
+            inline_measure_cache: InlineMeasureCache::new(),
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
             type_: NodeType::Normal,
             is_anonymous: false,
-            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,
@@ -568,13 +547,14 @@ impl Node {
         Self {
             style: Style::new_with_handle(arena, handle),
             cache: Default::default(),
+            inline_measure_cache: InlineMeasureCache::new(),
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
             type_: NodeType::Normal,
             is_anonymous: false,
-            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,
@@ -675,6 +655,7 @@ impl Node {
 
     pub fn mark_dirty(&mut self) -> ClearState {
         self.set_node_state(true);
+        self.inline_measure_cache.clear();
         self.cache.clear()
     }
 
@@ -1163,6 +1144,7 @@ pub(crate) fn drain_deferred_cleanup(
             tree.children.remove(id);
             tree.float_context.remove(id);
             nd.remove(id);
+            tree.structure_dirty = true;
         }
     }
 }
@@ -1190,6 +1172,7 @@ impl Drop for NodeRef {
                     tree.parents.remove(self.id);
                     tree.children.remove(self.id);
                     tree.float_context.remove(self.id);
+                    tree.structure_dirty = true;
                     if let Some(mut nd) = self.node_data.try_write() {
                         nd.remove(self.id);
                     } else {
@@ -1204,5 +1187,119 @@ impl Drop for NodeRef {
                 self.deferred_cleanup.lock().push(self.id);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod inline_measure_cache_tests {
+    use super::*;
+
+    fn known(w: Option<f32>, h: Option<f32>) -> Size<Option<f32>> {
+        Size { width: w, height: h }
+    }
+
+    fn avail(w: AvailableSpace, h: AvailableSpace) -> Size<AvailableSpace> {
+        Size { width: w, height: h }
+    }
+
+    #[test]
+    fn miss_on_empty_cache() {
+        let cache = InlineMeasureCache::new();
+        assert_eq!(
+            cache.get(
+                known(None, None),
+                avail(AvailableSpace::MaxContent, AvailableSpace::MaxContent)
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn exact_value_hit() {
+        let mut cache = InlineMeasureCache::new();
+        let k = known(Some(120.0), None);
+        let a = avail(AvailableSpace::Definite(120.0), AvailableSpace::MinContent);
+        let result = Size { width: 100.0, height: 20.0 };
+
+        cache.store(k, a, result);
+        assert_eq!(cache.get(k, a), Some(result));
+    }
+
+    #[test]
+    fn distinct_definite_widths_dont_collide() {
+        // This is the exact scenario taffy's own combo-class Cache can't
+        // handle: two different Definite(width) probes both fall in the
+        // "neither known, x=definite/max, y=definite/max" combo-class, but
+        // here they must be tracked (and returned) independently.
+        let mut cache = InlineMeasureCache::new();
+        let a1 = avail(AvailableSpace::Definite(100.0), AvailableSpace::MaxContent);
+        let a2 = avail(AvailableSpace::Definite(200.0), AvailableSpace::MaxContent);
+        let k = known(None, None);
+
+        cache.store(k, a1, Size { width: 90.0, height: 20.0 });
+        cache.store(k, a2, Size { width: 190.0, height: 20.0 });
+
+        assert_eq!(cache.get(k, a1), Some(Size { width: 90.0, height: 20.0 }));
+        assert_eq!(cache.get(k, a2), Some(Size { width: 190.0, height: 20.0 }));
+    }
+
+    #[test]
+    fn miss_on_different_known_dimensions() {
+        let mut cache = InlineMeasureCache::new();
+        let a = avail(AvailableSpace::MaxContent, AvailableSpace::MaxContent);
+        cache.store(known(Some(50.0), None), a, Size { width: 50.0, height: 10.0 });
+
+        assert_eq!(cache.get(known(Some(60.0), None), a), None);
+    }
+
+    #[test]
+    fn overflow_beyond_capacity_evicts_round_robin_without_panicking() {
+        let mut cache = InlineMeasureCache::new();
+        let k = known(None, None);
+
+        // Store more than INLINE_MEASURE_CACHE_SIZE distinct probes.
+        for i in 0..(INLINE_MEASURE_CACHE_SIZE + 5) {
+            let a = avail(AvailableSpace::Definite(i as f32), AvailableSpace::MaxContent);
+            cache.store(k, a, Size { width: i as f32, height: 1.0 });
+        }
+
+        // The earliest entries were evicted (round-robin) — degrades to a
+        // miss, not a wrong/stale result.
+        let evicted = avail(AvailableSpace::Definite(0.0), AvailableSpace::MaxContent);
+        assert_eq!(cache.get(k, evicted), None);
+
+        // The most recent entries are still present and correct.
+        let last_idx = INLINE_MEASURE_CACHE_SIZE + 4;
+        let recent = avail(AvailableSpace::Definite(last_idx as f32), AvailableSpace::MaxContent);
+        assert_eq!(
+            cache.get(k, recent),
+            Some(Size { width: last_idx as f32, height: 1.0 })
+        );
+    }
+
+    #[test]
+    fn clear_resets_everything() {
+        let mut cache = InlineMeasureCache::new();
+        let k = known(Some(10.0), Some(10.0));
+        let a = avail(AvailableSpace::MaxContent, AvailableSpace::MaxContent);
+        cache.store(k, a, Size { width: 10.0, height: 10.0 });
+        assert!(cache.get(k, a).is_some());
+
+        cache.clear();
+        assert_eq!(cache.get(k, a), None);
+    }
+
+    #[test]
+    fn node_mark_dirty_clears_inline_measure_cache() {
+        let mut arena = crate::style::arena::StyleArena::default();
+        let mut node = Node::new(&mut arena as *mut _);
+        let k = known(Some(10.0), None);
+        let a = avail(AvailableSpace::Definite(10.0), AvailableSpace::MaxContent);
+        node.inline_measure_cache
+            .store(k, a, Size { width: 10.0, height: 5.0 });
+        assert!(node.inline_measure_cache.get(k, a).is_some());
+
+        node.mark_dirty();
+        assert_eq!(node.inline_measure_cache.get(k, a), None);
     }
 }

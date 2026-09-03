@@ -186,18 +186,27 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 
 extension MasonElement {
   
+  /**
+   * Serialising the live tree back to HTML is not implemented; the getter
+   * returns the markup last assigned, which is what a round-trip through
+   * `innerHTML` needs and is honest about the rest.
+   */
   public var innerHTML: String {
     get {
-      //todo
-      return ""
+      return node.assignedInnerHTML
     }
     set {
+      node.assignedInnerHTML = newValue
       node.mason.htmlParser.parseInto(newValue, element: self)
     }
   }
   
   public func dispatch(_ event: MasonEvent) {
     node.mason.dispatch(event, node)
+  }
+
+  public func elementFromPoint(_ x: CGFloat, _ y: CGFloat) -> UIView? {
+    return MasonElementHelpers.elementFromPoint(uiView, x: x, y: y)
   }
   
   /// Helper to get default text attributes for new text nodes
@@ -393,6 +402,9 @@ extension MasonElement {
     // Zero parent bounds (transitions, pre-Auto-Layout): skip but keep dirty
     // flags so the next real-size call recomputes instead of hitting stale cache.
     guard parentSize.width > 0 || parentSize.height > 0 else { return }
+    // Once a view has measured, stop recomputing it while it sits off-window in
+    // a navigation back stack. New pages still get their first pre-window pass.
+    if _lastAutoComputeSize != .zero, uiView.window == nil { return }
     if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
       _lastAutoComputeSize = parentSize
       let scale = NSCMason.scale
@@ -408,6 +420,17 @@ extension MasonElement {
         uiView.frame = savedFrame
       }
     }
+  }
+
+  /// NativeScript's JS measure pass computes+applies a root view directly,
+  /// then sets its frame (triggering layoutSubviews). Call this right after so
+  /// autoComputeIfRoot treats the parent size as already satisfied, instead of
+  /// recomputing and overriding a max-content measurement with exact bounds.
+  public func markRootComputeApplied() {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    _lastAutoComputeSize = parentSize
+    computeCacheDirty = false
   }
 
   public func append(_ element: MasonElement){
@@ -656,8 +679,82 @@ extension MasonElement {
   }
 }
 
+extension UIView {
+  @objc(mason_elementFromPoint:y:)
+  public func mason_elementFromPoint(_ x: CGFloat, y: CGFloat) -> UIView? {
+    return MasonElementHelpers.elementFromPoint(self, x: x, y: y)
+  }
+}
+
 
 class MasonElementHelpers: NSObject {
+  @objc public static func elementFromPoint(_ root: UIView, x: CGFloat, y: CGFloat) -> UIView? {
+    return hitTest(root, CGPoint(x: x + root.bounds.origin.x, y: y + root.bounds.origin.y))
+  }
+
+  private static func contains(_ view: UIView, _ point: CGPoint) -> Bool {
+    return view.bounds.contains(point)
+  }
+
+  private static func clipsAxis(_ value: Overflow, _ contentExtent: CGFloat, _ viewExtent: CGFloat) -> Bool {
+    switch value {
+    case .Hidden, .Scroll, .Clip:
+      return true
+    case .Auto:
+      return contentExtent > viewExtent
+    default:
+      return false
+    }
+  }
+
+  private static func clippedOutside(_ view: UIView, _ point: CGPoint) -> Bool {
+    guard let element = view as? MasonElement else {
+      return !contains(view, point)
+    }
+    if !element.style.isValueInitialized {
+      return false
+    }
+
+    let overflow = element.style.overflow
+    let layout = element.node.computedLayout
+    let contentWidth = CGFloat(layout.contentWidth.isNaN ? 0 : layout.contentWidth / NSCMason.scale)
+    let contentHeight = CGFloat(layout.contentHeight.isNaN ? 0 : layout.contentHeight / NSCMason.scale)
+    let clipsX = clipsAxis(overflow.x, contentWidth, view.bounds.width)
+    let clipsY = clipsAxis(overflow.y, contentHeight, view.bounds.height)
+
+    return (clipsX && (point.x < view.bounds.minX || point.x >= view.bounds.maxX))
+      || (clipsY && (point.y < view.bounds.minY || point.y >= view.bounds.maxY))
+  }
+
+  private static func zSortedSubviews(_ view: UIView) -> [UIView] {
+    return view.subviews.enumerated().sorted { lhs, rhs in
+      let left = lhs.element
+      let right = rhs.element
+      if left.layer.zPosition == right.layer.zPosition {
+        return lhs.offset < rhs.offset
+      }
+      return left.layer.zPosition < right.layer.zPosition
+    }.map { $0.element }
+  }
+
+  private static func hitTest(_ view: UIView, _ point: CGPoint) -> UIView? {
+    if view.isHidden || view.bounds.width <= 0 || view.bounds.height <= 0 || view.alpha <= 0.01 {
+      return nil
+    }
+    if clippedOutside(view, point) {
+      return nil
+    }
+
+    let children = zSortedSubviews(view)
+    for child in children.reversed() {
+      let childPoint = child.convert(point, from: view)
+      if let hit = hitTest(child, childPoint) {
+        return hit
+      }
+    }
+
+    return contains(view, point) ? view : nil
+  }
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
@@ -686,11 +783,14 @@ class MasonElementHelpers: NSObject {
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
       
       if(isTextView){
-        if(!hasWidthConstraint && realLayout.contentWidth > realLayout.width){
+        // Only grow past the resolved size for overflow:visible content. With
+        // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
+        let overflow = node.style.overflow
+        if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
           width = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
         }
-        
-        if(!hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
+
+        if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
           height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
         }
       }
@@ -726,14 +826,10 @@ class MasonElementHelpers: NSObject {
         newFrame.inset(by: insets)
       }
 
-      // Root scroll container is a VIEWPORT: Mason sizes a height:auto / visible
-      // node to its full content, but the on-screen box must not exceed the
-      // available space, or there is no scrollable delta (box == contentSize).
-      // Clamp the box to the superview (the NativeScript-managed viewport); the
-      // children stay laid out in the full content space and `contentSize`
-      // (computed below from the unclamped layout) overflows it → scroll engages.
-      // Only roots (superview is not a MasonElement) self-size; nested nodes are
-      // positioned by their Mason parent and must keep the computed frame.
+      // Root scroll container is a VIEWPORT: Mason sizes a height:auto/visible
+      // node to its full content, but the on-screen box must be clamped to the
+      // superview so content can overflow it and scrolling engages. Only roots
+      // self-size; nested nodes keep their Mason-computed frame.
       if let mv = view as? MasonUIView, mv.isScrollContainer,
          !(view.superview is MasonElement),
          let avail = view.superview?.bounds.size,
@@ -876,24 +972,33 @@ class MasonElementHelpers: NSObject {
           if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
           MasonElementHelpers.handleOverflow(_overflow.x, scroll)
           MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
+          // A shrinking contentSize can leave contentOffset past the new range.
+          let maxX = max(0, newContentSize.width - scroll.bounds.width)
+          let maxY = max(0, newContentSize.height - scroll.bounds.height)
+          let off = scroll.contentOffset
+          let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
+          if clamped != off { scroll.setContentOffset(clamped, animated: false) }
         } else if let masonView = node.view as? MasonUIView {
           if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
+          // Reassigning through the setter re-clamps after the size change.
+          masonView.contentOffset = masonView.contentOffset
         }
       }
 
     }
     
-    if(!layout.children.isEmpty){
+    // `layout.children` allocates on every access; hoist it out of the loop
+    let childLayouts = layout.children
+    if !childLayouts.isEmpty {
       // Only children with nativePtr, matching Rust layout tree order. Keep
-      // flattened text containers so indices stay aligned with layout.children.
+      // flattened text containers so indices stay aligned with childLayouts.
       let children = node.children.filter { $0.nativePtr != nil }
 
-      let count = children.count
+      let count = min(children.count, childLayouts.count)
       // Sweep orphaned outset-shadow layers (safety net for missed per-child
       // willMove cleanup under heavy churn).
       reconcileShadowLayers(node.view)
-      for i in 0..<count{
-        guard i < layout.children.count else { break }
+      for i in 0..<count {
         let child = children[i]
         if(child.type == .text){
           continue
@@ -901,14 +1006,13 @@ class MasonElementHelpers: NSObject {
 
         // Skip flattened text containers — parent draws their text
         if child.parent?.view is TextContainer && child.view is TextContainer {
-          if (child.parent!.view as! MasonText).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
+          if (child.parent!.view as! TextContainer).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
             child.view?.frame = .zero
             continue
           }
         }
 
-        let childLayout = layout.children[i]
-        applyToView(child, childLayout)
+        applyToView(child, childLayouts[i])
       }
     }
     

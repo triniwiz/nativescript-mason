@@ -70,8 +70,14 @@ fun parsePaddingShorthand(style: Style, value: String) {
     return
   }
 
-  val tokens = SPLIT_REGEX.split(cleaned).mapNotNull { parseLengthPercentage(it) }
-  if (tokens.isEmpty()) return
+  // CSS spec: if any value in a shorthand fails to parse, the whole
+  // declaration is invalid — don't drop the bad token and reinterpret the
+  // rest under a different shorthand arity.
+  val rawTokens = SPLIT_REGEX.split(cleaned)
+  if (rawTokens.isEmpty() || rawTokens.size > 4) return
+  val parsedTokens = rawTokens.map { parseLengthPercentage(it) }
+  if (parsedTokens.any { it == null }) return
+  val tokens = parsedTokens.filterNotNull()
 
   var topType: Byte
   var topValue: Float
@@ -194,9 +200,14 @@ fun parseMarginShorthand(style: Style, value: String) {
     return
   }
 
-  val parts = SPLIT_REGEX.split(cleaned)
-  val tokens = parts.mapNotNull { parseLengthPercentageAuto(it) }
-  if (tokens.isEmpty()) return
+  // See the comment in parsePaddingShorthand above: an invalid token must
+  // invalidate the whole shorthand, not just get silently dropped (which
+  // reinterprets the remaining valid tokens under the wrong arity).
+  val rawParts = SPLIT_REGEX.split(cleaned)
+  if (rawParts.isEmpty() || rawParts.size > 4) return
+  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
+  if (parsedParts.any { it == null }) return
+  val tokens = parsedParts.filterNotNull()
 
   val rect = when (tokens.size) {
     1 -> Rect.uniform(tokens[0])
@@ -227,9 +238,14 @@ fun parseInsetShorthand(style: Style, value: String) {
     return
   }
 
-  val parts = SPLIT_REGEX.split(cleaned)
-  val tokens = parts.mapNotNull { parseLengthPercentageAuto(it) }
-  if (tokens.isEmpty()) return
+  // See the comment in parsePaddingShorthand above: an invalid token must
+  // invalidate the whole shorthand, not just get silently dropped (which
+  // reinterprets the remaining valid tokens under the wrong arity).
+  val rawParts = SPLIT_REGEX.split(cleaned)
+  if (rawParts.isEmpty() || rawParts.size > 4) return
+  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
+  if (parsedParts.any { it == null }) return
+  val tokens = parsedParts.filterNotNull()
 
   val rect = when (tokens.size) {
     1 -> Rect.uniform(tokens[0])
@@ -613,6 +629,42 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
 
+    /**
+     * The text-affecting subset of [ALL_TEXT] that changes what the native
+     * text measure function returns (line breaking, intrinsic width/height) —
+     * mirrors TextEngine.hasTextLayoutFlags exactly; keep both in sync.
+     */
+    val TEXT_LAYOUT: StateKeys = FONT_SIZE or FONT_WEIGHT or FONT_STYLE or FONT_FAMILY or
+      FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or TEXT_TRANSFORM or LETTER_SPACING or
+      TEXT_JUSTIFY or LINE_HEIGHT or TEXT_ALIGN or TEXT_OVERFLOW or WORD_SPACING or
+      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
+
+    /**
+     * Properties whose change can affect this node's contribution to Taffy
+     * layout (size, flex basis, intrinsic text size, etc.) — as opposed to
+     * purely visual properties (colors, border-style/-radius, shadows,
+     * decorations, list-style-type, object-fit, z-index, caret-color,
+     * object-position) which only need a repaint. Used to gate
+     * `invalidateLayout()` in `updateNativeStyle()`: a write outside this mask
+     * can't change layout, so scheduling a native recompute + relayout for it
+     * is pure waste (and, for animated visual properties, actively harmful —
+     * it can shift sibling views every frame for no layout-relevant reason).
+     *
+     * When adding a new StateKeys flag: if it's unclear whether the property
+     * affects layout, default to including it here — the cost of a false
+     * positive is a skipped optimization, the cost of a false negative is a
+     * stale layout.
+     */
+    val LAYOUT_MASK: StateKeys = DISPLAY or POSITION or DIRECTION or FLEX_DIRECTION or
+      FLEX_WRAP or OVERFLOW_X or OVERFLOW_Y or ALIGN_ITEMS or ALIGN_SELF or ALIGN_CONTENT or
+      JUSTIFY_ITEMS or JUSTIFY_SELF or JUSTIFY_CONTENT or INSET or MARGIN or PADDING or
+      BORDER or FLEX_GROW or FLEX_SHRINK or FLEX_BASIS or SIZE or MIN_SIZE or MAX_SIZE or
+      GAP or ASPECT_RATIO or GRID_AUTO_FLOW or GRID_COLUMN or GRID_ROW or SCROLLBAR_WIDTH or
+      ALIGN or BOX_SIZING or OVERFLOW or ITEM_IS_TABLE or ITEM_IS_REPLACED or DISPLAY_MODE or
+      FORCE_INLINE or MIN_CONTENT_WIDTH or MIN_CONTENT_HEIGHT or MAX_CONTENT_WIDTH or
+      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or
+      TEXT_LAYOUT
+
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
       ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
 
@@ -627,6 +679,15 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
   infix fun and(other: StateKeys): StateKeys = StateKeys(low and other.low, high and other.high)
   infix fun hasFlag(flag: StateKeys): Boolean =
     ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
+
+  // `and`/`or` always allocate a new instance, so reference equality (the
+  // default for a plain class) never matches StateKeys.NONE even when both
+  // bit-fields are actually zero. Value equality is required for callers
+  // that compare a masked result against StateKeys.NONE.
+  override fun equals(other: Any?): Boolean =
+    other is StateKeys && low == other.low && high == other.high
+
+  override fun hashCode(): Int = 31 * low.hashCode() + high.hashCode()
 }
 
 @JvmInline
@@ -729,14 +790,28 @@ class Style internal constructor(@Transient internal var node: Node) {
     syncFontMetrics()
   }
 
-  var font: FontFace = FontFace("sans-serif").apply {
-    addOnReloadListener(reloadListener)
-  }
+  // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
+  // dedicated single-thread Executor with no way to shut it down, so eagerly
+  // creating one per Style would leak an OS thread per node, including plain
+  // layout divs that never touch a font property. Deferring construction
+  // until font is actually read or written avoids that for the common case.
+  private var _font: FontFace? = null
+  var font: FontFace
+    get() {
+      var current = _font
+      if (current == null) {
+        current = FontFace("sans-serif").apply {
+          addOnReloadListener(reloadListener)
+        }
+        _font = current
+      }
+      return current
+    }
     set(value) {
-      val old = field
+      val old = _font
       if (old !== value) {
-        field = value
-        old.removeOnReloadListener(reloadListener)
+        _font = value
+        old?.removeOnReloadListener(reloadListener)
         value.addOnReloadListener(reloadListener)
         invalidateResolvedFontFace()
       }
@@ -746,10 +821,41 @@ class Style internal constructor(@Transient internal var node: Node) {
   private var _cachedResolvedFontFace: FontFace? = null
   private var _resolvedFontFaceDirty = true
 
+  /**
+   * Called when this node's place in the tree changes: `resolvedFontFace`
+   * inherits through `node.parent`, and a face resolved while the subtree was
+   * still unparented resolved against no inheritance at all.
+   */
+  internal fun invalidateInheritedTextCaches() {
+    invalidateResolvedFontFace()
+  }
+
   private fun invalidateResolvedFontFace() {
     _resolvedFontFaceDirty = true
     _cachedResolvedFontFace = null
     fontDirty = true
+  }
+
+  /**
+   * A FontFace only gets a Typeface once something calls `load()`. The face
+   * that ends up rendering text is often an *ancestor's* (font-family
+   * inherits), and the ancestor is usually a plain layout div that never
+   * measures text -- so nothing on its own side ever loads it. Kick the load
+   * off from whoever actually resolved to it, and re-apply once it lands.
+   */
+  private fun ensureResolvedFontLoaded(face: FontFace) {
+    if (face.font != null) return
+    val v = node.view as? android.view.View ?: return
+    face.load(v.context) { _ ->
+      v.post {
+        invalidateResolvedFontFace()
+        syncFontMetrics()
+        notifyTextStyleChanged(StateKeys.FONT_FAMILY)
+        node.dirty()
+        v.invalidate()
+        v.requestLayout()
+      }
+    }
   }
 
   data class FontMetrics(
@@ -949,7 +1055,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       return
     }
 
-    val mutable = values[StyleKeys.REF_COUNT] == 1.toByte()
+    // REF_COUNT is a u32 - must read the full width, not just the low byte,
+    // or a shared count whose low byte happens to be 1 (257, 513, ...) looks
+    // exclusively owned and the write corrupts every node sharing the buffer.
+    val mutable = values.getInt(StyleKeys.REF_COUNT) == 1
 
     if (!mutable) {
       // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
@@ -1110,7 +1219,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       val changed = field && !value
       field = value
       if (changed) {
-        updateTextStyle()
+        // updateNativeStyle() already calls updateTextStyle() internally —
+        // calling it here too walked the text-style subtree twice per batch.
         updateNativeStyle()
       }
     }
@@ -1139,7 +1249,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private inline val isMutable: Boolean
     get() {
-      return values[StyleKeys.REF_COUNT] == 1.toByte()
+      return values.getInt(StyleKeys.REF_COUNT) == 1
     }
 
   // allow overriding of the display
@@ -1732,7 +1842,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         val oldFont = font
         // Create new font with updated family
         font.removeOnReloadListener(reloadListener)
-        font = FontFace(value).apply {
+        val ctx = (node.view as? android.view.View)?.context
+        font = FontFace(value, AppFonts.resolve(value, ctx)).apply {
           weight = oldFont.weight
           style = oldFont.style
           display = oldFont.display
@@ -4256,13 +4367,25 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
     if (isDirty != -1L) {
+      // Purely-visual writes (colors, border-style/-radius, shadows,
+      // decorations, list-style-type, object-fit, z-index, caret-color,
+      // object-position, ...) can't change this node's contribution to Taffy
+      // layout — their own targeted repaint already happened above (border
+      // renderer, caret/object-position dispatch) or happens via the fallback
+      // View.invalidate() below, so skip the native recompute + relayout.
+      val layoutAffecting = (isDirty and StateKeys.LAYOUT_MASK.low) != 0L ||
+        (isDirtyHigh and StateKeys.LAYOUT_MASK.high) != 0L
 
       if (zIndex != 0L) {
         (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
       resetState()
-      (node.view as? Element)?.invalidateLayout()
+      if (layoutAffecting) {
+        (node.view as? Element)?.invalidateLayout()
+      } else {
+        (node.view as? View)?.invalidate()
+      }
       return
     }
   }
@@ -4398,25 +4521,18 @@ class Style internal constructor(@Transient internal var node: Node) {
       return null
     }
 
-  // Helper to find parent style with text values initialized
+  // Parent's style for inherited text properties. Must NOT gate on
+  // isValueInitialized: that flag lags JS style writes by a microtask, but
+  // the underlying buffer is already correct, so gating on it can find no
+  // "initialized" ancestor and silently fall back to unset (0) values.
   private val parentStyleWithTextValues: Style?
-    get() {
-      var parent = node.parent
-      while (parent != null) {
-        // Check if parent has text values initialized
-        if (parent.style.isValueInitialized) {
-          return parent.style
-        }
-        parent = parent.parent
-      }
-      return null
-    }
+    get() = node.parent?.style
 
   // Store the resolved FontFace - cached and invalidated when font properties change
   internal val resolvedFontFace: FontFace
     get() {
       if (!_resolvedFontFaceDirty && _cachedResolvedFontFace != null) {
-        return _cachedResolvedFontFace!!
+        return _cachedResolvedFontFace!!.also { ensureResolvedFontLoaded(it) }
       }
 
       val familyState = values.get(StyleKeys.FONT_FAMILY_STATE)
@@ -4428,6 +4544,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         val result = parentStyleWithTextValues?.resolvedFontFace ?: font
         _cachedResolvedFontFace = result
         _resolvedFontFaceDirty = false
+        ensureResolvedFontLoaded(result)
         return result
       }
 
@@ -4455,33 +4572,34 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (font.fontFamily == baseFamily && font.weight == resolvedWeight && font.style == resolvedStyle) {
         _cachedResolvedFontFace = font
         _resolvedFontFaceDirty = false
+        ensureResolvedFontLoaded(font)
         return font
       }
 
-      // Create a new FontFace with resolved properties
-      val resolvedFont = FontFace(baseFamily).apply {
-        weight = resolvedWeight
-        style = resolvedStyle
-        addOnReloadListener(reloadListener)
-      }
-
-      // Eagerly load so resolvedFont.font is non-null (cheap with Typeface cache)
-      if (resolvedFont.font == null) {
-        (node.view as? View)?.let { view ->
-          resolvedFont.load(view.context) { _ ->
-            view.post {
-              fontDirty = true
-              syncFontMetrics()
-              node.dirty()
-              view.invalidate()
-              view.requestLayout()
-            }
+      // Nothing here has customized feature-settings/kerning/etc. yet, so this
+      // (family, weight, style) descriptor can safely be resolved from the
+      // shared cache instead of paying its own private load() round-trip.
+      val view = node.view as? View
+      val resolvedFont = if (view != null) {
+        sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
+          view.post {
+            fontDirty = true
+            syncFontMetrics()
+            node.dirty()
+            view.invalidate()
+            view.requestLayout()
           }
+        }
+      } else {
+        FontFace(baseFamily, AppFonts.resolve(baseFamily)).apply {
+          weight = resolvedWeight
+          style = resolvedStyle
         }
       }
 
       _cachedResolvedFontFace = resolvedFont
       _resolvedFontFaceDirty = false
+      ensureResolvedFontLoaded(resolvedFont)
       return resolvedFont
     }
 
@@ -5086,6 +5204,49 @@ class Style internal constructor(@Transient internal var node: Node) {
       Mason.initLib()
     }
 
+    // Shared per (family, weight, style): constructing a FontFace always hops
+    // through its own single-thread Executor before `.font` is non-null, so
+    // sharing one instance across nodes with the same descriptor avoids
+    // paying that load round-trip more than once.
+    private val sharedFontFaces = java.util.concurrent.ConcurrentHashMap<String, FontFace>()
+
+    private fun fontFaceCacheKey(family: String, weight: FontWeight, style: FontStyle): String {
+      val italic = style is FontStyle.Italic
+      return "$family|${weight.weight}|$italic"
+    }
+
+    /**
+     * Returns a shared FontFace for (family, weight, style), constructing and
+     * kicking off its load only the first time. Safe only for a freshly
+     * resolved descriptor that nothing has customized yet (feature-settings,
+     * kerning, ...) -- callers that later mutate those on the returned
+     * instance would leak the change to every other sharer.
+     */
+    internal fun sharedFontFace(
+      family: String,
+      weight: FontWeight,
+      style: FontStyle,
+      context: android.content.Context,
+      onReady: () -> Unit
+    ): FontFace {
+      val key = fontFaceCacheKey(family, weight, style)
+      sharedFontFaces[key]?.let { existing ->
+        if (existing.font != null) onReady()
+        return existing
+      }
+      val face = FontFace(family, AppFonts.resolve(family, context)).apply {
+        this.weight = weight
+        this.style = style
+      }
+      val winner = sharedFontFaces.putIfAbsent(key, face) ?: face
+      if (winner.font == null) {
+        winner.load(context) { _ -> onReady() }
+      } else {
+        onReady()
+      }
+      return winner
+    }
+
     /**
      * Get x-height by measuring lowercase 'x'
      */
@@ -5153,9 +5314,16 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
-    internal fun applyOverflowClip(style: Style, canvas: Canvas, node: Node) {
-      val width = node.computedWidth
-      val height = node.computedHeight
+    internal fun applyOverflowClip(
+      style: Style,
+      canvas: Canvas,
+      node: Node,
+      widthOverride: Float = node.computedWidth,
+      heightOverride: Float = node.computedHeight,
+      includeBorderRadius: Boolean = false
+    ) {
+      val width = if (widthOverride > 0f) widthOverride else node.computedWidth
+      val height = if (heightOverride > 0f) heightOverride else node.computedHeight
 
       val paddingLeft = node.computedPaddingLeft
       val paddingTop = node.computedPaddingTop
@@ -5202,6 +5370,12 @@ class Style internal constructor(@Transient internal var node: Node) {
 
       // Defensive guard: if computed clip rect is inverted or degenerate, skip clipping
       if (clipRight > clipLeft && clipBottom > clipTop) {
+        if (includeBorderRadius) {
+          style.mBorderRenderer.updateCache(width, height)
+          if (style.mBorderRenderer.hasRadii()) {
+            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+          }
+        }
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
       }
 

@@ -237,6 +237,10 @@ extension Mason.Button {
     @objc get
     @objc set
   }
+  @objc public static var rootFontSize: Swift.Float
+  @objc public static var viewportSize: CoreFoundation.CGSize {
+    @objc get
+  }
   @objc public static var scale: Swift.Float {
     @objc get
   }
@@ -336,6 +340,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var mason: Mason.NSCMason {
     get
   }
+  @objc public var htmlAttributes: [Swift.String : Swift.String]
   @objc public var onNodeAttached: (() -> Swift.Void)?
   @objc public var onNodeDetached: (() -> Swift.Void)?
   @objc public var nativePtr: Swift.OpaquePointer? {
@@ -448,6 +453,7 @@ extension Mason.MasonElement {
     set
   }
   public func dispatch(_ event: Mason.MasonEvent)
+  public func elementFromPoint(_ x: CoreFoundation.CGFloat, _ y: CoreFoundation.CGFloat) -> UIKit.UIView?
   public func getDefaultAttributes() -> [Foundation.NSAttributedString.Key : Any]
   public func syncStyle(_ low: Swift.String, _ high: Swift.String)
   public func addChildAt(text: Swift.String, _ index: Swift.Int)
@@ -467,6 +473,7 @@ extension Mason.MasonElement {
   public func addView(_ view: UIKit.UIView)
   public func addView(_ view: UIKit.UIView, at: Swift.Int)
   public func autoComputeIfRoot()
+  public func markRootComputeApplied()
   public func append(_ element: any Mason.MasonElement)
   public func append(text: Swift.String)
   public func append(node childNode: Mason.MasonNode)
@@ -495,6 +502,9 @@ extension Mason.MasonElement {
   public func prepend(strings: [Swift.String])
   public func prepend(elements: [any Mason.MasonElement])
   public func prepend(nodes: [Mason.MasonNode])
+}
+extension UIKit.UIView {
+  @objc(mason_elementFromPoint:y:) @_Concurrency.MainActor @preconcurrency dynamic public func mason_elementFromPoint(_ x: CoreFoundation.CGFloat, y: CoreFoundation.CGFloat) -> UIKit.UIView?
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MinSizing) public class MinSizing : ObjectiveC.NSObject, Swift.Codable {
   @objc public var value: Swift.Float {
@@ -858,7 +868,7 @@ public struct MasonNodeView {
     public func invalidate()
     public func applyFast(in context: CoreGraphics.CGContext, rect: CoreFoundation.CGRect) -> Swift.Bool
     public func apply(to view: UIKit.UIView)
-    public func applyAsBackdrop(to view: UIKit.UIView)
+    public func applyAsBackdrop(to view: UIKit.UIView, clipPathProvider: (() -> UIKit.UIBezierPath?)? = nil)
     @objc deinit
   }
   @objc deinit
@@ -866,6 +876,8 @@ public struct MasonNodeView {
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionCompat) public class MasonDimensionCompat : ObjectiveC.NSObject, Swift.Codable {
   @objc public init(points: Swift.Float)
   @objc public init(percent: Swift.Float)
+  @objc public init(fitContentPoints: Swift.Float)
+  @objc public init(fitContentPercent: Swift.Float)
   @objc public var type: Mason.MasonDimensionCompatType {
     @objc get
   }
@@ -879,6 +891,11 @@ public struct MasonNodeView {
     @objc get
   }
   @objc public static let Auto: Mason.MasonDimensionCompat
+  @objc public static let MinContent: Mason.MasonDimensionCompat
+  @objc public static let MaxContent: Mason.MasonDimensionCompat
+  @objc public static let FitContent: Mason.MasonDimensionCompat
+  @objc public static let Stretch: Mason.MasonDimensionCompat
+  @objc public static let Content: Mason.MasonDimensionCompat
   @objc public static let Zero: Mason.MasonDimensionCompat
   @objc deinit
   public func encode(to encoder: any Swift.Encoder) throws
@@ -2153,6 +2170,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_computeWithViewSize()
   @objc dynamic public func mason_computeWithViewSize(layout: Swift.Bool)
   @objc dynamic public func mason_computeWithMaxContent()
+  @objc dynamic public func mason_markRootComputeApplied()
   @objc dynamic public func mason_computeWithMinContent()
   @objc dynamic public func mason_attachAndApply()
   @objc dynamic public func mason_requestLayout()
@@ -2465,6 +2483,13 @@ extension Mason.TextContainer {
   case Auto
   case Points
   case Percent
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints
+  case FitContentPercent
+  case Stretch
+  case Content
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.MasonDimensionCompatType.RawValue {
     get
@@ -2531,10 +2556,24 @@ public enum MasonDimension : Swift.Codable, Swift.Equatable {
   case Auto
   case Points(Swift.Float)
   case Percent(Swift.Float)
+  case MinContent
+  case MaxContent
+  case FitContent
+  case FitContentPoints(Swift.Float)
+  case FitContentPercent(Swift.Float)
+  case Stretch
+  case Content
   public enum Kind : Swift.RawRepresentable {
     case Auto
     case Points
     case Percent
+    case MinContent
+    case MaxContent
+    case FitContent
+    case FitContentPoints
+    case FitContentPercent
+    case Stretch
+    case Content
     public typealias RawValue = Swift.Int8
     public init?(rawValue: Swift.Int8)
     public var rawValue: Swift.Int8 {
@@ -2748,6 +2787,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable, Swift.Equatable {
   case NoWrap
   case Wrap
   case WrapReverse
+  case Balance
+  case BalanceReverse
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.FlexWrap.RawValue {
     get
@@ -3022,6 +3063,12 @@ public enum VerticalAlign {
   case Color
   case File
   case Submit
+  case Search
+  case Time
+  case DatetimeLocal
+  case Month
+  case Week
+  case Reset
   public var description: Swift.String {
     get
   }
@@ -3109,6 +3156,7 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toWindow newWindow: UIKit.UIWindow?)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toSuperview newSuperview: UIKit.UIView?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToSuperview()
   @objc @_Concurrency.MainActor @preconcurrency public static func createGridView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createFlexView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createBlockView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
@@ -3326,6 +3374,7 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, UIKit.UIScrollViewDelegate, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToSuperview()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode

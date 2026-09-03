@@ -35,8 +35,14 @@ import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import kotlin.math.ceil
 
+/** U+200B ZERO WIDTH SPACE breaks a line without being whitespace (Java
+ *  classifies it as a format char), so `isWhitespace` alone reports a whole
+ *  ZWSP-joined run as one unbreakable word. */
+private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
+
 /**
- * Compute the widest word in [text] without allocating a split array.
+ * Compute the widest segment between soft wrap opportunities in [text] without
+ * allocating a split array.
  * When [useLayout] is true, uses [Layout.getDesiredWidth] for rich text;
  * otherwise uses [Paint.measureText] for plain text.
  */
@@ -46,15 +52,13 @@ private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolea
   var start = 0
   var i = 0
   while (i <= len) {
-    val isWs = i < len && text[i].isWhitespace()
+    val isWs = i < len && text[i].isSoftWrapOpportunity()
     if (i == len || isWs) {
       if (i > start) {
-        val sub = text.subSequence(start, i)
-        val w = if (useLayout) Layout.getDesiredWidth(sub, paint) else paint.measureText(
-          sub,
-          0,
-          sub.length
-        )
+        // Measure the range directly; slicing a Spannable per word copies
+        // overlapping spans and turns this loop quadratic.
+        val w = if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
+        else paint.measureText(text, start, i)
         if (w > maxW) maxW = w
       }
       start = i + 1
@@ -181,7 +185,7 @@ class TextEngine(val container: TextContainer) {
         low, high, StateKeys.FONT_FAMILY
       )
     ) {
-      style.resolvedFontFace.font?.let {
+      style.resolvedFontFace.resolvedTypeface?.let {
         paint.typeface = it
         dirty = true
       }
@@ -275,6 +279,86 @@ class TextEngine(val container: TextContainer) {
       )
   }
 
+  // Builds (or reuses a cached) StaticLayout for the given shape — the
+  // expensive step (text shaping + line breaking) in measureLayout(). Other
+  // work in that function (width resolution, segment collection) still runs
+  // every call regardless of cache hits.
+  private fun buildStaticLayoutCached(
+    spannable: CharSequence,
+    paint: TextPaint,
+    widthConstraint: Int,
+    availableWidth: Float,
+    alignment: android.text.Layout.Alignment,
+    heuristic: TextDirectionHeuristic
+  ): StaticLayout {
+    val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+      style.resolvedTextAlign == TextAlign.Justify
+
+    // StaticLayout's internal Int arithmetic overflows on Int.MAX_VALUE ("unconstrained"),
+    // producing garbage line breaks. Match iOS's finite fallback instead.
+    val safeWidthConstraint = if (widthConstraint == Int.MAX_VALUE) 1_000_000 else widthConstraint
+
+    for (entry in staticLayoutCache) {
+      if (entry != null &&
+        entry.version == segmentsInvalidateVersion &&
+        entry.widthConstraint == widthConstraint &&
+        entry.availableWidth == availableWidth &&
+        entry.spannableLength == spannable.length &&
+        entry.alignment == alignment &&
+        entry.includePadding == includePadding &&
+        entry.justified == justified &&
+        entry.heuristic == heuristic
+      ) {
+        return entry.layout
+      }
+    }
+
+    val built = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      var builder = StaticLayout.Builder.obtain(
+        spannable, 0, spannable.length, paint, safeWidthConstraint
+      )
+        .setAlignment(alignment)
+        .setLineSpacing(0f, 1f)
+        .setIncludePad(includePadding)
+        .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        builder = builder.setUseLineSpacingFromFallbacks(true)
+      }
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        builder = if (justified) {
+          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
+        } else {
+          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
+        }
+      }
+
+      builder.build()
+    } else {
+      StaticLayout(
+        spannable, paint, safeWidthConstraint, alignment, 1f, // lineSpacingMultiplier
+        0f, // lineSpacingExtra
+        includePadding // includePad
+      )
+    }
+
+    staticLayoutCache[staticLayoutCacheNextIdx] = StaticLayoutCacheEntry(
+      version = segmentsInvalidateVersion,
+      widthConstraint = widthConstraint,
+      availableWidth = availableWidth,
+      spannableLength = spannable.length,
+      alignment = alignment,
+      includePadding = includePadding,
+      justified = justified,
+      heuristic = heuristic,
+      layout = built
+    )
+    staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
+
+    return built
+  }
+
   private fun measureLayout(
     paint: TextPaint,
     knownWidth: Float,
@@ -319,28 +403,6 @@ class TextEngine(val container: TextContainer) {
     // For inline elements, we want to measure to content, not fill available width
     val isInline = NodeUtils.isInlineLike(node)
 
-    var widthConstraint = Int.MAX_VALUE
-    var heightConstraint = Int.MAX_VALUE
-
-    if (knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
-      widthConstraint = knownWidth.toInt()
-    }
-
-    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
-      heightConstraint = knownHeight.toInt()
-    }
-
-    if (isInline) {
-      widthConstraint = Int.MAX_VALUE
-    }
-
-    // The available space from the layout engine (Taffy's compute_leaf_layout)
-    // is already content-box (padding+border subtracted). Do NOT subtract
-    // padding again here — that would double-count it.
-    if (widthConstraint == Int.MAX_VALUE && availableWidth.isFinite() && availableWidth > 0f) {
-      widthConstraint = availableWidth.toInt()
-    }
-
     var allowWrap = true
     if (node.style.isValueInitialized) {
       val ws = node.style.whiteSpace
@@ -354,22 +416,39 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
+    var widthConstraint = Int.MAX_VALUE
+    var heightConstraint = Int.MAX_VALUE
+
+    // `knownWidth` is Taffy's resolved box width, which may be narrower than nowrap
+    // content's intrinsic width (e.g. under overflow:hidden); don't wrap to it in that case.
+    if (allowWrap && knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
+      widthConstraint = knownWidth.toInt()
+    }
+
+    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
+      heightConstraint = knownHeight.toInt()
+    }
+
+    if (isInline) {
+      widthConstraint = Int.MAX_VALUE
+    }
+
+    // The available space from the layout engine (Taffy's compute_leaf_layout)
+    // is already content-box (padding+border subtracted). Do NOT subtract
+    // padding again here — that would double-count it. Skip entirely when
+    // wrapping is disabled so nowrap text stays unconstrained.
+    if (allowWrap && widthConstraint == Int.MAX_VALUE && availableWidth.isFinite() && availableWidth > 0f) {
       widthConstraint = availableWidth.toInt()
     }
 
-    // Respect style `max-width` when present (Points only). Clamp the
-    // width constraint so StaticLayout won't measure wider than the author
-    // intended. Percent/Auto cases require context-dependent resolution
-    // and are not handled here.
+    // Respect style `max-width` when present (Points only), clamping so
+    // StaticLayout won't measure wider than intended. Percent/Auto need
+    // context-dependent resolution and aren't handled here.
     //
-    // Skip this during the min-content pass (availableWidth == -1): min-content
-    // is the widest unbreakable word and is NOT reduced by `max-width`. Clamping
-    // here forces widthConstraint to the max-width, so the min-content branch
-    // below returns the wrapped line width (~max-width) instead of the widest
-    // word. A grid item then reports a min-content as large as its max-width,
-    // which becomes an `auto` track's base size — the track can no longer shrink
-    // to its container and overflows (e.g. a heading with `max-w-*` never wraps).
+    // Skipped during the min-content pass (availableWidth == -1): min-content
+    // is the widest unbreakable word and isn't reduced by max-width. Clamping
+    // there would make a grid item's min-content as large as its max-width,
+    // preventing an `auto` track from shrinking to fit its container.
     if (availableWidth != -1f) when (val msw = style.maxSize.width) {
       is Dimension.Points -> {
         val resolvedMax = msw.points.toInt()
@@ -417,40 +496,11 @@ class TextEngine(val container: TextContainer) {
     }
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
+    val textDirectionHeuristic = getTextDirectionHeuristic()
 
-    var layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-      val heuristic = getTextDirectionHeuristic()
-
-      var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, paint, widthConstraint
-      )
-        .setAlignment(alignment)
-        .setLineSpacing(0f, 1f)
-        .setIncludePad(includePadding)
-        .setTextDirection(heuristic as  android.text.TextDirectionHeuristic)
-
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        builder = builder.setUseLineSpacingFromFallbacks(true)
-      }
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        builder = if (style.resolvedTextAlign == TextAlign.Justify) {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-        } else {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-        }
-      }
-
-      builder.build()
-    } else {
-      StaticLayout(
-        spannable, paint, widthConstraint, alignment, 1f, // lineSpacingMultiplier
-        0f, // lineSpacingExtra
-        includePadding // includePad
-      )
-    }
+    var layout = buildStaticLayoutCached(
+      spannable, paint, widthConstraint, availableWidth, alignment, textDirectionHeuristic
+    )
 
     // Get the ACTUAL measured width from the layout, not the constraint
     var measuredWidth = 0f
@@ -487,8 +537,10 @@ class TextEngine(val container: TextContainer) {
             maxOf(measuredWidth, desiredWidth)
           }
 
+          // Reached on the final layout pass when nowrap keeps widthConstraint
+          // at Int.MAX_VALUE; fall back to natural width, same as -2f above.
           else -> {
-            0f
+            Layout.getDesiredWidth(spannable, paint)
           }
         }
       } else {
@@ -539,40 +591,14 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (widthConstraint == Int.MAX_VALUE) {
-      // rebuild static layout with the measuredWidth
-      layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-        val heuristic = getTextDirectionHeuristic()
-
-        var builder = StaticLayout.Builder.obtain(
-          spannable, 0, spannable.length, paint, measuredWidth.toInt()
-        )
-          .setAlignment(alignment)
-          .setLineSpacing(0f, 1f)
-          .setIncludePad(includePadding)
-          .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
-
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          builder = builder.setUseLineSpacingFromFallbacks(true)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          builder = if (style.resolvedTextAlign == TextAlign.Justify) {
-            builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-          } else {
-            builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-          }
-        }
-
-        builder.build()
-      } else {
-        StaticLayout(
-          spannable, paint, measuredWidth.toInt(), alignment, 1f, // lineSpacingMultiplier
-          0f, // lineSpacingExtra
-          includePadding // includePad
-        )
-      }
+      // Rebuild at the spannable's own natural width, not `measuredWidth` — during
+      // min-content that's just the widest word, which is too narrow to fit the
+      // full spannable and wraps leading/trailing whitespace onto its own line.
+      // Round up: truncating can land a hair under the true natural width.
+      val rebuildWidth = ceil(Layout.getDesiredWidth(spannable, paint)).toInt()
+      layout = buildStaticLayoutCached(
+        spannable, paint, rebuildWidth, availableWidth, alignment, textDirectionHeuristic
+      )
     }
 
     if (container is TextView) {
@@ -688,15 +714,27 @@ class TextEngine(val container: TextContainer) {
       // Deferred: syncFontMetrics will set pendingMetricsSync instead of writing
       style.syncFontMetrics()
 
-      val fontMetrics = paint.fontMetrics
+      paint.getFontMetrics(scratchFontMetrics)
+      val fontMetrics = scratchFontMetrics
 
       val minLineHeight = -fontMetrics.ascent + fontMetrics.descent + fontMetrics.leading
 
       val measuredHeight = layout?.height?.toFloat()
 
-      val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
+      // A text node holding only collapsible whitespace (e.g. a JSX/HTML
+      // newline+indent between sibling elements) must collapse to 0x0 rather
+      // than floor to minLineHeight. `white-space: pre*`/`break-spaces` opt out.
+      val preservesWhitespace = node.style.isValueInitialized && when (node.style.whiteSpace) {
+        Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap,
+        Styles.WhiteSpace.PreLine, Styles.WhiteSpace.BreakSpaces -> true
+        else -> false
+      }
+      val isCollapsibleWhitespace = !preservesWhitespace && textContent.isBlank()
 
-      return MeasureOutput.make(width, finalHeight)
+      val finalHeight = if (isCollapsibleWhitespace) 0f else measuredHeight?.coerceAtLeast(minLineHeight) ?: height
+      val finalWidth = if (isCollapsibleWhitespace) 0f else width
+
+      return MeasureOutput.make(finalWidth, finalHeight)
     } finally {
       style.inMeasure = false
       if (pendingInvalidate) {
@@ -781,7 +819,8 @@ class TextEngine(val container: TextContainer) {
     val textTop = view.top
 
     // Estimate line height from font metrics
-    val fm = paint.fontMetrics
+    paint.getFontMetrics(scratchFontMetrics)
+    val fm = scratchFontMetrics
     val lineH = (-fm.ascent + fm.descent).coerceAtLeast(1f)
 
     // Calculate max number of lines we need to consider
@@ -865,10 +904,25 @@ class TextEngine(val container: TextContainer) {
     val text = (container as? android.widget.TextView)?.text as? Spannable ?: return null
     if (text.isEmpty()) return null
 
+    var allowWrap = true
+    if (node.style.isValueInitialized) {
+      val ws = node.style.whiteSpace
+      if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
+        allowWrap = false
+      }
+      if (node.style.textWrap == TextWrap.NoWrap) {
+        allowWrap = false
+      }
+    }
+
+    // Clamp like buildStaticLayoutCached's safeWidthConstraint, and stay
+    // unconstrained when wrapping is disabled (this path didn't check nowrap before).
+    val safeContentWidth = if (!allowWrap) 1_000_000 else contentWidth.coerceAtMost(1_000_000)
+
     val alignment = getLayoutAlignment()
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       val heuristic = getTextDirectionHeuristic()
-      var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, contentWidth)
+      var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, safeContentWidth)
         .setAlignment(alignment)
         .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
@@ -885,7 +939,7 @@ class TextEngine(val container: TextContainer) {
       }
       builder.build()
     } else {
-      StaticLayout(text, paint, contentWidth, alignment, 1f, 0f, includePadding)
+      StaticLayout(text, paint, safeContentWidth, alignment, 1f, 0f, includePadding)
     }
 
     if (container is TextView) {
@@ -900,16 +954,19 @@ class TextEngine(val container: TextContainer) {
     attributed: SpannableStringBuilder,
     paint: TextPaint
   ) {
+    // Nothing relevant changed since the segments already sent for this
+    // exact layout — skip the full spannable walk + JNI push.
+    if (lastSegmentsLayout === layout && lastSegmentsVersion == segmentsInvalidateVersion) {
+      return
+    }
 
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint = TextPaint(paint)
+    val textPaint = scratchSegmentPaint.apply { set(paint) }
 
-    // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position.
-    // This replaces the per-iteration findNextViewSpan() call — which re-scanned the
-    // full span array from currentPos to attributed.length on every text run — with a
-    // single upfront O(spans) pass.  Subsequent lookups are O(1) via index cursor.
+    // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position
+    // in a single O(spans) pass; subsequent lookups are O(1) via index cursor.
     data class SpanBoundary(val start: Int, val end: Int, val viewSpan: ViewSpan?, val isBr: Boolean)
     val spBoundaries = ArrayList<SpanBoundary>(8)
     for (sp in attributed.getSpans(0, attributed.length, ViewSpan::class.java)) {
@@ -1030,27 +1087,41 @@ class TextEngine(val container: TextContainer) {
         val end = if (bIdx < spBoundaries.size) spBoundaries[bIdx].start else attributed.length
 
         if (end > currentPos) {
-          // Width via StaticLayout horizontal positions.  Avoids creating a
-          // subSequence CharSequence copy; the attributed string is used directly
-          // in the fallback path instead.
-          val width = try {
-            val startX = layout.getPrimaryHorizontal(currentPos)
-            val endX = layout.getPrimaryHorizontal(end)
-            kotlin.math.abs(endX - startX)
-          } catch (_: Throwable) {
+          // Width via StaticLayout horizontal positions, using the attributed
+          // string directly to avoid a subSequence copy.
+          //
+          // getPrimaryHorizontal() resolves a full bidi-aware position per
+          // offset, so calling it twice repeats that work. For a single-line,
+          // non-RTL run, glyph advance is the same in logical or visual order,
+          // so Layout.getDesiredWidth() gives an equivalent result more
+          // cheaply. Multi-line or RTL runs use the exact bidi-safe path.
+          val singleLine = layout.getLineForOffset(currentPos) == layout.getLineForOffset(end)
+          val width = if (singleLine &&
+            !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
+          ) {
             Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
+          } else {
+            try {
+              val startX = layout.getPrimaryHorizontal(currentPos)
+              val endX = layout.getPrimaryHorizontal(end)
+              kotlin.math.abs(endX - startX)
+            } catch (_: Throwable) {
+              Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
+            }
           }
 
           // Apply character style spans to a single reused TextPaint (avoids a
           // TextPaint allocation per run). Paint.set() copies all fields cheaply.
-          val runPaint = TextPaint(textPaint)
+          val runPaint = scratchRunPaint
+          runPaint.set(textPaint)
           val spans =
             attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
           for (span in spans) {
             span.updateDrawState(runPaint)
           }
 
-          val fontMetrics = runPaint.fontMetrics
+          runPaint.getFontMetrics(scratchFontMetrics)
+          val fontMetrics = scratchFontMetrics
           segments.add(
             InlineSegment.Text(
               style.resolvedWhiteSpace.value,
@@ -1077,7 +1148,6 @@ class TextEngine(val container: TextContainer) {
       val floats = FloatArray(count * 4)
       val longs = LongArray(count)
 
-      val tPackStart = System.nanoTime()
       for (i in 0 until count) {
         when (val seg = segments[i]) {
           is InlineSegment.Text -> {
@@ -1103,8 +1173,6 @@ class TextEngine(val container: TextContainer) {
           }
         }
       }
-      val tPackEnd = System.nanoTime()
-
       // Call the packed JNI path synchronously. This path is safe when
       // invoked inside the expected native/Java measurement flow and we
       // prefer the fast packed primitive arrays.
@@ -1119,6 +1187,8 @@ class TextEngine(val container: TextContainer) {
 
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
     attributedStringVersion = segmentsInvalidateVersion
+    lastSegmentsVersion = segmentsInvalidateVersion
+    lastSegmentsLayout = layout
   }
 
   private fun findNextViewSpan(text: SpannableStringBuilder, start: Int): Int {
@@ -1493,6 +1563,12 @@ class TextEngine(val container: TextContainer) {
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 
+  // Last (version, layout) collectAndCacheSegments() sent over JNI for.
+  // buildStaticLayoutCached returns the same cached instance on a hit, so
+  // `layout === lastSegmentsLayout` means line-break geometry hasn't moved.
+  private var lastSegmentsVersion: Int = -1
+  private var lastSegmentsLayout: android.text.Layout? = null
+
   private var minMeasuredTextWidth: Float = 0f
   private var minMeasuredTextHeight: Float = 0f
 
@@ -1501,6 +1577,39 @@ class TextEngine(val container: TextContainer) {
 
   private var maxMeasuredTextWidth: Float = 0f
   private var maxMeasuredTextHeight: Float = 0f
+
+  // Cache for the StaticLayout built inside measureLayout(). A single call
+  // can build up to two distinct-shaped StaticLayouts (an unconstrained
+  // probe, then a rebuild at the measured width), so a single slot would
+  // have both evict each other. Sized at 4 slots, round-robin eviction;
+  // gated by segmentsInvalidateVersion, same as cachedAttributedString.
+  private class StaticLayoutCacheEntry(
+    val version: Int,
+    val widthConstraint: Int,
+    val availableWidth: Float,
+    val spannableLength: Int,
+    val alignment: android.text.Layout.Alignment,
+    val includePadding: Boolean,
+    val justified: Boolean,
+    val heuristic: TextDirectionHeuristic,
+    val layout: StaticLayout
+  )
+
+  private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
+  private var staticLayoutCacheNextIdx = 0
+
+  // Reused across paint.getFontMetrics() call sites instead of the allocating
+  // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
+  // fields immediately and text measurement/draw all happen on the UI thread.
+  private val scratchFontMetrics = android.graphics.Paint.FontMetrics()
+
+  // Reused per text-run in collectAndCacheSegments() instead of a fresh
+  // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
+  // Nothing retains this instance across runs.
+  private val scratchRunPaint = TextPaint()
+
+  // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
+  private val scratchSegmentPaint = TextPaint()
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
@@ -1615,7 +1724,7 @@ class TextEngine(val container: TextContainer) {
 
     val fontFace = container.style.resolvedFontFace
     // Apply typeface with bold/italic hints so we can synthesize when needed
-    fontFace.font?.let { typeface ->
+    fontFace.resolvedTypeface?.let { typeface ->
       val isBold = fontFace.weight.weight >= 600
       val isItalic = fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
       spannable.setSpan(

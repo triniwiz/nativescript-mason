@@ -5,9 +5,19 @@ import { LengthPercentage } from '@nativescript/core/css/parser';
 
 export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'month' | 'week' | 'color' | 'checkbox' | 'radio' | 'button' | 'submit' | 'reset' | 'file' | 'range';
 
-export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip`;
+/**
+ * A CSS length. `px` is a CSS pixel — the same size as a dip, exactly as on the
+ * web — and a bare number is also dip. `dppx` is the escape hatch for a literal
+ * device pixel; note this differs from `@nativescript/core`, where `px` itself
+ * means a device pixel.
+ */
+export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip` | `${number}dppx`;
 
-export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip`;
+export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip` | `${number}dppx`;
+
+export type DimensionKeyword = 'min-content' | 'max-content' | 'fit-content' | 'stretch' | 'content' | `fit-content(${string})`;
+
+export type DimensionLength = LengthAuto | DimensionKeyword;
 
 export type SizeLength = { width: LengthType; height: LengthType };
 
@@ -19,7 +29,7 @@ export type BoxSizing = 'border-box' | 'content-box';
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
-export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse';
+export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse';
 
 export type FlexDirection = 'column' | 'row' | 'column-reverse' | 'row-reverse';
 
@@ -58,8 +68,8 @@ declare module '@nativescript/core/ui/styling/style' {
     flexFlow: string;
     minWidth: LengthAuto;
     minHeight: LengthAuto;
-    width: LengthAuto;
-    height: LengthAuto;
+    width: DimensionLength;
+    height: DimensionLength;
     maxWidth: LengthAuto;
     maxHeight: LengthAuto;
     left: LengthAuto;
@@ -71,7 +81,7 @@ declare module '@nativescript/core/ui/styling/style' {
     rowGap: Length;
     columnGap: Length;
     aspectRatio: number;
-    flexBasis: LengthPercentage | string | number;
+    flexBasis: LengthPercentage | DimensionKeyword | string | number;
     alignItems: AlignItems;
     alignSelf: AlignSelf;
     alignContent: AlignContent;
@@ -134,20 +144,31 @@ interface Style {
   flexFlow: string;
   minWidth: LengthAuto;
   minHeight: LengthAuto;
-  width: LengthAuto;
-  height: LengthAuto;
+  width: DimensionLength;
+  height: DimensionLength;
   maxWidth: LengthAuto;
   maxHeight: LengthAuto;
   left: LengthAuto;
   right: LengthAuto;
   top: LengthAuto;
   bottom: LengthAuto;
+  margin: LengthAuto;
+  marginLeft: LengthAuto;
+  marginRight: LengthAuto;
+  marginTop: LengthAuto;
+  marginBottom: LengthAuto;
+  padding: Length;
+  paddingLeft: Length;
+  paddingRight: Length;
+  paddingTop: Length;
+  paddingBottom: Length;
+  listStyleType: 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal';
   gridGap: Gap;
   gap: Gap;
   rowGap: Length;
   columnGap: Length;
   aspectRatio: number;
-  flexBasis: LengthPercentage | string | number;
+  flexBasis: LengthPercentage | DimensionKeyword | string | number;
   alignItems: AlignItems;
   alignSelf: AlignSelf;
   alignContent: AlignContent;
@@ -208,8 +229,8 @@ interface IViewBase {
   flexWrap: FlexWrap;
   flex: string | 'auto' | 'none' | number | 'initial';
   flexFlow: string;
-  width: LengthAuto;
-  height: LengthAuto;
+  width: DimensionLength;
+  height: DimensionLength;
   maxWidth: LengthAuto;
   maxHeight: LengthAuto;
   left: Length;
@@ -221,7 +242,7 @@ interface IViewBase {
   rowGap: Length;
   columnGap: Length;
   aspectRatio: number;
-  flexBasis: Length;
+  flexBasis: DimensionLength;
   alignItems: AlignItems;
   alignSelf: AlignSelf;
   alignContent: AlignContent;
@@ -271,6 +292,7 @@ interface IViewBase {
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   caretColor: string | Color;
+  elementFromPoint(x: number, y: number): ViewBase | null;
 }
 
 class VBase extends ViewBase implements IViewBase {
@@ -297,6 +319,12 @@ class VBase extends ViewBase implements IViewBase {
    * ```
    */
   static preflight: boolean;
+
+  /**
+   * Returns the top-most Mason/NativeScript element at a point in this view's
+   * visible local coordinate space.
+   */
+  elementFromPoint(x: number, y: number): ViewBase | null;
 }
 
 export class View extends VBase {}
@@ -344,3 +372,9 @@ export class Li extends VBase {}
 export class TextAreaBase extends InputBase {}
 
 export class TextArea extends TextAreaBase {}
+
+export { setCssDiagnostics, getCssDiagnostics, clearCssDiagnostics, formatCssDiagnostics, cssDiagnosticsEnabled } from './diagnostics';
+export type { CssDiagnostic, CssDiagnosticKind, CssDiagnosticsOptions } from './diagnostics';
+
+export { setCssUnitContext, cssUnits } from './units';
+export type { CssUnitContext } from './units';

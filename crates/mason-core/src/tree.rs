@@ -1,5 +1,5 @@
 use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
-use crate::style::arena::{StyleArena, StyleHandle};
+use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
@@ -14,7 +14,7 @@ use taffy::{
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, style::Clear,
     AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout,
     LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
-    PrintTree, Rect, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
+    PrintTree, Rect, ResolveOrZero, RoundTree, Size, SizingMode, TraversePartialTree, TraverseTree,
 };
 
 new_key_type! {
@@ -63,6 +63,16 @@ pub(crate) struct TreeInner {
     pub(crate) inline_run_pending: Vec<Id>,
     pub(crate) density: Arc<AtomicU32>,
     pub(crate) style_arena: Box<StyleArena>,
+    // Sticky "does this tree contain any of X" hints, set (never cleared) from
+    // `with_style_mut` whenever a style write results in a float/scroll-container
+    // value. Lets `collect_floats`/`fix_scroll_container_sizes` skip their
+    // full-tree walk entirely for the common float-free/scroll-free tree,
+    // instead of unconditionally re-scanning every node on every layout pass.
+    pub(crate) has_floats: bool,
+    pub(crate) has_scroll_containers: bool,
+    // Set when a node is removed from `nodes`; tells compute_layout's
+    // sanitize pass it needs to scrub stale ids from `children`.
+    pub(crate) structure_dirty: bool,
 }
 
 impl TreeInner {
@@ -77,6 +87,9 @@ impl TreeInner {
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
             style_arena: Box::default(),
             float_context: Default::default(),
+            has_floats: false,
+            has_scroll_containers: false,
+            structure_dirty: false,
         }
     }
 
@@ -90,7 +103,10 @@ impl TreeInner {
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
-            style_arena: Box::default(),
+            style_arena: Box::new(StyleArena::with_capacity(&[0u8; STYLE_BUFFER_SIZE], value)),
+            has_floats: false,
+            has_scroll_containers: false,
+            structure_dirty: false,
         }
     }
 
@@ -874,22 +890,23 @@ impl Tree {
         // floated children per container first; then measure them against the
         // root available space so inline layout can consult approximate sizes.
         self.clear_float_context();
-        self.collect_floats(root.into());
+        if self.inner().has_floats {
+            self.collect_floats(root.into());
+        }
         self.measure_place_floats(root.into(), available_space);
 
-        // Sanitize children lists to remove any stale/missing node ids that
-        // could have been left by prior operations. This prevents lookups
-        // later in the layout pass from attempting to index into the slotmap
-        // with invalid keys.
+        // Sanitize children lists to remove stale node ids, but only when a
+        // node was actually removed since the last pass.
         {
             let inner_mut = &mut *self.inner_mut();
-            // Hold a raw pointer to `nodes` so we can read it while mutating
-            // `children` through a disjoint mutable borrow. This eliminates
-            // the intermediate `parents: Vec<Id>` allocation that was needed
-            // when iterating over keys() and calling get_mut() separately.
-            let nodes_ptr: *const SlotMap<Id, Node> = &inner_mut.nodes;
-            for children in inner_mut.children.values_mut() {
-                children.retain(|c| unsafe { (*nodes_ptr).contains_key(*c) });
+            if inner_mut.structure_dirty {
+                // raw pointer lets us read `nodes` while mutating `children`
+                // through a disjoint borrow
+                let nodes_ptr: *const SlotMap<Id, Node> = &inner_mut.nodes;
+                for children in inner_mut.children.values_mut() {
+                    children.retain(|c| unsafe { (*nodes_ptr).contains_key(*c) });
+                }
+                inner_mut.structure_dirty = false;
             }
         }
 
@@ -898,7 +915,9 @@ impl Tree {
         // Post-process scroll containers to clamp their sizes to parent's available space.
         // This is done after layout because block layout measures children with intrinsic sizing
         // (MinContent) which doesn't pass the parent's actual available dimensions.
-        self.fix_scroll_container_sizes(root, available_space.width, available_space.height);
+        if self.inner().has_scroll_containers {
+            self.fix_scroll_container_sizes(root, available_space.width, available_space.height);
+        }
 
         if use_rounding {
             round_layout(self, root);
@@ -1298,17 +1317,18 @@ impl Tree {
     }
 
     pub fn prepend_children(&mut self, parent: Id, children: &[Id]) {
-        let has_parent = self.inner().children.contains_key(parent);
-        if has_parent {
-            for child in children.iter() {
-                self.detach(*child);
-            }
+        let mut tree = self.0.write();
+        for child in children.iter() {
+            Tree::detach_inner(&mut tree, *child);
+            Tree::set_parent_inner(&mut tree, *child, Some(parent));
         }
-        if let Some(nodes) = self.children_mut().get_mut(parent) {
+        if let Some(nodes) = tree.children.get_mut(parent) {
             let mut joined = children.to_vec();
             joined.append(nodes);
             let _ = std::mem::replace(nodes, joined);
         }
+        // Mark the parent dirty, matching `append`/`add_child_at_index`.
+        Tree::mark_dirty_inner(&mut tree, parent);
     }
 
     pub fn child_count(&self, node: Id) -> usize {
@@ -1473,13 +1493,19 @@ impl Tree {
 
     fn mark_dirty_inner(tree: &mut TreeInner, node: Id) {
         let mut current = Some(node);
+        // Always climb at least one level before honoring AlreadyEmpty: a
+        // leaf whose cache is never populated (e.g. text laid out via its
+        // parent's inline context) reports AlreadyEmpty even when its
+        // parent still holds a stale cache entry.
+        let mut first_step = true;
         while let Some(id) = current {
             match tree.nodes[id].mark_dirty() {
-                ClearState::AlreadyEmpty => break,
-                ClearState::Cleared => {
+                ClearState::AlreadyEmpty if !first_step => break,
+                _ => {
                     current = tree.parents.get(id).copied().flatten();
                 }
             }
+            first_step = false;
         }
     }
 
@@ -1639,17 +1665,57 @@ impl Tree {
         let mut tree = self.0.write();
         let tree = &mut tree;
         let node_id = node;
+        // Sticky has-floats/has-scroll-containers hints (see TreeInner) — only
+        // ever set, never cleared, so a later removal can't cause a false
+        // negative that skips a walk that's still needed. Computed from a
+        // plain local here (rather than writing `tree.has_*` inline below)
+        // because `style` already holds a mutable borrow through
+        // `tree.nodes.get_mut(..)`, and this crate's `Tree` guard type derefs
+        // to `TreeInner` rather than exposing plain struct fields, so the
+        // borrow checker can't otherwise see `tree.nodes` and `tree.has_floats`
+        // as disjoint through it.
+        let mut sets_float = false;
+        let mut sets_scroll_container = false;
+        let mut changed = true;
         if let Some(node) = tree.nodes.get_mut(node_id) {
             let style = node.style_mut();
             if let Some(scale) = scale {
                 style.device_scale = Some(scale);
             }
+
+            // snapshot before/after to detect a no-op write and skip
+            // invalidating this node's (and every ancestor's) cache below
+            let buffer_before: Box<[u8]> = style.data().into();
+            let non_buffer_before = style.non_buffer_snapshot();
+
             func(style);
+
+            changed =
+                style.data() != &buffer_before[..] || style.non_buffer_snapshot() != non_buffer_before;
+
+            sets_float = style.get_float() != Float::None;
+            let overflow = style.get_overflow();
+            sets_scroll_container = matches!(
+                overflow.x,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            ) || matches!(
+                overflow.y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            );
         }
-        // A style change can affect this node's contribution to its ancestors'
-        // layout (size, flex basis, etc.), so propagate the dirty flag to the
-        // root — marking only this node leaves ancestor/root caches stale.
-        Tree::mark_dirty_inner(tree, node_id);
+        if sets_float {
+            tree.has_floats = true;
+        }
+        if sets_scroll_container {
+            tree.has_scroll_containers = true;
+        }
+        if changed {
+            // A style change can affect this node's contribution to its
+            // ancestors' layout (size, flex basis, etc.), so propagate the
+            // dirty flag to the root — marking only this node leaves
+            // ancestor/root caches stale.
+            Tree::mark_dirty_inner(tree, node_id);
+        }
     }
 }
 
@@ -1745,8 +1811,9 @@ impl LayoutPartialTree for Tree {
 
 impl CacheTree for Tree {
     #[inline]
-    fn cache_get(&self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
-        self.node_from_id(node_id).cache.get(inputs)
+    fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
+        let mut node = self.node_from_id_mut(node_id);
+        node.cache.get(inputs)
     }
 
     #[inline]
@@ -2057,24 +2124,37 @@ impl LayoutBlockContainer for Tree {
                             &style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
+                                // ContentSize mode wants content size with style size ignored,
+                                // so flex-basis/flex-shrink can size below it.
+                                let use_style_fallback = inputs.sizing_mode == SizingMode::InherentSize;
+
                                 // resolve explicit known dimensions (from parent) or style
                                 // size, then apply min/max clamping so floats or other
                                 // leaves cannot grow beyond constraints.
                                 let mut resolved_width = known_dimensions.width.or_else(|| {
-                                    style_size
-                                        .width
-                                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0)
+                                    use_style_fallback
+                                        .then(|| {
+                                            style_size
+                                                .width
+                                                .maybe_resolve(inputs.parent_size.width, |_, _| 0.0)
+                                        })
+                                        .flatten()
                                 });
 
                                 let mut resolved_height = known_dimensions.height.or_else(|| {
-                                    style_size
-                                        .height
-                                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
+                                    use_style_fallback
+                                        .then(|| {
+                                            style_size
+                                                .height
+                                                .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
+                                        })
+                                        .flatten()
                                 });
 
                                 // get constraints from style
                                 let style_min = style.min_size();
                                 let style_max = style.max_size();
+                                if use_style_fallback {
                                 if let Some(pw) = inputs.parent_size.width {
                                     if let Some(min_w) =
                                         style_min.width.maybe_resolve(pw, |_, _| 0.0)
@@ -2107,6 +2187,7 @@ impl LayoutBlockContainer for Tree {
                                         }
                                     }
                                 }
+                                }
 
                                 let final_known = Size {
                                     width: resolved_width,
@@ -2127,7 +2208,9 @@ impl LayoutBlockContainer for Tree {
                                     meas
                                 };
 
-                                // clamp measured results as well
+                                // clamp measured results too (skipped in ContentSize mode —
+                                // the caller applies its own clamp afterwards).
+                                if use_style_fallback {
                                 if let Some(pw) = inputs.parent_size.width {
                                     if let Some(min_w) =
                                         style_min.width.maybe_resolve(pw, |_, _| 0.0)
@@ -2151,6 +2234,7 @@ impl LayoutBlockContainer for Tree {
                                     {
                                         result.height = result.height.min(max_h);
                                     }
+                                }
                                 }
                                 result
                             },
@@ -2301,9 +2385,10 @@ impl LayoutBlockContainer for Tree {
                         ..inputs
                     };
 
-                    let mut computed_layout = if tree.analyze_subtree(id).all_inline {
+                    let analysis = tree.analyze_subtree(id);
+                    let mut computed_layout = if analysis.all_inline {
                         tree.compute_inline_layout(node_id, adjusted_inputs, block_ctx)
-                    } else if tree.analyze_subtree(id).has_mixed_content {
+                    } else if analysis.has_mixed_content {
                         let children = tree.inner().children.get(id).cloned().unwrap_or_default();
                         tree.compute_mixed_layout(
                             id,

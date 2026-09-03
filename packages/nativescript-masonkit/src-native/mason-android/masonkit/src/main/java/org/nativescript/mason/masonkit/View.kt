@@ -176,95 +176,8 @@ open class View @JvmOverloads constructor(
     }) { c ->
       // Draw list markers for HTML <li> children before drawing children,
       // so markers appear in the parent's padding zone (left of the content area).
-      drawListItemMarkers(c)
+      ListMarkers.draw(this, style, c)
       super.dispatchDraw(c)
-    }
-  }
-
-  private fun resolveListStyleTypeFor(child: TextView): Byte {
-    if (style.isValueInitialized) {
-      val isSet = style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT
-      if (isSet) return style.values.get(StyleKeys.LIST_STYLE_TYPE)
-    }
-    if (child.style.isValueInitialized) {
-      val isSet = child.style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT
-      if (isSet) return child.style.values.get(StyleKeys.LIST_STYLE_TYPE)
-    }
-    return ListStyleType.Disc.value
-  }
-
-  private fun drawListItemMarkers(canvas: Canvas) {
-    var liIndex = 0
-    for (i in 0 until childCount) {
-      val child = getChildAt(i) as? TextView ?: continue
-      if (child.type != TextType.Li) continue
-      drawMarkerForListItem(canvas, child, liIndex++)
-    }
-  }
-
-  private fun drawMarkerForListItem(canvas: Canvas, child: TextView, position: Int) {
-    val listTypeByte = resolveListStyleTypeFor(child)
-    if (listTypeByte == ListStyleType.None.value) return
-
-    val basePaint = child.style.paint
-    val markerPaint = android.graphics.Paint(basePaint).apply {
-      color = child.style.resolvedColor
-      style = android.graphics.Paint.Style.FILL
-      strokeWidth = 0f
-    }
-
-    val fm = basePaint.fontMetrics
-    val markerSize = basePaint.textSize * 0.35f
-    val gap = basePaint.textSize * 0.5f
-
-    // Centre the marker on the first line's box midpoint (text sits centred in
-    // the line-height box) — not the bare font baseline, which drifts off-line.
-    val fontLineHeight = fm.descent - fm.ascent
-    val lhVal = child.style.resolvedLineHeight
-    val lhType = child.style.resolvedLineHeightType
-    val lineBox = when {
-      lhType == StyleState.SET -> max(lhVal * basePaint.density, fontLineHeight)
-      lhVal > 0f -> max(lhVal * basePaint.textSize, fontLineHeight)
-      else -> fontLineHeight
-    }
-    val cy = child.top.toFloat() + lineBox / 2f
-    // Baseline of the first line derived from the centred line box (fm.ascent is
-    // negative, fm.descent positive on Android).
-    val baselineY = cy - (fm.ascent + fm.descent) / 2f
-
-    // The marker shape's right edge sits at child.left - gap.
-    val markerRight = child.left.toFloat() - gap
-
-    when (listTypeByte) {
-      ListStyleType.Disc.value -> {
-        val r = markerSize / 2f
-        canvas.drawCircle(markerRight - r, cy, r, markerPaint)
-      }
-
-      ListStyleType.Circle.value -> {
-        val r = markerSize / 2f
-        markerPaint.style = android.graphics.Paint.Style.STROKE
-        markerPaint.strokeWidth = max(1f, basePaint.textSize * 0.08f)
-        canvas.drawCircle(markerRight - r, cy, r, markerPaint)
-      }
-
-      ListStyleType.Square.value -> {
-        val half = markerSize / 2f
-        val cx = markerRight - half
-        canvas.drawRect(cx - half, cy - half, cx + half, cy + half, markerPaint)
-      }
-
-      ListStyleType.Decimal.value -> {
-        val text = "${position + 1}."
-        val textWidth = basePaint.measureText(text)
-        canvas.drawText(text, markerRight - textWidth, baselineY, markerPaint)
-      }
-
-      ListStyleType.Custom.value -> {
-        val text = "•"
-        val textWidth = basePaint.measureText(text)
-        canvas.drawText(text, markerRight - textWidth, baselineY, markerPaint)
-      }
     }
   }
 
@@ -332,11 +245,10 @@ open class View @JvmOverloads constructor(
       if (!node.mason.inCompute) {
         // normal root measurement
 
-        // on Android the initial measurement pass for a view that hasn’t yet
-        // been sized by its parent sometimes comes through as EXACTLY 0.  If we
-        // pass that straight into the engine it will force the layout to a
-        // zero height, even though the children have intrinsic size.  Treat an
-        // EXACTLY/0 spec as MaxContent when the view is acting as the root.
+        // Android's initial measure pass for an unsized root view sometimes
+        // comes through as EXACTLY 0, which would force a zero-height layout
+        // despite children having intrinsic size. Treat EXACTLY/0 as MaxContent
+        // when acting as the root.
         val widthArg = mapMeasureSpec(specWidthMode, specWidth).value
         val heightArg = if (specHeightMode == MeasureSpec.EXACTLY && specHeight == 0) {
           // MaxContent sentinel
@@ -600,10 +512,10 @@ open class View @JvmOverloads constructor(
       val backgroundPadding = android.graphics.Rect()
       if (background.getPadding(backgroundPadding)) {
         node.style.padding = Rect(
-          LengthPercentage.Points(backgroundPadding.left.toFloat()),
-          LengthPercentage.Points(backgroundPadding.right.toFloat()),
-          LengthPercentage.Points(backgroundPadding.top.toFloat()),
-          LengthPercentage.Points(backgroundPadding.bottom.toFloat())
+          top = LengthPercentage.Points(backgroundPadding.top.toFloat()),
+          right = LengthPercentage.Points(backgroundPadding.right.toFloat()),
+          bottom = LengthPercentage.Points(backgroundPadding.bottom.toFloat()),
+          left = LengthPercentage.Points(backgroundPadding.left.toFloat())
         )
       }
     }
@@ -1176,13 +1088,17 @@ open class View @JvmOverloads constructor(
       }
     }
 
-    node.style.borderWidth = Rect(borderLeft, borderRight, borderTop, borderBottom)
+    node.style.borderWidth =
+      Rect(top = borderTop, right = borderRight, bottom = borderBottom, left = borderLeft)
 
-    node.style.margin = Rect(marginLeft, marginRight, marginTop, marginBottom)
+    node.style.margin =
+      Rect(top = marginTop, right = marginRight, bottom = marginBottom, left = marginLeft)
 
-    node.style.padding = Rect(paddingLeft, paddingRight, paddingTop, paddingBottom)
+    node.style.padding =
+      Rect(top = paddingTop, right = paddingRight, bottom = paddingBottom, left = paddingLeft)
 
-    node.style.inset = Rect(insetLeft, insetRight, insetTop, insetBottom)
+    node.style.inset =
+      Rect(top = insetTop, right = insetRight, bottom = insetBottom, left = insetLeft)
 
     node.style.size = Size(width, height)
 
@@ -1397,10 +1313,10 @@ open class View @JvmOverloads constructor(
 
   fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
     style.padding = Rect(
-      LengthPercentage.Points(left),
-      LengthPercentage.Points(right),
-      LengthPercentage.Points(top),
-      LengthPercentage.Points(bottom)
+      top = LengthPercentage.Points(top),
+      right = LengthPercentage.Points(right),
+      bottom = LengthPercentage.Points(bottom),
+      left = LengthPercentage.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -1408,9 +1324,7 @@ open class View @JvmOverloads constructor(
   fun setPadding(
     left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
-    style.padding = Rect(
-      left, right, top, bottom
-    )
+    style.padding = Rect(top = top, right = right, bottom = bottom, left = left)
     checkAndUpdateStyle()
   }
 
@@ -1487,10 +1401,10 @@ open class View @JvmOverloads constructor(
 
   fun setBorderWidth(left: Float, top: Float, right: Float, bottom: Float) {
     style.borderWidth = Rect(
-      LengthPercentage.Points(left),
-      LengthPercentage.Points(right),
-      LengthPercentage.Points(top),
-      LengthPercentage.Points(bottom)
+      top = LengthPercentage.Points(top),
+      right = LengthPercentage.Points(right),
+      bottom = LengthPercentage.Points(bottom),
+      left = LengthPercentage.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -1498,9 +1412,7 @@ open class View @JvmOverloads constructor(
   fun setBorder(
     left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
-    style.borderWidth = Rect(
-      left, right, top, bottom
-    )
+    style.borderWidth = Rect(top = top, right = right, bottom = bottom, left = left)
     checkAndUpdateStyle()
   }
 
@@ -1576,10 +1488,10 @@ open class View @JvmOverloads constructor(
 
   fun setMargin(left: Float, top: Float, right: Float, bottom: Float) {
     style.margin = Rect(
-      LengthPercentageAuto.Points(left),
-      LengthPercentageAuto.Points(right),
-      LengthPercentageAuto.Points(top),
-      LengthPercentageAuto.Points(bottom)
+      top = LengthPercentageAuto.Points(top),
+      right = LengthPercentageAuto.Points(right),
+      bottom = LengthPercentageAuto.Points(bottom),
+      left = LengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -1590,9 +1502,7 @@ open class View @JvmOverloads constructor(
     right: LengthPercentageAuto,
     bottom: LengthPercentageAuto
   ) {
-    style.margin = Rect(
-      left, right, top, bottom
-    )
+    style.margin = Rect(top = top, right = right, bottom = bottom, left = left)
     checkAndUpdateStyle()
   }
 
@@ -1669,10 +1579,10 @@ open class View @JvmOverloads constructor(
 
   fun setPosition(left: Float, top: Float, right: Float, bottom: Float) {
     style.inset = Rect(
-      LengthPercentageAuto.Points(left),
-      LengthPercentageAuto.Points(right),
-      LengthPercentageAuto.Points(top),
-      LengthPercentageAuto.Points(bottom)
+      top = LengthPercentageAuto.Points(top),
+      right = LengthPercentageAuto.Points(right),
+      bottom = LengthPercentageAuto.Points(bottom),
+      left = LengthPercentageAuto.Points(left)
     )
     checkAndUpdateStyle()
   }
@@ -1683,9 +1593,7 @@ open class View @JvmOverloads constructor(
     right: LengthPercentageAuto,
     bottom: LengthPercentageAuto
   ) {
-    style.inset = Rect(
-      left, right, top, bottom
-    )
+    style.inset = Rect(top = top, right = right, bottom = bottom, left = left)
     checkAndUpdateStyle()
   }
 
@@ -2162,12 +2070,8 @@ open class View @JvmOverloads constructor(
       return when (mode) {
         MeasureSpec.EXACTLY -> AvailableSpace.Definite(value.toFloat())
         MeasureSpec.UNSPECIFIED -> {
-          // Android encodes an unconstrained measure using mode
-          // UNSPECIFIED and size 0.  we want layouts in this case to grow
-          // to their content, so convert 0 to MaxContent.  any other value
-          // should be treated as a definite constraint even though the mode
-          // is unspecified (this is a rare case but can happen in custom
-          // measurement logic).
+          // UNSPECIFIED/0 means "grow to content" -> MaxContent. A nonzero
+          // value with UNSPECIFIED mode is still treated as definite.
           if (value != 0) {
             AvailableSpace.Definite(value.toFloat())
           } else {
@@ -2176,15 +2080,10 @@ open class View @JvmOverloads constructor(
         }
 
         MeasureSpec.AT_MOST -> {
-          // Historically we treated an AT_MOST/0 spec as definite‑0, but that
-          // proves problematic at the root level: Android sometimes reports a
-          // maximum size of 0 for an unconstrained view, causing the engine to
-          // collapse its height even when children have intrinsic size.  The
-          // style system already has a mechanism to force a child to exactly
-          // zero via "height:0" (which will bypass this branch), so the risk
-          // of inadvertently growing a truly‑zero container is low.  Map the
-          // zero case to MaxContent so that root/unspecified measurements are
-          // allowed to expand to fit their children.
+          // AT_MOST/0 maps to MaxContent, not definite-0: Android can report a
+          // max size of 0 for an unconstrained root, which would otherwise
+          // collapse height even with children present. An explicit "height:0"
+          // still works via the style system, which bypasses this branch.
           if (value != 0) {
             AvailableSpace.Definite(value.toFloat())
           } else {

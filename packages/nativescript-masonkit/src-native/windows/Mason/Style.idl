@@ -4,7 +4,7 @@ namespace NativeScript.Mason
     // Node.Style. SetWithValues is a 1:1 passthrough to mason_style_set_with_values - the whole
     // computed style is written in a single FFI crossing (the same batch path the iOS/Android
     // layers use). Integer params are the enum raw values from MasonEnums.idl; "*Type" params are
-    // a DimensionType (0 auto / 1 points / 2 percent) and the paired "*Value" is the magnitude.
+    // a DimensionType and the paired "*Value" is the magnitude for numeric dimension variants.
     // Grid track/line/area properties are CSS strings (UpdateGrid / the trailing SetWithValues
     // string params), parsed natively.
     runtimeclass Style

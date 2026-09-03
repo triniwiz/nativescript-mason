@@ -245,7 +245,17 @@ impl Mason {
         self.0.inner().style_arena.stats()
     }
     pub fn new() -> Self {
-        Self::with_capacity(128)
+        // 128 measurably undershoots a typical real screen (the perf-audit
+        // baseline scenario alone was 287 nodes) - every platform's default
+        // init path (Android nativeInit, iOS mason_init, Windows) goes
+        // through this constructor, so undersizing here means every app
+        // pays several SlotMap/SecondaryMap doubling-reallocation events
+        // during its very first layout pass. 512 comfortably covers a
+        // single small-to-medium screen without materially increasing
+        // memory for trivial ones (each pre-reserved slot is a few hundred
+        // bytes, not the multi-KB per-node cost of an actually-populated
+        // node - see Node's Style/Cache/inline_measure_cache fields).
+        Self::with_capacity(512)
     }
 
     pub fn clear(&mut self) {
@@ -572,6 +582,8 @@ impl Mason {
         if let Some(n) = self.0.nodes_mut().get_mut(node) {
             n.has_measure = has_measure;
         }
+        // measure fn changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     /// Alias for [`set_measure`]; kept for ABI compatibility.
@@ -607,6 +619,8 @@ impl Mason {
         if let Some(node) = self.0.nodes_mut().get_mut(node) {
             node.has_measure = has_measure;
         }
+        // measure fn changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     #[cfg(target_vendor = "apple")]
@@ -649,9 +663,22 @@ impl Mason {
     }
 
     pub fn layout(&self, node_id: Id) -> Vec<f32> {
-        let mut output = vec![];
-        copy_output(&self.0, node_id, &mut output);
-        output
+        // Reuse a thread-local scratch buffer across calls instead of walking
+        // the tree into a fresh, zero-capacity Vec every time - the walk in
+        // copy_output grows the buffer incrementally as it recurses, which
+        // otherwise reallocates repeatedly on every single `layout()` call.
+        // The final clone is still one allocation (this fn's signature
+        // returns an owned Vec), but that's one copy instead of several
+        // grow-and-copy steps during the walk itself.
+        thread_local! {
+            static SCRATCH: std::cell::RefCell<Vec<f32>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+        SCRATCH.with(|scratch| {
+            let mut output = scratch.borrow_mut();
+            output.clear();
+            copy_output(&self.0, node_id, &mut output);
+            output.clone()
+        })
     }
 
     pub fn layout_raw(&self, node_id: Id) -> Layout {
@@ -746,18 +773,22 @@ impl Mason {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().push(segment);
         }
+        // segments changed; invalidate cached layout
+        self.0.mark_dirty(node);
     }
 
     pub fn clear_segments(&mut self, node: Id) {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().clear();
         }
+        self.0.mark_dirty(node);
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
         if let Some(data) = self.0.node_data().get(node) {
             *data.inline_segments.lock() = segments;
         }
+        self.0.mark_dirty(node);
     }
 
     pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {
@@ -1506,17 +1537,35 @@ mod tests {
 
         drop(inner);
 
-        // Mutate parent style which should mark it dirty and clear its cache
+        // mutate to a different value; should mark dirty and clear cache
         mason.with_style_mut(pid, |s| {
-            s.set_display(taffy::style::Display::Block);
+            s.set_display(taffy::style::Display::Flex);
         });
 
-        // After mutation, cache should be cleared
         let inner2 = mason.0.inner();
         let node2 = inner2.nodes.get(pid).unwrap();
         assert!(
             node2.cache.is_empty(),
-            "expected cache to be cleared after style change"
+            "expected cache to be cleared after a real style change"
+        );
+        drop(inner2);
+
+        // recompute, then re-apply the same value as a no-op write
+        mason.compute(pid);
+        let inner3 = mason.0.inner();
+        assert!(
+            !inner3.nodes.get(pid).unwrap().cache.is_empty(),
+            "expected cache to be populated after recompute"
+        );
+        drop(inner3);
+
+        mason.with_style_mut(pid, |s| {
+            s.set_display(taffy::style::Display::Flex);
+        });
+        let inner4 = mason.0.inner();
+        assert!(
+            !inner4.nodes.get(pid).unwrap().cache.is_empty(),
+            "expected cache to survive a no-op style write (same value re-applied)"
         );
     }
 
@@ -1750,5 +1799,40 @@ mod tests {
             parent_h,
             expected
         );
+    }
+
+    /// Regression: the per-node state buffer is handed to platform code as a raw
+    /// pointer (a direct ByteBuffer on Android) and cached, so its address must
+    /// stay stable when the tree's SlotMap reallocates on growth.
+    #[test]
+    fn node_state_buffer_stable_across_tree_growth() {
+        use crate::node::{NodeStateKeys, NODE_STATE_BUFFER_SIZE};
+
+        let mut mason = Mason::new();
+        let first = mason.create_node();
+        let first_id = first.id();
+
+        let (ptr_before, len) = mason.node_state_data_raw_mut(first_id);
+        assert!(!ptr_before.is_null());
+        assert_eq!(len, NODE_STATE_BUFFER_SIZE);
+
+        unsafe {
+            *ptr_before.add(NodeStateKeys::IS_VIRTUAL as usize) = 1;
+        }
+
+        // Grow past the SlotMap's initial capacity to force reallocation.
+        let mut nodes = Vec::new();
+        for _ in 0..4096 {
+            nodes.push(mason.create_node());
+        }
+
+        let (ptr_after, len_after) = mason.node_state_data_raw(first_id);
+        assert_eq!(len_after, NODE_STATE_BUFFER_SIZE);
+        assert_eq!(
+            ptr_before, ptr_after as *mut u8,
+            "state buffer address changed after tree growth"
+        );
+        let sentinel = unsafe { *ptr_after.add(NodeStateKeys::IS_VIRTUAL as usize) };
+        assert_eq!(sentinel, 1, "state buffer contents lost after tree growth");
     }
 }

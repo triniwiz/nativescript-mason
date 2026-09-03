@@ -62,19 +62,23 @@ public class NativeHelpers {
   @CriticalNative
   static native void nativeNodeDestroy(long mason);
 
-  @CriticalNative
+  // FastNative, not CriticalNative: these enter Mason's compute pass, which for any
+  // measure-function leaf (e.g. text) synchronously calls back into Java via a full
+  // JNIEnv (see NodeMeasure::measure in mason-core). CriticalNative methods receive no
+  // JNIEnv and must never call back into the JVM, so these need the FastNative contract.
+  @FastNative
   static native void nativeNodeCompute(long mason, long node);
 
-  @CriticalNative
+  @FastNative
   static native void nativeNodeComputeSize(long mason, long node, long size);
 
-  @CriticalNative
+  @FastNative
   static native void nativeNodeComputeWH(long mason, long node, float width, float height);
 
-  @CriticalNative
+  @FastNative
   static native void nativeNodeComputeMaxContent(long mason, long node);
 
-  @CriticalNative
+  @FastNative
   static native void nativeNodeComputeMinContent(long mason, long node);
 
   @CriticalNative

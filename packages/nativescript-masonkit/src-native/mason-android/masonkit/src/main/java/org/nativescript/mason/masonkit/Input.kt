@@ -18,6 +18,7 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.RadioButton
@@ -37,7 +38,6 @@ import org.nativescript.mason.masonkit.events.InputEvent
 import org.nativescript.mason.masonkit.input.ColorInput
 import org.nativescript.mason.masonkit.input.DateInput
 import org.nativescript.mason.masonkit.input.FileInputControl
-import org.nativescript.mason.masonkit.input.NumberControl
 import org.nativescript.mason.masonkit.input.TextInput
 import org.nativescript.mason.masonkit.input.TextInputOwner
 import java.util.Calendar
@@ -349,12 +349,6 @@ class Input @JvmOverloads constructor(
     }
   }
 
-  internal val numberInput: NumberControl by lazy {
-    NumberControl(context).apply {
-      input = this@Input
-    }
-  }
-
   internal val colorInput: ColorInput by lazy {
     ColorInput(context).apply {
       owner = this@Input
@@ -518,17 +512,24 @@ class Input @JvmOverloads constructor(
 
 
   enum class Type {
-    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit
+    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit, Search, Time, DatetimeLocal, Month, Week, Reset
   }
 
   private var initializing = true
   var type: Type = Type.Text
     set(value) {
+      // Capture the current value (read against the old type/widget) before
+      // switching - setupType() tears down and rebuilds the underlying
+      // native widget, so anything already set (e.g. a `value` applied while
+      // the default Text widget was still active) would otherwise be lost
+      // when the real type is applied right after.
+      val previousValue = if (!initializing) this.value else null
       field = value
       if (initializing) {
         return
       }
       setupType()
+      previousValue?.let { this.value = it }
     }
 
   private fun setupType(initial: Boolean = false) {
@@ -540,7 +541,7 @@ class Input @JvmOverloads constructor(
       style.textAlign = TextAlign.Auto
     }
     when (type) {
-      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
         configure {
           val x = (2 * resources.displayMetrics.density).toInt()
           val y = (resources.displayMetrics.density).toInt()
@@ -549,8 +550,9 @@ class Input @JvmOverloads constructor(
           )
           style.border = "1"
           style.borderRadius = "4"
-          style.textAlign = TextAlign.Center
+          style.textAlign = TextAlign.Left
         }
+        textInput.imeOptions = EditorInfo.IME_ACTION_DONE
         when (type) {
           Type.Email -> {
             textInput.inputType =
@@ -572,6 +574,32 @@ class Input @JvmOverloads constructor(
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
           }
 
+          Type.Number -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
+          }
+
+          Type.Search -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL
+            textInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
+          }
+
+          Type.Time -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
+          }
+
+          Type.DatetimeLocal -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_NORMAL
+          }
+
+          Type.Month, Type.Week -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE
+          }
+
           else -> {
             textInput.inputType =
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
@@ -580,7 +608,7 @@ class Input @JvmOverloads constructor(
         addView(textInput)
       }
 
-      Type.Button, Type.Submit -> {
+      Type.Button, Type.Submit, Type.Reset -> {
         configure {
           (2 * resources.displayMetrics.density).toInt()
           (resources.displayMetrics.density).toInt()
@@ -620,24 +648,6 @@ class Input @JvmOverloads constructor(
 
       Type.Radio -> {
         addView(radioInput)
-      }
-
-      Type.Number -> {
-        configure {
-          (2 * resources.displayMetrics.density).toInt()
-          (resources.displayMetrics.density).toInt()
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
-          style.border = "1"
-          style.borderRadius = "4"
-          style.textAlign = TextAlign.Center
-        }
-        addView(numberInput)
       }
 
       Type.Range -> {
@@ -703,7 +713,7 @@ class Input @JvmOverloads constructor(
       field = value
       when (type) {
         Type.Text, Type.Email,
-        Type.Password, Type.Url, Type.Tel -> {
+        Type.Password, Type.Url, Type.Tel, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
           textInput.hint = value
         }
 
@@ -717,7 +727,7 @@ class Input @JvmOverloads constructor(
     set(value) {
       field = value
       when (type) {
-        Type.Text, Type.Email, Type.Password -> {
+        Type.Text, Type.Email, Type.Password, Type.Search, Type.Tel, Type.Url -> {
           if (value > -1) {
             textInput.filters = arrayOf(
               LengthFilter(value), beforeFilter
@@ -727,7 +737,7 @@ class Input @JvmOverloads constructor(
           }
         }
 
-        Type.Button, Type.Submit -> {
+        Type.Button, Type.Submit, Type.Reset -> {
           val filters = if (value > -1) {
             arrayOf(
               LengthFilter(value)
@@ -749,8 +759,10 @@ class Input @JvmOverloads constructor(
         Type.Date, Type.Radio -> {}
         Type.Number -> {}
         Type.Range -> {}
-        Type.Tel -> {}
-        Type.Url -> {}
+        Type.Time -> {}
+        Type.DatetimeLocal -> {}
+        Type.Month -> {}
+        Type.Week -> {}
         Type.Color -> {}
         Type.File -> {}
       }
@@ -769,11 +781,11 @@ class Input @JvmOverloads constructor(
   var value: String
     set(value) {
       when (type) {
-        Type.Tel, Type.Url, Type.Text, Type.Email, Type.Password -> {
+        Type.Tel, Type.Url, Type.Text, Type.Email, Type.Password, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
           syncTextStyle(value, textInput)
         }
 
-        Type.Button -> {
+        Type.Button, Type.Reset -> {
           syncTextStyle(value, buttonInput)
         }
 
@@ -791,12 +803,6 @@ class Input @JvmOverloads constructor(
 
         Type.Radio -> {
           radioInput.isChecked = value == "true"
-        }
-
-        Type.Number -> {
-          value.toIntOrNull()?.let {
-            numberInput.value = it
-          }
         }
 
         Type.Range -> {
@@ -822,11 +828,11 @@ class Input @JvmOverloads constructor(
     }
     get() {
       return when (type) {
-        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
+        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
           textInput.text.toString()
         }
 
-        Type.Button -> {
+        Type.Button, Type.Reset -> {
           buttonInput.text.toString()
         }
 
@@ -854,10 +860,6 @@ class Input @JvmOverloads constructor(
           dateInput.value
         }
 
-        Type.Number -> {
-          "${numberInput.value}"
-        }
-
         Type.Range -> "${rangeInput.progress}"
         Type.Color -> {
           if (colorInput.selectedColorHex == null) {
@@ -874,9 +876,8 @@ class Input @JvmOverloads constructor(
 
   var valueAsNumber: Double
     get() = when (type) {
-      Type.Number -> numberInput.value.toDouble()
       Type.Range -> rangeInput.progress.toDouble()
-      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> textInput.text.toString()
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> textInput.text.toString()
         .toDoubleOrNull()
         ?: Double.NaN
 
@@ -884,9 +885,8 @@ class Input @JvmOverloads constructor(
     }
     set(v) {
       when (type) {
-        Type.Number -> numberInput.value = v.toInt()
         Type.Range -> rangeInput.progress = v.toInt()
-        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> textInput.setText(v.toString())
+        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> textInput.setText(v.toString())
         else -> {}
       }
     }
@@ -957,7 +957,7 @@ class Input @JvmOverloads constructor(
     val width = r - l
     val height = b - t
     when (type) {
-      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
         textInput.measure(
           MeasureSpec.makeMeasureSpec(
             width, MeasureSpec.EXACTLY
@@ -969,7 +969,7 @@ class Input @JvmOverloads constructor(
         textInput.layout(l, t, r, b)
       }
 
-      Type.Button -> {
+      Type.Button, Type.Reset -> {
         buttonInput.measure(
           MeasureSpec.makeMeasureSpec(
             width, MeasureSpec.EXACTLY
@@ -1027,18 +1027,6 @@ class Input @JvmOverloads constructor(
           )
         )
         radioInput.layout(l, t, r, b)
-      }
-
-      Type.Number -> {
-        numberInput.measure(
-          MeasureSpec.makeMeasureSpec(
-            width, MeasureSpec.EXACTLY
-          ),
-          MeasureSpec.makeMeasureSpec(
-            height, MeasureSpec.EXACTLY
-          )
-        )
-        numberInput.layout(l, t, r, b)
       }
 
       Type.Range -> {
@@ -1134,9 +1122,18 @@ class Input @JvmOverloads constructor(
         sizeHeight = fileInput.measuredHeight.toFloat()
       }
 
-      Type.Button -> {
+      Type.Button, Type.Reset -> {
         buttonInput.measure(0, 0)
         sizeWidth = max(buttonInput.measuredWidth.toFloat(), 64 * resources.displayMetrics.density)
+
+        val fm = style.paint.fontMetrics
+        sizeHeight =
+          max(fm.descent - fm.ascent, 32 * resources.displayMetrics.density)
+      }
+
+      Type.Submit -> {
+        submitInput.measure(0, 0)
+        sizeWidth = max(submitInput.measuredWidth.toFloat(), 64 * resources.displayMetrics.density)
 
         val fm = style.paint.fontMetrics
         sizeHeight =
@@ -1185,7 +1182,7 @@ class Input @JvmOverloads constructor(
     val textAlign = StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN)
 
     when (type) {
-      Type.Text, Type.Email, Type.Password, Type.Number, Type.Tel, Type.Url -> {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
         if (fontSize || fontColor || font || textAlign) {
           textInput.cursorPaint.textSize = style.resolvedFontSize.toFloat()
           textInput.cursorPaint.color = style.resolvedCaretColor
@@ -1196,7 +1193,7 @@ class Input @JvmOverloads constructor(
         }
       }
 
-      Type.Button -> {
+      Type.Button, Type.Reset -> {
         if (fontSize || fontColor || font || textAlign) {
           syncTextStyle(buttonInput.text.toString(), buttonInput)
         }

@@ -367,6 +367,7 @@ class BoxShadowRenderer(private val style: Style) {
         // Calculate draw position
         val drawX = shadow.offsetX - spread - blurPad.toFloat()
         val drawY = shadow.offsetY - spread - blurPad.toFloat()
+        clearOutsetShadowInterior(shadowBitmap, -drawX, -drawY, width, height, radii)
 
         entries.add(ShadowBitmapEntry(shadowBitmap, drawX, drawY, false))
       }
@@ -384,6 +385,31 @@ class BoxShadowRenderer(private val style: Style) {
         canvas.drawBitmap(entry.bitmap, entry.drawX, entry.drawY, null)
       }
     }
+  }
+
+  private fun clearOutsetShadowInterior(
+    bitmap: Bitmap,
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float,
+    radii: FloatArray?
+  ) {
+    bitmap.setHasAlpha(true)
+    val canvas = Canvas(bitmap)
+    val clearPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+      xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+    }
+    val rect = RectF(left, top, left + width, top + height)
+    if (radii != null) {
+      tmpPath.reset()
+      tmpPath.addRoundRect(rect, radii, Path.Direction.CW)
+      canvas.drawPath(tmpPath, clearPaint)
+    } else {
+      canvas.drawRect(rect, clearPaint)
+    }
+    clearPaint.xfermode = null
   }
 
   /**

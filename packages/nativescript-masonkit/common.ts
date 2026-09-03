@@ -59,6 +59,7 @@ import {
   boxShadowProperty,
   transformProperty,
   borderColorProperty,
+  borderStyleProperty,
   backgroundImageProperty,
   listStyleTypeProperty,
   listStylePositionProperty,
@@ -204,6 +205,55 @@ function getFrameworkElement(view: any): any {
   return null;
 }
 
+function getWeakRefValue<T extends object>(value: WeakRef<T> | T | null | undefined): T | null {
+  if (!value) return null;
+  const maybeWeakRef = value as any;
+  if (typeof maybeWeakRef.get === 'function') return maybeWeakRef.get();
+  if (typeof maybeWeakRef.deref === 'function') return maybeWeakRef.deref();
+  return value as T;
+}
+
+function nativeOwnerFor(nativeView: any): ViewBase | NSViewBase | null {
+  if (!nativeView) return null;
+  const owner = getWeakRefValue<ViewBase | NSViewBase>(nativeView.__masonOwner);
+  if (owner) return owner;
+  return getFrameworkElement(nativeView);
+}
+
+function nativeViewFor(owner: any): any {
+  return owner?.nativeViewProtected ?? owner?.[native_];
+}
+
+function masonNativeEventName(eventName: string): string | null {
+  switch (eventName) {
+    case 'tap':
+    case 'click':
+      return 'click';
+    case 'input':
+    case 'change':
+      return eventName;
+    default:
+      return null;
+  }
+}
+
+function findOwnerForNativeView(owner: any, nativeView: any): ViewBase | NSViewBase | null {
+  if (!owner || !nativeView) return null;
+
+  const ownNativeView = nativeViewFor(owner);
+  if (ownNativeView === nativeView) return owner;
+
+  const children = owner._children ?? owner._viewChildren;
+  if (!children) return null;
+
+  for (const child of children) {
+    const match = findOwnerForNativeView(child, nativeView);
+    if (match) return match;
+  }
+
+  return null;
+}
+
 export const textContentProperty = new Property<ViewBase, string>({
   name: 'textContent',
   affectsLayout: true,
@@ -263,6 +313,11 @@ declare module '@nativescript/core/ui/styling/style' {
     cornerShape: string;
     transform: string;
   }
+}
+
+/** "background-color" -> "backgroundColor". */
+function toCamelCase(prop: string): string {
+  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
@@ -344,6 +399,39 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         nativeView.mason_innerHTML = value;
       }
     }
+  }
+
+  private _rememberNativeOwner(nativeView = nativeViewFor(this)) {
+    if (!nativeView) return;
+    try {
+      nativeView.__masonOwner = new WeakRef(this);
+    } catch (_) {
+      // Some host objects do not accept expandos; fallback tree matching still works.
+    }
+  }
+
+  /**
+   * Returns the top-most Mason/NativeScript element at a point in this view's
+   * visible local coordinate space, similar to the browser's elementFromPoint().
+   */
+  public elementFromPoint(x: number, y: number): ViewBase | NSViewBase | null {
+    const nativeView = nativeViewFor(this) ?? (this as any)._view;
+    if (!nativeView) return null;
+
+    this._rememberNativeOwner(nativeView);
+
+    let nativeHit: any = null;
+    if (__ANDROID__ && typeof nativeView.elementFromPoint === 'function') {
+      nativeHit = nativeView.elementFromPoint(x, y);
+    } else if (__APPLE__) {
+      const hitTest = nativeView.mason_elementFromPointY ?? nativeView.mason_elementFromPoint ?? nativeView.elementFromPoint;
+      if (typeof hitTest === 'function') {
+        nativeHit = hitTest.call(nativeView, x, y);
+      }
+    }
+
+    if (!nativeHit) return null;
+    return nativeOwnerFor(nativeHit) ?? findOwnerForNativeView(this, nativeHit);
   }
 
   _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
@@ -442,7 +530,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     //@ts-ignore
     if (this._view) {
       if (__ANDROID__) {
-        if (!id) {
+        if (id) {
           //@ts-ignore
           const removed = (this._view as org.nativescript.mason.masonkit.Element).removeEventListener(arg, id);
 
@@ -450,7 +538,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         }
       }
       if (__APPLE__) {
-        if (!id) {
+        if (id) {
           //@ts-ignore
           const removed = (this._view as NSObject).mason_removeEventListenerId(arg, id);
 
@@ -477,6 +565,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   initNativeView(): void {
     super.initNativeView();
+    this._rememberNativeOwner();
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {
@@ -495,18 +584,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         capture: thisArg,
       };
     }
-    super.addEventListener(arg, callback, thisArg);
     if (typeof arg !== 'string') {
+      super.addEventListener(arg, callback, thisArg);
       return;
     }
 
-    switch (arg) {
-      case 'input':
-      case 'change':
-      case 'click':
-        this._registerNativeEvent(arg, callback, thisArg);
-        break;
+    const nativeEventName = masonNativeEventName(arg);
+    if (nativeEventName) {
+      super.addEventListener(nativeEventName, callback, thisArg);
+      this._registerNativeEvent(nativeEventName, callback, thisArg);
+      return;
     }
+
+    super.addEventListener(arg, callback, thisArg);
   }
 
   public removeEventListener(arg: string, callback: any, thisArg?: any) {
@@ -516,15 +606,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       };
     }
 
-    super.removeEventListener(arg, callback, thisArg);
-
-    switch (arg) {
-      case 'input':
-      case 'change':
-      case 'click':
-        this._unregisterNativeEvent(arg, callback, thisArg);
-        break;
+    if (typeof arg === 'string') {
+      const nativeEventName = masonNativeEventName(arg);
+      if (nativeEventName) {
+        super.removeEventListener(nativeEventName, callback, thisArg);
+        this._unregisterNativeEvent(nativeEventName, callback, thisArg);
+        return;
+      }
     }
+
+    super.removeEventListener(arg, callback, thisArg);
   }
 
   private _applyPseudoClassStyles(pseudoClass: string, view, styles: Record<string, any>) {
@@ -537,11 +628,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
       if (style) {
         for (const prop in current) {
-          style[prop] = current[prop];
+          // ruleset props are kebab-case; Style only has camelCase accessors.
+          style[toCamelCase(prop)] = current[prop];
         }
         this[pseudoStyles_][pseudoClass] = style;
       }
     }
+  }
+
+  @PseudoClassHandler('hover')
+  _hoverHandler(subscribe: boolean) {
+    const styles = compile(this);
+    //@ts-ignore
+    this._applyPseudoClassStyles('hover', this._view, styles);
   }
 
   @PseudoClassHandler('highlighted', 'pressed', 'active')
@@ -1097,6 +1196,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Splices a text-node entry in at `index`, shifting existing children right.
+  private _spliceOrPushChild(index: number, entry: any) {
+    if (this._children.length > index) {
+      //@ts-ignore
+      this._children.splice(index, 0, entry);
+    } else {
+      //@ts-ignore
+      this._children.push(entry);
+    }
+  }
+
   // -- Unified text node update (cross-platform) --
 
   private _updateTextNode(
@@ -1130,7 +1240,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         break;
       case 'insert':
         this._nativeAddChild(textNode, operation.index);
-        this._setOrPushChild(operation.index, entry);
+        this._spliceOrPushChild(operation.index, entry);
         break;
     }
     this._syncTextRunLayout();
@@ -1461,6 +1571,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const style = this._styleHelper;
       // @ts-ignore
       if (style) style.setBorderColor(String(value));
+    }
+  }
+
+  // @ts-ignore
+  [borderStyleProperty.setNative](value: any) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderStyle = String(value ?? '');
     }
   }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.ViewGroup
+import androidx.core.graphics.withSave
 import org.nativescript.mason.masonkit.enums.Overflow
 import kotlin.math.min
 
@@ -94,9 +95,30 @@ class Scroll @JvmOverloads constructor(
 
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(this, canvas, style, beforeChildren = { c ->
-      ViewUtils.drawChildrenOutsetShadows(this, c)
+      c.withSave {
+        clipScrollViewport(this)
+        ViewUtils.drawChildrenOutsetShadows(this@Scroll, this)
+      }
     }) {
-      super.dispatchDraw(it)
+      it.withSave {
+        clipScrollViewport(this)
+        // `<ul>`/`<ol>` are ordinary block containers, so with Div extending
+        // Scroll a list is a Scroll too — markers have to be drawn here as well
+        // as in View, or every bullet silently disappears.
+        ListMarkers.draw(this@Scroll, style, this)
+        super.dispatchDraw(this)
+      }
+    }
+  }
+
+  private fun clipScrollViewport(canvas: Canvas) {
+    val left = scrollX + paddingLeft
+    val top = scrollY + paddingTop
+    val right = scrollX + width - paddingRight
+    val bottom = scrollY + height - paddingBottom
+
+    if (right > left && bottom > top) {
+      canvas.clipRect(left, top, right, bottom)
     }
   }
 
@@ -209,8 +231,11 @@ class Scroll @JvmOverloads constructor(
     val computedW = node.computedWidth.toInt()
     val computedH = node.computedHeight.toInt()
 
-    val nv = node.layoutTree.cursor
-    nv.pointTo(0)
+    // Read through layoutTreeRef, not the node's own (often-empty) layoutTree
+    // — when this Scroll is nested under an Element parent, its geometry
+    // lives in the ancestor's flat tree, not its own.
+    val nv = node.layoutTreeRef.cursor
+    nv.pointTo(node.layoutTreeIndex)
     val cw = nv.contentWidth.toInt()
     val ch = nv.contentHeight.toInt()
 

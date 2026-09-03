@@ -11,13 +11,7 @@ import QuartzCore
 import FontManager
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
-  switch (type) {
-  case 0: return .Auto
-  case 1: return .Points(value)
-  case 2: return .Percent(value)
-  default:
-    return nil
-  }
+  return MasonDimension.fromValueType(value, type)
 }
 
 private func getLengthPercentageAuto(_ value: Float,_ type: Int) -> MasonLengthPercentageAuto? {
@@ -564,14 +558,6 @@ public class MasonStyle: NSObject {
     let size = CGFloat(resolvedFontSize)
     let font = size > 0 ? baseFont.withSize(size) : baseFont
 
-    // UIFont properties:
-    // - ascender: positive value, distance from baseline to top
-    // - descender: negative value, distance from baseline to bottom
-    // - lineHeight: total recommended line height
-    // - xHeight: height of lowercase 'x'
-    // - capHeight: height of capital letters
-    // - leading: extra spacing between lines (usually small or 0)
-    
     let scale = NSCMason.scale
     let ascent = Float(font.ascender) * scale
     let descent = Float(-font.descender) * scale  // Make it positive
@@ -1407,9 +1393,12 @@ public class MasonStyle: NSObject {
   /// Resolve filter string with pseudo-aware cascade. Returns the active pseudo's filter string
   /// according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
   internal var resolvedFilterString: String {
+    // read once - pseudoMask is a fresh FFI round-trip on every access
+    let mask = node.pseudoMask
     // Check pseudo string storage on node (Swift-side) using cascade order
     for state in PSEUDO_CSS_ORDER.reversed() {
-      if node.hasPseudo(state) {
+      let isActive = state == .default ? (mask == 0) : (mask & state.rawValue) != 0
+      if isActive {
         if let s = node.getPseudoString(state.rawValue,"filter"), !s.isEmpty {
           return s
         }
@@ -1714,7 +1703,10 @@ public class MasonStyle: NSObject {
     mBorderRight.color = color
     mBorderBottom.color = color
     setOrAppendState(.borderColor)
-    node.view?.setNeedsDisplay()
+    // setNeedsDisplay() alone doesn't refresh MasonUIView's cached hasBorder
+    // flag; longhand border-width/border-style declarations never trigger
+    // that refresh otherwise, so call it directly here.
+    (node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   public func applyListStyleType(_ css: String) {
@@ -2199,9 +2191,6 @@ public class MasonStyle: NSObject {
       setOrAppendState(StateKeys.position)
     }
   }
-  
-  
-  // TODO
   public var direction: Direction{
     get {
       return Direction(rawValue: getInt8(StyleKeys.DIRECTION))!
@@ -3185,15 +3174,7 @@ public class MasonStyle: NSObject {
   public var flexBasis: MasonDimension {
     get {
       let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      switch(getInt8(StyleKeys.FLEX_BASIS_TYPE)){
-      case 0:
-        return MasonDimension.Auto
-      case 1:
-        return MasonDimension.Points(value)
-      case 2:
-        return MasonDimension.Percent(value)
-      default: return MasonDimension.Auto // assert ??
-      }
+      return MasonDimension.fromValueType(value, getInt8(StyleKeys.FLEX_BASIS_TYPE)) ?? MasonDimension.Auto
       
     }
     set {
@@ -3206,18 +3187,8 @@ public class MasonStyle: NSObject {
   }
   
   public func setFlexBasis(_ value: Float,_ type: Int) {
-    switch(type){
-    case 0:
-      flexBasis = MasonDimension.Auto
-      break
-    case 1:
-      flexBasis =  MasonDimension.Points(value)
-      break
-    case 2:
-      flexBasis =  MasonDimension.Percent(value)
-      break
-    default: break
-      //noop
+    if let basis = MasonDimension.fromValueType(value, type) {
+      flexBasis = basis
     }
   }
   
@@ -3504,10 +3475,6 @@ public class MasonStyle: NSObject {
   
   public var height: MasonDimension {
     get {
-      let type = getInt8(StyleKeys.HEIGHT_TYPE)
-      
-      let value = getFloat(StyleKeys.HEIGHT_VALUE)
-      
       return MasonDimension.fromValueType(getFloat(StyleKeys.HEIGHT_VALUE), getInt8(StyleKeys.HEIGHT_TYPE))!
     }
     set {
@@ -3972,7 +3939,12 @@ public class MasonStyle: NSObject {
 
       if !mBackdropFilter.filters.isEmpty {
         if let view = node.view {
-          mBackdropFilter.applyAsBackdrop(to: view)
+          // Border-radius clip is independent of `overflow` (like the
+          // element's own background) — re-queried each render frame.
+          mBackdropFilter.applyAsBackdrop(to: view, clipPathProvider: { [weak self, weak view] in
+            guard let self = self, let view = view, self.mBorderRender.hasRadii() else { return nil }
+            return self.mBorderRender.getClipPath(rect: view.bounds, radius: self.mBorderRender.radius)
+          })
         }
       }
     }
@@ -4259,17 +4231,12 @@ public class MasonStyle: NSObject {
 
 // Mark resolved props
 extension MasonStyle {
-  // Helper to find parent style with text values initialized
+  // Parent's style for inherited text properties. Must NOT gate on
+  // isValueInitialized: that flag lags JS style writes by a beat, but the
+  // underlying buffer is already correct, so gating on it can find no
+  // "initialized" ancestor and silently fall back to unset (0) values.
   private var parentStyleWithTextValues: MasonStyle? {
-    var parent = node.parent
-    while (parent != nil) {
-      // Check if parent has text values initialized
-      if (parent?.style.isValueInitialized == true) {
-        return parent?.style
-      }
-      parent = parent?.parent
-    }
-    return nil
+    return node.parent?.style
   }
   
   private static func resolvedFontCacheKey(family: String, weight: NSCFontWeight, style: NSCFontStyle) -> UInt64 {

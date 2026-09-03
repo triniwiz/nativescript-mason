@@ -536,6 +536,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonFlexWrap, "FlexWrap", open) {
   MasonFlexWrapNoWrap = 0,
   MasonFlexWrapWrap = 1,
   MasonFlexWrapWrapReverse = 2,
+  MasonFlexWrapBalance = 3,
+  MasonFlexWrapBalanceReverse = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFontStyle, "FontStyle", open) {
@@ -714,12 +716,24 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
 - (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPoints:(float)fitContentPoints OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFitContentPercent:(float)fitContentPercent OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic, readonly) enum MasonDimensionCompatType type;
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
 + (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MinContent;)
++ (MasonDimensionCompat * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull MaxContent;)
++ (MasonDimensionCompat * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull FitContent;)
++ (MasonDimensionCompat * _Nonnull)FitContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Stretch;)
++ (MasonDimensionCompat * _Nonnull)Stretch SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Content;)
++ (MasonDimensionCompat * _Nonnull)Content SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Zero;)
 + (MasonDimensionCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
@@ -730,6 +744,13 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCom
   MasonDimensionCompatTypeAuto = 0,
   MasonDimensionCompatTypePoints = 1,
   MasonDimensionCompatTypePercent = 2,
+  MasonDimensionCompatTypeMinContent = 3,
+  MasonDimensionCompatTypeMaxContent = 4,
+  MasonDimensionCompatTypeFitContent = 5,
+  MasonDimensionCompatTypeFitContentPoints = 6,
+  MasonDimensionCompatTypeFitContentPercent = 7,
+  MasonDimensionCompatTypeStretch = 8,
+  MasonDimensionCompatTypeContent = 9,
 };
 
 SWIFT_CLASS_NAMED("MasonDimensionPointCompat")
@@ -866,6 +887,12 @@ typedef SWIFT_ENUM_NAMED(int8_t, MasonInputType, "MasonInputType", open) {
   MasonInputTypeColor = 11,
   MasonInputTypeFile = 12,
   MasonInputTypeSubmit = 13,
+  MasonInputTypeSearch = 14,
+  MasonInputTypeTime = 15,
+  MasonInputTypeDatetimeLocal = 16,
+  MasonInputTypeMonth = 17,
+  MasonInputTypeWeek = 18,
+  MasonInputTypeReset = 19,
 };
 
 @class MasonRectHelper;
@@ -1119,6 +1146,10 @@ SWIFT_ENUM_FWD_DECL(int32_t, MasonNodeType)
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+/// Attributes carried over from parsed HTML (<code>class</code>, <code>id</code>, <code>href</code>, <code>alt</code>,
+/// <code>title</code>). Recorded, not acted on by the cascade — see applyAttributes in
+/// HTMLParser for why.
+@property (nonatomic, copy) NSDictionary<NSString *, NSString *> * _Nonnull htmlAttributes;
 @property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
 @property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
@@ -1522,6 +1553,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 - (void)layoutSubviews;
 - (void)willMoveToWindow:(UIWindow * _Nullable)newWindow;
 - (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
+- (void)didMoveToSuperview;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
@@ -1741,6 +1773,16 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonLi * _Nonnull)createListItem SWIFT_WARN_UNUSED_RESULT;
 - (MasonTextArea * _Nonnull)createTextArea SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic) BOOL preflight;
+/// The context CSS relative units resolve against, mirroring the TS side’s
+/// <code>units.ts</code> and Android’s <code>Mason.shared</code>. <code>rem</code> needs a root font size (the
+/// CSS default is 16); the viewport is read from the key window, and is 0 until
+/// one exists — an unresolvable viewport unit collapses to 0 rather than
+/// silently becoming a bare number in the wrong unit.
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
++ (float)rootFontSize SWIFT_WARN_UNUSED_RESULT;
++ (void)setRootFontSize:(float)value;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
++ (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 + (float)scale SWIFT_WARN_UNUSED_RESULT;
 @end
@@ -1766,6 +1808,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSize;
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
+- (void)mason_markRootComputeApplied;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;
@@ -1831,6 +1874,7 @@ typedef SWIFT_ENUM_NAMED(uint16_t, PseudoState, "PseudoState", open) {
 
 SWIFT_CLASS_NAMED("Scroll")
 @interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
+- (void)didMoveToSuperview;
 - (void)drawRect:(CGRect)rect;
 - (void)layoutSubviews;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
@@ -1958,6 +2002,10 @@ typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
   TransformOpTypeSkewX = 8,
   TransformOpTypeSkewY = 9,
 };
+
+@interface UIView (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)mason_elementFromPoint:(CGFloat)x y:(CGFloat)y SWIFT_WARN_UNUSED_RESULT;
+@end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpaceNormal = 0,

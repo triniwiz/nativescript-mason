@@ -2,18 +2,24 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.util.Base64
 import android.view.View
+import androidx.core.graphics.PathParser
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import kotlin.math.hypot
 
 
@@ -40,6 +46,11 @@ private val RGBA_REGEX =
   )
 private val ANGLE_REGEX =
   Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
+private val SVG_DIMENSION_REGEX = Regex("""(?i)\b(width|height)=["']?([0-9.]+)""")
+private val SVG_VIEWBOX_REGEX = Regex("""(?i)\bviewBox=["']?\s*([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)""")
+private val SVG_FILL_REGEX = Regex("""(?i)\bfill=["']([^"']+)["']""")
+private val SVG_FILL_OPACITY_REGEX = Regex("""(?i)\bfill-opacity=["']([0-9.]+)["']""")
+private val SVG_PATH_REGEX = Regex("""(?i)<path\b[^>]*\bd=["']([^"']+)["'][^>]*/?>""")
 
 /**
  * CSS pseudo-state specificity order.
@@ -56,7 +67,7 @@ enum class BackgroundClip {
 
 data class BackgroundLayer(
   var image: String? = null,             // URL or asset path
-  var repeat: BackgroundRepeat = BackgroundRepeat.NO_REPEAT,
+  var repeat: BackgroundRepeat = BackgroundRepeat.REPEAT,
   var position: Pair<Float, Float>? = null,  // 0..1 fraction
   var size: Pair<Float, Float>? = null,        // 0..1 fraction or special (cover/contain)
   var gradient: Gradient? = null,
@@ -76,8 +87,9 @@ class Background(
 ) {
 
   internal val bgPaint by lazy {
-    Paint().apply {
+    Paint(Paint.ANTI_ALIAS_FLAG).apply {
       this.style = Paint.Style.FILL
+      isDither = true
     }
   }
 
@@ -172,11 +184,17 @@ data class Gradient(
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
-  layer.gradient?.let { drawGradient(layer, canvas, width, height) }
+  layer.gradient?.let { drawGradient(layer, canvas, width, height, view) }
 
   layer.image?.let { imageUrl ->
     // Use cached bitmap if available
     layer.bitmap?.let { bitmap ->
+      drawBitmapLayer(bitmap, layer, canvas, width, height)
+      return
+    }
+
+    decodeDataUrlBitmap(imageUrl, context.resources.displayMetrics.density)?.let { bitmap ->
+      layer.bitmap = bitmap
       drawBitmapLayer(bitmap, layer, canvas, width, height)
       return
     }
@@ -195,7 +213,80 @@ fun drawBackground(
   }
 }
 
-fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int) {
+private fun decodeDataUrlBitmap(url: String, density: Float): Bitmap? {
+  if (!url.startsWith("data:", ignoreCase = true)) return null
+  val comma = url.indexOf(',')
+  if (comma < 0) return null
+
+  val meta = url.substring(5, comma).lowercase()
+  val payload = url.substring(comma + 1)
+  val bytes = try {
+    if (meta.contains(";base64")) {
+      Base64.decode(payload, Base64.DEFAULT)
+    } else {
+      URLDecoder.decode(payload, StandardCharsets.UTF_8.name()).toByteArray(StandardCharsets.UTF_8)
+    }
+  } catch (_: Throwable) {
+    return null
+  }
+
+  return if (meta.startsWith("image/svg+xml")) {
+    rasterizeSimpleSvg(String(bytes, StandardCharsets.UTF_8), density)
+  } else {
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+  }
+}
+
+private fun rasterizeSimpleSvg(svg: String, density: Float): Bitmap? {
+  val dimensions = SVG_DIMENSION_REGEX.findAll(svg)
+    .associate { it.groupValues[1].lowercase() to it.groupValues[2].toFloatOrNull() }
+  val viewBox = SVG_VIEWBOX_REGEX.find(svg)?.groupValues
+  val vbX = viewBox?.getOrNull(1)?.toFloatOrNull() ?: 0f
+  val vbY = viewBox?.getOrNull(2)?.toFloatOrNull() ?: 0f
+  val vbW = viewBox?.getOrNull(3)?.toFloatOrNull() ?: dimensions["width"] ?: 0f
+  val vbH = viewBox?.getOrNull(4)?.toFloatOrNull() ?: dimensions["height"] ?: 0f
+  val width = ((dimensions["width"] ?: vbW) * density).toInt().coerceAtLeast(1)
+  val height = ((dimensions["height"] ?: vbH) * density).toInt().coerceAtLeast(1)
+  if (vbW <= 0f || vbH <= 0f) return null
+
+  val fill = SVG_FILL_REGEX.find(svg)?.groupValues?.getOrNull(1)
+  val color = parseColor(fill ?: "#000") ?: Color.BLACK
+  val opacity = SVG_FILL_OPACITY_REGEX.find(svg)?.groupValues?.getOrNull(1)?.toFloatOrNull()
+    ?.coerceIn(0f, 1f) ?: (Color.alpha(color) / 255f)
+
+  val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+    setHasAlpha(true)
+    eraseColor(Color.TRANSPARENT)
+  }
+  val canvas = Canvas(bitmap)
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.FILL
+    this.color = color
+    alpha = (opacity * 255f).toInt().coerceIn(0, 255)
+  }
+
+  val matrix = Matrix().apply {
+    postTranslate(-vbX, -vbY)
+    postScale(width / vbW, height / vbH)
+  }
+
+  var drewPath = false
+  SVG_PATH_REGEX.findAll(svg).forEach { match ->
+    val data = match.groupValues[1]
+    val path = try {
+      PathParser.createPathFromPathData(data)
+    } catch (_: Throwable) {
+      null
+    } ?: return@forEach
+    path.transform(matrix)
+    canvas.drawPath(path, paint)
+    drewPath = true
+  }
+
+  return if (drewPath) bitmap else null
+}
+
+fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int, view: View? = null) {
   val gradient = layer.gradient ?: return
 
   // invalidate cached shader if size has changed; without this the first draw
@@ -275,6 +366,17 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
     // remember the size used to create this shader
     layer.shaderWidth = width
     layer.shaderHeight = height
+
+    // A freshly (re)built gradient Shader can miss painting on the very draw
+    // call that creates it — e.g. a deeply nested scroll child whose first
+    // real-size onDraw races the GPU texture upload for the new Shader.
+    // Solid-color fills need no texture upload so they never hit this; a
+    // gradient does, and without a follow-up invalidate it stays blank until
+    // something else (scroll, rotation) forces a redraw. Schedule one
+    // guaranteed extra draw pass so the shader is actually visible.
+    if (width > 0 && height > 0) {
+      view?.postInvalidateOnAnimation()
+    }
   }
 
   // Fail-safe: if no shader could be built (e.g. an unrecognised gradient type
@@ -450,10 +552,11 @@ private fun drawBitmapLayer(
     drawWidth = if (size.first < 0) bitmap.width else (size.first * width).toInt()
     drawHeight = if (size.second < 0) bitmap.height else (size.second * height).toInt()
   }
+  if (drawWidth <= 0 || drawHeight <= 0) return
 
   // Determine position
-  val x = ((layer.position?.first ?: 0.5f) * (width - drawWidth))
-  val y = ((layer.position?.second ?: 0.5f) * (height - drawHeight))
+  val x = ((layer.position?.first ?: 0f) * (width - drawWidth))
+  val y = ((layer.position?.second ?: 0f) * (height - drawHeight))
 
   // Reuse cached RectF and Paint to avoid per-tile allocations
   val dst = bitmapDstRect
@@ -878,7 +981,7 @@ fun parseBackground(style: Style, css: String): Background? {
   // Filter out empty/default layers (e.g. when the author only specified
   // a simple color like "#fff" we don't want a placeholder layer).
   val meaningful = layers.filter { layer ->
-    layer.image != null || layer.gradient != null || layer.position != null || layer.size != null || layer.repeat != BackgroundRepeat.NO_REPEAT || layer.clip != BackgroundClip.BORDER_BOX
+    layer.image != null || layer.gradient != null || layer.position != null || layer.size != null || layer.repeat != BackgroundRepeat.REPEAT || layer.clip != BackgroundClip.BORDER_BOX
   }
 
   bg.layers.addAll(meaningful)

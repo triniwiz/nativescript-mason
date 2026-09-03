@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.util.AttributeSet
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -16,6 +17,7 @@ import androidx.core.widget.TextViewCompat
 import org.nativescript.fontmanager.FontFace
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.events.Event
 
 class Button @JvmOverloads constructor(
@@ -169,10 +171,16 @@ class Button @JvmOverloads constructor(
       style.background = "#F0F0F0"
       style.border = "1 solid #767676"
       style.borderRadius = "4"
-      style.textAlign
+      style.textAlign = TextAlign.Center
       style.syncFontMetrics()
     }
 
+    // AppCompatTextView's own draw pass ignores `paint.color`/layout alignment
+    // (it rebuilds its Layout from getGravity()/mCurTextColor), so unlike P's
+    // TextView (which draws its own StaticLayout from the live paint every
+    // frame) Button needs its CSS-resolved color/alignment explicitly synced.
+    setTextColor(style.resolvedColor)
+    gravity = resolveGravity(style.resolvedTextAlign)
 
     node.hasNativeClickDispatch = true
 
@@ -322,6 +330,24 @@ class Button @JvmOverloads constructor(
 
   override fun onChange(low: Long, high: Long) {
     engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
+
+    // super.onDraw() (AppCompatTextView) reads its own mCurTextColor/gravity,
+    // not `paint` - keep both synced whenever the CSS-resolved values change.
+    if (StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR)) {
+      setTextColor(style.resolvedColor)
+    }
+    if (StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN)) {
+      gravity = resolveGravity(style.resolvedTextAlign)
+    }
+  }
+
+  private fun resolveGravity(value: TextAlign): Int {
+    val horizontal = when (value) {
+      TextAlign.Right, TextAlign.End -> Gravity.END
+      TextAlign.Left, TextAlign.Start -> Gravity.START
+      else -> Gravity.CENTER_HORIZONTAL
+    }
+    return Gravity.CENTER_VERTICAL or horizontal
   }
 
   fun addView(view: Element) {

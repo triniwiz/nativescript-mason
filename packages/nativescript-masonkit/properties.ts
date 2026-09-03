@@ -1,19 +1,34 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty } from '@nativescript/core';
+import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
-import { isMasonChild_, isMasonView_ } from './symbols';
+import { isMasonView_ } from './symbols';
 import type { Style as MasonStyle } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
+import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 
-function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
-  const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
-  return ret._styleHelper as MasonStyle;
+function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle | undefined {
+  const ret: (NSViewBase & { _styleHelper: MasonStyle }) | undefined = (__ANDROID__ ? view?.get() : view?.deref()) as never;
+  // Undefined for a plain NativeScript view (and for a cleared ref): only mason's
+  // own view classes define `_styleHelper`.
+  return ret?._styleHelper as MasonStyle | undefined;
 }
 
-function isMasonViewOrChild(style: Style): boolean {
+// Mason parses CSS values itself, so for its own elements the raw declaration is
+// passed straight through; anything else has to go through core's parser first.
+//
+// This asks specifically whether the view *is* a mason element, not whether it
+// sits inside one. A plain NativeScript view parented into a mason tree has no
+// mason style buffer — its value still has to be converted for core, or core's
+// own setNative gets a string it can't use. See "Mixing with plain NativeScript
+// views" in MASON_CONTEXT.md.
+//
+// `isMasonView_` is a plain marker set in the mason view constructors. Don't
+// reach for `_styleHelper` here: its getter lazily builds the native view, and a
+// valueConverter can run long before that should happen.
+function isMasonView(style: Style): boolean {
   if (style && style.viewRef) {
     const view = __ANDROID__ ? style.viewRef.get() : style.viewRef.deref();
-    return view && (view[isMasonView_] || view[isMasonChild_]);
+    return !!(view && view[isMasonView_]);
   }
   return false;
 }
@@ -118,21 +133,45 @@ export const backgroundImageProperty = new CssProperty<Style, string>({
 export const backgroundRepeatProperty = new CssProperty<Style, string>({
   name: 'backgroundRepeat',
   cssName: 'background-repeat',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundRepeat = newValue as never;
+    }
+  },
 });
 
 export const backgroundPositionProperty = new CssProperty<Style, string>({
   name: 'backgroundPosition',
   cssName: 'background-position',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundPosition = newValue as never;
+    }
+  },
 });
 
 export const backgroundSizeProperty = new CssProperty<Style, string>({
   name: 'backgroundSize',
   cssName: 'background-size',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundSize = newValue as never;
+    }
+  },
 });
 
 export const backgroundClipProperty = new CssProperty<Style, string>({
   name: 'backgroundClip',
   cssName: 'background-clip',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundClip = newValue as never;
+    }
+  },
 });
 
 function overflowConverter(value) {
@@ -241,7 +280,120 @@ export const paddingProperty = new CssProperty<Style, string>({
   cssName: 'padding',
 });
 
-paddingProperty.register(Style);
+// These four style-buffer fields were consumed by the natives all along but had
+// no JS or CSS path to them: reserved StyleKeys nobody ever wrote. Same shape of
+// gap as `list-style-type`. (`text-indent` and `font-variant-numeric` are
+// deliberately left out — their offsets exist but nothing reads them yet, so
+// exposing them would write bytes into the void.)
+export const whiteSpaceProperty = new CssProperty<Style, string>({
+  name: 'whiteSpace',
+  cssName: 'white-space',
+  defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.whiteSpace = newValue as never;
+    }
+  },
+});
+
+export const objectFitProperty = new CssProperty<Style, string>({
+  name: 'objectFit',
+  cssName: 'object-fit',
+  defaultValue: 'contain',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.objectFit = newValue as never;
+    }
+  },
+});
+
+export const textJustifyProperty = new CssProperty<Style, string>({
+  name: 'textJustify',
+  cssName: 'text-justify',
+  defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textJustify = newValue as never;
+    }
+  },
+});
+
+export const textDecorationThicknessProperty = new CssProperty<Style, string>({
+  name: 'textDecorationThickness',
+  cssName: 'text-decoration-thickness',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationThickness = newValue as never;
+    }
+  },
+});
+
+// `font-family` had no path at all: FONT_FAMILY_STATE exists with no value slot
+// (the natives keep the family on a FontFace, not in the buffer), and core's
+// fontInternalProperty.setNative hook in common.ts is Windows-only. So on both
+// mobile platforms this was unsettable from CSS *and* from TS.
+export const fontFamilyProperty = new CssProperty<Style, string>({
+  name: 'fontFamily',
+  cssName: 'font-family',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.fontFamily = newValue as never;
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Registering alongside @nativescript/core
+// ---------------------------------------------------------------------------
+//
+// `CssProperty.register()` installs its accessors with Object.defineProperty, so
+// for a CSS name core already owns the last registration wins outright — and
+// masonkit registers after core. That silently shadowed core's handling of
+// `margin`, `padding`, `background`, `background-*`, `border-color`,
+// `border-radius`, `box-shadow`, `transform`, `vertical-align`, `text-overflow`,
+// `align-content`, `flex` and `flex-flow` for **every view in the app**, mason's
+// or not: a plain StackLayout with `margin: 10` in a stylesheet got nothing,
+// because mason's property only implements setNative on mason's own ViewBase.
+//
+// So instead of replacing core's accessor, keep both and pick at assignment
+// time: a mason view gets mason's, anything else keeps core's untouched.
+function registerAlongsideCore(property: { name: string; cssName?: string; cssLocalName?: string; register(cls: unknown): void }): void {
+  const proto = (Style as unknown as { prototype: object }).prototype;
+  const keys = [property.name, property.cssName, property.cssLocalName].filter((key): key is string => typeof key === 'string' && key.length > 0);
+
+  const core = new Map<string, PropertyDescriptor>();
+  for (const key of keys) {
+    const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+    if (descriptor) core.set(key, descriptor);
+  }
+
+  property.register(Style);
+
+  for (const [key, coreDescriptor] of core) {
+    const masonDescriptor = Object.getOwnPropertyDescriptor(proto, key);
+    if (!masonDescriptor) continue;
+
+    Object.defineProperty(proto, key, {
+      enumerable: masonDescriptor.enumerable ?? true,
+      configurable: true,
+      get(this: Style) {
+        const descriptor = isMasonView(this) ? masonDescriptor : coreDescriptor;
+        return descriptor.get?.call(this);
+      },
+      set(this: Style, value: unknown) {
+        const descriptor = isMasonView(this) ? masonDescriptor : coreDescriptor;
+        descriptor.set?.call(this, value);
+      },
+    });
+  }
+}
+
+registerAlongsideCore(paddingProperty);
 
 export const marginProperty = new CssProperty<Style, string>({
   name: 'margin',
@@ -255,40 +407,62 @@ export const scrollBarWidthProperty = new CssProperty<Style, number>({
   valueConverter: parseFloat,
 });
 
-flexDirectionProperty.overrideHandlers({
-  name: 'flexDirection',
-  cssName: 'flex-direction',
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      if (newValue) {
-        view.flexDirection = newValue as never;
-      } else {
-        // Revert to old value if newValue is invalid
-        // @ts-ignore
-        target.flexDirection = oldValue as never;
+// Core keeps these parsers private, so the fallbacks below have to restate them.
+// The value lists mirror @nativescript/core exactly — flexbox-layout-common's
+// FlexWrap and text-base-common's textAlignment/textTransform converters.
+const FlexWrapParse = makeParser<string>(makeValidator('nowrap', 'wrap', 'wrap-reverse'));
+const FlexDirectionParse = makeParser<string>(makeValidator('row', 'row-reverse', 'column', 'column-reverse'));
+const TextAlignmentParse = makeParser<string>(makeValidator('left', 'center', 'right', 'justify'));
+const TextTransformParse = makeParser<string>(makeValidator('none', 'capitalize', 'uppercase', 'lowercase'));
+
+/**
+ * Narrow one of @nativescript/core's own properties so mason views get mason's
+ * handling and every other view keeps core's, untouched. `overrideHandlers`
+ * replaces core's handlers outright, so the fallback to core's own handling
+ * has to be named explicitly.
+ */
+function overrideForMasonViews<TValue>(
+  property: { overrideHandlers(options: any): void },
+  options: {
+    /** Core's own converter, used for non-mason views. Omit to leave it alone. */
+    coreConverter?: (value: string) => TValue;
+    /** Forward the value into the mason style buffer. */
+    apply: (masonStyle: MasonStyle, value: TValue) => void;
+  },
+): void {
+  const handlers: Record<string, unknown> = {
+    valueChanged(target: Style, _oldValue: TValue, newValue: TValue) {
+      const masonStyle = getViewStyle(target.viewRef);
+      // No mason style means a plain NativeScript view: core's setNative owns
+      // it, so leave the value exactly as core produced it.
+      if (!masonStyle) {
+        return;
       }
-    }
+      options.apply(masonStyle, newValue);
+    },
+  };
+
+  if (options.coreConverter) {
+    handlers.valueConverter = function (this: Style, value: string) {
+      // Mason parses CSS itself, so its own elements get the raw declaration.
+      return isMasonView(this) ? value : options.coreConverter(value);
+    };
+  }
+
+  property.overrideHandlers(handlers);
+}
+
+overrideForMasonViews<string>(flexDirectionProperty, {
+  coreConverter: FlexDirectionParse,
+  apply: (style, value) => {
+    style.flexDirection = value as never;
   },
 });
 
-flexWrapProperty.overrideHandlers({
-  name: 'flexWrap',
-  cssName: 'flex-wrap',
-  valueConverter: function (value) {
-    return value as never;
-  },
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      if (newValue) {
-        view.flexWrap = newValue as never;
-      } else {
-        // Revert to old value if newValue is invalid
-        // @ts-ignore
-        target.flexWrap = oldValue as never;
-      }
-    }
+overrideForMasonViews<string>(flexWrapProperty, {
+  coreConverter: FlexWrapParse,
+  apply: (style, value) => {
+    style.flexWrap = value as never;
   },
 });
 
@@ -298,7 +472,8 @@ flexGrowProperty.overrideHandlers({
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      if (newValue) {
+      // 0 is a valid flex-grow; don't treat it as falsy/invalid
+      if (typeof newValue === 'number' && !isNaN(newValue)) {
         view.flexGrow = newValue as never;
       } else {
         // Revert to old value if newValue is invalid
@@ -313,7 +488,7 @@ fontSizeProperty.overrideHandlers({
   name: 'fontSize',
   cssName: 'font-size',
   valueConverter: function (value) {
-    if (isMasonViewOrChild(this)) {
+    if (isMasonView(this)) {
       return value as never;
     }
     return parseFloat(value as never);
@@ -382,11 +557,14 @@ export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
   defaultValue: 0,
+  // Length.parse has no '%' handling; use masonLengthPercentParse instead.
   valueConverter(value) {
-    const parsed = CoreLength.parse(value);
-    if (typeof parsed === 'string') {
+    // @ts-ignore
+    const parsed = masonLengthPercentParse(value);
+    if (parsed === undefined || typeof parsed === 'string') {
       return 0;
     }
+    // @ts-ignore
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
@@ -402,10 +580,12 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   cssName: 'column-gap',
   defaultValue: 0,
   valueConverter(value) {
-    const parsed = CoreLength.parse(value);
-    if (typeof parsed === 'string') {
+    // @ts-ignore
+    const parsed = masonLengthPercentParse(value);
+    if (parsed === undefined || typeof parsed === 'string') {
       return 0;
     }
+    // @ts-ignore
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
@@ -528,37 +708,17 @@ export const gridColumnGapProperty = new ShorthandProperty<Style, Length>({
   },
 });
 
-textAlignmentProperty.overrideHandlers({
-  name: 'textAlignment',
-  cssName: 'text-align',
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      if (newValue) {
-        view.textAlignment = newValue as never;
-      } else {
-        // Revert to old value if newValue is invalid
-        // @ts-ignore
-        target.textAlignment = oldValue as never;
-      }
-    }
+overrideForMasonViews<string>(textAlignmentProperty, {
+  coreConverter: TextAlignmentParse,
+  apply: (style, value) => {
+    style.textAlignment = value as never;
   },
 });
 
-textTransformProperty.overrideHandlers({
-  name: 'textTransform',
-  cssName: 'text-transform',
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      if (newValue) {
-        view.textTransform = newValue as never;
-      } else {
-        // Revert to old value if newValue is invalid
-        // @ts-ignore
-        target.textTransform = oldValue as never;
-      }
-    }
+overrideForMasonViews<string>(textTransformProperty, {
+  coreConverter: TextTransformParse,
+  apply: (style, value) => {
+    style.textTransform = value as never;
   },
 });
 
@@ -583,9 +743,10 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'max-width',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
+  // masonLengthParse has no '%' handling; match width/height's converter.
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -601,15 +762,44 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'max-height',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.maxHeight = newValue;
     }
   },
+});
+
+// Core's minWidth/minHeight already route into this Style via setNative
+// (common.ts), so no new CssProperty is needed — just fix the '%' handling.
+// Core's min-width/min-height converter is Length.parse, which has no '%'
+// handling; mason needs percentages. Core's own valueChanged (which sets
+// effectiveMinWidth) is deliberately left in place for both kinds of view, so
+// only the converter is narrowed — a plain view must still get a plain Length,
+// or core's Length.toDevicePixels mis-reads a percentage.
+function masonMinSizeConverter(this: Style, value: string) {
+  return (isMasonView(this) ? masonLengthPercentParse(value) : CoreLength.parse(value)) as never;
+}
+
+minWidthProperty.overrideHandlers({
+  name: 'minWidth',
+  cssName: 'min-width',
+  // @ts-ignore
+  equalityComparer: CorePercentLength.equals,
+  // @ts-ignore
+  valueConverter: masonMinSizeConverter,
+});
+
+minHeightProperty.overrideHandlers({
+  name: 'minHeight',
+  cssName: 'min-height',
+  // @ts-ignore
+  equalityComparer: CorePercentLength.equals,
+  // @ts-ignore
+  valueConverter: masonMinSizeConverter,
 });
 
 export const insetProperty = new ShorthandProperty<Style, LengthAuto>({
@@ -812,9 +1002,24 @@ export const borderRadiusProperty = new CssProperty<Style, string>({
   cssName: 'border-radius',
 });
 
+// Core's alignItems/alignSelf validator rejects Box Alignment keywords
+// ("start"/"end") masonkit's own Style setter accepts fine; bypass it for
+// Mason views/children like alignContent/justifyContent already do below.
+export const AlignItemsIsValid = makeValidator('normal', 'start', 'end', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch');
+export const AlignItemsParse = makeParser(AlignItemsIsValid);
+
+export const AlignSelfIsValid = makeValidator('normal', 'start', 'end', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch');
+export const AlignSelfParse = makeParser(AlignSelfIsValid);
+
 alignItemsProperty.overrideHandlers({
   name: 'alignItems',
   cssName: 'align-items',
+  valueConverter: function (value) {
+    if (isMasonView(this as unknown as Style)) {
+      return value as never;
+    }
+    return AlignItemsParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -832,6 +1037,12 @@ alignItemsProperty.overrideHandlers({
 alignSelfProperty.overrideHandlers({
   name: 'alignSelf',
   cssName: 'align-self',
+  valueConverter: function (value) {
+    if (isMasonView(this as unknown as Style)) {
+      return value as never;
+    }
+    return AlignSelfParse(value) as never;
+  },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -846,7 +1057,7 @@ alignSelfProperty.overrideHandlers({
   },
 });
 
-export const AlignContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'stretch');
+export const AlignContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly', 'stretch', 'normal', 'start', 'end');
 export const AlignContentParse = makeParser(AlignContentIsValid);
 
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
@@ -854,7 +1065,7 @@ export const alignContentProperty = new CssProperty<Style, AlignContent>({
   cssName: 'align-content',
   defaultValue: 'normal',
   valueConverter: function (value) {
-    if (isMasonViewOrChild(this)) {
+    if (isMasonView(this)) {
       return value as never;
     }
     return AlignContentParse(value) as never;
@@ -909,14 +1120,14 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   },
 });
 
-export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around');
+export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly', 'stretch', 'normal', 'start', 'end');
 export const JustifyContentParse = makeParser(JustifyContentIsValid);
 
 justifyContentProperty.overrideHandlers({
   name: 'justifyContent',
   cssName: 'justify-content',
   valueConverter: function (value) {
-    if (isMasonViewOrChild(this)) {
+    if (isMasonView(this)) {
       return value as never;
     }
     return JustifyContentParse(value) as never;
@@ -940,9 +1151,10 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'flex-basis',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
+  equalityComparer: CorePercentLength.equals,
+  // masonLengthParse has no '%' support; see maxWidthProperty above.
   // @ts-ignore
-  valueConverter: masonLengthParse,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -1182,7 +1394,7 @@ const flexProperty = new ShorthandProperty({
         const values = trimmed.split(/\s+/);
         if (values.length === 1) {
           switch (values[0]) {
-            case 'inital':
+            case 'initial':
               properties.push([flexGrowProperty, 0]);
               properties.push([flexShrinkProperty, 1]);
               properties.push([flexBasisProperty, 'auto']);
@@ -1198,9 +1410,11 @@ const flexProperty = new ShorthandProperty({
               properties.push([flexBasisProperty, 'auto']);
               break;
             default:
+              // CSS spec: `flex: <number>` = `<number> 1 0%`, not `auto` —
+              // a bare positive number always zeroes the basis.
               properties.push([flexGrowProperty, values[0]]);
               properties.push([flexShrinkProperty, 1]);
-              properties.push([flexBasisProperty, 'auto']);
+              properties.push([flexBasisProperty, '0%']);
           }
         }
         if (values.length >= 2) {
@@ -1208,8 +1422,10 @@ const flexProperty = new ShorthandProperty({
           properties.push([flexShrinkProperty, values[1]]);
         }
 
-        if (value.length >= 3) {
-          properties.push({ property: flexBasisProperty, value: values[2] });
+        // `values.length` (array), not `value.length` (the string). core's
+        // setCssValue destructures each entry as `[property, value]`.
+        if (values.length >= 3) {
+          properties.push([flexBasisProperty, values[2]]);
         }
       }
     }
@@ -1251,7 +1467,7 @@ verticalAlignmentProperty.overrideHandlers({
   name: 'verticalAlignment',
   cssName: 'vertical-align',
   valueConverter: function (value) {
-    if (isMasonViewOrChild(this)) {
+    if (isMasonView(this)) {
       return value as never;
     }
     return CoreTypes.VerticalAlignmentText.parse(value) as never;
@@ -1271,21 +1487,10 @@ verticalAlignmentProperty.overrideHandlers({
   },
 });
 
-textShadowProperty.overrideHandlers({
-  name: 'textShadow',
-  cssName: 'text-shadow',
-  valueConverter: function (value) {
-    return value as never;
-  },
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.textShadow = newValue as never;
-    } else {
-      // Revert to old value if newValue is invalid
-      // @ts-ignore
-      target.textShadow = oldValue;
-    }
+overrideForMasonViews<string>(textShadowProperty, {
+  coreConverter: parseCSSShadow as never,
+  apply: (style, value) => {
+    style.textShadow = value as never;
   },
 });
 
@@ -1319,26 +1524,50 @@ export const transformProperty = new CssProperty<Style, string>({
 export const cornerShapeTopLeftProperty = new CssProperty<Style, string>({
   name: 'cornerShapeTopLeft',
   cssName: 'corner-shape-top-left',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.cornerShapeTopLeft = newValue as never;
+    }
+  },
 });
 
 export const cornerShapeTopRightProperty = new CssProperty<Style, string>({
   name: 'cornerShapeTopRight',
   cssName: 'corner-shape-top-right',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.cornerShapeTopRight = newValue as never;
+    }
+  },
 });
 
 export const cornerShapeBottomRightProperty = new CssProperty<Style, string>({
   name: 'cornerShapeBottomRight',
   cssName: 'corner-shape-bottom-right',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.cornerShapeBottomRight = newValue as never;
+    }
+  },
 });
 
 export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
   name: 'cornerShapeBottomLeft',
   cssName: 'corner-shape-bottom-left',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.cornerShapeBottomLeft = newValue as never;
+    }
+  },
 });
 
 cornerShapeProperty.register(Style);
-boxShadowProperty.register(Style);
-transformProperty.register(Style);
+registerAlongsideCore(boxShadowProperty);
+registerAlongsideCore(transformProperty);
 cornerShapeTopLeftProperty.register(Style);
 cornerShapeTopRightProperty.register(Style);
 cornerShapeBottomRightProperty.register(Style);
@@ -1348,13 +1577,13 @@ clearProperty.register(Style);
 
 floatProperty.register(Style);
 
-verticalAlignProperty.register(Style);
+registerAlongsideCore(verticalAlignProperty);
 
-textOverFlowProperty.register(Style);
+registerAlongsideCore(textOverFlowProperty);
 
-flexProperty.register(Style);
+registerAlongsideCore(flexProperty);
 
-flexFlowProperty.register(Style);
+registerAlongsideCore(flexFlowProperty);
 
 textWrapProperty.register(Style);
 
@@ -1362,7 +1591,7 @@ gridTemplateColumnsProperty.register(Style);
 
 gridTemplateRowsProperty.register(Style);
 
-alignContentProperty.register(Style);
+registerAlongsideCore(alignContentProperty);
 
 justifySelfProperty.register(Style);
 
@@ -1394,7 +1623,7 @@ aspectRatioProperty.register(Style);
 
 flexBasisProperty.register(Style);
 
-borderRadiusProperty.register(Style);
+registerAlongsideCore(borderRadiusProperty);
 
 boxSizingProperty.register(Style);
 
@@ -1419,16 +1648,16 @@ columnGapProperty.register(Style);
 
 scrollBarWidthProperty.register(Style);
 
-marginProperty.register(Style);
+registerAlongsideCore(marginProperty);
 
 overflowProperty.register(Style);
 overflowXProperty.register(Style);
 overflowYProperty.register(Style);
 
-backgroundProperty.register(Style);
-backgroundRepeatProperty.register(Style);
-backgroundPositionProperty.register(Style);
-backgroundSizeProperty.register(Style);
+registerAlongsideCore(backgroundProperty);
+registerAlongsideCore(backgroundRepeatProperty);
+registerAlongsideCore(backgroundPositionProperty);
+registerAlongsideCore(backgroundSizeProperty);
 backgroundClipProperty.register(Style);
 
 borderProperty.register(Style);
@@ -1438,7 +1667,7 @@ borderRightProperty.register(Style);
 borderBottomProperty.register(Style);
 
 filterProperty.register(Style);
-borderColorProperty.register(Style);
+registerAlongsideCore(borderColorProperty);
 
 // New CSS properties
 
@@ -1446,6 +1675,12 @@ export const objectPositionProperty = new CssProperty<Style, string>({
   name: 'objectPosition',
   cssName: 'object-position',
   defaultValue: '50% 50%',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.objectPosition = newValue as never;
+    }
+  },
 });
 
 export const borderStyleProperty = new CssProperty<Style, string>({
@@ -1457,53 +1692,107 @@ export const borderStyleProperty = new CssProperty<Style, string>({
 export const borderImageProperty = new CssProperty<Style, string>({
   name: 'borderImage',
   cssName: 'border-image',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.borderImage = newValue as never;
+    }
+  },
 });
 
 export const fontStretchProperty = new CssProperty<Style, string>({
   name: 'fontStretch',
   cssName: 'font-stretch',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.fontStretch = newValue as never;
+    }
+  },
 });
 
 export const fontFeatureSettingsProperty = new CssProperty<Style, string>({
   name: 'fontFeatureSettings',
   cssName: 'font-feature-settings',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.fontFeatureSettings = newValue as never;
+    }
+  },
 });
 
 export const wordSpacingProperty = new CssProperty<Style, string>({
   name: 'wordSpacing',
   cssName: 'word-spacing',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.wordSpacing = newValue as never;
+    }
+  },
 });
 
 export const hyphensProperty = new CssProperty<Style, string>({
   name: 'hyphens',
   cssName: 'hyphens',
   defaultValue: 'manual',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.hyphens = newValue as never;
+    }
+  },
 });
 
 export const backdropFilterProperty = new CssProperty<Style, string>({
   name: 'backdropFilter',
   cssName: 'backdrop-filter',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backdropFilter = newValue as never;
+    }
+  },
 });
 
 export const writingModeProperty = new CssProperty<Style, string>({
   name: 'writingMode',
   cssName: 'writing-mode',
   defaultValue: 'horizontal-tb',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.writingMode = newValue as never;
+    }
+  },
 });
 
 export const unicodeBidiProperty = new CssProperty<Style, string>({
   name: 'unicodeBidi',
   cssName: 'unicode-bidi',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.unicodeBidi = newValue as never;
+    }
+  },
 });
 
 export const caretColorProperty = new CssProperty<Style, string>({
   name: 'caretColor',
   cssName: 'caret-color',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.caretColor = newValue as never;
+    }
+  },
 });
 
 objectPositionProperty.register(Style);
@@ -1518,7 +1807,7 @@ writingModeProperty.register(Style);
 unicodeBidiProperty.register(Style);
 caretColorProperty.register(Style);
 
-backgroundImageProperty.register(Style);
+registerAlongsideCore(backgroundImageProperty);
 
 export const listStyleTypeProperty = new CssProperty<Style, string>({
   name: 'listStyleType',
@@ -1532,5 +1821,14 @@ export const listStylePositionProperty = new CssProperty<Style, string>({
 
 listStyleTypeProperty.register(Style);
 listStylePositionProperty.register(Style);
+
+// core owns `white-space` too (its Label honours nowrap), so dispatch.
+registerAlongsideCore(whiteSpaceProperty);
+objectFitProperty.register(Style);
+textJustifyProperty.register(Style);
+textDecorationThicknessProperty.register(Style);
+// core owns `font-family` (through its Font shorthand), so this has to dispatch
+// rather than shadow it.
+registerAlongsideCore(fontFamilyProperty);
 
 displayProperty.register(Style);

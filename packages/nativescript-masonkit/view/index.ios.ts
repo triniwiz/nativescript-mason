@@ -126,9 +126,17 @@ export class View extends ViewBase {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
-
+          // Tell Swift's layoutSubviews-driven autoComputeIfRoot this parent
+          // size is already handled, so setting our frame below doesn't
+          // trigger a second, redundant native compute+apply pass.
           // @ts-ignore
-          const layout = this.ios.mason_layout();
+          this.ios.mason_markRootComputeApplied();
+
+          // computeWithSize already applied the layout natively and cached it
+          // on the node — read it back instead of paying for another native
+          // round trip via mason_layout().
+          // @ts-ignore
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -141,6 +149,11 @@ export class View extends ViewBase {
           // measure by max-content so we don't accidentally collapse to zero.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
+          // Same as above: prevent autoComputeIfRoot from immediately
+          // overriding this max-content measurement with a constrained
+          // compute against the parent's exact bounds.
+          // @ts-ignore
+          this.ios.mason_markRootComputeApplied();
           // @ts-ignore
           const layout = this.ios.node.computedLayout;
 
@@ -199,7 +212,7 @@ export class View extends ViewBase {
     view[isMasonView_] = false;
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
-    // Inverse of `_addViewToNativeVisualTree` — unlink the mason node so removal detaches
+    // Unlink the mason node so removal detaches
     // the Rust node + native view instead of orphaning it (super only does removeFromSuperview).
     const nativeView = this._view as any;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {

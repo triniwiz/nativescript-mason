@@ -43,7 +43,17 @@ class MasonLayoutTree {
 
   private var childIndicesCount = 0
 
-  fun fromFloatArray(args: FloatArray) {
+  // Set while applyLayoutFlat()'s DFS walks this tree (see Element.kt); a
+  // reentrant refill mid-traversal would overwrite arrays the DFS still
+  // has live references into. fromFloatArray() refuses to run while true.
+  @JvmField
+  internal var reading = false
+
+  /** Returns false (and leaves this tree untouched) if a DFS is currently reading it. */
+  fun fromFloatArray(args: FloatArray): Boolean {
+    if (reading) {
+      return false
+    }
     val STRIDE = 22
     val estimatedNodes = args.size / STRIDE
     ensureCapacity(estimatedNodes, estimatedNodes) // rough estimate for child indices too
@@ -146,6 +156,7 @@ class MasonLayoutTree {
       ensureCapacity(nodeCount + 1, childIndicesCount)
     }
 
+    return true
   }
 
   private fun ensureCapacity(nodes: Int, childIndicesCap: Int) {

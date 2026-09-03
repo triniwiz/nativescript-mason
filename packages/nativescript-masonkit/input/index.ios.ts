@@ -36,12 +36,24 @@ export class Input extends InputBase {
         return MasonInputType.Tel;
       case 'url':
         return MasonInputType.Url;
+      case 'search':
+        return MasonInputType.Search;
+      case 'time':
+        return MasonInputType.Time;
+      case 'datetime-local':
+        return MasonInputType.DatetimeLocal;
+      case 'month':
+        return MasonInputType.Month;
+      case 'week':
+        return MasonInputType.Week;
       case 'color':
         return MasonInputType.Color;
       case 'file':
         return MasonInputType.File;
       case 'submit':
         return MasonInputType.Submit;
+      case 'reset':
+        return MasonInputType.Reset;
     }
     return MasonInputType.Text;
   }
@@ -52,7 +64,6 @@ export class Input extends InputBase {
   }
 
   [multipleProperty.setNative](value) {
-    this._type = value;
     if (this._view) {
       this._view.multiple = value;
     }
@@ -146,12 +157,9 @@ export class Input extends InputBase {
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
       if (!this[isMasonView_]) {
-        // when operating as a root/non‑Mason parent element we need to
-        // decide between computing with an explicit size or using the
-        // content-driven fallback. previous logic always used
-        // mason_computeWithSize for auto/auto which collapses when the
-        // incoming spec is UNSPECIFIED (a common case for the root). detect
-        // that and treat it as unconstrained instead.
+        // As a root/non-Mason parent, an UNSPECIFIED (or AT_MOST/0) spec must
+        // be treated as unconstrained, not run through mason_computeWithSize
+        // for auto/auto, which would collapse it.
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
         if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
