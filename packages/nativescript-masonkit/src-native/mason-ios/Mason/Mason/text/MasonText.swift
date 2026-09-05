@@ -457,10 +457,26 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   }
   
   public override func setNeedsDisplay() {
-    if(engine.drawState == DrawState.idle){
-      super.setNeedsDisplay()
-      engine.drawState = DrawState.pending
+    // Never gate the invalidation itself. CoreAnimation already coalesces
+    // repeated calls, but the old `drawState == .idle` guard could drop one
+    // permanently: if a requested display never actually ran (backing store
+    // dropped on re-attach, zero-sized pass, offscreen view), the engine
+    // latched at `.pending` and swallowed every later invalidation.
+    super.setNeedsDisplay()
+    if engine.drawState == .idle {
+      engine.drawState = .pending
     }
+  }
+
+  public override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // A view that leaves and re-enters the hierarchy comes back with an empty
+    // backing store; CoreAnimation does not replay the last draw. Ask for one
+    // explicitly, and clear any stale `.pending` left by a display that never
+    // ran, so the text cannot come back blank.
+    guard window != nil else { return }
+    engine.drawState = .idle
+    textLayer.setNeedsDisplay()
   }
   
   

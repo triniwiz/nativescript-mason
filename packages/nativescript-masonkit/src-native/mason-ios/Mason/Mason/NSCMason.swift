@@ -301,21 +301,68 @@ public class NSCMason: NSObject {
     }
   }
 
+  private static var _scale: Float = 0
+  private static var scaleObserversInstalled = false
+
+  /// The display scale every layout value is converted through.
+  ///
+  /// Cached: resolving it walks `connectedScenes` and each scene's windows,
+  /// and it's read on the hottest paths there are (once per text measure,
+  /// once per node applying a computed layout). Invalidated by the
+  /// notifications below when the window moves between displays.
   @objc public static var scale: Float {
     get {
-      for scene in UIApplication.shared.connectedScenes {
-             guard let windowScene = scene as? UIWindowScene else { continue }
+      installScaleObserversIfNeeded()
+      if _scale > 0 {
+        return _scale
+      }
+      _scale = resolveScale()
+      return _scale
+    }
+  }
 
-             for window in windowScene.windows where window.isKeyWindow {
-                 return Float(window.traitCollection.displayScale)
-             }
-         }
+  /// Drop the cached scale; the next read resolves it again.
+  @objc public static func invalidateScale() {
+    _scale = 0
+  }
 
-         #if os(visionOS)
-         return 1.0
-         #else
-         return Float(UIScreen.main.scale)
-         #endif
+  private static func resolveScale() -> Float {
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+
+      for window in windowScene.windows where window.isKeyWindow {
+        return Float(window.traitCollection.displayScale)
+      }
+    }
+
+    #if os(visionOS)
+    return 1.0
+    #else
+    return Float(UIScreen.main.scale)
+    #endif
+  }
+
+  private static func installScaleObserversIfNeeded() {
+    if scaleObserversInstalled { return }
+    scaleObserversInstalled = true
+    let center = NotificationCenter.default
+    let invalidate: (Notification) -> Void = { _ in NSCMason.invalidateScale() }
+    var names: [Notification.Name] = [
+      UIScene.didActivateNotification,
+      UIScene.willDeactivateNotification,
+      UIApplication.didBecomeActiveNotification,
+    ]
+    // `UIScreen` is not part of the visionOS SDK — the same reason
+    // `resolveScale()` returns a fixed 1.0 there.
+    #if !os(visionOS)
+    names.append(contentsOf: [
+      UIScreen.didConnectNotification,
+      UIScreen.didDisconnectNotification,
+      UIScreen.modeDidChangeNotification,
+    ])
+    #endif
+    for name in names {
+      center.addObserver(forName: name, object: nil, queue: .main, using: invalidate)
     }
   }
 }

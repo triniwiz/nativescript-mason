@@ -104,6 +104,7 @@ private struct MasonElementProperties {
   static var isInLayout: UInt8 = 1
   static var computeCacheDirty: UInt8 = 2
   static var lastAutoComputeSize: UInt8 = 3
+  static var layoutPassScheduled: UInt8 = 4
 }
 
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -276,27 +277,19 @@ extension MasonElement {
   }
   
   
+  /// The MasonElement a layout pass has to start from — the document element
+  /// when this node hangs off a document, otherwise the tree's own root.
+  internal func rootLayoutElement() -> MasonElement? {
+    let root = node.getRootNode()
+    if root.type == .document {
+      return root.document?.documentElement as? MasonElement
+    }
+    return root.view as? MasonElement
+  }
+
   public func requestLayout() {
     node.markDirty()
-    let root = node.getRootNode()
-    let view = if(root.type == .document){
-      root.document?.documentElement as? MasonElement
-    }else {
-      root.view as? MasonElement
-    }
-
-    if let view = view {
-      if view.isInLayout {
-        // Currently inside a layout pass — defer to avoid re-entrant layout.
-        DispatchQueue.main.async {
-          view.computeWithViewSize(layout: true)
-        }
-      } else {
-        view.isInLayout = true
-        defer { view.isInLayout = false }
-        view.computeWithViewSize(layout: true)
-      }
-    }
+    rootLayoutElement()?.setNeedsLayoutPass()
   }
   
   public func invalidate(markDirty: Bool = false) {
@@ -391,6 +384,47 @@ extension MasonElement {
     }
     set {
       objc_setAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  private var layoutPassScheduled: Bool {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.layoutPassScheduled) as? Bool ?? false
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.layoutPassScheduled, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  /// Ask for one layout pass over this root, at most once per run-loop turn.
+  ///
+  /// Building a screen is thousands of individual mutations, each calling
+  /// `requestLayout()`; running a synchronous full pass per mutation makes the
+  /// page quadratic in node count. Worse, a pass itself produces mutations
+  /// (measurement resolving text styles calls back into `requestLayout()`),
+  /// so an uncoalesced queued pass per mutation grows without bound.
+  ///
+  /// `setNeedsLayout()` lets UIKit run the pass at the normal point in the
+  /// frame via `autoComputeIfRoot()`; the queued block is the backstop for a
+  /// root not yet in a window, and no-ops once UIKit already did the work.
+  internal func setNeedsLayoutPass() {
+    uiView.setNeedsLayout()
+
+    if layoutPassScheduled { return }
+    layoutPassScheduled = true
+
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      self.layoutPassScheduled = false
+      guard !self.isInLayout else {
+        // A pass is running right now; it will observe the dirt we just
+        // marked, or the next mutation reschedules. Never queue a second one.
+        return
+      }
+      guard self.node.isDirty || self.computeCacheDirty else { return }
+      self.isInLayout = true
+      defer { self.isInLayout = false }
+      self.computeWithViewSize(layout: true)
     }
   }
 
@@ -759,6 +793,18 @@ class MasonElementHelpers: NSObject {
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
     if let view = node.view, !(view is MasonBr.FakeView) {
+      // Keep `display: none` out of the render tree. The style setter already
+      // does this, but a view can be created after its style was applied (the
+      // native view is built lazily), so reassert it here where every laid-out
+      // node passes through — otherwise a hidden subtree keeps painting at
+      // whatever frame it last had, on top of the content that replaced it.
+      let hidden = node.style.display == .None
+      if view.isHidden != hidden {
+        view.isHidden = hidden
+      }
+      if hidden {
+        return
+      }
       var isTextView = false
       var realLayout = layout
       var hasWidthConstraint: Bool = false

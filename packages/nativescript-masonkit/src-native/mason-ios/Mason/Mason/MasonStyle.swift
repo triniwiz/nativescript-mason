@@ -550,8 +550,14 @@ public class MasonStyle: NSObject {
     syncFontMetricsNow()
   }
   
-  private func syncFontMetricsNow(){
-    guard let baseFont = font.uiFont else {return}
+  /// Writes the current font's metrics into the style buffer.
+  ///
+  /// Returns whether any of them actually changed, so a deferred flush knows
+  /// whether to dirty the node and ask for another layout pass — re-resolving
+  /// the same font must not, or measure/flush/relayout loops forever.
+  @discardableResult
+  private func syncFontMetricsNow() -> Bool {
+    guard let baseFont = font.uiFont else {return false}
 
     // `font.uiFont` is built at a fixed size; size it to the actual fontSize so
     // metrics feed the correct line-box height (else font-size doesn't relayout).
@@ -565,22 +571,31 @@ public class MasonStyle: NSObject {
     let xHeight = Float(font.xHeight) * scale
     let capHeight = Float(font.capHeight) * scale
     let leading = Float(font.leading) * scale
-    
-    
-    setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
-    setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
-    setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
-    setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
-    setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+
+    var changed = false
+    func write(_ offset: Int, _ value: Float) {
+      if getFloat(offset) != value {
+        setFloat(offset, value)
+        changed = true
+      }
+    }
+
+    write(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
+    write(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
+    write(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
+    write(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
+    write(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+    return changed
   }
   
   /// Flush deferred font metrics sync after measure callback returns.
-  /// Returns true if a sync was pending (caller should mark node dirty).
+  /// Returns true if the flush actually changed the metrics (caller should
+  /// mark the node dirty). A pending flush that resolves to the same numbers
+  /// returns false — see `syncFontMetricsNow()`.
   internal func flushPendingMetricsSync() -> Bool {
     if !pendingMetricsSync { return false }
     pendingMetricsSync = false
-    syncFontMetricsNow()
-    return true
+    return syncFontMetricsNow()
   }
   
   
@@ -2177,6 +2192,11 @@ public class MasonStyle: NSObject {
       setInt8(StyleKeys.DISPLAY, value)
       setInt8(StyleKeys.DISPLAY_MODE, displayMode.rawValue)
       setOrAppendState(StateKeys.display.union(StateKeys.displayMode))
+
+      // `display: none` gives the subtree a zero-sized layout, but a
+      // zero-sized UIView still draws unclipped. Take it out of the render
+      // tree to match.
+      node.view?.isHidden = newValue == .None
     }
   }
   

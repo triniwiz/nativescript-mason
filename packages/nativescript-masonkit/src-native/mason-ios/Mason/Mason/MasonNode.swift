@@ -17,19 +17,20 @@ private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _
   defer {
     node.style.inMeasure = false
     // If style writes were deferred (pendingMetricsSync), schedule a
-    // re-layout after Rust releases the read lock. Since everything runs
-    // on the main thread, DispatchQueue.main.async defers to the next
-    // run-loop iteration — after the current compute finishes.
-    if node.style.pendingMetricsSync {
+    // re-layout after Rust releases the read lock via DispatchQueue.main.async.
+    // Queue at most one flush per node: measurement runs several times per
+    // node in a single pass, and an unguarded queue-per-measure never drains.
+    if node.style.pendingMetricsSync && !node.metricsSyncScheduled {
+      node.metricsSyncScheduled = true
       DispatchQueue.main.async { [weak node] in
         guard let node = node else { return }
+        node.metricsSyncScheduled = false
         if node.style.flushPendingMetricsSync() {
           node.markDirty()
-          // Trigger a full re-layout so the corrected metrics are picked
-          // up before the next frame commits, rather than waiting for an
-          // unrelated setNeedsLayout that may never come.
+          // requestLayout coalesces, so however many nodes flush metrics this
+          // turn, the tree lays out once.
           if let element = node.view as? MasonElement {
-            element.computeWithViewSize(layout: true)
+            element.requestLayout()
           } else {
             node.view?.setNeedsLayout()
           }
@@ -103,6 +104,10 @@ public class MasonNode: NSObject {
   
   internal var isAnonymous = false
   internal var isPlaceholder: Bool = false
+
+  /// True while a deferred font-metrics flush is already queued for this node
+  /// — see the `measure` callback's `defer` block.
+  internal var metricsSyncScheduled = false
 
   /// The markup last assigned through `innerHTML`, so the getter can return it.
   /// Serialising the live tree back to HTML is a separate piece of work.
