@@ -3,7 +3,10 @@
 import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
 import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { fontInternalProperty } from '@nativescript/core/ui/styling/style-properties';
+// The per-corner radius and per-side colour longhands core's `border-radius`
+// / `border-color` shorthands expand into. They live in the styling module
+// rather than core's root export, unlike the border *width* longhands above.
+import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { Style as MasonStyle, Style } from './style';
 import {
@@ -64,7 +67,7 @@ import {
   listStyleTypeProperty,
   listStylePositionProperty,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
 import { Tree } from './tree';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
@@ -318,6 +321,38 @@ declare module '@nativescript/core/ui/styling/style' {
 /** "background-color" -> "backgroundColor". */
 function toCamelCase(prop: string): string {
   return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/** A core `Length` (number of dip, or `{ value, unit }`) as a CSS string. */
+function lengthToCssString(value: CoreTypes.LengthType | undefined | null): string {
+  if (value == null) {
+    return '0';
+  }
+  if (typeof value === 'number') {
+    return `${value}px`;
+  }
+  const unit = (value as { unit?: string }).unit;
+  const amount = (value as { value?: number }).value ?? 0;
+  return unit === '%' ? `${amount * 100}%` : `${amount}px`;
+}
+
+/**
+ * A core colour value as a CSS string. Duck-typed rather than
+ * `instanceof Color` on purpose: a `Color` can arrive from a different
+ * `@nativescript/core` copy, where `instanceof` fails.
+ */
+function colorToCssString(value: unknown): string {
+  if (value == null) {
+    return 'transparent';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  const hex = (value as { hex?: string }).hex;
+  if (typeof hex === 'string') {
+    return hex;
+  }
+  return String(value);
 }
 
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
@@ -1268,7 +1303,21 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (Array.isArray(frameworkEl.childNodes)) {
         const rawChildNodes = frameworkEl.childNodes as any[];
         if (rawChildNodes.length === 0) {
-          this.replaceChild({ [text_]: value }, 0);
+          // No framework-tracked DOM child backs this text (e.g. a Label-like
+          // element with plain `.text` set directly). Without a stable node to
+          // key the reuse cache on, every write fell through to the "always
+          // new" `replaceChild` string branch, orphaning a native TextNode
+          // each call. Cache a synthetic node on `this` instead, so repeat
+          // writes route through the same update-in-place path a real DOM
+          // text node gets (and never touch `replaceChild`, which a host
+          // framework's DOM shim may itself shadow).
+          let node = (this as any)[emptyTextNode_];
+          if (!node) {
+            node = {};
+            (this as any)[emptyTextNode_] = node;
+          }
+          node.text = value;
+          this._updateTextNode(node, { type: this._children.length === 0 ? 'add' : 'replace', index: 0, isBreak: false });
           return;
         }
 
@@ -1386,6 +1435,82 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       // @ts-ignore
       style.borderRadius = value;
     }
+  }
+
+  // `border-radius` / `border-color` arriving as core's longhands.
+  //
+  // Core expands both shorthands into four longhands before a *stylesheet*
+  // declaration ever reaches a property (`_expandCssShorthand` in
+  // ui/styling/css-selector), so our own shorthand `setNative` above only
+  // ever fires for an inline `view.style.borderRadius = …`. A CSS class was
+  // silently doing nothing. Each longhand below records its corner/side and
+  // recomposes the whole shorthand string, which is the shape the native
+  // side parses anyway.
+
+  private _borderRadiusCorner(corner: 'tl' | 'tr' | 'br' | 'bl', value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (!style) {
+      return;
+    }
+    let corners = (this as any)[borderRadiusCorners_];
+    if (!corners) {
+      corners = (this as any)[borderRadiusCorners_] = { tl: '0', tr: '0', br: '0', bl: '0' };
+    }
+    corners[corner] = lengthToCssString(value);
+    // @ts-ignore
+    style.borderRadius = `${corners.tl} ${corners.tr} ${corners.br} ${corners.bl}`;
+  }
+
+  [borderTopLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
+    this._borderRadiusCorner('tl', value);
+  }
+
+  [borderTopRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
+    this._borderRadiusCorner('tr', value);
+  }
+
+  [borderBottomRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
+    this._borderRadiusCorner('br', value);
+  }
+
+  [borderBottomLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
+    this._borderRadiusCorner('bl', value);
+  }
+
+  private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
+    let sides = (this as any)[borderSideColors_];
+    if (!sides) {
+      sides = (this as any)[borderSideColors_] = { t: 'transparent', r: 'transparent', b: 'transparent', l: 'transparent' };
+    }
+    sides[side] = colorToCssString(value);
+    const shorthand = `${sides.t} ${sides.r} ${sides.b} ${sides.l}`;
+    if (__ANDROID__) {
+      // @ts-ignore
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, shorthand);
+    } else if (__APPLE__) {
+      // @ts-ignore
+      (this.nativeView as any)?.style?.setBorderColor(shorthand);
+    } else if (__WINDOWS__) {
+      // @ts-ignore
+      this._styleHelper?.setBorderColor(shorthand);
+    }
+  }
+
+  [borderTopColorProperty.setNative](value: any) {
+    this._borderSideColor('t', value);
+  }
+
+  [borderRightColorProperty.setNative](value: any) {
+    this._borderSideColor('r', value);
+  }
+
+  [borderBottomColorProperty.setNative](value: any) {
+    this._borderSideColor('b', value);
+  }
+
+  [borderLeftColorProperty.setNative](value: any) {
+    this._borderSideColor('l', value);
   }
 
   set border(value) {
@@ -2525,6 +2650,7 @@ srcProperty.register(ImageBase);
 
 export class Event {
   [native_];
+  [eventType_]: string | undefined;
 
   get bubbles() {
     if (__ANDROID__) {
@@ -2611,15 +2737,10 @@ export class Event {
   }
 
   get currentTarget() {
-    if (__ANDROID__) {
-      return this[native_]?.getCurrentTarget();
-    }
-
-    if (__APPLE__) {
-      return this[native_]?.currentTarget;
-    }
-
-    return false;
+    // DOM semantics: the element the listener is attached to, not the raw
+    // native view. `_target` is set to that same owner at every dispatch
+    // site (_registerNativeEvent), so reuse it here.
+    return this['_target'];
   }
 
   stopImmediatePropagation(): void {
@@ -2652,14 +2773,34 @@ export class Event {
     }
   }
 
+  // Writable on purpose, unlike the DOM's read-only `Event.type`. Aliases
+  // (e.g. 'tap') are folded onto the native name ('click') before the event
+  // reaches JS; a host framework's DOM shim relabels it back to the name the
+  // listener was registered under and re-dispatches, which needs a working
+  // setter or the relabel is silently dropped and the listener never fires.
   get type(): string {
+    const override = this[eventType_];
+    if (override !== undefined) {
+      return override;
+    }
     if (__ANDROID__) {
       return this[native_]?.getType();
     }
     return this[native_]?.type;
   }
 
-  set type(_: string) {}
+  set type(value: string) {
+    this[eventType_] = value;
+  }
+
+  // DOM MouseEvent.button: 0 = primary button. Mason's touch-originated
+  // click has no native concept of mouse buttons, but callers checking
+  // `e.button === 0` (e.g. a router's <Link> onClick guard) expect this.
+  get button(): number {
+    return 0;
+  }
+
+  set button(_: number) {}
 
   get target(): any {
     return this['_target'];
