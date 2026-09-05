@@ -773,22 +773,31 @@ impl Mason {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().push(segment);
         }
-        // segments changed; invalidate cached layout
-        self.0.mark_dirty(node);
+        // Invalidate cached layout, but not mid-pass; see `tree::in_layout_pass`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn clear_segments(&mut self, node: Id) {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().clear();
         }
-        self.0.mark_dirty(node);
+        // Same reasoning as `set_segments`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
         if let Some(data) = self.0.node_data().get(node) {
             *data.inline_segments.lock() = segments;
         }
-        self.0.mark_dirty(node);
+        // A measure callback pushing back the segments it just resolved is the
+        // pass writing to itself, not a content change; see `tree::in_layout_pass`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {

@@ -1345,6 +1345,21 @@ impl Tree {
         known_dimensions: Size<Option<f32>>,
         available_space: Size<AvailableSpace>,
     ) -> Size<f32> {
+        // A text leaf's size is a function of the width it's offered, not the
+        // height it's given — it wraps horizontally and reports how tall the
+        // result came out. Canonicalise the height for text containers so the
+        // cache doesn't split across every height a pass probes, and so the
+        // engines (iOS clamps CTFramesetter to the offered height) agree.
+        let available_space = if self.nodes()[child_id].is_text_container()
+            && known_dimensions.height.is_none()
+        {
+            Size {
+                width: available_space.width,
+                height: AvailableSpace::MaxContent,
+            }
+        } else {
+            available_space
+        };
         if let Some(cached) = self.nodes()[child_id]
             .inline_measure_cache
             .get(known_dimensions, available_space)
