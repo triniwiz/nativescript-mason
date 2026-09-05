@@ -244,6 +244,7 @@ extension Mason.Button {
   @objc public static var scale: Swift.Float {
     @objc get
   }
+  @objc public static func invalidateScale()
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
   @objc override dynamic public init()
@@ -2257,6 +2258,7 @@ public enum InlineSegmentPayload {
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToWindow()
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
