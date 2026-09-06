@@ -13636,6 +13636,39 @@
           },
           {
             "kind": "Function",
+            "name": "markRootComputeApplied",
+            "printedName": "markRootComputeApplied(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementPAAE22markRootComputeAppliedyySf_SftF",
+            "mangledName": "$s5Mason0A7ElementPAAE22markRootComputeAppliedyySf_SftF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "declAttributes": ["AccessControl", "RawDocComment"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "append",
             "printedName": "append(_:)",
             "children": [
@@ -91488,6 +91521,37 @@
           },
           {
             "kind": "Function",
+            "name": "mason_markRootComputeAppliedWithSize",
+            "printedName": "mason_markRootComputeAppliedWithSize(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)NSObject(im)mason_markRootComputeAppliedWithSize::",
+            "mangledName": "$sSo8NSObjectC5MasonE36mason_markRootComputeAppliedWithSizeyySf_SftF",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "AccessControl", "ObjC", "RawDocComment"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "mason_computeWithMinContent",
             "printedName": "mason_computeWithMinContent()",
             "children": [
@@ -93780,15 +93844,22 @@
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
+      "kind": "IntegerLiteral",
+      "offset": 2426,
+      "length": 1,
+      "value": "5"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "BooleanLiteral",
-      "offset": 7864,
+      "offset": 7901,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "BooleanLiteral",
-      "offset": 37486,
+      "offset": 39897,
       "length": 5,
       "value": "false"
     },

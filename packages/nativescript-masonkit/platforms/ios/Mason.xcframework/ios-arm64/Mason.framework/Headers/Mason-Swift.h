@@ -1817,6 +1817,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
 - (void)mason_markRootComputeApplied;
+/// <code>mason_markRootComputeApplied</code> plus the box the host measured against, so
+/// a later <code>autoComputeIfRoot</code> reuses it rather than the superview’s bounds.
+- (void)mason_markRootComputeAppliedWithSize:(float)width :(float)height;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;
