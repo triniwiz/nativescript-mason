@@ -66,6 +66,7 @@ import {
   backgroundImageProperty,
   listStyleTypeProperty,
   listStylePositionProperty,
+  installMasonSizeUnits,
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
 import { Tree } from './tree';
@@ -402,6 +403,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   constructor() {
     super();
+    // `width`/`height` are core CssAnimationProperties whose stylesheet accessor
+    // is non-configurable, so units Mason understands but core does not (`vh`,
+    // `rem`, `pt`, …) have to be resolved on this view's own Style object.
+    installMasonSizeUnits(this.style);
   }
 
   get innerHTML() {
