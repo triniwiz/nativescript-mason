@@ -162,9 +162,14 @@ export class Input extends InputBase {
         // for auto/auto, which would collapse it.
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
-        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+        // Compute against the parent's bounds whenever the spec gives any; see
+        // view/index.ios.ts for why auto/auto doesn't matter here.
+        if (!unconstrained) {
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
+          // Claim this root for the host's spec; see view/index.ios.ts.
+          // @ts-ignore
+          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
 
           // @ts-ignore
           const layout = this.ios.mason_layout();

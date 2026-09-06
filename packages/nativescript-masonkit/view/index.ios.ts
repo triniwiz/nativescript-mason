@@ -122,15 +122,23 @@ export class View extends ViewBase {
       if (!parentIsMason) {
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
-        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+        // Compute against the parent's bounds whenever the spec gives any, and
+        // fall back to max-content only when it doesn't. This view's own
+        // `auto`/`auto` style is not a reason to skip it: taffy honours that
+        // size either way, while a percentage, viewport unit, or an abspos
+        // child with `top: 0; bottom: 0` has nothing to resolve against
+        // without it. Android's View.kt has always passed the mapped spec
+        // through unconditionally.
+        if (!unconstrained) {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Tell Swift's layoutSubviews-driven autoComputeIfRoot this parent
-          // size is already handled, so setting our frame below doesn't
-          // trigger a second, redundant native compute+apply pass.
+          // Tell autoComputeIfRoot this parent size is already handled (so
+          // setting our frame below doesn't trigger a redundant native
+          // compute+apply pass), and hand it the spec — not always the
+          // superview's bounds, e.g. a Page measures against the safe area.
           // @ts-ignore
-          this.ios.mason_markRootComputeApplied();
+          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
 
           // computeWithSize already applied the layout natively and cached it
           // on the node — read it back instead of paying for another native
@@ -145,8 +153,8 @@ export class View extends ViewBase {
           this._measureChildren(layout);
           return;
         } else {
-          // either we had a non-auto dimension or an unconstrained spec,
-          // measure by max-content so we don't accidentally collapse to zero.
+          // Nothing definite to resolve against: measure by max-content so we
+          // don't accidentally collapse to zero.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
           // Same as above: prevent autoComputeIfRoot from immediately

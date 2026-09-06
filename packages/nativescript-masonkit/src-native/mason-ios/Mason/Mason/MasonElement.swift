@@ -105,6 +105,7 @@ private struct MasonElementProperties {
   static var computeCacheDirty: UInt8 = 2
   static var lastAutoComputeSize: UInt8 = 3
   static var layoutPassScheduled: UInt8 = 4
+  static var hostRootSize: UInt8 = 5
 }
 
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -387,6 +388,19 @@ extension MasonElement {
     }
   }
 
+  /// The box the host framework measured this root against, in device pixels.
+  ///
+  /// `.zero` means "no host is driving this root", and `autoComputeIfRoot`
+  /// falls back to the superview's bounds. See `markRootComputeApplied`.
+  private var _hostRootSize: CGSize {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.hostRootSize) as? CGSize ?? .zero
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.hostRootSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
   private var layoutPassScheduled: Bool {
     get {
       return objc_getAssociatedObject(self, &MasonElementProperties.layoutPassScheduled) as? Bool ?? false
@@ -442,8 +456,20 @@ extension MasonElement {
     if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
       _lastAutoComputeSize = parentSize
       let scale = NSCMason.scale
-      let w = scale * Float(parentSize.width)
-      let h = scale * Float(parentSize.height)
+      // A host's measure pass hands us the box it wants, which isn't always
+      // the superview's bounds — a Page measures against the safe area while
+      // its own view spans the whole screen. Prefer that box; the superview
+      // is only the fallback for a root nobody else measures.
+      let hostSize = _hostRootSize
+      let w: Float
+      let h: Float
+      if hostSize != .zero {
+        w = Float(hostSize.width)
+        h = Float(hostSize.height)
+      } else {
+        w = scale * Float(parentSize.width)
+        h = scale * Float(parentSize.height)
+      }
       // Preserve root view's frame — managed by the parent, not Mason.
       let savedFrame = uiView.frame
       isInLayout = true
@@ -460,9 +486,28 @@ extension MasonElement {
   /// then sets its frame (triggering layoutSubviews). Call this right after so
   /// autoComputeIfRoot treats the parent size as already satisfied, instead of
   /// recomputing and overriding a max-content measurement with exact bounds.
+  ///
+  /// This no-argument form says nothing about the box the host used, so a later
+  /// pass (a style mutation redirties the node) falls back to the superview's
+  /// bounds. Prefer `markRootComputeApplied(_:_:)` whenever the host has a size
+  /// to give.
   public func markRootComputeApplied() {
     guard !(uiView.superview is MasonElement) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
+    _hostRootSize = .zero
+    _lastAutoComputeSize = parentSize
+    computeCacheDirty = false
+  }
+
+  /// As above, but records the box (in device pixels) the host measured this
+  /// root against, so any later `autoComputeIfRoot` reuses it instead of the
+  /// superview's bounds. Marking is not optional for a root the host drives:
+  /// without it the first style mutation redirties the node and the next
+  /// `layoutSubviews` silently recomputes the whole subtree at the wrong size.
+  public func markRootComputeApplied(_ width: Float, _ height: Float) {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    _hostRootSize = CGSize(width: CGFloat(width), height: CGFloat(height))
     _lastAutoComputeSize = parentSize
     computeCacheDirty = false
   }
