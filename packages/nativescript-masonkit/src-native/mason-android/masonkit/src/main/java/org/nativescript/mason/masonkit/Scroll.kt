@@ -112,6 +112,8 @@ class Scroll @JvmOverloads constructor(
   }
 
   private fun clipScrollViewport(canvas: Canvas) {
+    if (!enableScrollX && !enableScrollY) return
+
     val left = scrollX + paddingLeft
     val top = scrollY + paddingTop
     val right = scrollX + width - paddingRight
