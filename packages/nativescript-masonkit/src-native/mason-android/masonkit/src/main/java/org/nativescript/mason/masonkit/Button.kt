@@ -137,6 +137,7 @@ class Button @JvmOverloads constructor(
     val x = 6f
 
     setPadding(0, 0, 0, 0)
+    includeFontPadding = false
 
     paint.textSize = fontSize
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -2374,7 +2374,7 @@ impl Tree {
             }
         };
 
-        if is_text_container {
+        if is_text_container && has_measure {
             let sizing_mode = match inputs.available_space.width {
                 AvailableSpace::Definite(_) => SizingMode::InherentSize,
                 AvailableSpace::MinContent | AvailableSpace::MaxContent => SizingMode::ContentSize,
