@@ -729,7 +729,9 @@ class TextEngine(val container: TextContainer) {
         Styles.WhiteSpace.PreLine, Styles.WhiteSpace.BreakSpaces -> true
         else -> false
       }
-      val isCollapsibleWhitespace = !preservesWhitespace && textContent.isBlank()
+
+      val laidOutContent = layout?.text ?: textContent
+      val isCollapsibleWhitespace = !preservesWhitespace && laidOutContent.isBlank()
 
       val finalHeight = if (isCollapsibleWhitespace) 0f else measuredHeight?.coerceAtLeast(minLineHeight) ?: height
       val finalWidth = if (isCollapsibleWhitespace) 0f else width
