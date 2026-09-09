@@ -21,6 +21,7 @@ pub use taffy::style::{
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
 pub use taffy::Overflow;
+mod layout_cache;
 mod node;
 
 #[cfg(target_vendor = "apple")]
