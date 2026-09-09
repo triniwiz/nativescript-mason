@@ -342,6 +342,10 @@ func markRootComputeApplied<T: MasonElement>(_ element: T) {
   element.markRootComputeApplied()
 }
 
+func markRootComputeApplied<T: MasonElement>(_ element: T, width: Float, height: Float) {
+  element.markRootComputeApplied(width, height)
+}
+
 func attachAndApply<T: MasonElement>(_ element: T) {
   element.attachAndApply()
 }
@@ -570,6 +574,13 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
   @objc public func mason_markRootComputeApplied(){
     guard let element = self as? MasonElement else { return }
     markRootComputeApplied(element)
+  }
+
+  /// `mason_markRootComputeApplied` plus the box the host measured against, so
+  /// a later `autoComputeIfRoot` reuses it rather than the superview's bounds.
+  @objc public func mason_markRootComputeAppliedWithSize(_ width: Float, _ height: Float){
+    guard let element = self as? MasonElement else { return }
+    markRootComputeApplied(element, width: width, height: height)
   }
 
   @objc public func mason_computeWithMinContent(){

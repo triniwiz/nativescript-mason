@@ -28,7 +28,8 @@ class ViewUtils {
             canvas,
             parentStyle.node,
             parent.width.toFloat(),
-            parent.height.toFloat()
+            parent.height.toFloat(),
+            includeBorderRadius = true
           )
 
           for (i in 0 until parent.childCount) {

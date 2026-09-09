@@ -774,22 +774,31 @@ impl Mason {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().push(segment);
         }
-        // segments changed; invalidate cached layout
-        self.0.mark_dirty(node);
+        // Invalidate cached layout, but not mid-pass; see `tree::in_layout_pass`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn clear_segments(&mut self, node: Id) {
         if let Some(data) = self.0.node_data().get(node) {
             data.inline_segments.lock().clear();
         }
-        self.0.mark_dirty(node);
+        // Same reasoning as `set_segments`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
         if let Some(data) = self.0.node_data().get(node) {
             *data.inline_segments.lock() = segments;
         }
-        self.0.mark_dirty(node);
+        // A measure callback pushing back the segments it just resolved is the
+        // pass writing to itself, not a content change; see `tree::in_layout_pass`.
+        if !crate::tree::in_layout_pass() {
+            self.0.mark_dirty(node);
+        }
     }
 
     pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {
@@ -1800,5 +1809,40 @@ mod tests {
             parent_h,
             expected
         );
+    }
+
+    /// Regression: the per-node state buffer is handed to platform code as a raw
+    /// pointer (a direct ByteBuffer on Android) and cached, so its address must
+    /// stay stable when the tree's SlotMap reallocates on growth.
+    #[test]
+    fn node_state_buffer_stable_across_tree_growth() {
+        use crate::node::{NodeStateKeys, NODE_STATE_BUFFER_SIZE};
+
+        let mut mason = Mason::new();
+        let first = mason.create_node();
+        let first_id = first.id();
+
+        let (ptr_before, len) = mason.node_state_data_raw_mut(first_id);
+        assert!(!ptr_before.is_null());
+        assert_eq!(len, NODE_STATE_BUFFER_SIZE);
+
+        unsafe {
+            *ptr_before.add(NodeStateKeys::IS_VIRTUAL as usize) = 1;
+        }
+
+        // Grow past the SlotMap's initial capacity to force reallocation.
+        let mut nodes = Vec::new();
+        for _ in 0..4096 {
+            nodes.push(mason.create_node());
+        }
+
+        let (ptr_after, len_after) = mason.node_state_data_raw(first_id);
+        assert_eq!(len_after, NODE_STATE_BUFFER_SIZE);
+        assert_eq!(
+            ptr_before, ptr_after as *mut u8,
+            "state buffer address changed after tree growth"
+        );
+        let sentinel = unsafe { *ptr_after.add(NodeStateKeys::IS_VIRTUAL as usize) };
+        assert_eq!(sentinel, 1, "state buffer contents lost after tree growth");
     }
 }

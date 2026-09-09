@@ -550,7 +550,7 @@ class Input @JvmOverloads constructor(
           )
           style.border = "1"
           style.borderRadius = "4"
-          style.textAlign = TextAlign.Center
+          style.textAlign = TextAlign.Left
         }
         textInput.imeOptions = EditorInfo.IME_ACTION_DONE
         when (type) {

@@ -5,6 +5,8 @@ import { styleUnderTest } from '../../tools/testing/mason-test-kit/style-under-t
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { isMasonView_ } from './symbols';
+import { setCssUnitContext } from './units';
+import { installMasonSizeUnits } from './properties';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
 // its overrideHandlers() calls — which mutate @nativescript/core's own
@@ -64,6 +66,90 @@ describe('the .css stylesheet path reaches the mason style buffer', () => {
     const { under, style } = masonHost();
     (style as any)['max-width'] = '25%';
     expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(0.25, 4);
+  });
+});
+
+describe('width/height resolve the units core cannot', () => {
+  // width/height are core CssAnimationProperties with a non-configurable
+  // accessor and no overrideHandlers, so a mason view needs the shadowing
+  // accessors ViewBase's constructor installs — done here explicitly since
+  // these assert the value core stores, not the buffer setNative forwards it to.
+  function masonSizeHost() {
+    const host = masonHost();
+    installMasonSizeUnits(host.style as never);
+    return host;
+  }
+
+  const CASES: Array<[string, string, string, number]> = [
+    ['width', '100vh', 'width', 800],
+    ['height', '100vh', 'height', 800],
+    ['width', '50vw', 'width', 200],
+    ['height', '1rem', 'height', 16],
+    ['width', '12pt', 'width', 16],
+    // px is a CSS pixel inside a mason subtree, not core's device pixel.
+    ['width', '20px', 'width', 20],
+  ];
+
+  it.each(CASES)('%s: %s', (cssName, value, readBack, expectedDip) => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { style } = masonSizeHost();
+    (style as any)[cssName] = value;
+    // A unitless value is core's dip and mason's CSS pixel — the same size.
+    expect((style as any)[readBack]).toBe(expectedDip);
+  });
+
+  it('percentages and auto still take their own path', () => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { style } = masonSizeHost();
+    (style as any)['width'] = '25%';
+    expect((style as any).width).toEqual({ value: 0.25, unit: '%' });
+    (style as any)['height'] = 'auto';
+    expect((style as any).height).toBe('auto');
+  });
+
+  it('min-* resolves the same units', () => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { style } = masonSizeHost();
+    (style as any)['min-height'] = '10vh';
+    expect((style as any).minHeight).toEqual({ value: 80, unit: 'dip' });
+  });
+
+  it('max-* reaches the buffer with the unit resolved', () => {
+    setScreenScale(2);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { under, style } = masonSizeHost();
+    (style as any)['max-width'] = '2rem';
+    expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(32 * 2, 3);
+  });
+
+  it('a plain NativeScript view keeps core parsing, units and all', () => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { style } = coreHost();
+    (style as any)['width'] = '100vh';
+    // core's parseFloat reading: the bare number, in dips. Unchanged by mason.
+    expect((style as any).width).toBe(100);
+  });
+});
+
+describe('aspect-ratio accepts the shapes CSS does', () => {
+  const CASES: Array<[string, number]> = [
+    ['2 / 3', 2 / 3],
+    ['2/3', 2 / 3],
+    ['16 / 9', 16 / 9],
+    ['1.5', 1.5],
+    ['auto 2 / 3', 2 / 3],
+  ];
+
+  it.each(CASES)('%s', (value, expected) => {
+    const { under, style } = masonHost();
+    (style as any)['aspect-ratio'] = value;
+    expect(under.getFloat32(styleKey('ASPECT_RATIO'))).toBeCloseTo(expected, 5);
+  });
+
+  it.each(['auto', '0 / 3', '2 / 0', 'nonsense'])('%s leaves no ratio', (value) => {
+    const { under, style } = masonHost();
+    (style as any)['aspect-ratio'] = value;
+    expect(Number.isNaN(under.getFloat32(styleKey('ASPECT_RATIO')))).toBe(true);
   });
 });
 

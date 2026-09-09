@@ -612,7 +612,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         style.border = "1"
         style.borderRadius = "4"
         style.padding = MasonRect(.Points(scale), .Points(scale * 2), .Points(scale), .Points(scale * 2))
-        style.textAlign = TextAlign.Center
+        style.textAlign = TextAlign.Left
       }
       textInput.returnKeyType = .default
       switch(type){

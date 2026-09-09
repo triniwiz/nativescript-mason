@@ -5,6 +5,7 @@ use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use parking_lot::{Mutex, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
+use std::cell::Cell;
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
@@ -140,6 +141,37 @@ pub(crate) struct FloatRect {
     pub bottom: f32,
     pub side: Float,
     pub node: Id,
+}
+
+thread_local! {
+    /// Depth of `Tree::compute_layout` calls on this thread.
+    ///
+    /// A leaf's measure callback writes back into the tree — text measurement
+    /// pushes the segments it just resolved for the inline layout to consume.
+    /// That write-back must not invalidate anything, since it's produced *by*
+    /// the pass that's about to read it; `mark_dirty` climbing to the root on
+    /// every measure made cache misses multiply up the tree.
+    static LAYOUT_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// True while this thread is inside `Tree::compute_layout`.
+pub fn in_layout_pass() -> bool {
+    LAYOUT_DEPTH.with(|depth| depth.get() > 0)
+}
+
+struct LayoutPassGuard;
+
+impl LayoutPassGuard {
+    fn enter() -> Self {
+        LAYOUT_DEPTH.with(|depth| depth.set(depth.get() + 1));
+        Self
+    }
+}
+
+impl Drop for LayoutPassGuard {
+    fn drop(&mut self) {
+        LAYOUT_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -910,7 +942,10 @@ impl Tree {
             }
         }
 
-        compute_root_layout(self, root, available_space);
+        {
+            let _pass = LayoutPassGuard::enter();
+            compute_root_layout(self, root, available_space);
+        }
 
         // Post-process scroll containers to clamp their sizes to parent's available space.
         // This is done after layout because block layout measures children with intrinsic sizing

@@ -388,6 +388,78 @@ function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
   return layout.toDevicePixels(n);
 }
 
+/**
+ * Parse the `aspect-ratio` value into the single float the buffer holds.
+ *
+ * CSS allows `<number>`, a `<ratio>` (`2 / 3`), `auto`, and `auto` alongside a
+ * ratio. The buffer is one f32 and NaN means "no ratio", so every shape has
+ * to land here first — a raw `'2 / 3'` handed straight to `setFloat32` would
+ * coerce to NaN.
+ */
+export function parseAspectRatio(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? value : Number.NaN;
+  }
+  if (typeof value !== 'string') {
+    return Number.NaN;
+  }
+  // `auto` may accompany a ratio (`auto 2 / 3`); mason keeps the ratio, which is
+  // what `auto` falls back to for any element without an intrinsic one.
+  const t = value
+    .trim()
+    .toLowerCase()
+    .replace(/\bauto\b/g, ' ')
+    .trim();
+  if (t === '') {
+    return Number.NaN;
+  }
+  const slash = t.indexOf('/');
+  if (slash === -1) {
+    const n = Number(t);
+    if (!Number.isFinite(n) || n <= 0) {
+      reportCssDiagnostic({ kind: 'unparsable-value', name: 'aspect-ratio', value, detail: 'expected a positive <number>, a <ratio> like "2 / 3", or auto' });
+      return Number.NaN;
+    }
+    return n;
+  }
+  const width = Number(t.slice(0, slash).trim());
+  const height = Number(t.slice(slash + 1).trim());
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    reportCssDiagnostic({ kind: 'unparsable-value', name: 'aspect-ratio', value, detail: 'both sides of a <ratio> must be positive numbers' });
+    return Number.NaN;
+  }
+  return width / height;
+}
+
+/**
+ * Resolve a CSS length to the CSS pixels (== dips) core's `Length` speaks.
+ *
+ * core's own CSS properties (`width`/`height`/`min-*`/`max-*`) parse a
+ * stylesheet declaration with `PercentLength.parse` — a bare `parseFloat` —
+ * so `100vh` arrives as the number 100 and `px` as a device pixel rather
+ * than Mason's CSS pixel. Returns `undefined` for anything that isn't a
+ * plain length (`auto`, a percentage, a keyword, `calc()`), leaving those to
+ * their existing paths.
+ */
+export function cssLengthToDip(value: unknown, emBasis?: number): number | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const t = value.trim().toLowerCase();
+  if (t === '' || t === 'auto' || t.endsWith('%')) {
+    return undefined;
+  }
+  // Sizing keywords and function values have their own handling.
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?[a-z]*$/.test(t)) {
+    return undefined;
+  }
+  const n = parseFloat(t);
+  if (!Number.isFinite(n)) {
+    return undefined;
+  }
+  return layout.toDeviceIndependentPixels(tokenToDevicePx(t, n, emBasis));
+}
+
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
   const t = value.trim();
   if (t === '' || t === 'auto') {
@@ -3177,10 +3249,16 @@ export class Style {
     return getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
   }
 
-  set aspectRatio(value: number) {
-    if (getFloat32(this.style_view, StyleKeys.ASPECT_RATIO) === value) return;
+  set aspectRatio(value: number | string) {
+    // A string arrives from a stylesheet, an inline style or a JSX prop; all
+    // three go through the same parser so `2 / 3` means what it does on the web.
+    const ratio = typeof value === 'number' ? value : parseAspectRatio(value);
+    const current = getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
+    // NaN is "no ratio" and never equals itself, so compare that case by hand
+    // or every re-assignment would rewrite the buffer and re-dirty the node.
+    if (current === ratio || (Number.isNaN(current) && Number.isNaN(ratio))) return;
     this.prepareMut();
-    setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, value);
+    setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, ratio);
     this.commitState(StateKeys.ASPECT_RATIO);
   }
 

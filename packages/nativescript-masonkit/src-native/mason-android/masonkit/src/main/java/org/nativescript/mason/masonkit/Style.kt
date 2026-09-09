@@ -2265,6 +2265,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.put(StyleKeys.DISPLAY, display)
 
       setOrAppendState(StateKeys.DISPLAY.and(StateKeys.DISPLAY_MODE))
+
+      // `display: none` gives the subtree a zero-sized layout, but a
+      // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
+      // Mason positions children itself, and GONE is `visibility: collapse`.
+      (node.view as? View)?.visibility =
+        if (value == Display.None) View.INVISIBLE else View.VISIBLE
     }
 
   var position: Position
@@ -4255,6 +4261,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         )
         resetState()
         (node.view as? Element)?.invalidateLayout()
+        // A CSS-class match can commit visual properties (border-radius,
+        // background, ...) alongside a layout-affecting one in the same
+        // batch. invalidateLayout() only guarantees a relayout, not a
+        // repaint — if bounds don't change, Android never re-runs onDraw.
+        (node.view as? View)?.invalidate()
         return
       }
 
@@ -4363,6 +4374,9 @@ class Style internal constructor(@Transient internal var node: Node) {
 
       resetState()
       (node.view as? Element)?.invalidateLayout()
+      // Same reasoning as the sibling `isDirtyEmpty()` branch above: force the
+      // repaint since an unchanged-bounds relayout won't trigger one on its own.
+      (node.view as? View)?.invalidate()
       return
     }
 
@@ -5319,7 +5333,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       canvas: Canvas,
       node: Node,
       widthOverride: Float = node.computedWidth,
-      heightOverride: Float = node.computedHeight
+      heightOverride: Float = node.computedHeight,
+      includeBorderRadius: Boolean = false
     ) {
       val width = if (widthOverride > 0f) widthOverride else node.computedWidth
       val height = if (heightOverride > 0f) heightOverride else node.computedHeight
@@ -5369,6 +5384,12 @@ class Style internal constructor(@Transient internal var node: Node) {
 
       // Defensive guard: if computed clip rect is inverted or degenerate, skip clipping
       if (clipRight > clipLeft && clipBottom > clipTop) {
+        if (includeBorderRadius) {
+          style.mBorderRenderer.updateCache(width, height)
+          if (style.mBorderRenderer.hasRadii()) {
+            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+          }
+        }
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
       }
 

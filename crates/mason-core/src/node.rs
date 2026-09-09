@@ -518,7 +518,9 @@ pub struct Node {
     pub(crate) has_measure: bool,
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
-    pub(crate) state: [u8; NODE_STATE_BUFFER_SIZE],
+    // Boxed because platform code maps this buffer as a raw pointer and caches it;
+    // the pointee must not move when the SlotMap reallocates.
+    pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<PseudoStyles>,
     #[cfg(target_os = "android")]
@@ -537,7 +539,7 @@ impl Node {
             has_measure: false,
             type_: NodeType::Normal,
             is_anonymous: false,
-            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,
@@ -555,7 +557,7 @@ impl Node {
             has_measure: false,
             type_: NodeType::Normal,
             is_anonymous: false,
-            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             #[cfg(target_os = "android")]
             state_buffer: -1,

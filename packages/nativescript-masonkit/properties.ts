@@ -1,8 +1,12 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
+import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonView_ } from './symbols';
+
+/** Marks a Style whose size accessors already resolve Mason's units. */
+const MASON_SIZE_UNITS = Symbol('mason:size-units');
 import type { Style as MasonStyle } from './style';
+import { cssLengthToDip, parseAspectRatio } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 
@@ -738,6 +742,12 @@ function masonLengthPercentParse(value) {
   }
 }
 
+/** As `masonSizeConverter`, for Mason's own max-* properties (core has none). */
+function masonMaxSizeConverter(value: string) {
+  const resolved = masonSizeValue(value);
+  return (resolved ?? masonLengthPercentParse(value)) as never;
+}
+
 export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   name: 'maxWidth',
   cssName: 'max-width',
@@ -746,7 +756,7 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   equalityComparer: CorePercentLength.equals,
   // masonLengthParse has no '%' handling; match width/height's converter.
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonMaxSizeConverter,
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -764,7 +774,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: CorePercentLength.equals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonMaxSizeConverter,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -780,8 +790,29 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
 // effectiveMinWidth) is deliberately left in place for both kinds of view, so
 // only the converter is narrowed — a plain view must still get a plain Length,
 // or core's Length.toDevicePixels mis-reads a percentage.
+/**
+ * Resolve a size value with Mason's own length parser before core sees it.
+ *
+ * `width`/`height`/`min-*` reach core's `PercentLength.parse` first, which
+ * misreads `100vh`/`1rem` as a bare dip count and `px` as a device pixel
+ * rather than Mason's CSS pixel. Resolve every unit Mason understands here
+ * as the equivalent dip; percentages, `auto` and keywords fall through
+ * untouched.
+ */
+function masonSizeValue(value: string): { value: number; unit: 'dip' } | undefined {
+  const dip = cssLengthToDip(value);
+  return dip === undefined ? undefined : { value: dip, unit: 'dip' };
+}
+
 function masonMinSizeConverter(this: Style, value: string) {
-  return (isMasonView(this) ? masonLengthPercentParse(value) : CoreLength.parse(value)) as never;
+  if (isMasonView(this)) {
+    const resolved = masonSizeValue(value);
+    if (resolved) {
+      return resolved as never;
+    }
+    return masonLengthPercentParse(value) as never;
+  }
+  return CoreLength.parse(value) as never;
 }
 
 minWidthProperty.overrideHandlers({
@@ -801,6 +832,56 @@ minHeightProperty.overrideHandlers({
   // @ts-ignore
   valueConverter: masonMinSizeConverter,
 });
+
+/**
+ * Rewrite a size declaration for mason views before core parses it.
+ *
+ * `width`/`height` are `CssAnimationProperty`s with no `overrideHandlers`, so
+ * mason can't narrow their converter the way it does for `min-*`. Rewriting
+ * the declaration itself works instead: `100vh` becomes its resolved dip
+ * count, which core's parser then reads correctly (and, deliberately, so
+ * does a bare `px`, which core reads as a device pixel but mason as a CSS
+ * pixel).
+ */
+function masonLengthDeclaration(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const dip = cssLengthToDip(value);
+  // A bare number is a dip to core and a CSS pixel to mason — the same size.
+  return dip === undefined ? value : String(dip);
+}
+
+const MASON_SIZE_KEYS = [widthProperty, heightProperty].flatMap((property) => [property.name, property.cssName, property.cssLocalName]).filter((key): key is string => typeof key === 'string' && key.length > 0);
+
+/**
+ * The stylesheet-facing accessor a `CssAnimationProperty` installs is
+ * non-configurable, so it can't be overridden on `Style.prototype`. Shadow it
+ * on this Style instance instead, once per mason view.
+ */
+export function installMasonSizeUnits(style: Style): void {
+  if (!style || (style as { [MASON_SIZE_UNITS]?: boolean })[MASON_SIZE_UNITS]) {
+    return;
+  }
+  const proto = Object.getPrototypeOf(style);
+  for (const key of new Set(MASON_SIZE_KEYS)) {
+    const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+    const set = descriptor?.set;
+    const get = descriptor?.get;
+    if (!set) {
+      continue;
+    }
+    Object.defineProperty(style, key, {
+      enumerable: false,
+      configurable: true,
+      get,
+      set(this: Style, value: unknown) {
+        set.call(this, masonLengthDeclaration(value));
+      },
+    });
+  }
+  Object.defineProperty(style, MASON_SIZE_UNITS, { value: true, enumerable: false });
+}
 
 export const insetProperty = new ShorthandProperty<Style, LengthAuto>({
   name: 'inset',
@@ -1167,6 +1248,10 @@ export const aspectRatioProperty = new CssProperty<Style, number>({
   name: 'aspectRatio',
   cssName: 'aspect-ratio',
   defaultValue: Number.NaN,
+  // Without this the raw declaration reached the buffer's setFloat32, where the
+  // `<ratio>` form (`2 / 3`) coerces to NaN — i.e. no ratio at all.
+  // @ts-ignore
+  valueConverter: parseAspectRatio,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {

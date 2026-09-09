@@ -503,3 +503,16 @@ export class Bdi extends PhrasingElement {}
 
 @CSSType('bdo')
 export class Bdo extends PhrasingElement {}
+
+/**
+ * `<link>` — pure document metadata (stylesheet/preload/icon/etc.). Like a
+ * browser, it never renders anything; registered mainly so a host framework's
+ * `<head>` management or feature-detection probes don't throw creating one.
+ */
+@CSSType('link')
+export class Link extends BlockElement {
+  constructor() {
+    super();
+    applyUaCss(this, { display: 'none' });
+  }
+}

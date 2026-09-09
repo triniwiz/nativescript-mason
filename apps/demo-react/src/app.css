@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.ns-light Page {
+  background-color: #f8fafc;
+}
+
+.ns-dark Page {
+  background-color: #0f172a;
+}
+
+/* Small Bootstrap-shaped grid and utility subset used by the demo. */
+.container {
+  padding-left: 16;
+  padding-right: 16;
+}
+
+/* Model the row/col vocabulary with CSS Grid track spans. */
+.row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12;
+}
+
+.col-1,
+.col-2,
+.col-3,
+.col-4,
+.col-5,
+.col-6,
+.col-7,
+.col-8,
+.col-9,
+.col-10,
+.col-11,
+.col-12 {
+  min-width: 0;
+}
+
+.col-1 {
+  grid-column: span 1;
+}
+.col-2 {
+  grid-column: span 2;
+}
+.col-3 {
+  grid-column: span 3;
+}
+.col-4 {
+  grid-column: span 4;
+}
+.col-5 {
+  grid-column: span 5;
+}
+.col-6 {
+  grid-column: span 6;
+}
+.col-7 {
+  grid-column: span 7;
+}
+.col-8 {
+  grid-column: span 8;
+}
+.col-9 {
+  grid-column: span 9;
+}
+.col-10 {
+  grid-column: span 10;
+}
+.col-11 {
+  grid-column: span 11;
+}
+.col-12 {
+  grid-column: span 12;
+}
+
+.d-flex {
+  display: flex;
+}
+.flex-row {
+  flex-direction: row;
+}
+.flex-column {
+  flex-direction: column;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.justify-content-start {
+  justify-content: flex-start;
+}
+.justify-content-center {
+  justify-content: center;
+}
+.justify-content-between {
+  justify-content: space-between;
+}
+.justify-content-end {
+  justify-content: flex-end;
+}
+.align-items-center {
+  align-items: center;
+}
+.align-items-stretch {
+  align-items: stretch;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 12;
+  padding: 16;
+  border-width: 1;
+  border-color: #e2e8f0;
+}
+
+.badge {
+  padding-top: 4;
+  padding-bottom: 4;
+  padding-left: 10;
+  padding-right: 10;
+  border-radius: 999;
+}
+
+.btn {
+  padding-top: 12;
+  padding-bottom: 12;
+  padding-left: 20;
+  padding-right: 20;
+  border-radius: 8;
+}
+
+.btn-primary {
+  background-color: #4f46e5;
+}
+.btn-outline {
+  border-width: 1.5;
+  border-color: #4f46e5;
+  background-color: transparent;
+}
+
+.m-1 {
+  margin: 4;
+}
+.m-2 {
+  margin: 8;
+}
+.m-3 {
+  margin: 16;
+}
+.p-1 {
+  padding: 4;
+}
+.p-2 {
+  padding: 8;
+}
+.p-3 {
+  padding: 16;
+}
+
+/* Plain app-shell CSS on semantic HTML-shaped Mason elements. */
+:root {
+  --ink: #1e293b;
+  --muted: #64748b;
+  --accent: #0ea5e9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background-color: #f1f5f9;
+}
+
+.app-shell > header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16;
+  background-color: var(--surface);
+  border-bottom-width: 1;
+  border-bottom-color: var(--border);
+}
+
+.app-shell .brand {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 18;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+}
+
+.app-body > nav {
+  width: 96;
+  padding: 12;
+  background-color: var(--surface);
+  border-right-width: 1;
+  border-right-color: var(--border);
+}
+
+.app-body nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+}
+
+.app-body nav li {
+  display: flex;
+  width: 72;
+  padding-top: 10;
+  padding-bottom: 10;
+  padding-left: 10;
+  padding-right: 10;
+  border-radius: 8;
+  color: var(--muted);
+}
+
+.app-body nav li.active {
+  background-color: #e0f2fe;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-body main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 16;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  border-width: 1;
+  border-color: var(--border);
+}
+
+.stat-card .stat-label {
+  color: var(--muted);
+  font-size: 12;
+}
+
+.stat-card .stat-value {
+  color: var(--ink);
+  font-size: 22;
+  font-weight: 700;
+  margin-top: 4;
+}

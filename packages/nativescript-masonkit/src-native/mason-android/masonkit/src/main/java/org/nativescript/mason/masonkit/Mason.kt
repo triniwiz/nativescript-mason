@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap
 
 
 class Mason {
-
   internal val gc by lazy {
     GC(this)
   }
@@ -171,7 +170,9 @@ class Mason {
     val byId = byType.getOrPut(type) { mutableMapOf() }
 
     byId[id] = listener
-    Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
+    if (LOG_EVENTS) {
+      Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
+    }
     return id
   }
 
@@ -186,7 +187,9 @@ class Mason {
   }
 
   fun dispatch(event: Event) {
-    Log.d("Mason", "dispatch type=${event.type} target=${event.target?.node?.objectId()}")
+    if (LOG_EVENTS) {
+      Log.d("Mason", "dispatch type=${event.type} target=${event.target?.node?.objectId()}")
+    }
     val path = mutableListOf<Node>()
     var current: Node? = event.target?.node
     while (current != null) {
@@ -204,7 +207,9 @@ class Mason {
           ?.toList()
           ?: continue
 
-      Log.d("Mason", "dispatch: invoking ${listeners.size} listeners on node=${node.objectId()}")
+      if (LOG_EVENTS) {
+        Log.d("Mason", "dispatch: invoking ${listeners.size} listeners on node=${node.objectId()}")
+      }
       for (listener in listeners) {
         if (event.immediatePropagationStopped) break
         listener(event)
@@ -496,6 +501,7 @@ class Mason {
   }
 
   companion object {
+    private const val LOG_EVENTS = false
 
     internal fun initLib() {
       NativeHelpers.initLib()

@@ -104,6 +104,8 @@ private struct MasonElementProperties {
   static var isInLayout: UInt8 = 1
   static var computeCacheDirty: UInt8 = 2
   static var lastAutoComputeSize: UInt8 = 3
+  static var layoutPassScheduled: UInt8 = 4
+  static var hostRootSize: UInt8 = 5
 }
 
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -276,27 +278,19 @@ extension MasonElement {
   }
   
   
+  /// The MasonElement a layout pass has to start from — the document element
+  /// when this node hangs off a document, otherwise the tree's own root.
+  internal func rootLayoutElement() -> MasonElement? {
+    let root = node.getRootNode()
+    if root.type == .document {
+      return root.document?.documentElement as? MasonElement
+    }
+    return root.view as? MasonElement
+  }
+
   public func requestLayout() {
     node.markDirty()
-    let root = node.getRootNode()
-    let view = if(root.type == .document){
-      root.document?.documentElement as? MasonElement
-    }else {
-      root.view as? MasonElement
-    }
-
-    if let view = view {
-      if view.isInLayout {
-        // Currently inside a layout pass — defer to avoid re-entrant layout.
-        DispatchQueue.main.async {
-          view.computeWithViewSize(layout: true)
-        }
-      } else {
-        view.isInLayout = true
-        defer { view.isInLayout = false }
-        view.computeWithViewSize(layout: true)
-      }
-    }
+    rootLayoutElement()?.setNeedsLayoutPass()
   }
   
   public func invalidate(markDirty: Bool = false) {
@@ -394,6 +388,60 @@ extension MasonElement {
     }
   }
 
+  /// The box the host framework measured this root against, in device pixels.
+  ///
+  /// `.zero` means "no host is driving this root", and `autoComputeIfRoot`
+  /// falls back to the superview's bounds. See `markRootComputeApplied`.
+  private var _hostRootSize: CGSize {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.hostRootSize) as? CGSize ?? .zero
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.hostRootSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  private var layoutPassScheduled: Bool {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.layoutPassScheduled) as? Bool ?? false
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.layoutPassScheduled, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  /// Ask for one layout pass over this root, at most once per run-loop turn.
+  ///
+  /// Building a screen is thousands of individual mutations, each calling
+  /// `requestLayout()`; running a synchronous full pass per mutation makes the
+  /// page quadratic in node count. Worse, a pass itself produces mutations
+  /// (measurement resolving text styles calls back into `requestLayout()`),
+  /// so an uncoalesced queued pass per mutation grows without bound.
+  ///
+  /// `setNeedsLayout()` lets UIKit run the pass at the normal point in the
+  /// frame via `autoComputeIfRoot()`; the queued block is the backstop for a
+  /// root not yet in a window, and no-ops once UIKit already did the work.
+  internal func setNeedsLayoutPass() {
+    uiView.setNeedsLayout()
+
+    if layoutPassScheduled { return }
+    layoutPassScheduled = true
+
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      self.layoutPassScheduled = false
+      guard !self.isInLayout else {
+        // A pass is running right now; it will observe the dirt we just
+        // marked, or the next mutation reschedules. Never queue a second one.
+        return
+      }
+      guard self.node.isDirty || self.computeCacheDirty else { return }
+      self.isInLayout = true
+      defer { self.isInLayout = false }
+      self.computeWithViewSize(layout: true)
+    }
+  }
+
   /// Auto-compute layout when this is a root Mason view (parent isn't a
   /// MasonElement). Call from layoutSubviews; mirrors Android's onMeasure.
   public func autoComputeIfRoot() {
@@ -402,11 +450,26 @@ extension MasonElement {
     // Zero parent bounds (transitions, pre-Auto-Layout): skip but keep dirty
     // flags so the next real-size call recomputes instead of hitting stale cache.
     guard parentSize.width > 0 || parentSize.height > 0 else { return }
+    // Once a view has measured, stop recomputing it while it sits off-window in
+    // a navigation back stack. New pages still get their first pre-window pass.
+    if _lastAutoComputeSize != .zero, uiView.window == nil { return }
     if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
       _lastAutoComputeSize = parentSize
       let scale = NSCMason.scale
-      let w = scale * Float(parentSize.width)
-      let h = scale * Float(parentSize.height)
+      // A host's measure pass hands us the box it wants, which isn't always
+      // the superview's bounds — a Page measures against the safe area while
+      // its own view spans the whole screen. Prefer that box; the superview
+      // is only the fallback for a root nobody else measures.
+      let hostSize = _hostRootSize
+      let w: Float
+      let h: Float
+      if hostSize != .zero {
+        w = Float(hostSize.width)
+        h = Float(hostSize.height)
+      } else {
+        w = scale * Float(parentSize.width)
+        h = scale * Float(parentSize.height)
+      }
       // Preserve root view's frame — managed by the parent, not Mason.
       let savedFrame = uiView.frame
       isInLayout = true
@@ -423,9 +486,28 @@ extension MasonElement {
   /// then sets its frame (triggering layoutSubviews). Call this right after so
   /// autoComputeIfRoot treats the parent size as already satisfied, instead of
   /// recomputing and overriding a max-content measurement with exact bounds.
+  ///
+  /// This no-argument form says nothing about the box the host used, so a later
+  /// pass (a style mutation redirties the node) falls back to the superview's
+  /// bounds. Prefer `markRootComputeApplied(_:_:)` whenever the host has a size
+  /// to give.
   public func markRootComputeApplied() {
     guard !(uiView.superview is MasonElement) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
+    _hostRootSize = .zero
+    _lastAutoComputeSize = parentSize
+    computeCacheDirty = false
+  }
+
+  /// As above, but records the box (in device pixels) the host measured this
+  /// root against, so any later `autoComputeIfRoot` reuses it instead of the
+  /// superview's bounds. Marking is not optional for a root the host drives:
+  /// without it the first style mutation redirties the node and the next
+  /// `layoutSubviews` silently recomputes the whole subtree at the wrong size.
+  public func markRootComputeApplied(_ width: Float, _ height: Float) {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    _hostRootSize = CGSize(width: CGFloat(width), height: CGFloat(height))
     _lastAutoComputeSize = parentSize
     computeCacheDirty = false
   }
@@ -756,6 +838,18 @@ class MasonElementHelpers: NSObject {
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
     if let view = node.view, !(view is MasonBr.FakeView) {
+      // Keep `display: none` out of the render tree. The style setter already
+      // does this, but a view can be created after its style was applied (the
+      // native view is built lazily), so reassert it here where every laid-out
+      // node passes through — otherwise a hidden subtree keeps painting at
+      // whatever frame it last had, on top of the content that replaced it.
+      let hidden = node.style.display == .None
+      if view.isHidden != hidden {
+        view.isHidden = hidden
+      }
+      if hidden {
+        return
+      }
       var isTextView = false
       var realLayout = layout
       var hasWidthConstraint: Bool = false
@@ -969,8 +1063,16 @@ class MasonElementHelpers: NSObject {
           if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
           MasonElementHelpers.handleOverflow(_overflow.x, scroll)
           MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
+          // A shrinking contentSize can leave contentOffset past the new range.
+          let maxX = max(0, newContentSize.width - scroll.bounds.width)
+          let maxY = max(0, newContentSize.height - scroll.bounds.height)
+          let off = scroll.contentOffset
+          let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
+          if clamped != off { scroll.setContentOffset(clamped, animated: false) }
         } else if let masonView = node.view as? MasonUIView {
           if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
+          // Reassigning through the setter re-clamps after the size change.
+          masonView.contentOffset = masonView.contentOffset
         }
       }
 

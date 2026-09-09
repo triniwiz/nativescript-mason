@@ -305,12 +305,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     guard !currentSize.equalTo(_lastBoundsSize) else { return }
     _lastBoundsSize = currentSize
     invalidateDrawFlags()
-    #if DEBUG
-   // if !(superview is MasonElement) {
-      node.mason.printTree(node)
-   // }
-    #endif
-
     // Optimize compositing: set isOpaque for solid opaque backgrounds
     style.mBorderRender.resolve(for: bounds)
     guard let bg = style.mBackground else {return}
@@ -521,9 +515,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       checkAndUpdateStyle()
     }
   }
-  
-  
-  // TODO
   @objc public var direction: Direction {
     get{
       return style.direction
@@ -1375,8 +1366,20 @@ extension MasonUIView {
     var v = _scrollDecelerationVelocity
     var doneX = true
     var doneY = true
-    if _canScrollH { (o.x, v.x, doneX) = _integrateScrollAxis(o.x, v.x, 0, hiX, dt) }
-    if _canScrollV { (o.y, v.y, doneY) = _integrateScrollAxis(o.y, v.y, 0, hiY, dt) }
+    // If relayout makes an axis non-scrollable mid-gesture, clear any stale
+    // offset instead of stopping the display link with it still overscrolled.
+    if _canScrollH {
+      (o.x, v.x, doneX) = _integrateScrollAxis(o.x, v.x, 0, hiX, dt)
+    } else if o.x != 0 {
+      o.x = 0
+      v.x = 0
+    }
+    if _canScrollV {
+      (o.y, v.y, doneY) = _integrateScrollAxis(o.y, v.y, 0, hiY, dt)
+    } else if o.y != 0 {
+      o.y = 0
+      v.y = 0
+    }
     _scrollDecelerationVelocity = v
     _setScrollOrigin(o)
     if doneX && doneY { _stopScrollDeceleration() }

@@ -1407,6 +1407,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (void)setNeedsDisplay;
+- (void)didMoveToWindow;
 - (void)requestLayout;
 - (void)layoutSubviews;
 - (void)addView:(UIView * _Nonnull)view;
@@ -1783,8 +1784,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
 + (void)setRootFontSize:(float)value;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
 + (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
+/// The display scale every layout value is converted through.
+/// Cached: resolving it walks <code>connectedScenes</code> and each scene’s windows,
+/// and it’s read on the hottest paths there are (once per text measure,
+/// once per node applying a computed layout). Invalidated by the
+/// notifications below when the window moves between displays.
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 + (float)scale SWIFT_WARN_UNUSED_RESULT;
+/// Drop the cached scale; the next read resolves it again.
++ (void)invalidateScale;
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
@@ -1809,6 +1817,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
 - (void)mason_markRootComputeApplied;
+/// <code>mason_markRootComputeApplied</code> plus the box the host measured against, so
+/// a later <code>autoComputeIfRoot</code> reuses it rather than the superview’s bounds.
+- (void)mason_markRootComputeAppliedWithSize:(float)width :(float)height;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;
@@ -3433,6 +3444,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (void)setNeedsDisplay;
+- (void)didMoveToWindow;
 - (void)requestLayout;
 - (void)layoutSubviews;
 - (void)addView:(UIView * _Nonnull)view;
@@ -3809,8 +3821,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
 + (void)setRootFontSize:(float)value;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
 + (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
+/// The display scale every layout value is converted through.
+/// Cached: resolving it walks <code>connectedScenes</code> and each scene’s windows,
+/// and it’s read on the hottest paths there are (once per text measure,
+/// once per node applying a computed layout). Invalidated by the
+/// notifications below when the window moves between displays.
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 + (float)scale SWIFT_WARN_UNUSED_RESULT;
+/// Drop the cached scale; the next read resolves it again.
++ (void)invalidateScale;
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
@@ -3835,6 +3854,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
 - (void)mason_markRootComputeApplied;
+/// <code>mason_markRootComputeApplied</code> plus the box the host measured against, so
+/// a later <code>autoComputeIfRoot</code> reuses it rather than the superview’s bounds.
+- (void)mason_markRootComputeAppliedWithSize:(float)width :(float)height;
 - (void)mason_computeWithMinContent;
 - (void)mason_attachAndApply;
 - (void)mason_requestLayout;
