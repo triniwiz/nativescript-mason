@@ -1,5 +1,45 @@
 # Mason Android Performance Benchmarks
 
+## Cross-branch deep web layout comparison
+
+`DeepWebLayoutBenchmark` is the shared diagnostic benchmark for comparing two
+Git refs. It builds the same release Android test APK from each ref, using one
+162-node fixture with 88 real measured text views, responsive flex/grid sections,
+and two six-level comment chains. The runner alternates ref order between runs
+to reduce thermal/order bias.
+
+From the repository root on Windows:
+
+```powershell
+.\tools\benchmarks\android-layout-compare.ps1
+```
+
+Defaults compare `chore/android-perf` with `perf/rust-layout-cache` over five
+fresh instrumentation processes, five samples per process, and twelve inner
+iterations. Override them when iterating:
+
+```powershell
+.\tools\benchmarks\android-layout-compare.ps1 -Runs 3 -Samples 3 -Iterations 8 -Device emulator-5554
+```
+
+The runner creates isolated detached worktrees, copies the exact same Kotlin
+harness into each, excludes unrelated instrumentation sources from those
+disposable worktrees, builds release JNI binaries for the selected Android ABI,
+uses the included PowerShell linker shim when Python is absent, and restores
+animation settings afterward. Results are written under
+`benchmark-results/android-layout/<timestamp>/`:
+
+- `comparison.md` and `summary.csv` contain timing medians/p95, callback counts,
+  Java/native heap usage, process PSS, and the delta from the first ref.
+- `samples.csv` contains every raw phase sample.
+- Per-run JSON includes text-measure time, constraint-probe categories, managed
+  allocations, before/after memory snapshots, and the hottest measured text nodes.
+- Per-run logcat and instrumentation output retain phase diagnostics and errors.
+
+Use timing results from a physical Android device for final performance claims.
+The emulator remains useful for exact callback/allocation comparisons and for
+validating the harness.
+
 This directory contains performance benchmarks for the Mason Android native implementation, starting with the `View` class.
 
 ## Overview
