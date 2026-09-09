@@ -1847,7 +1847,7 @@ impl LayoutPartialTree for Tree {
 impl CacheTree for Tree {
     #[inline]
     fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
-        let mut node = self.node_from_id_mut(node_id);
+        let node = self.node_from_id_mut(node_id);
         node.cache.get(inputs)
     }
 
