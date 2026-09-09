@@ -140,8 +140,15 @@ class TextView @JvmOverloads constructor(
       // re-runs to rebuild cachedStaticLayout (cleared by onSizeChanged). Rebuild
       // it here at the current content width so our custom centered draw still
       // runs instead of falling back to the platform's top-aligned TextView.
-      if (floatAwareStaticLayout == null && cachedStaticLayout == null) {
-        cachedStaticLayout = engine.rebuildCachedStaticLayout(paint, width - paddingLeft - paddingRight)
+      val contentWidth = width - paddingLeft - paddingRight
+      if (floatAwareStaticLayout == null &&
+        (cachedStaticLayout == null || (contentWidth > 0 && cachedStaticLayoutWidth != contentWidth))
+      ) {
+        val rebuilt = engine.rebuildCachedStaticLayout(paint, contentWidth)
+        if (rebuilt != null) {
+          cachedStaticLayout = rebuilt
+          cachedStaticLayoutWidth = contentWidth
+        }
       }
 
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
@@ -193,11 +200,11 @@ class TextView @JvmOverloads constructor(
             }
           }
         }
-        val fm = paint.fontMetricsInt
         val contentH = height - paddingTop - paddingBottom
         val dy = if (layoutToDraw.lineCount == 1 && contentH > 0) {
           val baseline0 = layoutToDraw.getLineBaseline(0)
-          val glyphCenter = baseline0 + (fm.ascent + fm.descent) / 2f
+          val glyphCenter = baseline0 +
+            (layoutToDraw.getLineAscent(0) + layoutToDraw.getLineDescent(0)) / 2f
           contentH / 2f - glyphCenter
         } else 0f
         // We bypass super.onDraw, which normally insets the layout by the view's
