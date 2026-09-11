@@ -956,13 +956,6 @@ impl Tree {
 
         if use_rounding {
             round_layout(self, root);
-        } else {
-            // Ensure final_layout mirrors unrounded_layout so prints / consumers that read
-            // final_layout get the correct positions even when rounding is disabled.
-            let mut nodes = self.nodes_mut();
-            for (_id, node) in nodes.iter_mut() {
-                node.final_layout = node.unrounded_layout;
-            }
         }
     }
 
@@ -2533,7 +2526,13 @@ impl PrintTree for Tree {
 
     #[inline(always)]
     fn get_final_layout(&self, node_id: NodeId) -> Layout {
-        self.nodes()[node_id.into()].final_layout
+        let inner = self.inner();
+        let node = &inner.nodes[node_id.into()];
+        if inner.use_rounding {
+            node.final_layout
+        } else {
+            node.unrounded_layout
+        }
     }
 }
 
@@ -2582,6 +2581,24 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             let has_sibling = index < num_children - 1;
             print_node(tree, child, has_sibling, new_string.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod print_tree_tests {
+    use super::*;
+
+    #[test]
+    fn final_layout_respects_the_rounding_mode() {
+        let mut tree = Tree::new();
+        let node = tree.create_node();
+        let node_id = NodeId::from(node.id());
+        tree.node_from_id_mut(node_id).unrounded_layout.size.width = 1.0;
+        tree.node_from_id_mut(node_id).final_layout.size.width = 2.0;
+
+        assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 1.0);
+        tree.set_use_rounding(true);
+        assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 2.0);
     }
 }
 
