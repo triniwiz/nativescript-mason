@@ -2452,15 +2452,10 @@ impl Tree {
                 }
             }
 
-            // Now get segments (freshly populated by the measure call above)
-            let segments = {
-                let nd = self.node_data();
-                let node_data = nd.get(id).unwrap();
-                let guard = node_data.inline_segments();
-                let vec = guard.to_vec();
-                drop(guard);
-                vec
-            };
+            // Read freshly-populated segments without cloning them.
+            let nd = self.node_data();
+            let node_data = nd.get(id).unwrap();
+            let segments = node_data.inline_segments();
 
             // If there are children, IFC is needed for placement. For direct text-only
             // segments, use IFC only when native measurement did not provide a size.
@@ -2470,7 +2465,7 @@ impl Tree {
                 let mut prepared_items: Vec<PreparedItem> = Vec::new();
 
                 // Build prepared items from segments (which include text and inline children)
-                for segment in &segments {
+                for segment in segments.iter() {
                     match segment {
                         InlineSegment::Text {
                             width,
@@ -2521,6 +2516,8 @@ impl Tree {
                         }
                     }
                 }
+                drop(segments);
+                drop(nd);
 
                 // If no segments but we have children, add children directly
                 if prepared_items.is_empty() {
@@ -2642,6 +2639,9 @@ impl Tree {
                         }
                     }
                 }
+            } else {
+                drop(segments);
+                drop(nd);
             }
 
             // For scroll/overflow containers, preserve the content_size from
@@ -2703,16 +2703,14 @@ impl Tree {
             return ret;
         }
 
-        let segments = {
+        let has_segments = {
             let nd = self.node_data();
             let node_data = nd.get(id).unwrap();
-            let guard = node_data.inline_segments();
-            let vec = guard.to_vec();
-            drop(guard);
-            vec
+            let has_segments = !node_data.inline_segments().is_empty();
+            has_segments
         };
 
-        if flow_child_ids.is_empty() && segments.is_empty() {
+        if flow_child_ids.is_empty() && !has_segments {
             let leaf_output = if has_measure {
                 let measure = self.node_data().get(id).unwrap().copy_measure();
                 compute_leaf_layout(
@@ -2762,8 +2760,11 @@ impl Tree {
 
         let mut prepared_items: Vec<PreparedItem> = Vec::new();
 
-        if !segments.is_empty() && flow_child_ids.is_empty() {
-            for segment in &segments {
+        if has_segments && flow_child_ids.is_empty() {
+            let nd = self.node_data();
+            let node_data = nd.get(id).unwrap();
+            let segments = node_data.inline_segments();
+            for segment in segments.iter() {
                 match segment {
                     InlineSegment::Text {
                         width,
