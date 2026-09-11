@@ -505,6 +505,13 @@ impl InlineMeasureCache {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SubtreeAnalysis {
+    pub(crate) has_children: bool,
+    pub(crate) has_mixed_content: bool,
+    pub(crate) all_inline: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
@@ -512,6 +519,7 @@ pub struct Node {
     /// evicting each other through taffy's fixed 9-slot cache.
     pub(crate) cache: LayoutCache,
     pub(crate) inline_measure_cache: InlineMeasureCache,
+    pub(crate) subtree_analysis: Option<SubtreeAnalysis>,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
     pub(crate) guard: Arc<()>,
@@ -533,6 +541,7 @@ impl Node {
             style: Style::new(arena),
             cache: Default::default(),
             inline_measure_cache: InlineMeasureCache::new(),
+            subtree_analysis: None,
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
@@ -551,6 +560,7 @@ impl Node {
             style: Style::new_with_handle(arena, handle),
             cache: Default::default(),
             inline_measure_cache: InlineMeasureCache::new(),
+            subtree_analysis: None,
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
@@ -659,6 +669,7 @@ impl Node {
     pub fn mark_dirty(&mut self) -> ClearState {
         self.set_node_state(true);
         self.inline_measure_cache.clear();
+        self.subtree_analysis = None;
         self.cache.clear()
     }
 

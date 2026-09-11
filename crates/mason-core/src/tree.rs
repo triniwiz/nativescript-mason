@@ -1,4 +1,4 @@
-use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
+use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis};
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
@@ -32,13 +32,6 @@ impl From<NodeId> for Id {
     fn from(value: NodeId) -> Self {
         KeyData::from_ffi(value.into()).into()
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct SubtreeAnalysis {
-    has_children: bool,
-    has_mixed_content: bool,
-    all_inline: bool,
 }
 
 #[derive(Debug)]
@@ -849,13 +842,16 @@ impl Tree {
         RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id).unwrap())
     }
 
-    fn analyze_subtree(&self, id: Id) -> SubtreeAnalysis {
+    fn analyze_subtree(&mut self, id: Id) -> SubtreeAnalysis {
+        let mut inner = self.inner_mut();
+        if let Some(analysis) = inner.nodes.get(id).and_then(|node| node.subtree_analysis) {
+            return analysis;
+        }
+
         let mut has_children = false;
         let mut has_mixed_content = false;
         let mut all_inline = true;
 
-        // Hold a single read lock for entire analysis instead of re-acquiring per child
-        let inner = self.inner();
         if let Some(children) = inner.children.get(id) {
             has_children = !children.is_empty();
 
@@ -891,11 +887,15 @@ impl Tree {
             }
         }
 
-        SubtreeAnalysis {
+        let analysis = SubtreeAnalysis {
             has_children,
             has_mixed_content,
             all_inline,
+        };
+        if let Some(node) = inner.nodes.get_mut(id) {
+            node.subtree_analysis = Some(analysis);
         }
+        analysis
     }
 
     pub fn compute_layout(
@@ -2599,6 +2599,27 @@ mod print_tree_tests {
         assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 1.0);
         tree.set_use_rounding(true);
         assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 2.0);
+    }
+
+    #[test]
+    fn subtree_analysis_cache_is_invalidated_by_child_changes() {
+        let mut tree = Tree::new();
+        let parent = tree.create_node();
+        let child = tree.create_node();
+        tree.with_style_mut(child.id(), |style| {
+            style.set_display_mode(DisplayMode::Inline)
+        });
+        tree.append(parent.id(), child.id());
+
+        assert!(tree.analyze_subtree(parent.id()).all_inline);
+        assert!(tree.inner().nodes[parent.id()].subtree_analysis.is_some());
+
+        tree.with_style_mut(child.id(), |style| {
+            style.set_display_mode(DisplayMode::ListItem)
+        });
+
+        assert!(tree.inner().nodes[parent.id()].subtree_analysis.is_none());
+        assert!(!tree.analyze_subtree(parent.id()).all_inline);
     }
 }
 
