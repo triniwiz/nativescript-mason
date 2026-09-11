@@ -522,7 +522,7 @@ pub struct Node {
     // the pointee must not move when the SlotMap reallocates.
     pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
-    pub(crate) pseudo_styles: Option<PseudoStyles>,
+    pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -568,7 +568,7 @@ impl Node {
     /// The `style` should have been created with the same arena as the node.
     pub fn set_pseudo_style(&mut self, state: PseudoStates, style: Style) {
         if self.pseudo_styles.is_none() {
-            self.pseudo_styles = Some(PseudoStyles::default())
+            self.pseudo_styles = Some(Box::new(PseudoStyles::default()))
         }
         if let Some(p) = &mut self.pseudo_styles {
             if state.contains(PseudoStates::HOVER) {
