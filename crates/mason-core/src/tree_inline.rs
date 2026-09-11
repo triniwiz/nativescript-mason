@@ -1204,6 +1204,8 @@ impl Tree {
             return Some(Size::ZERO);
         }
 
+        let fallback_metrics = self.get_font_metrics(child_id);
+
         #[cfg(test)]
         let _ = (child_id, available_width, segments.len());
 
@@ -1237,8 +1239,7 @@ impl Tree {
                                 max_line_width = max_line_width.max(current_line_width);
                                 let (a, d) =
                                     if current_line_ascent == 0.0 && current_line_descent == 0.0 {
-                                        let m = self.get_font_metrics(child_id);
-                                        (m.ascent, m.descent)
+                                        (fallback_metrics.ascent, fallback_metrics.descent)
                                     } else {
                                         (current_line_ascent, current_line_descent)
                                     };
@@ -1257,8 +1258,7 @@ impl Tree {
                                 max_line_width = max_line_width.max(current_line_width);
                                 let (a, d) =
                                     if current_line_ascent == 0.0 && current_line_descent == 0.0 {
-                                        let m = self.get_font_metrics(child_id);
-                                        (m.ascent, m.descent)
+                                        (fallback_metrics.ascent, fallback_metrics.descent)
                                     } else {
                                         (current_line_ascent, current_line_descent)
                                     };
@@ -1282,8 +1282,7 @@ impl Tree {
                             max_line_width = max_line_width.max(current_line_width);
                             let (a, d) =
                                 if current_line_ascent == 0.0 && current_line_descent == 0.0 {
-                                    let m = self.get_font_metrics(child_id);
-                                    (m.ascent, m.descent)
+                                    (fallback_metrics.ascent, fallback_metrics.descent)
                                 } else {
                                     (current_line_ascent, current_line_descent)
                                 };
@@ -1301,8 +1300,7 @@ impl Tree {
                 InlineSegment::LineBreak => {
                     max_line_width = max_line_width.max(current_line_width);
                     let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
-                        let m = self.get_font_metrics(child_id);
-                        (m.ascent, m.descent)
+                        (fallback_metrics.ascent, fallback_metrics.descent)
                     } else {
                         (current_line_ascent, current_line_descent)
                     };
@@ -1318,8 +1316,7 @@ impl Tree {
         max_line_width = max_line_width.max(current_line_width);
         if current_line_width > 0.0 || !segments.is_empty() {
             let (a, d) = if current_line_ascent == 0.0 && current_line_descent == 0.0 {
-                let m = self.get_font_metrics(child_id);
-                (m.ascent, m.descent)
+                (fallback_metrics.ascent, fallback_metrics.descent)
             } else {
                 (current_line_ascent, current_line_descent)
             };
