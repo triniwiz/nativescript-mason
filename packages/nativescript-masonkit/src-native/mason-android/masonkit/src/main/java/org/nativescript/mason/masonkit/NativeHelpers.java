@@ -136,6 +136,9 @@ public class NativeHelpers {
   static native float[] nativeNodeLayout(long mason, long node);
 
   @FastNative
+  static native int nativeNodeLayoutInto(long mason, long node, float[] output);
+
+  @FastNative
   static native long[] nativeNodeGetFloatRectWithIds(long mason, long node);
 
   @FastNative

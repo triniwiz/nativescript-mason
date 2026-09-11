@@ -99,11 +99,33 @@ interface Element : EventTarget {
     if (!node.computeCacheDirty && node.layoutTree.nodeCount > 0) {
       return node.layoutTree
     }
-    val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
-    if (layouts.isEmpty()) {
+    var layoutSize: Int
+    if (node.layoutTree.exportBuffer.isEmpty()) {
+      val initialLayout = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
+      if (initialLayout.isEmpty()) {
+        return MasonLayoutTree.empty
+      }
+      node.layoutTree.setExportBuffer(initialLayout)
+      layoutSize = initialLayout.size
+    } else {
+      layoutSize = NativeHelpers.nativeNodeLayoutInto(
+        node.mason.nativePtr,
+        node.nativePtr,
+        node.layoutTree.exportBuffer
+      )
+    }
+    if (layoutSize > node.layoutTree.exportBuffer.size) {
+      node.layoutTree.ensureExportCapacity(layoutSize)
+      layoutSize = NativeHelpers.nativeNodeLayoutInto(
+        node.mason.nativePtr,
+        node.nativePtr,
+        node.layoutTree.exportBuffer
+      )
+    }
+    if (layoutSize <= 0 || layoutSize > node.layoutTree.exportBuffer.size) {
       return MasonLayoutTree.empty
     }
-    if (!node.layoutTree.fromFloatArray(layouts)) {
+    if (!node.layoutTree.fromFloatArray(node.layoutTree.exportBuffer, layoutSize)) {
       // another applyLayoutFlat DFS is mid-walk on this tree; keep it dirty
       // and schedule a follow-up instead of trusting this skipped refill
       node.computeCacheDirty = true

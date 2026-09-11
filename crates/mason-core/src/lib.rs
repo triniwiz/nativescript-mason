@@ -215,6 +215,69 @@ fn copy_output_inner(
     }
 }
 
+fn copy_output_to_slice_inner(
+    inner: &crate::tree::TreeInner,
+    node: Id,
+    output: &mut [f32],
+    position: &mut usize,
+    use_rounding: bool,
+) {
+    let n = &inner.nodes[node];
+    let children = inner.children.get(node);
+    let len = children.map(|c| c.len()).unwrap_or(0);
+    let end = *position + 22;
+
+    // Once the caller's buffer is full, keep walking only to report the exact
+    // required length. The caller can then grow its reusable buffer and retry.
+    if end <= output.len() {
+        let layout = if use_rounding {
+            n.final_layout
+        } else {
+            n.unrounded_layout
+        };
+        let export_h = {
+            let h = layout.size.height;
+            if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom > h {
+                layout.scrollable_overflow_rect.bottom
+            } else {
+                h
+            }
+        };
+
+        output[*position..end].copy_from_slice(&[
+            layout.order as f32,
+            layout.location.x,
+            layout.location.y,
+            layout.size.width,
+            export_h,
+            layout.border.top,
+            layout.border.right,
+            layout.border.bottom,
+            layout.border.left,
+            layout.margin.top,
+            layout.margin.right,
+            layout.margin.bottom,
+            layout.margin.left,
+            layout.padding.top,
+            layout.padding.right,
+            layout.padding.bottom,
+            layout.padding.left,
+            layout.scrollable_overflow_rect.right,
+            layout.scrollable_overflow_rect.bottom,
+            layout.scrollbar_size.width,
+            layout.scrollbar_size.height,
+            len as f32,
+        ]);
+    }
+    *position = end;
+
+    if let Some(children) = children {
+        for child in children {
+            copy_output_to_slice_inner(inner, *child, output, position, use_rounding);
+        }
+    }
+}
+
 /// Maps the float sentinel encoding used at FFI boundaries to `AvailableSpace`.
 /// `-1.0` → `MinContent`, `-2.0` → `MaxContent`, any other value → `Definite`.
 #[inline]
@@ -682,6 +745,17 @@ impl Mason {
         })
     }
 
+    /// Writes the flattened layout into caller-owned storage and returns the
+    /// number of floats required. If the slice is too small, its contents are
+    /// incomplete and the caller should grow it to the returned length and retry.
+    pub fn layout_into(&self, node_id: Id, output: &mut [f32]) -> usize {
+        let inner = self.0.inner();
+        let use_rounding = inner.use_rounding;
+        let mut position = 0;
+        copy_output_to_slice_inner(&inner, node_id, output, &mut position, use_rounding);
+        position
+    }
+
     pub fn layout_raw(&self, node_id: Id) -> Layout {
         *self.0.layout(node_id.into())
     }
@@ -1107,6 +1181,26 @@ pub mod test_helpers {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn layout_into_matches_owned_layout_and_reports_required_length() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        let child = mason.create_node();
+        mason.append_node(root.id(), &[child.id()]);
+        mason.compute(root.id());
+
+        let expected = mason.layout(root.id());
+        let mut undersized = vec![0.0; expected.len() - 1];
+        assert_eq!(
+            mason.layout_into(root.id(), &mut undersized),
+            expected.len()
+        );
+
+        let mut output = vec![0.0; expected.len()];
+        assert_eq!(mason.layout_into(root.id(), &mut output), expected.len());
+        assert_eq!(output, expected);
+    }
     use crate::style::DisplayMode;
     use std::ffi::{c_float, c_longlong, c_void};
 
