@@ -510,7 +510,7 @@ impl Mason {
             .get_mut(node)
             .and_then(|node| {
                 if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(node::PseudoStyles::default());
+                    node.pseudo_styles = Some(Box::new(node::PseudoStyles::default()));
                 }
                 node.pseudo_styles
                     .as_mut()
@@ -544,7 +544,7 @@ impl Mason {
             .get_mut(node)
             .and_then(|node| {
                 if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(node::PseudoStyles::default());
+                    node.pseudo_styles = Some(Box::new(node::PseudoStyles::default()));
                 }
                 node.pseudo_styles
                     .as_mut()
@@ -561,7 +561,7 @@ impl Mason {
     pub fn pseudo_style_handle_mut(&mut self, node: Id, flags: u16) -> Option<u32> {
         self.0.nodes_mut().get_mut(node).and_then(|node| {
             if node.pseudo_styles.is_none() {
-                node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+                node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
             }
             node.pseudo_styles
                 .as_mut()
@@ -579,7 +579,7 @@ impl Mason {
             .get_mut(node)
             .and_then(|node| {
                 if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+                    node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
                 }
                 node.pseudo_styles
                     .as_mut()
@@ -1124,7 +1124,7 @@ impl Mason {
         }
 
         if node.pseudo_styles.is_none() {
-            node.pseudo_styles = Some(crate::node::PseudoStyles::default());
+            node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
         }
         let base = node.style.clone();
         let p = node.pseudo_styles.as_mut().unwrap();

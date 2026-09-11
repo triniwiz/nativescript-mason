@@ -505,6 +505,13 @@ impl InlineMeasureCache {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SubtreeAnalysis {
+    pub(crate) has_children: bool,
+    pub(crate) has_mixed_content: bool,
+    pub(crate) all_inline: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
@@ -512,6 +519,7 @@ pub struct Node {
     /// evicting each other through taffy's fixed 9-slot cache.
     pub(crate) cache: LayoutCache,
     pub(crate) inline_measure_cache: InlineMeasureCache,
+    pub(crate) subtree_analysis: Option<SubtreeAnalysis>,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
     pub(crate) guard: Arc<()>,
@@ -522,7 +530,7 @@ pub struct Node {
     // the pointee must not move when the SlotMap reallocates.
     pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
-    pub(crate) pseudo_styles: Option<PseudoStyles>,
+    pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -533,6 +541,7 @@ impl Node {
             style: Style::new(arena),
             cache: Default::default(),
             inline_measure_cache: InlineMeasureCache::new(),
+            subtree_analysis: None,
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
@@ -551,6 +560,7 @@ impl Node {
             style: Style::new_with_handle(arena, handle),
             cache: Default::default(),
             inline_measure_cache: InlineMeasureCache::new(),
+            subtree_analysis: None,
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
             guard: Default::default(),
@@ -568,7 +578,7 @@ impl Node {
     /// The `style` should have been created with the same arena as the node.
     pub fn set_pseudo_style(&mut self, state: PseudoStates, style: Style) {
         if self.pseudo_styles.is_none() {
-            self.pseudo_styles = Some(PseudoStyles::default())
+            self.pseudo_styles = Some(Box::new(PseudoStyles::default()))
         }
         if let Some(p) = &mut self.pseudo_styles {
             if state.contains(PseudoStates::HOVER) {
@@ -659,6 +669,7 @@ impl Node {
     pub fn mark_dirty(&mut self) -> ClearState {
         self.set_node_state(true);
         self.inline_measure_cache.clear();
+        self.subtree_analysis = None;
         self.cache.clear()
     }
 
