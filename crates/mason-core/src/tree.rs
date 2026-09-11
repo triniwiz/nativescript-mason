@@ -1,4 +1,4 @@
-use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
+use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis};
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
@@ -32,13 +32,6 @@ impl From<NodeId> for Id {
     fn from(value: NodeId) -> Self {
         KeyData::from_ffi(value.into()).into()
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct SubtreeAnalysis {
-    has_children: bool,
-    has_mixed_content: bool,
-    all_inline: bool,
 }
 
 #[derive(Debug)]
@@ -849,13 +842,16 @@ impl Tree {
         RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id).unwrap())
     }
 
-    fn analyze_subtree(&self, id: Id) -> SubtreeAnalysis {
+    fn analyze_subtree(&mut self, id: Id) -> SubtreeAnalysis {
+        let mut inner = self.inner_mut();
+        if let Some(analysis) = inner.nodes.get(id).and_then(|node| node.subtree_analysis) {
+            return analysis;
+        }
+
         let mut has_children = false;
         let mut has_mixed_content = false;
         let mut all_inline = true;
 
-        // Hold a single read lock for entire analysis instead of re-acquiring per child
-        let inner = self.inner();
         if let Some(children) = inner.children.get(id) {
             has_children = !children.is_empty();
 
@@ -891,11 +887,15 @@ impl Tree {
             }
         }
 
-        SubtreeAnalysis {
+        let analysis = SubtreeAnalysis {
             has_children,
             has_mixed_content,
             all_inline,
+        };
+        if let Some(node) = inner.nodes.get_mut(id) {
+            node.subtree_analysis = Some(analysis);
         }
+        analysis
     }
 
     pub fn compute_layout(
@@ -956,13 +956,6 @@ impl Tree {
 
         if use_rounding {
             round_layout(self, root);
-        } else {
-            // Ensure final_layout mirrors unrounded_layout so prints / consumers that read
-            // final_layout get the correct positions even when rounding is disabled.
-            let mut nodes = self.nodes_mut();
-            for (_id, node) in nodes.iter_mut() {
-                node.final_layout = node.unrounded_layout;
-            }
         }
     }
 
@@ -2533,7 +2526,13 @@ impl PrintTree for Tree {
 
     #[inline(always)]
     fn get_final_layout(&self, node_id: NodeId) -> Layout {
-        self.nodes()[node_id.into()].final_layout
+        let inner = self.inner();
+        let node = &inner.nodes[node_id.into()];
+        if inner.use_rounding {
+            node.final_layout
+        } else {
+            node.unrounded_layout
+        }
     }
 }
 
@@ -2582,6 +2581,45 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             let has_sibling = index < num_children - 1;
             print_node(tree, child, has_sibling, new_string.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod print_tree_tests {
+    use super::*;
+
+    #[test]
+    fn final_layout_respects_the_rounding_mode() {
+        let mut tree = Tree::new();
+        let node = tree.create_node();
+        let node_id = NodeId::from(node.id());
+        tree.node_from_id_mut(node_id).unrounded_layout.size.width = 1.0;
+        tree.node_from_id_mut(node_id).final_layout.size.width = 2.0;
+
+        assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 1.0);
+        tree.set_use_rounding(true);
+        assert_eq!(PrintTree::get_final_layout(&tree, node_id).size.width, 2.0);
+    }
+
+    #[test]
+    fn subtree_analysis_cache_is_invalidated_by_child_changes() {
+        let mut tree = Tree::new();
+        let parent = tree.create_node();
+        let child = tree.create_node();
+        tree.with_style_mut(child.id(), |style| {
+            style.set_display_mode(DisplayMode::Inline)
+        });
+        tree.append(parent.id(), child.id());
+
+        assert!(tree.analyze_subtree(parent.id()).all_inline);
+        assert!(tree.inner().nodes[parent.id()].subtree_analysis.is_some());
+
+        tree.with_style_mut(child.id(), |style| {
+            style.set_display_mode(DisplayMode::ListItem)
+        });
+
+        assert!(tree.inner().nodes[parent.id()].subtree_analysis.is_none());
+        assert!(!tree.analyze_subtree(parent.id()).all_inline);
     }
 }
 
