@@ -2,6 +2,8 @@ package org.nativescript.mason.masonkit
 
 import kotlin.math.abs
 
+private val EMPTY_EXPORT_BUFFER = FloatArray(0)
+
 // MARK: - Flat Layout Tree (Android equivalent of iOS MasonLayoutTree)
 
 class MasonLayoutTree {
@@ -43,6 +45,19 @@ class MasonLayoutTree {
 
   private var childIndicesCount = 0
 
+  internal var exportBuffer = EMPTY_EXPORT_BUFFER
+    private set
+
+  internal fun ensureExportCapacity(required: Int) {
+    if (required > exportBuffer.size) {
+      exportBuffer = FloatArray(required)
+    }
+  }
+
+  internal fun setExportBuffer(buffer: FloatArray) {
+    exportBuffer = buffer
+  }
+
   // Set while applyLayoutFlat()'s DFS walks this tree (see Element.kt); a
   // reentrant refill mid-traversal would overwrite arrays the DFS still
   // has live references into. fromFloatArray() refuses to run while true.
@@ -50,12 +65,13 @@ class MasonLayoutTree {
   internal var reading = false
 
   /** Returns false (and leaves this tree untouched) if a DFS is currently reading it. */
-  fun fromFloatArray(args: FloatArray): Boolean {
+  fun fromFloatArray(args: FloatArray, length: Int = args.size): Boolean {
     if (reading) {
       return false
     }
+    require(length in 0..args.size) { "fromFloatArray: invalid length $length for array size ${args.size}" }
     val STRIDE = 22
-    val estimatedNodes = args.size / STRIDE
+    val estimatedNodes = length / STRIDE
     ensureCapacity(estimatedNodes, estimatedNodes) // rough estimate for child indices too
     nodeCount = 0
     childIndicesCount = 0
@@ -65,10 +81,10 @@ class MasonLayoutTree {
     // DFS stack: (nodeIndex, remainingChildren)
     val stack = ArrayList<IntArray>(32) // [nodeIndex, remaining]
 
-    while (arrayIndex < args.size) {
+    while (arrayIndex < length) {
       // Ensure there are enough floats remaining for one node
-      if (arrayIndex + STRIDE > args.size) {
-        throw IllegalArgumentException("fromFloatArray: truncated args (expected stride=$STRIDE, remaining=${args.size - arrayIndex})")
+      if (arrayIndex + STRIDE > length) {
+        throw IllegalArgumentException("fromFloatArray: truncated args (expected stride=$STRIDE, remaining=${length - arrayIndex})")
       }
 
       // Make sure arrays can hold this node before writing

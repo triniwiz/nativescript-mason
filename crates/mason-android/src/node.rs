@@ -297,7 +297,7 @@ pub extern "system" fn NodeNativeGetChildCountNormal(
 
 #[no_mangle]
 pub extern "system" fn nativeLayout(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
@@ -309,17 +309,48 @@ pub extern "system" fn nativeLayout(
     let ret = unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        let output = mason.layout(node.id());
-        let size = output.len();
+        let size = mason.layout_into(node.id(), &mut []);
         match env.new_float_array(size as i32) {
             Ok(array) => {
-                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
+                if let Ok(mut elements) =
+                    env.get_array_elements_critical(&array, ReleaseMode::CopyBack)
+                {
+                    mason.layout_into(node.id(), &mut elements);
+                }
                 array.into_raw()
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
     };
     call_exit("nativeLayout", call);
+    ret
+}
+
+#[no_mangle]
+pub extern "system" fn nativeLayoutInto(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    output: JFloatArray,
+) -> jint {
+    if taffy == 0 || node == 0 {
+        return 0;
+    }
+    let call = call_enter("nativeLayoutInto", taffy, node);
+    let ret = unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+        if env.get_array_length(&output).unwrap_or(0) == 0 {
+            mason.layout_into(node.id(), &mut []) as jint
+        } else {
+            match env.get_array_elements_critical(&output, ReleaseMode::CopyBack) {
+                Ok(mut elements) => mason.layout_into(node.id(), &mut elements) as jint,
+                Err(_) => 0,
+            }
+        }
+    };
+    call_exit("nativeLayoutInto", call);
     ret
 }
 
