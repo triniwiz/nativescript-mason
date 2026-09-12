@@ -680,7 +680,9 @@ class TextEngine(val container: TextContainer) {
   ): Long {
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
-    val pendingInvalidate = style.fontDirty
+    // Post the flush once per dirty episode, not once per measure call — a node is
+    // measured many times per compute and each post was a Handler message.
+    val pendingInvalidate = style.fontDirty && !style.pendingMetricsSync
     try {
       val layout = measureLayout(
         paint,
