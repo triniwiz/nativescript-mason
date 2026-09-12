@@ -35,16 +35,10 @@ class TextArea @JvmOverloads constructor(
     private set
 
   /**
-   * Guards requestLayout() propagation. EditText calls requestLayout() internally
-   * for cursor moves, text selection, IME events, and text reflow — none of which
-   * change our fixed (rows × lineHeight) intrinsic size.
-   *
-   * When false, those framework-initiated calls are silently dropped so Mason's
-   * full tree re-layout is not triggered on every keystroke or keyboard show/hide.
-   * This makes the textarea stable under any windowSoftInputMode.
-   *
-   * Set to true only within layoutIfSizeChanged() when rows/cols/font actually
-   * changed, and reset to false immediately after.
+   * Guards requestLayout() propagation: EditText calls it internally for cursor
+   * moves, IME events, and text reflow, none of which change our fixed
+   * (rows × lineHeight) intrinsic size. When false, those calls are dropped so a
+   * full Mason re-layout isn't triggered on every keystroke.
    */
   private var mAllowRequestLayout = true  // true during init so setup() passes through
 
@@ -71,12 +65,9 @@ class TextArea @JvmOverloads constructor(
   var rows: Int = 2
     set(value) {
       field = max(1, value)
-      // Do NOT set minLines/maxLines here. Mason controls the frame size via
-      // measure(); minLines/maxLines are only meaningful for Android's own
-      // WRAP_CONTENT measurement, which Mason overrides. More critically,
-      // maxLines constrains the DynamicLayout's line-coordinate table, which
-      // corrupts bringPointIntoView() scroll calculations for content past
-      // that line count — causing fewer visible lines than expected.
+      // Do NOT set minLines/maxLines: Mason controls the frame size via measure().
+      // maxLines also truncates DynamicLayout's line-coordinate table, breaking
+      // bringPointIntoView() for content past that line count.
       layoutIfSizeChanged()
     }
 
@@ -130,64 +121,28 @@ class TextArea @JvmOverloads constructor(
   }
 
   /**
-   * Report the entire view bounds as the "focused rect" instead of the cursor
-   * line position (which is what TextView reports by default).
-   *
-   * There are TWO independent paths that can pan the window when a focused
-   * EditText has a cursor below the visible area:
-   *
-   *   PATH A — bringPointIntoView() → requestRectangleOnScreen() → parent chain
-   *             → ViewRootImpl.requestChildRectangleOnScreen()
-   *             Blocked by our requestRectangleOnScreen() override below.
-   *
-   *   PATH B — ViewRootImpl.performTraversals() detects a focus change and
-   *             calls scrollToRectOrFocus() DIRECTLY, bypassing PATH A entirely.
-   *             scrollToRectOrFocus() calls focused.getFocusedRect() to learn
-   *             which rect must stay visible, then adjusts mScrollY of the root
-   *             view (the DecorView) — panning the whole window.
-   *             This is what causes the toolbar to scroll off-screen.
-   *
-   * By returning our full view bounds here, we tell ViewRootImpl "the rect that
-   * must be visible is the entire textarea box". Since the box was already fully
-   * on-screen before the IME appeared, the system determines no window pan is
-   * needed, and scrollToRectOrFocus() leaves mScrollY at 0.
+   * Report the entire view bounds as the "focused rect" so the IME doesn't pan
+   * the window when the cursor is below the visible area — ViewRootImpl's
+   * scrollToRectOrFocus() sees the whole textarea box already on-screen and
+   * leaves the window scroll alone.
    */
   override fun getFocusedRect(r: Rect) {
     r.set(0, 0, width, height)
   }
 
   /**
-   * Report the entire view bounds as the "drawing rect".
-   *
-   * There is a THIRD path that moves the parent scroll container (e.g.
-   * TwoDScrollView / Scroll) when the TextArea is focused or re-focused:
-   *
-   *   PATH C — TwoDScrollView.requestChildFocus() calls scrollToChild(focused),
-   *             which calls focused.getDrawingRect(). Android's default
-   *             View.getDrawingRect() returns (scrollX, scrollY, scrollX+w,
-   *             scrollY+h). When the TextArea's internal content has scrolled
-   *             down N pixels, scrollY=N, so the rect appears N pixels ABOVE
-   *             the child's actual frame in the parent's coordinate space.
-   *             TwoDScrollView then scrolls itself upward by N pixels to "bring
-   *             the child into view" — visually moving the entire textarea box.
-   *
-   * By returning (0, 0, width, height) we tell every parent scroll container
-   * "my visible frame is exactly my layout bounds; no parent scroll needed".
-   * The internal content scroll (handled by EditText's own DynamicLayout) is
-   * self-contained and should not influence any ancestor's scroll position.
+   * Report the entire view bounds as the "drawing rect" so parent scroll
+   * containers (e.g. Scroll) don't try to bring the textarea into view based
+   * on its internal content scroll offset, which is self-contained and should
+   * not affect any ancestor's scroll position.
    */
   override fun getDrawingRect(outRect: Rect) {
     outRect.set(0, 0, width, height)
   }
 
   /**
-   * Prevent the cursor-follow scroll from propagating to the parent hierarchy
-   * (PATH A — see getFocusedRect above).
-   *
-   * bringPointIntoView() first scrolls content within our own bounds (desired),
-   * then calls requestRectangleOnScreen() to ask ancestors to also scroll/pan.
-   * By returning false without calling super we stop that second propagation,
-   * keeping the textarea box fixed while its content scrolls internally.
+   * Block ancestors from also scrolling/panning when bringPointIntoView()
+   * scrolls our own content into view — the textarea box itself stays fixed.
    */
   override fun requestRectangleOnScreen(rectangle: Rect?, immediate: Boolean): Boolean {
     return false
@@ -221,10 +176,9 @@ class TextArea @JvmOverloads constructor(
       InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
         InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
     setHorizontallyScrolling(false)
-    // Allow the text to scroll vertically inside the fixed-height box when
-    // the field is focused and content overflows — web <textarea> behaviour.
-    // isScrollContainer=false tells the Window system this view does not
-    // register itself as a scrollable region, regardless of windowSoftInputMode.
+    // Text scrolls vertically inside the fixed-height box when content overflows
+    // (web <textarea> behaviour). isScrollContainer=false keeps the Window system
+    // from treating this view as a scrollable region regardless of windowSoftInputMode.
     isScrollContainer = false
     setVerticalScrollBarEnabled(true)
     gravity = Gravity.TOP or Gravity.START
@@ -255,7 +209,7 @@ class TextArea @JvmOverloads constructor(
     cursorPaint.color = style.resolvedColor
     setTextColor(style.resolvedColor)
     setTextSize(TypedValue.COMPLEX_UNIT_SP, style.resolvedFontSize.toFloat())
-    style.resolvedFontFace.font?.let {
+    style.resolvedFontFace.resolvedTypeface?.let {
       typeface = it
     }
     style.setStyleChangeListener(this)
@@ -292,25 +246,16 @@ class TextArea @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
-    // Android's View.draw() pre-translates the canvas by (-scrollX, -scrollY)
-    // before calling onDraw, so the text layout's internal scroll offset works correctly.
-    // However, ViewUtils.onDraw draws background/border at (0, 0, width, height) in the
-    // CURRENT canvas space — which is (scrollX, -scrollY) pixels off-screen when there is
-    // internal scroll. Result: the textarea's box becomes invisible while text still
-    // appears correctly (because TextView.onDraw applies its own +scrollY translation).
-    //
-    // Fix: save the canvas, counter-translate by (+scrollX, +scrollY) so that (0,0)
-    // refers to the view's actual visual top-left for background/border painting, then
-    // restore the scroll-offset canvas for the text-content super.onDraw call.
+    // View.draw() pre-translates the canvas by (-scrollX, -scrollY) for internal
+    // scroll, but ViewUtils.onDraw paints background/border at (0,0,w,h) in that
+    // same translated space, leaving the box off-screen while text still draws
+    // correctly. Counter-translate by (+scrollX, +scrollY) for background/border,
+    // then restore the scroll offset for the text-content super.onDraw call.
     val sx = scrollX.toFloat()
     val sy = scrollY.toFloat()
     canvas.save()
     canvas.translate(sx, sy)
     ViewUtils.onDraw(this, canvas, style) { c ->
-      // Inside the ViewUtils clip/filter block the canvas is at [+scrollX, +scrollY].
-      // Restore the original [-scrollX, -scrollY] offset so TextView.onDraw's internal
-      // translate(-scrollX, -scrollY + paddingTop) produces the correct net offset,
-      // making visible lines fall within the view's physical bounds.
       c.save()
       c.translate(-sx, -sy)
       super.onDraw(c)
@@ -325,22 +270,12 @@ class TextArea @JvmOverloads constructor(
     availableWidth: Float,
     availableHeight: Float
   ): Long {
-    // UNIT: all values are in PHYSICAL pixels (device pixels).
-    // paint.measureText and fontMetrics are already in physical pixels on Android.
-    //
-    // PADDING:
-    // The measure function returns the CONTENT size (character area only),
-    // matching the pattern used by Input.kt. Mason adds the CSS padding
-    // (style.padding = Points(pad) per side) externally in the box model.
-    // INCLUDING totalPaddingLeft/Right/Top/Bottom here would double-count
-    // the CSS padding because style.padding already allocates that space.
-    //
-    // lineHeight must include fontMetrics.leading so it matches Android's
-    // own StaticLayout line height, which uses -ascent + descent + leading.
-    // Omitting leading underestimates row height for fonts with leading > 0.
+    // Values are in physical pixels. Returns CONTENT size only (excludes
+    // totalPadding*) since Mason applies CSS padding externally in the box
+    // model — including it here would double-count it. lineHeight includes
+    // fontMetrics.leading to match Android's own StaticLayout line height.
     val charWidth = max(paint.measureText("0"), paint.measureText("W"))
     val fm = paint.fontMetricsInt
-    // Use integer font metrics (same source Android's layout engine uses).
     val lineHeight = (-fm.ascent + fm.descent + fm.leading).toFloat()
 
     // CONTENT size: fixed cols × rows matching web <textarea> default.
@@ -381,7 +316,7 @@ class TextArea @JvmOverloads constructor(
     }
 
     if (font) {
-      style.resolvedFontFace.font?.let {
+      style.resolvedFontFace.resolvedTypeface?.let {
         typeface = it
       }
     }

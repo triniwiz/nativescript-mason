@@ -22,6 +22,8 @@ export enum FlexWrap {
   NoWrap = 0,
   Wrap = 1,
   WrapReverse = 2,
+  Balance = 3,
+  BalanceReverse = 4,
 }
 
 export enum FlexDirection {
@@ -35,6 +37,13 @@ export enum MasonDimensionCompatType {
   Auto = 0,
   Points = 1,
   Percent = 2,
+  MinContent = 3,
+  MaxContent = 4,
+  FitContent = 5,
+  FitContentPoints = 6,
+  FitContentPercent = 7,
+  Stretch = 8,
+  Content = 9,
 }
 
 export enum PositionType {

@@ -112,6 +112,13 @@ pub enum CMasonDimensionType {
     MasonDimensionAuto,
     MasonDimensionPoints,
     MasonDimensionPercent,
+    MasonDimensionMinContent,
+    MasonDimensionMaxContent,
+    MasonDimensionFitContent,
+    MasonDimensionFitContentPoints,
+    MasonDimensionFitContentPercent,
+    MasonDimensionStretch,
+    MasonDimensionContent,
 }
 
 #[repr(C)]
@@ -136,6 +143,15 @@ impl Into<CMasonDimension> for Dimension {
             match raw.tag() {
                 CompactLength::LENGTH_TAG => CMasonDimension::length(raw.value()),
                 CompactLength::PERCENT_TAG => CMasonDimension::percent(raw.value()),
+                CompactLength::MIN_CONTENT_TAG => CMasonDimension::min_content(),
+                CompactLength::MAX_CONTENT_TAG => CMasonDimension::max_content(),
+                CompactLength::FIT_CONTENT_KEYWORD_TAG => CMasonDimension::fit_content(),
+                CompactLength::FIT_CONTENT_PX_TAG => CMasonDimension::fit_content_points(raw.value()),
+                CompactLength::FIT_CONTENT_PERCENT_TAG => {
+                    CMasonDimension::fit_content_percent(raw.value())
+                }
+                CompactLength::STRETCH_TAG => CMasonDimension::stretch(),
+                CompactLength::CONTENT_TAG => CMasonDimension::content(),
                 _ => unreachable!(),
             }
         }
@@ -328,6 +344,55 @@ impl CMasonDimension {
             value: 0.0,
         }
     }
+
+    pub fn min_content() -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionMinContent,
+            value: 0.0,
+        }
+    }
+
+    pub fn max_content() -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionMaxContent,
+            value: 0.0,
+        }
+    }
+
+    pub fn fit_content() -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionFitContent,
+            value: 0.0,
+        }
+    }
+
+    pub fn fit_content_points(value: f32) -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionFitContentPoints,
+            value,
+        }
+    }
+
+    pub fn fit_content_percent(value: f32) -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionFitContentPercent,
+            value,
+        }
+    }
+
+    pub fn stretch() -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionStretch,
+            value: 0.0,
+        }
+    }
+
+    pub fn content() -> Self {
+        Self {
+            value_type: CMasonDimensionType::MasonDimensionContent,
+            value: 0.0,
+        }
+    }
 }
 
 impl Into<Dimension> for CMasonDimension {
@@ -336,6 +401,17 @@ impl Into<Dimension> for CMasonDimension {
             CMasonDimensionType::MasonDimensionAuto => Dimension::auto(),
             CMasonDimensionType::MasonDimensionPoints => Dimension::length(self.value),
             CMasonDimensionType::MasonDimensionPercent => Dimension::percent(self.value),
+            CMasonDimensionType::MasonDimensionMinContent => Dimension::min_content(),
+            CMasonDimensionType::MasonDimensionMaxContent => Dimension::max_content(),
+            CMasonDimensionType::MasonDimensionFitContent => Dimension::fit_content(),
+            CMasonDimensionType::MasonDimensionFitContentPoints => {
+                Dimension::fit_content_px(self.value)
+            }
+            CMasonDimensionType::MasonDimensionFitContentPercent => {
+                Dimension::fit_content_percent(self.value)
+            }
+            CMasonDimensionType::MasonDimensionStretch => Dimension::stretch(),
+            CMasonDimensionType::MasonDimensionContent => Dimension::content(),
         }
     }
 }
@@ -349,6 +425,15 @@ impl From<&Dimension> for CMasonDimension {
         match dimension.into_raw().tag() {
             CompactLength::PERCENT_TAG => CMasonDimension::percent(dimension.value()),
             CompactLength::LENGTH_TAG => CMasonDimension::length(dimension.value()),
+            CompactLength::MIN_CONTENT_TAG => CMasonDimension::min_content(),
+            CompactLength::MAX_CONTENT_TAG => CMasonDimension::max_content(),
+            CompactLength::FIT_CONTENT_KEYWORD_TAG => CMasonDimension::fit_content(),
+            CompactLength::FIT_CONTENT_PX_TAG => CMasonDimension::fit_content_points(dimension.value()),
+            CompactLength::FIT_CONTENT_PERCENT_TAG => {
+                CMasonDimension::fit_content_percent(dimension.value())
+            }
+            CompactLength::STRETCH_TAG => CMasonDimension::stretch(),
+            CompactLength::CONTENT_TAG => CMasonDimension::content(),
             _ => {
                 unreachable!()
             }
@@ -400,6 +485,7 @@ impl Into<LengthPercentageAuto> for CMasonDimension {
             CMasonDimensionType::MasonDimensionAuto => LengthPercentageAuto::auto(),
             CMasonDimensionType::MasonDimensionPoints => LengthPercentageAuto::length(self.value),
             CMasonDimensionType::MasonDimensionPercent => LengthPercentageAuto::percent(self.value),
+            _ => LengthPercentageAuto::auto(),
         }
     }
 }

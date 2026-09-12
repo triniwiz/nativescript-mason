@@ -122,13 +122,29 @@ export class View extends ViewBase {
       if (!parentIsMason) {
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
-        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+        // Compute against the parent's bounds whenever the spec gives any, and
+        // fall back to max-content only when it doesn't. This view's own
+        // `auto`/`auto` style is not a reason to skip it: taffy honours that
+        // size either way, while a percentage, viewport unit, or an abspos
+        // child with `top: 0; bottom: 0` has nothing to resolve against
+        // without it. Android's View.kt has always passed the mapped spec
+        // through unconditionally.
+        if (!unconstrained) {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
-
+          // Tell autoComputeIfRoot this parent size is already handled (so
+          // setting our frame below doesn't trigger a redundant native
+          // compute+apply pass), and hand it the spec — not always the
+          // superview's bounds, e.g. a Page measures against the safe area.
           // @ts-ignore
-          const layout = this.ios.mason_layout();
+          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+
+          // computeWithSize already applied the layout natively and cached it
+          // on the node — read it back instead of paying for another native
+          // round trip via mason_layout().
+          // @ts-ignore
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -137,10 +153,15 @@ export class View extends ViewBase {
           this._measureChildren(layout);
           return;
         } else {
-          // either we had a non-auto dimension or an unconstrained spec,
-          // measure by max-content so we don't accidentally collapse to zero.
+          // Nothing definite to resolve against: measure by max-content so we
+          // don't accidentally collapse to zero.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();
+          // Same as above: prevent autoComputeIfRoot from immediately
+          // overriding this max-content measurement with a constrained
+          // compute against the parent's exact bounds.
+          // @ts-ignore
+          this.ios.mason_markRootComputeApplied();
           // @ts-ignore
           const layout = this.ios.node.computedLayout;
 
@@ -199,7 +220,7 @@ export class View extends ViewBase {
     view[isMasonView_] = false;
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
-    // Inverse of `_addViewToNativeVisualTree` — unlink the mason node so removal detaches
+    // Unlink the mason node so removal detaches
     // the Rust node + native view instead of orphaning it (super only does removeFromSuperview).
     const nativeView = this._view as any;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {

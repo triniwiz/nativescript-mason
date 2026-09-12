@@ -52,34 +52,6 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		}
 	}
 
-	/// Count the number of hard-newline-delimited content lines.
-	/// Kept for CSS height:auto support where the measure function may
-	/// want to reflect the actual content height.
-	private var contentLineCount: Int {
-		let current = text ?? ""
-		if current.isEmpty { return 1 }
-		return max(1, current.components(separatedBy: "\n").count)
-	}
-
-	/// Returns the number of visual (rendered) lines using the layout
-	/// manager.  Accounts for both hard newlines AND soft word-wrap.
-	/// Use this when the textarea must physically grow for every
-	/// visible line, not just hard returns.
-	private var visualLineCount: Int {
-		let text = self.text ?? ""
-		if text.isEmpty { return 1 }
-		let glyphRange = layoutManager.glyphRange(for: textContainer)
-		var lines = 0
-		var index = glyphRange.location
-		while index < NSMaxRange(glyphRange) {
-			var lineRange = NSRange()
-			layoutManager.lineFragmentRect(forGlyphAt: index, effectiveRange: &lineRange)
-			lines += 1
-			index = NSMaxRange(lineRange)
-		}
-		return max(1, lines)
-	}
-
 	// MARK: - Initializers
 
 	public init(mason doc: NSCMason) {
@@ -108,41 +80,20 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		isOpaque = false
 		backgroundColor = .clear
 
-		// Text area behaviour — multi-line.
-		// We keep isScrollEnabled = false during initialisation to prevent UIKit
-		// from creating a degenerate zero-width text container (UITextView with
-		// scroll enabled and a .zero frame collapses all layout).  It is turned
-		// back on once the measure function has told the Rust engine the correct
-		// intrinsic size, which will be applied as the frame before the first
-		// paint.  The end result matches web <textarea> default: fixed height
-		// (rows × line-height) with internal scroll when content overflows.
+		// Fixed rows by default, with internal scrolling only after content overflows.
 		singleLineBehavior = false
-		isScrollEnabled = false   // switched to true after frame is first applied
+		isScrollEnabled = false
 		textContainer.maximumNumberOfLines = 0
 		textContainer.lineBreakMode = .byWordWrapping
 
-		// Small default padding to match other platforms.
-		// UIEdgeInsets and lineFragmentPadding are in UIKit POINTS (device-independent),
-		// NOT physical pixels. Using NSCMason.scale here was wrong — it produced 6 pt
-		// instead of 2 pt on a 3× device, inflating the padding 3× and corrupting the
-		// intrinsic size reported to the Rust layout engine.
 		let insetPt: CGFloat = 2
 		setBaseTextContainerInset(UIEdgeInsets(top: insetPt, left: insetPt, bottom: insetPt, right: insetPt))
-		// Set lineFragmentPadding to 0. Any non-zero value here adds to the horizontal
-		// space between the text container edges and the text itself. It is not a CSS
-		// concept and must not be included in the measure function's padding calculation.
-		// Previously this was also set to `2 * NSCMason.scale` (6 pt on 3×), adding
-		// another 12 pt (36 px) of unclaimed horizontal padding to the intrinsic width.
 		textContainer.lineFragmentPadding = 0
 
 		// Default style
 		configure { style in
 			style.display = Display.InlineBlock
 			style.boxSizing = BoxSizing.BorderBox
-			// Mason operates in PHYSICAL pixels. The web default textarea padding is
-			// 2 CSS px = 2 × NSCMason.scale physical pixels (e.g. 6 px on a 3× device).
-			// Previously this incorrectly used just NSCMason.scale (= 3 px on 3×,
-			// half the correct value) and also mismatched the textContainerInset above.
 			let s = NSCMason.scale
 			style.padding = MasonRect(.Points(2 * s), .Points(2 * s), .Points(2 * s), .Points(2 * s))
 			style.fontSize = Constants.DEFAULT_FONT_SIZE
@@ -160,28 +111,6 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 
 		style.setStyleChangeListener(listener: self)
 
-		// Set up the measure function that the Rust layout engine calls to
-		// determine the intrinsic size of this textarea node.
-		//
-		// IMPORTANT: Avoid calling getDefaultAttributes() here — the Rust
-		// engine holds a read lock during measure, so any style-buffer
-		// writes (e.g. font loading inside getDefaultAttributes) would
-		// deadlock or silently fail. Use the UITextView's own `font`
-		// property which is already loaded at this point.
-		//
-		// UNIT:
-		// • The Rust engine passes known dimensions and available space in
-		//   PHYSICAL pixels (device pixels). All values from `known` are px.
-		// • The measure function must return a CGSize in PHYSICAL pixels.
-		// • UIFont metrics (lineHeight, charWidth, textContainerInset) are
-		//   in UIKit POINTS. Multiply by NSCMason.scale to convert to px.
-		//
-		// PADDING:
-		// • textContainerInset is 2 pt per side = 2 × scale px per side.
-		//   lineFragmentPadding is 0. Total padding = 4 pt per axis.
-		// • style.padding is 2 × scale px per side (= 4 × scale px per axis).
-		// • These match: the measure includes content + UIKit padding; Mason
-		//   allocates the same amount as CSS padding. No double-counting.
 		node.measureFunc = { [weak self] known, available in
 			guard let self = self else { return .zero }
 
@@ -189,9 +118,6 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 			let scale = CGFloat(NSCMason.scale)
 			guard scale > 0 else { return .zero }
 
-			// Character width in points. Use both "0" and "W" so we handle both
-			// monospaced and proportional fonts reasonably. NSString.size is safe
-			// to call during measure (no style-buffer writes).
 			let attrs: [NSAttributedString.Key: Any] = [.font: f]
 			let charWidthPt = max(
 				("0" as NSString).size(withAttributes: attrs).width,
@@ -199,24 +125,14 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 			)
 			let lineHeightPt = f.lineHeight
 
-			// Padding contribution in points.
-			// textContainerInset = 2 pt each side (corrected from the earlier
-			// 2×scale-as-points bug). lineFragmentPadding = 0.
-			// Total: left+right = 4 pt; top+bottom = 4 pt.
 			let inset = self.textContainerInset
 			let horizontalPaddingPt = inset.left + inset.right
 				+ self.textContainer.lineFragmentPadding * 2
 			let verticalPaddingPt = inset.top + inset.bottom
 
-			// Intrinsic: fixed by cols × rows, matching web <textarea> default.
-			// The view scrolls internally when content exceeds these bounds.
 			let intrinsicWidthPx  = (charWidthPt * CGFloat(self.cols) + horizontalPaddingPt) * scale
 			let intrinsicHeightPx = (lineHeightPt * CGFloat(self._rows) + verticalPaddingPt) * scale
 
-			// Overrides from the layout engine (definite known dimensions).
-			// The engine passes NaN for unconstrained axes. We also guard against
-			// non-finite values (Inf) and negative sentinels (< 0) which should
-			// never appear for known dims but would otherwise produce invalid frames.
 			let finalWidth: CGFloat
 			if let kw = known?.width, kw.isFinite, kw >= 0 {
 				finalWidth = kw
@@ -235,6 +151,24 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		}
 
 		node.setMeasureFunction(node.measureFunc!)
+	}
+
+	private func syncInternalScrollEnabled() {
+		guard !singleLineBehavior else { return }
+
+		guard bounds.width > 0, bounds.height > 0 else {
+			isScrollEnabled = false
+			return
+		}
+
+		let fittingSize = sizeThatFits(CGSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude))
+		let shouldScroll = fittingSize.height > bounds.height + 0.5 || fittingSize.width > bounds.width + 0.5
+		if isScrollEnabled != shouldScroll {
+			isScrollEnabled = shouldScroll
+		}
+		if !shouldScroll && contentOffset != .zero {
+			contentOffset = .zero
+		}
 	}
 
 	// MARK: - Drawing
@@ -288,23 +222,15 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		style.updateShadowLayer(for: bounds)
 		autoComputeIfRoot()
 
-		// Re-enable scroll once the frame has been applied by the layout engine,
-		// so the UITextView can scroll internally when content exceeds the fixed
-		// rows height (matching web <textarea> default behaviour). We defer this
-		// to layoutSubviews so the text container is already properly sized.
-		if !isScrollEnabled && bounds.width > 0 && bounds.height > 0 {
-			isScrollEnabled = true
-		}
+		syncInternalScrollEnabled()
 	}
 
-	// MARK: - Text changes → re-measure for dynamic height
+	// MARK: - Text changes
 
 	public override func textViewDidChange(_ textView: UITextView) {
 		super.textViewDidChange(textView)
-		// Mark dirty for CSS height:auto support. For the fixed-rows web-default
-		// mode the measure function returns a constant value so this is a no-op.
 		node.markDirty()
-		requestLayout()
+		syncInternalScrollEnabled()
 		setNeedsDisplay()
 	}
 

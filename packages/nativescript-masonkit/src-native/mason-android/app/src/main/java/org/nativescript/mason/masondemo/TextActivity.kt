@@ -208,7 +208,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     root.style.values.putInt(
       StyleKeys.DISPLAY, 2
     )
-    root.syncStyle("${StateKeys.DISPLAY.bits}", "-1")
+    root.syncStyle(StateKeys.DISPLAY.bits, -1L)
     val col = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_DIP,
       100f,
@@ -233,7 +233,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         root.style.values.putFloat(
           StyleKeys.GAP_ROW_VALUE, gap
         )
-        root.syncStyle("${StateKeys.GAP.bits}", "-1")
+        root.syncStyle(StateKeys.GAP.bits, -1L)
 
 
         root.style.values.putInt(
@@ -242,7 +242,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         root.style.values.putFloat(
           StyleKeys.GAP_COLUMN_VALUE, gap
         )
-        root.syncStyle("${StateKeys.GAP.bits}", "-1")
+        root.syncStyle(StateKeys.GAP.bits, -1L)
 
 
         val context = this@TextActivity

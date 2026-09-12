@@ -37,12 +37,34 @@ enum class PseudoState(val mask: Int) {
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) : NativeObject {
+  /**
+   * The markup last assigned through [Element.innerHTML], so the getter can
+   * return it. Serialising the live tree back to HTML is a separate concern.
+   */
+  internal var assignedInnerHTML: String = ""
+
+  /**
+   * Attributes carried over from parsed HTML (`class`, `id`, `href`, `alt`,
+   * `title`). These are recorded, not acted on by the cascade: a node built by
+   * the HTML parser is a native view with a mason node, not a NativeScript
+   * ViewBase, so NativeScript's selector engine never sees it. Keeping them lets
+   * an app find and style a parsed subtree itself.
+   */
+  val htmlAttributes: MutableMap<String, String> = mutableMapOf()
+
 
   internal var computeCacheDirty = false
   internal var computeScheduled = false
   internal var hasNativeClickDispatch = false
   internal var isPlaceholder = false
   internal var isImage = false
+
+  // Sticky (only ever set true, never cleared) hint that this node's own
+  // view is a TextContainer or some descendant's is, maintained by
+  // appendChild. Lets invalidateDescendantTextViews skip walking subtrees
+  // that contain no text at all, instead of unconditionally recursing into
+  // every child on every text-style write.
+  internal var hasTextDescendant = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
       computeCacheDirty = true
@@ -53,14 +75,19 @@ open class Node internal constructor(
       }
     }
 
-  // Flat layout tree — reused across layout passes to avoid allocation
+  // Flat layout tree this node owns — only ever filled with real data when
+  // THIS node drives its own layout pass (a root Element, or a self-computing
+  // View/Scroll/Li applying its own subtree). Most nodes never do that.
   internal val layoutTree = MasonLayoutTree()
 
-  // Index of this node in the flat layout tree (set during applyLayoutFlat)
+  // Where this node's geometry actually landed; `nv()` reads through this
+  // pair rather than `layoutTree` directly, since a descendant's own
+  // `layoutTree` may stay unset. Set together by applyLayoutFlat's DFS.
+  internal var layoutTreeRef: MasonLayoutTree = layoutTree
   internal var layoutTreeIndex: Int = 0
 
   // Helper to ensure the shared cursor points at this node's index before reads.
-  private fun nv() = layoutTree.cursor.apply { pointTo(layoutTreeIndex) }
+  private fun nv() = layoutTreeRef.cursor.apply { pointTo(layoutTreeIndex) }
 
   val computedWidth get() = nv().width
   val computedHeight get() = nv().height
@@ -115,13 +142,13 @@ open class Node internal constructor(
   }
 
   // Compatibility accessor: derive a recursive `Layout` representation
-  // from the current `layoutTree` at `layoutTreeIndex`. This avoids
+  // from the current `layoutTreeRef` at `layoutTreeIndex`. This avoids
   // storing a separate `computedLayout` snapshot while preserving the
   // legacy read API used by tests and callers.
   val computedLayout: Layout
     get() {
-      if (layoutTree.nodeCount == 0) return Layout.empty
-      return Layout.fromMasonTree(layoutTree, layoutTreeIndex)
+      if (layoutTreeRef.nodeCount == 0) return Layout.empty
+      return Layout.fromMasonTree(layoutTreeRef, layoutTreeIndex)
     }
 
   val computedPaddingIsEmpty get() = nv().paddingIsEmpty
@@ -145,6 +172,14 @@ open class Node internal constructor(
   open var parent: Node?
     internal set(value) {
       layoutParent = value
+      // Every insertion path (appendChild, replaceChildAt, insertChildBefore/
+      // After, addChildAt, ...) assigns `parent` to attach a node somewhere in
+      // the tree, so hooking it here — rather than each call site — is the one
+      // place that reliably keeps `hasTextDescendant` in sync no matter how a
+      // text-bearing node got attached.
+      if (value != null && (view is TextContainer || hasTextDescendant)) {
+        markHasTextDescendant(value)
+      }
     }
     get() {
       var p = layoutParent
@@ -720,11 +755,34 @@ open class Node internal constructor(
       invalidateDescendantTextViews(node, state.low, state.high)
     }
 
+    // A text descendant may have already built (and cached) its attributed
+    // string -- font-size, line-height, color, ... -- while this subtree
+    // wasn't yet reachable from its real ancestor, so CSS inheritance
+    // resolved to nothing. cachedAttributedString has no way to notice an
+    // ancestor changing on its own, so force a rebuild explicitly on attach.
+    internal fun invalidateDescendantInlineSegments(node: Node) {
+      if (node.view is TextContainer) {
+        (node.view as TextContainer).engine.invalidateInlineSegments()
+      }
+      val size = node.children.size
+      for (i in 0 until size) {
+        invalidateDescendantInlineSegments(node.children[i])
+      }
+    }
+
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
-      // Early exit if node has no initialized text values
-      // if (!node.style.isTextValueInitialized) {
-      //  return
-      // }
+      // Early exit for subtrees that contain no text at all (see
+      // Node.hasTextDescendant / markHasTextDescendant, maintained by
+      // appendChild) — avoids an unconditional O(subtree) walk on every
+      // text-style write when most of the subtree isn't text.
+      if (!node.hasTextDescendant && node.view !is TextContainer) {
+        return
+      }
+
+      // The resolved FontFace is cached per Style and inherits through
+      // node.parent, so a face resolved before this subtree was reachable
+      // from its real ancestor is stale -- drop it before re-notifying.
+      node.style.invalidateInheritedTextCaches()
 
       // Direct invalidation if this is a TextView
       if (node.view is TextContainer) {
@@ -757,6 +815,17 @@ open class Node internal constructor(
         StyleKeys.PSEUDO_SET_MASK_HIGH,
         buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH) or key.high
       )
+    }
+  }
+
+  // Marks `start` and its ancestors as having a text descendant, stopping at
+  // the first ancestor that's already marked (either it was marked earlier,
+  // or one of its own ancestors was, which already covers `start`).
+  private fun markHasTextDescendant(start: Node) {
+    var anc: Node? = start
+    while (anc != null && !anc.hasTextDescendant) {
+      anc.hasTextDescendant = true
+      anc = anc.parent
     }
   }
 
@@ -801,6 +870,8 @@ open class Node internal constructor(
         child.container = it
         it.engine.invalidateInlineSegments()
       }
+      // `container.view` is a TextContainer by construction above.
+      markHasTextDescendant(container)
       NodeUtils.invalidateLayout(this)
     } else {
       children.add(child)
@@ -815,6 +886,8 @@ open class Node internal constructor(
       if (child is TextContainer) {
         (child as? TextContainer)?.engine?.invalidateInlineSegments()
       }
+      // hasTextDescendant propagation already happened via the `child.parent =
+      // this` assignment above (see the `parent` property setter).
 
       // Single pass invalidation of descendants with text styles
       val descendantTextViews = if (view is TextContainer) {
@@ -824,6 +897,12 @@ open class Node internal constructor(
       }
       computeCacheDirty = true
       invalidateDescendantTextViews(descendantTextViews, StateKeys.INVALIDATE_TEXT)
+      // onChange(-1,-1) above only rebuilds a TextContainer's spans when a
+      // StateKeys flag it already checks for flipped -- it never notices that
+      // an *ancestor* just became reachable. A text run built while `child`'s
+      // subtree was still unparented cached a spannable resolved against no
+      // inheritance at all; force it to rebuild against the now-real parent.
+      invalidateDescendantInlineSegments(descendantTextViews)
 
       onNodeAttached?.let { it() }
     }
@@ -864,6 +943,8 @@ open class Node internal constructor(
         }
       } else {
         val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+        // must be linked before attributes.sync() below (inherits via node.parent)
+        container.parent = this
         container.children.add(child)
         (container.view as? TextView)?.let {
           child.attributes.sync(it.node.style)
@@ -901,6 +982,8 @@ open class Node internal constructor(
             if (hasRight) {
               afterContainer =
                 getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+              // must be linked before attributes.sync() below (inherits via node.parent)
+              afterContainer.parent = this
               // move right-side text nodes into afterContainer
               val moved =
                 containerNode.children.subList(idxInContainer + 1, containerNode.children.size)
@@ -919,7 +1002,6 @@ open class Node internal constructor(
               // insert afterContainer into parent's layout children immediately after original container
               if (containerIndexInParent >= 0) {
                 children.add(containerIndexInParent + 1, afterContainer)
-                afterContainer.parent = this
                 (view as? ViewGroup)?.let { view ->
                   view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
                     view.addView(afterContainer.view as? View, it + 1)
@@ -935,8 +1017,6 @@ open class Node internal constructor(
               } else {
                 // fallback: append
                 children.add(afterContainer)
-                afterContainer.parent = this
-
 
                 (view as? ViewGroup)?.let { view ->
                   view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
@@ -1099,6 +1179,8 @@ open class Node internal constructor(
       // Reference is not a text node (or not in an anonymous text container).
       // Create an anonymous text container and insert it at the index.
       val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+      // must be linked before attributes.sync() below (inherits via node.parent)
+      container.parent = this
       container.children.clear()
       container.children.add(child)
       child.parent = container
@@ -1110,7 +1192,6 @@ open class Node internal constructor(
 
       val refPos = children.indexOf(reference).takeIf { it >= 0 } ?: 0
       children.add(refPos, container)
-      container.parent = this
       // ensure the view/native tree gets updated via NodeUtils
       NodeUtils.addView(this, container.view as? View)
 
@@ -1174,6 +1255,8 @@ open class Node internal constructor(
           var afterContainer: Node? = null
           if (rightSlice.isNotEmpty()) {
             afterContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+            // must be linked before attributes.sync() below (inherits via node.parent)
+            afterContainer.parent = this
             afterContainer.children.clear()
             for (n in rightSlice) {
               afterContainer.children.add(n)
@@ -1197,7 +1280,6 @@ open class Node internal constructor(
             child.parent = this
             if (afterContainer != null) {
               children.add(insertPos + 1, afterContainer)
-              afterContainer.parent = this
               // add view for after-container
               NodeUtils.addView(this, afterContainer.view as? View)
             }
@@ -1209,7 +1291,6 @@ open class Node internal constructor(
             child.parent = this
             if (afterContainer != null) {
               children.add(replacePos + 1, afterContainer)
-              afterContainer.parent = this
               if (afterContainer.nativePtr != 0L) {
                 NativeHelpers.nativeNodeAddChild(
                   mason.nativePtr,
@@ -1323,6 +1404,8 @@ open class Node internal constructor(
       computeCacheDirty = true
       return
     }
+    // always cross the JNI boundary; computeCacheDirty isn't a reliable
+    // "native already knows" signal and skipping here dropped dirty marks
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }

@@ -361,3 +361,147 @@ stress-chip-alt,
   background-color: #eeeee4;
   border-radius: 4;
 }
+
+$dark-bg: #14140f;
+$dark-surface: #1e1e1b;
+$dark-ink: #e9e9e6;
+$dark-dim: #9a9a93;
+$dark-accent: #ff8534;
+$dark-tag: #2f2f28;
+$dark-chip: #3a3a35;
+$dark-chip-row: #262621;
+$dark-btn: #5a5a5a;
+
+.ns-dark .action-bar {
+  background-color: $dark-accent;
+  color: #14140f;
+}
+
+.ns-dark .page {
+  background-color: $dark-bg;
+}
+
+// feed
+
+.ns-dark .sort-btn {
+  color: $dark-dim;
+  background-color: $dark-surface;
+}
+
+.ns-dark .sort-btn-active {
+  color: #14140f;
+  background-color: $dark-accent;
+}
+
+.ns-dark hn-story-card,
+.ns-dark .card {
+  background-color: $dark-surface;
+}
+
+.ns-dark .rank {
+  color: $dark-dim;
+}
+
+.ns-dark .story-title,
+.ns-dark .story-title-lg {
+  color: $dark-ink;
+}
+
+.ns-dark .story-domain {
+  color: $dark-dim;
+}
+
+.ns-dark .meta-score {
+  color: $dark-accent;
+}
+
+.ns-dark .meta-dim {
+  color: $dark-dim;
+}
+
+.ns-dark .tag {
+  background-color: $dark-tag;
+}
+
+.ns-dark .tag-text {
+  color: $dark-dim;
+}
+
+// item
+
+.ns-dark .story-header {
+  background-color: $dark-surface;
+}
+
+.ns-dark .section-title {
+  color: $dark-ink;
+}
+
+.ns-dark .comment {
+  background-color: $dark-surface;
+}
+
+.ns-dark .comment-by {
+  color: $dark-accent;
+}
+
+.ns-dark .depth-badge,
+.ns-dark .collapse-btn {
+  color: $dark-dim;
+}
+
+.ns-dark .comment-text {
+  color: $dark-ink;
+}
+
+// listview
+
+.ns-dark .list {
+  background-color: $dark-bg;
+}
+
+.ns-dark .list-item {
+  background-color: $dark-surface;
+}
+
+// stress
+
+.ns-dark .case {
+  background-color: $dark-surface;
+}
+
+.ns-dark .case-note,
+.ns-dark .expected-label {
+  color: $dark-dim;
+}
+
+.ns-dark .expected-value {
+  color: $dark-accent;
+}
+
+.ns-dark .chip-row {
+  background-color: $dark-chip-row;
+}
+
+.ns-dark stress-chip,
+.ns-dark stress-chip-alt,
+.ns-dark .chip {
+  background-color: $dark-chip;
+}
+
+.ns-dark .chip-accent {
+  background-color: $dark-accent;
+}
+
+.ns-dark .chip-text {
+  color: $dark-ink;
+}
+
+.ns-dark .btn {
+  color: $dark-ink;
+  background-color: $dark-btn;
+}
+
+.ns-dark .grid-cell {
+  background-color: $dark-tag;
+}

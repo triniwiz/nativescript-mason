@@ -228,7 +228,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
       // Apply typeface
       attributes.font?.let { fontFace ->
-        fontFace.font?.let { typeface ->
+        fontFace.resolvedTypeface?.let { typeface ->
           val isBold = fontFace.weight.weight >= 600
           val isItalic =
             fontFace.style.fontStyle == android.graphics.Typeface.ITALIC

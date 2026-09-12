@@ -870,7 +870,19 @@ declare const enum MasonInputType {
 
 	File = 12,
 
-	Submit = 13
+	Submit = 13,
+
+	Search = 14,
+
+	Time = 15,
+
+	DatetimeLocal = 16,
+
+	Month = 17,
+
+	Week = 18,
+
+	Reset = 19
 }
 
 declare const enum MasonJustifyContent {

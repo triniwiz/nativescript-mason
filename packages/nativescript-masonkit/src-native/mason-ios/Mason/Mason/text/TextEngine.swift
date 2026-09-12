@@ -208,6 +208,10 @@ public class TextEngine: NSObject {
   
 
   private static let whitespaceRegex = try! NSRegularExpression(pattern: "\\s+")
+  // Soft wrap opportunities for min-content, which is wider than `\s`: U+200B
+  // ZERO WIDTH SPACE breaks a line without being whitespace, so splitting on
+  // whitespace alone reported a whole ZWSP-joined run as one unbreakable word.
+  private static let softWrapRegex = try! NSRegularExpression(pattern: "[\\s\\x{200B}]+")
   private static let horizontalWsRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "[ \\t]+", options: [])
 
   private static func splitByWhitespace(
@@ -251,14 +255,14 @@ public class TextEngine: NSObject {
   }
 
   internal static func minContentWidth(for text: NSAttributedString) -> CGFloat {
-    // Single-pass: measure each whitespace-delimited word without creating
-    // an intermediate [NSAttributedString] array.
+    // Single-pass: measure each segment between soft wrap opportunities
+    // without creating an intermediate [NSAttributedString] array.
     var maxWidth: CGFloat = 0
     let nsText = text.string as NSString
     let fullRange = NSRange(location: 0, length: nsText.length)
     var lastLocation = 0
 
-    let matches = whitespaceRegex.matches(in: text.string, range: fullRange)
+    let matches = softWrapRegex.matches(in: text.string, range: fullRange)
     for match in matches {
       let r = match.range
       if r.location > lastLocation {
@@ -394,13 +398,10 @@ public class TextEngine: NSObject {
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode)
     let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
 
-    // When there are floats we need to size the exclusion path correctly, which
-    // requires knowing the actual text height first — so we call SuggestFrameSize.
-    // When there are no floats the simple outer rect is sufficient and we can skip
-    // the suggest call entirely, computing height from the frame afterwards instead.
-    //
-    // `suggestedSize` is set only for the float path; for the no-float path it
-    // stays nil and the size is derived from the frame's line origins instead.
+    // With floats we need the actual text height first to size the exclusion
+    // path, so call SuggestFrameSize (`suggestedSize` holds that result). With
+    // no floats the outer rect is enough, and height is derived from the
+    // frame's line origins instead.
     var suggestedSize: CGSize? = nil
     let pathHeight: CGFloat
     if floatEntries.isEmpty {
@@ -438,16 +439,10 @@ public class TextEngine: NSObject {
 
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
 
-    // Compute the measured size.
-    //
-    // No-float path: derive size from the frame's line origins — one CT pass total.
-    // In CoreText's Y-up coordinate space, lineOrigin.y is the baseline distance
-    // from the BOTTOM of the frame rect:
-    //   textTop    = firstLineOrigin.y + firstAscent
-    //   textBottom = lastLineOrigin.y  - lastDescent
-    //   height     = textTop - textBottom
-    //
-    // Float path: SuggestFrameSize already ran above, reuse its result.
+    // No-float path: derive size from the frame's line origins (CoreText's Y-up
+    // coordinate space measures lineOrigin.y from the frame's bottom):
+    //   height = (firstLineOrigin.y + firstAscent) - (lastLineOrigin.y - lastDescent)
+    // Float path: SuggestFrameSize already ran above; reuse its result.
     var size: CGSize
     if let s = suggestedSize {
       size = s  // float path: already have the correct size
@@ -527,12 +522,15 @@ public class TextEngine: NSObject {
 
     size.height = (size.height * scale).rounded(.up)
 
+    // A `known` dimension of exactly 0 is often a transient probe, not an
+    // authoritative constraint; only treat a positive value as authoritative,
+    // matching Android's TextEngine.kt (`knownWidth/knownHeight > 0`).
     if let known = known {
-      if !known.width.isNaN && known.width >= 0 {
+      if !known.width.isNaN && known.width > 0 {
         size.width = known.width
       }
-      
-      if !known.height.isNaN && known.height >= 0 {
+
+      if !known.height.isNaN && known.height > 0 {
         size.height = known.height
       }
     }
@@ -557,6 +555,13 @@ public class TextEngine: NSObject {
   // attributedStringVersion == segmentsInvalidateVersion
   private var segmentsInvalidateVersion: UInt64 = 0
   private var attributedStringVersion: UInt64 = 0
+
+  // Last (version, constraintSize) collectAndCacheSegments() sent for. The
+  // CTFrame itself is rebuilt every call, so it can't signal "unchanged"
+  // the way Android's cached StaticLayout instance does — this pair is the
+  // narrowest substitute.
+  private var lastSegmentsVersion: UInt64 = UInt64.max
+  private var lastSegmentsConstraintSize = CGSize(width: -1, height: -1)
 
   private func currentFontMetrics() -> FontMetrics {
     let metrics = style.fontMetrics
@@ -1021,7 +1026,16 @@ public class TextEngine: NSObject {
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
 
-    let framesetter = CTFramesetterCreateWithAttributedString(text)
+    // reuse the framesetter measure() already cached for this string,
+    // instead of rebuilding it on every redraw
+    let framesetter: CTFramesetter
+    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
+      framesetter = cached
+    } else {
+      framesetter = CTFramesetterCreateWithAttributedString(text)
+      cachedFramesetter = framesetter
+      framesetterStringVersion = segmentsInvalidateVersion
+    }
 
     var paddingRestore =  false
     var drawBounds = bounds
@@ -1060,7 +1074,7 @@ public class TextEngine: NSObject {
     // Build exclusion path in layout-local coordinates (origin at zero).
     // We'll flip Y so CoreText's frame-coordinate space matches the engine's top-based Y.
     let localOuter = CGRect(origin: .zero, size: layoutBounds.size)
-    var bezier = UIBezierPath(rect: localOuter)
+    let bezier = UIBezierPath(rect: localOuter)
     bezier.usesEvenOddFillRule = true
     let containerNode = node.parent ?? node
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
@@ -1123,15 +1137,10 @@ public class TextEngine: NSObject {
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
 
-    // Re-anchor the vertical baseline using the font's true metrics rather than
-    // CoreText's frame positioning, which is driven by the (possibly clamped)
-    // line-height and leaves the glyph box off-centre or clipped.
-    //   • A single line is centred within the content box — same rule as
-    //     drawSingleLine — so padded inline-blocks (links, buttons, pills) sit in
-    //     the middle instead of riding high/low from font ascent/descent asymmetry.
-    //   • A tight multi-line block (line-height < the font's natural line box) has
-    //     its first baseline pinned to the full font ascent so the first line's
-    //     ascenders and the last line's descenders stay inside the reserved box.
+    // Re-anchor the vertical baseline using the font's true metrics, not
+    // CoreText's frame positioning (driven by the possibly-clamped line-height).
+    // A single line centers in the content box; a tight multi-line block pins
+    // its first baseline to the full font ascent so ascenders/descenders fit.
     var textBaseY = layoutBounds.origin.y
     if text.length > 0,
        let fontValue = node.getDefaultAttributes()[.font],
@@ -1156,18 +1165,11 @@ public class TextEngine: NSObject {
         for i in 0..<linesCount {
           let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
           let lineOrigin = origins[i]
-          let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-          // Compute horizontal offset based on resolved text alignment
-          var horizontalOffset: CGFloat = 0
-          switch style.resolvedTextAlign {
-          case .Center:
-            horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
-          case .Right, .End:
-            horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
-          case .Left, .Auto, .Start, .Justify:
-            horizontalOffset = 0
-          }
-          let textPos = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY)
+          // The frame was laid out with `paragraphStyle.alignment` already set
+          // (getDefaultAttributes), so CoreText has already centered/right-aligned
+          // this line's origin within the frame's full column width - adding a
+          // second manual offset here double-applies the alignment.
+          let textPos = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
           context.saveGState()
           context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
           
@@ -1191,17 +1193,9 @@ public class TextEngine: NSObject {
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-      var horizontalOffset: CGFloat = 0
-      switch style.resolvedTextAlign {
-      case .Center:
-        horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
-      case .Right, .End:
-        horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
-      case .Left, .Auto, .Start, .Justify:
-        horizontalOffset = 0
-      }
-      context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY)
+      // Same double-alignment pitfall as the shadow pass above - `lineOrigin.x`
+      // already reflects the paragraph style's alignment.
+      context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -1219,7 +1213,7 @@ public class TextEngine: NSObject {
           // Fake-bold only when a bold weight is requested but no real bold face
           // exists. `weight` is the CSS weight (100–900), so threshold is 600.
           if !isBold && weight >= 600 {
-              drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY))
+              drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY))
             } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
@@ -1229,7 +1223,7 @@ public class TextEngine: NSObject {
       }
 
       // Draw text decorations (underline, strikethrough) for this line
-      drawTextDecorations(for: line, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x + horizontalOffset, y: lineOrigin.y + textBaseY), in: context)
+      drawTextDecorations(for: line, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY), in: context)
     }
 
     context.restoreGState()
@@ -1323,8 +1317,12 @@ public class TextEngine: NSObject {
     // Check if text contains explicit line breaks (from <br> tags)
     let hasExplicitLineBreaks = text.string.contains("\n")
 
+    // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
+    // properties that both force single-line drawing; match Android's OR.
+    let noWrap = style.textWrap == .NoWrap || style.whiteSpace == .NoWrap || style.whiteSpace == .Pre
+
     // Handle nowrap case - but still respect explicit line breaks from <br>
-    if style.textWrap == .NoWrap && !hasExplicitLineBreaks {
+    if noWrap && !hasExplicitLineBreaks {
       drawSingleLine(text: text, in: context, bounds: rect)
       context.restoreGState()
       drawState = .idle
@@ -1354,7 +1352,6 @@ public class TextEngine: NSObject {
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = CharacterSet.whitespacesAndNewlines
-    let horizontalWsSet = CharacterSet(charactersIn: " \t")
     // Use [ \t]+ to only match horizontal whitespace, not newlines or line separators
     let collapseRegex = TextEngine.horizontalWsRegex
 
@@ -1576,15 +1573,22 @@ public class TextEngine: NSObject {
   /// Collect inline segments and push to Rust
   /// This is called during measure to provide segments before Rust's inline layout runs
   private func collectAndCacheSegments(from frame: CTFrame, _ constraints: CGSize) {
-    
+    // Nothing relevant changed since the segments already sent for this
+    // exact (content, constraint) pair — skip the frame/line walk + FFI push.
+    if lastSegmentsVersion == segmentsInvalidateVersion && lastSegmentsConstraintSize == constraints {
+      return
+    }
+
     let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
-    
+
     guard !lines.isEmpty else {
       // Empty text - send empty segments
       if let ptr = node.nativePtr {
         mason_node_clear_segments(node.mason.nativePtr, ptr)
       }
       attributedStringVersion = segmentsInvalidateVersion
+      lastSegmentsVersion = segmentsInvalidateVersion
+      lastSegmentsConstraintSize = constraints
       return
     }
     
@@ -1651,5 +1655,7 @@ public class TextEngine: NSObject {
     
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
     attributedStringVersion = segmentsInvalidateVersion
+    lastSegmentsVersion = segmentsInvalidateVersion
+    lastSegmentsConstraintSize = constraints
   }
 }

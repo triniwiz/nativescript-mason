@@ -35,22 +35,10 @@ class NodeHelper(val mason: Mason) {
     mason.configureStyleForView(view, block)
   }
 
-  private inline fun <T> measurePerformanceInMS(
-    logger: (Long) -> Unit, function: () -> T
-  ): T {
-    val startTime = System.currentTimeMillis()
-    val result: T = function.invoke()
-    val endTime = System.currentTimeMillis()
-    logger.invoke(endTime - startTime)
-    return result
-  }
-
-  //the logger function
   fun logPerf(time: Long) {
     Log.d("JS", "PERFORMANCE IN MS: $time ms ")
   }
 
-  //the function whose performance needs to be checked
   fun longRunningFunction(): Int {
     var x = 0
     for (i in 1..20000) x++
@@ -59,12 +47,9 @@ class NodeHelper(val mason: Mason) {
 
 
   fun batchCreateViews(context: Context) {
-
-//    measurePerformanceInMS({time -> logPerf(time)}){
     for (i in 1..1000) {
-      views.add(View(context));
+      views.add(View(context))
     }
-//    }
   }
 
   private fun checkAndUpdateStyle(node: Node) {
@@ -1418,6 +1403,32 @@ class NodeHelper(val mason: Mason) {
     ) {
       val node = mason.nodeForView(view)
       node.style.borderRadius = value
+    }
+
+    /**
+     * `font-family` is a native `Style` property (it builds a FontFace), not a
+     * style-buffer field, so JS can't write it through the shared buffer the way
+     * it writes lengths — it has to come through here.
+     */
+    fun setFontFamily(
+      view: android.view.View,
+      value: String
+    ) {
+      // Same reasoning as setTextDecoration below: a TextView's own node is the
+      // one that renders, and nodeForView() would hand back a detached proxy.
+      val node = when (view) {
+        is TextView -> view.node
+        else -> mason.nodeForView(view)
+      }
+      node.style.fontFamily = value
+    }
+
+    fun getFontFamily(view: android.view.View): String {
+      val node = when (view) {
+        is TextView -> view.node
+        else -> mason.nodeForView(view)
+      }
+      return node.style.fontFamily
     }
 
     fun setTextDecoration(

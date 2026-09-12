@@ -48,6 +48,23 @@ final class MasonTests: XCTestCase {
     XCTAssertEqual(view.style.display, .Block)
   }
 
+  // MARK: - Form Control Tests
+
+  func test_textAreaOnlyScrollsWhenContentOverflows() {
+    let textArea = MasonTextArea(mason: mason)
+    textArea.rows = 4
+    textArea.frame = CGRect(x: 0, y: 0, width: 300, height: 120)
+
+    textArea.text = "Short note"
+    textArea.layoutIfNeeded()
+    XCTAssertFalse(textArea.isScrollEnabled)
+
+    textArea.text = Array(repeating: "Line", count: 20).joined(separator: "\n")
+    textArea.textViewDidChange(textArea)
+    textArea.layoutIfNeeded()
+    XCTAssertTrue(textArea.isScrollEnabled)
+  }
+
   // MARK: - Layout Computation Tests
 
   func test_layoutSimpleView() {

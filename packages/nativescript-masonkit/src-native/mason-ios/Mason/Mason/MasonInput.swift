@@ -60,7 +60,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     let size = state.contains(.fontSize)
     let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
-    case .Text, .Number, .Email, .Password, .Tel, .Url:
+    case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       if(color){
         textInput.textColor = UIColor.colorFromARGB(style.resolvedColor)
         textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
@@ -73,7 +73,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
           textInput.font = uiFont
         }
       }
-    case .Button:
+    case .Button, .Reset:
       break
     case .Checkbox:
       break
@@ -186,12 +186,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     return range
   }()
   
-  internal lazy var numberInput: MasonNumberInput  = {
-    let ctrl = MasonNumberInput()
-    ctrl.owner = self
-    return ctrl
-  }()
-  
   internal lazy var colorInput: UIColorWell = {
     let well = UIColorWell()
     well.selectedColor = .black
@@ -231,13 +225,25 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   private var initializing = true
+  // Captured in `willSet` (old widget), re-applied in `didSet` after
+  // `configureInput` rebuilds the widget for the new type.
+  private var pendingTypeSwitchValue: String?
   public var type: MasonInputType = .Text {
+    willSet {
+      if !initializing {
+        pendingTypeSwitchValue = self.value
+      }
+    }
     didSet {
       if(initializing){
         return
       }
       configureInput(type)
       invalidateLayout()
+      if let previousValue = pendingTypeSwitchValue {
+        self.value = previousValue
+        pendingTypeSwitchValue = nil
+      }
     }
   }
   
@@ -249,11 +255,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   public var value: String {
     set {
       switch type {
-      case .Text, .Email, .Url, .Tel:
+      case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
         textInput.text = newValue
       case .Password:
         passwordInput.text = newValue
-      case .Button, .Submit:
+      case .Button, .Submit, .Reset:
         let attributes = node.getDefaultAttributes()
         let title = NSAttributedString(string: newValue, attributes: attributes)
         if(type == MasonInputType.Submit){
@@ -267,8 +273,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         dateInput.value = newValue
       case .Radio:
         radioInput.isSelected = (newValue == "true")
-      case .Number:
-        numberInput.value = Int(newValue) ?? 0
       case .Range:
         rangeInput.value = Float(newValue) ?? 0
       case .Color:
@@ -281,11 +285,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     }
     get {
       switch type {
-      case .Text, .Email, .Url, .Tel:
+      case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
         return textInput.text ?? ""
       case .Password:
         return passwordInput.text ?? ""
-      case .Button:
+      case .Button, .Reset:
         return buttonInput.currentAttributedTitle?.string ?? ""
       case .Submit:
         return submitInput.currentAttributedTitle?.string ?? ""
@@ -295,8 +299,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         return dateInput.value
       case .Radio:
         return radioInput.isSelected ? "true" : "false"
-      case .Number:
-        return String(numberInput.value)
       case .Range:
         return String(rangeInput.value)
       case .Color:
@@ -312,11 +314,9 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   public var valueAsNumber: Double {
     get {
       switch type {
-      case .Number:
-        return Double(numberInput.value)
       case .Range:
         return Double(rangeInput.value)
-      case .Text, .Email, .Url, .Tel:
+      case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
         if let txt = textInput.text, let d = Double(txt) { return d }
         return Double.nan
       case .Password:
@@ -336,13 +336,10 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       }
       
       switch type {
-      case .Number:
-        numberInput.value = Int(newValue)
-        value = String(numberInput.value)
       case .Range:
         rangeInput.value = Float(newValue)
         value = String(newValue)
-      case .Text, .Email, .Url, .Tel, .Password:
+      case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week, .Password:
         value = String(newValue)
       case .Date:
         let date = Date(timeIntervalSince1970: newValue)
@@ -397,7 +394,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       case .Date:
         dateInput.value = simple.string(from: d)
         value = dateInput.value
-      case .Text, .Email, .Url, .Tel, .Password:
+      case .Text, .Email, .Url, .Tel, .Search, .Time, .DatetimeLocal, .Month, .Week, .Password:
         value = simple.string(from: d)
       default:
         value = simple.string(from: d)
@@ -408,11 +405,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   public var placeholder: String = "" {
     didSet {
       switch type {
-      case .Text, .Email:
+      case .Text, .Email, .Number, .Tel, .Url, .Search, .Time, .DatetimeLocal, .Month, .Week:
         textInput.placeholder = placeholder
       case .Password:
         passwordInput.placeholder = placeholder
-      case .Button:
+      case .Button, .Reset:
         break
       case .Checkbox:
         break
@@ -420,14 +417,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         break
       case .Radio:
         break
-      case .Number:
-        numberInput.textField.placeholder = placeholder
-        break
       case .Range:
-        break
-      case .Tel:
-        break
-      case .Url:
         break
       case .Color:
         break
@@ -509,10 +499,10 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       let ch = self.measureText("0")
       let scale = CGFloat(NSCMason.scale)
       switch self.type {
-      case .Text, .Email, .Password, .Url, .Tel, .Number:
+      case .Text, .Email, .Password, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
         size.width = max(CGFloat(self.size) * (ch.width * scale) , 150)
         size.height = ch.height * scale
-      case .Button, .Submit:
+      case .Button, .Submit, .Reset:
         let value = self.measureText(self.value)
         size.width = min(value.width * scale, 64 * scale)
         size.height = min(value.height * scale, 32 * scale)
@@ -573,13 +563,13 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       inputSize = bounds.insetBy(dx: inset.left, dy: inset.top)
     }
     switch type {
-    case .Text, .Email, .Url, .Tel:
+    case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       textInput.frame = inputSize
       break
     case .Password:
       passwordInput.frame = inputSize
       break
-    case .Button:
+    case .Button, .Reset:
       buttonInput.frame = inputSize
       break
     case .Checkbox:
@@ -590,9 +580,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       break
     case .Range:
       rangeInput.frame = inputSize
-      break
-    case .Number:
-      numberInput.frame = inputSize
       break
     case .Color:
       colorInput.frame = inputSize
@@ -619,21 +606,32 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       }
     }
     switch type {
-    case .Text, .Email, .Password, .Tel, .Url:
+    case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
       configure { style in
         style.border = "1"
         style.borderRadius = "4"
         style.padding = MasonRect(.Points(scale), .Points(scale * 2), .Points(scale), .Points(scale * 2))
-        style.textAlign = TextAlign.Center
+        style.textAlign = TextAlign.Left
       }
+      textInput.returnKeyType = .default
       switch(type){
+      case .Search:
+        textInput.keyboardType = .webSearch
+        textInput.returnKeyType = .search
+        break
       case .Tel:
         textInput.keyboardType = .phonePad
       case .Url:
         textInput.keyboardType = .URL
       case .Email:
         textInput.keyboardType = .emailAddress
+        break
+      case .Number:
+        textInput.keyboardType = .decimalPad
+        break
+      case .Time, .DatetimeLocal, .Month, .Week:
+        textInput.keyboardType = .numbersAndPunctuation
         break
       case .Password:
         // For password use a real secure `UITextField` instead of `UITextView`.
@@ -643,6 +641,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         passwordInput.autocorrectionType = .no
         break
       default:
+        textInput.keyboardType = .default
         break
       }
       if type == .Password {
@@ -659,7 +658,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       }
       addSubview(dateInput)
       break
-    case .Button, .Submit:
+    case .Button, .Submit, .Reset:
       configure { style in
         style.border = "1"
         style.borderRadius = "4"
@@ -680,15 +679,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       break
     case .Range:
       addSubview(rangeInput)
-      break
-    case .Number:
-      configure { style in
-        style.border = "1"
-        style.borderRadius = "4"
-        style.padding = MasonRect(.Points(1), .Points(2), .Points(1), .Points(2))
-        style.textAlign = TextAlign.Center
-      }
-      addSubview(numberInput)
       break
     case .Color:
       addSubview(colorInput)

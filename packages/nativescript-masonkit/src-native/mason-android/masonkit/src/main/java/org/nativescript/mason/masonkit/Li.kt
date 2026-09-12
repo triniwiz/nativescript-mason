@@ -73,7 +73,13 @@ class Li @JvmOverloads constructor(
 
     val oldPaintStyle = style.paint.style
     val oldStroke = style.paint.strokeWidth
+    val oldColor = style.paint.color
     style.paint.style = Paint.Style.FILL
+    // `style.paint`'s color is otherwise never synced from the CSS `color`
+    // property (real text color comes from per-run Spans, not this shared
+    // Paint) — the marker has no span of its own, so it must read the
+    // resolved color directly or it always paints black.
+    style.paint.color = style.color
 
     when (listType) {
       ListStyleType.Custom.value -> {
@@ -114,11 +120,16 @@ class Li @JvmOverloads constructor(
 
     style.paint.style = oldPaintStyle
     style.paint.strokeWidth = oldStroke
+    style.paint.color = oldColor
   }
 
   private fun findFirstTextBaseline(view: android.view.View): Int {
-    if (view is android.widget.TextView) {
-      return view.baseline
+    // `getBaseline()` is a standard `android.view.View` API (default -1 =
+    // "no baseline") that this package's own `TextView` overrides; mason
+    // text never renders through android.widget.TextView.
+    val baseline = view.baseline
+    if (baseline != -1) {
+      return baseline
     }
     if (view is ViewGroup) {
       for (i in 0 until view.childCount) {
@@ -187,12 +198,10 @@ class Li @JvmOverloads constructor(
     }
     applyLayoutFlat(node, node.layoutTree)
 
-    // Ensure children are offset by markerWidth so the marker has room.
-    // This mirrors iOS's sublayerTransform approach — if Taffy's internal
-    // marker node already reserved the space, children will already be at
-    // x >= markerWidth and no additional offset is needed.  When the Taffy
-    // measure function was not invoked (the common edge case), children
-    // sit at x=0 and we shift them here.
+    // Children are offset by markerWidth so the marker has room. If Taffy's
+    // marker node already reserved the space, children are already at
+    // x >= markerWidth and no shift is needed; otherwise they start at x=0
+    // and are shifted here. Mirrors iOS's sublayerTransform approach.
     val offset = markerWidth.toInt()
     if (offset > 0 && childCount > 0) {
       val firstChild = getChildAt(0)

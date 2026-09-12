@@ -1,6 +1,6 @@
 {
   "name": "@triniwiz/nativescript-masonkit",
-  "version": "1.0.0-beta.87",
+  "version": "1.0.0-beta.94",
   "description": "Web Inspired Layout",
   "main": "index",
   "typings": "index.d.ts",
@@ -40,10 +40,24 @@
     "build:native": "npm run build:android && npm run build:ios"
   },
   "bootstrapper": "@nativescript/plugin-seed",
-  "optionalDependencies": {
+  "peerDependencies": {
     "@angular/core": ">=19.0.0",
+    "@nativescript-community/react": ">=19.0.0",
     "@nativescript/angular": ">=19.0.0",
-    "nativescript-vue": "^3.0.0",
-    "react-nativescript": "^5.0.0"
+    "nativescript-vue": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@angular/core": {
+      "optional": true
+    },
+    "@nativescript-community/react": {
+      "optional": true
+    },
+    "@nativescript/angular": {
+      "optional": true
+    },
+    "nativescript-vue": {
+      "optional": true
+    }
   }
 }

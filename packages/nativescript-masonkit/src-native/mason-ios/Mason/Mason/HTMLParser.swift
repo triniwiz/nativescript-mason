@@ -29,6 +29,9 @@ public class HTMLParser: NSObject {
   /// Parses HTML and appends resulting children to the given element.
   public func parseInto(_ html: String, element: MasonElement) {
     let children = parse(html)
+    // `innerHTML =` replaces the content, it does not add to it. This used to
+    // only append, so assigning twice concatenated instead of replacing.
+    element.node.removeAllChildren()
     for child in children {
       element.append(node: child)
     }
@@ -46,6 +49,11 @@ public class HTMLParser: NSObject {
     "br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "source", "track", "wbr"
   ]
 
+  /// Elements whose content is raw text rather than markup, so their body has to
+  /// be consumed verbatim up to the matching close tag. Without this a `<style>`
+  /// block's CSS was tokenized as tags and its body rendered as visible text.
+  private static let rawTextElements: Set<String> = ["style", "script", "textarea", "title"]
+
   private func tokenize(_ html: String) -> [Token] {
     var tokens: [Token] = []
     let chars = Array(html)
@@ -60,6 +68,15 @@ public class HTMLParser: NSObject {
             i = endIdx
             continue
           }
+        }
+
+        // `<!doctype html>`, `<?xml ...?>` and `<![CDATA[...]]>` are not tags;
+        // skip them so they don't parse as a "!doctype" tag.
+        if i + 1 < len && (chars[i+1] == "!" || chars[i+1] == "?") {
+          var j = i + 2
+          while j < len && chars[j] != ">" { j += 1 }
+          i = j < len ? j + 1 : len
+          continue
         }
 
         let tagStart = i
@@ -148,6 +165,39 @@ public class HTMLParser: NSObject {
           selfClosing = true
         }
 
+        // A raw-text element's body is text, not markup: consume it verbatim up
+        // to the matching close tag.
+        if !selfClosing && HTMLParser.rawTextElements.contains(tagName) {
+          tokens.append(.openTag(name: tagName, attributes: attributes, selfClosing: false))
+          let closing = Array("</" + tagName)
+          let bodyStart = i
+          var j = i
+          var found = -1
+          while j + closing.count <= len {
+            var matches = true
+            for k in 0..<closing.count where Character(chars[j + k].lowercased()) != closing[k] {
+              matches = false
+              break
+            }
+            if matches {
+              found = j
+              break
+            }
+            j += 1
+          }
+          let bodyEnd = found >= 0 ? found : len
+          if bodyEnd > bodyStart {
+            tokens.append(.text(String(chars[bodyStart..<bodyEnd])))
+          }
+          i = bodyEnd
+          if found >= 0 {
+            while i < len && chars[i] != ">" { i += 1 }
+            if i < len { i += 1 }
+            tokens.append(.closeTag(name: tagName))
+          }
+          continue
+        }
+
         tokens.append(.openTag(name: tagName, attributes: attributes, selfClosing: selfClosing))
       } else {
         // Text content
@@ -212,7 +262,11 @@ public class HTMLParser: NSObject {
         }
 
       case .text(let text):
-        let trimmed = text
+        let parentIsRawText = stack.last.map { Self.rawTextElements.contains($0.name) } ?? false
+        // Outside a raw-text element, HTML collapses whitespace runs to one
+        // space and drops whitespace-only text nodes, so pretty-printed markup
+        // doesn't add stray indentation nodes between block children.
+        let trimmed = parentIsRawText ? text : Self.collapseWhitespace(text)
         if trimmed.isEmpty { continue }
 
         if let parent = stack.last {
@@ -282,12 +336,20 @@ public class HTMLParser: NSObject {
       element = mason.createTextView(type: .Blockquote)
 
     // List elements
+    // Plain containers whose `<li>` children are `.Li` text views — the only
+    // arrangement the marker drawing in MasonUIView can paint a bullet for.
+    // createListView/createListItem build the data-bound list widget instead,
+    // whose marker system draws nothing for static markup.
     case "ul":
-      element = mason.createListView(isOrdered: false)
+      let ul = mason.createView()
+      applyListUaDefaults(ul, ordered: false)
+      element = ul
     case "ol":
-      element = mason.createListView(isOrdered: true)
+      let ol = mason.createView()
+      applyListUaDefaults(ol, ordered: true)
+      element = ol
     case "li":
-      element = mason.createListItem()
+      element = mason.createTextView(type: .Li)
 
     // Self-closing / special elements
     case "br":
@@ -328,6 +390,21 @@ public class HTMLParser: NSObject {
 
   // MARK: - Attribute Application
 
+  /// The browser UA default for `<ul>`/`<ol>`: `margin: 1em 0` plus a
+  /// `padding-inline-start: 40px` gutter, which is the space each bullet is drawn
+  /// into. Mirrors `applyListUaDefaults` in web.ts so markup and JSX agree.
+  private func applyListUaDefaults(_ view: MasonUIView, ordered: Bool) {
+    let scale = NSCMason.scale
+    let style = view.node.style
+    // MasonRect's init takes (top, right, bottom, left).
+    let vertical = MasonLengthPercentageAuto.Points(16 * scale)
+    let margin = style.margin
+    style.margin = MasonRect(vertical, margin.right, vertical, margin.left)
+    let padding = style.padding
+    style.padding = MasonRect(padding.top, padding.right, padding.bottom, MasonLengthPercentage.Points(40 * scale))
+    style.listStyleType = ordered ? .Decimal : .Disc
+  }
+
   private func applyAttributes(_ attributes: [String: String], to element: MasonElement) {
     for (key, value) in attributes {
       switch key {
@@ -337,6 +414,19 @@ public class HTMLParser: NSObject {
         if let img = element as? Img {
           img.src = value
         }
+      // Recorded, but NOT driving the CSS cascade: a node built here is a native
+      // view with a mason node, not a NativeScript ViewBase, so NativeScript's
+      // selector engine never sees it. Keeping them lets an app find and style a
+      // parsed subtree itself.
+      case "class", "id", "href", "alt", "title":
+        element.node.htmlAttributes[key] = value
+      case "width":
+        if let d = parseDimensionAuto(value) { element.node.style.width = d }
+      case "height":
+        if let d = parseDimensionAuto(value) { element.node.style.height = d }
+      case "disabled":
+        // A boolean attribute is true whenever present, whatever its value.
+        (element as? UIControl)?.isEnabled = false
       default:
         break
       }
@@ -345,14 +435,101 @@ public class HTMLParser: NSObject {
 
   // MARK: - Inline Style Parsing
 
+  /// Collapse whitespace the way HTML does outside a `white-space: pre` context:
+  /// every run of whitespace becomes one space, and a run that is *only*
+  /// whitespace disappears. A single space around markup is kept, because
+  /// `a <b>b</b>` needs the gap.
+  static func collapseWhitespace(_ text: String) -> String {
+    if text.isEmpty { return text }
+    if text.allSatisfy({ $0.isWhitespace }) { return "" }
+    var out = ""
+    var inWhitespace = false
+    for ch in text {
+      if ch.isWhitespace {
+        inWhitespace = true
+      } else {
+        if inWhitespace { out.append(" ") }
+        inWhitespace = false
+        out.append(ch)
+      }
+    }
+    if inWhitespace { out.append(" ") }
+    return out
+  }
+
+  /// Split an inline `style` attribute into (property, value) pairs.
+  ///
+  /// A plain `split(separator: ";")` breaks any value containing a semicolon
+  /// inside parentheses or quotes — `background-image: url(data:image/png;base64,...)`
+  /// and `font-family: "A;B"` both came apart — and the same applies to the `:`
+  /// split, which a `url(http://...)` value defeats.
+  static func splitDeclarations(_ styleString: String) -> [(String, String)] {
+    var out: [(String, String)] = []
+    for declaration in splitTopLevel(styleString, separator: ";") {
+      guard let colon = indexOfTopLevel(declaration, target: ":"), colon > 0 else { continue }
+      let property = String(declaration.prefix(colon)).trimmingCharacters(in: .whitespaces).lowercased()
+      let value = String(declaration.dropFirst(colon + 1)).trimmingCharacters(in: .whitespaces)
+      if !property.isEmpty && !value.isEmpty {
+        out.append((property, value))
+      }
+    }
+    return out
+  }
+
+  /// Split on `separator`, ignoring occurrences inside quotes or parentheses.
+  static func splitTopLevel(_ input: String, separator: Character) -> [String] {
+    var out: [String] = []
+    var current = ""
+    var depth = 0
+    var quote: Character? = nil
+    for ch in input {
+      if let q = quote {
+        if ch == q { quote = nil }
+        current.append(ch)
+      } else if ch == "\"" || ch == "'" {
+        quote = ch
+        current.append(ch)
+      } else if ch == "(" {
+        depth += 1
+        current.append(ch)
+      } else if ch == ")" {
+        if depth > 0 { depth -= 1 }
+        current.append(ch)
+      } else if ch == separator && depth == 0 {
+        out.append(current)
+        current = ""
+      } else {
+        current.append(ch)
+      }
+    }
+    out.append(current)
+    return out
+  }
+
+  /// Offset of the first `target` outside quotes and parentheses, or nil.
+  static func indexOfTopLevel(_ input: String, target: Character) -> Int? {
+    var depth = 0
+    var quote: Character? = nil
+    for (index, ch) in input.enumerated() {
+      if let q = quote {
+        if ch == q { quote = nil }
+      } else if ch == "\"" || ch == "'" {
+        quote = ch
+      } else if ch == "(" {
+        depth += 1
+      } else if ch == ")" {
+        if depth > 0 { depth -= 1 }
+      } else if ch == target && depth == 0 {
+        return index
+      }
+    }
+    return nil
+  }
+
   private func applyInlineStyle(_ styleString: String, to element: MasonElement) {
-    let declarations = styleString.split(separator: ";")
+    let declarations = Self.splitDeclarations(styleString)
     element.configure { style in
-      for declaration in declarations {
-        let parts = declaration.split(separator: ":", maxSplits: 1)
-        guard parts.count == 2 else { continue }
-        let property = parts[0].trimmingCharacters(in: .whitespaces).lowercased()
-        let value = parts[1].trimmingCharacters(in: .whitespaces)
+      for (property, value) in declarations {
         applyStyleProperty(property, value: value, to: style)
       }
     }
@@ -527,6 +704,10 @@ public class HTMLParser: NSObject {
       case "center": style.textAlign = .Center
       case "right": style.textAlign = .Right
       case "justify": style.textAlign = .Justify
+      // Kotlin's parser has always accepted these; iOS's did not, so the same
+      // markup laid out differently on the two platforms.
+      case "start": style.textAlign = .Start
+      case "end": style.textAlign = .End
       default: break
       }
 
@@ -763,8 +944,7 @@ public class HTMLParser: NSObject {
 
   // Length parsing delegates to the canonical parsers (BorderParser.swift) so that
   // device-scale and percentage handling match every other code path (margins,
-  // borders, etc.). Doing the math locally previously left width/padding unscaled
-  // while margins were scaled.
+  // borders, etc.).
 
   private func parseDimension(_ value: String) -> MasonLengthPercentage? {
     return parseLengthPercentage(value)
@@ -956,13 +1136,19 @@ public class HTMLParser: NSObject {
     case "number": return .Number
     case "tel", "telephone": return .Tel
     case "url": return .Url
+    case "search": return .Search
     case "date": return .Date
+    case "time": return .Time
+    case "datetime-local": return .DatetimeLocal
+    case "month": return .Month
+    case "week": return .Week
     case "color": return .Color
     case "checkbox": return .Checkbox
     case "radio": return .Radio
     case "range": return .Range
     case "file": return .File
     case "submit": return .Submit
+    case "reset": return .Reset
     case "button": return .Button
     default: return .Text
     }
