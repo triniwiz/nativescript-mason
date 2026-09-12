@@ -32,6 +32,18 @@ import kotlin.math.ceil
  */
 class BoxShadowRenderer(private val style: Style) {
 
+  private val attachStateListener = object : android.view.View.OnAttachStateChangeListener {
+    override fun onViewAttachedToWindow(view: android.view.View) = Unit
+
+    override fun onViewDetachedFromWindow(view: android.view.View) {
+      release(fromWindowDetach = true)
+    }
+  }
+
+  init {
+    (style.node.view as? android.view.View)?.addOnAttachStateChangeListener(attachStateListener)
+  }
+
   // Cached shadow bitmaps for older APIs
   private var cachedOutsetShadows: List<ShadowBitmapEntry>? = null
   private var cachedInsetShadows: List<ShadowBitmapEntry>? = null
@@ -175,13 +187,45 @@ class BoxShadowRenderer(private val style: Style) {
   }
 
   fun invalidate() {
-    cachedOutsetShadows = null
-    cachedInsetShadows = null
+    releaseCachedBitmaps(fromWindowDetach = false)
     cachedOutsetList = null
+    resetCacheKey()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
       outsetShadowNodes = null
       insetShadowNodes = null
     }
+  }
+
+  /** Drop heavy bitmap references as soon as the owning view leaves the UI. */
+  fun release() {
+    release(fromWindowDetach = false)
+  }
+
+  private fun release(fromWindowDetach: Boolean) {
+    releaseCachedBitmaps(fromWindowDetach)
+    cachedOutsetList = null
+    resetCacheKey()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      outsetShadowNodes = null
+      insetShadowNodes = null
+    }
+  }
+
+  private fun releaseCachedBitmaps(fromWindowDetach: Boolean) {
+    cachedOutsetShadows?.let { entries ->
+      BoxShadowLifecycleStats.released(entries.size, entries.bitmapBytes(), fromWindowDetach)
+    }
+    cachedInsetShadows?.let { entries ->
+      BoxShadowLifecycleStats.released(entries.size, entries.bitmapBytes(), fromWindowDetach)
+    }
+    cachedOutsetShadows = null
+    cachedInsetShadows = null
+  }
+
+  private fun resetCacheKey() {
+    cachedWidth = 0f
+    cachedHeight = 0f
+    cachedShadowsHash = 0
   }
 
   private fun needsRebuild(width: Float, height: Float): Boolean {
@@ -424,7 +468,11 @@ class BoxShadowRenderer(private val style: Style) {
         )
       }
 
+      cachedOutsetShadows?.let { old ->
+        BoxShadowLifecycleStats.released(old.size, old.bitmapBytes(), fromWindowDetach = false)
+      }
       cachedOutsetShadows = entries
+      BoxShadowLifecycleStats.retained(entries.size, entries.bitmapBytes())
       cachedWidth = width
       cachedHeight = height
       cachedShadowsHash = style.boxShadowsHash()
@@ -697,5 +745,11 @@ class BoxShadowRenderer(private val style: Style) {
 
       // Note: shadowBitmap goes back to pool on next invalidate
     }
+  }
+
+  private fun List<ShadowBitmapEntry>.bitmapBytes(): Long {
+    var bytes = 0L
+    for (entry in this) bytes += entry.bitmap.allocationByteCount.toLong()
+    return bytes
   }
 }

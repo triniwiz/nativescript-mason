@@ -1390,6 +1390,7 @@ open class Node internal constructor(
         NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
       }
       removed.parent = null
+      (removed.view as? Element)?.onNodeDetached()
       // Removing a non-text child (e.g. a Br) changes the parent's composed
       // text — rebuild the inline segment cache when the parent renders text.
       (view as? TextContainer)?.engine?.invalidateInlineSegments()

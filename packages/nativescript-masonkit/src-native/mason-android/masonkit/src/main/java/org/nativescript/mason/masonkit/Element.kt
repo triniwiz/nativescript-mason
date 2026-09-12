@@ -66,7 +66,14 @@ interface Element : EventTarget {
 
   fun onNodeAttached() {}
 
-  fun onNodeDetached() {}
+  fun onNodeDetached() {
+    releaseBoxShadowResources()
+  }
+
+  /** Release only box-shadow resources; the renderer remains reusable after reattach. */
+  fun releaseBoxShadowResources() {
+    if (style.boxShadows.isNotEmpty()) style.mBoxShadowRenderer.release()
+  }
 
   fun markNodeDirty() {
     node.dirty()
