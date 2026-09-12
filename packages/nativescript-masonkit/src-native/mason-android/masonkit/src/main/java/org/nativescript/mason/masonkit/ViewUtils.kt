@@ -46,7 +46,6 @@ class ViewUtils {
                 child.width.toFloat(),
                 child.height.toFloat(),
                 childStyle.mBorderRenderer,
-                forceLegacy = true  // Use bitmap-based rendering from parent context
               )
             }
           }
@@ -68,7 +67,6 @@ class ViewUtils {
             child.width.toFloat(),
             child.height.toFloat(),
             childStyle.mBorderRenderer,
-            forceLegacy = true  // Use bitmap-based rendering from parent context
           )
         }
       }
