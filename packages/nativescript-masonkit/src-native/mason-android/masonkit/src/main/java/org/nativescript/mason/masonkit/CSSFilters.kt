@@ -118,6 +118,7 @@ class CSSFilters {
       width: Int,
       height: Int,
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
+      onCreate: ((Bitmap) -> Unit)? = null,
     ): Bitmap {
       val k = key(width, height, config)
       val cached = pool.remove(k)
@@ -125,7 +126,7 @@ class CSSFilters {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
       } else {
-        createBitmap(width, height, config)
+        createBitmap(width, height, config).also { onCreate?.invoke(it) }
       }
     }
 

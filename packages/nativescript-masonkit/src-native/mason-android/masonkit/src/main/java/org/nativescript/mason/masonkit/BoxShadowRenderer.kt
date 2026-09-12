@@ -125,9 +125,10 @@ class BoxShadowRenderer(private val style: Style) {
       width: Int,
       height: Int,
       radii: FloatArray?,
-      pool: CSSFilters.BitmapPool
+      pool: CSSFilters.BitmapPool,
+      onCreate: ((Bitmap) -> Unit)? = null,
     ): Bitmap {
-      val bitmap = pool.getBitmap(width, height, Bitmap.Config.ARGB_8888)
+      val bitmap = pool.getBitmap(width, height, Bitmap.Config.ARGB_8888, onCreate)
       bitmap.eraseColor(Color.TRANSPARENT)
       val canvas = Canvas(bitmap)
 
@@ -158,7 +159,8 @@ class BoxShadowRenderer(private val style: Style) {
       shapeBitmap: Bitmap,
       blurRadius: Float,
       color: Int,
-      pool: CSSFilters.BitmapPool
+      pool: CSSFilters.BitmapPool,
+      onCreate: ((String, Bitmap) -> Unit)? = null,
     ): Bitmap {
       val tintPaint = Paint().apply {
         style = Paint.Style.FILL
@@ -168,7 +170,9 @@ class BoxShadowRenderer(private val style: Style) {
 
       if (blurRadius <= 0f) {
         // No blur - just tint the shape
-        val result = pool.getBitmap(shapeBitmap.width, shapeBitmap.height, Bitmap.Config.ARGB_8888)
+        val result = pool.getBitmap(shapeBitmap.width, shapeBitmap.height, Bitmap.Config.ARGB_8888) {
+          onCreate?.invoke("shadow-output", it)
+        }
         result.eraseColor(Color.TRANSPARENT)
         val canvas = Canvas(result)
         canvas.drawBitmap(shapeBitmap, 0f, 0f, tintPaint)
@@ -183,7 +187,9 @@ class BoxShadowRenderer(private val style: Style) {
         val expandedH = shapeBitmap.height + pad * 2
 
         // Draw shape centered in expanded bitmap
-        val tempBitmap = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+        val tempBitmap = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888) {
+          onCreate?.invoke("blur-input", it)
+        }
         tempBitmap.eraseColor(Color.TRANSPARENT)
         val tempCanvas = Canvas(tempBitmap)
         tempCanvas.drawBitmap(shapeBitmap, pad.toFloat(), pad.toFloat(), null)
@@ -196,11 +202,15 @@ class BoxShadowRenderer(private val style: Style) {
         script.setInput(input)
         script.forEach(output)
 
-        val blurred = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+        val blurred = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888) {
+          onCreate?.invoke("blur-output", it)
+        }
         output.copyTo(blurred)
 
         // Tint the blurred result
-        val result = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+        val result = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888) {
+          onCreate?.invoke("shadow-output", it)
+        }
         result.eraseColor(Color.TRANSPARENT)
         val resultCanvas = Canvas(result)
         resultCanvas.drawBitmap(blurred, 0f, 0f, tintPaint)
@@ -243,6 +253,9 @@ class BoxShadowRenderer(private val style: Style) {
 
   private fun releaseCachedBitmaps(fromWindowDetach: Boolean) {
     cachedOutsetShadows?.let { entries ->
+      if (BoxShadowDiagnostics.enabled) {
+        BoxShadowDiagnostics.discard(this, entries.map { it.bitmap }, replacement = false)
+      }
       BoxShadowLifecycleStats.released(entries.size, entries.bitmapBytes(), fromWindowDetach)
     }
     cachedInsetShadows?.let { entries ->
@@ -299,7 +312,7 @@ class BoxShadowRenderer(private val style: Style) {
     if (useRenderNode) {
       drawOutsetShadowsV31(view, canvas, width, height, borderRenderer, outsetShadows)
     } else {
-      drawOutsetShadowsLegacy(view.context, canvas, width, height, borderRenderer, outsetShadows)
+      drawOutsetShadowsLegacy(view, canvas, width, height, borderRenderer, outsetShadows)
     }
   }
 
@@ -413,7 +426,7 @@ class BoxShadowRenderer(private val style: Style) {
   }
 
   private fun drawOutsetShadowsLegacy(
-    context: Context,
+    view: android.view.View,
     canvas: Canvas,
     width: Float,
     height: Float,
@@ -423,6 +436,11 @@ class BoxShadowRenderer(private val style: Style) {
     if (width <= 0f || height <= 0f) return
 
     if (cachedOutsetShadows == null || needsRebuild(width, height)) {
+      BoxShadowDiagnostics.cacheMiss()
+      if (BoxShadowDiagnostics.enabled) cachedOutsetShadows?.let { old ->
+        BoxShadowDiagnostics.discard(this, old.map { it.bitmap }, replacement = true)
+      }
+      val context = view.context
       val pool = CSSFilters.getPool(context)
       val entries = mutableListOf<ShadowBitmapEntry>()
       val hasRadii = borderRenderer.hasRadii()
@@ -431,6 +449,7 @@ class BoxShadowRenderer(private val style: Style) {
       val tmpRadii = FloatArray(8)
       val tmpPath = Path()
       for (shadow in shadows.reversed()) {
+        val rasterStarted = SystemClock.elapsedRealtimeNanos()
         val spread = shadow.spreadRadius
         val shapeW = (width + spread * 2).toInt().coerceAtLeast(1)
         val shapeH = (height + spread * 2).toInt().coerceAtLeast(1)
@@ -457,7 +476,6 @@ class BoxShadowRenderer(private val style: Style) {
           tmpRadii
         } else null
 
-        val started = SystemClock.elapsedRealtimeNanos()
         val drawX = shadow.offsetX - spread - blurPad.toFloat()
         val drawY = shadow.offsetY - spread - blurPad.toFloat()
         val clearRadii = radii?.let { source -> FloatArray(8) { source[it] * scale } }
@@ -474,9 +492,21 @@ class BoxShadowRenderer(private val style: Style) {
           SharedBoxShadowCache.floatBits(scale),
         )
         val shadowBitmap = SharedBoxShadowCache.get(key) ?: run {
-          val shapeBitmap = createShapeBitmap(rasterShapeW, rasterShapeH, adjustedRadii, pool)
+          val shapeBitmap = createShapeBitmap(
+            rasterShapeW,
+            rasterShapeH,
+            adjustedRadii,
+            pool,
+          ) {
+            BoxShadowDiagnostics.bitmapCreated("shape", it)
+          }
           val rendered = createBlurredShadowBitmapRS(
-            context, shapeBitmap, rasterBlur, shadow.color, pool
+            context,
+            shapeBitmap,
+            rasterBlur,
+            shadow.color,
+            pool,
+            BoxShadowDiagnostics::bitmapCreated,
           )
           pool.putBitmap(shapeBitmap)
           clearOutsetShadowInterior(
@@ -488,7 +518,17 @@ class BoxShadowRenderer(private val style: Style) {
             clearRadii,
           )
           SharedBoxShadowCache.put(key, rendered)
-          DownsampleShadowStats.record(rendered, scale, started)
+          DownsampleShadowStats.record(rendered, scale, rasterStarted)
+          BoxShadowDiagnostics.rasterized(
+            this,
+            view,
+            width,
+            height,
+            radii,
+            shadow,
+            rendered,
+            rasterStarted,
+          )
           rendered
         }
 
@@ -509,10 +549,13 @@ class BoxShadowRenderer(private val style: Style) {
       }
       cachedOutsetShadows = entries
       BoxShadowLifecycleStats.retained(entries.size, entries.bitmapBytes())
+      if (BoxShadowDiagnostics.enabled) BoxShadowDiagnostics.cache(this, entries.map { it.bitmap })
       cachedWidth = width
       cachedHeight = height
       cachedShadowsHash = style.boxShadowsHash()
       cachedConfigurationVersion = configurationVersion.get()
+    } else {
+      BoxShadowDiagnostics.cacheHit()
     }
 
     // Draw cached bitmaps (in reverse order so first shadow is on top)

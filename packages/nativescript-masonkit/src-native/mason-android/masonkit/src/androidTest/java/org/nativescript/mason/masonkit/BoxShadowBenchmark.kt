@@ -27,12 +27,15 @@ class BoxShadowBenchmark {
   fun resetStats() {
     SharedBoxShadowCache.resetForBenchmark()
     DownsampleShadowStats.reset()
+    BoxShadowDiagnostics.enabled = true
+    BoxShadowDiagnostics.reset()
     BoxShadowRenderer.softwareRasterScaleOverride = null
   }
 
   @After
   fun clearOverrides() {
     BoxShadowRenderer.softwareRasterScaleOverride = null
+    BoxShadowDiagnostics.enabled = false
   }
 
   @Test
@@ -45,6 +48,7 @@ class BoxShadowBenchmark {
     assertEquals(5, cache.misses)
     assertEquals(5, cache.rasterizations)
     assertEquals(5, raster.rasterizations)
+    assertEquals(5, BoxShadowDiagnostics.snapshot().rasterizations)
     assertTrue(raster.scales.keys.all { it == 0.25f })
   }
 
@@ -96,6 +100,21 @@ class BoxShadowBenchmark {
   }
 
   @Test
+  fun repeatedDrawAndReplacementAccounting() {
+    val view = shadowView(homeBoxes().first())
+    val target = Bitmap.createBitmap(1200, 600, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(target)
+    draw(view, canvas, 340, 220)
+    draw(view, canvas, 340, 220)
+    draw(view, canvas, 341, 220)
+    val stats = BoxShadowDiagnostics.snapshot()
+    assertEquals(2, stats.cacheMisses)
+    assertEquals(1, stats.cacheHits)
+    assertEquals(1, stats.cacheReplacements)
+    target.recycle()
+  }
+
+  @Test
   fun layoutStressHasNoShadowWork() {
     report("Layout Stress", List(108) { Box(180, 80, 0, null) })
     assertEquals(0, SharedBoxShadowCache.snapshot().rasterizations)
@@ -113,11 +132,10 @@ class BoxShadowBenchmark {
       else views[index].draw(canvas)
     }
     val elapsed = SystemClock.elapsedRealtimeNanos() - started
-    val cache = SharedBoxShadowCache.snapshot()
-    val raster = DownsampleShadowStats.snapshot()
     Log.i(
       TAG,
-      "$name firstFrameMs=${elapsed / 1_000_000.0} cache=$cache raster=$raster " +
+      "$name firstFrameMs=${elapsed / 1_000_000.0} cache=${SharedBoxShadowCache.snapshot()} " +
+        "raster=${DownsampleShadowStats.snapshot()} diagnostics=${BoxShadowDiagnostics.snapshot()} " +
         "nativeHeapDelta=${Debug.getNativeHeapAllocatedSize() - before}"
     )
     target.recycle()
