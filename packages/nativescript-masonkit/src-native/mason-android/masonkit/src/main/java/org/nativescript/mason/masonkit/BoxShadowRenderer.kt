@@ -376,26 +376,39 @@ class BoxShadowRenderer(private val style: Style) {
         } else null
 
         val started = SystemClock.elapsedRealtimeNanos()
-        val shapeBitmap = createShapeBitmap(rasterShapeW, rasterShapeH, adjustedRadii, pool)
-
-        val shadowBitmap = createBlurredShadowBitmapRS(
-          context, shapeBitmap, rasterBlur, shadow.color, pool
-        )
-
-        pool.putBitmap(shapeBitmap)
-
         val drawX = shadow.offsetX - spread - blurPad.toFloat()
         val drawY = shadow.offsetY - spread - blurPad.toFloat()
         val clearRadii = radii?.let { source -> FloatArray(8) { source[it] * scale } }
-        clearOutsetShadowInterior(
-          shadowBitmap,
-          -drawX * scale,
-          -drawY * scale,
-          width * scale,
-          height * scale,
-          clearRadii,
+        val key = SharedBoxShadowCache.Key(
+          width.toInt(),
+          height.toInt(),
+          adjustedRadii?.map(SharedBoxShadowCache::floatBits) ?: emptyList(),
+          SharedBoxShadowCache.floatBits(rasterBlur),
+          SharedBoxShadowCache.floatBits(spread),
+          shadow.color,
+          SharedBoxShadowCache.floatBits(shadow.offsetX),
+          SharedBoxShadowCache.floatBits(shadow.offsetY),
+          context.resources.displayMetrics.densityDpi,
+          SharedBoxShadowCache.floatBits(scale),
         )
-        DownsampleShadowStats.record(shadowBitmap, scale, started)
+        val shadowBitmap = SharedBoxShadowCache.get(key) ?: run {
+          val shapeBitmap = createShapeBitmap(rasterShapeW, rasterShapeH, adjustedRadii, pool)
+          val rendered = createBlurredShadowBitmapRS(
+            context, shapeBitmap, rasterBlur, shadow.color, pool
+          )
+          pool.putBitmap(shapeBitmap)
+          clearOutsetShadowInterior(
+            rendered,
+            -drawX * scale,
+            -drawY * scale,
+            width * scale,
+            height * scale,
+            clearRadii,
+          )
+          SharedBoxShadowCache.put(key, rendered)
+          DownsampleShadowStats.record(rendered, scale, started)
+          rendered
+        }
 
         entries.add(
           ShadowBitmapEntry(
