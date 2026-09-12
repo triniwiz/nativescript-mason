@@ -23,13 +23,11 @@ import android.renderscript.ScriptIntrinsicBlur
 import androidx.annotation.RequiresApi
 import androidx.core.graphics.withSave
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.abs
 import kotlin.math.ceil
 
 /**
- * Renders CSS box-shadow effects using hardware acceleration when available.
- * - API 31+: Uses RenderEffect + RenderNode for GPU-accelerated blur
- * - API 21-30: Uses RenderScript for blur
+ * Renders CSS box-shadow effects. Outset shadows use shared, downsampled software resources
+ * by default; RenderNode remains available as an explicit API 31+ override for benchmarking.
  */
 class BoxShadowRenderer(private val style: Style) {
 
@@ -85,6 +83,7 @@ class BoxShadowRenderer(private val style: Style) {
     /** Maximum bitmap dimension (width or height) to prevent OOM.
      *  A 2048x2048 ARGB_8888 bitmap is 16 MB - safe for most devices. */
     private const val MAX_BITMAP_DIM = 2048
+    private const val RENDER_EFFECT_BLUR_SCALE = 0.5f
     private val scaledBitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
     private val configurationVersion = AtomicInteger()
@@ -307,7 +306,7 @@ class BoxShadowRenderer(private val style: Style) {
     if (outsetShadows.isEmpty()) return
 
     val mode = if (forceLegacy) RenderMode.SOFTWARE else renderModeOverride ?: RenderMode.AUTO
-    val useRenderNode = mode != RenderMode.SOFTWARE &&
+    val useRenderNode = mode == RenderMode.RENDER_NODE &&
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canvas.isHardwareAccelerated
     if (useRenderNode) {
       drawOutsetShadowsV31(view, canvas, width, height, borderRenderer, outsetShadows)
@@ -351,21 +350,6 @@ class BoxShadowRenderer(private val style: Style) {
           tmpRadii
         } else null
 
-        // Create shape node
-        val shapeNode = RenderNode("boxShadowOutset$index")
-        shapeNode.setPosition(0, 0, shapeW, shapeH)
-        val shapeCanvas = shapeNode.beginRecording()
-        shapeRect.set(0f, 0f, shapeW.toFloat(), shapeH.toFloat())
-        shapePaint.color = Color.WHITE
-        if (adjustedRadii != null) {
-          tmpPath.reset()
-          tmpPath.addRoundRect(shapeRect, adjustedRadii, Path.Direction.CW)
-          shapeCanvas.drawPath(tmpPath, shapePaint)
-        } else {
-          shapeCanvas.drawRect(shapeRect, shapePaint)
-        }
-        shapeNode.endRecording()
-
         // Create color tint effect
           val tmpColorArray = FloatArray(20)
           val tmpColorMatrix = ColorMatrix()
@@ -378,33 +362,43 @@ class BoxShadowRenderer(private val style: Style) {
           val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
 
         val shadowEffect = if (shadow.blurRadius > 0f) {
+          // RenderEffect accepts a Gaussian radius; CSS and the legacy path treat
+          // box-shadow blur as a diameter.
           val blurEffect = RenderEffect.createBlurEffect(
-            shadow.blurRadius, shadow.blurRadius, Shader.TileMode.CLAMP
+            shadow.blurRadius * RENDER_EFFECT_BLUR_SCALE,
+            shadow.blurRadius * RENDER_EFFECT_BLUR_SCALE,
+            Shader.TileMode.DECAL,
           )
           RenderEffect.createChainEffect(colorEffect, blurEffect)
         } else {
           colorEffect
         }
 
-        // Apply offset
-        val offsetX = shadow.offsetX - spread
-        val offsetY = shadow.offsetY - spread
-
-        val offsetEffect = RenderEffect.createOffsetEffect(offsetX, offsetY, shadowEffect)
-
-        // Create final shadow node
-        val shadowNode = RenderNode("boxShadowOutsetFinal$index")
-        shadowNode.setRenderEffect(offsetEffect)
-
+        // Pad the source on every side so blur output is not clipped by node bounds.
         val blurPad = ceil(shadow.blurRadius * 3f).toInt()
-        shadowNode.setPosition(
-          0, 0,
-          shapeW + abs(offsetX).toInt() + blurPad * 2,
-          shapeH + abs(offsetY).toInt() + blurPad * 2
-        )
+        val frameW = shapeW + blurPad * 2
+        val frameH = shapeH + blurPad * 2
+        val shadowNode = RenderNode("boxShadowOutsetFinal$index")
+        shadowNode.setPosition(0, 0, frameW, frameH)
+        shadowNode.setRenderEffect(shadowEffect)
+        shadowNode.translationX = shadow.offsetX - spread - blurPad
+        shadowNode.translationY = shadow.offsetY - spread - blurPad
 
         val shadowCanvas = shadowNode.beginRecording()
-        shadowCanvas.drawRenderNode(shapeNode)
+        shapeRect.set(
+          blurPad.toFloat(),
+          blurPad.toFloat(),
+          (blurPad + shapeW).toFloat(),
+          (blurPad + shapeH).toFloat(),
+        )
+        shapePaint.color = Color.WHITE
+        if (adjustedRadii != null) {
+          tmpPath.reset()
+          tmpPath.addRoundRect(shapeRect, adjustedRadii, Path.Direction.CW)
+          shadowCanvas.drawPath(tmpPath, shapePaint)
+        } else {
+          shadowCanvas.drawRect(shapeRect, shapePaint)
+        }
         shadowNode.endRecording()
 
         nodes.add(shadowNode)
@@ -421,7 +415,15 @@ class BoxShadowRenderer(private val style: Style) {
     // Draw cached nodes (in reverse order so first shadow is on top)
     outsetShadowNodes?.let { nodes ->
       for (i in nodes.indices.reversed()) {
-        canvas.drawRenderNode(nodes[i])
+        canvas.withSave {
+          val interior = borderRenderer.getOuterClipPath(width, height)
+          if (interior.isEmpty) {
+            canvas.clipOutRect(0f, 0f, width, height)
+          } else {
+            canvas.clipOutPath(interior)
+          }
+          canvas.drawRenderNode(nodes[i])
+        }
       }
     }
   }

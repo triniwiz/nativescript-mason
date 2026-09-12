@@ -45,13 +45,19 @@ class BoxShadowHardwareBenchmark {
   fun homeLegacyFirstFrame() = measure("Home legacy", homeBoxes(), forceLegacy = true)
 
   @Test
-  fun homeHardwareFirstFrame() = measure("Home RenderNode", homeBoxes(), forceLegacy = false)
+  fun homeHardwareFirstFrame() {
+    BoxShadowRenderer.renderModeOverride = BoxShadowRenderer.RenderMode.RENDER_NODE
+    measure("Home RenderNode", homeBoxes(), forceLegacy = false)
+  }
 
   @Test
   fun gradientLegacyFirstFrame() = measure("Gradient legacy", gradientBoxes(), forceLegacy = true)
 
   @Test
-  fun gradientHardwareFirstFrame() = measure("Gradient RenderNode", gradientBoxes(), forceLegacy = false)
+  fun gradientHardwareFirstFrame() {
+    BoxShadowRenderer.renderModeOverride = BoxShadowRenderer.RenderMode.RENDER_NODE
+    measure("Gradient RenderNode", gradientBoxes(), forceLegacy = false)
+  }
 
   @Test
   fun layoutStressFirstFrame() = measure(
@@ -62,10 +68,18 @@ class BoxShadowHardwareBenchmark {
 
   @Test
   fun hardwarePathBuildsNoSoftwareShadowBitmaps() {
+    BoxShadowRenderer.renderModeOverride = BoxShadowRenderer.RenderMode.RENDER_NODE
     measure("RenderNode allocation check", homeBoxes(), forceLegacy = false)
     val stats = HardwareShadowStats.snapshot()
     assertEquals(27, stats.nodes)
     assertEquals(27, stats.builds)
+  }
+
+  @Test
+  fun automaticModeUsesMeasuredSoftwarePath() {
+    measure("Home automatic", homeBoxes(), forceLegacy = false)
+    assertEquals(0, HardwareShadowStats.snapshot().nodes)
+    assertEquals(5, SharedBoxShadowCache.snapshot().rasterizations)
   }
 
   @Test
@@ -84,6 +98,7 @@ class BoxShadowHardwareBenchmark {
 
   @Test
   fun profileHomeHardware() {
+    BoxShadowRenderer.renderModeOverride = BoxShadowRenderer.RenderMode.RENDER_NODE
     SystemClock.sleep(3_000)
     measure("Home RenderNode profile", homeBoxes(), forceLegacy = false)
   }

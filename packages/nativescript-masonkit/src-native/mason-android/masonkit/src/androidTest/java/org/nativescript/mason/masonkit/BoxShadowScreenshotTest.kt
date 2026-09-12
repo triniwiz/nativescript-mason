@@ -24,6 +24,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class BoxShadowScreenshotTest {
@@ -93,6 +94,15 @@ class BoxShadowScreenshotTest {
     }, Handler(Looper.getMainLooper()))
     assertTrue("PixelCopy timed out", copied.await(10, TimeUnit.SECONDS))
     assertEquals(PixelCopy.SUCCESS, result)
+    if (variant.mode == BoxShadowRenderer.RenderMode.RENDER_NODE) {
+      // The old CLAMP/unpadded node produced no blur outside its left source bound.
+      val pixel = screenshot.getPixel(60, 250)
+      val background = Color.rgb(245, 247, 250)
+      val distance = abs(Color.red(pixel) - Color.red(background)) +
+        abs(Color.green(pixel) - Color.green(background)) +
+        abs(Color.blue(pixel) - Color.blue(background))
+      assertTrue("RenderNode shadow is clipped at the source bounds", distance > 8)
+    }
     val outputBitmap = screenshot.copy(Bitmap.Config.ARGB_8888, true)
     surface.annotate(outputBitmap)
 
