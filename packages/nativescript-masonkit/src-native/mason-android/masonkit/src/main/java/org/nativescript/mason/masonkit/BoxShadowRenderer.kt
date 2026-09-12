@@ -326,6 +326,7 @@ class BoxShadowRenderer(private val style: Style) {
     shadows: List<Shadow.BoxShadow>
   ) {
     if (outsetShadowNodes == null || needsRebuild(width, height)) {
+      releaseCachedBitmaps(fromWindowDetach = false)
       val buildStarted = SystemClock.elapsedRealtimeNanos()
       val nodes = mutableListOf<RenderNode>()
       val hasRadii = borderRenderer.hasRadii()
@@ -436,6 +437,7 @@ class BoxShadowRenderer(private val style: Style) {
     if (width <= 0f || height <= 0f) return
 
     if (cachedOutsetShadows == null || needsRebuild(width, height)) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) outsetShadowNodes = null
       BoxShadowDiagnostics.cacheMiss()
       if (BoxShadowDiagnostics.enabled) cachedOutsetShadows?.let { old ->
         BoxShadowDiagnostics.discard(this, old.map { it.bitmap }, replacement = true)
