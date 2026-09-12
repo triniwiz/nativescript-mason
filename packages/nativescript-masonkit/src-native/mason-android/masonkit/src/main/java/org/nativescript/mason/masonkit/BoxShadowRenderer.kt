@@ -22,6 +22,7 @@ import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import androidx.annotation.RequiresApi
 import androidx.core.graphics.withSave
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -31,6 +32,12 @@ import kotlin.math.ceil
  * - API 21-30: Uses RenderScript for blur
  */
 class BoxShadowRenderer(private val style: Style) {
+
+  enum class RenderMode {
+    AUTO,
+    RENDER_NODE,
+    SOFTWARE,
+  }
 
   private val attachStateListener = object : android.view.View.OnAttachStateChangeListener {
     override fun onViewAttachedToWindow(view: android.view.View) = Unit
@@ -50,6 +57,7 @@ class BoxShadowRenderer(private val style: Style) {
   private var cachedWidth = 0f
   private var cachedHeight = 0f
   private var cachedShadowsHash = 0
+  private var cachedConfigurationVersion = -1
   private val tmpRadii = FloatArray(8)
   private val tmpPath = Path()
   private val tmpRect = RectF()
@@ -79,10 +87,32 @@ class BoxShadowRenderer(private val style: Style) {
     private const val MAX_BITMAP_DIM = 2048
     private val scaledBitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    internal var legacyRasterScaleOverride: Float? = null
+    private val configurationVersion = AtomicInteger()
+
+    @JvmStatic
+    var renderModeOverride: RenderMode? = null
+      set(value) {
+        if (field != value) {
+          field = value
+          configurationVersion.incrementAndGet()
+        }
+      }
+
+    /** Null selects the dynamic policy; otherwise accepts a linear scale in (0, 1]. */
+    @JvmStatic
+    var softwareRasterScaleOverride: Float? = null
+      set(value) {
+        require(value == null || value > 0f && value <= 1f) {
+          "softwareRasterScaleOverride must be null or in (0, 1]"
+        }
+        if (field != value) {
+          field = value
+          configurationVersion.incrementAndGet()
+        }
+      }
 
     internal fun legacyRasterScale(blurRadius: Float): Float =
-      legacyRasterScaleOverride ?: when {
+      softwareRasterScaleOverride ?: when {
         blurRadius <= 4f -> 1f
         blurRadius < 12f -> 0.5f
         else -> 0.25f
@@ -226,17 +256,19 @@ class BoxShadowRenderer(private val style: Style) {
     cachedWidth = 0f
     cachedHeight = 0f
     cachedShadowsHash = 0
+    cachedConfigurationVersion = -1
   }
 
   private fun needsRebuild(width: Float, height: Float): Boolean {
     val shadowsHash = style.boxShadowsHash()
-    return cachedWidth != width || cachedHeight != height || cachedShadowsHash != shadowsHash
+    return cachedWidth != width || cachedHeight != height || cachedShadowsHash != shadowsHash ||
+      cachedConfigurationVersion != configurationVersion.get()
   }
 
   /**
    * Draw outset (outer) box shadows
-   * @param forceLegacy When true, use bitmap-based rendering even on API 31+.
-   *   Use this when drawing from parent context where RenderNode effects may not work correctly.
+   * @param forceLegacy Retained for compatibility. When true it takes precedence over
+   *   [renderModeOverride] and forces the software fallback.
    */
   fun drawOutsetShadows(
     view: android.view.View,
@@ -261,7 +293,10 @@ class BoxShadowRenderer(private val style: Style) {
     val outsetShadows = cachedOutsetList!!
     if (outsetShadows.isEmpty()) return
 
-    if (!forceLegacy && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canvas.isHardwareAccelerated) {
+    val mode = if (forceLegacy) RenderMode.SOFTWARE else renderModeOverride ?: RenderMode.AUTO
+    val useRenderNode = mode != RenderMode.SOFTWARE &&
+      Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canvas.isHardwareAccelerated
+    if (useRenderNode) {
       drawOutsetShadowsV31(view, canvas, width, height, borderRenderer, outsetShadows)
     } else {
       drawOutsetShadowsLegacy(view.context, canvas, width, height, borderRenderer, outsetShadows)
@@ -277,7 +312,7 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     shadows: List<Shadow.BoxShadow>
   ) {
-    if (needsRebuild(width, height)) {
+    if (outsetShadowNodes == null || needsRebuild(width, height)) {
       val buildStarted = SystemClock.elapsedRealtimeNanos()
       val nodes = mutableListOf<RenderNode>()
       val hasRadii = borderRenderer.hasRadii()
@@ -366,6 +401,7 @@ class BoxShadowRenderer(private val style: Style) {
       cachedWidth = width
       cachedHeight = height
       cachedShadowsHash = style.boxShadowsHash()
+      cachedConfigurationVersion = configurationVersion.get()
     }
 
     // Draw cached nodes (in reverse order so first shadow is on top)
@@ -386,7 +422,7 @@ class BoxShadowRenderer(private val style: Style) {
   ) {
     if (width <= 0f || height <= 0f) return
 
-    if (needsRebuild(width, height)) {
+    if (cachedOutsetShadows == null || needsRebuild(width, height)) {
       val pool = CSSFilters.getPool(context)
       val entries = mutableListOf<ShadowBitmapEntry>()
       val hasRadii = borderRenderer.hasRadii()
@@ -426,8 +462,8 @@ class BoxShadowRenderer(private val style: Style) {
         val drawY = shadow.offsetY - spread - blurPad.toFloat()
         val clearRadii = radii?.let { source -> FloatArray(8) { source[it] * scale } }
         val key = SharedBoxShadowCache.Key(
-          width.toInt(),
-          height.toInt(),
+          SharedBoxShadowCache.floatBits(width),
+          SharedBoxShadowCache.floatBits(height),
           adjustedRadii?.map(SharedBoxShadowCache::floatBits) ?: emptyList(),
           SharedBoxShadowCache.floatBits(rasterBlur),
           SharedBoxShadowCache.floatBits(spread),
@@ -476,6 +512,7 @@ class BoxShadowRenderer(private val style: Style) {
       cachedWidth = width
       cachedHeight = height
       cachedShadowsHash = style.boxShadowsHash()
+      cachedConfigurationVersion = configurationVersion.get()
     }
 
     // Draw cached bitmaps (in reverse order so first shadow is on top)

@@ -15,6 +15,7 @@ import android.view.PixelCopy
 import android.view.View as AndroidView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,7 +29,17 @@ class BoxShadowHardwareBenchmark {
   private data class Box(val width: Int, val height: Int, val radius: Int, val shadow: String?)
 
   @Before
-  fun resetStats() = HardwareShadowStats.reset()
+  fun resetStats() {
+    HardwareShadowStats.reset()
+    SharedBoxShadowCache.resetForBenchmark()
+    DownsampleShadowStats.reset()
+    BoxShadowRenderer.renderModeOverride = null
+  }
+
+  @After
+  fun clearOverride() {
+    BoxShadowRenderer.renderModeOverride = null
+  }
 
   @Test
   fun homeLegacyFirstFrame() = measure("Home legacy", homeBoxes(), forceLegacy = true)
@@ -55,6 +66,14 @@ class BoxShadowHardwareBenchmark {
     val stats = HardwareShadowStats.snapshot()
     assertEquals(27, stats.nodes)
     assertEquals(27, stats.builds)
+  }
+
+  @Test
+  fun softwareModeOverrideForcesFallbackOnHardwareCanvas() {
+    BoxShadowRenderer.renderModeOverride = BoxShadowRenderer.RenderMode.SOFTWARE
+    measure("Home software override", homeBoxes(), forceLegacy = false)
+    assertEquals(0, HardwareShadowStats.snapshot().nodes)
+    assertEquals(5, SharedBoxShadowCache.snapshot().rasterizations)
   }
 
   @Test

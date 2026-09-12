@@ -8,8 +8,8 @@ internal object SharedBoxShadowCache {
   private const val MAX_BYTES = 24 * 1024 * 1024
 
   data class Key(
-    val widthPx: Int,
-    val heightPx: Int,
+    val widthBits: Int,
+    val heightBits: Int,
     val radiiBits: List<Int>,
     val blurBits: Int,
     val spreadBits: Int,

@@ -27,12 +27,12 @@ class BoxShadowBenchmark {
   fun resetStats() {
     SharedBoxShadowCache.resetForBenchmark()
     DownsampleShadowStats.reset()
-    BoxShadowRenderer.legacyRasterScaleOverride = null
+    BoxShadowRenderer.softwareRasterScaleOverride = null
   }
 
   @After
   fun clearOverrides() {
-    BoxShadowRenderer.legacyRasterScaleOverride = null
+    BoxShadowRenderer.softwareRasterScaleOverride = null
   }
 
   @Test
@@ -51,17 +51,22 @@ class BoxShadowBenchmark {
   @Test
   fun rasterScaleOverrideControlsMemory() {
     val box = homeBoxes().first()
-    BoxShadowRenderer.legacyRasterScaleOverride = 1f
+    BoxShadowRenderer.softwareRasterScaleOverride = 1f
     report("Single shadow 1x", listOf(box))
     val fullBytes = DownsampleShadowStats.snapshot().bitmapBytes
 
     SharedBoxShadowCache.resetForBenchmark()
     DownsampleShadowStats.reset()
-    BoxShadowRenderer.legacyRasterScaleOverride = 0.25f
+    BoxShadowRenderer.softwareRasterScaleOverride = 0.25f
     report("Single shadow quarter", listOf(box))
     val quarterBytes = DownsampleShadowStats.snapshot().bitmapBytes
 
     assertTrue("quarter=$quarterBytes full=$fullBytes", quarterBytes < fullBytes / 10)
+  }
+
+  @Test(expected = IllegalArgumentException::class)
+  fun rasterScaleOverrideRejectsInvalidValues() {
+    BoxShadowRenderer.softwareRasterScaleOverride = 0f
   }
 
   @Test
@@ -121,7 +126,7 @@ class BoxShadowBenchmark {
   private fun render(box: Box, scale: Float): Bitmap {
     SharedBoxShadowCache.resetForBenchmark()
     DownsampleShadowStats.reset()
-    BoxShadowRenderer.legacyRasterScaleOverride = scale
+    BoxShadowRenderer.softwareRasterScaleOverride = scale
     val target = Bitmap.createBitmap(640, 480, Bitmap.Config.ARGB_8888)
     draw(shadowView(box), Canvas(target), box.width, box.height)
     return target
