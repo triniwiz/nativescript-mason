@@ -840,21 +840,6 @@ open class Node internal constructor(
         getOrCreateAnonymousTextContainer()
       }
 
-      if (style.font.font == null) {
-        (container.view as? View)?.let { v ->
-          style.font.load(v.context) { _ ->
-            // schedule a layout pass when font finishes loading
-            v.post {
-              style.fontDirty = true
-              style.syncFontMetrics()
-              dirty()
-              v.invalidate()
-              v.requestLayout()
-            }
-          }
-        }
-      }
-
       if (pending) {
         if (child.nativePtr != 0L) {
           NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
