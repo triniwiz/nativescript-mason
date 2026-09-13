@@ -603,13 +603,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  disposeNativeView(): void {
-    if (__ANDROID__) {
-      (this[native_] as any)?.releaseBoxShadowResources?.();
-    }
-    super.disposeNativeView();
-  }
-
   initNativeView(): void {
     super.initNativeView();
     this._rememberNativeOwner();
