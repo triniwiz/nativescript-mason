@@ -24,8 +24,11 @@ export class InputBase extends ViewBase {
 
   get value() {
     if (!this[native_]) {
+      if (this[pendingValue] !== null) {
+        return this[pendingValue];
+      }
       const defaultValue = this[defaultValueProperty];
-      return defaultValue !== undefined || defaultValue !== null ? defaultValue() : undefined;
+      return defaultValue != null ? defaultValue() : undefined;
     }
 
     return this[getValueProperty]();

@@ -18,6 +18,7 @@
     },
     "noEmit": true,
     "allowJs": true,
+    "resolveJsonModule": true,
     "typeRoots": ["../../packages/nativescript-masonkit/typings/"],
     "types": ["node", "@nativescript-dom/core-types", "@nativescript-dom/solidjs-types"],
     "allowSyntheticDefaultImports": true,

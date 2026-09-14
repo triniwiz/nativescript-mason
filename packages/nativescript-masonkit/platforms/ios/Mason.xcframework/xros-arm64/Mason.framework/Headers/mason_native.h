@@ -12,6 +12,20 @@ typedef struct CMason CMason;
 
 typedef struct CMasonNode CMasonNode;
 
+/**
+ * User-agent default (font-size, margin) for a block text tag ("p",
+ * "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Callers apply their
+ * own device-scale multiplier. Returns `false` (and leaves `out` untouched)
+ * if `tag` is null, not valid UTF-8, or has no UA default.
+ */
+typedef struct CMasonUaDefault {
+  float font_size;
+  float margin_top;
+  float margin_bottom;
+  float margin_left;
+  float margin_right;
+} CMasonUaDefault;
+
 typedef struct CMasonInlineTextSegment {
   float width;
   float ascent;
@@ -76,6 +90,17 @@ typedef struct CMasonMinMax {
 
 struct CMason *mason_init(void);
 
+/**
+ * Like `mason_init`, but pre-reserves storage for `capacity` nodes up
+ * front instead of `Mason::new()`'s built-in default (512). Callers who
+ * know roughly how many nodes their screen/tree will have (e.g. a known
+ * list length) can pass that here to avoid the SlotMap/SecondaryMap
+ * doubling-reallocation churn that shows up as noisy compute_wh timings
+ * and ~2x extra peak memory on very large trees. `capacity` is a soft
+ * hint, not a hard limit - the tree still grows past it if needed.
+ */
+struct CMason *mason_init_with_capacity(uintptr_t capacity);
+
 void mason_clear(struct CMason *mason);
 
 void mason_release(struct CMason *mason);
@@ -87,6 +112,8 @@ void mason_set_device_scale(struct CMason *mason, float scale);
 void mason_set_preflight(struct CMason *mason, bool enabled);
 
 bool mason_get_preflight(void);
+
+bool mason_ua_default_for_tag(const char *tag, struct CMasonUaDefault *out);
 
 void *mason_get_buffer(struct CMason *mason, int handle);
 
@@ -354,9 +381,7 @@ void mason_node_set_context(struct CMason *mason,
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
 #endif
 
-#if !defined(TARGET_OS_ANDROID)
 void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
-#endif
 
 void mason_style_update_non_buffer_data(struct CMason *mason,
                                         struct CMasonNode *node,

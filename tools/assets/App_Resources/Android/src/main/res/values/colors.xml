@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ns_primary">#F5F5F5</color>
-	<color name="ns_primaryDark">#757575</color>
-	<color name="ns_accent">#33B5E5</color>
+    <!-- Light palette; mirrors $accent/$bg in apps/demo-angular/src/app.scss. -->
+    <color name="ns_primary">#FF6600</color>
+    <color name="ns_primaryDark">#D95700</color>
+    <color name="ns_accent">#33B5E5</color>
     <color name="ns_blue">#272734</color>
+    <color name="ns_window_bg">#F6F6EF</color>
+    <color name="ns_nav_bar">#F6F6EF</color>
 </resources>

@@ -23,10 +23,33 @@ private let cssNames = [
   "outset"
 ]
 
+// `px` is a CSS pixel (the same size as a dip), matching the web; `dppx` is the
+// escape hatch for a literal device pixel.
+// Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
 private let lengthPercentageRegex = try! NSRegularExpression(
-    pattern: "^(-?(?:\\d*\\.\\d+|\\d+\\.\\d*|\\d+)(?:[eE][+-]?\\d+)?)(px|%|dip|em)?;?$",
+    pattern: "^(-?(?:\\d*\\.\\d+|\\d+\\.\\d*|\\d+)(?:[eE][+-]?\\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?;?$",
     options: []
 )
+
+/// 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px.
+private let pxPerPt: Float = 96.0 / 72.0
+
+/// CSS px for one length token, before the density multiply. `em` resolves
+/// against `emBasis` (the element's own font size) when given, else the root
+/// font size — matching `tokenToDevicePx` in style.ts.
+private func cssPxForUnit(_ num: Float, _ unit: String?, _ emBasis: Float?) -> Float {
+  let viewport = NSCMason.viewportSize
+  switch unit {
+  case "rem": return num * NSCMason.rootFontSize
+  case "em": return num * ((emBasis ?? 0) > 0 ? emBasis! : NSCMason.rootFontSize)
+  case "pt": return num * pxPerPt
+  case "vw": return (num / 100) * Float(viewport.width)
+  case "vh": return (num / 100) * Float(viewport.height)
+  case "vmin": return (num / 100) * Float(min(viewport.width, viewport.height))
+  case "vmax": return (num / 100) * Float(max(viewport.width, viewport.height))
+  default: return num
+  }
+}
 
 // Swift port of parseLengthPercentage
 func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentage? {
@@ -48,22 +71,20 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
       : nil
 
   switch unit {
-  case "px": return .Points(num * scale)
+  case "dppx": return .Points(num)
   case "%": return .Percent(rawNum / 100)  // percentages don't overflow so use rawNum
-  case "dip": return .Points(num * scale)
-  default: do {
-    if(parsed != nil){
-      return .Points(num * scale)
-    }else {
-      return nil
-    }
-  }
+  default:
+    guard parsed != nil else { return nil }
+    return .Points(cssPxForUnit(num, unit, nil) * scale)
   }
 }
 
 
 func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentageAuto? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  // "auto" has no numeric part, so it can never match lengthPercentageRegex
+  // below (its first group is a mandatory digit run) — check it separately.
+  if v == "auto" { return .Auto }
   guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
     return nil
   }
@@ -76,19 +97,13 @@ func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -
       unitRange.location != NSNotFound
       ? String(v[Range(unitRange, in: v)!])
       : nil
-  
+
   switch unit {
-  case "auto": return .Auto
-  case "px": return .Points(num * scale)
+  case "dppx": return .Points(num)
   case "%": return .Percent(num / 100)
-  case "dip": return .Points(num * scale)
-  default: do {
-    if(parsed != nil){
-      return .Points(num * scale)
-    }else {
-      return nil
-    }
-  }
+  default:
+    guard parsed != nil else { return nil }
+    return .Points(cssPxForUnit(num, unit, nil) * scale)
   }
 }
 
@@ -110,21 +125,17 @@ func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.s
       : nil
   
   switch unit {
-  case "px":
-    if(resolve){
+  case "dppx": return num
+  case "%": return 0
+  case "px", "dip":
+    if resolve {
       return num
     }
     return num * scale
-  case "%": return 0
-  case "dip": return num * scale
-  case "em": return (Float(style.fontSize) * scale) * num
-  default: do {
-    if(parsed != nil){
-      return num * scale
-    }else {
-      return nil
-    }
-  }
+  default:
+    guard parsed != nil else { return nil }
+    // This one has a style in hand, so `em` can use the element's own font size.
+    return cssPxForUnit(num, unit, Float(style.fontSize)) * scale
   }
 }
 
@@ -225,7 +236,7 @@ extension CSSBorderRenderer {
     self.left.style = style; self.left.color = color
 
     self.invalidateCache()
-    self.style.node.view?.setNeedsDisplay()
+    (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   /// Parse a side-specific CSS border shorthand, e.g. `border-left: 4px solid #00B894`.
@@ -243,7 +254,7 @@ extension CSSBorderRenderer {
       borderSide.style = .none
       borderSide.color = .clear
       self.invalidateCache()
-      self.style.node.view?.setNeedsDisplay()
+      (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
       return
     }
 
@@ -261,7 +272,7 @@ extension CSSBorderRenderer {
     borderSide.color = color
 
     self.invalidateCache()
-    self.style.node.view?.setNeedsDisplay()
+    (self.style.node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   /// Parse CSS shorthand border: "1px solid red"
@@ -385,8 +396,12 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentage($0) }
-    if tokens.isEmpty { return }
+    // CSS spec: an invalid token anywhere invalidates the whole shorthand
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentage($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentage]
     switch tokens.count {
@@ -425,8 +440,13 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentageAuto($0) }
-    if tokens.isEmpty { return }
+    // See the comment in parsePaddingShorthand above: an invalid token must
+    // invalidate the whole shorthand, not just get silently dropped.
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentageAuto($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentageAuto]
     switch tokens.count {
@@ -465,8 +485,13 @@ extension CSSBorderRenderer {
       return
     }
 
-    let tokens = splitTopLevelWhitespace(cleaned).compactMap { parseLengthPercentageAuto($0) }
-    if tokens.isEmpty { return }
+    // See the comment in parsePaddingShorthand above: an invalid token must
+    // invalidate the whole shorthand, not just get silently dropped.
+    let rawTokens = splitTopLevelWhitespace(cleaned)
+    if rawTokens.isEmpty || rawTokens.count > 4 { return }
+    let parsedTokens = rawTokens.map { parseLengthPercentageAuto($0) }
+    if parsedTokens.contains(where: { $0 == nil }) { return }
+    let tokens = parsedTokens.compactMap { $0 }
 
     let mapped: [MasonLengthPercentageAuto]
     switch tokens.count {

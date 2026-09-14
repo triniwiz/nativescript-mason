@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark palette; mirrors $dark-accent/$dark-bg in apps/demo-angular/src/app.scss. -->
+    <color name="ns_primary">#FF8534</color>
+    <color name="ns_primaryDark">#14140F</color>
+    <color name="ns_window_bg">#14140F</color>
+    <color name="ns_nav_bar">#14140F</color>
+</resources>

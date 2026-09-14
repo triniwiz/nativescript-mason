@@ -36,14 +36,6 @@ public class NSCMason: NSObject {
           
             guard let font = font.uiFont else {return}
             
-            // UIFont properties:
-            // - ascender: positive value, distance from baseline to top
-            // - descender: negative value, distance from baseline to bottom
-            // - lineHeight: total recommended line height
-            // - xHeight: height of lowercase 'x'
-            // - capHeight: height of capital letters
-            // - leading: extra spacing between lines (usually small or 0)
-            
             let scale = NSCMason.scale
             let ascent = Float(font.ascender) * scale
             let descent = Float(-font.descender) * scale  // Make it positive
@@ -288,21 +280,89 @@ public class NSCMason: NSObject {
     set { mason_set_preflight(nativePtr, newValue) }
   }
 
-  @objc public static var scale: Float {
+  /**
+   * The context CSS relative units resolve against, mirroring the TS side's
+   * `units.ts` and Android's `Mason.shared`. `rem` needs a root font size (the
+   * CSS default is 16); the viewport is read from the key window, and is 0 until
+   * one exists — an unresolvable viewport unit collapses to 0 rather than
+   * silently becoming a bare number in the wrong unit.
+   */
+  @objc public static var rootFontSize: Float = 16
+
+  @objc public static var viewportSize: CGSize {
     get {
       for scene in UIApplication.shared.connectedScenes {
-             guard let windowScene = scene as? UIWindowScene else { continue }
+        guard let windowScene = scene as? UIWindowScene else { continue }
+        for window in windowScene.windows where window.isKeyWindow {
+          return window.bounds.size
+        }
+      }
+      return .zero
+    }
+  }
 
-             for window in windowScene.windows where window.isKeyWindow {
-                 return Float(window.traitCollection.displayScale)
-             }
-         }
+  private static var _scale: Float = 0
+  private static var scaleObserversInstalled = false
 
-         #if os(visionOS)
-         return 1.0
-         #else
-         return Float(UIScreen.main.scale)
-         #endif
+  /// The display scale every layout value is converted through.
+  ///
+  /// Cached: resolving it walks `connectedScenes` and each scene's windows,
+  /// and it's read on the hottest paths there are (once per text measure,
+  /// once per node applying a computed layout). Invalidated by the
+  /// notifications below when the window moves between displays.
+  @objc public static var scale: Float {
+    get {
+      installScaleObserversIfNeeded()
+      if _scale > 0 {
+        return _scale
+      }
+      _scale = resolveScale()
+      return _scale
+    }
+  }
+
+  /// Drop the cached scale; the next read resolves it again.
+  @objc public static func invalidateScale() {
+    _scale = 0
+  }
+
+  private static func resolveScale() -> Float {
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+
+      for window in windowScene.windows where window.isKeyWindow {
+        return Float(window.traitCollection.displayScale)
+      }
+    }
+
+    #if os(visionOS)
+    return 1.0
+    #else
+    return Float(UIScreen.main.scale)
+    #endif
+  }
+
+  private static func installScaleObserversIfNeeded() {
+    if scaleObserversInstalled { return }
+    scaleObserversInstalled = true
+    let center = NotificationCenter.default
+    let invalidate: (Notification) -> Void = { _ in NSCMason.invalidateScale() }
+    var names: [Notification.Name] = [
+      UIScene.didActivateNotification,
+      UIScene.willDeactivateNotification,
+      UIApplication.didBecomeActiveNotification,
+    ]
+    // `UIScreen` is not part of the visionOS SDK — the same reason
+    // `resolveScale()` returns a fixed 1.0 there.
+    #if !os(visionOS)
+    names.append(contentsOf: [
+      UIScreen.didConnectNotification,
+      UIScreen.didDisconnectNotification,
+      UIScreen.modeDidChangeNotification,
+    ])
+    #endif
+    for name in names {
+      center.addObserver(forName: name, object: nil, queue: .main, using: invalidate)
     }
   }
 }

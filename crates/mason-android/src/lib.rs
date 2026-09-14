@@ -1,8 +1,8 @@
 use android_logger::Config;
 use itertools::izip;
-use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject};
+use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject, JString};
 use jni::signature::ReturnType;
-use jni::sys::{jfloat, jint, jlong};
+use jni::sys::{jfloat, jfloatArray, jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
@@ -188,6 +188,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeComputeWithSizeAndLayout",
                 "nativeNodeGetChildren",
                 "nativeNodeLayout",
+                "nativeNodeLayoutInto",
                 "nativeNodeGetFloatRectWithIds",
                 "nativeNodeGetFloatRects",
                 "nativeNodeNewText",
@@ -236,6 +237,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJFF)[F",
                     "(JJ)[J",
                     "(JJ)[F",
+                    "(JJ[F)I",
                     "(JJ)[J",
                     "(JJ)[F",
                     "(JZ)J",
@@ -283,6 +285,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJFF)[F",
                     "!(JJ)[J",
                     "!(JJ)[F",
+                    "!(JJ[F)I",
                     "!(JJ)[J",
                     "!(JJ)[F",
                     "!(JZ)J",
@@ -312,11 +315,14 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewNode as *mut c_void,
                     node::NodeNativeNewNodeWithContext as *mut c_void,
                     node::NodeNativeGetChildCount as *mut c_void,
-                    node::NodeNativeComputeWH as *mut c_void,
-                    node::NodeNativeComputeSize as *mut c_void,
-                    node::NodeNativeComputeMaxContent as *mut c_void,
-                    node::NodeNativeComputeMinContent as *mut c_void,
-                    node::NodeNativeCompute as *mut c_void,
+                    // FastNative (not CriticalNative) on the Java side now — these can call
+                    // back into Java (see NodeMeasure::measure), so they need a real JNIEnv,
+                    // hence the *Normal fn pointers even on this ANDROID_O+ branch.
+                    node::NodeNativeComputeWHNormal as *mut c_void,
+                    node::NodeNativeComputeSizeNormal as *mut c_void,
+                    node::NodeNativeComputeMaxContentNormal as *mut c_void,
+                    node::NodeNativeComputeMinContentNormal as *mut c_void,
+                    node::NodeNativeComputeNormal as *mut c_void,
                     node::NodeNativeGetChildAt as *mut c_void,
                     node::NodeNativeAddChild as *mut c_void,
                     node::NodeNativeReplaceChildAt as *mut c_void,
@@ -332,6 +338,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
+                    node::nativeLayoutInto as *mut c_void,
                     node::NativeNodeGetFloatRectWithIds as *mut c_void,
                     node::nativeGetFloatRects as *mut c_void,
                     node::NodeNativeNewTextNode as *mut c_void,
@@ -379,6 +386,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
+                    node::nativeLayoutInto as *mut c_void,
                     node::NativeNodeGetFloatRectWithIds as *mut c_void,
                     node::nativeGetFloatRects as *mut c_void,
                     node::NodeNativeNewTextNodeNormal as *mut c_void,
@@ -817,5 +825,39 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGetPrefl
         1
     } else {
         0
+    }
+}
+
+/// User-agent default (font-size, margin) for a block text tag ("p",
+/// "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Callers apply their
+/// own density multiplier. Returns a 5-element array
+/// `[font_size, margin_top, margin_bottom, margin_left, margin_right]`, or an
+/// empty array if `tag` has no UA default.
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeUaDefaultForTag(
+    mut env: JNIEnv,
+    _: JClass,
+    tag: JString,
+) -> jfloatArray {
+    let tag = crate::style::get_string_lossy(&mut env, &tag);
+    let value = tag.and_then(|tag| mason_core::utils::ua_default_for_tag(&tag));
+    match value {
+        Some(value) => {
+            let values = [
+                value.font_size,
+                value.margin_top,
+                value.margin_bottom,
+                value.margin_left,
+                value.margin_right,
+            ];
+            match env.new_float_array(values.len() as i32) {
+                Ok(array) => {
+                    if let Err(_) = env.set_float_array_region(&array, 0, &values) {}
+                    array.into_raw()
+                }
+                Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
+            }
+        }
+        None => env.new_float_array(0_i32).unwrap().into_raw(),
     }
 }

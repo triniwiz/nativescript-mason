@@ -36,8 +36,17 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
     _cachedHasBackground = !bgString.isEmpty || !style.mBackground.layers.isEmpty || style.mBackground.color != nil
     _cachedHasBoxShadow = !style.boxShadows.isEmpty
-    _cachedHasBorder = !style.mBorderRender.css.isEmpty
+    _cachedHasBorder = !style.mBorderRender.css.isEmpty || MasonUIView.sideHasVisibleBorder(style.mBorderRender.top) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.right) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.bottom) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.left)
     _cachedHasFilter = !style.resolvedFilterString.isEmpty
+  }
+
+  private static func sideHasVisibleBorder(_ side: CSSBorderRenderer.BorderSide) -> Bool {
+    guard side.style != .none else { return false }
+    switch side.width {
+    case .Zero: return false
+    case .Points(let points): return points != 0
+    case .Percent(let percent): return percent != 0
+    }
   }
   
   public override func draw(_ rect: CGRect) {
@@ -63,7 +72,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
 
     style.mBorderRender.resolve(for: bounds)
-    let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()
 
     // Outset shadows are handled by MasonShadowLayer
@@ -104,7 +112,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       style.mBorderRender.draw(in: context, rect: bounds)
     }
 
-    style.applyResolvedFilter(in: context, rect: bounds, view: self)
+    if hasFilter {
+      style.applyResolvedFilter(in: context, rect: bounds, view: self)
+    }
   }
 
   private func drawListItemMarkers(in context: CGContext) {
@@ -295,12 +305,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     guard !currentSize.equalTo(_lastBoundsSize) else { return }
     _lastBoundsSize = currentSize
     invalidateDrawFlags()
-    #if DEBUG
-   // if !(superview is MasonElement) {
-      node.mason.printTree(node)
-   // }
-    #endif
-
     // Optimize compositing: set isOpaque for solid opaque backgrounds
     style.mBorderRender.resolve(for: bounds)
     guard let bg = style.mBackground else {return}
@@ -333,6 +337,27 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // owns it) is still current, else it's orphaned.
     if newSuperview == nil {
       style.removeShadowLayer()
+    }
+  }
+
+  // Non-placeholder view composition attaches via UIKit's generic addSubview
+  // path, which skips the Mason-aware append that sets `node.parent` (layout
+  // still works via the Rust/taffy tree, linked separately). Sync it here —
+  // the one hook every subview attach goes through — so resolvedFontSize/
+  // resolvedColor/etc. can walk up through a plain element ancestor.
+  public override func didMoveToSuperview() {
+    super.didMoveToSuperview()
+    guard let sv = superview as? MasonElement else { return }
+    if node.layoutParent !== sv.node {
+      node.parent = sv.node
+    }
+    // A text descendant may have cached default attributes (font-size,
+    // line-height, color, ...) while unreachable from `sv`, resolving
+    // inheritance to nothing. The cache can't detect an ancestor change,
+    // so force a rebuild on attach.
+    MasonNode.invalidateDescendantDefaultAttributes(node)
+    if !style.inBatch {
+      invalidateLayout()
     }
   }
 
@@ -490,9 +515,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       checkAndUpdateStyle()
     }
   }
-  
-  
-  // TODO
   @objc public var direction: Direction {
     get{
       return style.direction
@@ -1344,8 +1366,20 @@ extension MasonUIView {
     var v = _scrollDecelerationVelocity
     var doneX = true
     var doneY = true
-    if _canScrollH { (o.x, v.x, doneX) = _integrateScrollAxis(o.x, v.x, 0, hiX, dt) }
-    if _canScrollV { (o.y, v.y, doneY) = _integrateScrollAxis(o.y, v.y, 0, hiY, dt) }
+    // If relayout makes an axis non-scrollable mid-gesture, clear any stale
+    // offset instead of stopping the display link with it still overscrolled.
+    if _canScrollH {
+      (o.x, v.x, doneX) = _integrateScrollAxis(o.x, v.x, 0, hiX, dt)
+    } else if o.x != 0 {
+      o.x = 0
+      v.x = 0
+    }
+    if _canScrollV {
+      (o.y, v.y, doneY) = _integrateScrollAxis(o.y, v.y, 0, hiY, dt)
+    } else if o.y != 0 {
+      o.y = 0
+      v.y = 0
+    }
     _scrollDecelerationVelocity = v
     _setScrollOrigin(o)
     if doneX && doneY { _stopScrollDeceleration() }

@@ -94,10 +94,15 @@ export class Li extends ViewBase {
       if (!parentIsMason) {
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
-        if (this.width === 'auto' && this.height === 'auto' && !unconstrained) {
+        // Compute against the parent's bounds whenever the spec gives any; see
+        // view/index.ios.ts for why auto/auto doesn't matter here.
+        if (!unconstrained) {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
           this.ios.mason_computeWithSize(specWidth, specHeight);
+          // Claim this root for the host's spec; see view/index.ios.ts.
+          // @ts-ignore
+          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
 
           // @ts-ignore
           const layout = this.ios.mason_layout();
@@ -112,7 +117,7 @@ export class Li extends ViewBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
-          // either we had a non-auto dimension or an unconstrained spec,
+          // Nothing definite to resolve against:
           // measure by max-content so we don't accidentally collapse to zero.
           // @ts-ignore
           this.ios.mason_computeWithMaxContent();

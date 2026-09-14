@@ -7,7 +7,7 @@ edition = "2021"
 taffy = { workspace = true }
 bitflags = "2.9.0"
 log = "0.4.26"
-slotmap = "1.0.7"
+slotmap = "1.1.1"
 style_atoms = { workspace = true }
 cssparser = "0.36.0"
 parking_lot = "0.12.5"

@@ -16,11 +16,11 @@ class NodeUtils {
     }else {
       root.view as? MasonElement
     }
-    
-    if let view = view {
-      let computed = view.computeCache()
-      view.computeWithSize(Float(computed.width), Float(computed.height))
-    }
+
+    // Coalesced, not immediate: this runs on every appended text node, and a
+    // synchronous full-document layout per insertion is what made building an
+    // ordinary screen quadratic. See `MasonElement.setNeedsLayoutPass()`.
+    view?.setNeedsLayoutPass()
   }
   
   static func addView(_ node: MasonNode, _ view: UIView?){

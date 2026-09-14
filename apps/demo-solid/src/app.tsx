@@ -8,6 +8,8 @@ import Transforms from './components/transforms'
 import Backgrounds from './components/backgrounds'
 import Position from './components/position'
 import QA from './components/qa'
+import WebSpec from './webspec/WebSpec'
+import MaxWidthChurnRepro from './webspec/MaxWidthChurnRepro'
 
 declare module 'solid-navigation' {
   export interface Routers {
@@ -21,13 +23,15 @@ declare module 'solid-navigation' {
       Backgrounds: RouteDefinition
       Position: RouteDefinition
       QA: RouteDefinition
+      WebSpec: RouteDefinition
+      MaxWidthChurnRepro: RouteDefinition
     }
   }
 }
 
 const App = () => {
   return (
-    <StackRouter initialRouteName="Home">
+    <StackRouter initialRouteName="WebSpec">
       <Route name="Home" component={Home} />
       <Route name="Typography" component={Typography} />
       <Route name="Flexbox" component={Flexbox} />
@@ -37,6 +41,8 @@ const App = () => {
       <Route name="Backgrounds" component={Backgrounds} />
       <Route name="Position" component={Position} />
       <Route name="QA" component={QA} />
+      <Route name="WebSpec" component={WebSpec} />
+      <Route name="MaxWidthChurnRepro" component={MaxWidthChurnRepro} />
     </StackRouter>
   )
 }

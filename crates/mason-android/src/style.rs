@@ -20,7 +20,7 @@ pub(crate) const JAVA_ARRAY_TYPE: ReturnType = ReturnType::Array;
 pub(crate) const JAVA_LONG_TYPE: ReturnType =
     ReturnType::Primitive(jni::signature::Primitive::Long);
 
-fn get_string_lossy(env: &mut JNIEnv, value: &JString) -> Option<String> {
+pub(crate) fn get_string_lossy(env: &mut JNIEnv, value: &JString) -> Option<String> {
     if value.is_null() {
         None
     } else {

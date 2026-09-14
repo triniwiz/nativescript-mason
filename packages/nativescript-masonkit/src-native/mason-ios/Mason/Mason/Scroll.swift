@@ -17,6 +17,23 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     MasonNode.invalidateDescendantTextViews(node, low, high)
   }
 
+  // Same as MasonUIView.didMoveToSuperview -- see the reasoning there. Regular
+  // view composition attaches through UIKit's generic addViewAt/insertSubview,
+  // which never sets `node.parent`, and text descendants may have cached their
+  // default attributes while this subtree was still unreachable from its
+  // ancestor, so CSS inheritance resolved to nothing.
+  public override func didMoveToSuperview() {
+    super.didMoveToSuperview()
+    guard let sv = superview as? MasonElement else { return }
+    if node.layoutParent !== sv.node {
+      node.parent = sv.node
+    }
+    MasonNode.invalidateDescendantDefaultAttributes(node)
+    if !style.inBatch {
+      invalidateLayout()
+    }
+  }
+
   public override func draw(_ rect: CGRect) {
 
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty

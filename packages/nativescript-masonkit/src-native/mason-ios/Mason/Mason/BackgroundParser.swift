@@ -34,7 +34,7 @@ struct Gradient {
 // MARK: - Background Layer
 class BackgroundLayer {
   var image: String? = nil
-  var repeatType: BackgroundRepeat = .noRepeat
+  var repeatType: BackgroundRepeat = .repeatXY
   var position: (CGFloat, CGFloat)? = nil
   var size: (CGFloat, CGFloat)? = nil
   var gradient: Gradient? = nil
@@ -368,7 +368,7 @@ func parseBackgroundLayers(_ css: String) -> [BackgroundLayer] {
   // placeholder BackgroundLayer — the color is stored on `Background.color`.
   let parsed = splitBackgroundLayers(css).map { parseLayer($0) }
   let meaningful = parsed.filter { layer in
-    return layer.image != nil || layer.gradient != nil || layer.position != nil || layer.size != nil || layer.repeatType != .noRepeat || layer.clip != .borderBox
+    return layer.image != nil || layer.gradient != nil || layer.position != nil || layer.size != nil || layer.repeatType != .repeatXY || layer.clip != .borderBox
   }
   return meaningful
 }
@@ -452,9 +452,11 @@ func parseLayer(_ str: String) -> BackgroundLayer {
     let parts = value.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
     let posPart = parts[0]
     let sizePart = parts.count > 1 ? parts[1] : nil
-    layer.position = parsePosition(posPart)
+    if !posPart.isEmpty {
+      layer.position = parsePosition(posPart)
+    }
     if let sizePart = sizePart { layer.size = parseSize(sizePart) }
-  } else {
+  } else if !value.isEmpty {
     layer.position = parsePosition(value)
   }
   

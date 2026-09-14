@@ -10,15 +10,46 @@ use jni::sys::{
 };
 use jni::JNIEnv;
 use mason_core::{AvailableSpace, Id, InlineSegment, Mason, NodeRef, Size};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
+
+// Diagnostic instrumentation for the webspec-freeze investigation: every
+// compute/mutation entry point below logs a matching enter/exit pair. If a
+// call hangs, logcat will show its "enter" line with no corresponding "exit"
+// line, which pinpoints exactly which native entry point is stuck.
+static CALL_SEQ: AtomicU64 = AtomicU64::new(0);
+
+#[inline]
+fn call_enter(name: &str, taffy: jlong, node: jlong) -> Option<(u64, Instant)> {
+    // Trace is filtered out in normal builds; skip the clock reads too — they
+    // showed up as ~20% of main-thread samples via the per-node markDirty path.
+    if !log::log_enabled!(log::Level::Trace) {
+        return None;
+    }
+    let id = CALL_SEQ.fetch_add(1, Ordering::Relaxed);
+    log::trace!("[mason-jni] #{id} {name} enter taffy={taffy:#x} node={node:#x}");
+    Some((id, Instant::now()))
+}
+
+#[inline]
+fn call_exit(name: &str, call: Option<(u64, Instant)>) {
+    let Some((id, started)) = call else { return };
+    log::trace!(
+        "[mason-jni] #{id} {name} exit elapsed_ms={:.3}",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
+}
 
 #[no_mangle]
 pub extern "system" fn NodeNativeDestroy(node: jlong) {
     if node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeDestroy", 0, node);
     unsafe {
         let _ = Box::from_raw(node as *mut NodeRef);
     }
+    call_exit("NodeNativeDestroy", call);
 }
 
 #[no_mangle]
@@ -26,9 +57,11 @@ pub extern "system" fn NodeNativeDestroyNormal(_env: JNIEnv, _: JClass, node: jl
     if node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeDestroyNormal", 0, node);
     unsafe {
         let _ = Box::from_raw(node as *mut NodeRef);
     }
+    call_exit("NodeNativeDestroyNormal", call);
 }
 
 fn native_new_node(taffy: jlong, is_anonymous: jboolean) -> jlong {
@@ -269,7 +302,7 @@ pub extern "system" fn NodeNativeGetChildCountNormal(
 
 #[no_mangle]
 pub extern "system" fn nativeLayout(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
@@ -277,19 +310,53 @@ pub extern "system" fn nativeLayout(
     if taffy == 0 || node == 0 {
         return env.new_float_array(0_i32).unwrap().into_raw();
     }
-    unsafe {
+    let call = call_enter("nativeLayout", taffy, node);
+    let ret = unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        let output = mason.layout(node.id());
-        let size = output.len();
+        let size = mason.layout_into(node.id(), &mut []);
         match env.new_float_array(size as i32) {
             Ok(array) => {
-                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
+                if let Ok(mut elements) =
+                    env.get_array_elements_critical(&array, ReleaseMode::CopyBack)
+                {
+                    mason.layout_into(node.id(), &mut elements);
+                }
                 array.into_raw()
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
+    };
+    call_exit("nativeLayout", call);
+    ret
+}
+
+#[no_mangle]
+pub extern "system" fn nativeLayoutInto(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    output: JFloatArray,
+) -> jint {
+    if taffy == 0 || node == 0 {
+        return 0;
     }
+    let call = call_enter("nativeLayoutInto", taffy, node);
+    let ret = unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+        if env.get_array_length(&output).unwrap_or(0) == 0 {
+            mason.layout_into(node.id(), &mut []) as jint
+        } else {
+            match env.get_array_elements_critical(&output, ReleaseMode::CopyBack) {
+                Ok(mut elements) => mason.layout_into(node.id(), &mut elements) as jint,
+                Err(_) => 0,
+            }
+        }
+    };
+    call_exit("nativeLayoutInto", call);
+    ret
 }
 
 #[no_mangle]
@@ -391,11 +458,13 @@ fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeComputeWH", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.compute_wh(node.id(), width, height);
     }
+    call_exit("NodeNativeComputeWH", call);
 }
 
 #[no_mangle]
@@ -424,6 +493,7 @@ fn native_compute_size(taffy: jlong, node: jlong, size: jlong) {
     if taffy == 0 || node == 0 || size == 0 {
         return;
     }
+    let call = call_enter("NodeNativeComputeSize", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let size = Box::from_raw(size as *mut Size<AvailableSpace>);
@@ -432,6 +502,7 @@ fn native_compute_size(taffy: jlong, node: jlong, size: jlong) {
 
         Box::leak(size);
     }
+    call_exit("NodeNativeComputeSize", call);
 }
 
 #[no_mangle]
@@ -454,11 +525,13 @@ fn native_compute_max_content(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeComputeMaxContent", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.compute(node.id());
     }
+    call_exit("NodeNativeComputeMaxContent", call);
 }
 
 #[no_mangle]
@@ -480,11 +553,13 @@ fn native_compute_min_content(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeComputeMinContent", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.compute_min(node.id());
     }
+    call_exit("NodeNativeComputeMinContent", call);
 }
 
 #[no_mangle]
@@ -506,11 +581,13 @@ fn native_compute(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeCompute", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.compute(node.id());
     }
+    call_exit("NodeNativeCompute", call);
 }
 
 #[no_mangle]
@@ -539,7 +616,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
         return env.new_float_array(0_i32).unwrap().into_raw();
     }
 
-    unsafe {
+    let call = call_enter("nativeComputeAndLayout", taffy, node);
+    let ret = unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.compute(node.id());
@@ -553,7 +631,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
-    }
+    };
+    call_exit("nativeComputeAndLayout", call);
+    ret
 }
 
 #[no_mangle]
@@ -569,7 +649,8 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
         return env.new_float_array(0_i32).unwrap().into_raw();
     }
 
-    unsafe {
+    let call = call_enter("nativeComputeWithSizeAndLayout", taffy, node);
+    let ret = unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
 
@@ -584,7 +665,9 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
-    }
+    };
+    call_exit("nativeComputeWithSizeAndLayout", call);
+    ret
 }
 
 fn native_get_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
@@ -868,11 +951,13 @@ fn native_mark_dirty(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeMarkDirty", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.mark_dirty(node.id());
     }
+    call_exit("NodeNativeMarkDirty", call);
 }
 
 #[no_mangle]
@@ -926,11 +1011,13 @@ fn native_remove_children(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
+    let call = call_enter("NodeNativeRemoveChildren", taffy, node);
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
         mason.remove_children(node.id());
     }
+    call_exit("NodeNativeRemoveChildren", call);
 }
 
 #[no_mangle]

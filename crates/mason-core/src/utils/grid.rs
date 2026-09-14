@@ -144,8 +144,10 @@ pub fn parse_track_size<'i, 't>(
         Token::Dimension {
             value, ref unit, ..
         } => match &**unit {
-            "px" => Ok(length(*value)),
-            "dip" => Ok(length(*value * device_scale)),
+            // `px` is a CSS pixel — the same size as a dip — matching the web.
+            // `dppx` is the escape hatch for a literal device pixel.
+            "dppx" => Ok(length(*value)),
+            "px" | "dip" => Ok(length(*value * device_scale)),
             "fr" => Ok(fr(*value)),
             _ => Err(parser.new_custom_error(())),
         },
@@ -166,8 +168,8 @@ fn parse_length_percentage<'i, 't>(
         Token::Dimension {
             value, ref unit, ..
         } => match &**unit {
-            "px" => Ok(LengthPercentage::length(*value)),
-            "dip" => Ok(LengthPercentage::length(*value * device_scale)),
+            "dppx" => Ok(LengthPercentage::length(*value)),
+            "px" | "dip" => Ok(LengthPercentage::length(*value * device_scale)),
             _ => Err(parser.new_custom_error(())),
         },
         Token::Number { value, .. } => Ok(LengthPercentage::length(*value * device_scale)),
@@ -206,7 +208,8 @@ fn parse_min_track_size<'i, 't>(
         Token::Dimension {
             value, ref unit, ..
         } => match &**unit {
-            "px" => Ok(MinTrackSizingFunction::length(*value)),
+            "dppx" => Ok(MinTrackSizingFunction::length(*value)),
+            "px" => Ok(MinTrackSizingFunction::length(*value * device_scale)),
             "dip" => Ok(MinTrackSizingFunction::length(*value * device_scale)),
             _ => Err(parser.new_custom_error(())),
         },
@@ -246,7 +249,8 @@ fn parse_max_track_size<'i, 't>(
         Token::Dimension {
             value, ref unit, ..
         } => match &**unit {
-            "px" => Ok(MaxTrackSizingFunction::length(*value)),
+            "dppx" => Ok(MaxTrackSizingFunction::length(*value)),
+            "px" => Ok(MaxTrackSizingFunction::length(*value * device_scale)),
             "dip" => Ok(MaxTrackSizingFunction::length(*value * device_scale)),
             "fr" => Ok(MaxTrackSizingFunction::fr(*value)),
             _ => Err(parser.new_custom_error(())),

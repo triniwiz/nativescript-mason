@@ -40,5 +40,24 @@ module.exports = (env) => {
     { order: 10 },
   );
 
+  // @nativescript/webpack's core 'hmr-core' rule (typescript.js/javascript.js)
+  // appends `if (module.hot?.accept) module.hot.accept()` to every non-excluded
+  // .js/.ts module when HMR is on. It excludes /node_modules/, but masonkit is
+  // consumed via `file:../../dist/packages/nativescript-masonkit` — a symlink
+  // whose resolved path never contains "node_modules" — so its (100% ESM)
+  // compiled output gets the snippet appended too. Webpack then elides the now-
+  // unused `module` wrapper param for these harmony-export-only modules, and the
+  // injected snippet throws `ReferenceError: module is not defined` at require
+  // time, crashing app startup. Exclude masonkit's dist from that rule; hot-
+  // swapping a native-backed plugin's compiled output isn't useful anyway.
+  webpack.chainWebpack(
+    (config) => {
+      if (config.module.rules.has('hmr-core')) {
+        config.module.rule('hmr-core').exclude.add(/dist[\\/]packages[\\/]nativescript-masonkit/);
+      }
+    },
+    { order: 10 },
+  );
+
   return webpack.resolveConfig();
 };

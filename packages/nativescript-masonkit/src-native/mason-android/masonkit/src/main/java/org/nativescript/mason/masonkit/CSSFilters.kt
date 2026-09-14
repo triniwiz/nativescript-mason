@@ -35,6 +35,9 @@ internal val SPLIT_REGEX = Regex("""\s+""")
 private const val PI_FLOAT = Math.PI.toFloat()
 private const val RAD_TO_DEG = (180f / PI_FLOAT)
 
+// Keep author-supplied blur radii bounded before they reach RenderEffect.
+internal const val MAX_RENDER_EFFECT_BLUR_RADIUS_PX = 100f
+
 
 class CSSFilters {
 
@@ -591,10 +594,9 @@ class CSSFilters {
           when (filter) {
             is Filter.Blur -> {
               if (filter.radiusPx > 0) {
+                val r = filter.radiusPx.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
                 effects.add(
-                  RenderEffect.createBlurEffect(
-                    filter.radiusPx, filter.radiusPx, Shader.TileMode.CLAMP
-                  )
+                  RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
                 )
               }
             }
@@ -639,9 +641,8 @@ class CSSFilters {
               val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
 
               val shadowEffect = if (filter.blur > 0f) {
-                val blurEffect = RenderEffect.createBlurEffect(
-                  filter.blur, filter.blur, Shader.TileMode.CLAMP
-                )
+                val r = filter.blur.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
+                val blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
                 RenderEffect.createChainEffect(colorEffect, blurEffect)
               } else {
                 colorEffect
@@ -800,37 +801,34 @@ class CSSFilters {
     }
 
     /**
-     * Build a chained RenderEffect from all parsed filter functions.
-     * Used by backdrop-filter to apply the same pipeline that regular
-     * `filter` uses via FilterHelperV3, but without a source bitmap.
-     * Returns null on pre-API-31 or if no applicable filters exist.
+     * Blur radius (px) from the first Filter.Blur in the chain, or 0 if none.
      */
-    @RequiresApi(Build.VERSION_CODES.S)
-    internal fun buildBackdropRenderEffect(): RenderEffect? {
-      val effects = mutableListOf<RenderEffect>()
+    internal fun backdropBlurRadiusPx(): Float =
+      (filters.firstOrNull { it is Filter.Blur } as? Filter.Blur)?.radiusPx ?: 0f
+
+    /**
+     * Combined ColorMatrix for every non-blur filter in the chain; null if the
+     * backdrop chain has no color adjustment filters.
+     */
+    internal fun buildBackdropColorMatrix(): ColorMatrix? {
+      var combined: ColorMatrix? = null
       for (f in filters) {
-        when (f) {
-          is Filter.Blur -> {
-            if (f.radiusPx > 0) {
-              effects.add(
-                RenderEffect.createBlurEffect(
-                  f.radiusPx, f.radiusPx, Shader.TileMode.CLAMP
-                )
-              )
-            }
-          }
-          is Filter.Brightness -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(brightness(f.value))))
-          is Filter.Contrast -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(contrast(f.value))))
-          is Filter.Saturate -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(saturate(f.value))))
-          is Filter.HueRotate -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(hue(f.degrees))))
-          is Filter.Invert -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(invert(f.amount))))
-          is Filter.Opacity -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(opacity(f.amount))))
-          is Filter.Sepia -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(sepia(f.amount))))
-          is Filter.Grayscale -> effects.add(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(grayscale(f.amount))))
-          is Filter.DropShadow -> { /* drop-shadow not applicable for backdrop-filter */ }
+        val m = when (f) {
+          is Filter.Brightness -> brightness(f.value)
+          is Filter.Contrast -> contrast(f.value)
+          is Filter.Saturate -> saturate(f.value)
+          is Filter.HueRotate -> hue(f.degrees)
+          is Filter.Invert -> invert(f.amount)
+          is Filter.Opacity -> opacity(f.amount)
+          is Filter.Sepia -> sepia(f.amount)
+          is Filter.Grayscale -> grayscale(f.amount)
+          else -> null
+        }
+        if (m != null) {
+          if (combined == null) combined = m else combined.postConcat(m)
         }
       }
-      return chain(*effects.toTypedArray())
+      return combined
     }
 
     fun renderFilters(view: View, canvas: Canvas, draw: (Canvas) -> Unit) {

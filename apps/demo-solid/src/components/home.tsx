@@ -65,6 +65,14 @@ const FEATURES = [
     glyph: 'QA',
     count: 'Tests',
   },
+  {
+    id: 'WebSpec',
+    label: 'WebSpec Conformance',
+    desc: '374 CSS layout fixtures checked against real browser rects',
+    bg: '#00cec9',
+    glyph: 'Ws',
+    count: 'Tests',
+  },
 ] as const
 
 const STATS = [

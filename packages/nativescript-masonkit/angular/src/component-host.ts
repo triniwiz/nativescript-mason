@@ -63,8 +63,8 @@ export interface ComponentHostOptions {
    * resolve `height: 100%` against.
    *
    * Detected rather than hardcoded: Angular creates the root component's host
-   * element before anything in its template, so the first unregistered element
-   * this package is asked to create is the root.
+   * through `NativeScriptRenderer.selectRootElement`, so an element created
+   * while that runs is the root. See {@link patchSelectRootElement}.
    *
    * @default true
    */
@@ -90,7 +90,6 @@ const passthroughNames = new Set<string>(DEFAULT_PASSTHROUGH_ELEMENTS);
 const passthroughTests: Array<RegExp | ((name: string) => boolean)> = [];
 
 let installed = false;
-let elementsCreated = 0;
 
 /**
  * Set while `PageRouterOutlet` is building a routed component, so the host
@@ -98,6 +97,12 @@ let elementsCreated = 0;
  * See {@link patchPageRouterOutlet}.
  */
 let creatingPageRoot = false;
+
+/**
+ * Set while `NativeScriptRenderer.selectRootElement` is creating the Angular
+ * root component's host element. See {@link patchSelectRootElement}.
+ */
+let creatingAppRoot = false;
 
 /**
  * The real native container behind every component host element.
@@ -242,6 +247,39 @@ function patchPageRouterOutlet(): void {
   };
 }
 
+/**
+ * Recognise the Angular root component's host element at creation time.
+ *
+ * Angular bootstraps the root component through
+ * `renderer.selectRootElement(selector)`, and the NativeScript renderer creates
+ * the host element from that selector with `viewUtil.createView`. Bracketing the
+ * call marks exactly that element as the root, however many times the app
+ * bootstraps in one JS process.
+ *
+ * This used to be a "first unregistered element ever created" counter, which is
+ * only right for the first bootstrap. When Android recreates the Activity while
+ * the process lives on (tapping the launcher icon after an `ns run` deploy,
+ * rotation, a dark-mode switch), `@nativescript/angular` bootstraps the app
+ * again and the counter is already past zero, so the root became a real
+ * MasonKit box. `AppHostView` then skips its full-screen root `GridLayout`, and
+ * Taffy content-sizes the classic view under it to the ActionBar height - the
+ * page renders as an empty screen below the toolbar.
+ */
+function patchSelectRootElement(rendererProto: { selectRootElement?: unknown }): void {
+  const original = rendererProto.selectRootElement;
+  if (typeof original !== 'function') {
+    return;
+  }
+  rendererProto.selectRootElement = function (this: unknown, ...args: unknown[]) {
+    creatingAppRoot = true;
+    try {
+      return original.apply(this, args);
+    } finally {
+      creatingAppRoot = false;
+    }
+  };
+}
+
 function applyOptions(options: ComponentHostOptions): void {
   if (options.enabled !== undefined) {
     config.enabled = options.enabled;
@@ -299,10 +337,14 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
   const { ViewUtil } = ɵViewUtil;
   const originalCreateView = ViewUtil.prototype.createView;
   ViewUtil.prototype.createView = function (name: string) {
-    const isFirstElement = elementsCreated === 0;
     const unregistered = !isKnownView(name);
-    if (unregistered) {
-      elementsCreated++;
+
+    // The element `selectRootElement` creates is the Angular root component's
+    // host. Consume the flag so only that element claims it.
+    let isAppRoot = false;
+    if (unregistered && creatingAppRoot) {
+      creatingAppRoot = false;
+      isAppRoot = true;
     }
 
     // The first unregistered element created while `PageRouterOutlet` is
@@ -316,7 +358,7 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
       passthroughNames.add(name.toLowerCase());
     }
 
-    if (!config.enabled || !unregistered || isPageRoot || isPassthrough(name) || (config.rootAsPassthrough && isFirstElement)) {
+    if (!config.enabled || !unregistered || isPageRoot || isPassthrough(name) || (config.rootAsPassthrough && isAppRoot)) {
       // Known element, or one we deliberately keep as a transparent
       // ProxyViewContainer. `originalCreateView` substitutes the proxy for
       // unregistered names but does not record the original tag (the renderer
@@ -348,7 +390,10 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
   // `super.createElement()`, so patching the shared base prototype covers both.
   const rendererProto = Object.getPrototypeOf(EmulatedRenderer.prototype) as {
     createElement(this: { viewUtil: InstanceType<typeof ViewUtil> }, name: string, namespace?: string): unknown;
+    selectRootElement?: unknown;
   };
+  patchSelectRootElement(rendererProto);
+
   const originalCreateElement = rendererProto.createElement;
   rendererProto.createElement = function (name: string, namespace?: string) {
     if (isKnownView(name)) {

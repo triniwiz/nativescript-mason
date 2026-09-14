@@ -14,10 +14,10 @@ import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 
 
 class Mason {
-
   internal val gc by lazy {
     GC(this)
   }
@@ -27,7 +27,10 @@ class Mason {
   }
   private var isAlive = true
 
-  internal val nodes = HashMap<Long, WeakReference<Node>>()
+  // ConcurrentHashMap: written from the UI thread on node creation but removed
+  // from GC.kt's Cleaner/PhantomReference callback thread — a plain HashMap
+  // raced between those two can corrupt its bucket list and hang a lookup.
+  internal val nodes = ConcurrentHashMap<Long, WeakReference<Node>>()
   private val viewNodes = WeakHashMap<android.view.View, WeakReference<Node>>()
 
   private val nodeEventListeners =
@@ -40,6 +43,19 @@ class Mason {
 
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
+
+  /**
+   * The context CSS relative units resolve against, mirroring the TS side's
+   * `units.ts`. `rem` needs a root font size (the CSS default is 16) and
+   * `vw`/`vh`/`vmin`/`vmax` need the viewport, which is 0 until it is known —
+   * an unresolvable viewport unit collapses to 0 rather than silently becoming
+   * a bare number in the wrong unit.
+   */
+  var rootFontSize: Float = Constants.DEFAULT_FONT_SIZE.toFloat()
+
+  var viewportWidth: Float = Resources.getSystem().displayMetrics.widthPixels / scale
+
+  var viewportHeight: Float = Resources.getSystem().displayMetrics.heightPixels / scale
 
   init {
     nativeSetDeviceScale(nativePtr, scale)
@@ -154,7 +170,9 @@ class Mason {
     val byId = byType.getOrPut(type) { mutableMapOf() }
 
     byId[id] = listener
-    Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
+    if (LOG_EVENTS) {
+      Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
+    }
     return id
   }
 
@@ -169,7 +187,9 @@ class Mason {
   }
 
   fun dispatch(event: Event) {
-    Log.d("Mason", "dispatch type=${event.type} target=${event.target?.node?.objectId()}")
+    if (LOG_EVENTS) {
+      Log.d("Mason", "dispatch type=${event.type} target=${event.target?.node?.objectId()}")
+    }
     val path = mutableListOf<Node>()
     var current: Node? = event.target?.node
     while (current != null) {
@@ -187,7 +207,9 @@ class Mason {
           ?.toList()
           ?: continue
 
-      Log.d("Mason", "dispatch: invoking ${listeners.size} listeners on node=${node.objectId()}")
+      if (LOG_EVENTS) {
+        Log.d("Mason", "dispatch: invoking ${listeners.size} listeners on node=${node.objectId()}")
+      }
       for (listener in listeners) {
         if (event.immediatePropagationStopped) break
         listener(event)
@@ -479,6 +501,7 @@ class Mason {
   }
 
   companion object {
+    private const val LOG_EVENTS = false
 
     internal fun initLib() {
       NativeHelpers.initLib()
@@ -547,6 +570,18 @@ class Mason {
 
     @JvmStatic
     private external fun nativeGetPreflight(): Boolean
+
+    /**
+     * User-agent default (font-size, margin) for a block text tag ("p",
+     * "h1".."h6", "blockquote", "pre"), in unscaled CSS px. Returns a
+     * 5-element array `[fontSize, marginTop, marginBottom, marginLeft,
+     * marginRight]`, or an empty array if the tag has no UA default.
+     *
+     * Single source of truth lives in mason-core (`ua_default_for_tag`);
+     * must stay in sync with iOS MasonText.swift's equivalent call.
+     */
+    @JvmStatic
+    external fun nativeUaDefaultForTag(tag: String): FloatArray
 
   }
 

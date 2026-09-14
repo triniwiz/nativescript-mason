@@ -1,28 +1,23 @@
 import { createApp, registerElement } from 'nativescript-vue';
-import { View, Scroll, Img, Text, Button, Br, Input, TextArea } from '@triniwiz/nativescript-masonkit';
-import { P, Span, B, H1, H2, H3, H4, Code, Div, Section } from '@triniwiz/nativescript-masonkit/web';
+import { View } from '@triniwiz/nativescript-masonkit';
+import { getMasonKitElements } from '@triniwiz/nativescript-masonkit/elements';
 import Home from './components/Home.vue';
 
 // Enable MasonKit's native web-normalised defaults (border-box, margin:0, etc.)
 // This replaces Tailwind's CSS preflight at the native layout engine level.
 View.preflight = true;
 
-registerElement('view', () => View);
-registerElement('div', () => Div);
-registerElement('img', () => Img);
-registerElement('text', () => Text);
-registerElement('p', () => P);
-registerElement('span', () => Span, { overwriteExisting: true });
-registerElement('b', () => B);
-registerElement('h1', () => H1);
-registerElement('h2', () => H2);
-registerElement('h3', () => H3);
-registerElement('h4', () => H4);
-registerElement('code', () => Code);
-registerElement('button', () => Button, { overwriteExisting: true });
-registerElement('br', () => Br);
-registerElement('input', () => Input);
-registerElement('section', () => Section);
-registerElement('textarea', () => TextArea);
+// Register every tag MasonKit can back, from the single canonical list
+// (`@triniwiz/nativescript-masonkit/elements`) shared with demo-solid/demo-react
+// and the Angular integration — so this demo can't silently drift out of
+// parity with them (previously only a dozen of the ~30 tags were wired up
+// here: no ul/ol/li/scroll/blockquote/strong/em/i/pre/a/h5/h6/article/main/
+// nav/header/footer/aside).
+// `overwriteExisting: true` on every entry, since nativescript-vue
+// pre-registers some tags (e.g. `span`, `button`) against core NativeScript's
+// own widgets and MasonKit's version should always win.
+for (const { tag, ctor } of getMasonKitElements()) {
+  registerElement(tag.toLowerCase(), () => ctor, { overwriteExisting: true });
+}
 
 createApp(Home).start();

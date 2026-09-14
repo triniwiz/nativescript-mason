@@ -7,7 +7,8 @@
       "@triniwiz/*": ["../../dist/packages/*"],
       "@triniwiz/nativescript-masonkit": ["../../packages/nativescript-masonkit/index.d.ts"],
       "@triniwiz/nativescript-masonkit/angular": ["../../packages/nativescript-masonkit/angular/index.ts"],
-      "@triniwiz/nativescript-masonkit/web": ["../../packages/nativescript-masonkit/web.ts"]
+      "@triniwiz/nativescript-masonkit/web": ["../../packages/nativescript-masonkit/web.ts"],
+      "@triniwiz/nativescript-masonkit/elements": ["../../packages/nativescript-masonkit/elements.ts"]
     }
   },
   "files": ["./references.d.ts", "./src/main.ts", "./src/polyfills.ts"],

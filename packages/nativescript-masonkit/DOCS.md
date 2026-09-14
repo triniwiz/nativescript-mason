@@ -392,8 +392,8 @@ Length values support `px`, `%`, `dip`, and `auto` (for margins).
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `width` | `LengthAuto` | Element width |
-| `height` | `LengthAuto` | Element height |
+| `width` | `DimensionLength` | Element width |
+| `height` | `DimensionLength` | Element height |
 | `minWidth` | `LengthAuto` | Minimum width |
 | `minHeight` | `LengthAuto` | Minimum height |
 | `maxWidth` | `LengthAuto` | Maximum width |
@@ -492,7 +492,7 @@ If you want transforms to be driven from the native style buffer (Rust) and casc
 
 **FlexDirection values:** `'row'` | `'column'` | `'row-reverse'` | `'column-reverse'`
 
-**FlexWrap values:** `'no-wrap'` | `'wrap'` | `'wrap-reverse'`
+**FlexWrap values:** `'no-wrap'` | `'wrap'` | `'wrap-reverse'` | `'balance'` | `'balance-reverse'`
 
 **Alignment values:** `'normal'` | `'flex-start'` | `'flex-end'` | `'start'` | `'end'` | `'center'` | `'baseline'` | `'stretch'`
 
@@ -793,6 +793,18 @@ type Length =
 type LengthAuto = Length | 'auto';
 ```
 
+### DimensionLength
+
+```typescript
+type DimensionLength = LengthAuto
+  | 'min-content'
+  | 'max-content'
+  | 'fit-content'
+  | `fit-content(${string})`
+  | 'stretch'
+  | 'content';
+```
+
 ### Display
 
 ```typescript
@@ -827,7 +839,7 @@ type FlexDirection = 'column' | 'row' | 'column-reverse' | 'row-reverse';
 ### FlexWrap
 
 ```typescript
-type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse';
+type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse';
 ```
 
 ### AlignItems / AlignSelf

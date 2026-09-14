@@ -32,6 +32,36 @@ class DimensionSerializer : JsonSerializer<Dimension> {
       is Dimension.Auto -> {
         return JsonPrimitive(Constants.AUTO_VALUE)
       }
+
+      is Dimension.MinContent -> {
+        return JsonPrimitive("min-content")
+      }
+
+      is Dimension.MaxContent -> {
+        return JsonPrimitive("max-content")
+      }
+
+      is Dimension.FitContent -> {
+        return JsonPrimitive("fit-content")
+      }
+
+      is Dimension.FitContentPoints -> {
+        json.add("value", JsonPrimitive(src.points))
+        json.add("unit", JsonPrimitive("fit-content-points"))
+      }
+
+      is Dimension.FitContentPercent -> {
+        json.add("value", JsonPrimitive(src.percentage))
+        json.add("unit", JsonPrimitive("fit-content-percent"))
+      }
+
+      is Dimension.Stretch -> {
+        return JsonPrimitive("stretch")
+      }
+
+      is Dimension.Content -> {
+        return JsonPrimitive("content")
+      }
     }
     return json
   }
