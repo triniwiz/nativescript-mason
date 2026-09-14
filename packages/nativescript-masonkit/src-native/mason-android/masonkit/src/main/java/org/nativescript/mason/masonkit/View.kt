@@ -100,16 +100,25 @@ open class View @JvmOverloads constructor(
 
   private fun rebuildZOrder() {
     zSortedChildren.clear()
+    var hasZ = false
     for (i in 0 until childCount) {
-      zSortedChildren.add(getChildAt(i))
+      val child = getChildAt(i)
+      zSortedChildren.add(child)
+      if (zIndexOf(child) != 0) hasZ = true
     }
+    // Nearly every container has no z-index at all: keep tree order and let
+    // ViewGroup draw natively instead of asking getChildDrawingOrder per child.
+    isChildrenDrawingOrderEnabled = hasZ
+    if (hasZ) {
+      // sortBy is stable, so equal z-indices keep tree order without an
+      // indexOfChild() scan per comparison.
+      zSortedChildren.sortBy { zIndexOf(it) }
+    }
+  }
 
-    zSortedChildren.sortWith(compareBy<android.view.View> {
-      val el = it as? Element ?: return@compareBy 0
-      if (el.node.nativePtr == 0L || !el.style.isValueInitialized) 0 else el.style.zIndex
-    }.thenBy {
-      indexOfChild(it)
-    })
+  private fun zIndexOf(view: android.view.View): Int {
+    val el = view as? Element ?: return 0
+    return if (el.node.nativePtr == 0L || !el.style.isValueInitialized) 0 else el.style.zIndex
   }
 
 

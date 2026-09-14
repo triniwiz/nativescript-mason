@@ -784,7 +784,8 @@ class Style internal constructor(@Transient internal var node: Node) {
   // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
   @JvmField
   internal var inMeasure = false
-  private var pendingMetricsSync = false
+  internal var pendingMetricsSync = false
+    private set
 
   private var reloadListener: (FontFace, String?) -> Unit = { font, error ->
     syncFontMetrics()
@@ -4369,7 +4370,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       )
 
       if (zIndex != 0L) {
-        (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
+        (node.parent?.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
       resetState()
@@ -4391,7 +4392,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         (isDirtyHigh and StateKeys.LAYOUT_MASK.high) != 0L
 
       if (zIndex != 0L) {
-        (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
+        (node.parent?.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
       resetState()

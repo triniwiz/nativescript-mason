@@ -20,15 +20,20 @@ use std::time::Instant;
 static CALL_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[inline]
-fn call_enter(name: &str, taffy: jlong, node: jlong) -> (u64, Instant) {
+fn call_enter(name: &str, taffy: jlong, node: jlong) -> Option<(u64, Instant)> {
+    // Trace is filtered out in normal builds; skip the clock reads too — they
+    // showed up as ~20% of main-thread samples via the per-node markDirty path.
+    if !log::log_enabled!(log::Level::Trace) {
+        return None;
+    }
     let id = CALL_SEQ.fetch_add(1, Ordering::Relaxed);
     log::trace!("[mason-jni] #{id} {name} enter taffy={taffy:#x} node={node:#x}");
-    (id, Instant::now())
+    Some((id, Instant::now()))
 }
 
 #[inline]
-fn call_exit(name: &str, call: (u64, Instant)) {
-    let (id, started) = call;
+fn call_exit(name: &str, call: Option<(u64, Instant)>) {
+    let Some((id, started)) = call else { return };
     log::trace!(
         "[mason-jni] #{id} {name} exit elapsed_ms={:.3}",
         started.elapsed().as_secs_f64() * 1000.0
