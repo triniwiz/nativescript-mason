@@ -65,7 +65,7 @@ private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolea
     }
     i++
   }
-  return maxW
+  return ceil(maxW)
 }
 
 class TextEngine(val container: TextContainer) {
@@ -520,7 +520,7 @@ class TextEngine(val container: TextContainer) {
         }
 
         if (availableWidth == -2f) {
-          val desiredWidth = android.text.Layout.getDesiredWidth(spannable, paint)
+          val desiredWidth = ceil(android.text.Layout.getDesiredWidth(spannable, paint))
           measuredWidth = maxOf(measuredWidth, desiredWidth)
         }
       }
@@ -533,14 +533,14 @@ class TextEngine(val container: TextContainer) {
           }
 
           -2f -> {
-            val desiredWidth = Layout.getDesiredWidth(spannable, paint)
+            val desiredWidth = ceil(Layout.getDesiredWidth(spannable, paint))
             maxOf(measuredWidth, desiredWidth)
           }
 
           // Reached on the final layout pass when nowrap keeps widthConstraint
           // at Int.MAX_VALUE; fall back to natural width, same as -2f above.
           else -> {
-            Layout.getDesiredWidth(spannable, paint)
+            ceil(Layout.getDesiredWidth(spannable, paint))
           }
         }
       } else {

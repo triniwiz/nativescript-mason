@@ -13,6 +13,8 @@ import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.events.Event
 import java.util.UUID
+import kotlin.math.ceil
+import kotlin.math.floor
 
 interface Element : EventTarget {
   val style: Style
@@ -915,11 +917,16 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
           }
 
-          val x = nv.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-          val y = nv.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+          // Snap outward so the view is never narrower than its layout box.
+          val fx = nv.x.takeIf { !it.isNaN() } ?: 0f
+          val fy = nv.y.takeIf { !it.isNaN() } ?: 0f
+          val fw = nv.width.takeIf { !it.isNaN() } ?: 0f
+          val fh = nv.height.takeIf { !it.isNaN() } ?: 0f
+          val x = floor(fx).toInt()
+          val y = floor(fy).toInt()
 
-          var width = nv.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-          var height = nv.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+          var width = ceil(fx + fw).toInt() - x
+          var height = ceil(fy + fh).toInt() - y
 
           if (view !is Element) {
             width = view.measuredWidth
