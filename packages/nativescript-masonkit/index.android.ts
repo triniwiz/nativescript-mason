@@ -35,7 +35,7 @@ export function setBoxShadowRenderMode(mode: BoxShadowRenderMode): void {
  * useful when visually comparing the two backends at equal fidelity.
  */
 export function setBoxShadowSoftwareRasterScale(scale: number | null): void {
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setBoxShadowSoftwareRasterScale(scale);
+  org.nativescript.mason.masonkit.NodeHelper.getShared().setBoxShadowSoftwareRasterScale(scale ?? 0);
 }
 
 registerAppFontsDirectory();

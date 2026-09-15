@@ -1660,9 +1660,12 @@ class NodeHelper(val mason: Mason) {
       }
     }
 
-    /** Global software shadow raster scale override; null restores the dynamic policy. */
-    fun setBoxShadowSoftwareRasterScale(scale: Float?) {
-      BoxShadowRenderer.softwareRasterScaleOverride = scale
+    /**
+     * Global software shadow raster scale override; a value outside (0, 1]
+     * restores the dynamic policy. Primitive so JS numbers marshal directly.
+     */
+    fun setBoxShadowSoftwareRasterScale(scale: Float) {
+      BoxShadowRenderer.softwareRasterScaleOverride = scale.takeIf { it > 0f && it <= 1f }
     }
 
     fun getTransform(view: android.view.View): String {

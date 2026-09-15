@@ -19,16 +19,21 @@ import android.renderscript.Allocation
 import android.renderscript.Element
 import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
+import android.util.LruCache
 import androidx.annotation.RequiresApi
 import androidx.core.graphics.withSave
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.ceil
 
 /**
- * Renders outset shadows with RenderNode on API 31+ and shared, downsampled bitmaps otherwise.
+ * Renders box shadows with RenderNode on API 31+ hardware canvases and with
+ * shared, downsampled bitmaps otherwise.
  *
- * Both paths take the same blur sigma ([BLUR_SIGMA_SCALE] × CSS blur radius) so shadows look
- * identical regardless of the active backend; [renderModeOverride] forces a backend globally.
+ * Both paths take the same blur sigma ([BLUR_SIGMA_SCALE] × CSS blur radius) so
+ * shadows look identical regardless of the active backend; [renderModeOverride]
+ * forces a backend globally. Outset and inset shadows are cached per view and
+ * rebuilt only when size, border radii, shadow style, or global configuration
+ * change — steady-state drawing is a handful of draw calls per frame.
  */
 class BoxShadowRenderer(private val style: Style) {
 
@@ -50,12 +55,42 @@ class BoxShadowRenderer(private val style: Style) {
     (style.node.view as? android.view.View)?.addOnAttachStateChangeListener(attachStateListener)
   }
 
+  /** Rebuild condition shared by the outset and inset caches. */
+  private class CacheKey {
+    var width = 0f
+    var height = 0f
+    var shadowsHash = 0
+    var radiiHash = 0
+    var configurationVersion = -1
+
+    fun matches(width: Float, height: Float, shadowsHash: Int, radiiHash: Int): Boolean =
+      this.width == width && this.height == height && this.shadowsHash == shadowsHash &&
+        this.radiiHash == radiiHash &&
+        this.configurationVersion == BoxShadowRenderer.configurationVersion.get()
+
+    fun store(width: Float, height: Float, shadowsHash: Int, radiiHash: Int) {
+      this.width = width
+      this.height = height
+      this.shadowsHash = shadowsHash
+      this.radiiHash = radiiHash
+      this.configurationVersion = BoxShadowRenderer.configurationVersion.get()
+    }
+
+    fun reset() {
+      width = 0f
+      height = 0f
+      shadowsHash = 0
+      radiiHash = 0
+      configurationVersion = -1
+    }
+  }
+
+  private val outsetKey = CacheKey()
+  private val insetKey = CacheKey()
+
   // Cached shadow bitmaps for older APIs
   private var cachedOutsetShadows: List<ShadowBitmapEntry>? = null
-  private var cachedWidth = 0f
-  private var cachedHeight = 0f
-  private var cachedShadowsHash = 0
-  private var cachedConfigurationVersion = -1
+  private var cachedInsetShadows: List<ShadowBitmapEntry>? = null
   private val tmpRadii = FloatArray(8)
   private val tmpPath = Path()
   private val tmpRect = RectF()
@@ -69,6 +104,9 @@ class BoxShadowRenderer(private val style: Style) {
   @RequiresApi(Build.VERSION_CODES.S)
   private var outsetShadowNodes: List<RenderNode>? = null
 
+  @RequiresApi(Build.VERSION_CODES.S)
+  private var insetShadowNodes: List<RenderNode>? = null
+
   private data class ShadowBitmapEntry(
     val bitmap: Bitmap,
     val drawX: Float,
@@ -81,6 +119,9 @@ class BoxShadowRenderer(private val style: Style) {
     /** Maximum bitmap dimension (width or height) to prevent OOM.
      *  A 2048x2048 ARGB_8888 bitmap is 16 MB - safe for most devices. */
     private const val MAX_BITMAP_DIM = 2048
+
+    /** Upper bound on cached RenderEffects; distinct (sigma, color) pairs. */
+    private const val MAX_CACHED_EFFECTS = 64
 
     /** CSS blur is a diameter; RenderEffect/RenderScript blur takes a sigma. */
     private const val BLUR_SIGMA_SCALE = 0.5f
@@ -178,43 +219,58 @@ class BoxShadowRenderer(private val style: Style) {
         return result
       }
 
-      val rs = RenderScript.create(context)
-      try {
-        // Expand bitmap for blur spread
-        val pad = ceil(blurRadius * 3f).toInt().coerceAtLeast(0)
-        val expandedW = shapeBitmap.width + pad * 2
-        val expandedH = shapeBitmap.height + pad * 2
+      val rs = renderScript(context)
+      // Expand bitmap for blur spread
+      val pad = ceil(blurRadius * 3f).toInt().coerceAtLeast(0)
+      val expandedW = shapeBitmap.width + pad * 2
+      val expandedH = shapeBitmap.height + pad * 2
 
-        // Draw shape centered in expanded bitmap
-        val tempBitmap = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
-        tempBitmap.eraseColor(Color.TRANSPARENT)
-        val tempCanvas = Canvas(tempBitmap)
-        tempCanvas.drawBitmap(shapeBitmap, pad.toFloat(), pad.toFloat(), null)
+      // Draw shape centered in expanded bitmap
+      val tempBitmap = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+      tempBitmap.eraseColor(Color.TRANSPARENT)
+      val tempCanvas = Canvas(tempBitmap)
+      tempCanvas.drawBitmap(shapeBitmap, pad.toFloat(), pad.toFloat(), null)
 
-        // Apply blur
-        val input = Allocation.createFromBitmap(rs, tempBitmap)
-        val output = Allocation.createTyped(rs, input.type)
-        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-        script.setRadius((blurRadius * BLUR_SIGMA_SCALE).coerceIn(0.0001f, 25f))
-        script.setInput(input)
-        script.forEach(output)
+      // Apply blur
+      val input = Allocation.createFromBitmap(rs, tempBitmap)
+      val output = Allocation.createTyped(rs, input.type)
+      val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+      script.setRadius((blurRadius * BLUR_SIGMA_SCALE).coerceIn(0.0001f, 25f))
+      script.setInput(input)
+      script.forEach(output)
 
-        val blurred = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
-        output.copyTo(blurred)
+      val blurred = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+      output.copyTo(blurred)
 
-        // Tint the blurred result
-        val result = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
-        result.eraseColor(Color.TRANSPARENT)
-        val resultCanvas = Canvas(result)
-        resultCanvas.drawBitmap(blurred, 0f, 0f, tintPaint)
+      // Tint the blurred result
+      val result = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
+      result.eraseColor(Color.TRANSPARENT)
+      val resultCanvas = Canvas(result)
+      resultCanvas.drawBitmap(blurred, 0f, 0f, tintPaint)
 
-        // Return temp bitmaps to pool
-        pool.putBitmap(tempBitmap)
-        pool.putBitmap(blurred)
+      // Return temp bitmaps to pool
+      pool.putBitmap(tempBitmap)
+      pool.putBitmap(blurred)
 
-        return result
-      } finally {
-        rs.destroy()
+      return result
+    }
+
+    private val renderScriptLock = Any()
+
+    @Volatile
+    private var sharedRenderScript: RenderScript? = null
+
+    /**
+     * One RenderScript context per process. Creating one per blur was the
+     * dominant cost of cache misses (and of the legacy inset path before it
+     * was cached). Thread-safe; first use may block on creation.
+     */
+    @Suppress("DEPRECATION")
+    private fun renderScript(context: Context): RenderScript {
+      sharedRenderScript?.let { return it }
+      return synchronized(renderScriptLock) {
+        sharedRenderScript
+          ?: RenderScript.create(context.applicationContext).also { sharedRenderScript = it }
       }
     }
 
@@ -235,6 +291,33 @@ class BoxShadowRenderer(private val style: Style) {
       )
 
     /**
+     * Tint + blur effect for a shadow. RenderEffects are immutable and safe
+     * to share across RenderNodes, so they are cached process-wide keyed by
+     * (sigma, color) — this is what keeps resize-driven node rebuilds cheap.
+     */
+    @RequiresApi(Build.VERSION_CODES.S)
+    internal fun shadowEffect(blurRadius: Float, color: Int): RenderEffect {
+      val radius = blurRadius * BLUR_SIGMA_SCALE
+      val key = 31L * java.lang.Float.floatToIntBits(radius) + color
+      var effect = effectCache.get(key)
+      if (effect == null) {
+        val colorEffect = tintColorEffect(color)
+        effect = if (blurRadius > 0f) {
+          RenderEffect.createChainEffect(
+            colorEffect,
+            RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.DECAL),
+          )
+        } else {
+          colorEffect
+        }
+        effectCache.put(key, effect)
+      }
+      return effect
+    }
+
+    private val effectCache = LruCache<Long, RenderEffect>(MAX_CACHED_EFFECTS)
+
+    /**
      * Whether the RenderNode backend may draw to [canvas]. RENDER_NODE on a
      * software canvas falls back to the bitmap path (RenderEffect needs GPU).
      */
@@ -248,26 +331,26 @@ class BoxShadowRenderer(private val style: Style) {
 
   fun invalidate() = release()
 
-  /** Drop heavy bitmap references as soon as the owning view leaves the UI. */
+  /** Drop heavy bitmap/node references as soon as the owning view leaves the UI. */
   fun release() {
     cachedOutsetShadows = null
+    cachedInsetShadows = null
     cachedOutsetList = null
     cachedInsetList = null
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) outsetShadowNodes = null
-    resetCacheKey()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      outsetShadowNodes = null
+      insetShadowNodes = null
+    }
+    outsetKey.reset()
+    insetKey.reset()
   }
 
-  private fun resetCacheKey() {
-    cachedWidth = 0f
-    cachedHeight = 0f
-    cachedShadowsHash = 0
-    cachedConfigurationVersion = -1
-  }
-
-  private fun needsRebuild(width: Float, height: Float): Boolean {
-    val shadowsHash = style.boxShadowsHash()
-    return cachedWidth != width || cachedHeight != height || cachedShadowsHash != shadowsHash ||
-      cachedConfigurationVersion != configurationVersion.get()
+  private fun radiiHash(borderRenderer: BorderRenderer): Int {
+    if (!borderRenderer.hasRadii()) return 0
+    val radii = borderRenderer.getRadii()
+    var result = 1
+    for (i in radii.indices) result = 31 * result + radii[i].toBits()
+    return result
   }
 
   /**
@@ -310,7 +393,9 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     shadows: List<Shadow.BoxShadow>,
   ) {
-    if (outsetShadowNodes == null || needsRebuild(width, height)) {
+    val radiiHash = radiiHash(borderRenderer)
+    val shadowsHash = style.boxShadowsHash()
+    if (outsetShadowNodes == null || !outsetKey.matches(width, height, shadowsHash, radiiHash)) {
       cachedOutsetShadows = null
       val radii = if (borderRenderer.hasRadii()) borderRenderer.getRadii() else null
       val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
@@ -326,21 +411,7 @@ class BoxShadowRenderer(private val style: Style) {
         node.translationX = shadow.offsetX - spread - blurPad
         node.translationY = shadow.offsetY - spread - blurPad
 
-        val colorEffect = tintColorEffect(shadow.color)
-        node.setRenderEffect(
-          if (shadow.blurRadius > 0f) {
-            RenderEffect.createChainEffect(
-              colorEffect,
-              RenderEffect.createBlurEffect(
-                shadow.blurRadius * BLUR_SIGMA_SCALE,
-                shadow.blurRadius * BLUR_SIGMA_SCALE,
-                Shader.TileMode.DECAL,
-              ),
-            )
-          } else {
-            colorEffect
-          }
-        )
+        node.setRenderEffect(shadowEffect(shadow.blurRadius, shadow.color))
 
         val adjustedRadii = radii?.let {
           for (i in it.indices) tmpRadii[i] = (it[i] + spread).coerceAtLeast(0f)
@@ -363,10 +434,7 @@ class BoxShadowRenderer(private val style: Style) {
         node.endRecording()
         node
       }
-      cachedWidth = width
-      cachedHeight = height
-      cachedShadowsHash = style.boxShadowsHash()
-      cachedConfigurationVersion = configurationVersion.get()
+      outsetKey.store(width, height, shadowsHash, radiiHash)
     }
 
     canvas.withSave {
@@ -386,7 +454,9 @@ class BoxShadowRenderer(private val style: Style) {
   ) {
     if (width <= 0f || height <= 0f) return
 
-    if (cachedOutsetShadows == null || needsRebuild(width, height)) {
+    val radiiHash = radiiHash(borderRenderer)
+    val shadowsHash = style.boxShadowsHash()
+    if (cachedOutsetShadows == null || !outsetKey.matches(width, height, shadowsHash, radiiHash)) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) outsetShadowNodes = null
       val context = view.context
       val pool = CSSFilters.getPool(context)
@@ -475,10 +545,7 @@ class BoxShadowRenderer(private val style: Style) {
       }
 
       cachedOutsetShadows = entries
-      cachedWidth = width
-      cachedHeight = height
-      cachedShadowsHash = style.boxShadowsHash()
-      cachedConfigurationVersion = configurationVersion.get()
+      outsetKey.store(width, height, shadowsHash, radiiHash)
     }
 
     // Draw cached bitmaps (in reverse order so first shadow is on top)
@@ -573,92 +640,80 @@ class BoxShadowRenderer(private val style: Style) {
     borderRenderer: BorderRenderer,
     shadows: List<Shadow.BoxShadow>
   ) {
-    // For inset shadows, we need to draw the inverse - a frame that casts shadow inward
-    val hasRadii = borderRenderer.hasRadii()
-    val radii = if (hasRadii) borderRenderer.getRadii() else null
+    val radiiHash = radiiHash(borderRenderer)
+    val shadowsHash = style.boxShadowsHash()
+    if (insetShadowNodes == null || !insetKey.matches(width, height, shadowsHash, radiiHash)) {
+      cachedInsetShadows = null
+      // For inset shadows, we draw the inverse - a frame that casts shadow
+      // inward. The frame is recorded once and cached; the offset is baked
+      // into node translation so drawing is a plain pass.
+      val radii = if (borderRenderer.hasRadii()) borderRenderer.getRadii() else null
 
-    val shapePaint = Paint().apply {
-      style = Paint.Style.FILL
-      isAntiAlias = true
-      color = Color.WHITE
-    }
-    val shapeRect = RectF()
-    val tmpRadii = FloatArray(8)
-    val tmpPath = Path()
-
-    for ((index, shadow) in shadows.withIndex().reversed()) {
-      val spread = shadow.spreadRadius
-      val blurPad = ceil(shadow.blurRadius * 3f).toInt().coerceAtLeast(16)
-
-      // Create outer frame bitmap (the shadow-casting shape)
-      val frameW = width.toInt() + blurPad * 2
-      val frameH = height.toInt() + blurPad * 2
-
-      val shapeNode = RenderNode("insetShadow$index")
-      shapeNode.setPosition(0, 0, frameW, frameH)
-      val shapeCanvas = shapeNode.beginRecording()
-
-      // Fill the entire frame
-      shapePaint.color = Color.WHITE
-      shapeCanvas.drawRect(0f, 0f, frameW.toFloat(), frameH.toFloat(), shapePaint)
-
-      // Cut out the inner area (where no shadow should appear)
-      val innerRadii = if (radii != null) {
-        for (i in 0 until 8) tmpRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
-        tmpRadii
-      } else null
-
-      shapeRect.set(
-        blurPad + spread,
-        blurPad + spread,
-        blurPad + width - spread,
-        blurPad + height - spread
-      )
-
-      shapePaint.color = Color.TRANSPARENT
-      shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-      if (innerRadii != null) {
-        tmpPath.reset()
-        tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
-        shapeCanvas.drawPath(tmpPath, shapePaint)
-      } else {
-        shapeCanvas.drawRect(shapeRect, shapePaint)
+      val shapePaint = Paint().apply {
+        style = Paint.Style.FILL
+        isAntiAlias = true
+        color = Color.WHITE
       }
-      shapePaint.xfermode = null
-      shapePaint.color = Color.WHITE
+      val shapeRect = RectF()
+      val nodeRadii = FloatArray(8)
+      val nodePath = Path()
 
-      shapeNode.endRecording()
+      insetShadowNodes = shadows.withIndex().reversed().map { (index, shadow) ->
+        val spread = shadow.spreadRadius
+        val blurPad = ceil(shadow.blurRadius * 3f).toInt().coerceAtLeast(16)
 
-      // Apply blur and color
-      val colorEffect = tintColorEffect(shadow.color)
+        // Create outer frame bitmap (the shadow-casting shape)
+        val frameW = width.toInt() + blurPad * 2
+        val frameH = height.toInt() + blurPad * 2
 
-      val shadowEffect = if (shadow.blurRadius > 0f) {
-        val blurEffect = RenderEffect.createBlurEffect(
-          shadow.blurRadius * BLUR_SIGMA_SCALE,
-          shadow.blurRadius * BLUR_SIGMA_SCALE,
-          Shader.TileMode.DECAL,
+        val shapeNode = RenderNode("insetShadow$index")
+        shapeNode.setPosition(0, 0, frameW, frameH)
+        val shapeCanvas = shapeNode.beginRecording()
+
+        // Fill the entire frame
+        shapeCanvas.drawRect(0f, 0f, frameW.toFloat(), frameH.toFloat(), shapePaint)
+
+        // Cut out the inner area (where no shadow should appear)
+        val innerRadii = if (radii != null) {
+          for (i in 0 until 8) nodeRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
+          nodeRadii
+        } else null
+
+        shapeRect.set(
+          blurPad + spread,
+          blurPad + spread,
+          blurPad + width - spread,
+          blurPad + height - spread
         )
-        RenderEffect.createChainEffect(colorEffect, blurEffect)
-      } else {
-        colorEffect
+
+        shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        if (innerRadii != null) {
+          nodePath.reset()
+          nodePath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+          shapeCanvas.drawPath(nodePath, shapePaint)
+        } else {
+          shapeCanvas.drawRect(shapeRect, shapePaint)
+        }
+        shapePaint.xfermode = null
+        shapeNode.endRecording()
+
+        val shadowNode = RenderNode("insetShadowFinal$index")
+        shadowNode.setRenderEffect(shadowEffect(shadow.blurRadius, shadow.color))
+        shadowNode.setPosition(0, 0, frameW, frameH)
+        shadowNode.translationX = -blurPad + shadow.offsetX
+        shadowNode.translationY = -blurPad + shadow.offsetY
+
+        val shadowNodeCanvas = shadowNode.beginRecording()
+        shadowNodeCanvas.drawRenderNode(shapeNode)
+        shadowNode.endRecording()
+
+        shadowNode
       }
-
-      val shadowNode = RenderNode("insetShadowFinal$index")
-      shadowNode.setRenderEffect(shadowEffect)
-      shadowNode.setPosition(0, 0, frameW, frameH)
-
-      val shadowNodeCanvas = shadowNode.beginRecording()
-      shadowNodeCanvas.drawRenderNode(shapeNode)
-      shadowNode.endRecording()
-
-      // Draw at offset position
-      val drawX = -blurPad + shadow.offsetX
-      val drawY = -blurPad + shadow.offsetY
-      canvas.withSave {
-        canvas.translate(drawX, drawY)
-        canvas.drawRenderNode(shadowNode)
-      }
+      insetKey.store(width, height, shadowsHash, radiiHash)
     }
+
+    // Cached order is reversed so the first CSS shadow draws on top
+    insetShadowNodes?.asReversed()?.forEach { canvas.drawRenderNode(it) }
   }
 
   private fun drawInsetShadowsLegacy(
@@ -671,83 +726,110 @@ class BoxShadowRenderer(private val style: Style) {
   ) {
     if (width <= 0f || height <= 0f) return
 
-    val pool = CSSFilters.getPool(context)
-    val hasRadii = borderRenderer.hasRadii()
-    val radii = if (hasRadii) borderRenderer.getRadii() else null
+    val radiiHash = radiiHash(borderRenderer)
+    val shadowsHash = style.boxShadowsHash()
+    if (cachedInsetShadows == null || !insetKey.matches(width, height, shadowsHash, radiiHash)) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) insetShadowNodes = null
+      val pool = CSSFilters.getPool(context)
+      val entries = mutableListOf<ShadowBitmapEntry>()
+      val hasRadii = borderRenderer.hasRadii()
+      val radii = if (hasRadii) borderRenderer.getRadii() else null
 
-    val shapePaint = Paint().apply {
-      style = Paint.Style.FILL
-      isAntiAlias = true
-      color = Color.WHITE
+      for (shadow in shadows.reversed()) {
+        val spread = shadow.spreadRadius
+        val blurPad = ceil(shadow.blurRadius * 3f).toInt().coerceAtLeast(16)
+
+        val frameW = width.toInt() + blurPad * 2
+        val frameH = height.toInt() + blurPad * 2
+
+        // Calculate expanded dimensions with blur
+        val expandedPad = ceil(shadow.blurRadius * 3f).toInt()
+        val expandedW = frameW + expandedPad * 2
+        val expandedH = frameH + expandedPad * 2
+
+        // Skip this shadow if bitmap would exceed safe limits
+        if (expandedW > MAX_BITMAP_DIM || expandedH > MAX_BITMAP_DIM || expandedW <= 0 || expandedH <= 0) {
+          continue
+        }
+
+        val innerRadii = if (radii != null) {
+          for (i in 0 until 8) tmpRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
+          tmpRadii
+        } else null
+
+        // The cached bitmap does not depend on the offset (applied at draw
+        // time), so offset stays out of the key and identical inset shadows
+        // on different elements share one raster.
+        val key = SharedBoxShadowCache.Key(
+          SharedBoxShadowCache.floatBits(width),
+          SharedBoxShadowCache.floatBits(height),
+          innerRadii?.map(SharedBoxShadowCache::floatBits) ?: emptyList(),
+          SharedBoxShadowCache.floatBits(shadow.blurRadius),
+          SharedBoxShadowCache.floatBits(spread),
+          shadow.color,
+          SharedBoxShadowCache.floatBits(0f),
+          SharedBoxShadowCache.floatBits(0f),
+          context.resources.displayMetrics.densityDpi,
+          SharedBoxShadowCache.floatBits(1f),
+        )
+        val shadowBitmap = SharedBoxShadowCache.get(key) ?: run {
+          // Create frame bitmap with hole cut out
+          val frameBitmap = pool.getBitmap(frameW, frameH, Bitmap.Config.ARGB_8888)
+          frameBitmap.eraseColor(Color.TRANSPARENT)
+          val frameCanvas = Canvas(frameBitmap)
+
+          // Fill frame
+          val shapePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.WHITE
+          }
+          frameCanvas.drawRect(0f, 0f, frameW.toFloat(), frameH.toFloat(), shapePaint)
+
+          // Cut out inner area
+          val shapeRect = RectF(
+            blurPad + spread,
+            blurPad + spread,
+            blurPad + width - spread,
+            blurPad + height - spread
+          )
+          shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+          if (innerRadii != null) {
+            tmpPath.reset()
+            tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+            frameCanvas.drawPath(tmpPath, shapePaint)
+          } else {
+            frameCanvas.drawRect(shapeRect, shapePaint)
+          }
+          shapePaint.xfermode = null
+
+          val rendered = createBlurredShadowBitmapRS(
+            context, frameBitmap, shadow.blurRadius, shadow.color, pool
+          )
+
+          pool.putBitmap(frameBitmap)
+          SharedBoxShadowCache.put(key, rendered)
+          rendered
+        }
+
+        // Draw at offset
+        val extraPad = ceil(shadow.blurRadius * 3f)
+        entries.add(
+          ShadowBitmapEntry(
+            shadowBitmap,
+            -blurPad - extraPad + shadow.offsetX,
+            -blurPad - extraPad + shadow.offsetY,
+            shadowBitmap.width.toFloat(),
+            shadowBitmap.height.toFloat(),
+          )
+        )
+      }
+
+      cachedInsetShadows = entries
+      insetKey.store(width, height, shadowsHash, radiiHash)
     }
-    val shapeRect = RectF()
 
-    for (shadow in shadows.reversed()) {
-      val spread = shadow.spreadRadius
-      val blurPad = ceil(shadow.blurRadius * 3f).toInt().coerceAtLeast(16)
-
-      val frameW = width.toInt() + blurPad * 2
-      val frameH = height.toInt() + blurPad * 2
-
-      // Calculate expanded dimensions with blur
-      val expandedPad = ceil(shadow.blurRadius * 3f).toInt()
-      val expandedW = frameW + expandedPad * 2
-      val expandedH = frameH + expandedPad * 2
-
-      // Skip this shadow if bitmap would exceed safe limits
-      if (expandedW > MAX_BITMAP_DIM || expandedH > MAX_BITMAP_DIM || expandedW <= 0 || expandedH <= 0) {
-        continue
-      }
-
-      // Create frame bitmap with hole cut out
-      val frameBitmap = pool.getBitmap(frameW, frameH, Bitmap.Config.ARGB_8888)
-      frameBitmap.eraseColor(Color.TRANSPARENT)
-      val frameCanvas = Canvas(frameBitmap)
-
-      // Fill frame
-      shapePaint.color = Color.WHITE
-      frameCanvas.drawRect(0f, 0f, frameW.toFloat(), frameH.toFloat(), shapePaint)
-
-      // Cut out inner area
-      val tmpRadii = FloatArray(8)
-      val tmpPath = Path()
-      val innerRadii = if (radii != null) {
-        for (i in 0 until 8) tmpRadii[i] = (radii[i] - spread).coerceAtLeast(0f)
-        tmpRadii
-      } else null
-
-      shapeRect.set(
-        blurPad + spread,
-        blurPad + spread,
-        blurPad + width - spread,
-        blurPad + height - spread
-      )
-
-      shapePaint.color = Color.TRANSPARENT
-      shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-      if (innerRadii != null) {
-        tmpPath.reset()
-        tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
-        frameCanvas.drawPath(tmpPath, shapePaint)
-      } else {
-        frameCanvas.drawRect(shapeRect, shapePaint)
-      }
-      shapePaint.xfermode = null
-      shapePaint.color = Color.WHITE
-
-      // Create blurred shadow from frame
-      val shadowBitmap = createBlurredShadowBitmapRS(
-        context, frameBitmap, shadow.blurRadius, shadow.color, pool
-      )
-
-      pool.putBitmap(frameBitmap)
-
-      // Draw at offset
-      val extraPad = ceil(shadow.blurRadius * 3f)
-      val drawX = -blurPad - extraPad + shadow.offsetX
-      val drawY = -blurPad - extraPad + shadow.offsetY
-      canvas.drawBitmap(shadowBitmap, drawX, drawY, null)
-      pool.putBitmap(shadowBitmap)
+    cachedInsetShadows?.forEach { entry ->
+      canvas.drawBitmap(entry.bitmap, entry.drawX, entry.drawY, null)
     }
   }
 
