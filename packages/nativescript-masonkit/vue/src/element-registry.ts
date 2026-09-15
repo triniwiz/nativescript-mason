@@ -1,74 +1,58 @@
-import { isKnownView, normalizeElementName, registerElement } from 'nativescript-vue';
-import { Br, Button, Img, Input, Li, Ol, Scroll, Text, TextArea, Ul, View } from '@triniwiz/nativescript-masonkit';
-import * as MasonKitWeb from '@triniwiz/nativescript-masonkit/web';
+import { getViewClass, getViewMeta, isKnownView, normalizeElementName, registerElement } from 'nativescript-vue';
+import { getMasonKitElements, type ElementClass, type GetMasonKitElementsOptions } from '@triniwiz/nativescript-masonkit/elements';
 
 import { masonMeta } from './mason-meta';
 
-type ElementClass = { new (...args: any[]): any; prototype: any };
-
-export interface RegisterElementsOptions {
-  /** Register MasonKit elements (`View`, `Text`, etc.). @default true */
-  mason?: boolean;
-  /** Register HTML-shaped elements from `@triniwiz/nativescript-masonkit/web`. @default true */
-  web?: boolean;
-}
+export type RegisterElementsOptions = GetMasonKitElementsOptions;
 
 /** Names this integration owns, normalized exactly as NativeScript-Vue does. */
 const registered = new Set<string>();
 
-function isMasonContainer(cls: ElementClass): boolean {
-  const proto = cls?.prototype;
-  return !!proto && typeof proto.insertChild === 'function' && typeof proto.addChild === 'function' && typeof proto.removeChild === 'function';
+/**
+ * Keep a tag NativeScript-Vue already registers (core's `Button`, `Span`, ...)
+ * reachable as `n<tag>` before MasonKit's element takes over the real name, so
+ * `<button>`/`<span>` are MasonKit's and `<nbutton>`/`<nspan>` are core's.
+ *
+ * Core's `Span` matters most: NativeScript-Vue's `FormattedString` element
+ * pushes its children straight into `nativeView.spans`, so
+ * `<Label><FormattedString><nspan>` still needs the core class.
+ */
+function preserveCoreElement(tag: string): void {
+  const alias = `n${tag}`;
+  if (!isKnownView(tag) || isKnownView(alias)) {
+    return;
+  }
+  // Resolve eagerly: once `tag` is overwritten, `getViewClass(tag)` would
+  // return MasonKit's class instead.
+  const coreClass = getViewClass(tag);
+  registerElement(alias, () => coreClass, getViewMeta(tag));
 }
 
-function register(name: string, cls: ElementClass): void {
-  const key = name ? normalizeElementName(name) : '';
+function register(tag: string, cls: ElementClass, isContainer: boolean): void {
+  const key = tag ? normalizeElementName(tag) : '';
   if (!key || registered.has(key)) {
     return;
   }
 
-  // Overwrite NativeScript core elements (e.g. Button, Span) so templates
-  // resolve to MasonKit's Taffy-backed equivalents after installation.
-  registerElement(name, () => cls, {
-    ...(isMasonContainer(cls) ? masonMeta : undefined),
-    overwriteExisting: isKnownView(name),
+  preserveCoreElement(tag);
+  registerElement(tag, () => cls, {
+    ...(isContainer ? masonMeta : undefined),
+    overwriteExisting: isKnownView(tag),
   });
   registered.add(key);
 }
 
-const MASON_ELEMENTS: Array<[string, ElementClass]> = [
-  ['View', View],
-  ['Text', Text],
-  ['Scroll', Scroll],
-  ['Img', Img],
-  ['Button', Button],
-  ['Input', Input],
-  ['TextArea', TextArea],
-  ['Br', Br],
-  ['Ul', Ul],
-  ['Ol', Ol],
-  ['Li', Li],
-];
-
 /**
  * Register all requested MasonKit elements with NativeScript-Vue 3.
  * Idempotent; attaches {@link masonMeta} to containers so child order is preserved.
+ *
+ * The tag list itself — including the "`/web`'s more specific element wins"
+ * de-duplication between `/web` and MasonKit's own widgets — comes from the
+ * shared {@link getMasonKitElements}, so it can never drift from what other
+ * framework integrations register.
  */
 export function registerMasonKitElements(options: RegisterElementsOptions = {}): void {
-  const { mason = true, web = true } = options;
-
-  if (web) {
-    for (const exported of Object.values(MasonKitWeb) as ElementClass[]) {
-      if (typeof exported !== 'function' || !exported.prototype) {
-        continue;
-      }
-      register(exported.prototype.cssType, exported);
-    }
-  }
-
-  if (mason) {
-    for (const [name, cls] of MASON_ELEMENTS) {
-      register(name, cls);
-    }
+  for (const { tag, ctor, isContainer } of getMasonKitElements(options)) {
+    register(tag, ctor, isContainer);
   }
 }

@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "paths": {
       "@triniwiz/nativescript-masonkit": ["../../../dist/packages/nativescript-masonkit"],
+      "@triniwiz/nativescript-masonkit/elements": ["../../../dist/packages/nativescript-masonkit/elements"],
       "@triniwiz/nativescript-masonkit/web": ["../../../dist/packages/nativescript-masonkit/web"]
     },
     "outDir": "../../../dist/packages/nativescript-masonkit/vue",
@@ -13,5 +14,6 @@
     "sourceMap": true,
     "types": ["node"]
   },
-  "include": ["index.ts", "src/**/*.ts"]
+  "include": ["index.ts", "src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
 }

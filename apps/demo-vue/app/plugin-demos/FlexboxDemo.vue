@@ -1,163 +1,162 @@
 <template>
   <Page>
-    <ActionBar>
-      <Label text="Flexbox Layout" class="text-white" style="font-size: 18; font-weight: bold;" />
+    <ActionBar title="Flexbox Layout">
+      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
     </ActionBar>
-    <div style="padding: 16;overflow-y: scroll;display: flex; flex-direction: column;">
+    <Scroll class="page">
+      <main class="page-body stack">
+        <!-- Flex Direction -->
+        <section class="block">
+          <span class="h1">Flex Direction</span>
+          <template v-for="dir in directions" :key="dir">
+            <span class="label">{{ dir }}</span>
+            <div class="track" :class="{ 'track-tall': dir.startsWith('column') }" :style="{ flexDirection: dir }">
+              <div v-for="(c, i) in three" :key="i" class="cell" :class="{ 'cell-dark': c.dark, 'cell-fixed': dir.startsWith('row') }" :style="{ backgroundColor: c.color }">
+                <span class="cell-label">{{ i + 1 }}</span>
+              </div>
+            </div>
+          </template>
+        </section>
 
-      <!-- Flex Direction -->
-      <p style="font-size: 22; font-weight: bold; color: #1a1a2e; margin-bottom: 8;">Flex Direction</p>
+        <!-- Justify Content -->
+        <section class="block">
+          <span class="h1">Justify Content</span>
+          <template v-for="j in justify" :key="j">
+            <span class="label">{{ j }}</span>
+            <div class="track" :style="{ justifyContent: j, gap: j === 'center' ? 8 : 0 }">
+              <div v-for="l in ['A', 'B', 'C']" :key="l" class="cell cell-square" style="background-color: #6c5ce7">
+                <span class="cell-label">{{ l }}</span>
+              </div>
+            </div>
+          </template>
+        </section>
 
-      <!-- Row -->
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">row</p>
-      <div style="display: flex; flex-direction: row; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 12;">
-        <div style="width: 80; height: 50; background-color: #FF6B6B; border-radius: 6; padding: 6;">
-          <p style="color: white; font-weight: bold;">1</p>
-        </div>
-        <div style="width: 80; height: 50; background-color: #4ECDC4; border-radius: 6; padding: 6;">
-          <p style="color: white; font-weight: bold;">2</p>
-        </div>
-        <div style="width: 80; height: 50; background-color: #FFD93D; border-radius: 6; padding: 6;">
-          <p style="color: #333; font-weight: bold;">3</p>
-        </div>
-      </div>
+        <!-- Align Items -->
+        <section class="block">
+          <span class="h1">Align Items</span>
+          <template v-for="a in align" :key="a">
+            <span class="label">{{ a }}</span>
+            <div class="track track-align" :style="{ alignItems: a }">
+              <div v-for="(c, i) in three" :key="i" class="cell cell-narrow" :class="{ 'cell-dark': c.dark }" :style="{ backgroundColor: c.color, height: [30, 50, 40][i] }">
+                <span class="cell-label cell-label-sm">{{ [30, 50, 40][i] }}</span>
+              </div>
+            </div>
+          </template>
+        </section>
 
-      <!-- Row Reverse -->
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">row-reverse</p>
-      <div style="display: flex; flex-direction: row-reverse; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 12;">
-        <div style="width: 80; height: 50; background-color: #FF6B6B; border-radius: 6; padding: 6;">
-          <p style="color: white; font-weight: bold;">1</p>
-        </div>
-        <div style="width: 80; height: 50; background-color: #4ECDC4; border-radius: 6; padding: 6;">
-          <p style="color: white; font-weight: bold;">2</p>
-        </div>
-        <div style="width: 80; height: 50; background-color: #FFD93D; border-radius: 6; padding: 6;">
-          <p style="color: #333; font-weight: bold;">3</p>
-        </div>
-      </div>
+        <!-- Flex Wrap -->
+        <section class="block">
+          <span class="h1">Flex Wrap</span>
+          <span class="label">wrap · 7 items</span>
+          <div class="track" style="flex-wrap: wrap; gap: 6">
+            <div v-for="(c, i) in wrapColors" :key="i" class="cell cell-wrap" :class="{ 'cell-dark': c.dark }" :style="{ backgroundColor: c.color }">
+              <span class="cell-label cell-label-sm">{{ i + 1 }}</span>
+            </div>
+          </div>
+        </section>
 
-      <!-- Column -->
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">column</p>
-      <div style="display: flex; flex-direction: column; background-color: #f0f0f5; border-radius: 8; padding: 8; height: 130; margin-bottom: 12;">
-        <div style="height: 32; background-color: #FF6B6B; border-radius: 6; padding: 4;">
-          <p style="color: white; font-weight: bold; font-size: 13;">1</p>
-        </div>
-        <div style="height: 32; background-color: #4ECDC4; border-radius: 6; padding: 4;">
-          <p style="color: white; font-weight: bold; font-size: 13;">2</p>
-        </div>
-        <div style="height: 32; background-color: #FFD93D; border-radius: 6; padding: 4;">
-          <p style="color: #333; font-weight: bold; font-size: 13;">3</p>
-        </div>
-      </div>
-
-      <!-- Column Reverse -->
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">column-reverse</p>
-      <div style="display: flex; flex-direction: column-reverse; background-color: #f0f0f5; border-radius: 8; padding: 8; height: 130; margin-bottom: 20;">
-        <div style="height: 32; background-color: #FF6B6B; border-radius: 6; padding: 4;">
-          <p style="color: white; font-weight: bold; font-size: 13;">1</p>
-        </div>
-        <div style="height: 32; background-color: #4ECDC4; border-radius: 6; padding: 4;">
-          <p style="color: white; font-weight: bold; font-size: 13;">2</p>
-        </div>
-        <div style="height: 32; background-color: #FFD93D; border-radius: 6; padding: 4;">
-          <p style="color: #333; font-weight: bold; font-size: 13;">3</p>
-        </div>
-      </div>
-
-      <!-- Justify Content -->
-      <p style="font-size: 22; font-weight: bold; color: #1a1a2e; margin-bottom: 8;">Justify Content</p>
-
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">space-between</p>
-      <div style="display: flex; flex-direction: row; justify-content: space-between; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 10;">
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">A</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">B</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">C</p>
-        </div>
-      </div>
-
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">space-around</p>
-      <div style="display: flex; flex-direction: row; justify-content: space-around; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 10;">
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">A</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">B</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">C</p>
-        </div>
-      </div>
-
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">center</p>
-      <div style="display: flex; flex-direction: row; justify-content: center; gap: 8; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 20;">
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">A</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">B</p>
-        </div>
-        <div style="width: 48; height: 48; background-color: #6C5CE7; border-radius: 8;">
-          <p style="color: white; font-weight: bold; text-align: center; font-size: 13;">C</p>
-        </div>
-      </div>
-
-      <!-- Align Items -->
-      <p style="font-size: 22; font-weight: bold; color: #1a1a2e; margin-bottom: 8;">Align Items</p>
-
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">center</p>
-      <div style="display: flex; flex-direction: row; align-items: center; gap: 8; background-color: #f0f0f5; border-radius: 8; padding: 8; height: 90; margin-bottom: 10;">
-        <div style="width: 48; height: 30; background-color: #FF6B6B; border-radius: 6;"></div>
-        <div style="width: 48; height: 50; background-color: #4ECDC4; border-radius: 6;"></div>
-        <div style="width: 48; height: 40; background-color: #FFD93D; border-radius: 6;"></div>
-      </div>
-
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">flex-end</p>
-      <div style="display: flex; flex-direction: row; align-items: flex-end; gap: 8; background-color: #f0f0f5; border-radius: 8; padding: 8; height: 90; margin-bottom: 20;">
-        <div style="width: 48; height: 30; background-color: #FF6B6B; border-radius: 6;"></div>
-        <div style="width: 48; height: 50; background-color: #4ECDC4; border-radius: 6;"></div>
-        <div style="width: 48; height: 40; background-color: #FFD93D; border-radius: 6;"></div>
-      </div>
-
-      <!-- Flex Wrap -->
-      <p style="font-size: 22; font-weight: bold; color: #1a1a2e; margin-bottom: 8;">Flex Wrap</p>
-
-      <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 6; background-color: #f0f0f5; border-radius: 8; padding: 8; margin-bottom: 20;">
-        <div style="width: 56; height: 44; background-color: #FF6B6B; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #4ECDC4; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #FFD93D; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #6C5CE7; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #E84393; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #00B894; border-radius: 6;"></div>
-        <div style="width: 56; height: 44; background-color: #0984E3; border-radius: 6;"></div>
-      </div>
-
-      <!-- Flex Grow -->
-      <p style="font-size: 22; font-weight: bold; color: #1a1a2e; margin-bottom: 8;">Flex Grow</p>
-      <p style="font-size: 13; color: #666; margin-bottom: 4; font-weight: bold;">1 : 2 : 1 ratio</p>
-
-      <div style="display: flex; flex-direction: row; gap: 6;">
-        <div style="flex-grow: 1; height: 50; background-color: #FF6B6B; border-radius: 6; padding: 8;">
-          <p style="color: white; font-weight: bold; text-align: center;">1</p>
-        </div>
-        <div style="flex-grow: 2; height: 50; background-color: #4ECDC4; border-radius: 6; padding: 8;">
-          <p style="color: white; font-weight: bold; text-align: center;">2</p>
-        </div>
-        <div style="flex-grow: 1; height: 50; background-color: #FFD93D; border-radius: 6; padding: 8;">
-          <p style="color: #333; font-weight: bold; text-align: center;">1</p>
-        </div>
-      </div>
-
-    </div>
+        <!-- Flex Grow -->
+        <section class="block">
+          <span class="h1">Flex Grow</span>
+          <span class="label">1 : 2 : 1 ratio</span>
+          <div class="track" style="gap: 6">
+            <div v-for="(c, i) in three" :key="i" class="cell cell-grow" :class="{ 'cell-dark': c.dark }" :style="{ backgroundColor: c.color, flexGrow: [1, 2, 1][i] }">
+              <span class="cell-label">{{ [1, 2, 1][i] }}</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </Scroll>
   </Page>
 </template>
 
-  <script lang="ts" setup>
-  </script>
+<script lang="ts" setup>
+const three = [{ color: '#ff6b6b' }, { color: '#4ecdc4' }, { color: '#ffd93d', dark: true }];
+const directions = ['row', 'row-reverse', 'column', 'column-reverse'];
+const justify = ['space-between', 'space-around', 'center'];
+const align = ['flex-start', 'center', 'flex-end'];
+const wrapColors = [{ color: '#ff6b6b' }, { color: '#4ecdc4' }, { color: '#ffd93d', dark: true }, { color: '#6c5ce7' }, { color: '#e84393' }, { color: '#00b894' }, { color: '#0984e3' }];
+</script>
 
 <style scoped>
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+}
+
+.label {
+  font-size: 13;
+  font-weight: bold;
+  color: var(--text-2);
+  margin-top: 6;
+}
+
+.track {
+  display: flex;
+  flex-direction: row;
+  background-color: var(--surface-2);
+  border-radius: 8;
+  padding: 8;
+}
+
+.track-tall {
+  height: 130;
+}
+
+.track-align {
+  height: 90;
+  gap: 8;
+}
+
+/* Every cell centres its label both ways instead of relying on text-align. */
+.cell {
+  height: 50;
+  border-radius: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-fixed {
+  width: 80;
+}
+
+.cell-square {
+  width: 50;
+}
+
+.cell-narrow {
+  width: 48;
+}
+
+.cell-wrap {
+  width: 56;
+  height: 44;
+}
+
+.cell-grow {
+  flex-basis: 0;
+}
+
+.cell-label {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 14;
+}
+
+.cell-label-sm {
+  font-size: 11;
+}
+
+/* Yellow cells keep dark text in both appearances. */
+.cell-dark .cell-label {
+  color: #1a1a2e;
+}
 </style>

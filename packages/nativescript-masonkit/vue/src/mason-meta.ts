@@ -7,9 +7,17 @@ interface MasonChildOps {
   removeChild(child: unknown): void;
 }
 
-function isVisualOrTextNode(node: { nodeType?: unknown }): boolean {
+/**
+ * Nodes that occupy a slot in MasonKit's raw child list: elements and
+ * non-empty text nodes. Empty text nodes (Vue's keyed-fragment anchors) get no
+ * native text run, mirroring `textProperty.setNative` in the base package.
+ */
+function isVisualOrTextNode(node: { nodeType?: unknown; text?: unknown }): boolean {
   const t = node.nodeType;
-  return t === 'element' || t === 'text' || t === 1 || t === 3;
+  if (t === 'text' || t === 3) {
+    return (node.text ?? '') !== '';
+  }
+  return t === 'element' || t === 1;
 }
 
 /** Convert Vue's element-only insertion index to MasonKit's raw child index. */

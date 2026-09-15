@@ -1,33 +1,34 @@
 <template>
   <Page>
-    <ActionBar>
-      <Label text="Box Shadow" class="text-white" style="font-size: 18; font-weight: bold;" />
+    <ActionBar title="Box Shadow">
+      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
     </ActionBar>
-    <div class="page">
+    <Scroll class="page">
+      <main class="page-body">
 
       <!-- Subtle Shadows -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Elevation Levels</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Elevation Levels</p>
       </div>
 
       <div class="card-row">
         <div class="card elevation-1">
-          <p style="font-size: 12; font-weight: 600; color: #555;">Level 1</p>
-          <p style="font-size: 10; color: #999;">Subtle</p>
+          <p class="tk-text-2" style="font-size: 12; font-weight: 600">Level 1</p>
+          <p class="tk-muted" style="font-size: 10">Subtle</p>
         </div>
         <div class="card elevation-2">
-          <p style="font-size: 12; font-weight: 600; color: #555;">Level 2</p>
-          <p style="font-size: 10; color: #999;">Medium</p>
+          <p class="tk-text-2" style="font-size: 12; font-weight: 600">Level 2</p>
+          <p class="tk-muted" style="font-size: 10">Medium</p>
         </div>
         <div class="card elevation-3">
-          <p style="font-size: 12; font-weight: 600; color: #555;">Level 3</p>
-          <p style="font-size: 10; color: #999;">Elevated</p>
+          <p class="tk-text-2" style="font-size: 12; font-weight: 600">Level 3</p>
+          <p class="tk-muted" style="font-size: 10">Elevated</p>
         </div>
       </div>
 
       <!-- Colored Shadows -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Colored Shadows</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Colored Shadows</p>
       </div>
 
       <div class="card-row">
@@ -44,27 +45,27 @@
 
       <!-- Inset Shadows -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Inset Shadows</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Inset Shadows</p>
       </div>
 
       <div class="card-row">
         <div class="inset-card inset-light">
-          <p style="font-size: 11; font-weight: 600; color: #666; text-align: center;">Pressed</p>
+          <p class="tk-text-2" style="font-size: 11; font-weight: 600; text-align: center">Pressed</p>
         </div>
         <div class="inset-card inset-deep">
-          <p style="font-size: 11; font-weight: 600; color: #666; text-align: center;">Recessed</p>
+          <p class="tk-text-2" style="font-size: 11; font-weight: 600; text-align: center">Recessed</p>
         </div>
         <div class="inset-card inset-well">
-          <p style="font-size: 11; font-weight: 600; color: #555; text-align: center;">Well</p>
+          <p class="tk-text-2" style="font-size: 11; font-weight: 600; text-align: center">Well</p>
         </div>
       </div>
 
       <!-- Neumorphism -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Neumorphism</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Neumorphism</p>
       </div>
 
-      <div style="display: flex; flex-direction: row; justify-content: center; gap: 20; padding: 20; background-color: #e0e5ec; border-radius: 12;">
+      <div class="tk-surface-2" style="display: flex; flex-direction: row; justify-content: center; gap: 20; padding: 20; border-radius: 12">
         <div class="neu-raised">
           <p style="font-size: 20; text-align: center; color: #6C5CE7;">O</p>
         </div>
@@ -78,21 +79,21 @@
 
       <!-- Layered Shadows -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Multi-Layer Shadows</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Multi-Layer Shadows</p>
       </div>
 
       <div style="display: flex; flex-direction: row; justify-content: space-around; padding: 20;">
         <div class="layered-card">
-          <p style="font-size: 13; font-weight: 600; color: #333; text-align: center;">Soft Float</p>
-          <p style="font-size: 10; color: #888; text-align: center;">3 layers</p>
+          <p class="tk-text" style="font-size: 13; font-weight: 600; text-align: center">Soft Float</p>
+          <p class="tk-muted" style="font-size: 10; text-align: center">3 layers</p>
         </div>
         <div class="sharp-card">
-          <p style="font-size: 13; font-weight: 600; color: #333; text-align: center;">Hard Edge</p>
-          <p style="font-size: 10; color: #888; text-align: center;">Offset</p>
+          <p class="tk-text" style="font-size: 13; font-weight: 600; text-align: center">Hard Edge</p>
+          <p class="tk-muted" style="font-size: 10; text-align: center">Offset</p>
         </div>
       </div>
-
-    </div>
+      </main>
+    </Scroll>
   </Page>
 </template>
 
@@ -101,8 +102,7 @@
 
 <style scoped>
 .page {
-  padding: 16;
-  background-color: #fafafa;
+  background-color: var(--bg);
   overflow-y: scroll;
 }
 
@@ -121,21 +121,21 @@
 .card {
   width: 90;
   height: 70;
-  background-color: white;
+  background-color: var(--surface);
   border-radius: 10;
   padding: 12;
 }
 
 .elevation-1 {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
 .elevation-2 {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 .elevation-3 {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px var(--shadow-strong);
 }
 
 .color-card {
@@ -172,26 +172,26 @@
 }
 
 .inset-light {
-  background-color: #eee;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  background-color: var(--surface-2);
+  box-shadow: inset 0 2px 4px var(--shadow);
 }
 
 .inset-deep {
-  background-color: #e8e8e8;
-  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.25);
+  background-color: var(--surface-2);
+  box-shadow: inset 0 4px 8px var(--shadow-strong);
 }
 
 .inset-well {
-  background-color: #f0f0f0;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 -2px 4px rgba(255, 255, 255, 0.7);
+  background-color: var(--surface-2);
+  box-shadow: inset 0 2px 6px var(--shadow-strong), inset 0 -2px 4px var(--highlight);
 }
 
 .neu-raised {
   width: 64;
   height: 64;
   border-radius: 14;
-  background-color: #e0e5ec;
-  box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #ffffff;
+  background-color: var(--surface-2);
+  box-shadow: 6px 6px 12px var(--neu-dark), -6px -6px 12px var(--neu-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,8 +201,8 @@
   width: 64;
   height: 64;
   border-radius: 14;
-  background-color: #e0e5ec;
-  box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #ffffff;
+  background-color: var(--surface-2);
+  box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,8 +212,8 @@
   width: 64;
   height: 64;
   border-radius: 14;
-  background-color: #e0e5ec;
-  box-shadow: inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #ffffff;
+  background-color: var(--surface-2);
+  box-shadow: inset 4px 4px 8px var(--neu-dark), inset -4px -4px 8px var(--neu-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,16 +222,16 @@
 .layered-card {
   width: 120;
   height: 80;
-  background-color: white;
+  background-color: var(--surface);
   border-radius: 12;
   padding: 14;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--shadow), 0 4px 8px var(--shadow), 0 8px 24px var(--shadow);
 }
 
 .sharp-card {
   width: 120;
   height: 80;
-  background-color: white;
+  background-color: var(--surface);
   border-radius: 12;
   padding: 14;
   box-shadow: 5px 5px 0 #2D3436;

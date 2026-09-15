@@ -44,7 +44,7 @@ const emit = defineEmits<{
 .hn-card {
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: var(--surface);
   border-radius: 8;
   padding: 10;
 }
@@ -63,7 +63,7 @@ const emit = defineEmits<{
 
 .hn-rank {
   font-size: 16;
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-card-body {
@@ -76,12 +76,12 @@ const emit = defineEmits<{
 
 .hn-story-title {
   font-size: 15;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-story-domain {
   font-size: 11;
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-meta-row {
@@ -102,11 +102,11 @@ const emit = defineEmits<{
 }
 
 .hn-meta-author {
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-meta-dim {
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-tag-row {
@@ -119,13 +119,13 @@ const emit = defineEmits<{
 
 .hn-tag {
   list-style-type: none;
-  background-color: #eeeee4;
+  background-color: var(--surface-2);
   border-radius: 4;
   padding: 2 6;
 }
 
 .hn-tag-text {
   font-size: 10;
-  color: #828282;
+  color: var(--muted);
 }
 </style>

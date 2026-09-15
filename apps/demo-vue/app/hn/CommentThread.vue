@@ -43,7 +43,7 @@ const replyCount = computed(() => countDescendants(props.comment));
   display: flex;
   flex-direction: column;
   gap: 4;
-  background-color: #ffffff;
+  background-color: var(--surface);
   border-radius: 6;
   padding: 8;
 }
@@ -62,22 +62,22 @@ const replyCount = computed(() => countDescendants(props.comment));
 
 .hn-meta-dim {
   font-size: 12;
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-depth-badge {
   font-size: 10;
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-comment-text {
   font-size: 13;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-collapse-button {
   font-size: 12;
-  color: #828282;
+  color: var(--muted);
   padding: 2 6;
   border-radius: 0;
   background-color: transparent;

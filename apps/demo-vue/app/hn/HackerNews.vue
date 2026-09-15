@@ -70,7 +70,7 @@ function open(story: Story): void {
   width: 100%;
   padding: 12;
   gap: 10;
-  background-color: #f6f6ef;
+  background-color: var(--bg);
 }
 
 .hn-sort-row {
@@ -82,8 +82,8 @@ function open(story: Story): void {
 .hn-sort-button {
   padding: 6 12;
   font-size: 13;
-  color: #828282;
-  background-color: #ffffff;
+  color: var(--muted);
+  background-color: var(--surface);
   border-radius: 6;
 }
 
@@ -106,6 +106,6 @@ function open(story: Story): void {
 
 .hn-meta-dim {
   font-size: 12;
-  color: #828282;
+  color: var(--muted);
 }
 </style>

@@ -43,8 +43,10 @@ installMasonKit({ web: false }); // native MasonKit elements only
 installMasonKit({ mason: false }); // HTML-shaped elements only
 ```
 
-The integration intentionally replaces conflicting built-in Vue registrations
-such as `Button` and `Span` with MasonKit's Taffy-backed implementations.
+Tags that NativeScript-Vue already registers (core's `Button` and `Span`) are
+replaced by MasonKit's Taffy-backed implementations. The core elements stay
+available under an `n` prefix: `<nbutton>` and `<nspan>`. Use `<nspan>` inside
+`<Label><FormattedString>`, which needs core's `Span`.
 
 Vue components do not create native host elements: their root view (or fragment)
 is rendered directly. Attributes and classes on a component are therefore

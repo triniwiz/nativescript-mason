@@ -1,6 +1,6 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" iosOverflowSafeArea="false">
-    <ActionBar title="Layout stress" class="stress-action-bar">
+    <ActionBar title="Layout stress">
       <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
     </ActionBar>
 
@@ -326,11 +326,6 @@ function toggleBorderBoxWidth(): void {
 </script>
 
 <style scoped>
-.stress-action-bar {
-  background-color: #ff6600;
-  color: #ffffff;
-}
-
 .stress-scroll {
   width: 100%;
   height: 100%;
@@ -344,26 +339,26 @@ function toggleBorderBoxWidth(): void {
   width: 100%;
   padding: 12;
   gap: 10;
-  background-color: #f6f6ef;
+  background-color: var(--bg);
 }
 
 .case {
   display: flex;
   flex-direction: column;
   gap: 8;
-  background-color: #ffffff;
+  background-color: var(--surface);
   border-radius: 8;
   padding: 12;
 }
 
 .section-title {
   font-size: 15;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .case-note {
   font-size: 11;
-  color: #828282;
+  color: var(--muted);
 }
 
 .expected-row,
@@ -386,7 +381,7 @@ function toggleBorderBoxWidth(): void {
 }
 
 .expected-label {
-  color: #828282;
+  color: var(--muted);
 }
 
 .expected-value {
@@ -396,7 +391,7 @@ function toggleBorderBoxWidth(): void {
 .chip-row {
   gap: 6;
   padding: 6;
-  background-color: #f0f0e8;
+  background-color: var(--surface-2);
   border-radius: 6;
 }
 
@@ -405,7 +400,7 @@ function toggleBorderBoxWidth(): void {
   align-items: center;
   justify-content: center;
   padding: 6 10;
-  background-color: #dddddd;
+  background-color: var(--surface-2);
   border-radius: 4;
 }
 
@@ -414,7 +409,7 @@ function toggleBorderBoxWidth(): void {
 }
 
 .chip-text {
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .btn-row {
@@ -440,14 +435,14 @@ function toggleBorderBoxWidth(): void {
   align-items: center;
   justify-content: center;
   padding: 10;
-  background-color: #eeeee4;
+  background-color: var(--surface-2);
   border-radius: 4;
 }
 
 .b-row {
   gap: 12;
   padding: 8;
-  background-color: #f0f0e8;
+  background-color: var(--surface-2);
   border-radius: 6;
 }
 
@@ -461,12 +456,12 @@ function toggleBorderBoxWidth(): void {
 .b-box {
   width: 64;
   height: 44;
-  background-color: #ffffff;
+  background-color: var(--surface);
 }
 
 .b-cap {
   font-size: 10;
-  color: #828282;
+  color: var(--muted);
 }
 
 .b-solid-r {

@@ -37,7 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'nativescript-vue';
+import { $navigateBack, ref } from 'nativescript-vue';
 import CommentThread from './CommentThread.vue';
 import type { Story } from './models';
 
@@ -67,7 +67,7 @@ const showComments = ref(true);
   width: 100%;
   padding: 12;
   gap: 10;
-  background-color: #f6f6ef;
+  background-color: var(--bg);
 }
 
 .hn-story-header {
@@ -75,18 +75,18 @@ const showComments = ref(true);
   flex-direction: column;
   gap: 6;
   padding: 12;
-  background-color: #ffffff;
+  background-color: var(--surface);
   border-radius: 8;
 }
 
 .hn-story-title-large {
   font-size: 19;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-story-domain {
   font-size: 11;
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-meta-row {
@@ -107,11 +107,11 @@ const showComments = ref(true);
 }
 
 .hn-meta-author {
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-meta-dim {
-  color: #828282;
+  color: var(--muted);
 }
 
 .hn-comment-bar {
@@ -123,12 +123,12 @@ const showComments = ref(true);
 
 .hn-section-title {
   font-size: 15;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .hn-collapse-button {
   font-size: 12;
-  color: #828282;
+  color: var(--muted);
   padding: 2 6;
   border-radius: 0;
   background-color: transparent;
