@@ -219,7 +219,6 @@ class BoxShadowRenderer(private val style: Style) {
         return result
       }
 
-      val rs = renderScript(context)
       // Expand bitmap for blur spread
       val pad = ceil(blurRadius * 3f).toInt().coerceAtLeast(0)
       val expandedW = shapeBitmap.width + pad * 2
@@ -231,16 +230,24 @@ class BoxShadowRenderer(private val style: Style) {
       val tempCanvas = Canvas(tempBitmap)
       tempCanvas.drawBitmap(shapeBitmap, pad.toFloat(), pad.toFloat(), null)
 
-      // Apply blur
-      val input = Allocation.createFromBitmap(rs, tempBitmap)
-      val output = Allocation.createTyped(rs, input.type)
-      val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-      script.setRadius((blurRadius * BLUR_SIGMA_SCALE).coerceIn(0.0001f, 25f))
-      script.setInput(input)
-      script.forEach(output)
-
+      // Apply blur. The RenderScript context is shared, so the per-call
+      // allocations must be destroyed here rather than with the context.
       val blurred = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
-      output.copyTo(blurred)
+      synchronized(renderScriptLock) {
+        val rs = renderScript(context)
+        val input = Allocation.createFromBitmap(rs, tempBitmap)
+        val output = Allocation.createTyped(rs, input.type)
+        try {
+          val script = blurScript(rs)
+          script.setRadius((blurRadius * BLUR_SIGMA_SCALE).coerceIn(0.0001f, 25f))
+          script.setInput(input)
+          script.forEach(output)
+          output.copyTo(blurred)
+        } finally {
+          input.destroy()
+          output.destroy()
+        }
+      }
 
       // Tint the blurred result
       val result = pool.getBitmap(expandedW, expandedH, Bitmap.Config.ARGB_8888)
@@ -259,6 +266,14 @@ class BoxShadowRenderer(private val style: Style) {
 
     @Volatile
     private var sharedRenderScript: RenderScript? = null
+
+    @Suppress("DEPRECATION")
+    private var sharedBlurScript: ScriptIntrinsicBlur? = null
+
+    /** One blur intrinsic per process; callers hold [renderScriptLock] because the script is not reentrant. */
+    @Suppress("DEPRECATION")
+    private fun blurScript(rs: RenderScript): ScriptIntrinsicBlur =
+      sharedBlurScript ?: ScriptIntrinsicBlur.create(rs, Element.U8_4(rs)).also { sharedBlurScript = it }
 
     /**
      * One RenderScript context per process. Creating one per blur was the
