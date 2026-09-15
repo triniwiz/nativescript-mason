@@ -10,7 +10,6 @@ import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import androidx.core.widget.TextViewCompat
-import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.Styles.TextJustify
@@ -34,11 +33,6 @@ class TextView @JvmOverloads constructor(
 
   override val style: Style
     get() = node.style
-
-  internal val fontFace: FontFace
-    get() {
-      return style.font
-    }
 
   override val engine: TextEngine by lazy {
     TextEngine(this)
@@ -398,12 +392,7 @@ class TextView @JvmOverloads constructor(
         else -> {}
       }
 
-      fontFace.load(context) { _ -> }
-
       node.style.inBatch = false
-
-    } else {
-      fontFace.load(context) { _ -> }
     }
 
     paint.textSize = TypedValue.applyDimension(

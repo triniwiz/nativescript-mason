@@ -840,21 +840,6 @@ open class Node internal constructor(
         getOrCreateAnonymousTextContainer()
       }
 
-      if (style.font.font == null) {
-        (container.view as? View)?.let { v ->
-          style.font.load(v.context) { _ ->
-            // schedule a layout pass when font finishes loading
-            v.post {
-              style.fontDirty = true
-              style.syncFontMetrics()
-              dirty()
-              v.invalidate()
-              v.requestLayout()
-            }
-          }
-        }
-      }
-
       if (pending) {
         if (child.nativePtr != 0L) {
           NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
@@ -1390,6 +1375,7 @@ open class Node internal constructor(
         NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
       }
       removed.parent = null
+      (removed.view as? Element)?.onNodeDetached()
       // Removing a non-text child (e.g. a Br) changes the parent's composed
       // text — rebuild the inline segment cache when the parent renders text.
       (view as? TextContainer)?.engine?.invalidateInlineSegments()

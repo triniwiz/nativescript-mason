@@ -32,28 +32,15 @@ class ViewUtils {
             includeBorderRadius = true
           )
 
-          for (i in 0 until parent.childCount) {
-            val child = parent.getChildAt(i)
-            if (child.width <= 0 || child.height <= 0) continue
-            val childStyle = (child as? Element)?.style ?: continue
-            if (!childStyle.hasOutsetBoxShadow()) continue
-
-            canvas.withTranslation(child.left.toFloat(), child.top.toFloat()) {
-              childStyle.mBorderRenderer.updateCache(child.width.toFloat(), child.height.toFloat())
-              childStyle.mBoxShadowRenderer.drawOutsetShadows(
-                child,
-                this,
-                child.width.toFloat(),
-                child.height.toFloat(),
-                childStyle.mBorderRenderer,
-                forceLegacy = true  // Use bitmap-based rendering from parent context
-              )
-            }
-          }
+          drawChildOutsetShadows(parent, canvas)
         }
         return
       }
 
+      drawChildOutsetShadows(parent, canvas)
+    }
+
+    private fun drawChildOutsetShadows(parent: ViewGroup, canvas: Canvas) {
       for (i in 0 until parent.childCount) {
         val child = parent.getChildAt(i)
         if (child.width <= 0 || child.height <= 0) continue
@@ -68,7 +55,6 @@ class ViewUtils {
             child.width.toFloat(),
             child.height.toFloat(),
             childStyle.mBorderRenderer,
-            forceLegacy = true  // Use bitmap-based rendering from parent context
           )
         }
       }
