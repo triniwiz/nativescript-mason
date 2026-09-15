@@ -378,3 +378,20 @@ export type { CssDiagnostic, CssDiagnosticKind, CssDiagnosticsOptions } from './
 
 export { setCssUnitContext, cssUnits } from './units';
 export type { CssUnitContext } from './units';
+
+export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';
+
+/**
+ * Global override for the Android box shadow backend.
+ * 'auto' (default) renders with RenderNode on API 31+ hardware canvases and
+ * with bitmaps otherwise; the override applies process-wide, including to
+ * already-attached views.
+ */
+export declare function setBoxShadowRenderMode(mode: BoxShadowRenderMode): void;
+
+/**
+ * Global override for the software shadow raster scale (a linear scale in
+ * (0, 1]); pass null to restore the dynamic downsampling policy. Mostly
+ * useful when visually comparing the two backends at equal fidelity.
+ */
+export declare function setBoxShadowSoftwareRasterScale(scale: number | null): void;

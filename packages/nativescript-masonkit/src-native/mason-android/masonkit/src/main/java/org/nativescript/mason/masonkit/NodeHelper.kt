@@ -1651,6 +1651,20 @@ class NodeHelper(val mason: Mason) {
       node.style.boxShadow = value
     }
 
+    /** Global box shadow backend override: "auto", "render-node", or "software". */
+    fun setBoxShadowRenderMode(mode: String?) {
+      BoxShadowRenderer.renderModeOverride = when (mode?.lowercase()) {
+        "render-node", "rendernode" -> BoxShadowRenderer.RenderMode.RENDER_NODE
+        "software" -> BoxShadowRenderer.RenderMode.SOFTWARE
+        else -> null
+      }
+    }
+
+    /** Global software shadow raster scale override; null restores the dynamic policy. */
+    fun setBoxShadowSoftwareRasterScale(scale: Float?) {
+      BoxShadowRenderer.softwareRasterScaleOverride = scale
+    }
+
     fun getTransform(view: android.view.View): String {
       val node = mason.nodeForView(view)
       return node.style.transform
