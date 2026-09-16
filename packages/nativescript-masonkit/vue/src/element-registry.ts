@@ -3,7 +3,7 @@ import { getMasonKitElements, type ElementClass, type GetMasonKitElementsOptions
 
 import { masonMeta } from './mason-meta';
 
-export type RegisterElementsOptions = GetMasonKitElementsOptions;
+export type InstallMasonKitOptions = GetMasonKitElementsOptions;
 
 /** Names this integration owns, normalized exactly as NativeScript-Vue does. */
 const registered = new Set<string>();
@@ -43,15 +43,20 @@ function register(tag: string, cls: ElementClass, isContainer: boolean): void {
 }
 
 /**
- * Register all requested MasonKit elements with NativeScript-Vue 3.
- * Idempotent; attaches {@link masonMeta} to containers so child order is preserved.
+ * Install MasonKit's Vue 3 integration: register all requested MasonKit
+ * elements with NativeScript-Vue 3.
+ *
+ * Call before `createApp(...).start()` so element registration is complete
+ * before the first template renders. Idempotent - safe to call repeatedly,
+ * including during HMR. Attaches {@link masonMeta} to containers so child
+ * order is preserved.
  *
  * The tag list itself — including the "`/web`'s more specific element wins"
  * de-duplication between `/web` and MasonKit's own widgets — comes from the
  * shared {@link getMasonKitElements}, so it can never drift from what other
  * framework integrations register.
  */
-export function registerMasonKitElements(options: RegisterElementsOptions = {}): void {
+export function installMasonKit(options: InstallMasonKitOptions = {}): void {
   for (const { tag, ctor, isContainer } of getMasonKitElements(options)) {
     register(tag, ctor, isContainer);
   }

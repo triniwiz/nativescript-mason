@@ -36,11 +36,21 @@ export class StressComponent {
   /** Case 6: component hosts placed as grid cells. */
   gridCells = [1, 2, 3, 4, 5, 6];
 
+  readonly basicGridCells = [{ color: '#00b894' }, { color: '#e17055' }, { color: '#74b9ff' }, { color: '#a29bfe' }, { color: '#fdcb6e', dark: true }, { color: '#ff6b6b' }];
+
   /** Case 5: swapping which of two component types occupies a slot. */
   useAlternate = false;
 
+  /** View-host control flow: each branch must stay between its static siblings. */
+  viewBranch = 0;
+  viewMode: 'first' | 'second' | 'other' = 'first';
+
   get expectedOrder(): string {
     return this.items.map((item) => item.label).join(', ');
+  }
+
+  get expectedViewOrder(): string {
+    return `first, ${this.expectedOrder || 'empty'}, last`;
   }
 
   insertMiddle(): void {
@@ -76,6 +86,10 @@ export class StressComponent {
     this.items = next;
   }
 
+  clearItems(): void {
+    this.items = [];
+  }
+
   reset(): void {
     this.nextId = 4;
     this.items = [
@@ -85,6 +99,8 @@ export class StressComponent {
     ];
     this.showMiddle = true;
     this.useAlternate = false;
+    this.viewBranch = 0;
+    this.viewMode = 'first';
   }
 
   toggleMiddle(): void {
@@ -93,6 +109,14 @@ export class StressComponent {
 
   toggleAlternate(): void {
     this.useAlternate = !this.useAlternate;
+  }
+
+  nextViewBranch(): void {
+    this.viewBranch = (this.viewBranch + 1) % 3;
+  }
+
+  nextViewMode(): void {
+    this.viewMode = this.viewMode === 'first' ? 'second' : this.viewMode === 'second' ? 'other' : 'first';
   }
 
   trackById(_index: number, item: Item): number {

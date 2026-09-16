@@ -14,7 +14,13 @@
         "assets": [
           "packages/nativescript-masonkit/*.md",
           "packages/nativescript-masonkit/index.d.ts",
+          "packages/nativescript-masonkit/references.d.ts",
           "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/nativescript-masonkit/typings/",
+            "output": "./typings/"
+          },
           {
             "glob": "**/*",
             "input": "packages/nativescript-masonkit/platforms/",

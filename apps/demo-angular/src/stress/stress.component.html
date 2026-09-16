@@ -32,6 +32,7 @@
       <View class="btn-row">
         <button class="btn" (tap)="reverse()">Reverse</button>
         <button class="btn" (tap)="shuffle()">Shuffle</button>
+        <button class="btn" (tap)="clearItems()">Clear</button>
         <button class="btn" (tap)="reset()">Reset</button>
       </View>
     </View>
@@ -55,11 +56,11 @@
 
     <View class="case">
       <Text class="section-title">3. Styling the host element</Text>
-      <Text class="case-note">These chips carry their background, padding and margin on the &lt;stress-chip&gt; element itself. Unstyled text here means hosts are still ProxyViewContainers.</Text>
+      <Text class="case-note">Each &lt;stress-chip&gt; host gets a different background from its index. Background and padding live on the host. Unstyled text here means hosts are still ProxyViewContainers.</Text>
 
       <View class="chip-row">
-        @for (n of hostBoxes; track n) {
-          <stress-chip class="chip chip-accent" [label]="'host ' + n"></stress-chip>
+        @for (n of hostBoxes; track n; let i = $index) {
+          <stress-chip [class]="'chip host-color-' + (i + 1)" [label]="'host ' + n" />
         }
       </View>
     </View>
@@ -91,6 +92,94 @@
         @for (n of gridCells; track n) {
           <stress-chip class="grid-cell" [label]="'cell ' + n"></stress-chip>
         }
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">6. Basic grid</Text>
+      <Text class="case-note">Vue Grid Layout example: three columns, auto rows and a 4-unit gap. Cells 1–3 belong on the first row, 4–6 on the second.</Text>
+      <View class="basic-grid">
+        @for (cell of basicGridCells; track cell.color; let i = $index) {
+          <View class="basic-grid-cell" [class.basic-grid-cell-dark]="cell.dark" [style.backgroundColor]="cell.color">
+            <Text class="basic-grid-label">{{ i + 1 }}</Text>
+          </View>
+        }
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">7. &#64;for / &#64;empty with View hosts</Text>
+      <Text class="case-note">Use the list controls above to reorder, clear and restore these Views. The rendered order must match Expected, including the empty branch.</Text>
+      <View class="expected-row">
+        <Text class="expected-label">Expected:</Text>
+        <Text class="expected-value">{{ expectedViewOrder }}</Text>
+      </View>
+      <View class="chip-row">
+        <View class="chip"><Text class="chip-text">first</Text></View>
+        @for (item of items; track item.id) {
+          @if (item.id % 2 === 0) {
+            <View class="chip chip-accent"
+              ><Text class="chip-text">{{ item.label }}</Text></View
+            >
+          } @else {
+            <View class="chip"
+              ><Text class="chip-text">{{ item.label }}</Text></View
+            >
+          }
+        } @empty {
+          <View class="chip chip-accent"><Text class="chip-text">empty</Text></View>
+        }
+        <View class="chip"><Text class="chip-text">last</Text></View>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">8. &#64;if / &#64;else if / &#64;else with View hosts</Text>
+      <Text class="case-note">Cycle through all three branches. The active View must replace the middle child without moving after last.</Text>
+      <View class="expected-row">
+        <Text class="expected-label">Expected:</Text>
+        <Text class="expected-value">first, {{ viewBranch === 0 ? 'if' : viewBranch === 1 ? 'else if' : 'else' }}, last</Text>
+      </View>
+      <View class="chip-row">
+        <View class="chip"><Text class="chip-text">first</Text></View>
+        @if (viewBranch === 0) {
+          <View class="chip chip-accent"><Text class="chip-text">if</Text></View>
+        } @else if (viewBranch === 1) {
+          <View class="chip chip-accent"><Text class="chip-text">else if</Text></View>
+        } @else {
+          <View class="chip chip-accent"><Text class="chip-text">else</Text></View>
+        }
+        <View class="chip"><Text class="chip-text">last</Text></View>
+      </View>
+      <View class="btn-row">
+        <button class="btn" (tap)="nextViewBranch()">Next branch</button>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">9. &#64;switch / &#64;case / &#64;default with View hosts</Text>
+      <Text class="case-note">Cycle through both cases and the default. The selected View must stay between first and last.</Text>
+      <View class="expected-row">
+        <Text class="expected-label">Expected:</Text>
+        <Text class="expected-value">first, {{ viewMode === 'first' ? 'case 1' : viewMode === 'second' ? 'case 2' : 'default' }}, last</Text>
+      </View>
+      <View class="chip-row">
+        <View class="chip"><Text class="chip-text">first</Text></View>
+        @switch (viewMode) {
+          @case ('first') {
+            <View class="chip chip-accent"><Text class="chip-text">case 1</Text></View>
+          }
+          @case ('second') {
+            <View class="chip chip-accent"><Text class="chip-text">case 2</Text></View>
+          }
+          @default {
+            <View class="chip chip-accent"><Text class="chip-text">default</Text></View>
+          }
+        }
+        <View class="chip"><Text class="chip-text">last</Text></View>
+      </View>
+      <View class="btn-row">
+        <button class="btn" (tap)="nextViewMode()">Next case</button>
       </View>
     </View>
 

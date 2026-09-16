@@ -72,6 +72,8 @@ import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, te
 import { Tree } from './tree';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
+import { frameworkRegistry } from './framework-registry';
+import { reconcileTextRuns } from './text-runs';
 
 declare const kotlin: any;
 
@@ -153,62 +155,6 @@ function parseBoxShadow(s: string): { ox: number; oy: number; blur: number; argb
   return { ox, oy, blur, argb };
 }
 
-const _frameworkAccessorCache = new WeakMap<object, ((view: any) => any) | false>();
-
-function getFrameworkElement(view: any): any {
-  const cached = _frameworkAccessorCache.get(view);
-  if (cached === false) return null;
-  if (cached) return cached(view);
-
-  // First call: detect framework and cache the accessor
-  const symbols = Object.getOwnPropertySymbols(view);
-
-  // Vue 3 (nativescript-vue): stores ELEMENT_REF symbol on native view
-  for (const sym of symbols) {
-    if (sym.description === 'elementRef' || sym.description === '') {
-      const el = view[sym];
-      if (el && Array.isArray(el.childNodes)) {
-        _frameworkAccessorCache.set(view, (v) => v[sym]);
-        return el;
-      }
-    }
-  }
-
-  // React (react-nativescript): stores __reactFiber$ symbol on node
-  for (const sym of symbols) {
-    if (sym.description?.startsWith('__reactFiber$')) {
-      if (Array.isArray(view.childNodes)) {
-        _frameworkAccessorCache.set(view, (v) => v);
-        return view;
-      }
-    }
-  }
-
-  // Svelte (svelte-native): stores __SvelteNativeElement__ on native view
-  if (view.__SvelteNativeElement__) {
-    const el = view.__SvelteNativeElement__;
-    if (Array.isArray(el.childNodes)) {
-      _frameworkAccessorCache.set(view, (v) => v.__SvelteNativeElement__);
-      return el;
-    }
-  }
-
-  // SolidJS (dominative): the element IS the native view, extended with DOM methods
-  if (view.__dominative_isNative) {
-    _frameworkAccessorCache.set(view, (v) => v);
-    return view;
-  }
-
-  // Angular (@nativescript/angular): uses firstChild/nextSibling linked list
-  if (view.firstChild !== undefined && view.meta?.skipAddToDom !== undefined) {
-    _frameworkAccessorCache.set(view, (v) => v);
-    return view;
-  }
-
-  _frameworkAccessorCache.set(view, false);
-  return null;
-}
-
 function getWeakRefValue<T extends object>(value: WeakRef<T> | T | null | undefined): T | null {
   if (!value) return null;
   const maybeWeakRef = value as any;
@@ -221,7 +167,7 @@ function nativeOwnerFor(nativeView: any): ViewBase | NSViewBase | null {
   if (!nativeView) return null;
   const owner = getWeakRefValue<ViewBase | NSViewBase>(nativeView.__masonOwner);
   if (owner) return owner;
-  return getFrameworkElement(nativeView);
+  return frameworkRegistry.getElement(nativeView);
 }
 
 function nativeViewFor(owner: any): any {
@@ -1278,10 +1224,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         this._nativeReplaceChild(textNode, operation.index);
         this._setOrPushChild(operation.index, entry);
         break;
-      case 'insert':
-        this._nativeAddChild(textNode, operation.index);
-        this._spliceOrPushChild(operation.index, entry);
+      case 'insert': {
+        // `operation.index` is a `_children` slot; the native child list can
+        // lag behind it (elements attach lazily on `loaded`), so map it the
+        // same way `insertChild` does or the run lands past the end.
+        const index = Math.max(0, Math.min(operation.index ?? this._children.length, this._children.length));
+        this._nativeAddChild(textNode, this._nativeIndexFor(index));
+        this._spliceOrPushChild(index, entry);
         break;
+      }
     }
     this._syncTextRunLayout();
   }
@@ -1298,24 +1249,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  // -- Text setter with per-view framework detection --
+  // -- Text setter: framework adapter driven --
 
   [textProperty.setNative](value: string) {
-    const frameworkEl = getFrameworkElement(this);
+    const adapter = frameworkRegistry.find(this);
+    if (adapter) {
+      const frameworkEl = frameworkRegistry.getElement(this);
+      const nodes = frameworkEl ? adapter.getChildren(frameworkEl) : [];
 
-    if (frameworkEl) {
-      // Frameworks with childNodes array (Vue, React, Svelte, SolidJS)
-      if (Array.isArray(frameworkEl.childNodes)) {
-        const rawChildNodes = frameworkEl.childNodes as any[];
-        if (rawChildNodes.length === 0) {
-          // No framework-tracked DOM child backs this text (e.g. a Label-like
-          // element with plain `.text` set directly). Without a stable node to
-          // key the reuse cache on, every write fell through to the "always
-          // new" `replaceChild` string branch, orphaning a native TextNode
-          // each call. Cache a synthetic node on `this` instead, so repeat
-          // writes route through the same update-in-place path a real DOM
-          // text node gets (and never touch `replaceChild`, which a host
-          // framework's DOM shim may itself shadow).
+      if (nodes.length === 0) {
+        // DOM-shim frameworks with no framework-tracked child (e.g. a Label-like
+        // element with plain `.text` set directly) need a stable synthetic node
+        // to key the reuse cache on. Without it every write falls through to the
+        // "always new" replace path and orphans native TextNodes.
+        if (adapter.syntheticTextOnEmpty) {
           let node = (this as any)[emptyTextNode_];
           if (!node) {
             node = {};
@@ -1323,80 +1270,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           }
           node.text = value;
           this._updateTextNode(node, { type: this._children.length === 0 ? 'add' : 'replace', index: 0, isBreak: false });
-          return;
-        }
-
-        // Deduplicate nodes (some frameworks expose the same nodes via both
-        // `childNodes` array and linked `nextSibling` references). Preserve
-        // original order while skipping duplicate references.
-        const nodes: any[] = [];
-        const seen = new Set<any>();
-        for (let n of rawChildNodes) {
-          if (!seen.has(n)) {
-            seen.add(n);
-            nodes.push(n);
-          }
-        }
-
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i];
-          const isTextNode = node.nodeType === 'text' || node.nodeType === 3;
-          if (isTextNode) {
-            let type: 'add' | 'replace' | 'insert' = i === 0 && nodes.length === 1 && !this._children.length ? 'add' : 'replace';
-
-            if (type === 'replace') {
-              const toReplace = this._children[i] as any;
-              // Replace in place only if this slot already holds THIS framework
-              // node (its native node back-references it via '__raw__'); otherwise
-              // a different node lives here, so shift via insert instead of
-              // overwriting it.
-              if (!toReplace || toReplace[textNode_]?.['__raw__'] !== node) {
-                type = 'insert';
-              }
-            }
-
-            this._updateTextNode(node, { type, index: i, isBreak: node.nodeName === 'br' });
-          }
         }
         return;
       }
 
-      // Frameworks with linked-list traversal (Angular)
-      if ('firstChild' in frameworkEl) {
-        const nodes = [];
-        let child = frameworkEl.firstChild;
-        while (child) {
-          nodes.push(child);
-          child = child.nextSibling;
-        }
-
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i];
-          const isTextNode = node.nodeType === 'text' || node.nodeType === 3 || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode';
-          if (isTextNode || node.nodeName === 'br') {
-            this._updateTextNode(node, { type: 'replace', index: i, isBreak: node.nodeName === 'br' });
-          }
-        }
-        return;
-      }
-    }
-
-    // NativeScript Core: linked-list traversal on the view itself
-    if ('firstChild' in this) {
-      const nodes = [];
-      let child = (this as any).firstChild;
-      while (child) {
-        nodes.push(child);
-        child = child.nextSibling;
-      }
-
-      for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        const isTextNode = node.nodeType === 'text' || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode';
-        if (isTextNode || node.nodeName === 'br') {
-          this._updateTextNode(node, { type: 'replace', index: i, isBreak: node.nodeName === 'br' });
-        }
-      }
+      reconcileTextRuns(this as any, nodes, (n) => adapter.classify(n));
       return;
     }
 

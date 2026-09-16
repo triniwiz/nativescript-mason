@@ -1,4 +1,5 @@
 import type { NSVElement, NSVViewMeta } from 'nativescript-vue';
+import { frameworkRegistry, readChildNodes } from '@triniwiz/nativescript-masonkit';
 
 interface MasonChildOps {
   _children?: unknown[];
@@ -66,3 +67,38 @@ export const masonMeta: Partial<NSVViewMeta> = {
     },
   },
 };
+
+/**
+ * Framework adapter: NativeScript-Vue stores the NSVElement under an
+ * 'elementRef' symbol on the native view. Registered after the built-in
+ * defaults, so it is checked before the generic DOM-shim adapter.
+ */
+
+function getVueElement(view: any): any | null {
+  const symbols = Object.getOwnPropertySymbols(view);
+  for (const sym of symbols) {
+    if (sym.description === 'elementRef' || sym.description === '') {
+      const el = view[sym];
+      if (el && Array.isArray(el.childNodes)) {
+        return el;
+      }
+    }
+  }
+  return null;
+}
+
+frameworkRegistry.register({
+  name: 'nativescript-vue',
+  getElement: getVueElement,
+  getChildren: readChildNodes,
+  classify(node) {
+    if (node.nodeType === 'text' || node.nodeType === 3) {
+      return 'text';
+    }
+    if (node.nodeType === 'element' || node.nodeType === 1) {
+      return 'element';
+    }
+    return 'none';
+  },
+  syntheticTextOnEmpty: true,
+});

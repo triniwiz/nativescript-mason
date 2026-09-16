@@ -43,9 +43,20 @@ const enum TextType {
  * and Tailwind's `list-none` both silently lost. On the `css:` tier an app rule
  * for the same property replaces it, which is what a UA default should do.
  */
+/** Browser-spacing UA declarations that `View.preflight` resets to zero. */
+const PREFLIGHT_RESET = /^(margin|padding)(-|$)/;
+
 function applyUaCss(view: Scroll | Text, declarations: Record<string, string | number>): void {
   const style = view.style as unknown as Record<string, unknown>;
+  // Preflight (Tailwind-style) zeroes UA margins/padding on every element. The
+  // native text types already do this through `ua_default_for_tag`, so the
+  // block elements here must follow suit or `<figure>`/`<ul>` keep their
+  // browser gutters while `<p>` loses them.
+  const preflight = View.preflight;
   for (const property in declarations) {
+    if (preflight && PREFLIGHT_RESET.test(property)) {
+      continue;
+    }
     style[`css:${property}`] = declarations[property];
   }
 }
