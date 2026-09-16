@@ -386,13 +386,14 @@ class TextEngine(val container: TextContainer) {
       }
     }
     // skip setText to avoid wiping externally-set text.
-    if (node.children.isNotEmpty()) {
+    if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
       try {
         container.setText(spannable, BufferType.SPANNABLE)
       } catch (_: Exception) {
         // As a last resort, set plain text to avoid leaving the view blank
         container.setText(spannable.toString(), BufferType.NORMAL)
       }
+      appliedTextVersion = segmentsInvalidateVersion
     }
 
     if (spannable.isEmpty() && node.children.isEmpty()) {
@@ -1564,6 +1565,7 @@ class TextEngine(val container: TextContainer) {
   // attributedStringVersion == segmentsInvalidateVersion
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
+  private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 

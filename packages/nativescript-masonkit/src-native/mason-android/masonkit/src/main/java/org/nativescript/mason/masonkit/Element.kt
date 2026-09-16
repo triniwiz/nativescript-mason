@@ -66,7 +66,9 @@ interface Element : EventTarget {
 
   fun onNodeAttached() {}
 
-  fun onNodeDetached() {}
+  fun onNodeDetached() {
+    if (style.boxShadows.isNotEmpty()) style.mBoxShadowRenderer.release()
+  }
 
   fun markNodeDirty() {
     node.dirty()

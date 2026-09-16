@@ -441,31 +441,28 @@ declare module org {
 				export class BoxShadowRenderer {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.BoxShadowRenderer>;
 					public constructor(style: org.nativescript.mason.masonkit.Style);
-					public drawOutsetShadows(it: globalAndroid.view.View, element$iv$iv: globalAndroid.graphics.Canvas, $i$f$filterTo: number, $this$filterTo$iv$iv: number, destination$iv$iv: org.nativescript.mason.masonkit.BorderRenderer, $i$f$filter: boolean): void;
-					public drawInsetShadows(it: globalAndroid.view.View, element$iv$iv: globalAndroid.graphics.Canvas, $i$f$filterTo: number, $this$filterTo$iv$iv: number, destination$iv$iv: org.nativescript.mason.masonkit.BorderRenderer): void;
+					public drawOutsetShadows(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, width: number, height: number, borderRenderer: org.nativescript.mason.masonkit.BorderRenderer): void;
+					public drawInsetShadows(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, width: number, height: number, borderRenderer: org.nativescript.mason.masonkit.BorderRenderer): void;
 					public invalidate(): void;
+					public release(): void;
 				}
 				export module BoxShadowRenderer {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.BoxShadowRenderer.Companion>;
-						public createBlurredShadowBitmapRS($this$createBlurredShadowBitmapRS_u24lambda_u241: globalAndroid.content.Context, result: globalAndroid.graphics.Bitmap, canvas: number, pad: number, pad: org.nativescript.mason.masonkit.CSSFilters.BitmapPool): globalAndroid.graphics.Bitmap;
-						public createShapeBitmap($this$createShapeBitmap_u24lambda_u240: number, path: number, bitmap: androidNative.Array<number>, canvas: org.nativescript.mason.masonkit.CSSFilters.BitmapPool): globalAndroid.graphics.Bitmap;
+						public createShapeBitmap(width: number, height: number, radii: androidNative.Array<number>, pool: org.nativescript.mason.masonkit.CSSFilters.BitmapPool): globalAndroid.graphics.Bitmap;
+						public createBlurredShadowBitmapRS(context: globalAndroid.content.Context, shapeBitmap: globalAndroid.graphics.Bitmap, blurRadius: number, color: number, pool: org.nativescript.mason.masonkit.CSSFilters.BitmapPool): globalAndroid.graphics.Bitmap;
+						public getRenderModeOverride(): org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode;
+						public setRenderModeOverride(renderModeOverride: org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode): void;
+						public getSoftwareRasterScaleOverride(): number;
+						public setSoftwareRasterScaleOverride(softwareRasterScaleOverride: number): void;
 					}
-					export class ShadowBitmapEntry {
-						public static class: java.lang.Class<org.nativescript.mason.masonkit.BoxShadowRenderer.ShadowBitmapEntry>;
-						public component4(): boolean;
-						public constructor(bitmap: globalAndroid.graphics.Bitmap, drawX: number, drawY: number, isInset: boolean);
-						public equals(other: any): boolean;
-						public getDrawX(): number;
-						public copy(bitmap: globalAndroid.graphics.Bitmap, drawX: number, drawY: number, isInset: boolean): org.nativescript.mason.masonkit.BoxShadowRenderer.ShadowBitmapEntry;
-						public hashCode(): number;
-						public component1(): globalAndroid.graphics.Bitmap;
-						public isInset(): boolean;
-						public getBitmap(): globalAndroid.graphics.Bitmap;
-						public toString(): string;
-						public component2(): number;
-						public getDrawY(): number;
-						public component3(): number;
+					export class RenderMode {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode>;
+						public static AUTO: org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode;
+						public static RENDER_NODE: org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode;
+						public static SOFTWARE: org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode;
+						public static valueOf(name: string): org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode;
+						public static values(): androidNative.Array<org.nativescript.mason.masonkit.BoxShadowRenderer.RenderMode>;
 					}
 				}
 			}
@@ -3794,6 +3791,8 @@ declare module org {
 					public setCornerShapeBottomLeft(this_: globalAndroid.view.View, value: string): void;
 					public getBoxShadow(this_: globalAndroid.view.View): string;
 					public setBoxShadow(this_: globalAndroid.view.View, value: string): void;
+					public setBoxShadowRenderMode(mode: string): void;
+					public setBoxShadowSoftwareRasterScale(scale: number): void;
 					public getTransform(this_: globalAndroid.view.View): string;
 					public setTransform(this_: globalAndroid.view.View, value: string): void;
 					public getBorderImage(this_: globalAndroid.view.View): string;

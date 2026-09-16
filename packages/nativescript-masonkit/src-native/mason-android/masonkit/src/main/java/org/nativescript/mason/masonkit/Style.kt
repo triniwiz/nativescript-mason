@@ -2940,12 +2940,12 @@ class Style internal constructor(@Transient internal var node: Node) {
     BoxShadowRenderer(this)
   }
 
-  // Compute a stable, allocation-free hash for the current list of box shadows.
-  // This combines primitive fields directly to avoid creating temporary objects
-  // inside hot rendering paths.
-  fun boxShadowsHash(): Int {
+  // Computed once per write in the boxShadow setter; readers (renderer cache
+  // keys, filtered-list checks) call boxShadowsHash() on every draw.
+  private var mBoxShadowsHash = 0
+
+  private fun computeBoxShadowsHash(list: List<Shadow.BoxShadow>): Int {
     var result = 1
-    val list = boxShadows
     for (s in list) {
       result = 31 * result + s.offsetX.hashCode()
       result = 31 * result + s.offsetY.hashCode()
@@ -2957,6 +2957,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     return result
   }
 
+  fun boxShadowsHash(): Int = mBoxShadowsHash
+
   var boxShadow: String
     get() = mBoxShadowRaw
     set(value) {
@@ -2964,9 +2966,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       boxShadows = Shadow.parseBoxShadow(this, value)
       mHasOutsetBoxShadow = boxShadows.any { !it.inset }
       mBoxShadowRenderer.invalidate()
-      val view = node.view as? View
+      val view = node.view as? android.view.View
       if (view != null) {
         view.invalidate()
+        if (mHasOutsetBoxShadow) {
+          (view.parent as? android.view.View)?.invalidate()
+        }
       }
     }
 
