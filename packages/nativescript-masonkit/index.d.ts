@@ -379,6 +379,7 @@ export type { CssDiagnostic, CssDiagnosticKind, CssDiagnosticsOptions } from './
 export { setCssUnitContext, cssUnits } from './units';
 export type { CssUnitContext } from './units';
 
+export { frameworkRegistry, readChildNodes, readLinkedList, type MasonFrameworkAdapter, type MasonNodeKind } from './framework-registry';
 export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';
 
 /**

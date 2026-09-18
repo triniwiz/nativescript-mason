@@ -1,171 +1,204 @@
 <template>
   <Frame>
-    <Page>
-      <ActionBar actionBarHidden="true">
-        <span text="Mason Demos" class="text-white" style="font-size: 20; font-weight: bold;" />
-      </ActionBar>
-      <div class="page" style="overflow-y: scroll;">
-        <div class="hero">
-          <p style="font-size: 18; font-weight: bold; color: white;">Mason Demos — Examples</p>
-          <p style="font-size: 12; color: #eee; margin-top: 6">Quick access to plugin demos and web-style samples</p>
-        </div>
-        <div class="demo-grid">
-          <div class="demo-card">
-            <p class="card-title">Flexbox</p>
-            <p class="card-desc">Flex layout patterns</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('flexbox')" />
-          </div>
+    <Page actionBarHidden="true">
+      <Scroll class="page">
+        <main class="home page-body">
+          <header class="hero">
+            <div class="hero-top">
+              <div class="hero-text">
+                <span class="hero-kicker">NativeScript-Vue</span>
+                <span class="hero-title">MasonKit</span>
+                <span class="hero-sub">Flexbox, Grid and web-shaped elements on native views.</span>
+              </div>
+            </div>
+            <span class="hero-note">Following the system appearance · currently {{ appearance }}</span>
+          </header>
 
-          <div class="demo-card">
-            <p class="card-title">Grid</p>
-            <p class="card-desc">Grid layout examples</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('grid')" />
-          </div>
+          <section v-for="group in groups" :key="group.title" class="group">
+            <span class="section-label">{{ group.title }}</span>
+            <div class="nav-list">
+              <div v-for="item in group.items" :key="item.title" class="nav-row" @tap="$navigateTo(item.page)">
+                <div class="nav-icon" :style="{ backgroundColor: item.color }"><span class="nav-icon-text">{{ item.icon }}</span></div>
+                <div class="nav-body">
+                  <span class="nav-title">{{ item.title }}</span>
+                  <span class="nav-desc">{{ item.desc }}</span>
+                </div>
+                <span class="nav-arrow">›</span>
+              </div>
+            </div>
+          </section>
 
-          <div class="demo-card">
-            <p class="card-title">Web Samples</p>
-            <p class="card-desc">100+ web-style samples</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('web-samples')" />
-          </div>
+          <section class="group">
+            <span class="section-label">Diagnostics</span>
+            <div class="nav-list">
+              <div class="nav-row" @tap="$navigateTo(Stress)">
+                <div class="nav-icon" style="background-color: #e17055"><span class="nav-icon-text">S</span></div>
+                <div class="nav-body">
+                  <span class="nav-title">Layout stress</span>
+                  <span class="nav-desc">Reconciliation and border regressions</span>
+                </div>
+                <span class="nav-arrow">›</span>
+              </div>
+              <div class="card fib">
+                <div class="nav-body">
+                  <span class="nav-title">JS benchmark</span>
+                  <span class="nav-desc">{{ fibStatus }}</span>
+                </div>
+                <button class="btn-primary" @tap="runFibTest">Run fib(30)</button>
+              </div>
+            </div>
+          </section>
 
-          <div class="demo-card">
-            <p class="card-title">Professions</p>
-            <p class="card-desc">10 profession examples</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('professions')" />
-          </div>
-
-          <div class="demo-card">
-            <p class="card-title">Lynx Examples</p>
-            <p class="card-desc">Styling & animation ports</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('lynx')" />
-          </div>
-
-          <div class="demo-card">
-            <p class="card-title">Showcase</p>
-            <p class="card-desc">Mason Showcase</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('showcase')" />
-          </div>
-
-          <div class="demo-card">
-            <p class="card-title">React Native</p>
-            <p class="card-desc">React Native examples</p>
-            <button class="btn-primary" :text="'Open'" @click="() => navigate('react-native')" />
-          </div>
-        </div>
-
-      </div>
+          <footer class="foot">
+            <span class="muted">@triniwiz/nativescript-masonkit</span>
+          </footer>
+        </main>
+      </Scroll>
     </Page>
   </Frame>
 </template>
 
 <script lang="ts" setup>
-import { $navigateTo } from 'nativescript-vue';
+import { $navigateTo, ref } from 'nativescript-vue';
+import { appearance } from '~/theme';
+
 import FlexboxDemo from '~/plugin-demos/FlexboxDemo.vue';
 import GridDemo from '~/plugin-demos/GridDemo.vue';
+import GridArea from '~/plugin-demos/Grid-Area.vue';
+import DisplayDemo from '~/plugin-demos/DisplayDemo.vue';
+import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
+import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
 import TransformDemo from '~/plugin-demos/TransformDemo.vue';
-import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
-import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
+import AnimationDemo from '~/plugin-demos/AnimationDemo.vue';
+import TouchDemo from '~/plugin-demos/TouchDemo.vue';
+import CoreViewsDemo from '~/plugin-demos/CoreViewsDemo.vue';
 import ShowcaseDemo from '~/plugin-demos/ShowcaseDemo.vue';
-import GridArea from '~/plugin-demos/Grid-Area.vue';
-import WebSamplesIndex from '~/web-samples/WebSamplesIndex.vue';
-import ProfessionList from '~/web-samples/ProfessionList.vue';
-import LynxIndex from '~/lynx/LynxIndex.vue';
-import ReactNative from '~/react-native/sample.vue';
+import HackerNews from '~/hn/HackerNews.vue';
+import Photos from '~/web-samples/Photos.vue';
+import WebSamples from '~/web-samples/WebSamples.vue';
+import Professions from '~/web-samples/Professions.vue';
+import Stress from '~/stress/Stress.vue';
 
-const navigate = (demo: string) => {
-  const demos = {
-    flexbox: FlexboxDemo,
-    grid: GridDemo,
-    shadows: BoxShadowDemo,
-    transforms: TransformDemo,
-    typography: TypographyDemo,
-    spacing: SpacingDemo,
-    showcase: ShowcaseDemo,
-    'grid-area': GridArea,
-    'web-samples': WebSamplesIndex,
-    professions: ProfessionList,
-    lynx: LynxIndex,
-    'react-native': ReactNative
-  };
-  $navigateTo(demos[demo]);
+const groups = [
+  {
+    title: 'Layout',
+    items: [
+      { title: 'Flexbox', desc: 'Direction, wrap, justify and align', icon: 'F', color: '#6c5ce7', page: FlexboxDemo },
+      { title: 'Grid', desc: 'Tracks, spans and auto-placement', icon: 'G', color: '#0984e3', page: GridDemo },
+      { title: 'Grid areas', desc: 'Named grid-template-areas', icon: 'A', color: '#00b894', page: GridArea },
+      { title: 'Display', desc: 'block / flex / none toggling', icon: 'D', color: '#e84393', page: DisplayDemo },
+      { title: 'Spacing', desc: 'Margin, padding and gap', icon: 'S', color: '#fdcb6e', page: SpacingDemo },
+    ],
+  },
+  {
+    title: 'Styling',
+    items: [
+      { title: 'Typography', desc: 'Type scale and text styles', icon: 'T', color: '#b2bec3', page: TypographyDemo },
+      { title: 'Box shadows', desc: 'Elevation, colored and inset shadows', icon: 'B', color: '#636e72', page: BoxShadowDemo },
+      { title: 'Transforms', desc: 'Interactive rotate / scale / translate', icon: 'R', color: '#e17055', page: TransformDemo },
+      { title: 'Animation', desc: 'Keyframe-style animations on Mason views', icon: 'M', color: '#4ecdc4', page: AnimationDemo },
+      { title: 'Touch animations', desc: 'TouchManager press feedback on Mason views', icon: 'Tm', color: '#fd79a8', page: TouchDemo },
+    ],
+  },
+  {
+    title: 'Interop',
+    items: [
+      { title: 'Core views', desc: 'NativeScript widgets inside Mason containers', icon: 'C', color: '#74b9ff', page: CoreViewsDemo },
+      { title: 'Showcase', desc: 'Component gallery', icon: 'W', color: '#a29bfe', page: ShowcaseDemo },
+    ],
+  },
+  {
+    title: 'Apps',
+    items: [
+      { title: 'Hacker News', desc: 'Sortable feed with threaded comments', icon: 'Y', color: '#ff6600', page: HackerNews },
+      { title: 'Photos', desc: 'Masonry grid with remote images', icon: 'P', color: '#00cec9', page: Photos },
+      { title: 'Web samples', desc: 'Ten content-rich web-style screens', icon: '10', color: '#6c5ce7', page: WebSamples },
+      { title: 'Professions', desc: 'Ten mini dashboards', icon: 'Pr', color: '#fd79a8', page: Professions },
+    ],
+  },
+];
+
+const fibStatus = ref('Recursive fib(30) smoke test');
+const fibonacci = (n: number): number => (n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2));
+
+const runFibTest = () => {
+  const startedAt = Date.now();
+  const result = fibonacci(30);
+  fibStatus.value = `fib(30) = ${result} in ${Date.now() - startedAt} ms`;
 };
 </script>
 
 <style scoped>
-.page {
-  padding: 16;
-  background-color: #fafafa;
-  overflow-y: auto;
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 14;
 }
 
 .hero {
-  background-color: #1a1a2e;
-  border-radius: 16;
-  padding: 24;
-  margin-bottom: 20;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.demo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10;
-}
-
-.demo-card {
-  background-color: white;
-  border-radius: 12;
-  padding: 14;
+  background-color: var(--ink);
+  border-radius: 18;
+  padding: 20;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.045);
+  gap: 14;
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
-.icon-circle {
-  width: 44;
-  height: 44;
-  border-radius: 22;
+.hero-top {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.hero-text {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+}
+
+.hero-kicker {
+  font-size: 11;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.08;
+  color: #fdcb6e;
+}
+
+.hero-title {
+  font-size: 28;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.hero-sub {
+  font-size: 13;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-note {
+  font-size: 11;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.fib {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+}
+
+.foot {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.icon-text {
-  color: white;
-  font-size: 18;
-  font-weight: bold;
-}
-
-.card-title {
-  font-size: 14;
-  font-weight: bold;
-  color: #1a1a2e;
-}
-
-.card-desc {
-  font-size: 10;
-  color: #888;
-  text-align: center;
-}
-
-.btn-primary {
-  background-color: #1a73e8;
-  color: #ffffff;
-  padding: 10 18;
-  border-radius: 10;
-  font-weight: 600;
-  border-style: none;
-}
-
-button:active {
-  color: green;
-  background-color: red;
-}
-
-.demo-card button {
-  width: 80;
+  padding: 12 0 24;
 }
 </style>

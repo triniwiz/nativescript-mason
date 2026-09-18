@@ -34,7 +34,25 @@ const fn ua(
 /// Looks up the UA default (font-size, margin) for a lowercase tag name
 /// ("p", "h1".."h6", "blockquote", "pre"). Returns `None` for tags with no
 /// UA default in this table.
+///
+/// Preflight removes browser margins while preserving heading font sizes, preventing default paragraph spacing in flex layouts.
 pub fn ua_default_for_tag(tag: &str) -> Option<UaDefault> {
+    ua_default_for_tag_with(
+        tag,
+        crate::PREFLIGHT_ENABLED.load(std::sync::atomic::Ordering::Relaxed),
+    )
+}
+
+/// `ua_default_for_tag` with the preflight decision passed in explicitly.
+pub fn ua_default_for_tag_with(tag: &str, preflight: bool) -> Option<UaDefault> {
+    let value = ua_default_for_tag_raw(tag)?;
+    if preflight {
+        return Some(ua(value.font_size, 0.0, 0.0, 0.0, 0.0));
+    }
+    Some(value)
+}
+
+fn ua_default_for_tag_raw(tag: &str) -> Option<UaDefault> {
     match tag {
         "p" => Some(ua(0.0, 16.0, 16.0, 0.0, 0.0)), // 1em
         "h1" => Some(ua(32.0, 21.44, 21.44, 0.0, 0.0)), // 2em / 0.67em
@@ -56,7 +74,7 @@ mod tests {
     #[test]
     fn p() {
         assert_eq!(
-            ua_default_for_tag("p"),
+            ua_default_for_tag_raw("p"),
             Some(UaDefault {
                 font_size: 0.0,
                 margin_top: 16.0,
@@ -70,7 +88,7 @@ mod tests {
     #[test]
     fn h1() {
         assert_eq!(
-            ua_default_for_tag("h1"),
+            ua_default_for_tag_raw("h1"),
             Some(UaDefault {
                 font_size: 32.0,
                 margin_top: 21.44,
@@ -84,7 +102,7 @@ mod tests {
     #[test]
     fn h2() {
         assert_eq!(
-            ua_default_for_tag("h2"),
+            ua_default_for_tag_raw("h2"),
             Some(UaDefault {
                 font_size: 24.0,
                 margin_top: 19.92,
@@ -98,7 +116,7 @@ mod tests {
     #[test]
     fn h3() {
         assert_eq!(
-            ua_default_for_tag("h3"),
+            ua_default_for_tag_raw("h3"),
             Some(UaDefault {
                 font_size: 19.0,
                 margin_top: 18.72,
@@ -112,7 +130,7 @@ mod tests {
     #[test]
     fn h4() {
         assert_eq!(
-            ua_default_for_tag("h4"),
+            ua_default_for_tag_raw("h4"),
             Some(UaDefault {
                 font_size: 16.0,
                 margin_top: 21.28,
@@ -126,7 +144,7 @@ mod tests {
     #[test]
     fn h5() {
         assert_eq!(
-            ua_default_for_tag("h5"),
+            ua_default_for_tag_raw("h5"),
             Some(UaDefault {
                 font_size: 13.0,
                 margin_top: 22.18,
@@ -140,7 +158,7 @@ mod tests {
     #[test]
     fn h6() {
         assert_eq!(
-            ua_default_for_tag("h6"),
+            ua_default_for_tag_raw("h6"),
             Some(UaDefault {
                 font_size: 11.0,
                 margin_top: 24.98,
@@ -154,7 +172,7 @@ mod tests {
     #[test]
     fn blockquote() {
         assert_eq!(
-            ua_default_for_tag("blockquote"),
+            ua_default_for_tag_raw("blockquote"),
             Some(UaDefault {
                 font_size: 0.0,
                 margin_top: 16.0,
@@ -168,7 +186,7 @@ mod tests {
     #[test]
     fn pre() {
         assert_eq!(
-            ua_default_for_tag("pre"),
+            ua_default_for_tag_raw("pre"),
             Some(UaDefault {
                 font_size: 0.0,
                 margin_top: 16.0,
@@ -181,6 +199,22 @@ mod tests {
 
     #[test]
     fn unknown_tag() {
-        assert_eq!(ua_default_for_tag("span"), None);
+        assert_eq!(ua_default_for_tag_raw("span"), None);
+    }
+
+    #[test]
+    fn preflight_zeroes_margins_but_keeps_font_size() {
+        assert_eq!(
+            ua_default_for_tag_with("h1", true),
+            Some(ua(32.0, 0.0, 0.0, 0.0, 0.0))
+        );
+        assert_eq!(
+            ua_default_for_tag_with("p", true),
+            Some(ua(0.0, 0.0, 0.0, 0.0, 0.0))
+        );
+        assert_eq!(
+            ua_default_for_tag_with("p", false),
+            ua_default_for_tag_raw("p")
+        );
     }
 }

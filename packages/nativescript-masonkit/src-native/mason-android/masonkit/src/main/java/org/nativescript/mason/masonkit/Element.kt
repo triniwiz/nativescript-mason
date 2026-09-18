@@ -930,7 +930,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           var width = ceil(fx + fw).toInt() - x
           var height = ceil(fy + fh).toInt() - y
 
-          if (view !is Element) {
+          // Foreign views are leaf nodes; honour Taffy's computed box, falling back to intrinsic measurement only when it is empty.
+          if (view !is Element && (width <= 0 || height <= 0)) {
             width = view.measuredWidth
             height = view.measuredHeight
           }

@@ -1,4 +1,5 @@
 import type { ViewClassMeta } from '@nativescript/angular';
+import { frameworkRegistry, readLinkedList } from '@triniwiz/nativescript-masonkit';
 
 /**
  * The subset of MasonKit's `ViewBase` child API this meta drives.
@@ -91,3 +92,34 @@ export const masonMeta: ViewClassMeta = {
     parent.removeChild(child);
   },
 };
+
+// ---------------------------------------------------------------------------
+// Framework adapter: Angular's visual tree uses firstChild/nextSibling, but
+// every node has nodeType 1, including invisible TextNode/CommentNode anchors.
+// Registered after the built-in defaults, so it is checked before the generic
+// DOM-shim adapter.
+// ---------------------------------------------------------------------------
+
+frameworkRegistry.register({
+  name: 'angular-nativescript',
+  getElement(view) {
+    if (view?.firstChild !== undefined && view?.meta?.skipAddToDom !== undefined) {
+      return view;
+    }
+    return null;
+  },
+  getChildren: readLinkedList,
+  classify(node) {
+    if (node.nodeType === 'text' || node.nodeType === 3 || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode') {
+      return 'text';
+    }
+    if (node.nodeName === 'br') {
+      return 'break';
+    }
+    if (node.nodeName === 'CommentNode' || node.constructor?.name === 'CommentNode' || node.meta?.skipAddToDom) {
+      return 'none';
+    }
+    return 'element';
+  },
+  syntheticTextOnEmpty: false,
+});

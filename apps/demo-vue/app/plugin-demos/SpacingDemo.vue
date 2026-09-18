@@ -1,13 +1,14 @@
 <template>
   <Page>
-    <ActionBar>
-      <Label text="Spacing &amp; Sizing" class="text-white" style="font-size: 18; font-weight: bold;" />
+    <ActionBar title="Spacing &amp; Sizing">
+      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
     </ActionBar>
-    <div class="page">
+    <Scroll class="page">
+      <main class="page-body">
 
       <!-- Padding -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Padding</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Padding</p>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 6;">
@@ -30,10 +31,10 @@
 
       <!-- Margin -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Margin</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Margin</p>
       </div>
 
-      <div style="background-color: #f0f0f5; border-radius: 8; padding: 2;">
+      <div class="tk-surface-2" style="border-radius: 8; padding: 2">
         <div style="background-color: #FF6B6B; height: 32; border-radius: 6; margin: 4;">
           <p class="margin-text">margin: 4</p>
         </div>
@@ -47,7 +48,7 @@
 
       <!-- Border Radius -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Border Radius</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Border Radius</p>
       </div>
 
       <div style="display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 16;">
@@ -67,10 +68,10 @@
 
       <!-- Sizing -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Width &amp; Height</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Width &amp; Height</p>
       </div>
 
-      <div style="display: flex; flex-direction: row; gap: 8; align-items: flex-end; padding: 8; background-color: #f0f0f5; border-radius: 8; height: 140;">
+      <div class="tk-surface-2" style="display: flex; flex-direction: row; gap: 8; align-items: flex-end; padding: 8; border-radius: 8; height: 140">
         <div style="width: 40; height: 40; background-color: #00B894; border-radius: 6;">
           <p style="font-size: 9; color: white; text-align: center;">40</p>
         </div>
@@ -90,12 +91,12 @@
 
       <!-- Percentage Sizing -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Percentage Width</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Percentage Width</p>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 4; background-color: #f0f0f5; padding: 8; border-radius: 8;">
+      <div class="tk-surface-2" style="display: flex; flex-direction: column; gap: 4; padding: 8; border-radius: 8">
         <div style="width: 25%; height: 28; background-color: #FDCB6E; border-radius: 4;">
-          <p style="font-size: 10; color: #333; padding-left: 4;">25%</p>
+          <p class="tk-text" style="font-size: 10; padding-left: 4">25%</p>
         </div>
         <div style="width: 50%; height: 28; background-color: #E17055; border-radius: 4;">
           <p style="font-size: 10; color: white; padding-left: 4;">50%</p>
@@ -110,7 +111,7 @@
 
       <!-- Gap -->
       <div class="section-title">
-        <p style="font-size: 22; font-weight: bold; color: #1a1a2e;">Gap</p>
+        <p class="tk-text" style="font-size: 22; font-weight: bold">Gap</p>
       </div>
 
       <div style="display: flex; flex-direction: row; gap: 2; margin-bottom: 6;">
@@ -118,7 +119,7 @@
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
-        <p style="font-size: 10; color: #888; margin-left: 6;">gap: 2</p>
+        <p class="tk-muted" style="font-size: 10; margin-left: 6">gap: 2</p>
       </div>
 
       <div style="display: flex; flex-direction: row; gap: 8; margin-bottom: 6;">
@@ -126,7 +127,7 @@
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
-        <p style="font-size: 10; color: #888; margin-left: 6;">gap: 8</p>
+        <p class="tk-muted" style="font-size: 10; margin-left: 6">gap: 8</p>
       </div>
 
       <div style="display: flex; flex-direction: row; gap: 16;">
@@ -134,10 +135,10 @@
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
         <div class="gap-item purple"></div>
-        <p style="font-size: 10; color: #888; margin-left: 6;">gap: 16</p>
+        <p class="tk-muted" style="font-size: 10; margin-left: 6">gap: 16</p>
       </div>
-
-    </div>
+      </main>
+    </Scroll>
   </Page>
 </template>
 
@@ -146,7 +147,6 @@
 
 <style scoped>
 .page {
-  padding: 16;
   overflow-y: scroll;
 }
 
@@ -156,14 +156,14 @@
 }
 
 .inner-box {
-  background-color: white;
+  background-color: var(--surface);
   border-radius: 6;
   padding: 6;
 }
 
 .inner-text {
   font-size: 12;
-  color: #333;
+  color: var(--text);
   text-align: center;
 }
 

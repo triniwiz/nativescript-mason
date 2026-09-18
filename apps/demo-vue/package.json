@@ -3,7 +3,7 @@
   "description": "NativeScript Application",
   "dependencies": {
     "@nativescript/core": "~9.0.20",
-    "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit",
+    "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit",
     "nativescript-vue": "~3.0.2"
   },
   "devDependencies": {

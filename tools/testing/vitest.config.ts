@@ -4,6 +4,22 @@ import { platformSuffixResolver } from './mason-test-kit/platform-suffix-resolve
 
 const root = resolve(__dirname, '../..');
 
+/**
+ * Bare specifier resolver for the in-repo masonkit package. The workspace does
+ * not symlink it into node_modules, so Node's ESM loader cannot find it; this
+ * routes the import to the source entry before Node sees it.
+ */
+const masonkitInternalResolver = () => ({
+  name: 'masonkit-internal-resolver',
+  enforce: 'pre' as const,
+  resolveId(source: string) {
+    if (source === '@triniwiz/nativescript-masonkit') {
+      return resolve(root, 'packages/nativescript-masonkit/index.android.ts');
+    }
+    return null;
+  },
+});
+
 export default defineConfig({
   // NativeScript's platform flags are compile-time globals; style.ts branches on
   // them at call time. All false = the platform-neutral path, which is what the
@@ -22,7 +38,7 @@ export default defineConfig({
     __CSS_PARSER__: '"css-tree"',
     __SNAPSHOT__: 'false',
   },
-  plugins: [platformSuffixResolver('android')],
+  plugins: [masonkitInternalResolver(), platformSuffixResolver('android')],
   resolve: {
     alias: [
       { find: /^@nativescript\/core$/, replacement: resolve(root, 'tools/testing/mason-test-kit/ns-core-stub.ts') },

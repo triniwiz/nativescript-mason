@@ -326,6 +326,16 @@ stress-chip-alt,
   background-color: $accent;
 }
 
+stress-chip.host-color-1 {
+  background: #ffb58a;
+}
+stress-chip.host-color-2 {
+  background: #a8d5be;
+}
+stress-chip.host-color-3 {
+  background: #b6c9ef;
+}
+
 .chip-text {
   font-size: 12;
   color: $ink;
@@ -360,6 +370,30 @@ stress-chip-alt,
   padding: 10;
   background-color: #eeeee4;
   border-radius: 4;
+}
+
+.basic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4;
+}
+
+.basic-grid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56;
+  border-radius: 6;
+}
+
+.basic-grid-label {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 14;
+}
+
+.basic-grid-cell-dark .basic-grid-label {
+  color: #1a1a2e;
 }
 
 $dark-bg: #14140f;
@@ -491,6 +525,16 @@ $dark-btn: #5a5a5a;
 
 .ns-dark .chip-accent {
   background-color: $dark-accent;
+}
+
+.ns-dark stress-chip.host-color-1 {
+  background-color: #7a3f24;
+}
+.ns-dark stress-chip.host-color-2 {
+  background-color: #235f50;
+}
+.ns-dark stress-chip.host-color-3 {
+  background-color: #354b83;
 }
 
 .ns-dark .chip-text {

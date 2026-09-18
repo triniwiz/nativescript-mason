@@ -905,38 +905,56 @@ Framework detection is automatic. MasonKit detects which framework is in use and
 
 ### Vue 3 Example
 
+Install the integration in the app entry file, before starting Vue:
+
+```ts
+// app.ts
+import { createApp } from 'nativescript-vue';
+import { installMasonKit } from '@triniwiz/nativescript-masonkit/vue';
+import App from './App.vue';
+
+installMasonKit();
+createApp(App).start();
+```
+
+Then use the elements directly in templates — no `registerElement` calls:
+
 ```vue
 <template>
-  <Div display="flex" flexDirection="column" padding="16">
-    <H1 textContent="Hello from Vue!" />
-    <P textContent="MasonKit works with NativeScript Vue." />
-    <Button textContent="Click Me" @tap="onTap" />
-  </Div>
+  <div class="container">
+    <h1>Hello from Vue!</h1>
+    <p>MasonKit works with NativeScript Vue.</p>
+    <button @tap="onTap">Click Me</button>
+  </div>
 </template>
-
-<script setup>
-function onTap() {
-  console.log('Button tapped!');
-}
-</script>
 ```
+
+See [vue/README.md](vue/README.md) for options (`web`/`mason`) and custom-element
+`masonMeta` usage.
 
 ### Angular Example
 
-```typescript
-import { registerElement } from '@nativescript/angular';
-import { View, Text, Div, H1, P } from '@triniwiz/nativescript-masonkit';
+Call `installMasonKit()` in `main.ts` before the bootstrap:
 
-registerElement('view', () => View);
-registerElement('text', () => Text);
-registerElement('div', () => Div);
-registerElement('h1', () => H1);
-registerElement('p', () => P);
+```ts
+// main.ts
+import { bootstrapApplication, runNativeScriptAngularApp } from '@nativescript/angular';
+import { installMasonKit } from '@triniwiz/nativescript-masonkit/angular';
+
+installMasonKit();
+
+runNativeScriptAngularApp({
+  appModuleBootstrap: () => bootstrapApplication(AppComponent),
+});
 ```
+
+Then use the elements directly in templates — no `registerElement` calls:
 
 ```html
-<MasonDiv display="flex" flexDirection="column" padding="16">
-  <MasonH1 textContent="Hello from Angular!"></MasonH1>
-  <MasonP textContent="MasonKit works with NativeScript Angular."></MasonP>
-</MasonDiv>
+<div class="container">
+  <h1>Hello from Angular!</h1>
+  <p>MasonKit works with NativeScript Angular.</p>
+</div>
 ```
+
+See [angular/README.md](angular/README.md) for options and component-host support.

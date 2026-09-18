@@ -7,9 +7,23 @@ module.exports = (env) => {
   // Apply Vue config first
   webpack.useConfig('vue');
 
-  webpack.chainWebpack((config) => {
+  webpack.chainWebpack((config, env) => {
     // shared demo code
     config.resolve.alias.set('@demo/shared', resolve(__dirname, '..', '..', 'tools', 'demo'));
+
+    // NativeScript webpack defines the Android and Apple platform constants,
+    // but not __WINDOWS__. MasonKit branches on all three, so without this
+    // substitution the Windows checks survive as free variables and crash the
+    // Android app the first time a MasonKit native event is registered.
+    config.plugin('DefinePlugin').tap((args) => {
+      args[0] = {
+        ...args[0],
+        __WINDOWS__: env.platform === 'windows',
+      };
+
+      return args;
+    });
+
     config.resolve.set('fallback', {
       path: false,
       util: false,
