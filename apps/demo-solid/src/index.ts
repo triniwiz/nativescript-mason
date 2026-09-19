@@ -5,8 +5,9 @@ import { App } from './app';
 import { View } from '@triniwiz/nativescript-masonkit';
 import { getMasonKitElements } from '@triniwiz/nativescript-masonkit/elements';
 
-// Enable CSS preflight — browser-style normalization (box-sizing: border-box, margin: 0, etc.)
-View.preflight = true;
+// Off by default: preflight is Tailwind-style normalization, and it zeroes the UA margins
+// the WebSpec fixtures expect (they come from Chromium, UA stylesheet included).
+View.preflight = false;
 
 /**
  * A dominative element backed by a mason view that accepts BOTH nested element
