@@ -1868,8 +1868,11 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonOverflow, "Overflow", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonPosition, "Position", open) {
-  MasonPositionRelative = 0,
-  MasonPositionAbsolute = 1,
+  MasonPositionStatic = 0,
+  MasonPositionRelative = 1,
+  MasonPositionAbsolute = 2,
+  MasonPositionFixed = 3,
+  MasonPositionSticky = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(uint16_t, PseudoState, "PseudoState", open) {

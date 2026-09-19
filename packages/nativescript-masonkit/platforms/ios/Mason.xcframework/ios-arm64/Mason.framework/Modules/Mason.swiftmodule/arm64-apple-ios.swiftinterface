@@ -2779,8 +2779,11 @@ public enum MasonLengthPercentageAuto : Swift.Codable, Swift.Equatable {
   public init?(rawValue: Mason.Overflow.RawValue)
 }
 @objc(MasonPosition) public enum Position : Swift.Int, Swift.RawRepresentable {
+  case Static
   case Relative
   case Absolute
+  case Fixed
+  case Sticky
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.Position.RawValue {
     get
