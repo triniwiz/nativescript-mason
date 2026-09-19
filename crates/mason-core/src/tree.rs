@@ -10,12 +10,14 @@ use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use style_atoms::Atom;
+use taffy::tree::DetailedLayoutInfo;
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, style::Clear,
-    AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, Display, Float, Layout,
-    LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
-    PrintTree, Rect, ResolveOrZero, RoundTree, Size, SizingMode, TraversePartialTree, TraverseTree,
+    AvailableSpace, BlockContext, CacheTree, ClearState, CoreStyle, DetailedGridInfo, Display,
+    Float, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree,
+    MaybeResolve, NodeId, PrintTree, Rect, ResolveOrZero, RoundTree, Size, SizingMode,
+    TraversePartialTree, TraverseTree,
 };
 
 new_key_type! {
@@ -47,6 +49,12 @@ pub(crate) struct TreeInner {
     pub(crate) nodes: SlotMap<Id, Node>,
     pub(crate) parents: SecondaryMap<Id, Option<Id>>,
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
+    // Out-of-flow boxes for which this node is the containing block. Written by taffy's
+    // out-of-flow pass, read by `round_layout`.
+    pub(crate) hoisted_children: SecondaryMap<Id, Vec<Id>>,
+    // Reverse of `hoisted_children`. Only holds boxes whose containing block is not their
+    // tree parent, i.e. the ones whose native view attaches somewhere else.
+    pub(crate) containing_block: SecondaryMap<Id, Id>,
     // Transient float rectangles collected during pre-layout.
     // Keyed by the container Id (the block/inline container that holds floats).
     pub(crate) float_context: SecondaryMap<Id, Vec<FloatRect>>,
@@ -75,6 +83,8 @@ impl TreeInner {
             nodes: Default::default(),
             parents: Default::default(),
             children: Default::default(),
+            hoisted_children: Default::default(),
+            containing_block: Default::default(),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
@@ -92,6 +102,8 @@ impl TreeInner {
             nodes: SlotMap::with_capacity_and_key(value),
             parents: SecondaryMap::with_capacity(value),
             children: SecondaryMap::with_capacity(value),
+            hoisted_children: SecondaryMap::with_capacity(value),
+            containing_block: Default::default(),
             float_context: SecondaryMap::with_capacity(value),
             use_rounding: false,
             inline_run_nesting: 0,
@@ -167,11 +179,33 @@ impl Drop for LayoutPassGuard {
     }
 }
 
+/// Per-node grid geometry from taffy's grid algorithm; the out-of-flow pass reads it back to
+/// place an abspos item in its grid area rather than the container's padding box.
+///
+/// Not behind the `RwLock`: the getter returns a `&` borrowed from `&self`, which no lock
+/// guard can outlive.
+#[derive(Debug, Clone)]
+pub(crate) struct DetailedLayout {
+    map: SecondaryMap<Id, DetailedLayoutInfo<Atom>>,
+    /// Handed out by reference for nodes with nothing recorded.
+    none: DetailedLayoutInfo<Atom>,
+}
+
+impl Default for DetailedLayout {
+    fn default() -> Self {
+        Self {
+            map: SecondaryMap::new(),
+            none: DetailedLayoutInfo::None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tree(
     pub(crate) Arc<RwLock<TreeInner>>,
     pub(crate) Arc<Mutex<Vec<Id>>>,
     pub(crate) Arc<RwLock<SecondaryMap<Id, NodeData>>>,
+    pub(crate) DetailedLayout,
 );
 
 impl Default for Tree {
@@ -217,7 +251,12 @@ impl Tree {
     }
 
     pub fn new() -> Self {
-        Self(Default::default(), Default::default(), Default::default())
+        Self(
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
     }
 
     pub fn with_capacity(value: usize) -> Self {
@@ -225,6 +264,7 @@ impl Tree {
             Arc::new(RwLock::new(TreeInner::with_capacity(value))),
             Default::default(),
             Arc::new(RwLock::new(SecondaryMap::with_capacity(value))),
+            Default::default(),
         )
     }
 
@@ -307,6 +347,10 @@ impl Tree {
         node_id: NodeId,
     ) -> MappedRwLockWriteGuard<'_, RawRwLock, NodeData> {
         RwLockWriteGuard::map(self.2.write(), |v| v.get_mut(node_id.into()).unwrap())
+    }
+
+    pub fn containing_block(&self, node_id: Id) -> Option<Id> {
+        self.0.read().containing_block.get(node_id).copied()
     }
 
     pub fn children(&self, node_id: Id) -> Vec<NodeRef> {
@@ -1906,6 +1950,17 @@ impl taffy::LayoutGridContainer for Tree {
         let style = self.style_from_id(child_node_id);
         StyleGuard(style)
     }
+
+    fn set_detailed_grid_info(
+        &mut self,
+        node_id: NodeId,
+        detailed_grid_info: DetailedGridInfo<Self::CustomIdent>,
+    ) {
+        self.3.map.insert(
+            node_id.into(),
+            DetailedLayoutInfo::Grid(Box::new(detailed_grid_info)),
+        );
+    }
 }
 
 impl LayoutBlockContainer for Tree {
@@ -2015,7 +2070,7 @@ impl LayoutBlockContainer for Tree {
                 None
             };
 
-            match display_mode {
+            let mut output = match display_mode {
                 DisplayMode::None => match (display, has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),
                     (Display::Block | Display::FlowRoot, true) => {
@@ -2446,7 +2501,15 @@ impl LayoutBlockContainer for Tree {
 
                     computed_layout
                 }
+            };
+
+            // Lay out the out-of-flow boxes for which this node is the containing block;
+            // the rest keep bubbling up via `output.oof_candidates`.
+            if inputs.run_mode == taffy::RunMode::PerformLayout {
+                taffy::compute_oof_layout(tree, node_id, &mut output);
             }
+
+            output
         })
     }
 }
@@ -2458,6 +2521,70 @@ impl RoundTree for Tree {
 
     fn set_final_layout(&mut self, node_id: NodeId, layout: &Layout) {
         self.node_from_id_mut(node_id).final_layout = *layout;
+    }
+
+    fn is_out_of_flow(&self, node_id: NodeId) -> bool {
+        let node = self.node_from_id(node_id);
+        let style = node.style();
+        style.get_position().is_out_of_flow() && style.get_display() != Display::None
+    }
+
+    fn hoisted_child_count(&self, node_id: NodeId) -> usize {
+        self.inner()
+            .hoisted_children
+            .get(node_id.into())
+            .map_or(0, Vec::len)
+    }
+
+    fn get_hoisted_child_id(&self, node_id: NodeId, index: usize) -> NodeId {
+        let tree = self.0.read();
+        NodeId::from(tree.hoisted_children.get(node_id.into()).unwrap()[index])
+    }
+}
+
+impl taffy::LayoutContainingBlock for Tree {
+    type OofItemStyle<'a>
+        = StyleGuard<'a>
+    where
+        Self: 'a;
+
+    fn get_oof_item_style(&self, node_id: NodeId) -> Self::OofItemStyle<'_> {
+        StyleGuard(self.style_from_id(node_id))
+    }
+
+    fn clear_hoisted_children(&mut self, node_id: NodeId) {
+        let mut tree = self.0.write();
+        let Some(mut hoisted) = tree.hoisted_children.get_mut(node_id.into()).map(std::mem::take)
+        else {
+            return;
+        };
+        for child in hoisted.drain(..) {
+            tree.containing_block.remove(child);
+        }
+        // Put the (now empty) buffer back so its capacity is reused next pass.
+        if let Some(slot) = tree.hoisted_children.get_mut(node_id.into()) {
+            *slot = hoisted;
+        }
+    }
+
+    fn get_detailed_layout_info(&self, node_id: NodeId) -> &DetailedLayoutInfo<Self::CustomIdent> {
+        self.3.map.get(node_id.into()).unwrap_or(&self.3.none)
+    }
+
+    fn add_hoisted_children(&mut self, node_id: NodeId, hoisted: &[NodeId]) {
+        let cb: Id = node_id.into();
+        let mut tree = self.0.write();
+        for &child in hoisted {
+            let child: Id = child.into();
+            if tree.parents.get(child).copied().flatten() != Some(cb) {
+                tree.containing_block.insert(child, cb);
+            }
+        }
+        tree.hoisted_children
+            .entry(cb)
+            .unwrap()
+            .or_default()
+            .extend(hoisted.iter().copied().map(Id::from));
     }
 }
 

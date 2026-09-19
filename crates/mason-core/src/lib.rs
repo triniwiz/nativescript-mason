@@ -1004,6 +1004,12 @@ impl Mason {
         self.0.children(node)
     }
 
+    /// The node an out-of-flow box's `location` is relative to, when that is not its tree
+    /// parent. `None` for in-flow nodes, and where the containing block is the tree parent.
+    pub fn containing_block(&self, node: Id) -> Option<Id> {
+        self.0.containing_block(node)
+    }
+
     pub fn dirty(&self, node: Id) -> bool {
         self.0.dirty(node)
     }

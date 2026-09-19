@@ -137,8 +137,12 @@
     <attr name="mason_insetAll" format="dimension|string" />
 
     <attr name="mason_position" format="enum">
-      <enum name="relative" value="0" />
-      <enum name="absolute" value="1" />
+      <!-- aapt rejects "static": enum names become id resources, and it is a Java keyword -->
+      <enum name="staticPos" value="0" />
+      <enum name="relative" value="1" />
+      <enum name="absolute" value="2" />
+      <enum name="fixed" value="3" />
+      <enum name="sticky" value="4" />
     </attr>
 
     <attr name="mason_width" format="dimension|string" />

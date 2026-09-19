@@ -294,16 +294,22 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i8 {
 
 pub const fn position_from_enum(value: i8) -> Option<Position> {
     match value {
-        0 => Some(Position::Relative),
-        1 => Some(Position::Absolute),
+        0 => Some(Position::Static),
+        1 => Some(Position::Relative),
+        2 => Some(Position::Absolute),
+        3 => Some(Position::Fixed),
+        4 => Some(Position::Sticky),
         _ => None,
     }
 }
 
 pub const fn position_to_enum(value: Position) -> i8 {
     match value {
-        Position::Relative => 0,
-        Position::Absolute => 1,
+        Position::Static => 0,
+        Position::Relative => 1,
+        Position::Absolute => 2,
+        Position::Fixed => 3,
+        Position::Sticky => 4,
     }
 }
 

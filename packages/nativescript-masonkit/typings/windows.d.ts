@@ -1,6 +1,6 @@
 declare namespace NativeScript.Mason {
   enum Display { None = 0, Flex = 1, Grid = 2, Block = 3, Inline = 4, InlineBlock = 5, InlineFlex = 6, InlineGrid = 7 }
-  enum Position { Relative = 0, Absolute = 1 }
+  enum Position { Static = 0, Relative = 1, Absolute = 2, Fixed = 3, Sticky = 4 }
   enum Direction { Inherit = 0, Ltr = 1, Rtl = 2 }
   enum FlexDirection { Row = 0, Column = 1, RowReverse = 2, ColumnReverse = 3 }
   enum FlexWrap { NoWrap = 0, Wrap = 1, WrapReverse = 2 }

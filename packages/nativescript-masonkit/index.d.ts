@@ -21,7 +21,7 @@ export type DimensionLength = LengthAuto | DimensionKeyword;
 
 export type SizeLength = { width: LengthType; height: LengthType };
 
-export type Position = 'absolute' | 'relative';
+export type Position = 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
 
 export type Display = 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid';
 

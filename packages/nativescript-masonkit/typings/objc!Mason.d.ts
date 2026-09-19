@@ -1888,9 +1888,15 @@ declare class MasonOverflowPointCompat extends NSObject {
 
 declare const enum MasonPosition {
 
-	Relative = 0,
+	Static = 0,
 
-	Absolute = 1
+	Relative = 1,
+
+	Absolute = 2,
+
+	Fixed = 3,
+
+	Sticky = 4
 }
 
 declare class MasonRectHelper extends NSObject {

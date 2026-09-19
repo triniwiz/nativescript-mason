@@ -1929,20 +1929,35 @@ export class Style {
   get position() {
     switch (getInt8(this.style_view, StyleKeys.POSITION)) {
       case 0:
-        return 'relative';
+        return 'static';
       case 1:
+        return 'relative';
+      case 2:
         return 'absolute';
+      case 3:
+        return 'fixed';
+      case 4:
+        return 'sticky';
     }
   }
 
-  set position(value: 'relative' | 'absolute') {
+  set position(value: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky') {
     let position = -1;
     switch (value) {
-      case 'relative':
+      case 'static':
         position = 0;
         break;
-      case 'absolute':
+      case 'relative':
         position = 1;
+        break;
+      case 'absolute':
+        position = 2;
+        break;
+      case 'fixed':
+        position = 3;
+        break;
+      case 'sticky':
+        position = 4;
         break;
     }
     if (position != -1) {

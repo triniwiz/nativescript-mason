@@ -51,6 +51,7 @@ declare global {
       label: any;
       legend: any;
       li: any;
+      link: any;
       main: any;
       mark: any;
       nav: any;
@@ -127,6 +128,7 @@ declare module 'react' {
       label: any;
       legend: any;
       li: any;
+      link: any;
       main: any;
       mark: any;
       nav: any;

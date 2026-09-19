@@ -1464,6 +1464,8 @@ impl Tree {
                 top_margin: taffy::CollapsibleMarginSet::ZERO,
                 bottom_margin: taffy::CollapsibleMarginSet::ZERO,
                 margins_can_collapse_through: true,
+                oof_candidates: Default::default(),
+                oof_positioning_area: None,
             };
         }
 
@@ -1848,6 +1850,8 @@ impl Tree {
                     top_margin: taffy::CollapsibleMarginSet::ZERO,
                     bottom_margin: taffy::CollapsibleMarginSet::ZERO,
                     margins_can_collapse_through: false,
+                    oof_candidates: Default::default(),
+                    oof_positioning_area: None,
                 };
             }
         }

@@ -6908,8 +6908,11 @@ declare module org {
 				export module enums {
 					export class Position {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.enums.Position>;
+						public static Static: org.nativescript.mason.masonkit.enums.Position;
 						public static Relative: org.nativescript.mason.masonkit.enums.Position;
 						public static Absolute: org.nativescript.mason.masonkit.enums.Position;
+						public static Fixed: org.nativescript.mason.masonkit.enums.Position;
+						public static Sticky: org.nativescript.mason.masonkit.enums.Position;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.enums.Position>;
 						public static getEntries(): any;
 						public getCssValue(): string;
