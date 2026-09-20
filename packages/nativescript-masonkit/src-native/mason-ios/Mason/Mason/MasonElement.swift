@@ -929,6 +929,15 @@ class MasonElementHelpers: NSObject {
         if newFrame.size.width > avail.width { newFrame.size.width = avail.width }
       }
 
+      switch node.style.position {
+      case .Fixed:
+        MasonPositioning.applyFixed(node: node, view: view, frame: &newFrame)
+      case .Sticky:
+        MasonPositioning.captureSticky(node: node, view: view, frame: &newFrame)
+      default:
+        MasonPositioning.clearPositioning(node: node, view: view)
+      }
+
       // Setting `view.frame` is undefined when the view has a non-identity
       // transform, so position via bounds+center instead (equivalent to frame
       // when the transform is identity).

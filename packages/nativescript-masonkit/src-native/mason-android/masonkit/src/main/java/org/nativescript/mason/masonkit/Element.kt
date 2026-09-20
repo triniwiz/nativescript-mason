@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.events.Event
 import java.util.UUID
 import kotlin.math.ceil
@@ -924,8 +925,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val fy = nv.y.takeIf { !it.isNaN() } ?: 0f
           val fw = nv.width.takeIf { !it.isNaN() } ?: 0f
           val fh = nv.height.takeIf { !it.isNaN() } ?: 0f
-          val x = floor(fx).toInt()
-          val y = floor(fy).toInt()
+          var x = floor(fx).toInt()
+          var y = floor(fy).toInt()
 
           var width = ceil(fx + fw).toInt() - x
           var height = ceil(fy + fh).toInt() - y
@@ -958,6 +959,20 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // painting or when behaving as a scroll root.
           val layoutWidth = width
           val layoutHeight = height
+
+          when (node.style.position) {
+            Position.Fixed -> {
+              val (fx2, fy2) = MasonPositioning.applyFixed(node, view, x, y)
+              x = fx2; y = fy2
+            }
+
+            Position.Sticky -> {
+              val (sx, sy) = MasonPositioning.captureSticky(node, view, x, y, layoutWidth, layoutHeight)
+              x = sx; y = sy
+            }
+
+            else -> MasonPositioning.clearPositioning(node, view)
+          }
 
           val right = x + layoutWidth
           val bottom = y + layoutHeight

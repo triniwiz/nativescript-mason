@@ -321,6 +321,18 @@ impl<'a> GridContainerStyle for StyleGuard<'a> {
     }
 }
 
+impl<'a> taffy::OofItemStyle for StyleGuard<'a> {
+    #[inline(always)]
+    fn grid_row(&self) -> Line<GridPlacement<Atom>> {
+        self.get_grid_row()
+    }
+
+    #[inline(always)]
+    fn grid_column(&self) -> Line<GridPlacement<Atom>> {
+        self.get_grid_column()
+    }
+}
+
 impl<'a> GridItemStyle for StyleGuard<'a> {
     #[inline(always)]
     fn grid_row(&self) -> Line<GridPlacement<Atom>> {

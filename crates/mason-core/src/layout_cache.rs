@@ -82,7 +82,8 @@ impl From<&LayoutInput> for CacheKey {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+// Not `Copy`: `LayoutOutput` carries the node's out-of-flow candidate list.
+#[derive(Debug, Clone)]
 struct CacheEntry<T> {
     key: CacheKey,
     content: T,
@@ -101,8 +102,9 @@ impl LayoutCache {
         match input.run_mode {
             RunMode::PerformLayout => self
                 .final_layout_entry
+                .as_ref()
                 .filter(|entry| entry.key == key)
-                .map(|entry| entry.content),
+                .map(|entry| entry.content.clone()),
             RunMode::ComputeSize => self
                 .measure_entries
                 .iter()

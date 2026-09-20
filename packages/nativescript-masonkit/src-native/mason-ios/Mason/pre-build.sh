@@ -63,9 +63,11 @@ if [[ "$PLATFORM_NAME" == *"simulator"* ]]; then
 fi
 
 if [ -z "$CURRENT_ARCH" ] || [ "$CURRENT_ARCH" == "undefined_arch" ]; then
-    # Xcode 10 beta sets CURRENT_ARCH to "undefined_arch", this leads to incorrect linker arg.
-    # it's better to rely on platform name as fallback because architecture differs between simulator and device
-    CURRENT_ARCH="arm64"
+    # Undefined (e.g. a generic destination): fall back to the requested $ARCHS, not a hardcoded arm64.
+    CURRENT_ARCH="${ARCHS%% *}"
+    if [ -z "$CURRENT_ARCH" ]; then
+        CURRENT_ARCH="arm64"
+    fi
 fi
 
 

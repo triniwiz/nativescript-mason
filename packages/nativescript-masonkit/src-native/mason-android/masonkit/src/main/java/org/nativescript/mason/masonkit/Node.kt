@@ -168,6 +168,21 @@ open class Node internal constructor(
   internal var document: Document? = null
   internal var cachedWidth: Float = 0f
   internal var cachedHeight: Float = 0f
+
+  // position: fixed / sticky state — see MasonPositioning.kt.
+  internal var fixedOriginalParent: ViewGroup? = null
+  internal var stickyLocalX: Int = 0
+  internal var stickyLocalY: Int = 0
+  internal var stickyNaturalX: Int = 0
+  internal var stickyNaturalY: Int = 0
+  internal var stickyWidth: Int = 0
+  internal var stickyHeight: Int = 0
+  internal var stickyCbLeft: Int = 0
+  internal var stickyCbTop: Int = 0
+  internal var stickyCbRight: Int = 0
+  internal var stickyCbBottom: Int = 0
+  internal var stickyScrollHost: Scroll? = null
+  internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
   open var parent: Node?
     internal set(value) {

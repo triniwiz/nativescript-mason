@@ -496,7 +496,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
 export const positionProperty = new CssProperty<Style, Position>({
   name: 'position',
   cssName: 'position',
-  defaultValue: 'relative',
+  defaultValue: 'static',
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {

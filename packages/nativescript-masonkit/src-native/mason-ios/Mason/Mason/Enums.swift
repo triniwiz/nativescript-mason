@@ -1667,42 +1667,63 @@ internal enum DisplayMode: Int, RawRepresentable {
 
 @objc(MasonPosition)
 public enum Position: Int, RawRepresentable {
+  case Static
   case Relative
   case Absolute
-  
+  case Fixed
+  case Sticky
+
   public typealias RawValue = Int8
-  
+
   public var rawValue: RawValue {
     switch self {
-    case .Relative:
+    case .Static:
       return 0
-    case .Absolute:
+    case .Relative:
       return 1
+    case .Absolute:
+      return 2
+    case .Fixed:
+      return 3
+    case .Sticky:
+      return 4
     }
   }
-  
-  
+
+
   public init?(rawValue: RawValue) {
     switch rawValue {
     case 0:
-      self = .Relative
+      self = .Static
     case 1:
+      self = .Relative
+    case 2:
       self = .Absolute
+    case 3:
+      self = .Fixed
+    case 4:
+      self = .Sticky
     default:
       return nil
     }
   }
-  
-  
+
+
   var cssValue: String {
     switch self {
+    case .Static:
+      return "static"
     case .Relative:
       return "relative"
     case .Absolute:
       return "absolute"
+    case .Fixed:
+      return "fixed"
+    case .Sticky:
+      return "sticky"
     }
   }
-  
+
 }
 
 @objc(MasonFlexWrap)

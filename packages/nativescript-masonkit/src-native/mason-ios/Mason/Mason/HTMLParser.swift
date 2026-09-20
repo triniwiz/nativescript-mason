@@ -684,8 +684,11 @@ public class HTMLParser: NSObject {
 
     case "position":
       switch value {
+      case "static": style.position = .Static
       case "relative": style.position = .Relative
       case "absolute": style.position = .Absolute
+      case "fixed": style.position = .Fixed
+      case "sticky": style.position = .Sticky
       default: break
       }
 

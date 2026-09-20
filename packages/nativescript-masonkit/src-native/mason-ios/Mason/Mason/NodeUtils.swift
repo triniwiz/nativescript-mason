@@ -52,6 +52,9 @@ class NodeUtils {
       // only remove if child belongs to parent
       if(parent == view.superview){
         view.removeFromSuperview()
+      } else if let element = view as? MasonElement, element.node.style.position == .Fixed {
+        // Fixed views live under their containing block, not their tree parent.
+        view.removeFromSuperview()
       }
     }
   }

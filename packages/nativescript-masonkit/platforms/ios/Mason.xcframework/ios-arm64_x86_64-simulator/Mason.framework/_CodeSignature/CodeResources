@@ -6,7 +6,7 @@
 	<dict>
 		<key>Headers/Mason-Swift.h</key>
 		<data>
-		tuoIRuRw5nyvAt9LO2m4Vdo3aZE=
+		Ypd/LjB5wIBBZEy3WLFFKaXcJ2g=
 		</data>
 		<key>Headers/Mason.h</key>
 		<data>
@@ -22,51 +22,27 @@
 		</data>
 		<key>Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo</key>
 		<data>
-		xunPj+f2tGMPzmIvdyRoWgbOPA8=
-		</data>
-		<key>Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
-		<data>
-		LnTwzleoOsGGm9Z8/Kx3EXPqTXM=
+		h03WjQ3ee/Wsx9Q1p+DzsrlNQuA=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
 		<data>
-		oE3JCyGO9TajVMTkjecpfjztOUA=
+		7tydPPnA1VW1f7bof3RXNJs4RLw=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface</key>
 		<data>
-		lZ5T5upSFYMkabEp6jQb38rMdQI=
+		L8p78oB2umBGH5tDe4JUUhQvtHo=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftdoc</key>
 		<data>
-		06EKBbkm5U7fQt4VUFTdNghfZoM=
+		YayxKrXmo0xIXzmirQb7IiBp/I0=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface</key>
 		<data>
-		lZ5T5upSFYMkabEp6jQb38rMdQI=
+		L8p78oB2umBGH5tDe4JUUhQvtHo=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftmodule</key>
 		<data>
-		Lp4rNcgwNwmdtmDTR7KW3HkUHx0=
-		</data>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
-		<data>
-		oE3JCyGO9TajVMTkjecpfjztOUA=
-		</data>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface</key>
-		<data>
-		4vsaUC/oaxnHWtAjacEmlgUmEzk=
-		</data>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftdoc</key>
-		<data>
-		XH/5JXCCXii8LQEpmHDKgdp+uo4=
-		</data>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface</key>
-		<data>
-		4vsaUC/oaxnHWtAjacEmlgUmEzk=
-		</data>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftmodule</key>
-		<data>
-		CO/FhzdvhHMzqHZXrzHuKqY5RYQ=
+		dKsZus/5wcbgVXJNaf5qC3orzaQ=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -79,7 +55,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			3RwBhAUhgp4yg0gSfd2DXF4ajK8AJNdnDEAoh50o+4k=
+			Pjb/0f1ABkREm9ZLf8y7PyKH9edF+Y1vDGY6wBKbMnY=
 			</data>
 		</dict>
 		<key>Headers/Mason.h</key>
@@ -100,84 +76,42 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			Y9v2bU1SUqb5JrnLIMaUzA6XwhZ1YEaY4qzo/5SzedY=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			UG4vNunwEjwyEOR4KokLGVdGWvutro/V9SlRIerwHOw=
+			6AAKsOtzV8D2VYLZpfItufQ4SqjbBOMVaUKyXJ4F0sY=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			l9FGilvxGgVVMh8RsOM782nuMGL2sDKG9ngIZ6U6rsM=
+			0Q08H5HFjklE6MhzT7IHGg6km4wrZwnQWo4eIKqP8Zc=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			fCnwsKuNNbCbZ571TjQkEihpnsn6p3r6xESfL46Ad74=
+			YJA+qrWmudYL0OQpIVQ0zTUbeDJ0slGD/H3a0v8kAuo=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftdoc</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			ugP+iVcrZvpkLvDrHfUmziISHxcjW8ifyNanWwlfsWE=
+			A1MSrjM+Yy4Dhb+9fH0S6WmEABFZDri2JzuHJTorV50=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			fCnwsKuNNbCbZ571TjQkEihpnsn6p3r6xESfL46Ad74=
+			YJA+qrWmudYL0OQpIVQ0zTUbeDJ0slGD/H3a0v8kAuo=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftmodule</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			jmiYL+0tQRNgHuRgw78WGUkvstP6mLoqGOqZCE7y9Ss=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			l9FGilvxGgVVMh8RsOM782nuMGL2sDKG9ngIZ6U6rsM=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			X2/EQ5cm7qAPXbcM2f1394TdF6X4LdMS/3HL3ZY4tQA=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftdoc</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			XTpurXDbS+NZNvNQbrVL8dyCNV9tMYuDLef736+t+2M=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			X2/EQ5cm7qAPXbcM2f1394TdF6X4LdMS/3HL3ZY4tQA=
-			</data>
-		</dict>
-		<key>Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftmodule</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			7fFBkQiwvvtkIQnGqSyZcu2fs25E95v/gTjFT4Dmxqc=
+			Zv3YeAn1MJ73pvKoTDS2IVpA/k9zmeCULzgzk304dwg=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

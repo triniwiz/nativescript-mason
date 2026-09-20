@@ -1,11 +1,10 @@
 import { createSignal, For } from 'solid-js'
 import { BG, MUTED, COLORS, Card, Field, Segmented, Stepper, CodeBlock } from './controls'
 
-// position: absolute test harness — exercises the absolute-positioning paths on
-// both platforms: top/left/right/bottom insets, inset:0 stretch, margin-auto
+// Position playground: every CSS position value, insets, inset:0 stretch, margin-auto
 // centering, percentage insets, corner pinning, badge overlays and z-stacking.
 export default function Position() {
-  const [posKind, setPosKind] = createSignal<'absolute' | 'relative'>('absolute')
+  const [posKind, setPosKind] = createSignal<'static' | 'relative' | 'absolute' | 'fixed' | 'sticky'>('absolute')
   const [top, setTop] = createSignal(20)
   const [left, setLeft] = createSignal(20)
 
@@ -71,8 +70,11 @@ export default function Position() {
               value={posKind()}
               onChange={setPosKind}
               options={[
-                { label: 'absolute', value: 'absolute' },
+                { label: 'static', value: 'static' },
                 { label: 'relative', value: 'relative' },
+                { label: 'absolute', value: 'absolute' },
+                { label: 'fixed', value: 'fixed' },
+                { label: 'sticky', value: 'sticky' },
               ]}
             />
           </Field>
@@ -246,6 +248,55 @@ export default function Position() {
                 </div>
               )}
             </For>
+          </div>
+        </Card>
+
+        {/* static / fixed / sticky */}
+        <Card title="STATIC vs RELATIVE: inset is ignored on static">
+          <p style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
+            Both boxes set top:16 left:16. static is the CSS initial value and ignores it.
+          </p>
+          <div style={{ position: 'relative', height: 120, backgroundColor: '#eef2f6', borderRadius: '12px' }}>
+            <div style={{ position: 'static', top: 16, left: 16, width: 100, height: 44, borderRadius: '10px', backgroundColor: '#636e72', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>static</p>
+            </div>
+            <div style={{ position: 'relative', top: 16, left: 16, width: 100, height: 44, borderRadius: '10px', backgroundColor: '#6c5ce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>relative</p>
+            </div>
+          </div>
+          <CodeBlock lines={['position: static;  /* inset ignored, stays in flow */', 'position: relative; /* in flow, inset shifts it */']} />
+        </Card>
+
+        <Card title="FIXED: reparented to the containing block">
+          <p style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
+            The parent below is relatively positioned and clips its overflow. The absolute child
+            anchors to it and stays clipped, like the web. The fixed child resolves its insets
+            against the page's viewport and its native view is reparented there too, so right:8
+            pins it to the real screen edge: it escapes the clip below and holds still when you
+            scroll the page.
+          </p>
+          <div style={{ position: 'relative', height: 140, backgroundColor: '#eef2f6', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 8, left: 8, width: 120, height: 40, borderRadius: '10px', backgroundColor: '#0984e3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>absolute 8,8</p>
+            </div>
+            <div style={{ position: 'fixed', top: 8, right: 8, width: 120, height: 40, borderRadius: '10px', backgroundColor: '#00b894', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>fixed 8,8</p>
+            </div>
+          </div>
+          <CodeBlock lines={['position: fixed; top: 8; right: 8;']} />
+        </Card>
+
+        <Card title="STICKY: sticks within its own scroll container">
+          <p style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
+            Sticky insets are scroll thresholds: mason tracks this box's nearest scrolling
+            ancestor — the page itself — and holds it at top:0 of the viewport while its 90px
+            wrapper below is in view, releasing it once the wrapper scrolls past. Scroll the page
+            to see it engage.
+          </p>
+          <div style={{ position: 'relative', height: 90, backgroundColor: '#eef2f6', borderRadius: '12px' }}>
+            <div style={{ position: 'sticky', top: 0, width: 140, height: 40, borderRadius: '10px', backgroundColor: '#fdcb6e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ fontSize: 12, color: '#2d3436', fontWeight: 'bold' }}>sticky top:0</p>
+            </div>
           </div>
         </Card>
 

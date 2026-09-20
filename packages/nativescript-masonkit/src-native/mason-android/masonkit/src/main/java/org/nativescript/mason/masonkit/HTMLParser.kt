@@ -731,8 +731,11 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "margin-bottom" -> parseLengthPercentageAuto(value)?.let { style.marginBottom = it }
 
       "position" -> when (value) {
+        "static" -> style.position = Position.Static
         "relative" -> style.position = Position.Relative
         "absolute" -> style.position = Position.Absolute
+        "fixed" -> style.position = Position.Fixed
+        "sticky" -> style.position = Position.Sticky
       }
 
       "overflow" -> parseOverflow(value)?.let { style.overflow = Point(it, it) }
