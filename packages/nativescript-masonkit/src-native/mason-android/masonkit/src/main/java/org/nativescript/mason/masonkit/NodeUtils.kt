@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.view.View
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.Position
 
 internal object NodeUtils {
   fun isInlineLike(node: Node): Boolean {
@@ -188,6 +189,10 @@ internal object NodeUtils {
         is ViewGroup -> {
           (parent.view as ViewGroup).removeView(view)
         }
+      }
+      // Fixed views live under their containing block, not their tree parent.
+      if ((view as? Element)?.node?.style?.position == Position.Fixed) {
+        removeViewFallback(view)
       }
     }
   }

@@ -196,7 +196,16 @@ public class MasonNode: NSObject {
   public internal(set) var nativePtr: OpaquePointer?
   
   public internal(set) var computedLayout = MasonLayout.empty
-  
+
+  // position: fixed / sticky state — see MasonPositioning.swift.
+  internal weak var fixedOriginalSuperview: UIView? = nil
+  internal var stickyLocalOrigin: CGPoint = .zero
+  internal var stickyNaturalOrigin: CGPoint = .zero
+  internal var stickyContainingBlockRect: CGRect = .zero
+  internal var stickyViewSize: CGSize = .zero
+  internal weak var stickyScrollHost: UIView? = nil
+  internal var isStickyEngaged: Bool = false
+
   // Cached default attributes — invalidated when style version changes
   private var _cachedDefaultAttributes: [NSAttributedString.Key: Any]?
   private var _defaultAttrsStyleVersion: UInt64 = 0

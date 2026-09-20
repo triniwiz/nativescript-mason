@@ -75,6 +75,7 @@
 		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
 		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
 		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
+		0AE3F6404DEC1D298257A893 /* MasonPositioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3566126DEDA2AF8CE957357F /* MasonPositioning.swift */; };
 		F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */; };
 		F1F29C5A2EF8587600324A68 /* Shadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F29C592EF8587300324A68 /* Shadow.swift */; };
 		F1F4F1012F0F7F5400FBA616 /* MasonPasswordInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F4F1002F0F7F4C00FBA616 /* MasonPasswordInput.swift */; };
@@ -205,6 +206,7 @@
 		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
 		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
+		3566126DEDA2AF8CE957357F /* MasonPositioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPositioning.swift; sourceTree = "<group>"; };
 		F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHelpers.swift; sourceTree = "<group>"; };
 		F1F29C592EF8587300324A68 /* Shadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shadow.swift; sourceTree = "<group>"; };
 		F1F4F1002F0F7F4C00FBA616 /* MasonPasswordInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPasswordInput.swift; sourceTree = "<group>"; };
@@ -341,6 +343,7 @@
 				F1DE08982EBC1195002870F6 /* Constants.swift */,
 				F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */,
 				F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */,
+				3566126DEDA2AF8CE957357F /* MasonPositioning.swift */,
 				F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */,
 				F13D4E922E96EDEF00456A68 /* MasonDocument.swift */,
 				F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */,
@@ -683,6 +686,7 @@
 				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
 				F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */,
 				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
+				0AE3F6404DEC1D298257A893 /* MasonPositioning.swift in Sources */,
 				F12BE0232F5425D0008C6B6B /* BoxShadowRenderer.swift in Sources */,
 				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,

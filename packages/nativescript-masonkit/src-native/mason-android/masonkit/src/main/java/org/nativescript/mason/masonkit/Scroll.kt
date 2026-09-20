@@ -6,6 +6,8 @@ import android.util.AttributeSet
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
 import org.nativescript.mason.masonkit.enums.Overflow
+import java.util.Collections
+import java.util.WeakHashMap
 import kotlin.math.min
 
 /**
@@ -66,6 +68,13 @@ class Scroll @JvmOverloads constructor(
     node.style.setStyleChangeListener(this)
   }
 
+  // position: sticky descendants of this scroll container — see MasonPositioning.kt.
+  private val stickyDescendants: MutableSet<android.view.View> = Collections.newSetFromMap(WeakHashMap())
+
+  fun registerSticky(view: android.view.View) {
+    stickyDescendants.add(view)
+  }
+
   init {
     if (!override) {
       if (!::node.isInitialized) {
@@ -77,6 +86,11 @@ class Scroll @JvmOverloads constructor(
     }
     clipChildren = false
     clipToPadding = false
+    setScrollChangeListner(object : TwoDScrollView.ScrollChangeListener {
+      override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
+        MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
+      }
+    })
   }
 
   override fun onChange(low: Long, high: Long) {

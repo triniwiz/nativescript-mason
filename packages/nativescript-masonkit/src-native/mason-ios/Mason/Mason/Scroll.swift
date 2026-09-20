@@ -172,6 +172,13 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   }
 
   private var lastContentOffset: CGPoint = .zero
+  // position: sticky descendants of this scroll container — see MasonPositioning.swift.
+  fileprivate lazy var stickyDescendants = NSHashTable<UIView>.weakObjects()
+
+  func registerSticky(_ view: UIView) {
+    stickyDescendants.add(view)
+  }
+
   public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
     lastContentOffset = scrollView.contentOffset
   }
@@ -194,6 +201,8 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     }
 
     lastContentOffset = targetOffset
+
+    MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
   }
 
 

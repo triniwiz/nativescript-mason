@@ -255,6 +255,13 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     set { _setScrollOrigin(_clampScrollOffset(newValue)) }
   }
 
+  // position: sticky descendants of this scroll container — see MasonPositioning.swift.
+  fileprivate lazy var stickyDescendants = NSHashTable<UIView>.weakObjects()
+
+  func registerSticky(_ view: UIView) {
+    stickyDescendants.add(view)
+  }
+
   // Set the scroll origin without clamping, so pan/deceleration can hold an overscrolled position.
   private func _setScrollOrigin(_ c: CGPoint) {
     guard bounds.origin != c else { return }
@@ -264,6 +271,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     var b = bounds; b.origin = c; bounds = b
     _updateScrollMask()
     CATransaction.commit()
+    if isScrollContainer {
+      MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
+    }
   }
 
   private lazy var _scrollPanGesture: UIPanGestureRecognizer = {

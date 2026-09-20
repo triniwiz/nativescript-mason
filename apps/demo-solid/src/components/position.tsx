@@ -267,12 +267,13 @@ export default function Position() {
           <CodeBlock lines={['position: static;  /* inset ignored, stays in flow */', 'position: relative; /* in flow, inset shifts it */']} />
         </Card>
 
-        <Card title="FIXED (partial): anchors to the root, but is not reparented">
+        <Card title="FIXED: reparented to the containing block">
           <p style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
-            The parent below is relatively positioned. The absolute child anchors to it. The fixed
-            child resolves its insets against the root, so right:8 reaches past the parent, but its
-            native view is still a child of that parent: it is clipped by it and does not stay put
-            when you scroll. Reparenting to the containing block is not implemented yet.
+            The parent below is relatively positioned and clips its overflow. The absolute child
+            anchors to it and stays clipped, like the web. The fixed child resolves its insets
+            against the page's viewport and its native view is reparented there too, so right:8
+            pins it to the real screen edge: it escapes the clip below and holds still when you
+            scroll the page.
           </p>
           <div style={{ position: 'relative', height: 140, backgroundColor: '#eef2f6', borderRadius: '12px', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 8, left: 8, width: 120, height: 40, borderRadius: '10px', backgroundColor: '#0984e3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -285,15 +286,16 @@ export default function Position() {
           <CodeBlock lines={['position: fixed; top: 8; right: 8;']} />
         </Card>
 
-        <Card title="STICKY (accepted, inert): laid out as static">
+        <Card title="STICKY: sticks within its own scroll container">
           <p style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
-            Sticky insets are scroll thresholds, which the layout engine knows nothing about, so it
-            lays a sticky box out exactly like a static one and leaves the offset to the caller.
-            mason does not apply it yet, so this box simply stays in flow.
+            Sticky insets are scroll thresholds: mason tracks this box's nearest scrolling
+            ancestor — the page itself — and holds it at top:0 of the viewport while its 90px
+            wrapper below is in view, releasing it once the wrapper scrolls past. Scroll the page
+            to see it engage.
           </p>
           <div style={{ position: 'relative', height: 90, backgroundColor: '#eef2f6', borderRadius: '12px' }}>
             <div style={{ position: 'sticky', top: 0, width: 140, height: 40, borderRadius: '10px', backgroundColor: '#fdcb6e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p style={{ fontSize: 12, color: '#2d3436', fontWeight: 'bold' }}>sticky (in flow)</p>
+              <p style={{ fontSize: 12, color: '#2d3436', fontWeight: 'bold' }}>sticky top:0</p>
             </div>
           </div>
         </Card>
