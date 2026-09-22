@@ -23,13 +23,13 @@ interface Element : EventTarget {
   override val node: Node
 
   /**
-   * Serialising the live tree back to HTML is not implemented; the getter
-   * returns the markup last assigned, which is what a round-trip through
-   * `innerHTML` needs and is honest about the rest.
+   * Text containers serialise their live inline runs; other elements return
+   * the markup last assigned, which is what a round-trip through `innerHTML`
+   * needs and is honest about the rest.
    */
   var innerHTML: String
     get() {
-      return node.assignedInnerHTML
+      return (this as? TextContainer)?.engine?.innerHTML ?: node.assignedInnerHTML
     }
     set(value) {
       node.assignedInnerHTML = value
@@ -263,10 +263,15 @@ interface Element : EventTarget {
       computeNestedRootLater(widthArg, heightArg)
       return false
     }
-    val stale = node.computeStale(widthArg, heightArg)
     node.nestedComputePending = false
+    // what the host last took from us; a spec change alone (StackLayout
+    // measures UNSPECIFIED then EXACTLY every pass) must not bounce the host
+    val seenWidth = view.measuredWidth
+    val seenHeight = view.measuredHeight
     compute(widthArg, heightArg)
-    if (stale) invalidateForeignHost()
+    if (node.computedWidth.toInt() != seenWidth || node.computedHeight.toInt() != seenHeight) {
+      invalidateForeignHost()
+    }
     return true
   }
 
@@ -1017,12 +1022,19 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // Foreign views are leaf nodes. If the first pass produced an empty
           // axis, remeasure outside Rust's lock so nested Mason children can
           // compute their intrinsic size, then invalidate Taffy's stale leaf.
+          // A pending requestLayout on the leaf (children added, text changed)
+          // never reaches Taffy on its own: the cached leaf size is reused and
+          // the skip guard below would not even re-measure it.
           val foreignSize = if (view !is Element) node.style.size else null
-          val fallbackWidth = width <= 0 && foreignSize?.width is Dimension.Auto
-          val fallbackHeight = height <= 0 && foreignSize?.height is Dimension.Auto
-          if (view !is Element && (fallbackWidth || fallbackHeight)) {
+          val autoWidth = foreignSize?.width is Dimension.Auto
+          val autoHeight = foreignSize?.height is Dimension.Auto
+          val fallbackWidth = width <= 0 && autoWidth
+          val fallbackHeight = height <= 0 && autoHeight
+          val leafChanged = view !is Element && view.isLayoutRequested
+          if (view !is Element && (fallbackWidth || fallbackHeight || leafChanged)) {
             val assignedWidth = width
             val assignedHeight = height
+            val freeHeight = fallbackHeight || (leafChanged && autoHeight)
             view.forceLayout()
             view.measure(
               MeasureSpec.makeMeasureSpec(
@@ -1030,12 +1042,12 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
                 if (assignedWidth > 0) MeasureSpec.EXACTLY else MeasureSpec.UNSPECIFIED
               ),
               MeasureSpec.makeMeasureSpec(
-                assignedHeight.coerceAtLeast(0),
-                if (assignedHeight > 0) MeasureSpec.EXACTLY else MeasureSpec.UNSPECIFIED
+                if (freeHeight) 0 else assignedHeight.coerceAtLeast(0),
+                if (freeHeight || assignedHeight <= 0) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
               )
             )
             if (fallbackWidth) width = view.measuredWidth
-            if (fallbackHeight) height = view.measuredHeight
+            if (freeHeight) height = view.measuredHeight
             if (width != assignedWidth || height != assignedHeight) {
               node.dirty()
               this.node.computeCacheDirty = true
@@ -1114,7 +1126,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // since this function's own DFS drives child layout directly. Li
           // is excluded: its onLayout re-triggers applyLayoutFlat against
           // its own RecyclerView-backed layout tree and must always run.
-          val skipMeasureAndLayout = view !is Li &&
+          val skipMeasureAndLayout = view !is Li && !leafChanged &&
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom
 
