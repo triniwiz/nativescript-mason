@@ -18,6 +18,45 @@ class InlineLayoutInstrumentedTest {
 
   private val TAG = "InlineLayoutTest"
 
+  @Test
+  fun mixedRunsExposeTextContentAndInnerHTML() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = Mason()
+    val p = mason.createTextView(context, TextType.P)
+    val script = mason.createTextView(context, TextType.Span).apply { append("script") }
+    val setup = mason.createTextView(context, TextType.Span).apply { append("setup") }
+
+    p.append("<")
+    p.append(script)
+    p.append(" ")
+    p.append(setup)
+    p.append(">")
+
+    Assert.assertEquals("<script setup>", p.textContent)
+    Assert.assertEquals("&lt;<span>script</span> <span>setup</span>&gt;", p.innerHTML)
+  }
+
+  @Test
+  fun anonymousTextViewsSerializeAsTextRuns() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = Mason()
+    val p = mason.createTextView(context, TextType.P)
+    val open = mason.createTextView(context, TextType.Span, true).apply { append("<") }
+    val script = mason.createTextView(context, TextType.Span).apply { append("script") }
+    val space = mason.createTextView(context, TextType.Span, true).apply { append(" ") }
+    val setup = mason.createTextView(context, TextType.Span).apply { append("setup") }
+    val close = mason.createTextView(context, TextType.Span, true).apply { append(">") }
+
+    p.append(open)
+    p.append(script)
+    p.append(space)
+    p.append(setup)
+    p.append(close)
+
+    Assert.assertEquals("<script setup>", p.textContent)
+    Assert.assertEquals("&lt;<span>script</span> <span>setup</span>&gt;", p.innerHTML)
+  }
+
   /**
    * Reproduces the user-reported bug: a `<p>` with two `<code>` children that
    * have only `backgroundColor` set.  Those children should be flattened

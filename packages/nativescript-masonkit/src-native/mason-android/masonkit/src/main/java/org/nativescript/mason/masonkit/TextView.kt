@@ -614,12 +614,10 @@ class TextView @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element || node.parent == null) {
-      if (!node.mason.inCompute) {
-        compute(
-          mapMeasureSpec(specWidthMode, specWidth).value,
-          mapMeasureSpec(specHeightMode, specHeight).value
-        )
-      }
+      computeOrDeferNested(
+        mapMeasureSpec(specWidthMode, specWidth).value,
+        mapMeasureSpec(specHeightMode, specHeight).value
+      )
 
       layoutFlat()
       setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())

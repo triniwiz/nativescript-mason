@@ -54,6 +54,9 @@ open class Node internal constructor(
 
 
   internal var computeCacheDirty = false
+  internal var nestedComputePending = false
+  internal var nestedComputeWidth = 0f
+  internal var nestedComputeHeight = 0f
   internal var computeScheduled = false
   internal var hasNativeClickDispatch = false
   internal var isPlaceholder = false
@@ -74,6 +77,11 @@ open class Node internal constructor(
         value
       }
     }
+
+  internal fun computeStale(width: Float, height: Float): Boolean {
+    return computeCacheDirty || layoutTree.nodeCount == 0 ||
+      computeCache.width != width || computeCache.height != height
+  }
 
   // Flat layout tree this node owns — only ever filled with real data when
   // THIS node drives its own layout pass (a root Element, or a self-computing
@@ -301,7 +309,7 @@ open class Node internal constructor(
             val paramsWidth = layoutParams.width
             when (paramsWidth) {
               ViewGroup.LayoutParams.MATCH_PARENT -> {
-                if (availableWidth < -1) {
+                if (availableWidth <= 0) {
                   width = Int.MAX_VALUE
                   MeasureSpec.UNSPECIFIED
                 } else {
@@ -336,7 +344,7 @@ open class Node internal constructor(
             val paramsheight = layoutParams.height
             when (paramsheight) {
               ViewGroup.LayoutParams.MATCH_PARENT -> {
-                if (availableHeight < -1) {
+                if (availableHeight <= 0) {
                   height = Int.MAX_VALUE
                   MeasureSpec.UNSPECIFIED
                 } else {

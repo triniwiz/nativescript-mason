@@ -207,6 +207,88 @@ interface Element : EventTarget {
     node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
+  /**
+   * Root measured from inside another tree's compute: a core ViewGroup that is
+   * a leaf of an outer Mason tree is measuring its Mason children while Rust
+   * holds the tree lock. Callers report the last computed size; if that is
+   * stale for these constraints, compute once the outer pass ends and dirty the
+   * foreign leaf so the outer tree re-measures it with the real size.
+   */
+  fun computeNestedRootLater(widthArg: Float, heightArg: Float) {
+    if (!node.computeStale(widthArg, heightArg)) return
+    // remember the latest constraints: a re-measure with different specs before
+    // the posted pass runs must win over the values that scheduled it
+    node.nestedComputeWidth = widthArg
+    node.nestedComputeHeight = heightArg
+    if (node.nestedComputePending) return
+    node.nestedComputePending = true
+    val compute = Runnable {
+      if (!node.nestedComputePending) return@Runnable
+      node.nestedComputePending = false
+      computeAndLayout(node.nestedComputeWidth, node.nestedComputeHeight)
+      // the outer pass skips re-laying-out a leaf whose size is unchanged, so
+      // a content-only change would never reach onLayout: apply it here
+      if (node.layoutTree.nodeCount > 0) applyLayoutFlat(node, node.layoutTree)
+      foreignHostLeaf()?.let { (leaf, host) ->
+        // The foreign ViewGroup cached the first pass, when its Mason children
+        // had no computed size. Remeasure it now that the nested roots are
+        // available; this runs outside Rust's tree lock and also measures any
+        // sibling Mason roots whose deferred callbacks have not run yet.
+        view.forceLayout()
+        leaf.forceLayout()
+        val leafWidth = leaf.measuredWidth
+        leaf.measure(
+          MeasureSpec.makeMeasureSpec(
+            leafWidth.coerceAtLeast(0),
+            if (leafWidth > 0) MeasureSpec.EXACTLY else MeasureSpec.UNSPECIFIED
+          ),
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        // the leaf node lives in the outer tree's registry, not ours
+        host.node.mason.nodeForView(leaf).dirty()
+        host.invalidateLayout()
+      }
+    }
+    (view.handler ?: android.os.Handler(android.os.Looper.getMainLooper())).post(compute)
+  }
+
+  /**
+   * Dispatch for a Mason root measured by a non-Element parent: compute now,
+   * or defer via [computeNestedRootLater] when an outer tree's compute holds
+   * the Rust lock. Returns true when a synchronous compute ran — callers that
+   * only re-apply layout on fresh results should gate on it.
+   */
+  fun computeOrDeferNested(widthArg: Float, heightArg: Float): Boolean {
+    if (node.mason.inCompute) {
+      computeNestedRootLater(widthArg, heightArg)
+      return false
+    }
+    val stale = node.computeStale(widthArg, heightArg)
+    node.nestedComputePending = false
+    compute(widthArg, heightArg)
+    if (stale) invalidateForeignHost()
+    return true
+  }
+
+  private fun foreignHostLeaf(): Pair<View, Element>? {
+    var leaf: View = view
+    var host: android.view.ViewParent? = view.getParent()
+    while (host is View && host !is Element) {
+      leaf = host
+      host = host.getParent()
+    }
+    return (host as? Element)?.let { leaf to it }
+  }
+
+  fun invalidateForeignHost() {
+    foreignHostLeaf()?.let { (leaf, host) ->
+      view.forceLayout()
+      leaf.forceLayout()
+      host.node.mason.nodeForView(leaf).dirty()
+      host.invalidateLayout()
+    }
+  }
+
   fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
@@ -245,6 +327,7 @@ interface Element : EventTarget {
     if (mason.inCompute) {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     }
+    node.nestedComputePending = false
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native
@@ -931,10 +1014,33 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           var width = ceil(fx + fw).toInt() - x
           var height = ceil(fy + fh).toInt() - y
 
-          // Foreign views are leaf nodes; honour Taffy's computed box, falling back to intrinsic measurement only when it is empty.
-          if (view !is Element && (width <= 0 || height <= 0)) {
-            width = view.measuredWidth
-            height = view.measuredHeight
+          // Foreign views are leaf nodes. If the first pass produced an empty
+          // axis, remeasure outside Rust's lock so nested Mason children can
+          // compute their intrinsic size, then invalidate Taffy's stale leaf.
+          val foreignSize = if (view !is Element) node.style.size else null
+          val fallbackWidth = width <= 0 && foreignSize?.width is Dimension.Auto
+          val fallbackHeight = height <= 0 && foreignSize?.height is Dimension.Auto
+          if (view !is Element && (fallbackWidth || fallbackHeight)) {
+            val assignedWidth = width
+            val assignedHeight = height
+            view.forceLayout()
+            view.measure(
+              MeasureSpec.makeMeasureSpec(
+                assignedWidth.coerceAtLeast(0),
+                if (assignedWidth > 0) MeasureSpec.EXACTLY else MeasureSpec.UNSPECIFIED
+              ),
+              MeasureSpec.makeMeasureSpec(
+                assignedHeight.coerceAtLeast(0),
+                if (assignedHeight > 0) MeasureSpec.EXACTLY else MeasureSpec.UNSPECIFIED
+              )
+            )
+            if (fallbackWidth) width = view.measuredWidth
+            if (fallbackHeight) height = view.measuredHeight
+            if (width != assignedWidth || height != assignedHeight) {
+              node.dirty()
+              this.node.computeCacheDirty = true
+              this.view.requestLayout()
+            }
           }
 
           val contentWidth = if (boxing == BoxSizing.BorderBox.value) {
