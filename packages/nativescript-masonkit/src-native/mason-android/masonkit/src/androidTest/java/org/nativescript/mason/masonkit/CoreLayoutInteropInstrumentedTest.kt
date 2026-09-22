@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.LinearLayout
@@ -107,7 +109,35 @@ class CoreLayoutInteropInstrumentedTest {
     assertTrue("core children should remain visible", row.height > 0)
   }
 
-  private fun measureAndLayout(root: View) {
+  @Test
+  fun attachedTextNodeUpdateChangesButtonText() {
+    val mason = Mason()
+    val root = mason.createView(context)
+    val button = Button(context, mason)
+    val textNode = TextNode(mason, "Count 0")
+    button.node.appendChild(textNode)
+    root.addView(button)
+
+    measureAndLayout(root)
+    assertEquals("Count 0", button.text.toString())
+
+    instrumentation.runOnMainSync {
+      textNode.data = "Count 1"
+      button.draw(
+        Canvas(
+          Bitmap.createBitmap(
+            button.width.coerceAtLeast(1),
+            button.height.coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888
+          )
+        )
+      )
+    }
+
+    assertEquals("Count 1", button.text.toString())
+  }
+
+  private fun measureAndLayout(root: android.view.View) {
     instrumentation.runOnMainSync {
       root.forceLayout()
       root.measure(
