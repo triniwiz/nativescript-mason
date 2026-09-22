@@ -17,6 +17,11 @@ class ListInstrumentedTest {
 
   private val TAG = "ListInstrumentedTest"
 
+  private fun measure(li: Li): Size<Float> {
+    val packed = li.measure(-3f, -3f, -2f, -2f)
+    return Size(MeasureOutput.getWidth(packed), MeasureOutput.getHeight(packed))
+  }
+
   // -- Li node creation --
 
   @Test
@@ -57,7 +62,7 @@ class ListInstrumentedTest {
       li.isOrdered = false
       li.position = 0
 
-      val size = li.measure(Size(null, null), Size(null, null))
+      val size = measure(li)
       Log.i(TAG, "Unordered disc marker: width=${size.width} height=${size.height}")
 
       Assert.assertTrue("Marker width should be > 0", size.width > 0f)
@@ -76,7 +81,7 @@ class ListInstrumentedTest {
       li.isOrdered = true
       li.position = 0
 
-      val size = li.measure(Size(null, null), Size(null, null))
+      val size = measure(li)
       Log.i(TAG, "Ordered decimal marker: width=${size.width} height=${size.height}")
 
       Assert.assertTrue("Marker width should be > 0", size.width > 0f)
@@ -94,10 +99,10 @@ class ListInstrumentedTest {
       li.isOrdered = true
 
       li.position = 0
-      val size1 = li.measure(Size(null, null), Size(null, null))
+      val size1 = measure(li)
 
       li.position = 99
-      val size100 = li.measure(Size(null, null), Size(null, null))
+      val size100 = measure(li)
 
       Log.i(TAG, "Position 1 width=${size1.width}, Position 100 width=${size100.width}")
 
@@ -119,7 +124,7 @@ class ListInstrumentedTest {
       li.style.values.put(StyleKeys.LIST_STYLE_TYPE_STATE, StyleState.SET)
       li.style.values.put(StyleKeys.LIST_STYLE_TYPE, ListStyleType.None.value)
 
-      val size = li.measure(Size(null, null), Size(null, null))
+      val size = measure(li)
       Log.i(TAG, "None marker: width=${size.width} height=${size.height}")
 
       Assert.assertEquals("None style marker width should be 0", 0f, size.width, 0.001f)
@@ -173,7 +178,7 @@ class ListInstrumentedTest {
       li.position = 5
       li.setMarkerValue("6.")
       // Trigger measurement to populate marker dimensions
-      li.measure(Size(null, null), Size(null, null))
+      measure(li)
       Assert.assertTrue("markerWidth should be set before reset", li.markerWidth > 0f)
 
       li.resetForRecycle()

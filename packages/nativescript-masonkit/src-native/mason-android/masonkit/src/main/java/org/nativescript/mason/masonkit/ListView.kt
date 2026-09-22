@@ -137,10 +137,7 @@ class ListView @JvmOverloads constructor(
     // Only compute if we are the layout root — when parent is an Element,
     // Taffy computes top-down and will handle this node in the recursive call.
     if (parent !is Element) {
-      if (!node.mason.inCompute) {
-        compute(
-          availableWidth, availableHeight
-        )
+      if (computeOrDeferNested(availableWidth, availableHeight)) {
         layoutFlat()
       }
 

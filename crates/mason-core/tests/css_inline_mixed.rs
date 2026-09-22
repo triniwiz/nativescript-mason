@@ -1,6 +1,8 @@
 use mason_core::style::DisplayMode;
 use mason_core::*;
 use std::ffi::{c_float, c_longlong, c_void};
+use taffy::geometry::Rect;
+use taffy::style::LengthPercentage;
 use taffy::style::Display;
 
 extern "C" fn measure_40x20(
@@ -36,6 +38,58 @@ extern "C" fn measure_80x25(
 // Helper approx
 fn approx(a: f32, b: f32) -> bool {
     (a - b).abs() < 0.5
+}
+
+#[test]
+fn mixed_block_child_uses_parent_content_width() {
+    let mut mason = Mason::new();
+
+    let parent = mason.create_node();
+    let pid = parent.id();
+    mason.with_style_mut(pid, |s| {
+        s.set_display(Display::Block);
+        s.set_size(taffy::geometry::Size {
+            width: taffy::style::Dimension::length(300.0),
+            height: taffy::style::Dimension::auto(),
+        });
+        s.set_padding(Rect {
+            left: LengthPercentage::length(16.0),
+            right: LengthPercentage::length(16.0),
+            top: LengthPercentage::length(0.0),
+            bottom: LengthPercentage::length(0.0),
+        });
+        s.set_border(Rect {
+            left: LengthPercentage::length(1.0),
+            right: LengthPercentage::length(1.0),
+            top: LengthPercentage::length(1.0),
+            bottom: LengthPercentage::length(1.0),
+        });
+    });
+
+    let label = mason.create_text_node();
+    let label_id = label.id();
+    mason.set_measure(label_id, Some(measure_40x20), std::ptr::null_mut());
+    mason.with_style_mut(label_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Inline);
+    });
+
+    let row = mason.create_node();
+    let row_id = row.id();
+    mason.with_style_mut(row_id, |s| {
+        s.set_display(Display::Flex);
+        s.set_display_mode(DisplayMode::None);
+    });
+
+    mason.append_node(pid, &[label_id, row_id]);
+    mason.compute_wh(pid, 300.0, f32::NAN);
+
+    let row_layout = mason.layout_raw(row_id);
+    assert!(
+        approx(row_layout.size.width, 266.0),
+        "block child should fill the 266px content box, got {}",
+        row_layout.size.width
+    );
 }
 
 // Test: inline parent with an inline-block and an inline-grid child

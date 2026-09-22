@@ -167,11 +167,11 @@ class Li @JvmOverloads constructor(
       }
 
       !is Element -> {
-        if (!node.mason.inCompute) {
-          compute(
+        if (computeOrDeferNested(
             mapMeasureSpec(specWidthMode, specWidth).value,
             mapMeasureSpec(specHeightMode, specHeight).value
           )
+        ) {
           layoutFlat()
         }
       }

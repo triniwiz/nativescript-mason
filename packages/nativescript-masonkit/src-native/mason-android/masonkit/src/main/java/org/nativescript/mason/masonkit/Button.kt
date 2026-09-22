@@ -329,6 +329,26 @@ class Button @JvmOverloads constructor(
     return engine.measure(paint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val specWidth = MeasureSpec.getSize(widthMeasureSpec)
+    val specHeight = MeasureSpec.getSize(heightMeasureSpec)
+    val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
+    val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
+
+    if (parent !is Element || node.parent == null) {
+      computeOrDeferNested(
+        org.nativescript.mason.masonkit.View.mapMeasureSpec(specWidthMode, specWidth).value,
+        org.nativescript.mason.masonkit.View.mapMeasureSpec(specHeightMode, specHeight).value
+      )
+      layoutFlat()
+      setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
+    } else if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
+      setMeasuredDimension(specWidth, specHeight)
+    } else {
+      setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
+    }
+  }
+
   override fun onChange(low: Long, high: Long) {
     engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
 

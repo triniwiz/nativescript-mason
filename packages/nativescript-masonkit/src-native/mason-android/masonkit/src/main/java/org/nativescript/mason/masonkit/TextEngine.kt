@@ -82,13 +82,7 @@ class TextEngine(val container: TextContainer) {
 
   var textContent: String
     get() {
-      var result = ""
-      for (child in node.children) {
-        if (child is TextNode) {
-          result += child.data
-        }
-      }
-      return result
+      return buildString { appendText(node) }
     }
     set(value) {
       // Remove all existing children
@@ -114,6 +108,31 @@ class TextEngine(val container: TextContainer) {
         it.requestLayout()
       }
     }
+
+  val innerHTML: String
+    get() = buildString {
+      for (child in node.children) appendHTML(child)
+    }
+
+  private fun StringBuilder.appendText(parent: Node) {
+    for (child in parent.children) {
+      if (child is TextNode) append(child.data) else appendText(child)
+    }
+  }
+
+  private fun StringBuilder.appendHTML(child: Node) {
+    if (child is TextNode) {
+      append(android.text.TextUtils.htmlEncode(child.data))
+      return
+    }
+
+    val textView = child.view as? org.nativescript.mason.masonkit.TextView
+    val tag = if (child.isAnonymous) null else
+      textView?.type?.takeUnless { it == org.nativescript.mason.masonkit.enums.TextType.None }?.cssValue
+    if (tag != null) append('<').append(tag).append('>')
+    for (descendant in child.children) appendHTML(descendant)
+    if (tag != null) append("</").append(tag).append('>')
+  }
 
   // Web parity: browsers don't add Android's extra "font padding" (top/bottom
   // metrics) to the line box — `line-height: normal` uses the font's recommended

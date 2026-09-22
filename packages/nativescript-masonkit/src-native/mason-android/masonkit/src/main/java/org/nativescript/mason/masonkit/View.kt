@@ -259,26 +259,32 @@ open class View @JvmOverloads constructor(
         // despite children having intrinsic size. Treat EXACTLY/0 as MaxContent
         // when acting as the root.
         val widthArg = mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = if (specHeightMode == MeasureSpec.EXACTLY && specHeight == 0) {
-          // MaxContent sentinel
-          -2f
-        } else {
-          mapMeasureSpec(specHeightMode, specHeight).value
-        }
+        val heightArg = mapHeightSpecArg(specHeightMode, specHeight)
+        val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(
           widthArg,
           heightArg
         )
+        if (stale) invalidateForeignHost()
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
           return
         }
         setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
       } else {
-        // we're currently inside a compute cycle; running computeAndLayout would
-        // deadlock, so temporarily fall back to the provided spec sizes.
-        setMeasuredDimension(specWidth, specHeight)
+        val heightArg = mapHeightSpecArg(specHeightMode, specHeight)
+        computeNestedRootLater(
+          mapMeasureSpec(specWidthMode, specWidth).value,
+          heightArg
+        )
+        // never computed (nodeCount == 0): no valid size to report yet — fall
+        // back to the spec sizes; the deferred pass corrects them once it runs
+        val empty = node.layoutTree.nodeCount == 0
+        setMeasuredDimension(
+          if (empty) specWidth else node.computedWidth.toInt(),
+          if (empty) specHeight else node.computedHeight.toInt()
+        )
       }
     } else {
       setMeasuredDimension(
@@ -2102,6 +2108,12 @@ open class View @JvmOverloads constructor(
 
         else -> AvailableSpace.MinContent
       }
+    }
+
+    // Core auto rows probe children at zero before accepting intrinsic height:
+    // an EXACTLY/0 height spec means MaxContent, not definite-0.
+    internal fun mapHeightSpecArg(mode: Int, size: Int): Float {
+      return if (mode == MeasureSpec.EXACTLY && size == 0) -2f else mapMeasureSpec(mode, size).value
     }
 
     internal val gson = GsonBuilder().addSerializationExclusionStrategy(object : ExclusionStrategy {

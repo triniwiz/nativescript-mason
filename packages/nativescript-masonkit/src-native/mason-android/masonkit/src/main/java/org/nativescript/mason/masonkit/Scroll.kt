@@ -204,38 +204,57 @@ class Scroll @JvmOverloads constructor(
     if (parent !is Element) {
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = if (specHeightMode == MeasureSpec.EXACTLY && specHeight == 0) {
-          -2f // MaxContent
-        } else {
-          View.mapMeasureSpec(specHeightMode, specHeight).value
-        }
+        val heightArg = View.mapHeightSpecArg(specHeightMode, specHeight)
+        val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(widthArg, heightArg)
+        if (stale) invalidateForeignHost()
 
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
           return
         }
 
-        val computedW = node.computedWidth.toInt()
-        val computedH = node.computedHeight.toInt()
-
-        val measuredW = if (specWidthMode == MeasureSpec.EXACTLY) specWidth else computedW
-        val measuredH = when (specHeightMode) {
-          MeasureSpec.EXACTLY -> specHeight
-          MeasureSpec.AT_MOST -> min(specHeight, computedH)
-          else -> computedH
-        }
-
-        updateScrollState(measuredW, measuredH)
-
-        setMeasuredDimension(measuredW, measuredH)
+        applyComputedMeasure(specWidthMode, specWidth, specHeightMode, specHeight)
       } else {
-        setMeasuredDimension(specWidth, specHeight)
+        val heightArg = View.mapHeightSpecArg(specHeightMode, specHeight)
+        computeNestedRootLater(
+          View.mapMeasureSpec(specWidthMode, specWidth).value,
+          heightArg
+        )
+        if (node.layoutTree.nodeCount == 0) {
+          // never computed: no valid size to report yet — fall back to the
+          // spec sizes; the deferred pass corrects them once it runs
+          setMeasuredDimension(specWidth, specHeight)
+        } else {
+          applyComputedMeasure(specWidthMode, specWidth, specHeightMode, specHeight)
+        }
       }
     } else {
       setMeasuredDimension(specWidth, specHeight)
     }
+  }
+
+  /**
+   * Clamp the last computed size to the measure specs and report it, refreshing
+   * scroll state to match. Shared by the post-compute path and the
+   * deferred-compute path (a stale computed size must not exceed an AT_MOST
+   * spec while the deferred pass is pending).
+   */
+  private fun applyComputedMeasure(specWidthMode: Int, specWidth: Int, specHeightMode: Int, specHeight: Int) {
+    val computedW = node.computedWidth.toInt()
+    val computedH = node.computedHeight.toInt()
+
+    val measuredW = if (specWidthMode == MeasureSpec.EXACTLY) specWidth else computedW
+    val measuredH = when (specHeightMode) {
+      MeasureSpec.EXACTLY -> specHeight
+      MeasureSpec.AT_MOST -> if (specHeight == 0) computedH else min(specHeight, computedH)
+      else -> computedH
+    }
+
+    updateScrollState(measuredW, measuredH)
+
+    setMeasuredDimension(measuredW, measuredH)
   }
 
   /**

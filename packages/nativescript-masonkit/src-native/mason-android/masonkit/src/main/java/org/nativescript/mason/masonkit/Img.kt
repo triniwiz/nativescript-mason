@@ -268,12 +268,10 @@ class Img @JvmOverloads constructor(
         specWidth, specHeight
       )
     } else if (parent !is Element) {
-      if (!node.mason.inCompute) {
-        compute(
-          View.mapMeasureSpec(specWidthMode, specWidth).value,
-          View.mapMeasureSpec(specHeightMode, specHeight).value
-        )
-      }
+      computeOrDeferNested(
+        View.mapMeasureSpec(specWidthMode, specWidth).value,
+        View.mapMeasureSpec(specHeightMode, specHeight).value
+      )
 
       layoutFlat()
 

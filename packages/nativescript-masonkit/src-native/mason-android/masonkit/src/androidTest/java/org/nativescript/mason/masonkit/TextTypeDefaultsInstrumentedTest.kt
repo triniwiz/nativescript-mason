@@ -6,6 +6,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.nativescript.fontmanager.FontStyle
+import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextType
 
@@ -84,7 +86,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Strong)
     Assert.assertEquals(
       "Strong should have bold font weight",
-      FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -93,7 +95,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.B)
     Assert.assertEquals(
       "B should have bold font weight",
-      FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -102,7 +104,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.H1)
     Assert.assertEquals(
       "H1 should have bold font weight",
-      FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -113,7 +115,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Em)
     Assert.assertEquals(
       "Em should have italic font style",
-      FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      FontStyle.Italic, tv.style.fontStyle
     )
   }
 
@@ -122,7 +124,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.I)
     Assert.assertEquals(
       "I should have italic font style",
-      FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      FontStyle.Italic, tv.style.fontStyle
     )
   }
 
@@ -134,7 +136,7 @@ class TextTypeDefaultsInstrumentedTest {
     // Web blockquote does NOT have italic by default
     Assert.assertNotEquals(
       "Blockquote should NOT have italic font style (web standard)",
-      FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      FontStyle.Italic, tv.style.fontStyle
     )
   }
 
