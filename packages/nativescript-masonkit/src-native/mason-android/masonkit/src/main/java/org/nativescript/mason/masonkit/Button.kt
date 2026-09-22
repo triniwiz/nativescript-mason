@@ -342,12 +342,11 @@ class Button @JvmOverloads constructor(
         org.nativescript.mason.masonkit.View.mapMeasureSpec(specHeightMode, specHeight).value
       )
       layoutFlat()
-      measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
     } else if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
       measureTextLayout(specWidth, specHeight)
-    } else {
-      measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
+      return
     }
+    measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
   }
 
   private fun measureTextLayout(width: Int, height: Int) {
