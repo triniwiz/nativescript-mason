@@ -342,12 +342,19 @@ class Button @JvmOverloads constructor(
         org.nativescript.mason.masonkit.View.mapMeasureSpec(specHeightMode, specHeight).value
       )
       layoutFlat()
-      setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
+      measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
     } else if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
-      setMeasuredDimension(specWidth, specHeight)
+      measureTextLayout(specWidth, specHeight)
     } else {
-      setMeasuredDimension(node.computedWidth.toInt(), node.computedHeight.toInt())
+      measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
     }
+  }
+
+  private fun measureTextLayout(width: Int, height: Int) {
+    super.onMeasure(
+      MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
+    )
   }
 
   override fun onChange(low: Long, high: Long) {

@@ -675,7 +675,7 @@ impl Node {
 
     #[inline]
     pub fn is_text_container(&self) -> bool {
-        self.type_ == NodeType::Text
+        matches!(self.type_, NodeType::Text | NodeType::Button)
     }
 
     #[inline]
