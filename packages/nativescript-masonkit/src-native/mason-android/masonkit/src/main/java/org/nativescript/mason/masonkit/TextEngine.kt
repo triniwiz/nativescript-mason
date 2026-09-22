@@ -378,14 +378,8 @@ class TextEngine(val container: TextContainer) {
     return built
   }
 
-  private fun measureLayout(
-    paint: TextPaint,
-    knownWidth: Float,
-    knownHeight: Float,
-    availableWidth: Float,
-    availableHeight: Float
-  ): Layout? {
-    val spannable = try {
+  private fun currentText(): SpannableStringBuilder {
+    return try {
       buildAttributedString()
     } catch (_: Exception) {
       // If attributed string construction fails (span errors), fall back
@@ -397,22 +391,35 @@ class TextEngine(val container: TextContainer) {
       }
       fallback
     }
+  }
+
+  internal fun applyTextIfNeeded(): SpannableStringBuilder {
+    val spannable = currentText()
+    if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
+      try {
+        container.setText(spannable, BufferType.SPANNABLE)
+      } catch (_: Exception) {
+        container.setText(spannable.toString(), BufferType.NORMAL)
+      }
+      appliedTextVersion = segmentsInvalidateVersion
+    }
+    return spannable
+  }
+
+  private fun measureLayout(
+    paint: TextPaint,
+    knownWidth: Float,
+    knownHeight: Float,
+    availableWidth: Float,
+    availableHeight: Float
+  ): Layout? {
+    val spannable = applyTextIfNeeded()
     (container.node.view as? View)?.let {
       if (it.layoutParams == null) {
         it.layoutParams = ViewGroup.LayoutParams(
           ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )
       }
-    }
-    // skip setText to avoid wiping externally-set text.
-    if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
-      try {
-        container.setText(spannable, BufferType.SPANNABLE)
-      } catch (_: Exception) {
-        // As a last resort, set plain text to avoid leaving the view blank
-        container.setText(spannable.toString(), BufferType.NORMAL)
-      }
-      appliedTextVersion = segmentsInvalidateVersion
     }
 
     if (spannable.isEmpty() && node.children.isEmpty()) {

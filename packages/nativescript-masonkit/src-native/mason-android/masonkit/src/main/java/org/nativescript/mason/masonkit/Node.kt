@@ -873,7 +873,7 @@ open class Node internal constructor(
       }
 
       container.children.add(child)
-      (container.view as? TextView)?.let {
+      (container.view as? TextContainer)?.let {
         child.attributes.sync(it.style)
         child.container = it
         it.engine.invalidateInlineSegments()

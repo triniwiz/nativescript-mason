@@ -93,6 +93,7 @@ class Button @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
+    engine.applyTextIfNeeded()
     ViewUtils.onDraw(this, canvas, style) {
       super.onDraw(it)
     }
