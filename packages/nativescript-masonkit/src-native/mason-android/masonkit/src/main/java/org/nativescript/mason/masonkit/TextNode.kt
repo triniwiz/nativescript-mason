@@ -24,6 +24,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
   override var data: String = ""
     set(value) {
       field = value
+      Perf.hit("tnData")
       // Invalidate the container when text changes
       container?.engine?.invalidateInlineSegments()
     }

@@ -1688,6 +1688,42 @@ impl Tree {
         }
     }
 
+    /// Detach the entire subtree below `parent`: every descendant loses its
+    /// parent link and has its child list cleared, so node cleanup
+    /// (NodeRef::drop / drain_deferred_cleanup, which require !has_parent &&
+    /// !has_children) can release each node individually. Only `parent` is
+    /// marked dirty. Equivalent to remove_all on every node in the subtree,
+    /// but under a single lock acquisition.
+    pub fn remove_all_recursive(&mut self, parent: Id) {
+        let mut tree = self.0.write();
+        let tree = &mut tree;
+
+        let mut stack: Vec<Id> = match tree.children.get(parent) {
+            Some(children) if !children.is_empty() => children.clone(),
+            _ => return,
+        };
+
+        let mut descendants: Vec<Id> = Vec::new();
+        while let Some(id) = stack.pop() {
+            descendants.push(id);
+            if let Some(children) = tree.children.get(id) {
+                stack.extend(children.iter().copied());
+            }
+        }
+
+        for id in descendants.iter() {
+            tree.parents.remove(*id);
+            if let Some(children) = tree.children.get_mut(*id) {
+                children.clear();
+            }
+        }
+        if let Some(children) = tree.children.get_mut(parent) {
+            children.clear();
+        }
+
+        Tree::mark_dirty_inner(tree, parent);
+    }
+
     pub fn root(&self, node: Id) -> Option<NodeRef> {
         let mut current_id = Some(node);
         let mut last_id = current_id;

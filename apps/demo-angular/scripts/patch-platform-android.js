@@ -23,7 +23,7 @@ module.exports = async function (hookArgs) {
   if (hookArgs.platformData.platform === 'ios') return;
   const androidTestDir = path.join(hookArgs.projectData.projectDir, 'platforms/android/app/src/androidTest');
   if (fs.existsSync(androidTestDir))
-    fs.rmdirSync(androidTestDir, {
+    fs.rmSync(androidTestDir, {
       recursive: true,
       force: true,
     });

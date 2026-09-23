@@ -939,7 +939,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     syncFontMetricsNow()
   }
 
-  private fun syncFontMetricsNow() {
+  private fun syncFontMetricsNow(): Boolean {
     val fm = paint.fontMetrics
 
     // Use absolute ascent (Android reports negative ascent); sanitize tiny/NaN values
@@ -960,6 +960,23 @@ class Style internal constructor(@Transient internal var node: Node) {
     // We approximate them based on the font
     val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
     val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
+
+    // Change-gate: a sync whose values match what the native buffer already
+    // holds must not rewrite it — the write (and the dirty it triggers on the
+    // caller side) would force a redundant recompute.
+    if (fmSynced && fmAscent == ascent && fmDescent == descent && fmXHeight == xHeight &&
+      fmLeading == leading && fmCapHeight == capHeight
+    ) {
+      fontDirty = false
+      return false
+    }
+    fmSynced = true
+    fmAscent = ascent
+    fmDescent = descent
+    fmXHeight = xHeight
+    fmLeading = leading
+    fmCapHeight = capHeight
+
     prepareMut()
     values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
@@ -967,17 +984,25 @@ class Style internal constructor(@Transient internal var node: Node) {
     values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
     fontDirty = false
+    return true
   }
+
+  private var fmSynced = false
+  private var fmAscent = 0f
+  private var fmDescent = 0f
+  private var fmXHeight = 0f
+  private var fmLeading = 0f
+  private var fmCapHeight = 0f
 
   /**
    * Flush deferred font metrics sync after measure callback returns.
-   * Returns true if a sync was pending (caller should mark node dirty).
+   * Returns true only when the sync actually changed the native metrics —
+   * unchanged values mean no re-dirty is warranted.
    */
   internal fun flushPendingMetricsSync(): Boolean {
     if (!pendingMetricsSync) return false
     pendingMetricsSync = false
-    syncFontMetricsNow()
-    return true
+    return syncFontMetricsNow()
   }
 
   /**

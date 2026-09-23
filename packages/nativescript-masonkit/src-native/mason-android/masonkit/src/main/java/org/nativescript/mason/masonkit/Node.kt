@@ -58,6 +58,10 @@ open class Node internal constructor(
   internal var nestedComputeWidth = 0f
   internal var nestedComputeHeight = 0f
   internal var computeScheduled = false
+  // Last (widthArg, heightArg) this node was measured with as a layout root
+  // (Scroll/View onMeasure root branch) — reused by the debounced inline compute.
+  internal var lastRootWidthArg = Float.MIN_VALUE
+  internal var lastRootHeightArg = Float.MIN_VALUE
   internal var hasNativeClickDispatch = false
   internal var isPlaceholder = false
   internal var isImage = false
@@ -68,6 +72,12 @@ open class Node internal constructor(
   // that contain no text at all, instead of unconditionally recursing into
   // every child on every text-style write.
   internal var hasTextDescendant = false
+
+  // Attach-time text invalidation tracking (see invalidateOnAttach): the last
+  // parent this node was attached under, and the textInvalidationEpoch snapshot
+  // from when it was last detached.
+  internal var lastTextAttachParent: Node? = null
+  internal var detachTextEpoch = -1
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
       computeCacheDirty = true
@@ -195,6 +205,11 @@ open class Node internal constructor(
   open var parent: Node?
     internal set(value) {
       layoutParent = value
+      if (value == null) {
+        // Snapshot the text epoch at detach so invalidateOnAttach can tell
+        // whether any text-affecting mutation happened while detached.
+        detachTextEpoch = textInvalidationEpoch
+      }
       // Every insertion path (appendChild, replaceChildAt, insertChildBefore/
       // After, addChildAt, ...) assigns `parent` to attach a node somewhere in
       // the tree, so hooking it here — rather than each call site — is the one
@@ -699,6 +714,25 @@ open class Node internal constructor(
 
   companion object {
 
+    // Monotonic counter bumped on every text-affecting mutation (text-flagged
+    // style writes, inline-segment invalidations). invalidateOnAttach compares
+    // a detached node's snapshot against it to tell whether anything textual
+    // changed while the node was away.
+    internal var textInvalidationEpoch: Int = 0
+      private set
+
+    // True while invalidateOnAttach is forcing rebuilds; those rebuilds are
+    // not content mutations and must not move the epoch (or every re-attach
+    // after the first walk would look stale again).
+    private var inAttachWalk = false
+
+    internal fun bumpTextInvalidationEpoch() {
+      Perf.hit("epochBump")
+      if (!inAttachWalk) {
+        textInvalidationEpoch++
+      }
+    }
+
     @JvmStatic
     private fun getObject(id: Int): Any? {
       val ref = ObjectManager.shared[id] as? WeakReference<*> ?: return null
@@ -707,9 +741,11 @@ open class Node internal constructor(
 
     @JvmStatic
     fun measure(id: Int, knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
-      return (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
-        knownDimensionsSpec, availableSpaceSpec
-      ) ?: MeasureOutput.ZERO
+      return Perf.timed("measureCb") {
+        (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
+          knownDimensionsSpec, availableSpaceSpec
+        ) ?: MeasureOutput.ZERO
+      }
     }
 
     // Lightweight registry mapping pseudo-style ByteBuffers to their owning nodes
@@ -754,6 +790,7 @@ open class Node internal constructor(
 
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
+      Perf.hit("setComputedSize")
       // Invoke optional test callback for instrumentation hooks
       testComputedSizeCallback?.invoke(node, width, height)
 
@@ -794,6 +831,17 @@ open class Node internal constructor(
     }
 
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
+      // Style writes that can't affect text skip the walk entirely; anything
+      // that can is a text-affecting mutation for invalidateOnAttach's epoch.
+      if (!TextEngine.hasAnyTextFlags(low, high)) {
+        return
+      }
+      Perf.hit("descWalk")
+      bumpTextInvalidationEpoch()
+      invalidateDescendantTextViewsInner(node, low, high)
+    }
+
+    private fun invalidateDescendantTextViewsInner(node: Node, low: Long, high: Long) {
       // Early exit for subtrees that contain no text at all (see
       // Node.hasTextDescendant / markHasTextDescendant, maintained by
       // appendChild) — avoids an unconditional O(subtree) walk on every
@@ -801,6 +849,7 @@ open class Node internal constructor(
       if (!node.hasTextDescendant && node.view !is TextContainer) {
         return
       }
+      Perf.hit("invDescText")
 
       // The resolved FontFace is cached per Style and inherits through
       // node.parent, so a face resolved before this subtree was reachable
@@ -816,7 +865,7 @@ open class Node internal constructor(
       // Iterate children (only layout children, not author children)
       val size = node.children.size
       for (i in 0 until size) {
-        invalidateDescendantTextViews(node.children[i], low, high)
+        invalidateDescendantTextViewsInner(node.children[i], low, high)
       }
     }
 
@@ -852,67 +901,95 @@ open class Node internal constructor(
     }
   }
 
+  // Text caches (spans, Rust inline-measure/layout caches) resolve CSS
+  // inheritance through the ancestor chain, so they go stale only when that
+  // chain changes or when text-affecting mutations happen while detached:
+  //  - fresh subtree (never attached): nothing was ever resolved against a
+  //    real ancestor; the setters' own versioned invalidation covers anything
+  //    built while unparented;
+  //  - re-attach under the same parent with no intervening text mutation:
+  //    nothing changed;
+  //  - anything else (moved to another parent, or text changed while away):
+  //    walk once and force rebuilds.
+  private fun invalidateOnAttach(child: Node) {
+    val stale = when {
+      child.lastTextAttachParent == null -> false
+      child.lastTextAttachParent !== this -> true
+      child.detachTextEpoch != textInvalidationEpoch -> true
+      else -> false
+    }
+    if (stale) {
+      Perf.hit("attachWalk")
+      inAttachWalk = true
+      try {
+        invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+        invalidateDescendantInlineSegments(child)
+      } finally {
+        inAttachWalk = false
+      }
+    } else {
+      Perf.hit("attachSkip")
+    }
+    child.lastTextAttachParent = this
+    // Caches are in sync with this chain as of now (rebuilt above, or never
+    // stale); snapshot so a later same-parent re-attach can skip — including
+    // insert-before-remove moves, where the node was never detached.
+    child.detachTextEpoch = textInvalidationEpoch
+  }
+
   @JvmOverloads
   open fun appendChild(child: Node, attach: Boolean = true) {
-    if (child is TextNode) {
-      var pending = false
-      val container = if (view is TextContainer) {
-        this
-      } else {
-        pending = true
-        getOrCreateAnonymousTextContainer()
-      }
+    Perf.timed("appendChild") {
+      if (child is TextNode) {
+        var pending = false
+        val container = if (view is TextContainer) {
+          this
+        } else {
+          pending = true
+          getOrCreateAnonymousTextContainer()
+        }
 
-      if (pending) {
+        if (pending) {
+          if (child.nativePtr != 0L) {
+            NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+          }
+          if (attach) {
+            NodeUtils.addView(this, child.view as? View)
+          }
+        }
+
+        container.children.add(child)
+        (container.view as? TextContainer)?.let {
+          child.attributes.sync(it.style)
+          child.container = it
+          it.engine.invalidateInlineSegments()
+        }
+        // `container.view` is a TextContainer by construction above.
+        markHasTextDescendant(container)
+        NodeUtils.invalidateLayout(this)
+      } else {
+        children.add(child)
+        child.parent = this
         if (child.nativePtr != 0L) {
           NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
         }
+
         if (attach) {
           NodeUtils.addView(this, child.view as? View)
         }
-      }
+        // hasTextDescendant propagation already happened via the `child.parent =
+        // this` assignment above (see the `parent` property setter).
+        computeCacheDirty = true
+        if (view is TextContainer) {
+          // Adding a child to a text container changes the container's own
+          // composed inline text — always rebuild its spans/segments.
+          invalidateDescendantTextViews(this, StateKeys.INVALIDATE_TEXT)
+          invalidateDescendantInlineSegments(this)
+        }
+        invalidateOnAttach(child)
 
-      container.children.add(child)
-      (container.view as? TextContainer)?.let {
-        child.attributes.sync(it.style)
-        child.container = it
-        it.engine.invalidateInlineSegments()
+        onNodeAttached?.let { it() }
       }
-      // `container.view` is a TextContainer by construction above.
-      markHasTextDescendant(container)
-      NodeUtils.invalidateLayout(this)
-    } else {
-      children.add(child)
-      child.parent = this
-      if (child.nativePtr != 0L) {
-        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
-      }
-
-      if (attach) {
-        NodeUtils.addView(this, child.view as? View)
-      }
-      if (child is TextContainer) {
-        (child as? TextContainer)?.engine?.invalidateInlineSegments()
-      }
-      // hasTextDescendant propagation already happened via the `child.parent =
-      // this` assignment above (see the `parent` property setter).
-
-      // Single pass invalidation of descendants with text styles
-      val descendantTextViews = if (view is TextContainer) {
-        this
-      } else {
-        child
-      }
-      computeCacheDirty = true
-      invalidateDescendantTextViews(descendantTextViews, StateKeys.INVALIDATE_TEXT)
-      // onChange(-1,-1) above only rebuilds a TextContainer's spans when a
-      // StateKeys flag it already checks for flipped -- it never notices that
-      // an *ancestor* just became reachable. A text run built while `child`'s
-      // subtree was still unparented cached a spannable resolved against no
-      // inheritance at all; force it to rebuild against the now-real parent.
-      invalidateDescendantInlineSegments(descendantTextViews)
-
-      onNodeAttached?.let { it() }
     }
   }
 
@@ -1110,7 +1187,7 @@ open class Node internal constructor(
             }
 
             // Single invalidation pass for the newly inserted child
-            invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+            invalidateOnAttach(child)
 
             // sync native/layout trees
             NodeUtils.syncNode(this, children)
@@ -1134,7 +1211,7 @@ open class Node internal constructor(
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
 
       // Single invalidation pass for the newly inserted child
-      invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+      invalidateOnAttach(child)
 
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
@@ -1147,14 +1224,17 @@ open class Node internal constructor(
   }
 
   fun addChildAt(child: Node, index: Int) {
+    val __t = System.nanoTime()
     if (index <= -1) {
       appendChild(child)
+      Perf.add("addChildAt", System.nanoTime() - __t)
       return
     }
     val authorChildren = getChildren()
     // if index is past end, fall back to append behavior
     if (index >= authorChildren.size) {
       appendChild(child)
+      Perf.add("addChildAt", System.nanoTime() - __t)
       return
     }
 
@@ -1167,7 +1247,7 @@ open class Node internal constructor(
         val containerNode = reference.layoutParent ?: reference.container?.node
         if (containerNode != null && containerNode.parent == this) {
           val idxInContainer =
-            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: return
+            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: run { Perf.add("addChildAt", System.nanoTime() - __t); return }
           // Insert the new text node before 'reference' inside the same anonymous container
           containerNode.children.add(idxInContainer, child)
           child.parent = containerNode
@@ -1180,6 +1260,7 @@ open class Node internal constructor(
             (containerNode as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
+          Perf.add("addChildAt", System.nanoTime() - __t)
           return
         }
       }
@@ -1208,6 +1289,7 @@ open class Node internal constructor(
         (view as? Element)?.invalidateLayout()
       }
       NodeUtils.invalidateLayout(this)
+      Perf.add("addChildAt", System.nanoTime() - __t)
       return
     }
 
@@ -1231,6 +1313,7 @@ open class Node internal constructor(
               (view as? Element)?.invalidateLayout()
             }
             NodeUtils.invalidateLayout(this)
+            Perf.add("addChildAt", System.nanoTime() - __t)
             return
           }
 
@@ -1319,7 +1402,7 @@ open class Node internal constructor(
           (child.view as? Element)?.invalidateLayout()
 
           // Single invalidation pass
-          invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+          invalidateOnAttach(child)
 
           // sync views/native tree once using the updated children vector
           NodeUtils.syncNode(this, children)
@@ -1330,6 +1413,7 @@ open class Node internal constructor(
             (view as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
+          Perf.add("addChildAt", System.nanoTime() - __t)
           return
         }
       }
@@ -1340,40 +1424,44 @@ open class Node internal constructor(
     val pos = insertIndex.coerceAtLeast(0).coerceAtMost(children.size)
     children.add(pos, child)
     child.parent = this
+    if (child.view is View) {
+      NodeUtils.addView(this, child.view as? View)
+    }
     if (child.nativePtr != 0L) {
-      if (child.view is View) {
-        NodeUtils.addView(this, child.view as? View)
-      } else {
-        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+      // The Rust child list mirrors `children` minus native-less nodes (text
+      // nodes), so the insert index there counts only native children before pos.
+      var nativePos = 0
+      for (i in 0 until pos) {
+        if (children[i].nativePtr != 0L) nativePos++
       }
+      NativeHelpers.nativeNodeAddChildAt(mason.nativePtr, nativePtr, child.nativePtr, nativePos)
     }
 
     // A non-text child (e.g. a Br) changes the parent's composed text —
     // rebuild the inline segment cache when the parent renders text.
     (view as? TextContainer)?.engine?.invalidateInlineSegments()
 
-    // Single invalidation pass
-    invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
+    invalidateOnAttach(child)
 
-    NodeUtils.syncNode(this, children)
-    if (!style.inBatch) {
-      (view as? Element)?.invalidateLayout()
-    }
     NodeUtils.invalidateLayout(this)
+    Perf.add("addChildAt", System.nanoTime() - __t)
   }
 
   fun removeChildAt(index: Int): Node? {
+    val __t = System.nanoTime()
     if (index < 0) {
+      Perf.add("removeChildAt", System.nanoTime() - __t)
       return null
     }
     val children = getChildren()
     if (index >= children.size) {
+      Perf.add("removeChildAt", System.nanoTime() - __t)
       return null
     }
     val reference = children[index]
     val idx =
-      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return null
-    val removed = reference.layoutParent?.children?.removeAt(idx) ?: return null
+      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: run { Perf.add("removeChildAt", System.nanoTime() - __t); return null }
+    val removed = reference.layoutParent?.children?.removeAt(idx) ?: run { Perf.add("removeChildAt", System.nanoTime() - __t); return null }
     if (removed is TextNode) {
       removed.container?.engine?.invalidateInlineSegments()
       removed.container = null
@@ -1389,21 +1477,29 @@ open class Node internal constructor(
       // parent when removing the platform View. Passing `reference.parent`
       // could be ambiguous in anonymous/container scenarios and may leave
       // views attached to the wrong ViewGroup.
-      NodeUtils.removeView(this, removed.view as? View)
-      // If view is still attached (unexpected), try fallback removal directly
-      if (removed.view != null && (removed.view as? View)?.parent != null) {
-        NodeUtils.removeViewFallback(removed.view as View)
+      Perf.timed("rcView") {
+        // Deferred when the view is exactly where the tree expects it (bulk
+        // flush at end of turn); immediate otherwise. Parent-mismatch
+        // fallback lives inside removeView now.
+        NodeUtils.removeView(this, removed.view as? View)
       }
       if (removed.nativePtr != 0L) {
-        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        Perf.timed("rcJNI") {
+          NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        }
       }
       removed.parent = null
       (removed.view as? Element)?.onNodeDetached()
       // Removing a non-text child (e.g. a Br) changes the parent's composed
       // text — rebuild the inline segment cache when the parent renders text.
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
-      NodeUtils.invalidateLayout(this, true)
+      // Rust's remove already dirtied the ancestor chain; one local
+      // invalidation (which also schedules the compute) is enough.
+      Perf.timed("rcInv") {
+        NodeUtils.invalidateLayout(this)
+      }
     }
+    Perf.add("removeChildAt", System.nanoTime() - __t)
     return removed
   }
 
@@ -1415,6 +1511,7 @@ open class Node internal constructor(
     }
     // always cross the JNI boundary; computeCacheDirty isn't a reliable
     // "native already knows" signal and skipping here dropped dirty marks
+    Perf.hit("dirtyJNI")
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }

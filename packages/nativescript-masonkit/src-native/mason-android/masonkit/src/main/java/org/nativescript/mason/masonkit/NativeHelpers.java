@@ -111,6 +111,8 @@ public class NativeHelpers {
   @CriticalNative
   static native void nativeNodeRemoveChildren(long mason, long node);
 
+  static native void nativeNodeRemoveChildrenRecursive(long mason, long node);
+
   @CriticalNative
   static native long nativeNodeRemoveChildAt(long mason, long node, int index);
 

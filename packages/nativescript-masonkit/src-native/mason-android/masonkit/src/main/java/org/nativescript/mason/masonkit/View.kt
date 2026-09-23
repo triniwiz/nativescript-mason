@@ -70,21 +70,28 @@ open class View @JvmOverloads constructor(
     clipChildren = false
     clipToPadding = false
 
-    isChildrenDrawingOrderEnabled = true
+    isChildrenDrawingOrderEnabled = false
   }
 
 
   override fun onViewAdded(child: android.view.View) {
     super.onViewAdded(child)
-    onChildStructureChangedSafe()
+    // O(1) gate: only rebuild the z-order list when z-index is actually in
+    // play. A freshly added child may carry a z-index set before attach.
+    if (hasZIndexedChildren || zIndexOf(child) != 0) {
+      onChildStructureChangedSafe()
+    }
   }
 
   override fun onViewRemoved(child: android.view.View) {
     super.onViewRemoved(child)
-    onChildStructureChangedSafe()
+    if (hasZIndexedChildren) {
+      onChildStructureChangedSafe()
+    }
   }
 
   private var inMutation = false
+  private var hasZIndexedChildren = false
 
   private fun onChildStructureChangedSafe() {
     if (inMutation) return
@@ -94,6 +101,7 @@ open class View @JvmOverloads constructor(
   }
 
   internal fun onChildZIndexChanged() {
+    hasZIndexedChildren = true
     rebuildZOrder()
     invalidate()
   }
@@ -109,10 +117,15 @@ open class View @JvmOverloads constructor(
     // Nearly every container has no z-index at all: keep tree order and let
     // ViewGroup draw natively instead of asking getChildDrawingOrder per child.
     isChildrenDrawingOrderEnabled = hasZ
+    hasZIndexedChildren = hasZ
     if (hasZ) {
       // sortBy is stable, so equal z-indices keep tree order without an
       // indexOfChild() scan per comparison.
       zSortedChildren.sortBy { zIndexOf(it) }
+    } else {
+      // No z in play — the list is never consulted (guarded callers), so drop
+      // the references instead of pinning removed children.
+      zSortedChildren.clear()
     }
   }
 
@@ -130,10 +143,12 @@ open class View @JvmOverloads constructor(
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
     // higher zIndex should receive touch first
-    for (i in zSortedChildren.size - 1 downTo 0) {
-      val child = zSortedChildren[i]
-      if (child.visibility != VISIBLE) continue
-      if (dispatchToChild(child, ev)) return true
+    if (hasZIndexedChildren) {
+      for (i in zSortedChildren.size - 1 downTo 0) {
+        val child = zSortedChildren[i]
+        if (child.visibility != VISIBLE) continue
+        if (dispatchToChild(child, ev)) return true
+      }
     }
     return super.dispatchTouchEvent(ev)
   }
@@ -205,7 +220,12 @@ open class View @JvmOverloads constructor(
   }
 
   override fun onChange(low: Long, high: Long) {
-    Node.invalidateDescendantTextViews(node, low, high)
+    Perf.hit("viewOnChange")
+    // Only text-relevant style changes can affect descendant text — skip the
+    // subtree walk (and its per-TextView invalidations) for everything else.
+    if (TextEngine.hasAnyTextFlags(low, high)) {
+      Node.invalidateDescendantTextViews(node, low, high)
+    }
     // Redraw self so parent-drawn markers (list items in padding zone) are updated.
     invalidate()
   }
@@ -251,6 +271,8 @@ open class View @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element) {
+      Perf.hit("onMeasureRootV")
+      Perf.hit(if (node.computeCacheDirty) "omDirtyV" else "omCleanV")
       if (!node.mason.inCompute) {
         // normal root measurement
 
@@ -260,12 +282,15 @@ open class View @JvmOverloads constructor(
         // when acting as the root.
         val widthArg = mapMeasureSpec(specWidthMode, specWidth).value
         val heightArg = mapHeightSpecArg(specHeightMode, specHeight)
+        node.lastRootWidthArg = widthArg
+        node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(
           widthArg,
           heightArg
         )
+        Perf.addCount("omNodesV", node.layoutTree.nodeCount.toLong())
         if (stale) invalidateForeignHost()
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
@@ -287,11 +312,17 @@ open class View @JvmOverloads constructor(
         )
       }
     } else {
+      Perf.hit("omNestedV")
       setMeasuredDimension(
         specWidth,
         specHeight,
       )
     }
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    Perf.hit(if (parent !is Element) "attachRootV" else "attachNestedV")
   }
 
   // Public addView methods delegate to Node
@@ -454,11 +485,11 @@ open class View @JvmOverloads constructor(
 
     node.removeChildren()
 
-    node.dirty()
-
     super.removeAllViews()
 
-    invalidateLayout(true)
+    // removeChildren already dirtied the node (and Rust dirtied the ancestor
+    // chain); just schedule the compute.
+    invalidateLayout(false)
 
     onChildStructureChangedSafe()
   }

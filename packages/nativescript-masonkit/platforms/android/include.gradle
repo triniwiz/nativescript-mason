@@ -2,7 +2,10 @@ dependencies {
   implementation 'com.google.code.gson:gson:2.10'
   implementation 'com.github.bumptech.glide:glide:4.14.2'
   annotationProcessor 'com.github.bumptech.glide:compiler:4.14.2'
-  implementation 'org.nativescript:fontmanager:1.0.8'
+  // fontmanager comes from the app's @nativescript/font-manager plugin, which
+  // bundles a locally-built fontmanager.aar (feat/android-perf). Declaring the
+  // Maven artifact here too duplicates every fontmanager class at dex merge.
+  // implementation 'org.nativescript:fontmanager:1.0.8'
 }
 
 android {

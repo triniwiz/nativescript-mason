@@ -85,7 +85,15 @@ class TextEngine(val container: TextContainer) {
       return buildString { appendText(node) }
     }
     set(value) {
+      Perf.hit("tcSet")
       // Remove all existing children
+      var hadNativeChildren = false
+      for (child in node.children) {
+        if (child.nativePtr != 0L) {
+          hadNativeChildren = true
+          break
+        }
+      }
       node.children.clear()
 
       // Create a single text node with the new text
@@ -97,16 +105,13 @@ class TextEngine(val container: TextContainer) {
       textNode.parent = node
 
       // Clear layout tree (text nodes don't have nativePtr)
-      if (node.nativePtr != 0L) {
+      if (hadNativeChildren && node.nativePtr != 0L) {
         NativeHelpers.nativeNodeRemoveChildren(node.mason.nativePtr, node.nativePtr)
       }
 
+      // invalidateInlineSegments already marks the node dirty, invalidates the
+      // view and schedules layout — no extra dirty/invalidate needed here.
       invalidateInlineSegments()
-      node.dirty()
-      (node.view as? View)?.let {
-        it.invalidate()
-        it.requestLayout()
-      }
     }
 
   val innerHTML: String
@@ -242,15 +247,44 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (dirty) {
+      // Defer the destructive invalidation: framework re-parenting toggles
+      // inherited values away and back within the same turn (clear on remove,
+      // re-inherit on add), and reacting to each pass wiped every text cache.
+      // Mark, schedule, and let the next measure/draw flush compare the settled
+      // values against the ones last reacted to (flushTextStyleIfNeeded).
       if (textLayoutChanged) {
-        updateStyleOnTextNodes()
-        invalidateInlineSegments()
+        textLayoutFlushPending = true
+        if (!textStyleFlushPending) {
+          Perf.hit("tvDefer")
+          textStyleFlushPending = true
+          registerPendingTextStyle(this)
+          node.computeCacheDirty = true
+          node.dirty()
+          if (node.isAnonymous) {
+            node.layoutParent?.dirty()
+          }
+          when (val v = node.view) {
+            is Element -> v.invalidateLayout()
+            is View -> {
+              // Flattened text views don't compute or draw themselves — drive the
+              // pass from the composing ancestor; the compute-entry flush picks
+              // this engine up from the registry.
+              findAncestorElement(node)?.let {
+                it.node.computeCacheDirty = true
+                it.invalidateLayout()
+              }
+              v.invalidate()
+            }
+          }
+        }
       } else if (textVisualChanged) {
-        // Visual-only change (color, decoration, shadow): rebuild spans and redraw,
-        // but do NOT call invalidateInlineSegments which would set root.computeCacheDirty
-        // and trigger a spurious full layout recompute that shifts sibling views.
-        updateStyleOnTextNodes()
-        (node.view as? View)?.invalidate()
+        textVisualFlushPending = true
+        if (!textStyleFlushPending) {
+          Perf.hit("tvDefer")
+          textStyleFlushPending = true
+          registerPendingTextStyle(this)
+          (node.view as? View)?.invalidate()
+        }
       }
       if (layout) {
         if (node.isAnonymous) {
@@ -261,41 +295,105 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-  // Flags that affect text measurement/layout (require full inline-segment recompute).
-  private fun hasTextLayoutFlags(low: Long, high: Long): Boolean {
-    return (
-      StateKeys.hasFlag(low, high, StateKeys.FONT_SIZE) ||
-        StateKeys.hasFlag(low, high, StateKeys.FONT_WEIGHT) ||
-        StateKeys.hasFlag(low, high, StateKeys.FONT_STYLE) ||
-        StateKeys.hasFlag(low, high, StateKeys.FONT_FAMILY) ||
-        StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_WRAP) ||
-        StateKeys.hasFlag(low, high, StateKeys.WHITE_SPACE) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_TRANSFORM) ||
-        StateKeys.hasFlag(low, high, StateKeys.LETTER_SPACING) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_JUSTIFY) ||
-        StateKeys.hasFlag(low, high, StateKeys.LINE_HEIGHT) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) ||
-        StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
-        StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
-        StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
-        StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
-        StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH)
-      )
+  // Set when a text style change deferred its invalidation; the next
+  // measure/draw flushes (flushTextStyleIfNeeded) and reacts only if the
+  // settled resolved values differ from the ones last reacted to.
+  private var textStyleFlushPending = false
+  private var textLayoutFlushPending = false
+  private var textVisualFlushPending = false
+
+  internal fun flushTextStyleIfNeeded(quiet: Boolean = false) {
+    if (!textStyleFlushPending) return
+    Perf.hit("tvFlush")
+    pendingTextStyleFlush.remove(this)
+    textStyleFlushPending = false
+    val layoutPending = textLayoutFlushPending
+    val visualPending = textVisualFlushPending
+    textLayoutFlushPending = false
+    textVisualFlushPending = false
+    if (layoutPending) {
+      val sig = textLayoutSignature()
+      if (sig != null && sig == lastTextLayoutSignature) {
+        // Values toggled but settled back — the storm was a no-op and every
+        // text cache is still valid.
+        Perf.hit("tvToggle")
+      } else {
+        lastTextLayoutSignature = sig
+        lastTextVisualSignature = textVisualSignature()
+        updateStyleOnTextNodes()
+        invalidateInlineSegments(quiet = quiet)
+      }
+    } else if (visualPending) {
+      val sig = textVisualSignature()
+      if (sig != null && sig == lastTextVisualSignature) {
+        Perf.hit("tvToggle")
+      } else {
+        lastTextVisualSignature = sig
+        // Visual-only change (color, decoration, shadow): rebuild spans and redraw,
+        // but do NOT call invalidateInlineSegments which would set root.computeCacheDirty
+        // and trigger a spurious full layout recompute that shifts sibling views.
+        updateStyleOnTextNodes()
+        if (!quiet) {
+          (node.view as? View)?.invalidate()
+        }
+      }
+    }
   }
 
-  // Flags that only affect visual appearance (color, decoration, shadow).
-  // These require span rebuilds but NOT a layout recompute.
-  private fun hasTextVisualFlags(low: Long, high: Long): Boolean {
-    return (
-      StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR) ||
-        StateKeys.hasFlag(low, high, StateKeys.DECORATION_LINE) ||
-        StateKeys.hasFlag(low, high, StateKeys.DECORATION_COLOR) ||
-        StateKeys.hasFlag(low, high, StateKeys.DECORATION_STYLE) ||
-        StateKeys.hasFlag(low, high, StateKeys.BACKGROUND_COLOR) ||
-        StateKeys.hasFlag(low, high, StateKeys.TEXT_SHADOWS)
-      )
+  // Resolved-value snapshots behind the text flags: onChange re-fires on
+  // same-value rewrites, so the expensive reactions are gated on these moving.
+  private var lastTextLayoutSignature: Long? = null
+  private var lastTextVisualSignature: Long? = null
+
+  private fun textLayoutSignature(): Long? = try {
+    textLayoutSignatureUnsafe()
+  } catch (_: Throwable) {
+    // Some resolved getters throw on sentinel values in half-initialized
+    // styles — fall back to always reacting (pre-gate behaviour).
+    null
+  }
+
+  private fun textLayoutSignatureUnsafe(): Long {
+    var h = 0x3456789abcdefL
+    h = h * 1000003 xor style.resolvedFontSize.toLong()
+    h = h * 1000003 xor (style.resolvedFontFace.resolvedTypeface?.let { System.identityHashCode(it) } ?: 0).toLong()
+    h = h * 1000003 xor style.resolvedFontWeight.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedFontStyle.hashCode().toLong()
+    h = h * 1000003 xor style.resolvedFontVariantNumeric.toLong()
+    h = h * 1000003 xor style.resolvedTextWrap.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedWhiteSpace.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedTextTransform.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedLetterSpacing.toRawBits().toLong()
+    h = h * 1000003 xor style.resolvedTextJustify.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedLineHeight.toRawBits().toLong()
+    h = h * 1000003 xor style.resolvedLineHeightType.toLong()
+    h = h * 1000003 xor style.resolvedTextAlign.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedWordSpacing.toRawBits().toLong()
+    h = h * 1000003 xor style.resolvedWordSpacingType.toLong()
+    h = h * 1000003 xor style.resolvedWritingMode.toLong()
+    h = h * 1000003 xor style.resolvedUnicodeBidi.toLong()
+    h = h * 1000003 xor style.resolvedHyphens.toLong()
+    h = h * 1000003 xor style.resolvedFontStretch.toLong()
+    h = h * 1000003 xor style.textOverflow.ordinal.toLong()
+    return h
+  }
+
+  private fun textVisualSignature(): Long? = try {
+    textVisualSignatureUnsafe()
+  } catch (_: Throwable) {
+    null
+  }
+
+  private fun textVisualSignatureUnsafe(): Long {
+    var h = 0x1f123bb5aa77dL
+    h = h * 1000003 xor style.resolvedColor.toLong()
+    h = h * 1000003 xor style.resolvedDecorationLine.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedDecorationColor.toLong()
+    h = h * 1000003 xor style.resolvedDecorationStyle.ordinal.toLong()
+    h = h * 1000003 xor style.resolvedDecorationThickness.toRawBits().toLong()
+    h = h * 1000003 xor style.resolvedTextShadow.hashCode().toLong()
+    h = h * 1000003 xor style.resolvedBackgroundColor.toLong()
+    return h
   }
 
   // Builds (or reuses a cached) StaticLayout for the given shape — the
@@ -306,7 +404,6 @@ class TextEngine(val container: TextContainer) {
     spannable: CharSequence,
     paint: TextPaint,
     widthConstraint: Int,
-    availableWidth: Float,
     alignment: android.text.Layout.Alignment,
     heuristic: TextDirectionHeuristic
   ): StaticLayout {
@@ -321,17 +418,18 @@ class TextEngine(val container: TextContainer) {
       if (entry != null &&
         entry.version == segmentsInvalidateVersion &&
         entry.widthConstraint == widthConstraint &&
-        entry.availableWidth == availableWidth &&
         entry.spannableLength == spannable.length &&
         entry.alignment == alignment &&
         entry.includePadding == includePadding &&
         entry.justified == justified &&
         entry.heuristic == heuristic
       ) {
+        Perf.hit("slHit")
         return entry.layout
       }
     }
 
+    Perf.hit("slMiss")
     val built = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, safeWidthConstraint
@@ -365,7 +463,6 @@ class TextEngine(val container: TextContainer) {
     staticLayoutCache[staticLayoutCacheNextIdx] = StaticLayoutCacheEntry(
       version = segmentsInvalidateVersion,
       widthConstraint = widthConstraint,
-      availableWidth = availableWidth,
       spannableLength = spannable.length,
       alignment = alignment,
       includePadding = includePadding,
@@ -394,38 +491,39 @@ class TextEngine(val container: TextContainer) {
   }
 
   internal fun applyTextIfNeeded(): SpannableStringBuilder {
+    Perf.hit("applyText")
+    flushTextStyleIfNeeded()
     val spannable = currentText()
     if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
-      try {
-        container.setText(spannable, BufferType.SPANNABLE)
-      } catch (_: Exception) {
-        container.setText(spannable.toString(), BufferType.NORMAL)
+      Perf.timed("atSetText") {
+        try {
+          container.setText(spannable, BufferType.SPANNABLE)
+        } catch (_: Exception) {
+          container.setText(spannable.toString(), BufferType.NORMAL)
+        }
       }
       appliedTextVersion = segmentsInvalidateVersion
     }
     return spannable
   }
 
-  private fun measureLayout(
-    paint: TextPaint,
+  // Effective wrap-width spec for StaticLayout — the only geometric input
+  // the layout outcome depends on (height is derived: lineCount x lineHeight).
+  // Factored out of measureLayout so measure() can key its result cache on the
+  // normalized (constraint, width-mode) pair: raw float spec tuples drift at
+  // bit level between computes (root size flap, content feedback) and defeat
+  // tuple-keyed caches, while the Int constraint they reduce to is stable.
+  internal class MeasureWidthSpec(
+    val constraint: Int,
+    val allowWrap: Boolean,
+    val isInline: Boolean
+  )
+
+  private fun computeWidthConstraint(
     knownWidth: Float,
     knownHeight: Float,
-    availableWidth: Float,
-    availableHeight: Float
-  ): Layout? {
-    val spannable = applyTextIfNeeded()
-    (container.node.view as? View)?.let {
-      if (it.layoutParams == null) {
-        it.layoutParams = ViewGroup.LayoutParams(
-          ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-      }
-    }
-
-    if (spannable.isEmpty() && node.children.isEmpty()) {
-      return null
-    }
-
+    availableWidth: Float
+  ): MeasureWidthSpec {
     // Determine the width constraint for StaticLayout
     // For inline elements, we want to measure to content, not fill available width
     val isInline = NodeUtils.isInlineLike(node)
@@ -444,16 +542,11 @@ class TextEngine(val container: TextContainer) {
     }
 
     var widthConstraint = Int.MAX_VALUE
-    var heightConstraint = Int.MAX_VALUE
 
     // `knownWidth` is Taffy's resolved box width, which may be narrower than nowrap
     // content's intrinsic width (e.g. under overflow:hidden); don't wrap to it in that case.
     if (allowWrap && knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
       widthConstraint = knownWidth.toInt()
-    }
-
-    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
-      heightConstraint = knownHeight.toInt()
     }
 
     if (isInline) {
@@ -522,17 +615,43 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
+    return MeasureWidthSpec(widthConstraint, allowWrap, isInline)
+  }
+
+  private fun measureLayout(
+    paint: TextPaint,
+    knownWidth: Float,
+    knownHeight: Float,
+    availableWidth: Float,
+    availableHeight: Float,
+    spec: MeasureWidthSpec
+  ): Layout? {
+    val __t = System.nanoTime()
+    val spannable = applyTextIfNeeded()
+    (container.node.view as? View)?.let {
+      if (it.layoutParams == null) {
+        it.layoutParams = ViewGroup.LayoutParams(
+          ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+      }
+    }
+
+    if (spannable.isEmpty() && node.children.isEmpty()) {
+      Perf.add("measureLayout", System.nanoTime() - __t)
+      return null
+    }
+
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
     val textDirectionHeuristic = getTextDirectionHeuristic()
 
-    var layout = buildStaticLayoutCached(
-      spannable, paint, widthConstraint, availableWidth, alignment, textDirectionHeuristic
+    val layout = buildStaticLayoutCached(
+      spannable, paint, spec.constraint, alignment, textDirectionHeuristic
     )
 
     // Get the ACTUAL measured width from the layout, not the constraint
     var measuredWidth = 0f
 
-    if (isInline) {
+    if (spec.isInline) {
       for (i in 0 until layout.lineCount) {
         val lineWidth = ceil(layout.getLineWidth(i))
         if (lineWidth > measuredWidth) {
@@ -540,34 +659,36 @@ class TextEngine(val container: TextContainer) {
         }
       }
 
-      if (widthConstraint == Int.MAX_VALUE) {
+      if (spec.constraint == Int.MAX_VALUE) {
         if (availableWidth == -1f) {
           // Min-content: widest word. Single-pass avoids split() allocation.
-          measuredWidth = maxWordWidth(spannable, paint, useLayout = true)
+          measuredWidth = Perf.timed("mww") { maxWordWidth(spannable, paint, useLayout = true) }
         }
-
-        if (availableWidth == -2f) {
-          val desiredWidth = ceil(android.text.Layout.getDesiredWidth(spannable, paint))
-          measuredWidth = maxOf(measuredWidth, desiredWidth)
-        }
+        // Max-content (-2f): the layout above was built unconstrained, where
+        // lines break only at newlines, so the max line width computed in the
+        // loop above is already exactly Layout.getDesiredWidth's result.
       }
     } else {
-      measuredWidth = if (widthConstraint == Int.MAX_VALUE) {
+      measuredWidth = if (spec.constraint == Int.MAX_VALUE) {
         when (availableWidth) {
           -1f -> {
             // Min-content: widest word. Single-pass avoids split() allocation.
-            maxWordWidth(spannable, paint, useLayout = false)
+            Perf.timed("mww") { maxWordWidth(spannable, paint, useLayout = false) }
           }
 
-          -2f -> {
-            val desiredWidth = ceil(Layout.getDesiredWidth(spannable, paint))
-            maxOf(measuredWidth, desiredWidth)
-          }
-
-          // Reached on the final layout pass when nowrap keeps widthConstraint
-          // at Int.MAX_VALUE; fall back to natural width, same as -2f above.
+          // Max-content (-2f) and the nowrap final pass: the layout above was
+          // built unconstrained, where lines break only at newlines, so its
+          // max line width is exactly Layout.getDesiredWidth's result — skip
+          // that extra full-text measurement pass.
           else -> {
-            ceil(Layout.getDesiredWidth(spannable, paint))
+            var maxLineWidth = 0f
+            for (i in 0 until layout.lineCount) {
+              val lineWidth = ceil(layout.getLineWidth(i))
+              if (lineWidth > maxLineWidth) {
+                maxLineWidth = lineWidth
+              }
+            }
+            maxLineWidth
           }
         }
       } else {
@@ -617,25 +738,19 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    if (widthConstraint == Int.MAX_VALUE) {
-      // Rebuild at the spannable's own natural width, not `measuredWidth` — during
-      // min-content that's just the widest word, which is too narrow to fit the
-      // full spannable and wraps leading/trailing whitespace onto its own line.
-      // Round up: truncating can land a hair under the true natural width.
-      val rebuildWidth = ceil(Layout.getDesiredWidth(spannable, paint)).toInt()
-      layout = buildStaticLayoutCached(
-        spannable, paint, rebuildWidth, availableWidth, alignment, textDirectionHeuristic
-      )
-    }
+    // No natural-width rebuild here: the unconstrained layout has the same
+    // line breaks (newlines only), so segments collected from it are identical,
+    // and onDraw rebuilds at the real content width when needed anyway.
 
     if (container is TextView) {
       container.cachedStaticLayout = layout
-      container.cachedStaticLayoutWidth = widthConstraint
+      container.cachedStaticLayoutWidth = spec.constraint
     }
 
     // CRITICAL: Collect and send segments to Rust
     collectAndCacheSegments(layout, spannable, paint)
 
+    Perf.add("measureLayout", System.nanoTime() - __t)
     return layout
   }
 
@@ -705,18 +820,48 @@ class TextEngine(val container: TextContainer) {
     knownWidth: Float, knownHeight: Float,
     availableWidth: Float, availableHeight: Float
   ): Long {
+    val __t = System.nanoTime()
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
     // Post the flush once per dirty episode, not once per measure call — a node is
     // measured many times per compute and each post was a Handler message.
     val pendingInvalidate = style.fontDirty && !style.pendingMetricsSync
     try {
+      // Settle any deferred text-style flush first so the cache key below
+      // reflects it (a real style change bumps segmentsInvalidateVersion).
+      flushTextStyleIfNeeded()
+      // Normalized cache key: the StaticLayout (the expensive object) depends
+      // only on content version + paint + effective wrap width; height is
+      // derived. Raw float spec tuples drift at bit level between computes,
+      // so key on the Int width constraint + width mode instead.
+      val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
+      val mcWKey = mcSpec.constraint.toLong()
+      val mcWMode = when (availableWidth) {
+        -1f -> 0L // min-content
+        -2f -> 1L // max-content
+        else -> 2L // definite (also covers the undefined sentinel)
+      }
+      val ver = segmentsInvalidateVersion.toLong()
+      for (i in 0 until MEASURE_CACHE_SIZE) {
+        val b = i * 4
+        if (measureCacheKeys[b] == ver && measureCacheKeys[b + 1] == mcWKey &&
+          measureCacheKeys[b + 2] == mcWMode && measureCacheKeys[b + 3] == 0L
+        ) {
+          Perf.hit("mcHit")
+          // Measurement is paint-driven, so a hit is valid even while font
+          // metrics are mid-sync — but keep the deferred sync flowing.
+          style.syncFontMetrics()
+          return measureCacheVals[i]
+        }
+      }
+      Perf.hit("mcMiss")
       val layout = measureLayout(
         paint,
         knownWidth,
         knownHeight,
         availableWidth,
-        availableHeight
+        availableHeight,
+        mcSpec
       )
 
 
@@ -765,8 +910,19 @@ class TextEngine(val container: TextContainer) {
       val finalHeight = if (isCollapsibleWhitespace) 0f else measuredHeight?.coerceAtLeast(minLineHeight) ?: height
       val finalWidth = if (isCollapsibleWhitespace) 0f else width
 
-      return MeasureOutput.make(finalWidth, finalHeight)
+      val mcOut = MeasureOutput.make(finalWidth, finalHeight)
+      run {
+        val b = measureCacheNext * 4
+        measureCacheKeys[b] = segmentsInvalidateVersion.toLong()
+        measureCacheKeys[b + 1] = mcWKey
+        measureCacheKeys[b + 2] = mcWMode
+        measureCacheKeys[b + 3] = 0L
+        measureCacheVals[measureCacheNext] = mcOut
+        measureCacheNext = (measureCacheNext + 1) % MEASURE_CACHE_SIZE
+      }
+      return mcOut
     } finally {
+      Perf.add("textMeasure", System.nanoTime() - __t)
       style.inMeasure = false
       if (pendingInvalidate) {
         // Schedule flush for after Rust releases the read lock.
@@ -985,10 +1141,14 @@ class TextEngine(val container: TextContainer) {
     attributed: SpannableStringBuilder,
     paint: TextPaint
   ) {
+    val __t = System.nanoTime()
     // Nothing relevant changed since the segments already sent for this
     // exact layout — skip the full spannable walk + JNI push.
-    if (lastSegmentsLayout === layout && lastSegmentsVersion == segmentsInvalidateVersion) {
-      return
+    for (i in segmentsCacheLayouts.indices) {
+      if (segmentsCacheLayouts[i] === layout && segmentsCacheVersions[i] == segmentsInvalidateVersion) {
+        Perf.add("segments", System.nanoTime() - __t)
+        return
+      }
     }
 
     val segments = mutableListOf<InlineSegment>()
@@ -1218,8 +1378,10 @@ class TextEngine(val container: TextContainer) {
 
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
     attributedStringVersion = segmentsInvalidateVersion
-    lastSegmentsVersion = segmentsInvalidateVersion
-    lastSegmentsLayout = layout
+    segmentsCacheLayouts[segmentsCacheNextIdx] = layout
+    segmentsCacheVersions[segmentsCacheNextIdx] = segmentsInvalidateVersion
+    segmentsCacheNextIdx = (segmentsCacheNextIdx + 1) % segmentsCacheLayouts.size
+    Perf.add("segments", System.nanoTime() - __t)
   }
 
   private fun findNextViewSpan(text: SpannableStringBuilder, start: Int): Int {
@@ -1591,15 +1753,28 @@ class TextEngine(val container: TextContainer) {
   // attributedStringVersion == segmentsInvalidateVersion
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
+
+  // Per-engine memo of the Rust measure callback: Taffy re-measures a leaf
+  // with identical (known, available) inputs several times per compute, and
+  // again on every recompute while nothing changed. Keyed on
+  // segmentsInvalidateVersion (content + text-style changes all funnel
+  // through invalidateInlineSegments), the raw spec bits, and the max-width
+  // clamp input; bypassed while font metrics are mid-sync.
+  private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 4)
+  private val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
+  private var measureCacheNext = 0
   private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 
-  // Last (version, layout) collectAndCacheSegments() sent over JNI for.
-  // buildStaticLayoutCached returns the same cached instance on a hit, so
-  // `layout === lastSegmentsLayout` means line-break geometry hasn't moved.
-  private var lastSegmentsVersion: Int = -1
-  private var lastSegmentsLayout: android.text.Layout? = null
+  // Recent (layout, version) pairs collectAndCacheSegments() sent over JNI for.
+  // buildStaticLayoutCached returns the same cached instance on a hit, so a seen
+  // layout identity means line-break geometry hasn't moved. Ring of 4: the
+  // min-content (unconstrained) and final-width layouts alternate across measure
+  // passes and a single slot had them evict each other every call.
+  private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
+  private val segmentsCacheVersions = IntArray(4) { -1 }
+  private var segmentsCacheNextIdx = 0
 
   private var minMeasuredTextWidth: Float = 0f
   private var minMeasuredTextHeight: Float = 0f
@@ -1610,15 +1785,14 @@ class TextEngine(val container: TextContainer) {
   private var maxMeasuredTextWidth: Float = 0f
   private var maxMeasuredTextHeight: Float = 0f
 
-  // Cache for the StaticLayout built inside measureLayout(). A single call
-  // can build up to two distinct-shaped StaticLayouts (an unconstrained
-  // probe, then a rebuild at the measured width), so a single slot would
-  // have both evict each other. Sized at 4 slots, round-robin eviction;
-  // gated by segmentsInvalidateVersion, same as cachedAttributedString.
+  // Cache for the StaticLayout built inside measureLayout(). One call can
+  // probe several shapes (unconstrained, available-width, known-width), so a
+  // single slot would have them evict each other. Sized at 4 slots,
+  // round-robin eviction; gated by segmentsInvalidateVersion, same as
+  // cachedAttributedString.
   private class StaticLayoutCacheEntry(
     val version: Int,
     val widthConstraint: Int,
-    val availableWidth: Float,
     val spannableLength: Int,
     val alignment: android.text.Layout.Alignment,
     val includePadding: Boolean,
@@ -2095,7 +2269,9 @@ class TextEngine(val container: TextContainer) {
     return wrapped
   }
 
-  internal fun invalidateInlineSegments(markDirty: Boolean = true) {
+  internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
+    Perf.hit("invSeg")
+    Node.bumpTextInvalidationEpoch()
     segmentsInvalidateVersion += 1
     cachedAttributedString = null
     minMeasuredTextWidth = 0f
@@ -2114,20 +2290,27 @@ class TextEngine(val container: TextContainer) {
     val parent = node.parent
 
     if (parent?.view is TextContainer) {
-      (parent.view as TextContainer).engine.invalidateInlineSegments()
+      (parent.view as TextContainer).engine.invalidateInlineSegments(quiet = quiet)
     } else {
       parent?.dirty()
       parent?.computeCacheDirty = true
-      (parent?.view as? View)?.invalidate()
+      if (!quiet) {
+        (parent?.view as? View)?.invalidate()
+      }
     }
 
     when (node.view) {
       is Element -> {
         (node.view as Element).apply {
+          // Even when quiet the root cache must stay dirty: the compute that
+          // follows (already scheduled or in progress) must not hit its
+          // fast path and reuse the pre-change layout tree.
           val root = node.getRootNode() ?: this.node
           root.computeCacheDirty = true
-          view.invalidate()
-          invalidateLayout()
+          if (!quiet) {
+            view.invalidate()
+            invalidateLayout()
+          }
         }
       }
 
@@ -2137,9 +2320,11 @@ class TextEngine(val container: TextContainer) {
           root.computeCacheDirty = true
           root.dirty()
         }
-        (node.view as View).apply {
-          invalidate()
-          requestLayout()
+        if (!quiet) {
+          (node.view as View).apply {
+            invalidate()
+            requestLayout()
+          }
         }
       }
 
@@ -2161,6 +2346,93 @@ class TextEngine(val container: TextContainer) {
       current = current.parent
     }
     return null
+  }
+
+  companion object {
+    private const val MEASURE_CACHE_SIZE = 8
+
+    // Flags that affect text measurement/layout (require full inline-segment recompute).
+    @JvmStatic
+    internal fun hasTextLayoutFlags(low: Long, high: Long): Boolean {
+      return (
+        StateKeys.hasFlag(low, high, StateKeys.FONT_SIZE) ||
+          StateKeys.hasFlag(low, high, StateKeys.FONT_WEIGHT) ||
+          StateKeys.hasFlag(low, high, StateKeys.FONT_STYLE) ||
+          StateKeys.hasFlag(low, high, StateKeys.FONT_FAMILY) ||
+          StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_WRAP) ||
+          StateKeys.hasFlag(low, high, StateKeys.WHITE_SPACE) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_TRANSFORM) ||
+          StateKeys.hasFlag(low, high, StateKeys.LETTER_SPACING) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_JUSTIFY) ||
+          StateKeys.hasFlag(low, high, StateKeys.LINE_HEIGHT) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) ||
+          StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
+          StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
+          StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
+          StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
+          StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH)
+        )
+    }
+
+    // Flags that only affect visual appearance (color, decoration, shadow).
+    // These require span rebuilds but NOT a layout recompute.
+    @JvmStatic
+    internal fun hasTextVisualFlags(low: Long, high: Long): Boolean {
+      return (
+        StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR) ||
+          StateKeys.hasFlag(low, high, StateKeys.DECORATION_LINE) ||
+          StateKeys.hasFlag(low, high, StateKeys.DECORATION_COLOR) ||
+          StateKeys.hasFlag(low, high, StateKeys.DECORATION_STYLE) ||
+          StateKeys.hasFlag(low, high, StateKeys.BACKGROUND_COLOR) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_SHADOWS)
+        )
+    }
+
+    // Any flag whose change can alter text rendering or measurement.
+    @JvmStatic
+    internal fun hasAnyTextFlags(low: Long, high: Long): Boolean {
+      return hasTextLayoutFlags(low, high) || hasTextVisualFlags(low, high)
+    }
+
+    // Engines with a deferred text-style invalidation. Flushed at the start of
+    // every compute pass (and individually from measure/draw) so engines whose
+    // views never measure or draw themselves (flattened into a composing parent)
+    // still get their settled-value comparison.
+    private val pendingTextStyleFlush = HashSet<TextEngine>()
+    private var textStyleFlushPosted = false
+
+    internal fun registerPendingTextStyle(engine: TextEngine) {
+      pendingTextStyleFlush.add(engine)
+      // Flush at the end of the current turn instead of waiting for the
+      // next compute entry: style mutations arrive in bursts during tree
+      // builds, and deferring the flush past a compute forces that compute
+      // to re-measure text it had already laid out. The flush only dirties;
+      // the usual invalidateLayout scheduling performs the compute.
+      if (!textStyleFlushPosted) {
+        textStyleFlushPosted = true
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+          textStyleFlushPosted = false
+          flushPendingTextStyles()
+        }
+      }
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    internal fun flushPendingTextStyles(forRoot: Node? = null) {
+      if (pendingTextStyleFlush.isEmpty()) return
+      val pending = pendingTextStyleFlush.toTypedArray()
+      pendingTextStyleFlush.clear()
+      for (engine in pending) {
+        // Quiet flush for engines of the tree that is about to compute: the
+        // compute itself accounts for the change, so the invalidateLayout()
+        // reschedule that a loud flush would do is pure double-work.
+        val quiet = forRoot != null && (engine.node.getRootNode() ?: engine.node) === forRoot
+        engine.flushTextStyleIfNeeded(quiet = quiet)
+      }
+    }
   }
 }
 

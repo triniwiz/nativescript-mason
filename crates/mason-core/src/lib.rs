@@ -996,6 +996,10 @@ impl Mason {
         self.0.remove_all(node)
     }
 
+    pub fn remove_children_recursive(&mut self, node: Id) {
+        self.0.remove_all_recursive(node)
+    }
+
     pub fn is_children_same(&self, node: Id, children: &[Id]) -> bool {
         self.0.is_children_same(node, children)
     }

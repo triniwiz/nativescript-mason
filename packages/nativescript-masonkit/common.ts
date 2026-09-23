@@ -306,6 +306,75 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
 
+  _masonPendingTeardown = false;
+  private static _pendingTeardowns: ViewBase[] = [];
+  private static _teardownScheduled = false;
+
+  // @ts-ignore
+  public _tearDownUI(force?: boolean): void {
+    if (__ANDROID__ && !force && !this.reusable && this._context && this.nativeViewProtected) {
+      // Fast path: a keyed move tears the element down only to re-add it in the
+      // same patch burst, and core's recursive teardown would otherwise detach
+      // and re-add every descendant node. Detach just this element (the subtree
+      // stays fully intact, like a `reusable` cell) and defer the real teardown;
+      // a re-attach in `_setupUI` cancels it. Discarded elements still get the
+      // full recursive teardown a tick later, off the mutation hot path.
+      if (this.parent) {
+        this.parent._removeViewFromNativeVisualTree(this);
+      }
+      this._masonPendingTeardown = true;
+      ViewBase._pendingTeardowns.push(this);
+      if (!ViewBase._teardownScheduled) {
+        ViewBase._teardownScheduled = true;
+        setTimeout(() => ViewBase._drainTeardowns(), 0);
+      }
+      return;
+    }
+    super._tearDownUI(force);
+  }
+
+  // @ts-ignore
+  public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
+    if (__ANDROID__ && this._masonPendingTeardown) {
+      this._masonPendingTeardown = false;
+      if (this._context === context) {
+        // Re-attached before the deferred teardown ran: the subtree is intact,
+        // so re-adding this element to the native tree is all that's needed.
+        if (!(this as any).mIsRootView && this.parent && !(this as any)._isAddedToNativeVisualTree) {
+          const nativeIndex = (this.parent as any)._childIndexToNativeChildIndex(atIndex ?? -1);
+          (this as any)._isAddedToNativeVisualTree = (this.parent as any)._addViewToNativeVisualTree(this, nativeIndex);
+        }
+        return;
+      }
+      // Context changed — fall through to the full setup.
+    }
+    super._setupUI(context, atIndex, parentIsLoaded);
+  }
+
+  private _masonFinishTeardown() {
+    if (!this._masonPendingTeardown) {
+      return;
+    }
+    this._masonPendingTeardown = false;
+    super._tearDownUI(true);
+  }
+
+  private static _drainTeardowns() {
+    ViewBase._teardownScheduled = false;
+    const deadline = Date.now() + 8;
+    while (ViewBase._pendingTeardowns.length > 0) {
+      const view = ViewBase._pendingTeardowns.shift();
+      view._masonFinishTeardown();
+      if (Date.now() >= deadline) {
+        break;
+      }
+    }
+    if (ViewBase._pendingTeardowns.length > 0) {
+      ViewBase._teardownScheduled = true;
+      setTimeout(() => ViewBase._drainTeardowns(), 0);
+    }
+  }
+
   /**
    * Enable or disable CSS Preflight (web-normalised / Tailwind-like) defaults
    * for the entire Mason tree.

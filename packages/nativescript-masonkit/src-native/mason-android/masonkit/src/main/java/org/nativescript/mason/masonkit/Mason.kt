@@ -219,29 +219,31 @@ class Mason {
 
   @JvmOverloads
   fun createNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
-    val nodePtr = children?.let {
-      NativeHelpers.nativeNodeNewWithChildren(
-        nativePtr,
-        children.map { it.nativePtr }.toLongArray(),
-      )
-    } ?: NativeHelpers.nativeNodeNew(nativePtr, isAnonymous)
-    val node = Node(this, nodePtr).apply {
-      children?.let {
-        children.forEach {
-          it.parent = this
-          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it.objectId)
+    return Perf.timed("createNode") {
+      val nodePtr = children?.let {
+        NativeHelpers.nativeNodeNewWithChildren(
+          nativePtr,
+          children.map { it.nativePtr }.toLongArray(),
+        )
+      } ?: NativeHelpers.nativeNodeNew(nativePtr, isAnonymous)
+      val node = Node(this, nodePtr).apply {
+        children?.let {
+          children.forEach {
+            it.parent = this
+            NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it.objectId)
+          }
+          this.children.addAll(children)
         }
-        this.children.addAll(children)
+        nodes[nodePtr] = WeakReference(this)
+        this.isAnonymous = isAnonymous
       }
-      nodes[nodePtr] = WeakReference(this)
-      this.isAnonymous = isAnonymous
+
+      NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+      track(node)
+
+      node
     }
-
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
-
-    track(node)
-
-    return node
   }
 
   fun createNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
@@ -294,20 +296,22 @@ class Mason {
   }
 
   fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
-    val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func.objectId, isAnonymous)
-    val node = Node(this, nodePtr).apply {
-      nodes[nodePtr] = WeakReference(this)
-      measureFunc = measure
-      measureFuncImpl = func
-      this.isAnonymous = isAnonymous
+    return Perf.timed("createTextNodeM") {
+      val func = MeasureFuncImpl(WeakReference(measure))
+      val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func.objectId, isAnonymous)
+      val node = Node(this, nodePtr).apply {
+        nodes[nodePtr] = WeakReference(this)
+        measureFunc = measure
+        measureFuncImpl = func
+        this.isAnonymous = isAnonymous
+      }
+
+      NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+      track(node)
+
+      node
     }
-
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
-
-    track(node)
-
-    return node
   }
 
   fun createImageNode(measure: MeasureFunc): Node {
@@ -357,7 +361,7 @@ class Mason {
   }
 
   fun createView(context: Context): View {
-    return View(context, this)
+    return Perf.timed("createView") { View(context, this) }
   }
 
   @JvmOverloads
@@ -391,7 +395,7 @@ class Mason {
   fun createTextView(
     context: Context, type: TextType = TextType.None, isAnonymous: Boolean = false
   ): TextView {
-    return TextView(context, this, type, isAnonymous)
+    return Perf.timed("createTextView") { TextView(context, this, type, isAnonymous) }
   }
 
   fun createTextArea(context: Context): TextArea {

@@ -143,6 +143,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
+    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
     } finally {
@@ -164,6 +165,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
+    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
     } finally {
@@ -177,6 +179,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
+    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -190,6 +193,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
+    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -297,8 +301,10 @@ interface Element : EventTarget {
   fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
+    TextEngine.flushPendingTextStyles(node)
     var applied = true
     mason.inCompute = true
+    Perf.computeCount++
     try {
       val layout = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
       if (layout.isEmpty()) {
@@ -332,7 +338,9 @@ interface Element : EventTarget {
     if (mason.inCompute) {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     }
+    val __t = System.nanoTime()
     node.nestedComputePending = false
+    TextEngine.flushPendingTextStyles(node)
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native
@@ -343,10 +351,20 @@ interface Element : EventTarget {
       && node.computeCache.height == height
       && node.layoutTree.nodeCount > 0
     ) {
+      Perf.hit("computeSkip")
+      Perf.add("computeAndLayout", System.nanoTime() - __t)
       return node.layoutTree
     }
+    Perf.hit(
+      when {
+        node.computeCacheDirty -> "cmpMissDirty"
+        node.computeCache.width != width || node.computeCache.height != height -> "cmpMissSize"
+        else -> "cmpMissTree"
+      }
+    )
 
     var applied = true
+    Perf.computeCount++
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
@@ -356,6 +374,8 @@ interface Element : EventTarget {
         height
       )
       if (layout.isEmpty()) {
+        Perf.hit("cmpEmpty")
+        Perf.add("computeAndLayout", System.nanoTime() - __t)
         return MasonLayoutTree.empty
       }
       applied = node.layoutTree.fromFloatArray(layout)
@@ -368,6 +388,7 @@ interface Element : EventTarget {
         invalidateLayout()
       }
     }
+    Perf.add("computeAndLayout", System.nanoTime() - __t)
     return node.layoutTree
   }
 
@@ -561,6 +582,7 @@ interface Element : EventTarget {
 
     // If no view is available, fallback to immediately compute
     if (targetView == null) {
+      Perf.hit("invNoTarget")
       if (root.type == NodeType.Document) {
         root.document?.documentElement?.compute(root.computeCache.width, root.computeCache.height)
       } else if (root.view is Element && root.computeCacheDirty) {
@@ -579,12 +601,24 @@ interface Element : EventTarget {
       root.dirty()
     }
 
+    // Detached root that has never been measured: its attach-time onMeasure
+    // computes with real specs anyway, so latching computeScheduled and
+    // posting here only produces no-op runCompute fires (mid-build rows each
+    // latching themselves as root) and risks the latch surviving into the
+    // attach pass. The dirty flags above are enough.
+    if (!targetView.isAttachedToWindow && root.lastRootWidthArg == Float.MIN_VALUE) {
+      Perf.hit("invDetachedSkip")
+      return
+    }
+
     // Schedule a one-shot compute on the view's message queue to coalesce
     // rapid invalidations and keep layout work off the caller thread. Falls
     // back to a synchronous compute only when no view is available.
 
+    if (root.computeScheduled) Perf.hit("invLatch")
     if (!root.computeScheduled) {
       root.computeScheduled = true
+      Perf.hit("invSched")
       // Only request a layout pass here; computeAndLayout() (called from
       // onMeasure) performs the compute and serializes the layout in one
       // shot, so applyLayoutFlat gets correct data.
@@ -593,6 +627,7 @@ interface Element : EventTarget {
         if (!finished) {
           finished = true
           root.computeScheduled = false
+          Perf.hit(if ((root.view as? android.view.View)?.isAttachedToWindow == true) "rcAttT" else "rcAttF")
           if (root.type == NodeType.Document) {
             root.document?.documentElement?.let { docEl ->
               docEl.compute(
@@ -603,10 +638,17 @@ interface Element : EventTarget {
               docEl.view?.requestLayout()
             }
           } else {
-            // For normal Element roots, just request a full layout pass.
-            // computeCacheDirty is still true (set by node.dirty() above),
-            // so computeAndLayout() in onMeasure will recompute + serialize.
-            (root.view as? View)?.requestLayout()
+            // For normal Element roots with an attached, previously measured
+            // view, run the debounced compute inline so the mutation's own
+            // frame is complete — requestLayout alone defers the compute to
+            // the next traversal, which can land a frame (or more) late.
+            // The follow-up requestLayout makes onMeasure hit the compute
+            // cache and onLayout re-apply the fresh layout tree.
+            val rv = root.view as? android.view.View
+            if (rv != null && rv.isAttachedToWindow && root.lastRootWidthArg != Float.MIN_VALUE) {
+              (root.view as? Element)?.computeAndLayout(root.lastRootWidthArg, root.lastRootHeightArg)
+            }
+            rv?.requestLayout()
           }
         }
       }
@@ -659,10 +701,15 @@ interface Element : EventTarget {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       vg?.suppressLayout(true)
     }
-    views.forEach {
-      appendView(it)
+    try {
+      views.forEach {
+        appendView(it)
+      }
+    } finally {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        vg?.suppressLayout(false)
+      }
     }
-
   }
 
   fun prependView(view: View) {
@@ -676,7 +723,13 @@ interface Element : EventTarget {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       vg?.suppressLayout(true)
     }
-    views.reversed().forEach { prependView(it) }
+    try {
+      views.reversed().forEach { prependView(it) }
+    } finally {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        vg?.suppressLayout(false)
+      }
+    }
   }
 
   fun addChildAt(text: String, index: Int) {
@@ -946,6 +999,7 @@ private fun popFrame(state: LayoutDfsState): LayoutStackFrame {
 }
 
 internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
+  val __t = System.nanoTime()
   if (tree.nodeCount == 0) return
 
   val nv = tree.cursor
@@ -961,6 +1015,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       val frame = popFrame(dfs)
       val treeIdx = frame.treeIdx
       val node = frame.node!!
+      Perf.hit("applyNode")
       frame.node = null // release ref
 
       nv.pointTo(treeIdx)
@@ -1228,4 +1283,5 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
     tree.reading = wasReading
     releaseDfsState()
   }
+  Perf.add("applyLayout", System.nanoTime() - __t)
 }

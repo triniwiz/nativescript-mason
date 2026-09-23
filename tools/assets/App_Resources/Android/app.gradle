@@ -35,5 +35,5 @@ dependencies {
   // implementation project(":masonkit")
   implementation 'androidx.multidex:multidex:2.0.1'
   implementation "androidx.activity:activity:1.11.0"
-  implementation 'org.nativescript:fontmanager:1.0.7'
+  // implementation 'org.nativescript:fontmanager:1.0.7' // disabled: provided by @nativescript/font-manager plugin AAR (android-perf test build)
 }

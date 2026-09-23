@@ -1035,6 +1035,34 @@ pub extern "system" fn NodeNativeRemoveChildrenNormal(
     native_remove_children(taffy, node)
 }
 
+fn native_remove_children_recursive(taffy: jlong, node: jlong) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+    let call = call_enter("NodeNativeRemoveChildrenRecursive", taffy, node);
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+        mason.remove_children_recursive(node.id());
+    }
+    call_exit("NodeNativeRemoveChildrenRecursive", call);
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeRemoveChildrenRecursive(taffy: jlong, node: jlong) {
+    native_remove_children_recursive(taffy, node)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeRemoveChildrenRecursiveNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) {
+    native_remove_children_recursive(taffy, node)
+}
+
 fn native_remove_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     if taffy == 0 || node == 0 {
         return 0;

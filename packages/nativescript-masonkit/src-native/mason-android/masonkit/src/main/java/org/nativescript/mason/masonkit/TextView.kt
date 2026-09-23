@@ -108,15 +108,23 @@ class TextView @JvmOverloads constructor(
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
       // Keep the float-aware layout intact â€” we just expanded to fit it.
     } else {
-      cachedStaticLayout = null
-      cachedStaticLayoutWidth = -1
-      floatAwareStaticLayout = null
+      // Layouts are width-driven: keep the cached layouts across pure
+      // height or no-op size changes (applyLayoutFlat assigns the measured
+      // size right after measure populated the cache — clearing here forced
+      // every first draw to rebuild its StaticLayout).
+      val contentW = w - paddingLeft - paddingRight
+      if (cachedStaticLayoutWidth != contentW) {
+        cachedStaticLayout = null
+        cachedStaticLayoutWidth = -1
+        floatAwareStaticLayout = null
+      }
       floatExpandedHeight = -1
     }
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
   override fun onDraw(canvas: Canvas) {
+    engine.flushTextStyleIfNeeded()
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
@@ -225,11 +233,13 @@ class TextView @JvmOverloads constructor(
       return engine.textContent
     }
     set(value) {
-      // Invalidate our cached layout when text changes
-      cachedStaticLayout = null
-      cachedStaticLayoutWidth = -1
-      floatAwareStaticLayout = null
-      engine.textContent = value
+      Perf.timed("setTextContent") {
+        // Invalidate our cached layout when text changes
+        cachedStaticLayout = null
+        cachedStaticLayoutWidth = -1
+        floatAwareStaticLayout = null
+        engine.textContent = value
+      }
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
@@ -420,6 +430,7 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onChange(low: Long, high: Long) {
+    Perf.hit("tvOnChange")
     // Style change affects layout; invalidate cached StaticLayout
     cachedStaticLayout = null
     cachedStaticLayoutWidth = -1

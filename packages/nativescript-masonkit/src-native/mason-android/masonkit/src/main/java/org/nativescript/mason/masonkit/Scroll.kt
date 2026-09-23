@@ -205,12 +205,22 @@ class Scroll @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element) {
+      Perf.hit("onMeasureRoot")
+      Perf.hit(if (node.computeCacheDirty) "omDirty" else "omClean")
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = View.mapHeightSpecArg(specHeightMode, specHeight)
+        // Scroll semantics: content lays out at its NATURAL height
+        // (Android ScrollView measures content UNSPECIFIED). Feeding the
+        // viewport height here made every viewport resize - most visibly
+        // the window-inset settling right after a page opens - change the
+        // whole-tree compute cache key and force a full second layout.
+        val heightArg = -2f
+        node.lastRootWidthArg = widthArg
+        node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(widthArg, heightArg)
+        Perf.addCount("omNodes", node.layoutTree.nodeCount.toLong())
         if (stale) invalidateForeignHost()
 
         if (node.layoutTree.nodeCount == 0) {
@@ -234,8 +244,14 @@ class Scroll @JvmOverloads constructor(
         }
       }
     } else {
+      Perf.hit("omNested")
       setMeasuredDimension(specWidth, specHeight)
     }
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    Perf.hit(if (parent !is Element) "attachRoot" else "attachNested")
   }
 
   /**
