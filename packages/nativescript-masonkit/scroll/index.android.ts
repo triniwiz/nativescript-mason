@@ -21,7 +21,7 @@ export class Scroll extends ViewBase {
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      const view = Tree.instance.createScrollView(context);
+      const view = Tree.instance.createScrollView(context) as never as org.nativescript.mason.masonkit.Scroll;
       view.setVisibleOverflowScrolls(this._visibleOverflowScrolls);
       this[native_] = view as never;
     }
