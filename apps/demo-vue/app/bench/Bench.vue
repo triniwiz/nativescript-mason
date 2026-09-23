@@ -64,7 +64,7 @@
 
 <script lang="ts" setup>
 import { $navigateBack, $navigateTo, onMounted, ref, type Component } from 'nativescript-vue';
-import { beginNavigation, fmt, idle, median, phaseOrder, resetResults, results, running, status, type Flavour, type PhaseSample, type ScenarioKey } from './harness';
+import { beginNavigation, flushBenchUi, fmt, idle, median, phaseOrder, resetResults, results, running, setBenchStatus, status, type Flavour, type PhaseSample, type ScenarioKey } from './harness';
 import FeedMason from './FeedMason.vue';
 import FeedCore from './FeedCore.vue';
 import DashboardMason from './DashboardMason.vue';
@@ -92,11 +92,16 @@ function open(page: Component): void {
   $navigateTo(page);
 }
 
-async function runPage(page: Component): Promise<void> {
+async function runPage(page: Component, label: string): Promise<void> {
   const done = beginNavigation();
   $navigateTo(page, { animated: false, props: { auto: true } });
   await done;
   await idle(250);
+  // Safe zone: no timing window is open now, so publishing the bench page's
+  // reactive UI (status + results table) cannot leak native layout work
+  // into any sample.
+  setBenchStatus(label);
+  flushBenchUi();
 }
 
 async function runAll(): Promise<void> {
@@ -109,8 +114,7 @@ async function runAll(): Promise<void> {
         // Alternate the order so neither flavour always pays for the other's warm-up.
         const order: Array<[Flavour, Component]> = i % 2 ? [['core', s.core], ['mason', s.mason]] : [['mason', s.mason], ['core', s.core]];
         for (const [flavour, page] of order) {
-          status.value = `Run ${i + 1}/${iterations.value} · ${s.title} · ${flavour}`;
-          await runPage(page);
+          await runPage(page, `Run ${i + 1}/${iterations.value} · ${s.title} · ${flavour}`);
         }
       }
     }

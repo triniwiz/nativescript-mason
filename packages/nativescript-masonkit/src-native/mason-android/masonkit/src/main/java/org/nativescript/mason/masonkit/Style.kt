@@ -780,12 +780,19 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal var gridState = GridState()
 
   internal var fontDirty = false
+    private set(value) {
+      field = value
+      if (value) pendingMetricsStyles[this] = true
+    }
 
   // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
   @JvmField
   internal var inMeasure = false
   internal var pendingMetricsSync = false
-    private set
+    private set(value) {
+      field = value
+      if (value) pendingMetricsStyles[this] = true
+    }
 
   private var reloadListener: (FontFace, String?) -> Unit = { font, error ->
     syncFontMetrics()
@@ -850,11 +857,17 @@ class Style internal constructor(@Transient internal var node: Node) {
     face.load(v.context) { _ ->
       v.post {
         invalidateResolvedFontFace()
-        syncFontMetrics()
+        val metricsChanged = syncFontMetrics()
         notifyTextStyleChanged(StateKeys.FONT_FAMILY)
-        node.dirty()
-        v.invalidate()
-        v.requestLayout()
+        // No dirty when the loaded face's metrics match what the buffer
+        // already holds — the text-style flush above still fires, and its
+        // signature check catches any real layout change. An unconditional
+        // dirty here forced a full second compute per font load.
+        if (metricsChanged) {
+          node.dirty()
+          v.invalidate()
+          v.requestLayout()
+        }
       }
     }
   }
@@ -903,11 +916,13 @@ class Style internal constructor(@Transient internal var node: Node) {
                 v.post {
                   fontDirty = true
                   // attempt to sync metrics now (will defer if inMeasure)
-                  syncFontMetrics()
+                  val metricsChanged = syncFontMetrics()
                   // mark node/layout dirty so view will re-measure/re-layout
-                  node.dirty()
-                  v.invalidate()
-                  v.requestLayout()
+                  if (metricsChanged) {
+                    node.dirty()
+                    v.invalidate()
+                    v.requestLayout()
+                  }
                 }
               }
             }
@@ -930,13 +945,13 @@ class Style internal constructor(@Transient internal var node: Node) {
    * When called during a Rust measure callback (inMeasure == true),
    * write is deferred to avoid deadlocking the rwlock.
    */
-  internal fun syncFontMetrics() {
-    if (!fontDirty) return
+  internal fun syncFontMetrics(): Boolean {
+    if (!fontDirty) return false
     if (inMeasure) {
       pendingMetricsSync = true
-      return
+      return false
     }
-    syncFontMetricsNow()
+    return syncFontMetricsNow()
   }
 
   private fun syncFontMetricsNow(): Boolean {
@@ -4629,10 +4644,12 @@ class Style internal constructor(@Transient internal var node: Node) {
         sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
           view.post {
             fontDirty = true
-            syncFontMetrics()
-            node.dirty()
-            view.invalidate()
-            view.requestLayout()
+            val metricsChanged = syncFontMetrics()
+            if (metricsChanged) {
+              node.dirty()
+              view.invalidate()
+              view.requestLayout()
+            }
           }
         }
       } else {
@@ -5247,6 +5264,45 @@ class Style internal constructor(@Transient internal var node: Node) {
   companion object {
     init {
       Mason.initLib()
+    }
+
+    // Styles whose font metrics need syncing before the next compute of
+    // their root. Mirrors TextEngine.pendingTextStyleFlush: font changes
+    // arrive in bursts during tree builds, and syncing them at compute entry
+    // (instead of letting them defer into the compute's measure callbacks)
+    // avoids the post-compute dirty + full second compute per mutation.
+    // Weak keys: removed/re-parented nodes get invalidateInheritedTextCaches
+    // (fontDirty=true) but their detached subtree never computes again — a
+    // strong set would retain the whole dead tree (Styles → Nodes → views,
+    // engines, StaticLayouts) and OOM the app.
+    private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
+
+    /**
+     * Sync pending font metrics for styles of [forRoot]'s tree. A changed
+     * sync dirties its node so the computeSkip fast-path can't serve stale
+     * results; the imminent compute absorbs the buffer write, so no
+     * view-level invalidate/requestLayout is posted here.
+     */
+    @JvmStatic
+    internal fun flushPendingMetrics(forRoot: Node) {
+      if (pendingMetricsStyles.isEmpty()) return
+      val it = pendingMetricsStyles.entries.iterator()
+      while (it.hasNext()) {
+        val e = it.next()
+        val s = e.key
+        if (s == null || (!s.fontDirty && !s.pendingMetricsSync)) {
+          it.remove()
+          continue
+        }
+        if ((s.node.getRootNode() ?: s.node) !== forRoot) continue
+        it.remove()
+        // A changed sync dirties its node so the computeSkip fast-path can't
+        // serve stale results; the imminent compute absorbs the buffer write,
+        // so no view-level invalidate/requestLayout is posted here.
+        if (s.flushPendingMetricsSync()) {
+          s.node.dirty()
+        }
+      }
     }
 
     // Shared per (family, weight, style): constructing a FontFace always hops

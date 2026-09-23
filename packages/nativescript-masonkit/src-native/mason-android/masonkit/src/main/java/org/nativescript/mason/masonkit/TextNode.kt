@@ -23,6 +23,9 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
   override var data: String = ""
     set(value) {
+      // Same-value writes (framework re-patching unchanged v-for rows)
+      // must not wipe the container's measure caches.
+      if (field == value) return
       field = value
       Perf.hit("tnData")
       // Invalidate the container when text changes

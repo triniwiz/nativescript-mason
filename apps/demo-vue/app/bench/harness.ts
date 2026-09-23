@@ -52,6 +52,7 @@ export const phaseOrder = ref<Record<ScenarioKey, string[]>>({ feed: [], dashboa
 export function resetResults(): void {
   results.value = emptyResults();
   phaseOrder.value = { feed: [], dashboard: [], nested: [] };
+  resetBenchRunState();
 }
 
 export const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
@@ -65,7 +66,7 @@ export const nextFrame = (): Promise<number> => new Promise((resolve) => request
  * window and poisons its numbers. Cores pages have no masonkit Perf, so this
  * degrades to the plain two-frame wait there.
  */
-export async function settled(): Promise<void> {
+export async function settled(expectCompute = false): Promise<void> {
   const Perf = (globalThis as any).org?.nativescript?.mason?.masonkit?.Perf;
   if (!Perf) {
     await nextFrame();
@@ -76,6 +77,27 @@ export async function settled(): Promise<void> {
   let stable = 0;
   let frames = 0;
   const deadline = Date.now() + 5000;
+  if (expectCompute) {
+    // A mutation's compute may be debounced several frames out; requiring
+    // stability alone can close the window before the compute ever runs and
+    // dump its cost into the NEXT phase. Wait for the counter to advance past
+    // the value at entry, then for stability.
+    const entry = Number(Perf.computeCount ?? 0);
+    let advanced = false;
+    while ((frames < 2 || stable < 2 || !advanced) && Date.now() < deadline) {
+      await nextFrame();
+      frames++;
+      const c = Number(Perf.computeCount ?? -1);
+      if (c === last) {
+        stable++;
+      } else {
+        stable = 0;
+        last = c;
+      }
+      if (c > entry) advanced = true;
+    }
+    return;
+  }
   while ((frames < 2 || stable < 2) && Date.now() < deadline) {
     await nextFrame();
     frames++;
@@ -109,12 +131,48 @@ function perfDump(scenario: ScenarioKey, flavour: Flavour, phase: string): void 
   }
 }
 
+/**
+ * Timing windows stay open while a scenario page runs, but the Bench page
+ * itself is built from MasonKit elements (installMasonKit is global), so any
+ * reactive update to the results table / status label re-renders native mason
+ * layout on the still-attached Bench page. That work lands inside whatever
+ * phase window is open and poisons the samples (later phases most, since the
+ * table grows). During a run we therefore stash samples and status in plain
+ * non-reactive data and only publish to the reactive refs from the safe zone
+ * between pages (see flushBenchUi).
+ */
+const stash: Results = emptyResults();
+const stashPhaseOrder: Record<ScenarioKey, string[]> = { feed: [], dashboard: [], nested: [] };
+let stashStatus = '';
+
 function record(scenario: ScenarioKey, flavour: Flavour, phase: string, sample: PhaseSample): void {
-  const bucket = results.value[scenario][flavour];
+  const bucket = stash[scenario][flavour];
   (bucket[phase] ??= []).push(sample);
-  const order = phaseOrder.value[scenario];
+  const order = stashPhaseOrder[scenario];
   if (!order.includes(phase)) order.push(phase);
   perfDump(scenario, flavour, phase);
+}
+
+/** Safe-zone publish: call only when no timing window is open. */
+export function flushBenchUi(): void {
+  results.value = JSON.parse(JSON.stringify(stash));
+  phaseOrder.value = JSON.parse(JSON.stringify(stashPhaseOrder));
+  if (stashStatus) status.value = stashStatus;
+}
+
+export function setBenchStatus(text: string): void {
+  stashStatus = text;
+}
+
+export function resetBenchRunState(): void {
+  const fresh = emptyResults();
+  (Object.keys(stash) as ScenarioKey[]).forEach((k) => {
+    stash[k] = fresh[k];
+  });
+  stashPhaseOrder.feed = [];
+  stashPhaseOrder.dashboard = [];
+  stashPhaseOrder.nested = [];
+  stashStatus = '';
 }
 
 /**
@@ -139,7 +197,9 @@ export class PageBench {
   }
 
   async firstFrame(): Promise<void> {
-    await settled();
+    // The initial compute is debounced past `loaded`; capture it here so it
+    // cannot leak into the first workload phase.
+    await settled(this.flavour === 'mason');
     record(this.scenario, this.flavour, 'first frame', { ms: now() - this.loadedAt });
   }
 
@@ -147,7 +207,7 @@ export class PageBench {
   async run(phase: string, mutate: () => void): Promise<void> {
     const start = now();
     mutate();
-    await settled();
+    await settled(this.flavour === 'mason');
     record(this.scenario, this.flavour, phase, { ms: now() - start });
   }
 

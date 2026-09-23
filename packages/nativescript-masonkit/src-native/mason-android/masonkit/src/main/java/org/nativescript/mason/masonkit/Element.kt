@@ -302,6 +302,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
     TextEngine.flushPendingTextStyles(node)
+    Style.flushPendingMetrics(node)
     var applied = true
     mason.inCompute = true
     Perf.computeCount++
@@ -341,6 +342,7 @@ interface Element : EventTarget {
     val __t = System.nanoTime()
     node.nestedComputePending = false
     TextEngine.flushPendingTextStyles(node)
+    Style.flushPendingMetrics(node)
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native

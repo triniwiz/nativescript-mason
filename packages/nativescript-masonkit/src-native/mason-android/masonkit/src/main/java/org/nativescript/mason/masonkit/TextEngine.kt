@@ -313,15 +313,33 @@ class TextEngine(val container: TextContainer) {
     textVisualFlushPending = false
     if (layoutPending) {
       val sig = textLayoutSignature()
-      if (sig != null && sig == lastTextLayoutSignature) {
+      if (sig != null && lastTextLayoutSignature == null) {
+        // First reaction for this engine: the settled values are what the
+        // imminent measure/layout will use, so establish the baseline
+        // WITHOUT invalidating. Bumping the version here wipes the
+        // measure/staticLayout caches that were just built with these very
+        // values — the mount c2 onMeasure (inset flap) re-measured the
+        // whole tree purely because of these first-flush bumps.
+        lastTextLayoutSignature = sig
+        lastTextVisualSignature = textVisualSignature()
+        updateStyleOnTextNodes()
+      } else if (sig != null && sig == lastTextLayoutSignature) {
         // Values toggled but settled back — the storm was a no-op and every
         // text cache is still valid.
         Perf.hit("tvToggle")
       } else {
+        val prevSig = lastTextLayoutSignature
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
-        invalidateInlineSegments(quiet = quiet)
+        // A null signature means a resolved getter threw on a sentinel value
+        // we cannot interpret — invalidateInlineSegments here would run on
+        // every flush for that engine (last never sticks), wiping the whole
+        // subtree's measure caches each time. Only invalidate when we can
+        // actually prove the values changed.
+        if (sig != null) {
+          invalidateInlineSegments(quiet = quiet)
+        }
       }
     } else if (visualPending) {
       val sig = textVisualSignature()
@@ -347,7 +365,7 @@ class TextEngine(val container: TextContainer) {
 
   private fun textLayoutSignature(): Long? = try {
     textLayoutSignatureUnsafe()
-  } catch (_: Throwable) {
+  } catch (t: Throwable) {
     // Some resolved getters throw on sentinel values in half-initialized
     // styles — fall back to always reacting (pre-gate behaviour).
     null
@@ -830,6 +848,12 @@ class TextEngine(val container: TextContainer) {
       // Settle any deferred text-style flush first so the cache key below
       // reflects it (a real style change bumps segmentsInvalidateVersion).
       flushTextStyleIfNeeded()
+      if (lastTextLayoutSignature == null) {
+        // No flush has reacted yet — pin the baseline to what this measure
+        // actually used, so a later first flush can't wipe these caches.
+        lastTextLayoutSignature = textLayoutSignature()
+        lastTextVisualSignature = textVisualSignature()
+      }
       // Normalized cache key: the StaticLayout (the expensive object) depends
       // only on content version + paint + effective wrap width; height is
       // derived. Raw float spec tuples drift at bit level between computes,
@@ -849,7 +873,7 @@ class TextEngine(val container: TextContainer) {
         ) {
           Perf.hit("mcHit")
           // Measurement is paint-driven, so a hit is valid even while font
-          // metrics are mid-sync — but keep the deferred sync flowing.
+          // metrics are mid-sync � but keep the deferred sync flowing.
           style.syncFontMetrics()
           return measureCacheVals[i]
         }
@@ -2349,7 +2373,7 @@ class TextEngine(val container: TextContainer) {
   }
 
   companion object {
-    private const val MEASURE_CACHE_SIZE = 8
+    private const val MEASURE_CACHE_SIZE = 32
 
     // Flags that affect text measurement/layout (require full inline-segment recompute).
     @JvmStatic
