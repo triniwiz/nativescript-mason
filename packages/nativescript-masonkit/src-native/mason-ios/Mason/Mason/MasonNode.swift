@@ -220,6 +220,11 @@ public class MasonNode: NSObject {
   /// NativeScript can read this to skip redundant layout passes for Mason-managed children.
   @objc public var isLayoutValid: Bool = false
   internal var hasClickGesture: Bool = false
+
+  // Deferred-compute bookkeeping — see `computeNestedRootLater` in MasonElement.swift.
+  internal var nestedComputePending = false
+  internal var nestedComputeWidth: Float = 0
+  internal var nestedComputeHeight: Float = 0
   
   public internal(set) var document: MasonDocument? = nil
   

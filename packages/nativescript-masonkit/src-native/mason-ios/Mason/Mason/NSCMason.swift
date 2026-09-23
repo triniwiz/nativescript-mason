@@ -15,7 +15,11 @@ public class NSCMason: NSObject {
   public internal(set) var nativePtr: OpaquePointer?
   internal var nodes: [Int64: MasonNode] = [:]
   internal var viewNodes: [UIView: MasonNode] = [:]
-  
+
+  // True while Rust holds a lock during compute — prevents a nested Mason
+  // root from re-entering Rust on the same thread and deadlocking.
+  internal var inCompute = false
+
   public static var shared = NSCMason()
   
   // Use NSMapTable with weak keys to avoid retaining nodes that have been removed
