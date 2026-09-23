@@ -31,7 +31,7 @@
           <section class="group">
             <span class="section-label">Diagnostics</span>
             <div class="nav-list">
-              <div class="nav-row" @tap="$navigateTo(Bench)">
+              <div class="nav-row" @tap="$navigateTo(BenchPage)">
                 <div class="nav-icon" style="background-color: #00b894"><span class="nav-icon-text">B</span></div>
                 <div class="nav-body">
                   <span class="nav-title">Layout benchmark</span>
@@ -88,7 +88,7 @@ import Photos from '~/web-samples/Photos.vue';
 import WebSamples from '~/web-samples/WebSamples.vue';
 import Professions from '~/web-samples/Professions.vue';
 import Stress from '~/stress/Stress.vue';
-import Bench from '~/bench/Bench.vue';
+import BenchPage from '~/bench/BenchPage.vue';
 
 const groups = [
   {
