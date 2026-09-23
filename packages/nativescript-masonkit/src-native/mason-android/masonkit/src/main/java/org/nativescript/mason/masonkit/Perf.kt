@@ -18,29 +18,26 @@ object Perf {
   @JvmField
   @Volatile
   var computeCount = 0L
-  private val times = HashMap<String, Long>()
-  private val counts = HashMap<String, Long>()
+  private val times = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
+  private val counts = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
 
   @JvmStatic
-  @Synchronized
   fun add(name: String, ns: Long) {
     if (!enabled) return
-    times[name] = (times[name] ?: 0L) + ns
-    counts[name] = (counts[name] ?: 0L) + 1L
+    counts.computeIfAbsent(name) { java.util.concurrent.atomic.LongAdder() }.increment()
+    times.computeIfAbsent(name) { java.util.concurrent.atomic.LongAdder() }.add(ns)
   }
 
   @JvmStatic
-  @Synchronized
   fun hit(name: String) {
     if (!enabled) return
-    counts[name] = (counts[name] ?: 0L) + 1L
+    counts.computeIfAbsent(name) { java.util.concurrent.atomic.LongAdder() }.increment()
   }
 
   @JvmStatic
-  @Synchronized
   fun addCount(name: String, n: Long) {
     if (!enabled) return
-    counts[name] = (counts[name] ?: 0L) + n
+    counts.computeIfAbsent(name) { java.util.concurrent.atomic.LongAdder() }.add(n)
   }
 
   inline fun <T> timed(name: String, block: () -> T): T {
@@ -54,11 +51,10 @@ object Perf {
   }
 
   @JvmStatic
-  @Synchronized
   fun reset() {
     times.clear()
     counts.clear()
-    logCounts.clear()
+    synchronized(logCounts) { logCounts.clear() }
   }
 
   private val logCounts = HashMap<String, Int>()
@@ -77,18 +73,19 @@ object Perf {
   }
 
   @JvmStatic
-  @Synchronized
   fun logCapped(key: String, limit: Int, msg: String) {
     if (!enabled) return
-    val c = logCounts[key] ?: 0
-    if (c < limit) {
-      logCounts[key] = c + 1
-      Log.i("MasonPerf", "$key: $msg")
+    val c = synchronized(logCounts) {
+      val cur = logCounts[key] ?: 0
+      if (cur < limit) {
+        logCounts[key] = cur + 1
+        cur
+      } else -1
     }
+    if (c >= 0) Log.i("MasonPerf", "$key: $msg")
   }
 
   @JvmStatic
-  @Synchronized
   fun dump(label: String) {
     if (counts.isEmpty()) {
       Log.i("MasonPerf", "[$label] (no samples)")
@@ -96,8 +93,8 @@ object Perf {
     }
     val sb = StringBuilder()
     for (k in (times.keys + counts.keys).toSortedSet()) {
-      val c = counts[k] ?: 0L
-      val t = times[k]
+      val c = counts[k]?.sum() ?: 0L
+      val t = times[k]?.sum()
       sb.append(k).append('=').append(c).append('x')
       if (t != null) {
         sb.append(' ').append("%.2f".format(t / 1e6)).append("ms")
