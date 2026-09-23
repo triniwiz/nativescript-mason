@@ -4006,6 +4006,8 @@ declare module org {
 				export class Scroll extends org.nativescript.mason.masonkit.TwoDScrollView implements org.nativescript.mason.masonkit.Element {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Scroll>;
 					public scrollRoot: org.nativescript.mason.masonkit.View;
+					public getVisibleOverflowScrolls(): boolean;
+					public setVisibleOverflowScrolls(value: boolean): void;
 					public computeMaxContent(): void;
 					public computeAndLayout(): org.nativescript.mason.masonkit.MasonLayoutTree;
 					public layout(): org.nativescript.mason.masonkit.Layout;

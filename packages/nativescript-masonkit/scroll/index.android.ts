@@ -13,10 +13,17 @@ export class Scroll extends ViewBase {
     this[isMasonView_] = true;
   }
 
+  /** `<scroll>` treats default `visible` Y overflow as `auto`; HTML block elements opt out. */
+  get _visibleOverflowScrolls(): boolean {
+    return true;
+  }
+
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      this[native_] = Tree.instance.createScrollView(context) as never;
+      const view = Tree.instance.createScrollView(context);
+      view.setVisibleOverflowScrolls(this._visibleOverflowScrolls);
+      this[native_] = view as never;
     }
     return this[native_] as never as org.nativescript.mason.masonkit.Scroll;
   }

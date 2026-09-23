@@ -64,10 +64,10 @@ class MasonShadowLayer: CALayer {
     return cachedOutsetShadows
   }
 
-  /// Position the layer to cover the shadow area.
-  /// - inOwnLayer: true → positioned in the view's own coords (origin .zero);
-  ///   false → in the superview's layer at the view's frame.
-  func updateBounds(viewBounds: CGRect, viewFrame: CGRect, inOwnLayer: Bool) {
+  /// Cover the shadow area around the view, mirroring the view layer's geometry
+  /// (bounds, position, anchor, transform) so the shadow follows CSS transforms.
+  /// The layer lives in the superview's layer, as a sibling below the view.
+  func updateBounds(viewBounds: CGRect, viewLayer: CALayer) {
     guard let style = masonStyle else { return }
 
     let outsetShadows = resolveOutsetShadows()
@@ -86,13 +86,19 @@ class MasonShadowLayer: CALayer {
     }
     maxExpand += 20 // Extra padding
 
-    // own-layer mode: geometry relative to view bounds (origin .zero); superview
-    // mode: the view's frame. `draw` centres the view rect in our bounds either way.
-    let base = inOwnLayer ? CGRect(origin: .zero, size: viewBounds.size) : viewFrame
-    let expandedFrame = base.insetBy(dx: -maxExpand, dy: -maxExpand)
-    if frame != expandedFrame {
-      frame = expandedFrame
-    }
+    // `draw` centres the view rect in our bounds.
+    let w = viewBounds.width
+    let h = viewBounds.height
+    let newBounds = CGRect(x: 0, y: 0, width: w + maxExpand * 2, height: h + maxExpand * 2)
+    let a = viewLayer.anchorPoint
+    let newAnchor = CGPoint(
+      x: (a.x * w + maxExpand) / newBounds.width,
+      y: (a.y * h + maxExpand) / newBounds.height
+    )
+    if bounds != newBounds { bounds = newBounds }
+    if anchorPoint != newAnchor { anchorPoint = newAnchor }
+    if position != viewLayer.position { position = viewLayer.position }
+    if !CATransform3DEqualToTransform(transform, viewLayer.transform) { transform = viewLayer.transform }
     
     // Check if we need to redraw
     let shadowsHash = style.boxShadows.hashValue

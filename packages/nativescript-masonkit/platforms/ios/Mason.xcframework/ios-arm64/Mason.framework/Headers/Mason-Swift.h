@@ -1541,6 +1541,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
 
 SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layerClass;)
++ (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
@@ -1551,6 +1553,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 - (void)markNodeDirty;
 - (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic) CGRect frame;
 - (void)layoutSubviews;
 - (void)willMoveToWindow:(UIWindow * _Nullable)newWindow;
 - (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;

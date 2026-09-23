@@ -1,3 +1,5 @@
 import { ViewBase } from '../common';
 
-export class Scroll extends ViewBase {}
+export class Scroll extends ViewBase {
+  get _visibleOverflowScrolls(): boolean;
+}

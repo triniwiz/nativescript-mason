@@ -5342,6 +5342,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       heightOverride: Float = node.computedHeight,
       includeBorderRadius: Boolean = false
     ) {
+      val overflowX = style.values.get(StyleKeys.OVERFLOW_X)
+      val overflowY = style.values.get(StyleKeys.OVERFLOW_Y)
+
+      // Nothing to do if both axes are visible
+      if (overflowX == Overflow.Visible.value && overflowY == Overflow.Visible.value) return
+
       val width = if (widthOverride > 0f) widthOverride else node.computedWidth
       val height = if (heightOverride > 0f) heightOverride else node.computedHeight
 
@@ -5349,12 +5355,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       val paddingTop = node.computedPaddingTop
       val paddingRight = node.computedPaddingRight
       val paddingBottom = node.computedPaddingBottom
-
-      val overflowX = style.values.get(StyleKeys.OVERFLOW_X)
-      val overflowY = style.values.get(StyleKeys.OVERFLOW_Y)
-
-      // Nothing to do if both axes are visible
-      if (overflowX == Overflow.Visible.value && overflowY == Overflow.Visible.value) return
 
       // Clip per the CSS overflow spec:
       // Hidden(1), Scroll(2), Clip(3) → always clip

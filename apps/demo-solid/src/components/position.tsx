@@ -173,7 +173,7 @@ export default function Position() {
             >
               <p style={{ fontSize: 11, color: 'white', fontWeight: 'bold' }}>50% / 50%</p>
             </div>
-            <p style={{ position: 'absolute', bottom: 6, right: 8, fontSize: 9, color: MUTED }}>
+            <p style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: MUTED }}>
               top-left of box at center
             </p>
           </div>

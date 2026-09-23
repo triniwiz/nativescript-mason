@@ -12,11 +12,16 @@ export class Scroll extends ViewBase {
     this[isMasonView_] = true;
   }
 
+  /** `<scroll>` treats default `visible` Y overflow as `auto`; HTML block elements opt out. */
+  get _visibleOverflowScrolls(): boolean {
+    return true;
+  }
+
   get _view() {
     if (!this[native_]) {
-      // using MasonUIView is now as it is a view with it's own scroll handling as UIKit's UIScrollView breaks with multiple nested scroll views.
+      // MasonUIView has its own scroll handling; UIScrollView breaks when nested.
       const view = Tree.instance.createView() as never;
-      (view as any).isScrollContainer = true;
+      (view as any).isScrollContainer = this._visibleOverflowScrolls;
       this[native_] = view;
       return view;
     }

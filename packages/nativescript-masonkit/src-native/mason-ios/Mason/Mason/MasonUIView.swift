@@ -49,6 +49,22 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   
+  public override class var layerClass: AnyClass { MasonViewLayer.self }
+
+  // `<li>` children draw their markers in this view's padding.
+  private var hasListMarkers: Bool {
+    for sv in subviews where (sv as? MasonText)?.type == .Li {
+      return true
+    }
+    return false
+  }
+
+  // False for plain layout containers; MasonViewLayer then skips the backing store.
+  internal var paintsContent: Bool {
+    updateDrawFlagsIfNeeded()
+    return _cachedHasBackground || _cachedHasBoxShadow || _cachedHasBorder || _cachedHasFilter || hasListMarkers
+  }
+
   public override func draw(_ rect: CGRect) {
     updateDrawFlagsIfNeeded()
 
@@ -56,13 +72,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let hasBoxShadow = _cachedHasBoxShadow
     let hasBorder = _cachedHasBorder
     let hasFilter = _cachedHasFilter
-
-    // Check for HTML <li> children that need marker drawing in the parent's padding zone.
-    var hasListMarkers = false
-    for sv in subviews where (sv as? MasonText)?.type == .Li {
-      hasListMarkers = true
-      break
-    }
+    let hasListMarkers = self.hasListMarkers
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration
     guard hasBackground || hasBoxShadow || hasBorder || hasFilter || hasListMarkers else { return }
@@ -235,9 +245,14 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // When overflow is scroll/auto, this view scrolls like a web <div> via
   // bounds.origin (as UIScrollView does), driven by a pan gesture that only
   // begins when actually scrollable.
-  public var contentSize: CGSize = .zero
+  // Only assigned for overflow scroll/auto, so it doubles as the gesture trigger.
+  public var contentSize: CGSize = .zero {
+    didSet { _ensureScrollGesture() }
+  }
   // When true, default `visible` overflow on Y acts as `auto` (web-like scroll-on-overflow).
-  @objc public var isScrollContainer: Bool = false
+  @objc public var isScrollContainer: Bool = false {
+    didSet { if isScrollContainer { _ensureScrollGesture() } }
+  }
   private var _scrollPanStartOffset: CGPoint = .zero
   private var _scrollDecelerationLink: CADisplayLink?
   private var _scrollDecelerationVelocity: CGPoint = .zero
@@ -276,6 +291,18 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
 
+  // Attached lazily: most views never scroll, and a recognizer per view is not free.
+  private func _ensureScrollGesture() {
+    guard _scrollGestureDelegate == nil else { return }
+    // Delegate gates begin on scrollability and allows simultaneous
+    // recognition with parent gestures.
+    let d = _MasonScrollPanDelegate()
+    d.owner = self
+    _scrollGestureDelegate = d
+    _scrollPanGesture.delegate = d
+    addGestureRecognizer(_scrollPanGesture)
+  }
+
   private lazy var _scrollPanGesture: UIPanGestureRecognizer = {
     let g = UIPanGestureRecognizer(target: self, action: #selector(_handleScrollPan(_:)))
     return g
@@ -293,6 +320,13 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     return node.isDirty
   }
   
+  // Keeps fixed boxes on their root when it moves; returns early if there are none.
+  public override var frame: CGRect {
+    didSet {
+      if frame.origin != oldValue.origin { MasonPositioning.rootDidMove(self) }
+    }
+  }
+
   public override func layoutSubviews() {
     super.layoutSubviews()
     // Skip layout during scroll steps — bounds.origin changes only shift the
@@ -380,13 +414,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     computeCacheDirty = false
     node.view = self
     style.setStyleChangeListener(listener: self)
-    // Scroll pan gesture: delegate gates begin on scrollability and allows
-    // simultaneous recognition with parent gestures.
-    let d = _MasonScrollPanDelegate()
-    d.owner = self
-    _scrollGestureDelegate = d
-    _scrollPanGesture.delegate = d
-    addGestureRecognizer(_scrollPanGesture)
     // Redraw bg/border when bounds.origin shifts during scroll.
     contentMode = .redraw
   }
@@ -1411,4 +1438,15 @@ private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelega
     _ gestureRecognizer: UIGestureRecognizer,
     shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
   ) -> Bool { true }
+}
+
+// Skips the backing store (and draw(_:)) while the owning view paints nothing.
+final class MasonViewLayer: CALayer {
+  override func display() {
+    if let view = delegate as? MasonUIView, !view.paintsContent {
+      contents = nil
+      return
+    }
+    super.display()
+  }
 }

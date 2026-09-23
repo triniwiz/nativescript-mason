@@ -1033,8 +1033,12 @@ public class MasonStyle: NSObject {
       if view.transform != .identity || !CATransform3DIsIdentity(view.layer.transform) {
         if Thread.isMainThread {
           view.transform = .identity; view.layer.transform = CATransform3DIdentity
+          updateShadowLayer(for: view.bounds)
         } else {
-          DispatchQueue.main.async { view.transform = .identity; view.layer.transform = CATransform3DIdentity }
+          DispatchQueue.main.async { [weak self] in
+            view.transform = .identity; view.layer.transform = CATransform3DIdentity
+            self?.updateShadowLayer(for: view.bounds)
+          }
         }
       }
       return
@@ -1053,14 +1057,20 @@ public class MasonStyle: NSObject {
         t.m33 = CGFloat(getFloat(base + 40)); t.m34 = CGFloat(getFloat(base + 44))
         t.m41 = CGFloat(getFloat(base + 48)); t.m42 = CGFloat(getFloat(base + 52))
         t.m43 = CGFloat(getFloat(base + 56)); t.m44 = CGFloat(getFloat(base + 60))
-        DispatchQueue.main.async { view.layer.transform = t }
+        DispatchQueue.main.async { [weak self] in
+          view.layer.transform = t
+          self?.updateShadowLayer(for: view.bounds)
+        }
       } else {
         // 2D affine embedded in 4x4
         let a = CGFloat(getFloat(base)); let b = CGFloat(getFloat(base + 4))
         let c = CGFloat(getFloat(base + 16)); let d = CGFloat(getFloat(base + 20))
         let tx = CGFloat(getFloat(base + 48)); let ty = CGFloat(getFloat(base + 52))
         let affine = CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty)
-        DispatchQueue.main.async { view.transform = affine }
+        DispatchQueue.main.async { [weak self] in
+          view.transform = affine
+          self?.updateShadowLayer(for: view.bounds)
+        }
       }
     } else {
       // Compose inline ops
@@ -1087,7 +1097,10 @@ public class MasonStyle: NSObject {
         case .none: break
         }
       }
-      DispatchQueue.main.async { view.transform = affine }
+      DispatchQueue.main.async { [weak self] in
+        view.transform = affine
+        self?.updateShadowLayer(for: view.bounds)
+      }
     }
   }
 
@@ -2887,7 +2900,7 @@ public class MasonStyle: NSObject {
       shadowLayerParent = host
     }
 
-    mShadowLayer.updateBounds(viewBounds: viewBounds, viewFrame: view.frame, inOwnLayer: false)
+    mShadowLayer.updateBounds(viewBounds: viewBounds, viewLayer: view.layer)
   }
   
   /// Detach the outset-shadow layer (it lives in the superview's layer, so

@@ -54,11 +54,14 @@ class Scroll @JvmOverloads constructor(
     return node.style.values.get(StyleKeys.OVERFLOW_X) == Overflow.Auto.value
   }
 
-  // Default `visible` on Y acts as `auto` (web-like); horizontal stays non-scrolling
-  // to avoid surprise sideways scroll. Explicit `hidden`/`clip`/`scroll` override.
+  // False for HTML block elements, which reuse this class but keep web `visible`.
+  var visibleOverflowScrolls = true
+
+  // With visibleOverflowScrolls, default `visible` on Y acts as `auto`. Horizontal
+  // stays non-scrolling. Explicit `hidden`/`clip`/`scroll` override.
   private fun isAutoY(): Boolean {
     val v = node.style.values.get(StyleKeys.OVERFLOW_Y)
-    return v == Overflow.Auto.value || v == Overflow.Visible.value
+    return v == Overflow.Auto.value || (visibleOverflowScrolls && v == Overflow.Visible.value)
   }
 
   constructor(context: Context, mason: Mason) : this(context, null, 0, true) {

@@ -67,14 +67,38 @@ enum MasonPositioning {
       host.addSubview(view)
     }
     host.bringSubviewToFront(view)
+    node.fixedRootOrigin = frame.origin
+    fixedViews.add(view)
     let origin = accumulateOrigin(rootView.frame.origin, from: rootView, upTo: host)
     frame.origin.x += origin.x
     frame.origin.y += origin.y
   }
 
+  // Views placed by applyFixed, so rootDidMove can find them.
+  private static let fixedViews = NSHashTable<UIView>.weakObjects()
+
+  // The host keeps its place when the root moves (e.g. NativeScript lays the page
+  // out below the action bar after mason's layout), so re-offset fixed boxes.
+  static func rootDidMove(_ root: UIView) {
+    guard fixedViews.count > 0 else { return }
+    for case let view as UIView in fixedViews.allObjects {
+      guard let element = view as? MasonElement, element.node.style.position == .Fixed,
+            rootView(of: element.node) === root, let host = view.superview else { continue }
+      let origin = accumulateOrigin(root.frame.origin, from: root, upTo: host)
+      let target = CGPoint(x: element.node.fixedRootOrigin.x + origin.x, y: element.node.fixedRootOrigin.y + origin.y)
+      if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
+        if view.frame.origin != target { view.frame.origin = target }
+      } else {
+        let center = CGPoint(x: target.x + view.bounds.width / 2, y: target.y + view.bounds.height / 2)
+        if view.center != center { view.center = center }
+      }
+    }
+  }
+
   // Undoes applyFixed once a node stops being fixed.
   static func clearPositioning(node: MasonNode, view: UIView) {
     node.stickyScrollHost = nil
+    fixedViews.remove(view)
     if let original = node.fixedOriginalSuperview {
       node.fixedOriginalSuperview = nil
       if view.superview !== original {

@@ -199,6 +199,8 @@ public class MasonNode: NSObject {
 
   // position: fixed / sticky state — see MasonPositioning.swift.
   internal weak var fixedOriginalSuperview: UIView? = nil
+  // Root-relative origin of a fixed box, re-applied when the root view moves.
+  internal var fixedRootOrigin: CGPoint = .zero
   internal var stickyLocalOrigin: CGPoint = .zero
   internal var stickyNaturalOrigin: CGPoint = .zero
   internal var stickyContainingBlockRect: CGRect = .zero

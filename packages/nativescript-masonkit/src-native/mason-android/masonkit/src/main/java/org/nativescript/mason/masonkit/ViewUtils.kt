@@ -5,6 +5,7 @@ import android.os.Build
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
 import androidx.core.graphics.withTranslation
+import org.nativescript.mason.masonkit.enums.Overflow
 
 class ViewUtils {
   companion object {
@@ -16,6 +17,7 @@ class ViewUtils {
      * bounds.
      */
     fun drawChildrenOutsetShadows(parent: ViewGroup, canvas: Canvas) {
+      if (!anyChildHasOutsetShadow(parent)) return
       // If the parent is an Element with a Style, apply the parent's
       // overflow clip to the canvas while drawing outset shadows so
       // shadows do not escape the parent's content-box when overflow
@@ -38,6 +40,27 @@ class ViewUtils {
       }
 
       drawChildOutsetShadows(parent, canvas)
+    }
+
+    private fun anyChildHasOutsetShadow(parent: ViewGroup): Boolean {
+      for (i in 0 until parent.childCount) {
+        if ((parent.getChildAt(i) as? Element)?.style?.hasOutsetBoxShadow() == true) return true
+      }
+      return false
+    }
+
+    // Plain layout containers: nothing of their own to draw, and no clip to apply.
+    private fun paintsNothing(style: Style): Boolean {
+      if (style.mBackdropHelper != null || style.mFilter != null) return false
+      if (style.boxShadows.isNotEmpty()) return false
+      val bg = style.mBackground
+      if (bg != null && (bg.color != null || bg.layers.isNotEmpty())) return false
+      if (style.mBorderRenderer.hasVisibleBorder()) return false
+      if (style.isValueInitialized &&
+        (style.values.get(StyleKeys.OVERFLOW_X) != Overflow.Visible.value ||
+          style.values.get(StyleKeys.OVERFLOW_Y) != Overflow.Visible.value)
+      ) return false
+      return style.resolvedFilterString.isEmpty()
     }
 
     private fun drawChildOutsetShadows(parent: ViewGroup, canvas: Canvas) {
@@ -84,6 +107,12 @@ class ViewUtils {
       val height = view.height.toFloat()
 
       style.mBorderRenderer.updateCache(width, height)
+
+      if (paintsNothing(style)) {
+        beforeChildren?.invoke(canvas)
+        superDraw(canvas)
+        return
+      }
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         style.mBackdropHelper?.let { helper ->

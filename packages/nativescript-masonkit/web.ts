@@ -62,39 +62,40 @@ function applyUaCss(view: Scroll | Text, declarations: Record<string, string | n
 }
 
 /**
- * Block containers extend `Scroll`, not `View`, so any of them can scroll when
- * `overflow` says so — as in a browser, where every block box is scrollable.
- *
- * This is affordable because neither platform uses the system scroll view:
- * Android's `Scroll` is a custom `TwoDScrollView` (a FrameLayout with
- * two-dimensional and nested-scroll support), and on iOS the scroll component
- * hosts a `MasonUIView` with its own scroll handling, precisely because UIKit's
- * `UIScrollView` breaks with nested scroll views. So nesting these behaves the
- * way nested scrollable boxes do on the web.
+ * Block containers extend `Scroll` so any of them can scroll when `overflow`
+ * says so, as every block box can in a browser. Neither platform uses the system
+ * scroll view (Android: `TwoDScrollView`, iOS: `MasonUIView`), so nesting works.
+ * Unlike `<scroll>`, default `visible` overflow neither scrolls nor clips.
  */
+class BlockElement extends Scroll {
+  get _visibleOverflowScrolls(): boolean {
+    return false;
+  }
+}
+
 @CSSType('div')
-export class Div extends Scroll {}
+export class Div extends BlockElement {}
 
 @CSSType('section')
-export class Section extends Scroll {}
+export class Section extends BlockElement {}
 
 @CSSType('header')
-export class Header extends Scroll {}
+export class Header extends BlockElement {}
 
 @CSSType('footer')
-export class Footer extends Scroll {}
+export class Footer extends BlockElement {}
 
 @CSSType('article')
-export class Article extends Scroll {}
+export class Article extends BlockElement {}
 
 @CSSType('main')
-export class Main extends Scroll {}
+export class Main extends BlockElement {}
 
 @CSSType('nav')
-export class Nav extends Scroll {}
+export class Nav extends BlockElement {}
 
 @CSSType('aside')
-export class Aside extends Scroll {}
+export class Aside extends BlockElement {}
 
 @CSSType('span')
 export class Span extends Text {
@@ -180,7 +181,7 @@ function applyListUaDefaults(view: Scroll): void {
 }
 
 @CSSType('ul')
-export class Ul extends Scroll {
+export class Ul extends BlockElement {
   constructor() {
     super();
     applyListUaDefaults(this);
@@ -188,7 +189,7 @@ export class Ul extends Scroll {
 }
 
 @CSSType('ol')
-export class Ol extends Scroll {
+export class Ol extends BlockElement {
   constructor() {
     super();
     applyListUaDefaults(this);
@@ -302,9 +303,6 @@ export class A extends Text {
 // TS-only additions: `TextType` is closed at 18 members, so each phrasing
 // element below reuses `Span` and gets its distinguishing style from
 // properties that already work.
-
-/** A generic block container, same box as `<div>`. */
-class BlockElement extends Scroll {}
 
 @CSSType('figure')
 export class Figure extends BlockElement {

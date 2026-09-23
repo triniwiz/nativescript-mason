@@ -383,12 +383,9 @@ public class TextEngine: NSObject {
 
     var constraintSize = CGSize(width: maxWidth, height: maxHeight)
     // Avoid passing infinite height to CoreText framesetter — use a large finite fallback.
+    // Never the available height: a frame shorter than one line lays out zero lines.
     if !constraintSize.height.isFinite || constraintSize.height > 1_000_000 {
-      if available.height.isFinite && available.height > 0 {
-        constraintSize.height = available.height / CGFloat(NSCMason.scale)
-      } else {
-        constraintSize.height = 10000.0
-      }
+      constraintSize.height = 10000.0
     }
 
     let scale = CGFloat(NSCMason.scale)

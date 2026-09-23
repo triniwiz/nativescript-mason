@@ -867,14 +867,18 @@ class BorderRenderer(private val style: Style) {
 
   }
 
-  /** Draws the border into the canvas */
-  fun draw(canvas: Canvas, width: Float, height: Float) {
-    // Quick bail if all sides are invisible
+  // Valid after updateCache().
+  fun hasVisibleBorder(): Boolean {
     if (topStyle == BorderStyle.None && rightStyle == BorderStyle.None &&
       bottomStyle == BorderStyle.None && leftStyle == BorderStyle.None
-    ) return
-    if (topColor == 0 && rightColor == 0 && bottomColor == 0 && leftColor == 0) return
-    if (topWidth <= 0f && rightWidth <= 0f && bottomWidth <= 0f && leftWidth <= 0f) return
+    ) return false
+    if (topColor == 0 && rightColor == 0 && bottomColor == 0 && leftColor == 0) return false
+    return !(topWidth <= 0f && rightWidth <= 0f && bottomWidth <= 0f && leftWidth <= 0f)
+  }
+
+  /** Draws the border into the canvas */
+  fun draw(canvas: Canvas, width: Float, height: Float) {
+    if (!hasVisibleBorder()) return
 
     // Build path with corners and sides
     buildBorderPath(width, height)
