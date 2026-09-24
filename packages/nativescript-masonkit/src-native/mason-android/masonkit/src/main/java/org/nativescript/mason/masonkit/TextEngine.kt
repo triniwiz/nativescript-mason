@@ -493,7 +493,8 @@ class TextEngine(val container: TextContainer) {
       includePadding = includePadding,
       justified = justified,
       heuristic = heuristic,
-      layout = built
+      layout = built,
+      trailingSpacesCount = trailingSpacesCount()
     )
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
@@ -1798,7 +1799,8 @@ class TextEngine(val container: TextContainer) {
     val includePadding: Boolean,
     val justified: Boolean,
     val heuristic: TextDirectionHeuristic,
-    val layout: android.text.Layout
+    val layout: android.text.Layout,
+    trailingSpacesCount: Boolean
   ) {
     // Nothing here depends on the build width: lines start at x=0 and there is no
     // LineBackgroundSpan (under/overlines paint to the layout's right edge).
@@ -1809,7 +1811,7 @@ class TextEngine(val container: TextContainer) {
       var max = 0f
       var left = true
       for (i in 0 until layout.lineCount) {
-        val w = ceilPx(layout.getLineWidth(i))
+        val w = ceilPx(if (trailingSpacesCount) layout.getLineWidth(i) else layout.getLineMax(i))
         if (w > max) max = w
         if (layout.getLineLeft(i) != 0f) left = false
       }
@@ -1818,6 +1820,12 @@ class TextEngine(val container: TextContainer) {
       widthIndependent = left && (text !is Spanned ||
         text.nextSpanTransition(0, text.length, LineBackgroundSpan::class.java) >= text.length)
     }
+  }
+
+  // Spaces at the end of a wrapped line hang past the edge unless white-space keeps them.
+  private fun trailingSpacesCount(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
+    Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
+    else -> false
   }
 
   private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
