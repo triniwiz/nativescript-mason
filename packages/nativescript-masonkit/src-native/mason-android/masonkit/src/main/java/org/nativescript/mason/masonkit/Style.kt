@@ -795,8 +795,14 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (value) pendingMetricsStyles[this] = true
     }
 
-  private var reloadListener: (FontFace, String?) -> Unit = { font, error ->
-    syncFontMetrics()
+  // Published fontmanager (<= 1.0.9) fires reload listeners on the face's
+  // executor thread; syncFontMetrics touches main-thread-only state.
+  private var reloadListener: (FontFace, String?) -> Unit = { _, _ ->
+    if (android.os.Looper.myLooper() === android.os.Looper.getMainLooper()) {
+      syncFontMetrics()
+    } else {
+      android.os.Handler(android.os.Looper.getMainLooper()).post { syncFontMetrics() }
+    }
   }
 
   // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
