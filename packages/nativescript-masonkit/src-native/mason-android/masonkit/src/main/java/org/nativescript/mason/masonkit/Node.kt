@@ -1445,7 +1445,10 @@ open class Node internal constructor(
       Perf.add("removeChildAt", Perf.now() - __t)
       return null
     }
-    val reference = children[index]
+    return removeAuthorChild(children[index], __t)
+  }
+
+  private fun removeAuthorChild(reference: Node, __t: Long): Node? {
     val idx =
       reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
     val removed = reference.layoutParent?.children?.removeAt(idx) ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
@@ -1457,7 +1460,7 @@ open class Node internal constructor(
           NodeUtils.removeView(it, reference.layoutParent?.view as? View)
         }
         reference.layoutParent?.parent = null
-        NodeUtils.syncNode(this, children)
+        NodeUtils.syncNode(this, getChildren())
       }
     } else {
       // Use `this` (the node whose children vector was updated) as the
@@ -1548,6 +1551,11 @@ open class Node internal constructor(
   fun removeChild(child: Node): Node? {
     if (children.isEmpty()) {
       return null
+    }
+    // A direct child is its own author child: skip building the author list
+    // (twice) just to find it, which made clearing n children O(n²).
+    if (!child.isAnonymous && child.layoutParent === this) {
+      return removeAuthorChild(child, Perf.now())
     }
     val nodes = getChildren()
     val idx = nodes.indexOf(child).takeIf { it > -1 } ?: return null

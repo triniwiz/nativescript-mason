@@ -184,28 +184,27 @@ internal object NodeUtils {
    * detaches views still under the expected parent; re-adds cancel via
    * [cancelRemoval].
    */
-  private class PendingRemoval(val expected: ViewGroup, val view: View, val oldVisibility: Int)
+  private class PendingRemoval(val expected: ViewGroup, val view: View, val oldVisibility: Int) {
+    var cancelled = false
+  }
 
   private val pendingRemovals = ArrayList<PendingRemoval>(16)
+  // Looked up on every removal and re-add; a scan made clearing n views O(n²).
+  private val pendingByView = java.util.IdentityHashMap<View, PendingRemoval>()
   private var removalFlushPosted = false
 
   fun cancelRemoval(view: View) {
-    if (pendingRemovals.isEmpty()) return
-    val it = pendingRemovals.iterator()
-    while (it.hasNext()) {
-      val p = it.next()
-      if (p.view === view) {
-        it.remove()
-        if (p.view.visibility != p.oldVisibility) {
-          p.view.visibility = p.oldVisibility
-        }
-        // Not every add path detaches from the old parent, and addView throws if it has one.
-        if (view.parent === p.expected) {
-          p.expected.removeViewInLayout(view)
-          p.expected.requestLayout()
-          p.expected.invalidate()
-        }
-      }
+    if (pendingByView.isEmpty()) return
+    val p = pendingByView.remove(view) ?: return
+    p.cancelled = true
+    if (p.view.visibility != p.oldVisibility) {
+      p.view.visibility = p.oldVisibility
+    }
+    // Not every add path detaches from the old parent, and addView throws if it has one.
+    if (view.parent === p.expected) {
+      p.expected.removeViewInLayout(view)
+      p.expected.requestLayout()
+      p.expected.invalidate()
     }
   }
 
@@ -214,7 +213,9 @@ internal object NodeUtils {
     // Hidden until the flush so a frame drawn meanwhile can't show it.
     val old = view.visibility
     if (old != View.GONE) view.visibility = View.GONE
-    pendingRemovals.add(PendingRemoval(expectedParent, view, old))
+    val pending = PendingRemoval(expectedParent, view, old)
+    pendingRemovals.add(pending)
+    pendingByView[view] = pending
     if (!removalFlushPosted) {
       removalFlushPosted = true
       android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -229,8 +230,10 @@ internal object NodeUtils {
     val __t = Perf.now()
     val batch = pendingRemovals.toList()
     pendingRemovals.clear()
+    pendingByView.clear()
     val touched = LinkedHashSet<ViewGroup>()
     for (p in batch) {
+      if (p.cancelled) continue
       val v = p.view
       if (v.visibility != p.oldVisibility) {
         v.visibility = p.oldVisibility
