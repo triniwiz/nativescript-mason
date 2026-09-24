@@ -26,6 +26,10 @@ export interface PhaseSample {
   cpuMs?: number;
   /** Longest single frame inside a multi-frame phase. */
   worstFrameMs?: number;
+  /** Tick phases: page draws and layout passes seen, and ticks with no draw. */
+  draws?: number;
+  passes?: number;
+  undrawnTicks?: number;
 }
 
 type Results = Record<ScenarioKey, Record<Flavour, Record<string, PhaseSample[]>>>;
@@ -70,8 +74,10 @@ export const nextFrame = (): Promise<number> =>
  * pending requestLayout for two frames. The same bar for both flavours.
  */
 let layoutPasses = 0;
+let draws = 0;
 let watchedRoot: any = null;
 let layoutListener: any = null;
+let drawListener: any = null;
 
 export function watchLayout(view: any): void {
   unwatchLayout();
@@ -85,6 +91,12 @@ export function watchLayout(view: any): void {
       },
     });
     nativeView.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+    drawListener = new android.view.ViewTreeObserver.OnDrawListener({
+      onDraw: () => {
+        draws++;
+      },
+    });
+    nativeView.getViewTreeObserver().addOnDrawListener(drawListener);
     watchedRoot = nativeView;
   } catch {
     watchedRoot = null;
@@ -97,9 +109,13 @@ export function unwatchLayout(): void {
     if (watchedRoot && layoutListener) {
       watchedRoot.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
     }
+    if (watchedRoot && drawListener) {
+      watchedRoot.getViewTreeObserver().removeOnDrawListener(drawListener);
+    }
   } catch {}
   watchedRoot = null;
   layoutListener = null;
+  drawListener = null;
 }
 
 function layoutPending(): boolean {
@@ -232,14 +248,26 @@ export class PageBench {
     const start = now();
     const startCpu = cpuNow();
     let worst = 0;
+    const drawsAtStart = draws;
+    const passesAtStart = layoutPasses;
+    let undrawnTicks = 0;
     for (let i = 0; i < count; i++) {
       const frameStart = now();
+      const drawsBefore = draws;
       mutate(i);
       await nextFrame();
+      if (draws === drawsBefore) undrawnTicks++;
       worst = Math.max(worst, now() - frameStart);
     }
     await settled();
-    record(this.scenario, this.flavour, `${phase} x${count}`, { ms: now() - start, cpuMs: cpuNow() - startCpu, worstFrameMs: worst });
+    record(this.scenario, this.flavour, `${phase} x${count}`, {
+      ms: now() - start,
+      cpuMs: cpuNow() - startCpu,
+      worstFrameMs: worst,
+      draws: draws - drawsAtStart,
+      passes: layoutPasses - passesAtStart,
+      undrawnTicks,
+    });
   }
 }
 
