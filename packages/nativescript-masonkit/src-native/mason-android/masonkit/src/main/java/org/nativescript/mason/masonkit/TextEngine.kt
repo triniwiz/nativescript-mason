@@ -1943,12 +1943,14 @@ class TextEngine(val container: TextContainer) {
     // Primary font, widened by any fallback font the text uses (StaticLayout
     // is built with setUseLineSpacingFromFallbacks).
     val p = advancesPaint
+    uniformFontMetrics()
+    val primary = uniformMetricsInt
+    var top = primary.top
+    var ascent = primary.ascent
+    var descent = primary.descent
+    var bottom = primary.bottom
     val fm = singleLineTextMetrics
-    p.getFontMetricsInt(fm)
-    var top = fm.top
-    var ascent = fm.ascent
-    var descent = fm.descent
-    var bottom = fm.bottom
+    fm.leading = primary.leading
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
       top = minOf(top, fm.top)
@@ -1970,6 +1972,7 @@ class TextEngine(val container: TextContainer) {
   private var uniformMetricsSize = -1f
   private var uniformMetricsVariation: String? = null
   private val uniformMetrics = Paint.FontMetrics()
+  private val uniformMetricsInt = Paint.FontMetricsInt()
 
   // Metrics of the paint uniformAdvances() measured with; a JNI call otherwise,
   // and they only move with the font.
@@ -1980,6 +1983,7 @@ class TextEngine(val container: TextContainer) {
       variation != uniformMetricsVariation
     ) {
       p.getFontMetrics(uniformMetrics)
+      p.getFontMetricsInt(uniformMetricsInt)
       uniformMetricsTypeface = p.typeface
       uniformMetricsSize = p.textSize
       uniformMetricsVariation = variation

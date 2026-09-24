@@ -200,26 +200,27 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
       val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
-      // Apply color
-      attributes.color?.let { color ->
-        if (color != 0) {
-          spannable.setSpan(Spans.ForegroundColorSpan(attributes), start, end, flags)
-        }
-      }
-
-      // Apply font size
-      attributes.fontSize?.let { size ->
-        size.takeIf { it > 0 }?.let {
-          spannable.setSpan(Spans.SizeSpan(attributes, true), start, end, flags)
-        }
-      }
-
-      // Apply letter spacing. Use LetterSpacingSpan (paint.letterSpacing, EM units)
-      // which adds tracking between glyphs; ScaleXSpan was wrong — it scales each
-      // glyph's width and visibly stretches the text.
-      attributes.letterSpacing?.takeIf { it != 0f }?.let { spacing ->
+      // Color, font size, letter spacing and typeface go in one span. Letter
+      // spacing is paint.letterSpacing (EM units, tracking between glyphs);
+      // ScaleXSpan was wrong — it scales each glyph's width and visibly
+      // stretches the text.
+      val setColor = attributes.color.let { it != null && it != 0 }
+      val measureSize = attributes.fontSize?.takeIf { it > 0 }
+      val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }
+      val fontFace = attributes.font
+      val typeface = fontFace?.resolvedTypeface
+      if (setColor || measureSize != null || letterSpacing != null || typeface != null) {
         spannable.setSpan(
-          Spans.LetterSpacingSpan(spacing), start, end, flags
+          Spans.RunStyleSpan(
+            attributes,
+            setColor,
+            measureSize,
+            letterSpacing,
+            typeface,
+            isBold = typeface != null && fontFace.weight.weight >= 600,
+            isItalic = typeface != null && fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
+          ),
+          start, end, flags
         )
       }
 
@@ -239,16 +240,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
               spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
             }
           }
-        }
-      }
-
-      // Apply typeface
-      attributes.font?.let { fontFace ->
-        fontFace.resolvedTypeface?.let { typeface ->
-          val isBold = fontFace.weight.weight >= 600
-          val isItalic =
-            fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
-          spannable.setSpan(Spans.TypefaceSpan(typeface, isBold, isItalic), start, end, flags)
         }
       }
 
