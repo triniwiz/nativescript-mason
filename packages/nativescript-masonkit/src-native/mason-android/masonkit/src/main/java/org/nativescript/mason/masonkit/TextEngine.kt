@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
-import android.text.BoringLayout
 import android.text.Layout
 import android.text.Spannable
 import android.text.Spanned
@@ -448,9 +447,7 @@ class TextEngine(val container: TextContainer) {
     }
 
     Perf.hit("slMiss")
-    val built = buildBoringLayout(
-      spannable, paint, safeWidthConstraint, alignment, heuristic, justified
-    ) ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    val built = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, safeWidthConstraint
       )
@@ -494,24 +491,6 @@ class TextEngine(val container: TextContainer) {
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
 
     return entry
-  }
-
-  // API 33+: BoringLayout honours fallback line spacing like the StaticLayout path.
-  private fun buildBoringLayout(
-    spannable: CharSequence,
-    paint: TextPaint,
-    safeWidthConstraint: Int,
-    alignment: android.text.Layout.Alignment,
-    heuristic: TextDirectionHeuristic,
-    justified: Boolean
-  ): android.text.Layout? {
-    if (justified || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-    val metrics = BoringLayout.isBoring(spannable, paint, heuristic, true, null) ?: return null
-    if (metrics.width > safeWidthConstraint) return null
-    Perf.hit("slBoring")
-    return BoringLayout.make(
-      spannable, paint, safeWidthConstraint, alignment, metrics, includePadding, null, 0, true
-    )
   }
 
   private fun currentText(): SpannableStringBuilder {
