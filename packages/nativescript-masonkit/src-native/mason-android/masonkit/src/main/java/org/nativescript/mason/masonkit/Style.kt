@@ -908,33 +908,13 @@ class Style internal constructor(@Transient internal var node: Node) {
       return if (node.view is TextContainer) {
         (node.view as TextContainer).getPaint()
       } else {
-        if (defaultPaint == null) {
-          defaultPaint = TextPaint()
-        }
-        defaultPaint?.apply {
-          textSize =
-            Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.scaledDensity
-              ?: Mason.shared.scale)
-        }
-        defaultPaint!!.apply {
-          if (font.font == null) {
-            (node.view as? View)?.let { v ->
-              font.load(v.context) { _ ->
-                v.post {
-                  fontDirty = true
-                  // attempt to sync metrics now (will defer if inMeasure)
-                  val metricsChanged = syncFontMetrics()
-                  // mark node/layout dirty so view will re-measure/re-layout
-                  if (metricsChanged) {
-                    node.dirty()
-                    v.invalidate()
-                    v.requestLayout()
-                  }
-                }
-              }
-            }
-          }
-        }
+        // Default typeface at the default size: loading this style's font
+        // would not change it, so there is nothing to wait for.
+        val p = defaultPaint ?: TextPaint().also { defaultPaint = it }
+        p.textSize =
+          Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.scaledDensity
+            ?: Mason.shared.scale)
+        p
       }
     }
 
