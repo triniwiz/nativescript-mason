@@ -54,11 +54,16 @@ impl AppleNode {
 
 #[cfg(target_os = "android")]
 #[derive(Debug, Clone, Copy)]
-pub struct AndroidNode(pub(crate) jni::sys::jint);
+pub struct AndroidNode(pub(crate) jni::sys::jint, pub(crate) Option<(f32, f32)>);
 
 #[cfg(target_os = "android")]
 impl AndroidNode {
-    pub fn set_computed_size(&self, width: f32, height: f32) {
+    /// Skips the JNI call when the size is what Java already holds.
+    pub fn set_computed_size(&mut self, width: f32, height: f32) {
+        if self.1 == Some((width, height)) {
+            return;
+        }
+        self.1 = Some((width, height));
         if let Some(jvm) = crate::JVM.get() {
             let mut env = match jvm.get_env() {
                 Ok(env) => env,

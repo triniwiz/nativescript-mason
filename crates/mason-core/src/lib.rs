@@ -703,7 +703,7 @@ impl Mason {
     #[track_caller]
     pub fn set_android_node(&mut self, node: Id, android_node: Option<jni::sys::jint>) {
         if let Some(node) = self.0.node_data_mut().get_mut(node) {
-            node.android_data = android_node.map(node::AndroidNode);
+            node.android_data = android_node.map(|id| node::AndroidNode(id, None));
         }
     }
 
