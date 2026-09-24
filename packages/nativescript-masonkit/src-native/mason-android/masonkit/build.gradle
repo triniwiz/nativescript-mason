@@ -132,6 +132,6 @@ dependencies {
   androidTestImplementation 'androidx.test:rules:1.6.1'
   implementation 'com.github.bumptech.glide:glide:4.16.0'
   annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-  api 'org.nativescript:fontmanager:1.0.9'
+  api 'org.nativescript:fontmanager:[1.0.8,2.0)'
 }
 
