@@ -1197,7 +1197,7 @@ class TextEngine(val container: TextContainer) {
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint = scratchSegmentPaint.apply { set(paint) }
+    val textPaint by lazy(LazyThreadSafetyMode.NONE) { scratchSegmentPaint.apply { set(paint) } }
 
     // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position
     // in a single O(spans) pass; subsequent lookups are O(1) via index cursor.
@@ -1334,14 +1334,14 @@ class TextEngine(val container: TextContainer) {
           // the layout's line, already measured.
           val wholeLine = currentPos == 0 && end == attributed.length && layout.lineCount == 1 &&
             !attributed[end - 1].isWhitespace()
-          val width = if (wholeLine &&
+          // Uniform advances exist only for text without RTL.
+          val advances = advancesFor(attributed, paint)
+          val ltr = advances != null ||
             !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
-          ) {
+          val width = if (wholeLine && ltr) {
             lineWidth
-          } else if (singleLine &&
-            !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
-          ) {
-            advancesFor(attributed, paint)?.let { advanceSum(it, currentPos, end) }
+          } else if (singleLine && ltr) {
+            advances?.let { advanceSum(it, currentPos, end) }
               ?: Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
           } else {
             try {
@@ -1353,18 +1353,21 @@ class TextEngine(val container: TextContainer) {
             }
           }
 
-          // Apply character style spans to a single reused TextPaint (avoids a
-          // TextPaint allocation per run). Paint.set() copies all fields cheaply.
-          val runPaint = scratchRunPaint
-          runPaint.set(textPaint)
-          val spans =
-            attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
-          for (span in spans) {
-            span.updateDrawState(runPaint)
+          val fontMetrics = if (advances != null) {
+            uniformFontMetrics()
+          } else {
+            // Apply character style spans to a single reused TextPaint (avoids a
+            // TextPaint allocation per run). Paint.set() copies all fields cheaply.
+            val runPaint = scratchRunPaint
+            runPaint.set(textPaint)
+            val spans =
+              attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
+            for (span in spans) {
+              span.updateDrawState(runPaint)
+            }
+            runPaint.getFontMetrics(scratchFontMetrics)
+            scratchFontMetrics
           }
-
-          runPaint.getFontMetrics(scratchFontMetrics)
-          val fontMetrics = scratchFontMetrics
           segments.add(
             InlineSegment.Text(
               style.resolvedWhiteSpace.value,
@@ -1890,6 +1893,27 @@ class TextEngine(val container: TextContainer) {
   private var advancesLength = -1
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint = TextPaint()
+
+  private var uniformMetricsTypeface: Typeface? = null
+  private var uniformMetricsSize = -1f
+  private var uniformMetricsVariation: String? = null
+  private val uniformMetrics = Paint.FontMetrics()
+
+  // Metrics of the paint uniformAdvances() measured with; a JNI call otherwise,
+  // and they only move with the font.
+  private fun uniformFontMetrics(): Paint.FontMetrics {
+    val p = advancesPaint
+    val variation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.fontVariationSettings else null
+    if (p.typeface !== uniformMetricsTypeface || p.textSize != uniformMetricsSize ||
+      variation != uniformMetricsVariation
+    ) {
+      p.getFontMetrics(uniformMetrics)
+      uniformMetricsTypeface = p.typeface
+      uniformMetricsSize = p.textSize
+      uniformMetricsVariation = variation
+    }
+    return uniformMetrics
+  }
 
   // uniformAdvances() of the current text, once per content version.
   private fun advancesFor(text: CharSequence, paint: TextPaint): FloatArray? {
