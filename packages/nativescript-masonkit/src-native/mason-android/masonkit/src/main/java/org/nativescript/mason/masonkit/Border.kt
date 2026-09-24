@@ -717,6 +717,23 @@ class BorderRenderer(private val style: Style) {
     return outerClipPath
   }
 
+  /**
+   * The radius every corner shares after CSS radius scaling, or -1 when the
+   * corners differ or any is a superellipse. Lets callers draw a rect or
+   * round rect instead of recording a path. Valid after updateCache().
+   */
+  fun uniformRadius(width: Float, height: Float): Float {
+    if (topLeftExponent != 1f || topRightExponent != 1f ||
+      bottomRightExponent != 1f || bottomLeftExponent != 1f
+    ) return -1f
+    val r = topLeftCorner.x
+    if (topLeftCorner.y != r || topRightCorner.x != r || topRightCorner.y != r ||
+      bottomRightCorner.x != r || bottomRightCorner.y != r ||
+      bottomLeftCorner.x != r || bottomLeftCorner.y != r
+    ) return -1f
+    return r * cssRadiusScale(width, height)
+  }
+
   /** Check if there are any border radii set */
   fun hasRadii(): Boolean {
     return topLeftCorner.x > 0f || topLeftCorner.y > 0f ||
@@ -849,15 +866,13 @@ class BorderRenderer(private val style: Style) {
     rightStyle = style.mBorderRight.style
     bottomStyle = style.mBorderBottom.style
 
-    // Corner radii
-    topLeftCorner.x = style.borderTopLeftRadius.x.toPx(viewWidth)   // TL.x
-    topLeftCorner.y = style.borderTopLeftRadius.y.toPx(viewHeight)  // TL.y
-    topRightCorner.x = style.borderTopRightRadius.x.toPx(viewWidth)
-    topRightCorner.y = style.borderTopRightRadius.y.toPx(viewHeight)
-    bottomRightCorner.x = style.borderBottomRightRadius.x.toPx(viewWidth)
-    bottomRightCorner.y = style.borderBottomRightRadius.y.toPx(viewHeight)
-    bottomLeftCorner.x = style.borderBottomLeftRadius.x.toPx(viewWidth)
-    bottomLeftCorner.y = style.borderBottomLeftRadius.y.toPx(viewHeight)
+    // Corner radii, read from the raw slots like computeHash: the Style
+    // getters allocate a Point and two LengthPercentages per corner, on the
+    // first draw of every view.
+    setCorner(topLeftCorner, Border.cornerTopLeftKeys, viewWidth, viewHeight)
+    setCorner(topRightCorner, Border.cornerTopRightKeys, viewWidth, viewHeight)
+    setCorner(bottomRightCorner, Border.cornerBottomRightKeys, viewWidth, viewHeight)
+    setCorner(bottomLeftCorner, Border.cornerBottomLeftKeys, viewWidth, viewHeight)
 
     // Exponents
     topLeftExponent = style.mBorderTop.corner1Exponent       // Top-Left
@@ -866,6 +881,15 @@ class BorderRenderer(private val style: Style) {
     bottomLeftExponent = style.mBorderBottom.corner1Exponent    // Bottom-Left
 
   }
+
+  private fun setCorner(corner: PointF, keys: Border.IKeyCorner, viewWidth: Float, viewHeight: Float) {
+    val values = style.values
+    corner.x = lengthPx(values.get(keys.xType), values.getFloat(keys.xValue), viewWidth)
+    corner.y = lengthPx(values.get(keys.yType), values.getFloat(keys.yValue), viewHeight)
+  }
+
+  private fun lengthPx(type: Byte, value: Float, size: Float): Float =
+    if (type == LengthPercentage.Kind.Percent.value) value * size else value
 
   // Valid after updateCache().
   fun hasVisibleBorder(): Boolean {
@@ -879,6 +903,8 @@ class BorderRenderer(private val style: Style) {
   /** Draws the border into the canvas */
   fun draw(canvas: Canvas, width: Float, height: Float) {
     if (!hasVisibleBorder()) return
+
+    if (drawUniformSolid(canvas, width, height)) return
 
     // Build path with corners and sides
     buildBorderPath(width, height)
@@ -935,6 +961,44 @@ class BorderRenderer(private val style: Style) {
       drawSide(canvas, Side.Bottom, bottomColor, bottomStyle, width, height)
       drawSide(canvas, Side.Left, leftColor, leftStyle, width, height)
     }
+  }
+
+  private val strokePaint by lazy(LazyThreadSafetyMode.NONE) {
+    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      isDither = true
+    }
+  }
+
+  /**
+   * One solid color and width on every side with one shared radius: a single
+   * stroke centred half a border-width in. Its outer edge has radius r and its
+   * inner edge r - width, the same ring the general path builds (whose inner
+   * radius is max(r - width, 0)), so it applies when r is 0 or at least the
+   * border width. Skips building two paths, a Paint copy and a path record
+   * per draw.
+   */
+  private fun drawUniformSolid(canvas: Canvas, width: Float, height: Float): Boolean {
+    if (topStyle != BorderStyle.Solid || rightStyle != BorderStyle.Solid ||
+      bottomStyle != BorderStyle.Solid || leftStyle != BorderStyle.Solid
+    ) return false
+    if (topColor != rightColor || rightColor != bottomColor || bottomColor != leftColor) return false
+    val bw = topWidth
+    if (bw <= 0f || bw != rightWidth || bw != bottomWidth || bw != leftWidth) return false
+    val r = uniformRadius(width, height)
+    if (r != 0f && r < bw) return false
+
+    val half = bw / 2f
+    strokePaint.color = topColor
+    strokePaint.strokeWidth = bw
+    if (r == 0f) {
+      strokePaint.strokeJoin = Paint.Join.MITER
+      canvas.drawRect(half, half, width - half, height - half, strokePaint)
+    } else {
+      strokePaint.strokeJoin = Paint.Join.ROUND
+      canvas.drawRoundRect(half, half, width - half, height - half, r - half, r - half, strokePaint)
+    }
+    return true
   }
 
   private enum class Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT }

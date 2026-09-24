@@ -202,8 +202,16 @@ open class Node internal constructor(
   internal var stickyScrollHost: Scroll? = null
   internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
+  // Epoch at which this node's dirty flag was last handed to Rust. Taffy holds
+  // a node dirty until a compute consumes it, so marking the same node again
+  // before then is a pure JNI round-trip plus an ancestor-chain walk inside
+  // Taffy. Appending 20 feed rows made 883 such calls for 240 changed nodes.
+  // Reset on every attach/detach, since re-parenting changes what Rust holds.
+  private var dirtyMarkedEpoch = -1
+
   open var parent: Node?
     internal set(value) {
+      dirtyMarkedEpoch = -1
       layoutParent = value
       if (value == null) {
         // Snapshot the text epoch at detach so invalidateOnAttach can tell
@@ -831,17 +839,30 @@ open class Node internal constructor(
     }
 
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
+      // background-color is a text flag (a text container paints its own) but
+      // it does not inherit, so it never reaches descendants. Passing it down
+      // re-styled every text view below any container given a background.
+      val childLow = low and StateKeys.BACKGROUND_COLOR.low.inv()
+      val childHigh = high and StateKeys.BACKGROUND_COLOR.high.inv()
       // Style writes that can't affect text skip the walk entirely; anything
       // that can is a text-affecting mutation for invalidateOnAttach's epoch.
-      if (!TextEngine.hasAnyTextFlags(low, high)) {
+      val reachesText = TextEngine.hasAnyTextFlags(childLow, childHigh) ||
+        (node.view is TextContainer && TextEngine.hasAnyTextFlags(low, high))
+      if (!reachesText) {
         return
       }
       Perf.hit("descWalk")
       bumpTextInvalidationEpoch()
-      invalidateDescendantTextViewsInner(node, low, high)
+      invalidateDescendantTextViewsInner(node, low, high, childLow, childHigh)
     }
 
-    private fun invalidateDescendantTextViewsInner(node: Node, low: Long, high: Long) {
+    private fun invalidateDescendantTextViewsInner(
+      node: Node,
+      low: Long,
+      high: Long,
+      childLow: Long,
+      childHigh: Long
+    ) {
       // Early exit for subtrees that contain no text at all (see
       // Node.hasTextDescendant / markHasTextDescendant, maintained by
       // appendChild) — avoids an unconditional O(subtree) walk on every
@@ -862,10 +883,13 @@ open class Node internal constructor(
         (node.view as StyleChangeListener).onChange(low, high)
       }
 
+      if (!TextEngine.hasAnyTextFlags(childLow, childHigh)) {
+        return
+      }
       // Iterate children (only layout children, not author children)
       val size = node.children.size
       for (i in 0 until size) {
-        invalidateDescendantTextViewsInner(node.children[i], low, high)
+        invalidateDescendantTextViewsInner(node.children[i], childLow, childHigh, childLow, childHigh)
       }
     }
 
@@ -1224,17 +1248,17 @@ open class Node internal constructor(
   }
 
   fun addChildAt(child: Node, index: Int) {
-    val __t = System.nanoTime()
+    val __t = Perf.now()
     if (index <= -1) {
       appendChild(child)
-      Perf.add("addChildAt", System.nanoTime() - __t)
+      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
     val authorChildren = getChildren()
     // if index is past end, fall back to append behavior
     if (index >= authorChildren.size) {
       appendChild(child)
-      Perf.add("addChildAt", System.nanoTime() - __t)
+      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
 
@@ -1247,7 +1271,7 @@ open class Node internal constructor(
         val containerNode = reference.layoutParent ?: reference.container?.node
         if (containerNode != null && containerNode.parent == this) {
           val idxInContainer =
-            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: run { Perf.add("addChildAt", System.nanoTime() - __t); return }
+            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: run { Perf.add("addChildAt", Perf.now() - __t); return }
           // Insert the new text node before 'reference' inside the same anonymous container
           containerNode.children.add(idxInContainer, child)
           child.parent = containerNode
@@ -1260,7 +1284,7 @@ open class Node internal constructor(
             (containerNode as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
-          Perf.add("addChildAt", System.nanoTime() - __t)
+          Perf.add("addChildAt", Perf.now() - __t)
           return
         }
       }
@@ -1289,7 +1313,7 @@ open class Node internal constructor(
         (view as? Element)?.invalidateLayout()
       }
       NodeUtils.invalidateLayout(this)
-      Perf.add("addChildAt", System.nanoTime() - __t)
+      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
 
@@ -1313,7 +1337,7 @@ open class Node internal constructor(
               (view as? Element)?.invalidateLayout()
             }
             NodeUtils.invalidateLayout(this)
-            Perf.add("addChildAt", System.nanoTime() - __t)
+            Perf.add("addChildAt", Perf.now() - __t)
             return
           }
 
@@ -1413,7 +1437,7 @@ open class Node internal constructor(
             (view as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
-          Perf.add("addChildAt", System.nanoTime() - __t)
+          Perf.add("addChildAt", Perf.now() - __t)
           return
         }
       }
@@ -1444,24 +1468,24 @@ open class Node internal constructor(
     invalidateOnAttach(child)
 
     NodeUtils.invalidateLayout(this)
-    Perf.add("addChildAt", System.nanoTime() - __t)
+    Perf.add("addChildAt", Perf.now() - __t)
   }
 
   fun removeChildAt(index: Int): Node? {
-    val __t = System.nanoTime()
+    val __t = Perf.now()
     if (index < 0) {
-      Perf.add("removeChildAt", System.nanoTime() - __t)
+      Perf.add("removeChildAt", Perf.now() - __t)
       return null
     }
     val children = getChildren()
     if (index >= children.size) {
-      Perf.add("removeChildAt", System.nanoTime() - __t)
+      Perf.add("removeChildAt", Perf.now() - __t)
       return null
     }
     val reference = children[index]
     val idx =
-      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: run { Perf.add("removeChildAt", System.nanoTime() - __t); return null }
-    val removed = reference.layoutParent?.children?.removeAt(idx) ?: run { Perf.add("removeChildAt", System.nanoTime() - __t); return null }
+      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
+    val removed = reference.layoutParent?.children?.removeAt(idx) ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
     if (removed is TextNode) {
       removed.container?.engine?.invalidateInlineSegments()
       removed.container = null
@@ -1499,7 +1523,7 @@ open class Node internal constructor(
         NodeUtils.invalidateLayout(this)
       }
     }
-    Perf.add("removeChildAt", System.nanoTime() - __t)
+    Perf.add("removeChildAt", Perf.now() - __t)
     return removed
   }
 
@@ -1509,9 +1533,17 @@ open class Node internal constructor(
       computeCacheDirty = true
       return
     }
-    // always cross the JNI boundary; computeCacheDirty isn't a reliable
-    // "native already knows" signal and skipping here dropped dirty marks
+    // computeCacheDirty is NOT a usable "native already knows" signal — it is
+    // set from several places that never reach Rust, and gating on it used to
+    // drop dirty marks. dirtyMarkedEpoch is set only here, right next to the
+    // JNI call, and expires whenever a compute finishes or the node moves.
+    if (dirtyMarkedEpoch == mason.computeEpoch) {
+      Perf.hit("dirtySkip")
+      computeCacheDirty = true
+      return
+    }
     Perf.hit("dirtyJNI")
+    dirtyMarkedEpoch = mason.computeEpoch
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }

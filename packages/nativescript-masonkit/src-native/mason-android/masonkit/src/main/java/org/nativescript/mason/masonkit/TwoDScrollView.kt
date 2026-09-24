@@ -100,10 +100,19 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   private var overflingDistance = 0
 
   // Overscroll effects (stretch on API 31+, glow earlier), one per edge.
-  private lateinit var edgeGlowTop: EdgeEffect
-  private lateinit var edgeGlowBottom: EdgeEffect
-  private lateinit var edgeGlowLeft: EdgeEffect
-  private lateinit var edgeGlowRight: EdgeEffect
+  // Created on the first overscroll: every block element is one of these, and
+  // almost none of them ever scroll, so building four effects per view up
+  // front was a large share of view construction.
+  private class EdgeEffects(context: Context) {
+    val top = EdgeEffect(context)
+    val bottom = EdgeEffect(context)
+    val left = EdgeEffect(context)
+    val right = EdgeEffect(context)
+  }
+
+  private var edgeEffects: EdgeEffects? = null
+
+  private fun edges(): EdgeEffects = edgeEffects ?: EdgeEffects(context).also { edgeEffects = it }
 
   @JvmOverloads
   constructor(context: Context, attrs: AttributeSet? = null) : super(context, attrs) {
@@ -176,10 +185,6 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     minimumVelocity = configuration.scaledMinimumFlingVelocity
     maximumVelocity = configuration.scaledMaximumFlingVelocity
     overflingDistance = configuration.scaledOverflingDistance
-    edgeGlowTop = EdgeEffect(context)
-    edgeGlowBottom = EdgeEffect(context)
-    edgeGlowLeft = EdgeEffect(context)
-    edgeGlowRight = EdgeEffect(context)
     childHelper.isNestedScrollingEnabled = true
   }
 
@@ -218,10 +223,11 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     maxOf(scrollContentHeight - (height - paddingTop - paddingBottom), 0)
 
   private fun releaseEdgeEffects() {
-    edgeGlowTop.onRelease()
-    edgeGlowBottom.onRelease()
-    edgeGlowLeft.onRelease()
-    edgeGlowRight.onRelease()
+    val e = edgeEffects ?: return
+    e.top.onRelease()
+    e.bottom.onRelease()
+    e.left.onRelease()
+    e.right.onRelease()
   }
 
   private fun canScroll(): Boolean {
@@ -318,13 +324,13 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         val h = height.coerceAtLeast(1).toFloat()
         var needsInvalidate = false
         if (enableScrollX && unconsumedX != 0 && !hasNestedScrollingParent(ViewCompat.TYPE_TOUCH)) {
-          if (unconsumedX < 0) edgeGlowLeft.onPull(-unconsumedX / w, 1f - y / h)
-          else edgeGlowRight.onPull(unconsumedX / w, y / h)
+          if (unconsumedX < 0) edges().left.onPull(-unconsumedX / w, 1f - y / h)
+          else edges().right.onPull(unconsumedX / w, y / h)
           needsInvalidate = true
         }
         if (enableScrollY && unconsumedY != 0 && !hasNestedScrollingParent(ViewCompat.TYPE_TOUCH)) {
-          if (unconsumedY < 0) edgeGlowTop.onPull(-unconsumedY / h, x / w)
-          else edgeGlowBottom.onPull(unconsumedY / h, 1f - x / w)
+          if (unconsumedY < 0) edges().top.onPull(-unconsumedY / h, x / w)
+          else edges().bottom.onPull(unconsumedY / h, 1f - x / w)
           needsInvalidate = true
         }
         if (needsInvalidate) postInvalidateOnAnimation()
@@ -433,13 +439,14 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     // Truly-unconsumed momentum hits our own edge — absorb into the glow.
     if (unconsumedX != 0 || unconsumedY != 0) {
       val v = scroller!!.currVelocity.toInt()
+      val e = edges()
       if (enableScrollY && unconsumedY != 0) {
-        if (unconsumedY < 0 && edgeGlowTop.isFinished) edgeGlowTop.onAbsorb(v)
-        else if (unconsumedY > 0 && edgeGlowBottom.isFinished) edgeGlowBottom.onAbsorb(v)
+        if (unconsumedY < 0 && e.top.isFinished) e.top.onAbsorb(v)
+        else if (unconsumedY > 0 && e.bottom.isFinished) e.bottom.onAbsorb(v)
       }
       if (enableScrollX && unconsumedX != 0) {
-        if (unconsumedX < 0 && edgeGlowLeft.isFinished) edgeGlowLeft.onAbsorb(v)
-        else if (unconsumedX > 0 && edgeGlowRight.isFinished) edgeGlowRight.onAbsorb(v)
+        if (unconsumedX < 0 && e.left.isFinished) e.left.onAbsorb(v)
+        else if (unconsumedX > 0 && e.right.isFinished) e.right.onAbsorb(v)
       }
       scroller!!.abortAnimation()
     }
@@ -837,49 +844,49 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   override fun draw(canvas: Canvas) {
     super.draw(canvas)
 
-    if (!::edgeGlowTop.isInitialized) return
+    val e = edgeEffects ?: return
 
     var needInvalidate = false
     val sX = scrollX
     val sY = scrollY
 
-    if (!edgeGlowTop.isFinished) {
+    if (!e.top.isFinished) {
       val restore = canvas.save()
       val w = width - paddingLeft - paddingRight
       canvas.translate(paddingLeft.toFloat(), min(0, sY).toFloat())
-      edgeGlowTop.setSize(w, height)
-      if (edgeGlowTop.draw(canvas)) needInvalidate = true
+      e.top.setSize(w, height)
+      if (e.top.draw(canvas)) needInvalidate = true
       canvas.restoreToCount(restore)
     }
 
-    if (!edgeGlowBottom.isFinished) {
+    if (!e.bottom.isFinished) {
       val restore = canvas.save()
       val w = width - paddingLeft - paddingRight
       val h = height
       canvas.translate((-w + paddingLeft).toFloat(), (max(getScrollRangeY(), sY) + h).toFloat())
       canvas.rotate(180f, w.toFloat(), 0f)
-      edgeGlowBottom.setSize(w, h)
-      if (edgeGlowBottom.draw(canvas)) needInvalidate = true
+      e.bottom.setSize(w, h)
+      if (e.bottom.draw(canvas)) needInvalidate = true
       canvas.restoreToCount(restore)
     }
 
-    if (!edgeGlowLeft.isFinished) {
+    if (!e.left.isFinished) {
       val restore = canvas.save()
       val h = height - paddingTop - paddingBottom
       canvas.rotate(270f)
       canvas.translate((-h + paddingTop).toFloat(), min(0, sX).toFloat())
-      edgeGlowLeft.setSize(h, width)
-      if (edgeGlowLeft.draw(canvas)) needInvalidate = true
+      e.left.setSize(h, width)
+      if (e.left.draw(canvas)) needInvalidate = true
       canvas.restoreToCount(restore)
     }
 
-    if (!edgeGlowRight.isFinished) {
+    if (!e.right.isFinished) {
       val restore = canvas.save()
       val h = height - paddingTop - paddingBottom
       canvas.rotate(90f)
       canvas.translate(-paddingTop.toFloat(), -(max(getScrollRangeX(), sX) + width).toFloat())
-      edgeGlowRight.setSize(h, width)
-      if (edgeGlowRight.draw(canvas)) needInvalidate = true
+      e.right.setSize(h, width)
+      if (e.right.draw(canvas)) needInvalidate = true
       canvas.restoreToCount(restore)
     }
 

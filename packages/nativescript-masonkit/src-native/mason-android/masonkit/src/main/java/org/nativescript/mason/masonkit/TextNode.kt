@@ -325,7 +325,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       processed = when (style.whiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap -> {
           // Collapse sequences of whitespace
-          normalizeNewlines(processed).replace(Regex("[ \t\u000B\u000C\n]+"), " ")
+          collapseWhitespace(normalizeNewlines(processed), collapseNewlines = true)
         }
 
         Styles.WhiteSpace.Pre -> {
@@ -354,13 +354,46 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     }
 
     private fun normalizeNewlines(s: String): String {
+      if (s.indexOf('\r') < 0) return s
       return s.replace("\r\n", "\n").replace("\r", "\n")
     }
 
     private fun processPreLine(s: String): String {
       return s.split("\n").joinToString("\n") { line ->
-        line.replace(Regex("[ \t\u000B\u000C]+"), " ")
+        collapseWhitespace(line, collapseNewlines = false)
       }
+    }
+
+    private fun isCollapsible(c: Char, collapseNewlines: Boolean): Boolean =
+      c == ' ' || c == '\t' || c == '\u000B' || c == '\u000C' || (collapseNewlines && c == '\n')
+
+    // Collapses each run of collapsible whitespace to a single space. This runs
+    // on every attributed-string build, so it hands back the input untouched
+    // when there is nothing to collapse rather than compiling a Regex per call.
+    private fun collapseWhitespace(s: String, collapseNewlines: Boolean): String {
+      var i = 0
+      while (i < s.length) {
+        val c = s[i]
+        if (isCollapsible(c, collapseNewlines) &&
+          (c != ' ' || (i + 1 < s.length && isCollapsible(s[i + 1], collapseNewlines)))
+        ) break
+        i++
+      }
+      if (i == s.length) return s
+      val sb = StringBuilder(s.length).append(s, 0, i)
+      var inRun = false
+      while (i < s.length) {
+        val c = s[i]
+        if (isCollapsible(c, collapseNewlines)) {
+          if (!inRun) sb.append(' ')
+          inRun = true
+        } else {
+          sb.append(c)
+          inRun = false
+        }
+        i++
+      }
+      return sb.toString()
     }
   }
 }

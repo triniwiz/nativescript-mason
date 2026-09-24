@@ -15,6 +15,11 @@ object Perf {
   private val times = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
   private val counts = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
 
+  // Clock reads are not free (a trap on the emulator), so call sites time
+  // through this and pay nothing while disabled.
+  @JvmStatic
+  fun now(): Long = if (enabled) System.nanoTime() else 0L
+
   @JvmStatic
   fun add(name: String, ns: Long) {
     if (!enabled) return

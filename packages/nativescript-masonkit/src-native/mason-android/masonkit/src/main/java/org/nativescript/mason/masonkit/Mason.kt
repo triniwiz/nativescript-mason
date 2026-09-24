@@ -41,6 +41,25 @@ class Mason {
   @JvmField
   internal var inCompute = false
 
+  /**
+   * Bumped every time a native compute finishes. Taffy keeps a node's dirty
+   * flag set until a compute consumes it, so this doubles as the expiry clock
+   * for Node's "already told Rust" memo (see Node.dirty).
+   */
+  internal var computeEpoch = 0
+    private set
+
+  /** Clears [inCompute] and expires every node's dirty-mark memo. */
+  internal fun endCompute() {
+    inCompute = false
+    computeFinished()
+  }
+
+  /** Every native compute must end here, or Node.dirty skips real marks. */
+  internal fun computeFinished() {
+    computeEpoch++
+  }
+
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 

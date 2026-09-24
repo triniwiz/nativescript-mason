@@ -1721,8 +1721,12 @@ class NodeHelper(val mason: Mason) {
     }
 
     fun compute(node: Node) {
-      NativeHelpers.nativeNodeCompute(
-        node.mason.nativePtr, node.nativePtr
-      )
+      try {
+        NativeHelpers.nativeNodeCompute(
+          node.mason.nativePtr, node.nativePtr
+        )
+      } finally {
+        node.mason.computeFinished()
+      }
     }
   }

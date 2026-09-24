@@ -15,6 +15,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ZOrderInstrumentedTest {
 
+  // isChildrenDrawingOrderEnabled / getChildDrawingOrder are protected on
+  // ViewGroup; the androidTest source set can't access them from Kotlin, so
+  // read them reflectively.
+  private fun childrenDrawingOrderEnabled(v: android.view.ViewGroup): Boolean {
+    val m = android.view.ViewGroup::class.java.getDeclaredMethod("isChildrenDrawingOrderEnabled")
+    m.isAccessible = true
+    return m.invoke(v) as Boolean
+  }
+
+  private fun childDrawingOrder(v: android.view.ViewGroup, count: Int, i: Int): Int {
+    val m = android.view.ViewGroup::class.java.getDeclaredMethod("getChildDrawingOrder", Int::class.java, Int::class.java)
+    m.isAccessible = true
+    return m.invoke(v, count, i) as Int
+  }
+
   @Test
   fun noZIndexKeepsNativeOrder() {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -22,7 +37,7 @@ class ZOrderInstrumentedTest {
     InstrumentationRegistry.getInstrumentation().runOnMainSync {
       val parent = mason.createView(context)
       repeat(3) { parent.addView(mason.createView(context)) }
-      assertFalse(parent.isChildrenDrawingOrderEnabled)
+      assertFalse(childrenDrawingOrderEnabled(parent))
     }
   }
 
@@ -41,11 +56,11 @@ class ZOrderInstrumentedTest {
       // set after insertion: the parent must be told, not the child itself
       a.style.zIndex = 1
 
-      assertTrue(parent.isChildrenDrawingOrderEnabled)
+      assertTrue(childrenDrawingOrderEnabled(parent))
       // drawing order: b, c (z=0, tree order) then a (z=1)
-      assertEquals(1, parent.getChildDrawingOrder(3, 0))
-      assertEquals(2, parent.getChildDrawingOrder(3, 1))
-      assertEquals(0, parent.getChildDrawingOrder(3, 2))
+      assertEquals(1, childDrawingOrder(parent, 3, 0))
+      assertEquals(2, childDrawingOrder(parent, 3, 1))
+      assertEquals(0, childDrawingOrder(parent, 3, 2))
     }
   }
 }

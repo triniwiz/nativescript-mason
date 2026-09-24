@@ -87,9 +87,30 @@ class TextView @JvmOverloads constructor(
   }
 
 
-  // Cached StaticLayout and width used for drawing when we render our own layout
-  internal var cachedStaticLayout: StaticLayout? = null
-  internal var cachedStaticLayoutWidth: Int = -1
+  // Cached StaticLayout used for drawing when we render our own layout, and
+  // the range of content widths it draws correctly at. Usually a single width;
+  // a width-independent layout (see TextEngine.StaticLayoutCacheEntry) covers
+  // every width from its widest line up to the width it was built at, which
+  // spares a rebuild on first draw when measure ran at a different width.
+  internal var cachedStaticLayout: android.text.Layout? = null
+    private set
+  private var cachedStaticLayoutMinWidth = -1
+  private var cachedStaticLayoutMaxWidth = -1
+
+  internal fun setCachedStaticLayout(layout: android.text.Layout, minWidth: Int, maxWidth: Int = minWidth) {
+    cachedStaticLayout = layout
+    cachedStaticLayoutMinWidth = minWidth
+    cachedStaticLayoutMaxWidth = maxWidth
+  }
+
+  private fun clearCachedStaticLayout() {
+    cachedStaticLayout = null
+    cachedStaticLayoutMinWidth = -1
+    cachedStaticLayoutMaxWidth = -1
+  }
+
+  private fun cachedStaticLayoutFits(contentWidth: Int): Boolean =
+    contentWidth in cachedStaticLayoutMinWidth..cachedStaticLayoutMaxWidth
 
   // Float-aware StaticLayout: wraps text around floated sibling elements
   internal var floatAwareStaticLayout: StaticLayout? = null
@@ -110,12 +131,11 @@ class TextView @JvmOverloads constructor(
     } else {
       // Layouts are width-driven: keep the cached layouts across pure
       // height or no-op size changes (applyLayoutFlat assigns the measured
-      // size right after measure populated the cache — clearing here forced
+      // size right after measure populated the cache; clearing here forced
       // every first draw to rebuild its StaticLayout).
       val contentW = w - paddingLeft - paddingRight
-      if (cachedStaticLayoutWidth != contentW) {
-        cachedStaticLayout = null
-        cachedStaticLayoutWidth = -1
+      if (!cachedStaticLayoutFits(contentW)) {
+        clearCachedStaticLayout()
         floatAwareStaticLayout = null
       }
       floatExpandedHeight = -1
@@ -144,13 +164,9 @@ class TextView @JvmOverloads constructor(
       // runs instead of falling back to the platform's top-aligned TextView.
       val contentWidth = width - paddingLeft - paddingRight
       if (floatAwareStaticLayout == null &&
-        (cachedStaticLayout == null || (contentWidth > 0 && cachedStaticLayoutWidth != contentWidth))
+        (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
       ) {
-        val rebuilt = engine.rebuildCachedStaticLayout(paint, contentWidth)
-        if (rebuilt != null) {
-          cachedStaticLayout = rebuilt
-          cachedStaticLayoutWidth = contentWidth
-        }
+        engine.rebuildCachedStaticLayout(paint, contentWidth)
       }
 
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
@@ -235,16 +251,14 @@ class TextView @JvmOverloads constructor(
     set(value) {
       Perf.timed("setTextContent") {
         // Invalidate our cached layout when text changes
-        cachedStaticLayout = null
-        cachedStaticLayoutWidth = -1
+        clearCachedStaticLayout()
         floatAwareStaticLayout = null
         engine.textContent = value
       }
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
-    cachedStaticLayout = null
-    cachedStaticLayoutWidth = -1
+    clearCachedStaticLayout()
     floatAwareStaticLayout = null
     super.setText(text, type)
   }
@@ -432,8 +446,7 @@ class TextView @JvmOverloads constructor(
   override fun onChange(low: Long, high: Long) {
     Perf.hit("tvOnChange")
     // Style change affects layout; invalidate cached StaticLayout
-    cachedStaticLayout = null
-    cachedStaticLayoutWidth = -1
+    clearCachedStaticLayout()
     floatAwareStaticLayout = null
     engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }

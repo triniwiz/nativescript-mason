@@ -128,38 +128,44 @@ class ViewUtils {
 
       // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
-        canvas.withSave {
-          val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
-          if (!outerPath.isEmpty) {
-            canvas.clipPath(outerPath)
-          }
-
-          style.mBackground?.let { background ->
-            // If background is a single solid color with no layers, draw the rounded
-            // shape directly into the canvas to avoid clipPath reuse/antialias interaction.
-            if (background.color != null && background.layers.isEmpty()) {
-              val color = background.color!!
-              background.bgPaint.color = color
-              background.bgPaint.style = android.graphics.Paint.Style.FILL
-              if (!outerPath.isEmpty) {
-                canvas.drawPath(outerPath, background.bgPaint)
-              } else {
-                canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-              }
-            } else {
-              background.color?.let { color ->
-                background.bgPaint.color = color
-                canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-              }
-
-              // Reverse so the first layer in the list is drawn on top.
-              background.layers.asReversed().forEach { layer ->
-                canvas.withSave {
-                  // pass measured bounds so clip uses the real size instead of the
-                  // potentially-zero computedWidth/Height stored on the node
-                  Style.applyClip(canvas, layer.clip, style, width, height)
-                  drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
+        style.mBackground?.let { background ->
+          // A single solid color with no layers draws the rounded shape directly,
+          // which needs no clip (and no save/clipPath per view per frame). With one
+          // shared radius it is a rect or round rect: recording a path copies the
+          // whole path into the display list.
+          if (background.color != null && background.layers.isEmpty()) {
+            background.bgPaint.color = background.color!!
+            background.bgPaint.style = android.graphics.Paint.Style.FILL
+            val r = style.mBorderRenderer.uniformRadius(width, height)
+            when {
+              r == 0f -> canvas.drawRect(0f, 0f, width, height, background.bgPaint)
+              r > 0f -> canvas.drawRoundRect(0f, 0f, width, height, r, r, background.bgPaint)
+              else -> {
+                val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
+                if (!outerPath.isEmpty) {
+                  canvas.drawPath(outerPath, background.bgPaint)
+                } else {
+                  canvas.drawRect(0f, 0f, width, height, background.bgPaint)
                 }
+              }
+            }
+          } else canvas.withSave {
+            val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
+            if (!outerPath.isEmpty) {
+              canvas.clipPath(outerPath)
+            }
+            background.color?.let { color ->
+              background.bgPaint.color = color
+              canvas.drawRect(0f, 0f, width, height, background.bgPaint)
+            }
+
+            // Reverse so the first layer in the list is drawn on top.
+            background.layers.asReversed().forEach { layer ->
+              canvas.withSave {
+                // pass measured bounds so clip uses the real size instead of the
+                // potentially-zero computedWidth/Height stored on the node
+                Style.applyClip(canvas, layer.clip, style, width, height)
+                drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
               }
             }
           }
@@ -212,7 +218,7 @@ class ViewUtils {
         val cy = when (oy) { 1, 2, 3 -> true; 4 -> style.node.overflowHeight.toFloat() > height; else -> false }
         cx || cy
       } else false
-      canvas.withSave {
+      val drawContent = {
         if (hasRadii && overflowClipsContent) {
           val innerPath = style.mBorderRenderer.getClipPath(width, height)
           canvas.clipPath(innerPath)
@@ -243,6 +249,14 @@ class ViewUtils {
         } else {
           superDraw(canvas)
         }
+      }
+      // Only clips and a slow filter pass touch the canvas state; skip the
+      // save/restore pair for everything else, which is nearly every view.
+      val filterRenders = style.mFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
+      if (overflowClipsContent || filterRenders || !style.isValueInitialized) {
+        canvas.withSave { drawContent() }
+      } else {
+        drawContent()
       }
 
       // Fast-path filter (e.g. brightness on :active) applied AFTER all

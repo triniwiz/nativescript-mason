@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.text.TextPaint
 import android.view.View
 import dalvik.annotation.optimization.FastNative
@@ -851,11 +852,19 @@ class Style internal constructor(@Transient internal var node: Node) {
    * measures text -- so nothing on its own side ever loads it. Kick the load
    * off from whoever actually resolved to it, and re-apply once it lands.
    */
+  // The face this style already has a load callback queued on. Every
+  // resolvedFontFace read lands here, and FontFace.load queues a callback per
+  // call while the load is in flight, so without this one style could queue
+  // dozens, each posting its own re-notify when the face arrives.
+  private var fontLoadPendingFor: FontFace? = null
+
   private fun ensureResolvedFontLoaded(face: FontFace) {
-    if (face.font != null) return
+    if (face.font != null || fontLoadPendingFor === face) return
     val v = node.view as? android.view.View ?: return
+    fontLoadPendingFor = face
     face.load(v.context) { _ ->
       v.post {
+        if (fontLoadPendingFor === face) fontLoadPendingFor = null
         invalidateResolvedFontFace()
         val metricsChanged = syncFontMetrics()
         notifyTextStyleChanged(StateKeys.FONT_FAMILY)
@@ -955,26 +964,12 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   private fun syncFontMetricsNow(): Boolean {
-    val fm = paint.fontMetrics
-
-    // Use absolute ascent (Android reports negative ascent); sanitize tiny/NaN values
-    var ascent = abs(fm.ascent)
-    var descent = fm.descent
-    val leading = fm.leading
-
-    // Defensive local sanitization before writing to native buffer
-    val EPS = 1e-6f
-    if (ascent.isNaN() || ascent < EPS) {
-      ascent = 14f
-    }
-    if (descent.isNaN() || descent < 0f || descent < EPS) {
-      descent = 4f
-    }
-
-    // Android doesn't directly expose x-height or cap-height
-    // We approximate them based on the font
-    val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
-    val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
+    val m = sharedFontMetrics(paint, xBounds, capBounds)
+    val ascent = m[0]
+    val descent = m[1]
+    val leading = m[2]
+    val xHeight = m[3]
+    val capHeight = m[4]
 
     // Change-gate: a sync whose values match what the native buffer already
     // holds must not rewrite it — the write (and the dirty it triggers on the
@@ -4651,6 +4646,10 @@ class Style internal constructor(@Transient internal var node: Node) {
               view.requestLayout()
             }
           }
+        }.also {
+          // Already loaded: no callback comes. Flag the metrics for the
+          // compute-entry sync, which dirties the node only if they moved.
+          if (it.font != null) fontDirty = true
         }
       } else {
         FontFace(baseFamily, AppFonts.resolve(baseFamily)).apply {
@@ -5299,7 +5298,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         // A changed sync dirties its node so the computeSkip fast-path can't
         // serve stale results; the imminent compute absorbs the buffer write,
         // so no view-level invalidate/requestLayout is posted here.
-        if (s.flushPendingMetricsSync()) {
+        // A style can be fontDirty without a deferred sync (it was never
+        // measured yet); sync that too, or every measure in the compute
+        // defers it again and posts its own flush.
+        val changed = if (s.pendingMetricsSync) s.flushPendingMetricsSync() else s.syncFontMetrics()
+        if (changed) {
           s.node.dirty()
         }
       }
@@ -5331,10 +5334,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       onReady: () -> Unit
     ): FontFace {
       val key = fontFaceCacheKey(family, weight, style)
-      sharedFontFaces[key]?.let { existing ->
-        if (existing.font != null) onReady()
-        return existing
-      }
+      // onReady is for a load that finishes later; a face that is already
+      // loaded is the caller's to handle inline (see resolvedFontFace).
+      sharedFontFaces[key]?.let { return it }
       val face = FontFace(family, AppFonts.resolve(family, context)).apply {
         this.weight = weight
         this.style = style
@@ -5342,8 +5344,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       val winner = sharedFontFaces.putIfAbsent(key, face) ?: face
       if (winner.font == null) {
         winner.load(context) { _ -> onReady() }
-      } else {
-        onReady()
       }
       return winner
     }
@@ -5351,6 +5351,44 @@ class Style internal constructor(@Transient internal var node: Node) {
     /**
      * Get x-height by measuring lowercase 'x'
      */
+    private data class FontMetricsKey(val typeface: Typeface?, val textSize: Float, val variation: String?)
+
+    // [ascent, descent, leading, xHeight, capHeight] per font: a page's text
+    // styles share a handful of fonts, and each sync otherwise re-reads the
+    // metrics and measures glyph bounds twice.
+    private val fontMetricsCache = HashMap<FontMetricsKey, FloatArray>()
+
+    private fun sharedFontMetrics(
+      paint: Paint,
+      xBounds: android.graphics.Rect,
+      capBounds: android.graphics.Rect
+    ): FloatArray {
+      val variation = if (android.os.Build.VERSION.SDK_INT >= 26) paint.fontVariationSettings else null
+      val key = FontMetricsKey(paint.typeface, paint.textSize, variation)
+      fontMetricsCache[key]?.let { return it }
+      val fm = paint.fontMetrics
+
+      // Use absolute ascent (Android reports negative ascent); sanitize tiny/NaN values
+      var ascent = abs(fm.ascent)
+      var descent = fm.descent
+      val EPS = 1e-6f
+      if (ascent.isNaN() || ascent < EPS) {
+        ascent = 14f
+      }
+      if (descent.isNaN() || descent < 0f || descent < EPS) {
+        descent = 4f
+      }
+
+      // Android doesn't directly expose x-height or cap-height
+      // We approximate them based on the font
+      val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
+      val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
+      val values = floatArrayOf(ascent, descent, fm.leading, xHeight, capHeight)
+      if (fontMetricsCache.size >= 64) fontMetricsCache.clear()
+      fontMetricsCache[key] = values
+      return values
+    }
+
     internal fun getXHeight(paint: Paint, xBounds: android.graphics.Rect): Float? {
       paint.getTextBounds("x", 0, 1, xBounds)
       return if (xBounds.height() > 0) xBounds.height().toFloat() else null

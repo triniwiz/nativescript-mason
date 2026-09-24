@@ -79,25 +79,38 @@ open class View @JvmOverloads constructor(
     // O(1) gate: only rebuild the z-order list when z-index is actually in
     // play. A freshly added child may carry a z-index set before attach.
     if (hasZIndexedChildren || zIndexOf(child) != 0) {
-      onChildStructureChangedSafe()
+      rebuildZOrderSafe()
     }
   }
 
   override fun onViewRemoved(child: android.view.View) {
     super.onViewRemoved(child)
     if (hasZIndexedChildren) {
-      onChildStructureChangedSafe()
+      rebuildZOrderSafe()
     }
   }
 
   private var inMutation = false
   private var hasZIndexedChildren = false
 
-  private fun onChildStructureChangedSafe() {
+  private fun rebuildZOrderSafe() {
     if (inMutation) return
     inMutation = true
     rebuildZOrder()
     inMutation = false
+  }
+
+  /**
+   * Structure changed through one of the explicit add/remove overrides.
+   * ViewGroup fires onViewAdded/onViewRemoved for every real child change and
+   * those already rebuild the list when z-index is in play, so rebuilding here
+   * too was redundant -- and unconditional, which made filling a container
+   * quadratic: each append rescanned every child already in it (appending 100
+   * rows cost ~5,000 zIndexOf calls). Gate on the same O(1) check.
+   */
+  private fun onChildStructureChangedSafe() {
+    if (!hasZIndexedChildren) return
+    rebuildZOrderSafe()
   }
 
   internal fun onChildZIndexChanged() {
@@ -191,18 +204,32 @@ open class View @JvmOverloads constructor(
   }
 
 
-  override fun dispatchDraw(canvas: Canvas) {
+  // Held as fields rather than written inline at the call site: both capture
+  // `this`, so as lambda literals they would allocate two closures per view per
+  // frame — on a page of several hundred views that is the bulk of the draw
+  // path's garbage.
+  private val drawOutsetShadows: (Canvas) -> Unit = { c ->
     // Draw children's outset box shadows at parent level so they can extend
     // beyond child bounds — after this view's own background/border (see
     // ViewUtils.render) so an opaque parent background can't paint over them.
-    ViewUtils.dispatchDraw(this, canvas, style, beforeChildren = { c ->
-      ViewUtils.drawChildrenOutsetShadows(this, c)
-    }) { c ->
-      // Draw list markers for HTML <li> children before drawing children,
-      // so markers appear in the parent's padding zone (left of the content area).
-      ListMarkers.draw(this, style, c)
-      super.dispatchDraw(c)
-    }
+    ViewUtils.drawChildrenOutsetShadows(this, c)
+  }
+
+  private val drawMarkersAndChildren: (Canvas) -> Unit = { c ->
+    // Draw list markers for HTML <li> children before drawing children,
+    // so markers appear in the parent's padding zone (left of the content area).
+    ListMarkers.draw(this, style, c)
+    super.dispatchDraw(c)
+  }
+
+  override fun dispatchDraw(canvas: Canvas) {
+    ViewUtils.dispatchDraw(
+      this,
+      canvas,
+      style,
+      beforeChildren = drawOutsetShadows,
+      superDraw = drawMarkersAndChildren,
+    )
   }
 
   /**

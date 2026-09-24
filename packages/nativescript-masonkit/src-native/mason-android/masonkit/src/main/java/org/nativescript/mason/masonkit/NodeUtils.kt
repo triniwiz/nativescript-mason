@@ -235,7 +235,7 @@ internal object NodeUtils {
   private fun flushRemovals() {
     removalFlushPosted = false
     if (pendingRemovals.isEmpty()) return
-    val __t = System.nanoTime()
+    val __t = Perf.now()
     val batch = pendingRemovals.toList()
     pendingRemovals.clear()
     val touched = LinkedHashSet<ViewGroup>()
@@ -257,7 +257,7 @@ internal object NodeUtils {
       p.invalidate()
     }
     Perf.hit("rcBatch")
-    Perf.add("rcFlush", System.nanoTime() - __t)
+    Perf.add("rcFlush", Perf.now() - __t)
   }
 
   fun removeView(parent: Node, view: View?) {
@@ -294,11 +294,11 @@ internal object NodeUtils {
       }
     }
     // Fixed views live under their containing block, not their tree parent.
-    val __tf = System.nanoTime()
+    val __tf = Perf.now()
     if ((view as? Element)?.node?.style?.position == Position.Fixed) {
       removeViewFallback(view)
     }
-    Perf.add("rcFixedChk", System.nanoTime() - __tf)
+    Perf.add("rcFixedChk", Perf.now() - __tf)
   }
 
   // Fallback removal: if the expected parent doesn't have a view (or the view
