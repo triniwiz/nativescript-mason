@@ -213,6 +213,13 @@ internal object NodeUtils {
         if (p.view.visibility != p.oldVisibility) {
           p.view.visibility = p.oldVisibility
         }
+        // Finish the detach now: not every add path removes the view from
+        // its old parent, and ViewGroup.addView throws while it has one.
+        if (view.parent === p.expected) {
+          p.expected.removeViewInLayout(view)
+          p.expected.requestLayout()
+          p.expected.invalidate()
+        }
       }
     }
   }
