@@ -355,10 +355,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private static _drainTeardowns() {
     ViewBase._teardownScheduled = false;
     const deadline = Date.now() + 8;
+    let done = 0;
     while (ViewBase._pendingTeardowns.length > 0) {
       const view = ViewBase._pendingTeardowns.shift();
       view._masonFinishTeardown();
-      if (Date.now() >= deadline) {
+      // Reading the clock costs more than a teardown on some devices.
+      if (++done % 16 === 0 && Date.now() >= deadline) {
         break;
       }
     }
