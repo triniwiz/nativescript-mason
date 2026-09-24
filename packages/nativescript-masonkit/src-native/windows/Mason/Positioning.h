@@ -373,7 +373,15 @@ namespace mason_position
         });
         sv.SizeChanged([](wf::IInspectable const& sender, mux::SizeChangedEventArgs const&)
         {
-            UpdateScrollerAtRest(sender.as<muxc::ScrollViewer>());
+            auto sv = sender.as<muxc::ScrollViewer>();
+            // Viewport-anchored fixed boxes move with the viewport size.
+            const void* key = KeyOf(sv);
+            for (auto& [_, link] : Links())
+            {
+                if (link.sticky || KeyOf(link.scroller.get()) != key) continue;
+                if (auto layer = link.element.get()) layer.InvalidateArrange();
+            }
+            UpdateScrollerAtRest(sv);
         });
     }
 

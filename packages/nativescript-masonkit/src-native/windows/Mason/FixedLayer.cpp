@@ -45,12 +45,32 @@ namespace winrt::NativeScript::Mason::implementation
 
     Size FixedLayer::ArrangeOverride(Size const& finalSize)
     {
+        // A root that is a ScrollViewer's content is as big as its content, so Taffy anchors
+        // bottom/right insets to the content's far edge rather than the viewport's.
+        float shiftX = 0.0f, shiftY = 0.0f;
+        if (auto owner = Parent().try_as<mux::FrameworkElement>())
+        {
+            if (auto sv = mason_position::ScrollerHosting(owner))
+            {
+                shiftX = (std::max)(0.0f, finalSize.Width - static_cast<float>(sv.ViewportWidth()));
+                shiftY = (std::max)(0.0f, finalSize.Height - static_cast<float>(sv.ViewportHeight()));
+            }
+        }
+
         for (auto const& child : Children())
         {
             auto el = child.try_as<nsm::IMasonElement>();
             if (!el) continue;
-            auto l = el.Node().GetLayout();
-            child.Arrange({ l.X(), l.Y(), l.Width(), l.Height() });
+            auto node = el.Node();
+            auto l = node.GetLayout();
+            float x = l.X(), y = l.Y();
+            if (shiftX > 0.0f || shiftY > 0.0f)
+            {
+                mason_position::StyleBytes style(node);
+                if (style.I8(mason_position::INSET_LEFT_TYPE) == 0 && style.I8(mason_position::INSET_RIGHT_TYPE) != 0) x -= shiftX;
+                if (style.I8(mason_position::INSET_TOP_TYPE) == 0 && style.I8(mason_position::INSET_BOTTOM_TYPE) != 0) y -= shiftY;
+            }
+            child.Arrange({ x, y, l.Width(), l.Height() });
         }
         return finalSize;
     }
