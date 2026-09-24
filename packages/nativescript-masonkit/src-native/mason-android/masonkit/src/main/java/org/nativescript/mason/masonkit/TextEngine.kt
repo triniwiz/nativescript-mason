@@ -569,7 +569,8 @@ class TextEngine(val container: TextContainer) {
     if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
       Perf.timed("atSetText") {
         try {
-          container.setText(spannable, BufferType.SPANNABLE)
+          (container as? TextView)?.setTextDeferred(spannable, BufferType.SPANNABLE)
+            ?: container.setText(spannable, BufferType.SPANNABLE)
         } catch (_: Exception) {
           container.setText(spannable.toString(), BufferType.NORMAL)
         }
@@ -1019,7 +1020,8 @@ class TextEngine(val container: TextContainer) {
     if (exclusions.isEmpty()) return null
 
     // Get text from the container (already set during measure)
-    val text = (container as? android.widget.TextView)?.text as? Spannable ?: return null
+    if (container !is android.widget.TextView) return null
+    val text: Spannable = currentText()
     if (text.isEmpty()) return null
 
     val viewWidth = view.width
@@ -1117,7 +1119,8 @@ class TextEngine(val container: TextContainer) {
    */
   internal fun rebuildCachedStaticLayout(paint: TextPaint, contentWidth: Int): android.text.Layout? {
     if (contentWidth <= 0) return null
-    val text = (container as? android.widget.TextView)?.text as? Spannable ?: return null
+    if (container !is android.widget.TextView) return null
+    val text: Spannable = currentText()
     if (text.isEmpty()) return null
 
     var allowWrap = true

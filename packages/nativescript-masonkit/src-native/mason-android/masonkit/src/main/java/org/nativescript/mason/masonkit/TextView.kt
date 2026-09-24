@@ -232,6 +232,7 @@ class TextView @JvmOverloads constructor(
         }
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
+        getText() // applies any deferred text
         super.onDraw(c)
       }
     }
@@ -251,9 +252,38 @@ class TextView @JvmOverloads constructor(
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
+    pendingText = null
     clearCachedStaticLayout()
     floatAwareStaticLayout = null
     super.setText(text, type)
+  }
+
+  // Mason draws from its own layout, so the platform copy of the text (a span
+  // copy plus TextView's relayout bookkeeping) only matters to readers of
+  // getText(): accessibility, content capture and the super.onDraw fallback.
+  private var pendingText: CharSequence? = null
+  private var pendingTextType = BufferType.NORMAL
+  private val accessibilityManager by lazy {
+    context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+  }
+
+  internal fun setTextDeferred(text: CharSequence, type: BufferType) {
+    if (accessibilityManager?.isEnabled == true) {
+      setText(text, type)
+      return
+    }
+    clearCachedStaticLayout()
+    floatAwareStaticLayout = null
+    pendingText = text
+    pendingTextType = type
+  }
+
+  override fun getText(): CharSequence {
+    pendingText?.let {
+      pendingText = null
+      super.setText(it, pendingTextType)
+    }
+    return super.getText()
   }
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {
