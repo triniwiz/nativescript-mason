@@ -487,7 +487,7 @@ class TextEngine(val container: TextContainer) {
 
     Perf.hit("slMiss")
     val built = buildBoringLayout(
-      spannable, paint, widthConstraint, safeWidthConstraint, alignment, heuristic, justified
+      spannable, paint, safeWidthConstraint, alignment, heuristic, justified
     ) ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, safeWidthConstraint
@@ -534,26 +534,21 @@ class TextEngine(val container: TextContainer) {
     return entry
   }
 
-  // Unconstrained text that fits one line is what BoringLayout exists for (it
-  // is what android.widget.TextView builds): a single measuring pass and no
-  // line breaker, where StaticLayout measures the paragraph, breaks it, and
-  // then needs the line measured again for its width. API 33 is where
-  // BoringLayout takes the fallback line spacing the StaticLayout path sets,
-  // so heights agree. isBoring declines paragraph spans (line-height), bidi
-  // and newlines, which keep the StaticLayout path.
+  // Text that fits on one line at this width gets a BoringLayout, as
+  // android.widget.TextView does: one measuring pass and no line breaker.
+  // API 33 is where it honours fallback line spacing like the StaticLayout
+  // path, so heights agree.
   private fun buildBoringLayout(
     spannable: CharSequence,
     paint: TextPaint,
-    widthConstraint: Int,
     safeWidthConstraint: Int,
     alignment: android.text.Layout.Alignment,
     heuristic: TextDirectionHeuristic,
     justified: Boolean
   ): android.text.Layout? {
-    if (widthConstraint != Int.MAX_VALUE || justified ||
-      Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-    ) return null
+    if (justified || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
     val metrics = BoringLayout.isBoring(spannable, paint, heuristic, true, null) ?: return null
+    if (metrics.width > safeWidthConstraint) return null
     Perf.hit("slBoring")
     return BoringLayout.make(
       spannable, paint, safeWidthConstraint, alignment, metrics, includePadding, null, 0, true
