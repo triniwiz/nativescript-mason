@@ -2357,7 +2357,14 @@ impl LayoutBlockContainer for Tree {
                                     let cached = block_measure_cache()
                                         .get(&cache_key)
                                         .and_then(|c| c.get(q_known, key_avail));
-                                    if let Some(cached) = cached {
+                                    let fit = if cfg!(target_os = "android") && is_text_container && cached.is_none() {
+                                        block_measure_cache()
+                                            .get(&cache_key)
+                                            .and_then(|c| c.text_fit_from_max_content(q_known, key_avail))
+                                    } else {
+                                        None
+                                    };
+                                    if let Some(cached) = cached.or(fit) {
                                         cached
                                     } else {
                                         // IMPORTANT: `measure` was obtained via `copy_measure()`

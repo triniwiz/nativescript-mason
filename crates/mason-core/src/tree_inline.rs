@@ -1357,11 +1357,17 @@ impl Tree {
         } else {
             available_space
         };
-        if let Some(cached) = self.nodes()[child_id]
-            .inline_measure_cache
-            .get(known_dimensions, available_space)
         {
-            return cached;
+            let node = &self.nodes()[child_id];
+            let cache = &node.inline_measure_cache;
+            if let Some(cached) = cache.get(known_dimensions, available_space) {
+                return cached;
+            }
+            if cfg!(target_os = "android") && node.is_text_container() {
+                if let Some(fit) = cache.text_fit_from_max_content(known_dimensions, available_space) {
+                    return fit;
+                }
+            }
         }
         let result = measure.measure(known_dimensions, available_space);
         self.nodes_mut()[child_id]
