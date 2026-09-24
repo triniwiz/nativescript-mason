@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Build
+import android.text.BoringLayout
 import android.text.Layout
 import android.text.Spannable
 import android.text.Spanned
@@ -18,6 +19,7 @@ import android.text.style.CharacterStyle
 import android.text.style.LeadingMarginSpan
 import android.text.style.LineBackgroundSpan
 import android.text.style.MetricAffectingSpan
+import android.text.style.ParagraphStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
@@ -88,6 +90,11 @@ private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextP
   return advances
 }
 
+// Characters a line's visible end skips (TextLine.isLineEndSpace).
+private fun isLineEndSpace(ch: Char): Boolean =
+  ch == ' ' || ch == '	' || ch == ' ' ||
+    (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
+
 private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
   for (i in 0 until text.length) {
     if (text[i].isSoftWrapOpportunity()) return true
@@ -128,6 +135,7 @@ private fun maxWordWidth(
   }
   return ceilPx(maxW)
 }
+
 
 class TextEngine(val container: TextContainer) {
 
@@ -506,7 +514,8 @@ class TextEngine(val container: TextContainer) {
     }
 
     Perf.hit("slMiss")
-    val built = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    val built = singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified)
+      ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, safeWidthConstraint
       )
@@ -1901,6 +1910,61 @@ class TextEngine(val container: TextContainer) {
   private var advancesLength = -1
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint = TextPaint()
+
+  private val singleLineMetrics = BoringLayout.Metrics()
+  private val singleLineTextMetrics = Paint.FontMetricsInt()
+
+  /**
+   * One line of uniformly styled text needs no line breaking: its width is the
+   * sum of its advances and its height the font's. Wrap it in a BoringLayout
+   * with those metrics instead of running StaticLayout's measuring pass.
+   * Null unless the text is uniform (see uniformAdvances), has no paragraph
+   * spans besides alignment, and fits the width with room to spare.
+   */
+  private fun singleLineLayout(
+    text: CharSequence,
+    paint: TextPaint,
+    width: Int,
+    alignment: android.text.Layout.Alignment,
+    justified: Boolean
+  ): android.text.Layout? {
+    if (justified || text !is Spanned || trailingSpacesCount()) return null
+    val advances = advancesFor(text, paint) ?: return null
+    val len = text.length
+    for (span in text.getSpans(0, len, ParagraphStyle::class.java)) {
+      if (span !is AlignmentSpan) return null
+    }
+    var visibleEnd = len
+    while (visibleEnd > 0 && isLineEndSpace(text[visibleEnd - 1])) visibleEnd--
+    val visibleWidth = advanceSum(advances, 0, visibleEnd)
+    // StaticLayout breaks a line wider than the width; stay clear of the edge.
+    if (visibleWidth > width - 0.5f) return null
+
+    // Primary font, widened by any fallback font the text uses (StaticLayout
+    // is built with setUseLineSpacingFromFallbacks).
+    val p = advancesPaint
+    val fm = singleLineTextMetrics
+    p.getFontMetricsInt(fm)
+    var top = fm.top
+    var ascent = fm.ascent
+    var descent = fm.descent
+    var bottom = fm.bottom
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
+      top = minOf(top, fm.top)
+      ascent = minOf(ascent, fm.ascent)
+      descent = maxOf(descent, fm.descent)
+      bottom = maxOf(bottom, fm.bottom)
+    }
+    val m = singleLineMetrics
+    m.top = top
+    m.ascent = ascent
+    m.descent = descent
+    m.bottom = bottom
+    m.leading = fm.leading
+    m.width = ceilPx(visibleWidth).toInt()
+    return BoringLayout.make(text, paint, width, alignment, 1f, 0f, m, includePadding)
+  }
 
   private var uniformMetricsTypeface: Typeface? = null
   private var uniformMetricsSize = -1f
