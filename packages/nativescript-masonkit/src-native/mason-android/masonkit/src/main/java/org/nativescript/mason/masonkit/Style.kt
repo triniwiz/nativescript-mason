@@ -864,7 +864,16 @@ class Style internal constructor(@Transient internal var node: Node) {
     if (face.font != null || fontLoadPendingFor === face) return
     val v = node.view as? android.view.View ?: return
     fontLoadPendingFor = face
+    // Faces without a source (system and generic families) resolve inside
+    // load(); the caller then renders with the loaded face, so there is
+    // nothing to re-apply. Re-applying dirtied the tree and cost the first
+    // frame a second full layout.
+    var loadedInCall = true
     face.load(v.context) { _ ->
+      if (loadedInCall) {
+        if (fontLoadPendingFor === face) fontLoadPendingFor = null
+        return@load
+      }
       v.post {
         if (fontLoadPendingFor === face) fontLoadPendingFor = null
         invalidateResolvedFontFace()
@@ -877,6 +886,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
       }
     }
+    loadedInCall = face.font != null
+    if (loadedInCall && fontLoadPendingFor === face) fontLoadPendingFor = null
   }
 
   data class FontMetrics(
