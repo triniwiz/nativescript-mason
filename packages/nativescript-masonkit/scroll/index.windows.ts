@@ -18,6 +18,11 @@ export class Scroll extends ViewBase {
     this[isMasonView_] = true;
   }
 
+  /** `<scroll>` treats default `visible` Y overflow as `auto`; HTML block elements opt out. */
+  get _visibleOverflowScrolls(): boolean {
+    return true;
+  }
+
   get _view(): NativeScript.Mason.View {
     if (!this[native_]) {
       this[native_] = Tree.instance.createScrollView() as never;
@@ -38,6 +43,12 @@ export class Scroll extends ViewBase {
   }
 
   createNativeView() {
+    // Plain block elements (div/section/etc.) keep default `visible` overflow neither
+    // scrolling nor clipping, like a browser: skip the ScrollViewer (which always clips
+    // its viewport) and hand back the Mason content view directly.
+    if (!this._visibleOverflowScrolls) {
+      return this._view as any;
+    }
     // ScrollViewer is the element in the parent's visual tree; the Mason content view is its Content.
     this._scroller = new Microsoft.UI.Xaml.Controls.ScrollViewer();
     // Vertical scroll only (matches the common `overflowY: 'scroll'`). Horizontal scrolling would
