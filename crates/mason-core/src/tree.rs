@@ -1,4 +1,4 @@
-use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis};
+use crate::node::{drain_deferred_cleanup, InlineMeasureCache, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis};
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
@@ -157,6 +157,54 @@ thread_local! {
     /// the pass that's about to read it; `mark_dirty` climbing to the root on
     /// every measure made cache misses multiply up the tree.
     static LAYOUT_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Round a measure-cache key coordinate to 1/64px so bit-level float drift
+/// between flex passes (hypothetical vs final) maps to the same entry.
+#[inline]
+fn quantize_key(w: f32) -> f32 {
+    (w * 64.0).round() / 64.0
+}
+
+#[inline]
+fn quantize_available(space: AvailableSpace) -> AvailableSpace {
+    match space {
+        AvailableSpace::Definite(w) => AvailableSpace::Definite(quantize_key(w)),
+        other => other,
+    }
+}
+
+/// Block-leaf measure results, keyed by node, kept OUTSIDE the tree's
+/// RwLock: the measure closure runs while Java may re-enter Rust (style
+/// getters take read locks), so it must never block on the tree write
+/// lock — a parked writer deadlocks those readers (observed as multi-
+/// second compute stalls). This mutex is only ever held bare (never
+/// while holding the tree lock on the closure path; the mark_dirty path
+/// takes it while holding the tree write lock, which is consistent
+/// tree->side ordering everywhere). Cleared in lock-step with the
+/// per-node caches by mark_dirty_inner.
+static BLOCK_MEASURE_CACHE: std::sync::OnceLock<
+    parking_lot::Mutex<std::collections::HashMap<u64, InlineMeasureCache>>,
+> = std::sync::OnceLock::new();
+
+#[inline]
+fn block_measure_cache(
+) -> parking_lot::MutexGuard<'static, std::collections::HashMap<u64, InlineMeasureCache>> {
+    BLOCK_MEASURE_CACHE
+        .get_or_init(|| parking_lot::Mutex::new(std::collections::HashMap::new()))
+        .lock()
+}
+
+/// Drops a removed node's entry. Called with the tree write lock held,
+/// the same tree->side ordering as mark_dirty_inner. Slotmap keys carry
+/// a version, so without this every removed node leaks its entry.
+pub(crate) fn forget_block_measure(id: Id) {
+    block_measure_cache().remove(&id.data().as_ffi());
+}
+
+#[cfg(test)]
+pub(crate) fn block_measure_cached(id: Id) -> bool {
+    block_measure_cache().contains_key(&id.data().as_ffi())
 }
 
 /// True while this thread is inside `Tree::compute_layout`.
@@ -1570,14 +1618,26 @@ impl Tree {
         // parent's inline context) reports AlreadyEmpty even when its
         // parent still holds a stale cache entry.
         let mut first_step = true;
+        let mut visited: Vec<Id> = Vec::new();
         while let Some(id) = current {
             match tree.nodes[id].mark_dirty() {
                 ClearState::AlreadyEmpty if !first_step => break,
                 _ => {
+                    visited.push(id);
                     current = tree.parents.get(id).copied().flatten();
                 }
             }
             first_step = false;
+        }
+        // Keep the block-leaf side table in lock-step with the per-node
+        // cache clears above (tree write lock held -> side lock: the
+        // consistent tree->side ordering; the measure-closure path only
+        // takes the side lock bare, never nested inside the tree lock).
+        if !visited.is_empty() {
+            let mut side = block_measure_cache();
+            for id in visited {
+                side.remove(&id.data().as_ffi());
+            }
         }
     }
 
@@ -1905,6 +1965,9 @@ impl CacheTree for Tree {
         let mut node = self.node_from_id_mut(node_id);
         node.cache.clear();
         node.set_node_state(true);
+        // Keep the block-leaf side table in lock-step (same tree->side
+        // ordering as mark_dirty_inner).
+        block_measure_cache().remove(&Id::from(node_id).data().as_ffi());
     }
 }
 
@@ -2192,14 +2255,15 @@ impl LayoutBlockContainer for Tree {
                     (_, false) => {
                         // Extract data under short locks, then drop before
                         // calling compute_leaf_layout (measure is FFI).
-                        let (has_measure, style, style_size, measure) = {
+                        let (has_measure, style, style_size, measure, is_text_container) = {
                             let inner = tree.inner();
                             let node = inner.nodes.get(id).unwrap();
                             let has_measure = node.has_measure;
                             let style = node.style().clone();
                             let style_size = style.get_size();
+                            let is_text_container = node.is_text_container();
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
-                            (has_measure, style, style_size, measure)
+                            (has_measure, style, style_size, measure, is_text_container)
                         };
 
                         compute_leaf_layout(
@@ -2283,12 +2347,57 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    // IMPORTANT: `measure` was obtained via `copy_measure()`
-                                    // under a short lock. Do not call platform/native
-                                    // measurement while holding tree write locks; callers
-                                    // must snapshot data then invoke measure.
-                                    let meas = measure.measure(final_known, available_space);
-                                    meas
+                                    // Rust-side exact-key cache for the platform
+                                    // measure call: taffy's flex passes re-probe the
+                                    // same leaf with identical inputs several times
+                                    // per compute. The Kotlin-side cache answers the
+                                    // repeats, but each repeat still pays a JNI round
+                                    // trip plus callback overhead. Key on the exact
+                                    // arguments handed to the platform (resolved
+                                    // known dims + canonicalised available space,
+                                    // same canonicalisation the inline path uses),
+                                    // quantized to 1/64px so bit-level float drift
+                                    // between flex passes maps to the same entry
+                                    // (the Kotlin cache applies the same idea by
+                                    // truncating widths to Int). Entries are cleared
+                                    // on mark_dirty, so any content/style mutation
+                                    // invalidates exactly as the platform caches do.
+                                    let canonical_avail =
+                                        if is_text_container && known_dimensions.height.is_none() {
+                                            Size {
+                                                width: available_space.width,
+                                                height: AvailableSpace::MaxContent,
+                                            }
+                                        } else {
+                                            available_space
+                                        };
+
+                                    let q_known = Size {
+                                        width: final_known.width.map(quantize_key),
+                                        height: final_known.height.map(quantize_key),
+                                    };
+                                    let key_avail = Size {
+                                        width: quantize_available(canonical_avail.width),
+                                        height: quantize_available(canonical_avail.height),
+                                    };
+
+                                    let cache_key = id.data().as_ffi();
+                                    let cached = block_measure_cache()
+                                        .get(&cache_key)
+                                        .and_then(|c| c.get(q_known, key_avail));
+                                    if let Some(cached) = cached {
+                                        cached
+                                    } else {
+                                        // IMPORTANT: `measure` was obtained via `copy_measure()`
+                                        // under a short lock. Do not call platform/native
+                                        // measurement while holding tree write locks; callers
+                                        // must snapshot data then invoke measure.
+                                        let meas = measure.measure(final_known, available_space);
+                                        block_measure_cache().entry(cache_key)
+                                            .or_insert_with(InlineMeasureCache::new)
+                                            .store(q_known, key_avail, meas);
+                                        meas
+                                    }
                                 };
 
                                 // clamp measured results too (skipped in ContentSize mode —

@@ -1272,6 +1272,25 @@ mod tests {
     }
 
     #[test]
+    fn removed_node_releases_its_block_measure_entry() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        mason.with_style_mut(root.id(), |s| s.set_display(Display::Block));
+        let child = mason.create_node();
+        let cid = child.id();
+        mason.append_node(root.id(), &[cid]);
+        mason.set_measure(cid, Some(test_measure), std::ptr::null_mut());
+
+        mason.compute(root.id());
+        assert!(crate::tree::block_measure_cached(cid), "measure result cached");
+
+        let removed = mason.remove_child(root.id(), cid);
+        drop(removed);
+        drop(child);
+        assert!(!crate::tree::block_measure_cached(cid), "entry released with the node");
+    }
+
+    #[test]
     fn inline_child_with_measure_function() {
         let mut mason = Mason::new();
 

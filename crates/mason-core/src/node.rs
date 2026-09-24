@@ -1,6 +1,6 @@
 use crate::layout_cache::LayoutCache;
 use crate::style::Style;
-use crate::tree::{Id, TreeInner};
+use crate::tree::{forget_block_measure, Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
 
@@ -458,7 +458,7 @@ pub(crate) struct InlineMeasureCache {
 }
 
 impl InlineMeasureCache {
-    const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             entries: [None; INLINE_MEASURE_CACHE_SIZE],
             next_write_idx: 0,
@@ -1154,6 +1154,7 @@ pub(crate) fn drain_deferred_cleanup(
         if !has_parent && !has_children {
             // Remove the node; Style::drop will release the arena handle
             tree.nodes.remove(id);
+            forget_block_measure(id);
             tree.parents.remove(id);
             tree.children.remove(id);
             tree.float_context.remove(id);
@@ -1183,6 +1184,7 @@ impl Drop for NodeRef {
                 if !has_parent && !has_children {
                     // Remove the node; Style::drop will release the arena handle
                     tree.nodes.remove(self.id);
+                    forget_block_measure(self.id);
                     tree.parents.remove(self.id);
                     tree.children.remove(self.id);
                     tree.float_context.remove(self.id);
