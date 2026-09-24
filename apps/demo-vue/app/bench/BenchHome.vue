@@ -90,17 +90,10 @@ const scenarios: Scenario[] = [
 const iterations = ref(5);
 
 function open(page: Component): void {
-  // Topmost frame: the root frame when Bench is the app root, the nested
-  // bench frame when opened via BenchPage from Home.
   $navigateTo(page);
 }
 
-/**
- * Back behavior for both hosting modes:
- * - app-root frame: nothing to pop (canGoBack false) — same as before.
- * - nested bench frame (opened from Home): this page is the frame's base
- *   page, so pop the HOST page instead by walking to the enclosing frame.
- */
+/** From Home the bench is the nested frame's base page, so pop the host page. */
 function closeBench(): void {
   const top = Frame.topmost();
   if (!top) return;
@@ -120,9 +113,6 @@ async function runPage(page: Component, label: string): Promise<void> {
   $navigateTo(page, { animated: false, props: { auto: true } });
   await done;
   await idle(250);
-  // Safe zone: no timing window is open now, so publishing the bench page's
-  // reactive UI (status + results table) cannot leak native layout work
-  // into any sample.
   setBenchStatus(label);
   flushBenchUi();
 }
@@ -148,12 +138,7 @@ async function runAll(): Promise<void> {
   }
 }
 
-// Headless bench runs: app launches straight into this page, give the UI a
-// moment to settle, then start the default 3x run on its own. When the bench
-// is opened manually from Home (BenchPage), it waits for the Start tap.
-// `__benchAutoStart` is a test hook for driving the nested-frame host
-// programmatically (props on a Frame child break $navigateTo root resolution,
-// so BenchPage can't pass autoStart through a binding).
+// Autostarts when the app boots into Bench, or when `__benchAutoStart` is set.
 onMounted(() => {
   const forced = (globalThis as { __benchAutoStart?: boolean }).__benchAutoStart === true;
   if (props.autoStart || forced) setTimeout(() => runAll(), 800);
@@ -195,7 +180,6 @@ function makeRow(phase: string, m: number, c: number): Row {
   };
 }
 
-/** Print a single-line JSON summary so it can be pulled out of logcat. */
 function dump(): void {
   const out: Record<string, Record<string, Record<string, unknown>>> = {};
   for (const s of scenarios) {
@@ -216,7 +200,7 @@ function dump(): void {
       };
     }
   }
-  // One line per scenario: logcat truncates a line at ~4 KB.
+  // One line per scenario: logcat truncates long lines.
   for (const [key, phases] of Object.entries(out)) {
     console.log('BENCH_RESULT ' + JSON.stringify({ [key]: phases }));
   }

@@ -32,8 +32,6 @@ import { useDashboard } from './scenarios';
 const props = defineProps<{ auto?: boolean }>();
 const { tiles, wide, onLoaded, bump, rotate, toggleWide } = useDashboard('core', props);
 
-// GridLayout has no auto-placement: the column count, the row-definition
-// string and every cell's row/col are derived from the same `wide` flag.
 const cols = computed(() => (wide.value ? 2 : 3));
 const columns = computed(() => Array(cols.value).fill('*').join(', '));
 const rows = computed(() => Array(Math.ceil(tiles.value.length / cols.value)).fill('auto').join(', '));

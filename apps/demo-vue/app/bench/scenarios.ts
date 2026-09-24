@@ -2,14 +2,7 @@ import { $navigateBack, ref } from 'nativescript-vue';
 import { bumpTiles, FEED_APPEND, FEED_INITIAL, makeFeed, makeNested, makeTiles, resetSeed, retextNested, type FeedItem, type NestedNode, type Tile } from './data';
 import { PageBench, idle, pageDone, unwatchLayout, type Flavour } from './harness';
 
-/**
- * One composable per scenario. Both flavours of a page call the same one, so
- * the state shape and the scripted workload are identical and only the
- * template differs.
- *
- * `auto` is passed by the runner; a page opened by hand from the list simply
- * renders and leaves its buttons for poking at.
- */
+/** One composable per scenario, shared by both flavours of the page. */
 
 interface PageProps {
   auto?: boolean;
