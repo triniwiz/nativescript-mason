@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Build
 import android.text.Layout
 import android.text.Spannable
@@ -718,7 +719,7 @@ class TextEngine(val container: TextContainer) {
     }
 
     // CRITICAL: Collect and send segments to Rust
-    collectAndCacheSegments(layout, spannable, paint)
+    collectAndCacheSegments(layout, spannable, paint, entry.maxLineWidth)
 
     Perf.add("measureLayout", Perf.now() - __t)
     return layout
@@ -873,10 +874,7 @@ class TextEngine(val container: TextContainer) {
       // Deferred: syncFontMetrics will set pendingMetricsSync instead of writing
       style.syncFontMetrics()
 
-      paint.getFontMetrics(scratchFontMetrics)
-      val fontMetrics = scratchFontMetrics
-
-      val minLineHeight = -fontMetrics.ascent + fontMetrics.descent + fontMetrics.leading
+      val minLineHeight = minLineHeight(paint)
 
       val measuredHeight = layout?.height?.toFloat()
 
@@ -1132,7 +1130,8 @@ class TextEngine(val container: TextContainer) {
   private fun collectAndCacheSegments(
     layout: android.text.Layout,
     attributed: SpannableStringBuilder,
-    paint: TextPaint
+    paint: TextPaint,
+    lineWidth: Float
   ) {
     val __t = Perf.now()
     // Nothing relevant changed since the segments already sent for this
@@ -1280,7 +1279,15 @@ class TextEngine(val container: TextContainer) {
           // so Layout.getDesiredWidth() gives an equivalent result more
           // cheaply. Multi-line or RTL runs use the exact bidi-safe path.
           val singleLine = layout.getLineForOffset(currentPos) == layout.getLineForOffset(end)
-          val width = if (singleLine &&
+          // The whole text on one line with no trailing whitespace is exactly
+          // the layout's line, already measured.
+          val wholeLine = currentPos == 0 && end == attributed.length && layout.lineCount == 1 &&
+            !attributed[end - 1].isWhitespace()
+          val width = if (wholeLine &&
+            !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
+          ) {
+            lineWidth
+          } else if (singleLine &&
             !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
           ) {
             Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
@@ -1815,6 +1822,23 @@ class TextEngine(val container: TextContainer) {
 
   private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
   private var staticLayoutCacheNextIdx = 0
+
+  // Font metrics are a JNI call per measure otherwise; they only move with the
+  // font.
+  private var minLineHeightTypeface: Typeface? = null
+  private var minLineHeightTextSize = -1f
+  private var minLineHeightValue = 0f
+
+  private fun minLineHeight(paint: TextPaint): Float {
+    if (paint.typeface !== minLineHeightTypeface || paint.textSize != minLineHeightTextSize) {
+      paint.getFontMetrics(scratchFontMetrics)
+      val fm = scratchFontMetrics
+      minLineHeightValue = -fm.ascent + fm.descent + fm.leading
+      minLineHeightTypeface = paint.typeface
+      minLineHeightTextSize = paint.textSize
+    }
+    return minLineHeightValue
+  }
 
   // Reused across paint.getFontMetrics() call sites instead of the allocating
   // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
