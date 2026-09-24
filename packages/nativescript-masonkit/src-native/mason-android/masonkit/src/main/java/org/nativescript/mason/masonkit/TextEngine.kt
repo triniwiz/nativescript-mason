@@ -434,12 +434,19 @@ class TextEngine(val container: TextContainer) {
 
   // Greedy line breaking gives a layout built at width W with widest line R the
   // same lines at any width in [R, W], so reuse it when nothing depends on W.
+  // Text is measured at the floor of the width Taffy offers, and rounding the
+  // layout can make the view one pixel wider. A width-independent layout drawn
+  // in that box draws the lines its height was measured with, so reuse it
+  // rather than build another at the rounded width.
+  private val DRAW_WIDTH_SLACK = 1
+
   private fun findCachedStaticLayout(
     length: Int,
     widthConstraint: Int,
     alignment: android.text.Layout.Alignment,
     heuristic: TextDirectionHeuristic,
-    justified: Boolean
+    justified: Boolean,
+    widthSlack: Int = 0
   ): StaticLayoutCacheEntry? {
     for (entry in staticLayoutCache) {
       if (entry != null &&
@@ -467,7 +474,7 @@ class TextEngine(val container: TextContainer) {
         !entry.justified &&
         entry.heuristic == heuristic &&
         entry.maxLineWidth <= safeWidthConstraint &&
-        safeWidthConstraint <= entry.layout.width
+        safeWidthConstraint <= entry.layout.width + widthSlack
       ) {
         Perf.hit("slFit")
         return entry
@@ -761,7 +768,7 @@ class TextEngine(val container: TextContainer) {
 
     if (container is TextView) {
       if (entry.widthIndependent) {
-        container.setCachedStaticLayout(layout, entry.maxLineWidth.toInt(), layout.width)
+        container.setCachedStaticLayout(layout, entry.maxLineWidth.toInt(), layout.width + DRAW_WIDTH_SLACK)
       } else {
         container.setCachedStaticLayout(layout, spec.constraint)
       }
@@ -1143,7 +1150,8 @@ class TextEngine(val container: TextContainer) {
     val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
       style.resolvedTextAlign == TextAlign.Justify
     findCachedStaticLayout(
-      text.length, if (allowWrap) contentWidth else Int.MAX_VALUE, alignment, heuristic, justified
+      text.length, if (allowWrap) contentWidth else Int.MAX_VALUE, alignment, heuristic, justified,
+      DRAW_WIDTH_SLACK
     )?.let {
       if (container is TextView) {
         container.setCachedStaticLayout(it.layout, contentWidth)
