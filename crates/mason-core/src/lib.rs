@@ -1282,12 +1282,13 @@ mod tests {
         mason.set_measure(cid, Some(test_measure), std::ptr::null_mut());
 
         mason.compute(root.id());
-        assert!(crate::tree::block_measure_cached(cid), "measure result cached");
+        let uid = mason.0.inner().uid;
+        assert!(crate::tree::block_measure_cached(uid, cid), "measure result cached");
 
         let removed = mason.remove_child(root.id(), cid);
         drop(removed);
         drop(child);
-        assert!(!crate::tree::block_measure_cached(cid), "entry released with the node");
+        assert!(!crate::tree::block_measure_cached(uid, cid), "entry released with the node");
     }
 
     #[test]

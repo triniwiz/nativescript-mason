@@ -1499,7 +1499,7 @@ impl Tree {
 
             // Only the mutated copy needs cloning - reading display_mode() above
             // doesn't require its own clone.
-            let mut adjusted_style = self.nodes()[child_id].style().clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
             if is_inline {
                 let mut size = adjusted_style.size();
                 if !size.width.is_auto() && size.width.value() == 0.0 {
@@ -1508,7 +1508,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             let layout = compute_leaf_layout(
@@ -1611,7 +1611,7 @@ impl Tree {
 
             // Only the mutated copy needs cloning - reading display_mode() above
             // doesn't require its own clone.
-            let mut adjusted_style = self.nodes()[child_id].style().clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
 
             if is_inline {
                 let mut size = adjusted_style.size();
@@ -1621,7 +1621,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             /*
@@ -2419,7 +2419,7 @@ impl Tree {
             let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
             let _is_block = matches!(style.get_display(), Display::Block);
 
-            let mut adjusted_style = style.clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(&style);
             if is_inline {
                 let mut size = adjusted_style.size();
                 if !size.width.is_auto() && size.width.value() == 0.0 {
@@ -2428,7 +2428,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             let mut ret = compute_leaf_layout(

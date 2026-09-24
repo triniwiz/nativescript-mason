@@ -1183,7 +1183,7 @@ pub(crate) fn drain_deferred_cleanup(
         if !has_parent && !has_children {
             // Remove the node; Style::drop will release the arena handle
             tree.nodes.remove(id);
-            forget_block_measure(id);
+            forget_block_measure(tree.uid, id);
             tree.parents.remove(id);
             tree.children.remove(id);
             tree.float_context.remove(id);
@@ -1213,7 +1213,7 @@ impl Drop for NodeRef {
                 if !has_parent && !has_children {
                     // Remove the node; Style::drop will release the arena handle
                     tree.nodes.remove(self.id);
-                    forget_block_measure(self.id);
+                    forget_block_measure(tree.uid, self.id);
                     tree.parents.remove(self.id);
                     tree.children.remove(self.id);
                     tree.float_context.remove(self.id);

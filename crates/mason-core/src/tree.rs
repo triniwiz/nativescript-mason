@@ -75,6 +75,8 @@ pub(crate) struct TreeInner {
     // Set when a node is removed from `nodes`; tells compute_layout's
     // sanitize pass it needs to scrub stale ids from `children`.
     pub(crate) structure_dirty: bool,
+    // Distinguishes this tree's nodes in process-wide side tables.
+    pub(crate) uid: u64,
 }
 
 impl TreeInner {
@@ -94,6 +96,7 @@ impl TreeInner {
             has_floats: false,
             has_scroll_containers: false,
             structure_dirty: false,
+            uid: next_tree_uid(),
         }
     }
 
@@ -113,6 +116,7 @@ impl TreeInner {
             has_floats: false,
             has_scroll_containers: false,
             structure_dirty: false,
+            uid: next_tree_uid(),
         }
     }
 
@@ -166,6 +170,35 @@ fn quantize_key(w: f32) -> f32 {
 }
 
 #[inline]
+/// The styles `compute_leaf_layout` reads, copied out so the measure callback
+/// runs without the tree lock. Cloning the whole `Style` copies every grid
+/// vector and takes an arena reference on each leaf layout.
+pub(crate) fn leaf_layout_style(style: &Style) -> taffy::Style {
+    taffy::Style {
+        display: match style.box_generation_mode() {
+            taffy::BoxGenerationMode::None => Display::None,
+            _ if style.is_block() => Display::Block,
+            _ => Display::Flex,
+        },
+        item_is_replaced: style.is_compressible_replaced(),
+        box_sizing: style.box_sizing(),
+        direction: style.direction(),
+        overflow: style.overflow(),
+        scrollbar_width: style.scrollbar_width(),
+        position: style.position(),
+        inset: style.inset(),
+        size: style.size(),
+        min_size: style.min_size(),
+        max_size: style.max_size(),
+        aspect_ratio: style.aspect_ratio(),
+        margin: style.margin(),
+        padding: style.padding(),
+        border: style.border(),
+        contain: style.contain(),
+        ..Default::default()
+    }
+}
+
 fn quantize_available(space: AvailableSpace) -> AvailableSpace {
     match space {
         AvailableSpace::Definite(w) => AvailableSpace::Definite(quantize_key(w)),
@@ -176,26 +209,65 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
 /// Block-leaf measure results, outside the tree lock: the measure callback can
 /// re-enter Rust for reads, so it must never wait on the tree write lock. Lock
 /// order is always tree, then this.
-static BLOCK_MEASURE_CACHE: std::sync::OnceLock<
-    parking_lot::Mutex<std::collections::HashMap<u64, InlineMeasureCache>>,
-> = std::sync::OnceLock::new();
+static BLOCK_MEASURE_CACHE: std::sync::OnceLock<parking_lot::Mutex<BlockMeasureMap>> =
+    std::sync::OnceLock::new();
+
+type BlockMeasureMap = std::collections::HashMap<(u64, u64), InlineMeasureCache, NodeKeyHasher>;
+
+fn next_tree_uid() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Slotmap keys repeat across trees, so the key carries the tree too.
+#[inline]
+fn block_key(tree_uid: u64, id: Id) -> (u64, u64) {
+    (tree_uid, id.data().as_ffi())
+}
+
+/// Slotmap keys are already well spread (index | version << 32); SipHash on
+/// every measure lookup is wasted work.
+#[derive(Default, Clone, Copy)]
+struct NodeKeyHasher;
+
+impl std::hash::BuildHasher for NodeKeyHasher {
+    type Hasher = NodeKeyHash;
+    fn build_hasher(&self) -> NodeKeyHash {
+        NodeKeyHash(0)
+    }
+}
+
+struct NodeKeyHash(u64);
+
+impl std::hash::Hasher for NodeKeyHash {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0.rotate_left(5) ^ b as u64).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+        }
+    }
+    fn write_u64(&mut self, v: u64) {
+        self.0 = (self.0.rotate_left(5) ^ v ^ (v >> 32)).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    }
+}
 
 #[inline]
-fn block_measure_cache(
-) -> parking_lot::MutexGuard<'static, std::collections::HashMap<u64, InlineMeasureCache>> {
+fn block_measure_cache() -> parking_lot::MutexGuard<'static, BlockMeasureMap> {
     BLOCK_MEASURE_CACHE
-        .get_or_init(|| parking_lot::Mutex::new(std::collections::HashMap::new()))
+        .get_or_init(|| parking_lot::Mutex::new(BlockMeasureMap::default()))
         .lock()
 }
 
 /// Slotmap keys are versioned, so a removed node's entry must be dropped.
-pub(crate) fn forget_block_measure(id: Id) {
-    block_measure_cache().remove(&id.data().as_ffi());
+pub(crate) fn forget_block_measure(tree_uid: u64, id: Id) {
+    block_measure_cache().remove(&block_key(tree_uid, id));
 }
 
 #[cfg(test)]
-pub(crate) fn block_measure_cached(id: Id) -> bool {
-    block_measure_cache().contains_key(&id.data().as_ffi())
+pub(crate) fn block_measure_cached(tree_uid: u64, id: Id) -> bool {
+    block_measure_cache().contains_key(&block_key(tree_uid, id))
 }
 
 /// True while this thread is inside `Tree::compute_layout`.
@@ -1623,7 +1695,7 @@ impl Tree {
         if !visited.is_empty() {
             let mut side = block_measure_cache();
             for id in visited {
-                side.remove(&id.data().as_ffi());
+                side.remove(&block_key(tree.uid, id));
             }
         }
     }
@@ -1949,10 +2021,12 @@ impl CacheTree for Tree {
 
     #[inline]
     fn cache_clear(&mut self, node_id: NodeId) {
+        let uid = self.inner().uid;
         let mut node = self.node_from_id_mut(node_id);
         node.cache.clear();
         node.set_node_state(true);
-        block_measure_cache().remove(&Id::from(node_id).data().as_ffi());
+        drop(node);
+        block_measure_cache().remove(&block_key(uid, Id::from(node_id)));
     }
 }
 
@@ -2240,15 +2314,16 @@ impl LayoutBlockContainer for Tree {
                     (_, false) => {
                         // Extract data under short locks, then drop before
                         // calling compute_leaf_layout (measure is FFI).
-                        let (has_measure, style, style_size, measure, is_text_container) = {
+                        let (has_measure, style, style_size, measure, is_text_container, tree_uid) = {
                             let inner = tree.inner();
+                            let tree_uid = inner.uid;
                             let node = inner.nodes.get(id).unwrap();
                             let has_measure = node.has_measure;
-                            let style = node.style().clone();
-                            let style_size = style.get_size();
+                            let style = leaf_layout_style(node.style());
+                            let style_size = node.style().get_size();
                             let is_text_container = node.is_text_container();
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
-                            (has_measure, style, style_size, measure, is_text_container)
+                            (has_measure, style, style_size, measure, is_text_container, tree_uid)
                         };
 
                         compute_leaf_layout(
@@ -2353,7 +2428,7 @@ impl LayoutBlockContainer for Tree {
                                         height: quantize_available(canonical_avail.height),
                                     };
 
-                                    let cache_key = id.data().as_ffi();
+                                    let cache_key = block_key(tree_uid, id);
                                     let cached = block_measure_cache()
                                         .get(&cache_key)
                                         .and_then(|c| c.get(q_known, key_avail));
