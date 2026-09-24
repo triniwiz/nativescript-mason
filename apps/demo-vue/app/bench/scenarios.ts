@@ -1,6 +1,6 @@
 import { $navigateBack, ref } from 'nativescript-vue';
 import { bumpTiles, FEED_APPEND, FEED_INITIAL, makeFeed, makeNested, makeTiles, resetSeed, retextNested, type FeedItem, type NestedNode, type Tile } from './data';
-import { PageBench, idle, pageDone, type Flavour } from './harness';
+import { PageBench, idle, pageDone, unwatchLayout, type Flavour } from './harness';
 
 /**
  * One composable per scenario. Both flavours of a page call the same one, so
@@ -19,6 +19,7 @@ async function finish(bench: PageBench, auto: boolean | undefined, workload: () 
   await bench.firstFrame();
   if (!auto) return;
   await workload();
+  unwatchLayout();
   await idle();
   $navigateBack();
   await idle();
@@ -57,8 +58,8 @@ export function useFeed(flavour: Flavour, props: PageProps) {
     items.value = makeFeed(FEED_INITIAL);
   };
 
-  const onLoaded = () => {
-    bench.loaded();
+  const onLoaded = (args?: any) => {
+    bench.loaded(args?.object);
     void finish(bench, props.auto, async () => {
       await bench.run('append 20', append);
       await bench.run('prepend 20', prepend);
@@ -91,8 +92,8 @@ export function useDashboard(flavour: Flavour, props: PageProps) {
     wide.value = !wide.value;
   };
 
-  const onLoaded = () => {
-    bench.loaded();
+  const onLoaded = (args?: any) => {
+    bench.loaded(args?.object);
     void finish(bench, props.auto, async () => {
       await bench.run('bump values', () => bump(1));
       await bench.ticks('bump', 30, (i) => bump(i + 2));
@@ -122,8 +123,8 @@ export function useNested(flavour: Flavour, props: PageProps) {
     narrow.value = !narrow.value;
   };
 
-  const onLoaded = () => {
-    bench.loaded();
+  const onLoaded = (args?: any) => {
+    bench.loaded(args?.object);
     void finish(bench, props.auto, async () => {
       await bench.run('retext leaves', () => retext(1));
       await bench.ticks('retext', 30, (i) => retext(i + 2));

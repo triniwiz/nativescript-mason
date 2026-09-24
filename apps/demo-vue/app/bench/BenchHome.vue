@@ -87,7 +87,7 @@ const scenarios: Scenario[] = [
   { key: 'nested', title: 'Nested', desc: 'Binary tree 6 levels deep (63 boxes) alternating row / column, wrapped text at every level. Retext, hide row text, resize root.', mason: NestedMason, core: NestedCore },
 ];
 
-const iterations = ref(3);
+const iterations = ref(5);
 
 function open(page: Component): void {
   // Topmost frame: the root frame when Bench is the app root, the nested
@@ -205,14 +205,21 @@ function dump(): void {
       out[s.key][phase] = {
         mason: med(r.mason[phase], (x) => x.ms),
         core: med(r.core[phase], (x) => x.ms),
+        masonCpu: med(r.mason[phase], (x) => x.cpuMs),
+        coreCpu: med(r.core[phase], (x) => x.cpuMs),
         masonWorst: med(r.mason[phase], (x) => x.worstFrameMs),
         coreWorst: med(r.core[phase], (x) => x.worstFrameMs),
         masonSamples: (r.mason[phase] ?? []).map((x) => Math.round(x.ms * 10) / 10),
         coreSamples: (r.core[phase] ?? []).map((x) => Math.round(x.ms * 10) / 10),
+        masonCpuSamples: (r.mason[phase] ?? []).map((x) => Math.round((x.cpuMs ?? NaN) * 10) / 10),
+        coreCpuSamples: (r.core[phase] ?? []).map((x) => Math.round((x.cpuMs ?? NaN) * 10) / 10),
       };
     }
   }
-  console.log('BENCH_RESULT ' + JSON.stringify(out));
+  // One line per scenario: logcat truncates a line at ~4 KB.
+  for (const [key, phases] of Object.entries(out)) {
+    console.log('BENCH_RESULT ' + JSON.stringify({ [key]: phases }));
+  }
 }
 </script>
 
