@@ -143,7 +143,6 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
-    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
     } finally {
@@ -165,7 +164,6 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
-    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
     } finally {
@@ -179,7 +177,6 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
-    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -193,7 +190,6 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     mason.inCompute = true
-    Perf.computeCount++
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -305,7 +301,6 @@ interface Element : EventTarget {
     Style.flushPendingMetrics(node)
     var applied = true
     mason.inCompute = true
-    Perf.computeCount++
     try {
       val layout = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
       if (layout.isEmpty()) {
@@ -366,7 +361,6 @@ interface Element : EventTarget {
     )
 
     var applied = true
-    Perf.computeCount++
     mason.inCompute = true
     try {
       val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(

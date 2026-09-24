@@ -12,12 +12,6 @@ object Perf {
   @JvmField
   var enabled = false
 
-  // Global count of real (non-skip) native computes; the bench harness
-  // polls this from JS to wait for layout quiescence. Volatile: written
-  // on the UI thread inside compute, read cross-thread from JS/Nativescript.
-  @JvmField
-  @Volatile
-  var computeCount = 0L
   private val times = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
   private val counts = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
 
@@ -54,35 +48,6 @@ object Perf {
   fun reset() {
     times.clear()
     counts.clear()
-    synchronized(logCounts) { logCounts.clear() }
-  }
-
-  private val logCounts = HashMap<String, Int>()
-
-  @JvmStatic
-  fun logCappedLazy(key: String, limit: Int, msg: () -> String) {
-    if (!enabled) return
-    val c = synchronized(logCounts) {
-      val cur = logCounts[key] ?: 0
-      if (cur >= limit) -1 else {
-        logCounts[key] = cur + 1
-        cur
-      }
-    }
-    if (c >= 0) Log.i("MasonPerf", "$key: ${msg()}")
-  }
-
-  @JvmStatic
-  fun logCapped(key: String, limit: Int, msg: String) {
-    if (!enabled) return
-    val c = synchronized(logCounts) {
-      val cur = logCounts[key] ?: 0
-      if (cur < limit) {
-        logCounts[key] = cur + 1
-        cur
-      } else -1
-    }
-    if (c >= 0) Log.i("MasonPerf", "$key: $msg")
   }
 
   @JvmStatic

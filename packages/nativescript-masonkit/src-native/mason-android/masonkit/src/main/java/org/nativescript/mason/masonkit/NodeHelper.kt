@@ -1721,7 +1721,6 @@ class NodeHelper(val mason: Mason) {
     }
 
     fun compute(node: Node) {
-      Perf.computeCount++
       NativeHelpers.nativeNodeCompute(
         node.mason.nativePtr, node.nativePtr
       )
