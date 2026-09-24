@@ -21,6 +21,7 @@
 #include <vector>
 #include "BufferUtil.h"
 #include "Decoration.h"
+#include "Positioning.h"
 
 using namespace winrt;
 
@@ -277,13 +278,13 @@ namespace winrt::NativeScript::Mason::implementation
         }
         muxm::MatrixTransform mt;
         mt.Matrix(muxm::Matrix{ m11, m12, m21, m22, offsetX, offsetY });
-        element.RenderTransform(mt);
+        mason_position::SetCssTransform(element, mt);
     }
 
     void Css::ClearTransform(mux::UIElement const& element)
     {
         if (!element) return;
-        element.RenderTransform(nullptr);
+        mason_position::SetCssTransform(element, nullptr);
     }
 
     void Css::ApplyCornerRadius(mux::UIElement const& element,
@@ -485,6 +486,13 @@ namespace winrt::NativeScript::Mason::implementation
         uint32_t existing = 0;
         if (target.IndexOf(child, existing)) { MarkLayoutRootDirty(parent); return; }
 
+        // A hosted fixed box is represented here by its slot.
+        if (auto hostedIn = mason_position::HostedParentOf(child))
+        {
+            if (mason_position::KeyOf(hostedIn) == mason_position::KeyOf(parent)) { MarkLayoutRootDirty(parent); return; }
+        }
+        mason_position::Release(child);
+
         // Detach from its current logical parent panel, if any. FrameworkElement.Parent is set the
         // moment an element is added to a Panel's Children (unlike the visual tree, which is only
         // populated at realization), so this reliably finds the prior owner before layout.
@@ -522,6 +530,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Css::RemoveChild(muxc::Panel const& parent, mux::UIElement const& child)
     {
         if (!parent || !child) return;
+        mason_position::Release(child);
         auto target = parent.Children();
         uint32_t idx = 0;
         // IndexOf uses COM identity; the projected JS '===' does not, so JS-side removal silently

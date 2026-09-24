@@ -18,6 +18,7 @@
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include "LeafCommon.h"
+#include "Positioning.h"
 
 namespace mason_panel
 {
@@ -64,7 +65,8 @@ namespace mason_panel
 
     inline std::vector<mux::UIElement> SyncChildren(
         nsm::Mason const& engine, nsm::Node const& node,
-        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves)
+        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
+        mux::UIElement& layer)
     {
         std::vector<mux::UIElement> visible;
         std::vector<nsm::Node> nodes;
@@ -73,13 +75,19 @@ namespace mason_panel
         for (auto const& child : children)
         {
             if (child.Visibility() == mux::Visibility::Collapsed) continue;
-            visible.push_back(child);
 
             if (auto el = child.try_as<nsm::IMasonElement>())
             {
+                visible.push_back(child);
                 nodes.push_back(el.Node());
                 continue;
             }
+            if (mason_position::AsLayer(child))
+            {
+                layer = child;
+                continue;
+            }
+            visible.push_back(child);
 
             void* id = IdOf(child);
             auto it = leaves.find(id);
@@ -124,7 +132,8 @@ namespace mason_panel
         winrt::Windows::Foundation::Size const& available)
     {
     
-        auto visible = SyncChildren(engine, node, children, leaves);
+        mux::UIElement layer{ nullptr };
+        auto visible = SyncChildren(engine, node, children, leaves, layer);
         for (auto const& c : visible) c.Measure(available);
 
         const bool isRoot = !HasMasonAncestor(self);
@@ -135,6 +144,7 @@ namespace mason_panel
             node.ComputeSize(
                 wf ? nsm::AvailableSpaceType::Definite : nsm::AvailableSpaceType::MaxContent, available.Width,
                 hf ? nsm::AvailableSpaceType::Definite : nsm::AvailableSpaceType::MaxContent, available.Height);
+            if (layer) mason_position::MeasureLayer(layer, available);
         }
 
         auto layout = node.GetLayout();
@@ -142,6 +152,7 @@ namespace mason_panel
     }
 
     inline winrt::Windows::Foundation::Size Arrange(
+        mux::UIElement const& self,
         nsm::Node const& node, muxc::UIElementCollection const& children,
         winrt::Windows::Foundation::Size const& finalSize)
     {
@@ -149,14 +160,29 @@ namespace mason_panel
         auto childLayouts = layout.Children();
         uint32_t count = childLayouts.Size();
 
+        mux::UIElement layer{ nullptr };
+        bool layerLast = true;
         uint32_t i = 0;
         for (auto const& child : children)
         {
+            if (layer) layerLast = false;
             if (child.Visibility() == mux::Visibility::Collapsed) continue;
-            if (i >= count) break;
-            auto cl = childLayouts.GetAt(i);
+            auto el = child.try_as<nsm::IMasonElement>();
+            if (!el && mason_position::AsLayer(child))
+            {
+                layer = child;
+                continue;
+            }
+            if (i >= count) continue;
+            auto cl = childLayouts.GetAt(i++);
+            if (el) mason_position::SyncChild(self, child, el.Node());
             child.Arrange(winrt::Windows::Foundation::Rect{ cl.X(), cl.Y(), cl.Width(), cl.Height() });
-            ++i;
+        }
+
+        if (layer && !layerLast) mason_position::KeepLayerLastLater(self.as<muxc::Panel>());
+        if (layer || !mason_position::Links().empty())
+        {
+            mason_position::AfterArrange(self, layer, finalSize, !HasMasonAncestor(self));
         }
         return finalSize;
     }

@@ -37,7 +37,7 @@ namespace winrt::NativeScript::Mason::implementation
     Size List::ArrangeOverride(Size const& finalSize)
     {
         if (!m_node) return finalSize;
-        auto result = mason_panel::Arrange(m_node, Children(), finalSize);
+        auto result = mason_panel::Arrange(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, Children(), finalSize);
         mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height);
         return result;
     }
