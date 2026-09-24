@@ -313,12 +313,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // @ts-ignore
   public _tearDownUI(force?: boolean): void {
     if (__ANDROID__ && !force && !this.reusable && this._context && this.nativeViewProtected) {
-      // Fast path: a keyed move tears the element down only to re-add it in the
-      // same patch burst, and core's recursive teardown would otherwise detach
-      // and re-add every descendant node. Detach just this element (the subtree
-      // stays fully intact, like a `reusable` cell) and defer the real teardown;
-      // a re-attach in `_setupUI` cancels it. Discarded elements still get the
-      // full recursive teardown a tick later, off the mutation hot path.
+      // A keyed move tears down and re-adds within one patch. Detach only this
+      // element and defer the recursive teardown; _setupUI cancels it on re-attach.
       if (this.parent) {
         this.parent._removeViewFromNativeVisualTree(this);
       }
@@ -338,15 +334,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__ANDROID__ && this._masonPendingTeardown) {
       this._masonPendingTeardown = false;
       if (this._context === context) {
-        // Re-attached before the deferred teardown ran: the subtree is intact,
-        // so re-adding this element to the native tree is all that's needed.
         if (!(this as any).mIsRootView && this.parent && !(this as any)._isAddedToNativeVisualTree) {
           const nativeIndex = (this.parent as any)._childIndexToNativeChildIndex(atIndex ?? -1);
           (this as any)._isAddedToNativeVisualTree = (this.parent as any)._addViewToNativeVisualTree(this, nativeIndex);
         }
         return;
       }
-      // Context changed — fall through to the full setup.
     }
     super._setupUI(context, atIndex, parentIsLoaded);
   }

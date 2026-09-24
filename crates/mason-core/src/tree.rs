@@ -159,8 +159,7 @@ thread_local! {
     static LAYOUT_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Round a measure-cache key coordinate to 1/64px so bit-level float drift
-/// between flex passes (hypothetical vs final) maps to the same entry.
+/// 1/64px keys, so float drift between flex passes hits the same entry.
 #[inline]
 fn quantize_key(w: f32) -> f32 {
     (w * 64.0).round() / 64.0
@@ -174,15 +173,9 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
     }
 }
 
-/// Block-leaf measure results, keyed by node, kept OUTSIDE the tree's
-/// RwLock: the measure closure runs while Java may re-enter Rust (style
-/// getters take read locks), so it must never block on the tree write
-/// lock — a parked writer deadlocks those readers (observed as multi-
-/// second compute stalls). This mutex is only ever held bare (never
-/// while holding the tree lock on the closure path; the mark_dirty path
-/// takes it while holding the tree write lock, which is consistent
-/// tree->side ordering everywhere). Cleared in lock-step with the
-/// per-node caches by mark_dirty_inner.
+/// Block-leaf measure results, outside the tree lock: the measure callback can
+/// re-enter Rust for reads, so it must never wait on the tree write lock. Lock
+/// order is always tree, then this.
 static BLOCK_MEASURE_CACHE: std::sync::OnceLock<
     parking_lot::Mutex<std::collections::HashMap<u64, InlineMeasureCache>>,
 > = std::sync::OnceLock::new();
@@ -195,9 +188,7 @@ fn block_measure_cache(
         .lock()
 }
 
-/// Drops a removed node's entry. Called with the tree write lock held,
-/// the same tree->side ordering as mark_dirty_inner. Slotmap keys carry
-/// a version, so without this every removed node leaks its entry.
+/// Slotmap keys are versioned, so a removed node's entry must be dropped.
 pub(crate) fn forget_block_measure(id: Id) {
     block_measure_cache().remove(&id.data().as_ffi());
 }
@@ -1629,10 +1620,6 @@ impl Tree {
             }
             first_step = false;
         }
-        // Keep the block-leaf side table in lock-step with the per-node
-        // cache clears above (tree write lock held -> side lock: the
-        // consistent tree->side ordering; the measure-closure path only
-        // takes the side lock bare, never nested inside the tree lock).
         if !visited.is_empty() {
             let mut side = block_measure_cache();
             for id in visited {
@@ -1965,8 +1952,6 @@ impl CacheTree for Tree {
         let mut node = self.node_from_id_mut(node_id);
         node.cache.clear();
         node.set_node_state(true);
-        // Keep the block-leaf side table in lock-step (same tree->side
-        // ordering as mark_dirty_inner).
         block_measure_cache().remove(&Id::from(node_id).data().as_ffi());
     }
 }
@@ -2347,21 +2332,8 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    // Rust-side exact-key cache for the platform
-                                    // measure call: taffy's flex passes re-probe the
-                                    // same leaf with identical inputs several times
-                                    // per compute. The Kotlin-side cache answers the
-                                    // repeats, but each repeat still pays a JNI round
-                                    // trip plus callback overhead. Key on the exact
-                                    // arguments handed to the platform (resolved
-                                    // known dims + canonicalised available space,
-                                    // same canonicalisation the inline path uses),
-                                    // quantized to 1/64px so bit-level float drift
-                                    // between flex passes maps to the same entry
-                                    // (the Kotlin cache applies the same idea by
-                                    // truncating widths to Int). Entries are cleared
-                                    // on mark_dirty, so any content/style mutation
-                                    // invalidates exactly as the platform caches do.
+                                    // Taffy re-probes the same leaf with the same inputs across flex passes;
+                                    // answer repeats here instead of crossing into the platform again.
                                     let canonical_avail =
                                         if is_text_container && known_dimensions.height.is_none() {
                                             Size {

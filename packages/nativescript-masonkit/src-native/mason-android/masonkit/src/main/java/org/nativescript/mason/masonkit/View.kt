@@ -76,8 +76,6 @@ open class View @JvmOverloads constructor(
 
   override fun onViewAdded(child: android.view.View) {
     super.onViewAdded(child)
-    // O(1) gate: only rebuild the z-order list when z-index is actually in
-    // play. A freshly added child may carry a z-index set before attach.
     if (hasZIndexedChildren || zIndexOf(child) != 0) {
       rebuildZOrderSafe()
     }
@@ -100,14 +98,7 @@ open class View @JvmOverloads constructor(
     inMutation = false
   }
 
-  /**
-   * Structure changed through one of the explicit add/remove overrides.
-   * ViewGroup fires onViewAdded/onViewRemoved for every real child change and
-   * those already rebuild the list when z-index is in play, so rebuilding here
-   * too was redundant -- and unconditional, which made filling a container
-   * quadratic: each append rescanned every child already in it (appending 100
-   * rows cost ~5,000 zIndexOf calls). Gate on the same O(1) check.
-   */
+  /** Only needed when z-index is in play; onViewAdded/Removed already rebuild. */
   private fun onChildStructureChangedSafe() {
     if (!hasZIndexedChildren) return
     rebuildZOrderSafe()
@@ -136,8 +127,6 @@ open class View @JvmOverloads constructor(
       // indexOfChild() scan per comparison.
       zSortedChildren.sortBy { zIndexOf(it) }
     } else {
-      // No z in play — the list is never consulted (guarded callers), so drop
-      // the references instead of pinning removed children.
       zSortedChildren.clear()
     }
   }
@@ -204,10 +193,7 @@ open class View @JvmOverloads constructor(
   }
 
 
-  // Held as fields rather than written inline at the call site: both capture
-  // `this`, so as lambda literals they would allocate two closures per view per
-  // frame — on a page of several hundred views that is the bulk of the draw
-  // path's garbage.
+  // Fields, not lambdas at the call site: those would allocate per view per frame.
   private val drawOutsetShadows: (Canvas) -> Unit = { c ->
     // Draw children's outset box shadows at parent level so they can extend
     // beyond child bounds — after this view's own background/border (see
@@ -248,8 +234,6 @@ open class View @JvmOverloads constructor(
 
   override fun onChange(low: Long, high: Long) {
     Perf.hit("viewOnChange")
-    // Only text-relevant style changes can affect descendant text — skip the
-    // subtree walk (and its per-TextView invalidations) for everything else.
     if (TextEngine.hasAnyTextFlags(low, high)) {
       Node.invalidateDescendantTextViews(node, low, high)
     }
@@ -514,8 +498,6 @@ open class View @JvmOverloads constructor(
 
     super.removeAllViews()
 
-    // removeChildren already dirtied the node (and Rust dirtied the ancestor
-    // chain); just schedule the compute.
     invalidateLayout(false)
 
     onChildStructureChangedSafe()

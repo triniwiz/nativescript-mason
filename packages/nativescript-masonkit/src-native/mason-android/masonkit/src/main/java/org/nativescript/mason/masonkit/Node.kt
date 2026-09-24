@@ -58,8 +58,6 @@ open class Node internal constructor(
   internal var nestedComputeWidth = 0f
   internal var nestedComputeHeight = 0f
   internal var computeScheduled = false
-  // Last (widthArg, heightArg) this node was measured with as a layout root
-  // (Scroll/View onMeasure root branch) — reused by the debounced inline compute.
   internal var lastRootWidthArg = Float.MIN_VALUE
   internal var lastRootHeightArg = Float.MIN_VALUE
   internal var hasNativeClickDispatch = false
@@ -73,9 +71,6 @@ open class Node internal constructor(
   // every child on every text-style write.
   internal var hasTextDescendant = false
 
-  // Attach-time text invalidation tracking (see invalidateOnAttach): the last
-  // parent this node was attached under, and the textInvalidationEpoch snapshot
-  // from when it was last detached.
   internal var lastTextAttachParent: Node? = null
   internal var detachTextEpoch = -1
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
@@ -202,11 +197,8 @@ open class Node internal constructor(
   internal var stickyScrollHost: Scroll? = null
   internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
-  // Epoch at which this node's dirty flag was last handed to Rust. Taffy holds
-  // a node dirty until a compute consumes it, so marking the same node again
-  // before then is a pure JNI round-trip plus an ancestor-chain walk inside
-  // Taffy. Appending 20 feed rows made 883 such calls for 240 changed nodes.
-  // Reset on every attach/detach, since re-parenting changes what Rust holds.
+  // Taffy keeps a node dirty until a compute consumes it, so a repeat mark
+  // before then is a wasted JNI call. Expires on compute and on re-parent.
   private var dirtyMarkedEpoch = -1
 
   open var parent: Node?
@@ -214,8 +206,6 @@ open class Node internal constructor(
       dirtyMarkedEpoch = -1
       layoutParent = value
       if (value == null) {
-        // Snapshot the text epoch at detach so invalidateOnAttach can tell
-        // whether any text-affecting mutation happened while detached.
         detachTextEpoch = textInvalidationEpoch
       }
       // Every insertion path (appendChild, replaceChildAt, insertChildBefore/
@@ -722,16 +712,10 @@ open class Node internal constructor(
 
   companion object {
 
-    // Monotonic counter bumped on every text-affecting mutation (text-flagged
-    // style writes, inline-segment invalidations). invalidateOnAttach compares
-    // a detached node's snapshot against it to tell whether anything textual
-    // changed while the node was away.
+    // Bumped by every text-affecting mutation; see invalidateOnAttach.
     internal var textInvalidationEpoch: Int = 0
       private set
 
-    // True while invalidateOnAttach is forcing rebuilds; those rebuilds are
-    // not content mutations and must not move the epoch (or every re-attach
-    // after the first walk would look stale again).
     private var inAttachWalk = false
 
     internal fun bumpTextInvalidationEpoch() {
@@ -839,13 +823,9 @@ open class Node internal constructor(
     }
 
     internal fun invalidateDescendantTextViews(node: Node, low: Long, high: Long) {
-      // background-color is a text flag (a text container paints its own) but
-      // it does not inherit, so it never reaches descendants. Passing it down
-      // re-styled every text view below any container given a background.
+      // background-color does not inherit, so descendants never need it.
       val childLow = low and StateKeys.BACKGROUND_COLOR.low.inv()
       val childHigh = high and StateKeys.BACKGROUND_COLOR.high.inv()
-      // Style writes that can't affect text skip the walk entirely; anything
-      // that can is a text-affecting mutation for invalidateOnAttach's epoch.
       val reachesText = TextEngine.hasAnyTextFlags(childLow, childHigh) ||
         (node.view is TextContainer && TextEngine.hasAnyTextFlags(low, high))
       if (!reachesText) {
@@ -925,16 +905,8 @@ open class Node internal constructor(
     }
   }
 
-  // Text caches (spans, Rust inline-measure/layout caches) resolve CSS
-  // inheritance through the ancestor chain, so they go stale only when that
-  // chain changes or when text-affecting mutations happen while detached:
-  //  - fresh subtree (never attached): nothing was ever resolved against a
-  //    real ancestor; the setters' own versioned invalidation covers anything
-  //    built while unparented;
-  //  - re-attach under the same parent with no intervening text mutation:
-  //    nothing changed;
-  //  - anything else (moved to another parent, or text changed while away):
-  //    walk once and force rebuilds.
+  // Text caches resolve inheritance through the ancestor chain: rebuild them only
+  // when a node moves to a new parent or text changed while it was detached.
   private fun invalidateOnAttach(child: Node) {
     val stale = when {
       child.lastTextAttachParent == null -> false
@@ -955,9 +927,6 @@ open class Node internal constructor(
       Perf.hit("attachSkip")
     }
     child.lastTextAttachParent = this
-    // Caches are in sync with this chain as of now (rebuilt above, or never
-    // stale); snapshot so a later same-parent re-attach can skip — including
-    // insert-before-remove moves, where the node was never detached.
     child.detachTextEpoch = textInvalidationEpoch
   }
 
@@ -988,7 +957,6 @@ open class Node internal constructor(
           child.container = it
           it.engine.invalidateInlineSegments()
         }
-        // `container.view` is a TextContainer by construction above.
         markHasTextDescendant(container)
         NodeUtils.invalidateLayout(this)
       } else {
@@ -1001,12 +969,8 @@ open class Node internal constructor(
         if (attach) {
           NodeUtils.addView(this, child.view as? View)
         }
-        // hasTextDescendant propagation already happened via the `child.parent =
-        // this` assignment above (see the `parent` property setter).
         computeCacheDirty = true
         if (view is TextContainer) {
-          // Adding a child to a text container changes the container's own
-          // composed inline text — always rebuild its spans/segments.
           invalidateDescendantTextViews(this, StateKeys.INVALIDATE_TEXT)
           invalidateDescendantInlineSegments(this)
         }
@@ -1452,8 +1416,7 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
     }
     if (child.nativePtr != 0L) {
-      // The Rust child list mirrors `children` minus native-less nodes (text
-      // nodes), so the insert index there counts only native children before pos.
+      // Rust's child list skips native-less (text) nodes.
       var nativePos = 0
       for (i in 0 until pos) {
         if (children[i].nativePtr != 0L) nativePos++
@@ -1502,9 +1465,6 @@ open class Node internal constructor(
       // could be ambiguous in anonymous/container scenarios and may leave
       // views attached to the wrong ViewGroup.
       Perf.timed("rcView") {
-        // Deferred when the view is exactly where the tree expects it (bulk
-        // flush at end of turn); immediate otherwise. Parent-mismatch
-        // fallback lives inside removeView now.
         NodeUtils.removeView(this, removed.view as? View)
       }
       if (removed.nativePtr != 0L) {
@@ -1517,8 +1477,6 @@ open class Node internal constructor(
       // Removing a non-text child (e.g. a Br) changes the parent's composed
       // text — rebuild the inline segment cache when the parent renders text.
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
-      // Rust's remove already dirtied the ancestor chain; one local
-      // invalidation (which also schedules the compute) is enough.
       Perf.timed("rcInv") {
         NodeUtils.invalidateLayout(this)
       }
@@ -1533,10 +1491,8 @@ open class Node internal constructor(
       computeCacheDirty = true
       return
     }
-    // computeCacheDirty is NOT a usable "native already knows" signal — it is
-    // set from several places that never reach Rust, and gating on it used to
-    // drop dirty marks. dirtyMarkedEpoch is set only here, right next to the
-    // JNI call, and expires whenever a compute finishes or the node moves.
+    // computeCacheDirty is set from places that never reach Rust, so it can't
+    // tell whether Rust already knows; dirtyMarkedEpoch can.
     if (dirtyMarkedEpoch == mason.computeEpoch) {
       Perf.hit("dirtySkip")
       computeCacheDirty = true

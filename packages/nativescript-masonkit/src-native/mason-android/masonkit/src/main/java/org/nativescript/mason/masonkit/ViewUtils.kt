@@ -129,10 +129,7 @@ class ViewUtils {
       // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
         style.mBackground?.let { background ->
-          // A single solid color with no layers draws the rounded shape directly,
-          // which needs no clip (and no save/clipPath per view per frame). With one
-          // shared radius it is a rect or round rect: recording a path copies the
-          // whole path into the display list.
+          // A solid color draws its rounded shape directly, no clip needed.
           if (background.color != null && background.layers.isEmpty()) {
             background.bgPaint.color = background.color!!
             background.bgPaint.style = android.graphics.Paint.Style.FILL
@@ -250,8 +247,7 @@ class ViewUtils {
           superDraw(canvas)
         }
       }
-      // Only clips and a slow filter pass touch the canvas state; skip the
-      // save/restore pair for everything else, which is nearly every view.
+      // Only clips and slow filters touch canvas state.
       val filterRenders = style.mFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
       if (overflowClipsContent || filterRenders || !style.isValueInitialized) {
         canvas.withSave { drawContent() }

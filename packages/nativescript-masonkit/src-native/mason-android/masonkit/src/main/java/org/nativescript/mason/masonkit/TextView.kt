@@ -87,11 +87,8 @@ class TextView @JvmOverloads constructor(
   }
 
 
-  // Cached StaticLayout used for drawing when we render our own layout, and
-  // the range of content widths it draws correctly at. Usually a single width;
-  // a width-independent layout (see TextEngine.StaticLayoutCacheEntry) covers
-  // every width from its widest line up to the width it was built at, which
-  // spares a rebuild on first draw when measure ran at a different width.
+  // The draw layout and the content widths it is valid for; see
+  // TextEngine.StaticLayoutCacheEntry.widthIndependent.
   internal var cachedStaticLayout: android.text.Layout? = null
     private set
   private var cachedStaticLayoutMinWidth = -1
@@ -129,10 +126,6 @@ class TextView @JvmOverloads constructor(
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
       // Keep the float-aware layout intact — we just expanded to fit it.
     } else {
-      // Layouts are width-driven: keep the cached layouts across pure
-      // height or no-op size changes (applyLayoutFlat assigns the measured
-      // size right after measure populated the cache; clearing here forced
-      // every first draw to rebuild its StaticLayout).
       val contentW = w - paddingLeft - paddingRight
       if (!cachedStaticLayoutFits(contentW)) {
         clearCachedStaticLayout()

@@ -601,11 +601,7 @@ interface Element : EventTarget {
       root.dirty()
     }
 
-    // Detached root that has never been measured: its attach-time onMeasure
-    // computes with real specs anyway, so latching computeScheduled and
-    // posting here only produces no-op runCompute fires (mid-build rows each
-    // latching themselves as root) and risks the latch surviving into the
-    // attach pass. The dirty flags above are enough.
+    // A never-measured detached root computes in its attach-time onMeasure.
     if (!targetView.isAttachedToWindow && root.lastRootWidthArg == Float.MIN_VALUE) {
       Perf.hit("invDetachedSkip")
       return
@@ -623,9 +619,6 @@ interface Element : EventTarget {
       // onMeasure) performs the compute and serializes the layout in one
       // shot, so applyLayoutFlat gets correct data.
       var finished = false
-      // Named so the 32ms fallback can be cancelled once the frame callback has
-      // run; otherwise every invalidation leaves a message in the main queue
-      // that wakes the looper 32ms later only to find `finished` already set.
       lateinit var runCompute: Runnable
       val handler = targetView.handler ?: Handler(Looper.getMainLooper())
       runCompute = Runnable {
@@ -644,12 +637,7 @@ interface Element : EventTarget {
               docEl.view?.requestLayout()
             }
           } else {
-            // For normal Element roots with an attached, previously measured
-            // view, run the debounced compute inline so the mutation's own
-            // frame is complete — requestLayout alone defers the compute to
-            // the next traversal, which can land a frame (or more) late.
-            // The follow-up requestLayout makes onMeasure hit the compute
-            // cache and onLayout re-apply the fresh layout tree.
+            // Compute now so the mutation lands in this frame, not the next traversal.
             val rv = root.view as? android.view.View
             if (rv != null && rv.isAttachedToWindow && root.lastRootWidthArg != Float.MIN_VALUE) {
               (root.view as? Element)?.computeAndLayout(root.lastRootWidthArg, root.lastRootHeightArg)
@@ -959,8 +947,6 @@ private class LayoutDfsState {
   var top = -1
 }
 
-// `takeIf { !it.isNaN() } ?: 0f` boxes the Float just to express the null;
-// this stays primitive.
 private inline fun Float.orZero(): Float = if (isNaN()) 0f else this
 
 // applyLayoutFlat can re-enter itself: a child's view.measure()/view.layout()
@@ -1263,9 +1249,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       // layout.children provided by Rust (which omits nodes without native views).
       val childCnt = tree.childCount[treeIdx]
       if (childCnt > 0) {
-        // skip the filter allocation on the common path (every child has a
-        // native view). Indexed scan: `any {}` allocates an iterator, and this
-        // runs once per node of every layout pass.
         val rawChildren = node.children
         var needsFilter = false
         for (i in rawChildren.indices) {

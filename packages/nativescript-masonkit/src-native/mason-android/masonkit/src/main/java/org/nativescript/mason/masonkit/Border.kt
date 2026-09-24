@@ -717,11 +717,7 @@ class BorderRenderer(private val style: Style) {
     return outerClipPath
   }
 
-  /**
-   * The radius every corner shares after CSS radius scaling, or -1 when the
-   * corners differ or any is a superellipse. Lets callers draw a rect or
-   * round rect instead of recording a path. Valid after updateCache().
-   */
+  /** The radius all corners share after CSS scaling, or -1. Valid after updateCache(). */
   fun uniformRadius(width: Float, height: Float): Float {
     if (topLeftExponent != 1f || topRightExponent != 1f ||
       bottomRightExponent != 1f || bottomLeftExponent != 1f
@@ -866,9 +862,6 @@ class BorderRenderer(private val style: Style) {
     rightStyle = style.mBorderRight.style
     bottomStyle = style.mBorderBottom.style
 
-    // Corner radii, read from the raw slots like computeHash: the Style
-    // getters allocate a Point and two LengthPercentages per corner, on the
-    // first draw of every view.
     setCorner(topLeftCorner, Border.cornerTopLeftKeys, viewWidth, viewHeight)
     setCorner(topRightCorner, Border.cornerTopRightKeys, viewWidth, viewHeight)
     setCorner(bottomRightCorner, Border.cornerBottomRightKeys, viewWidth, viewHeight)
@@ -971,12 +964,8 @@ class BorderRenderer(private val style: Style) {
   }
 
   /**
-   * One solid color and width on every side with one shared radius: a single
-   * stroke centred half a border-width in. Its outer edge has radius r and its
-   * inner edge r - width, the same ring the general path builds (whose inner
-   * radius is max(r - width, 0)), so it applies when r is 0 or at least the
-   * border width. Skips building two paths, a Paint copy and a path record
-   * per draw.
+   * Uniform solid border with one radius as a single stroke half a width in: the
+   * same ring as the general path when r is 0 or at least the border width.
    */
   private fun drawUniformSolid(canvas: Canvas, width: Float, height: Float): Boolean {
     if (topStyle != BorderStyle.Solid || rightStyle != BorderStyle.Solid ||

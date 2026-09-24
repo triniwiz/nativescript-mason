@@ -209,11 +209,8 @@ class Scroll @JvmOverloads constructor(
       Perf.hit(if (node.computeCacheDirty) "omDirty" else "omClean")
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        // Scroll semantics: content lays out at its NATURAL height
-        // (Android ScrollView measures content UNSPECIFIED). Feeding the
-        // viewport height here made every viewport resize - most visibly
-        // the window-inset settling right after a page opens - change the
-        // whole-tree compute cache key and force a full second layout.
+        // Content lays out at its natural height, like Android's ScrollView, so
+        // viewport resizes don't invalidate the whole-tree compute.
         val heightArg = -2f
         node.lastRootWidthArg = widthArg
         node.lastRootHeightArg = heightArg

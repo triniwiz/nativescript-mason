@@ -24,8 +24,7 @@ class Styles {
 
       fun from(value: Byte): TextJustify {
         return when (value) {
-          // -5 is the native "unset" sentinel (init_default_data); the CSS
-          // initial value of text-justify is auto.
+          // -5 is the native "unset" sentinel; text-justify defaults to auto.
           (-5).toByte() -> Auto
           (-1).toByte() -> None
           0.toByte() -> Auto

@@ -2,12 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.util.Log
 
-/**
- * Lightweight wall-clock profiler for the hot paths (child ops, node creation,
- * layout passes, text measurement). Off by default; enable from JS via
- * `Perf.enabled = true`, then `Perf.dump(label)` / `Perf.reset()` around the
- * region of interest. Counters accumulate until reset.
- */
+/** Opt-in counters and timers for hot paths; enable with `Perf.enabled = true`. */
 object Perf {
   @JvmField
   var enabled = false
@@ -15,8 +10,6 @@ object Perf {
   private val times = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
   private val counts = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder>()
 
-  // Clock reads are not free (a trap on the emulator), so call sites time
-  // through this and pay nothing while disabled.
   @JvmStatic
   fun now(): Long = if (enabled) System.nanoTime() else 0L
 

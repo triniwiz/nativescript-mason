@@ -15,9 +15,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ZOrderInstrumentedTest {
 
-  // isChildrenDrawingOrderEnabled / getChildDrawingOrder are protected on
-  // ViewGroup; the androidTest source set can't access them from Kotlin, so
-  // read them reflectively.
+  // Protected on ViewGroup, so read reflectively.
   private fun childrenDrawingOrderEnabled(v: android.view.ViewGroup): Boolean {
     val m = android.view.ViewGroup::class.java.getDeclaredMethod("isChildrenDrawingOrderEnabled")
     m.isAccessible = true

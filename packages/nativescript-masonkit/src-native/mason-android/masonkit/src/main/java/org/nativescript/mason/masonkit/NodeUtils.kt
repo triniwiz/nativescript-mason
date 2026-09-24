@@ -86,7 +86,6 @@ internal object NodeUtils {
 
   fun addView(parent: Node, view: View?) {
     view ?: return
-    // A queued deferred removal must not undo this re-add at flush time.
     cancelRemoval(view)
     parent.suppressChildOperations {
       when (parent.view) {
@@ -180,21 +179,10 @@ internal object NodeUtils {
   }
 
   /**
-   * Deferred platform detach. Per-child ViewGroup.removeView costs a
-   * requestLayout+invalidate fan-out per call (~260µs on-device), so bulk
-   * removals (clear/refill/shuffle) pay O(n) fan-outs. Queue the detaches
-   * here and flush them as one removeViewInLayout pass (no per-child
-   * requestLayout) plus a single requestLayout/invalidate per parent at the
-   * end of the current message-loop turn.
-   *
-   * Safety:
-   * - Each entry remembers the EXPECTED parent; the flush only detaches when
-   *   `view.parent === expected`, so a same-turn re-parent (Vue move) or
-   *   re-add cancels out instead of being re-removed.
-   * - Re-adds must call [cancelRemoval] before attaching (see addView below),
-   *   otherwise a move back under the same parent would be undone by the flush.
-   * - The view is hidden immediately at queue time so a frame drawn before
-   *   the flush never shows the dead child.
+   * Deferred platform detach: per-child removeView fans out a requestLayout per
+   * call, so removals are flushed together at the end of the turn. The flush only
+   * detaches views still under the expected parent; re-adds cancel via
+   * [cancelRemoval].
    */
   private class PendingRemoval(val expected: ViewGroup, val view: View, val oldVisibility: Int)
 
@@ -208,13 +196,10 @@ internal object NodeUtils {
       val p = it.next()
       if (p.view === view) {
         it.remove()
-        // The GONE we set at queue time must not leak into a reused view
-        // (e.g. a same-parent move re-attaching it this turn).
         if (p.view.visibility != p.oldVisibility) {
           p.view.visibility = p.oldVisibility
         }
-        // Finish the detach now: not every add path removes the view from
-        // its old parent, and ViewGroup.addView throws while it has one.
+        // Not every add path detaches from the old parent, and addView throws if it has one.
         if (view.parent === p.expected) {
           p.expected.removeViewInLayout(view)
           p.expected.requestLayout()
@@ -226,8 +211,7 @@ internal object NodeUtils {
 
   private fun queueRemoval(expectedParent: ViewGroup, view: View) {
     cancelRemoval(view)
-    // Hide immediately so a frame drawn before the flush can't show the dead
-    // child; the original visibility is restored on cancel.
+    // Hidden until the flush so a frame drawn meanwhile can't show it.
     val old = view.visibility
     if (old != View.GONE) view.visibility = View.GONE
     pendingRemovals.add(PendingRemoval(expectedParent, view, old))
@@ -248,12 +232,9 @@ internal object NodeUtils {
     val touched = LinkedHashSet<ViewGroup>()
     for (p in batch) {
       val v = p.view
-      // Restore the queued-time visibility so a reused view isn't stuck GONE.
       if (v.visibility != p.oldVisibility) {
         v.visibility = p.oldVisibility
       }
-      // Skip when the view was re-parented or detached during the turn —
-      // someone else already took it out of `expected`.
       if (v.parent === p.expected) {
         p.expected.removeViewInLayout(v)
         touched.add(p.expected)
@@ -271,8 +252,6 @@ internal object NodeUtils {
     view ?: return
     val pv = parent.view
     if (pv is ViewGroup && view.parent === pv) {
-      // Fast path: the view is exactly where the tree expects it — defer the
-      // platform detach to the batch flush.
       Perf.timed("rcViewPlat") {
         queueRemoval(pv, view)
       }
@@ -293,8 +272,6 @@ internal object NodeUtils {
             }
           }
         }
-        // Attached somewhere the tree didn't expect — pull it from wherever
-        // it actually lives so it can't dangle.
         if (view.parent != null && view.parent !== pv) {
           removeViewFallback(view)
         }

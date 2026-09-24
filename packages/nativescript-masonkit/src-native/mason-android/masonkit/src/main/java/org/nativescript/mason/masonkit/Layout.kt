@@ -205,10 +205,7 @@ class MasonLayoutTree {
 
 // MARK: - Node View (reusable, mutable cursor into MasonLayoutTree — no allocation per node)
 
-// FloatArray.getOrNull() returns Float?, and java.lang.Float has no value
-// cache, so every boxed read allocates. applyLayoutFlat reads ~14 of these
-// per node per layout pass, which on a 600-view page is thousands of dead
-// objects a frame. Bounds-check inline and stay primitive instead.
+// Primitive reads: getOrNull boxes every Float.
 @PublishedApi
 internal inline fun FloatArray.atOrZero(i: Int): Float = if (i >= 0 && i < size) this[i] else 0f
 

@@ -43,10 +43,7 @@ import kotlin.math.ceil
  *  ZWSP-joined run as one unbreakable word. */
 private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
 
-// kotlin.math.ceil calls Math.ceil, which Android implements as a native
-// method: in an interpreted (debuggable) build every call is a JNI transition,
-// and these run once per laid-out line or measured width. Widths are small
-// and finite; anything else goes to the real thing.
+// Math.ceil is native: a JNI transition per call in debuggable builds.
 internal fun ceilPx(x: Float): Float {
   if (x.isNaN() || x >= 8_388_608f || x <= -8_388_608f) return ceil(x)
   val t = x.toInt().toFloat()
@@ -122,8 +119,6 @@ class TextEngine(val container: TextContainer) {
         NativeHelpers.nativeNodeRemoveChildren(node.mason.nativePtr, node.nativePtr)
       }
 
-      // invalidateInlineSegments already marks the node dirty, invalidates the
-      // view and schedules layout — no extra dirty/invalidate needed here.
       invalidateInlineSegments()
     }
 
@@ -260,15 +255,7 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (dirty) {
-      // Defer the destructive invalidation: framework re-parenting toggles
-      // inherited values away and back within the same turn (clear on remove,
-      // re-inherit on add), and reacting to each pass wiped every text cache.
-      // Mark, schedule, and let the next flush compare the settled values
-      // against the ones last reacted to (flushTextStyleIfNeeded). Nothing is
-      // dirtied here: the flush runs before any compute, measure or draw, and
-      // invalidates the layout itself when a value really moved. Dirtying up
-      // front turned every no-op toggle (a font face finishing its load and
-      // re-announcing the typeface already in use) into a full second compute.
+      // Deferred: flushTextStyleIfNeeded reacts only if the settled values changed.
       if (textLayoutChanged) {
         textLayoutFlushPending = true
         if (!textStyleFlushPending) {
@@ -294,9 +281,6 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-  // Set when a text style change deferred its invalidation; the next
-  // measure/draw flushes (flushTextStyleIfNeeded) and reacts only if the
-  // settled resolved values differ from the ones last reacted to.
   private var textStyleFlushPending = false
   private var textLayoutFlushPending = false
   private var textVisualFlushPending = false
@@ -313,29 +297,18 @@ class TextEngine(val container: TextContainer) {
     if (layoutPending) {
       val sig = textLayoutSignature()
       if (sig != null && lastTextLayoutSignature == null) {
-        // First reaction for this engine: the settled values are what the
-        // imminent measure/layout will use, so establish the baseline
-        // WITHOUT invalidating. Bumping the version here wipes the
-        // measure/staticLayout caches that were just built with these very
-        // values — the mount c2 onMeasure (inset flap) re-measured the
-        // whole tree purely because of these first-flush bumps.
+        // First flush: record the baseline without invalidating caches built from it.
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
       } else if (sig != null && sig == lastTextLayoutSignature) {
-        // Values toggled but settled back — the storm was a no-op and every
-        // text cache is still valid.
         Perf.hit("tvToggle")
       } else {
         val prevSig = lastTextLayoutSignature
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
-        // A null signature means a resolved getter threw on a sentinel value
-        // we cannot interpret — invalidateInlineSegments here would run on
-        // every flush for that engine (last never sticks), wiping the whole
-        // subtree's measure caches each time. Only invalidate when we can
-        // actually prove the values changed.
+        // A null signature can't prove a change, so don't invalidate.
         if (sig != null) {
           invalidateInlineSegments(quiet = quiet)
         }
@@ -346,9 +319,7 @@ class TextEngine(val container: TextContainer) {
         Perf.hit("tvToggle")
       } else {
         lastTextVisualSignature = sig
-        // Visual-only change (color, decoration, shadow): rebuild spans and redraw,
-        // but do NOT call invalidateInlineSegments which would set root.computeCacheDirty
-        // and trigger a spurious full layout recompute that shifts sibling views.
+        // Visual-only: rebuild spans without a relayout.
         updateStyleOnTextNodes()
         if (!quiet) {
           (node.view as? View)?.invalidate()
@@ -357,16 +328,13 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-  // Resolved-value snapshots behind the text flags: onChange re-fires on
-  // same-value rewrites, so the expensive reactions are gated on these moving.
   private var lastTextLayoutSignature: Long? = null
   private var lastTextVisualSignature: Long? = null
 
   private fun textLayoutSignature(): Long? = try {
     textLayoutSignatureUnsafe()
   } catch (t: Throwable) {
-    // Some resolved getters throw on sentinel values in half-initialized
-    // styles — fall back to always reacting (pre-gate behaviour).
+    // Resolved getters can throw on sentinel values in half-initialized styles.
     null
   }
 
@@ -413,14 +381,8 @@ class TextEngine(val container: TextContainer) {
     return h
   }
 
-  // A cached layout for this content that draws and measures exactly like one
-  // built at widthConstraint, if any. Exact width first; failing that, any
-  // width-independent layout whose lines are unchanged at this width:
-  // StaticLayout breaks greedily (BREAK_STRATEGY_SIMPLE, no hyphenation), so
-  // a layout built at width W whose widest line is R has exactly the same
-  // lines at any width in [R, W]. Taffy probes max-content first and then
-  // definite widths the text usually already fits, and draw asks for the
-  // final width, which one of the measure passes has usually built already.
+  // Greedy line breaking gives a layout built at width W with widest line R the
+  // same lines at any width in [R, W], so reuse it when nothing depends on W.
   private fun findCachedStaticLayout(
     length: Int,
     widthConstraint: Int,
@@ -534,10 +496,7 @@ class TextEngine(val container: TextContainer) {
     return entry
   }
 
-  // Text that fits on one line at this width gets a BoringLayout, as
-  // android.widget.TextView does: one measuring pass and no line breaker.
-  // API 33 is where it honours fallback line spacing like the StaticLayout
-  // path, so heights agree.
+  // API 33+: BoringLayout honours fallback line spacing like the StaticLayout path.
   private fun buildBoringLayout(
     spannable: CharSequence,
     paint: TextPaint,
@@ -587,12 +546,6 @@ class TextEngine(val container: TextContainer) {
     return spannable
   }
 
-  // Effective wrap-width spec for StaticLayout — the only geometric input
-  // the layout outcome depends on (height is derived: lineCount x lineHeight).
-  // Factored out of measureLayout so measure() can key its result cache on the
-  // normalized (constraint, width-mode) pair: raw float spec tuples drift at
-  // bit level between computes (root size flap, content feedback) and defeat
-  // tuple-keyed caches, while the Int constraint they reduce to is stable.
   internal class MeasureWidthSpec(
     val constraint: Int,
     val allowWrap: Boolean,
@@ -649,9 +602,6 @@ class TextEngine(val container: TextContainer) {
     // is the widest unbreakable word and isn't reduced by max-width. Clamping
     // there would make a grid item's min-content as large as its max-width,
     // preventing an `auto` track from shrinking to fit its container.
-    // style.maxWidth, not style.maxSize.width: maxSize allocates a Size and
-    // resolves the height dimension too, and this runs once per measure
-    // callback -- ~1,800 of them for a 20-row append.
     if (availableWidth != -1f) when (val msw = style.maxWidth) {
       is Dimension.Points -> {
         val resolvedMax = msw.points.toInt()
@@ -732,11 +682,7 @@ class TextEngine(val container: TextContainer) {
     )
     val layout = entry.layout
 
-    // The widest line, NOT the constraint: StaticLayout.getWidth() returns the
-    // constraint it was built with, which would cancel out padding growth
-    // (Taffy adds padding back on top of what we return). For an unconstrained
-    // layout lines break only at newlines, so this is also exactly
-    // Layout.getDesiredWidth. Min-content is the widest word instead.
+    // The widest line, not the constraint: Taffy adds padding on top of this.
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f) {
       Perf.timed("mww") { maxWordWidth(spannable, paint, useLayout = spec.isInline) }
     } else {
@@ -772,10 +718,6 @@ class TextEngine(val container: TextContainer) {
         this.measuredTextHeight = layout.height.toFloat()
       }
     }
-
-    // No natural-width rebuild here: the unconstrained layout has the same
-    // line breaks (newlines only), so segments collected from it are identical,
-    // and onDraw rebuilds at the real content width when needed anyway.
 
     if (container is TextView) {
       if (entry.widthIndependent) {
@@ -865,19 +807,12 @@ class TextEngine(val container: TextContainer) {
     // measured many times per compute and each post was a Handler message.
     val pendingInvalidate = style.fontDirty && !style.pendingMetricsSync
     try {
-      // Settle any deferred text-style flush first so the cache key below
-      // reflects it (a real style change bumps segmentsInvalidateVersion).
       flushTextStyleIfNeeded()
       if (lastTextLayoutSignature == null) {
-        // No flush has reacted yet — pin the baseline to what this measure
-        // actually used, so a later first flush can't wipe these caches.
         lastTextLayoutSignature = textLayoutSignature()
         lastTextVisualSignature = textVisualSignature()
       }
-      // Normalized cache key: the StaticLayout (the expensive object) depends
-      // only on content version + paint + effective wrap width; height is
-      // derived. Raw float spec tuples drift at bit level between computes,
-      // so key on the Int width constraint + width mode instead.
+      // Keyed on the Int wrap width: float specs drift between computes.
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
       val mcWKey = mcSpec.constraint.toLong()
       val mcWMode = when (availableWidth) {
@@ -886,9 +821,6 @@ class TextEngine(val container: TextContainer) {
         else -> 2L // definite (also covers the undefined sentinel)
       }
       val ver = segmentsInvalidateVersion.toLong()
-      // Newest first: entries are written round-robin, and the constraint being
-      // asked for is almost always one of the last few stored, so a hit costs a
-      // couple of probes instead of a scan of all 32 slots.
       for (probe in 0 until MEASURE_CACHE_SIZE) {
         val i = (measureCacheNext - 1 - probe + MEASURE_CACHE_SIZE) % MEASURE_CACHE_SIZE
         val b = i * 4
@@ -896,17 +828,12 @@ class TextEngine(val container: TextContainer) {
           measureCacheKeys[b + 2] == mcWMode && measureCacheKeys[b + 3] == 0L
         ) {
           Perf.hit("mcHit")
-          // Measurement is paint-driven, so a hit is valid even while font
-          // metrics are mid-sync, but keep the deferred sync flowing.
           style.syncFontMetrics()
           return measureCacheVals[i]
         }
       }
       Perf.hit("mcMiss")
       if (Perf.enabled) {
-        // Why did it miss? Either nothing in the ring carries this content
-        // version (the segments were invalidated since), or the version is
-        // there but no entry matches this width constraint.
         var sameVer = false
         for (i in 0 until MEASURE_CACHE_SIZE) {
           if (measureCacheKeys[i * 4] == ver) { sameVer = true; break }
@@ -914,11 +841,7 @@ class TextEngine(val container: TextContainer) {
         Perf.hit(if (sameVer) "mcMissKey" else "mcMissVer")
         Perf.hit("mcMode" + mcWMode)
       }
-      // Line breaking is greedy, so any wrap width between the max-content
-      // layout's widest line and the width it was wrapped at breaks the same
-      // lines, and measure reports the widest line rather than the width
-      // offered: the answer is the max-content one. Taffy asks for max-content
-      // first and then for definite widths the text usually fits in.
+      // Same lines as the max-content layout, so the same result.
       if (mcWMode == 2L && maxContentVersion == ver &&
         mcSpec.constraint >= maxContentWidth && mcSpec.constraint <= maxContentConstraint
       ) {
@@ -1834,12 +1757,6 @@ class TextEngine(val container: TextContainer) {
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
 
-  // Per-engine memo of the Rust measure callback: Taffy re-measures a leaf
-  // with identical (known, available) inputs several times per compute, and
-  // again on every recompute while nothing changed. Keyed on
-  // segmentsInvalidateVersion (content + text-style changes all funnel
-  // through invalidateInlineSegments), the raw spec bits, and the max-width
-  // clamp input; bypassed while font metrics are mid-sync.
   private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 4)
   private val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
   private var measureCacheNext = 0
@@ -1854,9 +1771,6 @@ class TextEngine(val container: TextContainer) {
     measureCacheNext = (measureCacheNext + 1) % MEASURE_CACHE_SIZE
   }
 
-  // The last max-content measure: content version, widest line, the width it
-  // wrapped at and the packed result. Lets measure() answer definite requests
-  // that break the same lines without laying out again.
   private var maxContentVersion = -1L
   private var maxContentWidth = 0
   private var maxContentConstraint = 0
@@ -1865,11 +1779,7 @@ class TextEngine(val container: TextContainer) {
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 
-  // Recent (layout, version) pairs collectAndCacheSegments() sent over JNI for.
-  // buildStaticLayoutCached returns the same cached instance on a hit, so a seen
-  // layout identity means line-break geometry hasn't moved. Ring of 4: the
-  // min-content (unconstrained) and final-width layouts alternate across measure
-  // passes and a single slot had them evict each other every call.
+  // Min-content and final-width layouts alternate between passes.
   private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
   private val segmentsCacheVersions = IntArray(4) { -1 }
   private var segmentsCacheNextIdx = 0
@@ -1883,11 +1793,6 @@ class TextEngine(val container: TextContainer) {
   private var maxMeasuredTextWidth: Float = 0f
   private var maxMeasuredTextHeight: Float = 0f
 
-  // Cache for the StaticLayout built inside measureLayout(). One call can
-  // probe several shapes (unconstrained, available-width, known-width), so a
-  // single slot would have them evict each other. Sized at 4 slots,
-  // round-robin eviction; gated by segmentsInvalidateVersion, same as
-  // cachedAttributedString.
   private class StaticLayoutCacheEntry(
     val version: Int,
     val widthConstraint: Int,
@@ -1898,11 +1803,8 @@ class TextEngine(val container: TextContainer) {
     val heuristic: TextDirectionHeuristic,
     val layout: android.text.Layout
   ) {
-    // Widest line (ceiled), and whether nothing in the layout depends on its
-    // build width: every line starts at x=0 and no LineBackgroundSpan (the
-    // under/overline spans paint to the layout's right edge). Together they
-    // decide whether this layout can stand in for one at a narrower width
-    // (see buildStaticLayoutCached).
+    // Nothing here depends on the build width: lines start at x=0 and there is no
+    // LineBackgroundSpan (under/overlines paint to the layout's right edge).
     val maxLineWidth: Float
     val widthIndependent: Boolean
 
@@ -2422,9 +2324,7 @@ class TextEngine(val container: TextContainer) {
     when (node.view) {
       is Element -> {
         (node.view as Element).apply {
-          // Even when quiet the root cache must stay dirty: the compute that
-          // follows (already scheduled or in progress) must not hit its
-          // fast path and reuse the pre-change layout tree.
+          // Keep the root dirty so the pending compute can't reuse the old tree.
           val root = node.getRootNode() ?: this.node
           root.computeCacheDirty = true
           if (!quiet) {
@@ -2510,26 +2410,17 @@ class TextEngine(val container: TextContainer) {
         )
     }
 
-    // Any flag whose change can alter text rendering or measurement.
     @JvmStatic
     internal fun hasAnyTextFlags(low: Long, high: Long): Boolean {
       return hasTextLayoutFlags(low, high) || hasTextVisualFlags(low, high)
     }
 
-    // Engines with a deferred text-style invalidation. Flushed at the start of
-    // every compute pass (and individually from measure/draw) so engines whose
-    // views never measure or draw themselves (flattened into a composing parent)
-    // still get their settled-value comparison.
     private val pendingTextStyleFlush = HashSet<TextEngine>()
     private var textStyleFlushPosted = false
 
     internal fun registerPendingTextStyle(engine: TextEngine) {
       pendingTextStyleFlush.add(engine)
-      // Flush at the end of the current turn instead of waiting for the
-      // next compute entry: style mutations arrive in bursts during tree
-      // builds, and deferring the flush past a compute forces that compute
-      // to re-measure text it had already laid out. The flush only dirties;
-      // the usual invalidateLayout scheduling performs the compute.
+      // Flush at the end of the turn so the next compute doesn't re-measure.
       if (!textStyleFlushPosted) {
         textStyleFlushPosted = true
         android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -2546,9 +2437,6 @@ class TextEngine(val container: TextContainer) {
       val pending = pendingTextStyleFlush.toTypedArray()
       pendingTextStyleFlush.clear()
       for (engine in pending) {
-        // Quiet flush for engines of the tree that is about to compute: the
-        // compute itself accounts for the change, so the invalidateLayout()
-        // reschedule that a loud flush would do is pure double-work.
         val quiet = forRoot != null && (engine.node.getRootNode() ?: engine.node) === forRoot
         engine.flushTextStyleIfNeeded(quiet = quiet)
       }

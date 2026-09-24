@@ -795,8 +795,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (value) pendingMetricsStyles[this] = true
     }
 
-  // Published fontmanager (<= 1.0.9) fires reload listeners on the face's
-  // executor thread; syncFontMetrics touches main-thread-only state.
+  // Published fontmanager fires reload listeners off the main thread.
   private var reloadListener: (FontFace, String?) -> Unit = { _, _ ->
     if (android.os.Looper.myLooper() === android.os.Looper.getMainLooper()) {
       syncFontMetrics()
@@ -858,10 +857,7 @@ class Style internal constructor(@Transient internal var node: Node) {
    * measures text -- so nothing on its own side ever loads it. Kick the load
    * off from whoever actually resolved to it, and re-apply once it lands.
    */
-  // The face this style already has a load callback queued on. Every
-  // resolvedFontFace read lands here, and FontFace.load queues a callback per
-  // call while the load is in flight, so without this one style could queue
-  // dozens, each posting its own re-notify when the face arrives.
+  // FontFace.load queues a callback per call while loading; keep one per style.
   private var fontLoadPendingFor: FontFace? = null
 
   private fun ensureResolvedFontLoaded(face: FontFace) {
@@ -874,10 +870,6 @@ class Style internal constructor(@Transient internal var node: Node) {
         invalidateResolvedFontFace()
         val metricsChanged = syncFontMetrics()
         notifyTextStyleChanged(StateKeys.FONT_FAMILY)
-        // No dirty when the loaded face's metrics match what the buffer
-        // already holds — the text-style flush above still fires, and its
-        // signature check catches any real layout change. An unconditional
-        // dirty here forced a full second compute per font load.
         if (metricsChanged) {
           node.dirty()
           v.invalidate()
@@ -977,9 +969,6 @@ class Style internal constructor(@Transient internal var node: Node) {
     val xHeight = m[3]
     val capHeight = m[4]
 
-    // Change-gate: a sync whose values match what the native buffer already
-    // holds must not rewrite it — the write (and the dirty it triggers on the
-    // caller side) would force a redundant recompute.
     if (fmSynced && fmAscent == ascent && fmDescent == descent && fmXHeight == xHeight &&
       fmLeading == leading && fmCapHeight == capHeight
     ) {
@@ -1012,8 +1001,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   /**
    * Flush deferred font metrics sync after measure callback returns.
-   * Returns true only when the sync actually changed the native metrics —
-   * unchanged values mean no re-dirty is warranted.
+    * Returns true only when the native metrics actually changed.
    */
   internal fun flushPendingMetricsSync(): Boolean {
     if (!pendingMetricsSync) return false
@@ -4653,8 +4641,7 @@ class Style internal constructor(@Transient internal var node: Node) {
             }
           }
         }.also {
-          // Already loaded: no callback comes. Flag the metrics for the
-          // compute-entry sync, which dirties the node only if they moved.
+          // Already loaded, so no callback will come.
           if (it.font != null) fontDirty = true
         }
       } else {
@@ -5271,23 +5258,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       Mason.initLib()
     }
 
-    // Styles whose font metrics need syncing before the next compute of
-    // their root. Mirrors TextEngine.pendingTextStyleFlush: font changes
-    // arrive in bursts during tree builds, and syncing them at compute entry
-    // (instead of letting them defer into the compute's measure callbacks)
-    // avoids the post-compute dirty + full second compute per mutation.
-    // Weak keys: removed/re-parented nodes get invalidateInheritedTextCaches
-    // (fontDirty=true) but their detached subtree never computes again — a
-    // strong set would retain the whole dead tree (Styles → Nodes → views,
-    // engines, StaticLayouts) and OOM the app.
+    // Weak keys: a detached subtree never computes again, so a strong set would
+    // retain it.
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 
-    /**
-     * Sync pending font metrics for styles of [forRoot]'s tree. A changed
-     * sync dirties its node so the computeSkip fast-path can't serve stale
-     * results; the imminent compute absorbs the buffer write, so no
-     * view-level invalidate/requestLayout is posted here.
-     */
+    /** Sync pending font metrics for styles of [forRoot]'s tree. */
     @JvmStatic
     internal fun flushPendingMetrics(forRoot: Node) {
       if (pendingMetricsStyles.isEmpty()) return
@@ -5301,12 +5276,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
         if ((s.node.getRootNode() ?: s.node) !== forRoot) continue
         it.remove()
-        // A changed sync dirties its node so the computeSkip fast-path can't
-        // serve stale results; the imminent compute absorbs the buffer write,
-        // so no view-level invalidate/requestLayout is posted here.
-        // A style can be fontDirty without a deferred sync (it was never
-        // measured yet); sync that too, or every measure in the compute
-        // defers it again and posts its own flush.
+        // A style can be fontDirty without a deferred sync (never measured yet).
         val changed = if (s.pendingMetricsSync) s.flushPendingMetricsSync() else s.syncFontMetrics()
         if (changed) {
           s.node.dirty()
@@ -5340,8 +5310,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       onReady: () -> Unit
     ): FontFace {
       val key = fontFaceCacheKey(family, weight, style)
-      // onReady is for a load that finishes later; a face that is already
-      // loaded is the caller's to handle inline (see resolvedFontFace).
       sharedFontFaces[key]?.let { return it }
       val face = FontFace(family, AppFonts.resolve(family, context)).apply {
         this.weight = weight
@@ -5359,9 +5327,7 @@ class Style internal constructor(@Transient internal var node: Node) {
      */
     private data class FontMetricsKey(val typeface: Typeface?, val textSize: Float, val variation: String?)
 
-    // [ascent, descent, leading, xHeight, capHeight] per font: a page's text
-    // styles share a handful of fonts, and each sync otherwise re-reads the
-    // metrics and measures glyph bounds twice.
+    // [ascent, descent, leading, xHeight, capHeight] per font.
     private val fontMetricsCache = HashMap<FontMetricsKey, FloatArray>()
 
     private fun sharedFontMetrics(

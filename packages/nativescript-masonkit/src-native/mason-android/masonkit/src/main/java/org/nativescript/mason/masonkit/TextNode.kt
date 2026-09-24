@@ -23,8 +23,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
   override var data: String = ""
     set(value) {
-      // Same-value writes (framework re-patching unchanged v-for rows)
-      // must not wipe the container's measure caches.
       if (field == value) return
       field = value
       Perf.hit("tnData")
@@ -367,9 +365,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     private fun isCollapsible(c: Char, collapseNewlines: Boolean): Boolean =
       c == ' ' || c == '\t' || c == '\u000B' || c == '\u000C' || (collapseNewlines && c == '\n')
 
-    // Collapses each run of collapsible whitespace to a single space. This runs
-    // on every attributed-string build, so it hands back the input untouched
-    // when there is nothing to collapse rather than compiling a Regex per call.
     private fun collapseWhitespace(s: String, collapseNewlines: Boolean): String {
       var i = 0
       while (i < s.length) {
