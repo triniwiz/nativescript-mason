@@ -560,6 +560,9 @@ pub struct Node {
     pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
+    // Nothing in this subtree sizes from the height it is offered; set at the
+    // start of each layout pass (see Tree::cache_key_input).
+    pub(crate) height_free: bool,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -579,6 +582,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
+            height_free: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -598,6 +602,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
+            height_free: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }

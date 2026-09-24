@@ -1097,6 +1097,8 @@ impl Tree {
             }
         }
 
+        mark_height_free(&mut self.inner_mut(), root.into());
+
         {
             let _pass = LayoutPassGuard::enter();
             compute_root_layout(self, root, available_space);
@@ -2000,11 +2002,63 @@ impl LayoutPartialTree for Tree {
     }
 }
 
+/// Sets `Node::height_free` over the subtree: false where the node or a
+/// descendant is a wrapping column flex container (its lines break at the
+/// offered height) or a y-scroll container (clamped to the offered height).
+fn mark_height_free(tree: &mut TreeInner, root: Id) {
+    let mut order = Vec::new();
+    let mut stack = vec![root];
+    while let Some(id) = stack.pop() {
+        order.push(id);
+        if let Some(children) = tree.children.get(id) {
+            stack.extend(children.iter().copied());
+        }
+    }
+    // Reversed pre-order visits every child before its parent.
+    for &id in order.iter().rev() {
+        let Some(node) = tree.nodes.get(id) else { continue };
+        let style = node.style();
+        let scrolls_y = matches!(
+            style.get_overflow().y,
+            crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+        );
+        let wraps_column = style.get_display() == Display::Flex
+            && matches!(
+                style.get_flex_direction(),
+                taffy::FlexDirection::Column | taffy::FlexDirection::ColumnReverse
+            )
+            && style.get_flex_wrap() != taffy::FlexWrap::NoWrap;
+        let free = !scrolls_y
+            && !wraps_column
+            && tree.children.get(id).map_or(true, |children| {
+                children.iter().all(|c| tree.nodes.get(*c).map_or(true, |n| n.height_free))
+            });
+        tree.nodes[id].height_free = free;
+    }
+}
+
+/// For a `height_free` node, neither the width nor the height depends on the
+/// height it is offered: an auto block size is its content size. Key its
+/// measures without the offered height, so the height constraints a parent's
+/// flex passes offer (max-content, min-content, then the line's definite size)
+/// share one result instead of each laying the subtree out again.
+#[inline]
+fn cache_key_input(height_free: bool, inputs: &LayoutInput) -> LayoutInput {
+    let mut key = *inputs;
+    if height_free
+        && inputs.run_mode == taffy::RunMode::ComputeSize
+        && inputs.known_dimensions.height.is_none()
+    {
+        key.available_space.height = AvailableSpace::MaxContent;
+    }
+    key
+}
+
 impl CacheTree for Tree {
     #[inline]
     fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
         let node = self.node_from_id_mut(node_id);
-        node.cache.get(inputs)
+        node.cache.get(&cache_key_input(node.height_free, inputs))
     }
 
     #[inline]
@@ -2015,7 +2069,8 @@ impl CacheTree for Tree {
         layout_output: taffy::LayoutOutput,
     ) {
         let mut node = self.node_from_id_mut(node_id);
-        node.cache.store(inputs, layout_output);
+        let key = cache_key_input(node.height_free, inputs);
+        node.cache.store(&key, layout_output);
         node.set_node_state(false);
     }
 
