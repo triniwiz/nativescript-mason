@@ -15,7 +15,9 @@ import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.AlignmentSpan
 import android.text.style.CharacterStyle
+import android.text.style.LeadingMarginSpan
 import android.text.style.LineBackgroundSpan
+import android.text.style.MetricAffectingSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
@@ -50,6 +52,42 @@ internal fun ceilPx(x: Float): Float {
   return if (t < x) t + 1f else t
 }
 
+private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
+  var w = 0f
+  for (i in start until end) w += advances[i]
+  return w
+}
+
+/**
+ * Per-character advances of [text] when one paint measures all of it: every
+ * metric-affecting span covers the whole text, and there are no replacement or
+ * leading-margin spans, tabs, newlines or RTL. These are the advances
+ * StaticLayout sums for its lines, so any range width is a sum instead of
+ * another measuring pass. Null when the text needs span-by-span measuring.
+ */
+private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextPaint): FloatArray? {
+  val len = text.length
+  if (len == 0) return null
+  for (i in 0 until len) {
+    val c = text[i]
+    if (c == '\t' || c == '\n') return null
+  }
+  if (TextDirectionHeuristics.ANYRTL_LTR.isRtl(text, 0, len)) return null
+  scratch.set(paint)
+  if (text is Spanned) {
+    if (text.nextSpanTransition(0, len, MetricAffectingSpan::class.java) < len ||
+      text.getSpans(0, len, ReplacementSpan::class.java).isNotEmpty() ||
+      text.getSpans(0, len, LeadingMarginSpan::class.java).isNotEmpty()
+    ) return null
+    for (span in text.getSpans(0, len, MetricAffectingSpan::class.java)) {
+      span.updateMeasureState(scratch)
+    }
+  }
+  val advances = FloatArray(len)
+  scratch.getTextWidths(text, 0, len, advances)
+  return advances
+}
+
 private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
   for (i in 0 until text.length) {
     if (text[i].isSoftWrapOpportunity()) return true
@@ -63,7 +101,12 @@ private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
  * When [useLayout] is true, uses [Layout.getDesiredWidth] for rich text;
  * otherwise uses [Paint.measureText] for plain text.
  */
-private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolean): Float {
+private fun maxWordWidth(
+  text: CharSequence,
+  paint: TextPaint,
+  useLayout: Boolean,
+  advances: FloatArray? = null
+): Float {
   var maxW = 0f
   val len = text.length
   var start = 0
@@ -74,7 +117,8 @@ private fun maxWordWidth(text: CharSequence, paint: TextPaint, useLayout: Boolea
       if (i > start) {
         // Measure the range directly; slicing a Spannable per word copies
         // overlapping spans and turns this loop quadratic.
-        val w = if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
+        val w = if (advances != null) advanceSum(advances, start, i)
+        else if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
         else paint.measureText(text, start, i)
         if (w > maxW) maxW = w
       }
@@ -494,7 +538,8 @@ class TextEngine(val container: TextContainer) {
       justified = justified,
       heuristic = heuristic,
       layout = built,
-      trailingSpacesCount = trailingSpacesCount()
+      trailingSpacesCount = trailingSpacesCount(),
+      advances = if (justified) null else advancesFor(spannable, paint)
     )
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
@@ -676,7 +721,9 @@ class TextEngine(val container: TextContainer) {
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
       !(spec.isInline && !hasSoftWrapOpportunity(spannable))
     ) {
-      Perf.timed("mww") { maxWordWidth(spannable, paint, useLayout = spec.isInline) }
+      Perf.timed("mww") {
+        maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null)
+      }
     } else {
       entry.maxLineWidth
     }
@@ -1291,7 +1338,8 @@ class TextEngine(val container: TextContainer) {
           } else if (singleLine &&
             !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
           ) {
-            Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
+            advancesFor(attributed, paint)?.let { advanceSum(it, currentPos, end) }
+              ?: Layout.getDesiredWidth(attributed, currentPos, end, textPaint)
           } else {
             try {
               val startX = layout.getPrimaryHorizontal(currentPos)
@@ -1800,7 +1848,8 @@ class TextEngine(val container: TextContainer) {
     val justified: Boolean,
     val heuristic: TextDirectionHeuristic,
     val layout: android.text.Layout,
-    trailingSpacesCount: Boolean
+    trailingSpacesCount: Boolean,
+    advances: FloatArray?
   ) {
     // Nothing here depends on the build width: lines start at x=0 and there is no
     // LineBackgroundSpan (under/overlines paint to the layout's right edge).
@@ -1811,7 +1860,13 @@ class TextEngine(val container: TextContainer) {
       var max = 0f
       var left = true
       for (i in 0 until layout.lineCount) {
-        val w = ceilPx(if (trailingSpacesCount) layout.getLineWidth(i) else layout.getLineMax(i))
+        val w = ceilPx(
+          when {
+            trailingSpacesCount -> layout.getLineWidth(i)
+            advances != null -> advanceSum(advances, layout.getLineStart(i), layout.getLineVisibleEnd(i))
+            else -> layout.getLineMax(i)
+          }
+        )
         if (w > max) max = w
         if (layout.getLineLeft(i) != 0f) left = false
       }
@@ -1826,6 +1881,21 @@ class TextEngine(val container: TextContainer) {
   private fun trailingSpacesCount(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
     else -> false
+  }
+
+  private var advancesVersion = -1
+  private var advancesLength = -1
+  private var cachedAdvances: FloatArray? = null
+  private val advancesPaint = TextPaint()
+
+  // uniformAdvances() of the current text, once per content version.
+  private fun advancesFor(text: CharSequence, paint: TextPaint): FloatArray? {
+    if (advancesVersion != segmentsInvalidateVersion || advancesLength != text.length) {
+      cachedAdvances = uniformAdvances(text, paint, advancesPaint)
+      advancesVersion = segmentsInvalidateVersion
+      advancesLength = text.length
+    }
+    return cachedAdvances
   }
 
   private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
