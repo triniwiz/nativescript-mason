@@ -49,6 +49,13 @@ internal fun ceilPx(x: Float): Float {
   return if (t < x) t + 1f else t
 }
 
+private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
+  for (i in 0 until text.length) {
+    if (text[i].isSoftWrapOpportunity()) return true
+  }
+  return false
+}
+
 /**
  * Compute the widest segment between soft wrap opportunities in [text] without
  * allocating a split array.
@@ -662,7 +669,11 @@ class TextEngine(val container: TextContainer) {
     val layout = entry.layout
 
     // The widest line, not the constraint: Taffy adds padding on top of this.
-    val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f) {
+    // Min-content is the widest word; inline text with no break opportunity is
+    // one word, already measured as the layout's line.
+    val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
+      !(spec.isInline && !hasSoftWrapOpportunity(spannable))
+    ) {
       Perf.timed("mww") { maxWordWidth(spannable, paint, useLayout = spec.isInline) }
     } else {
       entry.maxLineWidth
