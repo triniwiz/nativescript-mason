@@ -175,6 +175,20 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     return spannable
   }
 
+  // attributed(true) straight into [target]: appending a built span copies
+  // every span a second time.
+  internal fun appendAttributedTo(target: SpannableStringBuilder) {
+    val processed = this.container?.let {
+      processText(data, it.style)
+    } ?: data
+    val start = target.length
+    target.append(processed)
+    val previousBG = attributes.backgroundColor
+    attributes.backgroundColor = null
+    applyAttributes(target, start, target.length, attributes)
+    attributes.backgroundColor = previousBG
+  }
+
   companion object {
     internal fun applyAttributes(
       spannable: SpannableStringBuilder,

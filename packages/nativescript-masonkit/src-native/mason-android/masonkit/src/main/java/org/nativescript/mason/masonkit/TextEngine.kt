@@ -2167,7 +2167,7 @@ class TextEngine(val container: TextContainer) {
           }
 
           child is TextNode -> {
-            composed.append(child.attributed(true))
+            child.appendAttributedTo(composed)
           }
 
           child.view is TextContainer -> {
