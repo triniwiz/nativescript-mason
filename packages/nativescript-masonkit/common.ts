@@ -302,6 +302,15 @@ function colorToCssString(value: unknown): string {
   return String(value);
 }
 
+function backgroundImageToCssString(value: unknown): string {
+  const gradient = value as { angle?: number; colorStops?: { color: unknown; offset?: { value: number } }[] };
+  if (value && typeof value === 'object' && typeof gradient.angle === 'number' && Array.isArray(gradient.colorStops)) {
+    const stops = gradient.colorStops.map((stop) => (stop.offset ? `${colorToCssString(stop.color)} ${stop.offset.value * 100}%` : colorToCssString(stop.color)));
+    return `linear-gradient(${gradient.angle}rad, ${stops.join(', ')})`;
+  }
+  return String(value);
+}
+
 const TEARDOWN_SLICE_MS = 8;
 // Reading the clock costs more than a teardown on some devices.
 const TEARDOWNS_PER_CLOCK_READ = 16;
@@ -1663,7 +1672,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.backgroundImage = String(value);
+      style.backgroundImage = backgroundImageToCssString(value);
     }
   }
 
