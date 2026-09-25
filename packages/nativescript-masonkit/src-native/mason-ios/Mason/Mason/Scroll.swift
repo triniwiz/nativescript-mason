@@ -48,24 +48,20 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     }
 
     style.mBorderRender.resolve(for: bounds)
-    let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()
 
     // Outset shadows are handled by MasonShadowLayer
 
-    // Block 1: Background with border-radius clip
+    // Block 1: Background across the full border box (border drawn on top), like
+    // MasonUIView, so background-clip/origin insets resolve from the real box.
     if hasBackground {
-      let innerRect = bounds.inset(by: UIEdgeInsets(
-        top: borderWidths.top,
-        left: borderWidths.left,
-        bottom: borderWidths.bottom,
-        right: borderWidths.right
-      ))
+      // Expand by a fractional device pixel to avoid 1px hairline gaps
+      let expand: CGFloat = 1.0 / CGFloat(NSCMason.scale)
+      let innerRect = bounds.insetBy(dx: -expand, dy: -expand)
 
       context.saveGState()
       if hasRadii {
-        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: style.mBorderRender.radius)
         context.addPath(innerPath.cgPath)
         context.clip()
       }
@@ -201,6 +197,10 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     }
 
     lastContentOffset = targetOffset
+
+    // local/fixed layers are positioned against the content or the window, so they repaint on scroll.
+    if style.mBackground.needsRedrawOnScroll { setNeedsDisplay() }
+    Background.invalidateFixedDescendants(self)
 
     MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
   }

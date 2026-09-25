@@ -44,7 +44,8 @@
     "@angular/core": ">=19.0.0",
     "@nativescript-community/react": ">=19.0.0",
     "@nativescript/angular": ">=19.0.0",
-    "nativescript-vue": "^3.0.0"
+    "nativescript-vue": "^3.0.0",
+    "svelte-native": ">=1.0.0"
   },
   "peerDependenciesMeta": {
     "@angular/core": {
@@ -57,6 +58,9 @@
       "optional": true
     },
     "nativescript-vue": {
+      "optional": true
+    },
+    "svelte-native": {
       "optional": true
     }
   }

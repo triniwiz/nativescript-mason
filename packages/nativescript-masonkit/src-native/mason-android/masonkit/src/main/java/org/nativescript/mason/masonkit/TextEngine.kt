@@ -2125,78 +2125,14 @@ class TextEngine(val container: TextContainer) {
 
     // Apply text decoration
     if (decorationLine != Styles.DecorationLine.None) {
-      when (decorationLine) {
-        Styles.DecorationLine.Underline -> {
-          val scale = container.node.mason.scale
-          val thicknessPx = container.style.resolvedDecorationThickness * scale
-          spannable.setSpan(
-            Spans.UnderlineSpan(
-              container.style.resolvedDecorationColor,
-              thicknessPx
-            ), start, end, flags
-          )
-        }
-
-        Styles.DecorationLine.LineThrough -> {
-          spannable.setSpan(StrikethroughSpan(), start, end, flags)
-        }
-
-        Styles.DecorationLine.Overline -> {
-          val scale = container.node.mason.scale
-          val thicknessPx = container.style.resolvedDecorationThickness * scale
-          spannable.setSpan(
-            Spans.OverlineSpan(
-              container.style.resolvedDecorationColor,
-              thicknessPx
-            ), start, end, flags
-          )
-        }
-
-        Styles.DecorationLine.UnderlineLineThrough -> {
-          val scale = container.node.mason.scale
-          val thicknessPx = container.style.resolvedDecorationThickness * scale
-          spannable.setSpan(
-            Spans.UnderlineSpan(
-              container.style.resolvedDecorationColor,
-              thicknessPx
-            ), start, end, flags
-          )
-          spannable.setSpan(StrikethroughSpan(), start, end, flags)
-        }
-
-        Styles.DecorationLine.UnderlineOverline -> {
-          spannable.setSpan(
-            Spans.UnderlineSpan(
-              container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
-            ), start, end, flags
-          )
-          spannable.setSpan(
-            Spans.OverlineSpan(
-              container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
-            ), start, end, flags
-          )
-        }
-
-        Styles.DecorationLine.OverlineUnderlineLineThrough -> {
-          spannable.setSpan(
-            Spans.OverlineSpan(
-              container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
-            ), start, end, flags
-          )
-          spannable.setSpan(
-            Spans.UnderlineSpan(
-              container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
-            ), start, end, flags
-          )
-          spannable.setSpan(StrikethroughSpan(), start, end, flags)
-        }
-
-        else -> {}
-      }
+      spannable.setSpan(
+        Spans.DecorationSpan(
+          decorationLine,
+          container.style.resolvedDecorationColor,
+          container.style.resolvedDecorationStyle,
+          container.style.resolvedDecorationThickness
+        ), start, end, flags
+      )
     }
 
     val letterSpacingValue = container.style.resolvedLetterSpacing
@@ -2524,6 +2460,7 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.DECORATION_LINE) ||
           StateKeys.hasFlag(low, high, StateKeys.DECORATION_COLOR) ||
           StateKeys.hasFlag(low, high, StateKeys.DECORATION_STYLE) ||
+          StateKeys.hasFlag(low, high, StateKeys.DECORATION_THICKNESS) ||
           StateKeys.hasFlag(low, high, StateKeys.BACKGROUND_COLOR) ||
           StateKeys.hasFlag(low, high, StateKeys.TEXT_SHADOWS)
         )

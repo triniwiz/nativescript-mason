@@ -36,29 +36,70 @@ class Styles {
     }
   }
 
+  /**
+   * `text-decoration-line`, stored as a bit set: 1 underline, 2 overline,
+   * 4 line-through. `spelling-error` (8) and `grammar-error` (16) stand alone.
+   * iOS and TS share this encoding.
+   */
   enum class DecorationLine(val value: Byte) {
     None(0),
     Underline(1),
     Overline(2),
-    LineThrough(3),
-    UnderlineLineThrough(4),
-    UnderlineOverline(5),
-    OverlineUnderlineLineThrough(6);
+    UnderlineOverline(3),
+    LineThrough(4),
+    UnderlineLineThrough(5),
+    OverlineLineThrough(6),
+    UnderlineOverlineLineThrough(7),
+    SpellingError(8),
+    GrammarError(16);
+
+    val hasUnderline: Boolean get() = (value.toInt() and UNDERLINE) != 0
+    val hasOverline: Boolean get() = (value.toInt() and OVERLINE) != 0
+    val hasLineThrough: Boolean get() = (value.toInt() and LINE_THROUGH) != 0
+    val isSpellingError: Boolean get() = this == SpellingError
+    val isGrammarError: Boolean get() = this == GrammarError
+
+    val cssValue: String
+      get() = when (this) {
+        None -> "none"
+        SpellingError -> "spelling-error"
+        GrammarError -> "grammar-error"
+        else -> buildList {
+          if (hasUnderline) add("underline")
+          if (hasOverline) add("overline")
+          if (hasLineThrough) add("line-through")
+        }.joinToString(" ")
+      }
 
     companion object {
+      const val UNDERLINE = 1
+      const val OVERLINE = 2
+      const val LINE_THROUGH = 4
+
       fun from(value: Int): DecorationLine = from(value.toByte())
 
       fun from(value: Byte): DecorationLine {
-        return when (value) {
-          0.toByte() -> None
-          1.toByte() -> Underline
-          2.toByte() -> Overline
-          3.toByte() -> LineThrough
-          4.toByte() -> UnderlineLineThrough
-          5.toByte() -> UnderlineOverline
-          6.toByte() -> OverlineUnderlineLineThrough
-          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        return entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unknown enum value: $value")
+      }
+
+      /** Parse the `text-decoration-line` keywords; null when nothing valid was found. */
+      fun parse(css: String): DecorationLine? {
+        var mask = 0
+        var seen = false
+        for (token in css.trim().lowercase().split(Regex("\\s+"))) {
+          when (token) {
+            "" -> {}
+            "none" -> { seen = true }
+            "underline" -> { mask = mask or UNDERLINE; seen = true }
+            "overline" -> { mask = mask or OVERLINE; seen = true }
+            "line-through" -> { mask = mask or LINE_THROUGH; seen = true }
+            "spelling-error" -> return SpellingError
+            "grammar-error" -> return GrammarError
+            else -> return null
+          }
         }
+        return if (seen) from(mask) else null
       }
     }
   }
@@ -70,7 +111,25 @@ class Styles {
     Dashed(3),
     Wavy(4);
 
+    val cssValue: String
+      get() = when (this) {
+        Solid -> "solid"
+        Double -> "double"
+        Dotted -> "dotted"
+        Dashed -> "dashed"
+        Wavy -> "wavy"
+      }
+
     companion object {
+      fun parse(css: String): DecorationStyle? = when (css.trim().lowercase()) {
+        "solid" -> Solid
+        "double" -> Double
+        "dotted" -> Dotted
+        "dashed" -> Dashed
+        "wavy" -> Wavy
+        else -> null
+      }
+
       fun from(value: Int): DecorationStyle = from(value.toByte())
 
       fun from(value: Byte): DecorationStyle {

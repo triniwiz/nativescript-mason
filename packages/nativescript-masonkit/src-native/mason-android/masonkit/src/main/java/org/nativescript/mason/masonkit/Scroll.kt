@@ -92,6 +92,7 @@ class Scroll @JvmOverloads constructor(
     setScrollChangeListner(object : TwoDScrollView.ScrollChangeListener {
       override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
         MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
+        Background.invalidateFixedDescendants(this@Scroll)
       }
     })
   }

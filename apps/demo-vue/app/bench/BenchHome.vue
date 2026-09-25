@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false">
     <ActionBar title="Layout benchmark">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="closeBench" />
+      <NavigationButton text="Back" @tap="closeBench" />
     </ActionBar>
     <Scroll class="page">
       <main class="page-body bench">
@@ -62,7 +62,7 @@
 
 <script lang="ts" setup>
 import { $navigateBack, $navigateTo, onMounted, ref, type Component } from 'nativescript-vue';
-import { Frame } from '@nativescript/core';
+import { File, Frame, knownFolders, path } from '@nativescript/core';
 import { beginNavigation, flushBenchUi, fmt, idle, median, phaseOrder, resetResults, results, running, setBenchStatus, status, type Flavour, type PhaseSample, type ScenarioKey } from './harness';
 import FeedMason from './FeedMason.vue';
 import FeedCore from './FeedCore.vue';
@@ -70,6 +70,8 @@ import DashboardMason from './DashboardMason.vue';
 import DashboardCore from './DashboardCore.vue';
 import NestedMason from './NestedMason.vue';
 import NestedCore from './NestedCore.vue';
+import RichMason from './RichMason.vue';
+import RichCore from './RichCore.vue';
 
 const props = withDefaults(defineProps<{ autoStart?: boolean }>(), { autoStart: false });
 
@@ -85,6 +87,7 @@ const scenarios: Scenario[] = [
   { key: 'feed', title: 'Feed', desc: '100 keyed rows: avatar, two text lines, badge. Append, prepend, shuffle, retitle, clear, refill.', mason: FeedMason, core: FeedCore },
   { key: 'dashboard', title: 'Dashboard', desc: '24 stat tiles in a 3-column grid, each with a 5-bar chart. Value ticks, rotation, column count change.', mason: DashboardMason, core: DashboardCore },
   { key: 'nested', title: 'Nested', desc: 'Binary tree 6 levels deep (63 boxes) alternating row / column, wrapped text at every level. Retext, hide row text, resize root.', mason: NestedMason, core: NestedCore },
+  { key: 'rich', title: 'Rich text', desc: '30 cards, each a paragraph of 12 mixed bold/italic/colored spans plus a 4-span meta line (~500 spans total). Retext, restyle, reflow on resize.', mason: RichMason, core: RichCore },
 ];
 
 const iterations = ref(5);
@@ -184,6 +187,15 @@ function makeRow(phase: string, m: number, c: number): Row {
 
 function dump(): void {
   const out: Record<string, Record<string, Record<string, unknown>>> = {};
+  const written = (text: string) => {
+    try {
+      const file = File.fromPath(path.join(knownFolders.documents().path, 'bench.json'));
+      file.writeTextSync(text);
+      console.log(`bench.json written to ${file.path}`);
+    } catch (e) {
+      console.log(`bench.json write failed: ${e}`);
+    }
+  };
   for (const s of scenarios) {
     out[s.key] = {};
     for (const phase of phaseOrder.value[s.key]) {
@@ -212,6 +224,7 @@ function dump(): void {
   for (const [key, phases] of Object.entries(out)) {
     console.log('BENCH_RESULT ' + JSON.stringify({ [key]: phases }));
   }
+  written(JSON.stringify(out));
 }
 </script>
 

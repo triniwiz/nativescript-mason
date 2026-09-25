@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDirs": [".", "../.."],
+    "baseUrl": ".",
+    "types": ["svelte"],
+    "paths": {
+      "~/*": ["app/*"],
+      "@triniwiz/nativescript-masonkit": ["../../dist/packages/nativescript-masonkit"],
+      "@triniwiz/nativescript-masonkit/web": ["../../dist/packages/nativescript-masonkit/web"],
+      "@triniwiz/nativescript-masonkit/elements": ["../../dist/packages/nativescript-masonkit/elements"],
+      "@triniwiz/nativescript-masonkit/svelte": ["../../dist/packages/nativescript-masonkit/svelte"]
+    }
+  },
+  "include": ["app/**/*.ts", "references.d.ts"]
+}

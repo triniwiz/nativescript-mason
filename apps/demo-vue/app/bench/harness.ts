@@ -3,10 +3,30 @@ import { ref } from 'nativescript-vue';
 const hiResNow: (() => number) | undefined = (globalThis as any).__time;
 const now = (): number => (hiResNow ? hiResNow() : Date.now());
 
-const cpuNow = (): number => (__ANDROID__ ? android.os.Debug.threadCpuTimeNanos() / 1e6 : NaN);
+const cpuNow = (): number => {
+  if (__ANDROID__) return android.os.Debug.threadCpuTimeNanos() / 1e6;
+  if (__APPLE__) return iosThreadCpuMs();
+  return NaN;
+};
+
+// Main-thread CPU time on iOS via clock_gettime(CLOCK_THREAD_CPUTIME_ID).
+let iosClockBroken = false;
+function iosThreadCpuMs(): number {
+  if (iosClockBroken) return NaN;
+  try {
+    const g = globalThis as any;
+    const ts = new interop.Reference(g.timespec, { tv_sec: 0, tv_nsec: 0 });
+    g.clock_gettime(g.CLOCK_THREAD_CPUTIME_ID, ts);
+    const v = ts.value as any;
+    return Number(v.tv_sec) * 1e3 + Number(v.tv_nsec) / 1e6;
+  } catch {
+    iosClockBroken = true;
+    return NaN;
+  }
+}
 
 export type Flavour = 'mason' | 'core';
-export type ScenarioKey = 'feed' | 'dashboard' | 'nested';
+export type ScenarioKey = 'feed' | 'dashboard' | 'nested' | 'rich';
 
 export interface PhaseSample {
   ms: number;
@@ -23,17 +43,18 @@ const emptyResults = (): Results => ({
   feed: { mason: {}, core: {} },
   dashboard: { mason: {}, core: {} },
   nested: { mason: {}, core: {} },
+  rich: { mason: {}, core: {} },
 });
 
 export const results = ref<Results>(emptyResults());
 export const running = ref(false);
 export const status = ref('');
 
-export const phaseOrder = ref<Record<ScenarioKey, string[]>>({ feed: [], dashboard: [], nested: [] });
+export const phaseOrder = ref<Record<ScenarioKey, string[]>>({ feed: [], dashboard: [], nested: [], rich: [] });
 
 export function resetResults(): void {
   results.value = emptyResults();
-  phaseOrder.value = { feed: [], dashboard: [], nested: [] };
+  phaseOrder.value = { feed: [], dashboard: [], nested: [], rich: [] };
   resetBenchRunState();
 }
 
@@ -121,7 +142,7 @@ export async function idle(ms = 150): Promise<void> {
 }
 
 const stash: Results = emptyResults();
-const stashPhaseOrder: Record<ScenarioKey, string[]> = { feed: [], dashboard: [], nested: [] };
+const stashPhaseOrder: Record<ScenarioKey, string[]> = { feed: [], dashboard: [], nested: [], rich: [] };
 let stashStatus = '';
 
 function record(scenario: ScenarioKey, flavour: Flavour, phase: string, sample: PhaseSample): void {
@@ -149,6 +170,7 @@ function resetBenchRunState(): void {
   stashPhaseOrder.feed = [];
   stashPhaseOrder.dashboard = [];
   stashPhaseOrder.nested = [];
+  stashPhaseOrder.rich = [];
   stashStatus = '';
 }
 

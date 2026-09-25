@@ -2022,54 +2022,93 @@ public class GridTrackRepetition: NSObject {
 
 
 
+/// `text-decoration-line` as a bit set shared with TS and Kotlin: 1 underline,
+/// 2 overline, 4 line-through. `spelling-error` (8) and `grammar-error` (16) stand alone.
 @objc(MasonDecorationLine)
 public enum DecorationLine: Int, RawRepresentable {
   case None
   case Underline
   case Overline
+  case UnderlineOverline
   case LineThrough
-  
+  case UnderlineLineThrough
+  case OverlineLineThrough
+  case UnderlineOverlineLineThrough
+  case SpellingError
+  case GrammarError
+
   public typealias RawValue = Int8
-  
+
+  static let underlineBit: Int8 = 1
+  static let overlineBit: Int8 = 2
+  static let lineThroughBit: Int8 = 4
+
   public var rawValue: RawValue {
     switch self {
-    case .None:
-      return 0
-    case .Underline:
-      return 1
-    case .Overline:
-      return 2
-    case .LineThrough:
-      return 3
+    case .None: return 0
+    case .Underline: return 1
+    case .Overline: return 2
+    case .UnderlineOverline: return 3
+    case .LineThrough: return 4
+    case .UnderlineLineThrough: return 5
+    case .OverlineLineThrough: return 6
+    case .UnderlineOverlineLineThrough: return 7
+    case .SpellingError: return 8
+    case .GrammarError: return 16
     }
   }
-  
-  
+
   public init?(rawValue: RawValue) {
     switch rawValue {
-    case 0:
-      self = .None
-    case 1:
-      self = .Underline
-    case 2:
-      self = .Overline
-    case 3:
-      self = .LineThrough
-    default:
-      return nil
+    case 0: self = .None
+    case 1: self = .Underline
+    case 2: self = .Overline
+    case 3: self = .UnderlineOverline
+    case 4: self = .LineThrough
+    case 5: self = .UnderlineLineThrough
+    case 6: self = .OverlineLineThrough
+    case 7: self = .UnderlineOverlineLineThrough
+    case 8: self = .SpellingError
+    case 16: self = .GrammarError
+    default: return nil
     }
   }
-  
+
+  var hasUnderline: Bool { rawValue < 8 && rawValue & DecorationLine.underlineBit != 0 }
+  var hasOverline: Bool { rawValue < 8 && rawValue & DecorationLine.overlineBit != 0 }
+  var hasLineThrough: Bool { rawValue < 8 && rawValue & DecorationLine.lineThroughBit != 0 }
+  var isSpellingError: Bool { self == .SpellingError }
+  var isGrammarError: Bool { self == .GrammarError }
+
+  /// Keywords in any order; nil when a token is not a line keyword.
+  static func parse(_ css: String) -> DecorationLine? {
+    var mask: Int8 = 0
+    var seen = false
+    for token in css.lowercased().split(whereSeparator: { $0.isWhitespace }) {
+      switch token {
+      case "none": seen = true
+      case "underline": mask |= underlineBit; seen = true
+      case "overline": mask |= overlineBit; seen = true
+      case "line-through": mask |= lineThroughBit; seen = true
+      case "spelling-error": return .SpellingError
+      case "grammar-error": return .GrammarError
+      default: return nil
+      }
+    }
+    return seen ? DecorationLine(rawValue: mask) : nil
+  }
+
   var cssValue: String {
     switch self {
-    case .None:
-      return "none"
-    case .Underline:
-      return "underline"
-    case .Overline:
-      return "overline"
-    case .LineThrough:
-      return "line-through"
+    case .None: return "none"
+    case .SpellingError: return "spelling-error"
+    case .GrammarError: return "grammar-error"
+    default:
+      var parts: [String] = []
+      if hasUnderline { parts.append("underline") }
+      if hasOverline { parts.append("overline") }
+      if hasLineThrough { parts.append("line-through") }
+      return parts.joined(separator: " ")
     }
   }
 }
@@ -2581,6 +2620,17 @@ public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
     }
   }
   
+  static func parse(_ css: String) -> DecorationStyle? {
+    switch css.trimmingCharacters(in: .whitespaces).lowercased() {
+    case "solid": return .Solid
+    case "double": return .Double
+    case "dotted": return .Dotted
+    case "dashed": return .Dashed
+    case "wavy": return .Wavy
+    default: return nil
+    }
+  }
+
   var cssValue: String {
     switch self {
     case .Solid:

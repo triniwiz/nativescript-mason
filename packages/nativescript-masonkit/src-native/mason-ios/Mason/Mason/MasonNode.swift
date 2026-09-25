@@ -630,10 +630,6 @@ public class MasonNode: NSObject {
   private func _buildDefaultAttributes() -> [NSAttributedString.Key: Any] {
     var attrs: [NSAttributedString.Key: Any] = [:]
     
-    if(style.font.font == nil){
-      style.font.loadSync(nil)
-    }
-    
     let paragraphStyle = NSMutableParagraphStyle()
     var fontNaturalLineHeight: CGFloat = 0
 
@@ -669,10 +665,15 @@ public class MasonNode: NSObject {
       break
     }
     
-    let fontFace = style.resolvedFontFace
-    
-    if(fontFace.font == nil){
-      fontFace.loadSync(nil)
+    // Only the family and PostScript name are read from the face: ctFont applies
+    // the resolved size, weight and style itself.
+    var fontFace = style.resolvedFontFace
+    if fontFace.font == nil {
+      if let shared = MasonStyle.loadedGenericFace(like: fontFace) {
+        fontFace = shared
+      } else {
+        fontFace.loadSync(nil)
+      }
     }
     
     if let font = fontFace.font {
@@ -719,19 +720,25 @@ public class MasonNode: NSObject {
     }
     
     
-    switch(style.resolvedDecorationLine){
-    case .None: break
-      // noop
-    case .Underline:
-      attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-      attrs[.underlineColor] = getDecorationColor()
-    case .Overline:
-      // todo
-      break
-    case .LineThrough:
-      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-      attrs[.strikethroughColor] = getDecorationColor()
-      
+    let decorationLine = style.resolvedDecorationLine
+    if decorationLine != .None {
+      let decorationColor = getDecorationColor()
+      // UIKit consumers (inputs) render these natively; TextEngine draws DECORATION_KEY.
+      if decorationLine.hasUnderline {
+        attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        attrs[.underlineColor] = decorationColor
+      }
+      if decorationLine.hasLineThrough {
+        attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+        attrs[.strikethroughColor] = decorationColor
+      }
+      let rawColor = style.resolvedDecorationColor
+      attrs[Constants.DECORATION_KEY] = MasonTextDecoration(
+        line: decorationLine,
+        style: style.resolvedDecorationStyle,
+        color: rawColor == Constants.UNSET_COLOR ? nil : decorationColor,
+        thickness: CGFloat(style.resolvedDecorationThickness) / CGFloat(NSCMason.scale)
+      )
     }
     
     
@@ -1261,6 +1268,18 @@ extension MasonNode {
     
     // Inserting a TextNode
     if let textChild = child as? MasonTextNode {
+      // A text container hosts its runs directly, as appendChild does. An
+      // anonymous wrapper here would be a separate inline box, and its
+      // trailing space would collapse as block-end whitespace ("a <b>" lost it).
+      if let tv = view as? TextContainer {
+        let pos = children.firstIndex(of: reference) ?? max(0, min(index, children.count))
+        children.insert(textChild, at: pos)
+        textChild.attributes = getDefaultAttributes()
+        textChild.container = tv
+        tv.engine.invalidateInlineSegments()
+        NodeUtils.invalidateLayout(self)
+        return
+      }
       if let referenceText = reference as? MasonTextNode {
         // `containerNode` is `self` when self itself is the TextContainer
         // (e.g. a <p> hosting its text runs directly), not just when it's an

@@ -96,6 +96,7 @@ class Button @JvmOverloads constructor(
     engine.applyTextIfNeeded()
     ViewUtils.onDraw(this, canvas, style) {
       super.onDraw(it)
+      TextDecorations.drawPlatform(it, this)
     }
 
     // Default :active brightness fallback — only when the user hasn't set

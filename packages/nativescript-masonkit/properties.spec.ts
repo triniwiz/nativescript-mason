@@ -160,7 +160,68 @@ describe('every CSS name mason claims is actually registered', () => {
   }
 
   // A sample of the surface that "paste web CSS" depends on most.
-  const EXPECTED = ['display', 'position', 'overflow', 'box-sizing', 'aspect-ratio', 'flex-direction', 'flex-wrap', 'flex-basis', 'align-items', 'align-self', 'align-content', 'justify-content', 'justify-items', 'justify-self', 'gap', 'row-gap', 'column-gap', 'grid-template-columns', 'grid-template-rows', 'grid-template-areas', 'grid-area', 'grid-column', 'grid-row', 'inset', 'top', 'right', 'bottom', 'left', 'max-width', 'max-height', 'padding', 'margin', 'border', 'border-radius', 'box-shadow', 'transform', 'filter', 'list-style-type', 'font-family', 'white-space', 'object-fit', 'text-justify', 'text-decoration-thickness', 'background-position', 'background-size', 'background-repeat', 'backdrop-filter', 'word-spacing', 'hyphens', 'caret-color'];
+  const EXPECTED = [
+    'display',
+    'position',
+    'overflow',
+    'box-sizing',
+    'aspect-ratio',
+    'flex-direction',
+    'flex-wrap',
+    'flex-basis',
+    'align-items',
+    'align-self',
+    'align-content',
+    'justify-content',
+    'justify-items',
+    'justify-self',
+    'gap',
+    'row-gap',
+    'column-gap',
+    'grid-template-columns',
+    'grid-template-rows',
+    'grid-template-areas',
+    'grid-area',
+    'grid-column',
+    'grid-row',
+    'inset',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'max-width',
+    'max-height',
+    'padding',
+    'margin',
+    'border',
+    'border-radius',
+    'box-shadow',
+    'transform',
+    'filter',
+    'list-style-type',
+    'font-family',
+    'white-space',
+    'object-fit',
+    'text-justify',
+    'text-decoration-thickness',
+    'background-position',
+    'background-size',
+    'background-repeat',
+    'backdrop-filter',
+    'word-spacing',
+    'hyphens',
+    'caret-color',
+    'background-clip',
+    'background-origin',
+    'background-attachment',
+    'background-blend-mode',
+    'background-position-x',
+    'background-position-y',
+    'text-decoration',
+    'text-decoration-line',
+    'text-decoration-style',
+    'text-decoration-color',
+  ];
 
   it.each(EXPECTED)('%s', (cssName) => {
     expect(registered.has(cssName), `no CssProperty registered for "${cssName}"`).toBe(true);
@@ -216,6 +277,22 @@ describe('plain NativeScript views keep core semantics', () => {
     const { style } = coreHost();
     (style as any)['font-size'] = '20px';
     expect(typeof (style as any).fontSize).toBe('number');
+  });
+
+  it('text-decoration keeps core validation on a non-mason view', () => {
+    const { style } = coreHost();
+    (style as any)['text-decoration'] = 'underline line-through';
+    expect((style as any).textDecoration).toBe('underline line-through');
+    expect(() => {
+      (style as any)['text-decoration'] = 'overline wavy red';
+    }).toThrow();
+  });
+
+  it('text-decoration reaches a mason view as the raw shorthand', () => {
+    const { style } = masonHost();
+    (style as any)['text-decoration'] = 'underline overline dotted #f00 2px';
+    // Core used to reject everything past underline/line-through here.
+    expect((style as any).textDecoration).toBe('underline overline dotted #f00 2px');
   });
 
   it('font-size on a mason view is left for mason to parse', () => {

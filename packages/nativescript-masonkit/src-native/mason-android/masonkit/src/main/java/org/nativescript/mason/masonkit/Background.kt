@@ -2,6 +2,12 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BlendMode
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.os.Build
+import androidx.annotation.RequiresApi
+import kotlin.math.ceil
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -29,7 +35,6 @@ private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 private val bitmapDstRect = RectF()
 
 private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
-private val IMAGE_REPLACE_REGEX = Regex("""url\(['"].*?['"]\)""")
 private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
 private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
 private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
@@ -37,7 +42,6 @@ private val WHITESPACE_REGEX = Regex("""\s+""")
 private val COMMA_WHITESPACE_REGEX = Regex("""[\s,]+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
 private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
-private val CLIP_REGEX = Regex("""^(content-box|border-box|padding-box)\s+""")
 private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})")
 private val RGBA_REGEX =
   Regex(
@@ -61,15 +65,114 @@ internal val PSEUDO_CSS_ORDER = arrayOf(
   PseudoState.HOVER, PseudoState.FOCUS, PseudoState.ACTIVE, PseudoState.DISABLED
 )
 
-enum class BackgroundClip {
-  BORDER_BOX, PADDING_BOX, CONTENT_BOX
+enum class BackgroundClip(val css: String) {
+  BORDER_BOX("border-box"), PADDING_BOX("padding-box"), CONTENT_BOX("content-box");
+
+  companion object {
+    fun parse(value: String): BackgroundClip? = entries.firstOrNull { it.css == value.trim().lowercase() }
+  }
+}
+
+/** `background-origin` uses the same box keywords as `background-clip`. */
+typealias BackgroundOrigin = BackgroundClip
+
+enum class BackgroundAttachment(val css: String) {
+  SCROLL("scroll"), FIXED("fixed"), LOCAL("local");
+
+  companion object {
+    fun parse(value: String): BackgroundAttachment? = entries.firstOrNull { it.css == value.trim().lowercase() }
+  }
+}
+
+enum class BackgroundBlendMode(val css: String) {
+  NORMAL("normal"), MULTIPLY("multiply"), SCREEN("screen"), OVERLAY("overlay"), DARKEN("darken"),
+  LIGHTEN("lighten"), COLOR_DODGE("color-dodge"), COLOR_BURN("color-burn"), HARD_LIGHT("hard-light"),
+  SOFT_LIGHT("soft-light"), DIFFERENCE("difference"), EXCLUSION("exclusion"), HUE("hue"),
+  SATURATION("saturation"), COLOR("color"), LUMINOSITY("luminosity");
+
+  companion object {
+    fun parse(value: String): BackgroundBlendMode? = entries.firstOrNull { it.css == value.trim().lowercase() }
+  }
+
+  @RequiresApi(Build.VERSION_CODES.Q)
+  fun toBlendMode(): BlendMode? = when (this) {
+    NORMAL -> null
+    MULTIPLY -> BlendMode.MULTIPLY
+    SCREEN -> BlendMode.SCREEN
+    OVERLAY -> BlendMode.OVERLAY
+    DARKEN -> BlendMode.DARKEN
+    LIGHTEN -> BlendMode.LIGHTEN
+    COLOR_DODGE -> BlendMode.COLOR_DODGE
+    COLOR_BURN -> BlendMode.COLOR_BURN
+    HARD_LIGHT -> BlendMode.HARD_LIGHT
+    SOFT_LIGHT -> BlendMode.SOFT_LIGHT
+    DIFFERENCE -> BlendMode.DIFFERENCE
+    EXCLUSION -> BlendMode.EXCLUSION
+    HUE -> BlendMode.HUE
+    SATURATION -> BlendMode.SATURATION
+    COLOR -> BlendMode.COLOR
+    LUMINOSITY -> BlendMode.LUMINOSITY
+  }
+
+  /** Pre-Q fallback: the modes PorterDuff matches exactly; the rest draw normally. */
+  fun toPorterDuff(): PorterDuff.Mode? = when (this) {
+    SCREEN -> PorterDuff.Mode.SCREEN
+    OVERLAY -> PorterDuff.Mode.OVERLAY
+    DARKEN -> PorterDuff.Mode.DARKEN
+    LIGHTEN -> PorterDuff.Mode.LIGHTEN
+    else -> null
+  }
+
+  fun apply(paint: Paint) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      paint.blendMode = toBlendMode()
+    } else {
+      paint.xfermode = toPorterDuff()?.let { PorterDuffXfermode(it) }
+    }
+  }
+
+  fun clear(paint: Paint) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      paint.blendMode = null
+    } else {
+      paint.xfermode = null
+    }
+  }
+}
+
+/**
+ * One axis of `background-position`: a fraction of the free space plus a
+ * device-pixel offset, so `right 10px` is (1, -10 * scale).
+ */
+data class BackgroundOffset(var fraction: Float = 0f, var px: Float = 0f) {
+  fun resolve(area: Float, drawSize: Float): Float = fraction * (area - drawSize) + px
+
+  fun cssValue(horizontal: Boolean): String = when {
+    px == 0f -> "${(fraction * 100f).toInt()}%"
+    fraction == 0f -> "${(px / Mason.shared.scale).toInt()}px"
+    fraction == 1f -> "${if (horizontal) "right" else "bottom"} ${(-px / Mason.shared.scale).toInt()}px"
+    else -> "calc(${(fraction * 100f).toInt()}% + ${(px / Mason.shared.scale).toInt()}px)"
+  }
+}
+
+data class BackgroundPosition(
+  var x: BackgroundOffset = BackgroundOffset(),
+  var y: BackgroundOffset = BackgroundOffset()
+) {
+  val cssValue: String get() = "${x.cssValue(true)} ${y.cssValue(false)}"
+}
+
+/** `background-size` for one axis: `auto`, a fraction of the area, or device px. */
+data class BackgroundSize(var width: BackgroundOffset? = null, var height: BackgroundOffset? = null, var keyword: String? = null) {
+  val cssValue: String
+    get() = keyword ?: "${width?.cssValue(true) ?: "auto"} ${height?.cssValue(false) ?: "auto"}"
 }
 
 data class BackgroundLayer(
   var image: String? = null,             // URL or asset path
   var repeat: BackgroundRepeat = BackgroundRepeat.REPEAT,
-  var position: Pair<Float, Float>? = null,  // 0..1 fraction
-  var size: Pair<Float, Float>? = null,        // 0..1 fraction or special (cover/contain)
+  var position: BackgroundPosition? = null,
+  var size: BackgroundSize? = null,
   var gradient: Gradient? = null,
   var shader: Shader? = null,
   // remember the dimensions used to create `shader`; if the view resizes we
@@ -79,8 +182,21 @@ data class BackgroundLayer(
   var shaderWidth: Int = -1,
   var shaderHeight: Int = -1,
   var bitmap: Bitmap? = null,                  // cached image
-  var clip: BackgroundClip = BackgroundClip.BORDER_BOX
-)
+  var clip: BackgroundClip = BackgroundClip.BORDER_BOX,
+  var origin: BackgroundOrigin = BackgroundOrigin.PADDING_BOX,
+  var attachment: BackgroundAttachment = BackgroundAttachment.SCROLL,
+  var blendMode: BackgroundBlendMode = BackgroundBlendMode.NORMAL,
+  /** Raster images are 1 image px = 1 CSS px; SVGs are rasterized at device scale already. */
+  var bitmapIsDevicePx: Boolean = false,
+  /** A color token seen in the shorthand; the last layer\'s becomes `Background.color`. */
+  var layerColor: Int? = null
+) {
+  val isDefault: Boolean
+    get() = image == null && gradient == null && position == null && size == null &&
+      repeat == BackgroundRepeat.REPEAT && clip == BackgroundClip.BORDER_BOX &&
+      origin == BackgroundOrigin.PADDING_BOX && attachment == BackgroundAttachment.SCROLL &&
+      blendMode == BackgroundBlendMode.NORMAL
+}
 
 class Background(
   val style: Style
@@ -124,49 +240,143 @@ class Background(
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
 
-  fun applyBackgroundRepeat(value: String) {
-    val parts = splitLayers(value)
-    while (layers.size < parts.size) layers.add(BackgroundLayer())
-    parts.forEachIndexed { idx, rep ->
-      layers[idx].repeat = parseRepeat(rep.trim())
-    }
-    (style.node.view as? View)?.invalidate()
-  }
-
-  fun applyBackgroundPosition(value: String) {
-    val parts = splitLayers(value)
-    while (layers.size < parts.size) layers.add(BackgroundLayer())
-    parts.forEachIndexed { idx, p ->
-      val tokens = p.trim().split(WHITESPACE_REGEX)
-      layers[idx].position = parsePosition(tokens)
-    }
+  private fun invalidateView() {
     (style.node.view as? android.view.View)?.invalidate()
   }
 
-  fun applyBackgroundSize(value: String) {
-    val parts = splitLayers(value)
-    while (layers.size < parts.size) layers.add(BackgroundLayer())
-    parts.forEachIndexed { idx, p ->
-      layers[idx].size = parseSize(p.trim())
+  // Per-layer longhands in the order they were set. Layers come only from
+  // images/gradients, so a longhand set before the layers is kept and
+  // reapplied when they arrive. Core applies the `background` shorthand after
+  // the longhands whatever their declaration order, so it reapplies them too.
+  internal val longhands = LinkedHashMap<String, String>()
+
+  private fun setLonghand(name: String, value: String) {
+    longhands.remove(name)
+    // `background-position` resets both axes set by the -x/-y longhands.
+    if (name == "position") {
+      longhands.remove("position-x")
+      longhands.remove("position-y")
     }
-    (style.node.view as? android.view.View)?.invalidate()
+    longhands[name] = value
+    applyLonghand(name, value)
+    invalidateView()
   }
 
-  fun applyBackgroundClip(value: String) {
-    val clip = when (value.trim().lowercase()) {
-      "content-box" -> BackgroundClip.CONTENT_BOX
-      "padding-box" -> BackgroundClip.PADDING_BOX
-      "border-box" -> BackgroundClip.BORDER_BOX
-      else -> return
+  /** Reapply the stored longhands after the layer list was rebuilt. */
+  internal fun reapplyLonghands() {
+    for ((name, value) in longhands) applyLonghand(name, value)
+  }
+
+  /** Apply a comma-separated per-layer list, repeating it cyclically as CSS does. */
+  private fun applyLonghand(name: String, value: String) {
+    val parts = splitLayers(value).map { it.trim() }.filter { it.isNotEmpty() }
+    if (parts.isEmpty()) return
+    layers.forEachIndexed { idx, layer ->
+      val v = parts[idx % parts.size]
+      when (name) {
+        "repeat" -> layer.repeat = parseRepeat(v)
+        "position" -> parsePosition(splitTopLevelWhitespace(v))?.let { layer.position = it }
+        "position-x" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = true)?.let {
+          layer.position = (layer.position ?: BackgroundPosition()).copy(x = it)
+        }
+        "position-y" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = false)?.let {
+          layer.position = (layer.position ?: BackgroundPosition()).copy(y = it)
+        }
+        "size" -> parseSize(v)?.let { layer.size = it }
+        "clip" -> BackgroundClip.parse(v)?.let { layer.clip = it }
+        "origin" -> BackgroundOrigin.parse(v)?.let { layer.origin = it }
+        "attachment" -> BackgroundAttachment.parse(v)?.let { layer.attachment = it }
+        "blend-mode" -> BackgroundBlendMode.parse(v)?.let { layer.blendMode = it }
+      }
     }
-    for (layer in layers) {
-      layer.clip = clip
+  }
+
+  fun applyBackgroundRepeat(value: String) = setLonghand("repeat", value)
+  fun applyBackgroundPosition(value: String) = setLonghand("position", value)
+  fun applyBackgroundPositionX(value: String) = setLonghand("position-x", value)
+  fun applyBackgroundPositionY(value: String) = setLonghand("position-y", value)
+  fun applyBackgroundSize(value: String) = setLonghand("size", value)
+  fun applyBackgroundClip(value: String) = setLonghand("clip", value)
+  fun applyBackgroundOrigin(value: String) = setLonghand("origin", value)
+  fun applyBackgroundAttachment(value: String) = setLonghand("attachment", value)
+  fun applyBackgroundBlendMode(value: String) = setLonghand("blend-mode", value)
+
+  fun hasLocalLayer(): Boolean = layers.any { it.attachment == BackgroundAttachment.LOCAL }
+
+  companion object {
+    /** Views that drew a `fixed` layer; a scroll repaints only these. Main thread only. */
+    private val fixedViews = java.util.Collections.newSetFromMap(java.util.WeakHashMap<android.view.View, Boolean>())
+
+    internal fun registerFixed(view: android.view.View) {
+      fixedViews.add(view)
     }
-    (style.node.view as? android.view.View)?.invalidate()
+
+    /** Invalidate the registered fixed-attachment views inside [root] after it scrolls. */
+    fun invalidateFixedDescendants(root: android.view.ViewGroup) {
+      if (fixedViews.isEmpty()) return
+      val stale = ArrayList<android.view.View>()
+      for (view in fixedViews) {
+        val bg = (view as? Element)?.style?.mBackground
+        if (bg == null || bg.layers.none { it.attachment == BackgroundAttachment.FIXED }) {
+          stale.add(view)
+          continue
+        }
+        var p = view.parent
+        while (p != null && p !== root) p = p.parent
+        if (p === root) view.invalidate()
+      }
+      fixedViews.removeAll(stale.toSet())
+    }
+
+    /**
+     * The positioning area for a layer, in the coordinates the caller draws in
+     * (viewport-anchored for `scroll`/`fixed`, content for `local`).
+     */
+    fun positioningArea(layer: BackgroundLayer, view: android.view.View, node: Node, width: Float, height: Float): RectF {
+      val area = when (layer.attachment) {
+        BackgroundAttachment.FIXED -> {
+          val loc = IntArray(2)
+          view.getLocationInWindow(loc)
+          val root = view.rootView
+          RectF(-loc[0].toFloat(), -loc[1].toFloat(), root.width - loc[0].toFloat(), root.height - loc[1].toFloat())
+        }
+        BackgroundAttachment.LOCAL -> {
+          val content = localContentSize(view, width, height)
+          RectF(0f, 0f, content.first, content.second)
+        }
+        BackgroundAttachment.SCROLL -> RectF(0f, 0f, width, height)
+      }
+      if (layer.attachment != BackgroundAttachment.FIXED) {
+        when (layer.origin) {
+          BackgroundOrigin.BORDER_BOX -> {}
+          BackgroundOrigin.PADDING_BOX -> area.inset(node.computedBorderLeft, node.computedBorderTop, node.computedBorderRight, node.computedBorderBottom)
+          BackgroundOrigin.CONTENT_BOX -> area.inset(
+            node.computedBorderLeft + node.computedPaddingLeft,
+            node.computedBorderTop + node.computedPaddingTop,
+            node.computedBorderRight + node.computedPaddingRight,
+            node.computedBorderBottom + node.computedPaddingBottom
+          )
+        }
+      }
+      return area
+    }
+
+    /** The whole scrollable border box of a scroll container, else the view box. */
+    internal fun localContentSize(view: android.view.View, width: Float, height: Float): Pair<Float, Float> {
+      val scroll = view as? TwoDScrollView ?: return width to height
+      val w = scroll.scrollContentWidth + view.paddingLeft + view.paddingRight
+      val h = scroll.scrollContentHeight + view.paddingTop + view.paddingBottom
+      return maxOf(width, w.toFloat()) to maxOf(height, h.toFloat())
+    }
+
+    private fun RectF.inset(l: Float, t: Float, r: Float, b: Float) {
+      left += l; top += t; right -= r; bottom -= b
+    }
   }
 
   fun clear() {
     layers = mutableListOf()
+    longhands.clear()
     color = null
   }
 }
@@ -182,20 +392,21 @@ data class Gradient(
 )
 
 fun drawBackground(
-  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
+  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF
 ) {
-  layer.gradient?.let { drawGradient(layer, canvas, width, height, view) }
+  layer.gradient?.let { drawGradient(layer, canvas, paintRect, area, view) }
 
   layer.image?.let { imageUrl ->
     // Use cached bitmap if available
     layer.bitmap?.let { bitmap ->
-      drawBitmapLayer(bitmap, layer, canvas, width, height)
+      drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
       return
     }
 
     decodeDataUrlBitmap(imageUrl, context.resources.displayMetrics.density)?.let { bitmap ->
       layer.bitmap = bitmap
-      drawBitmapLayer(bitmap, layer, canvas, width, height)
+      layer.bitmapIsDevicePx = imageUrl.startsWith("data:image/svg", ignoreCase = true)
+      drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
       return
     }
 
@@ -203,8 +414,7 @@ fun drawBackground(
     Glide.with(context).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
       override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
         layer.bitmap = resource
-        // Draw once loaded
-        // drawBitmapLayer(resource, layer, canvas, width, height)
+        layer.bitmapIsDevicePx = false
         view?.invalidate()
       }
 
@@ -286,8 +496,13 @@ private fun rasterizeSimpleSvg(svg: String, density: Float): Bitmap? {
   return if (drewPath) bitmap else null
 }
 
-fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int, view: View? = null) {
+fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF, view: View? = null) {
   val gradient = layer.gradient ?: return
+  // A gradient is an image with no intrinsic size: `auto` is the positioning area.
+  val (tileW, tileH) = resolveBitmapSize(layer.size, area.width(), area.height(), area.width(), area.height())
+  val width = tileW.toInt()
+  val height = tileH.toInt()
+  if (width <= 0 || height <= 0) return
 
   // invalidate cached shader if size has changed; without this the first draw
   // (which often happens at 0x0) would create a degenerate shader that never
@@ -384,7 +599,37 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
   // fallback colour is opaque black, which would paint a solid black box.
   if (layer.shader == null) return
   gradientPaint.shader = layer.shader
-  canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), gradientPaint)
+  layer.blendMode.apply(gradientPaint)
+  forEachTile(layer, paintRect, area, tileW, tileH) { x, y ->
+    val save = canvas.save()
+    canvas.translate(x, y)
+    canvas.drawRect(0f, 0f, tileW, tileH, gradientPaint)
+    canvas.restoreToCount(save)
+  }
+  layer.blendMode.clear(gradientPaint)
+}
+
+/** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */
+private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: RectF, drawW: Float, drawH: Float, draw: (Float, Float) -> Unit) {
+  val pos = layer.position
+  val x = area.left + (pos?.x?.resolve(area.width(), drawW) ?: 0f)
+  val y = area.top + (pos?.y?.resolve(area.height(), drawH) ?: 0f)
+  val repeatX = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_X
+  val repeatY = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_Y
+  // Tiles start at the resolved position and extend both ways across the paint rect.
+  val startX = if (repeatX) x - ceil((x - paintRect.left) / drawW) * drawW else x
+  val startY = if (repeatY) y - ceil((y - paintRect.top) / drawH) * drawH else y
+  val endX = if (repeatX) paintRect.right else x + 1f
+  val endY = if (repeatY) paintRect.bottom else y + 1f
+  var py = startY
+  while (py < endY) {
+    var px = startX
+    while (px < endX) {
+      draw(px, py)
+      px += drawW
+    }
+    py += drawH
+  }
 }
 
 /**
@@ -539,65 +784,46 @@ private fun resolvePositionKeywords(
 }
 
 private fun drawBitmapLayer(
-  bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
+  bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF
 ) {
-  // Determine the scaled size
-  val drawWidth: Int
-  val drawHeight: Int
-  val size = layer.size
-  if (size == null) {
-    drawWidth = bitmap.width
-    drawHeight = bitmap.height
-  } else {
-    drawWidth = if (size.first < 0) bitmap.width else (size.first * width).toInt()
-    drawHeight = if (size.second < 0) bitmap.height else (size.second * height).toInt()
-  }
-  if (drawWidth <= 0 || drawHeight <= 0) return
-
-  // Determine position
-  val x = ((layer.position?.first ?: 0f) * (width - drawWidth))
-  val y = ((layer.position?.second ?: 0f) * (height - drawHeight))
+  val areaW = area.width()
+  val areaH = area.height()
+  val imgScale = if (layer.bitmapIsDevicePx) 1f else Mason.shared.scale
+  val (drawWidth, drawHeight) = resolveBitmapSize(layer.size, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
+  if (drawWidth <= 0f || drawHeight <= 0f) return
 
   // Reuse cached RectF and Paint to avoid per-tile allocations
   val dst = bitmapDstRect
   val paint = bitmapPaint
+  layer.blendMode.apply(paint)
+  forEachTile(layer, paintRect, area, drawWidth, drawHeight) { px, py ->
+    dst.set(px, py, px + drawWidth, py + drawHeight)
+    canvas.drawBitmap(bitmap, null, dst, paint)
+  }
+  layer.blendMode.clear(paint)
+}
 
-  when (layer.repeat) {
-    BackgroundRepeat.NO_REPEAT -> {
-      dst.set(x, y, x + drawWidth, y + drawHeight)
-      canvas.drawBitmap(bitmap, null, dst, paint)
+/** Resolve `background-size` against the positioning area, keeping the image ratio for `auto`. */
+internal fun resolveBitmapSize(size: BackgroundSize?, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
+  if (size == null) return imgW to imgH
+  val ratio = if (imgH > 0f) imgW / imgH else 1f
+  when (size.keyword) {
+    "cover" -> {
+      val scale = maxOf(areaW / imgW, areaH / imgH)
+      return imgW * scale to imgH * scale
     }
-
-    BackgroundRepeat.REPEAT_X -> {
-      var px = x
-      while (px < width) {
-        dst.set(px, y, px + drawWidth, y + drawHeight)
-        canvas.drawBitmap(bitmap, null, dst, paint)
-        px += drawWidth
-      }
+    "contain" -> {
+      val scale = minOf(areaW / imgW, areaH / imgH)
+      return imgW * scale to imgH * scale
     }
-
-    BackgroundRepeat.REPEAT_Y -> {
-      var py = y
-      while (py < height) {
-        dst.set(x, py, x + drawWidth, py + drawHeight)
-        canvas.drawBitmap(bitmap, null, dst, paint)
-        py += drawHeight
-      }
-    }
-
-    BackgroundRepeat.REPEAT -> {
-      var py = y
-      while (py < height) {
-        var px = x
-        while (px < width) {
-          dst.set(px, py, px + drawWidth, py + drawHeight)
-          canvas.drawBitmap(bitmap, null, dst, paint)
-          px += drawWidth
-        }
-        py += drawHeight
-      }
-    }
+  }
+  val w = size.width?.let { it.fraction * areaW + it.px }
+  val h = size.height?.let { it.fraction * areaH + it.px }
+  return when {
+    w != null && h != null -> w to h
+    w != null -> w to w / ratio
+    h != null -> h * ratio to h
+    else -> imgW to imgH
   }
 }
 
@@ -739,9 +965,7 @@ fun parseRgbColor(input: String): Int? {
 fun parseColor(value: String): Int? {
   return try {
     val color = value.trim().trimEnd(';')
-    if (COLOR_MAP.contains(color)) {
-      return COLOR_MAP[color]
-    }
+    COLOR_MAP[color.lowercase()]?.let { return it }
     parseHexColor(color) ?: parseRgbColor(color)
   } catch (_: Exception) {
     null
@@ -755,38 +979,107 @@ fun parseRepeat(value: String): BackgroundRepeat = when (value.lowercase()) {
   else -> BackgroundRepeat.NO_REPEAT
 }
 
-fun parsePosition(parts: List<String>): Pair<Float, Float> {
-  var x = 0.5f
-  var y = 0.5f
-  parts.forEach { part ->
-    if (part.endsWith("%")) {
-      val value = part.dropLast(1).toFloatOrNull()?.div(100f) ?: 0.5f
-      if (x == 0.5f) x = value else y = value
-    } else {
-      when (part.lowercase()) {
-        "center" -> {}
-        "top" -> y = 0f
-        "bottom" -> y = 1f
-        "left" -> x = 0f
-        "right" -> x = 1f
-      }
-    }
+/** One `<length>` or `<percentage>` of a background position/size, or null. */
+private fun parseBackgroundLength(token: String): BackgroundOffset? {
+  val t = token.trim().lowercase()
+  if (t.endsWith("%")) {
+    return t.dropLast(1).toFloatOrNull()?.let { BackgroundOffset(it / 100f, 0f) }
   }
-  return x to y
+  val match = lengthPercentageRegex.matchEntire(t) ?: return null
+  val num = match.groupValues[1].toFloatOrNull() ?: return null
+  val unit = match.groupValues.getOrNull(2)
+  val px = if (unit == "dppx") num else cssPxForUnit(num, unit, null) * Mason.shared.scale
+  return BackgroundOffset(0f, px)
 }
 
-fun parseSize(value: String): Pair<Float, Float>? {
-  val s = value.lowercase()
+private fun isHorizontalKeyword(t: String) = t == "left" || t == "right"
+private fun isVerticalKeyword(t: String) = t == "top" || t == "bottom"
+
+private fun keywordOffset(t: String): BackgroundOffset? = when (t) {
+  "left", "top" -> BackgroundOffset(0f, 0f)
+  "center" -> BackgroundOffset(0.5f, 0f)
+  "right", "bottom" -> BackgroundOffset(1f, 0f)
+  else -> null
+}
+
+/** `background-position-x`/`-y`: a keyword, a length, or `<edge> <offset>`. */
+fun parseAxisPosition(parts: List<String>, horizontal: Boolean): BackgroundOffset? {
+  val tokens = parts.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+  if (tokens.isEmpty()) return null
+  val first = tokens[0]
+  val edgeOk = if (horizontal) isHorizontalKeyword(first) || first == "center" else isVerticalKeyword(first) || first == "center"
+  if (tokens.size == 1) {
+    return if (edgeOk) keywordOffset(first) else parseBackgroundLength(first)
+  }
+  if (tokens.size == 2 && edgeOk && first != "center") {
+    val offset = parseBackgroundLength(tokens[1]) ?: return null
+    val edge = keywordOffset(first)!!
+    // `right 10px` means 10px in from the right: a negative device offset.
+    return if (edge.fraction == 1f) BackgroundOffset(1f - offset.fraction, -offset.px) else offset
+  }
+  return null
+}
+
+/** CSS `background-position` with the 1-, 2-, 3- and 4-value syntaxes. */
+fun parsePosition(parts: List<String>): BackgroundPosition? {
+  val tokens = parts.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+  if (tokens.isEmpty() || tokens.size > 4) return null
+  when (tokens.size) {
+    1 -> {
+      val t = tokens[0]
+      return when {
+        isVerticalKeyword(t) -> BackgroundPosition(BackgroundOffset(0.5f), keywordOffset(t)!!)
+        else -> BackgroundPosition(
+          keywordOffset(t) ?: parseBackgroundLength(t) ?: return null,
+          BackgroundOffset(0.5f)
+        )
+      }
+    }
+    2 -> {
+      var a = tokens[0]
+      var b = tokens[1]
+      // `top left` is legal: keywords may swap axes, lengths may not.
+      if (isVerticalKeyword(a) || isHorizontalKeyword(b)) {
+        val tmp = a; a = b; b = tmp
+      }
+      val x = keywordOffset(a)?.takeIf { !isVerticalKeyword(a) } ?: parseBackgroundLength(a) ?: return null
+      val y = keywordOffset(b)?.takeIf { !isHorizontalKeyword(b) } ?: parseBackgroundLength(b) ?: return null
+      return BackgroundPosition(x, y)
+    }
+    else -> {
+      // 3/4-value: edge keywords each optionally followed by an offset.
+      var x: BackgroundOffset? = null
+      var y: BackgroundOffset? = null
+      var i = 0
+      while (i < tokens.size) {
+        val kw = tokens[i]
+        val offset = tokens.getOrNull(i + 1)?.let { parseBackgroundLength(it) }
+        val pair = if (offset != null) listOf(kw, tokens[i + 1]) else listOf(kw)
+        when {
+          isHorizontalKeyword(kw) || (kw == "center" && x == null && !isVerticalKeyword(tokens.getOrNull(i + 1) ?: "")) ->
+            x = parseAxisPosition(pair, horizontal = true) ?: return null
+          isVerticalKeyword(kw) || kw == "center" ->
+            y = parseAxisPosition(pair, horizontal = false) ?: return null
+          else -> return null
+        }
+        i += pair.size
+      }
+      return BackgroundPosition(x ?: BackgroundOffset(0.5f), y ?: BackgroundOffset(0.5f))
+    }
+  }
+}
+
+fun parseSize(value: String): BackgroundSize? {
+  val s = value.trim().lowercase()
   return when (s) {
-    "cover" -> -1f to -1f
-    "contain" -> -2f to -2f
+    "cover", "contain" -> BackgroundSize(keyword = s)
+    "auto", "auto auto" -> BackgroundSize()
     else -> {
       val tokens = s.split(WHITESPACE_REGEX)
-      if (tokens.size == 2) {
-        val w = tokens[0].removeSuffix("px").toFloatOrNull()
-        val h = tokens[1].removeSuffix("px").toFloatOrNull()
-        if (w != null && h != null) w to h else null
-      } else null
+      if (tokens.isEmpty() || tokens.size > 2) return null
+      val w = if (tokens[0] == "auto") null else parseBackgroundLength(tokens[0]) ?: return null
+      val h = tokens.getOrNull(1)?.let { if (it == "auto") null else parseBackgroundLength(it) ?: return null }
+      BackgroundSize(w, h)
     }
   }
 }
@@ -877,7 +1170,10 @@ fun parseGradient(part: String): Gradient? {
   return Gradient(type, direction, stops.map { it.trim() })
 }
 
-fun parseBackgroundLayers(css: String): List<BackgroundLayer> {
+/** Layers with only author-visible content (drops color-only and empty layers). */
+fun parseBackgroundLayers(css: String): List<BackgroundLayer> = parseRawBackgroundLayers(css).filter { !it.isDefault }
+
+private fun parseRawBackgroundLayers(css: String): List<BackgroundLayer> {
   val layers = mutableListOf<BackgroundLayer>()
   var depth = 0
   var start = 0
@@ -898,46 +1194,78 @@ fun parseBackgroundLayers(css: String): List<BackgroundLayer> {
   return layers
 }
 
+private val BOX_KEYWORDS = listOf("border-box", "padding-box", "content-box")
+private val ATTACHMENT_KEYWORDS = listOf("scroll", "fixed", "local")
+
+/**
+ * One comma-separated layer of the `background` shorthand: image, gradient,
+ * repeat, attachment, position [/ size] and up to two box keywords (origin,
+ * then clip). A color token is kept on `layerColor` for the shorthand's
+ * final layer.
+ */
 fun parseLayer(layerValue: String): BackgroundLayer {
   val layer = BackgroundLayer()
   var value = layerValue.trim()
 
-  // 1. EXTRACT background-clip keyword
-  val clipMatch = CLIP_REGEX.find(value)
-  if (clipMatch != null) {
-    val clipValue = clipMatch.groupValues[1].lowercase()
-    layer.clip = when (clipValue) {
-      "content-box" -> BackgroundClip.CONTENT_BOX
-      "padding-box" -> BackgroundClip.PADDING_BOX
-      else -> BackgroundClip.BORDER_BOX
+  // Image URL first: its contents must not be tokenized.
+  IMAGE_REGEX.find(value)?.let { match ->
+    layer.image = match.groups[1]?.value
+    value = value.removeRange(match.range).trim()
+  }
+
+  // Gradient: the function consumes its own parentheses, the rest are tokens.
+  GRADIENT_REGEX.find(value)?.let { match ->
+    val paren = value.indexOf('(', match.range.first)
+    var depth = 0
+    var end = paren
+    while (end < value.length) {
+      when (value[end]) {
+        '(' -> depth++
+        ')' -> { depth--; if (depth == 0) break }
+      }
+      end++
     }
-    value = value.replace(CLIP_REGEX, "").trim()
+    val gradientText = value.substring(match.range.first, minOf(end + 1, value.length))
+    layer.gradient = parseGradient(gradientText)
+    value = (value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
   }
 
-  // 2. Extract image URL (remove it from value)
-  IMAGE_REGEX.find(value)?.groups?.get(1)?.value?.let {
-    layer.image = it
-    value = value.replace(IMAGE_REPLACE_REGEX, "").trim()
-  }
-
-  // 3. Gradient
-  if (value.startsWith("linear-gradient") || value.startsWith("radial-gradient")) {
-    layer.gradient = parseGradient(value)
-  }
-
-  // 4. Repeat
-  REPEAT_KEYS.forEach { key ->
-    if (value.contains(key, ignoreCase = true)) {
-      layer.repeat = parseRepeat(key)
+  val tokens = splitTopLevelWhitespace(value).filter { it.isNotBlank() }
+  val boxes = mutableListOf<BackgroundClip>()
+  val positionTokens = mutableListOf<String>()
+  val sizeTokens = mutableListOf<String>()
+  var afterSlash = false
+  for (raw in tokens) {
+    val t = raw.lowercase()
+    // A '/' inside a function (rgb(0 0 0 / 50%)) is not the position/size separator.
+    val bareSlash = !t.contains('(')
+    when {
+      !bareSlash -> parseColor(raw)?.let { layer.layerColor = it }
+      t == "/" -> afterSlash = true
+      t.startsWith("/") -> { afterSlash = true; sizeTokens.add(t.substring(1)) }
+      t.endsWith("/") -> { positionTokens.add(t.dropLast(1)); afterSlash = true }
+      t.contains("/") -> {
+        val (p, sz) = t.split("/", limit = 2)
+        positionTokens.add(p); sizeTokens.add(sz); afterSlash = true
+      }
+      afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != null) -> sizeTokens.add(t)
+      t in REPEAT_KEYS -> layer.repeat = parseRepeat(t)
+      t in ATTACHMENT_KEYWORDS -> BackgroundAttachment.parse(t)?.let {
+        layer.attachment = it
+      }
+      t in BOX_KEYWORDS -> BackgroundClip.parse(t)?.let { boxes.add(it) }
+      t in POSITION_KEYS || parseBackgroundLength(t) != null -> { afterSlash = false; positionTokens.add(t) }
+      else -> parseColor(raw)?.let { layer.layerColor = it }
     }
   }
-
-  // 5. Position
-  val posTokens = value.split(WHITESPACE_REGEX)
-    .filter { it.endsWith("%") || POSITION_KEYS.contains(it.lowercase()) }
-
-  if (posTokens.isNotEmpty()) {
-    layer.position = parsePosition(posTokens)
+  if (positionTokens.isNotEmpty()) layer.position = parsePosition(positionTokens)
+  if (sizeTokens.isNotEmpty()) layer.size = parseSize(sizeTokens.joinToString(" "))
+  if (boxes.size == 1) {
+    layer.origin = boxes[0]
+    layer.clip = boxes[0]
+  } else if (boxes.size >= 2) {
+    layer.origin = boxes[0]
+    layer.clip = boxes[1]
   }
 
   return layer
@@ -964,29 +1292,12 @@ fun splitLayers(css: String): List<String> {
 fun parseBackground(style: Style, css: String): Background? {
   val bg = Background(style)
 
-  val layers = parseBackgroundLayers(css)
+  val layers = parseRawBackgroundLayers(css)
 
-  val firstWord = css.trim().split(' ', limit = 2)[0]
-  if (firstWord.startsWith("#")) {
-    bg.color = parseColor(firstWord)
-  } else {
-    val value = firstWord.lowercase()
-    if (value in COLOR_KEYWORDS) {
-      bg.color = parseColor(firstWord)
-    } else if (COLOR_MAP.contains(value)) {
-      bg.color = COLOR_MAP[value]
-    }
-  }
+  // The shorthand's color lives on its last layer; without one it resets.
+  bg.color = layers.lastOrNull()?.layerColor
 
-  // Filter out empty/default layers (e.g. when the author only specified
-  // a simple color like "#fff" we don't want a placeholder layer).
-  val meaningful = layers.filter { layer ->
-    layer.image != null || layer.gradient != null || layer.position != null || layer.size != null || layer.repeat != BackgroundRepeat.REPEAT || layer.clip != BackgroundClip.BORDER_BOX
-  }
-
-  bg.layers.addAll(meaningful)
-
-  if (bg.color == null && bg.layers.isEmpty()) return null
+  bg.layers.addAll(layers.filter { !it.isDefault })
 
   return bg
 }

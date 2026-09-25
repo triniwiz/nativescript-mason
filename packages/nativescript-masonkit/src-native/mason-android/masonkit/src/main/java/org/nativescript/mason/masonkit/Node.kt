@@ -1211,6 +1211,20 @@ open class Node internal constructor(
 
     // Inserting a TextNode
     if (child is TextNode) {
+      // A text container hosts its runs directly, as appendChild does. An
+      // anonymous wrapper here would be a separate inline box, and its
+      // trailing space would collapse as block-end whitespace ("a <b>" lost it).
+      val selfContainer = view as? TextContainer
+      if (selfContainer != null) {
+        val pos = children.indexOf(reference).takeIf { it > -1 } ?: index.coerceIn(0, children.size)
+        children.add(pos, child)
+        child.attributes.sync(selfContainer.style)
+        child.container = selfContainer
+        selfContainer.engine.invalidateInlineSegments()
+        markHasTextDescendant(this)
+        NodeUtils.invalidateLayout(this)
+        return
+      }
       // If we're inserting next to/in a text container, try to insert into that container
       if (reference is TextNode) {
         val containerNode = reference.layoutParent ?: reference.container?.node

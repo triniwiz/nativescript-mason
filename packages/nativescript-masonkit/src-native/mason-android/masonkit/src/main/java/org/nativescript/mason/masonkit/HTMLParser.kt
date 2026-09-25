@@ -858,6 +858,12 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "background-repeat" -> style.backgroundRepeat = value
       "background-position" -> style.backgroundPosition = value
       "background-size" -> style.backgroundSize = value
+      "background-clip" -> style.backgroundClip = value
+      "background-origin" -> style.backgroundOrigin = value
+      "background-attachment" -> style.backgroundAttachment = value
+      "background-blend-mode" -> style.backgroundBlendMode = value
+      "background-position-x" -> style.backgroundPositionX = value
+      "background-position-y" -> style.backgroundPositionY = value
 
       "z-index" -> value.toIntOrNull()?.let { style.zIndex = it }
 
@@ -912,20 +918,11 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       }
       "font-variant-numeric" -> style.fontVariantNumericString = value
 
-      "text-decoration", "text-decoration-line" -> when (firstToken(value)) {
-        "none" -> style.decorationLine = Styles.DecorationLine.None
-        "underline" -> style.decorationLine = Styles.DecorationLine.Underline
-        "overline" -> style.decorationLine = Styles.DecorationLine.Overline
-        "line-through" -> style.decorationLine = Styles.DecorationLine.LineThrough
-      }
-      "text-decoration-color" -> parseColor(value)?.let { style.decorationColor = it }
-      "text-decoration-style" -> when (value) {
-        "solid" -> style.decorationStyle = Styles.DecorationStyle.Solid
-        "double" -> style.decorationStyle = Styles.DecorationStyle.Double
-        "dotted" -> style.decorationStyle = Styles.DecorationStyle.Dotted
-        "dashed" -> style.decorationStyle = Styles.DecorationStyle.Dashed
-        "wavy" -> style.decorationStyle = Styles.DecorationStyle.Wavy
-      }
+      "text-decoration" -> style.setTextDecoration(value)
+      "text-decoration-line" -> style.textDecorationLine = value
+      "text-decoration-color" -> style.textDecorationColor = value
+      "text-decoration-style" -> style.textDecorationStyle = value
+      "text-decoration-thickness" -> parseLength(style, value)?.let { style.decorationThickness = it }
 
       "text-transform" -> when (value) {
         "none" -> style.textTransform = Styles.TextTransform.None

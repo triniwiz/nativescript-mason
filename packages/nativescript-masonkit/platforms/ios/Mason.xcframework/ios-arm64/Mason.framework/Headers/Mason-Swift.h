@@ -493,11 +493,19 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonClear, "Clear", open) {
   MasonClearBoth = 3,
 };
 
+/// <code>text-decoration-line</code> as a bit set shared with TS and Kotlin: 1 underline,
+/// 2 overline, 4 line-through. <code>spelling-error</code> (8) and <code>grammar-error</code> (16) stand alone.
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationLine, "DecorationLine", open) {
   MasonDecorationLineNone = 0,
   MasonDecorationLineUnderline = 1,
   MasonDecorationLineOverline = 2,
-  MasonDecorationLineLineThrough = 3,
+  MasonDecorationLineUnderlineOverline = 3,
+  MasonDecorationLineLineThrough = 4,
+  MasonDecorationLineUnderlineLineThrough = 5,
+  MasonDecorationLineOverlineLineThrough = 6,
+  MasonDecorationLineUnderlineOverlineLineThrough = 7,
+  MasonDecorationLineSpellingError = 8,
+  MasonDecorationLineGrammarError = 9,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationStyle, "DecorationStyle", open) {
@@ -1262,6 +1270,11 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull backgroundPosition;
 @property (nonatomic, copy) NSString * _Nonnull backgroundSize;
 @property (nonatomic, copy) NSString * _Nonnull backgroundClip;
+@property (nonatomic, copy) NSString * _Nonnull backgroundPositionX;
+@property (nonatomic, copy) NSString * _Nonnull backgroundPositionY;
+@property (nonatomic, copy) NSString * _Nonnull backgroundOrigin;
+@property (nonatomic, copy) NSString * _Nonnull backgroundAttachment;
+@property (nonatomic, copy) NSString * _Nonnull backgroundBlendMode;
 @property (nonatomic) uint32_t backgroundColor;
 - (NSString * _Nonnull)getBackgroundColor SWIFT_WARN_UNUSED_RESULT;
 - (void)setBackgroundColorWithString:(NSString * _Nonnull)color;
@@ -1274,6 +1287,14 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
 - (void)setDecorationColorWithCss:(NSString * _Nonnull)color;
 @property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) enum MasonDecorationStyle decorationStyle;
+/// Device px; 0 is <code>auto</code> (the font’s underline thickness).
+@property (nonatomic) float decorationThickness;
+@property (nonatomic, copy) NSString * _Nonnull textDecorationLine;
+@property (nonatomic, copy) NSString * _Nonnull textDecorationStyle;
+@property (nonatomic, copy) NSString * _Nonnull textDecorationColor;
+/// <code>text-decoration</code> shorthand: line keywords, a style, a color and a
+/// thickness in any order. Omitted longhands reset, as on the web.
 - (void)setTextDecoration:(NSString * _Nonnull)css;
 - (void)setBorderColor:(NSString * _Nonnull)css;
 - (void)applyListStyleType:(NSString * _Nonnull)css;
@@ -1543,6 +1564,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layerClass;)
 + (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
+- (void)didAddSubview:(UIView * _Nonnull)subview;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;

@@ -237,34 +237,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       }
 
       // Apply decoration
-      attributes.decorationLine?.let { decoration ->
-        when (decoration) {
-          Styles.DecorationLine.Underline -> {
-            spannable.setSpan(UnderlineSpan(), start, end, flags)
-          }
-
-          Styles.DecorationLine.LineThrough -> {
-            spannable.setSpan(StrikethroughSpan(), start, end, flags)
-          }
-
-          Styles.DecorationLine.Overline -> {/*
-          spannable.setSpan(
-            OverlineSpan(
-              attributes.decorationColor ?: Color.BLACK,
-              attributes.decorationThickness ?: (1f * Mason.shared.scale)
-            ), start, end, flags
-          )*/
-          }
-
-          Styles.DecorationLine.UnderlineLineThrough -> {
-            spannable.setSpan(UnderlineSpan(), start, end, flags)
-            spannable.setSpan(StrikethroughSpan(), start, end, flags)
-          }
-
-          Styles.DecorationLine.UnderlineOverline -> {}
-          Styles.DecorationLine.OverlineUnderlineLineThrough -> {}
-          else -> {}
-        }
+      attributes.decorationLine?.takeIf { it != Styles.DecorationLine.None }?.let { decoration ->
+        spannable.setSpan(
+          Spans.DecorationSpan(
+            decoration,
+            attributes.decorationColor ?: Constants.UNSET_COLOR.toInt(),
+            attributes.decorationStyle ?: Styles.DecorationStyle.Solid,
+            attributes.decorationThickness ?: 0f
+          ), start, end, flags
+        )
       }
 
       // Apply textAlignment

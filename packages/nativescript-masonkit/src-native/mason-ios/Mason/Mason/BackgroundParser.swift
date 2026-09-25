@@ -10,10 +10,73 @@ import UIKit
 import CoreGraphics
 
 // MARK: - BackgroundClip
-enum BackgroundClip {
-  case borderBox
-  case paddingBox
-  case contentBox
+/// Box keywords shared by `background-clip` and `background-origin`.
+enum BackgroundClip: String {
+  case borderBox = "border-box"
+  case paddingBox = "padding-box"
+  case contentBox = "content-box"
+
+  static func parse(_ value: String) -> BackgroundClip? {
+    BackgroundClip(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+  }
+}
+
+typealias BackgroundOrigin = BackgroundClip
+
+// MARK: - BackgroundAttachment
+enum BackgroundAttachment: String {
+  case scroll
+  case fixed
+  case local
+
+  static func parse(_ value: String) -> BackgroundAttachment? {
+    BackgroundAttachment(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+  }
+}
+
+// MARK: - BackgroundBlendMode
+enum BackgroundBlendMode: String {
+  case normal
+  case multiply
+  case screen
+  case overlay
+  case darken
+  case lighten
+  case colorDodge = "color-dodge"
+  case colorBurn = "color-burn"
+  case hardLight = "hard-light"
+  case softLight = "soft-light"
+  case difference
+  case exclusion
+  case hue
+  case saturation
+  case color
+  case luminosity
+
+  static func parse(_ value: String) -> BackgroundBlendMode? {
+    BackgroundBlendMode(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+  }
+
+  var cgBlendMode: CGBlendMode {
+    switch self {
+    case .normal: return .normal
+    case .multiply: return .multiply
+    case .screen: return .screen
+    case .overlay: return .overlay
+    case .darken: return .darken
+    case .lighten: return .lighten
+    case .colorDodge: return .colorDodge
+    case .colorBurn: return .colorBurn
+    case .hardLight: return .hardLight
+    case .softLight: return .softLight
+    case .difference: return .difference
+    case .exclusion: return .exclusion
+    case .hue: return .hue
+    case .saturation: return .saturation
+    case .color: return .color
+    case .luminosity: return .luminosity
+    }
+  }
 }
 
 // MARK: - BackgroundRepeat
@@ -31,12 +94,54 @@ struct Gradient {
   let stops: [String]    // color stops (unparsed strings)
 }
 
+// MARK: - Background position / size
+/// One axis of `background-position`: a fraction of the free space plus a length.
+/// `px` is a device px like every other parsed length on iOS; `resolve` and
+/// `points` divide by NSCMason.scale because CoreGraphics draws in points.
+struct BackgroundOffset: Equatable {
+  var fraction: CGFloat = 0
+  var px: CGFloat = 0
+
+  var points: CGFloat { px / CGFloat(NSCMason.scale) }
+
+  func resolve(area: CGFloat, drawSize: CGFloat) -> CGFloat {
+    fraction * (area - drawSize) + points
+  }
+
+  func cssValue(horizontal: Bool = true) -> String {
+    let cssPx = Int(points)
+    let pct = Int(fraction * 100)
+    if px == 0 { return "\(pct)%" }
+    if fraction == 0 { return "\(cssPx)px" }
+    if fraction == 1 { return "\(horizontal ? "right" : "bottom") \(-cssPx)px" }
+    return "calc(\(pct)% + \(cssPx)px)"
+  }
+}
+
+struct BackgroundPosition: Equatable {
+  var x = BackgroundOffset()
+  var y = BackgroundOffset()
+
+  var cssValue: String { "\(x.cssValue(horizontal: true)) \(y.cssValue(horizontal: false))" }
+}
+
+/// `background-size` for one axis: nil = auto, a fraction of the area, or device px.
+struct BackgroundSize: Equatable {
+  var width: BackgroundOffset? = nil
+  var height: BackgroundOffset? = nil
+  var keyword: String? = nil
+
+  var cssValue: String {
+    keyword ?? "\(width?.cssValue() ?? "auto") \(height?.cssValue() ?? "auto")"
+  }
+}
+
 // MARK: - Background Layer
 class BackgroundLayer {
   var image: String? = nil
   var repeatType: BackgroundRepeat = .repeatXY
-  var position: (CGFloat, CGFloat)? = nil
-  var size: (CGFloat, CGFloat)? = nil
+  var position: BackgroundPosition? = nil
+  var size: BackgroundSize? = nil
   var gradient: Gradient? = nil
   var shader: CGGradient? = nil
   // remember dimensions used to create cached gradient
@@ -44,7 +149,17 @@ class BackgroundLayer {
   var shaderHeight: CGFloat = -1
   var bitmap: UIImage? = nil
   var clip: BackgroundClip = .borderBox
+  var origin: BackgroundOrigin = .paddingBox
+  var attachment: BackgroundAttachment = .scroll
+  var blendMode: BackgroundBlendMode = .normal
+  /// A color token seen in the shorthand; the last layer's becomes `Background.color`.
   var backgroundColor: UIColor? = nil
+
+  var isDefault: Bool {
+    image == nil && gradient == nil && position == nil && size == nil &&
+      repeatType == .repeatXY && clip == .borderBox && origin == .paddingBox &&
+      attachment == .scroll && blendMode == .normal
+  }
 }
 
 public class BackgroundCALayer: CALayer {
@@ -100,6 +215,11 @@ class Background {
     }
   }
   var layers: [BackgroundLayer] = []
+  // Per-layer longhands in the order they were set. Layers come only from
+  // images/gradients, so a longhand set before the layers is kept and
+  // reapplied when they arrive. Core applies the `background` shorthand after
+  // the longhands whatever their declaration order, so it reapplies them too.
+  private var longhands: [(name: String, value: String)] = []
   unowned let style: MasonStyle
   init(style: MasonStyle) {
     self.style = style
@@ -110,6 +230,7 @@ class Background {
     let invalidate = color != nil || !layers.isEmpty
     color = nil
     layers.removeAll()
+    longhands.removeAll()
     if(invalidate){
       style.node.view?.setNeedsDisplay()
     }
@@ -120,22 +241,19 @@ class Background {
     if css.isEmpty {
       self.css = css
       reset()
+      return
     }
-    var layerStrings = splitBackgroundLayers(css)
-    
-    var color: UIColor? = nil
-    
-    // Check if the last token is just a color
-    if let last = layerStrings.last, parseColor(last) != nil {
-      color = parseColor(last)
-      layerStrings.removeLast()
-    }
-    
-    let layers = layerStrings.map { parseLayer($0) }
-    if color == nil && layers.isEmpty { return }
-    
+    let parsed = splitBackgroundLayers(css).map { parseLayer($0) }
+
+    // The shorthand's color lives on its last layer; lift it off so the layer does not paint it too.
+    // Only the final layer may carry a color; the others never paint one.
+    let color = parsed.last?.backgroundColor
+    for layer in parsed { layer.backgroundColor = nil }
+
+    // `background: none` (or anything without a color) resets the color too.
     self.color = color
-    self.layers = layers
+    self.layers = parsed.filter { !$0.isDefault }
+    for (name, value) in longhands { applyLonghand(name, value) }
     self.css = css
     
     let newValue = color?.toUInt32() ?? 0
@@ -146,97 +264,72 @@ class Background {
     // change view as well ??
     // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     
-    if(!style.inBatch){
+    invalidateView()
+  }
+
+  private func invalidateView() {
+    if !style.inBatch {
       style.node.view?.setNeedsDisplay()
     }
   }
-  
-  
-  
+
+  private func setLonghand(_ name: String, _ value: String) {
+    longhands.removeAll { $0.name == name }
+    // `background-position` resets both axes set by the -x/-y longhands.
+    if name == "background-position" {
+      longhands.removeAll { $0.name == "background-position-x" || $0.name == "background-position-y" }
+    }
+    longhands.append((name, value))
+    applyLonghand(name, value)
+    invalidateView()
+  }
+
+  /// Apply a comma-separated per-layer list, repeating it cyclically as CSS does.
+  private func applyLonghand(_ name: String, _ value: String) {
+    let parts = splitBackgroundLayers(value).filter { !$0.isEmpty }
+    if parts.isEmpty { return }
+    for (idx, layer) in layers.enumerated() {
+      let v = parts[idx % parts.count]
+      switch name {
+      case "background-repeat":
+        layer.repeatType = parseRepeat(v)
+      case "background-position":
+        if let p = parsePosition(splitTopLevelWhitespace(v)) { layer.position = p }
+      case "background-position-x":
+        if let x = parseAxisPosition(splitTopLevelWhitespace(v), horizontal: true) {
+          var p = layer.position ?? BackgroundPosition()
+          p.x = x
+          layer.position = p
+        }
+      case "background-position-y":
+        if let y = parseAxisPosition(splitTopLevelWhitespace(v), horizontal: false) {
+          var p = layer.position ?? BackgroundPosition()
+          p.y = y
+          layer.position = p
+        }
+      case "background-size":
+        if let size = parseSize(v) { layer.size = size }
+      case "background-clip":
+        if let clip = BackgroundClip.parse(v) { layer.clip = clip }
+      case "background-origin":
+        if let origin = BackgroundOrigin.parse(v) { layer.origin = origin }
+      case "background-attachment":
+        if let attachment = BackgroundAttachment.parse(v) { layer.attachment = attachment }
+      case "background-blend-mode":
+        if let mode = BackgroundBlendMode.parse(v) { layer.blendMode = mode }
+      default:
+        break
+      }
+    }
+  }
+
   private func applyBackgroundImage(_ value: String) {
-    // Reuse the higher-level parser which already filters out empty/default
-    // layers. This avoids creating color-only layers when only a color was
-    // supplied accidentally to background-image.
-    let parsed = parseBackgroundLayers(value)
-    self.layers = parsed
-    
-    if(!style.inBatch){
-      style.node.view?.setNeedsDisplay()
-    }
+    // Filtered: a stray color never creates a color-only layer.
+    layers = parseBackgroundLayers(value)
+    for (name, value) in longhands { applyLonghand(name, value) }
+    invalidateView()
   }
-  
-  
-  private func applyBackgroundRepeat(_ value: String) {
-    let part = value.trimmingCharacters(in: .whitespaces).lowercased()
-    
-    let repeats = splitBackgroundLayers(part)
-    
-    if layers.count < repeats.count {
-      layers += Array(repeating: BackgroundLayer(), count: repeats.count - layers.count)
-    }
-    
-    for (idx, rep) in repeats.enumerated() {
-      layers[idx].repeatType = BackgroundRepeat(rawValue: rep) ?? .noRepeat
-    }
-    
-    if(!style.inBatch){
-      style.node.view?.setNeedsDisplay()
-    }
-  }
-  
-  
-  private func applyBackgroundPosition(_ value: String) {
-    let parts = splitBackgroundLayers(value)
-    
-    if layers.count < parts.count {
-      layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
-    }
-    
-    for (idx, p) in parts.enumerated() {
-      layers[idx].position = parsePosition(p)
-    }
-    
-    if(!style.inBatch){
-      style.node.view?.setNeedsDisplay()
-    }
-  }
-  
-  private func applyBackgroundSize(_ value: String) {
-    let parts = splitBackgroundLayers(value)
-    
-    if layers.count < parts.count {
-      layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
-    }
-    
-    for (idx, p) in parts.enumerated() {
-      layers[idx].size = parseSize(p)
-    }
-    
-    if(!style.inBatch){
-      style.node.view?.setNeedsDisplay()
-    }
-  }
-  
-  private func applyBackgroundClip(_ value: String) {
-    let v = value.trimmingCharacters(in: .whitespaces).lowercased()
-    
-    let clip: BackgroundClip
-    switch v {
-    case "border-box": clip = .borderBox
-    case "padding-box": clip = .paddingBox
-    case "content-box": clip = .contentBox
-    default: return
-    }
-    
-    for layer in layers {
-      layer.clip = clip
-    }
-    
-    if(!style.inBatch){
-      style.node.view?.setNeedsDisplay()
-    }
-  }
-  
+
   public func applyBackgroundProperty(name: String, value: String) {
     let key = name.lowercased().trimmingCharacters(in: .whitespaces)
     
@@ -258,19 +351,39 @@ class Background {
       return
       
     case "background-repeat":
-      applyBackgroundRepeat(value)
+      setLonghand(key, value)
       return
       
     case "background-position":
-      applyBackgroundPosition(value)
+      setLonghand(key, value)
+      return
+
+    case "background-position-x":
+      setLonghand(key, value)
+      return
+
+    case "background-position-y":
+      setLonghand(key, value)
       return
       
     case "background-size":
-      applyBackgroundSize(value)
+      setLonghand(key, value)
       return
       
     case "background-clip":
-      applyBackgroundClip(value)
+      setLonghand(key, value)
+      return
+
+    case "background-origin":
+      setLonghand(key, value)
+      return
+
+    case "background-attachment":
+      setLonghand(key, value)
+      return
+
+    case "background-blend-mode":
+      setLonghand(key, value)
       return
       
     default:
@@ -285,14 +398,14 @@ internal let colorMap: [String: UIColor] = [
   "skyblue": UIColor(red: 135/255, green: 206/255, blue: 235/255, alpha: 1),
   "black": .black,
   "silver": UIColor(white: 0.75, alpha: 1),
-  "gray": .gray,
-  "grey": .gray,
+  "gray": UIColor(red: 128/255, green: 128/255, blue: 128/255, alpha: 1),
+  "grey": UIColor(red: 128/255, green: 128/255, blue: 128/255, alpha: 1),
   "white": .white,
   "maroon": UIColor(red: 0.5, green: 0, blue: 0, alpha: 1),
   "red": .red,
   "purple": UIColor(red: 0.5, green: 0, blue: 0.5, alpha: 1),
   "fuchsia": .magenta,
-  "green": .green,
+  "green": UIColor(red: 0, green: 128/255, blue: 0, alpha: 1),
   "lime": UIColor(red: 0, green: 1, blue: 0, alpha: 1),
   "olive": UIColor(red: 0.5, green: 0.5, blue: 0, alpha: 1),
   "yellow": .yellow,
@@ -300,9 +413,9 @@ internal let colorMap: [String: UIColor] = [
   "blue": .blue,
   "teal": UIColor(red: 0, green: 0.5, blue: 0.5, alpha: 1),
   "aqua": .cyan,
-  "orange": .orange,
+  "orange": UIColor(red: 1, green: 165/255, blue: 0, alpha: 1),
   "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
-  "pink": UIColor.systemPink,
+  "pink": UIColor(red: 1, green: 192/255, blue: 203/255, alpha: 1),
   "transparent": .clear,
   "cyan": .cyan
 ]
@@ -360,20 +473,47 @@ func splitGradientParts(_ content: String) -> [String] {
 }
 
 
-// MARK: - Parse Multiple Layers (deprecated wrapper)
-// kept for compatibility with older call sites
+// MARK: - Parse Multiple Layers
+/// Layers of a `background`/`background-image` list, minus empty/default ones
+/// (a bare color like "#fff" lives on `Background.color`, not a layer).
 func parseBackgroundLayers(_ css: String) -> [BackgroundLayer] {
-  // Parse layers but filter out empty/default layers. For example, when the
-  // author only specifies a simple color ("#fff"), we should not create a
-  // placeholder BackgroundLayer — the color is stored on `Background.color`.
-  let parsed = splitBackgroundLayers(css).map { parseLayer($0) }
-  let meaningful = parsed.filter { layer in
-    return layer.image != nil || layer.gradient != nil || layer.position != nil || layer.size != nil || layer.repeatType != .repeatXY || layer.clip != .borderBox
+  splitBackgroundLayers(css).map { parseLayer($0) }.filter { !$0.isDefault }
+}
+
+private let REPEAT_KEYS: Set<String> = ["repeat", "repeat-x", "repeat-y", "no-repeat"]
+private let POSITION_KEYS: Set<String> = ["top", "bottom", "left", "right", "center"]
+private let BOX_KEYWORDS: Set<String> = ["border-box", "padding-box", "content-box"]
+private let ATTACHMENT_KEYWORDS: Set<String> = ["scroll", "fixed", "local"]
+
+func parseRepeat(_ value: String) -> BackgroundRepeat {
+  BackgroundRepeat(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) ?? .noRepeat
+}
+
+/// Cut the first `linear-gradient(...)`/`radial-gradient(...)` out of `value`, balancing parentheses.
+private func extractGradient(from value: String) -> (gradient: String, rest: String)? {
+  let starts = ["linear-gradient(", "radial-gradient("].compactMap { value.range(of: $0, options: .caseInsensitive)?.lowerBound }
+  guard let start = starts.min() else { return nil }
+  var depth = 0
+  var end = value.endIndex
+  var i = start
+  while i < value.endIndex {
+    let ch = value[i]
+    if ch == "(" {
+      depth += 1
+    } else if ch == ")" {
+      depth -= 1
+      if depth == 0 { end = value.index(after: i); break }
+    }
+    i = value.index(after: i)
   }
-  return meaningful
+  let rest = String(value[..<start]) + " " + String(value[end...])
+  return (String(value[start..<end]), rest.trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
 // MARK: - Parse Single Layer
+/// One comma-separated layer of the `background` shorthand: image, gradient,
+/// repeat, attachment, position [/ size] and up to two box keywords (origin,
+/// then clip). A color token is kept on `backgroundColor` for the final layer.
 func parseLayer(_ str: String) -> BackgroundLayer {
   let layer = BackgroundLayer()
   var value = str.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -381,140 +521,176 @@ func parseLayer(_ str: String) -> BackgroundLayer {
   if value.hasSuffix(";") {
     value = String(value.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
   }
-  
-  // Entire layer is just a plain color
-  if let col = parseColor(value) {
-    layer.backgroundColor = col
-    return layer
-  }
-  
-  // Gradient
-  if value.lowercased().hasPrefix("linear-gradient") || value.lowercased().hasPrefix("radial-gradient") {
-    if let g = parseGradient(value) {
-      layer.gradient = g
-      
-      var cgColors: [CGColor] = []
-      var locations: [CGFloat] = []
-      
-      // The direction/shape is now properly parsed, so stops only contain color stops
-      let colorStops = g.stops
-      
-      for stop in colorStops {
-        if let lastSpace = stop.lastIndex(of: " ") {
-          let colorPart = String(stop[..<lastSpace])
-          let posPart = String(stop[stop.index(after: lastSpace)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-          
-          if let color = parseColor(colorPart)?.cgColor {
-            cgColors.append(color)
-          }
-          
-          if let pos = Double(posPart.trimmingCharacters(in: CharacterSet(charactersIn: "%"))) {
-            locations.append(CGFloat(pos) / 100)
-          } else {
-            locations.append(CGFloat(cgColors.count - 1) / CGFloat(colorStops.count - 1))
-          }
-        } else {
-          if let color = parseColor(stop)?.cgColor {
-            cgColors.append(color)
-          }
-          locations.append(CGFloat(cgColors.count - 1) / CGFloat(colorStops.count - 1))
-        }
-      }
-      
-      if !cgColors.isEmpty {
-        layer.shader = CGGradient(colorsSpace: UIColor.deviceCS,
-                                  colors: cgColors as CFArray,
-                                  locations: locations)
-      }
-      
-      // gradient consumes whole layer string
-      value = ""
-      return layer
-    }
-  }
-  
-  // Image
+
+  // Image URL first: its contents must not be tokenized.
   if let url = parseImage(value) {
     layer.image = url
     value = removeImageURL(from: value)
   }
-  
-  // Repeat keywords
-  ["repeat", "repeat-x", "repeat-y", "no-repeat"].forEach { key in
-    if value.contains(key) {
-      layer.repeatType = BackgroundRepeat(rawValue: key) ?? .noRepeat
-      value = value.replacingOccurrences(of: key, with: "")
-    }
+
+  // Gradient: the function consumes its own parentheses, the rest are tokens.
+  if let (gradientText, rest) = extractGradient(from: value) {
+    layer.gradient = parseGradient(gradientText)
+    value = rest
   }
-  
-  // Position / Size
-  if value.contains("/") {
-    let parts = value.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-    let posPart = parts[0]
-    let sizePart = parts.count > 1 ? parts[1] : nil
-    if !posPart.isEmpty {
-      layer.position = parsePosition(posPart)
-    }
-    if let sizePart = sizePart { layer.size = parseSize(sizePart) }
-  } else if !value.isEmpty {
-    layer.position = parsePosition(value)
-  }
-  
-  // Background color token (after parsing gradient/image)
-  // Only parse **standalone tokens** that are a color, do NOT split inside parentheses
-  let tokens = value.split(separator: " ").map(String.init)
-  for token in tokens {
-    if let col = parseColor(token) {
+
+  var boxes: [BackgroundClip] = []
+  var positionTokens: [String] = []
+  var sizeTokens: [String] = []
+  var afterSlash = false
+  for raw in splitTopLevelWhitespace(value) {
+    let t = raw.lowercased()
+    // A "/" inside parentheses belongs to a color function such as rgb(0 0 0 / 50%).
+    let bareSlash = !t.contains("(")
+    if bareSlash && t == "/" {
+      afterSlash = true
+    } else if bareSlash && t.hasPrefix("/") {
+      afterSlash = true
+      sizeTokens.append(String(t.dropFirst()))
+    } else if bareSlash && t.hasSuffix("/") {
+      positionTokens.append(String(t.dropLast()))
+      afterSlash = true
+    } else if bareSlash, let slash = t.firstIndex(of: "/") {
+      positionTokens.append(String(t[..<slash]))
+      sizeTokens.append(String(t[t.index(after: slash)...]))
+      afterSlash = true
+    } else if afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != nil) {
+      sizeTokens.append(t)
+    } else if REPEAT_KEYS.contains(t) {
+      layer.repeatType = parseRepeat(t)
+    } else if ATTACHMENT_KEYWORDS.contains(t), let attachment = BackgroundAttachment.parse(t) {
+      layer.attachment = attachment
+    } else if BOX_KEYWORDS.contains(t), let box = BackgroundClip.parse(t) {
+      boxes.append(box)
+    } else if POSITION_KEYS.contains(t) || parseBackgroundLength(t) != nil {
+      afterSlash = false
+      positionTokens.append(t)
+    } else if let col = parseColor(raw) {
       layer.backgroundColor = col
-      break
     }
+  }
+  if !positionTokens.isEmpty { layer.position = parsePosition(positionTokens) }
+  if !sizeTokens.isEmpty { layer.size = parseSize(sizeTokens.joined(separator: " ")) }
+  if boxes.count == 1 {
+    layer.origin = boxes[0]
+    layer.clip = boxes[0]
+  } else if boxes.count >= 2 {
+    layer.origin = boxes[0]
+    layer.clip = boxes[1]
   }
   
   return layer
 }
 
-// MARK: - Parse Position (accepts a string like "35% center" or "left top")
-func parsePosition(_ str: String) -> (CGFloat, CGFloat) {
-  var x: CGFloat = 0.5
-  var y: CGFloat = 0.5
-  let tokens = str.split(whereSeparator: { $0.isWhitespace }).map(String.init).filter { !$0.isEmpty }
-  
-  for part in tokens {
-    if part.hasSuffix("%") {
-      if let v = Float(part.dropLast()) {
-        if x == 0.5 { x = CGFloat(v / 100) } else { y = CGFloat(v / 100) }
-      }
-    } else {
-      switch part.lowercased() {
-      case "left": x = 0
-      case "right": x = 1
-      case "top": y = 0
-      case "bottom": y = 1
-      case "center": if x == 0.5 { x = 0.5 } else { y = 0.5 }
-      default: break
-      }
-    }
+// MARK: - Parse Position
+/// One `<length>` or `<percentage>` of a background position/size, or nil. Lengths are device px.
+func parseBackgroundLength(_ token: String) -> BackgroundOffset? {
+  let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  if t.isEmpty { return nil }
+  guard let lp = parseLengthPercentage(t) else { return nil }
+  switch lp {
+  case .Percent(let p): return BackgroundOffset(fraction: CGFloat(p), px: 0)
+  case .Points(let p): return BackgroundOffset(fraction: 0, px: CGFloat(p))
+  case .Zero: return BackgroundOffset()
   }
-  return (x, y)
+}
+
+private func isHorizontalKeyword(_ t: String) -> Bool { t == "left" || t == "right" }
+private func isVerticalKeyword(_ t: String) -> Bool { t == "top" || t == "bottom" }
+
+private func keywordOffset(_ t: String) -> BackgroundOffset? {
+  switch t {
+  case "left", "top": return BackgroundOffset(fraction: 0, px: 0)
+  case "center": return BackgroundOffset(fraction: 0.5, px: 0)
+  case "right", "bottom": return BackgroundOffset(fraction: 1, px: 0)
+  default: return nil
+  }
+}
+
+/// `background-position-x`/`-y`: a keyword, a length, or `<edge> <offset>`.
+func parseAxisPosition(_ parts: [String], horizontal: Bool) -> BackgroundOffset? {
+  let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty }
+  guard let first = tokens.first else { return nil }
+  let edgeOk = horizontal ? (isHorizontalKeyword(first) || first == "center") : (isVerticalKeyword(first) || first == "center")
+  if tokens.count == 1 {
+    return edgeOk ? keywordOffset(first) : parseBackgroundLength(first)
+  }
+  if tokens.count == 2 && edgeOk && first != "center" {
+    guard let offset = parseBackgroundLength(tokens[1]), let edge = keywordOffset(first) else { return nil }
+    // `right 10px` means 10px in from the right: a negative device offset.
+    return edge.fraction == 1 ? BackgroundOffset(fraction: 1 - offset.fraction, px: -offset.px) : offset
+  }
+  return nil
+}
+
+/// CSS `background-position` with the 1-, 2-, 3- and 4-value syntaxes.
+func parsePosition(_ parts: [String]) -> BackgroundPosition? {
+  let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty }
+  if tokens.isEmpty || tokens.count > 4 { return nil }
+  switch tokens.count {
+  case 1:
+    let t = tokens[0]
+    if isVerticalKeyword(t), let y = keywordOffset(t) {
+      return BackgroundPosition(x: BackgroundOffset(fraction: 0.5), y: y)
+    }
+    guard let x = keywordOffset(t) ?? parseBackgroundLength(t) else { return nil }
+    return BackgroundPosition(x: x, y: BackgroundOffset(fraction: 0.5))
+  case 2:
+    var a = tokens[0]
+    var b = tokens[1]
+    // `top left` is legal: keywords may swap axes, lengths may not.
+    if isVerticalKeyword(a) || isHorizontalKeyword(b) { swap(&a, &b) }
+    let xKeyword = isVerticalKeyword(a) ? nil : keywordOffset(a)
+    let yKeyword = isHorizontalKeyword(b) ? nil : keywordOffset(b)
+    guard let x = xKeyword ?? parseBackgroundLength(a), let y = yKeyword ?? parseBackgroundLength(b) else { return nil }
+    return BackgroundPosition(x: x, y: y)
+  default:
+    // 3/4-value: edge keywords each optionally followed by an offset.
+    var x: BackgroundOffset? = nil
+    var y: BackgroundOffset? = nil
+    var i = 0
+    while i < tokens.count {
+      let kw = tokens[i]
+      let next = i + 1 < tokens.count ? tokens[i + 1] : nil
+      let pair = (next != nil && parseBackgroundLength(next!) != nil) ? [kw, next!] : [kw]
+      if isHorizontalKeyword(kw) || (kw == "center" && x == nil && !isVerticalKeyword(next ?? "")) {
+        guard let v = parseAxisPosition(pair, horizontal: true) else { return nil }
+        x = v
+      } else if isVerticalKeyword(kw) || kw == "center" {
+        guard let v = parseAxisPosition(pair, horizontal: false) else { return nil }
+        y = v
+      } else {
+        return nil
+      }
+      i += pair.count
+    }
+    return BackgroundPosition(x: x ?? BackgroundOffset(fraction: 0.5), y: y ?? BackgroundOffset(fraction: 0.5))
+  }
 }
 
 // MARK: - Parse Size
-func parseSize(_ str: String) -> (CGFloat, CGFloat)? {
-  let s = str.lowercased()
+func parseSize(_ value: String) -> BackgroundSize? {
+  let s = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
   switch s {
-  case "cover": return (-1, -1) // special handling in draw
-  case "contain": return (-2, -2) // special handling in draw
+  case "cover", "contain":
+    return BackgroundSize(keyword: s)
+  case "auto", "auto auto":
+    return BackgroundSize()
   default:
-    let tokens = s.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-    if tokens.count == 2 {
-      let w = tokens[0].trimmingCharacters(in: CharacterSet(charactersIn: "px"))
-      let h = tokens[1].trimmingCharacters(in: CharacterSet(charactersIn: "px"))
-      if let wf = Float(w), let hf = Float(h) {
-        return (CGFloat(wf), CGFloat(hf))
-      }
+    let tokens = splitTopLevelWhitespace(s)
+    if tokens.isEmpty || tokens.count > 2 { return nil }
+    var w: BackgroundOffset? = nil
+    if tokens[0] != "auto" {
+      guard let v = parseBackgroundLength(tokens[0]) else { return nil }
+      w = v
     }
+    var h: BackgroundOffset? = nil
+    if tokens.count > 1, tokens[1] != "auto" {
+      guard let v = parseBackgroundLength(tokens[1]) else { return nil }
+      h = v
+    }
+    return BackgroundSize(width: w, height: h)
   }
-  return nil
 }
 
 func extractGradientContent(_ str: String) -> (type: String, content: String)? {

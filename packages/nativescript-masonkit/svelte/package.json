@@ -1,0 +1,40 @@
+{
+  "name": "@triniwiz/nativescript-masonkit-svelte",
+  "version": "1.0.0-beta.95",
+  "description": "Svelte Native integration for @triniwiz/nativescript-masonkit: registers MasonKit's web-standards layout elements and keeps keyed child order.",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/triniwiz/nativescript-mason.git"
+  },
+  "keywords": [
+    "NativeScript",
+    "Svelte",
+    "svelte-native",
+    "layout",
+    "flexbox",
+    "grid",
+    "mason"
+  ],
+  "author": {
+    "name": "Osei Fortune",
+    "email": "fortune.osei@yahoo.com"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/triniwiz/nativescript-mason",
+  "peerDependencies": {
+    "@triniwiz/nativescript-masonkit": ">=1.0.0-beta.95",
+    "svelte-native": ">=1.0.0",
+    "svelte": "^4.0.0"
+  }
+}

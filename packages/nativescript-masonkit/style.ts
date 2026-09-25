@@ -1052,6 +1052,20 @@ function fontStretchFromValue(v: number): string {
   return `${v / 100}%`;
 }
 
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+/** A reset (core sends undefined for an unset property) or `initial`/`unset` becomes the CSS initial value. */
+function cssInitialIfReset(value: string, initial: string): string {
+  const v = value.trim().toLowerCase();
+  return v === '' || v === 'initial' || v === 'unset' ? initial : value;
+}
+
 export class Style {
   private view_: View;
   private style_view: DataView;
@@ -1060,6 +1074,11 @@ export class Style {
   private isDirty = -1n;
   private inBatch = false;
   private _syncScheduled = false;
+  // Buffer bytes before this turn's first write. Frameworks often undo and
+  // redo the same values (NativeScript-Vue re-applies every inline style key
+  // each render); if the bytes end up unchanged the native sync is skipped.
+  // `false` means a write happened without a snapshot, so always sync.
+  private _turnSnapshot: Uint8Array | false | undefined = undefined;
   private nativeView: any;
   private nativeNode: any;
   private _pseudo: number;
@@ -1380,6 +1399,12 @@ export class Style {
   }
 
   private syncStyle() {
+    const snapshot = this._turnSnapshot;
+    this._turnSnapshot = undefined;
+    if (snapshot && this.isDirty !== -1n && bytesEqual(snapshot, this.u8View)) {
+      this.resetState();
+      return;
+    }
     if (__ANDROID__) {
       const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
@@ -1402,6 +1427,9 @@ export class Style {
   }
 
   private setOrAppendState(value: StateKeys) {
+    if (this._turnSnapshot === undefined) {
+      this._turnSnapshot = false;
+    }
     if (this.isDirty == -1n) {
       this.isDirty = value.bits;
     } else {
@@ -1455,6 +1483,9 @@ export class Style {
     // always mut
     if (this._pseudo) {
       return;
+    }
+    if (this._turnSnapshot === undefined && this.isDirty === -1n && this.u8View) {
+      this._turnSnapshot = this.u8View.slice();
     }
     const ref = getUint32(this.style_view, StyleKeys.REF_COUNT);
     if (ref !== 1) {
@@ -4631,6 +4662,121 @@ export class Style {
     );
   }
 
+  get backgroundPositionX(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPositionX(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundPositionX;
+    }
+    return '';
+  }
+
+  set backgroundPositionX(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), '0%');
+    this.setPseudoCssStringValue(
+      'background-position-x',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPositionX(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.backgroundPositionX = value),
+    );
+  }
+
+  get backgroundPositionY(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPositionY(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundPositionY;
+    }
+    return '';
+  }
+
+  set backgroundPositionY(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), '0%');
+    this.setPseudoCssStringValue(
+      'background-position-y',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPositionY(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.backgroundPositionY = value),
+    );
+  }
+
+  get backgroundOrigin(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundOrigin(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundOrigin;
+    }
+    return '';
+  }
+
+  set backgroundOrigin(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'padding-box');
+    this.setPseudoCssStringValue(
+      'background-origin',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundOrigin(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.backgroundOrigin = value),
+    );
+  }
+
+  get backgroundAttachment(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundAttachment(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundAttachment;
+    }
+    return '';
+  }
+
+  set backgroundAttachment(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'scroll');
+    this.setPseudoCssStringValue(
+      'background-attachment',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundAttachment(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.backgroundAttachment = value),
+    );
+  }
+
+  get backgroundBlendMode(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundBlendMode(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundBlendMode;
+    }
+    return '';
+  }
+
+  set backgroundBlendMode(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'normal');
+    this.setPseudoCssStringValue(
+      'background-blend-mode',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundBlendMode(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.backgroundBlendMode = value),
+    );
+  }
+
   get borderRadius() {
     if (!this.nativeView) {
       return '';
@@ -4751,6 +4897,75 @@ export class Style {
       value,
       () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecoration(this.nativeView, value),
       () => (this.nativeView as MasonElementObjc).style.setTextDecoration(value),
+    );
+  }
+
+  get textDecorationLine(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationLine(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.textDecorationLine;
+    }
+    return '';
+  }
+
+  set textDecorationLine(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'none');
+    this.setPseudoCssStringValue(
+      'text-decoration-line',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationLine(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.textDecorationLine = value),
+    );
+  }
+
+  get textDecorationStyle(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationStyle(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.textDecorationStyle;
+    }
+    return '';
+  }
+
+  set textDecorationStyle(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'solid');
+    this.setPseudoCssStringValue(
+      'text-decoration-style',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationStyle(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.textDecorationStyle = value),
+    );
+  }
+
+  get textDecorationColor(): string {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationColor(this.nativeView);
+    }
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.textDecorationColor;
+    }
+    return '';
+  }
+
+  set textDecorationColor(value: string) {
+    value = cssInitialIfReset(this.coerceCssStringValue(value), 'currentcolor');
+    this.setPseudoCssStringValue(
+      'text-decoration-color',
+      value,
+      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationColor(this.nativeView, value),
+      () => ((this.nativeView as MasonElementObjc).style.textDecorationColor = value),
     );
   }
 

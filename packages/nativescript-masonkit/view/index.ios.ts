@@ -40,73 +40,12 @@ export class View extends ViewBase {
     return this._view;
   }
 
-  private _measureChildren(layout) {
-    const children = layout.children;
-    let i = 0;
-    if (children.count === 0) {
-      return;
-    }
-
-    for (const child of this._viewChildren) {
-      layout = children.objectAtIndex(i);
-      const w = layout.width;
-      const h = layout.height;
-
-      const wSpec = Utils.layout.makeMeasureSpec(w, Utils.layout.EXACTLY);
-      const hSpec = Utils.layout.makeMeasureSpec(h, Utils.layout.EXACTLY);
-      View.measureChild(this as never, child as never, wSpec, hSpec);
-
-      i++;
-    }
-  }
-
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-    // @ts-ignore
-    let layout = this._view.node.computedLayout;
-    const children = layout.children;
-    let i = 0;
-
-    if (children.count === 0) {
-      return;
-    }
-
-    for (const child of this._viewChildren) {
-      layout = children.objectAtIndex(i);
-      const x = layout.x;
-      const y = layout.y;
-      const w = layout.width;
-      const h = layout.height;
-
-      const isMason = !!child[isMasonView_];
-
-      if (isMason) {
-        // Mason child: Swift's applyToView already set the native frame.
-        // If isLayoutValid is set, Mason handled this child — skip the full
-        // layout cascade and just sync NativeScript's internal bounds tracking.
-        const childNode = (child as any).ios?.node;
-        if (childNode?.isLayoutValid) {
-          // Still call layout() to keep NativeScript's bounds state in sync,
-          // but with setFrame=false so we don't redundantly set the native frame.
-          (child as any).layout(x, y, x + w, y + h, false);
-          // Clear isLayoutValid AFTER layout() completes so a re-entrant
-          // layoutSubviews during layout() can't see a stale false value
-          // and fall through to the non-Mason path.
-          childNode.isLayoutValid = false;
-          i++;
-          continue;
-        }
-        // Mason child but not yet laid out by Swift — let the cascade run
-        // with setFrame=false (Swift will set the frame during layoutSubviews).
-        (child as any).layout(x, y, x + w, y + h, false);
-      } else {
-        // Non-Mason (plain NativeScript) child inside a Mason container.
-        // Mason's applyToView already set its UIView frame; NativeScript's
-        // _setNativeViewFrame will set it again to the same value which
-        // keeps NativeScript's internal state (_isLaidOut, events) correct.
-        (child as any).layout(x, y, x + w, y + h, true);
-      }
-      i++;
+    // Mason descendants were placed by the native compute; only a root's
+    // non-Mason views still need core's layout.
+    if (!this._masonPlacedNatively) {
+      this._masonLayoutForeignDescendants();
     }
   }
 
@@ -150,7 +89,6 @@ export class View extends ViewBase {
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
           this.setMeasuredDimension(w, h);
-          this._measureChildren(layout);
           return;
         } else {
           // Nothing definite to resolve against: measure by max-content so we
@@ -169,10 +107,6 @@ export class View extends ViewBase {
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
           this.setMeasuredDimension(w, h);
-
-          this.eachLayoutChild((child) => {
-            ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
-          });
         }
       } else {
         // @ts-ignore
@@ -181,10 +115,6 @@ export class View extends ViewBase {
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
         this.setMeasuredDimension(w, h);
-
-        this.eachLayoutChild((child) => {
-          ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
-        });
       }
     }
   }
@@ -217,7 +147,6 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    view[isMasonView_] = false;
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
     // Unlink the mason node so removal detaches

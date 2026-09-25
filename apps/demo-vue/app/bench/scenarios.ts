@@ -1,5 +1,5 @@
 import { $navigateBack, ref } from 'nativescript-vue';
-import { bumpTiles, FEED_APPEND, FEED_INITIAL, makeFeed, makeNested, makeTiles, resetSeed, retextNested, type FeedItem, type NestedNode, type Tile } from './data';
+import { bumpTiles, FEED_APPEND, FEED_INITIAL, makeFeed, makeNested, makeRichCards, makeTiles, resetSeed, restyleRich, retextNested, retextRich, RICH_APPEND, RICH_INITIAL, type FeedItem, type NestedNode, type RichCard, type Tile } from './data';
 import { PageBench, idle, pageDone, unwatchLayout, type Flavour } from './harness';
 
 interface PageProps {
@@ -127,4 +127,49 @@ export function useNested(flavour: Flavour, props: PageProps) {
   };
 
   return { tree, showOdd, narrow, onLoaded, retext, toggleOdd, toggleNarrow };
+}
+
+export function useRich(flavour: Flavour, props: PageProps) {
+  resetSeed();
+  const bench = new PageBench('rich', flavour);
+  const cards = ref<RichCard[]>(makeRichCards(RICH_INITIAL));
+  const narrow = ref(false);
+  let nextId = RICH_INITIAL;
+
+  const retext = (step: number) => {
+    cards.value = retextRich(cards.value, `v${step}`);
+  };
+  const restyle = () => {
+    cards.value = restyleRich(cards.value);
+  };
+  const append = () => {
+    cards.value = [...cards.value, ...makeRichCards(RICH_APPEND, nextId)];
+    nextId += RICH_APPEND;
+  };
+  const toggleNarrow = () => {
+    narrow.value = !narrow.value;
+  };
+  const clear = () => {
+    cards.value = [];
+  };
+  const refill = () => {
+    cards.value = makeRichCards(RICH_INITIAL);
+    nextId = RICH_INITIAL;
+  };
+
+  const onLoaded = (args?: any) => {
+    bench.loaded(args?.object);
+    void finish(bench, props.auto, async () => {
+      await bench.run('retext all', () => retext(1));
+      await bench.ticks('retext', 20, (i) => retext(i + 2));
+      await bench.run('restyle spans', restyle);
+      await bench.run('append 10', append);
+      await bench.run('narrow root', toggleNarrow);
+      await bench.run('widen root', toggleNarrow);
+      await bench.run('clear', clear);
+      await bench.run('refill 30', refill);
+    });
+  };
+
+  return { cards, narrow, onLoaded, retext, restyle, append, toggleNarrow, clear, refill };
 }

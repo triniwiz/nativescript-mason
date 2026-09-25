@@ -1,6 +1,6 @@
 <template>
   <div class="box" :class="node.depth % 2 ? 'column' : 'row'">
-    <p v-if="showOdd || node.depth % 2 === 1" class="text" :class="[node.children.length ? 'branch' : 'leaf', node.depth % 2 ? '' : 'full']">{{ node.text }}</p>
+    <p v-if="showOdd || node.depth % 2 === 1" class="text" :class="[node.children.length ? 'branch' : 'leaf', node.depth % 2 ? '' : 'full']" :text="node.text" />
     <NestedBoxMason v-for="child in node.children" :key="child.id" :node="child" :show-odd="showOdd" class="cell" />
   </div>
 </template>

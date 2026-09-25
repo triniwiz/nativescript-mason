@@ -56,6 +56,22 @@
         }
       ]
     },
+    "build.svelte": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["production", "^production"],
+      "options": {
+        "commands": ["tsc -p packages/nativescript-masonkit/svelte/tsconfig.json", "node tools/scripts/copy-subpackage.ts nativescript-masonkit svelte"],
+        "parallel": false
+      },
+      "outputs": ["{workspaceRoot}/dist/packages/nativescript-masonkit/svelte"],
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
     "build.all": {
       "executor": "nx:run-commands",
       "options": {
@@ -74,6 +90,10 @@
         },
         {
           "target": "build.vue",
+          "projects": "self"
+        },
+        {
+          "target": "build.svelte",
           "projects": "self"
         }
       ]

@@ -1,22 +1,22 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" @loaded="onLoaded">
     <ActionBar title="Dashboard - MasonKit">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="dash">
         <div class="toolbar">
           <div class="tool" @tap="bump(Date.now() % 100)"><span class="tool-text">Bump</span></div>
           <div class="tool" @tap="rotate"><span class="tool-text">Rotate</span></div>
-          <div class="tool" @tap="toggleWide"><span class="tool-text">{{ wide ? '3 columns' : '2 columns' }}</span></div>
+          <div class="tool" @tap="toggleWide"><span class="tool-text" :text="wide ? '3 columns' : '2 columns'" /></div>
         </div>
 
         <div class="grid" :class="{ wide }">
           <div v-for="tile in tiles" :key="tile.id" class="tile">
-            <span class="label">{{ tile.label }}</span>
-            <span class="value" :style="{ color: tile.color }">{{ tile.value }}</span>
+            <span class="label" :text="tile.label" />
+            <span class="value" :text="tile.value" :color="tile.color" />
             <div class="bars">
-              <div v-for="(h, i) in tile.bars" :key="i" class="bar" :style="{ height: h, backgroundColor: tile.color }" />
+              <div v-for="(h, i) in tile.bars" :key="i" class="bar" :height="h" :backgroundColor="tile.color" />
             </div>
           </div>
         </div>
