@@ -11,7 +11,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { BORDER_WIDTH_KEYWORDS, splitBackground, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
-import { cssLength, isCssLength } from './css-shorthands';
+import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle | undefined {
@@ -74,7 +74,7 @@ export function shorthandConverter({ longhands, split }: MasonShorthand) {
 
 function masonShorthandProperty(entry: MasonShorthand, getter: (this: Style) => unknown = () => undefined) {
   return new ShorthandProperty<Style, any>({
-    name: entry.cssName.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()),
+    name: toCamelCase(entry.cssName),
     cssName: entry.cssName,
     getter,
     converter: shorthandConverter(entry),

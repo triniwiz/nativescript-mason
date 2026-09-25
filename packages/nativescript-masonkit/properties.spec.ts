@@ -5,6 +5,7 @@ import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { setCssUnitContext } from './units';
 import { installMasonSizeUnits } from './properties';
+import { toCamelCase } from './css-shorthands';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
 // its overrideHandlers() calls — which mutate @nativescript/core's own
@@ -177,7 +178,7 @@ describe('plain NativeScript views keep core semantics', () => {
     }).not.toThrow();
     // Core's converters map a keyword onto its own enum value; the giveaway that
     // the mason passthrough leaked would be the raw string surviving.
-    const read = (style as any)[cssName.replace(/-([a-z])/g, (_m: string, c: string) => c.toUpperCase())];
+    const read = (style as any)[toCamelCase(cssName)];
     expect(read).not.toBe(undefined);
   });
 

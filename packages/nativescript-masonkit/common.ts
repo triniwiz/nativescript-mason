@@ -8,7 +8,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // rather than core's root export, unlike the border *width* longhands above.
 import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
-import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius } from './css-shorthands';
+import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import { Style as MasonStyle, Style } from './style';
 import {
@@ -265,11 +265,6 @@ declare module '@nativescript/core/ui/styling/style' {
     cornerShape: string;
     transform: string;
   }
-}
-
-/** "background-color" -> "backgroundColor". */
-function toCamelCase(prop: string): string {
-  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 function masonLength<T>(value: T): T | string {

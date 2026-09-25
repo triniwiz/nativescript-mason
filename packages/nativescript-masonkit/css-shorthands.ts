@@ -78,6 +78,13 @@ export function isCssLength(value: unknown): value is CssLength {
   return typeof (value as CssLength | null)?.css === 'string';
 }
 
+const KEBAB_SEGMENT = /-([a-z])/g;
+
+/** "background-color" -> "backgroundColor". */
+export function toCamelCase(prop: string): string {
+  return prop.replace(KEBAB_SEGMENT, (_, c: string) => c.toUpperCase());
+}
+
 const LENGTH = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?([a-z]+|%)?$/i;
 const FUNCTION = /^[a-z-]+\(.*\)$/is;
 
