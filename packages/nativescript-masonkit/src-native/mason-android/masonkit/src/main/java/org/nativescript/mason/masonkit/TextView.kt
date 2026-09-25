@@ -220,6 +220,7 @@ class TextView @JvmOverloads constructor(
         } else 0f
         // We bypass super.onDraw, which normally insets the layout by the view's
         // padding — so apply paddingLeft/paddingTop here.
+        if (layoutToDraw.paint === engine.plainTextPaint) engine.preparePlainTextPaint(paint)
         val tx = paddingLeft.toFloat()
         val ty = paddingTop.toFloat() + dy
         if (tx != 0f || ty != 0f) {

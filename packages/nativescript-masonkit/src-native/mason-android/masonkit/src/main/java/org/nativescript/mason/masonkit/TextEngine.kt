@@ -95,6 +95,8 @@ private fun isLineEndSpace(ch: Char): Boolean =
   ch == ' ' || ch == '	' || ch == ' ' ||
     (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
 
+private val NOT_PLAIN = Any()
+
 private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
   for (i in 0 until text.length) {
     if (text[i].isSoftWrapOpportunity()) return true
@@ -1911,6 +1913,37 @@ class TextEngine(val container: TextContainer) {
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint = TextPaint()
 
+  /**
+   * Text whose only spans are one whole-text run style and alignment draws as
+   * a plain String with the run style in the paint: Layout then draws it with
+   * drawText instead of walking spans per run. The paint is refreshed before
+   * each draw, since the run style reads its attributes live.
+   */
+  internal val plainTextPaint = TextPaint()
+  private var plainTextRunStyle: Spans.RunStyleSpan? = null
+
+  internal fun preparePlainTextPaint(base: TextPaint) {
+    plainTextPaint.set(base)
+    plainTextRunStyle?.updateDrawState(plainTextPaint)
+  }
+
+  // The whole-text RunStyleSpan (or null for none) when nothing else but
+  // alignment is set on the text, else NOT_PLAIN.
+  private fun plainRunStyle(text: Spanned): Any? {
+    var run: Spans.RunStyleSpan? = null
+    for (span in text.getSpans(0, text.length, Any::class.java)) {
+      when (span) {
+        is AlignmentSpan -> {}
+        is Spans.RunStyleSpan -> {
+          if (run != null || text.getSpanStart(span) != 0 || text.getSpanEnd(span) != text.length) return NOT_PLAIN
+          run = span
+        }
+        else -> return NOT_PLAIN
+      }
+    }
+    return run
+  }
+
   private val singleLineMetrics = BoringLayout.Metrics()
   private val singleLineTextMetrics = Paint.FontMetricsInt()
 
@@ -1965,6 +1998,12 @@ class TextEngine(val container: TextContainer) {
     m.bottom = bottom
     m.leading = fm.leading
     m.width = ceilPx(visibleWidth).toInt()
+    val runStyle = plainRunStyle(text)
+    if (runStyle !== NOT_PLAIN) {
+      plainTextRunStyle = runStyle as Spans.RunStyleSpan?
+      preparePlainTextPaint(paint)
+      return BoringLayout.make(text.toString(), plainTextPaint, width, alignment, 1f, 0f, m, includePadding)
+    }
     return BoringLayout.make(text, paint, width, alignment, 1f, 0f, m, includePadding)
   }
 
