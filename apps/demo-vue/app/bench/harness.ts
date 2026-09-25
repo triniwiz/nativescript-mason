@@ -1,22 +1,9 @@
 import { ref } from 'nativescript-vue';
 
-/**
- * In-app layout benchmark: every scenario exists as a MasonKit page and a core
- * page running the same workload. Phases are timed from the mutation until
- * layout has settled (see `settled`); medians are reported.
- */
-
 const hiResNow: (() => number) | undefined = (globalThis as any).__time;
-export const now = (): number => (hiResNow ? hiResNow() : Date.now());
+const now = (): number => (hiResNow ? hiResNow() : Date.now());
 
-/** Main-thread CPU ms: steadier than wall time on an emulator. */
-export const cpuNow = (): number => {
-  try {
-    return (global as any).isAndroid ? android.os.Debug.threadCpuTimeNanos() / 1e6 : NaN;
-  } catch {
-    return NaN;
-  }
-};
+const cpuNow = (): number => (__ANDROID__ ? android.os.Debug.threadCpuTimeNanos() / 1e6 : NaN);
 
 export type Flavour = 'mason' | 'core';
 export type ScenarioKey = 'feed' | 'dashboard' | 'nested';
@@ -24,9 +11,7 @@ export type ScenarioKey = 'feed' | 'dashboard' | 'nested';
 export interface PhaseSample {
   ms: number;
   cpuMs?: number;
-  /** Longest single frame inside a multi-frame phase. */
   worstFrameMs?: number;
-  /** Tick phases: page draws and layout passes seen, and ticks with no draw. */
   draws?: number;
   passes?: number;
   undrawnTicks?: number;
@@ -56,9 +41,9 @@ export function resetResults(): void {
  * The next vsync, after its layout and draw. Not requestAnimationFrame: outside
  * a frame callback core runs it as a macrotask, so ticks never waited for a frame.
  */
-export const nextFrame = (): Promise<number> =>
+const nextFrame = (): Promise<number> =>
   new Promise((resolve) => {
-    if (!(global as any).isAndroid) {
+    if (!__ANDROID__) {
       requestAnimationFrame(resolve);
       return;
     }
@@ -69,64 +54,43 @@ export const nextFrame = (): Promise<number> =>
     );
   });
 
-/**
- * Settled = a layout traversal ran since the mutation, and no further pass or
- * pending requestLayout for two frames. The same bar for both flavours.
- */
 let layoutPasses = 0;
 let draws = 0;
 let watchedRoot: any = null;
 let layoutListener: any = null;
 let drawListener: any = null;
 
-export function watchLayout(view: any): void {
+function watchLayout(view: any): void {
   unwatchLayout();
-  if (!(global as any).isAndroid) return;
+  if (!__ANDROID__) return;
   const nativeView = view?.android ?? view?.nativeViewProtected;
   if (!nativeView?.getViewTreeObserver) return;
-  try {
-    layoutListener = new android.view.ViewTreeObserver.OnGlobalLayoutListener({
-      onGlobalLayout: () => {
-        layoutPasses++;
-      },
-    });
-    nativeView.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
-    drawListener = new android.view.ViewTreeObserver.OnDrawListener({
-      onDraw: () => {
-        draws++;
-      },
-    });
-    nativeView.getViewTreeObserver().addOnDrawListener(drawListener);
-    watchedRoot = nativeView;
-  } catch {
-    watchedRoot = null;
-    layoutListener = null;
-  }
+  layoutListener = new android.view.ViewTreeObserver.OnGlobalLayoutListener({
+    onGlobalLayout: () => {
+      layoutPasses++;
+    },
+  });
+  nativeView.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+  drawListener = new android.view.ViewTreeObserver.OnDrawListener({
+    onDraw: () => {
+      draws++;
+    },
+  });
+  nativeView.getViewTreeObserver().addOnDrawListener(drawListener);
+  watchedRoot = nativeView;
 }
 
 export function unwatchLayout(): void {
-  try {
-    if (watchedRoot && layoutListener) {
-      watchedRoot.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
-    }
-    if (watchedRoot && drawListener) {
-      watchedRoot.getViewTreeObserver().removeOnDrawListener(drawListener);
-    }
-  } catch {}
+  if (watchedRoot) {
+    watchedRoot.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
+    watchedRoot.getViewTreeObserver().removeOnDrawListener(drawListener);
+  }
   watchedRoot = null;
   layoutListener = null;
   drawListener = null;
 }
 
-function layoutPending(): boolean {
-  try {
-    return !!watchedRoot?.isLayoutRequested();
-  } catch {
-    return false;
-  }
-}
-
-export async function settled(): Promise<void> {
+async function settled(): Promise<void> {
   const watching = !!watchedRoot;
   const entry = layoutPasses;
   const deadline = Date.now() + 5000;
@@ -134,14 +98,13 @@ export async function settled(): Promise<void> {
   let stable = 0;
   let last = -1;
   let advanced = !watching;
-  // A phase with no layout effect never produces a pass.
   const NO_PASS_GIVE_UP = 8;
   while (Date.now() < deadline) {
     await nextFrame();
     frames++;
     const passes = layoutPasses;
     if (passes > entry) advanced = true;
-    if (passes === last && !layoutPending()) {
+    if (passes === last && !watchedRoot?.isLayoutRequested()) {
       stable++;
     } else {
       stable = 0;
@@ -157,24 +120,17 @@ export async function idle(ms = 150): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Native Perf counters per phase, logged to MasonPerf. Off when comparing. */
-export const PERF_COUNTERS = false;
+const PERF_COUNTERS = false;
 
 function perfDump(scenario: ScenarioKey, flavour: Flavour, phase: string): void {
   if (!PERF_COUNTERS) return;
-  try {
-    const Perf = (globalThis as any).org?.nativescript?.mason?.masonkit?.Perf;
-    if (!Perf) return;
-    if (!Perf.enabled) Perf.enabled = true;
-    Perf.dump(`${scenario}/${flavour}/${phase}`);
-    Perf.reset();
-  } catch {}
+  const Perf = (globalThis as any).org?.nativescript?.mason?.masonkit?.Perf;
+  if (!Perf) return;
+  if (!Perf.enabled) Perf.enabled = true;
+  Perf.dump(`${scenario}/${flavour}/${phase}`);
+  Perf.reset();
 }
 
-/**
- * The Bench page is itself MasonKit, so reactive UI updates during a run would
- * land in the open timing window. Results are stashed and published between pages.
- */
 const stash: Results = emptyResults();
 const stashPhaseOrder: Record<ScenarioKey, string[]> = { feed: [], dashboard: [], nested: [] };
 let stashStatus = '';
@@ -197,7 +153,7 @@ export function setBenchStatus(text: string): void {
   stashStatus = text;
 }
 
-export function resetBenchRunState(): void {
+function resetBenchRunState(): void {
   const fresh = emptyResults();
   (Object.keys(stash) as ScenarioKey[]).forEach((k) => {
     stash[k] = fresh[k];

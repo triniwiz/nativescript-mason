@@ -28,7 +28,6 @@ defineProps<{ node: NestedNode; showOdd: boolean }>();
   align-items: flex-start;
 }
 
-/* Text in a row level spans the full width above the two cells, as core's colSpan does. */
 .full {
   flex-basis: 100%;
 }

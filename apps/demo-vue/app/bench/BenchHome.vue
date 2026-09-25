@@ -93,7 +93,6 @@ function open(page: Component): void {
   $navigateTo(page);
 }
 
-/** From Home the bench is the nested frame's base page, so pop the host page. */
 function closeBench(): void {
   const top = Frame.topmost();
   if (!top) return;
@@ -117,6 +116,12 @@ async function runPage(page: Component, label: string): Promise<void> {
   flushBenchUi();
 }
 
+function warmupBalancedOrder(s: Scenario, iteration: number): Array<[Flavour, Component]> {
+  return iteration % 2
+    ? [['core', s.core], ['mason', s.mason]]
+    : [['mason', s.mason], ['core', s.core]];
+}
+
 async function runAll(): Promise<void> {
   if (running.value) return;
   running.value = true;
@@ -124,9 +129,7 @@ async function runAll(): Promise<void> {
   try {
     for (let i = 0; i < iterations.value; i++) {
       for (const s of scenarios) {
-        // Alternate the order so neither flavour always pays for the other's warm-up.
-        const order: Array<[Flavour, Component]> = i % 2 ? [['core', s.core], ['mason', s.mason]] : [['mason', s.mason], ['core', s.core]];
-        for (const [flavour, page] of order) {
+        for (const [flavour, page] of warmupBalancedOrder(s, i)) {
           await runPage(page, `Run ${i + 1}/${iterations.value} · ${s.title} · ${flavour}`);
         }
       }
@@ -138,7 +141,6 @@ async function runAll(): Promise<void> {
   }
 }
 
-// Autostarts when the app boots into Bench, or when `__benchAutoStart` is set.
 onMounted(() => {
   const forced = (globalThis as { __benchAutoStart?: boolean }).__benchAutoStart === true;
   if (props.autoStart || forced) setTimeout(() => runAll(), 800);

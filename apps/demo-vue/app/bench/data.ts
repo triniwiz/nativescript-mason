@@ -1,5 +1,3 @@
-/** Deterministic fixtures shared by both flavours of every scenario. */
-
 export interface FeedItem {
   id: number;
   title: string;
@@ -53,8 +51,8 @@ export interface Tile {
   color: string;
 }
 
-export const DASH_COLS = 3;
-export const DASH_ROWS = 8;
+const DASH_COLS = 3;
+const DASH_ROWS = 8;
 
 export function makeTiles(): Tile[] {
   const tiles: Tile[] = [];
@@ -78,7 +76,7 @@ export function bumpTiles(tiles: Tile[], step: number): Tile[] {
   }));
 }
 
-export const NESTED_DEPTH = 5;
+const NESTED_DEPTH = 5;
 
 export interface NestedNode {
   id: number;
@@ -87,7 +85,6 @@ export interface NestedNode {
   children: NestedNode[];
 }
 
-/** Binary tree `depth` levels deep: 2^(depth+1)-1 boxes, half of them leaves. */
 export function makeNested(depth = NESTED_DEPTH, breadth = 2, id = { n: 0 }): NestedNode {
   const node: NestedNode = { id: id.n++, depth, text: words(depth ? 4 : 10), children: [] };
   if (depth > 0) {
@@ -96,7 +93,6 @@ export function makeNested(depth = NESTED_DEPTH, breadth = 2, id = { n: 0 }): Ne
   return node;
 }
 
-/** Return a new tree with every leaf's text replaced. */
 export function retextNested(node: NestedNode, suffix: string): NestedNode {
   return {
     ...node,
