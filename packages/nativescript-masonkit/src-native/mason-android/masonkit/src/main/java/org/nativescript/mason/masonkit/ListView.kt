@@ -53,7 +53,7 @@ class ListView @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     } // force rebuild on next draw
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     super.onSizeChanged(w, h, oldw, oldh)
   }
 

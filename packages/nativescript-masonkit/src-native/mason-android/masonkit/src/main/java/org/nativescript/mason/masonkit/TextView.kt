@@ -120,7 +120,7 @@ class TextView @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     } // force rebuild on next draw
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     // Invalidate cached StaticLayout when size changes, but skip if this
     // size change was triggered by our own float-aware height expansion.
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {

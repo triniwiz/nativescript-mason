@@ -382,11 +382,13 @@ class BorderRenderer(private val style: Style) {
     private val DOT_EFFECT = android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
   }
 
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val path = Path()
-  private val ringPath = Path()
-  private val clipPath = Path()
-  private val outerClipPath = Path()
+  // Native objects, each with a cleaner: most views never draw a border or
+  // clip to a radius, so create them on first use.
+  private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
+  private val path by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val ringPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val clipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val outerClipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
 
   // Reusable RectF for arc corner calculations — avoids allocation per corner
   private val cornerRect = RectF()
@@ -1595,7 +1597,7 @@ fun parseBorderShorthand(style: Style, value: String) {
     style.mBorderBottom.color = Color.TRANSPARENT
 
     if (batch) {
-      style.mBorderRenderer.invalidate()
+      style.invalidateBorderRenderer()
       style.inBatch = false
     }
 
@@ -1692,7 +1694,7 @@ fun parseBorderShorthand(style: Style, value: String) {
   }
 
   if (dirty) {
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
   }
 
   if (batch) {
@@ -1716,7 +1718,7 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
     border.width = Zero
     border.style = BorderStyle.None
     border.color = Color.TRANSPARENT
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     return
   }
 
@@ -1763,7 +1765,7 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
   borderStyle?.let { border.style = it }
   color?.let { border.color = it }
 
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
 
   if (batch) {
     style.inBatch = false
@@ -1839,7 +1841,7 @@ fun parseCornerShape(style: Style, value: String) {
   style.mBorderBottom.setState = true
 
   style.setOrAppendState(StateKeys.BORDER_RADIUS)
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
 
   if (batch) {
     style.inBatch = false
@@ -1882,7 +1884,7 @@ fun parseBorderRadius(style: Style, value: String) {
   style.borderBottomRightRadius = Point(hMapped[2], vMapped[2])
   style.borderBottomLeftRadius = Point(hMapped[3], vMapped[3])
   // Always invalidate renderer and notify native update for radius changes
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
   if (!style.inBatch) {
     style.isDirty = StateKeys.BORDER_RADIUS.bits
     style.updateNativeStyle()

@@ -3009,8 +3009,12 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   internal var mBorder: String = ""
-  internal val mBorderRenderer by lazy {
-    BorderRenderer(this)
+  private val borderRendererLazy = lazy { BorderRenderer(this) }
+  internal val mBorderRenderer by borderRendererLazy
+
+  // A renderer not created yet starts invalidated; don't create one to invalidate it.
+  internal fun invalidateBorderRenderer() {
+    if (borderRendererLazy.isInitialized()) mBorderRenderer.invalidate()
   }
   internal val mBorderLeft by lazy {
     Border(this, Border.Side.Left)
@@ -3097,7 +3101,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderTop.corner1Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3107,7 +3111,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderTop.corner2Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3117,7 +3121,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderBottom.corner2Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3127,7 +3131,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderBottom.corner1Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -4251,7 +4255,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     val zIndex = (isDirty and StateKeys.Z_INDEX.low) or (isDirtyHigh and StateKeys.Z_INDEX.high)
 
     if (borderState != 0L || borderRadius != 0L || borderStyle != 0L || borderColor != 0L) {
-      mBorderRenderer.invalidate()
+      invalidateBorderRenderer()
     }
 
     // Dispatch caret-color to input views
