@@ -146,7 +146,7 @@ interface Element : EventTarget {
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
     }
     node.computeCache = SizeF(-2f, -2f)
     node.computeCacheDirty = false // compute just ran — cache is clean
@@ -167,7 +167,7 @@ interface Element : EventTarget {
     try {
       NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
     }
     node.computeCache = SizeF(width, height)
     node.computeCacheDirty = false // compute just ran — cache is clean
@@ -180,7 +180,7 @@ interface Element : EventTarget {
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
     }
     node.computeCache = SizeF(-2f, -2f)
     node.computeCacheDirty = false // compute just ran — cache is clean
@@ -193,7 +193,7 @@ interface Element : EventTarget {
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
     }
     node.computeCache = SizeF(-2f, -2f)
     node.computeCacheDirty = false // compute just ran — cache is clean
@@ -297,6 +297,8 @@ interface Element : EventTarget {
   fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
+    TextEngine.flushPendingTextStyles(node)
+    Style.flushPendingMetrics(node)
     var applied = true
     mason.inCompute = true
     try {
@@ -306,7 +308,7 @@ interface Element : EventTarget {
       }
       applied = node.layoutTree.fromFloatArray(layout)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
       node.computeCache = SizeF(-1f, -1f)
       node.computeCacheDirty = !applied // compute just ran — cache is clean, unless the refill was skipped (see MasonLayoutTree.reading)
       if (!applied) {
@@ -322,7 +324,11 @@ interface Element : EventTarget {
    */
   fun layout(): Layout {
     val mason = node.mason
-    val floats = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
+    val floats = try {
+      NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
+    } finally {
+      mason.computeFinished()
+    }
     if (floats.isEmpty()) return Layout.empty
     return Layout.fromFloatArray(floats, 0).second
   }
@@ -333,6 +339,8 @@ interface Element : EventTarget {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     }
     node.nestedComputePending = false
+    TextEngine.flushPendingTextStyles(node)
+    Style.flushPendingMetrics(node)
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native
@@ -360,7 +368,7 @@ interface Element : EventTarget {
       }
       applied = node.layoutTree.fromFloatArray(layout)
     } finally {
-      mason.inCompute = false
+      mason.endCompute()
       node.computeCache = SizeF(width, height)
       // clean unless the refill was skipped (see MasonLayoutTree.reading)
       node.computeCacheDirty = !applied
@@ -579,6 +587,10 @@ interface Element : EventTarget {
       root.dirty()
     }
 
+    if (!targetView.isAttachedToWindow && root.lastRootWidthArg == Float.MIN_VALUE) {
+      return
+    }
+
     // Schedule a one-shot compute on the view's message queue to coalesce
     // rapid invalidations and keep layout work off the caller thread. Falls
     // back to a synchronous compute only when no view is available.
@@ -589,9 +601,12 @@ interface Element : EventTarget {
       // onMeasure) performs the compute and serializes the layout in one
       // shot, so applyLayoutFlat gets correct data.
       var finished = false
-      val runCompute = {
+      lateinit var runCompute: Runnable
+      val handler = targetView.handler ?: Handler(Looper.getMainLooper())
+      runCompute = Runnable {
         if (!finished) {
           finished = true
+          handler.removeCallbacks(runCompute)
           root.computeScheduled = false
           if (root.type == NodeType.Document) {
             root.document?.documentElement?.let { docEl ->
@@ -603,17 +618,18 @@ interface Element : EventTarget {
               docEl.view?.requestLayout()
             }
           } else {
-            // For normal Element roots, just request a full layout pass.
-            // computeCacheDirty is still true (set by node.dirty() above),
-            // so computeAndLayout() in onMeasure will recompute + serialize.
-            (root.view as? View)?.requestLayout()
+            val rv = root.view as? android.view.View
+            if (rv != null && rv.isAttachedToWindow && root.lastRootWidthArg != Float.MIN_VALUE) {
+              (root.view as? Element)?.computeAndLayout(root.lastRootWidthArg, root.lastRootHeightArg)
+            }
+            rv?.requestLayout()
           }
         }
       }
       targetView.postOnAnimation(runCompute)
       // Fallback: postOnAnimation is dropped if the view detaches before the
       // next vsync, which would leave computeScheduled latched true forever.
-      Handler(Looper.getMainLooper()).postDelayed(runCompute, 32)
+      handler.postDelayed(runCompute, 32)
     }
   }
 
@@ -659,10 +675,15 @@ interface Element : EventTarget {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       vg?.suppressLayout(true)
     }
-    views.forEach {
-      appendView(it)
+    try {
+      views.forEach {
+        appendView(it)
+      }
+    } finally {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        vg?.suppressLayout(false)
+      }
     }
-
   }
 
   fun prependView(view: View) {
@@ -676,7 +697,13 @@ interface Element : EventTarget {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       vg?.suppressLayout(true)
     }
-    views.reversed().forEach { prependView(it) }
+    try {
+      views.reversed().forEach { prependView(it) }
+    } finally {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        vg?.suppressLayout(false)
+      }
+    }
   }
 
   fun addChildAt(text: String, index: Int) {
@@ -765,11 +792,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         overflow = node.style.overflow
       }
 
-      val x = layout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = layout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val x = layout.x.orZero().toInt()
+      val y = layout.y.orZero().toInt()
 
-      var width = layout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var height = layout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var width = layout.width.orZero().toInt()
+      var height = layout.height.orZero().toInt()
 
       if (view !is Element) {
         // measured already grab dim
@@ -900,6 +927,8 @@ private class LayoutDfsState {
   var top = -1
 }
 
+private inline fun Float.orZero(): Float = if (isNaN()) 0f else this
+
 // applyLayoutFlat can re-enter itself: a child's view.measure()/view.layout()
 // call below can synchronously trigger another top-level layout pass
 // elsewhere in the tree (e.g. a nested Scroll/Input, or Android deciding a
@@ -1009,10 +1038,10 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           }
 
           // Snap outward so the view is never narrower than its layout box.
-          val fx = nv.x.takeIf { !it.isNaN() } ?: 0f
-          val fy = nv.y.takeIf { !it.isNaN() } ?: 0f
-          val fw = nv.width.takeIf { !it.isNaN() } ?: 0f
-          val fh = nv.height.takeIf { !it.isNaN() } ?: 0f
+          val fx = nv.x.orZero()
+          val fy = nv.y.orZero()
+          val fw = nv.width.orZero()
+          val fh = nv.height.orZero()
           var x = floor(fx).toInt()
           var y = floor(fy).toInt()
 
@@ -1198,10 +1227,16 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       // layout.children provided by Rust (which omits nodes without native views).
       val childCnt = tree.childCount[treeIdx]
       if (childCnt > 0) {
-        // skip the filter allocation on the common path (every child has a native view)
         val rawChildren = node.children
+        var needsFilter = false
+        for (i in rawChildren.indices) {
+          if (rawChildren[i].nativePtr == 0L) {
+            needsFilter = true
+            break
+          }
+        }
         val nativeChildren =
-          if (rawChildren.any { it.nativePtr == 0L }) rawChildren.filter { it.nativePtr != 0L } else rawChildren
+          if (needsFilter) rawChildren.filter { it.nativePtr != 0L } else rawChildren
         val childStart = tree.childStart[treeIdx]
         for (i in (0 until childCnt).reversed()) {
           val child = nativeChildren.getOrNull(i) ?: continue

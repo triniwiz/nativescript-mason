@@ -2,7 +2,7 @@ dependencies {
   implementation 'com.google.code.gson:gson:2.10'
   implementation 'com.github.bumptech.glide:glide:4.14.2'
   annotationProcessor 'com.github.bumptech.glide:compiler:4.14.2'
-  implementation 'org.nativescript:fontmanager:1.0.8'
+  implementation 'org.nativescript:fontmanager:[1.0.8,2.0)'
 }
 
 android {

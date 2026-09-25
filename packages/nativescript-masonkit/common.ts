@@ -302,9 +302,74 @@ function colorToCssString(value: unknown): string {
   return String(value);
 }
 
+const TEARDOWN_SLICE_MS = 8;
+// Reading the clock costs more than a teardown on some devices.
+const TEARDOWNS_PER_CLOCK_READ = 16;
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
+
+  _masonPendingTeardown = false;
+  private static _pendingTeardowns: ViewBase[] = [];
+  private static _teardownScheduled = false;
+
+  public _tearDownUI(force?: boolean): void {
+    if (__ANDROID__ && !force && !this.reusable && this._context && this.nativeViewProtected) {
+      // A keyed move tears down and re-adds within one patch. Detach only this
+      // element and defer the recursive teardown; _setupUI cancels it on re-attach.
+      if (this.parent) {
+        this.parent._removeViewFromNativeVisualTree(this);
+      }
+      this._masonPendingTeardown = true;
+      ViewBase._pendingTeardowns.push(this);
+      if (!ViewBase._teardownScheduled) {
+        ViewBase._teardownScheduled = true;
+        setTimeout(() => ViewBase._drainTeardowns(), 0);
+      }
+      return;
+    }
+    super._tearDownUI(force);
+  }
+
+  public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
+    if (__ANDROID__ && this._masonPendingTeardown) {
+      this._masonPendingTeardown = false;
+      if (this._context === context) {
+        if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
+          const nativeIndex = this.parent._childIndexToNativeChildIndex(atIndex ?? -1);
+          this._isAddedToNativeVisualTree = this.parent._addViewToNativeVisualTree(this, nativeIndex);
+        }
+        return;
+      }
+    }
+    super._setupUI(context, atIndex, parentIsLoaded);
+  }
+
+  private _masonFinishTeardown() {
+    if (!this._masonPendingTeardown) {
+      return;
+    }
+    this._masonPendingTeardown = false;
+    super._tearDownUI(true);
+  }
+
+  private static _drainTeardowns() {
+    ViewBase._teardownScheduled = false;
+    const deadline = Date.now() + TEARDOWN_SLICE_MS;
+    let done = 0;
+    while (ViewBase._pendingTeardowns.length > 0) {
+      const view = ViewBase._pendingTeardowns.shift();
+      view._masonFinishTeardown();
+      if (++done % TEARDOWNS_PER_CLOCK_READ === 0 && Date.now() >= deadline) {
+        break;
+      }
+    }
+    if (ViewBase._pendingTeardowns.length > 0) {
+      ViewBase._teardownScheduled = true;
+      setTimeout(() => ViewBase._drainTeardowns(), 0);
+    }
+  }
 
   /**
    * Enable or disable CSS Preflight (web-normalised / Tailwind-like) defaults

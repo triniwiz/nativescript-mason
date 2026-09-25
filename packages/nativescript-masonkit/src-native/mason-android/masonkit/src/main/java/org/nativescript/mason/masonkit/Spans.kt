@@ -63,6 +63,43 @@ class Spans {
     }
   }
 
+  class RunStyleSpan(
+    private val attributes: TextDefaultAttributes,
+    private val setColor: Boolean,
+    private val measureSize: Int?,
+    private val letterSpacingPx: Float?,
+    private val typeface: Typeface?,
+    private val isBold: Boolean,
+    private val isItalic: Boolean
+  ) : android.text.style.MetricAffectingSpan(), NSCSpan {
+    override val type: Type
+      get() = Type.Typeface
+
+    override fun updateDrawState(tp: TextPaint) {
+      if (setColor) tp.color = attributes.color ?: Color.BLACK
+      if (measureSize != null) {
+        tp.textSize = (attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE) * tp.density
+      }
+      applyMetrics(tp)
+    }
+
+    override fun updateMeasureState(tp: TextPaint) {
+      if (measureSize != null) tp.textSize = measureSize * tp.density
+      applyMetrics(tp)
+    }
+
+    private fun applyMetrics(tp: TextPaint) {
+      if (letterSpacingPx != null) {
+        val textSize = tp.textSize
+        if (textSize > 0f) tp.letterSpacing = letterSpacingPx / textSize
+      }
+      val face = typeface ?: return
+      if (isBold && !face.isBold) tp.isFakeBoldText = true
+      if (isItalic && !face.isItalic) tp.textSkewX = -0.25f
+      tp.typeface = face
+    }
+  }
+
   class TypefaceSpan2(family: String) : android.text.style.TypefaceSpan(family), NSCSpan {
     override val type: Type
       get() = Type.Typeface
@@ -318,9 +355,7 @@ class Spans {
       get() = Type.View
 
     init {
-      if (view.parent is ViewGroup) {
-        (view.parent as ViewGroup).removeView(view)
-      }
+      NodeUtils.detachNow(view)
     }
 
     override fun getSize(

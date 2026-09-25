@@ -106,7 +106,7 @@ class Scroll @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     }
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
@@ -207,7 +207,9 @@ class Scroll @JvmOverloads constructor(
     if (parent !is Element) {
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = View.mapHeightSpecArg(specHeightMode, specHeight)
+        val heightArg = -2f
+        node.lastRootWidthArg = widthArg
+        node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(widthArg, heightArg)

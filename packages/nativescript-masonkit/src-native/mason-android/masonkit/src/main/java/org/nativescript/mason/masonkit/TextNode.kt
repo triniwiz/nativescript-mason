@@ -23,6 +23,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
   override var data: String = ""
     set(value) {
+      if (field == value) return
       field = value
       // Invalidate the container when text changes
       container?.engine?.invalidateInlineSegments()
@@ -173,6 +174,18 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     return spannable
   }
 
+  internal fun appendAttributedTo(target: SpannableStringBuilder) {
+    val processed = this.container?.let {
+      processText(data, it.style)
+    } ?: data
+    val start = target.length
+    target.append(processed)
+    val previousBG = attributes.backgroundColor
+    attributes.backgroundColor = null
+    applyAttributes(target, start, target.length, attributes)
+    attributes.backgroundColor = previousBG
+  }
+
   companion object {
     internal fun applyAttributes(
       spannable: SpannableStringBuilder,
@@ -184,26 +197,23 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
       val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
-      // Apply color
-      attributes.color?.let { color ->
-        if (color != 0) {
-          spannable.setSpan(Spans.ForegroundColorSpan(attributes), start, end, flags)
-        }
-      }
-
-      // Apply font size
-      attributes.fontSize?.let { size ->
-        size.takeIf { it > 0 }?.let {
-          spannable.setSpan(Spans.SizeSpan(attributes, true), start, end, flags)
-        }
-      }
-
-      // Apply letter spacing. Use LetterSpacingSpan (paint.letterSpacing, EM units)
-      // which adds tracking between glyphs; ScaleXSpan was wrong — it scales each
-      // glyph's width and visibly stretches the text.
-      attributes.letterSpacing?.takeIf { it != 0f }?.let { spacing ->
+      val setColor = attributes.color.let { it != null && it != 0 }
+      val measureSize = attributes.fontSize?.takeIf { it > 0 }
+      val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }
+      val fontFace = attributes.font
+      val typeface = fontFace?.resolvedTypeface
+      if (setColor || measureSize != null || letterSpacing != null || typeface != null) {
         spannable.setSpan(
-          Spans.LetterSpacingSpan(spacing), start, end, flags
+          Spans.RunStyleSpan(
+            attributes,
+            setColor,
+            measureSize,
+            letterSpacing,
+            typeface,
+            isBold = typeface != null && fontFace.weight.weight >= 600,
+            isItalic = typeface != null && fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
+          ),
+          start, end, flags
         )
       }
 
@@ -223,16 +233,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
               spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
             }
           }
-        }
-      }
-
-      // Apply typeface
-      attributes.font?.let { fontFace ->
-        fontFace.resolvedTypeface?.let { typeface ->
-          val isBold = fontFace.weight.weight >= 600
-          val isItalic =
-            fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
-          spannable.setSpan(Spans.TypefaceSpan(typeface, isBold, isItalic), start, end, flags)
         }
       }
 
@@ -321,7 +321,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       processed = when (style.whiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap -> {
           // Collapse sequences of whitespace
-          normalizeNewlines(processed).replace(Regex("[ \t\u000B\u000C\n]+"), " ")
+          collapseWhitespace(normalizeNewlines(processed), collapseNewlines = true)
         }
 
         Styles.WhiteSpace.Pre -> {
@@ -350,13 +350,43 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     }
 
     private fun normalizeNewlines(s: String): String {
+      if (s.indexOf('\r') < 0) return s
       return s.replace("\r\n", "\n").replace("\r", "\n")
     }
 
     private fun processPreLine(s: String): String {
       return s.split("\n").joinToString("\n") { line ->
-        line.replace(Regex("[ \t\u000B\u000C]+"), " ")
+        collapseWhitespace(line, collapseNewlines = false)
       }
+    }
+
+    private fun isCollapsible(c: Char, collapseNewlines: Boolean): Boolean =
+      c == ' ' || c == '\t' || c == '\u000B' || c == '\u000C' || (collapseNewlines && c == '\n')
+
+    private fun collapseWhitespace(s: String, collapseNewlines: Boolean): String {
+      var i = 0
+      while (i < s.length) {
+        val c = s[i]
+        if (isCollapsible(c, collapseNewlines) &&
+          (c != ' ' || (i + 1 < s.length && isCollapsible(s[i + 1], collapseNewlines)))
+        ) break
+        i++
+      }
+      if (i == s.length) return s
+      val sb = StringBuilder(s.length).append(s, 0, i)
+      var inRun = false
+      while (i < s.length) {
+        val c = s[i]
+        if (isCollapsible(c, collapseNewlines)) {
+          if (!inRun) sb.append(' ')
+          inRun = true
+        } else {
+          sb.append(c)
+          inRun = false
+        }
+        i++
+      }
+      return sb.toString()
     }
   }
 }

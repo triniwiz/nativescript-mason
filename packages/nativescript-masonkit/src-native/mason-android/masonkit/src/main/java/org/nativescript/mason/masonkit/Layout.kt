@@ -205,6 +205,13 @@ class MasonLayoutTree {
 
 // MARK: - Node View (reusable, mutable cursor into MasonLayoutTree — no allocation per node)
 
+// Primitive reads: getOrNull boxes every Float.
+@PublishedApi
+internal inline fun FloatArray.atOrZero(i: Int): Float = if (i >= 0 && i < size) this[i] else 0f
+
+@PublishedApi
+internal inline fun IntArray.atOrZero(i: Int): Int = if (i >= 0 && i < size) this[i] else 0
+
 class MasonNodeView(var tree: MasonLayoutTree, var index: Int) {
 
   /** Re-point this view at a different node index without allocating. */
@@ -217,41 +224,41 @@ class MasonNodeView(var tree: MasonLayoutTree, var index: Int) {
     tree = newTree; index = newIndex
   }
 
-  inline val x get() = tree.frames.getOrNull(index * 4) ?: 0f
-  inline val y get() = tree.frames.getOrNull(index * 4 + 1) ?: 0f
-  inline val width get() = tree.frames.getOrNull(index * 4 + 2) ?: 0f
-  inline val height get() = tree.frames.getOrNull(index * 4 + 3) ?: 0f
+  inline val x get() = tree.frames.atOrZero(index * 4)
+  inline val y get() = tree.frames.atOrZero(index * 4 + 1)
+  inline val width get() = tree.frames.atOrZero(index * 4 + 2)
+  inline val height get() = tree.frames.atOrZero(index * 4 + 3)
 
-  inline val borderTop get() = tree.borders.getOrNull(index * 4) ?: 0f
-  inline val borderRight get() = tree.borders.getOrNull(index * 4 + 1) ?: 0f
-  inline val borderBottom get() = tree.borders.getOrNull(index * 4 + 2) ?: 0f
-  inline val borderLeft get() = tree.borders.getOrNull(index * 4 + 3) ?: 0f
+  inline val borderTop get() = tree.borders.atOrZero(index * 4)
+  inline val borderRight get() = tree.borders.atOrZero(index * 4 + 1)
+  inline val borderBottom get() = tree.borders.atOrZero(index * 4 + 2)
+  inline val borderLeft get() = tree.borders.atOrZero(index * 4 + 3)
 
-  inline val marginTop get() = tree.margins.getOrNull(index * 4) ?: 0f
-  inline val marginRight get() = tree.margins.getOrNull(index * 4 + 1) ?: 0f
-  inline val marginBottom get() = tree.margins.getOrNull(index * 4 + 2) ?: 0f
-  inline val marginLeft get() = tree.margins.getOrNull(index * 4 + 3) ?: 0f
+  inline val marginTop get() = tree.margins.atOrZero(index * 4)
+  inline val marginRight get() = tree.margins.atOrZero(index * 4 + 1)
+  inline val marginBottom get() = tree.margins.atOrZero(index * 4 + 2)
+  inline val marginLeft get() = tree.margins.atOrZero(index * 4 + 3)
 
-  inline val paddingTop get() = tree.paddings.getOrNull(index * 4) ?: 0f
-  inline val paddingRight get() = tree.paddings.getOrNull(index * 4 + 1) ?: 0f
-  inline val paddingBottom get() = tree.paddings.getOrNull(index * 4 + 2) ?: 0f
-  inline val paddingLeft get() = tree.paddings.getOrNull(index * 4 + 3) ?: 0f
+  inline val paddingTop get() = tree.paddings.atOrZero(index * 4)
+  inline val paddingRight get() = tree.paddings.atOrZero(index * 4 + 1)
+  inline val paddingBottom get() = tree.paddings.atOrZero(index * 4 + 2)
+  inline val paddingLeft get() = tree.paddings.atOrZero(index * 4 + 3)
 
-  inline val contentWidth get() = tree.contentSizes.getOrNull(index * 2) ?: 0f
-  inline val contentHeight get() = tree.contentSizes.getOrNull(index * 2 + 1) ?: 0f
+  inline val contentWidth get() = tree.contentSizes.atOrZero(index * 2)
+  inline val contentHeight get() = tree.contentSizes.atOrZero(index * 2 + 1)
 
-  inline val scrollbarWidth get() = tree.scrollbarSizes.getOrNull(index * 2) ?: 0f
-  inline val scrollbarHeight get() = tree.scrollbarSizes.getOrNull(index * 2 + 1) ?: 0f
+  inline val scrollbarWidth get() = tree.scrollbarSizes.atOrZero(index * 2)
+  inline val scrollbarHeight get() = tree.scrollbarSizes.atOrZero(index * 2 + 1)
 
-  inline val order get() = tree.order.getOrNull(index) ?: 0f
+  inline val order get() = tree.order.atOrZero(index)
 
-  val hasChildren get() = (tree.childCount.getOrNull(index) ?: 0) > 0
+  val hasChildren get() = tree.childCount.atOrZero(index) > 0
 
-  val childNodeCount get() = tree.childCount.getOrNull(index) ?: 0f
+  val childNodeCount get() = tree.childCount.atOrZero(index)
 
   /** Returns the child tree index (not a new MasonNodeView). Use with pointTo(). */
   fun childTreeIndex(i: Int): Int {
-    val start = tree.childStart.getOrNull(index) ?: 0
+    val start = tree.childStart.atOrZero(index)
     return tree.childIndices[start + i]
   }
 
@@ -380,45 +387,45 @@ data class Layout(
         val fIdx = i * 4
         val sIdx = i * 2
 
-        val order = tree.order.getOrNull(i) ?: 0
-        val x = tree.frames.getOrNull(fIdx) ?: 0f
-        val y = tree.frames.getOrNull(fIdx + 1) ?: 0f
-        val width = tree.frames.getOrNull(fIdx + 2) ?: 0f
-        val height = tree.frames.getOrNull(fIdx + 3) ?: 0f
+        val order = tree.order.atOrZero(i)
+        val x = tree.frames.atOrZero(fIdx)
+        val y = tree.frames.atOrZero(fIdx + 1)
+        val width = tree.frames.atOrZero(fIdx + 2)
+        val height = tree.frames.atOrZero(fIdx + 3)
 
         val border = Rect(
-          tree.borders.getOrNull(fIdx) ?: 0f,
-          tree.borders.getOrNull(fIdx + 1) ?: 0f,
-          tree.borders.getOrNull(fIdx + 2) ?: 0f,
-          tree.borders.getOrNull(fIdx + 3) ?: 0f
+          tree.borders.atOrZero(fIdx),
+          tree.borders.atOrZero(fIdx + 1),
+          tree.borders.atOrZero(fIdx + 2),
+          tree.borders.atOrZero(fIdx + 3)
         )
 
         val margin = Rect(
-          tree.margins.getOrNull(fIdx) ?: 0f,
-          tree.margins.getOrNull(fIdx + 1) ?: 0f,
-          tree.margins.getOrNull(fIdx + 2) ?: 0f,
-          tree.margins.getOrNull(fIdx + 3) ?: 0f
+          tree.margins.atOrZero(fIdx),
+          tree.margins.atOrZero(fIdx + 1),
+          tree.margins.atOrZero(fIdx + 2),
+          tree.margins.atOrZero(fIdx + 3)
         )
 
         val padding = Rect(
-          tree.paddings.getOrNull(fIdx) ?: 0f,
-          tree.paddings.getOrNull(fIdx + 1) ?: 0f,
-          tree.paddings.getOrNull(fIdx + 2) ?: 0f,
-          tree.paddings.getOrNull(fIdx + 3) ?: 0f
+          tree.paddings.atOrZero(fIdx),
+          tree.paddings.atOrZero(fIdx + 1),
+          tree.paddings.atOrZero(fIdx + 2),
+          tree.paddings.atOrZero(fIdx + 3)
         )
 
         val contentSize = Size(
-          tree.contentSizes.getOrNull(sIdx) ?: 0f,
-          tree.contentSizes.getOrNull(sIdx + 1) ?: 0f
+          tree.contentSizes.atOrZero(sIdx),
+          tree.contentSizes.atOrZero(sIdx + 1)
         )
 
         val scrollbarSize = Size(
-          tree.scrollbarSizes.getOrNull(sIdx) ?: 0f,
-          tree.scrollbarSizes.getOrNull(sIdx + 1) ?: 0f
+          tree.scrollbarSizes.atOrZero(sIdx),
+          tree.scrollbarSizes.atOrZero(sIdx + 1)
         )
 
-        val childCount = tree.childCount.getOrNull(i) ?: 0
-        val childStart = tree.childStart.getOrNull(i) ?: 0
+        val childCount = tree.childCount.atOrZero(i)
+        val childStart = tree.childStart.atOrZero(i)
         val children = ArrayList<Layout>(childCount)
         for (c in 0 until childCount) {
           val childIdx = tree.childIndices.getOrNull(childStart + c) ?: continue

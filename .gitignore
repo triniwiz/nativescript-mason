@@ -25,6 +25,10 @@ yarn.lock
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Avoid committing platform-specific and hook directories
+apps/**/platforms/
+apps/**/hooks/
+
 # misc
 /.sass-cache
 /connect.lock
@@ -35,6 +39,9 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+.plans/
+tools/benchmarks
+benchmark-results/
 
 # System Files
 .DS_Store

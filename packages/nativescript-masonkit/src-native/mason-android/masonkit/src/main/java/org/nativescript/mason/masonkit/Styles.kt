@@ -24,6 +24,7 @@ class Styles {
 
       fun from(value: Byte): TextJustify {
         return when (value) {
+          (-5).toByte() -> Auto
           (-1).toByte() -> None
           0.toByte() -> Auto
           1.toByte() -> InterWord
