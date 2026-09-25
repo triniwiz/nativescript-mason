@@ -127,10 +127,8 @@ class TextView @JvmOverloads constructor(
       // Keep the float-aware layout intact — we just expanded to fit it.
     } else {
       val contentW = w - paddingLeft - paddingRight
-      if (!cachedStaticLayoutFits(contentW)) {
-        clearCachedStaticLayout()
-        floatAwareStaticLayout = null
-      }
+      if (!cachedStaticLayoutFits(contentW)) clearCachedStaticLayout()
+      floatAwareStaticLayout = null
       floatExpandedHeight = -1
     }
     super.onSizeChanged(w, h, oldw, oldh)
