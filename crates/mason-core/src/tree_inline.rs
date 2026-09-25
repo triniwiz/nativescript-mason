@@ -1497,8 +1497,6 @@ impl Tree {
             let is_inline =
                 matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            // Only the mutated copy needs cloning - reading display_mode() above
-            // doesn't require its own clone.
             let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
             if is_inline {
                 let mut size = adjusted_style.size();
@@ -1609,8 +1607,6 @@ impl Tree {
             let is_inline =
                 matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            // Only the mutated copy needs cloning - reading display_mode() above
-            // doesn't require its own clone.
             let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
 
             if is_inline {

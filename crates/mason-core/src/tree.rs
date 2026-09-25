@@ -75,7 +75,6 @@ pub(crate) struct TreeInner {
     // Set when a node is removed from `nodes`; tells compute_layout's
     // sanitize pass it needs to scrub stale ids from `children`.
     pub(crate) structure_dirty: bool,
-    // Distinguishes this tree's nodes in process-wide side tables.
     pub(crate) uid: u64,
 }
 
@@ -163,16 +162,12 @@ thread_local! {
     static LAYOUT_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// 1/64px keys, so float drift between flex passes hits the same entry.
 #[inline]
 fn quantize_key(w: f32) -> f32 {
     (w * 64.0).round() / 64.0
 }
 
 #[inline]
-/// The styles `compute_leaf_layout` reads, copied out so the measure callback
-/// runs without the tree lock. Cloning the whole `Style` copies every grid
-/// vector and takes an arena reference on each leaf layout.
 pub(crate) fn leaf_layout_style(style: &Style) -> taffy::Style {
     taffy::Style {
         display: match style.box_generation_mode() {
@@ -206,9 +201,6 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
     }
 }
 
-/// Block-leaf measure results, outside the tree lock: the measure callback can
-/// re-enter Rust for reads, so it must never wait on the tree write lock. Lock
-/// order is always tree, then this.
 static BLOCK_MEASURE_CACHE: std::sync::OnceLock<parking_lot::Mutex<BlockMeasureMap>> =
     std::sync::OnceLock::new();
 
@@ -219,14 +211,11 @@ fn next_tree_uid() -> u64 {
     NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Slotmap keys repeat across trees, so the key carries the tree too.
 #[inline]
 fn block_key(tree_uid: u64, id: Id) -> (u64, u64) {
     (tree_uid, id.data().as_ffi())
 }
 
-/// Slotmap keys are already well spread (index | version << 32); SipHash on
-/// every measure lookup is wasted work.
 #[derive(Default, Clone, Copy)]
 struct NodeKeyHasher;
 
@@ -260,7 +249,6 @@ fn block_measure_cache() -> parking_lot::MutexGuard<'static, BlockMeasureMap> {
         .lock()
 }
 
-/// Slotmap keys are versioned, so a removed node's entry must be dropped.
 pub(crate) fn forget_block_measure(tree_uid: u64, id: Id) {
     block_measure_cache().remove(&block_key(tree_uid, id));
 }
@@ -1097,7 +1085,7 @@ impl Tree {
             }
         }
 
-        mark_height_free(&mut self.inner_mut(), root.into());
+        mark_ignores_offered_height(&mut self.inner_mut(), root.into());
 
         {
             let _pass = LayoutPassGuard::enter();
@@ -2002,10 +1990,7 @@ impl LayoutPartialTree for Tree {
     }
 }
 
-/// Sets `Node::height_free` over the subtree: false where the node or a
-/// descendant is a wrapping column flex container (its lines break at the
-/// offered height) or a y-scroll container (clamped to the offered height).
-fn mark_height_free(tree: &mut TreeInner, root: Id) {
+fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
     let mut order = Vec::new();
     let mut stack = vec![root];
     while let Some(id) = stack.pop() {
@@ -2014,7 +1999,6 @@ fn mark_height_free(tree: &mut TreeInner, root: Id) {
             stack.extend(children.iter().copied());
         }
     }
-    // Reversed pre-order visits every child before its parent.
     for &id in order.iter().rev() {
         let Some(node) = tree.nodes.get(id) else { continue };
         let style = node.style();
@@ -2031,21 +2015,16 @@ fn mark_height_free(tree: &mut TreeInner, root: Id) {
         let free = !scrolls_y
             && !wraps_column
             && tree.children.get(id).map_or(true, |children| {
-                children.iter().all(|c| tree.nodes.get(*c).map_or(true, |n| n.height_free))
+                children.iter().all(|c| tree.nodes.get(*c).map_or(true, |n| n.ignores_offered_height))
             });
-        tree.nodes[id].height_free = free;
+        tree.nodes[id].ignores_offered_height = free;
     }
 }
 
-/// For a `height_free` node, neither the width nor the height depends on the
-/// height it is offered: an auto block size is its content size. Key its
-/// measures without the offered height, so the height constraints a parent's
-/// flex passes offer (max-content, min-content, then the line's definite size)
-/// share one result instead of each laying the subtree out again.
 #[inline]
-fn cache_key_input(height_free: bool, inputs: &LayoutInput) -> LayoutInput {
+fn measure_cache_key(ignores_offered_height: bool, inputs: &LayoutInput) -> LayoutInput {
     let mut key = *inputs;
-    if height_free
+    if ignores_offered_height
         && inputs.run_mode == taffy::RunMode::ComputeSize
         && inputs.known_dimensions.height.is_none()
     {
@@ -2058,7 +2037,7 @@ impl CacheTree for Tree {
     #[inline]
     fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
         let node = self.node_from_id_mut(node_id);
-        node.cache.get(&cache_key_input(node.height_free, inputs))
+        node.cache.get(&measure_cache_key(node.ignores_offered_height, inputs))
     }
 
     #[inline]
@@ -2069,7 +2048,7 @@ impl CacheTree for Tree {
         layout_output: taffy::LayoutOutput,
     ) {
         let mut node = self.node_from_id_mut(node_id);
-        let key = cache_key_input(node.height_free, inputs);
+        let key = measure_cache_key(node.ignores_offered_height, inputs);
         node.cache.store(&key, layout_output);
         node.set_node_state(false);
     }
@@ -2462,8 +2441,6 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    // Taffy re-probes the same leaf with the same inputs across flex passes;
-                                    // answer repeats here instead of crossing into the platform again.
                                     let canonical_avail =
                                         if is_text_container && known_dimensions.height.is_none() {
                                             Size {

@@ -703,7 +703,7 @@ impl Mason {
     #[track_caller]
     pub fn set_android_node(&mut self, node: Id, android_node: Option<jni::sys::jint>) {
         if let Some(node) = self.0.node_data_mut().get_mut(node) {
-            node.android_data = android_node.map(|id| node::AndroidNode(id, None));
+            node.android_data = android_node.map(|id| node::AndroidNode { id, last_computed_size: None });
         }
     }
 
@@ -720,7 +720,7 @@ impl Mason {
     /// Return the Android-side node id associated with `node`, if one was set.
     pub fn get_android_node(&self, node: Id) -> Option<jint> {
         if let Some(data) = self.0.node_data().get(node) {
-            data.android_data.map(|n| n.0)
+            data.android_data.map(|n| n.id)
         } else {
             None
         }

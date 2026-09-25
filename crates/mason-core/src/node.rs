@@ -54,16 +54,18 @@ impl AppleNode {
 
 #[cfg(target_os = "android")]
 #[derive(Debug, Clone, Copy)]
-pub struct AndroidNode(pub(crate) jni::sys::jint, pub(crate) Option<(f32, f32)>);
+pub struct AndroidNode {
+    pub(crate) id: jni::sys::jint,
+    pub(crate) last_computed_size: Option<(f32, f32)>,
+}
 
 #[cfg(target_os = "android")]
 impl AndroidNode {
-    /// Skips the JNI call when the size is what Java already holds.
     pub fn set_computed_size(&mut self, width: f32, height: f32) {
-        if self.1 == Some((width, height)) {
+        if self.last_computed_size == Some((width, height)) {
             return;
         }
-        self.1 = Some((width, height));
+        self.last_computed_size = Some((width, height));
         if let Some(jvm) = crate::JVM.get() {
             let mut env = match jvm.get_env() {
                 Ok(env) => env,
@@ -77,7 +79,7 @@ impl AndroidNode {
                         cache.node_set_computed_size_id,
                         jni::signature::ReturnType::Primitive(jni::signature::Primitive::Void),
                         &[
-                            jni::sys::jvalue { i: self.0 },
+                            jni::sys::jvalue { i: self.id },
                             jni::sys::jvalue { f: width },
                             jni::sys::jvalue { f: height },
                         ],
@@ -509,9 +511,6 @@ impl InlineMeasureCache {
         self.next_write_idx = 0;
     }
 
-    /// For a text leaf, the cached max-content result answers any width at
-    /// least that wide: Android's text measure breaks greedily and reports the
-    /// widest line, not the width offered.
     #[inline]
     pub(crate) fn text_fit_from_max_content(
         &self,
@@ -560,9 +559,7 @@ pub struct Node {
     pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
-    // Nothing in this subtree sizes from the height it is offered; set at the
-    // start of each layout pass (see Tree::cache_key_input).
-    pub(crate) height_free: bool,
+    pub(crate) ignores_offered_height: bool,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -582,7 +579,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
-            height_free: false,
+            ignores_offered_height: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -602,7 +599,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
-            height_free: false,
+            ignores_offered_height: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
