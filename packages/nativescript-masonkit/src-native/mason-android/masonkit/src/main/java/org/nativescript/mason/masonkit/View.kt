@@ -231,7 +231,6 @@ open class View @JvmOverloads constructor(
   }
 
   override fun onChange(low: Long, high: Long) {
-    Perf.hit("viewOnChange")
     if (TextEngine.hasAnyTextFlags(low, high)) {
       Node.invalidateDescendantTextViews(node, low, high)
     }
@@ -280,8 +279,6 @@ open class View @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element) {
-      Perf.hit("onMeasureRootV")
-      Perf.hit(if (node.computeCacheDirty) "omDirtyV" else "omCleanV")
       if (!node.mason.inCompute) {
         // normal root measurement
 
@@ -299,7 +296,6 @@ open class View @JvmOverloads constructor(
           widthArg,
           heightArg
         )
-        Perf.addCount("omNodesV", node.layoutTree.nodeCount.toLong())
         if (stale) invalidateForeignHost()
         if (node.layoutTree.nodeCount == 0) {
           setMeasuredDimension(0, 0)
@@ -321,7 +317,6 @@ open class View @JvmOverloads constructor(
         )
       }
     } else {
-      Perf.hit("omNestedV")
       setMeasuredDimension(
         specWidth,
         specHeight,

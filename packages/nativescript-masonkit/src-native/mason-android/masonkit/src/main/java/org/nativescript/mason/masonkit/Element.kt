@@ -338,7 +338,6 @@ interface Element : EventTarget {
     if (mason.inCompute) {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock
     }
-    val __t = Perf.now()
     node.nestedComputePending = false
     TextEngine.flushPendingTextStyles(node)
     Style.flushPendingMetrics(node)
@@ -352,17 +351,8 @@ interface Element : EventTarget {
       && node.computeCache.height == height
       && node.layoutTree.nodeCount > 0
     ) {
-      Perf.hit("computeSkip")
-      Perf.add("computeAndLayout", Perf.now() - __t)
       return node.layoutTree
     }
-    Perf.hit(
-      when {
-        node.computeCacheDirty -> "cmpMissDirty"
-        node.computeCache.width != width || node.computeCache.height != height -> "cmpMissSize"
-        else -> "cmpMissTree"
-      }
-    )
 
     var applied = true
     mason.inCompute = true
@@ -374,8 +364,6 @@ interface Element : EventTarget {
         height
       )
       if (layout.isEmpty()) {
-        Perf.hit("cmpEmpty")
-        Perf.add("computeAndLayout", Perf.now() - __t)
         return MasonLayoutTree.empty
       }
       applied = node.layoutTree.fromFloatArray(layout)
@@ -388,7 +376,6 @@ interface Element : EventTarget {
         invalidateLayout()
       }
     }
-    Perf.add("computeAndLayout", Perf.now() - __t)
     return node.layoutTree
   }
 
@@ -582,7 +569,6 @@ interface Element : EventTarget {
 
     // If no view is available, fallback to immediately compute
     if (targetView == null) {
-      Perf.hit("invNoTarget")
       if (root.type == NodeType.Document) {
         root.document?.documentElement?.compute(root.computeCache.width, root.computeCache.height)
       } else if (root.view is Element && root.computeCacheDirty) {
@@ -602,7 +588,6 @@ interface Element : EventTarget {
     }
 
     if (!targetView.isAttachedToWindow && root.lastRootWidthArg == Float.MIN_VALUE) {
-      Perf.hit("invDetachedSkip")
       return
     }
 
@@ -610,10 +595,8 @@ interface Element : EventTarget {
     // rapid invalidations and keep layout work off the caller thread. Falls
     // back to a synchronous compute only when no view is available.
 
-    if (root.computeScheduled) Perf.hit("invLatch")
     if (!root.computeScheduled) {
       root.computeScheduled = true
-      Perf.hit("invSched")
       // Only request a layout pass here; computeAndLayout() (called from
       // onMeasure) performs the compute and serializes the layout in one
       // shot, so applyLayoutFlat gets correct data.
@@ -625,7 +608,6 @@ interface Element : EventTarget {
           finished = true
           handler.removeCallbacks(runCompute)
           root.computeScheduled = false
-          Perf.hit(if ((root.view as? android.view.View)?.isAttachedToWindow == true) "rcAttT" else "rcAttF")
           if (root.type == NodeType.Document) {
             root.document?.documentElement?.let { docEl ->
               docEl.compute(
@@ -993,7 +975,6 @@ private fun popFrame(state: LayoutDfsState): LayoutStackFrame {
 }
 
 internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
-  val __t = Perf.now()
   if (tree.nodeCount == 0) return
 
   val nv = tree.cursor
@@ -1009,7 +990,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
       val frame = popFrame(dfs)
       val treeIdx = frame.treeIdx
       val node = frame.node!!
-      Perf.hit("applyNode")
       frame.node = null // release ref
 
       nv.pointTo(treeIdx)
@@ -1283,5 +1263,4 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
     tree.reading = wasReading
     releaseDfsState()
   }
-  Perf.add("applyLayout", Perf.now() - __t)
 }

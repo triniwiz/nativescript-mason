@@ -139,7 +139,6 @@ class TextEngine(val container: TextContainer) {
       return buildString { appendText(node) }
     }
     set(value) {
-      Perf.hit("tcSet")
       // Remove all existing children
       var hadNativeChildren = false
       for (child in node.children) {
@@ -302,14 +301,12 @@ class TextEngine(val container: TextContainer) {
       if (textLayoutChanged) {
         textLayoutFlushPending = true
         if (!textStyleFlushPending) {
-          Perf.hit("tvDefer")
           textStyleFlushPending = true
           registerPendingTextStyle(this)
         }
       } else if (textVisualChanged) {
         textVisualFlushPending = true
         if (!textStyleFlushPending) {
-          Perf.hit("tvDefer")
           textStyleFlushPending = true
           registerPendingTextStyle(this)
           (node.view as? View)?.invalidate()
@@ -330,7 +327,6 @@ class TextEngine(val container: TextContainer) {
 
   internal fun flushTextStyleIfNeeded(quiet: Boolean = false) {
     if (!textStyleFlushPending) return
-    Perf.hit("tvFlush")
     pendingTextStyleFlush.remove(this)
     textStyleFlushPending = false
     val layoutPending = textLayoutFlushPending
@@ -343,9 +339,7 @@ class TextEngine(val container: TextContainer) {
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
-      } else if (sig != null && sig == lastTextLayoutSignature) {
-        Perf.hit("tvToggle")
-      } else {
+      } else if (sig == null || sig != lastTextLayoutSignature) {
         val prevSig = lastTextLayoutSignature
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
@@ -356,9 +350,7 @@ class TextEngine(val container: TextContainer) {
       }
     } else if (visualPending) {
       val sig = textVisualSignature()
-      if (sig != null && sig == lastTextVisualSignature) {
-        Perf.hit("tvToggle")
-      } else {
+      if (sig == null || sig != lastTextVisualSignature) {
         lastTextVisualSignature = sig
         updateStyleOnTextNodes()
         if (!quiet) {
@@ -440,7 +432,6 @@ class TextEngine(val container: TextContainer) {
         entry.justified == justified &&
         entry.heuristic == heuristic
       ) {
-        Perf.hit("slHit")
         return entry
       }
     }
@@ -458,7 +449,6 @@ class TextEngine(val container: TextContainer) {
         entry.maxLineWidth <= safeWidthConstraint &&
         safeWidthConstraint <= entry.layout.width + widthSlack
       ) {
-        Perf.hit("slFit")
         return entry
       }
     }
@@ -487,7 +477,6 @@ class TextEngine(val container: TextContainer) {
       return it
     }
 
-    Perf.hit("slMiss")
     val built = singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified)
       ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
@@ -553,17 +542,14 @@ class TextEngine(val container: TextContainer) {
   }
 
   internal fun applyTextIfNeeded(): SpannableStringBuilder {
-    Perf.hit("applyText")
     flushTextStyleIfNeeded()
     val spannable = currentText()
     if (node.children.isNotEmpty() && appliedTextVersion != segmentsInvalidateVersion) {
-      Perf.timed("atSetText") {
-        try {
-          (container as? TextView)?.setTextDeferred(spannable, BufferType.SPANNABLE)
-            ?: container.setText(spannable, BufferType.SPANNABLE)
-        } catch (_: Exception) {
-          container.setText(spannable.toString(), BufferType.NORMAL)
-        }
+      try {
+        (container as? TextView)?.setTextDeferred(spannable, BufferType.SPANNABLE)
+          ?: container.setText(spannable, BufferType.SPANNABLE)
+      } catch (_: Exception) {
+        container.setText(spannable.toString(), BufferType.NORMAL)
       }
       appliedTextVersion = segmentsInvalidateVersion
     }
@@ -680,7 +666,6 @@ class TextEngine(val container: TextContainer) {
     availableHeight: Float,
     spec: MeasureWidthSpec
   ): Layout? {
-    val __t = Perf.now()
     val spannable = applyTextIfNeeded()
     (container.node.view as? View)?.let {
       if (it.layoutParams == null) {
@@ -691,7 +676,6 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (spannable.isEmpty() && node.children.isEmpty()) {
-      Perf.add("measureLayout", Perf.now() - __t)
       return null
     }
 
@@ -706,9 +690,7 @@ class TextEngine(val container: TextContainer) {
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
       !(spec.isInline && !hasSoftWrapOpportunity(spannable))
     ) {
-      Perf.timed("mww") {
-        maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null)
-      }
+      maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null)
     } else {
       entry.maxLineWidth
     }
@@ -754,7 +736,6 @@ class TextEngine(val container: TextContainer) {
     // CRITICAL: Collect and send segments to Rust
     collectAndCacheSegments(layout, spannable, paint, entry.maxLineWidth)
 
-    Perf.add("measureLayout", Perf.now() - __t)
     return layout
   }
 
@@ -824,7 +805,6 @@ class TextEngine(val container: TextContainer) {
     knownWidth: Float, knownHeight: Float,
     availableWidth: Float, availableHeight: Float
   ): Long {
-    val __t = Perf.now()
     // Guard: Rust holds a read lock during measure — no buffer writes allowed
     style.inMeasure = true
     // Post the flush once per dirty episode, not once per measure call — a node is
@@ -850,24 +830,13 @@ class TextEngine(val container: TextContainer) {
         if (measureCacheKeys[b] == ver && measureCacheKeys[b + 1] == mcWKey &&
           measureCacheKeys[b + 2] == mcWMode && measureCacheKeys[b + 3] == 0L
         ) {
-          Perf.hit("mcHit")
           style.syncFontMetrics()
           return measureCacheVals[i]
         }
       }
-      Perf.hit("mcMiss")
-      if (Perf.enabled) {
-        var sameVer = false
-        for (i in 0 until MEASURE_CACHE_SIZE) {
-          if (measureCacheKeys[i * 4] == ver) { sameVer = true; break }
-        }
-        Perf.hit(if (sameVer) "mcMissKey" else "mcMissVer")
-        Perf.hit("mcMode" + mcWMode)
-      }
       if (mcWMode == 2L && maxContentVersion == ver &&
         mcSpec.constraint >= maxContentWidth && mcSpec.constraint <= maxContentConstraint
       ) {
-        Perf.hit("mcFitMax")
         storeMeasure(ver, mcWKey, mcWMode, maxContentOut)
         style.syncFontMetrics()
         return maxContentOut
@@ -932,7 +901,6 @@ class TextEngine(val container: TextContainer) {
       }
       return mcOut
     } finally {
-      Perf.add("textMeasure", Perf.now() - __t)
       style.inMeasure = false
       if (pendingInvalidate) {
         // Schedule flush for after Rust releases the read lock.
@@ -1131,7 +1099,6 @@ class TextEngine(val container: TextContainer) {
       }
       return it.layout
     }
-    Perf.hit("drawRebuild")
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, safeContentWidth)
         .setAlignment(alignment)
@@ -1165,12 +1132,10 @@ class TextEngine(val container: TextContainer) {
     paint: TextPaint,
     lineWidth: Float
   ) {
-    val __t = Perf.now()
     // Nothing relevant changed since the segments already sent for this
     // exact layout — skip the full spannable walk + JNI push.
     for (i in segmentsCacheLayouts.indices) {
       if (segmentsCacheLayouts[i] === layout && segmentsCacheVersions[i] == segmentsInvalidateVersion) {
-        Perf.add("segments", Perf.now() - __t)
         return
       }
     }
@@ -1414,7 +1379,6 @@ class TextEngine(val container: TextContainer) {
     segmentsCacheLayouts[segmentsCacheNextIdx] = layout
     segmentsCacheVersions[segmentsCacheNextIdx] = segmentsInvalidateVersion
     segmentsCacheNextIdx = (segmentsCacheNextIdx + 1) % segmentsCacheLayouts.size
-    Perf.add("segments", Perf.now() - __t)
   }
 
   private fun findNextViewSpan(text: SpannableStringBuilder, start: Int): Int {
@@ -2458,7 +2422,6 @@ class TextEngine(val container: TextContainer) {
   }
 
   internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
-    Perf.hit("invSeg")
     Node.bumpTextInvalidationEpoch()
     segmentsInvalidateVersion += 1
     cachedAttributedString = null

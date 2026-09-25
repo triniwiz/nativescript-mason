@@ -219,7 +219,6 @@ internal object NodeUtils {
   private fun flushRemovals() {
     removalFlushPosted = false
     if (pendingRemovals.isEmpty()) return
-    val __t = Perf.now()
     val batch = pendingRemovals.toList()
     pendingRemovals.clear()
     pendingByView.clear()
@@ -239,32 +238,26 @@ internal object NodeUtils {
       p.requestLayout()
       p.invalidate()
     }
-    Perf.hit("rcBatch")
-    Perf.add("rcFlush", Perf.now() - __t)
   }
 
   fun removeView(parent: Node, view: View?) {
     view ?: return
     val pv = parent.view
     if (pv is ViewGroup && view.parent === pv) {
-      Perf.timed("rcViewPlat") {
-        queueRemoval(pv, view)
-      }
+      queueRemoval(pv, view)
     } else {
       parent.suppressChildOperations {
-        Perf.timed("rcViewPlat") {
-          when (pv) {
-            is org.nativescript.mason.masonkit.View -> {
-              pv.removeView(view)
-            }
+        when (pv) {
+          is org.nativescript.mason.masonkit.View -> {
+            pv.removeView(view)
+          }
 
-            is Scroll -> {
-              pv.removeView(view)
-            }
+          is Scroll -> {
+            pv.removeView(view)
+          }
 
-            is ViewGroup -> {
-              pv.removeView(view)
-            }
+          is ViewGroup -> {
+            pv.removeView(view)
           }
         }
         if (view.parent != null && view.parent !== pv) {
@@ -273,11 +266,9 @@ internal object NodeUtils {
       }
     }
     // Fixed views live under their containing block, not their tree parent.
-    val __tf = Perf.now()
     if ((view as? Element)?.node?.style?.position == Position.Fixed) {
       removeViewFallback(view)
     }
-    Perf.add("rcFixedChk", Perf.now() - __tf)
   }
 
   // Fallback removal: if the expected parent doesn't have a view (or the view

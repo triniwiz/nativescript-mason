@@ -205,8 +205,6 @@ class Scroll @JvmOverloads constructor(
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
     if (parent !is Element) {
-      Perf.hit("onMeasureRoot")
-      Perf.hit(if (node.computeCacheDirty) "omDirty" else "omClean")
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
         val heightArg = -2f
@@ -215,7 +213,6 @@ class Scroll @JvmOverloads constructor(
         val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(widthArg, heightArg)
-        Perf.addCount("omNodes", node.layoutTree.nodeCount.toLong())
         if (stale) invalidateForeignHost()
 
         if (node.layoutTree.nodeCount == 0) {
@@ -239,7 +236,6 @@ class Scroll @JvmOverloads constructor(
         }
       }
     } else {
-      Perf.hit("omNested")
       setMeasuredDimension(specWidth, specHeight)
     }
   }

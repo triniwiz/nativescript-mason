@@ -120,17 +120,6 @@ export async function idle(ms = 150): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const PERF_COUNTERS = false;
-
-function perfDump(scenario: ScenarioKey, flavour: Flavour, phase: string): void {
-  if (!PERF_COUNTERS) return;
-  const Perf = (globalThis as any).org?.nativescript?.mason?.masonkit?.Perf;
-  if (!Perf) return;
-  if (!Perf.enabled) Perf.enabled = true;
-  Perf.dump(`${scenario}/${flavour}/${phase}`);
-  Perf.reset();
-}
-
 const stash: Results = emptyResults();
 const stashPhaseOrder: Record<ScenarioKey, string[]> = { feed: [], dashboard: [], nested: [] };
 let stashStatus = '';
@@ -140,7 +129,6 @@ function record(scenario: ScenarioKey, flavour: Flavour, phase: string, sample: 
   (bucket[phase] ??= []).push(sample);
   const order = stashPhaseOrder[scenario];
   if (!order.includes(phase)) order.push(phase);
-  perfDump(scenario, flavour, phase);
 }
 
 export function flushBenchUi(): void {

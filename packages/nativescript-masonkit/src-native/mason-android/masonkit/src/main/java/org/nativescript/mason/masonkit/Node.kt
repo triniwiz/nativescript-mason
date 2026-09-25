@@ -716,7 +716,6 @@ open class Node internal constructor(
     private var inAttachWalk = false
 
     internal fun bumpTextInvalidationEpoch() {
-      Perf.hit("epochBump")
       if (!inAttachWalk) {
         textInvalidationEpoch++
       }
@@ -730,11 +729,9 @@ open class Node internal constructor(
 
     @JvmStatic
     fun measure(id: Int, knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
-      return Perf.timed("measureCb") {
-        (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
-          knownDimensionsSpec, availableSpaceSpec
-        ) ?: MeasureOutput.ZERO
-      }
+      return (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
+        knownDimensionsSpec, availableSpaceSpec
+      ) ?: MeasureOutput.ZERO
     }
 
     // Lightweight registry mapping pseudo-style ByteBuffers to their owning nodes
@@ -779,7 +776,6 @@ open class Node internal constructor(
 
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
-      Perf.hit("setComputedSize")
       // Invoke optional test callback for instrumentation hooks
       testComputedSizeCallback?.invoke(node, width, height)
 
@@ -828,7 +824,6 @@ open class Node internal constructor(
       if (!reachesText) {
         return
       }
-      Perf.hit("descWalk")
       bumpTextInvalidationEpoch()
       invalidateDescendantTextViewsInner(node, low, high, childLow, childHigh)
     }
@@ -847,7 +842,6 @@ open class Node internal constructor(
       if (!node.hasTextDescendant && node.view !is TextContainer) {
         return
       }
-      Perf.hit("invDescText")
 
       // The resolved FontFace is cached per Style and inherits through
       // node.parent, so a face resolved before this subtree was reachable
@@ -910,7 +904,6 @@ open class Node internal constructor(
       else -> false
     }
     if (stale) {
-      Perf.hit("attachWalk")
       inAttachWalk = true
       try {
         invalidateDescendantTextViews(child, StateKeys.INVALIDATE_TEXT)
@@ -918,8 +911,6 @@ open class Node internal constructor(
       } finally {
         inAttachWalk = false
       }
-    } else {
-      Perf.hit("attachSkip")
     }
     child.lastTextAttachParent = this
     child.detachTextEpoch = textInvalidationEpoch
@@ -927,52 +918,50 @@ open class Node internal constructor(
 
   @JvmOverloads
   open fun appendChild(child: Node, attach: Boolean = true) {
-    Perf.timed("appendChild") {
-      if (child is TextNode) {
-        var pending = false
-        val container = if (view is TextContainer) {
-          this
-        } else {
-          pending = true
-          getOrCreateAnonymousTextContainer()
-        }
-
-        if (pending) {
-          if (child.nativePtr != 0L) {
-            NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
-          }
-          if (attach) {
-            NodeUtils.addView(this, child.view as? View)
-          }
-        }
-
-        container.children.add(child)
-        (container.view as? TextContainer)?.let {
-          child.attributes.sync(it.style)
-          child.container = it
-          it.engine.invalidateInlineSegments()
-        }
-        markHasTextDescendant(container)
-        NodeUtils.invalidateLayout(this)
+    if (child is TextNode) {
+      var pending = false
+      val container = if (view is TextContainer) {
+        this
       } else {
-        children.add(child)
-        child.parent = this
+        pending = true
+        getOrCreateAnonymousTextContainer()
+      }
+
+      if (pending) {
         if (child.nativePtr != 0L) {
           NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
         }
-
         if (attach) {
           NodeUtils.addView(this, child.view as? View)
         }
-        computeCacheDirty = true
-        if (view is TextContainer) {
-          invalidateDescendantTextViews(this, StateKeys.INVALIDATE_TEXT)
-          invalidateDescendantInlineSegments(this)
-        }
-        invalidateOnAttach(child)
-
-        onNodeAttached?.let { it() }
       }
+
+      container.children.add(child)
+      (container.view as? TextContainer)?.let {
+        child.attributes.sync(it.style)
+        child.container = it
+        it.engine.invalidateInlineSegments()
+      }
+      markHasTextDescendant(container)
+      NodeUtils.invalidateLayout(this)
+    } else {
+      children.add(child)
+      child.parent = this
+      if (child.nativePtr != 0L) {
+        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+      }
+
+      if (attach) {
+        NodeUtils.addView(this, child.view as? View)
+      }
+      computeCacheDirty = true
+      if (view is TextContainer) {
+        invalidateDescendantTextViews(this, StateKeys.INVALIDATE_TEXT)
+        invalidateDescendantInlineSegments(this)
+      }
+      invalidateOnAttach(child)
+
+      onNodeAttached?.let { it() }
     }
   }
 
@@ -1207,17 +1196,14 @@ open class Node internal constructor(
   }
 
   fun addChildAt(child: Node, index: Int) {
-    val __t = Perf.now()
     if (index <= -1) {
       appendChild(child)
-      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
     val authorChildren = getChildren()
     // if index is past end, fall back to append behavior
     if (index >= authorChildren.size) {
       appendChild(child)
-      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
 
@@ -1230,7 +1216,7 @@ open class Node internal constructor(
         val containerNode = reference.layoutParent ?: reference.container?.node
         if (containerNode != null && containerNode.parent == this) {
           val idxInContainer =
-            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: run { Perf.add("addChildAt", Perf.now() - __t); return }
+            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: return
           // Insert the new text node before 'reference' inside the same anonymous container
           containerNode.children.add(idxInContainer, child)
           child.parent = containerNode
@@ -1243,7 +1229,6 @@ open class Node internal constructor(
             (containerNode as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
-          Perf.add("addChildAt", Perf.now() - __t)
           return
         }
       }
@@ -1272,7 +1257,6 @@ open class Node internal constructor(
         (view as? Element)?.invalidateLayout()
       }
       NodeUtils.invalidateLayout(this)
-      Perf.add("addChildAt", Perf.now() - __t)
       return
     }
 
@@ -1296,7 +1280,6 @@ open class Node internal constructor(
               (view as? Element)?.invalidateLayout()
             }
             NodeUtils.invalidateLayout(this)
-            Perf.add("addChildAt", Perf.now() - __t)
             return
           }
 
@@ -1396,7 +1379,6 @@ open class Node internal constructor(
             (view as? Element)?.invalidateLayout()
           }
           NodeUtils.invalidateLayout(this)
-          Perf.add("addChildAt", Perf.now() - __t)
           return
         }
       }
@@ -1425,27 +1407,23 @@ open class Node internal constructor(
     invalidateOnAttach(child)
 
     NodeUtils.invalidateLayout(this)
-    Perf.add("addChildAt", Perf.now() - __t)
   }
 
   fun removeChildAt(index: Int): Node? {
-    val __t = Perf.now()
     if (index < 0) {
-      Perf.add("removeChildAt", Perf.now() - __t)
       return null
     }
     val children = getChildren()
     if (index >= children.size) {
-      Perf.add("removeChildAt", Perf.now() - __t)
       return null
     }
-    return removeAuthorChild(children[index], __t)
+    return removeAuthorChild(children[index])
   }
 
-  private fun removeAuthorChild(reference: Node, __t: Long): Node? {
+  private fun removeAuthorChild(reference: Node): Node? {
     val idx =
-      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
-    val removed = reference.layoutParent?.children?.removeAt(idx) ?: run { Perf.add("removeChildAt", Perf.now() - __t); return null }
+      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return null
+    val removed = reference.layoutParent?.children?.removeAt(idx) ?: return null
     if (removed is TextNode) {
       removed.container?.engine?.invalidateInlineSegments()
       removed.container = null
@@ -1461,24 +1439,17 @@ open class Node internal constructor(
       // parent when removing the platform View. Passing `reference.parent`
       // could be ambiguous in anonymous/container scenarios and may leave
       // views attached to the wrong ViewGroup.
-      Perf.timed("rcView") {
-        NodeUtils.removeView(this, removed.view as? View)
-      }
+      NodeUtils.removeView(this, removed.view as? View)
       if (removed.nativePtr != 0L) {
-        Perf.timed("rcJNI") {
-          NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
-        }
+        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
       }
       removed.parent = null
       (removed.view as? Element)?.onNodeDetached()
       // Removing a non-text child (e.g. a Br) changes the parent's composed
       // text — rebuild the inline segment cache when the parent renders text.
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
-      Perf.timed("rcInv") {
-        NodeUtils.invalidateLayout(this)
-      }
+      NodeUtils.invalidateLayout(this)
     }
-    Perf.add("removeChildAt", Perf.now() - __t)
     return removed
   }
 
@@ -1489,11 +1460,9 @@ open class Node internal constructor(
       return
     }
     if (dirtyMarkedEpoch == mason.computeEpoch) {
-      Perf.hit("dirtySkip")
       computeCacheDirty = true
       return
     }
-    Perf.hit("dirtyJNI")
     dirtyMarkedEpoch = mason.computeEpoch
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
@@ -1545,7 +1514,7 @@ open class Node internal constructor(
       return null
     }
     if (!child.isAnonymous && child.layoutParent === this) {
-      return removeAuthorChild(child, Perf.now())
+      return removeAuthorChild(child)
     }
     val nodes = getChildren()
     val idx = nodes.indexOf(child).takeIf { it > -1 } ?: return null

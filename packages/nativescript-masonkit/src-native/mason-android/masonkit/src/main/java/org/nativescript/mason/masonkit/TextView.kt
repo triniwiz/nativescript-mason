@@ -240,12 +240,10 @@ class TextView @JvmOverloads constructor(
       return engine.textContent
     }
     set(value) {
-      Perf.timed("setTextContent") {
-        // Invalidate our cached layout when text changes
-        clearCachedStaticLayout()
-        floatAwareStaticLayout = null
-        engine.textContent = value
-      }
+      // Invalidate our cached layout when text changes
+      clearCachedStaticLayout()
+      floatAwareStaticLayout = null
+      engine.textContent = value
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
@@ -464,7 +462,6 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onChange(low: Long, high: Long) {
-    Perf.hit("tvOnChange")
     // Style change affects layout; invalidate cached StaticLayout
     clearCachedStaticLayout()
     floatAwareStaticLayout = null

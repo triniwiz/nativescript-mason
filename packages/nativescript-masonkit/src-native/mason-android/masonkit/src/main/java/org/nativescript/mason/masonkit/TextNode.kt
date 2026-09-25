@@ -25,7 +25,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     set(value) {
       if (field == value) return
       field = value
-      Perf.hit("tnData")
       // Invalidate the container when text changes
       container?.engine?.invalidateInlineSegments()
     }
