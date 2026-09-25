@@ -548,12 +548,15 @@ public class TextEngine: NSObject {
     
     
     // CoreText single-line bounds are tight (~1.0× font size); CSS `line-height:
-    // normal` expects ~1.2×. Floor to that so a single line matches the web/Android
-    // box. Multi-line already exceeds 1.2×, so max() leaves it untouched.
-    if !isInLine && size.height > 0,
+    // normal` is the font's ascent+descent+leading. Floor to it so the descenders
+    // fit; block text also keeps its ~1.2× web/Android box. Multi-line already exceeds it.
+    let lineHeightIsNormal = engine.node.style.resolvedLineHeight <= 0
+    if (!isInLine || lineHeightIsNormal) && size.height > 0,
        let fv = engine.node.getDefaultAttributes()[.font],
        CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
-      let normalLineHeight = CTFontGetSize(fv as! CTFont) * 1.2
+      let font = fv as! CTFont
+      let natural = CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
+      let normalLineHeight = isInLine ? natural : max(natural, CTFontGetSize(font) * 1.2)
       if normalLineHeight > size.height { size.height = normalLineHeight }
     }
 
@@ -696,16 +699,15 @@ public class TextEngine: NSObject {
       return true
     }
     
-    // Check for view-like properties that require inline-block behavior
-    let hasBackground: Bool = {
-      // Consider CSS `background` (string) as a visual background too
+    // A background image/gradient needs a real box; a plain color is painted per
+    // run when flattened, like an inline box's background on the web (and Android).
+    let hasBackgroundImage: Bool = {
       let bgString = container.node.style.background.trimmingCharacters(in: .whitespacesAndNewlines)
       if !bgString.isEmpty { return true }
-
-      if container.node.style.backgroundColor != 0 { return true }
       if let alpha = container.node.view?.backgroundColor?.cgColor.alpha, alpha > 0 { return true }
       return false
     }()
+    let hasBackground = hasBackgroundImage || container.node.style.backgroundColor != 0
 
     let border = style.mBorderRender
     // Check configured per-side widths (shorthand parsing sets these)
@@ -743,7 +745,7 @@ public class TextEngine: NSObject {
     }
 
     // For general containers: if it has any view properties, treat as inline-block
-    if hasBackground || hasBorder || hasPadding || hasExplicitSize {
+    if hasBackgroundImage || hasBorder || hasPadding || hasExplicitSize {
       return false
     }
 
@@ -842,8 +844,10 @@ public class TextEngine: NSObject {
       let extra = max(0, drawBounds.height - (ascent + descent))
       centred = drawBounds.minY + extra / 2 + ascent
     }
+    // Keep the whole line box inside: ascent below the top, descent above the bottom.
     let ascenderGuard = drawBounds.minY + ascent
-    return max(centred, ascenderGuard) + baselineOffset
+    let descenderGuard = drawBounds.maxY - descent
+    return max(min(centred, descenderGuard), ascenderGuard) + baselineOffset
   }
 
   private func singleLineBaselineY(ascent: CGFloat, descent: CGFloat, in drawBounds: CGRect, bounds: CGRect) -> CGFloat {
@@ -926,6 +930,8 @@ public class TextEngine: NSObject {
     case .Clip:
       break
     }
+
+    drawInlineBackgrounds(for: drawLine, at: baselineOrigin, in: context)
 
     // Draw text shadows if any
     if !style.textShadows.isEmpty {
@@ -1015,6 +1021,43 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Tags a flattened span's text with its background; inner spans keep their own.
+  static func withInlineBackground(_ text: NSAttributedString, _ argb: UInt32) -> NSAttributedString {
+    guard argb != 0, text.length > 0 else { return text }
+    let out = NSMutableAttributedString(attributedString: text)
+    let color = UIColor.colorFromARGB(argb).cgColor
+    out.enumerateAttribute(Constants.INLINE_BACKGROUND_KEY, in: NSRange(location: 0, length: out.length)) { value, range, _ in
+      if value == nil { out.addAttribute(Constants.INLINE_BACKGROUND_KEY, value: color, range: range) }
+    }
+    return out
+  }
+
+  /// Paints each run's inline background over the font's ascent+descent, as the
+  /// web paints an inline box's content area. Drawn before shadows and glyphs.
+  private func drawInlineBackgrounds(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
+    let runs = CTLineGetGlyphRuns(line) as NSArray
+    for case let item as AnyObject in runs {
+      let run = item as! CTRun
+      let attrs = CTRunGetAttributes(run) as NSDictionary
+      guard let value = attrs[Constants.INLINE_BACKGROUND_KEY], CFGetTypeID(value as CFTypeRef) == CGColor.typeID else { continue }
+      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil || attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+      var runAscent: CGFloat = 0
+      var runDescent: CGFloat = 0
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &runAscent, &runDescent, nil))
+      guard width > 0 else { continue }
+      var ascent = runAscent
+      var descent = runDescent
+      if let f = attrs[NSAttributedString.Key.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() {
+        ascent = CTFontGetAscent(f as! CTFont)
+        descent = CTFontGetDescent(f as! CTFont)
+      }
+      var runPosition = CGPoint.zero
+      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+      context.setFillColor(value as! CGColor)
+      context.fill(CGRect(x: lineOrigin.x + runPosition.x, y: lineOrigin.y - descent, width: width, height: ascent + descent))
+    }
+  }
+
   /// Draws `text-decoration` for a CTLine from each run's DECORATION_KEY.
   /// CTRunDraw renders none of them, and CTLineDraw can't skip placeholder runs.
   private func drawTextDecorations(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
@@ -1239,6 +1282,11 @@ public class TextEngine: NSObject {
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
       }
+    }
+
+    for i in 0..<linesCount {
+      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      drawInlineBackgrounds(for: line, at: CGPoint(x: layoutBounds.origin.x + origins[i].x, y: origins[i].y + textBaseY), in: context)
     }
 
     // Draw text shadows if any
@@ -1469,7 +1517,7 @@ public class TextEngine: NSObject {
         fragment = textNode.attributed()
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
-          fragment = textView.engine.buildAttributedString(forMeasurement: forMeasurement)
+          fragment = TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor)
         } else {
           fragment = createPlaceholder(for: child)
         }
@@ -1568,8 +1616,15 @@ public class TextEngine: NSObject {
           lastIsSpace = wsSet.contains(lastChar.unicodeScalars.first!)
         }
         if !lastIsSpace {
-          // use attributes from current frag if possible, otherwise default node attrs
+          // The space keeps the attributes of the text it came from, so a span's
+          // background or decoration doesn't extend over the preceding space.
           var sepAttrs = attrs
+          if prevEndedWithWhitespace && !startsWithSpace && lastIndex >= 0 {
+            let prev = composed.attributes(at: lastIndex, effectiveRange: nil)
+            if prev[Constants.VIEW_PLACEHOLDER_KEY] == nil && prev[.attachment] == nil && prev[NSAttributedString.Key("BrSpan")] == nil {
+              sepAttrs = prev
+            }
+          }
           if sepAttrs[.font] == nil { sepAttrs[.font] = node.getDefaultAttributes()[.font] }
           if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = node.getDefaultAttributes()[.paragraphStyle] }
           composed.append(NSAttributedString(string: " ", attributes: sepAttrs))

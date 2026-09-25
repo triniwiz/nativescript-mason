@@ -28,6 +28,7 @@ internal struct Constants {
 
   /// Attributed-string key carrying a `MasonTextDecoration`; TextEngine draws it.
   static let DECORATION_KEY = NSAttributedString.Key("[[mason_decoration]]")
+  static let INLINE_BACKGROUND_KEY = NSAttributedString.Key("[[mason_inline_background]]")
 }
 
 /// Everything TextEngine needs to draw one run's `text-decoration`.
