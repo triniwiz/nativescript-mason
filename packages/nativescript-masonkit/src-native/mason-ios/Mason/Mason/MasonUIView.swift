@@ -1410,42 +1410,10 @@ extension MasonUIView {
     )
   }
 
-  // Reposition the layer mask to track bounds.origin without recreating a CGPath.
+  // Keep the clip mask on the viewport as bounds.origin scrolls. Layout decides
+  // whether a mask exists; its path is in viewport-local coordinates.
   func _updateScrollMask() {
-    guard let maskLayer = layer.mask else { return }
-   /* let o = bounds.origin
-    let w = bounds.size.width
-    let h = bounds.size.height
-    let overflowPad: CGFloat = 10000
-    let overflow = node.style.overflow
-    let clipX = overflow.x == .Scroll || overflow.x == .Hidden || overflow.x == .Clip || overflow.x == .Auto
-    let clipY = overflow.y == .Scroll || overflow.y == .Hidden || overflow.y == .Clip || overflow.y == .Auto
-    // Reuse the existing layer size; only reposition it to follow the scroll offset.
-    // For a two-axis clip the mask is exactly the viewport; for single-axis it extends
-    // by overflowPad on the unconstrained side — set that as the layer's frame.
-    if clipX && clipY {
-      maskLayer.frame = CGRect(origin: o, size: bounds.size)
-    } else if clipX {
-      maskLayer.frame = CGRect(x: o.x, y: o.y - overflowPad, width: w, height: h + overflowPad * 2)
-    } else {
-      maskLayer.frame = CGRect(x: o.x - overflowPad, y: o.y, width: w + overflowPad * 2, height: h)
-    }
-    
-    */
-    
-    let overflow = node.style.overflow
-
-    let clipX = overflow.x == .Scroll || overflow.x == .Hidden || overflow.x == .Clip || overflow.x == .Auto
-    let clipY = overflow.y == .Scroll || overflow.y == .Hidden || overflow.y == .Clip || overflow.y == .Auto
-
-    guard clipX || clipY else {
-      layer.mask = nil
-      return
-    }
-    
-  
-    maskLayer.frame = bounds
-  
+    layer.mask?.frame = bounds
   }
 
   // MARK: Pan handler

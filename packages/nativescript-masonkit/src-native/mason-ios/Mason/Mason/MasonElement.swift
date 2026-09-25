@@ -1131,25 +1131,31 @@ class MasonElementHelpers: NSObject {
       let borderRender = node.style.mBorderRender
       borderRender.resolve(for: view.bounds)
       let hasRadii = borderRender.hasRadii()
+      // Mask paths are viewport-local; the mask layer sits at bounds.origin so it follows scrolling.
+      let localBounds = CGRect(origin: .zero, size: view.bounds.size)
 
       // Never touch clipsToBounds on UIScrollView here: changing it during
       // layoutSubviews corrupts UIKit's gesture graph (UIGestureGraphEdge
       // assertions). It's fixed to true at init.
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
       if view is UIScrollView {
         // Nothing to do — clipping is fixed at init time.
       } else if clipX && clipY {
         // Both axes clip — use clipsToBounds (+ border-radius mask if needed)
         view.clipsToBounds = true
         if hasRadii {
-          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
+          let clipPath = borderRender.getClipPath(rect: localBounds, radius: borderRender.radius)
           let newCGPath = clipPath.cgPath
           if let existing = view.layer.mask as? CAShapeLayer {
             if existing.path == nil || existing.path!.boundingBoxOfPath != newCGPath.boundingBoxOfPath {
               existing.path = newCGPath
             }
+            existing.frame = view.bounds
           } else {
             let maskLayer = CAShapeLayer()
             maskLayer.path = newCGPath
+            maskLayer.frame = view.bounds
             view.layer.mask = maskLayer
           }
         } else if view.layer.mask != nil {
@@ -1170,17 +1176,12 @@ class MasonElementHelpers: NSObject {
           clipRect = CGRect(x: -overflowPad, y: 0, width: view.bounds.width + overflowPad * 2, height: view.bounds.height)
         }
 
-        if hasRadii {
-          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
-          let newCGPath = clipPath.cgPath
-          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
-          maskLayer.path = newCGPath
-          view.layer.mask = maskLayer
-        } else {
-          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
-          maskLayer.path = UIBezierPath(rect: clipRect).cgPath
-          view.layer.mask = maskLayer
-        }
+        let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
+        maskLayer.path = hasRadii
+          ? borderRender.getClipPath(rect: localBounds, radius: borderRender.radius).cgPath
+          : UIBezierPath(rect: clipRect).cgPath
+        maskLayer.frame = view.bounds
+        view.layer.mask = maskLayer
       } else {
         // Overflow visible: border-radius alone doesn't clip children (only the
         // element's own bg/border are rounded, drawn in draw()). A mask here would
@@ -1190,7 +1191,8 @@ class MasonElementHelpers: NSObject {
           view.layer.mask = nil
         }
       }
-      
+      CATransaction.commit()
+
       node.isLayoutValid = true
       
       // Compute content size for any scrollable view (Scroll or MasonUIView).

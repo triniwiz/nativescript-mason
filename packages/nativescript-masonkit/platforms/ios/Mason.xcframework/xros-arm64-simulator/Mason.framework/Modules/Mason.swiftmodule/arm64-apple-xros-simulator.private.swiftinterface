@@ -194,6 +194,7 @@ extension Mason.Button {
   @objc deinit
   @objc public func setDeviceScale(_ value: Swift.Float)
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
+  @objc(setMeasureForView:block:) public func setMeasure(for view: UIKit.UIView, block: @escaping (_ knownWidth: CoreFoundation.CGFloat, _ knownHeight: CoreFoundation.CGFloat, _ availableWidth: CoreFoundation.CGFloat, _ availableHeight: CoreFoundation.CGFloat) -> CoreFoundation.CGSize)
   @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
   @objc public func styleForView(_ view: UIKit.UIView) -> Mason.MasonStyle
   @objc public func styleForViewOrNode(_ viewOrNode: Any?) -> Mason.MasonStyle?

@@ -767,6 +767,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return __APPLE__ && !!this[isMasonView_] && !!(this.parent as any)?.[isMasonView_];
   }
 
+  /** Size a non-Mason child with core's measure: its native view rarely implements sizeThatFits. */
+  _masonMeasureForeign(child: any): void {
+    if (!__APPLE__ || child[isMasonView_] || !child.nativeViewProtected) return;
+    const mason = (this.nativeViewProtected as any)?.mason;
+    if (typeof mason?.setMeasureForViewBlock !== 'function') return;
+    const parentRef = new WeakRef(this);
+    const childRef = new WeakRef(child);
+    const spec = (known: number, available: number) => {
+      if (!isNaN(known)) return Utils.layout.makeMeasureSpec(known, Utils.layout.EXACTLY);
+      if (available > 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
+      return Utils.layout.makeMeasureSpec(0, Utils.layout.UNSPECIFIED);
+    };
+    mason.setMeasureForViewBlock(child.nativeViewProtected, (knownW: number, knownH: number, availW: number, availH: number) => {
+      const parent = parentRef.deref();
+      const view = childRef.deref();
+      if (!parent || !view) return CGSizeMake(0, 0);
+      NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+      return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
+    });
+  }
+
   /** Lay out the non-Mason views in this root's subtree from the frames Mason set. */
   _masonLayoutForeignDescendants(): void {
     if (!__APPLE__) return;

@@ -138,6 +138,7 @@ export class View extends ViewBase {
         nativeView.mason_addChildAtElement(child.ios, index);
       } else {
         nativeView.addViewAt(child.nativeViewProtected, index);
+        this._masonMeasureForeign(child);
       }
       return true;
     }
