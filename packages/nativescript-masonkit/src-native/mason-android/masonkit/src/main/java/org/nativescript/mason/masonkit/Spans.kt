@@ -355,9 +355,7 @@ class Spans {
       get() = Type.View
 
     init {
-      if (view.parent is ViewGroup) {
-        (view.parent as ViewGroup).removeView(view)
-      }
+      NodeUtils.detachNow(view)
     }
 
     override fun getSize(

@@ -197,7 +197,7 @@ class ListView @JvmOverloads constructor(
         val position = -(viewType + 1)
         val staticLi = listView?.staticItems?.get(position)
         if (staticLi != null) {
-          (staticLi.parent as? ViewGroup)?.removeView(staticLi)
+          NodeUtils.detachNow(staticLi)
           val holder = Holder(staticLi)
           holder.setIsRecyclable(false)
           return holder

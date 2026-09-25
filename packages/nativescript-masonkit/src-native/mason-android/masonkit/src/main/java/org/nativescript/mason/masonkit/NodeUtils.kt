@@ -201,6 +201,13 @@ internal object NodeUtils {
     }
   }
 
+  // Removes the view from its parent before returning, even when the parent is a
+  // Mason view that defers the detach, so the caller can add it elsewhere.
+  fun detachNow(view: View) {
+    (view.parent as? ViewGroup)?.removeView(view)
+    cancelRemoval(view)
+  }
+
   private fun queueRemoval(expectedParent: ViewGroup, view: View) {
     cancelRemoval(view)
     val old = view.visibility
