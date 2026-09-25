@@ -100,7 +100,6 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   private var overflingDistance = 0
 
   // Overscroll effects (stretch on API 31+, glow earlier), one per edge.
-  // Created on first overscroll; most block elements never scroll.
   private class EdgeEffects(context: Context) {
     val top = EdgeEffect(context)
     val bottom = EdgeEffect(context)

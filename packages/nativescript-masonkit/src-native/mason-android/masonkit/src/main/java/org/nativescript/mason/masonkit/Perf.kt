@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.util.Log
 
-/** Opt-in counters and timers for hot paths; enable with `Perf.enabled = true`. */
 object Perf {
   @JvmField
   var enabled = false

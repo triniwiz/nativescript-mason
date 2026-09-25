@@ -850,6 +850,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     fontDirty = true
   }
 
+  // FontFace.load queues a callback per call while loading; keep one per style.
+  private var fontLoadPendingFor: FontFace? = null
+
   /**
    * A FontFace only gets a Typeface once something calls `load()`. The face
    * that ends up rendering text is often an *ancestor's* (font-family
@@ -857,17 +860,10 @@ class Style internal constructor(@Transient internal var node: Node) {
    * measures text -- so nothing on its own side ever loads it. Kick the load
    * off from whoever actually resolved to it, and re-apply once it lands.
    */
-  // FontFace.load queues a callback per call while loading; keep one per style.
-  private var fontLoadPendingFor: FontFace? = null
-
   private fun ensureResolvedFontLoaded(face: FontFace) {
     if (face.font != null || fontLoadPendingFor === face) return
     val v = node.view as? android.view.View ?: return
     fontLoadPendingFor = face
-    // Faces without a source (system and generic families) resolve inside
-    // load(); the caller then renders with the loaded face, so there is
-    // nothing to re-apply. Re-applying dirtied the tree and cost the first
-    // frame a second full layout.
     var loadedInCall = true
     face.load(v.context) { _ ->
       if (loadedInCall) {
@@ -919,8 +915,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       return if (node.view is TextContainer) {
         (node.view as TextContainer).getPaint()
       } else {
-        // Default typeface at the default size: loading this style's font
-        // would not change it, so there is nothing to wait for.
         val p = defaultPaint ?: TextPaint().also { defaultPaint = it }
         p.textSize =
           Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.scaledDensity
@@ -992,7 +986,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   /**
    * Flush deferred font metrics sync after measure callback returns.
-    * Returns true only when the native metrics actually changed.
+   * Returns true only when the native metrics actually changed.
    */
   internal fun flushPendingMetricsSync(): Boolean {
     if (!pendingMetricsSync) return false
@@ -3012,7 +3006,6 @@ class Style internal constructor(@Transient internal var node: Node) {
   private val borderRendererLazy = lazy { BorderRenderer(this) }
   internal val mBorderRenderer by borderRendererLazy
 
-  // A renderer not created yet starts invalidated; don't create one to invalidate it.
   internal fun invalidateBorderRenderer() {
     if (borderRendererLazy.isInitialized()) mBorderRenderer.invalidate()
   }
@@ -4636,7 +4629,6 @@ class Style internal constructor(@Transient internal var node: Node) {
             }
           }
         }.also {
-          // Already loaded, so no callback will come.
           if (it.font != null) fontDirty = true
         }
       } else {
@@ -5253,11 +5245,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       Mason.initLib()
     }
 
-    // Weak keys: a detached subtree never computes again, so a strong set would
-    // retain it.
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 
-    /** Sync pending font metrics for styles of [forRoot]'s tree. */
     @JvmStatic
     internal fun flushPendingMetrics(forRoot: Node) {
       if (pendingMetricsStyles.isEmpty()) return
@@ -5271,7 +5260,6 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
         if ((s.node.getRootNode() ?: s.node) !== forRoot) continue
         it.remove()
-        // A style can be fontDirty without a deferred sync (never measured yet).
         val changed = if (s.pendingMetricsSync) s.flushPendingMetricsSync() else s.syncFontMetrics()
         if (changed) {
           s.node.dirty()
@@ -5317,12 +5305,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       return winner
     }
 
-    /**
-     * Get x-height by measuring lowercase 'x'
-     */
     private data class FontMetricsKey(val typeface: Typeface?, val textSize: Float, val variation: String?)
 
-    // [ascent, descent, leading, xHeight, capHeight] per font.
     private val fontMetricsCache = HashMap<FontMetricsKey, FloatArray>()
 
     private fun sharedFontMetrics(
@@ -5356,6 +5340,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values
     }
 
+    /**
+     * Get x-height by measuring lowercase 'x'
+     */
     internal fun getXHeight(paint: Paint, xBounds: android.graphics.Rect): Float? {
       paint.getTextBounds("x", 0, 1, xBounds)
       return if (xBounds.height() > 0) xBounds.height().toFloat() else null

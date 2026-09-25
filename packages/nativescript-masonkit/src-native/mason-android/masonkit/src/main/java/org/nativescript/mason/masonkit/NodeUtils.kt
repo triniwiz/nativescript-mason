@@ -178,18 +178,11 @@ internal object NodeUtils {
     }
   }
 
-  /**
-   * Deferred platform detach: per-child removeView fans out a requestLayout per
-   * call, so removals are flushed together at the end of the turn. The flush only
-   * detaches views still under the expected parent; re-adds cancel via
-   * [cancelRemoval].
-   */
   private class PendingRemoval(val expected: ViewGroup, val view: View, val oldVisibility: Int) {
     var cancelled = false
   }
 
   private val pendingRemovals = ArrayList<PendingRemoval>(16)
-  // Looked up on every removal and re-add; a scan made clearing n views O(n²).
   private val pendingByView = java.util.IdentityHashMap<View, PendingRemoval>()
   private var removalFlushPosted = false
 
@@ -210,7 +203,6 @@ internal object NodeUtils {
 
   private fun queueRemoval(expectedParent: ViewGroup, view: View) {
     cancelRemoval(view)
-    // Hidden until the flush so a frame drawn meanwhile can't show it.
     val old = view.visibility
     if (old != View.GONE) view.visibility = View.GONE
     val pending = PendingRemoval(expectedParent, view, old)
@@ -263,15 +255,15 @@ internal object NodeUtils {
         Perf.timed("rcViewPlat") {
           when (pv) {
             is org.nativescript.mason.masonkit.View -> {
-              (pv as org.nativescript.mason.masonkit.View).removeView(view)
+              pv.removeView(view)
             }
 
             is Scroll -> {
-              (pv as Scroll).removeView(view)
+              pv.removeView(view)
             }
 
             is ViewGroup -> {
-              (pv as ViewGroup).removeView(view)
+              pv.removeView(view)
             }
           }
         }

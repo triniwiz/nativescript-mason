@@ -382,8 +382,6 @@ class BorderRenderer(private val style: Style) {
     private val DOT_EFFECT = android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
   }
 
-  // Native objects, each with a cleaner: most views never draw a border or
-  // clip to a radius, so create them on first use.
   private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
   private val path by lazy(LazyThreadSafetyMode.NONE) { Path() }
   private val ringPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
@@ -719,7 +717,6 @@ class BorderRenderer(private val style: Style) {
     return outerClipPath
   }
 
-  /** The radius all corners share after CSS scaling, or -1. Valid after updateCache(). */
   fun uniformRadius(width: Float, height: Float): Float {
     if (topLeftExponent != 1f || topRightExponent != 1f ||
       bottomRightExponent != 1f || bottomLeftExponent != 1f
@@ -965,10 +962,6 @@ class BorderRenderer(private val style: Style) {
     }
   }
 
-  /**
-   * Uniform solid border with one radius as a single stroke half a width in: the
-   * same ring as the general path when r is 0 or at least the border width.
-   */
   private fun drawUniformSolid(canvas: Canvas, width: Float, height: Float): Boolean {
     if (topStyle != BorderStyle.Solid || rightStyle != BorderStyle.Solid ||
       bottomStyle != BorderStyle.Solid || leftStyle != BorderStyle.Solid

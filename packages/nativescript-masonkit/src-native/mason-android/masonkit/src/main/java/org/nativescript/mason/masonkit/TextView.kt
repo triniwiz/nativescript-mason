@@ -87,8 +87,6 @@ class TextView @JvmOverloads constructor(
   }
 
 
-  // The draw layout and the content widths it is valid for; see
-  // TextEngine.StaticLayoutCacheEntry.widthIndependent.
   internal var cachedStaticLayout: android.text.Layout? = null
     private set
   private var cachedStaticLayoutMinWidth = -1
@@ -231,7 +229,7 @@ class TextView @JvmOverloads constructor(
         }
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
-        getText() // applies any deferred text
+        applyPendingText()
         super.onDraw(c)
       }
     }
@@ -257,9 +255,6 @@ class TextView @JvmOverloads constructor(
     super.setText(text, type)
   }
 
-  // Mason draws from its own layout, so the platform copy of the text (a span
-  // copy plus TextView's relayout bookkeeping) only matters to readers of
-  // getText(): accessibility, content capture and the super.onDraw fallback.
   private var pendingText: CharSequence? = null
   private var pendingTextType = BufferType.NORMAL
   private val accessibilityManager by lazy {
@@ -278,11 +273,14 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun getText(): CharSequence {
-    pendingText?.let {
-      pendingText = null
-      super.setText(it, pendingTextType)
-    }
+    applyPendingText()
     return super.getText()
+  }
+
+  private fun applyPendingText() {
+    val text = pendingText ?: return
+    pendingText = null
+    super.setText(text, pendingTextType)
   }
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {

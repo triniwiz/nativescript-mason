@@ -129,7 +129,6 @@ class ViewUtils {
       // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
         style.mBackground?.let { background ->
-          // A solid color draws its rounded shape directly, no clip needed.
           if (background.color != null && background.layers.isEmpty()) {
             background.bgPaint.color = background.color!!
             background.bgPaint.style = android.graphics.Paint.Style.FILL
@@ -247,7 +246,6 @@ class ViewUtils {
           superDraw(canvas)
         }
       }
-      // Only clips and slow filters touch canvas state.
       val filterRenders = style.mFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
       if (overflowClipsContent || filterRenders || !style.isValueInitialized) {
         canvas.withSave { drawContent() }

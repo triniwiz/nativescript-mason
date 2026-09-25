@@ -252,7 +252,7 @@ class MasonNodeView(var tree: MasonLayoutTree, var index: Int) {
 
   inline val order get() = tree.order.atOrZero(index)
 
-  val hasChildren get() = (tree.childCount.atOrZero(index)) > 0
+  val hasChildren get() = tree.childCount.atOrZero(index) > 0
 
   val childNodeCount get() = tree.childCount.atOrZero(index)
 

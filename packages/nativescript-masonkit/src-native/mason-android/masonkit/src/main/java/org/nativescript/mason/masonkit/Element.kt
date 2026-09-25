@@ -601,7 +601,6 @@ interface Element : EventTarget {
       root.dirty()
     }
 
-    // A never-measured detached root computes in its attach-time onMeasure.
     if (!targetView.isAttachedToWindow && root.lastRootWidthArg == Float.MIN_VALUE) {
       Perf.hit("invDetachedSkip")
       return
@@ -637,7 +636,6 @@ interface Element : EventTarget {
               docEl.view?.requestLayout()
             }
           } else {
-            // Compute now so the mutation lands in this frame, not the next traversal.
             val rv = root.view as? android.view.View
             if (rv != null && rv.isAttachedToWindow && root.lastRootWidthArg != Float.MIN_VALUE) {
               (root.view as? Element)?.computeAndLayout(root.lastRootWidthArg, root.lastRootHeightArg)

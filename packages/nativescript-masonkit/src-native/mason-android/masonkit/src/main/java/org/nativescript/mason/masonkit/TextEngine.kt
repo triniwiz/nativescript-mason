@@ -7,8 +7,8 @@ import android.os.Build
 import android.text.BoringLayout
 import android.text.Layout
 import android.text.Spannable
-import android.text.Spanned
 import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristic
 import android.text.TextDirectionHeuristics
@@ -16,11 +16,11 @@ import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.AlignmentSpan
 import android.text.style.CharacterStyle
+import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
 import android.text.style.LineBackgroundSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.ParagraphStyle
-import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UpdateLayout
@@ -47,26 +47,12 @@ import kotlin.math.ceil
  *  ZWSP-joined run as one unbreakable word. */
 private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
 
-// Math.ceil is native: a JNI transition per call in debuggable builds.
-internal fun ceilPx(x: Float): Float {
-  if (x.isNaN() || x >= 8_388_608f || x <= -8_388_608f) return ceil(x)
-  val t = x.toInt().toFloat()
-  return if (t < x) t + 1f else t
-}
-
 private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
   var w = 0f
   for (i in start until end) w += advances[i]
   return w
 }
 
-/**
- * Per-character advances of [text] when one paint measures all of it: every
- * metric-affecting span covers the whole text, and there are no replacement or
- * leading-margin spans, tabs, newlines or RTL. These are the advances
- * StaticLayout sums for its lines, so any range width is a sum instead of
- * another measuring pass. Null when the text needs span-by-span measuring.
- */
 private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextPaint): FloatArray? {
   val len = text.length
   if (len == 0) return null
@@ -94,8 +80,6 @@ private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextP
 private fun isLineEndSpace(ch: Char): Boolean =
   ch == ' ' || ch == '	' || ch == ' ' ||
     (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
-
-private val NOT_PLAIN = Any()
 
 private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
   for (i in 0 until text.length) {
@@ -135,9 +119,8 @@ private fun maxWordWidth(
     }
     i++
   }
-  return ceilPx(maxW)
+  return ceil(maxW)
 }
-
 
 class TextEngine(val container: TextContainer) {
 
@@ -316,7 +299,6 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (dirty) {
-      // Deferred: flushTextStyleIfNeeded reacts only if the settled values changed.
       if (textLayoutChanged) {
         textLayoutFlushPending = true
         if (!textStyleFlushPending) {
@@ -358,7 +340,6 @@ class TextEngine(val container: TextContainer) {
     if (layoutPending) {
       val sig = textLayoutSignature()
       if (sig != null && lastTextLayoutSignature == null) {
-        // First flush: record the baseline without invalidating caches built from it.
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
@@ -369,7 +350,6 @@ class TextEngine(val container: TextContainer) {
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
-        // A null signature can't prove a change, so don't invalidate.
         if (sig != null) {
           invalidateInlineSegments(quiet = quiet)
         }
@@ -380,7 +360,6 @@ class TextEngine(val container: TextContainer) {
         Perf.hit("tvToggle")
       } else {
         lastTextVisualSignature = sig
-        // Visual-only: rebuild spans without a relayout.
         updateStyleOnTextNodes()
         if (!quiet) {
           (node.view as? View)?.invalidate()
@@ -395,7 +374,6 @@ class TextEngine(val container: TextContainer) {
   private fun textLayoutSignature(): Long? = try {
     textLayoutSignatureUnsafe()
   } catch (t: Throwable) {
-    // Resolved getters can throw on sentinel values in half-initialized styles.
     null
   }
 
@@ -442,12 +420,6 @@ class TextEngine(val container: TextContainer) {
     return h
   }
 
-  // Greedy line breaking gives a layout built at width W with widest line R the
-  // same lines at any width in [R, W], so reuse it when nothing depends on W.
-  // Text is measured at the floor of the width Taffy offers, and rounding the
-  // layout can make the view one pixel wider. A width-independent layout drawn
-  // in that box draws the lines its height was measured with, so reuse it
-  // rather than build another at the rounded width.
   private val DRAW_WIDTH_SLACK = 1
 
   private fun findCachedStaticLayout(
@@ -556,7 +528,7 @@ class TextEngine(val container: TextContainer) {
       justified = justified,
       heuristic = heuristic,
       layout = built,
-      trailingSpacesCount = trailingSpacesCount(),
+      keepsTrailingSpaces = keepsTrailingSpaces(),
       advances = if (justified) null else advancesFor(spannable, paint)
     )
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
@@ -600,7 +572,6 @@ class TextEngine(val container: TextContainer) {
 
   internal class MeasureWidthSpec(
     val constraint: Int,
-    val allowWrap: Boolean,
     val isInline: Boolean
   )
 
@@ -700,13 +671,11 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    return MeasureWidthSpec(widthConstraint, allowWrap, isInline)
+    return MeasureWidthSpec(widthConstraint, isInline)
   }
 
   private fun measureLayout(
     paint: TextPaint,
-    knownWidth: Float,
-    knownHeight: Float,
     availableWidth: Float,
     availableHeight: Float,
     spec: MeasureWidthSpec
@@ -734,9 +703,6 @@ class TextEngine(val container: TextContainer) {
     )
     val layout = entry.layout
 
-    // The widest line, not the constraint: Taffy adds padding on top of this.
-    // Min-content is the widest word; inline text with no break opportunity is
-    // one word, already measured as the layout's line.
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
       !(spec.isInline && !hasSoftWrapOpportunity(spannable))
     ) {
@@ -870,13 +836,12 @@ class TextEngine(val container: TextContainer) {
         lastTextLayoutSignature = textLayoutSignature()
         lastTextVisualSignature = textVisualSignature()
       }
-      // Keyed on the Int wrap width: float specs drift between computes.
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
       val mcWKey = mcSpec.constraint.toLong()
       val mcWMode = when (availableWidth) {
-        -1f -> 0L // min-content
-        -2f -> 1L // max-content
-        else -> 2L // definite (also covers the undefined sentinel)
+        -1f -> 0L
+        -2f -> 1L
+        else -> 2L
       }
       val ver = segmentsInvalidateVersion.toLong()
       for (probe in 0 until MEASURE_CACHE_SIZE) {
@@ -899,7 +864,6 @@ class TextEngine(val container: TextContainer) {
         Perf.hit(if (sameVer) "mcMissKey" else "mcMissVer")
         Perf.hit("mcMode" + mcWMode)
       }
-      // Same lines as the max-content layout, so the same result.
       if (mcWMode == 2L && maxContentVersion == ver &&
         mcSpec.constraint >= maxContentWidth && mcSpec.constraint <= maxContentConstraint
       ) {
@@ -910,8 +874,6 @@ class TextEngine(val container: TextContainer) {
       }
       val layout = measureLayout(
         paint,
-        knownWidth,
-        knownHeight,
         availableWidth,
         availableHeight,
         mcSpec
@@ -964,7 +926,7 @@ class TextEngine(val container: TextContainer) {
       storeMeasure(segmentsInvalidateVersion.toLong(), mcWKey, mcWMode, mcOut)
       if (mcWMode == 1L) {
         maxContentVersion = segmentsInvalidateVersion.toLong()
-        maxContentWidth = ceilPx(finalWidth).toInt()
+        maxContentWidth = ceil(finalWidth).toInt()
         maxContentConstraint = mcSpec.constraint
         maxContentOut = mcOut
       }
@@ -1349,11 +1311,8 @@ class TextEngine(val container: TextContainer) {
           // so Layout.getDesiredWidth() gives an equivalent result more
           // cheaply. Multi-line or RTL runs use the exact bidi-safe path.
           val singleLine = layout.getLineForOffset(currentPos) == layout.getLineForOffset(end)
-          // The whole text on one line with no trailing whitespace is exactly
-          // the layout's line, already measured.
           val wholeLine = currentPos == 0 && end == attributed.length && layout.lineCount == 1 &&
             !attributed[end - 1].isWhitespace()
-          // Uniform advances exist only for text without RTL.
           val advances = advancesFor(attributed, paint)
           val ltr = advances != null ||
             !TextDirectionHeuristics.ANYRTL_LTR.isRtl(attributed, currentPos, end - currentPos)
@@ -1390,7 +1349,7 @@ class TextEngine(val container: TextContainer) {
           segments.add(
             InlineSegment.Text(
               style.resolvedWhiteSpace.value,
-              ceilPx(width),
+              ceil(width),
               -fontMetrics.ascent,
               fontMetrics.descent
             )
@@ -1850,7 +1809,6 @@ class TextEngine(val container: TextContainer) {
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
 
-  // Min-content and final-width layouts alternate between passes.
   private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
   private val segmentsCacheVersions = IntArray(4) { -1 }
   private var segmentsCacheNextIdx = 0
@@ -1873,11 +1831,9 @@ class TextEngine(val container: TextContainer) {
     val justified: Boolean,
     val heuristic: TextDirectionHeuristic,
     val layout: android.text.Layout,
-    trailingSpacesCount: Boolean,
+    keepsTrailingSpaces: Boolean,
     advances: FloatArray?
   ) {
-    // Nothing here depends on the build width: lines start at x=0 and there is no
-    // LineBackgroundSpan (under/overlines paint to the layout's right edge).
     val maxLineWidth: Float
     val widthIndependent: Boolean
 
@@ -1885,9 +1841,9 @@ class TextEngine(val container: TextContainer) {
       var max = 0f
       var left = true
       for (i in 0 until layout.lineCount) {
-        val w = ceilPx(
+        val w = ceil(
           when {
-            trailingSpacesCount -> layout.getLineWidth(i)
+            keepsTrailingSpaces -> layout.getLineWidth(i)
             advances != null -> advanceSum(advances, layout.getLineStart(i), layout.getLineVisibleEnd(i))
             else -> layout.getLineMax(i)
           }
@@ -1902,8 +1858,7 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-  // Spaces at the end of a wrapped line hang past the edge unless white-space keeps them.
-  private fun trailingSpacesCount(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
+  private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
     else -> false
   }
@@ -1913,12 +1868,6 @@ class TextEngine(val container: TextContainer) {
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint = TextPaint()
 
-  /**
-   * Text whose only spans are one whole-text run style and alignment draws as
-   * a plain String with the run style in the paint: Layout then draws it with
-   * drawText instead of walking spans per run. The paint is refreshed before
-   * each draw, since the run style reads its attributes live.
-   */
   internal val plainTextPaint = TextPaint()
   private var plainTextRunStyle: Spans.RunStyleSpan? = null
 
@@ -1927,18 +1876,16 @@ class TextEngine(val container: TextContainer) {
     plainTextRunStyle?.updateDrawState(plainTextPaint)
   }
 
-  // The whole-text RunStyleSpan (or null for none) when nothing else but
-  // alignment is set on the text, else NOT_PLAIN.
-  private fun plainRunStyle(text: Spanned): Any? {
+  private fun plainRunStyle(text: Spanned): Spans.RunStyleSpan? {
     var run: Spans.RunStyleSpan? = null
     for (span in text.getSpans(0, text.length, Any::class.java)) {
       when (span) {
         is AlignmentSpan -> {}
         is Spans.RunStyleSpan -> {
-          if (run != null || text.getSpanStart(span) != 0 || text.getSpanEnd(span) != text.length) return NOT_PLAIN
+          if (run != null || text.getSpanStart(span) != 0 || text.getSpanEnd(span) != text.length) return null
           run = span
         }
-        else -> return NOT_PLAIN
+        else -> return null
       }
     }
     return run
@@ -1947,13 +1894,6 @@ class TextEngine(val container: TextContainer) {
   private val singleLineMetrics = BoringLayout.Metrics()
   private val singleLineTextMetrics = Paint.FontMetricsInt()
 
-  /**
-   * One line of uniformly styled text needs no line breaking: its width is the
-   * sum of its advances and its height the font's. Wrap it in a BoringLayout
-   * with those metrics instead of running StaticLayout's measuring pass.
-   * Null unless the text is uniform (see uniformAdvances), has no paragraph
-   * spans besides alignment, and fits the width with room to spare.
-   */
   private fun singleLineLayout(
     text: CharSequence,
     paint: TextPaint,
@@ -1961,7 +1901,7 @@ class TextEngine(val container: TextContainer) {
     alignment: android.text.Layout.Alignment,
     justified: Boolean
   ): android.text.Layout? {
-    if (justified || text !is Spanned || trailingSpacesCount()) return null
+    if (justified || text !is Spanned || keepsTrailingSpaces()) return null
     val advances = advancesFor(text, paint) ?: return null
     val len = text.length
     for (span in text.getSpans(0, len, ParagraphStyle::class.java)) {
@@ -1970,11 +1910,8 @@ class TextEngine(val container: TextContainer) {
     var visibleEnd = len
     while (visibleEnd > 0 && isLineEndSpace(text[visibleEnd - 1])) visibleEnd--
     val visibleWidth = advanceSum(advances, 0, visibleEnd)
-    // StaticLayout breaks a line wider than the width; stay clear of the edge.
     if (visibleWidth > width - 0.5f) return null
 
-    // Primary font, widened by any fallback font the text uses (StaticLayout
-    // is built with setUseLineSpacingFromFallbacks).
     val p = advancesPaint
     uniformFontMetrics()
     val primary = uniformMetricsInt
@@ -1997,10 +1934,10 @@ class TextEngine(val container: TextContainer) {
     m.descent = descent
     m.bottom = bottom
     m.leading = fm.leading
-    m.width = ceilPx(visibleWidth).toInt()
+    m.width = ceil(visibleWidth).toInt()
     val runStyle = plainRunStyle(text)
-    if (runStyle !== NOT_PLAIN) {
-      plainTextRunStyle = runStyle as Spans.RunStyleSpan?
+    if (runStyle != null) {
+      plainTextRunStyle = runStyle
       preparePlainTextPaint(paint)
       return BoringLayout.make(text.toString(), plainTextPaint, width, alignment, 1f, 0f, m, includePadding)
     }
@@ -2013,8 +1950,6 @@ class TextEngine(val container: TextContainer) {
   private val uniformMetrics = Paint.FontMetrics()
   private val uniformMetricsInt = Paint.FontMetricsInt()
 
-  // Metrics of the paint uniformAdvances() measured with; a JNI call otherwise,
-  // and they only move with the font.
   private fun uniformFontMetrics(): Paint.FontMetrics {
     val p = advancesPaint
     val variation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.fontVariationSettings else null
@@ -2030,7 +1965,6 @@ class TextEngine(val container: TextContainer) {
     return uniformMetrics
   }
 
-  // uniformAdvances() of the current text, once per content version.
   private fun advancesFor(text: CharSequence, paint: TextPaint): FloatArray? {
     if (advancesVersion != segmentsInvalidateVersion || advancesLength != text.length) {
       cachedAdvances = uniformAdvances(text, paint, advancesPaint)
@@ -2043,8 +1977,6 @@ class TextEngine(val container: TextContainer) {
   private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
   private var staticLayoutCacheNextIdx = 0
 
-  // Font metrics are a JNI call per measure otherwise; they only move with the
-  // font.
   private var minLineHeightTypeface: Typeface? = null
   private var minLineHeightTextSize = -1f
   private var minLineHeightValue = 0f
@@ -2558,7 +2490,6 @@ class TextEngine(val container: TextContainer) {
     when (node.view) {
       is Element -> {
         (node.view as Element).apply {
-          // Keep the root dirty so the pending compute can't reuse the old tree.
           val root = node.getRootNode() ?: this.node
           root.computeCacheDirty = true
           if (!quiet) {
@@ -2654,7 +2585,6 @@ class TextEngine(val container: TextContainer) {
 
     internal fun registerPendingTextStyle(engine: TextEngine) {
       pendingTextStyleFlush.add(engine)
-      // Flush at the end of the turn so the next compute doesn't re-measure.
       if (!textStyleFlushPosted) {
         textStyleFlushPosted = true
         android.os.Handler(android.os.Looper.getMainLooper()).post {

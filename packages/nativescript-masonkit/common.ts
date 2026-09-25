@@ -302,6 +302,10 @@ function colorToCssString(value: unknown): string {
   return String(value);
 }
 
+const TEARDOWN_SLICE_MS = 8;
+// Reading the clock costs more than a teardown on some devices.
+const TEARDOWNS_PER_CLOCK_READ = 16;
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
@@ -310,7 +314,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private static _pendingTeardowns: ViewBase[] = [];
   private static _teardownScheduled = false;
 
-  // @ts-ignore
   public _tearDownUI(force?: boolean): void {
     if (__ANDROID__ && !force && !this.reusable && this._context && this.nativeViewProtected) {
       // A keyed move tears down and re-adds within one patch. Detach only this
@@ -329,14 +332,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     super._tearDownUI(force);
   }
 
-  // @ts-ignore
   public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
     if (__ANDROID__ && this._masonPendingTeardown) {
       this._masonPendingTeardown = false;
       if (this._context === context) {
-        if (!(this as any).mIsRootView && this.parent && !(this as any)._isAddedToNativeVisualTree) {
-          const nativeIndex = (this.parent as any)._childIndexToNativeChildIndex(atIndex ?? -1);
-          (this as any)._isAddedToNativeVisualTree = (this.parent as any)._addViewToNativeVisualTree(this, nativeIndex);
+        if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
+          const nativeIndex = this.parent._childIndexToNativeChildIndex(atIndex ?? -1);
+          this._isAddedToNativeVisualTree = this.parent._addViewToNativeVisualTree(this, nativeIndex);
         }
         return;
       }
@@ -354,13 +356,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private static _drainTeardowns() {
     ViewBase._teardownScheduled = false;
-    const deadline = Date.now() + 8;
+    const deadline = Date.now() + TEARDOWN_SLICE_MS;
     let done = 0;
     while (ViewBase._pendingTeardowns.length > 0) {
       const view = ViewBase._pendingTeardowns.shift();
       view._masonFinishTeardown();
-      // Reading the clock costs more than a teardown on some devices.
-      if (++done % 16 === 0 && Date.now() >= deadline) {
+      if (++done % TEARDOWNS_PER_CLOCK_READ === 0 && Date.now() >= deadline) {
         break;
       }
     }

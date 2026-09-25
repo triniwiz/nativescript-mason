@@ -98,7 +98,6 @@ open class View @JvmOverloads constructor(
     inMutation = false
   }
 
-  /** Only needed when z-index is in play; onViewAdded/Removed already rebuild. */
   private fun onChildStructureChangedSafe() {
     if (!hasZIndexedChildren) return
     rebuildZOrderSafe()
@@ -193,7 +192,6 @@ open class View @JvmOverloads constructor(
   }
 
 
-  // Fields, not lambdas at the call site: those would allocate per view per frame.
   private val drawOutsetShadows: (Canvas) -> Unit = { c ->
     // Draw children's outset box shadows at parent level so they can extend
     // beyond child bounds — after this view's own background/border (see
@@ -329,11 +327,6 @@ open class View @JvmOverloads constructor(
         specHeight,
       )
     }
-  }
-
-  override fun onAttachedToWindow() {
-    super.onAttachedToWindow()
-    Perf.hit(if (parent !is Element) "attachRootV" else "attachNestedV")
   }
 
   // Public addView methods delegate to Node

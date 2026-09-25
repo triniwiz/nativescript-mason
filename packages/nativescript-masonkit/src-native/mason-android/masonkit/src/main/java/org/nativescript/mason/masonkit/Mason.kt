@@ -41,7 +41,6 @@ class Mason {
   @JvmField
   internal var inCompute = false
 
-  /** Bumped when a native compute finishes; expires Node.dirty's mark memo. */
   internal var computeEpoch = 0
     private set
 

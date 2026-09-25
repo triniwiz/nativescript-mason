@@ -175,8 +175,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     return spannable
   }
 
-  // attributed(true) straight into [target]: appending a built span copies
-  // every span a second time.
   internal fun appendAttributedTo(target: SpannableStringBuilder) {
     val processed = this.container?.let {
       processText(data, it.style)
@@ -200,10 +198,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
       val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
-      // Color, font size, letter spacing and typeface go in one span. Letter
-      // spacing is paint.letterSpacing (EM units, tracking between glyphs);
-      // ScaleXSpan was wrong — it scales each glyph's width and visibly
-      // stretches the text.
       val setColor = attributes.color.let { it != null && it != 0 }
       val measureSize = attributes.fontSize?.takeIf { it > 0 }
       val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }

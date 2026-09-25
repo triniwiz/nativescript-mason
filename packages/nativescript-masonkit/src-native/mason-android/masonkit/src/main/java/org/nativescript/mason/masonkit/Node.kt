@@ -197,8 +197,6 @@ open class Node internal constructor(
   internal var stickyScrollHost: Scroll? = null
   internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
-  // Taffy keeps a node dirty until a compute consumes it, so a repeat mark
-  // before then is a wasted JNI call. Expires on compute and on re-parent.
   private var dirtyMarkedEpoch = -1
 
   open var parent: Node?
@@ -712,7 +710,6 @@ open class Node internal constructor(
 
   companion object {
 
-    // Bumped by every text-affecting mutation; see invalidateOnAttach.
     internal var textInvalidationEpoch: Int = 0
       private set
 
@@ -905,8 +902,6 @@ open class Node internal constructor(
     }
   }
 
-  // Text caches resolve inheritance through the ancestor chain: rebuild them only
-  // when a node moves to a new parent or text changed while it was detached.
   private fun invalidateOnAttach(child: Node) {
     val stale = when {
       child.lastTextAttachParent == null -> false
@@ -1416,7 +1411,6 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
     }
     if (child.nativePtr != 0L) {
-      // Rust's child list skips native-less (text) nodes.
       var nativePos = 0
       for (i in 0 until pos) {
         if (children[i].nativePtr != 0L) nativePos++
@@ -1494,8 +1488,6 @@ open class Node internal constructor(
       computeCacheDirty = true
       return
     }
-    // computeCacheDirty is set from places that never reach Rust, so it can't
-    // tell whether Rust already knows; dirtyMarkedEpoch can.
     if (dirtyMarkedEpoch == mason.computeEpoch) {
       Perf.hit("dirtySkip")
       computeCacheDirty = true
@@ -1552,8 +1544,6 @@ open class Node internal constructor(
     if (children.isEmpty()) {
       return null
     }
-    // A direct child is its own author child: skip building the author list
-    // (twice) just to find it, which made clearing n children O(n²).
     if (!child.isAnonymous && child.layoutParent === this) {
       return removeAuthorChild(child, Perf.now())
     }

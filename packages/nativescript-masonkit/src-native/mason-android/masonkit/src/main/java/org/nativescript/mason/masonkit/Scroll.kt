@@ -209,8 +209,6 @@ class Scroll @JvmOverloads constructor(
       Perf.hit(if (node.computeCacheDirty) "omDirty" else "omClean")
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        // Content lays out at its natural height, like Android's ScrollView, so
-        // viewport resizes don't invalidate the whole-tree compute.
         val heightArg = -2f
         node.lastRootWidthArg = widthArg
         node.lastRootHeightArg = heightArg
@@ -244,11 +242,6 @@ class Scroll @JvmOverloads constructor(
       Perf.hit("omNested")
       setMeasuredDimension(specWidth, specHeight)
     }
-  }
-
-  override fun onAttachedToWindow() {
-    super.onAttachedToWindow()
-    Perf.hit(if (parent !is Element) "attachRoot" else "attachNested")
   }
 
   /**

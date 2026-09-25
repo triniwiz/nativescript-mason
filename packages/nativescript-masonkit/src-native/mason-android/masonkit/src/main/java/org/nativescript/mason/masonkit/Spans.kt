@@ -63,17 +63,9 @@ class Spans {
     }
   }
 
-  /**
-   * Color, size, letter spacing and typeface of one run as a single span. Each
-   * setSpan re-sorts the builder's span index and every measure and draw walks
-   * each span again, so one span replaces up to four. Applies them in the order
-   * ForegroundColorSpan, SizeSpan, LetterSpacingSpan and TypefaceSpan did:
-   * letter spacing is relative to the text size just set.
-   */
   class RunStyleSpan(
     private val attributes: TextDefaultAttributes,
     private val setColor: Boolean,
-    // SizeSpan measured with the size it was created with and drew with the current one.
     private val measureSize: Int?,
     private val letterSpacingPx: Float?,
     private val typeface: Typeface?,
