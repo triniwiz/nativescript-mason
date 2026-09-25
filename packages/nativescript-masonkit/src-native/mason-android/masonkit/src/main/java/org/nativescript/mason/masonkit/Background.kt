@@ -307,12 +307,11 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
     for (index in 0 until stopCount) {
       val trimmed = gradient.stops[index].trim()
-      // Find the last space that separates color from position
-      val lastSpace = trimmed.lastIndexOf(' ')
+      val parts = splitTopLevelWhitespace(trimmed)
 
-      if (lastSpace > 0) {
-        val colorPart = trimmed.substring(0, lastSpace)
-        val posPart = trimmed.substring(lastSpace + 1).trim()
+      if (parts.size > 1) {
+        val colorPart = parts[0]
+        val posPart = parts[1]
 
         colorsArray[index] = parseColor(colorPart) ?: Color.TRANSPARENT
 

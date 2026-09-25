@@ -400,9 +400,10 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       let colorStops = g.stops
       
       for stop in colorStops {
-        if let lastSpace = stop.lastIndex(of: " ") {
-          let colorPart = String(stop[..<lastSpace])
-          let posPart = String(stop[stop.index(after: lastSpace)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = splitTopLevelWhitespace(stop)
+        if parts.count > 1 {
+          let colorPart = parts[0]
+          let posPart = parts[1]
           
           if let color = parseColor(colorPart)?.cgColor {
             cgColors.append(color)
