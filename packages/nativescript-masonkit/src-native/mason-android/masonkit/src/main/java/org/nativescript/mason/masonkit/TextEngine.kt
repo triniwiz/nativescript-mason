@@ -335,12 +335,7 @@ class TextEngine(val container: TextContainer) {
     textVisualFlushPending = false
     if (layoutPending) {
       val sig = textLayoutSignature()
-      if (sig != null && lastTextLayoutSignature == null) {
-        lastTextLayoutSignature = sig
-        lastTextVisualSignature = textVisualSignature()
-        updateStyleOnTextNodes()
-      } else if (sig == null || sig != lastTextLayoutSignature) {
-        val prevSig = lastTextLayoutSignature
+      if (sig == null || sig != lastTextLayoutSignature) {
         lastTextLayoutSignature = sig
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
@@ -812,10 +807,6 @@ class TextEngine(val container: TextContainer) {
     val pendingInvalidate = style.fontDirty && !style.pendingMetricsSync
     try {
       flushTextStyleIfNeeded()
-      if (lastTextLayoutSignature == null) {
-        lastTextLayoutSignature = textLayoutSignature()
-        lastTextVisualSignature = textVisualSignature()
-      }
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
       val mcWKey = mcSpec.constraint.toLong()
       val mcWMode = when (availableWidth) {
