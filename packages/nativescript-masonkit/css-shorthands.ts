@@ -194,7 +194,7 @@ interface BackgroundLayer {
   attachment?: string;
 }
 
-const LAYER_INITIAL = { image: 'none', repeat: 'repeat', position: '0% 0%', size: 'auto', clip: 'border-box' };
+const LAYER_INITIAL = { image: 'none', repeat: 'repeat', position: '0% 0%', size: 'auto', clip: 'border-box', origin: 'padding-box', attachment: 'scroll' };
 
 function parseBackgroundLayer(tokens: string[], value: string, isFinal: boolean): BackgroundLayer {
   const layer: BackgroundLayer = {};
@@ -267,7 +267,7 @@ export function splitBackground(value: string): LonghandValue[] {
     const parts = layers.map(read);
     return parts.some((p) => p !== undefined) ? parts.map((p) => p ?? LAYER_INITIAL[part]).join(', ') : unsetValue;
   };
-  return [layers[layers.length - 1].color ?? unsetValue, perLayer('image', (layer) => layer.image), perLayer('repeat', (layer) => layer.repeat), perLayer('position', (layer) => layer.position), perLayer('size', (layer) => layer.size), perLayer('clip', (layer) => layer.clip)];
+  return [layers[layers.length - 1].color ?? unsetValue, perLayer('image', (layer) => layer.image), perLayer('repeat', (layer) => layer.repeat), perLayer('position', (layer) => layer.position), perLayer('size', (layer) => layer.size), perLayer('clip', (layer) => layer.clip), perLayer('origin', (layer) => layer.origin), perLayer('attachment', (layer) => layer.attachment)];
 }
 
 function keywordList(value: string, allowed: ReadonlySet<string>, max: number): string[] {

@@ -1915,7 +1915,7 @@ const coreShorthands: MasonShorthand[] = [
   { cssName: 'border-color', longhands: borderColorLonghands, split: splitBorderColor },
   {
     cssName: 'background',
-    longhands: [backgroundColorProperty, backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty],
+    longhands: [backgroundColorProperty, backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty, backgroundOriginProperty, backgroundAttachmentProperty],
     split: splitBackground,
   },
 ];
