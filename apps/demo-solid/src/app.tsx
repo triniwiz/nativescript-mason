@@ -10,10 +10,12 @@ import Position from './components/position'
 import QA from './components/qa'
 import WebSpec from './webspec/WebSpec'
 import MaxWidthChurnRepro from './webspec/MaxWidthChurnRepro'
+import { BenchRoutes, type BenchRouteDefs } from './bench/routes'
+import WinCheck from './components/wincheck'
 
 declare module 'solid-navigation' {
   export interface Routers {
-    Default: {
+    Default: BenchRouteDefs & {
       Home: RouteDefinition
       Typography: RouteDefinition
       Flexbox: RouteDefinition
@@ -25,6 +27,7 @@ declare module 'solid-navigation' {
       QA: RouteDefinition
       WebSpec: RouteDefinition
       MaxWidthChurnRepro: RouteDefinition
+      WinCheck: RouteDefinition
     }
   }
 }
@@ -43,6 +46,8 @@ const App = () => {
       <Route name="QA" component={QA} />
       <Route name="WebSpec" component={WebSpec} />
       <Route name="MaxWidthChurnRepro" component={MaxWidthChurnRepro} />
+      <BenchRoutes />
+      <Route name="WinCheck" component={WinCheck} />
     </StackRouter>
   )
 }

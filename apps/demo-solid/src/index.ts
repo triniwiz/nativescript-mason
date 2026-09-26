@@ -78,8 +78,13 @@ function makeMasonElement(base: any) {
         this.addChild(child);
         return;
       }
-      // Element child with a native ref → standard layout insert.
-      super.__dominative_onInsertChild(child, ref);
+      // Element child with a native ref. dominative's layout policy would index it among element
+      // children only, but mason's child list also holds text runs, so insert relative to the ref.
+      try {
+        super.insertBefore(child, ref);
+      } catch (e) {
+        super.__dominative_onInsertChild(child, ref);
+      }
     }
 
     __dominative_onRemoveChild(child: any) {

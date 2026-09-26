@@ -1,4 +1,5 @@
 import { createSignal, createMemo, For, Show, ErrorBoundary, onMount } from 'solid-js'
+import { Screen } from '@nativescript/core'
 import { BG, MUTED, TEXT, CARD } from '../components/controls'
 import { FixtureTree } from './FixtureTree'
 import fixturesData from './fixtures.generated.json'
@@ -17,6 +18,12 @@ const fixtures = fixturesData as unknown as Fixture[]
 const indexedFixtures = fixtures.map((fx, idx) => ({ fx, idx }))
 
 const EPS = 0.5
+
+// Layout snaps to whole device pixels, so nothing finer than one can match: 0.8 DIP at 125%.
+function tolerance(root: any): number {
+  const scale = __WINDOWS__ ? root?.nativeView?.XamlRoot?.RasterizationScale : Screen.mainScreen.scale
+  return scale > 0 ? Math.max(EPS, 1 / scale) : EPS
+}
 
 function emptyResults(): FixtureResult[] {
   return fixtures.map(() => ({ status: 'pending', diffs: [] }))
@@ -97,6 +104,7 @@ export default function WebSpec() {
       const fx = fixtures[idx]
       const root = refs.get(0)
       const diffs: RectDiff[] = []
+      const eps = tolerance(root)
 
       for (const exp of fx.expected) {
         const view = refs.get(exp.seq)
@@ -141,7 +149,7 @@ export default function WebSpec() {
           }
         }
         const actual = { x, y, width, height }
-        if (Math.abs(x - exp.x) > EPS || Math.abs(y - exp.y) > EPS || Math.abs(width - exp.width) > EPS || Math.abs(height - exp.height) > EPS) {
+        if (Math.abs(x - exp.x) > eps || Math.abs(y - exp.y) > eps || Math.abs(width - exp.width) > eps || Math.abs(height - exp.height) > eps) {
           diffs.push({ seq: exp.seq, expected: exp, actual })
         }
       }
@@ -170,6 +178,9 @@ export default function WebSpec() {
     const failures = fixtures
       .map((fx, idx) => ({ name: fx.name, diffs: rs[idx]?.diffs ?? [] }))
       .filter((_, idx) => rs[idx]?.status === 'fail')
+    // The file below never reaches disk on Windows yet, so the failures also go to the log.
+    const r1 = (v: number) => Math.round(v * 10) / 10
+    console.log('WEBSPEC_RESULT ' + JSON.stringify({ pass: summary().pass, fail: summary().fail, failures: failures.map((f) => ({ n: f.name, d: f.diffs.slice(0, 3).map((d: any) => d.error ? { s: d.seq, err: d.error } : { s: d.seq, e: [d.expected.x, d.expected.y, d.expected.width, d.expected.height].map(r1), a: d.actual ? [d.actual.x, d.actual.y, d.actual.width, d.actual.height].map(r1) : null }), k: f.diffs.length })) }))
     const payload = JSON.stringify({ pass: summary().pass, fail: summary().fail, total: fixtures.length, failures }, null, 2)
     try {
       const { knownFolders } = require('@nativescript/core')
