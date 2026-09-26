@@ -529,8 +529,10 @@ impl InlineMeasureCache {
             Size { width: None, height: known_dimensions.height },
             Size { width: AvailableSpace::MaxContent, height: available_space.height },
         )?;
-        // Android and iOS lay text out at whole-pixel widths; Windows lays it out at fractional DIPs.
-        let limit = if cfg!(target_os = "windows") { offered } else { offered.floor() };
+        // Android's StaticLayout takes an int width, so it wraps at the offered width truncated to
+        // whole pixels while reporting the fractional widest line. iOS (CoreText, in points) and
+        // Windows (in DIPs) lay out at the exact width.
+        let limit = if cfg!(target_os = "android") { offered.floor() } else { offered };
         (max_content.width <= limit).then_some(max_content)
     }
 }
@@ -1268,13 +1270,13 @@ mod inline_measure_cache_tests {
     }
 
     #[test]
-    fn text_fit_takes_fractional_widths_on_windows() {
+    fn text_fit_floors_fractional_widths_only_on_android() {
         use AvailableSpace::{Definite, MaxContent};
         let mut cache = InlineMeasureCache::new();
         let max = Size { width: 55.2, height: 15.2 };
         cache.store(known(None, None), avail(MaxContent, MaxContent), max);
 
-        let expected = if cfg!(target_os = "windows") { Some(max) } else { None };
+        let expected = if cfg!(target_os = "android") { None } else { Some(max) };
         assert_eq!(cache.text_fit_from_max_content(known(Some(55.2), None), avail(Definite(55.2), MaxContent)), expected);
     }
 
