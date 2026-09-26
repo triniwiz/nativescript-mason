@@ -271,6 +271,13 @@ namespace winrt::NativeScript::Mason::implementation
         return implementation::Layout::FromFloats(g_layoutSink.data(), g_layoutSink.size());
     }
 
+    nsm::Layout Node::GetShallowLayout()
+    {
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        return implementation::Layout::FromFloats(g_layoutSink.data(), g_layoutSink.size());
+    }
+
     nsm::Layout Node::ComputeAndLayout()
     {
         g_layoutSink.clear();

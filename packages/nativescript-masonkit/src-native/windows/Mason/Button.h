@@ -1,5 +1,6 @@
 #pragma once
 #include "Button.g.h"
+#include "VisualState.h"
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -24,6 +25,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     private:
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         winrt::Microsoft::UI::Xaml::Controls::Button m_button{ nullptr };
         hstring m_content;
     };

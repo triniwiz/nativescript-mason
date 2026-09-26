@@ -147,7 +147,7 @@ namespace mason_panel
             if (layer) mason_position::MeasureLayer(layer, available);
         }
 
-        auto layout = node.GetLayout();
+        auto layout = node.GetShallowLayout();
         return { layout.Width(), layout.Height() };
     }
 
@@ -156,7 +156,7 @@ namespace mason_panel
         nsm::Node const& node, muxc::UIElementCollection const& children,
         winrt::Windows::Foundation::Size const& finalSize)
     {
-        auto layout = node.GetLayout();
+        auto layout = node.GetShallowLayout();
         auto childLayouts = layout.Children();
         uint32_t count = childLayouts.Size();
 

@@ -37,7 +37,7 @@ namespace winrt::NativeScript::Mason::implementation
                 mason_position::UnhostLater(self, child, true);
                 continue;
             }
-            auto l = node.GetLayout();
+            auto l = node.GetShallowLayout();
             child.Measure({ l.Width(), l.Height() });
         }
         return { 0.0f, 0.0f };
@@ -62,7 +62,7 @@ namespace winrt::NativeScript::Mason::implementation
             auto el = child.try_as<nsm::IMasonElement>();
             if (!el) continue;
             auto node = el.Node();
-            auto l = node.GetLayout();
+            auto l = node.GetShallowLayout();
             float x = l.X(), y = l.Y();
             if (shiftX > 0.0f || shiftY > 0.0f)
             {

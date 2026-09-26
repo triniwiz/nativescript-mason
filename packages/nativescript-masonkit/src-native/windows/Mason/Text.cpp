@@ -163,11 +163,8 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SyncStyle(winrt::hstring const&, winrt::hstring const&)
     {
-        
         ApplyStyleFromBuffer();
-        if (m_node) m_node.MarkDirty();
-        InvalidateMeasure();
-        InvalidateLayoutRootFromHere();
+        InvalidateText();
     }
 
     hstring Text::Content() const
@@ -186,7 +183,7 @@ namespace winrt::NativeScript::Mason::implementation
     }
 
     double Text::FontSize() const { return m_fontSize; }
-    void Text::FontSize(double value) { if (value > 0.0) { m_fontSize = value; if (m_text) m_text.FontSize(value); RebuildInlines(); } }
+    void Text::FontSize(double value) { if (value > 0.0) { m_fontSize = value; if (m_text) m_text.FontSize(value); RebuildInlines(); InvalidateText(); } }
 
     void Text::SetFontFamily(hstring const& families)
     {
@@ -197,6 +194,7 @@ namespace winrt::NativeScript::Mason::implementation
             m_text.FontFamily(muxm::FontFamily(resolved.empty() ? winrt::hstring{ L"Segoe UI" } : m_fontFamily));
         }
         RebuildInlines();
+        InvalidateText();
     }
 
     void Text::SetRun(nsm::TextNode const& run, int32_t index)
@@ -209,7 +207,7 @@ namespace winrt::NativeScript::Mason::implementation
         if (index < 0 || index > static_cast<int32_t>(m_runs.size())) index = static_cast<int32_t>(m_runs.size());
         m_runs.insert(m_runs.begin() + index, run);
         winrt::get_self<implementation::TextNode>(run)->SetOwner(this);
-        RebuildInlines();
+        if (RebuildInlines()) InvalidateText();
     }
 
     void Text::RemoveRun(nsm::TextNode const& run)
@@ -224,7 +222,7 @@ namespace winrt::NativeScript::Mason::implementation
                 break;
             }
         }
-        RebuildInlines();
+        if (RebuildInlines()) InvalidateText();
     }
 
     void Text::ClearRuns()
@@ -234,10 +232,10 @@ namespace winrt::NativeScript::Mason::implementation
             if (r) winrt::get_self<implementation::TextNode>(r)->SetOwner(nullptr);
         }
         m_runs.clear();
-        RebuildInlines();
+        if (RebuildInlines()) InvalidateText();
     }
 
-    void Text::OnRunChanged() { RebuildInlines(); }
+    void Text::OnRunChanged() { if (RebuildInlines()) InvalidateText(); }
 
     void Text::ApplyStyleFromBuffer()
     {
@@ -296,35 +294,60 @@ namespace winrt::NativeScript::Mason::implementation
         RebuildInlines();
     }
 
-    void Text::RebuildInlines()
+    bool Text::RebuildInlines()
     {
-        if (!m_text) return;
-        auto inlines = m_text.Inlines();
-        inlines.Clear();
+        if (!m_text) return false;
         const double containerFs = m_fontSize > 0.0 ? m_fontSize : m_text.FontSize();
         const uint32_t containerColor = m_hasColor ? m_color : 0xFF000000;
+        const auto family = m_text.FontFamily();
+        const winrt::hstring familyName = family ? family.Source() : winrt::hstring{};
+
+        std::vector<BuiltRun> next;
+        next.reserve(m_runs.size());
         for (auto const& r : m_runs)
         {
             if (!r) continue;
             auto impl = winrt::get_self<implementation::TextNode>(r);
-            if (impl->IsBreak())
+            BuiltRun b;
+            b.isBreak = impl->IsBreak();
+            if (!b.isBreak)
+            {
+                b.text = impl->RunText();
+                b.color = impl->HasColor() ? impl->RunColor() : containerColor;
+                b.fontSize = impl->HasFontSize() ? impl->RunFontSize() : containerFs;
+                b.fontWeight = impl->HasFontWeight() ? impl->RunFontWeight() : m_fontWeight;
+                b.letterSpacing = impl->RunLetterSpacing() != 0.0 ? impl->RunLetterSpacing() : m_letterSpacingPx;
+            }
+            next.push_back(std::move(b));
+        }
+        if (m_builtValid && next == m_builtRuns && familyName == m_builtFamily) return false;
+
+        auto inlines = m_text.Inlines();
+        inlines.Clear();
+        for (auto const& b : next)
+        {
+            if (b.isBreak)
             {
                 inlines.Append(muxd::LineBreak());
                 continue;
             }
             muxd::Run run;
-            run.Text(impl->RunText());
-
-            if (m_text) run.FontFamily(m_text.FontFamily());
-            run.Foreground(muxm::SolidColorBrush(ColorFromArgb(impl->HasColor() ? impl->RunColor() : containerColor)));
-            const double fs = impl->HasFontSize() ? impl->RunFontSize() : containerFs;
-            if (fs > 0.0) run.FontSize(fs);
-            const int32_t fw = impl->HasFontWeight() ? impl->RunFontWeight() : m_fontWeight;
-            if (fw > 0) run.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(fw) });
-            const double ls = impl->RunLetterSpacing() != 0.0 ? impl->RunLetterSpacing() : m_letterSpacingPx;
-            if (ls != 0.0 && fs > 0.0) run.CharacterSpacing(static_cast<int32_t>(std::lround(ls / fs * 1000.0)));
+            run.Text(b.text);
+            run.FontFamily(family);
+            run.Foreground(muxm::SolidColorBrush(ColorFromArgb(b.color)));
+            if (b.fontSize > 0.0) run.FontSize(b.fontSize);
+            if (b.fontWeight > 0) run.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(b.fontWeight) });
+            if (b.letterSpacing != 0.0 && b.fontSize > 0.0) run.CharacterSpacing(static_cast<int32_t>(std::lround(b.letterSpacing / b.fontSize * 1000.0)));
             inlines.Append(run);
         }
+        m_builtRuns = std::move(next);
+        m_builtFamily = familyName;
+        m_builtValid = true;
+        return true;
+    }
+
+    void Text::InvalidateText()
+    {
         if (m_node) m_node.MarkDirty();
         InvalidateMeasure();
         InvalidateLayoutRootFromHere();
@@ -357,7 +380,7 @@ namespace winrt::NativeScript::Mason::implementation
     {
        
         if (m_text) m_text.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width, finalSize.Height });
-        mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height);
+        mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;
     }
 }

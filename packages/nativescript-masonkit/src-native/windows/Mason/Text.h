@@ -1,5 +1,6 @@
 #pragma once
 #include "Text.g.h"
+#include "VisualState.h"
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -30,12 +31,30 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
 
     private:
+        struct BuiltRun
+        {
+            winrt::hstring text;
+            uint32_t color{ 0 };
+            double fontSize{ 0.0 };
+            int32_t fontWeight{ 0 };
+            double letterSpacing{ 0.0 };
+            bool isBreak{ false };
+            bool operator==(BuiltRun const&) const = default;
+        };
+
         void ApplyStyleFromBuffer();
-        void RebuildInlines();
+        // False, with nothing touched, when the Runs would come out unchanged.
+        bool RebuildInlines();
+        void InvalidateText();
         void InvalidateLayoutRootFromHere();
+
+        std::vector<BuiltRun> m_builtRuns;
+        winrt::hstring m_builtFamily{};
+        bool m_builtValid{ false };
 
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_text{ nullptr };
         winrt::NativeScript::Mason::TextNode m_contentNode{ nullptr };
         std::vector<winrt::NativeScript::Mason::TextNode> m_runs;

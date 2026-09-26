@@ -12,6 +12,7 @@
 #include <winrt/NativeScript.Mason.h>
 #include "BufferUtil.h"
 #include "Decoration.h"
+#include "VisualState.h"
 
 namespace mason_visual
 {
@@ -192,7 +193,14 @@ namespace mason_visual
         mason_deco::SetLayer(element, L"mason-border", shapeVisual);
     }
 
-    inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height)
+    inline uint32_t Bits(float f)
+    {
+        uint32_t b;
+        std::memcpy(&b, &f, sizeof(b));
+        return b;
+    }
+
+    inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
     {
         if (!element || !node) return;
         auto style = node.Style();
@@ -214,46 +222,34 @@ namespace mason_visual
             if (off + 4 <= size) std::memcpy(&v, data + off, 4);
             return v;
         };
-
-        const float radius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
-
-        bool hasBackground = false;
-        bool roundedSolidBg = false; // solid bg rounded via brush (no clip) -> text keeps ClearType
-        if (auto panel = element.try_as<muxc::Panel>())
-        {
-            uint32_t bg = readU32(BACKGROUND_COLOR);
-            if (bg != 0 && AlphaOf(bg) > 0 && radius > 0.0f && width > 0.0f && height > 0.0f)
-            {
-                // Round the solid background via a Composition mask-brush instead of a Visual.Clip so
-                // the subtree isn't rendered offscreen (which would gray out text). Falls back to a
-                // plain solid brush + clip if no compositor is available.
-                roundedSolidBg = ApplyRoundedSolidBackground(panel, bg, width, height, radius);
-                hasBackground = true;
-            }
-            else if (bg != 0)
-            {
-                panel.Background(muxm::SolidColorBrush(ColorFromArgb(bg)));
-                hasBackground = true;
-            }
-            else
-            {
-                hasBackground = panel.Background() != nullptr;
-            }
-        }
-
         auto readI8 = [&](uint32_t off) -> int8_t {
             return (off < size) ? static_cast<int8_t>(data[off]) : 0;
         };
 
-        float r = radius;
-
-
+        const float radius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
+        const uint32_t bg = readU32(BACKGROUND_COLOR);
         const int8_t ovX = readI8(OVERFLOW_X);
         const int8_t ovY = readI8(OVERFLOW_Y);
         const bool visibleX = (ovX == 0);
         const bool visibleY = (ovY == 0);
+        const float bLW = readF32(BORDER_LEFT_VALUE), bRW = readF32(BORDER_RIGHT_VALUE);
+        const float bTW = readF32(BORDER_TOP_VALUE), bBW = readF32(BORDER_BOTTOM_VALUE);
+        const uint32_t bLC = readU32(BORDER_LEFT_COLOR), bRC = readU32(BORDER_RIGHT_COLOR);
+        const uint32_t bTC = readU32(BORDER_TOP_COLOR), bBC = readU32(BORDER_BOTTOM_COLOR);
+        const int8_t bLS = readI8(BORDER_LEFT_STYLE), bRS = readI8(BORDER_RIGHT_STYLE);
+        const int8_t bTS = readI8(BORDER_TOP_STYLE), bBS = readI8(BORDER_BOTTOM_STYLE);
+
+        auto panel = element.try_as<muxc::Panel>();
+        auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        const bool sized = width > 0.0f && height > 0.0f;
+        const bool roundSolid = panel && bg != 0 && AlphaOf(bg) > 0 && radius > 0.0f && sized;
+        // A background set outside Apply (e.g. a gradient from Css) counts when the buffer has none.
+        const bool hasBackground = panel && (bg != 0 || panel.Background() != nullptr);
+        // Rounded by the mask-brush (no clip, so text keeps ClearType) when a compositor exists.
+        const bool roundedSolidBg = roundSolid && visual != nullptr;
+
         bool childOverflows = false;
-        if ((visibleX || visibleY) && r > 0.0f && width > 0.0f && height > 0.0f && hasBackground && !roundedSolidBg)
+        if ((visibleX || visibleY) && radius > 0.0f && sized && hasBackground && !roundedSolidBg)
         {
             if (auto layout = node.GetLayout())
             {
@@ -261,7 +257,35 @@ namespace mason_visual
             }
         }
 
-        auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        const std::array<uint32_t, AppliedState::kInputs> inputs{
+            bg, Bits(radius), Bits(width), Bits(height),
+            static_cast<uint32_t>(static_cast<uint8_t>(ovX)) | (static_cast<uint32_t>(static_cast<uint8_t>(ovY)) << 8)
+                | (childOverflows ? 1u << 16 : 0u),
+            Bits(bLW), Bits(bRW), Bits(bTW), Bits(bBW),
+            bLC, bRC, bTC, bBC,
+            static_cast<uint32_t>(static_cast<uint8_t>(bLS)) | (static_cast<uint32_t>(static_cast<uint8_t>(bRS)) << 8)
+                | (static_cast<uint32_t>(static_cast<uint8_t>(bTS)) << 16) | (static_cast<uint32_t>(static_cast<uint8_t>(bBS)) << 24),
+        };
+        if (state.valid && state.inputs == inputs
+            && (!panel || panel.Background() == state.background)
+            && (!visual || visual.Clip() == state.clip))
+        {
+            return;
+        }
+
+        if (roundSolid)
+        {
+            // Round the solid background via a Composition mask-brush instead of a Visual.Clip so
+            // the subtree isn't rendered offscreen (which would gray out text). Falls back to a
+            // plain solid brush + clip if no compositor is available.
+            ApplyRoundedSolidBackground(panel, bg, width, height, radius);
+        }
+        else if (panel && bg != 0)
+        {
+            panel.Background(muxm::SolidColorBrush(ColorFromArgb(bg)));
+        }
+
+        float r = radius;
         if (visual)
         {
             // Solid rounded backgrounds are already rounded by the mask-brush (no clip) so text stays
@@ -282,10 +306,11 @@ namespace mason_visual
             }
         }
 
-        DrawBorder(element,
-            readF32(BORDER_LEFT_VALUE), readF32(BORDER_RIGHT_VALUE), readF32(BORDER_TOP_VALUE), readF32(BORDER_BOTTOM_VALUE),
-            readU32(BORDER_LEFT_COLOR), readU32(BORDER_RIGHT_COLOR), readU32(BORDER_TOP_COLOR), readU32(BORDER_BOTTOM_COLOR),
-            readI8(BORDER_LEFT_STYLE), readI8(BORDER_RIGHT_STYLE), readI8(BORDER_TOP_STYLE), readI8(BORDER_BOTTOM_STYLE),
-            width, height, readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE));
+        DrawBorder(element, bLW, bRW, bTW, bBW, bLC, bRC, bTC, bBC, bLS, bRS, bTS, bBS, width, height, radius);
+
+        state.inputs = inputs;
+        state.background = panel ? panel.Background() : nullptr;
+        state.clip = visual ? visual.Clip() : nullptr;
+        state.valid = true;
     }
 }

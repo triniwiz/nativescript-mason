@@ -56,6 +56,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         // compute + layout
         winrt::NativeScript::Mason::Layout GetLayout();
+        winrt::NativeScript::Mason::Layout GetShallowLayout();
         winrt::NativeScript::Mason::Layout ComputeAndLayout();
         winrt::NativeScript::Mason::Layout ComputeWHAndLayout(float width, float height);
         winrt::NativeScript::Mason::Layout ComputeMaxContentAndLayout();
