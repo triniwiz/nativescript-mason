@@ -78,6 +78,7 @@ import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
 import PositionDemo from '~/plugin-demos/PositionDemo.vue';
 import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
+import GradientDemo from '~/plugin-demos/GradientDemo.vue';
 import TransformDemo from '~/plugin-demos/TransformDemo.vue';
 import AnimationDemo from '~/plugin-demos/AnimationDemo.vue';
 import TouchDemo from '~/plugin-demos/TouchDemo.vue';
@@ -107,6 +108,7 @@ const groups = [
     items: [
       { title: 'Typography', desc: 'Type scale and text styles', icon: 'T', color: '#b2bec3', page: TypographyDemo },
       { title: 'Box shadows', desc: 'Elevation, colored and inset shadows', icon: 'B', color: '#636e72', page: BoxShadowDemo },
+      { title: 'Gradients', desc: 'Stop positions, hard edges and stripes', icon: 'Gr', color: '#fd9644', page: GradientDemo },
       { title: 'Transforms', desc: 'Interactive rotate / scale / translate', icon: 'R', color: '#e17055', page: TransformDemo },
       { title: 'Animation', desc: 'Keyframe-style animations on Mason views', icon: 'M', color: '#4ecdc4', page: AnimationDemo },
       { title: 'Touch animations', desc: 'TouchManager press feedback on Mason views', icon: 'Tm', color: '#fd79a8', page: TouchDemo },

@@ -1,45 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { Style as CoreStyle } from '@nativescript/core/ui/styling/style';
 import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
-import { styleUnderTest } from '../../tools/testing/mason-test-kit/style-under-test';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
-import { isMasonView_ } from './symbols';
+import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { setCssUnitContext } from './units';
 import { installMasonSizeUnits } from './properties';
+import { toCamelCase } from './css-shorthands';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
 // its overrideHandlers() calls — which mutate @nativescript/core's own
 // properties process-wide, for every view in the app.
 import './properties';
-
-// NativeScript's WeakRef shim exposes `.get()`, and both core and masonkit call
-// it that way; the platform WeakRef only has `.deref()`.
-function nsWeakRef(view: unknown) {
-  return { get: () => view, deref: () => view, clear() {} } as any;
-}
-
-/** Inherited properties (font-size among them) walk children, so a host needs this. */
-function viewShape(extra: Record<PropertyKey, unknown> = {}) {
-  return { eachChild: () => {}, ...extra } as any;
-}
-
-/** A stand-in for a mason view: carries the marker and a real mason style. */
-function masonHost() {
-  const under = styleUnderTest();
-  const view: any = viewShape({ [isMasonView_]: true, _styleHelper: under.style });
-  const style = new CoreStyle(nsWeakRef(view));
-  view.style = style;
-  return { under, style };
-}
-
-/** A stand-in for a plain NativeScript view: no marker, no mason style. */
-function coreHost() {
-  const view: any = viewShape();
-  const style = new CoreStyle(nsWeakRef(view));
-  view.style = style;
-  return { view, style };
-}
 
 describe('the .css stylesheet path reaches the mason style buffer', () => {
   // This is the path a real stylesheet takes: core's CssState assigns by CSS
@@ -156,7 +127,7 @@ describe('aspect-ratio accepts the shapes CSS does', () => {
 describe('every CSS name mason claims is actually registered', () => {
   const registered = new Map<string, string>();
   for (const property of _getStyleProperties() as any[]) {
-    if (property.cssName) registered.set(property.cssName.replace(/^css:/, ''), property.name);
+    if (property.cssName && property.registered) registered.set(property.cssName.replace(/^css:/, ''), property.name);
   }
 
   // A sample of the surface that "paste web CSS" depends on most.
@@ -178,7 +149,7 @@ describe('every CSS name mason claims is actually registered', () => {
   it('registers no unexpected duplicate CSS name', () => {
     const seen = new Map<string, number>();
     for (const property of _getStyleProperties() as any[]) {
-      if (!property.cssName) continue;
+      if (!property.cssName || !property.registered) continue;
       const name = property.cssName.replace(/^css:/, '');
       seen.set(name, (seen.get(name) ?? 0) + 1);
     }
@@ -207,7 +178,7 @@ describe('plain NativeScript views keep core semantics', () => {
     }).not.toThrow();
     // Core's converters map a keyword onto its own enum value; the giveaway that
     // the mason passthrough leaked would be the raw string surviving.
-    const read = (style as any)[cssName.replace(/-([a-z])/g, (_m: string, c: string) => c.toUpperCase())];
+    const read = (style as any)[toCamelCase(cssName)];
     expect(read).not.toBe(undefined);
   });
 

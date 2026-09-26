@@ -8,6 +8,8 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // rather than core's root export, unlike the border *width* longhands above.
 import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
+import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
+import type { CornerIndex, CornerRadius } from './css-shorthands';
 import { Style as MasonStyle, Style } from './style';
 import {
   alignContentProperty,
@@ -265,15 +267,17 @@ declare module '@nativescript/core/ui/styling/style' {
   }
 }
 
-/** "background-color" -> "backgroundColor". */
-function toCamelCase(prop: string): string {
-  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+function masonLength<T>(value: T): T | string {
+  return isCssLength(value) ? value.css : value;
 }
 
 /** A core `Length` (number of dip, or `{ value, unit }`) as a CSS string. */
-function lengthToCssString(value: CoreTypes.LengthType | undefined | null): string {
+function lengthToCssString(value: CoreTypes.LengthType | string | undefined | null): string {
   if (value == null) {
     return '0';
+  }
+  if (typeof value === 'string') {
+    return value;
   }
   if (typeof value === 'number') {
     return `${value}px`;
@@ -300,6 +304,15 @@ function colorToCssString(value: unknown): string {
     return hex;
   }
   return String(value);
+}
+
+function backgroundImageToCssString(value: unknown): string {
+  const gradient = value as { angle?: number; colorStops?: { color: unknown; offset?: { value: number } }[] };
+  if (value && typeof value === 'object' && typeof gradient.angle === 'number' && Array.isArray(gradient.colorStops)) {
+    const stops = gradient.colorStops.map((stop) => (stop.offset ? `${colorToCssString(stop.color)} ${stop.offset.value * 100}%` : colorToCssString(stop.color)));
+    return `linear-gradient(${gradient.angle}rad, ${stops.join(', ')})`;
+  }
+  return value == null ? 'none' : String(value);
 }
 
 const TEARDOWN_SLICE_MS = 8;
@@ -1382,48 +1395,77 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.borderRadius = value;
+      (this as any)[borderRadiusCorners_] = undefined;
     }
   }
 
-  // `border-radius` / `border-color` arriving as core's longhands.
-  //
-  // Core expands both shorthands into four longhands before a *stylesheet*
-  // declaration ever reaches a property (`_expandCssShorthand` in
-  // ui/styling/css-selector), so our own shorthand `setNative` above only
-  // ever fires for an inline `view.style.borderRadius = …`. A CSS class was
-  // silently doing nothing. Each longhand below records its corner/side and
-  // recomposes the whole shorthand string, which is the shape the native
-  // side parses anyway.
+  [borderRadiusProperty.getDefault]() {
+    // @ts-ignore
+    return this._styleHelper?.borderRadius;
+  }
 
-  private _borderRadiusCorner(corner: 'tl' | 'tr' | 'br' | 'bl', value: CoreTypes.LengthType) {
+  // `border-radius` / `border-color` arriving as core's longhands.
+
+  private _nativeBorderRadiusCorners(): CornerRadius[] {
+    // @ts-ignore
+    const native = String(this._styleHelper?.borderRadius ?? '').trim();
+    try {
+      return borderRadiusCorners(native || '0');
+    } catch {
+      return borderRadiusCorners('0');
+    }
+  }
+
+  private _borderRadiusCorner(corner: CornerIndex, value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
     if (!style) {
       return;
     }
-    let corners = (this as any)[borderRadiusCorners_];
+    let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
     if (!corners) {
-      corners = (this as any)[borderRadiusCorners_] = { tl: '0', tr: '0', br: '0', bl: '0' };
+      corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    corners[corner] = lengthToCssString(value);
+    corners[corner] = parseCornerRadius(lengthToCssString(masonLength(value)));
     // @ts-ignore
-    style.borderRadius = `${corners.tl} ${corners.tr} ${corners.br} ${corners.bl}`;
+    style.borderRadius = composeBorderRadius(corners);
+  }
+
+  private _nativeCornerRadius(corner: CornerIndex): string {
+    const [h, v] = this._nativeBorderRadiusCorners()[corner];
+    return h === v ? h : `${h} ${v}`;
+  }
+
+  [borderTopLeftRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(0);
+  }
+
+  [borderTopRightRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(1);
+  }
+
+  [borderBottomRightRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(2);
+  }
+
+  [borderBottomLeftRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(3);
   }
 
   [borderTopLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('tl', value);
+    this._borderRadiusCorner(0, value);
   }
 
   [borderTopRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('tr', value);
+    this._borderRadiusCorner(1, value);
   }
 
   [borderBottomRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('br', value);
+    this._borderRadiusCorner(2, value);
   }
 
   [borderBottomLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('bl', value);
+    this._borderRadiusCorner(3, value);
   }
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
@@ -1571,7 +1613,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderLeftWidth = value;
+      style.borderLeftWidth = masonLength(value);
     }
   }
 
@@ -1580,7 +1622,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderTopWidth = value;
+      style.borderTopWidth = masonLength(value);
     }
   }
 
@@ -1589,7 +1631,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderRightWidth = value;
+      style.borderRightWidth = masonLength(value);
     }
   }
 
@@ -1598,7 +1640,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderBottomWidth = value;
+      style.borderBottomWidth = masonLength(value);
     }
   }
 
@@ -1663,7 +1705,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.backgroundImage = String(value);
+      style.backgroundImage = backgroundImageToCssString(value);
     }
   }
 
@@ -2066,7 +2108,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginLeft = value;
+      style.marginLeft = masonLength(value);
     }
   }
 
@@ -2074,7 +2116,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginRight = value;
+      style.marginRight = masonLength(value);
     }
   }
 
@@ -2082,7 +2124,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginBottom = value;
+      style.marginBottom = masonLength(value);
     }
   }
 
@@ -2090,7 +2132,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginTop = value;
+      style.marginTop = masonLength(value);
     }
   }
 
@@ -2115,7 +2157,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingLeft = value;
+      style.paddingLeft = masonLength(value);
     }
   }
 
@@ -2123,7 +2165,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingRight = value;
+      style.paddingRight = masonLength(value);
     }
   }
 
@@ -2131,7 +2173,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingTop = value;
+      style.paddingTop = masonLength(value);
     }
   }
 
@@ -2139,7 +2181,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingBottom = value;
+      style.paddingBottom = masonLength(value);
     }
   }
 

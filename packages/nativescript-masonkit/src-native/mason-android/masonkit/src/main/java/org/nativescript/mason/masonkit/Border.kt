@@ -1531,7 +1531,7 @@ fun parseLength(style: Style, value: String): Float? {
 /**
  * Split on top-level whitespace but preserve parentheses groups (e.g. "rgba(0, 1, 2)").
  */
-private fun splitTopLevelWhitespace(input: String): List<String> {
+internal fun splitTopLevelWhitespace(input: String): List<String> {
   val result = mutableListOf<String>()
   val sb = StringBuilder()
   var depth = 0

@@ -400,9 +400,10 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       let colorStops = g.stops
       
       for stop in colorStops {
-        if let lastSpace = stop.lastIndex(of: " ") {
-          let colorPart = String(stop[..<lastSpace])
-          let posPart = String(stop[stop.index(after: lastSpace)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = splitTopLevelWhitespace(stop)
+        if parts.count > 1 {
+          let colorPart = parts[0]
+          let posPart = parts[1]
           
           if let color = parseColor(colorPart)?.cgColor {
             cgColors.append(color)
@@ -562,7 +563,15 @@ func parseGradient(_ str: String) -> Gradient? {
   }
   
   let stops = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-  return Gradient(type: type, direction: direction, stops: stops)
+  return Gradient(type: type, direction: direction, stops: expandColorStops(stops))
+}
+
+/// A stop with two positions ("red 10% 30%") is two stops of the same colour.
+func expandColorStops(_ stops: [String]) -> [String] {
+  return stops.flatMap { stop -> [String] in
+    let parts = splitTopLevelWhitespace(stop)
+    return parts.count == 3 ? ["\(parts[0]) \(parts[1])", "\(parts[0]) \(parts[2])"] : [stop]
+  }
 }
 
 // MARK: - Helper to detect if a token is an angle, direction, or radial shape/position
