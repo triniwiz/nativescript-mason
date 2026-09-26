@@ -529,7 +529,9 @@ impl InlineMeasureCache {
             Size { width: None, height: known_dimensions.height },
             Size { width: AvailableSpace::MaxContent, height: available_space.height },
         )?;
-        (max_content.width <= offered.floor()).then_some(max_content)
+        // Android and iOS lay text out at whole-pixel widths; Windows lays it out at fractional DIPs.
+        let limit = if cfg!(target_os = "windows") { offered } else { offered.floor() };
+        (max_content.width <= limit).then_some(max_content)
     }
 }
 
@@ -1263,6 +1265,17 @@ mod inline_measure_cache_tests {
         assert_eq!(fit(known(Some(0.0), None), avail(Definite(300.0), MaxContent)), None);
         assert_eq!(fit(known(None, None), avail(MinContent, MaxContent)), None);
         assert_eq!(fit(known(None, Some(16.0)), avail(Definite(300.0), MaxContent)), None);
+    }
+
+    #[test]
+    fn text_fit_takes_fractional_widths_on_windows() {
+        use AvailableSpace::{Definite, MaxContent};
+        let mut cache = InlineMeasureCache::new();
+        let max = Size { width: 55.2, height: 15.2 };
+        cache.store(known(None, None), avail(MaxContent, MaxContent), max);
+
+        let expected = if cfg!(target_os = "windows") { Some(max) } else { None };
+        assert_eq!(cache.text_fit_from_max_content(known(Some(55.2), None), avail(Definite(55.2), MaxContent)), expected);
     }
 
     #[test]

@@ -8,6 +8,7 @@
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Hosting.h>
 #include <winrt/Microsoft.UI.Composition.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
 
 namespace mason_deco
 {
@@ -15,10 +16,19 @@ namespace mason_deco
     namespace mucomp = winrt::Microsoft::UI::Composition;
     namespace hosting = winrt::Microsoft::UI::Xaml::Hosting;
 
-    inline mucomp::Compositor CompositorFor(mux::UIElement const& element)
+    // The thread's compositor. Asking an element for its visual instead makes XAML give that element
+    // a hand-off visual of its own. Never released: XAML objects must outlive the thread's XAML.
+    inline mucomp::Compositor ThreadCompositor()
     {
-        auto visual = hosting::ElementCompositionPreview::GetElementVisual(element);
-        return visual ? visual.Compositor() : nullptr;
+        struct Holder { mucomp::Compositor compositor{ nullptr }; };
+        thread_local auto* holder = new Holder{};
+        if (!holder->compositor) holder->compositor = winrt::Microsoft::UI::Xaml::Media::CompositionTarget::GetCompositorForCurrentThread();
+        return holder->compositor;
+    }
+
+    inline mucomp::Compositor CompositorFor(mux::UIElement const&)
+    {
+        return ThreadCompositor();
     }
 
     // Return the element's decoration root ContainerVisual, creating + installing it if absent.

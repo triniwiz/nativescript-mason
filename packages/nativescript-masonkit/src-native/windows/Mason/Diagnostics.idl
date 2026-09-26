@@ -1,0 +1,15 @@
+namespace NativeScript.Mason
+{
+    // Frame and layout-pass counters for benchmarks. Handlers the JS runtime assigns to
+    // EventHandler<Object> events (CompositionTarget.Rendering, LayoutUpdated) never fire, so
+    // these subscribe natively and JS polls them.
+    runtimeclass Diagnostics
+    {
+        // Compositor frames since the first read.
+        static UInt64 FrameCount{ get; };
+
+        // Count `element`'s LayoutUpdated passes, replacing the previous element; null stops.
+        static void WatchLayout(Microsoft.UI.Xaml.FrameworkElement element);
+        static UInt64 LayoutPassCount{ get; };
+    }
+}

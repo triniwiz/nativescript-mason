@@ -328,7 +328,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private static _teardownScheduled = false;
 
   public _tearDownUI(force?: boolean): void {
-    if ((__ANDROID__ || __APPLE__) && !force && !this.reusable && this._context && this.nativeViewProtected) {
+    if ((__ANDROID__ || __APPLE__ || __WINDOWS__) && !force && !this.reusable && this._context && this.nativeViewProtected) {
       // A keyed move tears down and re-adds within one patch. Detach only this
       // element and defer the recursive teardown; _setupUI cancels it on re-attach.
       if (this.parent) {
@@ -346,7 +346,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
-    if ((__ANDROID__ || __APPLE__) && this._masonPendingTeardown) {
+    if ((__ANDROID__ || __APPLE__ || __WINDOWS__) && this._masonPendingTeardown) {
       this._masonPendingTeardown = false;
       if (this._context === context) {
         if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
@@ -357,6 +357,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
     }
     super._setupUI(context, atIndex, parentIsLoaded);
+  }
+
+  // Core's CustomLayoutView finds the child with one WinRT call per sibling, comparing projected
+  // wrappers that miss elements created natively. Mason's containers remove their children natively
+  // themselves, so only core's bookkeeping is kept.
+  public _removeViewFromNativeVisualTree(child: any): void {
+    if (__WINDOWS__) {
+      child._isAddedToNativeVisualTree = false;
+      return;
+    }
+    super._removeViewFromNativeVisualTree(child);
   }
 
   private _masonFinishTeardown() {

@@ -22,6 +22,7 @@
 #include "BufferUtil.h"
 #include "Decoration.h"
 #include "Positioning.h"
+#include "LeafCommon.h"
 
 using namespace winrt;
 
@@ -42,26 +43,26 @@ namespace
     // this pass (not one mutation late).
     void MarkLayoutRootDirty(muxc::Panel const& panel)
     {
-        // (1) re-sync the mutated panel's children
+        // The panel re-syncs its children in its next measure; the engine marks the node's ancestors
+        // dirty itself, and XAML needs every Mason ancestor invalidated so the layout root recomputes.
         panel.InvalidateMeasure();
         panel.InvalidateArrange();
-
-        // (2) find the topmost Mason element and force a full recompute there
-        winrt::Microsoft::UI::Xaml::FrameworkElement root = panel;
-        winrt::Microsoft::UI::Xaml::FrameworkElement cur = panel;
-        while (cur)
-        {
-            if (cur.try_as<nsm::IMasonElement>()) root = cur;
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>() : nullptr;
-        }
-        if (!root) return;
-        if (auto el = root.try_as<nsm::IMasonElement>())
+        if (auto el = panel.try_as<nsm::IMasonElement>())
         {
             if (auto node = el.Node()) node.MarkDirty();
         }
-        root.InvalidateMeasure();
-        root.InvalidateArrange();
+        winrt::Microsoft::UI::Xaml::FrameworkElement cur = panel;
+        while (cur)
+        {
+            if (cur.try_as<nsm::IMasonElement>())
+            {
+                if (!mason_leaf::MarkInvalidated(winrt::get_abi(cur))) break;
+                cur.InvalidateMeasure();
+                cur.InvalidateArrange();
+            }
+            auto parent = cur.Parent();
+            cur = parent ? parent.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>() : nullptr;
+        }
     }
     using winrt::Windows::Graphics::Imaging::SoftwareBitmap;
     using winrt::Windows::Graphics::Imaging::BitmapPixelFormat;
@@ -258,9 +259,10 @@ namespace winrt::NativeScript::Mason::implementation
         auto panel = element.try_as<muxc::Panel>();
         if (!panel) return;
         // Solid brushes are background-color, which VisualApply owns; a tap handler's transparent
-        // brush must also survive or the element stops hit-testing.
+        // brush must also survive or the element stops hit-testing. A RoundedColorBrush may be a
+        // rounded gradient; if it was the color, VisualApply repaints it on the arrange below.
         auto current = panel.Background();
-        if (!current || current.try_as<muxm::SolidColorBrush>() || current.try_as<nsm::RoundedColorBrush>()) return;
+        if (!current || current.try_as<muxm::SolidColorBrush>()) return;
         panel.Background(nullptr);
         panel.InvalidateArrange();
     }

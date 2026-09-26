@@ -69,6 +69,13 @@ namespace winrt::NativeScript::Mason::implementation
         ::CMasonNode* NodePtr() const noexcept { return m_node; }
         ::CMason* MasonPtr() const noexcept { return m_mason; }
 
+        // This node's laid-out width, without building a Layout.
+        float LayoutWidth();
+
+        // Position relative to the layout root in DIPs, set by the parent panel's arrange.
+        float ArrangeX{ 0.0f };
+        float ArrangeY{ 0.0f };
+
     private:
         // C trampoline registered with mason_node_set_context; recovers `this` from measure_data
         // and invokes m_measure.

@@ -54,6 +54,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void View::SyncStyle(winrt::hstring const&, winrt::hstring const&)
     {
+        m_visual.styleDirty = true;
         if (m_node) m_node.MarkDirty();
         InvalidateMeasure();
         mason_panel::InvalidateLayoutRoot(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>());

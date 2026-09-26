@@ -2,6 +2,7 @@ import { TextBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isText_, isMasonView_, native_ } from '../symbols';
+import { removeNativeChild } from '../windows-panel-helpers';
 
 // crates/mason-core/src/utils/ua_defaults.rs as [font size, margin top, bottom, left, right] in CSS
 // px, a font size of 0 leaving it inherited. Android and iOS read it over FFI;
@@ -76,6 +77,28 @@ export class Text extends TextBase {
 
   createNativeView() {
     return this._view;
+  }
+
+  // Text lays out runs, not child panels, so a nested text element renders inside this one's runs.
+  // @ts-ignore
+  public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
+    if (child?.[isText_] && child._view) {
+      this._view.SetInlineText(child._view, this._windowsNativeIndexOf(child, atIndex));
+      child._isMasonChild = true;
+      return true;
+    }
+    return super._addViewToNativeVisualTree(child, atIndex);
+  }
+
+  // @ts-ignore
+  public _removeViewFromNativeVisualTree(child: any): void {
+    if (child?.[isText_] && child._view) {
+      this._view.RemoveInlineText(child._view);
+      child._isMasonChild = false;
+    } else {
+      removeNativeChild(this._view, child);
+    }
+    super._removeViewFromNativeVisualTree(child);
   }
 
   [textContentProperty.setNative](value) {

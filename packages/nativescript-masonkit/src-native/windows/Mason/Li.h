@@ -14,6 +14,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
+            m_visual.styleDirty = true;
             if (m_node) m_node.MarkDirty();
             InvalidateMeasure();
         }
