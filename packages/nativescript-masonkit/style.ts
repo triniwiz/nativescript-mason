@@ -1,9 +1,14 @@
-import { layout } from '@nativescript/core/utils';
+import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
 import { reportCssDiagnostic } from './diagnostics';
+import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
+
+// The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
+// is 1 until the window has a XamlRoot, so converting stored early styles unscaled and later ones scaled.
+const layout: typeof coreLayout = __WINDOWS__ ? { ...coreLayout, getDisplayDensity: () => 1, toDevicePixels: (value: number) => value, toDeviceIndependentPixels: (value: number) => value } : coreLayout;
 
 enum StyleKeys {
   DISPLAY = 0,
@@ -777,24 +782,19 @@ function parseLinearGradientCss(value: string): { angle: number; offsets: number
     start = 1;
   }
   const colors: number[] = [];
-  const offsets: number[] = [];
-  const stops = parts.slice(start);
-  for (let i = 0; i < stops.length; i++) {
-    // A stop is `<color> [<percentage>]`; the color is everything up to a trailing % offset.
-    const stop = stops[i];
-    const pct = /\s+(-?[\d.]+)%\s*$/.exec(stop);
-    const colorStr = pct ? stop.slice(0, pct.index).trim() : stop;
+  const positions: Array<number | null> = [];
+  for (const stop of expandColorStops(parts.slice(start))) {
+    // A length position needs the gradient line's length, unknown here, so that stop is placed as
+    // if it had none rather than dropped.
+    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
+    const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
     const argb = normalizeColorValue(colorStr);
     if (argb == null) continue;
     colors.push(argb >>> 0);
-    offsets.push(pct ? parseFloat(pct[1]) / 100 : -1);
+    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
   }
   if (colors.length < 1) return null;
-  // Fill any unspecified offsets evenly across [0,1].
-  for (let i = 0; i < offsets.length; i++) {
-    if (offsets[i] < 0) offsets[i] = offsets.length > 1 ? i / (offsets.length - 1) : 0;
-  }
-  return { angle, offsets, colors };
+  return { angle, offsets: resolveStopPositions(positions), colors };
 }
 
 // Parse one side of a padding/margin shorthand into a Length the buffer setters accept.
@@ -848,14 +848,37 @@ function parseSidesShorthand(value: string | number): { top: any; right: any; bo
   }
 }
 
-// Parse a CSS `border-radius` shorthand into per-corner px radii. Handles 1-4 space-separated
+/** One Windows border-radius corner in the buffer's encoding: type 0 = dip, 1 = percent as a 0-1 fraction. */
+export type WindowsRadius = { type: 0 | 1; value: number };
+
+/** Corners in CSS shorthand order. */
+const WINDOWS_RADIUS_KEYS = [
+  ['tl', { xType: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE }],
+  ['tr', { xType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE }],
+  ['br', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE }],
+  ['bl', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE }],
+] as const;
+
+function parseWindowsRadius(token: string, emBasis?: number): WindowsRadius {
+  const t = token.trim();
+  if (t.endsWith('%')) {
+    return { type: 1, value: Math.max(0, finite(parseFloat(t)) / 100) };
+  }
+  const n = Number(t);
+  if (t !== '' && Number.isFinite(n)) {
+    return { type: 0, value: Math.max(0, n) };
+  }
+  return { type: 0, value: Math.max(0, cssLengthToDip(t, emBasis) ?? 0) };
+}
+
+// Parse a CSS `border-radius` shorthand into per-corner radii. Handles 1-4 space-separated
 // values (CSS order: top-left, top-right, bottom-right, bottom-left) and ignores the optional
-// `/ <vertical>` part (we treat radii as circular). `parseFloat` strips the `px` unit.
-function parseBorderRadiusShorthand(value: string): { tl: number; tr: number; br: number; bl: number } {
+// `/ <vertical>` part (we treat radii as circular).
+export function parseBorderRadiusShorthand(value: string, emBasis?: number): { tl: WindowsRadius; tr: WindowsRadius; br: WindowsRadius; bl: WindowsRadius } {
   const horizontal = String(value ?? '')
     .split('/')[0]
     .trim();
-  const vals = horizontal.length ? horizontal.split(/\s+/).map((v) => parseFloat(v) || 0) : [0];
+  const vals = horizontal.length ? horizontal.split(/\s+/).map((v) => parseWindowsRadius(v, emBasis)) : [parseWindowsRadius('0')];
   switch (vals.length) {
     case 1:
       return { tl: vals[0], tr: vals[0], br: vals[0], bl: vals[0] };
@@ -1322,25 +1345,15 @@ export class Style {
       return;
     }
     if (name === 'border-radius') {
-      const r = parseBorderRadiusShorthand(value);
+      const r = parseBorderRadiusShorthand(value, this.emBasis());
       this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE, r.tl);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE, r.tl);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE, r.tr);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE, r.tr);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE, r.br);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE, r.br);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, r.bl);
-      setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE, r.bl);
-      // Type bytes: 0 = length (px).
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, 0);
-      setUint8(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, 0);
+      for (const [corner, keys] of WINDOWS_RADIUS_KEYS) {
+        const { type, value: v } = r[corner];
+        setFloat32(this.style_view, keys.xValue, v);
+        setFloat32(this.style_view, keys.yValue, v);
+        setUint8(this.style_view, keys.xType, type);
+        setUint8(this.style_view, keys.yType, type);
+      }
       this.commitState(StateKeys.BORDER_RADIUS);
       return;
     }
@@ -1525,7 +1538,8 @@ export class Style {
           style = NativeScript.Mason.Mason.Instance().CreateNode(false).Style as never;
         }
         style.PrepareForMutation();
-        const buffer = style.Values as never as ArrayBuffer;
+        //@ts-ignore
+        const buffer = NSWinRT.interop.arrayBufferFromBuffer(style.Values) as ArrayBuffer;
         this.style_view = new DataView(buffer);
         this.i8View = new Int8Array(buffer);
         this.u8View = new Uint8Array(buffer);
@@ -4787,6 +4801,14 @@ export class Style {
 
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.borderRadius;
+    }
+
+    if (__WINDOWS__ && this.style_view) {
+      // Read back so a single corner longhand keeps the other three instead of resetting them to 0.
+      return WINDOWS_RADIUS_KEYS.map(([, keys]) => {
+        const v = getFloat32(this.style_view, keys.xValue);
+        return getUint8(this.style_view, keys.xType) === 1 ? `${v * 100}%` : `${v}px`;
+      }).join(' ');
     }
 
     return '';

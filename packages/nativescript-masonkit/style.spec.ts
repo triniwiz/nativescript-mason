@@ -3,6 +3,7 @@ import { styleUnderTest, type StyleUnderTest } from '../../tools/testing/mason-t
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
+import { parseBorderRadiusShorthand } from './style';
 
 // The unit contract these tests encode:
 //
@@ -262,5 +263,37 @@ describe('CSS relative units', () => {
     const t = styleUnderTest();
     t.style.width = '50vw' as never;
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(0);
+  });
+});
+
+describe('Windows border-radius parsing', () => {
+  // Since core 9.1's shorthand split hands mason the CSS text, a bare parseFloat
+  // turned `1rem` into 1 and `50%` into 50.
+  beforeEach(() => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+  });
+
+  it.each(SCALES)('resolves lengths to dip at scale %i', (scale) => {
+    setScreenScale(scale);
+    const r = parseBorderRadiusShorthand('1rem 10px 12pt 4');
+    expect(r.tl).toEqual({ type: 0, value: 16 });
+    expect(r.tr.value).toBeCloseTo(10, 4);
+    expect(r.br.value).toBeCloseTo(16, 4);
+    expect(r.bl).toEqual({ type: 0, value: 4 });
+  });
+
+  it('keeps a percentage as a 0-1 fraction for native to resolve against the box', () => {
+    const r = parseBorderRadiusShorthand('50%');
+    expect(r.tl).toEqual({ type: 1, value: 0.5 });
+    expect(r.br).toEqual({ type: 1, value: 0.5 });
+  });
+
+  it('expands 2 and 3 values in CSS corner order', () => {
+    expect(parseBorderRadiusShorthand('1px 2px')).toMatchObject({ tl: { value: 1 }, tr: { value: 2 }, br: { value: 1 }, bl: { value: 2 } });
+    expect(parseBorderRadiusShorthand('1px 2px 3px')).toMatchObject({ tl: { value: 1 }, tr: { value: 2 }, br: { value: 3 }, bl: { value: 2 } });
+  });
+
+  it('ignores the vertical radii after a slash', () => {
+    expect(parseBorderRadiusShorthand('8px / 2px').tl).toEqual({ type: 0, value: 8 });
   });
 });

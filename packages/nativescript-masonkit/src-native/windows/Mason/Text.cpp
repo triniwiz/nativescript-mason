@@ -268,6 +268,12 @@ namespace winrt::NativeScript::Mason::implementation
 
         if (m_fontSize > 0.0) m_text.FontSize(m_fontSize);
         if (m_fontWeight > 0) m_text.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(m_fontWeight) });
+        {
+            // FONT_STYLE_TYPE byte at 344 (0 normal, 1 italic, 2 oblique) / state 345. Runs inherit it.
+            using winrt::Windows::UI::Text::FontStyle;
+            const uint8_t fontStyle = u8(345) ? u8(344) : 0;
+            m_text.FontStyle(fontStyle == 1 ? FontStyle::Italic : fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
+        }
         if (m_lineHeightMultiplier > 0.0)
         {
             m_text.LineHeight(m_lineHeightMultiplier * m_text.FontSize());

@@ -168,9 +168,10 @@ namespace winrt::NativeScript::Mason::implementation
             const float h = static_cast<float>(fe.ActualHeight());
             if (w <= 0.0f || h <= 0.0f) return;
 
-            // Match the element's border-radius (StyleKeys BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, f32),
-            // clamped to half the smaller side — same as VisualApply's clip — so the shadow matches the
-            // painted rounded corner. Falls back to the passed cr if the node/buffer isn't available.
+            // Match the element's border-radius (StyleKeys BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, f32;
+            // type byte 218 is 1 for a percent), clamped to half the smaller side — same as VisualApply's
+            // clip — so the shadow matches the painted rounded corner. Falls back to the passed cr if the
+            // node/buffer isn't available.
             if (auto el = element.try_as<nsm::IMasonElement>())
             {
                 if (auto style = el.Node() ? el.Node().Style() : nullptr)
@@ -183,6 +184,7 @@ namespace winrt::NativeScript::Mason::implementation
                             if (SUCCEEDED(access->Buffer(&data)) && data && buf.Length() >= 230)
                             {
                                 float r = 0.0f; std::memcpy(&r, data + 226, 4);
+                                if (data[218] == 1) r *= (w < h ? w : h);
                                 if (r > 0.0f) cr = r;
                             }
                         }

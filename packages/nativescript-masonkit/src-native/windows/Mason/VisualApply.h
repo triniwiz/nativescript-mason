@@ -41,6 +41,7 @@ namespace mason_visual
         FONT_COLOR = 324,                       // u32 ARGB
         FONT_SIZE = 329,                        // i32 px
         BACKGROUND_COLOR = 348,                 // u32 ARGB
+        BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,    // i8 (0=length, 1=percent as a 0-1 fraction)
         BORDER_RADIUS_TOP_LEFT_X_VALUE = 226,   // f32
     };
 
@@ -226,7 +227,12 @@ namespace mason_visual
             return (off < size) ? static_cast<int8_t>(data[off]) : 0;
         };
 
-        const float radius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
+        // Radii are circular here, so a percentage resolves against the shorter side; CSS would
+        // draw an ellipse on a non-square box.
+        const float rawRadius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
+        const float radius = readI8(BORDER_RADIUS_TOP_LEFT_X_TYPE) == 1
+            ? rawRadius * (width < height ? width : height)
+            : rawRadius;
         const uint32_t bg = readU32(BACKGROUND_COLOR);
         const int8_t ovX = readI8(OVERFLOW_X);
         const int8_t ovY = readI8(OVERFLOW_Y);
