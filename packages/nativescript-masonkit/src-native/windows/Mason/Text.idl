@@ -12,6 +12,10 @@ namespace NativeScript.Mason
         String Content;
         Double FontSize;
 
+        // Lay out and draw text with DirectWrite instead of a TextBlock (on by default); read when a Text
+        // is created.
+        static Boolean DirectWrite;
+
         // CSS font-family list; empty resets to the default.
         void SetFontFamily(String families);
 
@@ -19,5 +23,10 @@ namespace NativeScript.Mason
         void SetRun(TextNode run, Int32 index);
         void RemoveRun(TextNode run);
         void ClearRuns();
+
+        // A nested text element (span, b, a, ...), rendered inside this one's runs rather than as a
+        // child panel. The index counts runs and nested elements together.
+        void SetInlineText(Text child, Int32 index);
+        void RemoveInlineText(Text child);
     }
 }

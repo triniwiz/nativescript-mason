@@ -22,6 +22,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void TextNode::Data(hstring const& value)
     {
+        if (m_data == value) return;
         m_data = value;
         NotifyOwner();
     }
@@ -61,6 +62,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void TextNode::SetBreak(bool isBreak)
     {
+        if (m_isBreak == isBreak) return;
         m_isBreak = isBreak;
         NotifyOwner();
     }

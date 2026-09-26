@@ -1,0 +1,8 @@
+namespace NativeScript.Mason
+{
+    // Internal (Positioning.h). Holds a layout root's position: fixed boxes.
+    [default_interface]
+    runtimeclass FixedLayer : Microsoft.UI.Xaml.Controls.Panel
+    {
+    }
+}

@@ -38,6 +38,7 @@
     <NSMasonActivatableClass Include="NativeScript.Mason.TextArea" />
     <NSMasonActivatableClass Include="NativeScript.Mason.Input" />
     <NSMasonActivatableClass Include="NativeScript.Mason.Css" />
+    <NSMasonActivatableClass Include="NativeScript.Mason.Diagnostics" />
   </ItemGroup>
 
   <Target Name="NSRegisterMasonActivatableClasses"

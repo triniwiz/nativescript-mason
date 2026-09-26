@@ -1,5 +1,6 @@
 #pragma once
 #include "TextArea.g.h"
+#include "VisualState.h"
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -12,6 +13,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
+            m_visual.styleDirty = true;
             if (m_node) m_node.MarkDirty();
             InvalidateMeasure();
         }
@@ -32,6 +34,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     private:
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         winrt::Microsoft::UI::Xaml::Controls::TextBox m_box{ nullptr };
         int32_t m_rows{ 0 };
         int32_t m_cols{ 0 };

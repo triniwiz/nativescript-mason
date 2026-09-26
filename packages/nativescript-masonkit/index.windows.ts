@@ -15,3 +15,10 @@ export { setCssDiagnostics, getCssDiagnostics, clearCssDiagnostics, formatCssDia
 export { setCssUnitContext, cssUnits } from './units';
 export { frameworkRegistry, readChildNodes, readLinkedList, type MasonFrameworkAdapter, type MasonNodeKind } from './framework-registry';
 export { hasTextRun } from './text-runs';
+
+export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';
+
+// Android-only shadow backend overrides; Windows always draws shadows through Composition.
+export function setBoxShadowRenderMode(_mode: BoxShadowRenderMode): void {}
+
+export function setBoxShadowSoftwareRasterScale(_scale: number | null): void {}

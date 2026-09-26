@@ -21,6 +21,8 @@
 #include <vector>
 #include "BufferUtil.h"
 #include "Decoration.h"
+#include "Positioning.h"
+#include "LeafCommon.h"
 
 using namespace winrt;
 
@@ -41,26 +43,26 @@ namespace
     // this pass (not one mutation late).
     void MarkLayoutRootDirty(muxc::Panel const& panel)
     {
-        // (1) re-sync the mutated panel's children
+        // The panel re-syncs its children in its next measure; the engine marks the node's ancestors
+        // dirty itself, and XAML needs every Mason ancestor invalidated so the layout root recomputes.
         panel.InvalidateMeasure();
         panel.InvalidateArrange();
-
-        // (2) find the topmost Mason element and force a full recompute there
-        winrt::Microsoft::UI::Xaml::FrameworkElement root = panel;
-        winrt::Microsoft::UI::Xaml::FrameworkElement cur = panel;
-        while (cur)
-        {
-            if (cur.try_as<nsm::IMasonElement>()) root = cur;
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>() : nullptr;
-        }
-        if (!root) return;
-        if (auto el = root.try_as<nsm::IMasonElement>())
+        if (auto el = panel.try_as<nsm::IMasonElement>())
         {
             if (auto node = el.Node()) node.MarkDirty();
         }
-        root.InvalidateMeasure();
-        root.InvalidateArrange();
+        winrt::Microsoft::UI::Xaml::FrameworkElement cur = panel;
+        while (cur)
+        {
+            if (cur.try_as<nsm::IMasonElement>())
+            {
+                if (!mason_leaf::MarkInvalidated(winrt::get_abi(cur))) break;
+                cur.InvalidateMeasure();
+                cur.InvalidateArrange();
+            }
+            auto parent = cur.Parent();
+            cur = parent ? parent.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>() : nullptr;
+        }
     }
     using winrt::Windows::Graphics::Imaging::SoftwareBitmap;
     using winrt::Windows::Graphics::Imaging::BitmapPixelFormat;
@@ -167,9 +169,10 @@ namespace winrt::NativeScript::Mason::implementation
             const float h = static_cast<float>(fe.ActualHeight());
             if (w <= 0.0f || h <= 0.0f) return;
 
-            // Match the element's border-radius (StyleKeys BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, f32),
-            // clamped to half the smaller side — same as VisualApply's clip — so the shadow matches the
-            // painted rounded corner. Falls back to the passed cr if the node/buffer isn't available.
+            // Match the element's border-radius (StyleKeys BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, f32;
+            // type byte 218 is 1 for a percent), clamped to half the smaller side — same as VisualApply's
+            // clip — so the shadow matches the painted rounded corner. Falls back to the passed cr if the
+            // node/buffer isn't available.
             if (auto el = element.try_as<nsm::IMasonElement>())
             {
                 if (auto style = el.Node() ? el.Node().Style() : nullptr)
@@ -182,6 +185,7 @@ namespace winrt::NativeScript::Mason::implementation
                             if (SUCCEEDED(access->Buffer(&data)) && data && buf.Length() >= 230)
                             {
                                 float r = 0.0f; std::memcpy(&r, data + 226, 4);
+                                if (data[218] == 1) r *= (w < h ? w : h);
                                 if (r > 0.0f) cr = r;
                             }
                         }
@@ -252,10 +256,15 @@ namespace winrt::NativeScript::Mason::implementation
     void Css::ClearBackground(mux::UIElement const& element)
     {
         if (!element) return;
-        if (auto panel = element.try_as<muxc::Panel>())
-        {
-            panel.Background(nullptr);
-        }
+        auto panel = element.try_as<muxc::Panel>();
+        if (!panel) return;
+        // Solid brushes are background-color, which VisualApply owns; a tap handler's transparent
+        // brush must also survive or the element stops hit-testing. A RoundedColorBrush may be a
+        // rounded gradient; if it was the color, VisualApply repaints it on the arrange below.
+        auto current = panel.Background();
+        if (!current || current.try_as<muxm::SolidColorBrush>()) return;
+        panel.Background(nullptr);
+        panel.InvalidateArrange();
     }
 
     void Css::ApplyOpacity(mux::UIElement const& element, double opacity)
@@ -277,13 +286,13 @@ namespace winrt::NativeScript::Mason::implementation
         }
         muxm::MatrixTransform mt;
         mt.Matrix(muxm::Matrix{ m11, m12, m21, m22, offsetX, offsetY });
-        element.RenderTransform(mt);
+        mason_position::SetCssTransform(element, mt);
     }
 
     void Css::ClearTransform(mux::UIElement const& element)
     {
         if (!element) return;
-        element.RenderTransform(nullptr);
+        mason_position::SetCssTransform(element, nullptr);
     }
 
     void Css::ApplyCornerRadius(mux::UIElement const& element,
@@ -485,6 +494,13 @@ namespace winrt::NativeScript::Mason::implementation
         uint32_t existing = 0;
         if (target.IndexOf(child, existing)) { MarkLayoutRootDirty(parent); return; }
 
+        // A hosted fixed box is represented here by its slot.
+        if (auto hostedIn = mason_position::HostedParentOf(child))
+        {
+            if (mason_position::KeyOf(hostedIn) == mason_position::KeyOf(parent)) { MarkLayoutRootDirty(parent); return; }
+        }
+        mason_position::Release(child);
+
         // Detach from its current logical parent panel, if any. FrameworkElement.Parent is set the
         // moment an element is added to a Panel's Children (unlike the visual tree, which is only
         // populated at realization), so this reliably finds the prior owner before layout.
@@ -522,6 +538,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Css::RemoveChild(muxc::Panel const& parent, mux::UIElement const& child)
     {
         if (!parent || !child) return;
+        mason_position::Release(child);
         auto target = parent.Children();
         uint32_t idx = 0;
         // IndexOf uses COM identity; the projected JS '===' does not, so JS-side removal silently

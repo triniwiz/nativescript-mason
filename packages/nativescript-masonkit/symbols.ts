@@ -14,6 +14,17 @@ export const pseudoStyles_ = Symbol('[[pseudoStyles]]');
 // writes reuse/update it instead of allocating a fresh native text run every
 // time.
 export const emptyTextNode_ = Symbol('[[emptyTextNode]]');
+// The break run a Windows `<br>` placeholder becomes inside a text container.
+export const breakRun_ = Symbol('[[breakRun]]');
+// On a text-run entry: the anonymous Windows Text that renders it inside a container that can't host
+// runs itself. Consecutive entries share one.
+export const anonymousText_ = Symbol('[[anonymousText]]');
+// The resolved Windows font source a container's anonymous Text uses.
+export const windowsFontSource_ = Symbol('[[windowsFontSource]]');
+// Whether a view's Windows native view lays out text runs itself, and whether it is any other
+// panel that needs an anonymous Text for them; fixed once the native view exists.
+export const hostsRuns_ = Symbol('[[hostsRuns]]');
+export const needsAnonymousText_ = Symbol('[[needsAnonymousText]]');
 
 // Per-corner / per-side caches for the CSS-class border-radius and
 // border-color longhands core's shorthand expansion hands us — see

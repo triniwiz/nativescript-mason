@@ -3,6 +3,7 @@ import { styleUnderTest, type StyleUnderTest } from '../../tools/testing/mason-t
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseTextDecoration, parseTextDecorationLine, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -262,5 +263,140 @@ describe('CSS relative units', () => {
     const t = styleUnderTest();
     t.style.width = '50vw' as never;
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(0);
+  });
+});
+
+describe('Windows border-radius parsing', () => {
+  // Since core 9.1's shorthand split hands mason the CSS text, a bare parseFloat
+  // turned `1rem` into 1 and `50%` into 50.
+  beforeEach(() => {
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+  });
+
+  it.each(SCALES)('resolves lengths to dip at scale %i', (scale) => {
+    setScreenScale(scale);
+    const r = parseBorderRadiusShorthand('1rem 10px 12pt 4');
+    expect(r.tl).toEqual({ type: 0, value: 16 });
+    expect(r.tr.value).toBeCloseTo(10, 4);
+    expect(r.br.value).toBeCloseTo(16, 4);
+    expect(r.bl).toEqual({ type: 0, value: 4 });
+  });
+
+  it('keeps a percentage as a 0-1 fraction for native to resolve against the box', () => {
+    const r = parseBorderRadiusShorthand('50%');
+    expect(r.tl).toEqual({ type: 1, value: 0.5 });
+    expect(r.br).toEqual({ type: 1, value: 0.5 });
+  });
+
+  it('expands 2 and 3 values in CSS corner order', () => {
+    expect(parseBorderRadiusShorthand('1px 2px')).toMatchObject({ tl: { value: 1 }, tr: { value: 2 }, br: { value: 1 }, bl: { value: 2 } });
+    expect(parseBorderRadiusShorthand('1px 2px 3px')).toMatchObject({ tl: { value: 1 }, tr: { value: 2 }, br: { value: 3 }, bl: { value: 2 } });
+  });
+
+  it('ignores the vertical radii after a slash', () => {
+    expect(parseBorderRadiusShorthand('8px / 2px').tl).toEqual({ type: 0, value: 8 });
+  });
+});
+
+describe('Windows CSS-string shorthands', () => {
+  // `__WINDOWS__` is compiled out here, so these call the handler setPseudoCssStringValue routes to.
+  const apply = (t: StyleUnderTest, name: string, value: string) => (t.style as any).applyWindowsCssString(name, value);
+  const sides = (t: StyleUnderTest, prefix: string) => ['TOP', 'RIGHT', 'BOTTOM', 'LEFT'].map((side) => t.getFloat32(K[`${prefix}_${side}_VALUE`]));
+
+  beforeEach(() => {
+    setScreenScale(1);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+  });
+
+  it('reads the dip suffix paddingCss gives a number', () => {
+    const t = styleUnderTest();
+    apply(t, 'padding', '10dip');
+    expect(sides(t, 'PADDING')).toEqual([10, 10, 10, 10]);
+  });
+
+  it('resolves rem and keeps percentages as fractions', () => {
+    const t = styleUnderTest();
+    apply(t, 'margin', '1rem 5%');
+    expect(sides(t, 'MARGIN')[0]).toBe(16);
+    expect(sides(t, 'MARGIN')[1]).toBeCloseTo(0.05, 6);
+    expect(t.getInt8(K.MARGIN_RIGHT_TYPE)).toBe(TYPE_PERCENT_DIM);
+  });
+
+  it('ignores a side list with an invalid token, as CSS does', () => {
+    const t = styleUnderTest();
+    apply(t, 'margin', '8px');
+    apply(t, 'margin', '1px 2p 3px 4px');
+    expect(sides(t, 'MARGIN')).toEqual([8, 8, 8, 8]);
+  });
+
+  it('accepts lengths, percentages, auto and functions as sides', () => {
+    expect(isSideList('0 auto')).toBe(true);
+    expect(isSideList('1rem 5% -2px .5em')).toBe(true);
+    expect(isSideList('calc(1px + 2px) 4px')).toBe(true);
+    expect(isSideList('10dip')).toBe(true);
+    expect(isSideList('1px 2px 3px 4px 5px')).toBe(false);
+    expect(isSideList('red')).toBe(false);
+  });
+
+  it('applies inset', () => {
+    const t = styleUnderTest();
+    apply(t, 'inset', '1px 2px 3px 4px');
+    expect(sides(t, 'INSET')).toEqual([1, 2, 3, 4]);
+  });
+
+  it('resolves border widths in em', () => {
+    const t = styleUnderTest();
+    apply(t, 'border', '0.5em solid red');
+    expect(t.getFloat32(K.BORDER_TOP_VALUE)).toBe(8);
+  });
+
+  it('writes the text-decoration shorthand and resets omitted longhands', () => {
+    const t = styleUnderTest();
+    apply(t, 'text-decoration-style', 'wavy');
+    apply(t, 'text-decoration', 'underline line-through red');
+    expect(t.getUint8(K.DECORATION_LINE)).toBe(5);
+    expect(t.getUint8(K.DECORATION_STYLE)).toBe(0);
+    expect(t.view.getUint32(K.DECORATION_COLOR, true)).toBe(0xffff0000);
+    expect(t.getUint8(K.DECORATION_LINE_STATE)).toBe(1);
+  });
+
+  it('writes one longhand without touching the others', () => {
+    const t = styleUnderTest();
+    apply(t, 'text-decoration', 'overline dotted');
+    apply(t, 'text-decoration-line', 'none');
+    expect(t.getUint8(K.DECORATION_LINE)).toBe(0);
+    expect(t.getUint8(K.DECORATION_STYLE)).toBe(2);
+  });
+
+  it('ignores a declaration with an unknown token', () => {
+    const t = styleUnderTest();
+    apply(t, 'text-decoration', 'underline');
+    apply(t, 'text-decoration', 'underline bogus');
+    expect(t.getUint8(K.DECORATION_LINE)).toBe(1);
+  });
+});
+
+describe('text-decoration parsing', () => {
+  const px = (token: string) => (/^\d+px$/.test(token) ? parseFloat(token) : undefined);
+
+  it('reads tokens in any order', () => {
+    expect(parseTextDecoration('2px dashed #00ff00 overline', px)).toEqual({ line: 2, style: 3, color: 0xff00ff00, thickness: 2 });
+  });
+
+  it('treats currentcolor, auto and none as the initial values', () => {
+    expect(parseTextDecoration('none currentcolor auto', px)).toEqual({ line: 0, style: 0, color: DECORATION_COLOR_UNSET, thickness: 0 });
+  });
+
+  it('keeps spelling and grammar errors as standalone values', () => {
+    expect(parseTextDecorationLine('spelling-error')).toBe(8);
+    expect(parseTextDecorationLine('underline grammar-error')).toBe(16);
+    expect(textDecorationLineToCss(16)).toBe('grammar-error');
+  });
+
+  it('round-trips the line bit set', () => {
+    expect(parseTextDecorationLine('line-through underline')).toBe(5);
+    expect(textDecorationLineToCss(5)).toBe('underline line-through');
+    expect(textDecorationLineToCss(0)).toBe('none');
+    expect(parseTextDecorationLine('sideways')).toBeNull();
   });
 });

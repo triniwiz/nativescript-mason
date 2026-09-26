@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <unordered_map>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
@@ -12,6 +13,9 @@
 #include <winrt/NativeScript.Mason.h>
 #include "BufferUtil.h"
 #include "Decoration.h"
+#include "RoundedMask.h"
+#include "VisualState.h"
+#include "Node.h"
 
 namespace mason_visual
 {
@@ -40,6 +44,7 @@ namespace mason_visual
         FONT_COLOR = 324,                       // u32 ARGB
         FONT_SIZE = 329,                        // i32 px
         BACKGROUND_COLOR = 348,                 // u32 ARGB
+        BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,    // i8 (0=length, 1=percent as a 0-1 fraction)
         BORDER_RADIUS_TOP_LEFT_X_VALUE = 226,   // f32
     };
 
@@ -70,58 +75,94 @@ namespace mason_visual
 
     inline uint8_t AlphaOf(uint32_t argb) { return static_cast<uint8_t>((argb >> 24) & 0xFF); }
 
-    // Paint a solid rounded-rectangle background as the element's Panel.Background, using a Composition
-    // mask-brush (a solid color masked by a rounded rect) wrapped in a RoundedColorBrush. This rounds
-    // the corners WITHOUT a rounded Visual.Clip, so the element's subtree is not pushed into an
-    // offscreen surface and TextBlocks inside keep ClearType (crisp white text) instead of falling back
-    // to grayscale antialiasing. Returns false (and leaves a plain rectangular SolidColorBrush) if no
-    // compositor is available, so the element always has a visible background. The caller skips the
-    // geometric clip only when this returns true.
-    inline bool ApplyRoundedSolidBackground(muxc::Panel const& panel, uint32_t argb, float w, float h, float radius)
+    // Round a background by masking `source` with a rounded rect and setting it as Panel.Background.
+    // A rounded Visual.Clip isn't anti-aliased and renders the subtree offscreen, where text loses
+    // ClearType. False (nothing changed) without a compositor.
+    inline bool ApplyRoundedBackground(muxc::Panel const& panel, mucomp::CompositionBrush const& source, float w, float h, float radius,
+        float scale)
     {
         auto comp = mason_deco::CompositorFor(panel);
-        if (!comp || w <= 0.0f || h <= 0.0f)
+        if (!comp || !source || w <= 0.0f || h <= 0.0f) return false;
+        const float pw = w * scale;
+        const float ph = h * scale;
+        const float r = (std::clamp)(radius, 0.0f, (std::min)(w, h) * 0.5f);
+
+        mucomp::CompositionBrush maskBrush = mason_mask::RoundedRect(comp, r, scale);
+        if (!maskBrush)
         {
-            panel.Background(muxm::SolidColorBrush(ColorFromArgb(argb)));
-            return false;
+            // No Direct2D device: Composition's own (aliased) rendering of the shape.
+            auto geo = comp.CreateRoundedRectangleGeometry();
+            geo.Size({ pw, ph });
+            geo.CornerRadius({ r * scale, r * scale });
+            auto shape = comp.CreateSpriteShape(geo);
+            shape.FillBrush(comp.CreateColorBrush(winrt::Windows::UI::Colors::White()));
+            auto shapeVisual = comp.CreateShapeVisual();
+            shapeVisual.Size({ pw, ph });
+            shapeVisual.Shapes().Append(shape);
+            auto surface = comp.CreateVisualSurface();
+            surface.SourceVisual(shapeVisual);
+            surface.SourceSize({ pw, ph });
+            auto surfaceBrush = comp.CreateSurfaceBrush(surface);
+            surfaceBrush.Stretch(mucomp::CompositionStretch::Fill);
+            maskBrush = surfaceBrush;
         }
-
-        float r = radius;
-        const float maxR = (w < h ? w : h) * 0.5f;
-        if (r > maxR) r = maxR;
-        if (r < 0.0f) r = 0.0f;
-
-        auto geo = comp.CreateRoundedRectangleGeometry();
-        geo.Size({ w, h });
-        geo.CornerRadius({ r, r });
-        auto shape = comp.CreateSpriteShape(geo);
-        shape.FillBrush(comp.CreateColorBrush(winrt::Windows::UI::Colors::White()));
-        auto shapeVisual = comp.CreateShapeVisual();
-        shapeVisual.Size({ w, h });
-        shapeVisual.Shapes().Append(shape);
-        auto surface = comp.CreateVisualSurface();
-        surface.SourceVisual(shapeVisual);
-        surface.SourceSize({ w, h });
-        auto maskSurface = comp.CreateSurfaceBrush(surface);
-        maskSurface.Stretch(mucomp::CompositionStretch::Fill);
 
         auto mask = comp.CreateMaskBrush();
-        mask.Source(comp.CreateColorBrush(ColorFromArgb(argb)));
-        mask.Mask(maskSurface);
+        mask.Source(source);
+        mask.Mask(maskBrush);
 
-        // Reuse an existing RoundedColorBrush on re-arrange so we only swap its inner Composition brush.
-        nsm::RoundedColorBrush rcb{ nullptr };
-        if (auto existing = panel.Background().try_as<nsm::RoundedColorBrush>())
-        {
-            rcb = existing;
-        }
-        else
-        {
-            rcb = nsm::RoundedColorBrush();
-            panel.Background(rcb);
-        }
+        // Always a new brush: the panel's current one may be shared with other elements.
+        nsm::RoundedColorBrush rcb;
         rcb.SetCompositionBrush(mask);
+        panel.Background(rcb);
         return true;
+    }
+
+    // Backgrounds repeat across elements (list rows, tiles, avatars) and XAML brushes can be shared,
+    // so each colour, and each rounded colour at a radius and scale, is built once. Never destroyed:
+    // releasing XAML objects after the thread's XAML shuts down crashes.
+    inline muxm::Brush SharedSolid(uint32_t argb)
+    {
+        thread_local auto* brushes = new std::unordered_map<uint32_t, muxm::Brush>();
+        auto it = brushes->find(argb);
+        if (it != brushes->end()) return it->second;
+        if (brushes->size() > 512) brushes->clear();
+        return brushes->emplace(argb, muxm::SolidColorBrush(ColorFromArgb(argb))).first->second;
+    }
+
+    // Null without a Direct2D device, whose fallback mask is sized to one element.
+    inline muxm::Brush SharedRounded(mucomp::Compositor const& comp, uint32_t argb, float radius, float scale)
+    {
+        thread_local auto* brushes = new std::unordered_map<uint64_t, muxm::Brush>();
+        uint32_t rb, sb;
+        std::memcpy(&rb, &radius, sizeof(rb));
+        std::memcpy(&sb, &scale, sizeof(sb));
+        const uint64_t key = (static_cast<uint64_t>(argb) << 32) ^ (static_cast<uint64_t>(rb) * 0x9E3779B1u) ^ sb;
+        auto it = brushes->find(key);
+        if (it != brushes->end()) return it->second;
+        auto maskBrush = mason_mask::RoundedRect(comp, radius, scale);
+        if (!maskBrush) return nullptr;
+        auto mask = comp.CreateMaskBrush();
+        mask.Source(comp.CreateColorBrush(ColorFromArgb(argb)));
+        mask.Mask(maskBrush);
+        nsm::RoundedColorBrush rcb;
+        rcb.SetCompositionBrush(mask);
+        if (brushes->size() > 512) brushes->clear();
+        return brushes->emplace(key, rcb).first->second;
+    }
+
+    inline mucomp::CompositionBrush ToCompositionBrush(mucomp::Compositor const& comp, muxm::LinearGradientBrush const& xaml)
+    {
+        auto brush = comp.CreateLinearGradientBrush();
+        const auto start = xaml.StartPoint();
+        const auto end = xaml.EndPoint();
+        brush.StartPoint({ static_cast<float>(start.X), static_cast<float>(start.Y) });
+        brush.EndPoint({ static_cast<float>(end.X), static_cast<float>(end.Y) });
+        for (auto const& stop : xaml.GradientStops())
+        {
+            brush.ColorStops().Append(comp.CreateColorGradientStop(static_cast<float>(stop.Offset()), stop.Color()));
+        }
+        return brush;
     }
 
     // Draw the element's CSS border as a tagged composition layer. Uniform borders draw as one
@@ -192,17 +233,47 @@ namespace mason_visual
         mason_deco::SetLayer(element, L"mason-border", shapeVisual);
     }
 
-    inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height)
+    inline uint32_t Bits(float f)
+    {
+        uint32_t b;
+        std::memcpy(&b, &f, sizeof(b));
+        return b;
+    }
+
+    // The node's style bytes for reading, without the Style and IBuffer projections, which allocate
+    // and run a copy-on-write check on every call.
+    inline const uint8_t* StyleBytes(nsm::Node const& node, uint32_t& size)
+    {
+        auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node);
+        ::CMasonBuffer* buf = mason_style_get_style_buffer(impl->MasonPtr(), impl->NodePtr());
+        if (!buf) return nullptr;
+        const uint8_t* data = buf->data;
+        size = static_cast<uint32_t>(buf->size);
+        mason_style_release_style_buffer(buf);
+        return data;
+    }
+
+    inline float RasterScale(mux::UIElement const& element)
+    {
+        if (g_rootScale > 0.0f) return g_rootScale;
+        auto root = element.XamlRoot();
+        return root ? static_cast<float>(root.RasterizationScale()) : 1.0f;
+    }
+
+    inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
     {
         if (!element || !node) return;
-        auto style = node.Style();
-        if (!style) return;
-        auto buf = style.Values();
-        if (!buf) return;
-        auto access = buf.try_as<mason_buf::IBufferByteAccess>();
-        uint8_t* data = nullptr;
-        if (!access || FAILED(access->Buffer(&data)) || data == nullptr) return;
-        const uint32_t size = buf.Length();
+        // Reading the style buffer costs a dozen WinRT calls, and only SyncStyle, a resize, a scale
+        // change or another writer of the brush or clip can change what Apply installs.
+        if (state.valid && !state.styleDirty && !state.subtreeDependent && state.width == width
+            && state.height == height && state.scaleEpoch == g_scaleEpoch)
+        {
+            auto panel = element.try_as<muxc::Panel>();
+            if ((!panel || panel.Background() == state.background) && (!state.visual || state.visual.Clip() == state.clip)) return;
+        }
+        uint32_t size = 0;
+        const uint8_t* data = StyleBytes(node, size);
+        if (!data) return;
 
         auto readU32 = [&](uint32_t off) -> uint32_t {
             uint32_t v = 0;
@@ -214,46 +285,49 @@ namespace mason_visual
             if (off + 4 <= size) std::memcpy(&v, data + off, 4);
             return v;
         };
-
-        const float radius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
-
-        bool hasBackground = false;
-        bool roundedSolidBg = false; // solid bg rounded via brush (no clip) -> text keeps ClearType
-        if (auto panel = element.try_as<muxc::Panel>())
-        {
-            uint32_t bg = readU32(BACKGROUND_COLOR);
-            if (bg != 0 && AlphaOf(bg) > 0 && radius > 0.0f && width > 0.0f && height > 0.0f)
-            {
-                // Round the solid background via a Composition mask-brush instead of a Visual.Clip so
-                // the subtree isn't rendered offscreen (which would gray out text). Falls back to a
-                // plain solid brush + clip if no compositor is available.
-                roundedSolidBg = ApplyRoundedSolidBackground(panel, bg, width, height, radius);
-                hasBackground = true;
-            }
-            else if (bg != 0)
-            {
-                panel.Background(muxm::SolidColorBrush(ColorFromArgb(bg)));
-                hasBackground = true;
-            }
-            else
-            {
-                hasBackground = panel.Background() != nullptr;
-            }
-        }
-
         auto readI8 = [&](uint32_t off) -> int8_t {
             return (off < size) ? static_cast<int8_t>(data[off]) : 0;
         };
 
-        float r = radius;
-
-
+        // Radii are circular here, so a percentage resolves against the shorter side; CSS would
+        // draw an ellipse on a non-square box.
+        const float rawRadius = readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE);
+        const float radius = readI8(BORDER_RADIUS_TOP_LEFT_X_TYPE) == 1
+            ? rawRadius * (width < height ? width : height)
+            : rawRadius;
+        const uint32_t bg = readU32(BACKGROUND_COLOR);
         const int8_t ovX = readI8(OVERFLOW_X);
         const int8_t ovY = readI8(OVERFLOW_Y);
         const bool visibleX = (ovX == 0);
         const bool visibleY = (ovY == 0);
+        const float bLW = readF32(BORDER_LEFT_VALUE), bRW = readF32(BORDER_RIGHT_VALUE);
+        const float bTW = readF32(BORDER_TOP_VALUE), bBW = readF32(BORDER_BOTTOM_VALUE);
+        const uint32_t bLC = readU32(BORDER_LEFT_COLOR), bRC = readU32(BORDER_RIGHT_COLOR);
+        const uint32_t bTC = readU32(BORDER_TOP_COLOR), bBC = readU32(BORDER_BOTTOM_COLOR);
+        const int8_t bLS = readI8(BORDER_LEFT_STYLE), bRS = readI8(BORDER_RIGHT_STYLE);
+        const int8_t bTS = readI8(BORDER_TOP_STYLE), bBS = readI8(BORDER_BOTTOM_STYLE);
+
+        auto panel = element.try_as<muxc::Panel>();
+        const auto comp = mason_deco::ThreadCompositor();
+        const bool sized = width > 0.0f && height > 0.0f;
+        const auto current = panel ? panel.Background() : nullptr;
+        // Something else replaced the brush: a gradient from Css, which paints over background-color
+        // as a CSS background-image does, or the tap handler's transparent brush.
+        if (current != state.installed) state.gradient = current ? current.try_as<muxm::LinearGradientBrush>() : nullptr;
+        const bool gradient = current && (current == state.installed ? state.gradient != nullptr : current.try_as<muxm::GradientBrush>() != nullptr);
+        const bool round = panel && comp != nullptr && radius > 0.0f && sized;
+        const bool roundGradient = round && gradient && state.gradient;
+        const bool roundSolid = round && !gradient && AlphaOf(bg) > 0;
+        const bool hasBackground = panel && (gradient || AlphaOf(bg) > 0);
+        // Masked backgrounds are already rounded; anything else rounds with a clip.
+        const bool needsClip = hasBackground && radius > 0.0f && sized && !roundGradient && !roundSolid;
+        // The element's own visual only to set or clear a clip: fetching it gives the element a
+        // hand-off visual.
+        auto visual = state.visual;
+        if (!visual && (needsClip || state.clip)) visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
+
         bool childOverflows = false;
-        if ((visibleX || visibleY) && r > 0.0f && width > 0.0f && height > 0.0f && hasBackground && !roundedSolidBg)
+        if ((visibleX || visibleY) && needsClip)
         {
             if (auto layout = node.GetLayout())
             {
@@ -261,31 +335,102 @@ namespace mason_visual
             }
         }
 
-        auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        // Masks are drawn in device pixels, so a monitor move must redraw them.
+        const float scale = RasterScale(element);
+        const std::array<uint32_t, AppliedState::kInputs> inputs{
+            bg, Bits(radius), Bits(width), Bits(height), Bits(scale),
+            static_cast<uint32_t>(static_cast<uint8_t>(ovX)) | (static_cast<uint32_t>(static_cast<uint8_t>(ovY)) << 8)
+                | (childOverflows ? 1u << 16 : 0u),
+            Bits(bLW), Bits(bRW), Bits(bTW), Bits(bBW),
+            bLC, bRC, bTC, bBC,
+            static_cast<uint32_t>(static_cast<uint8_t>(bLS)) | (static_cast<uint32_t>(static_cast<uint8_t>(bRS)) << 8)
+                | (static_cast<uint32_t>(static_cast<uint8_t>(bTS)) << 16) | (static_cast<uint32_t>(static_cast<uint8_t>(bBS)) << 24),
+        };
+        auto remember = [&]()
+        {
+            state.visual = visual;
+            state.width = width;
+            state.height = height;
+            state.scaleEpoch = g_scaleEpoch;
+            state.styleDirty = false;
+            state.subtreeDependent = (visibleX || visibleY) && needsClip;
+        };
+        if (state.valid && state.inputs == inputs
+            && (!panel || panel.Background() == state.background)
+            && (!visual || visual.Clip() == state.clip))
+        {
+            remember();
+            return;
+        }
+
+        if (roundGradient)
+        {
+            ApplyRoundedBackground(panel, ToCompositionBrush(comp, state.gradient), width, height, radius, scale);
+            state.installed = panel.Background();
+        }
+        else if (gradient && state.gradient && current == state.installed)
+        {
+            // No longer rounded: hand the plain gradient back.
+            panel.Background(state.gradient);
+        }
+        else if (roundSolid)
+        {
+            const float clamped = (std::clamp)(radius, 0.0f, (std::min)(width, height) * 0.5f);
+            if (auto shared = SharedRounded(comp, bg, clamped, scale))
+            {
+                if (current != shared) panel.Background(shared);
+                state.installed = shared;
+            }
+            else
+            {
+                ApplyRoundedBackground(panel, comp.CreateColorBrush(ColorFromArgb(bg)), width, height, radius, scale);
+                state.installed = panel.Background();
+            }
+        }
+        else if (panel && !gradient && AlphaOf(bg) > 0)
+        {
+            auto shared = SharedSolid(bg);
+            if (current != shared) panel.Background(shared);
+            state.installed = shared;
+        }
+        else if (panel && current && current == state.installed)
+        {
+            // Transparent rather than null keeps the element hit-testable for tap handlers.
+            auto shared = SharedSolid(0);
+            if (current != shared) panel.Background(shared);
+            state.installed = shared;
+        }
+
+        float r = radius;
         if (visual)
         {
-            // Solid rounded backgrounds are already rounded by the mask-brush (no clip) so text stays
-            // crisp; only non-solid (e.g. gradient) rounded fills still need the geometric clip.
-            if (r > 0.0f && width > 0.0f && height > 0.0f && hasBackground && !childOverflows && !roundedSolidBg)
+            if (needsClip && !childOverflows)
             {
                 const float maxR = (width < height ? width : height) * 0.5f;
                 if (r > maxR) r = maxR;
-                auto comp = visual.Compositor();
                 auto geo = comp.CreateRoundedRectangleGeometry();
                 geo.Size({ width, height });
                 geo.CornerRadius({ r, r });
                 visual.Clip(comp.CreateGeometricClip(geo));
             }
-            else
+            else if (visual.Clip())
             {
                 visual.Clip(nullptr);
             }
         }
 
-        DrawBorder(element,
-            readF32(BORDER_LEFT_VALUE), readF32(BORDER_RIGHT_VALUE), readF32(BORDER_TOP_VALUE), readF32(BORDER_BOTTOM_VALUE),
-            readU32(BORDER_LEFT_COLOR), readU32(BORDER_RIGHT_COLOR), readU32(BORDER_TOP_COLOR), readU32(BORDER_BOTTOM_COLOR),
-            readI8(BORDER_LEFT_STYLE), readI8(BORDER_RIGHT_STYLE), readI8(BORDER_TOP_STYLE), readI8(BORDER_BOTTOM_STYLE),
-            width, height, readF32(BORDER_RADIUS_TOP_LEFT_X_VALUE));
+        const bool anyBorder = sized && ((bLW > 0.0f && AlphaOf(bLC) > 0 && bLS != 1) || (bRW > 0.0f && AlphaOf(bRC) > 0 && bRS != 1)
+            || (bTW > 0.0f && AlphaOf(bTC) > 0 && bTS != 1) || (bBW > 0.0f && AlphaOf(bBC) > 0 && bBS != 1));
+        if (anyBorder || state.border)
+        {
+            DrawBorder(element, bLW, bRW, bTW, bBW, bLC, bRC, bTC, bBC, bLS, bRS, bTS, bBS, width, height, radius);
+        }
+        state.border = anyBorder;
+
+        state.inputs = inputs;
+        state.background = panel ? panel.Background() : nullptr;
+        state.clip = visual ? visual.Clip() : nullptr;
+        state.valid = true;
+        remember();
     }
 }

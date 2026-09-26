@@ -237,6 +237,16 @@ declare namespace NativeScript.Mason {
     SetRun(run: TextNode, index: number): void;
     RemoveRun(run: TextNode): void;
     ClearRuns(): void;
+    // A nested text element rendered inside this one's runs; the index counts runs and nested elements.
+    SetInlineText(child: Text, index: number): void;
+    RemoveInlineText(child: Text): void;
+  }
+
+  // Frame and layout-pass counters for benchmarks; JS-assigned EventHandler<Object> handlers never fire.
+  class Diagnostics {
+    static readonly FrameCount: number;
+    static WatchLayout(element: any): void;
+    static readonly LayoutPassCount: number;
   }
 
   // Image leaf — hosts an Image; Source is a uri/path.
