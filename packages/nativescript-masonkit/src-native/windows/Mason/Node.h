@@ -1,5 +1,6 @@
 #pragma once
 #include "Node.g.h"
+#include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -69,8 +70,11 @@ namespace winrt::NativeScript::Mason::implementation
         ::CMasonNode* NodePtr() const noexcept { return m_node; }
         ::CMason* MasonPtr() const noexcept { return m_mason; }
 
-        // This node's laid-out width, without building a Layout.
+        // This node's laid-out width and size, without building a Layout.
         float LayoutWidth();
+        winrt::Windows::Foundation::Size LayoutSize();
+        // This node's frame, then its direct children's, without building Layouts.
+        void ShallowFrames(std::vector<winrt::Windows::Foundation::Rect>& out);
 
         // Position relative to the layout root in DIPs, set by the parent panel's arrange.
         float ArrangeX{ 0.0f };

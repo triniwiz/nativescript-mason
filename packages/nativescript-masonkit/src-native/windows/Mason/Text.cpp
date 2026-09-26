@@ -389,17 +389,21 @@ namespace winrt::NativeScript::Mason::implementation
                 width = c.minWidth;
             }
 
-            // Lines break greedily, so any width the single max-content line fits gives that line.
-            // Laying out max-content first lets that answer most widths Taffy asks for.
-            Size d = maxContent();
+            Size d{ 0.0f, 0.0f };
             if (minContentRequest)
             {
                 // Taffy takes the width for automatic minimums and measures again with the width
-                // known if the text is placed at it, so the wrapped height isn't worth a layout.
-                d.Width = width;
+                // known if the text is placed at it, so whatever height is known stands in.
+                d = { width, c.maxValid ? c.max.Height : (c.count ? c.entries[0].size.Height : 0.0f) };
             }
-            else if (std::isfinite(width) && width < d.Width)
+            else if (!std::isfinite(width) || (c.maxValid && width >= c.max.Width))
             {
+                // Lines break greedily, so any width the single max-content line fits gives that line.
+                d = maxContent();
+            }
+            else
+            {
+                // Laid out at the width itself, which is usually the width it's arranged at.
                 bool hit = false;
                 for (uint8_t k = 0; k < c.count; ++k)
                 {

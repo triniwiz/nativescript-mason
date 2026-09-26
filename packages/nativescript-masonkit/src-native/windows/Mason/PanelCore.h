@@ -154,8 +154,7 @@ namespace mason_panel
             if (layer) mason_position::MeasureLayer(layer, available);
         }
 
-        auto layout = node.GetShallowLayout();
-        return { layout.Width(), layout.Height() };
+        return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->LayoutSize();
     }
 
     inline winrt::Windows::Foundation::Size Arrange(
@@ -163,8 +162,10 @@ namespace mason_panel
         nsm::Node const& node, muxc::UIElementCollection const& children,
         winrt::Windows::Foundation::Size const& finalSize)
     {
-        auto childLayouts = node.GetShallowLayout().Children();
-        uint32_t count = childLayouts.Size();
+        // Copied out: arranging a child re-enters Arrange, which reuses the node's float buffer.
+        std::vector<winrt::Windows::Foundation::Rect> frames;
+        winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->ShallowFrames(frames);
+        const uint32_t count = frames.empty() ? 0 : static_cast<uint32_t>(frames.size() - 1);
 
         // XAML rounds each offset to device pixels relative to its parent, so a -12.5px box with a
         // +12.5px child lands the child a pixel off. Snap in root coordinates instead, as browsers
@@ -199,9 +200,9 @@ namespace mason_panel
                 continue;
             }
             if (i >= count) continue;
-            auto cl = childLayouts.GetAt(i++);
-            const float absX = originX + cl.X();
-            const float absY = originY + cl.Y();
+            auto const& cl = frames[1 + i++];
+            const float absX = originX + cl.X;
+            const float absY = originY + cl.Y;
             if (el)
             {
                 auto childNode = el.Node();
@@ -213,7 +214,7 @@ namespace mason_panel
                 }
                 mason_position::SyncChild(self, child, childNode);
             }
-            child.Arrange(winrt::Windows::Foundation::Rect{ snap(absX, originX, cl.X()), snap(absY, originY, cl.Y()), cl.Width(), cl.Height() });
+            child.Arrange(winrt::Windows::Foundation::Rect{ snap(absX, originX, cl.X), snap(absY, originY, cl.Y), cl.Width, cl.Height });
         }
 
         if (layer && !layerLast) mason_position::KeepLayerLastLater(self.as<muxc::Panel>());
