@@ -112,6 +112,7 @@ namespace winrt::NativeScript::Mason::implementation
         std::shared_ptr<MeasureCache> m_measureCache{ std::make_shared<MeasureCache>() };
         bool m_builtValid{ false };
         bool m_inlinesDirty{ false };
+        uint32_t m_textForeground{ 0xFF000000 };
         Text* m_inlineOwner{ nullptr };
 
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };

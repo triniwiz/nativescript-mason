@@ -359,9 +359,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     super._setupUI(context, atIndex, parentIsLoaded);
   }
 
-  // Core's CustomLayoutView finds the child with one WinRT call per sibling, comparing projected
-  // wrappers that miss elements created natively. Mason's containers remove their children natively
-  // themselves, so only core's bookkeeping is kept.
+  // Core's CustomLayoutView finds the child with a WinRT call per sibling. Mason's containers remove
+  // their children natively themselves, so only core's bookkeeping is kept.
   public _removeViewFromNativeVisualTree(child: any): void {
     if (__WINDOWS__) {
       child._isAddedToNativeVisualTree = false;

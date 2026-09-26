@@ -638,10 +638,26 @@ namespace winrt::NativeScript::Mason::implementation
         if (!m_text) return false;
         Resolved defaults;
         defaults.fontSize = m_text.FontSize();
+        const Resolved container = Resolve(defaults);
         std::vector<BuiltRun> next;
         next.reserve(m_runs.size());
-        AppendRuns(Resolve(defaults), next);
+        AppendRuns(container, next);
         if (m_builtValid && next == m_builtRuns) return false;
+
+        // One run in the element's own formatting is plain text, set as TextBlock.Text the way core's
+        // Label does: the TextBlock already carries that formatting, bar the colour.
+        if (next.size() == 1 && !next.front().isBreak && next.front().format == container)
+        {
+            if (m_textForeground != container.color)
+            {
+                m_text.Foreground(mason_visual::SharedSolid(container.color));
+                m_textForeground = container.color;
+            }
+            m_text.Text(next.front().text);
+            m_builtRuns = std::move(next);
+            m_builtValid = true;
+            return true;
+        }
 
         const auto containerFamily = m_text.FontFamily();
         std::vector<std::pair<winrt::hstring, muxm::FontFamily>> families;
@@ -669,7 +685,7 @@ namespace winrt::NativeScript::Mason::implementation
             muxd::Run run;
             run.Text(b.text);
             run.FontFamily(familyFor(f.family));
-            run.Foreground(muxm::SolidColorBrush(ColorFromArgb(f.color)));
+            run.Foreground(mason_visual::SharedSolid(f.color));
             if (f.fontSize > 0.0) run.FontSize(f.fontSize);
             if (f.fontWeight > 0) run.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(f.fontWeight) });
             run.FontStyle(f.fontStyle == 1 ? FontStyle::Italic : f.fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
