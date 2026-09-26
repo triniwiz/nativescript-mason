@@ -1465,7 +1465,14 @@ class NodeHelper(val mason: Mason) {
       value: String
     ) {
       val node = mason.nodeForView(view)
-      parseColor(value)?.let { node.style.setBorderColor(it) }
+      val colors = splitTopLevelWhitespace(value.trim()).map { parseColor(it) ?: return }
+      node.style.borderColor = when (colors.size) {
+        1 -> Rect.uniform(colors[0])
+        2 -> Rect(colors[0], colors[1], colors[0], colors[1])
+        3 -> Rect(colors[0], colors[1], colors[2], colors[1])
+        4 -> Rect(colors[0], colors[1], colors[2], colors[3])
+        else -> return
+      }
     }
 
     fun setListStyleType(

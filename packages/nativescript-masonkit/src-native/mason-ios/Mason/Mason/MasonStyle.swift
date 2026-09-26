@@ -1850,11 +1850,23 @@ public class MasonStyle: NSObject {
   }
 
   public func setBorderColor(_ css: String) {
-    guard let color = UIColor(css: css) else { return }
-    mBorderLeft.color = color
-    mBorderTop.color = color
-    mBorderRight.color = color
-    mBorderBottom.color = color
+    var colors: [UIColor] = []
+    for token in splitTopLevelWhitespace(css) {
+      guard let color = UIColor(css: token) else { return }
+      colors.append(color)
+    }
+    let sides: [UIColor]
+    switch colors.count {
+    case 1: sides = [colors[0], colors[0], colors[0], colors[0]]
+    case 2: sides = [colors[0], colors[1], colors[0], colors[1]]
+    case 3: sides = [colors[0], colors[1], colors[2], colors[1]]
+    case 4: sides = colors
+    default: return
+    }
+    mBorderTop.color = sides[0]
+    mBorderRight.color = sides[1]
+    mBorderBottom.color = sides[2]
+    mBorderLeft.color = sides[3]
     setOrAppendState(.borderColor)
     // setNeedsDisplay() alone doesn't refresh MasonUIView's cached hasBorder
     // flag; longhand border-width/border-style declarations never trigger

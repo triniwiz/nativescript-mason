@@ -864,12 +864,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     if (face.font != null || fontLoadPendingFor === face) return
     val v = node.view as? android.view.View ?: return
     fontLoadPendingFor = face
-    var loadedInCall = true
     face.load(v.context) { _ ->
-      if (loadedInCall) {
-        if (fontLoadPendingFor === face) fontLoadPendingFor = null
-        return@load
-      }
       v.post {
         if (fontLoadPendingFor === face) fontLoadPendingFor = null
         invalidateResolvedFontFace()
@@ -882,8 +877,6 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
       }
     }
-    loadedInCall = face.font != null
-    if (loadedInCall && fontLoadPendingFor === face) fontLoadPendingFor = null
   }
 
   data class FontMetrics(

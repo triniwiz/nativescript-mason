@@ -514,44 +514,30 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
   }
 
   if (layer.shader == null) {
-    // Parse color stops: each stop can be "color position" or just "color"
     val stopCount = gradient.stops.size
     val colorsArray = IntArray(stopCount)
-    val positionsArray = FloatArray(stopCount)
-    val maxIndex = (stopCount - 1).coerceAtLeast(1)
+    val positions = ArrayList<Float?>(stopCount)
 
     for (index in 0 until stopCount) {
-      val trimmed = gradient.stops[index].trim()
-      // Find the last space that separates color from position
-      val lastSpace = trimmed.lastIndexOf(' ')
+      val parts = splitTopLevelWhitespace(gradient.stops[index].trim())
+      colorsArray[index] = parts.firstOrNull()?.let { parseColor(it) } ?: Color.TRANSPARENT
 
-      if (lastSpace > 0) {
-        val colorPart = trimmed.substring(0, lastSpace)
-        val posPart = trimmed.substring(lastSpace + 1).trim()
-
-        colorsArray[index] = parseColor(colorPart) ?: Color.TRANSPARENT
-
-        // Parse position: can be "0", "50%", "100%", etc.
-        val posValue = posPart.trimEnd('%')
-        val pos = posValue.toFloatOrNull()
-        if (pos != null) {
-          val normalizedPos = when {
-            posPart.endsWith('%') -> pos / 100f
-            pos <= 1f -> pos
-            else -> pos / 100f
-          }
-          positionsArray[index] = normalizedPos.coerceIn(0f, 1f)
-        } else {
-          positionsArray[index] = index.toFloat() / maxIndex
+      // "0", "50%" or "100%"
+      val posPart = parts.getOrNull(1)
+      val pos = posPart?.trimEnd('%')?.toFloatOrNull()
+      positions.add(
+        pos?.let {
+          when {
+            posPart.endsWith('%') -> it / 100f
+            it <= 1f -> it
+            else -> it / 100f
+          }.coerceIn(0f, 1f)
         }
-      } else {
-        colorsArray[index] = parseColor(trimmed) ?: Color.TRANSPARENT
-        positionsArray[index] = index.toFloat() / maxIndex
-      }
+      )
     }
 
-    // Ensure we have valid colors and positions
     if (colorsArray.isEmpty()) return
+    val positionsArray = resolveStopPositions(positions)
 
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
@@ -1167,7 +1153,7 @@ fun parseGradient(part: String): Gradient? {
   val direction = if (isAngleOrDirection(first)) first.trim() else null
   val stops = if (direction != null) items.drop(1) else items
 
-  return Gradient(type, direction, stops.map { it.trim() })
+  return Gradient(type, direction, expandColorStops(stops.map { it.trim() }))
 }
 
 /** Layers with only author-visible content (drops color-only and empty layers). */
