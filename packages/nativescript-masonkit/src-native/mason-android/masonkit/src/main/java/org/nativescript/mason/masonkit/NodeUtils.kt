@@ -86,6 +86,7 @@ internal object NodeUtils {
 
   fun addView(parent: Node, view: View?) {
     view ?: return
+    cancelRemoval(view)
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
@@ -111,6 +112,7 @@ internal object NodeUtils {
 
   fun addView(parent: Node, view: View?, index: Int) {
     view ?: return
+    cancelRemoval(view)
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
@@ -130,6 +132,7 @@ internal object NodeUtils {
 
   fun addView(parent: Node, view: View?, params: ViewGroup.LayoutParams?) {
     view ?: return
+    cancelRemoval(view)
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
@@ -153,6 +156,7 @@ internal object NodeUtils {
 
   fun addView(parent: Node, view: View?, index: Int, params: ViewGroup.LayoutParams?) {
     view ?: return
+    cancelRemoval(view)
     parent.suppressChildOperations {
       when (parent.view) {
         is org.nativescript.mason.masonkit.View -> {
@@ -174,26 +178,103 @@ internal object NodeUtils {
     }
   }
 
+  private class PendingRemoval(val expected: ViewGroup, val view: View, val oldVisibility: Int) {
+    var cancelled = false
+  }
+
+  private val pendingRemovals = ArrayList<PendingRemoval>(16)
+  private val pendingByView = java.util.IdentityHashMap<View, PendingRemoval>()
+  private var removalFlushPosted = false
+
+  fun cancelRemoval(view: View) {
+    if (pendingByView.isEmpty()) return
+    val p = pendingByView.remove(view) ?: return
+    p.cancelled = true
+    if (p.view.visibility != p.oldVisibility) {
+      p.view.visibility = p.oldVisibility
+    }
+    // Not every add path detaches from the old parent, and addView throws if it has one.
+    if (view.parent === p.expected) {
+      p.expected.removeViewInLayout(view)
+      p.expected.requestLayout()
+      p.expected.invalidate()
+    }
+  }
+
+  // Removes the view from its parent before returning, even when the parent is a
+  // Mason view that defers the detach, so the caller can add it elsewhere.
+  fun detachNow(view: View) {
+    (view.parent as? ViewGroup)?.removeView(view)
+    cancelRemoval(view)
+  }
+
+  private fun queueRemoval(expectedParent: ViewGroup, view: View) {
+    cancelRemoval(view)
+    val old = view.visibility
+    if (old != View.GONE) view.visibility = View.GONE
+    val pending = PendingRemoval(expectedParent, view, old)
+    pendingRemovals.add(pending)
+    pendingByView[view] = pending
+    if (!removalFlushPosted) {
+      removalFlushPosted = true
+      android.os.Handler(android.os.Looper.getMainLooper()).post {
+        flushRemovals()
+      }
+    }
+  }
+
+  private fun flushRemovals() {
+    removalFlushPosted = false
+    if (pendingRemovals.isEmpty()) return
+    val batch = pendingRemovals.toList()
+    pendingRemovals.clear()
+    pendingByView.clear()
+    val touched = LinkedHashSet<ViewGroup>()
+    for (p in batch) {
+      if (p.cancelled) continue
+      val v = p.view
+      if (v.visibility != p.oldVisibility) {
+        v.visibility = p.oldVisibility
+      }
+      if (v.parent === p.expected) {
+        p.expected.removeViewInLayout(v)
+        touched.add(p.expected)
+      }
+    }
+    for (p in touched) {
+      p.requestLayout()
+      p.invalidate()
+    }
+  }
+
   fun removeView(parent: Node, view: View?) {
     view ?: return
-    parent.suppressChildOperations {
-      when (parent.view) {
-        is org.nativescript.mason.masonkit.View -> {
-          (parent.view as org.nativescript.mason.masonkit.View).removeView(view)
-        }
+    val pv = parent.view
+    if (pv is ViewGroup && view.parent === pv) {
+      queueRemoval(pv, view)
+    } else {
+      parent.suppressChildOperations {
+        when (pv) {
+          is org.nativescript.mason.masonkit.View -> {
+            pv.removeView(view)
+          }
 
-        is Scroll -> {
-          (parent.view as Scroll).removeView(view)
-        }
+          is Scroll -> {
+            pv.removeView(view)
+          }
 
-        is ViewGroup -> {
-          (parent.view as ViewGroup).removeView(view)
+          is ViewGroup -> {
+            pv.removeView(view)
+          }
+        }
+        if (view.parent != null && view.parent !== pv) {
+          removeViewFallback(view)
         }
       }
-      // Fixed views live under their containing block, not their tree parent.
-      if ((view as? Element)?.node?.style?.position == Position.Fixed) {
-        removeViewFallback(view)
-      }
+    }
+    // Fixed views live under their containing block, not their tree parent.
+    if ((view as? Element)?.node?.style?.position == Position.Fixed) {
+      removeViewFallback(view)
     }
   }
 

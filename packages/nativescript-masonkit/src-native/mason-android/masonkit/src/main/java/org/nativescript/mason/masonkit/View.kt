@@ -70,30 +70,41 @@ open class View @JvmOverloads constructor(
     clipChildren = false
     clipToPadding = false
 
-    isChildrenDrawingOrderEnabled = true
+    isChildrenDrawingOrderEnabled = false
   }
 
 
   override fun onViewAdded(child: android.view.View) {
     super.onViewAdded(child)
-    onChildStructureChangedSafe()
+    if (hasZIndexedChildren || zIndexOf(child) != 0) {
+      rebuildZOrderSafe()
+    }
   }
 
   override fun onViewRemoved(child: android.view.View) {
     super.onViewRemoved(child)
-    onChildStructureChangedSafe()
+    if (hasZIndexedChildren) {
+      rebuildZOrderSafe()
+    }
   }
 
   private var inMutation = false
+  private var hasZIndexedChildren = false
 
-  private fun onChildStructureChangedSafe() {
+  private fun rebuildZOrderSafe() {
     if (inMutation) return
     inMutation = true
     rebuildZOrder()
     inMutation = false
   }
 
+  private fun onChildStructureChangedSafe() {
+    if (!hasZIndexedChildren) return
+    rebuildZOrderSafe()
+  }
+
   internal fun onChildZIndexChanged() {
+    hasZIndexedChildren = true
     rebuildZOrder()
     invalidate()
   }
@@ -109,10 +120,13 @@ open class View @JvmOverloads constructor(
     // Nearly every container has no z-index at all: keep tree order and let
     // ViewGroup draw natively instead of asking getChildDrawingOrder per child.
     isChildrenDrawingOrderEnabled = hasZ
+    hasZIndexedChildren = hasZ
     if (hasZ) {
       // sortBy is stable, so equal z-indices keep tree order without an
       // indexOfChild() scan per comparison.
       zSortedChildren.sortBy { zIndexOf(it) }
+    } else {
+      zSortedChildren.clear()
     }
   }
 
@@ -130,10 +144,12 @@ open class View @JvmOverloads constructor(
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
     // higher zIndex should receive touch first
-    for (i in zSortedChildren.size - 1 downTo 0) {
-      val child = zSortedChildren[i]
-      if (child.visibility != VISIBLE) continue
-      if (dispatchToChild(child, ev)) return true
+    if (hasZIndexedChildren) {
+      for (i in zSortedChildren.size - 1 downTo 0) {
+        val child = zSortedChildren[i]
+        if (child.visibility != VISIBLE) continue
+        if (dispatchToChild(child, ev)) return true
+      }
     }
     return super.dispatchTouchEvent(ev)
   }
@@ -165,7 +181,7 @@ open class View @JvmOverloads constructor(
         it.shaderWidth = -1
         it.shaderHeight = -1
       } // force rebuild on next draw
-      style.mBorderRenderer.invalidate()
+      style.invalidateBorderRenderer()
       // Reapply transforms now that pivot and size are known
       try {
         style.applyTransformToView()
@@ -176,18 +192,28 @@ open class View @JvmOverloads constructor(
   }
 
 
-  override fun dispatchDraw(canvas: Canvas) {
+  private val drawOutsetShadows: (Canvas) -> Unit = { c ->
     // Draw children's outset box shadows at parent level so they can extend
     // beyond child bounds — after this view's own background/border (see
     // ViewUtils.render) so an opaque parent background can't paint over them.
-    ViewUtils.dispatchDraw(this, canvas, style, beforeChildren = { c ->
-      ViewUtils.drawChildrenOutsetShadows(this, c)
-    }) { c ->
-      // Draw list markers for HTML <li> children before drawing children,
-      // so markers appear in the parent's padding zone (left of the content area).
-      ListMarkers.draw(this, style, c)
-      super.dispatchDraw(c)
-    }
+    ViewUtils.drawChildrenOutsetShadows(this, c)
+  }
+
+  private val drawMarkersAndChildren: (Canvas) -> Unit = { c ->
+    // Draw list markers for HTML <li> children before drawing children,
+    // so markers appear in the parent's padding zone (left of the content area).
+    ListMarkers.draw(this, style, c)
+    super.dispatchDraw(c)
+  }
+
+  override fun dispatchDraw(canvas: Canvas) {
+    ViewUtils.dispatchDraw(
+      this,
+      canvas,
+      style,
+      beforeChildren = drawOutsetShadows,
+      superDraw = drawMarkersAndChildren,
+    )
   }
 
   /**
@@ -205,7 +231,9 @@ open class View @JvmOverloads constructor(
   }
 
   override fun onChange(low: Long, high: Long) {
-    Node.invalidateDescendantTextViews(node, low, high)
+    if (TextEngine.hasAnyTextFlags(low, high)) {
+      Node.invalidateDescendantTextViews(node, low, high)
+    }
     // Redraw self so parent-drawn markers (list items in padding zone) are updated.
     invalidate()
   }
@@ -260,6 +288,8 @@ open class View @JvmOverloads constructor(
         // when acting as the root.
         val widthArg = mapMeasureSpec(specWidthMode, specWidth).value
         val heightArg = mapHeightSpecArg(specHeightMode, specHeight)
+        node.lastRootWidthArg = widthArg
+        node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)
 
         computeAndLayout(
@@ -454,11 +484,9 @@ open class View @JvmOverloads constructor(
 
     node.removeChildren()
 
-    node.dirty()
-
     super.removeAllViews()
 
-    invalidateLayout(true)
+    invalidateLayout(false)
 
     onChildStructureChangedSafe()
   }

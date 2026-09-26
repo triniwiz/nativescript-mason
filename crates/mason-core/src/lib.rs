@@ -703,7 +703,7 @@ impl Mason {
     #[track_caller]
     pub fn set_android_node(&mut self, node: Id, android_node: Option<jni::sys::jint>) {
         if let Some(node) = self.0.node_data_mut().get_mut(node) {
-            node.android_data = android_node.map(node::AndroidNode);
+            node.android_data = android_node.map(|id| node::AndroidNode { id, last_computed_size: None });
         }
     }
 
@@ -720,7 +720,7 @@ impl Mason {
     /// Return the Android-side node id associated with `node`, if one was set.
     pub fn get_android_node(&self, node: Id) -> Option<jint> {
         if let Some(data) = self.0.node_data().get(node) {
-            data.android_data.map(|n| n.0)
+            data.android_data.map(|n| n.id)
         } else {
             None
         }
@@ -1269,6 +1269,26 @@ mod tests {
             "unexpected height: {}",
             height
         );
+    }
+
+    #[test]
+    fn removed_node_releases_its_block_measure_entry() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        mason.with_style_mut(root.id(), |s| s.set_display(Display::Block));
+        let child = mason.create_node();
+        let cid = child.id();
+        mason.append_node(root.id(), &[cid]);
+        mason.set_measure(cid, Some(test_measure), std::ptr::null_mut());
+
+        mason.compute(root.id());
+        let uid = mason.0.inner().uid;
+        assert!(crate::tree::block_measure_cached(uid, cid), "measure result cached");
+
+        let removed = mason.remove_child(root.id(), cid);
+        drop(removed);
+        drop(child);
+        assert!(!crate::tree::block_measure_cached(uid, cid), "entry released with the node");
     }
 
     #[test]

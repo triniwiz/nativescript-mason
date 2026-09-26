@@ -194,6 +194,7 @@ extension Mason.Button {
   @objc deinit
   @objc public func setDeviceScale(_ value: Swift.Float)
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
+  @objc(setMeasureForView:block:) public func setMeasure(for view: UIKit.UIView, block: @escaping (_ knownWidth: CoreFoundation.CGFloat, _ knownHeight: CoreFoundation.CGFloat, _ availableWidth: CoreFoundation.CGFloat, _ availableHeight: CoreFoundation.CGFloat) -> CoreFoundation.CGSize)
   @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
   @objc public func styleForView(_ view: UIKit.UIView) -> Mason.MasonStyle
   @objc public func styleForViewOrNode(_ viewOrNode: Any?) -> Mason.MasonStyle?
@@ -1748,6 +1749,26 @@ public struct StateKeys : Swift.Equatable {
     @objc get
     @objc set
   }
+  @objc public var backgroundPositionX: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundPositionY: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundOrigin: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundAttachment: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundBlendMode: Swift.String {
+    @objc get
+    @objc set
+  }
   @objc public var backgroundColor: Swift.UInt32 {
     @objc get
     @objc set
@@ -1779,6 +1800,26 @@ public struct StateKeys : Swift.Equatable {
   @objc public func setDecorationColor(ui color: UIKit.UIColor)
   @objc public func setDecorationColor(css color: Swift.String)
   @objc public var decorationLine: Mason.DecorationLine {
+    @objc get
+    @objc set
+  }
+  @objc public var decorationStyle: Mason.DecorationStyle {
+    @objc get
+    @objc set
+  }
+  @objc public var decorationThickness: Swift.Float {
+    @objc get
+    @objc set
+  }
+  @objc public var textDecorationLine: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var textDecorationStyle: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var textDecorationColor: Swift.String {
     @objc get
     @objc set
   }
@@ -2852,7 +2893,13 @@ public enum GridPlacement : Swift.Codable {
   case None
   case Underline
   case Overline
+  case UnderlineOverline
   case LineThrough
+  case UnderlineLineThrough
+  case OverlineLineThrough
+  case UnderlineOverlineLineThrough
+  case SpellingError
+  case GrammarError
   public typealias RawValue = Swift.Int8
   public var rawValue: Mason.DecorationLine.RawValue {
     get
@@ -3146,6 +3193,7 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
     @objc get
   }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didAddSubview(_ subview: UIKit.UIView)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason

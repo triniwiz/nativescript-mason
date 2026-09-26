@@ -1,6 +1,6 @@
 use crate::layout_cache::LayoutCache;
 use crate::style::Style;
-use crate::tree::{Id, TreeInner};
+use crate::tree::{forget_block_measure, Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
 
@@ -54,11 +54,18 @@ impl AppleNode {
 
 #[cfg(target_os = "android")]
 #[derive(Debug, Clone, Copy)]
-pub struct AndroidNode(pub(crate) jni::sys::jint);
+pub struct AndroidNode {
+    pub(crate) id: jni::sys::jint,
+    pub(crate) last_computed_size: Option<(f32, f32)>,
+}
 
 #[cfg(target_os = "android")]
 impl AndroidNode {
-    pub fn set_computed_size(&self, width: f32, height: f32) {
+    pub fn set_computed_size(&mut self, width: f32, height: f32) {
+        if self.last_computed_size == Some((width, height)) {
+            return;
+        }
+        self.last_computed_size = Some((width, height));
         if let Some(jvm) = crate::JVM.get() {
             let mut env = match jvm.get_env() {
                 Ok(env) => env,
@@ -72,7 +79,7 @@ impl AndroidNode {
                         cache.node_set_computed_size_id,
                         jni::signature::ReturnType::Primitive(jni::signature::Primitive::Void),
                         &[
-                            jni::sys::jvalue { i: self.0 },
+                            jni::sys::jvalue { i: self.id },
                             jni::sys::jvalue { f: width },
                             jni::sys::jvalue { f: height },
                         ],
@@ -458,7 +465,7 @@ pub(crate) struct InlineMeasureCache {
 }
 
 impl InlineMeasureCache {
-    const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             entries: [None; INLINE_MEASURE_CACHE_SIZE],
             next_write_idx: 0,
@@ -503,6 +510,27 @@ impl InlineMeasureCache {
         self.entries = [None; INLINE_MEASURE_CACHE_SIZE];
         self.next_write_idx = 0;
     }
+
+    #[inline]
+    pub(crate) fn text_fit_from_max_content(
+        &self,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Option<Size<f32>> {
+        let offered = match (known_dimensions.width, available_space.width) {
+            (Some(w), _) => w,
+            (None, AvailableSpace::Definite(w)) => w,
+            _ => return None,
+        };
+        if offered <= 0.0 {
+            return None;
+        }
+        let max_content = self.get(
+            Size { width: None, height: known_dimensions.height },
+            Size { width: AvailableSpace::MaxContent, height: available_space.height },
+        )?;
+        (max_content.width <= offered.floor()).then_some(max_content)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -531,6 +559,7 @@ pub struct Node {
     pub(crate) state: Box<[u8; NODE_STATE_BUFFER_SIZE]>,
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
+    pub(crate) ignores_offered_height: bool,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -550,6 +579,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
+            ignores_offered_height: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -569,6 +599,7 @@ impl Node {
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
+            ignores_offered_height: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -1154,6 +1185,7 @@ pub(crate) fn drain_deferred_cleanup(
         if !has_parent && !has_children {
             // Remove the node; Style::drop will release the arena handle
             tree.nodes.remove(id);
+            forget_block_measure(tree.uid, id);
             tree.parents.remove(id);
             tree.children.remove(id);
             tree.float_context.remove(id);
@@ -1183,6 +1215,7 @@ impl Drop for NodeRef {
                 if !has_parent && !has_children {
                     // Remove the node; Style::drop will release the arena handle
                     tree.nodes.remove(self.id);
+                    forget_block_measure(tree.uid, self.id);
                     tree.parents.remove(self.id);
                     tree.children.remove(self.id);
                     tree.float_context.remove(self.id);
@@ -1214,6 +1247,22 @@ mod inline_measure_cache_tests {
 
     fn avail(w: AvailableSpace, h: AvailableSpace) -> Size<AvailableSpace> {
         Size { width: w, height: h }
+    }
+
+    #[test]
+    fn text_fit_uses_max_content_only_when_it_fits() {
+        use AvailableSpace::{Definite, MaxContent, MinContent};
+        let mut cache = InlineMeasureCache::new();
+        let max = Size { width: 120.0, height: 16.0 };
+        cache.store(known(None, None), avail(MaxContent, MaxContent), max);
+
+        let fit = |k, a| cache.text_fit_from_max_content(k, a);
+        assert_eq!(fit(known(None, None), avail(Definite(300.0), MaxContent)), Some(max));
+        assert_eq!(fit(known(Some(120.4), None), avail(Definite(80.0), MaxContent)), Some(max));
+        assert_eq!(fit(known(None, None), avail(Definite(119.5), MaxContent)), None);
+        assert_eq!(fit(known(Some(0.0), None), avail(Definite(300.0), MaxContent)), None);
+        assert_eq!(fit(known(None, None), avail(MinContent, MaxContent)), None);
+        assert_eq!(fit(known(None, Some(16.0)), avail(Definite(300.0), MaxContent)), None);
     }
 
     #[test]

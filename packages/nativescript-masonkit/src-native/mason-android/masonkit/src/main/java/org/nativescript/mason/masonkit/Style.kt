@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.text.TextPaint
 import android.view.View
 import dalvik.annotation.optimization.FastNative
@@ -624,7 +625,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
      */
     val ALL_TEXT: StateKeys = FONT_COLOR or FONT_SIZE or FONT_WEIGHT or FONT_STYLE or
       FONT_FAMILY or FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or
-      TEXT_TRANSFORM or DECORATION_LINE or DECORATION_COLOR or DECORATION_STYLE or
+      TEXT_TRANSFORM or DECORATION_LINE or DECORATION_COLOR or DECORATION_STYLE or DECORATION_THICKNESS or
       LETTER_SPACING or TEXT_JUSTIFY or BACKGROUND_COLOR or LINE_HEIGHT or
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
@@ -780,15 +781,27 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal var gridState = GridState()
 
   internal var fontDirty = false
+    private set(value) {
+      field = value
+      if (value) pendingMetricsStyles[this] = true
+    }
 
   // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
   @JvmField
   internal var inMeasure = false
   internal var pendingMetricsSync = false
-    private set
+    private set(value) {
+      field = value
+      if (value) pendingMetricsStyles[this] = true
+    }
 
-  private var reloadListener: (FontFace, String?) -> Unit = { font, error ->
-    syncFontMetrics()
+  // Published fontmanager fires reload listeners off the main thread.
+  private var reloadListener: (FontFace, String?) -> Unit = { _, _ ->
+    if (android.os.Looper.myLooper() === android.os.Looper.getMainLooper()) {
+      syncFontMetrics()
+    } else {
+      android.os.Handler(android.os.Looper.getMainLooper()).post { syncFontMetrics() }
+    }
   }
 
   // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
@@ -837,6 +850,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     fontDirty = true
   }
 
+  // FontFace.load queues a callback per call while loading; keep one per style.
+  private var fontLoadPendingFor: FontFace? = null
+
   /**
    * A FontFace only gets a Typeface once something calls `load()`. The face
    * that ends up rendering text is often an *ancestor's* (font-family
@@ -845,16 +861,20 @@ class Style internal constructor(@Transient internal var node: Node) {
    * off from whoever actually resolved to it, and re-apply once it lands.
    */
   private fun ensureResolvedFontLoaded(face: FontFace) {
-    if (face.font != null) return
+    if (face.font != null || fontLoadPendingFor === face) return
     val v = node.view as? android.view.View ?: return
+    fontLoadPendingFor = face
     face.load(v.context) { _ ->
       v.post {
+        if (fontLoadPendingFor === face) fontLoadPendingFor = null
         invalidateResolvedFontFace()
-        syncFontMetrics()
+        val metricsChanged = syncFontMetrics()
         notifyTextStyleChanged(StateKeys.FONT_FAMILY)
-        node.dirty()
-        v.invalidate()
-        v.requestLayout()
+        if (metricsChanged) {
+          node.dirty()
+          v.invalidate()
+          v.requestLayout()
+        }
       }
     }
   }
@@ -888,31 +908,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       return if (node.view is TextContainer) {
         (node.view as TextContainer).getPaint()
       } else {
-        if (defaultPaint == null) {
-          defaultPaint = TextPaint()
-        }
-        defaultPaint?.apply {
-          textSize =
-            Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.scaledDensity
-              ?: Mason.shared.scale)
-        }
-        defaultPaint!!.apply {
-          if (font.font == null) {
-            (node.view as? View)?.let { v ->
-              font.load(v.context) { _ ->
-                v.post {
-                  fontDirty = true
-                  // attempt to sync metrics now (will defer if inMeasure)
-                  syncFontMetrics()
-                  // mark node/layout dirty so view will re-measure/re-layout
-                  node.dirty()
-                  v.invalidate()
-                  v.requestLayout()
-                }
-              }
-            }
-          }
-        }
+        val p = defaultPaint ?: TextPaint().also { defaultPaint = it }
+        p.textSize =
+          Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.scaledDensity
+            ?: Mason.shared.scale)
+        p
       }
     }
 
@@ -930,36 +930,36 @@ class Style internal constructor(@Transient internal var node: Node) {
    * When called during a Rust measure callback (inMeasure == true),
    * write is deferred to avoid deadlocking the rwlock.
    */
-  internal fun syncFontMetrics() {
-    if (!fontDirty) return
+  internal fun syncFontMetrics(): Boolean {
+    if (!fontDirty) return false
     if (inMeasure) {
       pendingMetricsSync = true
-      return
+      return false
     }
-    syncFontMetricsNow()
+    return syncFontMetricsNow()
   }
 
-  private fun syncFontMetricsNow() {
-    val fm = paint.fontMetrics
+  private fun syncFontMetricsNow(): Boolean {
+    val m = sharedFontMetrics(paint, xBounds, capBounds)
+    val ascent = m[0]
+    val descent = m[1]
+    val leading = m[2]
+    val xHeight = m[3]
+    val capHeight = m[4]
 
-    // Use absolute ascent (Android reports negative ascent); sanitize tiny/NaN values
-    var ascent = abs(fm.ascent)
-    var descent = fm.descent
-    val leading = fm.leading
-
-    // Defensive local sanitization before writing to native buffer
-    val EPS = 1e-6f
-    if (ascent.isNaN() || ascent < EPS) {
-      ascent = 14f
+    if (fmSynced && fmAscent == ascent && fmDescent == descent && fmXHeight == xHeight &&
+      fmLeading == leading && fmCapHeight == capHeight
+    ) {
+      fontDirty = false
+      return false
     }
-    if (descent.isNaN() || descent < 0f || descent < EPS) {
-      descent = 4f
-    }
+    fmSynced = true
+    fmAscent = ascent
+    fmDescent = descent
+    fmXHeight = xHeight
+    fmLeading = leading
+    fmCapHeight = capHeight
 
-    // Android doesn't directly expose x-height or cap-height
-    // We approximate them based on the font
-    val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
-    val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
     prepareMut()
     values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
@@ -967,17 +967,24 @@ class Style internal constructor(@Transient internal var node: Node) {
     values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
     fontDirty = false
+    return true
   }
+
+  private var fmSynced = false
+  private var fmAscent = 0f
+  private var fmDescent = 0f
+  private var fmXHeight = 0f
+  private var fmLeading = 0f
+  private var fmCapHeight = 0f
 
   /**
    * Flush deferred font metrics sync after measure callback returns.
-   * Returns true if a sync was pending (caller should mark node dirty).
+   * Returns true only when the native metrics actually changed.
    */
   internal fun flushPendingMetricsSync(): Boolean {
     if (!pendingMetricsSync) return false
     pendingMetricsSync = false
-    syncFontMetricsNow()
-    return true
+    return syncFontMetricsNow()
   }
 
   /**
@@ -1717,6 +1724,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         mBackground?.clear()
       } else {
         parseBackground(this, value)?.let {
+          mBackground?.longhands?.let { old -> it.longhands.putAll(old) }
+          it.reapplyLonghands()
           mBackground = it
           mBackgroundRaw = value
           (node.view as? View)?.invalidate()
@@ -1735,6 +1744,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
       val layers = parseBackgroundLayers(value)
       mBackground?.layers = layers.toMutableList()
+      mBackground?.reapplyLonghands()
       isValueInitialized = true
       (node.view as? android.view.View)?.invalidate()
     }
@@ -1749,50 +1759,47 @@ class Style internal constructor(@Transient internal var node: Node) {
       mBackground!!.applyBackgroundRepeat(value)
     }
 
+  private fun perLayerCss(map: (BackgroundLayer) -> String): String {
+    val layers = mBackground?.layers
+    if (layers.isNullOrEmpty()) return ""
+    return layers.joinToString(", ", transform = map)
+  }
+
+  private fun ensureBackground(): Background {
+    return mBackground ?: Background(this).also { mBackground = it }
+  }
+
   var backgroundPosition: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      return mBackground!!.layers.joinToString(",") { layer ->
-        val pos = layer.position ?: return@joinToString "center"
-        "${(pos.first * 100).toInt()}% ${(pos.second * 100).toInt()}%"
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundPosition(value)
-    }
+    get() = perLayerCss { it.position?.cssValue ?: "0% 0%" }
+    set(value) = ensureBackground().applyBackgroundPosition(value)
+
+  var backgroundPositionX: String
+    get() = perLayerCss { it.position?.x?.cssValue(true) ?: "0%" }
+    set(value) = ensureBackground().applyBackgroundPositionX(value)
+
+  var backgroundPositionY: String
+    get() = perLayerCss { it.position?.y?.cssValue(false) ?: "0%" }
+    set(value) = ensureBackground().applyBackgroundPositionY(value)
 
   var backgroundSize: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      return mBackground!!.layers.joinToString(",") { layer ->
-        val sz = layer.size ?: return@joinToString "auto"
-        when {
-          sz.first == -1f && sz.second == -1f -> "cover"
-          sz.first == -2f && sz.second == -2f -> "contain"
-          else -> "${sz.first}px ${sz.second}px"
-        }
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundSize(value)
-    }
+    get() = perLayerCss { it.size?.cssValue ?: "auto" }
+    set(value) = ensureBackground().applyBackgroundSize(value)
 
   var backgroundClip: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      val clip = mBackground!!.layers.firstOrNull()?.clip ?: return "border-box"
-      return when (clip) {
-        BackgroundClip.CONTENT_BOX -> "content-box"
-        BackgroundClip.PADDING_BOX -> "padding-box"
-        BackgroundClip.BORDER_BOX -> "border-box"
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundClip(value)
-    }
+    get() = perLayerCss { it.clip.css }
+    set(value) = ensureBackground().applyBackgroundClip(value)
+
+  var backgroundOrigin: String
+    get() = perLayerCss { it.origin.css }
+    set(value) = ensureBackground().applyBackgroundOrigin(value)
+
+  var backgroundAttachment: String
+    get() = perLayerCss { it.attachment.css }
+    set(value) = ensureBackground().applyBackgroundAttachment(value)
+
+  var backgroundBlendMode: String
+    get() = perLayerCss { it.blendMode.css }
+    set(value) = ensureBackground().applyBackgroundBlendMode(value)
 
   fun setBackgroundColor(value: String) {
     parseColor(value)?.let {
@@ -1944,7 +1951,13 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       val previous = fontStyle
       if (previous != value) {
-        values.put(StyleKeys.FONT_STYLE_TYPE, value.fontStyle.toByte())
+        // Buffer encoding: 0 normal, 1 italic, 2 oblique.
+        val encoded: Byte = when (value) {
+          FontStyle.Normal -> 0
+          FontStyle.Italic -> 1
+          is FontStyle.Oblique -> 2
+        }
+        values.put(StyleKeys.FONT_STYLE_TYPE, encoded)
         values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
         invalidateResolvedFontFace()
@@ -2119,6 +2132,74 @@ class Style internal constructor(@Transient internal var node: Node) {
         notifyTextStyleChanged(StateKeys.DECORATION_LINE)
       }
     }
+
+  /** `text-decoration-line` as CSS text. */
+  var textDecorationLine: String
+    get() = decorationLine.cssValue
+    set(value) {
+      Styles.DecorationLine.parse(value)?.let { decorationLine = it }
+    }
+
+  /** `text-decoration-style` as CSS text. */
+  var textDecorationStyle: String
+    get() = decorationStyle.cssValue
+    set(value) {
+      Styles.DecorationStyle.parse(value)?.let { decorationStyle = it }
+    }
+
+  /** `text-decoration-color` as CSS text. */
+  var textDecorationColor: String
+    get() {
+      val c = decorationColor
+      return if (c == Constants.UNSET_COLOR.toInt()) "currentcolor" else c.argbToCssHex()
+    }
+    set(value) {
+      if (value.trim().lowercase() == "currentcolor") {
+        decorationColor = Constants.UNSET_COLOR.toInt()
+      } else {
+        parseColor(value)?.let { decorationColor = it }
+      }
+    }
+
+  /**
+   * `text-decoration` shorthand: line keywords, a style, a color and a thickness
+   * in any order. Omitted longhands reset, as on the web.
+   */
+  fun setTextDecoration(css: String) {
+    var mask = 0
+    var single: Styles.DecorationLine? = null
+    var lineStyle = Styles.DecorationStyle.Solid
+    var color = Constants.UNSET_COLOR.toInt()
+    var thickness = 0f
+    for (raw in splitTopLevelWhitespace(css.trim())) {
+      val token = raw.lowercase()
+      when (token) {
+        "", "none" -> {}
+        "underline" -> mask = mask or Styles.DecorationLine.UNDERLINE
+        "overline" -> mask = mask or Styles.DecorationLine.OVERLINE
+        "line-through" -> mask = mask or Styles.DecorationLine.LINE_THROUGH
+        "spelling-error" -> single = Styles.DecorationLine.SpellingError
+        "grammar-error" -> single = Styles.DecorationLine.GrammarError
+        "auto", "from-font" -> thickness = 0f
+        "currentcolor" -> color = Constants.UNSET_COLOR.toInt()
+        else -> {
+          val parsedStyle = Styles.DecorationStyle.parse(token)
+          val parsedColor = if (parsedStyle == null) parseColor(raw) else null
+          val parsedLength = if (parsedStyle == null && parsedColor == null) parseLength(this, token) else null
+          when {
+            parsedStyle != null -> lineStyle = parsedStyle
+            parsedColor != null -> color = parsedColor
+            parsedLength != null -> thickness = parsedLength
+            else -> return
+          }
+        }
+      }
+    }
+    decorationLine = single ?: Styles.DecorationLine.from(mask)
+    decorationStyle = lineStyle
+    decorationColor = color
+    decorationThickness = thickness
+  }
 
   var decorationColor: Int
     get() {
@@ -2989,8 +3070,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   internal var mBorder: String = ""
-  internal val mBorderRenderer by lazy {
-    BorderRenderer(this)
+  private val borderRendererLazy = lazy { BorderRenderer(this) }
+  internal val mBorderRenderer by borderRendererLazy
+
+  internal fun invalidateBorderRenderer() {
+    if (borderRendererLazy.isInitialized()) mBorderRenderer.invalidate()
   }
   internal val mBorderLeft by lazy {
     Border(this, Border.Side.Left)
@@ -3077,7 +3161,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderTop.corner1Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3087,7 +3171,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderTop.corner2Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3097,7 +3181,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderBottom.corner2Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -3107,7 +3191,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseCornerShapeToken(value)?.let {
         mBorderBottom.corner1Exponent = it
         setOrAppendState(StateKeys.BORDER_RADIUS)
-        mBorderRenderer.invalidate()
+        invalidateBorderRenderer()
       }
     }
 
@@ -4231,7 +4315,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     val zIndex = (isDirty and StateKeys.Z_INDEX.low) or (isDirtyHigh and StateKeys.Z_INDEX.high)
 
     if (borderState != 0L || borderRadius != 0L || borderStyle != 0L || borderColor != 0L) {
-      mBorderRenderer.invalidate()
+      invalidateBorderRenderer()
     }
 
     // Dispatch caret-color to input views
@@ -4604,11 +4688,17 @@ class Style internal constructor(@Transient internal var node: Node) {
         sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
           view.post {
             fontDirty = true
-            syncFontMetrics()
-            node.dirty()
-            view.invalidate()
-            view.requestLayout()
+            // Flattened spans were built into the parent before this face loaded.
+            (node.view as? TextContainer)?.engine?.invalidateInlineSegments()
+            val metricsChanged = syncFontMetrics()
+            if (metricsChanged) {
+              node.dirty()
+              view.invalidate()
+              view.requestLayout()
+            }
           }
+        }.also {
+          if (it.font != null) fontDirty = true
         }
       } else {
         FontFace(baseFamily, AppFonts.resolve(baseFamily)).apply {
@@ -5224,6 +5314,28 @@ class Style internal constructor(@Transient internal var node: Node) {
       Mason.initLib()
     }
 
+    private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
+
+    @JvmStatic
+    internal fun flushPendingMetrics(forRoot: Node) {
+      if (pendingMetricsStyles.isEmpty()) return
+      val it = pendingMetricsStyles.entries.iterator()
+      while (it.hasNext()) {
+        val e = it.next()
+        val s = e.key
+        if (s == null || (!s.fontDirty && !s.pendingMetricsSync)) {
+          it.remove()
+          continue
+        }
+        if ((s.node.getRootNode() ?: s.node) !== forRoot) continue
+        it.remove()
+        val changed = if (s.pendingMetricsSync) s.flushPendingMetricsSync() else s.syncFontMetrics()
+        if (changed) {
+          s.node.dirty()
+        }
+      }
+    }
+
     // Shared per (family, weight, style): constructing a FontFace always hops
     // through its own single-thread Executor before `.font` is non-null, so
     // sharing one instance across nodes with the same descriptor avoids
@@ -5250,10 +5362,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       onReady: () -> Unit
     ): FontFace {
       val key = fontFaceCacheKey(family, weight, style)
-      sharedFontFaces[key]?.let { existing ->
-        if (existing.font != null) onReady()
-        return existing
-      }
+      sharedFontFaces[key]?.let { return it }
       val face = FontFace(family, AppFonts.resolve(family, context)).apply {
         this.weight = weight
         this.style = style
@@ -5261,10 +5370,43 @@ class Style internal constructor(@Transient internal var node: Node) {
       val winner = sharedFontFaces.putIfAbsent(key, face) ?: face
       if (winner.font == null) {
         winner.load(context) { _ -> onReady() }
-      } else {
-        onReady()
       }
       return winner
+    }
+
+    private data class FontMetricsKey(val typeface: Typeface?, val textSize: Float, val variation: String?)
+
+    private val fontMetricsCache = HashMap<FontMetricsKey, FloatArray>()
+
+    private fun sharedFontMetrics(
+      paint: Paint,
+      xBounds: android.graphics.Rect,
+      capBounds: android.graphics.Rect
+    ): FloatArray {
+      val variation = if (android.os.Build.VERSION.SDK_INT >= 26) paint.fontVariationSettings else null
+      val key = FontMetricsKey(paint.typeface, paint.textSize, variation)
+      fontMetricsCache[key]?.let { return it }
+      val fm = paint.fontMetrics
+
+      // Use absolute ascent (Android reports negative ascent); sanitize tiny/NaN values
+      var ascent = abs(fm.ascent)
+      var descent = fm.descent
+      val EPS = 1e-6f
+      if (ascent.isNaN() || ascent < EPS) {
+        ascent = 14f
+      }
+      if (descent.isNaN() || descent < 0f || descent < EPS) {
+        descent = 4f
+      }
+
+      // Android doesn't directly expose x-height or cap-height
+      // We approximate them based on the font
+      val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
+      val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
+      val values = floatArrayOf(ascent, descent, fm.leading, xHeight, capHeight)
+      if (fontMetricsCache.size >= 64) fontMetricsCache.clear()
+      fontMetricsCache[key] = values
+      return values
     }
 
     /**

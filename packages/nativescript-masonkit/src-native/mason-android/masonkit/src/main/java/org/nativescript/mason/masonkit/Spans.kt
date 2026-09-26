@@ -63,6 +63,43 @@ class Spans {
     }
   }
 
+  class RunStyleSpan(
+    private val attributes: TextDefaultAttributes,
+    private val setColor: Boolean,
+    private val measureSize: Int?,
+    private val letterSpacingPx: Float?,
+    private val typeface: Typeface?,
+    private val isBold: Boolean,
+    private val isItalic: Boolean
+  ) : android.text.style.MetricAffectingSpan(), NSCSpan {
+    override val type: Type
+      get() = Type.Typeface
+
+    override fun updateDrawState(tp: TextPaint) {
+      if (setColor) tp.color = attributes.color ?: Color.BLACK
+      if (measureSize != null) {
+        tp.textSize = (attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE) * tp.density
+      }
+      applyMetrics(tp)
+    }
+
+    override fun updateMeasureState(tp: TextPaint) {
+      if (measureSize != null) tp.textSize = measureSize * tp.density
+      applyMetrics(tp)
+    }
+
+    private fun applyMetrics(tp: TextPaint) {
+      if (letterSpacingPx != null) {
+        val textSize = tp.textSize
+        if (textSize > 0f) tp.letterSpacing = letterSpacingPx / textSize
+      }
+      val face = typeface ?: return
+      if (isBold && !face.isBold) tp.isFakeBoldText = true
+      if (isItalic && !face.isItalic) tp.textSkewX = -0.25f
+      tp.typeface = face
+    }
+  }
+
   class TypefaceSpan2(family: String) : android.text.style.TypefaceSpan(family), NSCSpan {
     override val type: Type
       get() = Type.Typeface
@@ -282,6 +319,25 @@ class Spans {
     }
   }
 
+  /**
+   * `text-decoration` marker. Paint-neutral: TextDecorations draws it after the
+   * Layout so run extents and baselines come from the Layout itself.
+   */
+  class DecorationSpan(
+    val line: Styles.DecorationLine,
+    val color: Int,
+    val lineStyle: Styles.DecorationStyle,
+    val thicknessPx: Float
+  ) : CharacterStyle(), NSCSpan {
+    override val type: Type
+      get() = Type.DecorationLine
+
+    override fun updateDrawState(tp: TextPaint?) {}
+
+    fun sameAppearance(other: DecorationSpan): Boolean =
+      line == other.line && color == other.color && lineStyle == other.lineStyle && thicknessPx == other.thicknessPx
+  }
+
   class BlockQuoteBackgroundSpan(private val color: Int, private val barWidthPx: Float) :
     LineBackgroundSpan {
 
@@ -318,9 +374,7 @@ class Spans {
       get() = Type.View
 
     init {
-      if (view.parent is ViewGroup) {
-        (view.parent as ViewGroup).removeView(view)
-      }
+      NodeUtils.detachNow(view)
     }
 
     override fun getSize(

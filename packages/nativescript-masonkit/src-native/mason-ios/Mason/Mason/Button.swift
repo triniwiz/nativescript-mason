@@ -214,15 +214,19 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     
     node.view = self
 
+    // Preflight (Tailwind-style) drops the UA border, background, padding and font.
+    let preflight = node.mason.preflight
     configure { style in
       style.display = Display.InlineBlock
-      style.fontFamily = "system-ui"
       style.textWrap = .NoWrap
-      style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
-      style.background = "#F0F0F0"
       style.textAlign = .Center
-      style.border = "1 solid #767676"
-      style.borderRadius = "4"
+      if !preflight {
+        style.fontFamily = "system-ui"
+        style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
+        style.background = "#F0F0F0"
+        style.border = "1 solid #767676"
+        style.borderRadius = "4"
+      }
     }
 
 

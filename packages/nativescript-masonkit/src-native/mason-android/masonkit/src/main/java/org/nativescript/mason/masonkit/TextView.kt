@@ -87,9 +87,25 @@ class TextView @JvmOverloads constructor(
   }
 
 
-  // Cached StaticLayout and width used for drawing when we render our own layout
-  internal var cachedStaticLayout: StaticLayout? = null
-  internal var cachedStaticLayoutWidth: Int = -1
+  internal var cachedStaticLayout: android.text.Layout? = null
+    private set
+  private var cachedStaticLayoutMinWidth = -1
+  private var cachedStaticLayoutMaxWidth = -1
+
+  internal fun setCachedStaticLayout(layout: android.text.Layout, minWidth: Int, maxWidth: Int = minWidth) {
+    cachedStaticLayout = layout
+    cachedStaticLayoutMinWidth = minWidth
+    cachedStaticLayoutMaxWidth = maxWidth
+  }
+
+  private fun clearCachedStaticLayout() {
+    cachedStaticLayout = null
+    cachedStaticLayoutMinWidth = -1
+    cachedStaticLayoutMaxWidth = -1
+  }
+
+  private fun cachedStaticLayoutFits(contentWidth: Int): Boolean =
+    contentWidth in cachedStaticLayoutMinWidth..cachedStaticLayoutMaxWidth
 
   // Float-aware StaticLayout: wraps text around floated sibling elements
   internal var floatAwareStaticLayout: StaticLayout? = null
@@ -102,14 +118,14 @@ class TextView @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     } // force rebuild on next draw
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     // Invalidate cached StaticLayout when size changes, but skip if this
     // size change was triggered by our own float-aware height expansion.
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
       // Keep the float-aware layout intact — we just expanded to fit it.
     } else {
-      cachedStaticLayout = null
-      cachedStaticLayoutWidth = -1
+      val contentW = w - paddingLeft - paddingRight
+      if (!cachedStaticLayoutFits(contentW)) clearCachedStaticLayout()
       floatAwareStaticLayout = null
       floatExpandedHeight = -1
     }
@@ -117,6 +133,7 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
+    engine.flushTextStyleIfNeeded()
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
@@ -136,13 +153,9 @@ class TextView @JvmOverloads constructor(
       // runs instead of falling back to the platform's top-aligned TextView.
       val contentWidth = width - paddingLeft - paddingRight
       if (floatAwareStaticLayout == null &&
-        (cachedStaticLayout == null || (contentWidth > 0 && cachedStaticLayoutWidth != contentWidth))
+        (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
       ) {
-        val rebuilt = engine.rebuildCachedStaticLayout(paint, contentWidth)
-        if (rebuilt != null) {
-          cachedStaticLayout = rebuilt
-          cachedStaticLayoutWidth = contentWidth
-        }
+        engine.rebuildCachedStaticLayout(paint, contentWidth)
       }
 
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
@@ -203,19 +216,24 @@ class TextView @JvmOverloads constructor(
         } else 0f
         // We bypass super.onDraw, which normally insets the layout by the view's
         // padding — so apply paddingLeft/paddingTop here.
+        if (layoutToDraw.paint === engine.plainTextPaint) engine.preparePlainTextPaint(paint)
         val tx = paddingLeft.toFloat()
         val ty = paddingTop.toFloat() + dy
         if (tx != 0f || ty != 0f) {
           val save = c.save()
           c.translate(tx, ty)
           layoutToDraw.draw(c)
+          TextDecorations.draw(c, layoutToDraw)
           c.restoreToCount(save)
         } else {
           layoutToDraw.draw(c)
+          TextDecorations.draw(c, layoutToDraw)
         }
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
+        applyPendingText()
         super.onDraw(c)
+        TextDecorations.drawPlatform(c, this)
       }
     }
   }
@@ -226,17 +244,44 @@ class TextView @JvmOverloads constructor(
     }
     set(value) {
       // Invalidate our cached layout when text changes
-      cachedStaticLayout = null
-      cachedStaticLayoutWidth = -1
+      clearCachedStaticLayout()
       floatAwareStaticLayout = null
       engine.textContent = value
     }
 
   override fun setText(text: CharSequence, type: BufferType) {
-    cachedStaticLayout = null
-    cachedStaticLayoutWidth = -1
+    pendingText = null
+    clearCachedStaticLayout()
     floatAwareStaticLayout = null
     super.setText(text, type)
+  }
+
+  private var pendingText: CharSequence? = null
+  private var pendingTextType = BufferType.NORMAL
+  private val accessibilityManager by lazy {
+    context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+  }
+
+  internal fun setTextDeferred(text: CharSequence, type: BufferType) {
+    if (accessibilityManager?.isEnabled == true) {
+      setText(text, type)
+      return
+    }
+    clearCachedStaticLayout()
+    floatAwareStaticLayout = null
+    pendingText = text
+    pendingTextType = type
+  }
+
+  override fun getText(): CharSequence {
+    applyPendingText()
+    return super.getText()
+  }
+
+  private fun applyPendingText() {
+    val text = pendingText ?: return
+    pendingText = null
+    super.setText(text, pendingTextType)
   }
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {
@@ -421,8 +466,7 @@ class TextView @JvmOverloads constructor(
 
   override fun onChange(low: Long, high: Long) {
     // Style change affects layout; invalidate cached StaticLayout
-    cachedStaticLayout = null
-    cachedStaticLayoutWidth = -1
+    clearCachedStaticLayout()
     floatAwareStaticLayout = null
     engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
   }

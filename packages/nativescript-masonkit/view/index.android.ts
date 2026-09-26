@@ -64,7 +64,6 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    view[isMasonView_] = false;
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
     // detach the Rust node too, since

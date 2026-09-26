@@ -41,6 +41,18 @@ class Mason {
   @JvmField
   internal var inCompute = false
 
+  internal var computeEpoch = 0
+    private set
+
+  internal fun endCompute() {
+    inCompute = false
+    computeFinished()
+  }
+
+  internal fun computeFinished() {
+    computeEpoch++
+  }
+
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 

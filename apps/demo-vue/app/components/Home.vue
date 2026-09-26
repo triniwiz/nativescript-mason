@@ -31,6 +31,14 @@
           <section class="group">
             <span class="section-label">Diagnostics</span>
             <div class="nav-list">
+              <div class="nav-row" @tap="$navigateTo(BenchPage)">
+                <div class="nav-icon" style="background-color: #00b894"><span class="nav-icon-text">B</span></div>
+                <div class="nav-body">
+                  <span class="nav-title">Layout benchmark</span>
+                  <span class="nav-desc">MasonKit vs core, three screens, timed</span>
+                </div>
+                <span class="nav-arrow">›</span>
+              </div>
               <div class="nav-row" @tap="$navigateTo(Stress)">
                 <div class="nav-icon" style="background-color: #e17055"><span class="nav-icon-text">S</span></div>
                 <div class="nav-body">
@@ -67,8 +75,10 @@ import GridDemo from '~/plugin-demos/GridDemo.vue';
 import GridArea from '~/plugin-demos/Grid-Area.vue';
 import DisplayDemo from '~/plugin-demos/DisplayDemo.vue';
 import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
+import PositionDemo from '~/plugin-demos/PositionDemo.vue';
 import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
+import GradientDemo from '~/plugin-demos/GradientDemo.vue';
 import TransformDemo from '~/plugin-demos/TransformDemo.vue';
 import AnimationDemo from '~/plugin-demos/AnimationDemo.vue';
 import TouchDemo from '~/plugin-demos/TouchDemo.vue';
@@ -79,6 +89,7 @@ import Photos from '~/web-samples/Photos.vue';
 import WebSamples from '~/web-samples/WebSamples.vue';
 import Professions from '~/web-samples/Professions.vue';
 import Stress from '~/stress/Stress.vue';
+import BenchPage from '~/bench/BenchPage.vue';
 
 const groups = [
   {
@@ -89,6 +100,7 @@ const groups = [
       { title: 'Grid areas', desc: 'Named grid-template-areas', icon: 'A', color: '#00b894', page: GridArea },
       { title: 'Display', desc: 'block / flex / none toggling', icon: 'D', color: '#e84393', page: DisplayDemo },
       { title: 'Spacing', desc: 'Margin, padding and gap', icon: 'S', color: '#fdcb6e', page: SpacingDemo },
+      { title: 'Position', desc: 'Sticky headers and fixed overlays', icon: 'P', color: '#00b894', page: PositionDemo },
     ],
   },
   {
@@ -96,6 +108,7 @@ const groups = [
     items: [
       { title: 'Typography', desc: 'Type scale and text styles', icon: 'T', color: '#b2bec3', page: TypographyDemo },
       { title: 'Box shadows', desc: 'Elevation, colored and inset shadows', icon: 'B', color: '#636e72', page: BoxShadowDemo },
+      { title: 'Gradients', desc: 'Stop positions, hard edges and stripes', icon: 'Gr', color: '#fd9644', page: GradientDemo },
       { title: 'Transforms', desc: 'Interactive rotate / scale / translate', icon: 'R', color: '#e17055', page: TransformDemo },
       { title: 'Animation', desc: 'Keyframe-style animations on Mason views', icon: 'M', color: '#4ecdc4', page: AnimationDemo },
       { title: 'Touch animations', desc: 'TouchManager press feedback on Mason views', icon: 'Tm', color: '#fd79a8', page: TouchDemo },

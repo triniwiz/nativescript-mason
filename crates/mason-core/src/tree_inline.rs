@@ -1357,11 +1357,17 @@ impl Tree {
         } else {
             available_space
         };
-        if let Some(cached) = self.nodes()[child_id]
-            .inline_measure_cache
-            .get(known_dimensions, available_space)
         {
-            return cached;
+            let node = &self.nodes()[child_id];
+            let cache = &node.inline_measure_cache;
+            if let Some(cached) = cache.get(known_dimensions, available_space) {
+                return cached;
+            }
+            if crate::tree::TEXT_FIT_FROM_MAX_CONTENT && node.is_text_container() {
+                if let Some(fit) = cache.text_fit_from_max_content(known_dimensions, available_space) {
+                    return fit;
+                }
+            }
         }
         let result = measure.measure(known_dimensions, available_space);
         self.nodes_mut()[child_id]
@@ -1491,9 +1497,7 @@ impl Tree {
             let is_inline =
                 matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            // Only the mutated copy needs cloning - reading display_mode() above
-            // doesn't require its own clone.
-            let mut adjusted_style = self.nodes()[child_id].style().clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
             if is_inline {
                 let mut size = adjusted_style.size();
                 if !size.width.is_auto() && size.width.value() == 0.0 {
@@ -1502,7 +1506,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             let layout = compute_leaf_layout(
@@ -1603,9 +1607,7 @@ impl Tree {
             let is_inline =
                 matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
 
-            // Only the mutated copy needs cloning - reading display_mode() above
-            // doesn't require its own clone.
-            let mut adjusted_style = self.nodes()[child_id].style().clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
 
             if is_inline {
                 let mut size = adjusted_style.size();
@@ -1615,7 +1617,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             /*
@@ -2413,7 +2415,7 @@ impl Tree {
             let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
             let _is_block = matches!(style.get_display(), Display::Block);
 
-            let mut adjusted_style = style.clone();
+            let mut adjusted_style = crate::tree::leaf_layout_style(&style);
             if is_inline {
                 let mut size = adjusted_style.size();
                 if !size.width.is_auto() && size.width.value() == 0.0 {
@@ -2422,7 +2424,7 @@ impl Tree {
                 if !size.height.is_auto() && size.height.value() == 0.0 {
                     size.height = Dimension::auto();
                 }
-                adjusted_style.set_size(size);
+                adjusted_style.size = size;
             }
 
             let mut ret = compute_leaf_layout(

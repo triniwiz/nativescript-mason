@@ -382,11 +382,11 @@ class BorderRenderer(private val style: Style) {
     private val DOT_EFFECT = android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
   }
 
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val path = Path()
-  private val ringPath = Path()
-  private val clipPath = Path()
-  private val outerClipPath = Path()
+  private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
+  private val path by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val ringPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val clipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val outerClipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
 
   // Reusable RectF for arc corner calculations — avoids allocation per corner
   private val cornerRect = RectF()
@@ -717,6 +717,18 @@ class BorderRenderer(private val style: Style) {
     return outerClipPath
   }
 
+  fun uniformRadius(width: Float, height: Float): Float {
+    if (topLeftExponent != 1f || topRightExponent != 1f ||
+      bottomRightExponent != 1f || bottomLeftExponent != 1f
+    ) return -1f
+    val r = topLeftCorner.x
+    if (topLeftCorner.y != r || topRightCorner.x != r || topRightCorner.y != r ||
+      bottomRightCorner.x != r || bottomRightCorner.y != r ||
+      bottomLeftCorner.x != r || bottomLeftCorner.y != r
+    ) return -1f
+    return r * cssRadiusScale(width, height)
+  }
+
   /** Check if there are any border radii set */
   fun hasRadii(): Boolean {
     return topLeftCorner.x > 0f || topLeftCorner.y > 0f ||
@@ -849,15 +861,10 @@ class BorderRenderer(private val style: Style) {
     rightStyle = style.mBorderRight.style
     bottomStyle = style.mBorderBottom.style
 
-    // Corner radii
-    topLeftCorner.x = style.borderTopLeftRadius.x.toPx(viewWidth)   // TL.x
-    topLeftCorner.y = style.borderTopLeftRadius.y.toPx(viewHeight)  // TL.y
-    topRightCorner.x = style.borderTopRightRadius.x.toPx(viewWidth)
-    topRightCorner.y = style.borderTopRightRadius.y.toPx(viewHeight)
-    bottomRightCorner.x = style.borderBottomRightRadius.x.toPx(viewWidth)
-    bottomRightCorner.y = style.borderBottomRightRadius.y.toPx(viewHeight)
-    bottomLeftCorner.x = style.borderBottomLeftRadius.x.toPx(viewWidth)
-    bottomLeftCorner.y = style.borderBottomLeftRadius.y.toPx(viewHeight)
+    setCorner(topLeftCorner, Border.cornerTopLeftKeys, viewWidth, viewHeight)
+    setCorner(topRightCorner, Border.cornerTopRightKeys, viewWidth, viewHeight)
+    setCorner(bottomRightCorner, Border.cornerBottomRightKeys, viewWidth, viewHeight)
+    setCorner(bottomLeftCorner, Border.cornerBottomLeftKeys, viewWidth, viewHeight)
 
     // Exponents
     topLeftExponent = style.mBorderTop.corner1Exponent       // Top-Left
@@ -866,6 +873,15 @@ class BorderRenderer(private val style: Style) {
     bottomLeftExponent = style.mBorderBottom.corner1Exponent    // Bottom-Left
 
   }
+
+  private fun setCorner(corner: PointF, keys: Border.IKeyCorner, viewWidth: Float, viewHeight: Float) {
+    val values = style.values
+    corner.x = lengthPx(values.get(keys.xType), values.getFloat(keys.xValue), viewWidth)
+    corner.y = lengthPx(values.get(keys.yType), values.getFloat(keys.yValue), viewHeight)
+  }
+
+  private fun lengthPx(type: Byte, value: Float, size: Float): Float =
+    if (type == LengthPercentage.Kind.Percent.value) value * size else value
 
   // Valid after updateCache().
   fun hasVisibleBorder(): Boolean {
@@ -879,6 +895,8 @@ class BorderRenderer(private val style: Style) {
   /** Draws the border into the canvas */
   fun draw(canvas: Canvas, width: Float, height: Float) {
     if (!hasVisibleBorder()) return
+
+    if (drawUniformSolid(canvas, width, height)) return
 
     // Build path with corners and sides
     buildBorderPath(width, height)
@@ -935,6 +953,36 @@ class BorderRenderer(private val style: Style) {
       drawSide(canvas, Side.Bottom, bottomColor, bottomStyle, width, height)
       drawSide(canvas, Side.Left, leftColor, leftStyle, width, height)
     }
+  }
+
+  private val strokePaint by lazy(LazyThreadSafetyMode.NONE) {
+    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      isDither = true
+    }
+  }
+
+  private fun drawUniformSolid(canvas: Canvas, width: Float, height: Float): Boolean {
+    if (topStyle != BorderStyle.Solid || rightStyle != BorderStyle.Solid ||
+      bottomStyle != BorderStyle.Solid || leftStyle != BorderStyle.Solid
+    ) return false
+    if (topColor != rightColor || rightColor != bottomColor || bottomColor != leftColor) return false
+    val bw = topWidth
+    if (bw <= 0f || bw != rightWidth || bw != bottomWidth || bw != leftWidth) return false
+    val r = uniformRadius(width, height)
+    if (r != 0f && r < bw) return false
+
+    val half = bw / 2f
+    strokePaint.color = topColor
+    strokePaint.strokeWidth = bw
+    if (r == 0f) {
+      strokePaint.strokeJoin = Paint.Join.MITER
+      canvas.drawRect(half, half, width - half, height - half, strokePaint)
+    } else {
+      strokePaint.strokeJoin = Paint.Join.ROUND
+      canvas.drawRoundRect(half, half, width - half, height - half, r - half, r - half, strokePaint)
+    }
+    return true
   }
 
   private enum class Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT }
@@ -1411,7 +1459,7 @@ class BorderRenderer(private val style: Style) {
 // `px` is a CSS pixel (the same size as a dip), matching the web and iOS's
 // BorderParser; `dppx` is the escape hatch for a literal device pixel.
 // Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
-private val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
+internal val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
 
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 private const val PX_PER_PT = 96f / 72f
@@ -1421,7 +1469,7 @@ private const val PX_PER_PT = 96f / 72f
  * against [emBasis] (the element's own font size) when given, else the root
  * font size — matching `tokenToDevicePx` in style.ts.
  */
-private fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
+internal fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
   val mason = Mason.shared
   return when (unit) {
     "rem" -> num * mason.rootFontSize
@@ -1483,7 +1531,7 @@ fun parseLength(style: Style, value: String): Float? {
 /**
  * Split on top-level whitespace but preserve parentheses groups (e.g. "rgba(0, 1, 2)").
  */
-private fun splitTopLevelWhitespace(input: String): List<String> {
+internal fun splitTopLevelWhitespace(input: String): List<String> {
   val result = mutableListOf<String>()
   val sb = StringBuilder()
   var depth = 0
@@ -1542,7 +1590,7 @@ fun parseBorderShorthand(style: Style, value: String) {
     style.mBorderBottom.color = Color.TRANSPARENT
 
     if (batch) {
-      style.mBorderRenderer.invalidate()
+      style.invalidateBorderRenderer()
       style.inBatch = false
     }
 
@@ -1639,7 +1687,7 @@ fun parseBorderShorthand(style: Style, value: String) {
   }
 
   if (dirty) {
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
   }
 
   if (batch) {
@@ -1663,7 +1711,7 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
     border.width = Zero
     border.style = BorderStyle.None
     border.color = Color.TRANSPARENT
-    style.mBorderRenderer.invalidate()
+    style.invalidateBorderRenderer()
     return
   }
 
@@ -1710,7 +1758,7 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
   borderStyle?.let { border.style = it }
   color?.let { border.color = it }
 
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
 
   if (batch) {
     style.inBatch = false
@@ -1786,7 +1834,7 @@ fun parseCornerShape(style: Style, value: String) {
   style.mBorderBottom.setState = true
 
   style.setOrAppendState(StateKeys.BORDER_RADIUS)
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
 
   if (batch) {
     style.inBatch = false
@@ -1829,7 +1877,7 @@ fun parseBorderRadius(style: Style, value: String) {
   style.borderBottomRightRadius = Point(hMapped[2], vMapped[2])
   style.borderBottomLeftRadius = Point(hMapped[3], vMapped[3])
   // Always invalidate renderer and notify native update for radius changes
-  style.mBorderRenderer.invalidate()
+  style.invalidateBorderRenderer()
   if (!style.inBatch) {
     style.isDirty = StateKeys.BORDER_RADIUS.bits
     style.updateNativeStyle()

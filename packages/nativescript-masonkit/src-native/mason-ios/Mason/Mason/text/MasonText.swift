@@ -493,18 +493,9 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       return
     }
     textLayer.setNeedsDisplay()
-    let root = node.getRootNode()
-    let view = if(root.type == .document){
-      root.document?.documentElement as? MasonElement
-    }else {
-      root.view as? MasonElement
-    }
-    
-    if let view = view {
-      if(view.computeCacheDirty){
-        let computed = view.computeCache()
-        view.computeWithSize(Float(computed.width), Float(computed.height))
-      }
+    // Coalesce: many text writes in one turn share a single layout pass.
+    if let root = rootLayoutElement() {
+      root.setNeedsLayoutPass()
       setNeedsDisplay()
     }
   }
@@ -740,7 +731,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       break
     }
     
-    style.font.loadSync(nil)
+    // Generic families load lazily from a shared cache when attributes are built.
+    if MasonStyle.loadedGenericFace(like: style.font) == nil {
+      style.font.loadSync(nil)
+    }
     node.inBatch = false
   }
   

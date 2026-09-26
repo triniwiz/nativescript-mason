@@ -1,4 +1,4 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
+import { CssProperty, CssAnimationProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonView_ } from './symbols';
@@ -9,6 +9,10 @@ import type { Style as MasonStyle } from './style';
 import { cssLengthToDip, parseAspectRatio } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
+import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
+import { BORDER_WIDTH_KEYWORDS, splitBackground, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
+import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
+import type { CssLength, LonghandValue } from './css-shorthands';
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle | undefined {
   const ret: (NSViewBase & { _styleHelper: MasonStyle }) | undefined = (__ANDROID__ ? view?.get() : view?.deref()) as never;
@@ -35,6 +39,46 @@ function isMasonView(style: Style): boolean {
     return !!(view && view[isMasonView_]);
   }
   return false;
+}
+
+// From core 9.1 a stylesheet shorthand is split into its longhands while the
+// stylesheet is parsed, with the converter of the last ShorthandProperty built
+// for that CSS name, and a longhand that arrives parsed skips every converter.
+
+type ShorthandLonghand = CssProperty<Style, any> | CssAnimationProperty<Style, any>;
+
+export interface MasonShorthand {
+  cssName: string;
+  longhands: ShorthandLonghand[];
+  split(value: string): LonghandValue[];
+}
+
+const CSS_WIDE_KEYWORDS = new Set(['initial', 'inherit', 'unset', 'revert']);
+
+export function shorthandConverter({ longhands, split }: MasonShorthand) {
+  return (value: unknown): [ShorthandLonghand, unknown][] => {
+    const text = typeof value === 'number' ? String(value) : value;
+    if (typeof text !== 'string') {
+      // Core 9.1 probes with unsetValue to learn the longhands, which a var()
+      // declaration needs all of.
+      return longhands.map((property) => [property, value]);
+    }
+    const trimmed = text.trim();
+    if (!trimmed || CSS_WIDE_KEYWORDS.has(trimmed)) {
+      return longhands.map((property) => [property, trimmed]);
+    }
+    const parts = split(trimmed);
+    return longhands.map((property, i) => [property, parts[i]]);
+  };
+}
+
+function masonShorthandProperty(entry: MasonShorthand, getter: (this: Style) => unknown = () => undefined) {
+  return new ShorthandProperty<Style, any>({
+    name: toCamelCase(entry.cssName),
+    cssName: entry.cssName,
+    getter,
+    converter: shorthandConverter(entry),
+  });
 }
 
 export const textProperty = new Property<ViewBase, string>({
@@ -197,51 +241,12 @@ function overflowConverter(value) {
     case 'hidden':
     case 'clip':
     case 'scroll':
+    case 'auto':
       return value;
     default:
       return undefined;
   }
 }
-
-const overFlow = /^\s*(visible|hidden|clip|scroll|auto)(?:\s+(visible|hidden|clip|scroll|auto))?\s*$/;
-
-export const overflowProperty = new ShorthandProperty<Style, Overflow>({
-  name: 'overflow',
-  cssName: 'overflow',
-  getter: function () {
-    if (this.overflowX === this.overflowY) {
-      return this.overflowX;
-    }
-    return `${this.overflowX} ${this.overflowY}`;
-  },
-  converter(value) {
-    const properties: [CssProperty<any, any>, any][] = [];
-    if (typeof value === 'string') {
-      const values = value.match(overFlow);
-
-      const length = values?.length ?? 0;
-      if (length === 0) {
-        return properties;
-      }
-
-      if (length === 1) {
-        const xy = values[0];
-        properties.push([overflowXProperty, xy]);
-        properties.push([overflowYProperty, xy]);
-      }
-
-      if (length > 1) {
-        const x = values[0];
-        const y = values[1];
-
-        properties.push([overflowXProperty, x]);
-        properties.push([overflowYProperty, y]);
-      }
-    }
-
-    return properties;
-  },
-});
 
 export const overflowXProperty = new CssProperty<Style, Overflow>({
   name: 'overflowX',
@@ -277,6 +282,15 @@ export const overflowYProperty = new CssProperty<Style, Overflow>({
       }
     }
   },
+});
+
+const overflowShorthand: MasonShorthand = { cssName: 'overflow', longhands: [overflowXProperty, overflowYProperty], split: splitOverflow };
+
+export const overflowProperty = masonShorthandProperty(overflowShorthand, function (this: Style) {
+  if (this.overflowX === this.overflowY) {
+    return this.overflowX;
+  }
+  return `${this.overflowX} ${this.overflowY}`;
 });
 
 export const paddingProperty = new CssProperty<Style, string>({
@@ -321,6 +335,94 @@ export const textJustifyProperty = new CssProperty<Style, string>({
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.textJustify = newValue as never;
+    }
+  },
+});
+
+export const backgroundPositionXProperty = new CssProperty<Style, string>({
+  name: 'backgroundPositionX',
+  cssName: 'background-position-x',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundPositionX = newValue as never;
+    }
+  },
+});
+
+export const backgroundPositionYProperty = new CssProperty<Style, string>({
+  name: 'backgroundPositionY',
+  cssName: 'background-position-y',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundPositionY = newValue as never;
+    }
+  },
+});
+
+export const backgroundOriginProperty = new CssProperty<Style, string>({
+  name: 'backgroundOrigin',
+  cssName: 'background-origin',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundOrigin = newValue as never;
+    }
+  },
+});
+
+export const backgroundAttachmentProperty = new CssProperty<Style, string>({
+  name: 'backgroundAttachment',
+  cssName: 'background-attachment',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundAttachment = newValue as never;
+    }
+  },
+});
+
+export const backgroundBlendModeProperty = new CssProperty<Style, string>({
+  name: 'backgroundBlendMode',
+  cssName: 'background-blend-mode',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundBlendMode = newValue as never;
+    }
+  },
+});
+
+export const textDecorationLineProperty = new CssProperty<Style, string>({
+  name: 'textDecorationLine',
+  cssName: 'text-decoration-line',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationLine = newValue as never;
+    }
+  },
+});
+
+export const textDecorationStyleProperty = new CssProperty<Style, string>({
+  name: 'textDecorationStyle',
+  cssName: 'text-decoration-style',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationStyle = newValue as never;
+    }
+  },
+});
+
+export const textDecorationColorProperty = new CssProperty<Style, string>({
+  name: 'textDecorationColor',
+  cssName: 'text-decoration-color',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationColor = newValue as never;
     }
   },
 });
@@ -540,23 +642,6 @@ fontSizeProperty.overrideHandlers({
   },
 });
 
-// marginTopProperty.overrideHandlers({
-//   name: 'marginTop',
-//   cssName: 'margin-top',
-//   valueChanged(target, oldValue, newValue) {
-//     const view = getViewStyle(target.viewRef);
-//     if (view) {
-//       if (newValue) {
-//         view.marginTop = newValue as never;
-//       } else {
-//         // Revert to old value if newValue is invalid
-//         // @ts-ignore
-//         target.marginTop = oldValue as never;
-//       }
-//     }
-//   },
-// });
-
 export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
@@ -600,95 +685,19 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   },
 });
 
-export const gridGapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gridGap',
-  cssName: 'grid-gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(gap) {
-    const properties: [CssProperty<any, any>, any][] = [];
+function gapGetter(this: Style) {
+  if (this.rowGap === this.columnGap) {
+    return this.rowGap;
+  }
+  return `${this.rowGap} ${this.columnGap}`;
+}
 
-    let value = gap;
+const gapShorthand: MasonShorthand = { cssName: 'gap', longhands: [rowGapProperty, columnGapProperty], split: splitGap };
+const gridGapShorthand: MasonShorthand = { ...gapShorthand, cssName: 'grid-gap' };
 
-    if (typeof value === 'number') {
-      value = `${value}`;
-    }
+export const gridGapProperty = masonShorthandProperty(gridGapShorthand, gapGetter);
 
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return properties;
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        properties.push([rowGapProperty, row]);
-        properties.push([columnGapProperty, row]);
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-
-        properties.push([rowGapProperty, row]);
-        properties.push([columnGapProperty, column]);
-      }
-    }
-
-    return properties;
-  },
-});
-
-export const gapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gap',
-  cssName: 'gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(gap) {
-    const properties: [CssProperty<any, any>, any][] = [];
-
-    let value = gap;
-
-    if (typeof value === 'number') {
-      value = `${value}`;
-    }
-
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return properties;
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        properties.push([rowGapProperty, row]);
-        properties.push([columnGapProperty, row]);
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-
-        properties.push([rowGapProperty, row]);
-        properties.push([columnGapProperty, column]);
-      }
-    }
-
-    return properties;
-  },
-});
+export const gapProperty = masonShorthandProperty(gapShorthand, gapGetter);
 
 export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
   name: 'gridRowGap',
@@ -1429,94 +1438,16 @@ export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'bala
   },
 });
 
-// flex-flow: <flex-direction> || <flex-wrap>
-const flexFlowProperty = new ShorthandProperty({
-  name: 'flexFlow',
-  cssName: 'flex-flow',
-  getter: function () {
-    return `${this.flexDirection} ${this.flexWrap}`;
-  },
-  converter: function (value) {
-    const properties = [];
-    if (value === unsetValue) {
-      properties.push([flexDirectionProperty, value]);
-      properties.push([flexWrapProperty, value]);
-    } else {
-      const trimmed = value && value.trim();
-      if (trimmed) {
-        const values = trimmed.split(/\s+/);
-        if (values.length >= 1) {
-          properties.push([flexDirectionProperty, values[0]]);
-        }
-        if (value.length >= 2) {
-          properties.push([flexWrapProperty, values[1]]);
-        }
-      }
-    }
-    return properties;
-  },
+const flexFlowShorthand: MasonShorthand = { cssName: 'flex-flow', longhands: [flexDirectionProperty, flexWrapProperty], split: splitFlexFlow };
+
+const flexFlowProperty = masonShorthandProperty(flexFlowShorthand, function (this: Style) {
+  return `${this.flexDirection} ${this.flexWrap}`;
 });
 
-// flex: inital | auto | none | <flex-grow> <flex-shrink> || <flex-basis>
-const flexProperty = new ShorthandProperty({
-  name: 'flex',
-  cssName: 'flex',
-  getter: function () {
-    return `${this.flexGrow} ${this.flexShrink} ${this.flexBasis}`;
-  },
-  converter: function (value) {
-    const properties = [];
-    if (value === unsetValue) {
-      properties.push([flexGrowProperty, value]);
-      properties.push([flexShrinkProperty, value]);
-    } else if (typeof value === 'number') {
-      properties.push([flexGrowProperty, value]);
-      properties.push([flexShrinkProperty, 1]);
-      properties.push([flexBasisProperty, 'auto']);
-    } else {
-      const trimmed = value && value.trim();
-      if (trimmed) {
-        const values = trimmed.split(/\s+/);
-        if (values.length === 1) {
-          switch (values[0]) {
-            case 'initial':
-              properties.push([flexGrowProperty, 0]);
-              properties.push([flexShrinkProperty, 1]);
-              properties.push([flexBasisProperty, 'auto']);
-              break;
-            case 'auto':
-              properties.push([flexGrowProperty, 1]);
-              properties.push([flexShrinkProperty, 1]);
-              properties.push([flexBasisProperty, 'auto']);
-              break;
-            case 'none':
-              properties.push([flexGrowProperty, 0]);
-              properties.push([flexShrinkProperty, 0]);
-              properties.push([flexBasisProperty, 'auto']);
-              break;
-            default:
-              // CSS spec: `flex: <number>` = `<number> 1 0%`, not `auto` —
-              // a bare positive number always zeroes the basis.
-              properties.push([flexGrowProperty, values[0]]);
-              properties.push([flexShrinkProperty, 1]);
-              properties.push([flexBasisProperty, '0%']);
-          }
-        }
-        if (values.length >= 2) {
-          properties.push([flexGrowProperty, values[0]]);
-          properties.push([flexShrinkProperty, values[1]]);
-        }
+const flexShorthand: MasonShorthand = { cssName: 'flex', longhands: [flexGrowProperty, flexShrinkProperty, flexBasisProperty], split: splitFlex };
 
-        // `values.length` (array), not `value.length` (the string). core's
-        // setCssValue destructures each entry as `[property, value]`.
-        if (values.length >= 3) {
-          properties.push([flexBasisProperty, values[2]]);
-        }
-      }
-    }
-
-    return properties;
-  },
+const flexProperty = masonShorthandProperty(flexShorthand, function (this: Style) {
+  return `${this.flexGrow} ${this.flexShrink} ${this.flexBasis}`;
 });
 
 export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' | `${string}`>({
@@ -1744,6 +1675,11 @@ registerAlongsideCore(backgroundRepeatProperty);
 registerAlongsideCore(backgroundPositionProperty);
 registerAlongsideCore(backgroundSizeProperty);
 backgroundClipProperty.register(Style);
+backgroundPositionXProperty.register(Style);
+backgroundPositionYProperty.register(Style);
+backgroundOriginProperty.register(Style);
+backgroundAttachmentProperty.register(Style);
+backgroundBlendModeProperty.register(Style);
 
 borderProperty.register(Style);
 borderLeftProperty.register(Style);
@@ -1912,8 +1848,80 @@ registerAlongsideCore(whiteSpaceProperty);
 objectFitProperty.register(Style);
 textJustifyProperty.register(Style);
 textDecorationThicknessProperty.register(Style);
+textDecorationLineProperty.register(Style);
+textDecorationStyleProperty.register(Style);
+textDecorationColorProperty.register(Style);
+
+// Core validates `text-decoration` down to none/underline/line-through, so
+// overline, the error lines, styles, colors and thicknesses never reached
+// mason. Its own elements get the raw declaration; core keeps its parser.
+const TextDecorationParse = makeParser<string>(makeValidator('none', 'underline', 'line-through', 'underline line-through'));
+(textDecorationProperty as unknown as { overrideHandlers(options: object): void }).overrideHandlers({
+  valueConverter: function (this: Style, value: string) {
+    return isMasonView(this) ? value : TextDecorationParse(value);
+  },
+});
 // core owns `font-family` (through its Font shorthand), so this has to dispatch
 // rather than shadow it.
 registerAlongsideCore(fontFamilyProperty);
 
 displayProperty.register(Style);
+
+interface CoreLonghandHandlers {
+  converter(value: string): unknown;
+  comparer(a: unknown, b: unknown): boolean;
+  keywords?: ReadonlyMap<string, string>;
+}
+
+/**
+ * A Mason view gets core's own parse with the CSS text attached (see
+ * CssLength), so core's valueChanged and layout code read a finite length
+ * while Mason's setNative parses the text. Core views keep core's converter.
+ */
+function keepCssOnMasonViews(longhands: CssProperty<Style, any>[], core: CoreLonghandHandlers): void {
+  for (const property of longhands) {
+    property.overrideHandlers({
+      name: property.name,
+      cssName: property.cssLocalName,
+      valueConverter(this: Style, value: string) {
+        const css = core.keywords?.get(value.trim()) ?? value;
+        return isMasonView(this) ? cssLength(css, core.converter) : core.converter(css);
+      },
+      // Core's parse reads `10%` and `10rem` alike, so the CSS text decides.
+      equalityComparer: (a, b) => (isCssLength(a) || isCssLength(b) ? (a as CssLength)?.css === (b as CssLength)?.css : core.comparer(a, b)),
+    });
+  }
+}
+
+const radiusLonghands = [borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty];
+const marginLonghands = [marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty];
+const paddingLonghands = [paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty];
+const borderWidthLonghands = [borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty];
+const borderColorLonghands = [borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty];
+
+// Core reads `50%` as 50 and skips a parsed 0 as equal to its default, so
+// `border-radius: 0` never reached a button's native 4px radius.
+keepCssOnMasonViews(radiusLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals });
+keepCssOnMasonViews(marginLonghands, { converter: CorePercentLength.parse, comparer: CorePercentLength.equals });
+keepCssOnMasonViews(paddingLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals });
+keepCssOnMasonViews(borderWidthLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals, keywords: BORDER_WIDTH_KEYWORDS });
+
+/** The shorthands core registers; MasonKit builds these only to own core 9.1's parse-time split. */
+const coreShorthands: MasonShorthand[] = [
+  { cssName: 'border-radius', longhands: radiusLonghands, split: splitBorderRadius },
+  { cssName: 'margin', longhands: marginLonghands, split: splitMargin },
+  { cssName: 'padding', longhands: paddingLonghands, split: splitPadding },
+  { cssName: 'border-width', longhands: borderWidthLonghands, split: splitBorderWidth },
+  { cssName: 'border-color', longhands: borderColorLonghands, split: splitBorderColor },
+  {
+    cssName: 'background',
+    longhands: [backgroundColorProperty, backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty, backgroundOriginProperty, backgroundAttachmentProperty],
+    split: splitBackground,
+  },
+];
+
+for (const entry of coreShorthands) {
+  masonShorthandProperty(entry);
+}
+
+export const masonShorthands: MasonShorthand[] = [...coreShorthands, overflowShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];

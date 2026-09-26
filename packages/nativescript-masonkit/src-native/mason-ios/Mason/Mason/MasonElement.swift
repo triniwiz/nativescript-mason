@@ -108,7 +108,23 @@ private struct MasonElementProperties {
   static var hostRootSize: UInt8 = 5
 }
 
+// Resolved CTFonts by face, size, weight and style: building one goes through
+// font descriptors and is costly, and every text view asks for one.
+private let ctFontCache: NSCache<NSString, CTFont> = {
+  let cache = NSCache<NSString, CTFont>()
+  cache.countLimit = 256
+  return cache
+}()
+
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
+  let key = "\(cgFont.postScriptName.map { $0 as String } ?? "")|\(fontSize)|\(weight.rawValue)|\(style.type.rawValue)" as NSString
+  if let cached = ctFontCache.object(forKey: key) { return cached }
+  let font = makeCTFont(from: cgFont, fontSize: fontSize, weight: weight, style: style)
+  ctFontCache.setObject(font, forKey: key)
+  return font
+}
+
+private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
   // UIFont.Weight → CoreText weight value
   let weightValue: CGFloat
   switch weight {
@@ -283,9 +299,9 @@ extension MasonElement {
   internal func rootLayoutElement() -> MasonElement? {
     let root = node.getRootNode()
     if root.type == .document {
-      return root.document?.documentElement as? MasonElement
+      return MasonViewKind.element(root.document?.documentElement)
     }
-    return root.view as? MasonElement
+    return MasonViewKind.element(root.view)
   }
 
   public func requestLayout() {
@@ -435,17 +451,34 @@ extension MasonElement {
         // marked, or the next mutation reschedules. Never queue a second one.
         return
       }
+      // Queued while detached and attached since: laying this out as a root now
+      // would move it to the origin. Hand the pass to the tree's real root.
+      if let root = self.rootLayoutElement(), root.uiView !== self.uiView {
+        root.setNeedsLayoutPass()
+        return
+      }
       guard self.node.isDirty || self.computeCacheDirty else { return }
+      // UIKit is about to run autoComputeIfRoot for this root at the host's box;
+      // computing here at the frame size as well would lay the tree out twice.
+      if self.autoComputeWillRun { return }
       self.isInLayout = true
       defer { self.isInLayout = false }
       self.computeWithViewSize(layout: true)
     }
   }
 
+  /// True when the pending setNeedsLayout is guaranteed to reach autoComputeIfRoot.
+  private var autoComputeWillRun: Bool {
+    guard let view = uiView as? MasonUIView, view.window != nil, !view.isScrollingNow else { return false }
+    guard let superview = view.superview, !MasonViewKind.isElement(superview) else { return false }
+    let size = superview.bounds.size
+    return size.width > 0 || size.height > 0
+  }
+
   /// Auto-compute layout when this is a root Mason view (parent isn't a
   /// MasonElement). Call from layoutSubviews; mirrors Android's onMeasure.
   public func autoComputeIfRoot() {
-    guard !(uiView.superview is MasonElement) else { return }
+    guard !MasonViewKind.isElement(uiView.superview) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
     // Zero parent bounds (transitions, pre-Auto-Layout): skip but keep dirty
     // flags so the next real-size call recomputes instead of hitting stale cache.
@@ -504,7 +537,7 @@ extension MasonElement {
   /// bounds. Prefer `markRootComputeApplied(_:_:)` whenever the host has a size
   /// to give.
   public func markRootComputeApplied() {
-    guard !(uiView.superview is MasonElement) else { return }
+    guard !MasonViewKind.isElement(uiView.superview) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
     _hostRootSize = .zero
     _lastAutoComputeSize = parentSize
@@ -517,7 +550,7 @@ extension MasonElement {
   /// without it the first style mutation redirties the node and the next
   /// `layoutSubviews` silently recomputes the whole subtree at the wrong size.
   public func markRootComputeApplied(_ width: Float, _ height: Float) {
-    guard !(uiView.superview is MasonElement) else { return }
+    guard !MasonViewKind.isElement(uiView.superview) else { return }
     guard let parentSize = uiView.superview?.bounds.size else { return }
     _hostRootSize = CGSize(width: CGFloat(width), height: CGFloat(height))
     _lastAutoComputeSize = parentSize
@@ -946,11 +979,14 @@ class MasonElementHelpers: NSObject {
       var realLayout = layout
       var hasWidthConstraint: Bool = false
       var hasHeightConstraint: Bool = false
+      // One read each: these getters decode the style buffer every call.
+      let nodeOverflow = node.style.overflow
       if let view = view as? MasonText {
         isTextView = true
         realLayout = view.node.computedLayout
-        hasWidthConstraint = view.node.style.size.width != .Auto
-        hasHeightConstraint = view.node.style.size.height != .Auto
+        let styleSize = view.node.style.size
+        hasWidthConstraint = styleSize.width != .Auto
+        hasHeightConstraint = styleSize.height != .Auto
       }
       
       let widthIsNan = realLayout.width.isNaN
@@ -968,9 +1004,15 @@ class MasonElementHelpers: NSObject {
       if(isTextView){
         // Only grow past the resolved size for overflow:visible content. With
         // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
-        let overflow = node.style.overflow
+        let overflow = nodeOverflow
         if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
-          width = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+          var grown = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+          // Rust measures the runs as one line; wrapping text only overflows by
+          // what CoreText can't break (a long word).
+          if let textView = view as? MasonText, textView.engine.canWrap {
+            grown = min(grown, max(width, textView.engine.widestWrappedLine(at: width)))
+          }
+          width = grown
         }
 
         if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
@@ -981,7 +1023,7 @@ class MasonElementHelpers: NSObject {
       // Foreign (non-Mason) leaf with an empty auto-sized axis: remeasure via
       // sizeThatFits (a plain UIKit call, safe mid-compute) in case a nested
       // Mason root inside it hasn't laid itself out yet on this first pass.
-      if !(view is MasonElement) {
+      if !MasonViewKind.isElement(view) {
         let styleSize = node.style.size
         let fallbackWidth = width <= 0 && styleSize.width == .Auto
         let fallbackHeight = height <= 0 && styleSize.height == .Auto
@@ -996,7 +1038,7 @@ class MasonElementHelpers: NSObject {
           if fallbackHeight { height = fitted.height }
           if width != assignedWidth || height != assignedHeight {
             node.markDirty()
-            if let rootElement = node.getRootNode().view as? MasonElement {
+            if let rootElement = MasonViewKind.element(node.getRootNode().view) {
               rootElement.computeCacheDirty = true
               rootElement.requestLayout()
             }
@@ -1040,7 +1082,7 @@ class MasonElementHelpers: NSObject {
       // superview so content can overflow it and scrolling engages. Only roots
       // self-size; nested nodes keep their Mason-computed frame.
       if let mv = view as? MasonUIView, mv.isScrollContainer,
-         !(view.superview is MasonElement),
+         !MasonViewKind.isElement(view.superview),
          let avail = view.superview?.bounds.size,
          avail.width > 0, avail.height > 0 {
         if newFrame.size.height > avail.height { newFrame.size.height = avail.height }
@@ -1082,7 +1124,7 @@ class MasonElementHelpers: NSObject {
       // Clipping per the CSS overflow spec: Hidden/Scroll/Clip always clip the
       // axis, Auto clips only on overflow, Visible never. Border-radius always
       // clips children to the rounded rect regardless of overflow.
-      let overflow = node.style.overflow
+      let overflow = nodeOverflow
       // Scroll container: default `visible` acts as `auto` on the Y axis only;
       // horizontal stays visible to avoid surprise sideways scrolling.
       let _isScrollContainer = (node.view as? MasonUIView)?.isScrollContainer ?? false
@@ -1095,25 +1137,31 @@ class MasonElementHelpers: NSObject {
       let borderRender = node.style.mBorderRender
       borderRender.resolve(for: view.bounds)
       let hasRadii = borderRender.hasRadii()
+      // Mask paths are viewport-local; the mask layer sits at bounds.origin so it follows scrolling.
+      let localBounds = CGRect(origin: .zero, size: view.bounds.size)
 
       // Never touch clipsToBounds on UIScrollView here: changing it during
       // layoutSubviews corrupts UIKit's gesture graph (UIGestureGraphEdge
       // assertions). It's fixed to true at init.
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
       if view is UIScrollView {
         // Nothing to do — clipping is fixed at init time.
       } else if clipX && clipY {
         // Both axes clip — use clipsToBounds (+ border-radius mask if needed)
         view.clipsToBounds = true
         if hasRadii {
-          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
+          let clipPath = borderRender.getClipPath(rect: localBounds, radius: borderRender.radius)
           let newCGPath = clipPath.cgPath
           if let existing = view.layer.mask as? CAShapeLayer {
             if existing.path == nil || existing.path!.boundingBoxOfPath != newCGPath.boundingBoxOfPath {
               existing.path = newCGPath
             }
+            existing.frame = view.bounds
           } else {
             let maskLayer = CAShapeLayer()
             maskLayer.path = newCGPath
+            maskLayer.frame = view.bounds
             view.layer.mask = maskLayer
           }
         } else if view.layer.mask != nil {
@@ -1134,17 +1182,12 @@ class MasonElementHelpers: NSObject {
           clipRect = CGRect(x: -overflowPad, y: 0, width: view.bounds.width + overflowPad * 2, height: view.bounds.height)
         }
 
-        if hasRadii {
-          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
-          let newCGPath = clipPath.cgPath
-          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
-          maskLayer.path = newCGPath
-          view.layer.mask = maskLayer
-        } else {
-          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
-          maskLayer.path = UIBezierPath(rect: clipRect).cgPath
-          view.layer.mask = maskLayer
-        }
+        let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
+        maskLayer.path = hasRadii
+          ? borderRender.getClipPath(rect: localBounds, radius: borderRender.radius).cgPath
+          : UIBezierPath(rect: clipRect).cgPath
+        maskLayer.frame = view.bounds
+        view.layer.mask = maskLayer
       } else {
         // Overflow visible: border-radius alone doesn't clip children (only the
         // element's own bg/border are rounded, drawn in draw()). A mask here would
@@ -1154,11 +1197,12 @@ class MasonElementHelpers: NSObject {
           view.layer.mask = nil
         }
       }
-      
+      CATransaction.commit()
+
       node.isLayoutValid = true
       
       // Compute content size for any scrollable view (Scroll or MasonUIView).
-      let _overflow = node.style.overflow
+      let _overflow = nodeOverflow
       let _ox = _overflow.x
       let _oy: Overflow = (_overflow.y == .Visible && _isScrollContainer) ? .Auto : _overflow.y
       let _hasScrollOverflow = _ox == .Scroll || _ox == .Auto
@@ -1211,6 +1255,7 @@ class MasonElementHelpers: NSObject {
       // Only children with nativePtr, matching Rust layout tree order. Keep
       // flattened text containers so indices stay aligned with childLayouts.
       let children = node.children.filter { $0.nativePtr != nil }
+      let parentText = MasonViewKind.textContainer(node.view)
 
       let count = min(children.count, childLayouts.count)
       // Sweep orphaned outset-shadow layers (safety net for missed per-child
@@ -1223,8 +1268,8 @@ class MasonElementHelpers: NSObject {
         }
 
         // Skip flattened text containers — parent draws their text
-        if child.parent?.view is TextContainer && child.view is TextContainer {
-          if (child.parent!.view as! TextContainer).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
+        if let parentText = parentText, let childText = MasonViewKind.textContainer(child.view) {
+          if parentText.engine.shouldFlattenTextContainer(childText) {
             child.view?.frame = .zero
             continue
           }
@@ -1241,7 +1286,7 @@ class MasonElementHelpers: NSObject {
   /// Remove outset-shadow sublayers in `container` whose owner is no longer a
   /// direct child (or whose style was freed). Safety net for per-child cleanup.
   internal static func reconcileShadowLayers(_ container: UIView?) {
-    guard let container = container, let sublayers = container.layer.sublayers else { return }
+    guard MasonShadowLayer.anyCreated, let container = container, let sublayers = container.layer.sublayers else { return }
     for layer in sublayers {
       guard let shadow = layer as? MasonShadowLayer else { continue }
       let ownerView = shadow.masonStyle?.node.view
@@ -1292,5 +1337,43 @@ class MasonElementHelpers: NSObject {
         setIfNeeded(\.showsHorizontalScrollIndicator, on: scroll, to: false)
       }
     }
+  }
+}
+
+/// Class-keyed answers to "is this a MasonElement / TextContainer". Both refine
+/// NSObjectProtocol, so a plain `is`/`as?` walks the ObjC protocol list each time.
+/// Main-thread only, like the layout that calls it.
+internal enum MasonViewKind {
+  private static var cache: [ObjectIdentifier: UInt8] = [:]
+  private static let elementBit: UInt8 = 1
+  private static let textBit: UInt8 = 2
+
+  @inline(__always)
+  private static func bits(_ obj: AnyObject) -> UInt8 {
+    let key = ObjectIdentifier(type(of: obj))
+    if let b = cache[key] { return b }
+    var b: UInt8 = 0
+    if obj is MasonElement { b |= elementBit }
+    if obj is TextContainer { b |= textBit }
+    cache[key] = b
+    return b
+  }
+
+  static func isElement(_ obj: AnyObject?) -> Bool {
+    guard let obj = obj else { return false }
+    return bits(obj) & elementBit != 0
+  }
+
+  static func element(_ obj: AnyObject?) -> MasonElement? {
+    guard let obj = obj, bits(obj) & elementBit != 0 else { return nil }
+    return obj as? MasonElement
+  }
+
+  static func textContainer(_ obj: AnyObject?) -> TextContainer? {
+    guard let obj = obj, bits(obj) & textBit != 0 else { return nil }
+    // Only these two conform; a class cast skips the protocol walk.
+    if let text = obj as? MasonText { return text }
+    if let button = obj as? Button { return button }
+    return obj as? TextContainer
   }
 }

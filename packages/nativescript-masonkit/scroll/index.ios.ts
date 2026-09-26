@@ -48,58 +48,10 @@ export class Scroll extends ViewBase {
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-    // @ts-ignore
-    const parentLayout = this._view.node.computedLayout;
-    const children = parentLayout.children;
-    let i = 0;
-    if (children.count === 0) {
-      return;
-    }
-
-    for (const child of this._viewChildren) {
-      const childLayout = children.objectAtIndex(i);
-      const x = childLayout.x;
-      const y = childLayout.y;
-      const w = childLayout.width;
-      const h = childLayout.height;
-
-      const isMason = !!child[isMasonView_];
-
-      if (isMason) {
-        const childNode = (child as any).ios?.node;
-        if (childNode?.isLayoutValid) {
-          childNode.isLayoutValid = false;
-          (child as any).layout(x, y, x + w, y + h, false);
-          i++;
-          continue;
-        }
-        (child as any).layout(x, y, x + w, y + h, false);
-      } else {
-        // Non-Mason child: NativeScript sets the frame to keep its state correct.
-        (child as any).layout(x, y, x + w, y + h, true);
-      }
-      i++;
-    }
-  }
-
-  private _measureChildren(layout) {
-    const children = layout.children;
-    let i = 0;
-    if (children.count === 0) {
-      return;
-    }
-
-    for (const child of this._viewChildren) {
-      layout = children.objectAtIndex(i);
-      const w = layout.width;
-      const h = layout.height;
-
-      // Measure the child so NativeScript's layout system is satisfied
-      const wSpec = Utils.layout.makeMeasureSpec(w, Utils.layout.EXACTLY);
-      const hSpec = Utils.layout.makeMeasureSpec(h, Utils.layout.EXACTLY);
-      View.measureChild(this as never, child as never, wSpec, hSpec);
-
-      i++;
+    // Mason descendants were placed by the native compute; only a root's
+    // non-Mason views still need core's layout.
+    if (!this._masonPlacedNatively) {
+      this._masonLayoutForeignDescendants();
     }
   }
 
@@ -147,8 +99,6 @@ export class Scroll extends ViewBase {
 
           this.setMeasuredDimension(w, h);
 
-          this._measureChildren(layout);
-
           return;
         } else {
           // unconstrained or explicit size – fall back to max-content
@@ -166,8 +116,6 @@ export class Scroll extends ViewBase {
           // this.eachLayoutChild((child) => {
           //   ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
           // });
-
-          this._measureChildren(layout);
         }
       } else {
         // @ts-ignore
@@ -175,8 +123,6 @@ export class Scroll extends ViewBase {
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
         this.setMeasuredDimension(w, h);
-
-        this._measureChildren(layout);
       }
     }
   }
@@ -196,6 +142,7 @@ export class Scroll extends ViewBase {
         nativeView.mason_addChildAtElement(child.ios, index);
       } else {
         nativeView.addViewAt(child.nativeViewProtected, index);
+        this._masonMeasureForeign(child);
       }
       return true;
     }
@@ -209,7 +156,6 @@ export class Scroll extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    view[isMasonView_] = false;
     // Inverse of `_addViewToNativeVisualTree` — unlink the mason node so
     // removal detaches the Rust node + native view rather than orphaning it.
     const nativeView = this._view as any;

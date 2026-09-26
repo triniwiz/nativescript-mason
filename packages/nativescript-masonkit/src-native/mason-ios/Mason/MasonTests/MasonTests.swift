@@ -28,6 +28,11 @@ final class MasonTests: XCTestCase {
 
   // MARK: - View Creation Tests
 
+  func test_gradientStopWithTwoPositionsBecomesTwoStops() {
+    let gradient = parseGradient("linear-gradient(to right, blue, rgb(0, 0, 255) 10% 30%, green 40%)")
+    XCTAssertEqual(gradient?.stops, ["blue", "rgb(0, 0, 255) 10%", "rgb(0, 0, 255) 30%", "green 40%"])
+  }
+
   func test_createSimpleView() {
     let view = MasonUIView(mason: mason)
     XCTAssertNotNil(view.node.nativePtr)

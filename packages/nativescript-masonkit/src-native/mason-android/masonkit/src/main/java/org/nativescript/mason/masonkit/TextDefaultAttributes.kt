@@ -45,6 +45,7 @@ data class TextDefaultAttributes(
     decorationLine = style.resolvedDecorationLine
     decorationColor = style.resolvedDecorationColor
     decorationStyle = style.resolvedDecorationStyle
+    decorationThickness = style.resolvedDecorationThickness
     letterSpacing = style.resolvedLetterSpacing
     lineHeight = style.resolvedLineHeight
     lineHeightType = style.resolvedLineHeightType
@@ -84,6 +85,7 @@ data class TextDefaultAttributes(
     decorationLine = attributes.decorationLine
     decorationColor = attributes.decorationColor
     decorationStyle = attributes.decorationStyle
+    decorationThickness = attributes.decorationThickness
     letterSpacing = attributes.letterSpacing
     lineHeight = attributes.lineHeight
     lineHeightType = attributes.lineHeightType
@@ -131,6 +133,7 @@ data class TextDefaultAttributes(
           else -> android.text.Layout.Alignment.ALIGN_NORMAL
         },
         style.verticalAlign,
+        decorationThickness = style.resolvedDecorationThickness,
         textShadow = style.resolvedTextShadow
       )
     }

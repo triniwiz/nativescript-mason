@@ -1,45 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { Style as CoreStyle } from '@nativescript/core/ui/styling/style';
 import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
-import { styleUnderTest } from '../../tools/testing/mason-test-kit/style-under-test';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
-import { isMasonView_ } from './symbols';
+import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { setCssUnitContext } from './units';
 import { installMasonSizeUnits } from './properties';
+import { toCamelCase } from './css-shorthands';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
 // its overrideHandlers() calls — which mutate @nativescript/core's own
 // properties process-wide, for every view in the app.
 import './properties';
-
-// NativeScript's WeakRef shim exposes `.get()`, and both core and masonkit call
-// it that way; the platform WeakRef only has `.deref()`.
-function nsWeakRef(view: unknown) {
-  return { get: () => view, deref: () => view, clear() {} } as any;
-}
-
-/** Inherited properties (font-size among them) walk children, so a host needs this. */
-function viewShape(extra: Record<PropertyKey, unknown> = {}) {
-  return { eachChild: () => {}, ...extra } as any;
-}
-
-/** A stand-in for a mason view: carries the marker and a real mason style. */
-function masonHost() {
-  const under = styleUnderTest();
-  const view: any = viewShape({ [isMasonView_]: true, _styleHelper: under.style });
-  const style = new CoreStyle(nsWeakRef(view));
-  view.style = style;
-  return { under, style };
-}
-
-/** A stand-in for a plain NativeScript view: no marker, no mason style. */
-function coreHost() {
-  const view: any = viewShape();
-  const style = new CoreStyle(nsWeakRef(view));
-  view.style = style;
-  return { view, style };
-}
 
 describe('the .css stylesheet path reaches the mason style buffer', () => {
   // This is the path a real stylesheet takes: core's CssState assigns by CSS
@@ -156,11 +127,72 @@ describe('aspect-ratio accepts the shapes CSS does', () => {
 describe('every CSS name mason claims is actually registered', () => {
   const registered = new Map<string, string>();
   for (const property of _getStyleProperties() as any[]) {
-    if (property.cssName) registered.set(property.cssName.replace(/^css:/, ''), property.name);
+    if (property.cssName && property.registered) registered.set(property.cssName.replace(/^css:/, ''), property.name);
   }
 
   // A sample of the surface that "paste web CSS" depends on most.
-  const EXPECTED = ['display', 'position', 'overflow', 'box-sizing', 'aspect-ratio', 'flex-direction', 'flex-wrap', 'flex-basis', 'align-items', 'align-self', 'align-content', 'justify-content', 'justify-items', 'justify-self', 'gap', 'row-gap', 'column-gap', 'grid-template-columns', 'grid-template-rows', 'grid-template-areas', 'grid-area', 'grid-column', 'grid-row', 'inset', 'top', 'right', 'bottom', 'left', 'max-width', 'max-height', 'padding', 'margin', 'border', 'border-radius', 'box-shadow', 'transform', 'filter', 'list-style-type', 'font-family', 'white-space', 'object-fit', 'text-justify', 'text-decoration-thickness', 'background-position', 'background-size', 'background-repeat', 'backdrop-filter', 'word-spacing', 'hyphens', 'caret-color'];
+  const EXPECTED = [
+    'display',
+    'position',
+    'overflow',
+    'box-sizing',
+    'aspect-ratio',
+    'flex-direction',
+    'flex-wrap',
+    'flex-basis',
+    'align-items',
+    'align-self',
+    'align-content',
+    'justify-content',
+    'justify-items',
+    'justify-self',
+    'gap',
+    'row-gap',
+    'column-gap',
+    'grid-template-columns',
+    'grid-template-rows',
+    'grid-template-areas',
+    'grid-area',
+    'grid-column',
+    'grid-row',
+    'inset',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'max-width',
+    'max-height',
+    'padding',
+    'margin',
+    'border',
+    'border-radius',
+    'box-shadow',
+    'transform',
+    'filter',
+    'list-style-type',
+    'font-family',
+    'white-space',
+    'object-fit',
+    'text-justify',
+    'text-decoration-thickness',
+    'background-position',
+    'background-size',
+    'background-repeat',
+    'backdrop-filter',
+    'word-spacing',
+    'hyphens',
+    'caret-color',
+    'background-clip',
+    'background-origin',
+    'background-attachment',
+    'background-blend-mode',
+    'background-position-x',
+    'background-position-y',
+    'text-decoration',
+    'text-decoration-line',
+    'text-decoration-style',
+    'text-decoration-color',
+  ];
 
   it.each(EXPECTED)('%s', (cssName) => {
     expect(registered.has(cssName), `no CssProperty registered for "${cssName}"`).toBe(true);
@@ -178,7 +210,7 @@ describe('every CSS name mason claims is actually registered', () => {
   it('registers no unexpected duplicate CSS name', () => {
     const seen = new Map<string, number>();
     for (const property of _getStyleProperties() as any[]) {
-      if (!property.cssName) continue;
+      if (!property.cssName || !property.registered) continue;
       const name = property.cssName.replace(/^css:/, '');
       seen.set(name, (seen.get(name) ?? 0) + 1);
     }
@@ -207,7 +239,7 @@ describe('plain NativeScript views keep core semantics', () => {
     }).not.toThrow();
     // Core's converters map a keyword onto its own enum value; the giveaway that
     // the mason passthrough leaked would be the raw string surviving.
-    const read = (style as any)[cssName.replace(/-([a-z])/g, (_m: string, c: string) => c.toUpperCase())];
+    const read = (style as any)[toCamelCase(cssName)];
     expect(read).not.toBe(undefined);
   });
 
@@ -216,6 +248,22 @@ describe('plain NativeScript views keep core semantics', () => {
     const { style } = coreHost();
     (style as any)['font-size'] = '20px';
     expect(typeof (style as any).fontSize).toBe('number');
+  });
+
+  it('text-decoration keeps core validation on a non-mason view', () => {
+    const { style } = coreHost();
+    (style as any)['text-decoration'] = 'underline line-through';
+    expect((style as any).textDecoration).toBe('underline line-through');
+    expect(() => {
+      (style as any)['text-decoration'] = 'overline wavy red';
+    }).toThrow();
+  });
+
+  it('text-decoration reaches a mason view as the raw shorthand', () => {
+    const { style } = masonHost();
+    (style as any)['text-decoration'] = 'underline overline dotted #f00 2px';
+    // Core used to reject everything past underline/line-through here.
+    expect((style as any).textDecoration).toBe('underline overline dotted #f00 2px');
   });
 
   it('font-size on a mason view is left for mason to parse', () => {

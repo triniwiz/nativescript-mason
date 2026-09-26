@@ -1,0 +1,53 @@
+name: PR
+
+# Everything here runs on a plain ubuntu runner with no device and no browser
+# download. The rule this encodes: a unit or parsing bug has to fail here, before
+# it is allowed to reach the device suite.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  style-keys:
+    name: StyleKeys offsets agree (4 languages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No dependencies needed: the drift check is plain Node over the sources.
+      - run: node tools/scripts/style-keys/check-drift.mjs
+
+  ts-unit:
+    name: TypeScript CSS value layer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: JSX intrinsics match the element registry
+        run: npm run test:jsx-types
+      - name: Typecheck the plugin
+        run: npx tsc -p packages/nativescript-masonkit/tsconfig.json --noEmit
+
+  rust:
+    name: mason-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo test -p mason-core --all-targets

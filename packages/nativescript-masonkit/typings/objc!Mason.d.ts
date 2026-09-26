@@ -352,6 +352,7 @@ declare const enum MasonClear {
 	Both = 3
 }
 
+// ObjC values follow case order; the style buffer stores the bit set (see Enums.swift).
 declare const enum MasonDecorationLine {
 
 	None = 0,
@@ -360,7 +361,19 @@ declare const enum MasonDecorationLine {
 
 	Overline = 2,
 
-	LineThrough = 3
+	UnderlineOverline = 3,
+
+	LineThrough = 4,
+
+	UnderlineLineThrough = 5,
+
+	OverlineLineThrough = 6,
+
+	UnderlineOverlineLineThrough = 7,
+
+	SpellingError = 8,
+
+	GrammarError = 9
 }
 
 declare const enum MasonDecorationStyle {
@@ -2070,6 +2083,24 @@ declare class MasonStyle extends NSObject {
 	background: string;
 
 	backgroundClip: string;
+
+	backgroundOrigin: string;
+
+	backgroundAttachment: string;
+
+	backgroundBlendMode: string;
+
+	backgroundPositionX: string;
+
+	backgroundPositionY: string;
+
+	textDecorationLine: string;
+
+	textDecorationStyle: string;
+
+	textDecorationColor: string;
+
+	decorationThickness: number;
 
 	backgroundColor: number;
 

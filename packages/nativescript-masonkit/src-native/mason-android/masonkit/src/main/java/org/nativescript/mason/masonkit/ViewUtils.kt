@@ -114,6 +114,14 @@ class ViewUtils {
         return
       }
 
+      // A scrolled container draws in content coordinates; its own box (backdrop,
+      // background, inset shadow, border) stays with the viewport. TextArea
+      // compensates for its own scroll before calling in.
+      val boxDx = if (view is TextArea) 0f else view.scrollX.toFloat()
+      val boxDy = if (view is TextArea) 0f else view.scrollY.toFloat()
+      val boxSave = canvas.save()
+      if (boxDx != 0f || boxDy != 0f) canvas.translate(boxDx, boxDy)
+
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         style.mBackdropHelper?.let { helper ->
           val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
@@ -128,38 +136,53 @@ class ViewUtils {
 
       // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
-        canvas.withSave {
-          val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
-          if (!outerPath.isEmpty) {
-            canvas.clipPath(outerPath)
-          }
-
-          style.mBackground?.let { background ->
-            // If background is a single solid color with no layers, draw the rounded
-            // shape directly into the canvas to avoid clipPath reuse/antialias interaction.
-            if (background.color != null && background.layers.isEmpty()) {
-              val color = background.color!!
-              background.bgPaint.color = color
-              background.bgPaint.style = android.graphics.Paint.Style.FILL
-              if (!outerPath.isEmpty) {
-                canvas.drawPath(outerPath, background.bgPaint)
-              } else {
-                canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-              }
-            } else {
-              background.color?.let { color ->
-                background.bgPaint.color = color
-                canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-              }
-
-              // Reverse so the first layer in the list is drawn on top.
-              background.layers.asReversed().forEach { layer ->
-                canvas.withSave {
-                  // pass measured bounds so clip uses the real size instead of the
-                  // potentially-zero computedWidth/Height stored on the node
-                  Style.applyClip(canvas, layer.clip, style, width, height)
-                  drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
+        style.mBackground?.let { background ->
+          if (background.color != null && background.layers.isEmpty()) {
+            background.bgPaint.color = background.color!!
+            background.bgPaint.style = android.graphics.Paint.Style.FILL
+            val r = style.mBorderRenderer.uniformRadius(width, height)
+            when {
+              r == 0f -> canvas.drawRect(0f, 0f, width, height, background.bgPaint)
+              r > 0f -> canvas.drawRoundRect(0f, 0f, width, height, r, r, background.bgPaint)
+              else -> {
+                val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
+                if (!outerPath.isEmpty) {
+                  canvas.drawPath(outerPath, background.bgPaint)
+                } else {
+                  canvas.drawRect(0f, 0f, width, height, background.bgPaint)
                 }
+              }
+            }
+          } else canvas.withSave {
+            // Blend modes composite within the element's own background group.
+            val blends = background.layers.any { it.blendMode != BackgroundBlendMode.NORMAL }
+            if (blends) canvas.saveLayer(0f, 0f, width, height, null)
+            val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
+            if (!outerPath.isEmpty) {
+              canvas.clipPath(outerPath)
+            }
+            background.color?.let { color ->
+              background.bgPaint.color = color
+              canvas.drawRect(0f, 0f, width, height, background.bgPaint)
+            }
+
+            // Reverse so the first layer in the list is drawn on top.
+            background.layers.asReversed().forEach { layer ->
+              canvas.withSave {
+                // pass measured bounds so clip uses the real size instead of the
+                // potentially-zero computedWidth/Height stored on the node
+                Style.applyClip(canvas, layer.clip, style, width, height)
+                val area = Background.positioningArea(layer, view, style.node, width, height)
+                val paintRect = if (layer.attachment == BackgroundAttachment.LOCAL) {
+                  // `local` layers scroll with the content across the whole scrollable box.
+                  canvas.translate(-boxDx, -boxDy)
+                  val content = Background.localContentSize(view, width, height)
+                  android.graphics.RectF(0f, 0f, content.first, content.second)
+                } else {
+                  android.graphics.RectF(0f, 0f, width, height)
+                }
+                if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
+                drawBackground(view.context, view, layer, canvas, paintRect, area)
               }
             }
           }
@@ -181,6 +204,7 @@ class ViewUtils {
       if (!ignoreBorder) {
         style.mBorderRenderer.draw(canvas, width, height)
       }
+      canvas.restoreToCount(boxSave)
 
       // Children's outset box-shadows: drawn after this view's own background and
       // border so an opaque parent background can't paint over them, but before the
@@ -212,7 +236,7 @@ class ViewUtils {
         val cy = when (oy) { 1, 2, 3 -> true; 4 -> style.node.overflowHeight.toFloat() > height; else -> false }
         cx || cy
       } else false
-      canvas.withSave {
+      val drawContent = {
         if (hasRadii && overflowClipsContent) {
           val innerPath = style.mBorderRenderer.getClipPath(width, height)
           canvas.clipPath(innerPath)
@@ -244,12 +268,19 @@ class ViewUtils {
           superDraw(canvas)
         }
       }
+      val filterRenders = style.mFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
+      if (overflowClipsContent || filterRenders || !style.isValueInitialized) {
+        canvas.withSave { drawContent() }
+      } else {
+        drawContent()
+      }
 
       // Fast-path filter (e.g. brightness on :active) applied AFTER all
       // drawing so it covers background, text, and border uniformly.
       // Clip to border-radius so the overlay follows the element shape.
       if (useFastFilter) {
         canvas.withSave {
+          if (boxDx != 0f || boxDy != 0f) canvas.translate(boxDx, boxDy)
           if (hasRadii) {
             canvas.clipPath(style.mBorderRenderer.getOuterClipPath(width, height))
           }

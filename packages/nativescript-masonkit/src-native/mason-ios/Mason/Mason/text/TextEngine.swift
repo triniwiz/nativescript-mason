@@ -177,6 +177,7 @@ public class TextEngine: NSObject {
       || state.contains(.decorationLine)
       || state.contains(.decorationColor)
       || state.contains(.decorationStyle)
+      || state.contains(.decorationThinkness)
       || state.contains(.backgroundColor)
       || state.contains(.textShadow)
     )
@@ -248,39 +249,71 @@ public class TextEngine: NSObject {
     return result
   }
   
-  private static func desiredWidth(_ text: NSAttributedString) -> CGFloat {
+  fileprivate static func desiredWidth(_ text: NSAttributedString) -> CGFloat {
     let line = CTLineCreateWithAttributedString(text)
     let width = CTLineGetTypographicBounds(line, nil, nil, nil)
     return ceil(width)
   }
 
   internal static func minContentWidth(for text: NSAttributedString) -> CGFloat {
-    // Single-pass: measure each segment between soft wrap opportunities
-    // without creating an intermediate [NSAttributedString] array.
-    var maxWidth: CGFloat = 0
     let nsText = text.string as NSString
-    let fullRange = NSRange(location: 0, length: nsText.length)
-    var lastLocation = 0
+    let length = nsText.length
+    let matches = softWrapRegex.matches(in: text.string, range: NSRange(location: 0, length: length))
+    if matches.isEmpty { return desiredWidth(text) }
 
-    let matches = softWrapRegex.matches(in: text.string, range: fullRange)
-    for match in matches {
-      let r = match.range
-      if r.location > lastLocation {
-        let sub = text.attributedSubstring(from: NSRange(location: lastLocation, length: r.location - lastLocation))
-        maxWidth = max(maxWidth, desiredWidth(sub))
+    // One line for the whole string: a word's width is the caret distance across
+    // it. Mixed-direction text has no such distance, so it measures word by word.
+    let line = CTLineCreateWithAttributedString(text)
+    let runs = CTLineGetGlyphRuns(line) as NSArray
+    let hasRTL = runs.contains { CTRunGetStatus($0 as! CTRun).contains(.rightToLeft) }
+
+    var maxWidth: CGFloat = 0
+    func word(_ start: Int, _ end: Int) {
+      guard end > start else { return }
+      let width: CGFloat
+      if hasRTL {
+        width = desiredWidth(text.attributedSubstring(from: NSRange(location: start, length: end - start)))
+      } else {
+        width = ceil(abs(CTLineGetOffsetForStringIndex(line, end, nil) - CTLineGetOffsetForStringIndex(line, start, nil)))
       }
-      lastLocation = r.location + r.length
+      maxWidth = max(maxWidth, width)
     }
-    if lastLocation < nsText.length {
-      let sub = text.attributedSubstring(from: NSRange(location: lastLocation, length: nsText.length - lastLocation))
-      maxWidth = max(maxWidth, desiredWidth(sub))
+    var last = 0
+    for match in matches {
+      word(last, match.range.location)
+      last = match.range.location + match.range.length
     }
+    word(last, length)
 
     if maxWidth == 0, text.length > 0 {
       return desiredWidth(text)
     }
-
     return maxWidth
+  }
+
+  // Intrinsic widths of the current content, valid for one invalidate version.
+  private var intrinsicVersion: UInt64 = .max
+  private var intrinsicMin: CGFloat = -1
+  private var intrinsicMax: CGFloat = -1
+
+  private func syncIntrinsicVersion() {
+    if intrinsicVersion != segmentsInvalidateVersion {
+      intrinsicVersion = segmentsInvalidateVersion
+      intrinsicMin = -1
+      intrinsicMax = -1
+    }
+  }
+
+  fileprivate func minContent(_ text: NSAttributedString) -> CGFloat {
+    syncIntrinsicVersion()
+    if intrinsicMin < 0 { intrinsicMin = TextEngine.minContentWidth(for: text) }
+    return intrinsicMin
+  }
+
+  fileprivate func maxContent(_ text: NSAttributedString) -> CGFloat {
+    syncIntrinsicVersion()
+    if intrinsicMax < 0 { intrinsicMax = TextEngine.desiredWidth(text) }
+    return intrinsicMax
   }
 
   internal static func inlineChildBaselineFromBottom(
@@ -321,6 +354,30 @@ public class TextEngine: NSObject {
   // MARK: - Measurement
   
   static func measure(_ engine: TextEngine, _ isInLine: Bool, isBlock: Bool = false, _ known: CGSize?, _ available: CGSize) -> CGSize {
+    if let known = known, (!isInLine || isBlock), !known.width.isNaN, known.width >= 0, !known.height.isNaN, known.height >= 0 {
+      return known
+    }
+    let text = engine.buildAttributedString(forMeasurement: true)
+    // Text measurement is a pure function of the string, its attributes and the
+    // constraints, so a text another view already measured is answered from the
+    // shared cache. Inline views and floats depend on other nodes: never cached.
+    guard let key = TextLayoutCache.key(for: engine, text: text, isInLine: isInLine, isBlock: isBlock, known: known, available: available) else {
+      return measureUncached(engine, isInLine, isBlock: isBlock, known, available)
+    }
+    let defaultFont = engine.node.getDefaultAttributes()[.font] as AnyObject?
+    if let hit = TextLayoutCache.shared.lookup(key, text: text, font: defaultFont) {
+      engine.applyCachedLayout(hit)
+      return hit.size
+    }
+    engine.lastBuiltSegments = nil
+    let size = measureUncached(engine, isInLine, isBlock: isBlock, known, available)
+    if let segments = engine.lastBuiltSegments {
+      TextLayoutCache.shared.store(key, TextLayoutCache.Entry(text: text, font: defaultFont, size: size, segments: segments, constraint: engine.lastSegmentsConstraintSize))
+    }
+    return size
+  }
+
+  static func measureUncached(_ engine: TextEngine, _ isInLine: Bool, isBlock: Bool = false, _ known: CGSize?, _ available: CGSize) -> CGSize {
     // Build attributed string with measurement flag
     let text = engine.buildAttributedString(forMeasurement: true)
     
@@ -360,11 +417,11 @@ public class TextEngine: NSObject {
     
     if(maxWidth == CGFloat.greatestFiniteMagnitude){
       if(available.width == -1){
-        maxWidth = minContentWidth(for: text)
+        maxWidth = engine.minContent(text)
       }
       
       if (available.width == -2){
-        maxWidth = desiredWidth(text)
+        maxWidth = engine.maxContent(text)
       }
     }
     
@@ -491,12 +548,15 @@ public class TextEngine: NSObject {
     
     
     // CoreText single-line bounds are tight (~1.0× font size); CSS `line-height:
-    // normal` expects ~1.2×. Floor to that so a single line matches the web/Android
-    // box. Multi-line already exceeds 1.2×, so max() leaves it untouched.
-    if !isInLine && size.height > 0,
+    // normal` is the font's ascent+descent+leading. Floor to it so the descenders
+    // fit; block text also keeps its ~1.2× web/Android box. Multi-line already exceeds it.
+    let lineHeightIsNormal = engine.node.style.resolvedLineHeight <= 0
+    if (!isInLine || lineHeightIsNormal) && size.height > 0,
        let fv = engine.node.getDefaultAttributes()[.font],
        CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
-      let normalLineHeight = CTFontGetSize(fv as! CTFont) * 1.2
+      let font = fv as! CTFont
+      let natural = CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
+      let normalLineHeight = isInLine ? natural : max(natural, CTFontGetSize(font) * 1.2)
       if normalLineHeight > size.height { size.height = normalLineHeight }
     }
 
@@ -558,7 +618,26 @@ public class TextEngine: NSObject {
   // the way Android's cached StaticLayout instance does — this pair is the
   // narrowest substitute.
   private var lastSegmentsVersion: UInt64 = UInt64.max
-  private var lastSegmentsConstraintSize = CGSize(width: -1, height: -1)
+  fileprivate var lastSegmentsConstraintSize = CGSize(width: -1, height: -1)
+  // Text-only segments the last collectAndCacheSegments built, for the layout cache.
+  fileprivate var lastBuiltSegments: [CMasonSegment]?
+
+  /// Adopt a cached measurement: push its segments to Rust as a fresh measure would.
+  fileprivate func applyCachedLayout(_ entry: TextLayoutCache.Entry) {
+    if !(lastSegmentsVersion == segmentsInvalidateVersion && lastSegmentsConstraintSize == entry.constraint), let ptr = node.nativePtr {
+      if entry.segments.isEmpty {
+        mason_node_clear_segments(node.mason.nativePtr, ptr)
+      } else {
+        var segments = entry.segments
+        mason_node_set_segments(node.mason.nativePtr, ptr, &segments, UInt(segments.count))
+      }
+    }
+    attributedStringVersion = segmentsInvalidateVersion
+    lastSegmentsVersion = segmentsInvalidateVersion
+    lastSegmentsConstraintSize = entry.constraint
+    node.cachedWidth = entry.size.width
+    node.cachedHeight = entry.size.height
+  }
 
   private func currentFontMetrics() -> FontMetrics {
     let metrics = style.fontMetrics
@@ -620,16 +699,15 @@ public class TextEngine: NSObject {
       return true
     }
     
-    // Check for view-like properties that require inline-block behavior
-    let hasBackground: Bool = {
-      // Consider CSS `background` (string) as a visual background too
+    // A background image/gradient needs a real box; a plain color is painted per
+    // run when flattened, like an inline box's background on the web (and Android).
+    let hasBackgroundImage: Bool = {
       let bgString = container.node.style.background.trimmingCharacters(in: .whitespacesAndNewlines)
       if !bgString.isEmpty { return true }
-
-      if container.node.style.backgroundColor != 0 { return true }
       if let alpha = container.node.view?.backgroundColor?.cgColor.alpha, alpha > 0 { return true }
       return false
     }()
+    let hasBackground = hasBackgroundImage || container.node.style.backgroundColor != 0
 
     let border = style.mBorderRender
     // Check configured per-side widths (shorthand parsing sets these)
@@ -667,7 +745,7 @@ public class TextEngine: NSObject {
     }
 
     // For general containers: if it has any view properties, treat as inline-block
-    if hasBackground || hasBorder || hasPadding || hasExplicitSize {
+    if hasBackgroundImage || hasBorder || hasPadding || hasExplicitSize {
       return false
     }
 
@@ -766,8 +844,10 @@ public class TextEngine: NSObject {
       let extra = max(0, drawBounds.height - (ascent + descent))
       centred = drawBounds.minY + extra / 2 + ascent
     }
+    // Keep the whole line box inside: ascent below the top, descent above the bottom.
     let ascenderGuard = drawBounds.minY + ascent
-    return max(centred, ascenderGuard) + baselineOffset
+    let descenderGuard = drawBounds.maxY - descent
+    return max(min(centred, descenderGuard), ascenderGuard) + baselineOffset
   }
 
   private func singleLineBaselineY(ascent: CGFloat, descent: CGFloat, in drawBounds: CGRect, bounds: CGRect) -> CGFloat {
@@ -776,9 +856,9 @@ public class TextEngine: NSObject {
       topBaselineY = provider.singleLineTextBaselineY(ascent: ascent, descent: descent, in: drawBounds)
     } else {
       let attrs = node.getDefaultAttributes()
-      let baselineOffset = (attrs[.baselineOffset] as? CGFloat) ?? 0
+      let baselineOffset = (attrs[NSAttributedString.Key.baselineOffset] as? CGFloat) ?? 0
       let capHeight: CGFloat = {
-        if let fv = attrs[.font], CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() { return CTFontGetCapHeight(fv as! CTFont) }
+        if let fv = attrs[NSAttributedString.Key.font], CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() { return CTFontGetCapHeight(fv as! CTFont) }
         return 0
       }()
       topBaselineY = singleLineBaselineFromTop(ascent: ascent, descent: descent, capHeight: capHeight, baselineOffset: baselineOffset, in: drawBounds)
@@ -851,6 +931,8 @@ public class TextEngine: NSObject {
       break
     }
 
+    drawInlineBackgrounds(for: drawLine, at: baselineOrigin, in: context)
+
     // Draw text shadows if any
     if !style.textShadows.isEmpty {
       for shadow in style.textShadows {
@@ -859,7 +941,7 @@ public class TextEngine: NSObject {
         context.textPosition = baselineOrigin
         let runs = CTLineGetGlyphRuns(drawLine) as? [CTRun] ?? []
         for run in runs {
-          let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
+          let attrs = CTRunGetAttributes(run) as NSDictionary
           if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
           // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
           if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
@@ -873,11 +955,11 @@ public class TextEngine: NSObject {
     let runs = CTLineGetGlyphRuns(drawLine) as? [CTRun] ?? []
     context.textPosition = baselineOrigin
     for run in runs {
-      let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
+      let attrs = CTRunGetAttributes(run) as NSDictionary
       if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
       // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
       if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
-      if let ctFont = attrs[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
+      if let ctFont = attrs[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
         let font = ctFont as! CTFont
         let traits = CTFontCopyTraits(font) as? [CFString: Any]
         let symbolicTraits = CTFontGetSymbolicTraits(font)
@@ -939,84 +1021,155 @@ public class TextEngine: NSObject {
   }
   
   
-  /// Manually draws text decorations (underline, strikethrough) for a CTLine.
-  /// CTRunDraw does not render decorations — only CTLineDraw does — but we can't
-  /// use CTLineDraw because we need to skip placeholder / BrSpan runs.
+  /// Whether this text may wrap: white-space and text-wrap allow it, or it has explicit breaks.
+  internal var canWrap: Bool {
+    guard node.style.isValueInitialized else { return true }
+    let ws = node.style.whiteSpace
+    if (ws == .Pre || ws == .NoWrap) || node.style.textWrap == .NoWrap {
+      return buildAttributedString(forMeasurement: true).string.contains("\n")
+    }
+    return true
+  }
+
+  /// Widest line, in points, when wrapped at `width`; trailing whitespace hangs.
+  internal func widestWrappedLine(at width: CGFloat) -> CGFloat {
+    let text = buildAttributedString(forMeasurement: true)
+    guard text.length > 0, width > 0 else { return 0 }
+    let setter = CTFramesetterCreateWithAttributedString(text)
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
+    let frame = CTFramesetterCreateFrame(setter, CFRange(location: 0, length: 0), path, nil)
+    var widest: CGFloat = 0
+    for line in CTFrameGetLines(frame) as? [CTLine] ?? [] {
+      let w = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      widest = max(widest, w)
+    }
+    return widest
+  }
+
+  /// Tags a flattened span's text with its background; inner spans keep their own.
+  static func withInlineBackground(_ text: NSAttributedString, _ argb: UInt32) -> NSAttributedString {
+    guard argb != 0, text.length > 0 else { return text }
+    let out = NSMutableAttributedString(attributedString: text)
+    let color = UIColor.colorFromARGB(argb).cgColor
+    out.enumerateAttribute(Constants.INLINE_BACKGROUND_KEY, in: NSRange(location: 0, length: out.length)) { value, range, _ in
+      if value == nil { out.addAttribute(Constants.INLINE_BACKGROUND_KEY, value: color, range: range) }
+    }
+    return out
+  }
+
+  /// Paints each run's inline background over the font's ascent+descent, as the
+  /// web paints an inline box's content area. Drawn before shadows and glyphs.
+  private func drawInlineBackgrounds(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
+    let runs = CTLineGetGlyphRuns(line) as NSArray
+    for case let item as AnyObject in runs {
+      let run = item as! CTRun
+      let attrs = CTRunGetAttributes(run) as NSDictionary
+      guard let value = attrs[Constants.INLINE_BACKGROUND_KEY], CFGetTypeID(value as CFTypeRef) == CGColor.typeID else { continue }
+      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil || attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+      var runAscent: CGFloat = 0
+      var runDescent: CGFloat = 0
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &runAscent, &runDescent, nil))
+      guard width > 0 else { continue }
+      var ascent = runAscent
+      var descent = runDescent
+      if let f = attrs[NSAttributedString.Key.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() {
+        ascent = CTFontGetAscent(f as! CTFont)
+        descent = CTFontGetDescent(f as! CTFont)
+      }
+      var runPosition = CGPoint.zero
+      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+      context.setFillColor(value as! CGColor)
+      context.fill(CGRect(x: lineOrigin.x + runPosition.x, y: lineOrigin.y - descent, width: width, height: ascent + descent))
+    }
+  }
+
+  /// Draws `text-decoration` for a CTLine from each run's DECORATION_KEY.
+  /// CTRunDraw renders none of them, and CTLineDraw can't skip placeholder runs.
   private func drawTextDecorations(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
-    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
-    for run in runs {
-      guard let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+    let runs = CTLineGetGlyphRuns(line) as NSArray
+    // Trailing whitespace at a soft wrap is not decorated.
+    let visibleRight = lineOrigin.x + CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+    for case let item as AnyObject in runs {
+      let run = item as! CTRun
+      let attrs = CTRunGetAttributes(run) as NSDictionary
+      guard let decoration = attrs[Constants.DECORATION_KEY] as? MasonTextDecoration else { continue }
       if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
       if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
 
-      let underlineStyleValue = attrs[.underlineStyle] as? Int ?? 0
-      let strikethruStyleValue = attrs[.strikethroughStyle] as? Int ?? 0
-
-      guard underlineStyleValue != 0 || strikethruStyleValue != 0 else { continue }
-
       var ascent: CGFloat = 0
       var descent: CGFloat = 0
-      var leading: CGFloat = 0
-      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, &leading))
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, nil))
       guard width > 0 else { continue }
-
       var runPosition = CGPoint.zero
       CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
-      let x = lineOrigin.x + runPosition.x
+      let x0 = lineOrigin.x + runPosition.x
+      let x1 = min(x0 + width, max(x0, visibleRight))
 
-      // Try to get font for metrics
-      let ctFont: CTFont? = {
-        guard let f = attrs[.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() else { return nil }
-        return (f as! CTFont)
-      }()
-
-      if underlineStyleValue != 0 {
-        let color: CGColor
-        if let ulColor = attrs[.underlineColor] as? UIColor {
-          color = ulColor.cgColor
-        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
-          color = fgColor.cgColor
-        } else {
-          color = UIColor.black.cgColor
-        }
-
-        let thickness: CGFloat
-        let y: CGFloat
-        if let font = ctFont {
-          thickness = max(CTFontGetUnderlineThickness(font), 0.5)
-          // underlinePosition is negative in CoreText (below baseline)
-          y = lineOrigin.y + CTFontGetUnderlinePosition(font)
-        } else {
-          thickness = 1.0
-          y = lineOrigin.y - descent * 0.3
-        }
-
-        context.saveGState()
-        context.setFillColor(color)
-        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
-        context.restoreGState()
+      var font: CTFont? = nil
+      if let f = attrs[NSAttributedString.Key.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() {
+        font = (f as! CTFont)
       }
+      let fontThickness = font.map { max(CTFontGetUnderlineThickness($0), 0.5) } ?? 1
+      let thickness = decoration.thickness > 0 ? decoration.thickness : fontThickness
+      // y-up CoreText space: the underline position is negative, below the baseline.
+      let underlineY = lineOrigin.y + (font.map { CTFontGetUnderlinePosition($0) } ?? -descent * 0.3)
+      let strikeY = lineOrigin.y + (font.map { CTFontGetXHeight($0) } ?? ascent * 0.5) / 2
+      let overlineY = lineOrigin.y + ascent - thickness / 2
 
-      if strikethruStyleValue != 0 {
-        let color: CGColor
-        if let stColor = attrs[.strikethroughColor] as? UIColor {
-          color = stColor.cgColor
-        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
-          color = fgColor.cgColor
-        } else {
-          color = UIColor.black.cgColor
-        }
-
-        let thickness: CGFloat = ctFont != nil ? max(CTFontGetUnderlineThickness(ctFont!), 0.5) : 1.0
-        let xHeight: CGFloat = ctFont != nil ? CTFontGetXHeight(ctFont!) : ascent * 0.5
-        let y = lineOrigin.y + xHeight / 2
-
-        context.saveGState()
-        context.setFillColor(color)
-        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
-        context.restoreGState()
+      let fallback = (attrs[NSAttributedString.Key.foregroundColor] as? UIColor) ?? .black
+      let kind = decoration.line
+      if kind.isSpellingError {
+        strokeDecoration(context, x0, x1, underlineY, thickness, .red, .Wavy)
+      } else if kind.isGrammarError {
+        strokeDecoration(context, x0, x1, underlineY, thickness, UIColor(red: 0, green: 128 / 255, blue: 0, alpha: 1), .Wavy)
+      } else {
+        let color = decoration.color ?? fallback
+        if kind.hasUnderline { strokeDecoration(context, x0, x1, underlineY, thickness, color, decoration.style) }
+        if kind.hasOverline { strokeDecoration(context, x0, x1, overlineY, thickness, color, decoration.style) }
+        if kind.hasLineThrough { strokeDecoration(context, x0, x1, strikeY, thickness, color, decoration.style) }
       }
     }
+  }
+
+  private func strokeDecoration(_ context: CGContext, _ x0: CGFloat, _ x1: CGFloat, _ y: CGFloat, _ thickness: CGFloat, _ color: UIColor, _ style: DecorationStyle) {
+    context.saveGState()
+    defer { context.restoreGState() }
+    context.setStrokeColor(color.cgColor)
+    context.setLineWidth(thickness)
+    context.setLineCap(.butt)
+    switch style {
+    case .Solid:
+      context.move(to: CGPoint(x: x0, y: y))
+      context.addLine(to: CGPoint(x: x1, y: y))
+    case .Double:
+      for dy in [-thickness, thickness] {
+        context.move(to: CGPoint(x: x0, y: y + dy))
+        context.addLine(to: CGPoint(x: x1, y: y + dy))
+      }
+    case .Dotted:
+      context.setLineCap(.round)
+      context.setLineDash(phase: 0, lengths: [0.01, thickness * 2])
+      context.move(to: CGPoint(x: x0, y: y))
+      context.addLine(to: CGPoint(x: x1, y: y))
+    case .Dashed:
+      context.setLineDash(phase: 0, lengths: [thickness * 3, thickness * 2])
+      context.move(to: CGPoint(x: x0, y: y))
+      context.addLine(to: CGPoint(x: x1, y: y))
+    case .Wavy:
+      let amplitude = max(1, thickness)
+      let half = max(2, thickness * 2)
+      context.move(to: CGPoint(x: x0, y: y))
+      var x = x0
+      var up = true
+      while x < x1 {
+        let next = min(x + half, x1)
+        let ctrlY = up ? y + amplitude * 2 : y - amplitude * 2
+        context.addQuadCurve(to: CGPoint(x: next, y: y), control: CGPoint(x: (x + next) / 2, y: ctrlY))
+        x = next
+        up = !up
+      }
+    }
+    context.strokePath()
   }
   
   
@@ -1156,6 +1309,11 @@ public class TextEngine: NSObject {
       }
     }
 
+    for i in 0..<linesCount {
+      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      drawInlineBackgrounds(for: line, at: CGPoint(x: layoutBounds.origin.x + origins[i].x, y: origins[i].y + textBaseY), in: context)
+    }
+
     // Draw text shadows if any
     if !style.textShadows.isEmpty {
       for shadow in style.textShadows {
@@ -1175,7 +1333,7 @@ public class TextEngine: NSObject {
           let runCount = CFArrayGetCount(runsCF)
           for j in 0..<runCount {
             let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
-            guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+            let attributes = CTRunGetAttributes(run) as NSDictionary
             if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
             // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
             if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
@@ -1197,11 +1355,11 @@ public class TextEngine: NSObject {
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
         let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
-        guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+        let attributes = CTRunGetAttributes(run) as NSDictionary
         if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
         // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
         if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
-        if let ctFont = attributes[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
+        if let ctFont = attributes[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
           let font = ctFont as! CTFont
           let traits = CTFontCopyTraits(font) as? [CFString: Any]
           let symbolicTraits = CTFontGetSymbolicTraits(font)
@@ -1384,7 +1542,7 @@ public class TextEngine: NSObject {
         fragment = textNode.attributed()
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
-          fragment = textView.engine.buildAttributedString(forMeasurement: forMeasurement)
+          fragment = TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor)
         } else {
           fragment = createPlaceholder(for: child)
         }
@@ -1483,8 +1641,15 @@ public class TextEngine: NSObject {
           lastIsSpace = wsSet.contains(lastChar.unicodeScalars.first!)
         }
         if !lastIsSpace {
-          // use attributes from current frag if possible, otherwise default node attrs
+          // The space keeps the attributes of the text it came from, so a span's
+          // background or decoration doesn't extend over the preceding space.
           var sepAttrs = attrs
+          if prevEndedWithWhitespace && !startsWithSpace && lastIndex >= 0 {
+            let prev = composed.attributes(at: lastIndex, effectiveRange: nil)
+            if prev[Constants.VIEW_PLACEHOLDER_KEY] == nil && prev[.attachment] == nil && prev[NSAttributedString.Key("BrSpan")] == nil {
+              sepAttrs = prev
+            }
+          }
           if sepAttrs[.font] == nil { sepAttrs[.font] = node.getDefaultAttributes()[.font] }
           if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = node.getDefaultAttributes()[.paragraphStyle] }
           composed.append(NSAttributedString(string: " ", attributes: sepAttrs))
@@ -1579,6 +1744,7 @@ public class TextEngine: NSObject {
     let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
 
     guard !lines.isEmpty else {
+      lastBuiltSegments = []
       // Empty text - send empty segments
       if let ptr = node.nativePtr {
         mason_node_clear_segments(node.mason.nativePtr, ptr)
@@ -1642,6 +1808,7 @@ public class TextEngine: NSObject {
     
   
     
+    lastBuiltSegments = segments.contains { $0.tag == InlineChild } ? nil : segments
     if let ptr = node.nativePtr {
       if(segments.isEmpty){
         mason_node_clear_segments(node.mason.nativePtr, ptr)
@@ -1654,5 +1821,67 @@ public class TextEngine: NSObject {
     attributedStringVersion = segmentsInvalidateVersion
     lastSegmentsVersion = segmentsInvalidateVersion
     lastSegmentsConstraintSize = constraints
+  }
+}
+
+/// Measured sizes and inline segments shared by every text view, keyed by the
+/// attributed string and the constraints. Main thread only, like measure.
+final class TextLayoutCache {
+  static let shared = TextLayoutCache()
+  private static let capacity = 2048
+
+  struct Key: Hashable {
+    let textHash: Int
+    let fontHash: Int
+    let knownW: Float, knownH: Float, availW: Float, availH: Float
+    let flags: UInt8
+    let whiteSpace: Int8
+  }
+
+  struct Entry {
+    let text: NSAttributedString
+    var font: AnyObject? = nil
+    let size: CGSize
+    let segments: [CMasonSegment]
+    let constraint: CGSize
+  }
+
+  private var entries: [Key: Entry] = [:]
+
+  static func key(for engine: TextEngine, text: NSAttributedString, isInLine: Bool, isBlock: Bool, known: CGSize?, available: CGSize) -> Key? {
+    if text.length == 0 || text.containsAttachments { return nil }
+    let node = engine.node
+    // Floats beside the text reshape its lines.
+    if !NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, node.parent ?? node).isEmpty { return nil }
+    let style = node.style
+    var flags: UInt8 = isInLine ? 1 : 0
+    if isBlock { flags |= 2 }
+    if style.isValueInitialized {
+      flags |= 4
+      if style.textWrap == .NoWrap { flags |= 8 }
+    }
+    let font = node.getDefaultAttributes()[.font].map { CFHash($0 as CFTypeRef) } ?? 0
+    return Key(
+      textHash: text.hash ^ text.length,
+      fontHash: Int(bitPattern: UInt(font)),
+      knownW: Float(known?.width ?? -.infinity), knownH: Float(known?.height ?? -.infinity),
+      availW: Float(available.width), availH: Float(available.height),
+      flags: flags,
+      whiteSpace: style.isValueInitialized ? style.whiteSpace.rawValue : -1
+    )
+  }
+
+  func lookup(_ key: Key, text: NSAttributedString, font: AnyObject?) -> Entry? {
+    guard let entry = entries[key], entry.text.isEqual(to: text) else { return nil }
+    switch (entry.font, font) {
+    case (nil, nil): return entry
+    case let (a?, b?): return CFEqual(a as CFTypeRef, b as CFTypeRef) ? entry : nil
+    default: return nil
+    }
+  }
+
+  func store(_ key: Key, _ entry: Entry) {
+    if entries.count >= TextLayoutCache.capacity { entries.removeAll(keepingCapacity: true) }
+    entries[key] = entry
   }
 }

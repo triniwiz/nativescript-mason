@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
+import { AddChildFromBuilder, CustomLayoutView, Utils, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
 import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 // The per-corner radius and per-side colour longhands core's `border-radius`
@@ -8,6 +8,8 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // rather than core's root export, unlike the border *width* longhands above.
 import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
+import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
+import type { CornerIndex, CornerRadius } from './css-shorthands';
 import { Style as MasonStyle, Style } from './style';
 import {
   alignContentProperty,
@@ -265,15 +267,17 @@ declare module '@nativescript/core/ui/styling/style' {
   }
 }
 
-/** "background-color" -> "backgroundColor". */
-function toCamelCase(prop: string): string {
-  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+function masonLength<T>(value: T): T | string {
+  return isCssLength(value) ? value.css : value;
 }
 
 /** A core `Length` (number of dip, or `{ value, unit }`) as a CSS string. */
-function lengthToCssString(value: CoreTypes.LengthType | undefined | null): string {
+function lengthToCssString(value: CoreTypes.LengthType | string | undefined | null): string {
   if (value == null) {
     return '0';
+  }
+  if (typeof value === 'string') {
+    return value;
   }
   if (typeof value === 'number') {
     return `${value}px`;
@@ -302,9 +306,83 @@ function colorToCssString(value: unknown): string {
   return String(value);
 }
 
+function backgroundImageToCssString(value: unknown): string {
+  const gradient = value as { angle?: number; colorStops?: { color: unknown; offset?: { value: number } }[] };
+  if (value && typeof value === 'object' && typeof gradient.angle === 'number' && Array.isArray(gradient.colorStops)) {
+    const stops = gradient.colorStops.map((stop) => (stop.offset ? `${colorToCssString(stop.color)} ${stop.offset.value * 100}%` : colorToCssString(stop.color)));
+    return `linear-gradient(${gradient.angle}rad, ${stops.join(', ')})`;
+  }
+  return value == null ? 'none' : String(value);
+}
+
+const TEARDOWN_SLICE_MS = 8;
+// Reading the clock costs more than a teardown on some devices.
+const TEARDOWNS_PER_CLOCK_READ = 16;
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
+
+  _masonPendingTeardown = false;
+  private static _pendingTeardowns: ViewBase[] = [];
+  private static _teardownScheduled = false;
+
+  public _tearDownUI(force?: boolean): void {
+    if ((__ANDROID__ || __APPLE__) && !force && !this.reusable && this._context && this.nativeViewProtected) {
+      // A keyed move tears down and re-adds within one patch. Detach only this
+      // element and defer the recursive teardown; _setupUI cancels it on re-attach.
+      if (this.parent) {
+        this.parent._removeViewFromNativeVisualTree(this);
+      }
+      this._masonPendingTeardown = true;
+      ViewBase._pendingTeardowns.push(this);
+      if (!ViewBase._teardownScheduled) {
+        ViewBase._teardownScheduled = true;
+        setTimeout(() => ViewBase._drainTeardowns(), 0);
+      }
+      return;
+    }
+    super._tearDownUI(force);
+  }
+
+  public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
+    if ((__ANDROID__ || __APPLE__) && this._masonPendingTeardown) {
+      this._masonPendingTeardown = false;
+      if (this._context === context) {
+        if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
+          const nativeIndex = this.parent._childIndexToNativeChildIndex(atIndex ?? -1);
+          this._isAddedToNativeVisualTree = this.parent._addViewToNativeVisualTree(this, nativeIndex);
+        }
+        return;
+      }
+    }
+    super._setupUI(context, atIndex, parentIsLoaded);
+  }
+
+  private _masonFinishTeardown() {
+    if (!this._masonPendingTeardown) {
+      return;
+    }
+    this._masonPendingTeardown = false;
+    super._tearDownUI(true);
+  }
+
+  private static _drainTeardowns() {
+    ViewBase._teardownScheduled = false;
+    const deadline = Date.now() + TEARDOWN_SLICE_MS;
+    let done = 0;
+    while (ViewBase._pendingTeardowns.length > 0) {
+      const view = ViewBase._pendingTeardowns.shift();
+      view._masonFinishTeardown();
+      if (++done % TEARDOWNS_PER_CLOCK_READ === 0 && Date.now() >= deadline) {
+        break;
+      }
+    }
+    if (ViewBase._pendingTeardowns.length > 0) {
+      ViewBase._teardownScheduled = true;
+      setTimeout(() => ViewBase._drainTeardowns(), 0);
+    }
+  }
 
   /**
    * Enable or disable CSS Preflight (web-normalised / Tailwind-like) defaults
@@ -693,6 +771,89 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Core's iOS requestLayout climbs to the Page and re-measures the whole tree in JS.
+  // A Mason root's native compute already places every Mason descendant, so it skips
+  // them and only runs core's layout for non-Mason views inside its subtree.
+
+  /** True for a Mason view whose frame the Mason tree sets natively (iOS). */
+  get _masonPlacedNatively(): boolean {
+    return __APPLE__ && !!this[isMasonView_] && !!(this.parent as any)?.[isMasonView_];
+  }
+
+  /** Size a non-Mason child with core's measure: its native view rarely implements sizeThatFits. */
+  _masonMeasureForeign(child: any): void {
+    if (!__APPLE__ || child[isMasonView_] || !child.nativeViewProtected) return;
+    const mason = (this.nativeViewProtected as any)?.mason;
+    if (typeof mason?.setMeasureForViewBlock !== 'function') return;
+    const parentRef = new WeakRef(this);
+    const childRef = new WeakRef(child);
+    const spec = (known: number, available: number) => {
+      if (!isNaN(known)) return Utils.layout.makeMeasureSpec(known, Utils.layout.EXACTLY);
+      if (available > 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
+      return Utils.layout.makeMeasureSpec(0, Utils.layout.UNSPECIFIED);
+    };
+    mason.setMeasureForViewBlock(child.nativeViewProtected, (knownW: number, knownH: number, availW: number, availH: number) => {
+      const parent = parentRef.deref();
+      const view = childRef.deref();
+      if (!parent || !view) return CGSizeMake(0, 0);
+      NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+      return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
+    });
+  }
+
+  /** Lay out the non-Mason views in this root's subtree from the frames Mason set. */
+  _masonLayoutForeignDescendants(): void {
+    if (!__APPLE__) return;
+    const visit = (view: any) => {
+      view.eachChildView((child: any) => {
+        if (child[isMasonView_]) {
+          // Keep `layoutChanged` working for the few views that listen to it.
+          if (child.hasListeners?.(NSView.layoutChangedEvent)) {
+            const b = child._getCurrentLayoutBounds();
+            if (child._setCurrentLayoutBounds(b.left, b.top, b.right, b.bottom).boundsChanged) {
+              child._raiseLayoutChangedEvent();
+            }
+          }
+          visit(child);
+        } else if (child.nativeViewProtected) {
+          const b = child._getCurrentLayoutBounds();
+          const w = Utils.layout.makeMeasureSpec(b.right - b.left, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(b.bottom - b.top, Utils.layout.EXACTLY);
+          NSView.measureChild(view, child, w, h);
+          child.layout(b.left, b.top, b.right, b.bottom);
+        }
+        return true;
+      });
+    };
+    visit(this);
+  }
+
+  requestLayout(): void {
+    // A natively placed view only needs its Mason root re-measured: skip the
+    // per-ancestor hops (each a JS call plus a native setNeedsLayout).
+    if (this._masonPlacedNatively) {
+      let root: any = this.parent;
+      while (root?.parent?.[isMasonView_]) root = root.parent;
+      root?.requestLayout();
+      return;
+    }
+    super.requestLayout();
+  }
+
+  getMeasuredWidth(): number {
+    if (this._masonPlacedNatively && this.nativeViewProtected) {
+      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.width));
+    }
+    return super.getMeasuredWidth();
+  }
+
+  getMeasuredHeight(): number {
+    if (this._masonPlacedNatively && this.nativeViewProtected) {
+      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.height));
+    }
+    return super.getMeasuredHeight();
+  }
+
   public eachChildView(callback: (child: NSView) => boolean): void {
     for (const view of this._viewChildren) {
       callback(view);
@@ -1058,6 +1219,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // -- Platform bridge methods for native text node operations --
 
   private _createOrUpdateNativeTextNode(node: any, text: string): any {
+    // Frameworks may hand over raw values (Svelte's `{n}` makes a text node from a number).
+    text = text == null ? '' : String(text);
     if (node[textNode_]) {
       if (__ANDROID__) {
         (node[textNode_] as org.nativescript.mason.masonkit.TextNode).setData(text);
@@ -1203,7 +1366,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       isBreak?: boolean;
     } | null = null,
   ) {
-    const text = node.text ?? node.data ?? '';
+    const text = String(node.text ?? node.data ?? '');
     const textNode = this._createOrUpdateNativeTextNode(node, text);
 
     if (__WINDOWS__ && textNode && typeof (textNode as any).SetBreak === 'function') {
@@ -1317,48 +1480,77 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.borderRadius = value;
+      (this as any)[borderRadiusCorners_] = undefined;
     }
   }
 
-  // `border-radius` / `border-color` arriving as core's longhands.
-  //
-  // Core expands both shorthands into four longhands before a *stylesheet*
-  // declaration ever reaches a property (`_expandCssShorthand` in
-  // ui/styling/css-selector), so our own shorthand `setNative` above only
-  // ever fires for an inline `view.style.borderRadius = …`. A CSS class was
-  // silently doing nothing. Each longhand below records its corner/side and
-  // recomposes the whole shorthand string, which is the shape the native
-  // side parses anyway.
+  [borderRadiusProperty.getDefault]() {
+    // @ts-ignore
+    return this._styleHelper?.borderRadius;
+  }
 
-  private _borderRadiusCorner(corner: 'tl' | 'tr' | 'br' | 'bl', value: CoreTypes.LengthType) {
+  // `border-radius` / `border-color` arriving as core's longhands.
+
+  private _nativeBorderRadiusCorners(): CornerRadius[] {
+    // @ts-ignore
+    const native = String(this._styleHelper?.borderRadius ?? '').trim();
+    try {
+      return borderRadiusCorners(native || '0');
+    } catch {
+      return borderRadiusCorners('0');
+    }
+  }
+
+  private _borderRadiusCorner(corner: CornerIndex, value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
     if (!style) {
       return;
     }
-    let corners = (this as any)[borderRadiusCorners_];
+    let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
     if (!corners) {
-      corners = (this as any)[borderRadiusCorners_] = { tl: '0', tr: '0', br: '0', bl: '0' };
+      corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    corners[corner] = lengthToCssString(value);
+    corners[corner] = parseCornerRadius(lengthToCssString(masonLength(value)));
     // @ts-ignore
-    style.borderRadius = `${corners.tl} ${corners.tr} ${corners.br} ${corners.bl}`;
+    style.borderRadius = composeBorderRadius(corners);
+  }
+
+  private _nativeCornerRadius(corner: CornerIndex): string {
+    const [h, v] = this._nativeBorderRadiusCorners()[corner];
+    return h === v ? h : `${h} ${v}`;
+  }
+
+  [borderTopLeftRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(0);
+  }
+
+  [borderTopRightRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(1);
+  }
+
+  [borderBottomRightRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(2);
+  }
+
+  [borderBottomLeftRadiusProperty.getDefault]() {
+    return this._nativeCornerRadius(3);
   }
 
   [borderTopLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('tl', value);
+    this._borderRadiusCorner(0, value);
   }
 
   [borderTopRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('tr', value);
+    this._borderRadiusCorner(1, value);
   }
 
   [borderBottomRightRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('br', value);
+    this._borderRadiusCorner(2, value);
   }
 
   [borderBottomLeftRadiusProperty.setNative](value: CoreTypes.LengthType) {
-    this._borderRadiusCorner('bl', value);
+    this._borderRadiusCorner(3, value);
   }
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
@@ -1506,7 +1698,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderLeftWidth = value;
+      style.borderLeftWidth = masonLength(value);
     }
   }
 
@@ -1515,7 +1707,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderTopWidth = value;
+      style.borderTopWidth = masonLength(value);
     }
   }
 
@@ -1524,7 +1716,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderRightWidth = value;
+      style.borderRightWidth = masonLength(value);
     }
   }
 
@@ -1533,7 +1725,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.borderBottomWidth = value;
+      style.borderBottomWidth = masonLength(value);
     }
   }
 
@@ -1563,6 +1755,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       style.textDecoration = String(value);
+      // The shorthand resets every longhand natively, but core tracks each as its own
+      // property and won't reapply one it already holds. Put the explicit ones back.
+      const cssStyle = this.style as any;
+      for (const name of ['textDecorationLine', 'textDecorationStyle', 'textDecorationColor', 'textDecorationThickness']) {
+        const longhand = cssStyle[name];
+        if (longhand !== undefined && longhand !== null && longhand !== '') {
+          style[name] = longhand;
+        }
+      }
     }
   }
 
@@ -1598,7 +1799,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       // @ts-ignore
-      style.backgroundImage = String(value);
+      style.backgroundImage = backgroundImageToCssString(value);
     }
   }
 
@@ -2001,7 +2202,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginLeft = value;
+      style.marginLeft = masonLength(value);
     }
   }
 
@@ -2009,7 +2210,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginRight = value;
+      style.marginRight = masonLength(value);
     }
   }
 
@@ -2017,7 +2218,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginBottom = value;
+      style.marginBottom = masonLength(value);
     }
   }
 
@@ -2025,7 +2226,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.marginTop = value;
+      style.marginTop = masonLength(value);
     }
   }
 
@@ -2050,7 +2251,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingLeft = value;
+      style.paddingLeft = masonLength(value);
     }
   }
 
@@ -2058,7 +2259,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingRight = value;
+      style.paddingRight = masonLength(value);
     }
   }
 
@@ -2066,7 +2267,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingTop = value;
+      style.paddingTop = masonLength(value);
     }
   }
 
@@ -2074,7 +2275,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      style.paddingBottom = value;
+      style.paddingBottom = masonLength(value);
     }
   }
 

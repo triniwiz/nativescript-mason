@@ -1,6 +1,11 @@
 import { textNode_ } from './symbols';
 import type { MasonNodeKind } from './framework-registry';
 
+/** True when `children` (a MasonKit `_children` list) holds the text run built for `node`. */
+export function hasTextRun(children: readonly any[], node: unknown): boolean {
+  return children.some((child: any) => child?.[textNode_]?.['__raw__'] === node);
+}
+
 export interface TextRunReconcileContext {
   _children: any[];
   _nativeRemoveChildNode(node: any, index: number): void;
@@ -27,7 +32,7 @@ export interface TextRunReconcileContext {
  * `break` (a `<br>` run), `element` (a slot with no run) or `none` (no slot).
  */
 export function reconcileTextRuns(context: TextRunReconcileContext, nodes: any[], classify: (node: any) => MasonNodeKind): void {
-  const textOf = (n: any): string => n.text ?? n.data ?? '';
+  const textOf = (n: any): string => String(n.text ?? n.data ?? '');
   // A `<br>` that the host already inserted as a `Br` placeholder element
   // (Vue/Angular metas do) is a slot of its own; only synthesise a break run
   // for a framework node MasonKit has no child for.

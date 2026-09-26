@@ -828,7 +828,13 @@ public class HTMLParser: NSObject {
     case "background-image": style.backgroundImage = value
     case "background-repeat": style.backgroundRepeat = value
     case "background-position": style.backgroundPosition = value
+    case "background-position-x": style.backgroundPositionX = value
+    case "background-position-y": style.backgroundPositionY = value
     case "background-size": style.backgroundSize = value
+    case "background-clip": style.backgroundClip = value
+    case "background-origin": style.backgroundOrigin = value
+    case "background-attachment": style.backgroundAttachment = value
+    case "background-blend-mode": style.backgroundBlendMode = value
 
     case "z-index":
       if let v = Int32(value) { style.zIndex = v }
@@ -885,12 +891,21 @@ public class HTMLParser: NSObject {
     case "font-variant-numeric":
       style.fontVariantNumericString = value
 
-    case "text-decoration", "text-decoration-line":
-      // The shorthand may carry color/style too; the line keyword is handled here
-      // and the dedicated longhands below cover the rest.
-      style.setTextDecoration(firstToken(value))
+    case "text-decoration":
+      style.setTextDecoration(value)
+    case "text-decoration-line":
+      style.textDecorationLine = value
     case "text-decoration-color":
-      style.setDecorationColor(css: value)
+      style.textDecorationColor = value
+    case "text-decoration-style":
+      style.textDecorationStyle = value
+    case "text-decoration-thickness":
+      let t = value.trimmingCharacters(in: .whitespaces).lowercased()
+      if t == "auto" || t == "from-font" {
+        style.decorationThickness = 0
+      } else if let v = parseLength(style, value) {
+        style.decorationThickness = v
+      }
 
     case "text-transform":
       switch value {

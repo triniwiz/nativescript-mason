@@ -76,7 +76,7 @@ internal object MasonPositioning {
       if (node.fixedOriginalParent == null) {
         node.fixedOriginalParent = view.parent as? ViewGroup
       }
-      (view.parent as? ViewGroup)?.removeView(view)
+      NodeUtils.detachNow(view)
       host.addView(view)
     } else {
       host.bringChildToFront(view)
@@ -92,7 +92,7 @@ internal object MasonPositioning {
     if (original != null) {
       node.fixedOriginalParent = null
       if (view.parent !== original) {
-        (view.parent as? ViewGroup)?.removeView(view)
+        NodeUtils.detachNow(view)
         original.addView(view)
       }
     }

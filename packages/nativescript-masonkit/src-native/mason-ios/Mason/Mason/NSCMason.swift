@@ -86,6 +86,17 @@ public class NSCMason: NSObject {
   }
   
   
+  // Measures a view Mason doesn't own through its host framework; most such views
+  // don't implement sizeThatFits. Device px; known is NaN when unset, available -1/-2 = min/max-content.
+  @objc(setMeasureForView:block:)
+  public func setMeasure(for view: UIView, block: @escaping (_ knownWidth: CGFloat, _ knownHeight: CGFloat, _ availableWidth: CGFloat, _ availableHeight: CGFloat) -> CGSize) {
+    let node = nodeForView(view)
+    node.setMeasureFunction { known, available in
+      block(known?.width ?? .nan, known?.height ?? .nan, available.width, available.height)
+    }
+    node.markDirty()
+  }
+
   public func configureStyleForView(_ view: UIView, _ block :(MasonStyle) -> Void){
     let node = nodeForView(view, view.subviews.isEmpty)
     node.style.inBatch = true
