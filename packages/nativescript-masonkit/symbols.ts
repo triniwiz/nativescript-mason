@@ -21,6 +21,10 @@ export const breakRun_ = Symbol('[[breakRun]]');
 export const anonymousText_ = Symbol('[[anonymousText]]');
 // The resolved Windows font source a container's anonymous Text uses.
 export const windowsFontSource_ = Symbol('[[windowsFontSource]]');
+// Whether a view's Windows native view lays out text runs itself, and whether it is any other
+// panel that needs an anonymous Text for them; fixed once the native view exists.
+export const hostsRuns_ = Symbol('[[hostsRuns]]');
+export const needsAnonymousText_ = Symbol('[[needsAnonymousText]]');
 
 // Per-corner / per-side caches for the CSS-class border-radius and
 // border-color longhands core's shorthand expansion hands us — see

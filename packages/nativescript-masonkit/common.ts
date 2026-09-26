@@ -70,7 +70,7 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
 import { Tree } from './tree';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
@@ -1190,7 +1190,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private _windowsAttachPlaceholder(child: any, index: number) {
     const view = (this as any)._view;
     if (!view) return;
-    if (typeof view.SetRun === 'function') {
+    if (this._windowsHostsRuns()) {
       let run = child[breakRun_];
       if (!run) {
         run = new NativeScript.Mason.TextNode();
@@ -1400,7 +1400,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__WINDOWS__) {
       const view = (this as any)._view;
       if (!view) return;
-      if (typeof view.SetRun === 'function') view.SetRun(textNode, index);
+      if (this._windowsHostsRuns()) view.SetRun(textNode, index);
       else NativeScript.Mason.Css.ReparentChild(view, textNode, index);
     }
   }
@@ -1413,7 +1413,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__WINDOWS__) {
       const view = (this as any)._view;
       if (!view) return;
-      if (typeof view.SetRun === 'function') view.SetRun(textNode, index);
+      if (this._windowsHostsRuns()) view.SetRun(textNode, index);
       else NativeScript.Mason.Css.ReparentChild(view, textNode, index);
     }
   }
@@ -1452,11 +1452,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const text = String(node.text ?? node.data ?? '');
     const textNode = this._createOrUpdateNativeTextNode(node, text);
 
-    if (__WINDOWS__ && textNode && typeof (textNode as any).SetBreak === 'function') {
-      (textNode as any).SetBreak(!!operation?.isBreak);
-    }
-
     if (!operation) return;
+
+    // Native runs start as text; an in-place update keeps the run's kind.
+    if (__WINDOWS__ && textNode && !!operation.isBreak !== !!textNode.__masonBreak) {
+      textNode.SetBreak(!!operation.isBreak);
+      textNode.__masonBreak = !!operation.isBreak;
+    }
 
     const entry = { [text_]: text, [textNode_]: textNode, [textNodeIndex_]: operation.index ?? this._children.length };
 
@@ -1471,7 +1473,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         break;
       case 'replace':
         if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, operation.index, true);
-        else this._nativeReplaceChild(textNode, operation.index);
+        else if (!__WINDOWS__ || (this._children[operation.index] as any)?.[textNode_] !== textNode) this._nativeReplaceChild(textNode, operation.index);
         this._setOrPushChild(operation.index, entry);
         break;
       case 'insert': {
@@ -1490,10 +1492,26 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   // Only Text lays out runs on Windows, so any other container puts consecutive runs in one
   // anonymous Text, as Android's getOrCreateAnonymousTextContainer does.
-  private _windowsNeedsAnonymousText() {
+  private _windowsNeedsAnonymousText(): boolean {
     if (!__WINDOWS__) return false;
-    const view = (this as any)._view;
-    return !!view?.Children && typeof view.SetRun !== 'function';
+    let needs = (this as any)[needsAnonymousText_];
+    if (needs === undefined) {
+      const view = (this as any)._view;
+      if (!view) return false;
+      needs = (this as any)[needsAnonymousText_] = !this._windowsHostsRuns() && !!view.Children;
+    }
+    return needs;
+  }
+
+  // Each WinRT member lookup crosses into the runtime, and this is asked on every text change.
+  private _windowsHostsRuns(): boolean {
+    let hosts = (this as any)[hostsRuns_];
+    if (hosts === undefined) {
+      const view = (this as any)._view;
+      if (!view) return false;
+      hosts = (this as any)[hostsRuns_] = typeof view.SetRun === 'function';
+    }
+    return hosts;
   }
 
   private _windowsAddAnonymousRun(textNode: any, slot: number, replace: boolean) {
@@ -1586,10 +1604,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _syncTextRunLayout() {
-    if (!__WINDOWS__ || typeof (this as any)._view?.SetRun !== 'function') return;
+    if (!__WINDOWS__ || !this._windowsHostsRuns()) return;
     // @ts-ignore
     const sh = this._styleHelper;
-    if (!sh) return;
+    if (!sh || sh.display === 'block') return;
     try {
       sh.display = 'block';
     } catch (_) {

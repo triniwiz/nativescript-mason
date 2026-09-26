@@ -54,13 +54,12 @@ namespace
         return c == L' ' || c == L'\t' || c == L'\n' || c == L'\r' || c == 0x200B;
     }
 
-    bool HasBreakOpportunity(muxc::TextBlock const& text)
+    bool HasBreakOpportunity(std::vector<winrt::NativeScript::Mason::implementation::MinContentRun> const& runs)
     {
-        for (auto const& inl : text.Inlines())
+        for (auto const& run : runs)
         {
-            auto run = inl.try_as<muxd::Run>();
-            if (!run) return true;
-            for (wchar_t c : std::wstring_view{ run.Text() })
+            if (run.isBreak) return true;
+            for (wchar_t c : std::wstring_view{ run.text })
             {
                 if (IsBreakOpportunity(c) || c == L'-') return true;
             }
@@ -146,24 +145,22 @@ namespace
 
     // Words repeat across texts and updates (labels, counters), so segment widths are kept per run
     // formatting and only unseen segments are laid out. Text whose segments cross runs is laid out.
-    float MinContentWidth(muxc::TextBlock const& text)
+    float MinContentWidth(muxc::TextBlock const& text, std::vector<winrt::NativeScript::Mason::implementation::MinContentRun> const& runs)
     {
         thread_local std::unordered_map<std::wstring, float> widths;
         thread_local std::wstring probeFormat;
+        thread_local std::wstring key;
         if (widths.size() > 8192) widths.clear();
 
-        struct Piece { std::wstring format; muxd::Run run; };
-        std::vector<Piece> runs;
         bool openSegment = false;
-        for (auto const& inl : text.Inlines())
+        for (auto const& run : runs)
         {
-            auto run = inl.try_as<muxd::Run>();
-            if (!run)
+            if (run.isBreak)
             {
                 openSegment = false;
                 continue;
             }
-            const std::wstring_view chars{ run.Text() };
+            const std::wstring_view chars{ run.text };
             if (chars.empty()) continue;
             if (openSegment && !IsBreakOpportunity(chars.front()))
             {
@@ -171,10 +168,6 @@ namespace
                 return LaidOutMinContentWidth(text);
             }
             openSegment = !IsBreakOpportunity(chars.back());
-            const auto family = run.FontFamily();
-            runs.push_back({ std::wstring(family ? std::wstring_view(family.Source()) : std::wstring_view{}) + L'|'
-                + std::to_wstring(run.FontSize()) + L'|' + std::to_wstring(run.FontWeight().Weight) + L'|'
-                + std::to_wstring(static_cast<int>(run.FontStyle())) + L'|' + std::to_wstring(run.CharacterSpacing()), run });
         }
 
         muxc::TextBlock* probe = ProbeBlock();
@@ -182,8 +175,8 @@ namespace
         float widest = 0.0f;
         for (auto const& piece : runs)
         {
-            const winrt::hstring content = piece.run.Text();
-            const std::wstring_view chars{ content };
+            if (piece.isBreak) continue;
+            const std::wstring_view chars{ piece.text };
             size_t start = 0;
             for (size_t i = 0; i <= chars.size(); ++i)
             {
@@ -194,7 +187,7 @@ namespace
                 const size_t stop = hyphen ? i + 1 : i;
                 if (stop > start)
                 {
-                    std::wstring key = piece.format;
+                    key.assign(piece.format);
                     key += L'\x1f';
                     key.append(chars.substr(start, stop - start));
                     auto it = widths.find(key);
@@ -202,16 +195,17 @@ namespace
                     {
                         if (probeFormat != piece.format)
                         {
-                            probe->FontFamily(piece.run.FontFamily());
-                            probe->FontSize(piece.run.FontSize());
-                            probe->FontWeight(piece.run.FontWeight());
-                            probe->FontStyle(piece.run.FontStyle());
-                            probe->CharacterSpacing(piece.run.CharacterSpacing());
+                            using winrt::Windows::UI::Text::FontStyle;
+                            probe->FontFamily(muxm::FontFamily(piece.family));
+                            probe->FontSize(piece.fontSize);
+                            probe->FontWeight(winrt::Windows::UI::Text::FontWeight{ piece.fontWeight });
+                            probe->FontStyle(piece.fontStyle == 1 ? FontStyle::Italic : piece.fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
+                            probe->CharacterSpacing(piece.characterSpacing);
                             probeFormat = piece.format;
                         }
                         probe->Text(winrt::hstring{ chars.substr(start, stop - start) });
                         probe->Measure(Size{ inf, inf });
-                        it = widths.emplace(std::move(key), probe->DesiredSize().Width).first;
+                        it = widths.emplace(key, probe->DesiredSize().Width).first;
                     }
                     widest = (std::max)(widest, it->second);
                 }
@@ -323,8 +317,7 @@ namespace winrt::NativeScript::Mason::implementation
         m_text.Foreground(muxm::SolidColorBrush(winrt::Windows::UI::Color{ 255, 0, 0, 0 }));
         m_text.FontFamily(muxm::FontFamily(L"Segoe UI"));
         m_text.FontSize(14.0);
-        // CSS breaks only at break opportunities and lets a longer word overflow; Wrap breaks inside it.
-        m_text.TextWrapping(mux::TextWrapping::WrapWholeWords);
+        m_text.TextWrapping(mux::TextWrapping::NoWrap);
         Children().Append(m_text);
 
         auto weak = winrt::make_weak(m_text);
@@ -347,16 +340,14 @@ namespace winrt::NativeScript::Mason::implementation
                     // Same constraint ArrangeOverride uses, so its measure is a no-op.
                     const float width = winrt::get_self<implementation::Node>(node)->LayoutWidth();
                     if (cache->SingleLineFits(width)) return;
-                    block.Measure(Size{ width + OnePixel(block), std::numeric_limits<float>::infinity() });
-                    cache->laidOutWidth = width;
+                    LayOut(block, *cache, width);
                 });
             }
             // Height is the result, never a constraint: a TextBlock measured shorter than a line drops
             // the line. Taffy applies a known height itself.
             auto layout = [&](float width) -> Size
             {
-                t.Measure(Size{ width + OnePixel(t), inf });
-                c.laidOutWidth = width;
+                LayOut(t, c, width);
                 return t.DesiredSize();
             };
             auto maxContent = [&]() -> Size
@@ -375,10 +366,10 @@ namespace winrt::NativeScript::Mason::implementation
             {
                 if (!c.minValid)
                 {
-                    if (c.breaks < 0) c.breaks = HasBreakOpportunity(t) ? 1 : 0;
+                    if (c.breaks < 0) c.breaks = HasBreakOpportunity(c.runs) ? 1 : 0;
                     if (c.breaks)
                     {
-                        c.minWidth = MinContentWidth(t);
+                        c.minWidth = MinContentWidth(t, c.runs);
                     }
                     else
                     {
@@ -421,6 +412,23 @@ namespace winrt::NativeScript::Mason::implementation
         };
         m_node.SetMeasure(cb);
         m_measureCache->node = winrt::make_weak(m_node);
+    }
+
+    void Text::SetWrap(muxc::TextBlock const& block, MeasureCache& cache, bool wrap)
+    {
+        // An unwrapped line doesn't depend on the width, so a max-content layout is arranged at any
+        // wider width as is, where a wrapping TextBlock is formatted again. CSS breaks only at break
+        // opportunities and lets a longer word overflow, which is WrapWholeWords, not Wrap.
+        if (cache.wrap == wrap) return;
+        block.TextWrapping(wrap ? mux::TextWrapping::WrapWholeWords : mux::TextWrapping::NoWrap);
+        cache.wrap = wrap;
+    }
+
+    void Text::LayOut(muxc::TextBlock const& block, MeasureCache& cache, float width)
+    {
+        SetWrap(block, cache, std::isfinite(width));
+        block.Measure(Size{ width + OnePixel(block), std::numeric_limits<float>::infinity() });
+        cache.laidOutWidth = width;
     }
 
     Text::~Text()
@@ -479,6 +487,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Text::SetRun(nsm::TextNode const& run, int32_t index)
     {
         if (!run) return;
+        if (index >= 0 && index < static_cast<int32_t>(m_runs.size()) && m_runs[index].run == run) return;
         std::erase_if(m_runs, [&](Entry const& e) { return e.run == run; });
         m_runs.insert(m_runs.begin() + ClampIndex(index), Entry{ run, nullptr });
         winrt::get_self<implementation::TextNode>(run)->SetOwner(this);
@@ -647,6 +656,7 @@ namespace winrt::NativeScript::Mason::implementation
         next.reserve(m_runs.size());
         AppendRuns(container, next);
         if (m_builtValid && next == m_builtRuns) return false;
+        StoreMinContentRuns(next);
 
         // One run in the element's own formatting is plain text, set as TextBlock.Text the way core's
         // Label does: the TextBlock already carries that formatting, bar the colour.
@@ -700,6 +710,32 @@ namespace winrt::NativeScript::Mason::implementation
         m_builtRuns = std::move(next);
         m_builtValid = true;
         return true;
+    }
+
+    void Text::StoreMinContentRuns(std::vector<BuiltRun> const& runs)
+    {
+        const winrt::hstring containerFamily = m_fontFamily.empty() ? winrt::hstring{ L"Segoe UI" } : m_fontFamily;
+        auto& out = m_measureCache->runs;
+        out.clear();
+        out.reserve(runs.size());
+        for (auto const& b : runs)
+        {
+            MinContentRun r;
+            r.isBreak = b.isBreak;
+            if (!b.isBreak)
+            {
+                auto const& f = b.format;
+                r.text = b.text;
+                r.family = f.family.empty() ? containerFamily : f.family;
+                r.fontSize = f.fontSize > 0.0 ? f.fontSize : m_text.FontSize();
+                r.fontWeight = static_cast<uint16_t>(f.fontWeight > 0 ? f.fontWeight : 400);
+                r.fontStyle = f.fontStyle;
+                r.characterSpacing = f.letterSpacing != 0.0 && r.fontSize > 0.0 ? static_cast<int32_t>(std::lround(f.letterSpacing / r.fontSize * 1000.0)) : 0;
+                r.format = std::wstring(std::wstring_view(r.family)) + L'|' + std::to_wstring(r.fontSize) + L'|' + std::to_wstring(r.fontWeight) + L'|'
+                    + std::to_wstring(r.fontStyle) + L'|' + std::to_wstring(r.characterSpacing);
+            }
+            out.push_back(std::move(r));
+        }
     }
 
     void Text::QueueRebuild()
@@ -767,6 +803,7 @@ namespace winrt::NativeScript::Mason::implementation
             return Size{ 0, 0 };
         }
         FlushRebuild();
+        SetWrap(m_text, *m_measureCache, std::isfinite(available.Width));
         m_text.Measure(available);
         return m_text.DesiredSize();
     }
@@ -778,13 +815,8 @@ namespace winrt::NativeScript::Mason::implementation
             // The layout's cache can answer the final size without calling measure, leaving the
             // TextBlock laid out for whichever probe ran last (often min-content), so lay it out for
             // the final width here, with the same pixel of slack.
-            const float width = finalSize.Width + OnePixel(m_text);
-            if (!m_measureCache->SingleLineFits(finalSize.Width))
-            {
-                m_text.Measure(Size{ width, std::numeric_limits<float>::infinity() });
-                m_measureCache->laidOutWidth = finalSize.Width;
-            }
-            m_text.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, width, finalSize.Height });
+            if (!m_measureCache->SingleLineFits(finalSize.Width)) LayOut(m_text, *m_measureCache, finalSize.Width);
+            m_text.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width + OnePixel(m_text), finalSize.Height });
         }
         mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;

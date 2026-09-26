@@ -8,7 +8,21 @@
 
 namespace winrt::NativeScript::Mason::implementation
 {
-    
+    // A built run in the formatting the TextBlock gives it, so min-content is found without reading
+    // the runs back from XAML.
+    struct MinContentRun
+    {
+        winrt::hstring text;
+        // Keys the word widths: family, size, weight, style and spacing.
+        std::wstring format;
+        winrt::hstring family;
+        double fontSize{ 14.0 };
+        uint16_t fontWeight{ 400 };
+        uint8_t fontStyle{ 0 };
+        int32_t characterSpacing{ 0 };
+        bool isBreak{ false };
+    };
+
     struct Text : TextT<Text>
     {
         Text();
@@ -98,6 +112,9 @@ namespace winrt::NativeScript::Mason::implementation
             // lines start at the left edge, so a max-content layout can stand for any wider width.
             float laidOutWidth{ -1.0f };
             bool startAligned{ true };
+            // The TextBlock's TextWrapping, which follows the width it's laid out at.
+            bool wrap{ false };
+            std::vector<MinContentRun> runs;
 
             bool SingleLineFits(float width) const
             {
@@ -106,6 +123,11 @@ namespace winrt::NativeScript::Mason::implementation
 
             void Reset() { minValid = false; maxValid = false; breaks = -1; count = 0; next = 0; laidOutWidth = -1.0f; }
         };
+
+        // Lays the TextBlock out for a line width, infinity for max-content.
+        static void LayOut(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, float width);
+        static void SetWrap(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, bool wrap);
+        void StoreMinContentRuns(std::vector<BuiltRun> const& runs);
 
         std::vector<BuiltRun> m_builtRuns;
         // Shared with the measure callback, which only holds weak references.
