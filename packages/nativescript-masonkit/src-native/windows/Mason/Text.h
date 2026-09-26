@@ -1,10 +1,16 @@
 #pragma once
 #include "Text.g.h"
 #include "VisualState.h"
+#include "DWriteText.h"
 #include <winrt/Windows.UI.Text.h>
 #include <limits>
 #include <memory>
 #include <vector>
+
+namespace mason_atlas
+{
+    struct Sprite;
+}
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -33,6 +39,9 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&);
 
+        static bool DirectWrite();
+        static void DirectWrite(bool value);
+
         hstring Content() const;
         void Content(hstring const& value);
         double FontSize() const;
@@ -49,6 +58,10 @@ namespace winrt::NativeScript::Mason::implementation
 
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const& available);
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
+        winrt::Microsoft::UI::Xaml::Automation::Peers::AutomationPeer OnCreateAutomationPeer();
+
+        // The text a screen reader reads when this Text draws its own glyphs.
+        winrt::hstring AccessibleText() const;
 
     private:
         // Formatting after inheritance; a nested element resolves its own against its parent's.
@@ -116,6 +129,18 @@ namespace winrt::NativeScript::Mason::implementation
             bool wrap{ false };
             std::vector<MinContentRun> runs;
 
+            // DirectWrite: the paragraph, and its layout built on first use. The version changes with
+            // the paragraph so a drawing knows it's stale.
+            mason_dwrite::Paragraph paragraph;
+            winrt::com_ptr<IDWriteTextLayout> layout;
+            uint64_t version{ 0 };
+
+            IDWriteTextLayout* Layout()
+            {
+                if (!layout) layout = mason_dwrite::Build(paragraph);
+                return layout.get();
+            }
+
             bool SingleLineFits(float width) const
             {
                 return maxValid && startAligned && laidOutWidth == std::numeric_limits<float>::infinity() && width >= max.Width;
@@ -129,7 +154,35 @@ namespace winrt::NativeScript::Mason::implementation
         static void SetWrap(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, bool wrap);
         void StoreMinContentRuns(std::vector<BuiltRun> const& runs);
 
+        void InitTextBlock();
+        void InitDirect();
+        void BuildParagraph(Resolved const& container, std::vector<BuiltRun> const& runs);
+        void ArrangeDirect(winrt::Windows::Foundation::Size const& finalSize);
+        void HideSprite();
+
         std::vector<BuiltRun> m_builtRuns;
+        bool m_direct{ false };
+        // Paragraph formatting changed without the runs changing.
+        bool m_paragraphDirty{ false };
+        std::unique_ptr<mason_atlas::Sprite> m_sprite;
+        bool m_spriteVisible{ false };
+        winrt::Windows::Foundation::Numerics::float3 m_spriteOffset{ -1.0f, -1.0f, 0.0f };
+        winrt::Windows::Foundation::Numerics::float2 m_spriteSize{ -1.0f, -1.0f };
+        // What the sprite was last queued with, so an unchanged text isn't drawn again.
+        struct Drawn
+        {
+            uint64_t version{ 0 };
+            float maxWidth{ 0.0f };
+            bool wrap{ false };
+            float scale{ 0.0f };
+            float originX{ 0.0f };
+            float originY{ 0.0f };
+            int width{ 0 };
+            int height{ 0 };
+            bool operator==(Drawn const&) const = default;
+        };
+        Drawn m_drawn;
+        bool m_drawnValid{ false };
         // Shared with the measure callback, which only holds weak references.
         std::shared_ptr<MeasureCache> m_measureCache{ std::make_shared<MeasureCache>() };
         bool m_builtValid{ false };
@@ -151,6 +204,9 @@ namespace winrt::NativeScript::Mason::implementation
         uint8_t m_fontStyle{ 0 };
         bool m_hasFontStyle{ false };
         double m_lineHeightMultiplier{ 0.0 };
+        double m_lineHeightPx{ 0.0 };
+        // TEXT_ALIGN byte: 1 left, 2 right, 3 center, 4 justify, 5 start, 6 end.
+        uint8_t m_textAlign{ 0 };
         double m_letterSpacingPx{ 0.0 };
         winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
         winrt::hstring m_fontFamily{};

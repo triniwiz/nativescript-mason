@@ -89,7 +89,7 @@
       <AdditionalLibraryDirectories>$(MasonRustLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <!-- masonnative.lib (the Rust core) + its transitive Windows system libs, as reported by
            rustc's native-static-libs print. -->
-      <AdditionalDependencies>masonnative.lib;d2d1.lib;d3d11.lib;dxgi.lib;kernel32.lib;ntdll.lib;userenv.lib;ws2_32.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>masonnative.lib;d2d1.lib;d3d11.lib;dxgi.lib;dwrite.lib;kernel32.lib;ntdll.lib;userenv.lib;ws2_32.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -122,6 +122,9 @@
     <ClInclude Include="FixedSlot.h" />
     <ClInclude Include="Positioning.h" />
     <ClInclude Include="RoundedMask.h" />
+    <ClInclude Include="DWriteText.h" />
+    <ClInclude Include="TextAtlas.h" />
+    <ClInclude Include="TextAutomationPeer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -147,6 +150,7 @@
     <ClCompile Include="RoundedColorBrush.cpp" />
     <ClCompile Include="FixedLayer.cpp" />
     <ClCompile Include="FixedSlot.cpp" />
+    <ClCompile Include="TextAutomationPeer.cpp" />
     <ClCompile Include="exports.cpp" />
     <!-- cppwinrt generates module.g.cpp (DllGetActivationFactory / DllCanUnloadNow) under
          "Generated Files\"; a hand-authored project must compile it explicitly. NotUsing: it is
@@ -178,6 +182,7 @@
     <Midl Include="RoundedColorBrush.idl" />
     <Midl Include="FixedLayer.idl" />
     <Midl Include="FixedSlot.idl" />
+    <Midl Include="TextAutomationPeer.idl" />
   </ItemGroup>
 
   <ItemGroup>

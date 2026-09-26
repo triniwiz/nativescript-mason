@@ -20,6 +20,7 @@
 #include "LeafCommon.h"
 #include "Node.h"
 #include "Positioning.h"
+#include "TextAtlas.h"
 #include "VisualState.h"
 
 namespace mason_panel
@@ -222,7 +223,12 @@ namespace mason_panel
         {
             mason_position::AfterArrange(self, layer, finalSize, isRoot);
         }
-        if (isRoot) mason_leaf::t_invalidated.clear();
+        if (isRoot)
+        {
+            mason_leaf::t_invalidated.clear();
+            // Every text arranged in this pass is drawn in one go.
+            mason_atlas::Flush();
+        }
         return finalSize;
     }
 }

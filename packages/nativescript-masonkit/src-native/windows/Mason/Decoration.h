@@ -92,7 +92,17 @@ namespace mason_deco
         if (layer)
         {
             layer.Comment(tag);
-            kids.InsertAtTop(layer);
+            // Content paints over the box's decorations.
+            mucomp::Visual text{ nullptr };
+            if (tag != L"mason-text")
+            {
+                for (auto&& child : kids)
+                {
+                    if (child.Comment() == L"mason-text") text = child;
+                }
+            }
+            if (text) kids.InsertBelow(layer, text);
+            else kids.InsertAtTop(layer);
         }
     }
 }

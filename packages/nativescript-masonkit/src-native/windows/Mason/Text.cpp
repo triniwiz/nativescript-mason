@@ -18,6 +18,8 @@
 #include "LeafCommon.h"
 #include "VisualApply.h"
 #include "BufferUtil.h"
+#include "TextAtlas.h"
+#include "TextAutomationPeer.h"
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -65,6 +67,85 @@ namespace
             }
         }
         return false;
+    }
+
+    bool g_directWrite = true;
+
+    // Taffy asks one leaf for several widths per pass, so answers are kept until the text changes.
+    // `layout(width)` lays the text out at a width, infinity for max-content; `minWidth` gives
+    // min-content, with max-content to fall back on.
+    template <typename Cache, typename LayOutAt, typename MinWidth>
+    Size AnswerMeasure(Cache& c, float kw, float aw, LayOutAt const& layout, MinWidth const& minWidth)
+    {
+        const float inf = std::numeric_limits<float>::infinity();
+        auto maxContent = [&]() -> Size
+        {
+            if (!c.maxValid)
+            {
+                c.max = layout(inf);
+                c.maxValid = true;
+            }
+            return c.max;
+        };
+
+        float width = ResolveWidth(kw, aw);
+        const bool minContentRequest = width == 0.0f;
+        if (minContentRequest)
+        {
+            if (!c.minValid)
+            {
+                c.minWidth = minWidth(maxContent);
+                c.minValid = true;
+            }
+            width = c.minWidth;
+        }
+
+        Size d{ 0.0f, 0.0f };
+        if (minContentRequest)
+        {
+            // Taffy takes the width for automatic minimums and measures again with the width
+            // known if the text is placed at it, so whatever height is known stands in.
+            d = { width, c.maxValid ? c.max.Height : (c.count ? c.entries[0].size.Height : 0.0f) };
+        }
+        else if (!std::isfinite(width) || (c.maxValid && width >= c.max.Width))
+        {
+            // Lines break greedily, so any width the single max-content line fits gives that line.
+            d = maxContent();
+        }
+        else
+        {
+            // Laid out at the width itself, which is usually the width it's arranged at.
+            bool hit = false;
+            for (uint8_t k = 0; k < c.count; ++k)
+            {
+                if (c.entries[k].width == width) { d = c.entries[k].size; hit = true; break; }
+            }
+            if (!hit)
+            {
+                d = layout(width);
+                c.entries[c.next] = { width, d };
+                c.next = static_cast<uint8_t>((c.next + 1) % c.entries.size());
+                if (c.count < c.entries.size()) ++c.count;
+            }
+        }
+        return { (std::min)(d.Width, width), d.Height };
+    }
+
+    // A line may be up to half a device pixel wider than the rounded width the layout gives it, so
+    // text is laid out a pixel wider than that.
+    float SlackFor(float scale)
+    {
+        return scale > 0.0f ? 1.0f / scale : 1.0f;
+    }
+
+    DWRITE_FONT_WEIGHT WeightOf(int32_t weight)
+    {
+        return static_cast<DWRITE_FONT_WEIGHT>(weight > 0 ? weight : 400);
+    }
+
+    DWRITE_FONT_STYLE StyleOf(uint8_t style)
+    {
+        return style == 1 ? DWRITE_FONT_STYLE_ITALIC : style == 2 ? DWRITE_FONT_STYLE_OBLIQUE : DWRITE_FONT_STYLE_NORMAL;
     }
 
     muxc::TextBlock* ProbeBlock()
@@ -308,11 +389,45 @@ namespace
 
 namespace winrt::NativeScript::Mason::implementation
 {
+    bool Text::DirectWrite() { return g_directWrite; }
+    void Text::DirectWrite(bool value) { g_directWrite = value; }
+
     Text::Text()
     {
         m_engine = nsm::Mason::Instance();
-        
         m_node = m_engine.CreateTextNode(false);
+        m_direct = g_directWrite && mason_atlas::Available();
+        if (m_direct) InitDirect();
+        else InitTextBlock();
+        m_measureCache->node = winrt::make_weak(m_node);
+    }
+
+    void Text::InitDirect()
+    {
+        // The TextBlock made the text hit-testable; a transparent background does it now.
+        Background(mason_visual::SharedSolid(0));
+        auto cache = m_measureCache;
+        nsm::MeasureFunc cb = [cache](float kw, float, float aw, float) -> int64_t
+        {
+            auto& c = *cache;
+            IDWriteTextLayout* layout = c.Layout();
+            if (!layout) return mason_leaf::PackMeasure(0.0f, 0.0f);
+            const float slack = SlackFor(mason_visual::g_rootScale);
+            const Size d = AnswerMeasure(c, kw, aw,
+                [layout, slack](float width) -> Size
+                {
+                    // At the width it's drawn at, with the slack ArrangeDirect gives it.
+                    const auto m = mason_dwrite::LayOut(layout, std::isfinite(width) ? width + slack : width);
+                    return { m.width, m.height };
+                },
+                [layout](auto const&) { return mason_dwrite::MinContentWidth(layout); });
+            return mason_leaf::PackMeasure(d.Width, d.Height);
+        };
+        m_node.SetMeasure(cb);
+    }
+
+    void Text::InitTextBlock()
+    {
         m_text = muxc::TextBlock();
         m_text.Foreground(muxm::SolidColorBrush(winrt::Windows::UI::Color{ 255, 0, 0, 0 }));
         m_text.FontFamily(muxm::FontFamily(L"Segoe UI"));
@@ -327,7 +442,6 @@ namespace winrt::NativeScript::Mason::implementation
             auto t = weak.get();
             if (!t) return mason_leaf::PackMeasure(0.0f, 0.0f);
             auto& c = *cache;
-            const float inf = std::numeric_limits<float>::infinity();
             if (!c.queued)
             {
                 c.queued = true;
@@ -345,73 +459,20 @@ namespace winrt::NativeScript::Mason::implementation
             }
             // Height is the result, never a constraint: a TextBlock measured shorter than a line drops
             // the line. Taffy applies a known height itself.
-            auto layout = [&](float width) -> Size
-            {
-                LayOut(t, c, width);
-                return t.DesiredSize();
-            };
-            auto maxContent = [&]() -> Size
-            {
-                if (!c.maxValid)
+            const Size d = AnswerMeasure(c, kw, aw,
+                [&](float width) -> Size
                 {
-                    c.max = layout(inf);
-                    c.maxValid = true;
-                }
-                return c.max;
-            };
-
-            float width = ResolveWidth(kw, aw);
-            const bool minContentRequest = width == 0.0f;
-            if (minContentRequest)
-            {
-                if (!c.minValid)
+                    LayOut(t, c, width);
+                    return t.DesiredSize();
+                },
+                [&](auto const& maxContent) -> float
                 {
                     if (c.breaks < 0) c.breaks = HasBreakOpportunity(c.runs) ? 1 : 0;
-                    if (c.breaks)
-                    {
-                        c.minWidth = MinContentWidth(t, c.runs);
-                    }
-                    else
-                    {
-                        c.minWidth = maxContent().Width;
-                    }
-                    c.minValid = true;
-                }
-                width = c.minWidth;
-            }
-
-            Size d{ 0.0f, 0.0f };
-            if (minContentRequest)
-            {
-                // Taffy takes the width for automatic minimums and measures again with the width
-                // known if the text is placed at it, so whatever height is known stands in.
-                d = { width, c.maxValid ? c.max.Height : (c.count ? c.entries[0].size.Height : 0.0f) };
-            }
-            else if (!std::isfinite(width) || (c.maxValid && width >= c.max.Width))
-            {
-                // Lines break greedily, so any width the single max-content line fits gives that line.
-                d = maxContent();
-            }
-            else
-            {
-                // Laid out at the width itself, which is usually the width it's arranged at.
-                bool hit = false;
-                for (uint8_t k = 0; k < c.count; ++k)
-                {
-                    if (c.entries[k].width == width) { d = c.entries[k].size; hit = true; break; }
-                }
-                if (!hit)
-                {
-                    d = layout(width);
-                    c.entries[c.next] = { width, d };
-                    c.next = static_cast<uint8_t>((c.next + 1) % c.entries.size());
-                    if (c.count < c.entries.size()) ++c.count;
-                }
-            }
-            return mason_leaf::PackMeasure((std::min)(d.Width, width), d.Height);
+                    return c.breaks ? MinContentWidth(t, c.runs) : maxContent().Width;
+                });
+            return mason_leaf::PackMeasure(d.Width, d.Height);
         };
         m_node.SetMeasure(cb);
-        m_measureCache->node = winrt::make_weak(m_node);
     }
 
     void Text::SetWrap(muxc::TextBlock const& block, MeasureCache& cache, bool wrap)
@@ -434,6 +495,7 @@ namespace winrt::NativeScript::Mason::implementation
     Text::~Text()
     {
         for (auto const& entry : m_runs) Detach(entry);
+        if (m_sprite) mason_atlas::Forget(m_sprite.get());
     }
 
     void Text::SyncStyle(winrt::hstring const&, winrt::hstring const&)
@@ -532,7 +594,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::ApplyStyleFromBuffer()
     {
-        if (!m_text || !m_node) return;
+        if (!m_node) return;
         auto st = m_node.Style();
         if (!st) return;
         auto buf = st.Values();
@@ -557,14 +619,7 @@ namespace winrt::NativeScript::Mason::implementation
         {
             const float lh = f32(384);
             m_lineHeightMultiplier = (u8(389) == 0) ? static_cast<double>(lh) : 0.0; // 0 = unitless multiplier, 1 = px
-            if (u8(389) != 0) { m_text.LineHeight(static_cast<double>(lh)); m_text.LineStackingStrategy(mux::LineStackingStrategy::BlockLineHeight); }
-        }
-
-        if (m_fontSize > 0.0) m_text.FontSize(m_fontSize);
-        if (m_fontWeight > 0) m_text.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(m_fontWeight) });
-        {
-            using winrt::Windows::UI::Text::FontStyle;
-            m_text.FontStyle(m_fontStyle == 1 ? FontStyle::Italic : m_fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
+            m_lineHeightPx = (u8(389) != 0) ? static_cast<double>(lh) : 0.0;
         }
         {
             // DECORATION_LINE bit set at 354 (1 underline, 2 overline, 4 line-through) / state 355.
@@ -577,8 +632,31 @@ namespace winrt::NativeScript::Mason::implementation
                 if (line & 1) m_decorations = m_decorations | TextDecorations::Underline;
                 if (line & 4) m_decorations = m_decorations | TextDecorations::Strikethrough;
             }
-            m_text.TextDecorations(m_decorations);
         }
+        // TEXT_ALIGN value byte at 374. (The JS TEXT_ALIGN_STATE offset overlaps this int32, so the
+        // value byte alone is the reliable source.)
+        m_textAlign = u8(374);
+        m_measureCache->startAligned = m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
+
+        if (m_direct)
+        {
+            m_paragraphDirty = true;
+            QueueRebuild();
+            return;
+        }
+        if (!m_text) return;
+        if (m_lineHeightPx > 0.0)
+        {
+            m_text.LineHeight(m_lineHeightPx);
+            m_text.LineStackingStrategy(mux::LineStackingStrategy::BlockLineHeight);
+        }
+        if (m_fontSize > 0.0) m_text.FontSize(m_fontSize);
+        if (m_fontWeight > 0) m_text.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(m_fontWeight) });
+        {
+            using winrt::Windows::UI::Text::FontStyle;
+            m_text.FontStyle(m_fontStyle == 1 ? FontStyle::Italic : m_fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
+        }
+        m_text.TextDecorations(m_decorations);
         if (m_lineHeightMultiplier > 0.0)
         {
             m_text.LineHeight(m_lineHeightMultiplier * m_text.FontSize());
@@ -588,11 +666,9 @@ namespace winrt::NativeScript::Mason::implementation
             const double fs = m_text.FontSize();
             m_text.CharacterSpacing(fs > 0.0 ? static_cast<int32_t>(std::lround(m_letterSpacingPx / fs * 1000.0)) : 0);
         }
-        // TEXT_ALIGN value byte at 374: 1=left,2=right,3=center,4=justify,5=start,6=end. (The JS
-        // TEXT_ALIGN_STATE offset overlaps this int32, so the value byte alone is the reliable source.)
         {
             mux::TextAlignment a = mux::TextAlignment::Left;
-            switch (u8(374))
+            switch (m_textAlign)
             {
             case 2: case 6: a = mux::TextAlignment::Right; break;
             case 3: a = mux::TextAlignment::Center; break;
@@ -600,7 +676,6 @@ namespace winrt::NativeScript::Mason::implementation
             default: break;
             }
             m_text.TextAlignment(a);
-            m_measureCache->startAligned = a == mux::TextAlignment::Left;
         }
 
         QueueRebuild();
@@ -648,13 +723,22 @@ namespace winrt::NativeScript::Mason::implementation
 
     bool Text::RebuildInlines()
     {
-        if (!m_text) return false;
+        if (!m_text && !m_direct) return false;
         Resolved defaults;
-        defaults.fontSize = m_text.FontSize();
+        defaults.fontSize = m_fontSize > 0.0 ? m_fontSize : 14.0;
         const Resolved container = Resolve(defaults);
         std::vector<BuiltRun> next;
         next.reserve(m_runs.size());
         AppendRuns(container, next);
+        if (m_direct)
+        {
+            if (m_builtValid && next == m_builtRuns && !m_paragraphDirty) return false;
+            m_paragraphDirty = false;
+            BuildParagraph(container, next);
+            m_builtRuns = std::move(next);
+            m_builtValid = true;
+            return true;
+        }
         if (m_builtValid && next == m_builtRuns) return false;
         StoreMinContentRuns(next);
 
@@ -710,6 +794,54 @@ namespace winrt::NativeScript::Mason::implementation
         m_builtRuns = std::move(next);
         m_builtValid = true;
         return true;
+    }
+
+    void Text::BuildParagraph(Resolved const& container, std::vector<BuiltRun> const& runs)
+    {
+        mason_dwrite::Paragraph p;
+        p.font = mason_dwrite::ResolveFont(m_fontFamily.empty() ? std::wstring_view(L"Segoe UI") : std::wstring_view(m_fontFamily));
+        p.fontSize = static_cast<float>(container.fontSize);
+        p.weight = WeightOf(container.fontWeight);
+        p.style = StyleOf(container.fontStyle);
+        p.color = container.color;
+        switch (m_textAlign)
+        {
+        case 2: case 6: p.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING; break;
+        case 3: p.alignment = DWRITE_TEXT_ALIGNMENT_CENTER; break;
+        case 4: p.alignment = DWRITE_TEXT_ALIGNMENT_JUSTIFIED; break;
+        default: p.alignment = DWRITE_TEXT_ALIGNMENT_LEADING; break;
+        }
+        p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * container.fontSize);
+
+        using winrt::Windows::UI::Text::TextDecorations;
+        for (auto const& b : runs)
+        {
+            if (b.isBreak)
+            {
+                p.text += L'\n';
+                continue;
+            }
+            auto const& f = b.format;
+            mason_dwrite::Span span;
+            span.start = static_cast<uint32_t>(p.text.size());
+            span.length = static_cast<uint32_t>(b.text.size());
+            p.text += std::wstring_view(b.text);
+            span.font = f.family.empty() ? p.font : mason_dwrite::ResolveFont(std::wstring_view(f.family));
+            span.fontSize = f.fontSize > 0.0 ? static_cast<float>(f.fontSize) : p.fontSize;
+            span.weight = WeightOf(f.fontWeight);
+            span.style = StyleOf(f.fontStyle);
+            span.letterSpacing = static_cast<float>(f.letterSpacing);
+            span.underline = (f.decorations & TextDecorations::Underline) != TextDecorations::None;
+            span.strikethrough = (f.decorations & TextDecorations::Strikethrough) != TextDecorations::None;
+            span.color = f.color;
+            p.spans.push_back(std::move(span));
+        }
+
+        auto& c = *m_measureCache;
+        if (c.layout && c.paragraph == p) return;
+        c.paragraph = std::move(p);
+        c.layout = nullptr;
+        ++c.version;
     }
 
     void Text::StoreMinContentRuns(std::vector<BuiltRun> const& runs)
@@ -794,7 +926,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     Size Text::MeasureOverride(Size const& available)
     {
-        if (!m_text) return Size{ 0, 0 };
+        if (!m_text && !m_direct) return Size{ 0, 0 };
         auto parent = Parent();
         if (parent && parent.try_as<nsm::IMasonElement>())
         {
@@ -803,14 +935,150 @@ namespace winrt::NativeScript::Mason::implementation
             return Size{ 0, 0 };
         }
         FlushRebuild();
+        if (m_direct)
+        {
+            IDWriteTextLayout* layout = m_measureCache->Layout();
+            if (!layout) return Size{ 0, 0 };
+            const auto m = mason_dwrite::LayOut(layout, available.Width);
+            return Size{ m.width, m.height };
+        }
         SetWrap(m_text, *m_measureCache, std::isfinite(available.Width));
         m_text.Measure(available);
         return m_text.DesiredSize();
     }
 
+    void Text::HideSprite()
+    {
+        if (!m_sprite) return;
+        mason_atlas::Forget(m_sprite.get());
+        m_drawnValid = false;
+        if (m_spriteVisible && m_sprite->visual) m_sprite->visual.IsVisible(false);
+        m_spriteVisible = false;
+    }
+
+    void Text::ArrangeDirect(Size const& finalSize)
+    {
+        FlushRebuild();
+        auto& c = *m_measureCache;
+        IDWriteTextLayout* layout = c.Layout();
+        if (!layout || c.paragraph.text.empty())
+        {
+            HideSprite();
+            return;
+        }
+
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        const float width = (std::max)(0.0f, finalSize.Width - left - right);
+        const float scale = mason_visual::RasterScale(get_strong().as<mux::UIElement>());
+        const float slack = SlackFor(scale);
+        const float inf = std::numeric_limits<float>::infinity();
+        if (!c.maxValid)
+        {
+            const auto m = mason_dwrite::LayOut(layout, inf);
+            c.max = { m.width, m.height };
+            c.maxValid = true;
+        }
+
+        // An unwrapped line that fits needs no breaking, and a start-aligned one no box either, so it
+        // keeps the unbounded width it was measured at.
+        const bool wrap = width + slack < c.max.Width;
+        const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING;
+        const float maxWidth = wrap ? width + slack : leading ? mason_dwrite::kUnbounded : width;
+        mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth);
+        DWRITE_TEXT_METRICS metrics{};
+        DWRITE_OVERHANG_METRICS overhang{};
+        layout->GetMetrics(&metrics);
+        layout->GetOverhangMetrics(&overhang);
+
+        // The ink in device pixels around the content box, a pixel of margin for antialiasing. The
+        // element sits on whole pixels, so the slot does, and the layout keeps its fraction.
+        const float inkLeft = left - overhang.left;
+        const float inkTop = top - overhang.top;
+        const float inkRight = left + maxWidth + overhang.right;
+        const float inkBottom = top + mason_dwrite::kUnbounded + overhang.bottom;
+        if (inkRight <= inkLeft || inkBottom <= inkTop || metrics.lineCount == 0)
+        {
+            HideSprite();
+            return;
+        }
+        const int pxLeft = static_cast<int>(std::floor(inkLeft * scale)) - 1;
+        const int pxTop = static_cast<int>(std::floor(inkTop * scale)) - 1;
+        const int pxRight = static_cast<int>(std::ceil(inkRight * scale)) + 1;
+        const int pxBottom = static_cast<int>(std::ceil(inkBottom * scale)) + 1;
+
+        Drawn next;
+        next.version = c.version;
+        next.maxWidth = maxWidth;
+        next.wrap = wrap;
+        next.scale = scale;
+        next.originX = left - pxLeft / scale;
+        next.originY = top - pxTop / scale;
+        next.width = pxRight - pxLeft;
+        next.height = pxBottom - pxTop;
+
+        if (!m_sprite) m_sprite = std::make_unique<mason_atlas::Sprite>();
+        auto& sprite = *m_sprite;
+        if (!sprite.visual)
+        {
+            sprite.visual = mason_deco::ThreadCompositor().CreateSpriteVisual();
+            mason_deco::SetLayer(get_strong().as<mux::UIElement>(), L"mason-text", sprite.visual);
+            m_spriteVisible = true;
+        }
+        if (!m_spriteVisible)
+        {
+            sprite.visual.IsVisible(true);
+            m_spriteVisible = true;
+        }
+        const winrt::Windows::Foundation::Numerics::float3 offset{ pxLeft / scale, pxTop / scale, 0.0f };
+        const winrt::Windows::Foundation::Numerics::float2 size{ next.width / scale, next.height / scale };
+        if (offset != m_spriteOffset)
+        {
+            sprite.visual.Offset(offset);
+            m_spriteOffset = offset;
+        }
+        if (size != m_spriteSize)
+        {
+            sprite.visual.Size(size);
+            m_spriteSize = size;
+        }
+
+        if (m_drawnValid && m_drawn == next && (sprite.page || sprite.queued)) return;
+        m_drawn = next;
+        m_drawnValid = true;
+        sprite.layout = c.layout;
+        sprite.wrapping = wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP;
+        sprite.maxWidth = maxWidth;
+        sprite.color = c.paragraph.color;
+        sprite.colors.clear();
+        for (auto const& span : c.paragraph.spans) sprite.colors.push_back({ DWRITE_TEXT_RANGE{ span.start, span.length }, span.color });
+        sprite.originX = next.originX;
+        sprite.originY = next.originY;
+        sprite.width = next.width;
+        sprite.height = next.height;
+        sprite.scale = scale;
+        mason_atlas::Queue(&sprite);
+    }
+
+    winrt::Microsoft::UI::Xaml::Automation::Peers::AutomationPeer Text::OnCreateAutomationPeer()
+    {
+        // A TextBlock child speaks for itself.
+        if (!m_direct) return base_type::OnCreateAutomationPeer();
+        return winrt::make<implementation::TextAutomationPeer>(get_strong().as<nsm::Text>());
+    }
+
+    winrt::hstring Text::AccessibleText() const
+    {
+        return winrt::hstring{ m_measureCache->paragraph.text };
+    }
+
     Size Text::ArrangeOverride(Size const& finalSize)
     {
-        if (m_text)
+        if (m_direct)
+        {
+            ArrangeDirect(finalSize);
+        }
+        else if (m_text)
         {
             // The layout's cache can answer the final size without calling measure, leaving the
             // TextBlock laid out for whichever probe ran last (often min-content), so lay it out for

@@ -12,6 +12,10 @@ namespace NativeScript.Mason
         String Content;
         Double FontSize;
 
+        // Lay out and draw text with DirectWrite instead of a TextBlock (on by default); read when a Text
+        // is created.
+        static Boolean DirectWrite;
+
         // CSS font-family list; empty resets to the default.
         void SetFontFamily(String families);
 
