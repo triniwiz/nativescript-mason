@@ -70,7 +70,7 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
 import { Tree } from './tree';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
@@ -895,6 +895,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         this._view.mason_append(child._view);
       }
 
+      if (__WINDOWS__) {
+        this._windowsAttachPlaceholder(child, -1);
+      }
+
       if (this[isText_]) {
         child[isTextChild_] = true;
       }
@@ -977,12 +981,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // native children list and push the insert past the end.
   private _nativeIndexFor(atIndex: number) {
     let index = 0;
+    let group;
     const max = Math.min(atIndex, this._children.length);
     for (let i = 0; i < max; i++) {
       const c: any = this._children[i];
       if (!c) {
         continue;
       }
+      const anonymous = c[anonymousText_];
+      if (anonymous) {
+        if (anonymous !== group) index++;
+        group = anonymous;
+        continue;
+      }
+      group = undefined;
       if (c[textNode_] || c instanceof TextNode || text_ in c || (c[isPlaceholder_] && c[native_]) || c._isMasonChild) {
         index++;
       }
@@ -990,7 +1002,25 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return index;
   }
 
+  // Windows attaches element children on load with no index, after text runs that attached
+  // straight away, so an append would land them after text that comes later.
+  _windowsNativeIndexOf(child: any, atIndex: number): number {
+    if (atIndex >= 0) return atIndex;
+    const slot = this._children.indexOf(child);
+    return slot >= 0 ? this._nativeIndexFor(slot) : atIndex;
+  }
+
+  _childIndexToNativeChildIndex(index?: number): number {
+    if (__WINDOWS__ && typeof index === 'number' && index >= 0) {
+      return this._nativeIndexFor(index);
+    }
+    return super._childIndexToNativeChildIndex(index);
+  }
+
   insertChild(child: any, atIndex: number) {
+    if (__WINDOWS__) {
+      this._windowsSplitAnonymousText(atIndex);
+    }
     if (child && child[isPlaceholder_] && child._view) {
       const nativeIndex = this._nativeIndexFor(atIndex);
       this._children.splice(atIndex, 0, child);
@@ -1006,6 +1036,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (__APPLE__) {
         //@ts-ignore
         this._view.mason_addChildAtElement(child._view, nativeIndex);
+      }
+
+      if (__WINDOWS__) {
+        this._windowsAttachPlaceholder(child, nativeIndex);
       }
     } else if (child instanceof NSView) {
       this._children.splice(atIndex, 0, child);
@@ -1031,6 +1065,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (__APPLE__) {
         //@ts-ignore
         this._view.mason_replaceChildAtElement(child._view, atIndex);
+      }
+
+      if (__WINDOWS__) {
+        this._windowsAttachPlaceholder(child, atIndex);
       }
     } else if (child instanceof NSView) {
       this._children[atIndex] = child;
@@ -1076,6 +1114,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         if (__APPLE__) {
           //@ts-ignore
           this._view.mason_removeChildNode(child._view.node);
+        }
+        if (__WINDOWS__) {
+          this._windowsDetachPlaceholder(child);
         }
         child[isTextChild_] = false;
         (this as any).requestLayout?.();
@@ -1130,6 +1171,35 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__WINDOWS__) {
       //@ts-ignore
       if (typeof view.RemoveRun === 'function') view.RemoveRun(node);
+      else this._windowsRemoveAnonymousRun(index);
+    }
+  }
+
+  // Windows text lays out TextNode runs, not child panels, so a placeholder inside one
+  // becomes a break run; any other parent hosts its native panel.
+  private _windowsAttachPlaceholder(child: any, index: number) {
+    const view = (this as any)._view;
+    if (!view) return;
+    if (typeof view.SetRun === 'function') {
+      let run = child[breakRun_];
+      if (!run) {
+        run = new NativeScript.Mason.TextNode();
+        run.SetBreak(true);
+        child[breakRun_] = run;
+      }
+      view.SetRun(run, index);
+    } else {
+      NativeScript.Mason.Css.ReparentChild(view, child._view, index);
+    }
+  }
+
+  private _windowsDetachPlaceholder(child: any) {
+    const view = (this as any)._view;
+    if (!view) return;
+    if (child[breakRun_] && typeof view.RemoveRun === 'function') {
+      view.RemoveRun(child[breakRun_]);
+    } else {
+      NativeScript.Mason.Css.RemoveChild(view, child._view);
     }
   }
 
@@ -1143,6 +1213,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (child instanceof NSView) {
         this._removeView(child);
       }
+    }
+    if (__WINDOWS__) {
+      this._forEachAnonymousText((anonymous) => NativeScript.Mason.Css.RemoveChild((this as any)._view, anonymous));
     }
     this._children.splice(0);
   }
@@ -1377,14 +1450,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
     const entry = { [text_]: text, [textNode_]: textNode, [textNodeIndex_]: operation.index ?? this._children.length };
 
+    const anonymous = this._windowsNeedsAnonymousText();
+
     switch (operation.type) {
       case 'add':
-        this._nativeAddChild(textNode, this._children.length);
+        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, this._children.length, false);
+        else this._nativeAddChild(textNode, this._children.length);
         //@ts-ignore
         this._children.push({ ...entry, [textNodeIndex_]: this._children.length });
         break;
       case 'replace':
-        this._nativeReplaceChild(textNode, operation.index);
+        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, operation.index, true);
+        else this._nativeReplaceChild(textNode, operation.index);
         this._setOrPushChild(operation.index, entry);
         break;
       case 'insert': {
@@ -1392,7 +1469,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         // lag behind it (elements attach lazily on `loaded`), so map it the
         // same way `insertChild` does or the run lands past the end.
         const index = Math.max(0, Math.min(operation.index ?? this._children.length, this._children.length));
-        this._nativeAddChild(textNode, this._nativeIndexFor(index));
+        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, index, false);
+        else this._nativeAddChild(textNode, this._nativeIndexFor(index));
         this._spliceOrPushChild(index, entry);
         break;
       }
@@ -1400,8 +1478,105 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._syncTextRunLayout();
   }
 
-  private _syncTextRunLayout() {
+  // Only Text lays out runs on Windows, so any other container puts consecutive runs in one
+  // anonymous Text, as Android's getOrCreateAnonymousTextContainer does.
+  private _windowsNeedsAnonymousText() {
+    if (!__WINDOWS__) return false;
+    const view = (this as any)._view;
+    return !!view?.Children && typeof view.SetRun !== 'function';
+  }
+
+  private _windowsAddAnonymousRun(textNode: any, slot: number, replace: boolean) {
+    const children = this._children as any[];
+    const old = replace ? children[slot] : undefined;
+    const current = old?.[anonymousText_];
+    if (current) {
+      if (old[textNode_] !== textNode) {
+        const at = this._windowsRunsBefore(slot, current);
+        current.RemoveRun(old[textNode_]);
+        current.SetRun(textNode, at);
+      }
+      return current;
+    }
+    const prev = children[slot - 1]?.[anonymousText_];
+    if (prev) {
+      prev.SetRun(textNode, this._windowsRunsBefore(slot, prev));
+      return prev;
+    }
+    const next = children[replace ? slot + 1 : slot]?.[anonymousText_];
+    if (next) {
+      next.SetRun(textNode, 0);
+      return next;
+    }
+    const anonymous = this._windowsCreateAnonymousText(this._nativeIndexFor(slot));
+    anonymous.SetRun(textNode, 0);
+    return anonymous;
+  }
+
+  private _windowsRunsBefore(slot: number, anonymous: any) {
+    let n = 0;
+    for (let i = slot - 1; i >= 0 && (this._children[i] as any)?.[anonymousText_] === anonymous; i--) n++;
+    return n;
+  }
+
+  private _windowsCreateAnonymousText(nativeIndex: number): NativeScript.Mason.Text {
+    const anonymous = new NativeScript.Mason.Text();
+    // @ts-ignore
+    this._styleHelper?.copyTextStyleTo(anonymous);
+    const font = (this as any)[windowsFontSource_];
+    if (font) anonymous.SetFontFamily(font);
+    NativeScript.Mason.Css.ReparentChild((this as any)._view, anonymous, nativeIndex);
+    return anonymous;
+  }
+
+  private _windowsRemoveAnonymousRun(index: number) {
+    const children = this._children as any[];
+    const anonymous = children[index]?.[anonymousText_];
+    if (!anonymous) return;
+    anonymous.RemoveRun(children[index][textNode_]);
+    if (children[index - 1]?.[anonymousText_] !== anonymous && children[index + 1]?.[anonymousText_] !== anonymous) {
+      NativeScript.Mason.Css.RemoveChild((this as any)._view, anonymous);
+    }
+  }
+
+  // An element landing between two runs of one anonymous Text splits it, so the runs after it
+  // render after it.
+  private _windowsSplitAnonymousText(slot: number) {
+    const children = this._children as any[];
+    const anonymous = children[slot - 1]?.[anonymousText_];
+    if (!anonymous || children[slot]?.[anonymousText_] !== anonymous) return;
+    const tail = this._windowsCreateAnonymousText(this._nativeIndexFor(slot));
+    for (let i = slot, k = 0; children[i]?.[anonymousText_] === anonymous; i++, k++) {
+      anonymous.RemoveRun(children[i][textNode_]);
+      tail.SetRun(children[i][textNode_], k);
+      children[i][anonymousText_] = tail;
+    }
+  }
+
+  private _forEachAnonymousText(fn: (anonymous: NativeScript.Mason.Text) => void) {
+    let last;
+    for (const c of this._children as any[]) {
+      const anonymous = c?.[anonymousText_];
+      if (anonymous && anonymous !== last) fn(anonymous);
+      last = anonymous;
+    }
+  }
+
+  _windowsSyncAnonymousText() {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) this._forEachAnonymousText((anonymous) => style.copyTextStyleTo(anonymous));
+  }
+
+  [fontInternalProperty.setNative](value: any) {
     if (!__WINDOWS__) return;
+    const source = windowsFontSource(value);
+    (this as any)[windowsFontSource_] = source;
+    this._forEachAnonymousText((anonymous) => anonymous.SetFontFamily(source));
+  }
+
+  private _syncTextRunLayout() {
+    if (!__WINDOWS__ || typeof (this as any)._view?.SetRun !== 'function') return;
     // @ts-ignore
     const sh = this._styleHelper;
     if (!sh) return;
@@ -2679,6 +2854,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
 textProperty.register(ViewBase);
 
+// Core's Windows Font resolves app/fonts files to an ms-appx URI (and generics to system fonts);
+// the bare family name only finds installed fonts.
+function windowsFontSource(font: any): string {
+  try {
+    const source = font?.getWindowsFontDescriptor?.()?.fontFamilyNative?.Source;
+    if (source) return String(source);
+  } catch (_) {}
+  return String((font && typeof font === 'object' ? font.fontFamily : '') ?? '');
+}
+
 export class TextBase extends ViewBase {
   textContent: string;
 
@@ -2687,9 +2872,8 @@ export class TextBase extends ViewBase {
     // @ts-ignore
     const view = (this as any)._view;
     if (!view || typeof view.SetFontFamily !== 'function') return;
-    const family = value && typeof value === 'object' ? (value.fontFamily ?? '') : '';
     try {
-      view.SetFontFamily(String(family ?? ''));
+      view.SetFontFamily(windowsFontSource(value));
     } catch (_) {}
   }
 

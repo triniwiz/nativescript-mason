@@ -255,10 +255,14 @@ namespace winrt::NativeScript::Mason::implementation
     void Css::ClearBackground(mux::UIElement const& element)
     {
         if (!element) return;
-        if (auto panel = element.try_as<muxc::Panel>())
-        {
-            panel.Background(nullptr);
-        }
+        auto panel = element.try_as<muxc::Panel>();
+        if (!panel) return;
+        // Solid brushes are background-color, which VisualApply owns; a tap handler's transparent
+        // brush must also survive or the element stops hit-testing.
+        auto current = panel.Background();
+        if (!current || current.try_as<muxm::SolidColorBrush>() || current.try_as<nsm::RoundedColorBrush>()) return;
+        panel.Background(nullptr);
+        panel.InvalidateArrange();
     }
 
     void Css::ApplyOpacity(mux::UIElement const& element, double opacity)

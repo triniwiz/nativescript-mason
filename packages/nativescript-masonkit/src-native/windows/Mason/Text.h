@@ -1,6 +1,8 @@
 #pragma once
 #include "Text.g.h"
 #include "VisualState.h"
+#include <winrt/Windows.UI.Text.h>
+#include <memory>
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -38,6 +40,7 @@ namespace winrt::NativeScript::Mason::implementation
             double fontSize{ 0.0 };
             int32_t fontWeight{ 0 };
             double letterSpacing{ 0.0 };
+            winrt::Windows::UI::Text::TextDecorations decorations{ winrt::Windows::UI::Text::TextDecorations::None };
             bool isBreak{ false };
             bool operator==(BuiltRun const&) const = default;
         };
@@ -48,7 +51,15 @@ namespace winrt::NativeScript::Mason::implementation
         void InvalidateText();
         void InvalidateLayoutRootFromHere();
 
+        struct MinContent
+        {
+            bool valid{ false };
+            float width{ 0.0f };
+        };
+
         std::vector<BuiltRun> m_builtRuns;
+        // Shared with the measure callback, which only holds weak references.
+        std::shared_ptr<MinContent> m_minContent{ std::make_shared<MinContent>() };
         winrt::hstring m_builtFamily{};
         bool m_builtValid{ false };
 
@@ -65,6 +76,7 @@ namespace winrt::NativeScript::Mason::implementation
         int32_t m_fontWeight{ 0 };
         double m_lineHeightMultiplier{ 0.0 };
         double m_letterSpacingPx{ 0.0 };
+        winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
         winrt::hstring m_fontFamily{};
     };
 }

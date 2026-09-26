@@ -2,6 +2,7 @@
 #include "Text.h"
 #include "Text.g.cpp"
 #include "TextNode.h"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -29,19 +30,85 @@ namespace
     namespace muxm = winrt::Microsoft::UI::Xaml::Media;
 
     
-    inline float ResolveAxis(float known, float available)
-    {
-        if (known > 0.0f && std::isfinite(known)) return known;
-        if (available > 0.0f && std::isfinite(available)) return available;
-        return std::numeric_limits<float>::infinity();
-    }
-
     // Width for a Taffy measure request: definite known width, else 0 for MinContent (-1), else infinity.
     inline float ResolveWidth(float known, float available)
     {
         if (known > 0.0f && std::isfinite(known)) return known;
         if (available < 0.0f && available > -1.5f) return 0.0f; // MinContent
         return std::numeric_limits<float>::infinity();
+    }
+
+    bool IsBreakOpportunity(wchar_t c)
+    {
+        return c == L' ' || c == L'\t' || c == L'\n' || c == L'\r' || c == 0x200B;
+    }
+
+    // CSS min-content is the widest unbreakable segment. XAML clamps DesiredSize to the offered width,
+    // so each segment is measured unconstrained on a detached probe, with its runs' formatting.
+    float MinContentWidth(muxc::TextBlock const& text)
+    {
+        // Never destroyed: releasing a XAML object after the thread's XAML shuts down crashes.
+        struct Probe { muxc::TextBlock block; };
+        thread_local Probe* holder = nullptr;
+        if (!holder)
+        {
+            holder = new Probe{ muxc::TextBlock() };
+            holder->block.TextWrapping(mux::TextWrapping::NoWrap);
+        }
+        muxc::TextBlock* probe = &holder->block;
+        probe->FontFamily(text.FontFamily());
+        probe->FontSize(text.FontSize());
+        probe->FontWeight(text.FontWeight());
+        probe->FontStyle(text.FontStyle());
+        probe->CharacterSpacing(text.CharacterSpacing());
+        auto pieces = probe->Inlines();
+        pieces.Clear();
+
+        const float inf = std::numeric_limits<float>::infinity();
+        float widest = 0.0f;
+        auto flush = [&]()
+        {
+            if (pieces.Size() == 0) return;
+            probe->Measure(Size{ inf, inf });
+            widest = (std::max)(widest, probe->DesiredSize().Width);
+            pieces.Clear();
+        };
+
+        for (auto const& inl : text.Inlines())
+        {
+            auto run = inl.try_as<muxd::Run>();
+            if (!run)
+            {
+                flush();
+                continue;
+            }
+            const winrt::hstring content = run.Text();
+            const std::wstring_view chars{ content };
+            size_t start = 0;
+            for (size_t i = 0; i <= chars.size(); ++i)
+            {
+                const bool end = i == chars.size();
+                const bool space = !end && IsBreakOpportunity(chars[i]);
+                const bool hyphen = !end && chars[i] == L'-';
+                if (!end && !space && !hyphen) continue;
+                const size_t stop = hyphen ? i + 1 : i;
+                if (stop > start)
+                {
+                    muxd::Run piece;
+                    piece.Text(winrt::hstring{ chars.substr(start, stop - start) });
+                    piece.FontFamily(run.FontFamily());
+                    piece.FontSize(run.FontSize());
+                    piece.FontWeight(run.FontWeight());
+                    piece.FontStyle(run.FontStyle());
+                    piece.CharacterSpacing(run.CharacterSpacing());
+                    pieces.Append(piece);
+                }
+                if (!end) flush();
+                start = i + 1;
+            }
+        }
+        flush();
+        return widest;
     }
 
     winrt::Windows::UI::Color ColorFromArgb(uint32_t argb)
@@ -146,15 +213,29 @@ namespace winrt::NativeScript::Mason::implementation
         m_text.Foreground(muxm::SolidColorBrush(winrt::Windows::UI::Color{ 255, 0, 0, 0 }));
         m_text.FontFamily(muxm::FontFamily(L"Segoe UI"));
         m_text.FontSize(14.0);
-        m_text.TextWrapping(mux::TextWrapping::Wrap);
+        // CSS breaks only at break opportunities and lets a longer word overflow; Wrap breaks inside it.
+        m_text.TextWrapping(mux::TextWrapping::WrapWholeWords);
         Children().Append(m_text);
 
         auto weak = winrt::make_weak(m_text);
-        nsm::MeasureFunc cb = [weak](float kw, float kh, float aw, float ah) -> int64_t
+        auto minContent = m_minContent;
+        nsm::MeasureFunc cb = [weak, minContent](float kw, float, float aw, float) -> int64_t
         {
             auto t = weak.get();
             if (!t) return mason_leaf::PackMeasure(0.0f, 0.0f);
-            t.Measure(Size{ ResolveWidth(kw, aw), ResolveAxis(kh, ah) });
+            float width = ResolveWidth(kw, aw);
+            if (width == 0.0f)
+            {
+                if (!minContent->valid)
+                {
+                    minContent->width = MinContentWidth(t);
+                    minContent->valid = true;
+                }
+                width = minContent->width;
+            }
+            // Height is the result, never a constraint: a TextBlock measured shorter than a line drops
+            // the line. Taffy applies a known height itself.
+            t.Measure(Size{ width, std::numeric_limits<float>::infinity() });
             auto d = t.DesiredSize();
             return mason_leaf::PackMeasure(d.Width, d.Height);
         };
@@ -274,6 +355,19 @@ namespace winrt::NativeScript::Mason::implementation
             const uint8_t fontStyle = u8(345) ? u8(344) : 0;
             m_text.FontStyle(fontStyle == 1 ? FontStyle::Italic : fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
         }
+        {
+            // DECORATION_LINE bit set at 354 (1 underline, 2 overline, 4 line-through) / state 355.
+            // WinUI has no overline, and draws every line solid in the text color.
+            using winrt::Windows::UI::Text::TextDecorations;
+            const uint8_t line = u8(355) ? u8(354) : 0;
+            m_decorations = TextDecorations::None;
+            if (line < 8)
+            {
+                if (line & 1) m_decorations = m_decorations | TextDecorations::Underline;
+                if (line & 4) m_decorations = m_decorations | TextDecorations::Strikethrough;
+            }
+            m_text.TextDecorations(m_decorations);
+        }
         if (m_lineHeightMultiplier > 0.0)
         {
             m_text.LineHeight(m_lineHeightMultiplier * m_text.FontSize());
@@ -323,6 +417,7 @@ namespace winrt::NativeScript::Mason::implementation
                 b.fontSize = impl->HasFontSize() ? impl->RunFontSize() : containerFs;
                 b.fontWeight = impl->HasFontWeight() ? impl->RunFontWeight() : m_fontWeight;
                 b.letterSpacing = impl->RunLetterSpacing() != 0.0 ? impl->RunLetterSpacing() : m_letterSpacingPx;
+                b.decorations = m_decorations;
             }
             next.push_back(std::move(b));
         }
@@ -344,6 +439,7 @@ namespace winrt::NativeScript::Mason::implementation
             if (b.fontSize > 0.0) run.FontSize(b.fontSize);
             if (b.fontWeight > 0) run.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(b.fontWeight) });
             if (b.letterSpacing != 0.0 && b.fontSize > 0.0) run.CharacterSpacing(static_cast<int32_t>(std::lround(b.letterSpacing / b.fontSize * 1000.0)));
+            run.TextDecorations(b.decorations);
             inlines.Append(run);
         }
         m_builtRuns = std::move(next);
@@ -354,6 +450,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::InvalidateText()
     {
+        m_minContent->valid = false;
         if (m_node) m_node.MarkDirty();
         InvalidateMeasure();
         InvalidateLayoutRootFromHere();

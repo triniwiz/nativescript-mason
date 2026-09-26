@@ -248,9 +248,11 @@ namespace mason_visual
         auto panel = element.try_as<muxc::Panel>();
         auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
         const bool sized = width > 0.0f && height > 0.0f;
-        const bool roundSolid = panel && bg != 0 && AlphaOf(bg) > 0 && radius > 0.0f && sized;
-        // A background set outside Apply (e.g. a gradient from Css) counts when the buffer has none.
-        const bool hasBackground = panel && (bg != 0 || panel.Background() != nullptr);
+        const auto current = panel ? panel.Background() : nullptr;
+        // Paints over background-color, as a CSS background-image does.
+        const bool gradient = current && current != state.installed && current.try_as<muxm::GradientBrush>() != nullptr;
+        const bool roundSolid = panel && !gradient && AlphaOf(bg) > 0 && radius > 0.0f && sized;
+        const bool hasBackground = panel && (gradient || AlphaOf(bg) > 0);
         // Rounded by the mask-brush (no clip, so text keeps ClearType) when a compositor exists.
         const bool roundedSolidBg = roundSolid && visual != nullptr;
 
@@ -285,10 +287,18 @@ namespace mason_visual
             // the subtree isn't rendered offscreen (which would gray out text). Falls back to a
             // plain solid brush + clip if no compositor is available.
             ApplyRoundedSolidBackground(panel, bg, width, height, radius);
+            state.installed = panel.Background();
         }
-        else if (panel && bg != 0)
+        else if (panel && !gradient && AlphaOf(bg) > 0)
         {
             panel.Background(muxm::SolidColorBrush(ColorFromArgb(bg)));
+            state.installed = panel.Background();
+        }
+        else if (panel && current && current == state.installed)
+        {
+            // Transparent rather than null keeps the element hit-testable for tap handlers.
+            panel.Background(muxm::SolidColorBrush(winrt::Windows::UI::Color{ 0, 0, 0, 0 }));
+            state.installed = panel.Background();
         }
 
         float r = radius;

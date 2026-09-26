@@ -267,7 +267,9 @@ function windowsSetGrid(nativeView: any, field: string, value: string) {
     gridRowEnd: s.GridRowEndCss,
     gridTemplateRows: s.GridTemplateRowsCss,
     gridTemplateColumns: s.GridTemplateColumnsCss,
-    gridArea: s.GridAreaCss,
+    // Reads back as the four lines and is applied after them, so a read-back would undo the line
+    // being set; the FFI skips an empty one.
+    gridArea: '',
     gridTemplateAreas: s.GridTemplateAreasCss,
   };
   g[field] = value ?? '';
@@ -767,9 +769,13 @@ function parseGradientAngle(token: string): number {
   return 180; // CSS default is 'to bottom'
 }
 
+const LINEAR_GRADIENT = /linear-gradient/i;
+const ANY_GRADIENT = /gradient/i;
+const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
+
 // Parse `linear-gradient(<dir>?, <color> <stop>?, ...)` into a CSS angle + per-stop argb + offsets.
 function parseLinearGradientCss(value: string): { angle: number; offsets: number[]; colors: number[] } | null {
-  const m = /linear-gradient\s*\(([\s\S]*)\)\s*$/i.exec(value.trim());
+  const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
     .map((p) => p.trim())
@@ -797,17 +803,12 @@ function parseLinearGradientCss(value: string): { angle: number; offsets: number
   return { angle, offsets: resolveStopPositions(positions), colors };
 }
 
-// Parse one side of a padding/margin shorthand into a Length the buffer setters accept.
-function parseSideLength(tok: string | number): any {
-  if (typeof tok === 'number') return tok;
-  const t = String(tok).trim();
-  if (t === 'auto') return 'auto';
-  const m = /^(-?[\d.]+)(px|%)?$/.exec(t);
-  if (!m) return 0;
-  const n = parseFloat(m[1]);
-  if (m[2] === 'px') return { value: n, unit: 'px' };
-  if (m[2] === '%') return { value: n, unit: '%' };
-  return n; // bare number = dip
+const SIDE_TOKEN = /^(auto|[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(px|dip|dppx|rem|em|pt|vw|vh|vmin|vmax|%)?|[a-z-]+\(.*\))$/i;
+
+/** 1-4 lengths, percentages or `auto`. Anything else makes the whole declaration invalid, which CSS ignores. */
+export function isSideList(value: string): boolean {
+  const parts = splitTopLevelSpaces(String(value ?? '').trim());
+  return parts.length >= 1 && parts.length <= 4 && parts.every((part) => SIDE_TOKEN.test(part));
 }
 
 // Split a `margin`/`padding`/`inset` shorthand into its four sides in CSS order.
@@ -823,28 +824,6 @@ function expandSidesShorthand(value: string): [string, string, string, string] |
       return [parts[0], parts[1], parts[2], parts[1]];
     default:
       return [parts[0], parts[1], parts[2], parts[3]];
-  }
-}
-
-// Expand a CSS padding/margin shorthand (number or 1-4 space-separated values) to per-side lengths.
-function parseSidesShorthand(value: string | number): { top: any; right: any; bottom: any; left: any } {
-  if (typeof value === 'number') return { top: value, right: value, bottom: value, left: value };
-  const parts = String(value ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(parseSideLength);
-  switch (parts.length) {
-    case 1:
-      return { top: parts[0], right: parts[0], bottom: parts[0], left: parts[0] };
-    case 2:
-      return { top: parts[0], right: parts[1], bottom: parts[0], left: parts[1] };
-    case 3:
-      return { top: parts[0], right: parts[1], bottom: parts[2], left: parts[1] };
-    case 4:
-      return { top: parts[0], right: parts[1], bottom: parts[2], left: parts[3] };
-    default:
-      return { top: 0, right: 0, bottom: 0, left: 0 };
   }
 }
 
@@ -915,7 +894,7 @@ function splitTopLevelSpaces(value: string): string[] {
 
 // Parse a `border` / `border-<side>` shorthand (`<width> <style> <color>`, any order) into px width,
 // border-style enum and argb color; each is null when absent.
-function parseBorderShorthand(value: string): { width: number | null; style: number | null; color: number | null } {
+function parseBorderShorthand(value: string, emBasis?: number): { width: number | null; style: number | null; color: number | null } {
   let width: number | null = null;
   let style: number | null = null;
   let color: number | null = null;
@@ -938,17 +917,109 @@ function parseBorderShorthand(value: string): { width: number | null; style: num
       width = 5;
       continue;
     }
-    if (/^-?\d*\.?\d+(px|dip|dp|rem|em|pt)?$/i.test(tok)) {
-      const n = parseFloat(tok);
-      if (!isNaN(n)) {
-        width = n;
-        continue;
-      }
+    const len = /^-?\d*\.?\d+(px|dip|dp|rem|em|pt)?$/i.exec(tok);
+    if (len) {
+      width = /^(r?em|pt)$/i.test(len[1] ?? '') ? (cssLengthToDip(tok, emBasis) ?? 0) : parseFloat(tok);
+      continue;
     }
     const c = normalizeColorValue(tok);
     if (c != null) color = c;
   }
   return { width, style, color };
+}
+
+/** `currentcolor`, the decoration color's unset value (Constants.UNSET_COLOR on Android). */
+export const DECORATION_COLOR_UNSET = 0xdeadbeef;
+
+const DECORATION_LINE_BITS: Record<string, number> = { underline: 1, overline: 2, 'line-through': 4 };
+const DECORATION_LINE_SOLO: Record<string, number> = { 'spelling-error': 8, 'grammar-error': 16 };
+const DECORATION_STYLES = ['solid', 'double', 'dotted', 'dashed', 'wavy'];
+
+/** `text-decoration-line` in the buffer's bit set; null when nothing valid was found. */
+export function parseTextDecorationLine(value: string): number | null {
+  let mask = 0;
+  let seen = false;
+  for (const token of String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)) {
+    if (token === '') continue;
+    if (token === 'none') {
+      seen = true;
+    } else if (token in DECORATION_LINE_BITS) {
+      mask |= DECORATION_LINE_BITS[token];
+      seen = true;
+    } else if (token in DECORATION_LINE_SOLO) {
+      return DECORATION_LINE_SOLO[token];
+    } else {
+      return null;
+    }
+  }
+  return seen ? mask : null;
+}
+
+export function textDecorationLineToCss(mask: number): string {
+  if (mask === 8) return 'spelling-error';
+  if (mask === 16) return 'grammar-error';
+  const names = Object.keys(DECORATION_LINE_BITS).filter((name) => (mask & DECORATION_LINE_BITS[name]) !== 0);
+  return names.length ? names.join(' ') : 'none';
+}
+
+export function parseTextDecorationStyle(value: string): number | null {
+  const index = DECORATION_STYLES.indexOf(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+  return index === -1 ? null : index;
+}
+
+export function textDecorationStyleToCss(value: number): string {
+  return DECORATION_STYLES[value] ?? 'solid';
+}
+
+export function parseTextDecorationColor(value: string): number | null {
+  if (
+    String(value ?? '')
+      .trim()
+      .toLowerCase() === 'currentcolor'
+  )
+    return DECORATION_COLOR_UNSET;
+  const argb = normalizeColorValue(value);
+  return argb == null ? null : argb >>> 0;
+}
+
+/**
+ * The `text-decoration` shorthand, tokens in any order, the way Style.kt's setTextDecoration reads
+ * it: omitted longhands reset, and an unknown token rejects the whole declaration (null).
+ * `thickness` is in the units `resolveLength` returns; 0 means auto.
+ */
+export function parseTextDecoration(value: string, resolveLength: (token: string) => number | undefined): { line: number; style: number; color: number; thickness: number } | null {
+  let mask = 0;
+  let solo: number | null = null;
+  let style = 0;
+  let color = DECORATION_COLOR_UNSET;
+  let thickness = 0;
+  for (const raw of splitTopLevelSpaces(String(value ?? '').trim())) {
+    const token = raw.toLowerCase();
+    if (token === 'none') continue;
+    if (token in DECORATION_LINE_BITS) {
+      mask |= DECORATION_LINE_BITS[token];
+    } else if (token in DECORATION_LINE_SOLO) {
+      solo = DECORATION_LINE_SOLO[token];
+    } else if (token === 'auto' || token === 'from-font') {
+      thickness = 0;
+    } else {
+      const parsedStyle = parseTextDecorationStyle(token);
+      const parsedColor = parsedStyle == null ? parseTextDecorationColor(raw) : null;
+      const parsedLength = parsedStyle == null && parsedColor == null ? resolveLength(token) : undefined;
+      if (parsedStyle != null) style = parsedStyle;
+      else if (parsedColor != null) color = parsedColor;
+      else if (parsedLength != null) thickness = parsedLength;
+      else return null;
+    }
+  }
+  return { line: solo ?? mask, style, color, thickness };
 }
 
 // Parse a 1-4 token `border-color` shorthand into per-side argb (CSS order top/right/bottom/left).
@@ -1284,30 +1355,19 @@ export class Style {
     }
 
     if (__WINDOWS__) {
-      // Android/Apple parse these CSS-string props in native setters; on Windows we write the
-      // buffer-backed ones (border-radius) directly to the live style buffer so VisualApply renders
-      // them. Border stroke / box-shadow / gradients still need the Css decoration overlay (TODO).
+      // Android and iOS parse these natively; Windows parses them here into the style buffer.
       this.applyWindowsCssString(name, value);
     }
   }
 
-  // Apply a CSS-string property on Windows. Buffer-backed props (border-radius) are written to the
-  // live style buffer for VisualApply; gradients use the native Css helper to paint the Panel
-  // background directly.
   private applyWindowsCssString(name: string, value: string) {
-    // `background` shorthand: gradient -> native Css gradient brush; solid color -> BACKGROUND_COLOR
-    // buffer (VisualApply paints it). Switching between them must override the other, so a gradient
-    // clears the solid bg first, and a solid write lets VisualApply repaint over a prior gradient brush.
+    // A gradient is a Panel brush from Css that VisualApply leaves over BACKGROUND_COLOR; clearing
+    // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
       const v = typeof value === 'string' ? value : String(value ?? '');
-      if (/linear-gradient/i.test(v)) {
+      if (LINEAR_GRADIENT.test(v)) {
         const g = parseLinearGradientCss(v);
         if (g && g.colors.length) {
-          if (this.style_view) {
-            this.prepareMut();
-            setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, 0);
-            this.commitState(StateKeys.BACKGROUND_COLOR);
-          }
           try {
             // Pass stops as an "offset:argb,..." string — WinRT array_view params don't marshal
             // reliably from the NS-Windows JS runtime (plain arrays -> E_FAIL, typed arrays -> crash).
@@ -1315,33 +1375,30 @@ export class Style {
             NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stops);
           } catch (_) {}
         }
-      } else if (v.trim().length && !/gradient/i.test(v)) {
-        // Solid color background; reuse the backgroundColor buffer setter -> VisualApply repaints,
-        // overriding any gradient brush set previously.
-        this.backgroundColor = v as never;
+      } else if (!ANY_GRADIENT.test(v)) {
+        try {
+          NativeScript.Mason.Css.ClearBackground(this.nativeView);
+        } catch (_) {}
+        if (name === 'background' && v.trim().length && v.trim().toLowerCase() !== 'none') {
+          this.backgroundColor = v as never;
+        }
       }
       return;
     }
 
-    // padding / margin SHORTHANDS route here (paddingProperty/marginProperty -> paddingCss/marginCss).
-    // Expand to the per-side buffer setters, which Mason already applies in layout.
-    if (name === 'padding' || name === 'margin') {
-      const s = parseSidesShorthand(value as never);
-      if (name === 'padding') {
-        this.paddingTop = s.top;
-        this.paddingRight = s.right;
-        this.paddingBottom = s.bottom;
-        this.paddingLeft = s.left;
-      } else {
-        this.marginTop = s.top;
-        this.marginRight = s.right;
-        this.marginBottom = s.bottom;
-        this.marginLeft = s.left;
-      }
+    if (name === 'padding' || name === 'margin' || name === 'inset') {
+      if (!isSideList(value)) return;
+      if (name === 'padding') this.padding = value as never;
+      else if (name === 'margin') this.margin = value as never;
+      else this.inset = value as never;
       return;
     }
 
     if (!this.style_view) {
+      return;
+    }
+    if (name === 'text-decoration' || name.startsWith('text-decoration-')) {
+      this.writeWindowsTextDecoration(name, value);
       return;
     }
     if (name === 'border-radius') {
@@ -1359,7 +1416,7 @@ export class Style {
     }
 
     if (name === 'border' || name === 'border-top' || name === 'border-right' || name === 'border-bottom' || name === 'border-left') {
-      const p = parseBorderShorthand(value);
+      const p = parseBorderShorthand(value, this.emBasis());
       let style = p.style;
       if (style == null && (p.width != null || p.color != null)) style = 4; // solid
       const sides: ('left' | 'right' | 'top' | 'bottom')[] = name === 'border' ? ['left', 'right', 'top', 'bottom'] : name === 'border-left' ? ['left'] : name === 'border-right' ? ['right'] : name === 'border-top' ? ['top'] : ['bottom'];
@@ -1395,6 +1452,52 @@ export class Style {
     }
     if (style != null) setInt8(this.style_view, S, style);
     if (color != null) setUint32(this.style_view, C, color >>> 0);
+  }
+
+  private writeWindowsTextDecoration(name: string, value: string) {
+    let line: number | null = null;
+    let style: number | null = null;
+    let color: number | null = null;
+    let thickness: number | null = null;
+    switch (name) {
+      case 'text-decoration': {
+        const d = parseTextDecoration(value, (token) => cssLengthToDip(token, this.emBasis()));
+        if (!d) return;
+        ({ line, style, color, thickness } = d);
+        break;
+      }
+      case 'text-decoration-line':
+        line = parseTextDecorationLine(value);
+        break;
+      case 'text-decoration-style':
+        style = parseTextDecorationStyle(value);
+        break;
+      case 'text-decoration-color':
+        color = parseTextDecorationColor(value);
+        break;
+    }
+    if (line == null && style == null && color == null && thickness == null) return;
+    this.prepareMut();
+    if (line != null) {
+      setUint8(this.style_view, StyleKeys.DECORATION_LINE, line);
+      setUint8(this.style_view, StyleKeys.DECORATION_LINE_STATE, 1);
+      this.commitState(StateKeys.DECORATION_LINE);
+    }
+    if (style != null) {
+      setUint8(this.style_view, StyleKeys.DECORATION_STYLE, style);
+      setUint8(this.style_view, StyleKeys.DECORATION_STYLE_STATE, 1);
+      this.commitState(StateKeys.DECORATION_STYLE);
+    }
+    if (color != null) {
+      setUint32(this.style_view, StyleKeys.DECORATION_COLOR, color);
+      setUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE, 1);
+      this.commitState(StateKeys.DECORATION_COLOR);
+    }
+    if (thickness != null) {
+      setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, thickness);
+      setUint8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, 1);
+      this.commitState(StateKeys.DECORATION_THICKNESS);
+    }
   }
 
   setBorderColor(value: string) {
@@ -1435,8 +1538,21 @@ export class Style {
       // @ts-ignore
       const view = (this.view as any)?.windows ?? this.view._view;
       (view as NativeScript.Mason.IMasonElement).SyncStyle(low, high);
+      (this.view as any)?._windowsSyncAnonymousText?.();
     }
     this.resetState();
+  }
+
+  /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
+  copyTextStyleTo(text: NativeScript.Mason.Text) {
+    if (!__WINDOWS__ || !this.u8View) return;
+    const style = text.Style;
+    style.PrepareForMutation();
+    //@ts-ignore
+    const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(style.Values) as ArrayBuffer);
+    target.set(this.u8View.subarray(StyleKeys.FONT_COLOR, StyleKeys.BACKGROUND_COLOR), StyleKeys.FONT_COLOR);
+    target.set(this.u8View.subarray(StyleKeys.DECORATION_LINE, StyleKeys.PSEUDO_SET_MASK_LOW), StyleKeys.DECORATION_LINE);
+    (text as unknown as NativeScript.Mason.IMasonElement).SyncStyle('0', '0');
   }
 
   private setOrAppendState(value: StateKeys) {
@@ -4932,6 +5048,9 @@ export class Style {
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationLine;
     }
+    if (__WINDOWS__ && this.style_view) {
+      return textDecorationLineToCss(getUint8(this.style_view, StyleKeys.DECORATION_LINE));
+    }
     return '';
   }
 
@@ -4955,6 +5074,9 @@ export class Style {
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationStyle;
     }
+    if (__WINDOWS__ && this.style_view) {
+      return textDecorationStyleToCss(getUint8(this.style_view, StyleKeys.DECORATION_STYLE));
+    }
     return '';
   }
 
@@ -4977,6 +5099,10 @@ export class Style {
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationColor;
+    }
+    if (__WINDOWS__ && this.style_view) {
+      const argb = getUint32(this.style_view, StyleKeys.DECORATION_COLOR);
+      return !getUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE) || argb === DECORATION_COLOR_UNSET ? 'currentcolor' : new Color(argb).hex;
     }
     return '';
   }

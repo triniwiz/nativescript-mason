@@ -14,6 +14,8 @@ namespace mason_visual
         static constexpr size_t kInputs = 14;
         std::array<uint32_t, kInputs> inputs{};
         winrt::Microsoft::UI::Xaml::Media::Brush background{ nullptr };
+        // The brush Apply itself painted, to tell it apart from a gradient set through Css.
+        winrt::Microsoft::UI::Xaml::Media::Brush installed{ nullptr };
         winrt::Microsoft::UI::Composition::CompositionClip clip{ nullptr };
         bool valid{ false };
     };
