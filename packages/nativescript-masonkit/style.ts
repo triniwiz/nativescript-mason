@@ -1686,7 +1686,7 @@ export class Style {
       // normal ?
       return 'normal';
     }
-    switch (getInt32(this.style_view, StyleKeys.FONT_STYLE_TYPE)) {
+    switch (getInt8(this.style_view, StyleKeys.FONT_STYLE_TYPE)) {
       case 0:
         return 'normal';
       case 1:
@@ -1717,7 +1717,7 @@ export class Style {
     }
     if (style !== -1) {
       this.prepareMut();
-      setInt32(this.style_view, StyleKeys.FONT_STYLE_TYPE, style);
+      setInt8(this.style_view, StyleKeys.FONT_STYLE_TYPE, style);
       setInt8(this.style_view, StyleKeys.FONT_STYLE_STATE, 1);
       this.commitState(StateKeys.FONT_STYLE);
     }

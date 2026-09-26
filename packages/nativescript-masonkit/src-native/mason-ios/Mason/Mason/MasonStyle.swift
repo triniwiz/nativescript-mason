@@ -1983,7 +1983,7 @@ public class MasonStyle: NSObject {
   
   public var fontStyle: FontStyle {
     get {
-      switch(getInt32(StyleKeys.FONT_STYLE_TYPE)){
+      switch(getInt8(StyleKeys.FONT_STYLE_TYPE)){
       case 0:
         return .Normal
       case 1:

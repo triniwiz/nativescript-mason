@@ -1021,6 +1021,31 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Whether this text may wrap: white-space and text-wrap allow it, or it has explicit breaks.
+  internal var canWrap: Bool {
+    guard node.style.isValueInitialized else { return true }
+    let ws = node.style.whiteSpace
+    if (ws == .Pre || ws == .NoWrap) || node.style.textWrap == .NoWrap {
+      return buildAttributedString(forMeasurement: true).string.contains("\n")
+    }
+    return true
+  }
+
+  /// Widest line, in points, when wrapped at `width`; trailing whitespace hangs.
+  internal func widestWrappedLine(at width: CGFloat) -> CGFloat {
+    let text = buildAttributedString(forMeasurement: true)
+    guard text.length > 0, width > 0 else { return 0 }
+    let setter = CTFramesetterCreateWithAttributedString(text)
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
+    let frame = CTFramesetterCreateFrame(setter, CFRange(location: 0, length: 0), path, nil)
+    var widest: CGFloat = 0
+    for line in CTFrameGetLines(frame) as? [CTLine] ?? [] {
+      let w = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      widest = max(widest, w)
+    }
+    return widest
+  }
+
   /// Tags a flattened span's text with its background; inner spans keep their own.
   static func withInlineBackground(_ text: NSAttributedString, _ argb: UInt32) -> NSAttributedString {
     guard argb != 0, text.length > 0 else { return text }

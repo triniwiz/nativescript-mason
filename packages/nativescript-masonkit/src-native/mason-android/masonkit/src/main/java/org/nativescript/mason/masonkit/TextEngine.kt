@@ -2039,11 +2039,9 @@ class TextEngine(val container: TextContainer) {
       )
     }
 
-    // Apply background color as a text span only for inline elements.
-    // Block-level elements (Button, div, etc.) draw their own background
-    // via ViewUtils/mBackground — adding a BackgroundColorSpan creates a
-    // redundant colored rect behind the text glyphs ("cutout" artifact).
-    if (container.node.view == null) {
+    // A flattened inline container's view doesn't paint, so its background is a
+    // text span. A Button paints its own.
+    if (container !is Button) {
       val bgBase = container.style.resolvedBackgroundColor
       val bgColor = resolvePseudoInt(StyleKeys.BACKGROUND_COLOR, StateKeys.BACKGROUND_COLOR, bgBase)
       if (bgColor != 0 && ((bgColor shr 24) and 0xFF) != 0) {
@@ -2075,7 +2073,7 @@ class TextEngine(val container: TextContainer) {
     // Apply typeface with bold/italic hints so we can synthesize when needed
     fontFace.resolvedTypeface?.let { typeface ->
       val isBold = fontFace.weight.weight >= 600
-      val isItalic = fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
+      val isItalic = fontFace.style != org.nativescript.fontmanager.FontStyle.Normal
       spannable.setSpan(
         Spans.TypefaceSpan(typeface, isBold, isItalic), start, end, flags
       )

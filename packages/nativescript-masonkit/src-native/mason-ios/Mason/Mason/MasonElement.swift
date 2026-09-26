@@ -1006,7 +1006,13 @@ class MasonElementHelpers: NSObject {
         // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
         let overflow = nodeOverflow
         if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
-          width = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+          var grown = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+          // Rust measures the runs as one line; wrapping text only overflows by
+          // what CoreText can't break (a long word).
+          if let textView = view as? MasonText, textView.engine.canWrap {
+            grown = min(grown, max(width, textView.engine.widestWrappedLine(at: width)))
+          }
+          width = grown
         }
 
         if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){

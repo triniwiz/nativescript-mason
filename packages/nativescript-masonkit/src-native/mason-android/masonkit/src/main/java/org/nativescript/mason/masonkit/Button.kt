@@ -159,21 +159,23 @@ class Button @JvmOverloads constructor(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       foreground = null
     }
+    // Preflight (Tailwind-style) drops the UA border, background, padding and font size.
+    val preflight = mason.preflight
     configure { style ->
-      // Mason button defaults stay close to UA expectations, but use a lighter
-      // 1px border so the native appearance does not feel overly heavy.
       style.display = Display.InlineBlock
       style.boxSizing = BoxSizing.BorderBox
-      style.padding = Rect(
-        LengthPercentage.Points(1f),
-        LengthPercentage.Points(x),
-        LengthPercentage.Points(1f),
-        LengthPercentage.Points(x),
-      )
-      style.fontSize = Constants.DEFAULT_FONT_SIZE
-      style.background = "#F0F0F0"
-      style.border = "1 solid #767676"
-      style.borderRadius = "4"
+      if (!preflight) {
+        style.padding = Rect(
+          LengthPercentage.Points(1f),
+          LengthPercentage.Points(x),
+          LengthPercentage.Points(1f),
+          LengthPercentage.Points(x),
+        )
+        style.fontSize = Constants.DEFAULT_FONT_SIZE
+        style.background = "#F0F0F0"
+        style.border = "1 solid #767676"
+        style.borderRadius = "4"
+      }
       style.textAlign = TextAlign.Center
       style.syncFontMetrics()
     }

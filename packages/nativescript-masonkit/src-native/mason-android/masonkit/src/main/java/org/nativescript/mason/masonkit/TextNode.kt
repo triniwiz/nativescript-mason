@@ -211,7 +211,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
             letterSpacing,
             typeface,
             isBold = typeface != null && fontFace.weight.weight >= 600,
-            isItalic = typeface != null && fontFace.style.fontStyle == android.graphics.Typeface.ITALIC
+            isItalic = typeface != null && fontFace.style != org.nativescript.fontmanager.FontStyle.Normal
           ),
           start, end, flags
         )

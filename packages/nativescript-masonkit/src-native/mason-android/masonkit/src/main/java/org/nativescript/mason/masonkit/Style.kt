@@ -1958,7 +1958,13 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       val previous = fontStyle
       if (previous != value) {
-        values.put(StyleKeys.FONT_STYLE_TYPE, value.fontStyle.toByte())
+        // Buffer encoding: 0 normal, 1 italic, 2 oblique.
+        val encoded: Byte = when (value) {
+          FontStyle.Normal -> 0
+          FontStyle.Italic -> 1
+          is FontStyle.Oblique -> 2
+        }
+        values.put(StyleKeys.FONT_STYLE_TYPE, encoded)
         values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
         invalidateResolvedFontFace()
@@ -4689,6 +4695,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
           view.post {
             fontDirty = true
+            // Flattened spans were built into the parent before this face loaded.
+            (node.view as? TextContainer)?.engine?.invalidateInlineSegments()
             val metricsChanged = syncFontMetrics()
             if (metricsChanged) {
               node.dirty()

@@ -271,7 +271,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         return type
       }
     }
-    return .Disc
+    // UA lists default to disc; preflight resets them to none.
+    return node.mason.preflight ? .None : .Disc
   }
 
   private func drawMarkerFor(listItem child: MasonText, in context: CGContext, position: Int) {

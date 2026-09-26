@@ -131,6 +131,9 @@ public class MasonNode: NSObject {
     //  return
     // }
     
+    // Inherited values can change without bumping this node's styleVersion.
+    node.invalidateDefaultAttributes()
+
     // Direct invalidation if this is a MasonText
     if let view = node.view as? TextContainer {
       // Notify all text style changes to ensure paint is fully updated
