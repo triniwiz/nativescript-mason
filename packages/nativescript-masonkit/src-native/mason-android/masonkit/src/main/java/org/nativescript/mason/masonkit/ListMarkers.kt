@@ -38,7 +38,8 @@ internal object ListMarkers {
       val isSet = child.style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT
       if (isSet) return child.style.values.get(StyleKeys.LIST_STYLE_TYPE)
     }
-    return ListStyleType.Disc.value
+    // UA lists default to disc; preflight resets them to none.
+    return if (containerStyle.node.mason.preflight) ListStyleType.None.value else ListStyleType.Disc.value
   }
 
   private fun drawMarker(canvas: Canvas, containerStyle: Style, child: TextView, position: Int) {

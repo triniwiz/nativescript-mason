@@ -1,16 +1,16 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" @loaded="onLoaded">
     <ActionBar title="Nested - MasonKit">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="nested">
         <div class="toolbar">
           <div class="tool" @tap="retext(Date.now() % 100)"><span class="tool-text">Retext</span></div>
-          <div class="tool" @tap="toggleOdd"><span class="tool-text">{{ showOdd ? 'Hide row text' : 'Show row text' }}</span></div>
-          <div class="tool" @tap="toggleNarrow"><span class="tool-text">{{ narrow ? 'Widen' : 'Narrow' }}</span></div>
+          <div class="tool" @tap="toggleOdd"><span class="tool-text" :text="showOdd ? 'Hide row text' : 'Show row text'" /></div>
+          <div class="tool" @tap="toggleNarrow"><span class="tool-text" :text="narrow ? 'Widen' : 'Narrow'" /></div>
         </div>
-        <span class="count">depth {{ tree.depth }} · {{ boxCount }} boxes</span>
+        <span class="count" :text="`depth ${tree.depth} · ${boxCount} boxes`" />
 
         <div class="root" :class="{ narrow }">
           <NestedBoxMason :node="tree" :show-odd="showOdd" />

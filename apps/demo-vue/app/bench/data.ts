@@ -100,3 +100,63 @@ export function retextNested(node: NestedNode, suffix: string): NestedNode {
     children: node.children.map((c) => retextNested(c, suffix)),
   };
 }
+
+export interface SpanRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  color?: string;
+}
+
+const SPAN_STYLES: Array<Pick<SpanRun, 'bold' | 'italic' | 'color'>> = [{}, { bold: true }, {}, { italic: true }, { color: '#e84393' }, {}, { color: '#0984e3', bold: true }, { italic: true, color: '#00b894' }, {}, { bold: true }, { color: '#fdcb6e' }, { italic: true }];
+
+export function makeRichRuns(count: number): SpanRun[] {
+  const runs: SpanRun[] = [];
+  for (let i = 0; i < count; i++) {
+    runs.push({ text: `${words(2 + Math.floor(rand() * 3))} `, ...SPAN_STYLES[i % SPAN_STYLES.length] });
+  }
+  return runs;
+}
+
+export interface RichCard {
+  id: number;
+  title: string;
+  runs: SpanRun[];
+  meta: SpanRun[];
+  color: string;
+}
+
+const RICH_RUNS_PER_CARD = 12;
+const RICH_META_RUNS = 4;
+
+export function makeRichCards(count: number, startId = 0): RichCard[] {
+  const cards: RichCard[] = [];
+  for (let i = 0; i < count; i++) {
+    const id = startId + i;
+    cards.push({
+      id,
+      title: words(3),
+      runs: makeRichRuns(RICH_RUNS_PER_CARD),
+      meta: makeRichRuns(RICH_META_RUNS),
+      color: COLORS[id % COLORS.length],
+    });
+  }
+  return cards;
+}
+
+export function retextRich(cards: RichCard[], suffix: string): RichCard[] {
+  return cards.map((c) => ({
+    ...c,
+    runs: c.runs.map((r, i) => ({ ...r, text: `${words(2 + Math.floor(rand() * 3))} ${i === 0 ? suffix : ''}`.trim() + ' ' })),
+  }));
+}
+
+export function restyleRich(cards: RichCard[]): RichCard[] {
+  return cards.map((c) => ({
+    ...c,
+    runs: c.runs.map((r, i) => ({ ...r, bold: !r.bold, italic: i % 2 === 0 ? !r.italic : r.italic })),
+  }));
+}
+
+export const RICH_INITIAL = 30;
+export const RICH_APPEND = 10;

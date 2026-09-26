@@ -201,6 +201,11 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
     }
 }
 
+/// Platforms whose text measure breaks greedily and reports the widest line,
+/// so a text leaf's max-content result answers any width at least that wide.
+pub(crate) const TEXT_FIT_FROM_MAX_CONTENT: bool =
+    cfg!(any(target_os = "android", target_vendor = "apple"));
+
 static BLOCK_MEASURE_CACHE: std::sync::OnceLock<parking_lot::Mutex<BlockMeasureMap>> =
     std::sync::OnceLock::new();
 
@@ -2464,7 +2469,7 @@ impl LayoutBlockContainer for Tree {
                                     let cached = block_measure_cache()
                                         .get(&cache_key)
                                         .and_then(|c| c.get(q_known, key_avail));
-                                    let fit = if cfg!(target_os = "android") && is_text_container && cached.is_none() {
+                                    let fit = if TEXT_FIT_FROM_MAX_CONTENT && is_text_container && cached.is_none() {
                                         block_measure_cache()
                                             .get(&cache_key)
                                             .and_then(|c| c.text_fit_from_max_content(q_known, key_avail))

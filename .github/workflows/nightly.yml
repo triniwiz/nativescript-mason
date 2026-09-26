@@ -1,0 +1,55 @@
+name: Nightly
+
+# The slow half: anything needing a browser, a JDK, Xcode or a device. Split out
+# so the PR workflow stays fast enough to actually gate a merge.
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  webspec-groundtruth:
+    name: Chromium ground truth is unchanged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Regenerates in memory and fails if it differs from the committed
+      # baseline, so a Chromium behaviour change surfaces as a failure rather
+      # than silently rewriting the expected values.
+      - run: npm run gen:webspec -- --check
+
+  kotlin-unit:
+    name: Kotlin unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: gradlew :masonkit:test
+        working-directory: packages/nativescript-masonkit/src-native/mason-android
+        run: ./gradlew :masonkit:testReleaseUnitTest --no-daemon
+
+  swift-unit:
+    name: Swift unit tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: xcodebuild test
+        working-directory: packages/nativescript-masonkit/src-native/mason-ios/Mason
+        run: |
+          xcodebuild test \
+            -project Mason.xcodeproj \
+            -scheme Mason \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -quiet

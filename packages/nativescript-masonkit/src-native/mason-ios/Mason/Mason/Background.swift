@@ -20,84 +20,149 @@ private let svgPathTokenRegex = try! NSRegularExpression(pattern: #"[MmLlHhVvZz]
 
 // MARK: - Background
 extension Background {
-  
-  
+
+  var hasFixedLayer: Bool { layers.contains { $0.attachment == .fixed } }
+  var hasLocalLayer: Bool { layers.contains { $0.attachment == .local } }
+  /// A scroller's own `local` layers move with its content, so it repaints on scroll.
+  var needsRedrawOnScroll: Bool { hasLocalLayer }
+
+  /// Views that drew a `fixed` layer; a scroll repaints only these. Main thread only.
+  private static let fixedViews = NSHashTable<UIView>.weakObjects()
+
+  /// Redraw the registered fixed-attachment views inside `root` after it scrolled.
+  static func invalidateFixedDescendants(_ root: UIView) {
+    guard fixedViews.count > 0 else { return }
+    for view in fixedViews.allObjects {
+      guard let element = MasonViewKind.element(view), element.style.mBackground?.hasFixedLayer == true else {
+        fixedViews.remove(view)
+        continue
+      }
+      if view !== root && view.isDescendant(of: root) { view.setNeedsDisplay() }
+    }
+  }
+
   // See the `on view:` overload below for what `precomputedColor` is for.
   func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
-    let resolved = precomputedColor ?? style.resolvedBackgroundColor
-    if resolved != 0 {
-      context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
-      context.fill(rect)
-    }
-
-    for bgLayer in layers.reversed() {
-      drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
-    }
-
+    drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor)
   }
 
   // `precomputedColor`: pass an already-resolved color to avoid resolving
   // it twice when the caller needed it anyway (resolution isn't a plain
   // buffer read - it walks the pseudo-state chain).
   func draw(on view: UIView, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
+    drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor)
+  }
+
+  /// `rect` is what the caller fills with the base color. Clip and positioning
+  /// boxes come from the view's own border box, whatever inset `rect` carries.
+  private func drawAll(view: UIView?, caLayer: CALayer?, in context: CGContext, rect: CGRect, precomputedColor: UInt32?) {
+    let box = view?.bounds ?? caLayer?.bounds ?? rect
     let resolved = precomputedColor ?? style.resolvedBackgroundColor
     if resolved != 0 {
+      // The color is clipped like the bottom-most layer.
+      context.saveGState()
+      if let clip = layers.last?.clip, clip != .borderBox {
+        context.clip(to: box.inset(by: boxInsets(clip)))
+      }
       context.setFillColor(UIColor.colorFromARGB(resolved).cgColor)
       context.fill(rect)
+      context.restoreGState()
     }
 
-    for layer in layers.reversed() {
-      drawLayer(layer, on: view, in: context, rect: rect)
+    // Reverse so the first layer in the list is drawn on top.
+    for bgLayer in layers.reversed() {
+      context.saveGState()
+      if bgLayer.clip != .borderBox {
+        context.clip(to: box.inset(by: boxInsets(bgLayer.clip)))
+      }
+      context.setBlendMode(bgLayer.blendMode.cgBlendMode)
+      if bgLayer.attachment == .fixed, let view = view { Background.fixedViews.add(view) }
+      let (paintRect, area) = paintGeometry(for: bgLayer, view: view, rect: box)
+      drawLayer(bgLayer, on: view, on: caLayer, in: context, paintRect: paintRect, area: area)
+      context.restoreGState()
     }
   }
-  
-  
-  private func drawLayer(_ layer: BackgroundLayer, on view: UIView? = nil, on caLayer: CALayer? = nil, in context: CGContext, rect: CGRect) {
-    
+
+  /// Border (and padding) insets of `box` in points, from the node's computed layout (device px).
+  private func boxInsets(_ box: BackgroundClip) -> UIEdgeInsets {
+    if box == .borderBox { return .zero }
+    let scale = CGFloat(NSCMason.scale)
+    let l = style.node.computedLayout
+    var top = CGFloat(l.borderTop)
+    var left = CGFloat(l.borderLeft)
+    var bottom = CGFloat(l.borderBottom)
+    var right = CGFloat(l.borderRight)
+    if box == .contentBox {
+      top += CGFloat(l.paddingTop)
+      left += CGFloat(l.paddingLeft)
+      bottom += CGFloat(l.paddingBottom)
+      right += CGFloat(l.paddingRight)
+    }
+    return UIEdgeInsets(top: top / scale, left: left / scale, bottom: bottom / scale, right: right / scale)
+  }
+
+  /// What to fill and the positioning area for one layer, in the caller's coordinates.
+  private func paintGeometry(for layer: BackgroundLayer, view: UIView?, rect: CGRect) -> (paintRect: CGRect, area: CGRect) {
+    switch layer.attachment {
+    case .fixed:
+      // Positioned against the app window; the origin box does not apply.
+      if let view = view, let root = (view.window as UIView?) ?? style.node.getRootNode().view {
+        return (rect, view.convert(root.bounds, from: root))
+      }
+      return (rect, rect)
+    case .local:
+      // The whole scrollable content, in the content coordinates a scrolled view draws in.
+      var content: CGSize? = nil
+      if let mv = view as? MasonUIView {
+        content = mv.contentSize
+      } else if let sv = view as? UIScrollView {
+        content = sv.contentSize
+      }
+      if let view = view, let content = content {
+        let full = CGRect(x: 0, y: 0, width: max(content.width, view.bounds.width), height: max(content.height, view.bounds.height))
+        return (full, full.inset(by: boxInsets(layer.origin)))
+      }
+      return (rect, rect.inset(by: boxInsets(layer.origin)))
+    case .scroll:
+      return (rect, rect.inset(by: boxInsets(layer.origin)))
+    }
+  }
+
+  private func drawLayer(_ layer: BackgroundLayer, on view: UIView?, on caLayer: CALayer?, in context: CGContext, paintRect: CGRect, area: CGRect) {
     // Draw layer color (before gradient or image)
     if let color = layer.backgroundColor {
       context.setFillColor(color.cgColor)
-      context.fill(CGRect(x: 0, y: 0, width: rect.width, height: rect.height))
+      context.fill(paintRect)
     }
-    
-    
-    
-    // Draw gradient if present
-    if let _ = layer.gradient {
-      drawGradient(layer: layer, context: context, width: rect.width, height: rect.height)
+
+    if layer.gradient != nil {
+      drawGradient(layer: layer, context: context, paintRect: paintRect, area: area)
     }
-    
-    // Draw image if present
+
     if let urlStr = layer.image {
       if let cached = layer.bitmap {
-        drawBitmap(layer: layer, bitmap: cached, context: context, rect: rect)
+        drawBitmap(layer: layer, bitmap: cached, context: context, paintRect: paintRect, area: area)
       } else if let image = decodeDataUrlImage(url: urlStr) {
         layer.bitmap = image
-        drawBitmap(layer: layer, bitmap: image, context: context, rect: rect)
+        drawBitmap(layer: layer, bitmap: image, context: context, paintRect: paintRect, area: area)
       } else {
-        loadImageCached(url: urlStr) { image in
+        loadImageAsync(url: urlStr) { image in
           layer.bitmap = image
-          if let view = view {
-            DispatchQueue.main.async {
-              view.setNeedsDisplay()
-              caLayer?.needsDisplay()
-            }
-          }
-          
-          if let caLayer = caLayer {
-            DispatchQueue.main.async {
-              caLayer.needsDisplay()
-            }
+          DispatchQueue.main.async {
+            view?.setNeedsDisplay()
+            caLayer?.setNeedsDisplay()
           }
         }
       }
     }
   }
-  
-  
+
   // MARK: - Gradient Drawing
-  private func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, height: CGFloat) {
+  private func drawGradient(layer: BackgroundLayer, context: CGContext, paintRect: CGRect, area: CGRect) {
     guard let gradient = layer.gradient else { return }
+    // A gradient is an image with no intrinsic size: `auto` is the positioning area.
+    let (width, height) = resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height)
+    if width <= 0 || height <= 0 { return }
 
     // if size changed since last shader creation, clear cache
     if layer.shader != nil && (layer.shaderWidth != width || layer.shaderHeight != height) {
@@ -106,20 +171,24 @@ extension Background {
 
     if layer.shader == nil {
       let (colors, locations) = parseGradientStops(gradient.stops)
-      if locations.isEmpty {
-        layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: nil)
-      } else {
-        layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations)
-      }
+      if colors.isEmpty { return }
+      layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations.isEmpty ? nil : locations)
       layer.shaderWidth = width
       layer.shaderHeight = height
     }
     guard let shader = layer.shader else { return }
 
+    let options: CGGradientDrawingOptions = [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+    context.saveGState()
+    context.clip(to: paintRect)
+    forEachTile(layer, paintRect: paintRect, area: area, drawW: width, drawH: height) { x, y in
+    context.saveGState()
+    context.clip(to: CGRect(x: x, y: y, width: width, height: height))
+    context.translateBy(x: x, y: y)
     switch gradient.type.lowercased() {
     case "linear":
       let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
-      context.drawLinearGradient(shader, start: start, end: end, options: [])
+      context.drawLinearGradient(shader, start: start, end: end, options: options)
     case "radial":
       let center = resolveRadialGradientCenter(direction: gradient.direction, width: width, height: height)
       // Radius must reach the farthest corner from the resolved centre.
@@ -129,171 +198,78 @@ extension Background {
         hypot(center.x, height - center.y),
         hypot(width - center.x, height - center.y)
       ].max() ?? max(width, height) / 2, 1)
-      context.drawRadialGradient(shader, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: [])
+      context.drawRadialGradient(shader, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: options)
     default:
       break
     }
+    context.restoreGState()
+    }
+    context.restoreGState()
   }
-  
-  
+
+  /// Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer.
+  private func forEachTile(_ layer: BackgroundLayer, paintRect: CGRect, area: CGRect, drawW: CGFloat, drawH: CGFloat, _ draw: (CGFloat, CGFloat) -> Void) {
+    let pos = layer.position
+    let x = area.minX + (pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0)
+    let y = area.minY + (pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0)
+    let repeatX = layer.repeatType == .repeatXY || layer.repeatType == .repeatX
+    let repeatY = layer.repeatType == .repeatXY || layer.repeatType == .repeatY
+    // Tiles start at the resolved position and extend both ways across the paint rect.
+    let startX = repeatX ? x - ceil((x - paintRect.minX) / drawW) * drawW : x
+    let startY = repeatY ? y - ceil((y - paintRect.minY) / drawH) * drawH : y
+    let endX = repeatX ? paintRect.maxX : x + 1
+    let endY = repeatY ? paintRect.maxY : y + 1
+    var py = startY
+    while py < endY {
+      var px = startX
+      while px < endX {
+        draw(px, py)
+        px += drawW
+      }
+      py += drawH
+    }
+  }
+
   // MARK: - Bitmap Drawing
-  private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, rect: CGRect) {
-    guard let cgImage = bitmap.cgImage else { return }
-    let width = rect.width
-    let height = rect.height
-    
-    let drawSize: CGSize
-    if let size = layer.size {
-      if size.0 < 0 || size.1 < 0 {
-        drawSize = CGSize(width: cgImage.width, height: cgImage.height)
-      } else {
-        drawSize = CGSize(width: size.0 * width, height: size.1 * height)
-      }
-    } else {
-      drawSize = CGSize(width: cgImage.width, height: cgImage.height)
-    }
-    if drawSize.width <= 0 || drawSize.height <= 0 { return }
-    
-    let pos = layer.position ?? (0, 0)
-    let x = pos.0 * (width - drawSize.width)
-    let y = pos.1 * (height - drawSize.height)
-    
-    switch layer.repeatType {
-    case .noRepeat:
-      context.draw(cgImage, in: CGRect(x: x, y: y, width: drawSize.width, height: drawSize.height))
-    case .repeatX:
-      var px = x
-      while px < width {
-        context.draw(cgImage, in: CGRect(x: px, y: y, width: drawSize.width, height: drawSize.height))
-        px += drawSize.width
-      }
-    case .repeatY:
-      var py = y
-      while py < height {
-        context.draw(cgImage, in: CGRect(x: x, y: py, width: drawSize.width, height: drawSize.height))
-        py += drawSize.height
-      }
-    case .repeatXY:
-      var py = y
-      while py < height {
-        var px = x
-        while px < width {
-          context.draw(cgImage, in: CGRect(x: px, y: py, width: drawSize.width, height: drawSize.height))
-          px += drawSize.width
-        }
-        py += drawSize.height
-      }
-    }
-  }
-  
-  // MARK: - Cached Image Loader
-  private func loadImageCached(url: String, completion: @escaping (UIImage?) -> Void) {
-    if let image = decodeDataUrlImage(url: url) {
-      completion(image)
-      return
-    }
+  private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect) {
+    // Intrinsic size in points: a 1x image is 1 CSS px per pixel, a rasterized SVG keeps its point size.
+    let (drawWidth, drawHeight) = resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height)
+    if drawWidth <= 0 || drawHeight <= 0 { return }
 
-    guard let u = URL(string: url) else { completion(nil); return }
-    
-    // Check URLCache first
-    let request = URLRequest(url: u)
-    if let cached = URLCache.shared.cachedResponse(for: request),
-       let image = UIImage(data: cached.data) {
-      completion(image)
-      return
+    // UIImage.draw keeps UIKit orientation in both UIView.draw and CALayer.draw(in:) contexts.
+    context.saveGState()
+    context.clip(to: paintRect)
+    UIGraphicsPushContext(context)
+    let blend = layer.blendMode.cgBlendMode
+    forEachTile(layer, paintRect: paintRect, area: area, drawW: drawWidth, drawH: drawHeight) { px, py in
+      bitmap.draw(in: CGRect(x: px, y: py, width: drawWidth, height: drawHeight), blendMode: blend, alpha: 1)
     }
-    
-    // Download and cache
-    URLSession.shared.dataTask(with: u) { data, response, _ in
-      guard let data = data else { completion(nil); return }
-      if let response = response {
-        let cachedData = CachedURLResponse(response: response, data: data)
-        URLCache.shared.storeCachedResponse(cachedData, for: request)
-      }
-      completion(UIImage(data: data))
-    }.resume()
+    UIGraphicsPopContext()
+    context.restoreGState()
   }
 }
 
-// MARK: - Draw Background Entry Point
-func drawBackground(
-  view: UIView?,
-  layer: BackgroundLayer,
-  context: CGContext,
-  rect: CGRect
-) {
-  
-  // Draw layer color (before gradient or image)
-  if let color = layer.backgroundColor {
-    context.setFillColor(color.cgColor)
-    context.fill(CGRect(x: 0, y: 0, width: rect.width, height: rect.height))
-  }
-  
-  if layer.gradient != nil {
-    drawGradient(layer: layer, context: context, width: rect.width, height: rect.height)
-  }
-  
-  if let imageUrl = layer.image {
-    if let cached = layer.bitmap {
-      drawBitmapLayer(bitmap: cached, layer: layer, context: context, rect: rect)
-      return
-    }
-
-    if let image = decodeDataUrlImage(url: imageUrl) {
-      layer.bitmap = image
-      drawBitmapLayer(bitmap: image, layer: layer, context: context, rect: rect)
-      return
-    }
-    
-    loadImageAsync(url: imageUrl) { image in
-      layer.bitmap = image
-      if let view = view {
-        DispatchQueue.main.async {
-          view.setNeedsDisplay()
-        }
-      }
-    }
-  }
-}
-
-// MARK: - Gradient Drawing
-func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, height: CGFloat) {
-  guard let gradient = layer.gradient else { return }
-
-  if layer.shader == nil {
-    let (colors, locations) = parseGradientStops(gradient.stops)
-    if locations.isEmpty {
-      layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: nil)
-    } else {
-      layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations)
-    }
-  }
-  
-  guard let shader = layer.shader else { return }
-  
-  switch gradient.type.lowercased() {
-  case "linear":
-    let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
-    context.drawLinearGradient(shader, start: start, end: end, options: [])
-    
-  case "radial":
-    let center = resolveRadialGradientCenter(direction: gradient.direction, width: width, height: height)
-    // Radius must reach the farthest corner from the resolved centre.
-    let radius = max([
-      hypot(center.x, center.y),
-      hypot(width - center.x, center.y),
-      hypot(center.x, height - center.y),
-      hypot(width - center.x, height - center.y)
-    ].max() ?? max(width, height) / 2, 1)
-    context.drawRadialGradient(shader,
-                               startCenter: center,
-                               startRadius: 0,
-                               endCenter: center,
-                               endRadius: radius,
-                               options: [])
-    
+/// Resolve `background-size` against the positioning area (points), keeping the image ratio for `auto`.
+func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, areaW: CGFloat, areaH: CGFloat) -> (CGFloat, CGFloat) {
+  guard let size = size, imgW > 0, imgH > 0 else { return (imgW, imgH) }
+  let ratio = imgW / imgH
+  switch size.keyword {
+  case "cover":
+    let scale = max(areaW / imgW, areaH / imgH)
+    return (imgW * scale, imgH * scale)
+  case "contain":
+    let scale = min(areaW / imgW, areaH / imgH)
+    return (imgW * scale, imgH * scale)
   default:
     break
+  }
+  let w = size.width.map { $0.fraction * areaW + $0.points }
+  let h = size.height.map { $0.fraction * areaH + $0.points }
+  switch (w, h) {
+  case let (w?, h?): return (w, h)
+  case let (w?, nil): return (w, w / ratio)
+  case let (nil, h?): return (h * ratio, h)
+  default: return (imgW, imgH)
   }
 }
 
@@ -383,79 +359,6 @@ private func resolvePositionKeywords(_ position: String, width: CGFloat, height:
     x: resolveToken(parts[0], horizontal: true),
     y: resolveToken(parts[1], horizontal: false)
   )
-}
-
-// MARK: - Bitmap Drawing
-private func drawBitmapLayer(
-  bitmap: UIImage,
-  layer: BackgroundLayer,
-  context: CGContext,
-  rect: CGRect
-) {
-  guard let cgImage = bitmap.cgImage else { return }
-  
-  let width = rect.width
-  let height = rect.height
-  
-  var drawWidth: CGFloat
-  var drawHeight: CGFloat
-  
-  // Handle size
-  if let size = layer.size {
-    switch (size.0, size.1) {
-    case (-1, -1): // cover
-      let scale = max(width / CGFloat(cgImage.width), height / CGFloat(cgImage.height))
-      drawWidth = CGFloat(cgImage.width) * scale
-      drawHeight = CGFloat(cgImage.height) * scale
-    case (-2, -2): // contain
-      let scale = min(width / CGFloat(cgImage.width), height / CGFloat(cgImage.height))
-      drawWidth = CGFloat(cgImage.width) * scale
-      drawHeight = CGFloat(cgImage.height) * scale
-    default:
-      drawWidth = size.0 < 0 ? CGFloat(cgImage.width) : size.0
-      drawHeight = size.1 < 0 ? CGFloat(cgImage.height) : size.1
-    }
-  } else {
-    drawWidth = CGFloat(cgImage.width)
-    drawHeight = CGFloat(cgImage.height)
-  }
-  if drawWidth <= 0 || drawHeight <= 0 { return }
-  
-  // Position
-  let pos = layer.position ?? (0, 0)
-  let x = pos.0 * (width - drawWidth)
-  let y = pos.1 * (height - drawHeight)
-  
-  // Draw according to repeatType
-  switch layer.repeatType {
-  case .noRepeat:
-    context.draw(cgImage, in: CGRect(x: x, y: y, width: drawWidth, height: drawHeight))
-    
-  case .repeatX:
-    var px = x
-    while px < width {
-      context.draw(cgImage, in: CGRect(x: px, y: y, width: drawWidth, height: drawHeight))
-      px += drawWidth
-    }
-    
-  case .repeatY:
-    var py = y
-    while py < height {
-      context.draw(cgImage, in: CGRect(x: x, y: py, width: drawWidth, height: drawHeight))
-      py += drawHeight
-    }
-    
-  case .repeatXY:
-    var py = y
-    while py < height {
-      var px = x
-      while px < width {
-        context.draw(cgImage, in: CGRect(x: px, y: py, width: drawWidth, height: drawHeight))
-        px += drawWidth
-      }
-      py += drawHeight
-    }
-  }
 }
 
 // MARK: - Gradient Stop Parsing

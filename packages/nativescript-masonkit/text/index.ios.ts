@@ -145,54 +145,12 @@ export class Text extends TextBase {
     //  nativeView.frame = frame;
   }
 
-  private _measureChildren(layout) {
-    const children = layout.children;
-    let i = 0;
-    if (children.count === 0) {
-      return;
-    }
-
-    for (const child of this._viewChildren) {
-      layout = children.objectAtIndex(i);
-      const w = layout.width;
-      const h = layout.height;
-
-      // Measure the child so NativeScript's layout system is satisfied
-      const wSpec = Utils.layout.makeMeasureSpec(w, Utils.layout.EXACTLY);
-      const hSpec = Utils.layout.makeMeasureSpec(h, Utils.layout.EXACTLY);
-      View.measureChild(this as never, child as never, wSpec, hSpec);
-
-      i++;
-    }
-  }
-
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-
-    // @ts-ignore
-    let layout = this._view.node.computedLayout;
-
-    const children = layout.children;
-    let i = 0;
-    if (children.count === 0) {
-      return;
-    }
-    for (const child of this._viewChildren) {
-      layout = children.objectAtIndex(i);
-      const x = layout.x;
-      const y = layout.y;
-      const w = layout.width;
-      const h = layout.height;
-
-      // const wSpec = Utils.layout.makeMeasureSpec(w, Utils.layout.EXACTLY);
-      // const hSpec = Utils.layout.makeMeasureSpec(h, Utils.layout.EXACTLY);
-      // View.measureChild(this as never, child as never, wSpec, hSpec);
-
-      // return;
-
-      // Use child.layout() directly — Mason already computed final positions
-      (child as any).layout(x, top + y, x + w, top + y + h, false);
-      i++;
+    // Mason descendants were placed by the native compute; only a root's
+    // non-Mason views still need core's layout.
+    if (!this._masonPlacedNatively) {
+      this._masonLayoutForeignDescendants();
     }
   }
 
@@ -227,8 +185,6 @@ export class Text extends TextBase {
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this._measureChildren(layout);
 
           this.setMeasuredDimension(w, h);
           return;
@@ -277,8 +233,6 @@ export class Text extends TextBase {
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
-          this._measureChildren(layout);
-
           this.setMeasuredDimension(w, h);
         }
       } else {
@@ -289,8 +243,6 @@ export class Text extends TextBase {
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
         this.setMeasuredDimension(w, h);
-
-        this._measureChildren(layout);
       }
     }
   }
@@ -307,6 +259,7 @@ export class Text extends TextBase {
       const index = jsIndex <= -1 ? jsIndex : (this as any)._nativeIndexFor(jsIndex);
       child._isMasonChild = true;
       nativeView.addViewAt(child.nativeViewProtected, index);
+      this._masonMeasureForeign(child);
       return true;
     }
 

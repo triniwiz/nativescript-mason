@@ -1431,29 +1431,33 @@ class NodeHelper(val mason: Mason) {
       return node.style.fontFamily
     }
 
-    fun setTextDecoration(
-      view: android.view.View,
-      value: String
-    ) {
+    private fun textNode(view: android.view.View): Node = when (view) {
       // For TextView (text elements like A, Li, etc.), access the node directly
       // rather than nodeForView() which creates a proxy node unconnected to rendering.
-      val node = when (view) {
-        is TextView -> view.node
-        else -> mason.nodeForView(view)
-      }
-      val line = when (value.trim().lowercase()) {
-        "none" -> Styles.DecorationLine.None
-        "underline" -> Styles.DecorationLine.Underline
-        "overline" -> Styles.DecorationLine.Overline
-        "line-through" -> Styles.DecorationLine.LineThrough
-        "underline line-through", "line-through underline" -> Styles.DecorationLine.UnderlineLineThrough
-        "underline overline", "overline underline" -> Styles.DecorationLine.UnderlineOverline
-        "underline overline line-through", "underline line-through overline",
-        "overline underline line-through", "overline line-through underline",
-        "line-through underline overline", "line-through overline underline" -> Styles.DecorationLine.OverlineUnderlineLineThrough
-        else -> return
-      }
-      node.style.decorationLine = line
+      is TextView -> view.node
+      else -> mason.nodeForView(view)
+    }
+
+    fun setTextDecoration(view: android.view.View, value: String) {
+      textNode(view).style.setTextDecoration(value)
+    }
+
+    fun getTextDecorationLine(view: android.view.View): String = textNode(view).style.textDecorationLine
+
+    fun setTextDecorationLine(view: android.view.View, value: String) {
+      textNode(view).style.textDecorationLine = value
+    }
+
+    fun getTextDecorationStyle(view: android.view.View): String = textNode(view).style.textDecorationStyle
+
+    fun setTextDecorationStyle(view: android.view.View, value: String) {
+      textNode(view).style.textDecorationStyle = value
+    }
+
+    fun getTextDecorationColor(view: android.view.View): String = textNode(view).style.textDecorationColor
+
+    fun setTextDecorationColor(view: android.view.View, value: String) {
+      textNode(view).style.textDecorationColor = value
     }
 
     fun setBorderColor(
@@ -1576,6 +1580,36 @@ class NodeHelper(val mason: Mason) {
     ) {
       val node = mason.nodeForView(view)
       node.style.backgroundClip = value
+    }
+
+    fun getBackgroundPositionX(view: android.view.View): String = mason.nodeForView(view).style.backgroundPositionX
+
+    fun setBackgroundPositionX(view: android.view.View, value: String) {
+      mason.nodeForView(view).style.backgroundPositionX = value
+    }
+
+    fun getBackgroundPositionY(view: android.view.View): String = mason.nodeForView(view).style.backgroundPositionY
+
+    fun setBackgroundPositionY(view: android.view.View, value: String) {
+      mason.nodeForView(view).style.backgroundPositionY = value
+    }
+
+    fun getBackgroundOrigin(view: android.view.View): String = mason.nodeForView(view).style.backgroundOrigin
+
+    fun setBackgroundOrigin(view: android.view.View, value: String) {
+      mason.nodeForView(view).style.backgroundOrigin = value
+    }
+
+    fun getBackgroundAttachment(view: android.view.View): String = mason.nodeForView(view).style.backgroundAttachment
+
+    fun setBackgroundAttachment(view: android.view.View, value: String) {
+      mason.nodeForView(view).style.backgroundAttachment = value
+    }
+
+    fun getBackgroundBlendMode(view: android.view.View): String = mason.nodeForView(view).style.backgroundBlendMode
+
+    fun setBackgroundBlendMode(view: android.view.View, value: String) {
+      mason.nodeForView(view).style.backgroundBlendMode = value
     }
 
     fun getTextShadow(view: android.view.View): String {

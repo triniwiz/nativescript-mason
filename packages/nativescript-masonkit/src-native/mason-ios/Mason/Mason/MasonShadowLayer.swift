@@ -11,6 +11,9 @@ import UIKit
 class MasonShadowLayer: CALayer {
   
   weak var masonStyle: MasonStyle?
+
+  /// Set once any shadow layer exists; until then there is nothing to sweep.
+  static var anyCreated = false
   
   // Cache for invalidation
   private var cachedBounds: CGRect = .zero
@@ -26,6 +29,7 @@ class MasonShadowLayer: CALayer {
   init(style: MasonStyle) {
     self.masonStyle = style
     super.init()
+    MasonShadowLayer.anyCreated = true
     setup()
   }
   

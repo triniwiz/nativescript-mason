@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" @loaded="onLoaded">
     <ActionBar title="Feed - MasonKit">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="feed">
@@ -13,15 +13,15 @@
           <div class="tool" @tap="clear"><span class="tool-text">Clear</span></div>
           <div class="tool" @tap="refill"><span class="tool-text">Refill</span></div>
         </div>
-        <span class="count">{{ items.length }} rows</span>
+        <span class="count" :text="`${items.length} rows`" />
 
         <div v-for="item in items" :key="item.id" class="row">
-          <div class="avatar" :style="{ backgroundColor: item.color }"><span class="avatar-text">{{ item.id % 100 }}</span></div>
+          <div class="avatar" :backgroundColor="item.color"><span class="avatar-text" :text="item.id % 100" /></div>
           <div class="body">
-            <span class="title">{{ item.title }}</span>
-            <span class="subtitle">{{ item.subtitle }}</span>
+            <span class="title" :text="item.title" />
+            <span class="subtitle" :text="item.subtitle" />
           </div>
-          <div class="badge"><span class="badge-text">{{ item.badge }}</span></div>
+          <div class="badge"><span class="badge-text" :text="item.badge" /></div>
         </div>
       </main>
     </Scroll>

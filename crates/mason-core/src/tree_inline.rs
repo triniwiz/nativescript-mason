@@ -1363,7 +1363,7 @@ impl Tree {
             if let Some(cached) = cache.get(known_dimensions, available_space) {
                 return cached;
             }
-            if cfg!(target_os = "android") && node.is_text_container() {
+            if crate::tree::TEXT_FIT_FROM_MAX_CONTENT && node.is_text_container() {
                 if let Some(fit) = cache.text_fit_from_max_content(known_dimensions, available_space) {
                     return fit;
                 }

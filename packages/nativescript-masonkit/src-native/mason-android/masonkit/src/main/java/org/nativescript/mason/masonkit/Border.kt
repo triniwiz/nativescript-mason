@@ -1459,7 +1459,7 @@ class BorderRenderer(private val style: Style) {
 // `px` is a CSS pixel (the same size as a dip), matching the web and iOS's
 // BorderParser; `dppx` is the escape hatch for a literal device pixel.
 // Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
-private val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
+internal val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
 
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 private const val PX_PER_PT = 96f / 72f
@@ -1469,7 +1469,7 @@ private const val PX_PER_PT = 96f / 72f
  * against [emBasis] (the element's own font size) when given, else the root
  * font size — matching `tokenToDevicePx` in style.ts.
  */
-private fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
+internal fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
   val mason = Mason.shared
   return when (unit) {
     "rem" -> num * mason.rootFontSize

@@ -65,6 +65,128 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     return _cachedHasBackground || _cachedHasBoxShadow || _cachedHasBorder || _cachedHasFilter || hasListMarkers
   }
 
+  // True while the box is painted through CALayer properties instead of draw(_:).
+  private var _usesLayerPaint = false
+
+  /// Paint a plain box (solid color, one uniform solid border, one circular
+  /// radius) with CALayer properties, composited on the GPU like core's views.
+  /// Returns false, and clears those properties, when draw(_:) is needed.
+  internal func applyLayerPaintIfEligible() -> Bool {
+    // Nothing to paint is the degenerate case: every property cleared.
+    let wanted: LayerPaint? = paintsContent ? layerPaint() : LayerPaint(background: nil, borderWidth: 0, borderColor: nil, radius: 0)
+    guard let paint = wanted else {
+      if _usesLayerPaint {
+        _usesLayerPaint = false
+        layer.backgroundColor = nil
+        layer.borderWidth = 0
+        layer.borderColor = nil
+        layer.cornerRadius = 0
+        removeBorderLayer()
+      }
+      return false
+    }
+    _usesLayerPaint = true
+    if layer.backgroundColor != paint.background { layer.backgroundColor = paint.background }
+    if layer.cornerRadius != paint.radius { layer.cornerRadius = paint.radius }
+    // Core Animation paints a layer's own border above its sublayers, but CSS paints
+    // children (and their shadows) over the parent's border. With anything layered
+    // inside, the border moves to a sublayer at the bottom of the stack.
+    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder()
+    let ownWidth = useSublayer ? 0 : paint.borderWidth
+    let ownColor = useSublayer ? nil : paint.borderColor
+    if layer.borderWidth != ownWidth { layer.borderWidth = ownWidth }
+    if layer.borderColor != ownColor { layer.borderColor = ownColor }
+    if useSublayer {
+      let border = _borderLayer ?? {
+        let l = CALayer()
+        l.name = "mason.border"
+        _borderLayer = l
+        return l
+      }()
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      if border.superlayer !== layer { layer.insertSublayer(border, at: 0) }
+      border.frame = CGRect(origin: .zero, size: bounds.size)
+      border.borderWidth = paint.borderWidth
+      border.borderColor = paint.borderColor
+      border.cornerRadius = paint.radius
+      CATransaction.commit()
+    } else {
+      removeBorderLayer()
+    }
+    return true
+  }
+
+  private var _borderLayer: CALayer?
+
+  private func removeBorderLayer() {
+    if let border = _borderLayer, border.superlayer != nil {
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      border.removeFromSuperlayer()
+      CATransaction.commit()
+    }
+  }
+
+  private func sublayersBesidesBorder() -> Bool {
+    guard let sublayers = layer.sublayers else { return false }
+    return sublayers.contains { $0 !== _borderLayer }
+  }
+
+  // A border on the view's own layer has to move to a sublayer once something sits on top of it.
+  public override func didAddSubview(_ subview: UIView) {
+    super.didAddSubview(subview)
+    if _usesLayerPaint && layer.borderWidth > 0 { layer.setNeedsDisplay() }
+  }
+
+  internal typealias LayerPaint = (background: CGColor?, borderWidth: CGFloat, borderColor: CGColor?, radius: CGFloat)
+
+  private func layerPaint() -> LayerPaint? {
+    if _cachedHasFilter || hasListMarkers { return nil }
+    if _cachedHasBoxShadow && style.boxShadows.contains(where: { $0.inset }) { return nil }
+    let bg = style.mBackground!
+    if !bg.layers.isEmpty { return nil }
+
+    let border = style.mBorderRender
+    border.resolve(for: bounds)
+    let w = border.cachedWidths
+    let sides = [border.top, border.right, border.bottom, border.left]
+    let widths = [w.top, w.right, w.bottom, w.left]
+    var visible = 0
+    for (side, width) in zip(sides, widths) where width > 0 && side.style != .none && side.style != .hidden {
+      if side.color.cgColor.alpha > 0 { visible += 1 }
+    }
+    var borderWidth: CGFloat = 0
+    var borderColor: CGColor? = nil
+    if visible == 4 {
+      let color = border.top.color
+      guard widths.allSatisfy({ $0 == w.top }),
+            sides.allSatisfy({ $0.style == .solid && $0.color == color }) else { return nil }
+      // A scroll container's sublayers move with its content, so a border sublayer
+      // would scroll away; with nothing layered above, its own border is fine.
+      if isScrollContainer && sublayersBesidesBorder() { return nil }
+      borderWidth = w.top
+      borderColor = color.cgColor
+    } else if visible != 0 {
+      return nil
+    }
+
+    var radius: CGFloat = 0
+    if border.hasRadii() {
+      let r = border.radius
+      let corners = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]
+      guard corners.allSatisfy({ $0 == r.topLeft && $0.exponent == 1 }) else { return nil }
+      let resolved = r.topLeft.resolved(rect: bounds)
+      guard resolved.x == resolved.y else { return nil }
+      // CSS scales overlapping radii down; with four equal radii that is a clamp.
+      radius = min(resolved.x, min(bounds.width, bounds.height) / 2)
+    }
+
+    let resolvedColor = style.resolvedBackgroundColor
+    let background: CGColor? = resolvedColor == 0 ? nil : UIColor.colorFromARGB(resolvedColor).cgColor
+    return (background, borderWidth, borderColor, radius)
+  }
+
   public override func draw(_ rect: CGRect) {
     updateDrawFlagsIfNeeded()
 
@@ -149,7 +271,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         return type
       }
     }
-    return .Disc
+    // UA lists default to disc; preflight resets them to none.
+    return node.mason.preflight ? .None : .Disc
   }
 
   private func drawMarkerFor(listItem child: MasonText, in context: CGContext, position: Int) {
@@ -264,6 +387,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // True while a scroll gesture/deceleration is active; layoutSubviews skips
   // autoComputeIfRoot so scroll-step bounds changes don't retrigger layout.
   private var _isScrolling = false
+  internal var isScrollingNow: Bool { _isScrolling }
 
   public var contentOffset: CGPoint {
     get { bounds.origin }
@@ -286,6 +410,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     var b = bounds; b.origin = c; bounds = b
     _updateScrollMask()
     CATransaction.commit()
+    // Fixed-attachment backgrounds are positioned against the window, so they repaint on scroll.
+    if style.mBackground.needsRedrawOnScroll { setNeedsDisplay() }
+    Background.invalidateFixedDescendants(self)
     if isScrollContainer {
       MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
     }
@@ -1284,42 +1411,10 @@ extension MasonUIView {
     )
   }
 
-  // Reposition the layer mask to track bounds.origin without recreating a CGPath.
+  // Keep the clip mask on the viewport as bounds.origin scrolls. Layout decides
+  // whether a mask exists; its path is in viewport-local coordinates.
   func _updateScrollMask() {
-    guard let maskLayer = layer.mask else { return }
-   /* let o = bounds.origin
-    let w = bounds.size.width
-    let h = bounds.size.height
-    let overflowPad: CGFloat = 10000
-    let overflow = node.style.overflow
-    let clipX = overflow.x == .Scroll || overflow.x == .Hidden || overflow.x == .Clip || overflow.x == .Auto
-    let clipY = overflow.y == .Scroll || overflow.y == .Hidden || overflow.y == .Clip || overflow.y == .Auto
-    // Reuse the existing layer size; only reposition it to follow the scroll offset.
-    // For a two-axis clip the mask is exactly the viewport; for single-axis it extends
-    // by overflowPad on the unconstrained side — set that as the layer's frame.
-    if clipX && clipY {
-      maskLayer.frame = CGRect(origin: o, size: bounds.size)
-    } else if clipX {
-      maskLayer.frame = CGRect(x: o.x, y: o.y - overflowPad, width: w, height: h + overflowPad * 2)
-    } else {
-      maskLayer.frame = CGRect(x: o.x - overflowPad, y: o.y, width: w + overflowPad * 2, height: h)
-    }
-    
-    */
-    
-    let overflow = node.style.overflow
-
-    let clipX = overflow.x == .Scroll || overflow.x == .Hidden || overflow.x == .Clip || overflow.x == .Auto
-    let clipY = overflow.y == .Scroll || overflow.y == .Hidden || overflow.y == .Clip || overflow.y == .Auto
-
-    guard clipX || clipY else {
-      layer.mask = nil
-      return
-    }
-    
-  
-    maskLayer.frame = bounds
-  
+    layer.mask?.frame = bounds
   }
 
   // MARK: Pan handler
@@ -1443,7 +1538,7 @@ private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelega
 // Skips the backing store (and draw(_:)) while the owning view paints nothing.
 final class MasonViewLayer: CALayer {
   override func display() {
-    if let view = delegate as? MasonUIView, !view.paintsContent {
+    if let view = delegate as? MasonUIView, view.applyLayerPaintIfEligible() {
       contents = nil
       return
     }

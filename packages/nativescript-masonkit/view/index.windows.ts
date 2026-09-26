@@ -49,7 +49,6 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(child: any): void {
-    child[isMasonView_] = false;
     child._isMasonChild = false;
     removeNativeChild(this._view, child);
     // @ts-ignore

@@ -114,6 +114,14 @@ class ViewUtils {
         return
       }
 
+      // A scrolled container draws in content coordinates; its own box (backdrop,
+      // background, inset shadow, border) stays with the viewport. TextArea
+      // compensates for its own scroll before calling in.
+      val boxDx = if (view is TextArea) 0f else view.scrollX.toFloat()
+      val boxDy = if (view is TextArea) 0f else view.scrollY.toFloat()
+      val boxSave = canvas.save()
+      if (boxDx != 0f || boxDy != 0f) canvas.translate(boxDx, boxDy)
+
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         style.mBackdropHelper?.let { helper ->
           val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
@@ -146,6 +154,9 @@ class ViewUtils {
               }
             }
           } else canvas.withSave {
+            // Blend modes composite within the element's own background group.
+            val blends = background.layers.any { it.blendMode != BackgroundBlendMode.NORMAL }
+            if (blends) canvas.saveLayer(0f, 0f, width, height, null)
             val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
             if (!outerPath.isEmpty) {
               canvas.clipPath(outerPath)
@@ -161,7 +172,17 @@ class ViewUtils {
                 // pass measured bounds so clip uses the real size instead of the
                 // potentially-zero computedWidth/Height stored on the node
                 Style.applyClip(canvas, layer.clip, style, width, height)
-                drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
+                val area = Background.positioningArea(layer, view, style.node, width, height)
+                val paintRect = if (layer.attachment == BackgroundAttachment.LOCAL) {
+                  // `local` layers scroll with the content across the whole scrollable box.
+                  canvas.translate(-boxDx, -boxDy)
+                  val content = Background.localContentSize(view, width, height)
+                  android.graphics.RectF(0f, 0f, content.first, content.second)
+                } else {
+                  android.graphics.RectF(0f, 0f, width, height)
+                }
+                if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
+                drawBackground(view.context, view, layer, canvas, paintRect, area)
               }
             }
           }
@@ -183,6 +204,7 @@ class ViewUtils {
       if (!ignoreBorder) {
         style.mBorderRenderer.draw(canvas, width, height)
       }
+      canvas.restoreToCount(boxSave)
 
       // Children's outset box-shadows: drawn after this view's own background and
       // border so an opaque parent background can't paint over them, but before the
@@ -258,6 +280,7 @@ class ViewUtils {
       // Clip to border-radius so the overlay follows the element shape.
       if (useFastFilter) {
         canvas.withSave {
+          if (boxDx != 0f || boxDy != 0f) canvas.translate(boxDx, boxDy)
           if (hasRadii) {
             canvas.clipPath(style.mBorderRenderer.getOuterClipPath(width, height))
           }

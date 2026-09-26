@@ -1,4 +1,4 @@
-import { CssProperty, CssAnimationProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
+import { CssProperty, CssAnimationProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonView_ } from './symbols';
@@ -335,6 +335,94 @@ export const textJustifyProperty = new CssProperty<Style, string>({
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.textJustify = newValue as never;
+    }
+  },
+});
+
+export const backgroundPositionXProperty = new CssProperty<Style, string>({
+  name: 'backgroundPositionX',
+  cssName: 'background-position-x',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundPositionX = newValue as never;
+    }
+  },
+});
+
+export const backgroundPositionYProperty = new CssProperty<Style, string>({
+  name: 'backgroundPositionY',
+  cssName: 'background-position-y',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundPositionY = newValue as never;
+    }
+  },
+});
+
+export const backgroundOriginProperty = new CssProperty<Style, string>({
+  name: 'backgroundOrigin',
+  cssName: 'background-origin',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundOrigin = newValue as never;
+    }
+  },
+});
+
+export const backgroundAttachmentProperty = new CssProperty<Style, string>({
+  name: 'backgroundAttachment',
+  cssName: 'background-attachment',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundAttachment = newValue as never;
+    }
+  },
+});
+
+export const backgroundBlendModeProperty = new CssProperty<Style, string>({
+  name: 'backgroundBlendMode',
+  cssName: 'background-blend-mode',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundBlendMode = newValue as never;
+    }
+  },
+});
+
+export const textDecorationLineProperty = new CssProperty<Style, string>({
+  name: 'textDecorationLine',
+  cssName: 'text-decoration-line',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationLine = newValue as never;
+    }
+  },
+});
+
+export const textDecorationStyleProperty = new CssProperty<Style, string>({
+  name: 'textDecorationStyle',
+  cssName: 'text-decoration-style',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationStyle = newValue as never;
+    }
+  },
+});
+
+export const textDecorationColorProperty = new CssProperty<Style, string>({
+  name: 'textDecorationColor',
+  cssName: 'text-decoration-color',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textDecorationColor = newValue as never;
     }
   },
 });
@@ -1587,6 +1675,11 @@ registerAlongsideCore(backgroundRepeatProperty);
 registerAlongsideCore(backgroundPositionProperty);
 registerAlongsideCore(backgroundSizeProperty);
 backgroundClipProperty.register(Style);
+backgroundPositionXProperty.register(Style);
+backgroundPositionYProperty.register(Style);
+backgroundOriginProperty.register(Style);
+backgroundAttachmentProperty.register(Style);
+backgroundBlendModeProperty.register(Style);
 
 borderProperty.register(Style);
 borderLeftProperty.register(Style);
@@ -1755,6 +1848,19 @@ registerAlongsideCore(whiteSpaceProperty);
 objectFitProperty.register(Style);
 textJustifyProperty.register(Style);
 textDecorationThicknessProperty.register(Style);
+textDecorationLineProperty.register(Style);
+textDecorationStyleProperty.register(Style);
+textDecorationColorProperty.register(Style);
+
+// Core validates `text-decoration` down to none/underline/line-through, so
+// overline, the error lines, styles, colors and thicknesses never reached
+// mason. Its own elements get the raw declaration; core keeps its parser.
+const TextDecorationParse = makeParser<string>(makeValidator('none', 'underline', 'line-through', 'underline line-through'));
+(textDecorationProperty as unknown as { overrideHandlers(options: object): void }).overrideHandlers({
+  valueConverter: function (this: Style, value: string) {
+    return isMasonView(this) ? value : TextDecorationParse(value);
+  },
+});
 // core owns `font-family` (through its Font shorthand), so this has to dispatch
 // rather than shadow it.
 registerAlongsideCore(fontFamilyProperty);
@@ -1809,7 +1915,7 @@ const coreShorthands: MasonShorthand[] = [
   { cssName: 'border-color', longhands: borderColorLonghands, split: splitBorderColor },
   {
     cssName: 'background',
-    longhands: [backgroundColorProperty, backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty],
+    longhands: [backgroundColorProperty, backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty, backgroundOriginProperty, backgroundAttachmentProperty],
     split: splitBackground,
   },
 ];

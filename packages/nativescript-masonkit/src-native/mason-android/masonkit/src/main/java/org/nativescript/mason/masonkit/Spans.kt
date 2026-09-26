@@ -319,6 +319,25 @@ class Spans {
     }
   }
 
+  /**
+   * `text-decoration` marker. Paint-neutral: TextDecorations draws it after the
+   * Layout so run extents and baselines come from the Layout itself.
+   */
+  class DecorationSpan(
+    val line: Styles.DecorationLine,
+    val color: Int,
+    val lineStyle: Styles.DecorationStyle,
+    val thicknessPx: Float
+  ) : CharacterStyle(), NSCSpan {
+    override val type: Type
+      get() = Type.DecorationLine
+
+    override fun updateDrawState(tp: TextPaint?) {}
+
+    fun sameAppearance(other: DecorationSpan): Boolean =
+      line == other.line && color == other.color && lineStyle == other.lineStyle && thicknessPx == other.thicknessPx
+  }
+
   class BlockQuoteBackgroundSpan(private val color: Int, private val barWidthPx: Float) :
     LineBackgroundSpan {
 

@@ -5,7 +5,7 @@ import { PercentLength as CorePercentLength } from '@nativescript/core/ui/stylin
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { borderRadiusCorners, composeBorderRadius, splitBackground, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss } from './css-shorthands';
-import { backgroundClipProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, shorthandConverter } from './properties';
+import { backgroundAttachmentProperty, backgroundClipProperty, backgroundOriginProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, shorthandConverter } from './properties';
 
 function entry(cssName: string) {
   const found = masonShorthands.find((shorthand) => shorthand.cssName === cssName);
@@ -238,15 +238,15 @@ describe('background', () => {
   const U = unsetValue;
 
   it.each([
-    ['red', ['red', U, U, U, U, U]],
-    ['rgb(0, 0, 0)', ['rgb(0, 0, 0)', U, U, U, U, U]],
-    ['none', [U, 'none', U, U, U, U]],
-    ['url(a.png)', [U, 'url(a.png)', U, U, U, U]],
-    ['url(a.png) no-repeat center / cover padding-box #fff', ['#fff', 'url(a.png)', 'no-repeat', 'center', 'cover', 'padding-box']],
-    ['#fff url(a.png) 10px 20px/5px auto fixed content-box border-box', ['#fff', 'url(a.png)', U, '10px 20px', '5px auto', 'border-box']],
-    ['repeat space radial-gradient(circle at 50% 50%, red, blue)', [U, 'radial-gradient(circle at 50% 50%, red, blue)', 'repeat space', U, U, U]],
-    ['linear-gradient(red, blue), url(b.png) repeat-x left top / 50% blue', ['blue', 'linear-gradient(red, blue), url(b.png)', 'repeat, repeat-x', '0% 0%, left top', 'auto, 50%', U]],
-    ['url(a.png) padding-box, url(b.png)', [U, 'url(a.png), url(b.png)', U, U, U, 'padding-box, border-box']],
+    ['red', ['red', U, U, U, U, U, U, U]],
+    ['rgb(0, 0, 0)', ['rgb(0, 0, 0)', U, U, U, U, U, U, U]],
+    ['none', [U, 'none', U, U, U, U, U, U]],
+    ['url(a.png)', [U, 'url(a.png)', U, U, U, U, U, U]],
+    ['url(a.png) no-repeat center / cover padding-box #fff', ['#fff', 'url(a.png)', 'no-repeat', 'center', 'cover', 'padding-box', 'padding-box', U]],
+    ['#fff url(a.png) 10px 20px/5px auto fixed content-box border-box', ['#fff', 'url(a.png)', U, '10px 20px', '5px auto', 'border-box', 'content-box', 'fixed']],
+    ['repeat space radial-gradient(circle at 50% 50%, red, blue)', [U, 'radial-gradient(circle at 50% 50%, red, blue)', 'repeat space', U, U, U, U, U]],
+    ['linear-gradient(red, blue), url(b.png) repeat-x left top / 50% blue', ['blue', 'linear-gradient(red, blue), url(b.png)', 'repeat, repeat-x', '0% 0%, left top', 'auto, 50%', U, U, U]],
+    ['url(a.png) padding-box, url(b.png)', [U, 'url(a.png), url(b.png)', U, U, U, 'padding-box, border-box', 'padding-box, padding-box', U]],
   ])('%s', (value, parts) => {
     expect(splitBackground(value)).toEqual(parts);
   });
@@ -255,7 +255,7 @@ describe('background', () => {
     expect(() => splitBackground(value)).toThrow();
   });
 
-  const layerLonghands = [backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty];
+  const layerLonghands = [backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty, backgroundOriginProperty, backgroundAttachmentProperty];
 
   it("reaches a Mason view's own layer properties as CSS strings", () => {
     const { spies, members } = setNativeSpies(layerLonghands);
@@ -266,6 +266,7 @@ describe('background', () => {
     expect(spies['background-position']).toHaveBeenLastCalledWith('center');
     expect(spies['background-size']).toHaveBeenLastCalledWith('cover');
     expect(spies['background-clip']).toHaveBeenLastCalledWith('padding-box');
+    expect(spies['background-origin']).toHaveBeenLastCalledWith('padding-box');
     expect((style as any).backgroundColor.hex).toBe('#FFFFFF');
   });
 

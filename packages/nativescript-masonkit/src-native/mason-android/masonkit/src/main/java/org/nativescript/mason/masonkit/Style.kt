@@ -625,7 +625,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
      */
     val ALL_TEXT: StateKeys = FONT_COLOR or FONT_SIZE or FONT_WEIGHT or FONT_STYLE or
       FONT_FAMILY or FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or
-      TEXT_TRANSFORM or DECORATION_LINE or DECORATION_COLOR or DECORATION_STYLE or
+      TEXT_TRANSFORM or DECORATION_LINE or DECORATION_COLOR or DECORATION_STYLE or DECORATION_THICKNESS or
       LETTER_SPACING or TEXT_JUSTIFY or BACKGROUND_COLOR or LINE_HEIGHT or
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH
@@ -1724,6 +1724,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         mBackground?.clear()
       } else {
         parseBackground(this, value)?.let {
+          mBackground?.longhands?.let { old -> it.longhands.putAll(old) }
+          it.reapplyLonghands()
           mBackground = it
           mBackgroundRaw = value
           (node.view as? View)?.invalidate()
@@ -1742,6 +1744,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
       val layers = parseBackgroundLayers(value)
       mBackground?.layers = layers.toMutableList()
+      mBackground?.reapplyLonghands()
       isValueInitialized = true
       (node.view as? android.view.View)?.invalidate()
     }
@@ -1756,50 +1759,47 @@ class Style internal constructor(@Transient internal var node: Node) {
       mBackground!!.applyBackgroundRepeat(value)
     }
 
+  private fun perLayerCss(map: (BackgroundLayer) -> String): String {
+    val layers = mBackground?.layers
+    if (layers.isNullOrEmpty()) return ""
+    return layers.joinToString(", ", transform = map)
+  }
+
+  private fun ensureBackground(): Background {
+    return mBackground ?: Background(this).also { mBackground = it }
+  }
+
   var backgroundPosition: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      return mBackground!!.layers.joinToString(",") { layer ->
-        val pos = layer.position ?: return@joinToString "center"
-        "${(pos.first * 100).toInt()}% ${(pos.second * 100).toInt()}%"
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundPosition(value)
-    }
+    get() = perLayerCss { it.position?.cssValue ?: "0% 0%" }
+    set(value) = ensureBackground().applyBackgroundPosition(value)
+
+  var backgroundPositionX: String
+    get() = perLayerCss { it.position?.x?.cssValue(true) ?: "0%" }
+    set(value) = ensureBackground().applyBackgroundPositionX(value)
+
+  var backgroundPositionY: String
+    get() = perLayerCss { it.position?.y?.cssValue(false) ?: "0%" }
+    set(value) = ensureBackground().applyBackgroundPositionY(value)
 
   var backgroundSize: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      return mBackground!!.layers.joinToString(",") { layer ->
-        val sz = layer.size ?: return@joinToString "auto"
-        when {
-          sz.first == -1f && sz.second == -1f -> "cover"
-          sz.first == -2f && sz.second == -2f -> "contain"
-          else -> "${sz.first}px ${sz.second}px"
-        }
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundSize(value)
-    }
+    get() = perLayerCss { it.size?.cssValue ?: "auto" }
+    set(value) = ensureBackground().applyBackgroundSize(value)
 
   var backgroundClip: String
-    get() {
-      if (mBackground?.layers.isNullOrEmpty()) return ""
-      val clip = mBackground!!.layers.firstOrNull()?.clip ?: return "border-box"
-      return when (clip) {
-        BackgroundClip.CONTENT_BOX -> "content-box"
-        BackgroundClip.PADDING_BOX -> "padding-box"
-        BackgroundClip.BORDER_BOX -> "border-box"
-      }
-    }
-    set(value) {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.applyBackgroundClip(value)
-    }
+    get() = perLayerCss { it.clip.css }
+    set(value) = ensureBackground().applyBackgroundClip(value)
+
+  var backgroundOrigin: String
+    get() = perLayerCss { it.origin.css }
+    set(value) = ensureBackground().applyBackgroundOrigin(value)
+
+  var backgroundAttachment: String
+    get() = perLayerCss { it.attachment.css }
+    set(value) = ensureBackground().applyBackgroundAttachment(value)
+
+  var backgroundBlendMode: String
+    get() = perLayerCss { it.blendMode.css }
+    set(value) = ensureBackground().applyBackgroundBlendMode(value)
 
   fun setBackgroundColor(value: String) {
     parseColor(value)?.let {
@@ -1951,7 +1951,13 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       val previous = fontStyle
       if (previous != value) {
-        values.put(StyleKeys.FONT_STYLE_TYPE, value.fontStyle.toByte())
+        // Buffer encoding: 0 normal, 1 italic, 2 oblique.
+        val encoded: Byte = when (value) {
+          FontStyle.Normal -> 0
+          FontStyle.Italic -> 1
+          is FontStyle.Oblique -> 2
+        }
+        values.put(StyleKeys.FONT_STYLE_TYPE, encoded)
         values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
         invalidateResolvedFontFace()
@@ -2126,6 +2132,74 @@ class Style internal constructor(@Transient internal var node: Node) {
         notifyTextStyleChanged(StateKeys.DECORATION_LINE)
       }
     }
+
+  /** `text-decoration-line` as CSS text. */
+  var textDecorationLine: String
+    get() = decorationLine.cssValue
+    set(value) {
+      Styles.DecorationLine.parse(value)?.let { decorationLine = it }
+    }
+
+  /** `text-decoration-style` as CSS text. */
+  var textDecorationStyle: String
+    get() = decorationStyle.cssValue
+    set(value) {
+      Styles.DecorationStyle.parse(value)?.let { decorationStyle = it }
+    }
+
+  /** `text-decoration-color` as CSS text. */
+  var textDecorationColor: String
+    get() {
+      val c = decorationColor
+      return if (c == Constants.UNSET_COLOR.toInt()) "currentcolor" else c.argbToCssHex()
+    }
+    set(value) {
+      if (value.trim().lowercase() == "currentcolor") {
+        decorationColor = Constants.UNSET_COLOR.toInt()
+      } else {
+        parseColor(value)?.let { decorationColor = it }
+      }
+    }
+
+  /**
+   * `text-decoration` shorthand: line keywords, a style, a color and a thickness
+   * in any order. Omitted longhands reset, as on the web.
+   */
+  fun setTextDecoration(css: String) {
+    var mask = 0
+    var single: Styles.DecorationLine? = null
+    var lineStyle = Styles.DecorationStyle.Solid
+    var color = Constants.UNSET_COLOR.toInt()
+    var thickness = 0f
+    for (raw in splitTopLevelWhitespace(css.trim())) {
+      val token = raw.lowercase()
+      when (token) {
+        "", "none" -> {}
+        "underline" -> mask = mask or Styles.DecorationLine.UNDERLINE
+        "overline" -> mask = mask or Styles.DecorationLine.OVERLINE
+        "line-through" -> mask = mask or Styles.DecorationLine.LINE_THROUGH
+        "spelling-error" -> single = Styles.DecorationLine.SpellingError
+        "grammar-error" -> single = Styles.DecorationLine.GrammarError
+        "auto", "from-font" -> thickness = 0f
+        "currentcolor" -> color = Constants.UNSET_COLOR.toInt()
+        else -> {
+          val parsedStyle = Styles.DecorationStyle.parse(token)
+          val parsedColor = if (parsedStyle == null) parseColor(raw) else null
+          val parsedLength = if (parsedStyle == null && parsedColor == null) parseLength(this, token) else null
+          when {
+            parsedStyle != null -> lineStyle = parsedStyle
+            parsedColor != null -> color = parsedColor
+            parsedLength != null -> thickness = parsedLength
+            else -> return
+          }
+        }
+      }
+    }
+    decorationLine = single ?: Styles.DecorationLine.from(mask)
+    decorationStyle = lineStyle
+    decorationColor = color
+    decorationThickness = thickness
+  }
 
   var decorationColor: Int
     get() {
@@ -4614,6 +4688,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         sharedFontFace(baseFamily, resolvedWeight, resolvedStyle, view.context) {
           view.post {
             fontDirty = true
+            // Flattened spans were built into the parent before this face loaded.
+            (node.view as? TextContainer)?.engine?.invalidateInlineSegments()
             val metricsChanged = syncFontMetrics()
             if (metricsChanged) {
               node.dirty()

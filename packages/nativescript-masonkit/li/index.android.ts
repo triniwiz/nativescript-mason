@@ -53,7 +53,6 @@ export class Li extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    view[isMasonView_] = false;
     // @ts-ignore
     super._removeViewFromNativeVisualTree(view);
   }

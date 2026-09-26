@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" @loaded="onLoaded">
     <ActionBar title="Feed - core">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" @tap="$navigateBack()" />
     </ActionBar>
     <ScrollView class="page">
       <StackLayout class="feed">

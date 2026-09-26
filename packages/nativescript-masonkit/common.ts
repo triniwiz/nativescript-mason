@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
+import { AddChildFromBuilder, CustomLayoutView, Utils, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
 import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 // The per-corner radius and per-side colour longhands core's `border-radius`
@@ -328,7 +328,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private static _teardownScheduled = false;
 
   public _tearDownUI(force?: boolean): void {
-    if (__ANDROID__ && !force && !this.reusable && this._context && this.nativeViewProtected) {
+    if ((__ANDROID__ || __APPLE__) && !force && !this.reusable && this._context && this.nativeViewProtected) {
       // A keyed move tears down and re-adds within one patch. Detach only this
       // element and defer the recursive teardown; _setupUI cancels it on re-attach.
       if (this.parent) {
@@ -346,7 +346,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public _setupUI(context?: any, atIndex?: number, parentIsLoaded?: boolean): void {
-    if (__ANDROID__ && this._masonPendingTeardown) {
+    if ((__ANDROID__ || __APPLE__) && this._masonPendingTeardown) {
       this._masonPendingTeardown = false;
       if (this._context === context) {
         if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
@@ -771,6 +771,89 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Core's iOS requestLayout climbs to the Page and re-measures the whole tree in JS.
+  // A Mason root's native compute already places every Mason descendant, so it skips
+  // them and only runs core's layout for non-Mason views inside its subtree.
+
+  /** True for a Mason view whose frame the Mason tree sets natively (iOS). */
+  get _masonPlacedNatively(): boolean {
+    return __APPLE__ && !!this[isMasonView_] && !!(this.parent as any)?.[isMasonView_];
+  }
+
+  /** Size a non-Mason child with core's measure: its native view rarely implements sizeThatFits. */
+  _masonMeasureForeign(child: any): void {
+    if (!__APPLE__ || child[isMasonView_] || !child.nativeViewProtected) return;
+    const mason = (this.nativeViewProtected as any)?.mason;
+    if (typeof mason?.setMeasureForViewBlock !== 'function') return;
+    const parentRef = new WeakRef(this);
+    const childRef = new WeakRef(child);
+    const spec = (known: number, available: number) => {
+      if (!isNaN(known)) return Utils.layout.makeMeasureSpec(known, Utils.layout.EXACTLY);
+      if (available > 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
+      return Utils.layout.makeMeasureSpec(0, Utils.layout.UNSPECIFIED);
+    };
+    mason.setMeasureForViewBlock(child.nativeViewProtected, (knownW: number, knownH: number, availW: number, availH: number) => {
+      const parent = parentRef.deref();
+      const view = childRef.deref();
+      if (!parent || !view) return CGSizeMake(0, 0);
+      NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+      return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
+    });
+  }
+
+  /** Lay out the non-Mason views in this root's subtree from the frames Mason set. */
+  _masonLayoutForeignDescendants(): void {
+    if (!__APPLE__) return;
+    const visit = (view: any) => {
+      view.eachChildView((child: any) => {
+        if (child[isMasonView_]) {
+          // Keep `layoutChanged` working for the few views that listen to it.
+          if (child.hasListeners?.(NSView.layoutChangedEvent)) {
+            const b = child._getCurrentLayoutBounds();
+            if (child._setCurrentLayoutBounds(b.left, b.top, b.right, b.bottom).boundsChanged) {
+              child._raiseLayoutChangedEvent();
+            }
+          }
+          visit(child);
+        } else if (child.nativeViewProtected) {
+          const b = child._getCurrentLayoutBounds();
+          const w = Utils.layout.makeMeasureSpec(b.right - b.left, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(b.bottom - b.top, Utils.layout.EXACTLY);
+          NSView.measureChild(view, child, w, h);
+          child.layout(b.left, b.top, b.right, b.bottom);
+        }
+        return true;
+      });
+    };
+    visit(this);
+  }
+
+  requestLayout(): void {
+    // A natively placed view only needs its Mason root re-measured: skip the
+    // per-ancestor hops (each a JS call plus a native setNeedsLayout).
+    if (this._masonPlacedNatively) {
+      let root: any = this.parent;
+      while (root?.parent?.[isMasonView_]) root = root.parent;
+      root?.requestLayout();
+      return;
+    }
+    super.requestLayout();
+  }
+
+  getMeasuredWidth(): number {
+    if (this._masonPlacedNatively && this.nativeViewProtected) {
+      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.width));
+    }
+    return super.getMeasuredWidth();
+  }
+
+  getMeasuredHeight(): number {
+    if (this._masonPlacedNatively && this.nativeViewProtected) {
+      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.height));
+    }
+    return super.getMeasuredHeight();
+  }
+
   public eachChildView(callback: (child: NSView) => boolean): void {
     for (const view of this._viewChildren) {
       callback(view);
@@ -1136,6 +1219,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // -- Platform bridge methods for native text node operations --
 
   private _createOrUpdateNativeTextNode(node: any, text: string): any {
+    // Frameworks may hand over raw values (Svelte's `{n}` makes a text node from a number).
+    text = text == null ? '' : String(text);
     if (node[textNode_]) {
       if (__ANDROID__) {
         (node[textNode_] as org.nativescript.mason.masonkit.TextNode).setData(text);
@@ -1281,7 +1366,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       isBreak?: boolean;
     } | null = null,
   ) {
-    const text = node.text ?? node.data ?? '';
+    const text = String(node.text ?? node.data ?? '');
     const textNode = this._createOrUpdateNativeTextNode(node, text);
 
     if (__WINDOWS__ && textNode && typeof (textNode as any).SetBreak === 'function') {
@@ -1670,6 +1755,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       style.textDecoration = String(value);
+      // The shorthand resets every longhand natively, but core tracks each as its own
+      // property and won't reapply one it already holds. Put the explicit ones back.
+      const cssStyle = this.style as any;
+      for (const name of ['textDecorationLine', 'textDecorationStyle', 'textDecorationColor', 'textDecorationThickness']) {
+        const longhand = cssStyle[name];
+        if (longhand !== undefined && longhand !== null && longhand !== '') {
+          style[name] = longhand;
+        }
+      }
     }
   }
 

@@ -899,7 +899,7 @@ MasonKit supports multiple NativeScript frameworks:
 | Angular | Supported |
 | Vue 3 (`nativescript-vue`) | Supported |
 | React (`react-nativescript`) | Supported |
-| Svelte | Supported |
+| Svelte (`svelte-native`) | Supported |
 
 Framework detection is automatic. MasonKit detects which framework is in use and adapts its internal child management accordingly.
 
@@ -931,6 +931,23 @@ Then use the elements directly in templates — no `registerElement` calls:
 
 See [vue/README.md](vue/README.md) for options (`web`/`mason`) and custom-element
 `masonMeta` usage.
+
+### Svelte Native Example
+
+Install the integration in the app entry file, before starting Svelte Native:
+
+```ts
+// app.ts
+import { svelteNative } from 'svelte-native';
+import { installMasonKit } from '@triniwiz/nativescript-masonkit/svelte';
+import App from './App.svelte';
+
+installMasonKit();
+svelteNative(App, {});
+```
+
+Core's `Button`, `Label` and `Span` stay available as `<nbutton>`, `<nlabel>` and
+`<nspan>`. See [svelte/README.md](svelte/README.md).
 
 ### Angular Example
 

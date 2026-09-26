@@ -16,6 +16,7 @@ export * from './web';
 export { setCssDiagnostics, getCssDiagnostics, clearCssDiagnostics, formatCssDiagnostics, cssDiagnosticsEnabled } from './diagnostics';
 export { setCssUnitContext, cssUnits } from './units';
 export { frameworkRegistry, readChildNodes, readLinkedList, type MasonFrameworkAdapter, type MasonNodeKind } from './framework-registry';
+export { hasTextRun } from './text-runs';
 export { registerAppFontsDirectory } from './fonts';
 
 export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';

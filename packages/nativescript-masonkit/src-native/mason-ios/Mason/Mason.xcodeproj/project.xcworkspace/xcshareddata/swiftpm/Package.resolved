@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/NativeScript/font-manager",
       "state" : {
-        "revision" : "c22b597864b251036235d62fd89bc6df14f205c8",
-        "version" : "1.0.9"
+        "revision" : "b76d808497dc57f8c0240057fad771d4104a9566",
+        "version" : "1.0.17"
       }
     },
     {

@@ -430,6 +430,7 @@ public struct StateKeys: Equatable {
       | decorationLine.low
       | decorationColor.low
       | decorationStyle.low
+      | decorationThinkness.low
       | letterSpacing.low
       | textJustify.low
       | backgroundColor.low
@@ -450,6 +451,7 @@ public struct StateKeys: Equatable {
       | decorationLine.high
       | decorationColor.high
       | decorationStyle.high
+      | decorationThinkness.high
       | letterSpacing.high
       | textJustify.high
       | backgroundColor.high
@@ -1515,10 +1517,7 @@ public class MasonStyle: NSObject {
     }
     get {
       if mBackground.layers.isEmpty { return "" }
-      return mBackground.layers.map { layer in
-        guard let pos = layer.position else { return "center" }
-        return "\(Int(pos.0 * 100))% \(Int(pos.1 * 100))%"
-      }.joined(separator: ",")
+      return mBackground.layers.map { $0.position?.cssValue ?? "0% 0%" }.joined(separator: ", ")
     }
   }
 
@@ -1529,12 +1528,7 @@ public class MasonStyle: NSObject {
     }
     get {
       if mBackground.layers.isEmpty { return "" }
-      return mBackground.layers.map { layer in
-        guard let sz = layer.size else { return "auto" }
-        if sz.0 == -1 && sz.1 == -1 { return "cover" }
-        if sz.0 == -2 && sz.1 == -2 { return "contain" }
-        return "\(sz.0)px \(sz.1)px"
-      }.joined(separator: ",")
+      return mBackground.layers.map { $0.size?.cssValue ?? "auto" }.joined(separator: ", ")
     }
   }
 
@@ -1546,12 +1540,57 @@ public class MasonStyle: NSObject {
     }
     get {
       if mBackground.layers.isEmpty { return "" }
-      let clip = mBackground.layers.first?.clip ?? .borderBox
-      switch clip {
-      case .contentBox: return "content-box"
-      case .paddingBox: return "padding-box"
-      case .borderBox: return "border-box"
-      }
+      return mBackground.layers.map { $0.clip.rawValue }.joined(separator: ", ")
+    }
+  }
+
+  public var backgroundPositionX: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-position-x", value: newValue)
+    }
+    get {
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { $0.position?.x.cssValue(horizontal: true) ?? "0%" }.joined(separator: ", ")
+    }
+  }
+
+  public var backgroundPositionY: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-position-y", value: newValue)
+    }
+    get {
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { $0.position?.y.cssValue(horizontal: false) ?? "0%" }.joined(separator: ", ")
+    }
+  }
+
+  public var backgroundOrigin: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-origin", value: newValue)
+    }
+    get {
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { $0.origin.rawValue }.joined(separator: ", ")
+    }
+  }
+
+  public var backgroundAttachment: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-attachment", value: newValue)
+    }
+    get {
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { $0.attachment.rawValue }.joined(separator: ", ")
+    }
+  }
+
+  public var backgroundBlendMode: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-blend-mode", value: newValue)
+    }
+    get {
+      if mBackground.layers.isEmpty { return "" }
+      return mBackground.layers.map { $0.blendMode.rawValue }.joined(separator: ", ")
     }
   }
 
@@ -1689,7 +1728,7 @@ public class MasonStyle: NSObject {
   }
   
   public func setDecorationColor(css color: String) {
-    guard let color = UIColor(css: color) else {return}
+    guard let color = parseColor(color) else {return}
     decorationColor = color.toUInt32()
   }
   
@@ -1697,9 +1736,10 @@ public class MasonStyle: NSObject {
   
   public var decorationLine: DecorationLine {
     get {
-      return DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE))!
+      return DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE)) ?? .None
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.DECORATION_LINE, newValue.rawValue)
       setUInt8(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
       
@@ -1710,18 +1750,103 @@ public class MasonStyle: NSObject {
       }
     }
   }
-  
-  public func setTextDecoration(_ css: String) {
-    let v = css.trimmingCharacters(in: .whitespaces).lowercased()
-    let line: DecorationLine
-    switch v {
-    case "none": line = .None
-    case "underline": line = .Underline
-    case "overline": line = .Overline
-    case "line-through": line = .LineThrough
-    default: return
+
+  public var decorationStyle: DecorationStyle {
+    get {
+      return DecorationStyle(rawValue: getInt8(StyleKeys.DECORATION_STYLE)) ?? .Solid
     }
-    decorationLine = line
+    set {
+      prepareMut()
+      setInt8(StyleKeys.DECORATION_STYLE, newValue.rawValue)
+      setUInt8(StyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
+      if(inBatch){
+        setOrAppendState(StateKeys.decorationStyle)
+      }else {
+        notifyTextStyleChanged(StateKeys.decorationStyle)
+      }
+    }
+  }
+
+  /// Device px; 0 is `auto` (the font's underline thickness).
+  public var decorationThickness: Float {
+    get {
+      return getFloat(StyleKeys.DECORATION_THICKNESS)
+    }
+    set {
+      prepareMut()
+      setFloat(StyleKeys.DECORATION_THICKNESS, newValue)
+      setUInt8(StyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
+      if(inBatch){
+        setOrAppendState(StateKeys.decorationThinkness)
+      }else {
+        notifyTextStyleChanged(StateKeys.decorationThinkness)
+      }
+    }
+  }
+
+  public var textDecorationLine: String {
+    get { decorationLine.cssValue }
+    set {
+      if let line = DecorationLine.parse(newValue) { decorationLine = line }
+    }
+  }
+
+  public var textDecorationStyle: String {
+    get { decorationStyle.cssValue }
+    set {
+      if let style = DecorationStyle.parse(newValue) { decorationStyle = style }
+    }
+  }
+
+  public var textDecorationColor: String {
+    get {
+      let c = decorationColor
+      return c == Constants.UNSET_COLOR ? "currentcolor" : c.rgbaToHexCSS()
+    }
+    set {
+      if newValue.trimmingCharacters(in: .whitespaces).lowercased() == "currentcolor" {
+        decorationColor = Constants.UNSET_COLOR
+      } else {
+        setDecorationColor(css: newValue)
+      }
+    }
+  }
+
+  /// `text-decoration` shorthand: line keywords, a style, a color and a
+  /// thickness in any order. Omitted longhands reset, as on the web.
+  public func setTextDecoration(_ css: String) {
+    var mask: Int8 = 0
+    var single: DecorationLine? = nil
+    var lineStyle = DecorationStyle.Solid
+    var color = Constants.UNSET_COLOR
+    var thickness: Float = 0
+    for raw in splitTopLevelWhitespace(css.trimmingCharacters(in: .whitespaces)) {
+      let token = raw.lowercased()
+      switch token {
+      case "", "none": break
+      case "underline": mask |= DecorationLine.underlineBit
+      case "overline": mask |= DecorationLine.overlineBit
+      case "line-through": mask |= DecorationLine.lineThroughBit
+      case "spelling-error": single = .SpellingError
+      case "grammar-error": single = .GrammarError
+      case "auto", "from-font": thickness = 0
+      case "currentcolor": color = Constants.UNSET_COLOR
+      default:
+        if let parsedStyle = DecorationStyle.parse(token) {
+          lineStyle = parsedStyle
+        } else if let parsedColor = parseColor(raw) {
+          color = parsedColor.toUInt32()
+        } else if let parsedLength = parseLength(self, token) {
+          thickness = parsedLength
+        } else {
+          return
+        }
+      }
+    }
+    decorationLine = single ?? DecorationLine(rawValue: mask) ?? .None
+    decorationStyle = lineStyle
+    decorationColor = color
+    decorationThickness = thickness
   }
 
   public func setBorderColor(_ css: String) {
@@ -1870,7 +1995,7 @@ public class MasonStyle: NSObject {
   
   public var fontStyle: FontStyle {
     get {
-      switch(getInt32(StyleKeys.FONT_STYLE_TYPE)){
+      switch(getInt8(StyleKeys.FONT_STYLE_TYPE)){
       case 0:
         return .Normal
       case 1:
@@ -4292,6 +4417,26 @@ extension MasonStyle {
     return UInt64(bitPattern: Int64(hasher.finalize()))
   }
   
+  // Loaded faces for the generic families, shared by every text view: loading
+  // one resolves the system font and was paid again by each new view. Custom
+  // @font-face families can finish loading later, so they are never cached.
+  private static let genericFamilies: Set<String> = ["sans-serif", "serif", "monospace", "system", "system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "-apple-system", "cursive", "fantasy"]
+  private static var loadedGenericFaces: [String: NSCFontFace] = [:]
+
+  /// A loaded face for `face`'s family and style when it is a generic family (main thread).
+  internal static func loadedGenericFace(like face: NSCFontFace) -> NSCFontFace? {
+    let family = face.family.lowercased()
+    guard genericFamilies.contains(family) else { return nil }
+    let key = "\(family)|\(face.style.type.rawValue)"
+    if let cached = loadedGenericFaces[key] { return cached }
+    let loaded = NSCFontFace(family: face.family)
+    loaded.style = face.style
+    loaded.loadSync(nil)
+    guard loaded.font != nil else { return nil }
+    loadedGenericFaces[key] = loaded
+    return loaded
+  }
+
   internal func invalidateResolvedFontCache() {
     _cachedResolvedFont = nil
     _resolvedFontKey = 0
@@ -4494,9 +4639,9 @@ extension MasonStyle {
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedDecorationLine ?? DecorationLine(rawValue:
                                                                             getInt8(StyleKeys.DECORATION_LINE)
-      )!
+      ) ?? .None
     } else {
-      DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE))!
+      DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE)) ?? .None
     }
   }
   
@@ -4510,6 +4655,16 @@ extension MasonStyle {
     }
   }
   
+  internal var resolvedDecorationThickness: Float {
+    let state = getUInt8(StyleKeys.DECORATION_THICKNESS_STATE)
+    return if (state == StyleState.INHERIT) {
+      parentStyleWithTextValues?.resolvedDecorationThickness
+      ?? getFloat(StyleKeys.DECORATION_THICKNESS)
+    } else {
+      getFloat(StyleKeys.DECORATION_THICKNESS)
+    }
+  }
+
   internal var resolvedDecorationStyle: DecorationStyle {
     let state = getUInt8(StyleKeys.DECORATION_STYLE_STATE)
     return if (state == StyleState.INHERIT) {

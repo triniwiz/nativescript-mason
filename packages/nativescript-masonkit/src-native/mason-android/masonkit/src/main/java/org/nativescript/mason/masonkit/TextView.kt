@@ -223,14 +223,17 @@ class TextView @JvmOverloads constructor(
           val save = c.save()
           c.translate(tx, ty)
           layoutToDraw.draw(c)
+          TextDecorations.draw(c, layoutToDraw)
           c.restoreToCount(save)
         } else {
           layoutToDraw.draw(c)
+          TextDecorations.draw(c, layoutToDraw)
         }
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
         applyPendingText()
         super.onDraw(c)
+        TextDecorations.drawPlatform(c, this)
       }
     }
   }
