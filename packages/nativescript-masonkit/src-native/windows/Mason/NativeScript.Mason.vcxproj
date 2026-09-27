@@ -194,9 +194,10 @@
     <!-- Shared font management (CSS Font Loading API: @font-face / custom fonts + DirectWrite
          registration), mirroring the iOS SwiftPM and Android Gradle FontManager dependency. Mason
          resolves a node's font-family/size/weight/style through this and applies it to the text
-         controls. The component reaches it via winrt/NativeScript.FontManager.h; the app stages +
-         registers NativeScript.FontManager.dll (see App_Resources/Windows). -->
-    <PackageReference Include="NativeScript.FontManager" Version="1.0.2" />
+         controls. The component reaches it via winrt/NativeScript.FontManager.h; the app gets
+         NativeScript.FontManager.dll through plugin.props' PackageReference, whose package stages
+         and registers it (1.0.19+ for a C# host). -->
+    <PackageReference Include="NativeScript.FontManager" Version="1.0.19" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -14,7 +14,6 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <chrono>
 #include <winrt/Windows.UI.ViewManagement.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <vector>
@@ -389,11 +388,6 @@ namespace
         return cache->faces;
     }
 
-    // A face loaded through FontFace.load() raises no FontFaceSet event, so while a text names a
-    // family nothing provides yet, the set is checked on a timer that gives up after a while.
-    constexpr int kFontChecks = 40;
-    int g_fontChecksLeft = 0;
-
     // The faces texts were last resolved against.
     size_t g_resolvedFaces = 0;
 
@@ -413,28 +407,6 @@ namespace
         RefreshTexts(winrt::NativeScript::Mason::implementation::Text::Change::Fonts);
     }
 
-    void AwaitFonts()
-    {
-        g_fontChecksLeft = kFontChecks;
-        // Leaked: projected types can't be new'ed, and releasing them at exit outlives the dispatcher.
-        struct Holder { winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer timer{ nullptr }; };
-        static auto* held = new Holder();
-        auto& timer = held->timer;
-        if (!timer)
-        {
-            auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-            if (!queue) return;
-            timer = queue.CreateTimer();
-            timer.Interval(std::chrono::milliseconds(500));
-            timer.Tick([](auto const& sender, auto&&)
-            {
-                RefreshFonts();
-                if (--g_fontChecksLeft <= 0) sender.Stop();
-            });
-        }
-        if (!timer.IsRunning()) timer.Start();
-    }
-
     void WatchFontLoads()
     {
         static bool watching = false;
@@ -445,8 +417,8 @@ namespace
             auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
             auto set = winrt::NativeScript::FontManager::FontFaceSet::Instance();
             if (!queue || !set) return;
-            // Raised on the loading thread.
-            set.LoadingDone([queue](auto&&, auto&&)
+            // A face added or removed, or one finishing its load; raised on the thread that did it.
+            set.Changed([queue](auto&&, auto&&)
             {
                 queue.TryEnqueue([] { RefreshFonts(); });
             });
@@ -462,11 +434,9 @@ namespace
     }
 
     // A CSS font-family list as one XAML font source: the first family that exists, a FontManager
-    // family becoming the URIs of its loaded faces. `waiting` reports a skipped family that FontManager
-    // could still provide. Empty input yields "".
-    std::wstring ResolveFamily(std::wstring_view list, bool& waiting)
+    // family becoming the URIs of its loaded faces. Empty input yields "".
+    std::wstring ResolveFamily(std::wstring_view list)
     {
-        waiting = false;
         std::vector<std::wstring> tokens;
         size_t pos = 0;
         while (pos <= list.size())
@@ -495,7 +465,6 @@ namespace
             if (!sources.empty()) return sources;
             if (IsGenericFamily(lower)) return MapGenericFamily(tok);
             if (tok.find(L':') != std::wstring::npos || mason_dwrite::SystemHasFamily(tok)) return tok;
-            waiting = true;
         }
         return MapGenericFamily(tokens.front());
     }
@@ -717,9 +686,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::ApplyFontFamily()
     {
-        bool waiting = false;
-        const winrt::hstring resolved{ ResolveFamily(std::wstring_view(m_requestedFamily), waiting) };
-        if (waiting) AwaitFonts();
+        const winrt::hstring resolved{ ResolveFamily(std::wstring_view(m_requestedFamily)) };
         if (resolved == m_fontFamily && m_builtValid) return;
         m_fontFamily = resolved;
         if (m_text)
