@@ -1,0 +1,11 @@
+import "Text.idl";
+
+namespace NativeScript.Mason
+{
+    // What a TextBlock tells UI Automation, for a Text that draws its own glyphs.
+    [default_interface]
+    runtimeclass TextAutomationPeer : Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer
+    {
+        TextAutomationPeer(Text owner);
+    }
+}

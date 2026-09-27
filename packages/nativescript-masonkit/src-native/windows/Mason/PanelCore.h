@@ -17,7 +17,13 @@
 #include <winrt/NativeScript.Mason.h>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include "Invalidation.h"
 #include "LeafCommon.h"
+#include "Node.h"
+#include "Positioning.h"
+#include "RootScale.h"
+#include "TextAtlas.h"
+#include "VisualState.h"
 
 namespace mason_panel
 {
@@ -46,25 +52,10 @@ namespace mason_panel
         return false;
     }
 
-    inline void InvalidateLayoutRoot(mux::UIElement const& element)
-    {
-        auto cur = element.try_as<mux::FrameworkElement>();
-        while (cur)
-        {
-            if (auto el = cur.try_as<nsm::IMasonElement>())
-            {
-                if (auto node = el.Node()) node.MarkDirty();
-                cur.InvalidateMeasure();
-                cur.InvalidateArrange();
-            }
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<mux::FrameworkElement>() : nullptr;
-        }
-    }
-
     inline std::vector<mux::UIElement> SyncChildren(
         nsm::Mason const& engine, nsm::Node const& node,
-        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves)
+        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
+        mux::UIElement& layer)
     {
         std::vector<mux::UIElement> visible;
         std::vector<nsm::Node> nodes;
@@ -73,13 +64,19 @@ namespace mason_panel
         for (auto const& child : children)
         {
             if (child.Visibility() == mux::Visibility::Collapsed) continue;
-            visible.push_back(child);
 
             if (auto el = child.try_as<nsm::IMasonElement>())
             {
+                visible.push_back(child);
                 nodes.push_back(el.Node());
                 continue;
             }
+            if (mason_position::AsLayer(child))
+            {
+                layer = child;
+                continue;
+            }
+            visible.push_back(child);
 
             void* id = IdOf(child);
             auto it = leaves.find(id);
@@ -123,40 +120,98 @@ namespace mason_panel
         muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
         winrt::Windows::Foundation::Size const& available)
     {
-    
-        auto visible = SyncChildren(engine, node, children, leaves);
+        const bool isRoot = !HasMasonAncestor(self);
+        // Before any child is measured: changing a TextBlock's inlines mid-measure costs far more.
+        if (isRoot) mason_leaf::FlushBeforeCompute();
+        mux::UIElement layer{ nullptr };
+        auto visible = SyncChildren(engine, node, children, leaves, layer);
         for (auto const& c : visible) c.Measure(available);
 
-        const bool isRoot = !HasMasonAncestor(self);
         if (isRoot)
         {
+            mason_leaf::t_invalidated.clear();
+            mason_visual::g_computeScale = mason_visual::RasterScale(self);
             const bool wf = std::isfinite(available.Width);
             const bool hf = std::isfinite(available.Height);
             node.ComputeSize(
                 wf ? nsm::AvailableSpaceType::Definite : nsm::AvailableSpaceType::MaxContent, available.Width,
                 hf ? nsm::AvailableSpaceType::Definite : nsm::AvailableSpaceType::MaxContent, available.Height);
+            mason_leaf::FlushAfterCompute();
+            if (layer) mason_position::MeasureLayer(layer, available);
+            return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->LayoutSize();
         }
 
-        auto layout = node.GetLayout();
-        return { layout.Width(), layout.Height() };
+        // The root's compute sizes a nested panel, after this measure. Reporting the last layout's size
+        // would get a panel that shrank a layout clip, since XAML clips an element arranged smaller than
+        // it asked for, and nothing measures it again.
+        return winrt::Windows::Foundation::Size{ 0.0f, 0.0f };
     }
 
     inline winrt::Windows::Foundation::Size Arrange(
+        mux::UIElement const& self,
         nsm::Node const& node, muxc::UIElementCollection const& children,
         winrt::Windows::Foundation::Size const& finalSize)
     {
-        auto layout = node.GetLayout();
-        auto childLayouts = layout.Children();
-        uint32_t count = childLayouts.Size();
+        // Copied out: arranging a child re-enters Arrange, which reuses the node's float buffer.
+        std::vector<winrt::Windows::Foundation::Rect> frames;
+        winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->ShallowFrames(frames);
+        const uint32_t count = frames.empty() ? 0 : static_cast<uint32_t>(frames.size() - 1);
 
+        // XAML rounds each offset to device pixels relative to its parent, so a -12.5px box with a
+        // +12.5px child lands the child a pixel off. Snap in root coordinates instead, as browsers
+        // do: the offset becomes a whole number of pixels, which XAML's rounding leaves alone.
+        const bool isRoot = !HasMasonAncestor(self);
+        auto* selfNode = node ? winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node) : nullptr;
+        const float originX = isRoot || !selfNode ? 0.0f : selfNode->ArrangeX;
+        const float originY = isRoot || !selfNode ? 0.0f : selfNode->ArrangeY;
+        float scale = 0.0f;
+        if (auto root = self.XamlRoot()) scale = mason_visual::ScaleOf(root);
+        auto snap = [scale](float absolute, float origin, float fallback)
+        {
+            return scale > 0.0f ? (std::round(absolute * scale) - std::round(origin * scale)) / scale : fallback;
+        };
+
+        mux::UIElement layer{ nullptr };
+        bool layerLast = true;
         uint32_t i = 0;
         for (auto const& child : children)
         {
+            if (layer) layerLast = false;
             if (child.Visibility() == mux::Visibility::Collapsed) continue;
-            if (i >= count) break;
-            auto cl = childLayouts.GetAt(i);
-            child.Arrange(winrt::Windows::Foundation::Rect{ cl.X(), cl.Y(), cl.Width(), cl.Height() });
-            ++i;
+            auto el = child.try_as<nsm::IMasonElement>();
+            if (!el && mason_position::AsLayer(child))
+            {
+                layer = child;
+                continue;
+            }
+            if (i >= count) continue;
+            auto const& cl = frames[1 + i++];
+            const float absX = originX + cl.X;
+            const float absY = originY + cl.Y;
+            if (el)
+            {
+                auto childNode = el.Node();
+                if (childNode)
+                {
+                    auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(childNode);
+                    impl->ArrangeX = absX;
+                    impl->ArrangeY = absY;
+                }
+                mason_position::SyncChild(self, child, childNode);
+            }
+            child.Arrange(winrt::Windows::Foundation::Rect{ snap(absX, originX, cl.X), snap(absY, originY, cl.Y), cl.Width, cl.Height });
+        }
+
+        if (layer && !layerLast) mason_position::KeepLayerLastLater(self.as<muxc::Panel>());
+        if (layer || !mason_position::Links().empty())
+        {
+            mason_position::AfterArrange(self, layer, finalSize, isRoot);
+        }
+        if (isRoot)
+        {
+            mason_leaf::t_invalidated.clear();
+            // Every text arranged in this pass is drawn in one go.
+            mason_atlas::Flush();
         }
         return finalSize;
     }

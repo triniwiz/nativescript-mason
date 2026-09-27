@@ -54,9 +54,8 @@ namespace winrt::NativeScript::Mason::implementation
 
     void View::SyncStyle(winrt::hstring const&, winrt::hstring const&)
     {
-        if (m_node) m_node.MarkDirty();
-        InvalidateMeasure();
-        mason_panel::InvalidateLayoutRoot(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>());
+        m_visual.styleDirty = true;
+        mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
     }
 
     Size View::MeasureOverride(Size const& availableSize)
@@ -68,8 +67,8 @@ namespace winrt::NativeScript::Mason::implementation
     Size View::ArrangeOverride(Size const& finalSize)
     {
         if (!m_node) return finalSize;
-        auto result = mason_panel::Arrange(m_node, Children(), finalSize);
-        mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height);
+        auto result = mason_panel::Arrange(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, Children(), finalSize);
+        mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return result;
     }
 }

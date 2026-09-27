@@ -63,7 +63,7 @@ namespace winrt::NativeScript::Mason::implementation
     Size Image::ArrangeOverride(Size const& finalSize)
     {
         m_image.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width, finalSize.Height });
-        mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height);
+        mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;
     }
 }

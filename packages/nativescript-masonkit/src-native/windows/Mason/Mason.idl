@@ -1,4 +1,5 @@
 import "Node.idl";
+import "Element.idl";
 
 namespace NativeScript.Mason
 {
@@ -30,5 +31,13 @@ namespace NativeScript.Mason
 
         // Print the node's subtree (geometry + style) to the engine's debug log.
         void PrintTree(Node node);
+
+        // The element's own (unshared) style buffer: one call where Style + Values are two. The
+        // JS runtime calls instance methods at well under half the cost of static ones.
+        Windows.Storage.Streams.IBuffer StyleValues(IMasonElement element);
+
+        // Css.ReparentChild / Css.RemoveChild.
+        void ReparentChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child, Int32 index);
+        void RemoveChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child);
     }
 }

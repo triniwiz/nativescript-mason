@@ -1,5 +1,6 @@
 #pragma once
 #include "Node.g.h"
+#include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -56,6 +57,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         // compute + layout
         winrt::NativeScript::Mason::Layout GetLayout();
+        winrt::NativeScript::Mason::Layout GetShallowLayout();
         winrt::NativeScript::Mason::Layout ComputeAndLayout();
         winrt::NativeScript::Mason::Layout ComputeWHAndLayout(float width, float height);
         winrt::NativeScript::Mason::Layout ComputeMaxContentAndLayout();
@@ -67,6 +69,18 @@ namespace winrt::NativeScript::Mason::implementation
         // Internal accessors (not projected).
         ::CMasonNode* NodePtr() const noexcept { return m_node; }
         ::CMason* MasonPtr() const noexcept { return m_mason; }
+
+        // This node's laid-out width and size, without building a Layout.
+        float LayoutWidth();
+        winrt::Windows::Foundation::Size LayoutSize();
+        // This node's frame, then its direct children's, without building Layouts.
+        void ShallowFrames(std::vector<winrt::Windows::Foundation::Rect>& out);
+        // Border plus padding on each side of this node's content box.
+        void ContentInsets(float& left, float& top, float& right, float& bottom);
+
+        // Position relative to the layout root in DIPs, set by the parent panel's arrange.
+        float ArrangeX{ 0.0f };
+        float ArrangeY{ 0.0f };
 
     private:
         // C trampoline registered with mason_node_set_context; recovers `this` from measure_data

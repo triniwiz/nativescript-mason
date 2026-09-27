@@ -271,6 +271,57 @@ namespace winrt::NativeScript::Mason::implementation
         return implementation::Layout::FromFloats(g_layoutSink.data(), g_layoutSink.size());
     }
 
+    void Node::ShallowFrames(std::vector<winrt::Windows::Foundation::Rect>& out)
+    {
+        // Records are 22 floats (see Layout::Parse); x, y, width and height follow the order field.
+        constexpr size_t kRecord = 22;
+        out.clear();
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        for (size_t base = 0; base + kRecord <= g_layoutSink.size(); base += kRecord)
+        {
+            out.push_back({ g_layoutSink[base + 1], g_layoutSink[base + 2], g_layoutSink[base + 3], g_layoutSink[base + 4] });
+        }
+    }
+
+    winrt::Windows::Foundation::Size Node::LayoutSize()
+    {
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        if (g_layoutSink.size() < 5) return { 0.0f, 0.0f };
+        return { g_layoutSink[3], g_layoutSink[4] };
+    }
+
+    void Node::ContentInsets(float& left, float& top, float& right, float& bottom)
+    {
+        // After the frame: border then padding, each top, right, bottom, left.
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        if (g_layoutSink.size() < 17)
+        {
+            left = top = right = bottom = 0.0f;
+            return;
+        }
+        top = g_layoutSink[5] + g_layoutSink[13];
+        right = g_layoutSink[6] + g_layoutSink[14];
+        bottom = g_layoutSink[7] + g_layoutSink[15];
+        left = g_layoutSink[8] + g_layoutSink[16];
+    }
+
+    float Node::LayoutWidth()
+    {
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        return g_layoutSink.size() > 3 ? g_layoutSink[3] : 0.0f;
+    }
+
+    nsm::Layout Node::GetShallowLayout()
+    {
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        return implementation::Layout::FromFloats(g_layoutSink.data(), g_layoutSink.size());
+    }
+
     nsm::Layout Node::ComputeAndLayout()
     {
         g_layoutSink.clear();

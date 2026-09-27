@@ -1,5 +1,7 @@
 #pragma once
 #include "Button.g.h"
+#include "Invalidation.h"
+#include "VisualState.h"
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -12,8 +14,8 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
-            if (m_node) m_node.MarkDirty();
-            InvalidateMeasure();
+            m_visual.styleDirty = true;
+            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
         }
 
         hstring Content() const { return m_content; }
@@ -24,6 +26,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     private:
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         winrt::Microsoft::UI::Xaml::Controls::Button m_button{ nullptr };
         hstring m_content;
     };

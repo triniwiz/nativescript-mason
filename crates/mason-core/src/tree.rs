@@ -204,7 +204,7 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
 /// Platforms whose text measure breaks greedily and reports the widest line,
 /// so a text leaf's max-content result answers any width at least that wide.
 pub(crate) const TEXT_FIT_FROM_MAX_CONTENT: bool =
-    cfg!(any(target_os = "android", target_vendor = "apple"));
+    cfg!(any(target_os = "android", target_vendor = "apple", target_os = "windows"));
 
 static BLOCK_MEASURE_CACHE: std::sync::OnceLock<parking_lot::Mutex<BlockMeasureMap>> =
     std::sync::OnceLock::new();

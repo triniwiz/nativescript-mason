@@ -10,10 +10,11 @@ import Position from './components/position'
 import QA from './components/qa'
 import WebSpec from './webspec/WebSpec'
 import MaxWidthChurnRepro from './webspec/MaxWidthChurnRepro'
+import { BenchRoutes, type BenchRouteDefs } from './bench/routes'
 
 declare module 'solid-navigation' {
   export interface Routers {
-    Default: {
+    Default: BenchRouteDefs & {
       Home: RouteDefinition
       Typography: RouteDefinition
       Flexbox: RouteDefinition
@@ -43,6 +44,7 @@ const App = () => {
       <Route name="QA" component={QA} />
       <Route name="WebSpec" component={WebSpec} />
       <Route name="MaxWidthChurnRepro" component={MaxWidthChurnRepro} />
+      <BenchRoutes />
     </StackRouter>
   )
 }

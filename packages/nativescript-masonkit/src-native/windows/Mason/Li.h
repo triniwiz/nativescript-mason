@@ -1,5 +1,7 @@
 #pragma once
 #include "Li.g.h"
+#include "Invalidation.h"
+#include "VisualState.h"
 #include <unordered_map>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -13,8 +15,8 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
-            if (m_node) m_node.MarkDirty();
-            InvalidateMeasure();
+            m_visual.styleDirty = true;
+            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
         }
 
         void Invalidate();
@@ -25,6 +27,7 @@ namespace winrt::NativeScript::Mason::implementation
     private:
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         std::unordered_map<void*, winrt::NativeScript::Mason::Node> m_leaves;
     };
 }

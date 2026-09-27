@@ -1,0 +1,10 @@
+import "Element.idl";
+
+namespace NativeScript.Mason
+{
+    // Internal (Positioning.h). Holds a hosted fixed box's place in its tree parent.
+    [default_interface]
+    runtimeclass FixedSlot : Microsoft.UI.Xaml.FrameworkElement, NativeScript.Mason.IMasonElement
+    {
+    }
+}

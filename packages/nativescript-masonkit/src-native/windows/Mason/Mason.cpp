@@ -2,6 +2,8 @@
 #include "Mason.h"
 #include "Mason.g.cpp"
 #include "Node.h"
+#include "Css.h"
+#include <winrt/Windows.Storage.Streams.h>
 
 using namespace winrt;
 
@@ -93,5 +95,22 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (!node) return;
         mason_print_tree(m_ptr, winrt::get_self<implementation::Node>(node)->NodePtr());
+    }
+
+    winrt::Windows::Storage::Streams::IBuffer Mason::StyleValues(nsm::IMasonElement const& element)
+    {
+        if (!element) return nullptr;
+        auto node = element.Node();
+        return node ? node.Style().Values() : nullptr;
+    }
+
+    void Mason::ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index)
+    {
+        Css::ReparentChild(parent, child, index);
+    }
+
+    void Mason::RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child)
+    {
+        Css::RemoveChild(parent, child);
     }
 }

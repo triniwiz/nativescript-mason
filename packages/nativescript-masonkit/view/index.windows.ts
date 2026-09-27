@@ -43,8 +43,9 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
-    super._addViewToNativeVisualTree(child, atIndex);
-    return appendNativeChild(this._view, child, atIndex);
+    const index = this._windowsNativeIndexOf(child, atIndex);
+    super._addViewToNativeVisualTree(child, index);
+    return appendNativeChild(this._view, child, index);
   }
 
   // @ts-ignore

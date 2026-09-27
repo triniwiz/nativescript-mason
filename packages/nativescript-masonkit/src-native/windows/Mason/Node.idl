@@ -69,6 +69,8 @@ namespace NativeScript.Mason
 
         // --- compute + read computed layout in one crossing ---
         Layout GetLayout();
+        // Children report no children of their own.
+        Layout GetShallowLayout();
         Layout ComputeAndLayout();
         Layout ComputeWHAndLayout(Single width, Single height);
         Layout ComputeMaxContentAndLayout();

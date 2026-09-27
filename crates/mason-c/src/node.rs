@@ -518,6 +518,25 @@ pub extern "C" fn mason_node_layout(
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_layout_shallow(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    layout: extern "C" fn(*const c_float, usize) -> *mut c_void,
+) -> *mut c_void {
+    if mason.is_null() || node.is_null() {
+        return layout(std::ptr::null_mut(), 0);
+    }
+    unsafe {
+        let mason = &(*mason).0;
+        let node = &(*node).0;
+
+        let output = mason.layout_shallow(node.id());
+
+        layout(output.as_ptr(), output.len())
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_get_float_rects(
     mason: *mut CMason,
     node: *mut CMasonNode,

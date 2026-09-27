@@ -160,17 +160,32 @@ fn copy_output_inner(
     output: &mut Vec<f32>,
     use_rounding: bool,
 ) {
+    let children = inner.children.get(node);
+    let len = children.map(|c| c.len()).unwrap_or(0);
+
+    output.reserve(len * 22 + 22);
+    push_layout_record(inner, node, len, output, use_rounding);
+
+    if let Some(children) = children {
+        for child in children {
+            copy_output_inner(inner, *child, output, use_rounding);
+        }
+    }
+}
+
+fn push_layout_record(
+    inner: &crate::tree::TreeInner,
+    node: Id,
+    child_count: usize,
+    output: &mut Vec<f32>,
+    use_rounding: bool,
+) {
     let n = &inner.nodes[node];
     let layout = if use_rounding {
         n.final_layout
     } else {
         n.unrounded_layout
     };
-
-    let children = inner.children.get(node);
-    let len = children.map(|c| c.len()).unwrap_or(0);
-
-    output.reserve(len * 22 + 22);
 
     let export_h = {
         let h = layout.size.height;
@@ -205,14 +220,8 @@ fn copy_output_inner(
         layout.scrollable_overflow_rect.bottom,
         layout.scrollbar_size.width,
         layout.scrollbar_size.height,
-        len as f32,
+        child_count as f32,
     ]);
-
-    if let Some(children) = children {
-        for child in children {
-            copy_output_inner(inner, *child, output, use_rounding);
-        }
-    }
 }
 
 fn copy_output_to_slice_inner(
@@ -745,6 +754,23 @@ impl Mason {
         })
     }
 
+    /// Same records as `layout`, but only `node` and its direct children, each
+    /// reported with zero children.
+    pub fn layout_shallow(&self, node_id: Id) -> Vec<f32> {
+        let inner = self.0.inner();
+        let use_rounding = inner.use_rounding;
+        let children = inner.children.get(node_id);
+        let len = children.map(|c| c.len()).unwrap_or(0);
+        let mut output = Vec::with_capacity((len + 1) * 22);
+        push_layout_record(&inner, node_id, len, &mut output, use_rounding);
+        if let Some(children) = children {
+            for child in children {
+                push_layout_record(&inner, *child, 0, &mut output, use_rounding);
+            }
+        }
+        output
+    }
+
     /// Writes the flattened layout into caller-owned storage and returns the
     /// number of floats required. If the slice is too small, its contents are
     /// incomplete and the caller should grow it to the returned length and retry.
@@ -1269,6 +1295,34 @@ mod tests {
             "unexpected height: {}",
             height
         );
+    }
+
+    #[test]
+    fn layout_shallow_matches_deep_records_one_level_down() {
+        const RECORD: usize = 22;
+        const CHILD_COUNT: usize = RECORD - 1;
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        let a = mason.create_node();
+        let b = mason.create_node();
+        let grandchild = mason.create_node();
+        mason.append_node(a.id(), &[grandchild.id()]);
+        mason.append_node(root.id(), &[a.id(), b.id()]);
+        mason.set_measure(grandchild.id(), Some(test_measure), std::ptr::null_mut());
+        mason.compute(root.id());
+
+        let deep = mason.layout(root.id());
+        let shallow = mason.layout_shallow(root.id());
+        assert_eq!(shallow.len(), 3 * RECORD);
+        assert_eq!(shallow[..RECORD], deep[..RECORD], "root record");
+
+        // Deep order is root, a, grandchild, b.
+        let (a_deep, b_deep) = (&deep[RECORD..2 * RECORD], &deep[3 * RECORD..4 * RECORD]);
+        let (a_shallow, b_shallow) = (&shallow[RECORD..2 * RECORD], &shallow[2 * RECORD..]);
+        assert_eq!(a_deep[CHILD_COUNT], 1.0);
+        assert_eq!(a_shallow[CHILD_COUNT], 0.0, "children are reported without their own children");
+        assert_eq!(a_shallow[..CHILD_COUNT], a_deep[..CHILD_COUNT]);
+        assert_eq!(b_shallow, b_deep);
     }
 
     #[test]

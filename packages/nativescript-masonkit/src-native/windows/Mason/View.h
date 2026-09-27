@@ -1,5 +1,6 @@
 #pragma once
 #include "View.g.h"
+#include "VisualState.h"
 #include <unordered_map>
 #include <vector>
 
@@ -24,6 +25,7 @@ namespace winrt::NativeScript::Mason::implementation
     private:
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };
         winrt::NativeScript::Mason::Node m_node{ nullptr };
+        mason_visual::AppliedState m_visual;
         int32_t m_nodeKind{ 0 };
         std::unordered_map<void*, winrt::NativeScript::Mason::Node> m_leaves;
     };

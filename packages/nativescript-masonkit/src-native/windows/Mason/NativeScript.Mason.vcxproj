@@ -89,7 +89,7 @@
       <AdditionalLibraryDirectories>$(MasonRustLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <!-- masonnative.lib (the Rust core) + its transitive Windows system libs, as reported by
            rustc's native-static-libs print. -->
-      <AdditionalDependencies>masonnative.lib;kernel32.lib;ntdll.lib;userenv.lib;ws2_32.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>masonnative.lib;d2d1.lib;d3d11.lib;dxgi.lib;dwrite.lib;kernel32.lib;ntdll.lib;userenv.lib;ws2_32.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -101,6 +101,7 @@
     <ClInclude Include="Node.h" />
     <ClInclude Include="MeasureOutput.h" />
     <ClInclude Include="Mason.h" />
+    <ClInclude Include="Invalidation.h" />
     <ClInclude Include="LeafCommon.h" />
     <ClInclude Include="PanelCore.h" />
     <ClInclude Include="View.h" />
@@ -116,7 +117,16 @@
     <ClInclude Include="BufferUtil.h" />
     <ClInclude Include="CssImageResult.h" />
     <ClInclude Include="Css.h" />
+    <ClInclude Include="Diagnostics.h" />
     <ClInclude Include="RoundedColorBrush.h" />
+    <ClInclude Include="FixedLayer.h" />
+    <ClInclude Include="FixedSlot.h" />
+    <ClInclude Include="Positioning.h" />
+    <ClInclude Include="RoundedMask.h" />
+    <ClInclude Include="DWriteText.h" />
+    <ClInclude Include="RootScale.h" />
+    <ClInclude Include="TextAtlas.h" />
+    <ClInclude Include="TextAutomationPeer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -138,7 +148,11 @@
     <ClCompile Include="TextArea.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Css.cpp" />
+    <ClCompile Include="Diagnostics.cpp" />
     <ClCompile Include="RoundedColorBrush.cpp" />
+    <ClCompile Include="FixedLayer.cpp" />
+    <ClCompile Include="FixedSlot.cpp" />
+    <ClCompile Include="TextAutomationPeer.cpp" />
     <ClCompile Include="exports.cpp" />
     <!-- cppwinrt generates module.g.cpp (DllGetActivationFactory / DllCanUnloadNow) under
          "Generated Files\"; a hand-authored project must compile it explicitly. NotUsing: it is
@@ -166,7 +180,11 @@
     <Midl Include="Input.idl" />
     <Midl Include="CssImageResult.idl" />
     <Midl Include="Css.idl" />
+    <Midl Include="Diagnostics.idl" />
     <Midl Include="RoundedColorBrush.idl" />
+    <Midl Include="FixedLayer.idl" />
+    <Midl Include="FixedSlot.idl" />
+    <Midl Include="TextAutomationPeer.idl" />
   </ItemGroup>
 
   <ItemGroup>
@@ -176,9 +194,10 @@
     <!-- Shared font management (CSS Font Loading API: @font-face / custom fonts + DirectWrite
          registration), mirroring the iOS SwiftPM and Android Gradle FontManager dependency. Mason
          resolves a node's font-family/size/weight/style through this and applies it to the text
-         controls. The component reaches it via winrt/NativeScript.FontManager.h; the app stages +
-         registers NativeScript.FontManager.dll (see App_Resources/Windows). -->
-    <PackageReference Include="NativeScript.FontManager" Version="1.0.2" />
+         controls. The component reaches it via winrt/NativeScript.FontManager.h; the app gets
+         NativeScript.FontManager.dll through plugin.props' PackageReference, whose package stages
+         and registers it (1.0.19+ for a C# host). -->
+    <PackageReference Include="NativeScript.FontManager" Version="1.0.19" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
