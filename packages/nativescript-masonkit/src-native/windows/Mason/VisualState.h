@@ -6,9 +6,8 @@
 
 namespace mason_visual
 {
-    // Bumped when a layout root's rasterization scale changes, so masks drawn in device pixels redraw.
+    // Bumped when a window's rasterization scale changes, so masks drawn in device pixels redraw.
     inline uint32_t g_scaleEpoch = 1;
-    inline float g_rootScale = 0.0f;
 
     // What mason_visual::Apply last installed. Arrange reaches every ancestor of a changed node, so
     // Apply skips rebuilding brushes, clips and borders unless inputs changed or something else

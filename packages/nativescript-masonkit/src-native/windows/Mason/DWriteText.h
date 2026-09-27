@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwchar>
+#include <cwctype>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -67,56 +68,121 @@ namespace mason_dwrite
         return name;
     }
 
-    inline winrt::com_ptr<IDWriteFontCollection> LoadFontFile(std::wstring const& path)
+    // All of a family's files in one collection, so its weights and styles match against each other.
+    inline winrt::com_ptr<IDWriteFontCollection> LoadFontFiles(std::vector<std::wstring> const& paths)
     {
         auto* factory = Factory();
         if (!factory) return nullptr;
         winrt::com_ptr<IDWriteFontSetBuilder1> builder;
-        winrt::com_ptr<IDWriteFontFile> file;
+        if (FAILED(factory->CreateFontSetBuilder(builder.put()))) return nullptr;
+        bool any = false;
+        for (auto const& path : paths)
+        {
+            winrt::com_ptr<IDWriteFontFile> file;
+            if (SUCCEEDED(factory->CreateFontFileReference(path.c_str(), nullptr, file.put())) && SUCCEEDED(builder->AddFontFile(file.get()))) any = true;
+        }
         winrt::com_ptr<IDWriteFontSet> set;
         winrt::com_ptr<IDWriteFontCollection1> collection;
-        if (FAILED(factory->CreateFontSetBuilder(builder.put())) || FAILED(factory->CreateFontFileReference(path.c_str(), nullptr, file.put()))
-            || FAILED(builder->AddFontFile(file.get())) || FAILED(builder->CreateFontSet(set.put()))
-            || FAILED(factory->CreateFontCollectionFromFontSet(set.get(), collection.put())))
+        if (!any || FAILED(builder->CreateFontSet(set.put())) || FAILED(factory->CreateFontCollectionFromFontSet(set.get(), collection.put())))
         {
             return nullptr;
         }
         return collection;
     }
 
-    // Core resolves an app font to "ms-appx:///app/fonts/Name.ttf#Family"; XAML loads that file and
-    // DirectWrite needs it loaded the same way. Anything else names a system family.
+    // The file behind a XAML font source: core's "ms-appx:///app/fonts/A.ttf", FontManager's
+    // "ms-appdata:///local/ns_fonts/B.ttf" (it registers nothing with the system), a file URI or a path.
+    inline std::wstring FontFilePath(std::wstring_view uri)
+    {
+        auto after = [&](std::wstring_view prefix) -> bool
+        {
+            return uri.size() > prefix.size() && _wcsnicmp(uri.data(), prefix.data(), prefix.size()) == 0;
+        };
+        std::wstring root;
+        std::wstring_view rest = uri;
+        try
+        {
+            using winrt::Windows::Storage::ApplicationData;
+            if (after(L"ms-appx:///"))
+            {
+                root = winrt::Windows::ApplicationModel::Package::Current().InstalledLocation().Path();
+                rest = uri.substr(11);
+            }
+            else if (after(L"ms-appdata:///local/"))
+            {
+                root = ApplicationData::Current().LocalFolder().Path();
+                rest = uri.substr(20);
+            }
+            else if (after(L"ms-appdata:///temp/"))
+            {
+                root = ApplicationData::Current().TemporaryFolder().Path();
+                rest = uri.substr(19);
+            }
+            else if (after(L"ms-appdata:///roaming/"))
+            {
+                root = ApplicationData::Current().RoamingFolder().Path();
+                rest = uri.substr(22);
+            }
+            else if (after(L"file:///"))
+            {
+                rest = uri.substr(8);
+            }
+        }
+        catch (...)
+        {
+            return {};
+        }
+        std::wstring path = root.empty() ? std::wstring(rest) : root + L"\\" + std::wstring(rest);
+        std::replace(path.begin(), path.end(), L'/', L'\\');
+        return path;
+    }
+
+    // A XAML font source, a comma-separated list: file entries ("<uri or path>#Family") are loaded
+    // into one collection, as XAML does; otherwise the first entry names a system family.
     inline Font ResolveFont(std::wstring_view source)
     {
         thread_local auto* cache = new std::unordered_map<std::wstring, Font>();
         std::wstring key(source);
         if (auto it = cache->find(key); it != cache->end()) return it->second;
 
-        Font font;
-        font.family = key.empty() ? std::wstring(L"Segoe UI") : key;
-        constexpr std::wstring_view scheme = L"ms-appx:///";
-        if (source.size() > scheme.size() && _wcsnicmp(source.data(), scheme.data(), scheme.size()) == 0)
+        std::vector<std::wstring> files;
+        std::wstring fileFamily;
+        std::wstring firstName;
+        size_t pos = 0;
+        while (pos <= source.size())
         {
-            const std::wstring_view rest = source.substr(scheme.size());
-            const size_t hash = rest.find(L'#');
-            std::wstring file(rest.substr(0, hash));
-            std::replace(file.begin(), file.end(), L'/', L'\\');
-            const std::wstring family = hash == std::wstring_view::npos ? std::wstring() : std::wstring(rest.substr(hash + 1));
-            try
+            const size_t comma = source.find(L',', pos);
+            std::wstring_view entry = source.substr(pos, comma == std::wstring_view::npos ? std::wstring_view::npos : comma - pos);
+            while (!entry.empty() && iswspace(entry.front())) entry.remove_prefix(1);
+            while (!entry.empty() && iswspace(entry.back())) entry.remove_suffix(1);
+            // Family names can't hold a colon; every URI and absolute path does.
+            if (entry.find(L':') != std::wstring_view::npos)
             {
-                const std::wstring root{ winrt::Windows::ApplicationModel::Package::Current().InstalledLocation().Path() };
-                font.collection = LoadFontFile(root + L"\\" + file);
+                const size_t hash = entry.find(L'#');
+                auto path = FontFilePath(entry.substr(0, hash));
+                if (!path.empty()) files.push_back(std::move(path));
+                if (fileFamily.empty() && hash != std::wstring_view::npos) fileFamily = std::wstring(entry.substr(hash + 1));
             }
-            catch (...)
+            else if (firstName.empty() && !entry.empty())
             {
+                firstName = std::wstring(entry);
             }
-            font.family = family;
+            if (comma == std::wstring_view::npos) break;
+            pos = comma + 1;
+        }
+
+        Font font;
+        font.family = firstName.empty() ? std::wstring(L"Segoe UI") : firstName;
+        if (!files.empty())
+        {
+            font.collection = LoadFontFiles(files);
+            font.family = fileFamily;
             if (font.collection)
             {
                 UINT32 index = 0;
                 BOOL exists = FALSE;
-                // The file's own name for its family when core's differs (typographic vs legacy).
-                if (family.empty() || FAILED(font.collection->FindFamilyName(family.c_str(), &index, &exists)) || !exists)
+                // The file's own name for its family when the source's differs (typographic vs legacy).
+                if (fileFamily.empty() || FAILED(font.collection->FindFamilyName(fileFamily.c_str(), &index, &exists)) || !exists)
                 {
                     font.family = FirstFamilyName(font.collection.get());
                 }
@@ -124,6 +190,14 @@ namespace mason_dwrite
             if (font.family.empty()) font.family = L"Segoe UI";
         }
         return cache->emplace(std::move(key), font).first->second;
+    }
+
+    inline bool SystemHasFamily(std::wstring const& family)
+    {
+        UINT32 index = 0;
+        BOOL exists = FALSE;
+        auto* fonts = SystemFonts();
+        return fonts && SUCCEEDED(fonts->FindFamilyName(family.c_str(), &index, &exists)) && exists;
     }
 
     inline winrt::com_ptr<IDWriteFontFamily> FamilyOf(Font const& font)

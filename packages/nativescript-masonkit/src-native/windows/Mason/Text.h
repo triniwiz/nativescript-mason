@@ -41,6 +41,12 @@ namespace winrt::NativeScript::Mason::implementation
 
         static bool DirectWrite();
         static void DirectWrite(bool value);
+        static bool IsTextScaleFactorEnabled();
+        static void IsTextScaleFactorEnabled(bool value);
+
+        // What every text reacts to: its window's scale, the system text size, a newly loaded font.
+        enum class Change { Scale, TextSize, Fonts };
+        void Refresh(Change change);
 
         hstring Content() const;
         void Content(hstring const& value);
@@ -104,7 +110,7 @@ namespace winrt::NativeScript::Mason::implementation
         void RequestRebuild();
         void FlushRebuild();
         void InvalidateText();
-        void InvalidateLayoutRootFromHere();
+        void ApplyFontFamily();
 
         // TextBlock layouts cost far more than the lookups, and Taffy asks one leaf for several widths
         // per pass, so results are kept until the text or its formatting changes.
@@ -210,6 +216,8 @@ namespace winrt::NativeScript::Mason::implementation
         double m_letterSpacingPx{ 0.0 };
         winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
         winrt::hstring m_fontFamily{};
+        // The CSS family list, resolved again when a font loads.
+        winrt::hstring m_requestedFamily{};
     };
 }
 

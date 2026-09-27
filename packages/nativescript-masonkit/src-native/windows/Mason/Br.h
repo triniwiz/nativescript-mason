@@ -1,5 +1,6 @@
 #pragma once
 #include "Br.g.h"
+#include "Invalidation.h"
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -12,8 +13,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
-            if (m_node) m_node.MarkDirty();
-            InvalidateMeasure();
+            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
         }
 
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const& available);

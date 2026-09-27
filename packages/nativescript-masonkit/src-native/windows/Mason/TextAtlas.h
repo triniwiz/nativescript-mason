@@ -1,7 +1,8 @@
 #pragma once
-// Text drawn by Direct2D into shared atlas pages. BeginDraw and EndDraw alone cost ~16 µs per
-// surface, so the texts changed in a layout pass are packed into one fresh region of a page and
-// drawn in a single BeginDraw; each text shows its slot through its own surface brush.
+// Text drawn by Direct2D into shared atlas surfaces. The texts changed in a layout pass are packed
+// into one new surface and drawn in a single BeginDraw; each text shows its slot through its own
+// surface brush. A surface is drawn once, whole: a BeginDraw on part of one already on screen costs
+// ~300 µs, ten times a draw that covers a new one.
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -22,26 +23,20 @@ namespace mason_atlas
 {
     namespace mucomp = winrt::Microsoft::UI::Composition;
 
+    // Widest row of slots; a wider text gets a row of its own.
     constexpr int kPage = 2048;
     // Around each slot, so filtering at its edge never reaches a neighbour.
     constexpr int kGutter = 1;
-    // Beyond this many pages the emptiest older one is redrawn into the newest and released.
-    constexpr size_t kMaxPages = 3;
+    // A surface at least this large whose live slots cover under a quarter of it is redrawn away.
+    constexpr int64_t kCompactArea = 256 * 1024;
 
     struct Sprite;
 
     struct Page
     {
         mucomp::CompositionDrawingSurface surface{ nullptr };
-        int width{ kPage };
-        int height{ kPage };
-        // Rows fill downwards; the last one stays open for later batches that fit beside it.
-        int bottom{ 0 };
-        int rowTop{ 0 };
-        int rowHeight{ 0 };
-        int rowX{ kPage };
-        // Holds one oversized text.
-        bool dedicated{ false };
+        int width{ 0 };
+        int height{ 0 };
         std::unordered_set<Sprite*> sprites;
     };
 
@@ -96,45 +91,22 @@ namespace mason_atlas
 
     inline bool Available() { return DeviceNow() != nullptr; }
 
-    inline Page* CurrentPage(Atlas& a)
-    {
-        for (auto it = a.pages.rbegin(); it != a.pages.rend(); ++it)
-        {
-            if (!(*it)->dedicated) return it->get();
-        }
-        return nullptr;
-    }
-
-    inline Page* NewPage(Atlas& a, mason_mask::Device& device, int width, int height, bool dedicated)
+    inline Page* NewPage(Atlas& a, mason_mask::Device& device, int width, int height)
     {
         auto page = std::make_unique<Page>();
         page->width = width;
         page->height = height;
-        page->dedicated = dedicated;
         page->surface = device.graphics.CreateDrawingSurface2({ width, height },
             winrt::Microsoft::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
             winrt::Microsoft::Graphics::DirectX::DirectXAlphaMode::Premultiplied);
-        // A surface's first draw has to cover all of it; later ones can update a region.
-        {
-            auto interop = page->surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
-            winrt::com_ptr<ID2D1DeviceContext> context;
-            POINT offset{};
-            if (SUCCEEDED(interop->BeginDraw(nullptr, __uuidof(ID2D1DeviceContext), context.put_void(), &offset)))
-            {
-                context->Clear(D2D1::ColorF(0, 0, 0, 0));
-                interop->EndDraw();
-            }
-        }
         Page* raw = page.get();
-        // Dedicated pages go first so the newest shared page stays last.
-        if (dedicated) a.pages.insert(a.pages.begin(), std::move(page));
-        else a.pages.push_back(std::move(page));
+        a.pages.push_back(std::move(page));
         return raw;
     }
 
     inline void ReleasePageIfUnused(Atlas& a, Page* page)
     {
-        if (!page || !page->sprites.empty() || (!page->dedicated && page == CurrentPage(a))) return;
+        if (!page || !page->sprites.empty()) return;
         std::erase_if(a.pages, [page](auto const& p) { return p.get() == page; });
     }
 
@@ -223,89 +195,53 @@ namespace mason_atlas
         std::vector<Placed> items;
     };
 
-    // Packs the batch into fresh space: the open row when all of it fits there, otherwise new rows
-    // below every existing one, then new pages.
-    inline std::vector<Region> Pack(Atlas& a, mason_mask::Device& device, std::vector<Sprite*> const& batch)
+    // Packs the batch into new surfaces sized to what they hold, in rows up to kPage wide.
+    inline std::vector<Region> Pack(Atlas& a, mason_mask::Device& device, std::vector<Sprite*> batch)
     {
-        std::vector<Region> regions;
-        std::vector<Sprite*> shared;
-        for (auto* s : batch)
-        {
-            const int w = s->width + 2 * kGutter;
-            const int h = s->height + 2 * kGutter;
-            if (w <= kPage && h <= kPage)
-            {
-                shared.push_back(s);
-                continue;
-            }
-            Page* page = NewPage(a, device, w, h, true);
-            regions.push_back({ page, RECT{ 0, 0, w, h }, { { s, kGutter, kGutter } } });
-        }
         // Tallest first keeps rows tight.
-        std::stable_sort(shared.begin(), shared.end(), [](Sprite* l, Sprite* r) { return l->height > r->height; });
-
+        std::stable_sort(batch.begin(), batch.end(), [](Sprite* l, Sprite* r) { return l->height > r->height; });
+        std::vector<Region> regions;
         size_t i = 0;
-        while (i < shared.size())
+        while (i < batch.size())
         {
-            Page* page = CurrentPage(a);
-            if (!page) page = NewPage(a, device, kPage, kPage, false);
-
-            int rowWidth = 0;
-            int rowHeight = 0;
-            for (size_t k = i; k < shared.size(); ++k)
+            std::vector<Placed> items;
+            int x = 0, y = 0, rowHeight = 0, right = 0;
+            while (i < batch.size())
             {
-                rowWidth += shared[k]->width + 2 * kGutter;
-                rowHeight = (std::max)(rowHeight, shared[k]->height + 2 * kGutter);
-            }
-            if (rowHeight <= page->rowHeight && page->rowX + rowWidth <= page->width)
-            {
-                Region region{ page, RECT{ page->rowX, page->rowTop, page->rowX + rowWidth, page->rowTop + rowHeight }, {} };
-                int x = page->rowX;
-                for (; i < shared.size(); ++i)
+                const int w = batch[i]->width + 2 * kGutter;
+                const int h = batch[i]->height + 2 * kGutter;
+                if (x > 0 && x + w > kPage)
                 {
-                    region.items.push_back({ shared[i], x + kGutter, page->rowTop + kGutter });
-                    x += shared[i]->width + 2 * kGutter;
-                }
-                page->rowX = x;
-                regions.push_back(std::move(region));
-                break;
-            }
-
-            const int top = page->bottom;
-            int x = 0;
-            int y = top;
-            int height = 0;
-            int right = 0;
-            Region region{ page, RECT{}, {} };
-            while (i < shared.size())
-            {
-                const int w = shared[i]->width + 2 * kGutter;
-                const int h = shared[i]->height + 2 * kGutter;
-                if (x + w > page->width)
-                {
-                    y += height;
+                    y += rowHeight;
                     x = 0;
-                    height = 0;
+                    rowHeight = 0;
                 }
-                if (y + h > page->height) break;
-                region.items.push_back({ shared[i], x + kGutter, y + kGutter });
+                if (y > 0 && y + h > kPage) break;
+                items.push_back({ batch[i], x + kGutter, y + kGutter });
                 x += w;
-                height = (std::max)(height, h);
+                rowHeight = (std::max)(rowHeight, h);
                 right = (std::max)(right, x);
                 ++i;
             }
-            if (!region.items.empty())
-            {
-                region.rect = RECT{ 0, top, right, y + height };
-                page->bottom = y + height;
-                page->rowTop = y;
-                page->rowHeight = height;
-                page->rowX = x;
-                regions.push_back(std::move(region));
-            }
-            if (i < shared.size()) NewPage(a, device, kPage, kPage, false);
+            const int height = y + rowHeight;
+            regions.push_back({ NewPage(a, device, right, height), RECT{ 0, 0, right, height }, std::move(items) });
         }
         return regions;
+    }
+
+    // Surfaces are never updated, so a slot stays taken after its text moves on. A large surface
+    // left mostly empty gives its texts to this batch and goes.
+    inline void CompactInto(Atlas& a)
+    {
+        for (auto const& page : a.pages)
+        {
+            const int64_t area = static_cast<int64_t>(page->width) * page->height;
+            if (area < kCompactArea) continue;
+            int64_t live = 0;
+            for (auto* s : page->sprites) live += static_cast<int64_t>(s->width + 2 * kGutter) * (s->height + 2 * kGutter);
+            if (live * 4 >= area) continue;
+            for (auto* s : page->sprites) Enqueue(a, s);
+        }
     }
 
     inline void Show(Atlas& a, Sprite* s, Page* page, int x, int y)
@@ -335,6 +271,7 @@ namespace mason_atlas
         s->brush.Scale({ 1.0f / s->scale, 1.0f / s->scale });
         s->brush.Offset({ -x / s->scale, -y / s->scale });
     }
+
 
     inline HRESULT Draw(Atlas& a, Region const& region)
     {
@@ -407,21 +344,7 @@ namespace mason_atlas
             });
         }
 
-        if (a.pages.size() > kMaxPages)
-        {
-            // The emptiest older page's texts move into this batch; the page goes once they have.
-            Page* current = CurrentPage(a);
-            Page* emptiest = nullptr;
-            for (auto const& page : a.pages)
-            {
-                if (page.get() != current && (!emptiest || page->sprites.size() < emptiest->sprites.size())) emptiest = page.get();
-            }
-            if (emptiest)
-            {
-                std::vector<Sprite*> moving(emptiest->sprites.begin(), emptiest->sprites.end());
-                for (auto* s : moving) Enqueue(a, s);
-            }
-        }
+        CompactInto(a);
 
         std::vector<Sprite*> batch = std::move(a.pending);
         a.pending.clear();

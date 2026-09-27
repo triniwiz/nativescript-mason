@@ -101,6 +101,7 @@
     <ClInclude Include="Node.h" />
     <ClInclude Include="MeasureOutput.h" />
     <ClInclude Include="Mason.h" />
+    <ClInclude Include="Invalidation.h" />
     <ClInclude Include="LeafCommon.h" />
     <ClInclude Include="PanelCore.h" />
     <ClInclude Include="View.h" />
@@ -123,6 +124,7 @@
     <ClInclude Include="Positioning.h" />
     <ClInclude Include="RoundedMask.h" />
     <ClInclude Include="DWriteText.h" />
+    <ClInclude Include="RootScale.h" />
     <ClInclude Include="TextAtlas.h" />
     <ClInclude Include="TextAutomationPeer.h" />
   </ItemGroup>

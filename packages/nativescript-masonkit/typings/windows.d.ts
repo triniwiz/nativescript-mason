@@ -174,6 +174,10 @@ declare namespace NativeScript.Mason {
     CreateLineBreakNode(): Node;
     CreateListItemNode(): Node;
     PrintTree(node: Node): void;
+    // The element's own (unshared) style buffer.
+    StyleValues(element: IMasonElement): any;
+    ReparentChild(parent: any, child: any, index: number): void;
+    RemoveChild(parent: any, child: any): void;
   }
 
   // Implemented by every Mason element (View + the leaf controls). A parent View pulls any child's
@@ -226,6 +230,9 @@ declare namespace NativeScript.Mason {
   // Text leaf — hosts a TextBlock; Mason text node sized from the text's natural size.
   class Text /* Panel, IMasonElement */ {
     constructor();
+    static DirectWrite: boolean;
+    // Scale text with the Windows "Text size" setting as XAML text does (on by default).
+    static IsTextScaleFactorEnabled: boolean;
     readonly Node: Node;
     readonly Style: Style;
     Content: string;

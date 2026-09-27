@@ -1,5 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
+import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
@@ -1146,6 +1147,37 @@ function fontStretchFromValue(v: number): string {
   return `${v / 100}%`;
 }
 
+const pendingSyncs: Style[] = [];
+let syncsQueued = false;
+
+function flushStyleSyncs() {
+  syncsQueued = false;
+  // A sync can dirty another style, which then queues a flush of its own.
+  const styles = pendingSyncs.splice(0);
+  let failure: unknown;
+  for (const style of styles) {
+    try {
+      style._flushScheduledSync();
+    } catch (e) {
+      failure ??= e;
+    }
+  }
+  if (failure !== undefined) throw failure;
+}
+
+function queueStyleSync(style: Style) {
+  pendingSyncs.push(style);
+  if (!syncsQueued) {
+    syncsQueued = true;
+    queueMicrotask(flushStyleSyncs);
+  }
+}
+
+function windowsStyleValues(nativeView: any) {
+  if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
+  return NativeScript.Mason.Mason.Instance().CreateNode(false).Style.Values;
+}
+
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -1204,15 +1236,11 @@ export class Style {
       ret.i8View = new Int8Array(buffer);
       ret.u8View = new Uint8Array(buffer);
     } else if (__WINDOWS__) {
-      let style: NativeScript.Mason.Style = (nativeView as NativeScript.Mason.IMasonElement)?.Style as never;
-      if (!style) {
-        style = NativeScript.Mason.Mason.Instance().CreateNode(false).Style as never;
-      }
       // Live IBuffer over the engine's arena style memory; the @nativescript/windows runtime
       // projects it as a writable ArrayBuffer, so the same StyleKeys-offset writes used on
       // iOS/Android land straight in the node's style.
       //@ts-ignore
-      const buffer = NSWinRT.interop.arrayBufferFromBuffer(style.Values) as ArrayBuffer;
+      const buffer = NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(nativeView)) as ArrayBuffer;
       ret.style_view = new DataView(buffer);
       ret.i8View = new Int8Array(buffer);
       ret.u8View = new Uint8Array(buffer);
@@ -1534,10 +1562,10 @@ export class Style {
       // @ts-ignore
       view.mason_syncStyle(low, high);
     } else if (__WINDOWS__) {
-      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
+      // The Windows elements re-read the whole buffer, so the dirty bits aren't passed.
       // @ts-ignore
       const view = (this.view as any)?.windows ?? this.view._view;
-      (view as NativeScript.Mason.IMasonElement).SyncStyle(low, high);
+      (view as NativeScript.Mason.IMasonElement).SyncStyle('', '');
       (this.view as any)?._windowsSyncAnonymousText?.();
     }
     this.resetState();
@@ -1546,10 +1574,8 @@ export class Style {
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
   copyTextStyleTo(text: NativeScript.Mason.Text) {
     if (!__WINDOWS__ || !this.u8View) return;
-    const style = text.Style;
-    style.PrepareForMutation();
     //@ts-ignore
-    const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(style.Values) as ArrayBuffer);
+    const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(masonEngine().StyleValues(text)) as ArrayBuffer);
     target.set(this.u8View.subarray(StyleKeys.FONT_COLOR, StyleKeys.BACKGROUND_COLOR), StyleKeys.FONT_COLOR);
     target.set(this.u8View.subarray(StyleKeys.DECORATION_LINE, StyleKeys.PSEUDO_SET_MASK_LOW), StyleKeys.DECORATION_LINE);
     (text as unknown as NativeScript.Mason.IMasonElement).SyncStyle('0', '0');
@@ -1568,16 +1594,18 @@ export class Style {
       // Coalesce rapid-fire property changes (e.g. CSS batch apply) into a
       // single syncStyle() call on the next microtask. This avoids N
       // separate JNI/FFI round-trips when N properties change in the same
-      // JS turn.
+      // JS turn; every style changed in the turn shares that one microtask.
       if (!this._syncScheduled) {
         this._syncScheduled = true;
-        queueMicrotask(() => {
-          this._syncScheduled = false;
-          if (this.isDirty !== -1n) {
-            this.syncStyle();
-          }
-        });
+        queueStyleSync(this);
       }
+    }
+  }
+
+  _flushScheduledSync() {
+    this._syncScheduled = false;
+    if (this.isDirty !== -1n) {
+      this.syncStyle();
     }
   }
 
@@ -1649,13 +1677,8 @@ export class Style {
       }
 
       if (__WINDOWS__) {
-        let style: NativeScript.Mason.Style = (this.nativeView as NativeScript.Mason.IMasonElement)?.Style as never;
-        if (!style) {
-          style = NativeScript.Mason.Mason.Instance().CreateNode(false).Style as never;
-        }
-        style.PrepareForMutation();
         //@ts-ignore
-        const buffer = NSWinRT.interop.arrayBufferFromBuffer(style.Values) as ArrayBuffer;
+        const buffer = NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(this.nativeView)) as ArrayBuffer;
         this.style_view = new DataView(buffer);
         this.i8View = new Int8Array(buffer);
         this.u8View = new Uint8Array(buffer);
