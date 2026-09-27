@@ -14,6 +14,7 @@
 #include "BufferUtil.h"
 #include "Decoration.h"
 #include "RoundedMask.h"
+#include "RootScale.h"
 #include "VisualState.h"
 #include "Node.h"
 
@@ -251,13 +252,6 @@ namespace mason_visual
         size = static_cast<uint32_t>(buf->size);
         mason_style_release_style_buffer(buf);
         return data;
-    }
-
-    inline float RasterScale(mux::UIElement const& element)
-    {
-        if (g_rootScale > 0.0f) return g_rootScale;
-        auto root = element.XamlRoot();
-        return root ? static_cast<float>(root.RasterizationScale()) : 1.0f;
     }
 
     inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)

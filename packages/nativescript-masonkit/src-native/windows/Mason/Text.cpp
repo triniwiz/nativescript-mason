@@ -13,9 +13,13 @@
 #include <winrt/NativeScript.FontManager.h>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <chrono>
+#include <winrt/Windows.UI.ViewManagement.h>
+#include <winrt/Microsoft.UI.Dispatching.h>
 #include <vector>
 #include <cwctype>
-#include "LeafCommon.h"
+#include "Invalidation.h"
 #include "VisualApply.h"
 #include "BufferUtil.h"
 #include "TextAtlas.h"
@@ -335,29 +339,134 @@ namespace
         return family;
     }
 
-    // Family names of fonts loaded in FontManager's FontFaceSet; empty if FontManager isn't available.
-    std::vector<std::wstring> LoadedFontFamilies()
+    // Every live Text: a window's scale, the system text size and a newly loaded font reach them all,
+    // on screen or not.
+    std::unordered_set<winrt::NativeScript::Mason::implementation::Text*>& LiveTexts()
     {
-        std::vector<std::wstring> out;
+        static auto* texts = new std::unordered_set<winrt::NativeScript::Mason::implementation::Text*>();
+        return *texts;
+    }
+
+    void RefreshTexts(winrt::NativeScript::Mason::implementation::Text::Change change)
+    {
+        std::vector<winrt::NativeScript::Mason::implementation::Text*> texts(LiveTexts().begin(), LiveTexts().end());
+        for (auto* text : texts) text->Refresh(change);
+    }
+
+    // FontManager's loaded faces as (lower-case family, FontUri). It registers nothing with the
+    // system, so a face is only reachable through its URI.
+    uint64_t g_fontGeneration = 0;
+
+    std::vector<std::pair<std::wstring, std::wstring>> const& LoadedFaces()
+    {
+        struct Cache
+        {
+            uint64_t generation{ ~0ull };
+            uint32_t size{ ~0u };
+            std::vector<std::pair<std::wstring, std::wstring>> faces;
+        };
+        static auto* cache = new Cache();
         try
         {
             auto set = winrt::NativeScript::FontManager::FontFaceSet::Instance();
-            if (!set) return out;
-            auto faces = set.GetArray();
-            if (!faces) return out;
-            for (auto const& face : faces)
+            const uint32_t size = set ? set.Size() : 0;
+            if (cache->generation == g_fontGeneration && cache->size == size) return cache->faces;
+            cache->generation = g_fontGeneration;
+            cache->size = size;
+            cache->faces.clear();
+            if (!set) return cache->faces;
+            for (auto const& face : set.GetArray())
             {
-                if (face) out.push_back(ToLower(std::wstring_view(face.Family())));
+                if (!face) continue;
+                std::wstring uri{ face.FontUri() };
+                if (!uri.empty()) cache->faces.emplace_back(ToLower(std::wstring_view(face.Family())), std::move(uri));
             }
         }
-        catch (...) {}
-        return out;
+        catch (...)
+        {
+            cache->faces.clear();
+        }
+        return cache->faces;
     }
 
-    // Resolve a CSS font-family list to one Windows family name: a loaded custom font wins, else the
-    // first token mapped through MapGenericFamily. Empty input yields "".
-    std::wstring ResolveFamily(std::wstring_view list)
+    // A face loaded through FontFace.load() raises no FontFaceSet event, so while a text names a
+    // family nothing provides yet, the set is checked on a timer that gives up after a while.
+    constexpr int kFontChecks = 40;
+    int g_fontChecksLeft = 0;
+
+    // The faces texts were last resolved against.
+    size_t g_resolvedFaces = 0;
+
+    size_t FacesFingerprint()
     {
+        size_t hash = 0;
+        for (auto const& [family, uri] : LoadedFaces()) hash = hash * 31 + std::hash<std::wstring>{}(family + L"|" + uri);
+        return hash;
+    }
+
+    void RefreshFonts()
+    {
+        ++g_fontGeneration;
+        const size_t now = FacesFingerprint();
+        if (now == g_resolvedFaces) return;
+        g_resolvedFaces = now;
+        RefreshTexts(winrt::NativeScript::Mason::implementation::Text::Change::Fonts);
+    }
+
+    void AwaitFonts()
+    {
+        g_fontChecksLeft = kFontChecks;
+        // Leaked: projected types can't be new'ed, and releasing them at exit outlives the dispatcher.
+        struct Holder { winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer timer{ nullptr }; };
+        static auto* held = new Holder();
+        auto& timer = held->timer;
+        if (!timer)
+        {
+            auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+            if (!queue) return;
+            timer = queue.CreateTimer();
+            timer.Interval(std::chrono::milliseconds(500));
+            timer.Tick([](auto const& sender, auto&&)
+            {
+                RefreshFonts();
+                if (--g_fontChecksLeft <= 0) sender.Stop();
+            });
+        }
+        if (!timer.IsRunning()) timer.Start();
+    }
+
+    void WatchFontLoads()
+    {
+        static bool watching = false;
+        if (watching) return;
+        watching = true;
+        try
+        {
+            auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+            auto set = winrt::NativeScript::FontManager::FontFaceSet::Instance();
+            if (!queue || !set) return;
+            // Raised on the loading thread.
+            set.LoadingDone([queue](auto&&, auto&&)
+            {
+                queue.TryEnqueue([] { RefreshFonts(); });
+            });
+        }
+        catch (...) {}
+    }
+
+    bool IsGenericFamily(std::wstring const& lower)
+    {
+        static const wchar_t* generic[] = { L"serif", L"sans-serif", L"monospace", L"cursive", L"fantasy", L"system-ui", L"ui-serif",
+            L"ui-sans-serif", L"ui-monospace", L"ui-rounded", L"-apple-system", L"emoji", L"math", L"fangsong" };
+        return std::any_of(std::begin(generic), std::end(generic), [&](const wchar_t* g) { return lower == g; });
+    }
+
+    // A CSS font-family list as one XAML font source: the first family that exists, a FontManager
+    // family becoming the URIs of its loaded faces. `waiting` reports a skipped family that FontManager
+    // could still provide. Empty input yields "".
+    std::wstring ResolveFamily(std::wstring_view list, bool& waiting)
+    {
+        waiting = false;
         std::vector<std::wstring> tokens;
         size_t pos = 0;
         while (pos <= list.size())
@@ -371,19 +480,65 @@ namespace
         }
         if (tokens.empty()) return L"";
 
-        const auto loaded = LoadedFontFamilies();
-        if (!loaded.empty())
+        WatchFontLoads();
+        auto const& loaded = LoadedFaces();
+        for (auto const& tok : tokens)
         {
-            for (auto const& tok : tokens)
+            const std::wstring lower = ToLower(tok);
+            std::wstring sources;
+            for (auto const& [family, uri] : loaded)
             {
-                const std::wstring lower = ToLower(tok);
-                for (auto const& fam : loaded)
-                {
-                    if (fam == lower) return tok;
-                }
+                if (family != lower) continue;
+                if (!sources.empty()) sources += L", ";
+                sources += uri;
             }
+            if (!sources.empty()) return sources;
+            if (IsGenericFamily(lower)) return MapGenericFamily(tok);
+            if (tok.find(L':') != std::wstring::npos || mason_dwrite::SystemHasFamily(tok)) return tok;
+            waiting = true;
         }
         return MapGenericFamily(tokens.front());
+    }
+
+    // UISettings.TextScaleFactor, the Windows "Text size" setting.
+    double g_textScale = 1.0;
+    bool g_textScaleEnabled = true;
+
+    void WatchTextScale()
+    {
+        static bool watching = false;
+        if (watching) return;
+        watching = true;
+        try
+        {
+            // Kept for the process: the event only fires while it lives.
+            struct Holder { winrt::Windows::UI::ViewManagement::UISettings settings; };
+            static auto* held = new Holder();
+            auto& settings = held->settings;
+            g_textScale = settings.TextScaleFactor();
+            auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+            if (!queue) return;
+            // Raised off the UI thread.
+            settings.TextScaleFactorChanged([queue](winrt::Windows::UI::ViewManagement::UISettings const& sender, auto&&)
+            {
+                const double factor = sender.TextScaleFactor();
+                queue.TryEnqueue([factor]
+                {
+                    if (factor == g_textScale) return;
+                    g_textScale = factor;
+                    RefreshTexts(winrt::NativeScript::Mason::implementation::Text::Change::TextSize);
+                });
+            });
+        }
+        catch (...) {}
+    }
+
+    // WinUI's TextFormatting::GetScaledFontSize: larger text grows less.
+    float ScaledFontSize(double size)
+    {
+        if (!g_textScaleEnabled || g_textScale == 1.0 || size <= 0.0) return static_cast<float>(size);
+        const double s = (std::max)(size, 1.0);
+        return static_cast<float>(s + (std::max)(18.0 - std::exp(1.0) * std::log(s), 0.0) * (g_textScale - 1.0));
     }
 }
 
@@ -391,6 +546,14 @@ namespace winrt::NativeScript::Mason::implementation
 {
     bool Text::DirectWrite() { return g_directWrite; }
     void Text::DirectWrite(bool value) { g_directWrite = value; }
+
+    bool Text::IsTextScaleFactorEnabled() { return g_textScaleEnabled; }
+    void Text::IsTextScaleFactorEnabled(bool value)
+    {
+        if (value == g_textScaleEnabled) return;
+        g_textScaleEnabled = value;
+        RefreshTexts(Change::TextSize);
+    }
 
     Text::Text()
     {
@@ -400,6 +563,27 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_direct) InitDirect();
         else InitTextBlock();
         m_measureCache->node = winrt::make_weak(m_node);
+        WatchTextScale();
+        if (!mason_visual::g_onScaleChanged) mason_visual::g_onScaleChanged = [] { RefreshTexts(Change::Scale); };
+        LiveTexts().insert(this);
+    }
+
+    void Text::Refresh(Change change)
+    {
+        switch (change)
+        {
+        case Change::Scale:
+            InvalidateText();
+            break;
+        case Change::TextSize:
+            if (m_text) m_text.IsTextScaleFactorEnabled(g_textScaleEnabled);
+            m_paragraphDirty = true;
+            RequestRebuild();
+            break;
+        case Change::Fonts:
+            if (!m_requestedFamily.empty()) ApplyFontFamily();
+            break;
+        }
     }
 
     void Text::InitDirect()
@@ -412,7 +596,7 @@ namespace winrt::NativeScript::Mason::implementation
             auto& c = *cache;
             IDWriteTextLayout* layout = c.Layout();
             if (!layout) return mason_leaf::PackMeasure(0.0f, 0.0f);
-            const float slack = SlackFor(mason_visual::g_rootScale);
+            const float slack = SlackFor(mason_visual::g_computeScale);
             const Size d = AnswerMeasure(c, kw, aw,
                 [layout, slack](float width) -> Size
                 {
@@ -433,6 +617,7 @@ namespace winrt::NativeScript::Mason::implementation
         m_text.FontFamily(muxm::FontFamily(L"Segoe UI"));
         m_text.FontSize(14.0);
         m_text.TextWrapping(mux::TextWrapping::NoWrap);
+        m_text.IsTextScaleFactorEnabled(g_textScaleEnabled);
         Children().Append(m_text);
 
         auto weak = winrt::make_weak(m_text);
@@ -494,6 +679,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     Text::~Text()
     {
+        LiveTexts().erase(this);
         for (auto const& entry : m_runs) Detach(entry);
         if (m_sprite) mason_atlas::Forget(m_sprite.get());
     }
@@ -525,8 +711,17 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SetFontFamily(hstring const& families)
     {
-        const std::wstring resolved = ResolveFamily(std::wstring_view(families));
-        m_fontFamily = winrt::hstring{ resolved };
+        m_requestedFamily = families;
+        ApplyFontFamily();
+    }
+
+    void Text::ApplyFontFamily()
+    {
+        bool waiting = false;
+        const winrt::hstring resolved{ ResolveFamily(std::wstring_view(m_requestedFamily), waiting) };
+        if (waiting) AwaitFonts();
+        if (resolved == m_fontFamily && m_builtValid) return;
+        m_fontFamily = resolved;
         if (m_text)
         {
             m_text.FontFamily(muxm::FontFamily(resolved.empty() ? winrt::hstring{ L"Segoe UI" } : m_fontFamily));
@@ -800,7 +995,7 @@ namespace winrt::NativeScript::Mason::implementation
     {
         mason_dwrite::Paragraph p;
         p.font = mason_dwrite::ResolveFont(m_fontFamily.empty() ? std::wstring_view(L"Segoe UI") : std::wstring_view(m_fontFamily));
-        p.fontSize = static_cast<float>(container.fontSize);
+        p.fontSize = ScaledFontSize(container.fontSize);
         p.weight = WeightOf(container.fontWeight);
         p.style = StyleOf(container.fontStyle);
         p.color = container.color;
@@ -811,7 +1006,8 @@ namespace winrt::NativeScript::Mason::implementation
         case 4: p.alignment = DWRITE_TEXT_ALIGNMENT_JUSTIFIED; break;
         default: p.alignment = DWRITE_TEXT_ALIGNMENT_LEADING; break;
         }
-        p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * container.fontSize);
+        // A length line-height stays as it is, as XAML leaves LineHeight unscaled.
+        p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * p.fontSize);
 
         using winrt::Windows::UI::Text::TextDecorations;
         for (auto const& b : runs)
@@ -827,7 +1023,7 @@ namespace winrt::NativeScript::Mason::implementation
             span.length = static_cast<uint32_t>(b.text.size());
             p.text += std::wstring_view(b.text);
             span.font = f.family.empty() ? p.font : mason_dwrite::ResolveFont(std::wstring_view(f.family));
-            span.fontSize = f.fontSize > 0.0 ? static_cast<float>(f.fontSize) : p.fontSize;
+            span.fontSize = f.fontSize > 0.0 ? ScaledFontSize(f.fontSize) : p.fontSize;
             span.weight = WeightOf(f.fontWeight);
             span.style = StyleOf(f.fontStyle);
             span.letterSpacing = static_cast<float>(f.letterSpacing);
@@ -901,27 +1097,7 @@ namespace winrt::NativeScript::Mason::implementation
             m_inlineOwner->RequestRebuild();
             return;
         }
-        if (m_node) m_node.MarkDirty();
-        InvalidateMeasure();
-        InvalidateLayoutRootFromHere();
-    }
-
-    void Text::InvalidateLayoutRootFromHere()
-    {
-        // The engine marks the node's ancestors dirty itself; XAML needs every Mason ancestor
-        // invalidated so the layout root re-runs compute and each level re-arranges.
-        auto cur = get_strong().try_as<mux::FrameworkElement>();
-        while (cur)
-        {
-            if (cur.try_as<nsm::IMasonElement>())
-            {
-                if (!mason_leaf::MarkInvalidated(winrt::get_abi(cur))) break;
-                cur.InvalidateMeasure();
-                cur.InvalidateArrange();
-            }
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<mux::FrameworkElement>() : nullptr;
-        }
+        mason_leaf::StyleChanged(get_strong().as<mux::UIElement>(), m_node);
     }
 
     Size Text::MeasureOverride(Size const& available)

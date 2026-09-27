@@ -4,6 +4,6 @@
     <PackageReference Include="NativeScript.Mason" Version="1.0.0-beta.71" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="NativeScript.FontManager" Version="1.0.2" />
+    <PackageReference Include="NativeScript.FontManager" Version="1.0.2" GeneratePathProperty="true" />
   </ItemGroup>
 </Project>

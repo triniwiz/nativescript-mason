@@ -4,6 +4,7 @@
 // child-visual slot, holding a tagged child layer per feature ("mason-shadow", "mason-border") so
 // border and box-shadow can coexist.
 
+#include <unordered_set>
 #include <vector>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Hosting.h>
@@ -31,11 +32,21 @@ namespace mason_deco
         return ThreadCompositor();
     }
 
+    // Elements given a decoration root. Asking XAML for a child visual costs ~40 µs, so an element
+    // not in here is known to have none of ours. An address reused by a new element only costs it
+    // that lookup.
+    inline std::unordered_set<void*>& Decorated()
+    {
+        thread_local auto* elements = new std::unordered_set<void*>();
+        return *elements;
+    }
+
     // Return the element's decoration root ContainerVisual, creating + installing it if absent.
     inline mucomp::ContainerVisual EnsureRoot(mux::UIElement const& element)
     {
         if (!element) return nullptr;
-        auto existing = hosting::ElementCompositionPreview::GetElementChildVisual(element);
+        void* id = winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>());
+        auto existing = Decorated().count(id) ? hosting::ElementCompositionPreview::GetElementChildVisual(element) : nullptr;
         if (existing)
         {
             if (auto cv = existing.try_as<mucomp::ContainerVisual>())
@@ -48,13 +59,14 @@ namespace mason_deco
         auto root = comp.CreateContainerVisual();
         root.Comment(L"mason-deco");
         hosting::ElementCompositionPreview::SetElementChildVisual(element, root);
+        Decorated().insert(id);
         return root;
     }
 
     // Get the existing decoration root without creating one.
     inline mucomp::ContainerVisual ExistingRoot(mux::UIElement const& element)
     {
-        if (!element) return nullptr;
+        if (!element || !Decorated().count(winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>()))) return nullptr;
         auto existing = hosting::ElementCompositionPreview::GetElementChildVisual(element);
         if (existing)
         {

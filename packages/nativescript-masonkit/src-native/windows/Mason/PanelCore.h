@@ -17,9 +17,11 @@
 #include <winrt/NativeScript.Mason.h>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include "Invalidation.h"
 #include "LeafCommon.h"
 #include "Node.h"
 #include "Positioning.h"
+#include "RootScale.h"
 #include "TextAtlas.h"
 #include "VisualState.h"
 
@@ -48,24 +50,6 @@ namespace mason_panel
             parent = pfe.Parent();
         }
         return false;
-    }
-
-    inline void InvalidateLayoutRoot(mux::UIElement const& element)
-    {
-        // The engine marks the node's ancestors dirty itself; XAML needs every Mason ancestor
-        // invalidated so the layout root re-runs compute and each level re-arranges.
-        auto cur = element.try_as<mux::FrameworkElement>();
-        while (cur)
-        {
-            if (cur.try_as<nsm::IMasonElement>())
-            {
-                if (!mason_leaf::MarkInvalidated(winrt::get_abi(cur))) break;
-                cur.InvalidateMeasure();
-                cur.InvalidateArrange();
-            }
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<mux::FrameworkElement>() : nullptr;
-        }
     }
 
     inline std::vector<mux::UIElement> SyncChildren(
@@ -146,6 +130,7 @@ namespace mason_panel
         if (isRoot)
         {
             mason_leaf::t_invalidated.clear();
+            mason_visual::g_computeScale = mason_visual::RasterScale(self);
             const bool wf = std::isfinite(available.Width);
             const bool hf = std::isfinite(available.Height);
             node.ComputeSize(
@@ -153,9 +138,13 @@ namespace mason_panel
                 hf ? nsm::AvailableSpaceType::Definite : nsm::AvailableSpaceType::MaxContent, available.Height);
             mason_leaf::FlushAfterCompute();
             if (layer) mason_position::MeasureLayer(layer, available);
+            return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->LayoutSize();
         }
 
-        return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->LayoutSize();
+        // The root's compute sizes a nested panel, after this measure. Reporting the last layout's size
+        // would get a panel that shrank a layout clip, since XAML clips an element arranged smaller than
+        // it asked for, and nothing measures it again.
+        return winrt::Windows::Foundation::Size{ 0.0f, 0.0f };
     }
 
     inline winrt::Windows::Foundation::Size Arrange(
@@ -176,12 +165,7 @@ namespace mason_panel
         const float originX = isRoot || !selfNode ? 0.0f : selfNode->ArrangeX;
         const float originY = isRoot || !selfNode ? 0.0f : selfNode->ArrangeY;
         float scale = 0.0f;
-        if (auto root = self.XamlRoot()) scale = static_cast<float>(root.RasterizationScale());
-        if (isRoot && scale > 0.0f && scale != mason_visual::g_rootScale)
-        {
-            mason_visual::g_rootScale = scale;
-            ++mason_visual::g_scaleEpoch;
-        }
+        if (auto root = self.XamlRoot()) scale = mason_visual::ScaleOf(root);
         auto snap = [scale](float absolute, float origin, float fallback)
         {
             return scale > 0.0f ? (std::round(absolute * scale) - std::round(origin * scale)) / scale : fallback;

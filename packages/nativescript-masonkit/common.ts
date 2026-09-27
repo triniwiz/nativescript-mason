@@ -72,6 +72,7 @@ import {
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
 import { Tree } from './tree';
+import { masonEngine } from './windows-panel-helpers';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
 import { frameworkRegistry } from './framework-registry';
@@ -1199,7 +1200,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
       view.SetRun(run, index);
     } else {
-      NativeScript.Mason.Css.ReparentChild(view, child._view, index);
+      masonEngine().ReparentChild(view, child._view, index);
     }
   }
 
@@ -1209,7 +1210,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (child[breakRun_] && typeof view.RemoveRun === 'function') {
       view.RemoveRun(child[breakRun_]);
     } else {
-      NativeScript.Mason.Css.RemoveChild(view, child._view);
+      masonEngine().RemoveChild(view, child._view);
     }
   }
 
@@ -1225,7 +1226,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
     }
     if (__WINDOWS__) {
-      this._forEachAnonymousText((anonymous) => NativeScript.Mason.Css.RemoveChild((this as any)._view, anonymous));
+      this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
     }
     this._children.splice(0);
   }
@@ -1401,7 +1402,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const view = (this as any)._view;
       if (!view) return;
       if (this._windowsHostsRuns()) view.SetRun(textNode, index);
-      else NativeScript.Mason.Css.ReparentChild(view, textNode, index);
+      else masonEngine().ReparentChild(view, textNode, index);
     }
   }
 
@@ -1414,7 +1415,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const view = (this as any)._view;
       if (!view) return;
       if (this._windowsHostsRuns()) view.SetRun(textNode, index);
-      else NativeScript.Mason.Css.ReparentChild(view, textNode, index);
+      else masonEngine().ReparentChild(view, textNode, index);
     }
   }
 
@@ -1553,7 +1554,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._styleHelper?.copyTextStyleTo(anonymous);
     const font = (this as any)[windowsFontSource_];
     if (font) anonymous.SetFontFamily(font);
-    NativeScript.Mason.Css.ReparentChild((this as any)._view, anonymous, nativeIndex);
+    masonEngine().ReparentChild((this as any)._view, anonymous, nativeIndex);
     return anonymous;
   }
 
@@ -1563,7 +1564,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!anonymous) return;
     anonymous.RemoveRun(children[index][textNode_]);
     if (children[index - 1]?.[anonymousText_] !== anonymous && children[index + 1]?.[anonymousText_] !== anonymous) {
-      NativeScript.Mason.Css.RemoveChild((this as any)._view, anonymous);
+      masonEngine().RemoveChild((this as any)._view, anonymous);
     }
   }
 

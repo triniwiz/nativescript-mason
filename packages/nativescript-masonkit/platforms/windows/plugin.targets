@@ -48,4 +48,34 @@
     <Message Text="[@triniwiz/nativescript-masonkit] Registering NativeScript.Mason activatable classes in Package.appxmanifest" Importance="normal" />
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference='Stop'; $p='$(MSBuildProjectDirectory)\Package.appxmanifest'; if(-not (Test-Path $p)){exit 0}; $dll='NativeScript.Mason.dll'; $ids='@(NSMasonActivatableClass)'.Split(';'); [xml]$d=Get-Content -LiteralPath $p; $ns='http://schemas.microsoft.com/appx/manifest/foundation/windows10'; $m=New-Object System.Xml.XmlNamespaceManager($d.NameTable); $m.AddNamespace('a',$ns); $pkg=$d.DocumentElement; $ext=$pkg.SelectSingleNode('a:Extensions',$m); if(-not $ext){$ext=$d.CreateElement('Extensions',$ns);[void]$pkg.AppendChild($ext)}; $srv=$ext.SelectSingleNode('a:Extension[@Category=''windows.activatableClass.inProcessServer'']/a:InProcessServer[a:Path=''' + $dll + ''']',$m); if(-not $srv){$e=$d.CreateElement('Extension',$ns);$e.SetAttribute('Category','windows.activatableClass.inProcessServer');$srv=$d.CreateElement('InProcessServer',$ns);$pa=$d.CreateElement('Path',$ns);$pa.InnerText=$dll;[void]$srv.AppendChild($pa);[void]$e.AppendChild($srv);[void]$ext.AppendChild($e)}; $have=@($srv.SelectNodes('a:ActivatableClass',$m)|ForEach-Object{$_.GetAttribute('ActivatableClassId')}); $chg=$false; foreach($id in $ids){if($id -and ($have -notcontains $id)){$c=$d.CreateElement('ActivatableClass',$ns);$c.SetAttribute('ActivatableClassId',$id);$c.SetAttribute('ThreadingModel','both');[void]$srv.AppendChild($c);$chg=$true}}; if($chg){$d.Save($p)}&quot;" />
   </Target>
+
+  <!-- NativeScript.FontManager's package wires itself into native projects only (build/native), so a
+       C# host app never got its component and Text's FontFaceSet lookup found nothing. Stage and
+       register it here; its own .targets can't be imported, as a .NET project rejects its winmd
+       reference (NETSDK1130). -->
+  <Target Name="NSMasonCopyFontManager" AfterTargets="Build" Condition="'$(PkgNativeScript_FontManager)'!=''">
+    <PropertyGroup>
+      <_NSMasonFMRuntime Condition="'$(Platform)'=='ARM64' or '$(Platform)'=='arm64'">win10-arm64</_NSMasonFMRuntime>
+      <_NSMasonFMRuntime Condition="'$(_NSMasonFMRuntime)'==''">win10-x64</_NSMasonFMRuntime>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NSMasonFMFiles Include="$(PkgNativeScript_FontManager)\runtimes\$(_NSMasonFMRuntime)\native\NativeScript.FontManager.dll" Condition="Exists('$(PkgNativeScript_FontManager)\runtimes\$(_NSMasonFMRuntime)\native\NativeScript.FontManager.dll')" />
+      <_NSMasonFMFiles Include="$(PkgNativeScript_FontManager)\build\native\NativeScript.FontManager.winmd" Condition="Exists('$(PkgNativeScript_FontManager)\build\native\NativeScript.FontManager.winmd')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_NSMasonFMFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="'@(_NSMasonFMFiles)' != ''" />
+  </Target>
+
+  <ItemGroup>
+    <NSMasonFontManagerClass Include="NativeScript.FontManager.FontFace" />
+    <NSMasonFontManagerClass Include="NativeScript.FontManager.FontFaceSet" />
+    <NSMasonFontManagerClass Include="NativeScript.FontManager.FontDescriptors" />
+  </ItemGroup>
+
+  <Target Name="NSMasonRegisterFontManagerClasses"
+          AfterTargets="ApplyManifestOverrides;MergeAppResourcesManifest"
+          BeforeTargets="Build"
+          Condition="'$(PkgNativeScript_FontManager)'!='' and Exists('$(MSBuildProjectDirectory)\Package.appxmanifest')">
+    <Message Text="[@triniwiz/nativescript-masonkit] Registering NativeScript.FontManager activatable classes in Package.appxmanifest" Importance="normal" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference='Stop'; $p='$(MSBuildProjectDirectory)\Package.appxmanifest'; if(-not (Test-Path $p)){exit 0}; $dll='NativeScript.FontManager.dll'; $ids='@(NSMasonFontManagerClass)'.Split(';'); [xml]$d=Get-Content -LiteralPath $p; $ns='http://schemas.microsoft.com/appx/manifest/foundation/windows10'; $m=New-Object System.Xml.XmlNamespaceManager($d.NameTable); $m.AddNamespace('a',$ns); $pkg=$d.DocumentElement; $ext=$pkg.SelectSingleNode('a:Extensions',$m); if(-not $ext){$ext=$d.CreateElement('Extensions',$ns);[void]$pkg.AppendChild($ext)}; $srv=$ext.SelectSingleNode('a:Extension[@Category=''windows.activatableClass.inProcessServer'']/a:InProcessServer[a:Path=''' + $dll + ''']',$m); if(-not $srv){$e=$d.CreateElement('Extension',$ns);$e.SetAttribute('Category','windows.activatableClass.inProcessServer');$srv=$d.CreateElement('InProcessServer',$ns);$pa=$d.CreateElement('Path',$ns);$pa.InnerText=$dll;[void]$srv.AppendChild($pa);[void]$e.AppendChild($srv);[void]$ext.AppendChild($e)}; $have=@($srv.SelectNodes('a:ActivatableClass',$m)|ForEach-Object{$_.GetAttribute('ActivatableClassId')}); $chg=$false; foreach($id in $ids){if($id -and ($have -notcontains $id)){$c=$d.CreateElement('ActivatableClass',$ns);$c.SetAttribute('ActivatableClassId',$id);$c.SetAttribute('ThreadingModel','both');[void]$srv.AppendChild($c);$chg=$true}}; if($chg){$d.Save($p)}&quot;" />
+  </Target>
 </Project>

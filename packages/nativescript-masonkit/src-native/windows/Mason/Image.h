@@ -1,5 +1,6 @@
 #pragma once
 #include "Image.g.h"
+#include "Invalidation.h"
 #include "VisualState.h"
 
 namespace winrt::NativeScript::Mason::implementation
@@ -14,8 +15,7 @@ namespace winrt::NativeScript::Mason::implementation
         void SyncStyle(winrt::hstring const&, winrt::hstring const&)
         {
             m_visual.styleDirty = true;
-            if (m_node) m_node.MarkDirty();
-            InvalidateMeasure();
+            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
         }
 
         hstring Source() const { return m_source; }

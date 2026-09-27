@@ -22,7 +22,7 @@
 #include "BufferUtil.h"
 #include "Decoration.h"
 #include "Positioning.h"
-#include "LeafCommon.h"
+#include "Invalidation.h"
 
 using namespace winrt;
 
@@ -43,26 +43,10 @@ namespace
     // this pass (not one mutation late).
     void MarkLayoutRootDirty(muxc::Panel const& panel)
     {
-        // The panel re-syncs its children in its next measure; the engine marks the node's ancestors
-        // dirty itself, and XAML needs every Mason ancestor invalidated so the layout root recomputes.
         panel.InvalidateMeasure();
-        panel.InvalidateArrange();
-        if (auto el = panel.try_as<nsm::IMasonElement>())
-        {
-            if (auto node = el.Node()) node.MarkDirty();
-        }
-        winrt::Microsoft::UI::Xaml::FrameworkElement cur = panel;
-        while (cur)
-        {
-            if (cur.try_as<nsm::IMasonElement>())
-            {
-                if (!mason_leaf::MarkInvalidated(winrt::get_abi(cur))) break;
-                cur.InvalidateMeasure();
-                cur.InvalidateArrange();
-            }
-            auto parent = cur.Parent();
-            cur = parent ? parent.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>() : nullptr;
-        }
+        winrt::NativeScript::Mason::Node node{ nullptr };
+        if (auto el = panel.try_as<nsm::IMasonElement>()) node = el.Node();
+        mason_leaf::StyleChanged(panel, node);
     }
     using winrt::Windows::Graphics::Imaging::SoftwareBitmap;
     using winrt::Windows::Graphics::Imaging::BitmapPixelFormat;

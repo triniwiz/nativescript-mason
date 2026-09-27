@@ -16,6 +16,9 @@ namespace NativeScript.Mason
         // is created.
         static Boolean DirectWrite;
 
+        // Scale text with the Windows "Text size" setting as XAML text does (on by default).
+        static Boolean IsTextScaleFactorEnabled;
+
         // CSS font-family list; empty resets to the default.
         void SetFontFamily(String families);
 
