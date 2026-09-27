@@ -34,8 +34,9 @@ namespace NativeScript.Mason
         // `offset:argb` pairs (offset 0..1, argb decimal 0xAARRGGBB), e.g. "0:4278190080,1:4294967295".
         // A string is used instead of WinRT arrays because array_view params don't marshal reliably
         // from the NS-Windows JS runtime. angleDegrees follows CSS (0 = to top, 90 = to right).
-        static void ApplyLinearGradient(Microsoft.UI.Xaml.UIElement element, Double angleDegrees, String stops);
-        static void ApplyRadialGradient(Microsoft.UI.Xaml.UIElement element, String stops);
+        // `interpolation` is the text after the gradient's `in` ("oklch longer hue"), or empty.
+        static void ApplyLinearGradient(Microsoft.UI.Xaml.UIElement element, Double angleDegrees, String stops, String interpolation);
+        static void ApplyRadialGradient(Microsoft.UI.Xaml.UIElement element, String stops, String interpolation);
 
         // Robustly (re)parent a native child: detach it from its current logical parent panel (if
         // different) before inserting into `parent` at `index` (or appending when index is out of

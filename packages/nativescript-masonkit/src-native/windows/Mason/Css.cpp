@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 #include "BufferUtil.h"
+#include "ColorInterpolation.h"
 #include "Decoration.h"
 #include "Positioning.h"
 #include "Invalidation.h"
@@ -410,9 +411,11 @@ namespace winrt::NativeScript::Mason::implementation
     }
 
     // Parse a "offset:argb,offset:argb,..." stop list (offset 0..1 float, argb decimal u32) and append
-    // GradientStops to `stops`. `Type x{}` (not `Type x;`) is required to construct projected objects.
-    static void AppendGradientStops(winrt::Windows::Foundation::Collections::IVector<muxm::GradientStop> const& dst, std::wstring_view spec)
+    // GradientStops to `stops`, resampled in `interpolation`. `Type x{}` (not `Type x;`) is required
+    // to construct projected objects.
+    static void AppendGradientStops(winrt::Windows::Foundation::Collections::IVector<muxm::GradientStop> const& dst, std::wstring_view spec, std::wstring_view interpolation)
     {
+        std::vector<mason_color::Stop> parsed;
         size_t pos = 0;
         while (pos < spec.size())
         {
@@ -425,21 +428,28 @@ namespace winrt::NativeScript::Mason::implementation
                 std::wstring argbStr(tok.substr(colon + 1));
                 try
                 {
-                    float off = std::stof(offStr);
-                    uint32_t argb = static_cast<uint32_t>(std::stoul(argbStr));
-                    muxm::GradientStop stop{};
-                    stop.Color(ColorFromArgb(argb));
-                    stop.Offset(off);
-                    dst.Append(stop);
+                    parsed.push_back({ std::stof(offStr), static_cast<uint32_t>(std::stoul(argbStr)) });
                 }
                 catch (...) {}
             }
             if (comma == std::wstring_view::npos) break;
             pos = comma + 1;
         }
+
+        if (auto method = mason_color::ParseInterpolation(interpolation))
+        {
+            parsed = mason_color::ExpandInterpolatedStops(parsed, *method);
+        }
+        for (auto const& s : parsed)
+        {
+            muxm::GradientStop stop{};
+            stop.Color(ColorFromArgb(s.argb));
+            stop.Offset(s.offset);
+            dst.Append(stop);
+        }
     }
 
-    void Css::ApplyLinearGradient(mux::UIElement const& element, double angleDegrees, winrt::hstring const& stops)
+    void Css::ApplyLinearGradient(mux::UIElement const& element, double angleDegrees, winrt::hstring const& stops, winrt::hstring const& interpolation)
     {
         auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
         if (!panel) return;
@@ -451,17 +461,17 @@ namespace winrt::NativeScript::Mason::implementation
         const double dy = -std::cos(rad);
         brush.StartPoint({ static_cast<float>(0.5 - dx * 0.5), static_cast<float>(0.5 - dy * 0.5) });
         brush.EndPoint({ static_cast<float>(0.5 + dx * 0.5), static_cast<float>(0.5 + dy * 0.5) });
-        AppendGradientStops(brush.GradientStops(), std::wstring_view(stops));
+        AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
         panel.Background(brush);
     }
 
-    void Css::ApplyRadialGradient(mux::UIElement const& element, winrt::hstring const& stops)
+    void Css::ApplyRadialGradient(mux::UIElement const& element, winrt::hstring const& stops, winrt::hstring const& interpolation)
     {
         auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
         if (!panel) return;
 
         muxm::RadialGradientBrush brush{};
-        AppendGradientStops(brush.GradientStops(), std::wstring_view(stops));
+        AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
         panel.Background(brush);
     }
 

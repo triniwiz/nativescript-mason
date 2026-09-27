@@ -31,9 +31,9 @@ namespace winrt::NativeScript::Mason::implementation
             double cornerRadius);
 
         static void ApplyLinearGradient(winrt::Microsoft::UI::Xaml::UIElement const& element,
-            double angleDegrees, winrt::hstring const& stops);
+            double angleDegrees, winrt::hstring const& stops, winrt::hstring const& interpolation);
         static void ApplyRadialGradient(winrt::Microsoft::UI::Xaml::UIElement const& element,
-            winrt::hstring const& stops);
+            winrt::hstring const& stops, winrt::hstring const& interpolation);
 
         static void ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent,
             winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index);

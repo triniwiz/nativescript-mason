@@ -82,7 +82,7 @@ export class Text extends TextBase {
   // Text lays out runs, not child panels, so a nested text element renders inside this one's runs.
   // @ts-ignore
   public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
-    if (child?.[isText_] && child._view) {
+    if (child?.[isText_] && child._view && !child._view.IsButton) {
       this._view.SetInlineText(child._view, this._windowsNativeIndexOf(child, atIndex));
       child._isMasonChild = true;
       return true;
@@ -92,7 +92,7 @@ export class Text extends TextBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(child: any): void {
-    if (child?.[isText_] && child._view) {
+    if (child?.[isText_] && child._view && !child._view.IsButton) {
       this._view.RemoveInlineText(child._view);
       child._isMasonChild = false;
     } else {

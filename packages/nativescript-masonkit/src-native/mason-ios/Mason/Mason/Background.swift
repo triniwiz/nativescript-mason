@@ -170,8 +170,9 @@ extension Background {
     }
 
     if layer.shader == nil {
-      let (colors, locations) = parseGradientStops(gradient.stops)
-      if colors.isEmpty { return }
+      let parsed = parseGradientStops(gradient.stops)
+      if parsed.colors.isEmpty { return }
+      let (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
       layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations.isEmpty ? nil : locations)
       layer.shaderWidth = width
       layer.shaderHeight = height

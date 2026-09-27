@@ -774,8 +774,10 @@ const LINEAR_GRADIENT = /linear-gradient/i;
 const ANY_GRADIENT = /gradient/i;
 const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 
-// Parse `linear-gradient(<dir>?, <color> <stop>?, ...)` into a CSS angle + per-stop argb + offsets.
-function parseLinearGradientCss(value: string): { angle: number; offsets: number[]; colors: number[] } | null {
+const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
+
+// Parse `linear-gradient(<dir>? <in colorspace>?, <color> <stop>?, ...)` into a CSS angle, per-stop argb + offsets and the interpolation.
+export function parseLinearGradientCss(value: string): { angle: number; offsets: number[]; colors: number[]; interpolation: string } | null {
   const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -784,8 +786,16 @@ function parseLinearGradientCss(value: string): { angle: number; offsets: number
   if (parts.length < 2) return null;
   let angle = 180;
   let start = 0;
-  if (/^(to\s|-?[\d.]+(deg|rad|turn))/i.test(parts[0])) {
-    angle = parseGradientAngle(parts[0]);
+  let head = parts[0];
+  let interpolation = '';
+  const method = INTERPOLATION_METHOD.exec(head);
+  if (method) {
+    interpolation = method[1].toLowerCase().replace(/\s+/g, ' ');
+    head = (head.slice(0, method.index) + head.slice(method.index + method[0].length)).trim();
+    start = 1;
+  }
+  if (/^(to\s|-?[\d.]+(deg|rad|turn))/i.test(head)) {
+    angle = parseGradientAngle(head);
     start = 1;
   }
   const colors: number[] = [];
@@ -801,7 +811,7 @@ function parseLinearGradientCss(value: string): { angle: number; offsets: number
     positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
   }
   if (colors.length < 1) return null;
-  return { angle, offsets: resolveStopPositions(positions), colors };
+  return { angle, offsets: resolveStopPositions(positions), colors, interpolation };
 }
 
 const SIDE_TOKEN = /^(auto|[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(px|dip|dppx|rem|em|pt|vw|vh|vmin|vmax|%)?|[a-z-]+\(.*\))$/i;
@@ -1400,7 +1410,7 @@ export class Style {
             // Pass stops as an "offset:argb,..." string — WinRT array_view params don't marshal
             // reliably from the NS-Windows JS runtime (plain arrays -> E_FAIL, typed arrays -> crash).
             const stops = g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
-            NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stops);
+            NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stops, g.interpolation);
           } catch (_) {}
         }
       } else if (!ANY_GRADIENT.test(v)) {

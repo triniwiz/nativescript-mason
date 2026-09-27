@@ -389,6 +389,7 @@ data class Gradient(
   val type: String,             // linear or radial
   val direction: String?,       // e.g., "to bottom"
   val stops: List<String>,      // color stops
+  val interpolation: ColorInterpolation? = null,
 )
 
 fun drawBackground(
@@ -537,14 +538,16 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     }
 
     if (colorsArray.isEmpty()) return
-    val positionsArray = resolveStopPositions(positions)
+    val (shaderColors, positionsArray) = expandInterpolatedStops(
+      colorsArray, resolveStopPositions(positions), gradient.interpolation
+    )
 
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
         val ep = resolveLinearGradientEndpoints(
           gradient.direction, width.toFloat(), height.toFloat()
         )
-        LinearGradient(ep[0], ep[1], ep[2], ep[3], colorsArray, positionsArray, Shader.TileMode.CLAMP)
+        LinearGradient(ep[0], ep[1], ep[2], ep[3], shaderColors, positionsArray, Shader.TileMode.CLAMP)
       }
 
       "radial" -> {
@@ -557,7 +560,7 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
           hypot((width - cx).toDouble(), (height - cy).toDouble())
         ).toFloat().coerceAtLeast(1f)
         RadialGradient(
-          cx, cy, radius, colorsArray, positionsArray, Shader.TileMode.CLAMP
+          cx, cy, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP
         )
       }
 
@@ -1149,11 +1152,13 @@ fun parseGradient(part: String): Gradient? {
 
   if (items.isEmpty()) return null
 
-  val first = items.first()
-  val direction = if (isAngleOrDirection(first)) first.trim() else null
-  val stops = if (direction != null) items.drop(1) else items
+  // `to right in oklab`: the method shares the first argument with the direction.
+  val extracted = ColorInterpolation.extract(items.first())
+  val first = extracted?.first ?: items.first()
+  val direction = if (first.isNotBlank() && isAngleOrDirection(first)) first.trim() else null
+  val stops = if (direction != null || extracted != null) items.drop(1) else items
 
-  return Gradient(type, direction, expandColorStops(stops.map { it.trim() }))
+  return Gradient(type, direction, expandColorStops(stops.map { it.trim() }), extracted?.second)
 }
 
 /** Layers with only author-visible content (drops color-only and empty layers). */
