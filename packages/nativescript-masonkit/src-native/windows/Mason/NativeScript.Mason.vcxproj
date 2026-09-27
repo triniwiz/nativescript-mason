@@ -116,6 +116,7 @@
     <ClInclude Include="Input.h" />
     <ClInclude Include="BufferUtil.h" />
     <ClInclude Include="CssImageResult.h" />
+    <ClInclude Include="ColorInterpolation.h" />
     <ClInclude Include="Css.h" />
     <ClInclude Include="Diagnostics.h" />
     <ClInclude Include="RoundedColorBrush.h" />

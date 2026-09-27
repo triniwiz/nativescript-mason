@@ -33,6 +33,55 @@ final class MasonTests: XCTestCase {
     XCTAssertEqual(gradient?.stops, ["blue", "rgb(0, 0, 255) 10%", "rgb(0, 0, 255) 30%", "green 40%"])
   }
 
+  func test_gradientInterpolationMethodIsSeparatedFromTheDirection() {
+    let gradient = parseGradient("linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)")
+    XCTAssertEqual(gradient?.direction, "to bottom right")
+    XCTAssertEqual(gradient?.stops, ["#6366f1 0%", "#d946ef 100%"])
+    XCTAssertEqual(gradient?.interpolation, ColorInterpolation(space: .oklab))
+
+    let alone = parseGradient("linear-gradient(in oklab, red, blue)")
+    XCTAssertNil(alone?.direction)
+    XCTAssertEqual(alone?.stops, ["red", "blue"])
+  }
+
+  func test_gradientInterpolationExtractsHueMethodsAndUnknownSpaces() {
+    let hue = ColorInterpolation.extract("90deg in oklch longer hue")
+    XCTAssertEqual(hue?.rest, "90deg")
+    XCTAssertEqual(hue?.method, ColorInterpolation(space: .oklch, hue: .longer))
+    XCTAssertEqual(ColorInterpolation.extract("in oklch to right")?.rest, "to right")
+    XCTAssertEqual(ColorInterpolation.extract("to right in display-p3")?.method.space, .srgb)
+    XCTAssertNil(ColorInterpolation.extract("circle at center"))
+  }
+
+  // Reference values: CSS Color 4 `color-mix(in <space>, a, b)` at 50%.
+  func test_gradientInterpolationMidpointsMatchColorMix() {
+    func mix(_ a: [Double], _ b: [Double], _ space: ColorInterpolation.Space, _ hue: ColorInterpolation.HueMethod = .shorter) -> [Int] {
+      return interpolateColor(a, b, 0.5, ColorInterpolation(space: space, hue: hue)).map { Int(($0 * 255).rounded()) }
+    }
+    let red = [1.0, 0, 0, 1], blue = [0.0, 0, 1, 1], white = [1.0, 1, 1, 1], black = [0.0, 0, 0, 1]
+    func assertNear(_ actual: [Int], _ expected: [Int], file: StaticString = #filePath, line: UInt = #line) {
+      for i in 0..<expected.count { XCTAssertLessThanOrEqual(abs(actual[i] - expected[i]), 1, "\(actual) vs \(expected)", file: file, line: line) }
+    }
+    assertNear(mix(red, blue, .oklab), [140, 83, 162, 255])
+    assertNear(mix(white, black, .oklab), [99, 99, 99, 255])
+    assertNear(mix(red, blue, .lab), [193, 0, 136, 255])
+    assertNear(mix(red, blue, .oklch), [186, 0, 194, 255])
+    assertNear(mix(white, black, .srgbLinear), [188, 188, 188, 255])
+    let longer = mix(red, blue, .oklch, .longer)
+    XCTAssertGreaterThan(longer[1], longer[0])
+    assertNear(mix(red, [0, 0, 0, 0], .oklab), [255, 0, 0, 128])
+  }
+
+  func test_gradientInterpolationExpandsSegmentsAndSkipsHardStops() {
+    let red = UIColor.red.cgColor, blue = UIColor.blue.cgColor
+    let expanded = expandInterpolatedStops([red, blue], [0, 1], ColorInterpolation(space: .oklab))
+    XCTAssertEqual(expanded.colors.count, 9)
+    XCTAssertEqual(expanded.locations[4], 0.5, accuracy: 1e-6)
+    let hard = expandInterpolatedStops([red, blue, blue], [0, 0.5, 0.5], ColorInterpolation(space: .oklab))
+    XCTAssertEqual(hard.colors.count, 10)
+    XCTAssertEqual(expandInterpolatedStops([red, blue], [0, 1], ColorInterpolation(space: .srgb)).colors.count, 2)
+  }
+
   func test_createSimpleView() {
     let view = MasonUIView(mason: mason)
     XCTAssertNotNil(view.node.nativePtr)

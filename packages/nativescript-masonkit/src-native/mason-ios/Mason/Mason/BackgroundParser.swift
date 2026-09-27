@@ -92,6 +92,7 @@ struct Gradient {
   let type: String       // "linear" or "radial"
   let direction: String? // "to bottom" or angle like "0deg"
   let stops: [String]    // color stops (unparsed strings)
+  var interpolation: ColorInterpolation? = nil
 }
 
 // MARK: - Background position / size
@@ -729,16 +730,25 @@ func parseGradient(_ str: String) -> Gradient? {
   var parts = splitGradientParts(content)
   
   var direction: String? = nil
+  var interpolation: ColorInterpolation? = nil
   if let first = parts.first {
-    let t = first.trimmingCharacters(in: .whitespacesAndNewlines)
-    if isAngleOrDirection(t) {
+    var t = first.trimmingCharacters(in: .whitespacesAndNewlines)
+    // `to right in oklab`: the method shares the first argument with the direction.
+    let extracted = ColorInterpolation.extract(t)
+    if let extracted = extracted {
+      interpolation = extracted.method
+      t = extracted.rest
+    }
+    if !t.isEmpty && isAngleOrDirection(t) {
       direction = t
+    }
+    if direction != nil || extracted != nil {
       parts = Array(parts.dropFirst())
     }
   }
-  
+
   let stops = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-  return Gradient(type: type, direction: direction, stops: expandColorStops(stops))
+  return Gradient(type: type, direction: direction, stops: expandColorStops(stops), interpolation: interpolation)
 }
 
 /// A stop with two positions ("red 10% 30%") is two stops of the same colour.
@@ -925,5 +935,294 @@ extension UIColor {
     
     // MARK: - unsupported format
     return nil
+  }
+}
+
+// MARK: - Gradient colour interpolation
+/// A gradient's `in <colorspace> [<hue-method> hue]`. CGGradient only interpolates in sRGB,
+/// so `expandInterpolatedStops` resamples each segment in the requested space.
+struct ColorInterpolation: Equatable {
+  enum Space: String {
+    case srgb, srgbLinear = "srgb-linear", oklab, oklch, lab, lch, xyzD65 = "xyz-d65", xyzD50 = "xyz-d50", hsl, hwb
+
+    var hueIndex: Int {
+      switch self {
+      case .oklch, .lch: return 2
+      case .hsl, .hwb: return 0
+      default: return -1
+      }
+    }
+
+    static func parse(_ name: String) -> Space? {
+      let n = name.lowercased()
+      return n == "xyz" ? .xyzD65 : Space(rawValue: n)
+    }
+  }
+
+  enum HueMethod: String { case shorter, longer, increasing, decreasing }
+
+  let space: Space
+  var hue: HueMethod = .shorter
+
+  /// Splits the method from a gradient's first argument, or nil when there is none.
+  static func extract(_ first: String) -> (rest: String, method: ColorInterpolation)? {
+    var tokens = first.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+    guard let at = tokens.firstIndex(where: { $0.lowercased() == "in" }), at + 1 < tokens.count else { return nil }
+    // Unknown spaces fall back to sRGB instead of dropping the gradient.
+    let space = Space.parse(tokens[at + 1]) ?? .srgb
+    var consumed = 2
+    var hue = HueMethod.shorter
+    if at + 3 < tokens.count, tokens[at + 3].lowercased() == "hue", let method = HueMethod(rawValue: tokens[at + 2].lowercased()) {
+      hue = method
+      consumed = 4
+    }
+    tokens.removeSubrange(at..<(at + consumed))
+    return (tokens.joined(separator: " "), ColorInterpolation(space: space, hue: hue))
+  }
+}
+
+// Keeps each channel within ~1/255 of the exact curve.
+private let interpolationSamplesPerSegment = 8
+
+func expandInterpolatedStops(_ colors: [CGColor], _ locations: [CGFloat], _ interpolation: ColorInterpolation?) -> (colors: [CGColor], locations: [CGFloat]) {
+  guard let interpolation = interpolation, interpolation.space != .srgb, colors.count >= 2, colors.count == locations.count else {
+    return (colors, locations)
+  }
+  let rgba = colors.map(srgbComponents)
+  var outColors: [CGColor] = []
+  var outLocations: [CGFloat] = []
+  for i in 0..<colors.count {
+    outColors.append(colors[i])
+    outLocations.append(locations[i])
+    if i == colors.count - 1 { break }
+    let p0 = locations[i]
+    let p1 = locations[i + 1]
+    if p1 - p0 <= 1e-6 { continue } // hard stop
+    for k in 1..<interpolationSamplesPerSegment {
+      let t = Double(k) / Double(interpolationSamplesPerSegment)
+      let c = interpolateColor(rgba[i], rgba[i + 1], t, interpolation)
+      outColors.append(UIColor(red: CGFloat(c[0]), green: CGFloat(c[1]), blue: CGFloat(c[2]), alpha: CGFloat(c[3])).cgColor)
+      outLocations.append(p0 + (p1 - p0) * CGFloat(t))
+    }
+  }
+  return (outColors, outLocations)
+}
+
+private func srgbComponents(_ color: CGColor) -> [Double] {
+  var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+  UIColor(cgColor: color).getRed(&r, green: &g, blue: &b, alpha: &a)
+  return [Double(r), Double(g), Double(b), Double(a)]
+}
+
+// Premultiplied, per CSS Color 4 §12.
+func interpolateColor(_ from: [Double], _ to: [Double], _ t: Double, _ interpolation: ColorInterpolation) -> [Double] {
+  let space = interpolation.space
+  let fromAlpha = from[3]
+  let toAlpha = to[3]
+  var a = ColorSpaces.fromSrgb(space, Array(from[0..<3]))
+  var b = ColorSpaces.fromSrgb(space, Array(to[0..<3]))
+
+  let hue = space.hueIndex
+  if hue >= 0 {
+    // A powerless hue (grey or transparent) takes the other endpoint's.
+    let aGray = isAchromatic(space, a) || fromAlpha == 0
+    let bGray = isAchromatic(space, b) || toAlpha == 0
+    if aGray && !bGray { a[hue] = b[hue] }
+    if bGray && !aGray { b[hue] = a[hue] }
+    let d = b[hue] - a[hue]
+    switch interpolation.hue {
+    case .shorter: if d > 180 { a[hue] += 360 } else if d < -180 { b[hue] += 360 }
+    case .longer: if d > 0 && d < 180 { a[hue] += 360 } else if d > -180 && d <= 0 { b[hue] += 360 }
+    case .increasing: if d < 0 { b[hue] += 360 }
+    case .decreasing: if d > 0 { a[hue] += 360 }
+    }
+  }
+
+  for i in 0..<3 where i != hue {
+    a[i] *= fromAlpha
+    b[i] *= toAlpha
+  }
+  let alpha = fromAlpha + (toAlpha - fromAlpha) * t
+  var mixed = [0.0, 0.0, 0.0]
+  for i in 0..<3 {
+    mixed[i] = a[i] + (b[i] - a[i]) * t
+    if i != hue && alpha > 0 { mixed[i] /= alpha }
+  }
+  if hue >= 0 { mixed[hue] = (mixed[hue].truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) }
+
+  let rgb = ColorSpaces.toSrgb(space, mixed)
+  return rgb.map { min(max($0, 0), 1) } + [min(max(alpha, 0), 1)]
+}
+
+private func isAchromatic(_ space: ColorInterpolation.Space, _ v: [Double]) -> Bool {
+  switch space {
+  // HWB's hue is powerless when whiteness + blackness reach 100%.
+  case .hwb: return v[1] + v[2] >= 100 - 1e-4
+  default: return abs(v[1]) < 1e-4
+  }
+}
+
+// Matrices from CSS Color 4 §18.
+enum ColorSpaces {
+  private static let linearSrgbToXyz: [[Double]] = [
+    [0.41239079926595934, 0.357584339383878, 0.1804807884018343],
+    [0.21263900587151027, 0.715168678767756, 0.07219231536073371],
+    [0.01933081871559182, 0.11919477979462598, 0.9505321522496607],
+  ]
+  private static let xyzToLinearSrgb: [[Double]] = [
+    [3.2409699419045226, -1.537383177570094, -0.4986107602930034],
+    [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559],
+    [0.05563007969699366, -0.20397695888897652, 1.0569715142428786],
+  ]
+  private static let d65ToD50: [[Double]] = [
+    [1.0479298208405488, 0.022946793341019088, -0.05019222954313557],
+    [0.029627815688159344, 0.990434484573249, -0.01707382502938514],
+    [-0.009243058152591178, 0.015055144896577895, 0.7518742899580008],
+  ]
+  private static let d50ToD65: [[Double]] = [
+    [0.9554734527042182, -0.023098536874261423, 0.0632593086610217],
+    [-0.028369706963208136, 1.0099954580106629, 0.021041398966943008],
+    [0.012314001688319899, -0.020507696433477912, 1.3303659366080753],
+  ]
+  private static let d50White: [Double] = [0.3457 / 0.3585, 1, (1 - 0.3457 - 0.3585) / 0.3585]
+  private static let labE = 216.0 / 24389.0
+  private static let labK = 24389.0 / 27.0
+
+  static func fromSrgb(_ space: ColorInterpolation.Space, _ rgb: [Double]) -> [Double] {
+    switch space {
+    case .srgb: return rgb
+    case .srgbLinear: return linear(rgb)
+    case .oklab: return oklab(linear(rgb))
+    case .oklch: return polar(oklab(linear(rgb)))
+    case .lab: return lab(mul(d65ToD50, mul(linearSrgbToXyz, linear(rgb))))
+    case .lch: return polar(lab(mul(d65ToD50, mul(linearSrgbToXyz, linear(rgb)))))
+    case .xyzD65: return mul(linearSrgbToXyz, linear(rgb))
+    case .xyzD50: return mul(d65ToD50, mul(linearSrgbToXyz, linear(rgb)))
+    case .hsl: return hsl(rgb)
+    case .hwb: return hwb(rgb)
+    }
+  }
+
+  static func toSrgb(_ space: ColorInterpolation.Space, _ v: [Double]) -> [Double] {
+    switch space {
+    case .srgb: return v
+    case .srgbLinear: return gamma(v)
+    case .oklab: return gamma(oklabToLinear(v))
+    case .oklch: return gamma(oklabToLinear(rectangular(v)))
+    case .lab: return gamma(mul(xyzToLinearSrgb, mul(d50ToD65, labToXyz(v))))
+    case .lch: return gamma(mul(xyzToLinearSrgb, mul(d50ToD65, labToXyz(rectangular(v)))))
+    case .xyzD65: return gamma(mul(xyzToLinearSrgb, v))
+    case .xyzD50: return gamma(mul(xyzToLinearSrgb, mul(d50ToD65, v)))
+    case .hsl: return hslToRgb(v)
+    case .hwb: return hwbToRgb(v)
+    }
+  }
+
+  private static func mul(_ m: [[Double]], _ v: [Double]) -> [Double] {
+    return (0..<3).map { r in m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] }
+  }
+
+  private static func toLinear(_ c: Double) -> Double {
+    let a = abs(c)
+    return a <= 0.04045 ? c / 12.92 : (c < 0 ? -1 : 1) * pow((a + 0.055) / 1.055, 2.4)
+  }
+
+  private static func fromLinear(_ c: Double) -> Double {
+    let a = abs(c)
+    return a <= 0.0031308 ? c * 12.92 : (c < 0 ? -1 : 1) * (1.055 * pow(a, 1 / 2.4) - 0.055)
+  }
+
+  private static func linear(_ rgb: [Double]) -> [Double] { rgb.map(toLinear) }
+  private static func gamma(_ rgb: [Double]) -> [Double] { rgb.map(fromLinear) }
+
+  private static func oklab(_ lin: [Double]) -> [Double] {
+    let l = cbrt(0.4122214708 * lin[0] + 0.5363325363 * lin[1] + 0.0514459929 * lin[2])
+    let m = cbrt(0.2119034982 * lin[0] + 0.6806995451 * lin[1] + 0.1073969566 * lin[2])
+    let s = cbrt(0.0883024619 * lin[0] + 0.2817188376 * lin[1] + 0.6299787005 * lin[2])
+    return [
+      0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    ]
+  }
+
+  private static func oklabToLinear(_ lab: [Double]) -> [Double] {
+    let l = pow(lab[0] + 0.3963377774 * lab[1] + 0.2158037573 * lab[2], 3)
+    let m = pow(lab[0] - 0.1055613458 * lab[1] - 0.0638541728 * lab[2], 3)
+    let s = pow(lab[0] - 0.0894841775 * lab[1] - 1.2914855480 * lab[2], 3)
+    return [
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+    ]
+  }
+
+  private static func lab(_ xyzD50: [Double]) -> [Double] {
+    let f = (0..<3).map { i -> Double in
+      let n = xyzD50[i] / d50White[i]
+      return n > labE ? cbrt(n) : (labK * n + 16) / 116
+    }
+    return [116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])]
+  }
+
+  private static func labToXyz(_ lab: [Double]) -> [Double] {
+    let fy = (lab[0] + 16) / 116
+    let fx = lab[1] / 500 + fy
+    let fz = fy - lab[2] / 200
+    let x = pow(fx, 3) > labE ? pow(fx, 3) : (116 * fx - 16) / labK
+    let y = lab[0] > labK * labE ? pow(fy, 3) : lab[0] / labK
+    let z = pow(fz, 3) > labE ? pow(fz, 3) : (116 * fz - 16) / labK
+    return [x * d50White[0], y * d50White[1], z * d50White[2]]
+  }
+
+  private static func polar(_ v: [Double]) -> [Double] {
+    var h = atan2(v[2], v[1]) * 180 / .pi
+    if h < 0 { h += 360 }
+    return [v[0], hypot(v[1], v[2]), h]
+  }
+
+  private static func rectangular(_ v: [Double]) -> [Double] {
+    let rad = v[2] * .pi / 180
+    return [v[0], v[1] * cos(rad), v[1] * sin(rad)]
+  }
+
+  private static func hsl(_ rgb: [Double]) -> [Double] {
+    let r = rgb[0], g = rgb[1], b = rgb[2]
+    let mx = max(r, g, b)
+    let mn = min(r, g, b)
+    let l = (mx + mn) / 2
+    let d = mx - mn
+    var h = 0.0
+    var s = 0.0
+    if d != 0 {
+      s = (l == 0 || l == 1) ? 0 : (mx - l) / min(l, 1 - l)
+      if mx == r { h = (g - b) / d + (g < b ? 6 : 0) }
+      else if mx == g { h = (b - r) / d + 2 }
+      else { h = (r - g) / d + 4 }
+      h *= 60
+    }
+    return [h, s * 100, l * 100]
+  }
+
+  private static func hslToRgb(_ v: [Double]) -> [Double] {
+    let h = v[0], s = v[1] / 100, l = v[2] / 100
+    func f(_ n: Double) -> Double {
+      let k = (n + h / 30).truncatingRemainder(dividingBy: 12)
+      return l - s * min(l, 1 - l) * max(-1, min(k - 3, 9 - k, 1))
+    }
+    return [f(0), f(8), f(4)]
+  }
+
+  private static func hwb(_ rgb: [Double]) -> [Double] {
+    return [hsl(rgb)[0], min(rgb[0], rgb[1], rgb[2]) * 100, (1 - max(rgb[0], rgb[1], rgb[2])) * 100]
+  }
+
+  private static func hwbToRgb(_ v: [Double]) -> [Double] {
+    let w = v[1] / 100, b = v[2] / 100
+    if w + b >= 1 {
+      let gray = w / (w + b)
+      return [gray, gray, gray]
+    }
+    return hslToRgb([v[0], 100, 50]).map { $0 * (1 - w - b) + w }
   }
 }

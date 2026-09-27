@@ -13,9 +13,18 @@ namespace winrt::NativeScript::Mason::implementation
     {
     }
 
-    winrt::hstring TextAutomationPeer::GetClassNameCore() const { return L"TextBlock"; }
+    bool TextAutomationPeer::IsButton() const
+    {
+        auto owner = m_owner.get();
+        return owner && winrt::get_self<implementation::Text>(owner)->IsButton();
+    }
 
-    peers::AutomationControlType TextAutomationPeer::GetAutomationControlTypeCore() const { return peers::AutomationControlType::Text; }
+    winrt::hstring TextAutomationPeer::GetClassNameCore() const { return IsButton() ? L"Button" : L"TextBlock"; }
+
+    peers::AutomationControlType TextAutomationPeer::GetAutomationControlTypeCore() const
+    {
+        return IsButton() ? peers::AutomationControlType::Button : peers::AutomationControlType::Text;
+    }
 
     winrt::hstring TextAutomationPeer::GetNameCore() const
     {
@@ -24,10 +33,28 @@ namespace winrt::NativeScript::Mason::implementation
         // An explicit accessible name wins, as it does for a TextBlock.
         auto name = winrt::Microsoft::UI::Xaml::Automation::AutomationProperties::GetName(owner);
         if (!name.empty()) return name;
-        return winrt::get_self<implementation::Text>(owner)->AccessibleText();
+        // Markup whitespace around the text isn't part of the name.
+        std::wstring_view text = winrt::get_self<implementation::Text>(owner)->AccessibleText();
+        const auto first = text.find_first_not_of(L" \t\r\n");
+        if (first == std::wstring_view::npos) return {};
+        return winrt::hstring{ text.substr(first, text.find_last_not_of(L" \t\r\n") - first + 1) };
     }
 
     bool TextAutomationPeer::IsControlElementCore() const { return true; }
 
     bool TextAutomationPeer::IsContentElementCore() const { return true; }
+
+    winrt::Windows::Foundation::IInspectable TextAutomationPeer::GetPatternCore(peers::PatternInterface const& pattern) const
+    {
+        if (pattern == peers::PatternInterface::Invoke && IsButton()) return *this;
+        return TextAutomationPeerT<TextAutomationPeer>::GetPatternCore(pattern);
+    }
+
+    void TextAutomationPeer::Invoke()
+    {
+        if (auto owner = m_owner.get(); owner && IsButton())
+        {
+            winrt::get_self<implementation::Text>(owner)->RaiseInvoked();
+        }
+    }
 }

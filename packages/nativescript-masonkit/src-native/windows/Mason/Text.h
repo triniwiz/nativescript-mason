@@ -31,8 +31,19 @@ namespace winrt::NativeScript::Mason::implementation
 
     struct Text : TextT<Text>
     {
+        struct ButtonTag {};
+
         Text();
+        explicit Text(ButtonTag);
         ~Text();
+
+        static winrt::NativeScript::Mason::Text CreateButton();
+        bool IsButton() const { return m_isButton; }
+        bool DimsWhenPressed() const { return m_dimsWhenPressed; }
+        void DimsWhenPressed(bool value) { m_dimsWhenPressed = value; }
+        winrt::event_token Invoked(winrt::Microsoft::UI::Xaml::RoutedEventHandler const& handler) { return m_invoked.add(handler); }
+        void Invoked(winrt::event_token const& token) noexcept { m_invoked.remove(token); }
+        void RaiseInvoked();
 
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
@@ -160,6 +171,8 @@ namespace winrt::NativeScript::Mason::implementation
         static void SetWrap(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, bool wrap);
         void StoreMinContentRuns(std::vector<BuiltRun> const& runs);
 
+        void Init(winrt::NativeScript::Mason::Node const& node);
+        void AnimatePress(bool pressed);
         void InitTextBlock();
         void InitDirect();
         void BuildParagraph(Resolved const& container, std::vector<BuiltRun> const& runs);
@@ -167,6 +180,10 @@ namespace winrt::NativeScript::Mason::implementation
         void HideSprite();
 
         std::vector<BuiltRun> m_builtRuns;
+        bool m_isButton{ false };
+        bool m_pressed{ false };
+        bool m_dimsWhenPressed{ true };
+        winrt::event<winrt::Microsoft::UI::Xaml::RoutedEventHandler> m_invoked;
         bool m_direct{ false };
         // Paragraph formatting changed without the runs changing.
         bool m_paragraphDirty{ false };

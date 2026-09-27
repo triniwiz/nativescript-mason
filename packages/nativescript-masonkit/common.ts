@@ -10,6 +10,7 @@ import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadius
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
+import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { Style as MasonStyle, Style } from './style';
 import {
   alignContentProperty,
@@ -314,6 +315,26 @@ function backgroundImageToCssString(value: unknown): string {
     return `linear-gradient(${gradient.angle}rad, ${stops.join(', ')})`;
   }
   return value == null ? 'none' : String(value);
+}
+
+// Windows raises no pressed state natively, so :active follows the pointer, as core's Button does.
+const WINDOWS_ACTIVE_STATES = ['active', 'highlighted'];
+
+function onWindowsActiveTouch(args: TouchGestureEventData) {
+  if (args.action === 'down') {
+    for (const state of WINDOWS_ACTIVE_STATES) (args.object as any)._addVisualState(state);
+  } else if (args.action === 'up' || args.action === 'cancel') {
+    clearWindowsActive(args.object);
+  }
+}
+
+// Core's touch gesture reports no cancel, and a release outside the view isn't delivered to it.
+function onWindowsActiveLeave(args: EventData) {
+  clearWindowsActive(args.object);
+}
+
+function clearWindowsActive(view: any) {
+  for (const state of WINDOWS_ACTIVE_STATES) view._removeVisualState(state);
 }
 
 const TEARDOWN_SLICE_MS = 8;
@@ -723,6 +744,21 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const styles = compile(this);
     //@ts-ignore
     this._applyPseudoClassStyles('active', this._view, styles);
+
+    if (__WINDOWS__) {
+      if (subscribe) {
+        this.on('touch', onWindowsActiveTouch);
+        this.on('mouseLeave', onWindowsActiveLeave);
+      } else {
+        this.off('touch', onWindowsActiveTouch);
+        this.off('mouseLeave', onWindowsActiveLeave);
+        clearWindowsActive(this);
+      }
+      // A button dims while held only when it has no :active style of its own.
+      // @ts-ignore
+      const view = this._view;
+      if (view?.IsButton) view.DimsWhenPressed = !subscribe;
+    }
   }
 
   @PseudoClassHandler('disabled')

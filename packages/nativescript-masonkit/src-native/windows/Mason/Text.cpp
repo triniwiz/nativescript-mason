@@ -10,6 +10,10 @@
 #include <winrt/Windows.UI.Text.h>
 #include <winrt/Microsoft.UI.Xaml.Documents.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <winrt/Microsoft.UI.Xaml.Hosting.h>
+#include <winrt/Microsoft.UI.Xaml.Input.h>
+#include <winrt/Windows.System.h>
+#include <winrt/Microsoft.UI.Composition.h>
 #include <winrt/NativeScript.FontManager.h>
 #include <string>
 #include <unordered_map>
@@ -34,6 +38,7 @@ namespace
     namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
     namespace muxd = winrt::Microsoft::UI::Xaml::Documents;
     namespace muxm = winrt::Microsoft::UI::Xaml::Media;
+    namespace muxi = winrt::Microsoft::UI::Xaml::Input;
 
     
     // Width for a Taffy measure request: the known width, else 0 for MinContent (-1), else the definite
@@ -526,8 +531,84 @@ namespace winrt::NativeScript::Mason::implementation
 
     Text::Text()
     {
+        Init(nsm::Mason::Instance().CreateTextNode(false));
+    }
+
+    Text::Text(ButtonTag) : m_isButton(true)
+    {
+        Init(nsm::Mason::Instance().CreateButtonNode());
+        IsTabStop(true);
+        UseSystemFocusVisuals(true);
+
+        // Handled events too: a gesture handler may claim the pointer.
+        auto pressed = muxi::PointerEventHandler([this](auto&&, auto&&) { AnimatePress(true); });
+        auto released = muxi::PointerEventHandler([this](auto&&, auto&&) { AnimatePress(false); });
+        AddHandler(mux::UIElement::PointerPressedEvent(), winrt::box_value(pressed), true);
+        AddHandler(mux::UIElement::PointerReleasedEvent(), winrt::box_value(released), true);
+        AddHandler(mux::UIElement::PointerCanceledEvent(), winrt::box_value(released), true);
+        AddHandler(mux::UIElement::PointerCaptureLostEvent(), winrt::box_value(released), true);
+        AddHandler(mux::UIElement::PointerExitedEvent(), winrt::box_value(released), true);
+
+        // As XAML buttons: Enter activates on key down, Space on release.
+        KeyDown([this](auto&&, muxi::KeyRoutedEventArgs const& e)
+        {
+            if (e.Key() == winrt::Windows::System::VirtualKey::Enter)
+            {
+                e.Handled(true);
+                RaiseInvoked();
+            }
+            else if (e.Key() == winrt::Windows::System::VirtualKey::Space)
+            {
+                e.Handled(true);
+                AnimatePress(true);
+            }
+        });
+        KeyUp([this](auto&&, muxi::KeyRoutedEventArgs const& e)
+        {
+            if (e.Key() != winrt::Windows::System::VirtualKey::Space || !m_pressed) return;
+            e.Handled(true);
+            AnimatePress(false);
+            RaiseInvoked();
+        });
+        LostFocus([this](auto&&, auto&&) { AnimatePress(false); });
+    }
+
+    void Text::RaiseInvoked()
+    {
+        m_invoked(*this, mux::RoutedEventArgs());
+    }
+
+    // 0.98 while held, as on iOS; dimmed unless :active is styled.
+    void Text::AnimatePress(bool pressed)
+    {
+        if (pressed == m_pressed) return;
+        m_pressed = pressed;
+        auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(*this);
+        auto compositor = visual.Compositor();
+        auto size = ActualSize();
+        visual.CenterPoint({ size.x / 2.0f, size.y / 2.0f, 0.0f });
+
+        const float scale = pressed ? 0.98f : 1.0f;
+        auto scaleAnimation = compositor.CreateVector3KeyFrameAnimation();
+        scaleAnimation.InsertKeyFrame(1.0f, { scale, scale, 1.0f });
+        scaleAnimation.Duration(std::chrono::milliseconds(80));
+        visual.StartAnimation(L"Scale", scaleAnimation);
+
+        auto opacityAnimation = compositor.CreateScalarKeyFrameAnimation();
+        opacityAnimation.InsertKeyFrame(1.0f, pressed && m_dimsWhenPressed ? 0.85f : 1.0f);
+        opacityAnimation.Duration(std::chrono::milliseconds(80));
+        visual.StartAnimation(L"Opacity", opacityAnimation);
+    }
+
+    nsm::Text Text::CreateButton()
+    {
+        return winrt::make<Text>(ButtonTag{});
+    }
+
+    void Text::Init(nsm::Node const& node)
+    {
         m_engine = nsm::Mason::Instance();
-        m_node = m_engine.CreateTextNode(false);
+        m_node = node;
         m_direct = g_directWrite && mason_atlas::Available();
         if (m_direct) InitDirect();
         else InitTextBlock();
@@ -1205,8 +1286,8 @@ namespace winrt::NativeScript::Mason::implementation
 
     winrt::Microsoft::UI::Xaml::Automation::Peers::AutomationPeer Text::OnCreateAutomationPeer()
     {
-        // A TextBlock child speaks for itself.
-        if (!m_direct) return base_type::OnCreateAutomationPeer();
+        // A TextBlock child speaks for itself, but not as a button.
+        if (!m_direct && !m_isButton) return base_type::OnCreateAutomationPeer();
         return winrt::make<implementation::TextAutomationPeer>(get_strong().as<nsm::Text>());
     }
 

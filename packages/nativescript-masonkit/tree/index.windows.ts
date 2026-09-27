@@ -60,7 +60,7 @@ export class Tree {
   }
 
   createButtonView() {
-    return new NativeScript.Mason.Button();
+    return NativeScript.Mason.Text.CreateButton();
   }
 
   createBr() {

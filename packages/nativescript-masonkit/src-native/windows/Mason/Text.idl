@@ -7,6 +7,13 @@ namespace NativeScript.Mason
     runtimeclass Text : Microsoft.UI.Xaml.Controls.Panel, NativeScript.Mason.IMasonElement
     {
         Text();
+        // A button: laid out as a button node, focusable, and exposed with the button role.
+        static Text CreateButton();
+        Boolean IsButton{ get; };
+        // Dims a held button; off when it styles :active itself.
+        Boolean DimsWhenPressed;
+        // A button activated by Enter, Space or UI Automation's Invoke.
+        event Microsoft.UI.Xaml.RoutedEventHandler Invoked;
         Node Node{ get; };
         Style Style{ get; };
         String Content;

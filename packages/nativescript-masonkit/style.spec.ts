@@ -3,7 +3,7 @@ import { styleUnderTest, type StyleUnderTest } from '../../tools/testing/mason-t
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseTextDecoration, parseTextDecorationLine, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -398,5 +398,27 @@ describe('text-decoration parsing', () => {
     expect(textDecorationLineToCss(5)).toBe('underline line-through');
     expect(textDecorationLineToCss(0)).toBe('none');
     expect(parseTextDecorationLine('sideways')).toBeNull();
+  });
+});
+
+describe('parseLinearGradientCss', () => {
+  it('separates the interpolation method from the direction', () => {
+    const g = parseLinearGradientCss('linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)');
+    expect(g?.angle).toBe(135);
+    expect(g?.interpolation).toBe('oklab');
+    expect(g?.colors.length).toBe(2);
+    expect(g?.offsets).toEqual([0, 1]);
+  });
+
+  it('accepts the method before the direction, alone, or with a hue method', () => {
+    expect(parseLinearGradientCss('linear-gradient(in oklch to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: 'oklch' });
+    expect(parseLinearGradientCss('linear-gradient(in oklab, #f00, #00f)')).toMatchObject({ angle: 180, interpolation: 'oklab' });
+    const hue = parseLinearGradientCss('linear-gradient(90deg in oklch longer hue, #f00, #00f)');
+    expect(hue).toMatchObject({ angle: 90, interpolation: 'oklch longer hue' });
+    expect(hue?.colors.length).toBe(2);
+  });
+
+  it('leaves gradients without a method interpolating in sRGB', () => {
+    expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: '' });
   });
 });

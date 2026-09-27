@@ -207,8 +207,8 @@ declare namespace NativeScript.Mason {
     static ClearClip(element: any): void;
     static CreateShadow(width: number, height: number, blurRadius: number, spread: number, cornerRadius: number, offsetX: number, offsetY: number, argb: number): CssImageResult;
     static CreateBorder(width: number, height: number, topWidth: number, rightWidth: number, bottomWidth: number, leftWidth: number, topArgb: number, rightArgb: number, bottomArgb: number, leftArgb: number, cornerRadius: number): CssImageResult;
-    static ApplyLinearGradient(element: any, angleDegrees: number, stops: string): void;
-    static ApplyRadialGradient(element: any, stops: string): void;
+    static ApplyLinearGradient(element: any, angleDegrees: number, stops: string, interpolation: string): void;
+    static ApplyRadialGradient(element: any, stops: string, interpolation: string): void;
     static ReparentChild(parent: any, child: any, index: number): void;
     static RemoveChild(parent: any, child: any): void;
     static ApplyShadow(element: any, offsetX: number, offsetY: number, blurRadius: number, argb: number, cornerRadius: number): void;
@@ -230,6 +230,13 @@ declare namespace NativeScript.Mason {
   // Text leaf — hosts a TextBlock; Mason text node sized from the text's natural size.
   class Text /* Panel, IMasonElement */ {
     constructor();
+    // A button: laid out as a button node, focusable, and exposed with the button role.
+    static CreateButton(): Text;
+    readonly IsButton: boolean;
+    // Dims a held button; off when it styles :active itself.
+    DimsWhenPressed: boolean;
+    // A button activated by Enter, Space or UI Automation's Invoke (a RoutedEventHandler).
+    Invoked: any;
     static DirectWrite: boolean;
     // Scale text with the Windows "Text size" setting as XAML text does (on by default).
     static IsTextScaleFactorEnabled: boolean;
