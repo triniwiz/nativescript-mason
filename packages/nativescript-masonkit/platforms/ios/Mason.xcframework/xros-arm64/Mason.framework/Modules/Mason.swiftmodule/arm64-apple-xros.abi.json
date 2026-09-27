@@ -100407,793 +100407,1311 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 2763,
+      "offset": 2810,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 2785,
+      "offset": 2832,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "BooleanLiteral",
-      "offset": 2988,
+      "offset": 3035,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 4161,
+      "offset": 4208,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 4194,
+      "offset": 4241,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 5303,
+      "offset": 5350,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 6195,
+      "offset": 6242,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 6561,
+      "offset": 6608,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 11697,
+      "offset": 11744,
       "length": 9,
       "value": "\"crimson\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11721,
+      "offset": 11768,
       "length": 3,
       "value": "220"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11725,
+      "offset": 11772,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11737,
+      "offset": 11784,
       "length": 2,
       "value": "20"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11740,
+      "offset": 11787,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11751,
+      "offset": 11798,
       "length": 2,
       "value": "60"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11754,
+      "offset": 11801,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11766,
+      "offset": 11813,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 11772,
+      "offset": 11819,
       "length": 9,
       "value": "\"skyblue\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11796,
+      "offset": 11843,
       "length": 3,
       "value": "135"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11800,
+      "offset": 11847,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11812,
+      "offset": 11859,
       "length": 3,
       "value": "206"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11816,
+      "offset": 11863,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11827,
+      "offset": 11874,
       "length": 3,
       "value": "235"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11831,
+      "offset": 11878,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11843,
+      "offset": 11890,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 11849,
+      "offset": 11896,
       "length": 7,
       "value": "\"black\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 11868,
+      "offset": 11915,
       "length": 8,
       "value": "\"silver\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 11893,
+      "offset": 11940,
       "length": 4,
       "value": "0.75"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11906,
+      "offset": 11953,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 11912,
+      "offset": 11959,
       "length": 6,
       "value": "\"gray\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 11933,
-      "length": 3,
-      "value": "128"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 11937,
-      "length": 3,
-      "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 11949,
-      "length": 3,
-      "value": "128"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 11953,
-      "length": 3,
-      "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 11964,
-      "length": 3,
-      "value": "128"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 11968,
-      "length": 3,
-      "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
       "offset": 11980,
-      "length": 1,
-      "value": "1"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "StringLiteral",
-      "offset": 11986,
-      "length": 6,
-      "value": "\"grey\""
+      "length": 3,
+      "value": "128"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12007,
+      "offset": 11984,
+      "length": 3,
+      "value": "255"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 11996,
       "length": 3,
       "value": "128"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12000,
+      "length": 3,
+      "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
       "offset": 12011,
       "length": 3,
-      "value": "255"
+      "value": "128"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12023,
+      "offset": 12015,
       "length": 3,
-      "value": "128"
+      "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
       "offset": 12027,
-      "length": 3,
-      "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12038,
-      "length": 3,
-      "value": "128"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12042,
-      "length": 3,
-      "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12054,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12060,
+      "offset": 12033,
+      "length": 6,
+      "value": "\"grey\""
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12054,
+      "length": 3,
+      "value": "128"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12058,
+      "length": 3,
+      "value": "255"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12070,
+      "length": 3,
+      "value": "128"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12074,
+      "length": 3,
+      "value": "255"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12085,
+      "length": 3,
+      "value": "128"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12089,
+      "length": 3,
+      "value": "255"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12101,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "StringLiteral",
+      "offset": 12107,
       "length": 7,
       "value": "\"white\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12079,
+      "offset": 12126,
       "length": 8,
       "value": "\"maroon\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12102,
+      "offset": 12149,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12114,
+      "offset": 12161,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12123,
+      "offset": 12170,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12133,
+      "offset": 12180,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12139,
+      "offset": 12186,
       "length": 5,
       "value": "\"red\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12154,
+      "offset": 12201,
       "length": 8,
       "value": "\"purple\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12177,
+      "offset": 12224,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12189,
+      "offset": 12236,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12198,
+      "offset": 12245,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12210,
+      "offset": 12257,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12216,
+      "offset": 12263,
       "length": 9,
       "value": "\"fuchsia\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12239,
+      "offset": 12286,
       "length": 7,
       "value": "\"green\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12261,
+      "offset": 12308,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12271,
+      "offset": 12318,
       "length": 3,
       "value": "128"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12275,
+      "offset": 12322,
       "length": 3,
       "value": "255"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12286,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12296,
-      "length": 1,
-      "value": "1"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "StringLiteral",
-      "offset": 12302,
-      "length": 6,
-      "value": "\"lime\""
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12323,
-      "length": 1,
-      "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
       "offset": 12333,
       "length": 1,
-      "value": "1"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
-      "kind": "IntegerLiteral",
-      "offset": 12342,
-      "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12352,
+      "offset": 12343,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12358,
+      "offset": 12349,
+      "length": 6,
+      "value": "\"lime\""
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12370,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12380,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12389,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 12399,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "StringLiteral",
+      "offset": 12405,
       "length": 7,
       "value": "\"olive\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12380,
+      "offset": 12427,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12392,
+      "offset": 12439,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12403,
+      "offset": 12450,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12413,
+      "offset": 12460,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12419,
+      "offset": 12466,
       "length": 8,
       "value": "\"yellow\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12440,
+      "offset": 12487,
       "length": 6,
       "value": "\"navy\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12461,
+      "offset": 12508,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12471,
+      "offset": 12518,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12480,
+      "offset": 12527,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12492,
+      "offset": 12539,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12498,
+      "offset": 12545,
       "length": 6,
       "value": "\"blue\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12515,
+      "offset": 12562,
       "length": 6,
       "value": "\"teal\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12536,
+      "offset": 12583,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12546,
+      "offset": 12593,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12557,
+      "offset": 12604,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12569,
+      "offset": 12616,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12575,
+      "offset": 12622,
       "length": 6,
       "value": "\"aqua\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12592,
+      "offset": 12639,
       "length": 8,
       "value": "\"orange\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12615,
+      "offset": 12662,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12625,
+      "offset": 12672,
       "length": 3,
       "value": "165"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12629,
+      "offset": 12676,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12640,
+      "offset": 12687,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12650,
+      "offset": 12697,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12656,
+      "offset": 12703,
       "length": 7,
       "value": "\"brown\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12678,
+      "offset": 12725,
       "length": 4,
       "value": "0.65"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12691,
+      "offset": 12738,
       "length": 4,
       "value": "0.16"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "FloatLiteral",
-      "offset": 12703,
+      "offset": 12750,
       "length": 4,
       "value": "0.16"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12716,
+      "offset": 12763,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12722,
+      "offset": 12769,
       "length": 6,
       "value": "\"pink\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12743,
+      "offset": 12790,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12753,
+      "offset": 12800,
       "length": 3,
       "value": "192"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12757,
+      "offset": 12804,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12768,
+      "offset": 12815,
       "length": 3,
       "value": "203"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12772,
+      "offset": 12819,
       "length": 3,
       "value": "255"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "IntegerLiteral",
-      "offset": 12784,
+      "offset": 12831,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12790,
+      "offset": 12837,
       "length": 13,
       "value": "\"transparent\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 12815,
+      "offset": 12862,
       "length": 6,
       "value": "\"cyan\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 14566,
+      "offset": 14613,
       "length": 47,
       "value": "[\"repeat\", \"repeat-x\", \"repeat-y\", \"no-repeat\"]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 14655,
+      "offset": 14702,
       "length": 44,
       "value": "[\"top\", \"bottom\", \"left\", \"right\", \"center\"]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 14740,
+      "offset": 14787,
       "length": 44,
       "value": "[\"border-box\", \"padding-box\", \"content-box\"]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "Array",
-      "offset": 14832,
+      "offset": 14879,
       "length": 28,
       "value": "[\"scroll\", \"fixed\", \"local\"]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 26648,
+      "offset": 27076,
       "length": 26,
       "value": "\"url\\([\"']?(.*?)[\"']?\\)\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "StringLiteral",
-      "offset": 26775,
+      "offset": 27203,
       "length": 24,
       "value": "\"url\\([\"']?.*?[\"']?\\)\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
       "kind": "BooleanLiteral",
-      "offset": 27757,
+      "offset": 28185,
       "length": 5,
       "value": "false"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "StringLiteral",
+      "offset": 31873,
+      "length": 13,
+      "value": "\"srgb-linear\""
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "StringLiteral",
+      "offset": 31921,
+      "length": 9,
+      "value": "\"xyz-d65\""
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "StringLiteral",
+      "offset": 31941,
+      "length": 9,
+      "value": "\"xyz-d50\""
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 33358,
+      "length": 1,
+      "value": "8"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 34923,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 34945,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 34997,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35001,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35053,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35057,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35102,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35234,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35289,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35462,
+      "length": 3,
+      "value": "180"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35478,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35496,
+      "length": 4,
+      "value": "-180"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35513,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35544,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35553,
+      "length": 3,
+      "value": "180"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35569,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35587,
+      "length": 4,
+      "value": "-180"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35600,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35614,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35649,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35663,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35698,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35712,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35740,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35744,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "Array",
+      "offset": 35875,
+      "length": 15,
+      "value": "[0.0, 0.0, 0.0]"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35902,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35906,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 35977,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36017,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36078,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36085,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36122,
+      "length": 3,
+      "value": "360"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36206,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36210,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36233,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 36237,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "Array",
+      "offset": 36607,
+      "length": 206,
+      "value": "[[0.41239079926595934, 0.357584339383878, 0.1804807884018343], [0.21263900587151027, 0.715168678767756, 0.07219231536073371], [0.01933081871559182, 0.11919477979462598, 0.9505321522496607]]"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "Array",
+      "offset": 36865,
+      "length": 209,
+      "value": "[[3.2409699419045226, -1.537383177570094, -0.4986107602930034], [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559], [0.05563007969699366, -0.20397695888897652, 1.0569715142428786]]"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "Array",
+      "offset": 37119,
+      "length": 215,
+      "value": "[[1.0479298208405488, 0.022946793341019088, -0.05019222954313557], [0.029627815688159344, 0.990434484573249, -0.01707382502938514], [-0.009243058152591178, 0.015055144896577895, 0.7518742899580008]]"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "Array",
+      "offset": 37379,
+      "length": 216,
+      "value": "[[0.9554734527042182, -0.023098536874261423, 0.0632593086610217], [-0.028369706963208136, 1.0099954580106629, 0.021041398966943008], [0.012314001688319899, -0.020507696433477912, 1.3303659366080753]]"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37639,
+      "length": 6,
+      "value": "0.3457"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37648,
+      "length": 6,
+      "value": "0.3585"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 37656,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 37660,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37664,
+      "length": 6,
+      "value": "0.3457"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37673,
+      "length": 6,
+      "value": "0.3585"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37683,
+      "length": 6,
+      "value": "0.3585"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37719,
+      "length": 5,
+      "value": "216.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37727,
+      "length": 7,
+      "value": "24389.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37763,
+      "length": 7,
+      "value": "24389.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 37773,
+      "length": 4,
+      "value": "27.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 41857,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 41869,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 41881,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 41960,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 41994,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "FloatLiteral",
+      "offset": 42010,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42026,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42046,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42056,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42061,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42083,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42136,
+      "length": 1,
+      "value": "6"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42140,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42187,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42222,
+      "length": 1,
+      "value": "4"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42237,
+      "length": 2,
+      "value": "60"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42265,
+      "length": 3,
+      "value": "100"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/BackgroundParser.swift",
+      "kind": "IntegerLiteral",
+      "offset": 42274,
+      "length": 3,
+      "value": "100"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/input\/MasonRadioInput.swift",
