@@ -1,7 +1,9 @@
 #pragma once
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <unordered_set>
 #include <vector>
 
@@ -47,5 +49,21 @@ namespace mason_leaf
         std::memcpy(&wb, &w, sizeof(uint32_t));
         std::memcpy(&hb, &h, sizeof(uint32_t));
         return static_cast<int64_t>((static_cast<uint64_t>(wb) << 32) | static_cast<uint64_t>(hb));
+    }
+
+    // The known size, else the available space. XAML clamps DesiredSize to the constraint, so the
+    // engine's -1 (min-content) and -2 (max-content) are measured unconstrained instead.
+    inline float XamlConstraint(float known, float available)
+    {
+        if (!std::isnan(known)) return known;
+        if (std::isnan(available) || available < 0.0f) return std::numeric_limits<float>::infinity();
+        return available;
+    }
+
+    inline int64_t MeasureXaml(winrt::Microsoft::UI::Xaml::UIElement const& element, float kw, float kh, float aw, float ah)
+    {
+        element.Measure(winrt::Windows::Foundation::Size{ XamlConstraint(kw, aw), XamlConstraint(kh, ah) });
+        auto d = element.DesiredSize();
+        return PackMeasure(d.Width, d.Height);
     }
 }

@@ -27,11 +27,7 @@ namespace winrt::NativeScript::Mason::implementation
         {
             auto b = weak.get();
             if (!b) return mason_leaf::PackMeasure(0.0f, 0.0f);
-            float w = std::isnan(kw) ? aw : kw;
-            float h = std::isnan(kh) ? ah : kh;
-            b.Measure(Size{ w, h });
-            auto d = b.DesiredSize();
-            return mason_leaf::PackMeasure(d.Width, d.Height);
+            return mason_leaf::MeasureXaml(b, kw, kh, aw, ah);
         };
         m_node.SetMeasure(cb);
     }

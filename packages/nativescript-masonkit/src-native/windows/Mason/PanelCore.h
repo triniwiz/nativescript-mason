@@ -94,11 +94,7 @@ namespace mason_panel
                 {
                     auto c = weak.get();
                     if (!c) return mason_leaf::PackMeasure(0.0f, 0.0f);
-                    float w = std::isnan(kw) ? aw : kw;
-                    float h = std::isnan(kh) ? ah : kh;
-                    c.Measure(winrt::Windows::Foundation::Size{ w, h });
-                    auto d = c.DesiredSize();
-                    return mason_leaf::PackMeasure(d.Width, d.Height);
+                    return mason_leaf::MeasureXaml(c, kw, kh, aw, ah);
                 };
                 leaf.SetMeasure(cb);
             }
