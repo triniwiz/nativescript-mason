@@ -1073,7 +1073,10 @@ pub extern "C" fn mason_style_set_box_size(
         let mason = &mut (*mason).0;
         let node = &(*node);
         mason.with_style_mut(node.0.id(), |style| {
-            style.set_size(Size { width: size(width_type, width_value), height: size(height_type, height_value) });
+            style.set_size(Size {
+                width: size(width_type, width_value),
+                height: size(height_type, height_value),
+            });
             style.set_min_size(Size {
                 width: size(min_width_type, min_width_value),
                 height: size(min_height_type, min_height_value),
