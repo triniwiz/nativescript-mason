@@ -178,6 +178,9 @@ declare namespace NativeScript.Mason {
     StyleValues(element: IMasonElement): any;
     ReparentChild(parent: any, child: any, index: number): void;
     RemoveChild(parent: any, child: any): void;
+    // Percentage size (0-1, NaN clears) of a core (non-Mason) child.
+    SetPercentWidth(element: any, fraction: number): void;
+    SetPercentHeight(element: any, fraction: number): void;
   }
 
   // Implemented by every Mason element (View + the leaf controls). A parent View pulls any child's

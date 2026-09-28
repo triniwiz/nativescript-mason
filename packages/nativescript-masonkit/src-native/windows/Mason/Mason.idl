@@ -39,5 +39,10 @@ namespace NativeScript.Mason
         // Css.ReparentChild / Css.RemoveChild.
         void ReparentChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child, Int32 index);
         void RemoveChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child);
+
+        // Percentage width/height (a 0-1 fraction, NaN to clear) of a non-Mason child, resolved
+        // against its containing block.
+        void SetPercentWidth(Microsoft.UI.Xaml.UIElement element, Single fraction);
+        void SetPercentHeight(Microsoft.UI.Xaml.UIElement element, Single fraction);
     }
 }

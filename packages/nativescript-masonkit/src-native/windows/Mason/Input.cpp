@@ -36,11 +36,7 @@ namespace winrt::NativeScript::Mason::implementation
         nsm::MeasureFunc cb = [this](float kw, float kh, float aw, float ah) -> int64_t
         {
             if (!m_control) return mason_leaf::PackMeasure(0.0f, 0.0f);
-            float w = std::isnan(kw) ? aw : kw;
-            float h = std::isnan(kh) ? ah : kh;
-            m_control.Measure(Size{ w, h });
-            auto d = m_control.DesiredSize();
-            return mason_leaf::PackMeasure(d.Width, d.Height);
+            return mason_leaf::MeasureXaml(m_control, kw, kh, aw, ah);
         };
         m_node.SetMeasure(cb);
     }

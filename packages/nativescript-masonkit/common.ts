@@ -848,6 +848,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     });
   }
 
+  /**
+   * Windows core hands a child's percentage width/height here instead of applying it itself, so the
+   * layout resolves it against the containing block. `false` when core should handle it.
+   */
+  _setChildPercentSize(child: any, horizontal: boolean, fraction: number | null): boolean {
+    const nativeChild = child?.nativeViewProtected;
+    if (!__WINDOWS__ || !nativeChild || child[isMasonView_]) return false;
+    const value = fraction ?? NaN;
+    if (horizontal) masonEngine().SetPercentWidth(nativeChild, value);
+    else masonEngine().SetPercentHeight(nativeChild, value);
+    return true;
+  }
+
   /** Lay out the non-Mason views in this root's subtree from the frames Mason set. */
   _masonLayoutForeignDescendants(): void {
     if (!__APPLE__) return;
