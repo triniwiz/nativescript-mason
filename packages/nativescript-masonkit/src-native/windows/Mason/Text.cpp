@@ -648,13 +648,14 @@ namespace winrt::NativeScript::Mason::implementation
             if (!layout) return mason_leaf::PackMeasure(0.0f, 0.0f);
             const float slack = SlackFor(mason_visual::g_computeScale);
             const Size d = AnswerMeasure(c, kw, aw,
-                [layout, slack](float width) -> Size
+                [layout, slack, &c](float width) -> Size
                 {
                     // At the width it's drawn at, with the slack ArrangeDirect gives it.
-                    const auto m = mason_dwrite::LayOut(layout, std::isfinite(width) ? width + slack : width);
+                    const bool wrap = std::isfinite(width) && !c.noWrap;
+                    const auto m = mason_dwrite::LayOut(layout, wrap ? width + slack : std::numeric_limits<float>::infinity());
                     return { m.width, m.height };
                 },
-                [layout](auto const&) { return mason_dwrite::MinContentWidth(layout); });
+                [layout, &c](auto const& maxContent) { return c.noWrap ? maxContent().Width : mason_dwrite::MinContentWidth(layout); });
             return mason_leaf::PackMeasure(d.Width, d.Height);
         };
         m_node.SetMeasure(cb);
@@ -697,12 +698,12 @@ namespace winrt::NativeScript::Mason::implementation
             const Size d = AnswerMeasure(c, kw, aw,
                 [&](float width) -> Size
                 {
-                    LayOut(t, c, width);
+                    LayOut(t, c, c.noWrap ? std::numeric_limits<float>::infinity() : width);
                     return t.DesiredSize();
                 },
                 [&](auto const& maxContent) -> float
                 {
-                    if (c.breaks < 0) c.breaks = HasBreakOpportunity(c.runs) ? 1 : 0;
+                    if (c.breaks < 0) c.breaks = !c.noWrap && HasBreakOpportunity(c.runs) ? 1 : 0;
                     return c.breaks ? MinContentWidth(t, c.runs) : maxContent().Width;
                 });
             return mason_leaf::PackMeasure(d.Width, d.Height);
@@ -722,7 +723,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::LayOut(muxc::TextBlock const& block, MeasureCache& cache, float width)
     {
-        SetWrap(block, cache, std::isfinite(width));
+        SetWrap(block, cache, std::isfinite(width) && !cache.noWrap);
         block.Measure(Size{ width + OnePixel(block), std::numeric_limits<float>::infinity() });
         cache.laidOutWidth = width;
     }
@@ -880,6 +881,10 @@ namespace winrt::NativeScript::Mason::implementation
         // value byte alone is the reliable source.)
         m_textAlign = u8(374);
         m_measureCache->startAligned = m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
+        // WHITE_SPACE byte at 370 (1 pre, 4 nowrap) / 371, TEXT_WRAP at 368 (1 nowrap) / 369,
+        // TEXT_OVERFLOW at 396 (1 ellipsis) / 397.
+        m_measureCache->noWrap = (u8(371) && (u8(370) == 1 || u8(370) == 4)) || (u8(369) && u8(368) == 1);
+        m_ellipsis = u8(397) && u8(396) == 1;
 
         if (m_direct)
         {
@@ -900,6 +905,7 @@ namespace winrt::NativeScript::Mason::implementation
             m_text.FontStyle(m_fontStyle == 1 ? FontStyle::Italic : m_fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
         }
         m_text.TextDecorations(m_decorations);
+        m_text.TextTrimming(m_ellipsis && m_measureCache->noWrap ? mux::TextTrimming::CharacterEllipsis : mux::TextTrimming::None);
         if (m_lineHeightMultiplier > 0.0)
         {
             m_text.LineHeight(m_lineHeightMultiplier * m_text.FontSize());
@@ -1056,6 +1062,7 @@ namespace winrt::NativeScript::Mason::implementation
         }
         // A length line-height stays as it is, as XAML leaves LineHeight unscaled.
         p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * p.fontSize);
+        p.ellipsis = m_ellipsis && m_measureCache->noWrap;
 
         using winrt::Windows::UI::Text::TextDecorations;
         for (auto const& b : runs)
@@ -1163,10 +1170,10 @@ namespace winrt::NativeScript::Mason::implementation
         {
             IDWriteTextLayout* layout = m_measureCache->Layout();
             if (!layout) return Size{ 0, 0 };
-            const auto m = mason_dwrite::LayOut(layout, available.Width);
+            const auto m = mason_dwrite::LayOut(layout, m_measureCache->noWrap ? std::numeric_limits<float>::infinity() : available.Width);
             return Size{ m.width, m.height };
         }
-        SetWrap(m_text, *m_measureCache, std::isfinite(available.Width));
+        SetWrap(m_text, *m_measureCache, std::isfinite(available.Width) && !m_measureCache->noWrap);
         m_text.Measure(available);
         return m_text.DesiredSize();
     }
@@ -1205,10 +1212,12 @@ namespace winrt::NativeScript::Mason::implementation
         }
 
         // An unwrapped line that fits needs no breaking, and a start-aligned one no box either, so it
-        // keeps the unbounded width it was measured at.
-        const bool wrap = width + slack < c.max.Width;
+        // keeps the unbounded width it was measured at. A line that can't wrap overflows, or is
+        // trimmed at the box.
+        const bool overflows = width + slack < c.max.Width;
+        const bool wrap = overflows && !c.noWrap;
         const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING;
-        const float maxWidth = wrap ? width + slack : leading ? mason_dwrite::kUnbounded : width;
+        const float maxWidth = wrap || (overflows && c.paragraph.ellipsis) ? width + slack : leading ? mason_dwrite::kUnbounded : width;
         mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth);
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS overhang{};

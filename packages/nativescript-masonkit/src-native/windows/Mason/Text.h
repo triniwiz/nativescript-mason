@@ -144,6 +144,8 @@ namespace winrt::NativeScript::Mason::implementation
             bool startAligned{ true };
             // The TextBlock's TextWrapping, which follows the width it's laid out at.
             bool wrap{ false };
+            // white-space: nowrap or pre, or text-wrap: nowrap: one line at any width.
+            bool noWrap{ false };
             std::vector<MinContentRun> runs;
 
             // DirectWrite: the paragraph, and its layout built on first use. The version changes with
@@ -230,6 +232,8 @@ namespace winrt::NativeScript::Mason::implementation
         double m_lineHeightPx{ 0.0 };
         // TEXT_ALIGN byte: 1 left, 2 right, 3 center, 4 justify, 5 start, 6 end.
         uint8_t m_textAlign{ 0 };
+        // text-overflow: ellipsis, which applies to unwrapped text.
+        bool m_ellipsis{ false };
         double m_letterSpacingPx{ 0.0 };
         winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
         winrt::hstring m_fontFamily{};
