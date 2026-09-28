@@ -183,8 +183,12 @@ function masonNativeEventName(eventName: string): string | null {
     case 'tap':
     case 'click':
       return 'click';
+    case 'beforeinput':
     case 'input':
     case 'change':
+    case 'focus':
+    case 'blur':
+    case 'keydown':
       return eventName;
     default:
       return null;
@@ -545,12 +549,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           invoke(event: org.nativescript.mason.masonkit.events.Event) {
             const owner = ref.get();
             if (owner) {
-              let ret;
-              if (arg === 'input') {
-                ret = new InputEvent();
-              } else {
-                ret = new Event();
-              }
+              const ret: any = wrapNativeEvent(arg);
               ret[native_] = event;
               ret._target = owner;
               callback.call(thisArg || owner, ret);
@@ -566,12 +565,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (__APPLE__) {
         //@ts-ignore
         const id = (this._view as NSObject).mason_addEventListener(arg, (event: any) => {
-          let ret;
-          if (arg === 'input') {
-            ret = new InputEvent();
-          } else {
-            ret = new Event();
-          }
+          const ret: any = wrapNativeEvent(arg);
           ret[native_] = event;
           ret._target = this;
           callback.call(thisArg || this, ret);
@@ -610,6 +604,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
             }
             callback['mason:event:id'] = delegate;
           } catch (_) {}
+        } else if (typeof (this as any)._view.AddEventListener === 'function') {
+          const ref = new WeakRef(this);
+          const listener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', (event: any) => {
+            const owner = ref.deref();
+            if (!owner) return;
+            const ret: any = wrapNativeEvent(arg);
+            ret[native_] = event;
+            ret._target = owner;
+            callback.call(thisArg || owner, ret);
+          });
+          callback['mason:event:id'] = (this as any)._view.AddEventListener(arg, listener);
+          // Held so the delegate isn't collected.
+          callback['mason:event:listener'] = listener;
         }
       }
     }
@@ -654,6 +661,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           } catch (_) {}
           callback['mason:event:id'] = undefined;
           callback['mason:event:tapped'] = undefined;
+        } else if (id && typeof (this as any)._view.RemoveEventListener === 'function') {
+          (this as any)._view.RemoveEventListener(arg, id);
+          callback['mason:event:id'] = undefined;
+          callback['mason:event:listener'] = undefined;
         }
       }
     }
@@ -3007,6 +3018,10 @@ export class Event {
       return this[native_]?.bubbles;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.Bubbles ?? false;
+    }
+
     return false;
   }
 
@@ -3017,6 +3032,10 @@ export class Event {
 
     if (__APPLE__) {
       return this[native_]?.cancelable;
+    }
+
+    if (__WINDOWS__) {
+      return this[native_]?.Cancelable ?? false;
     }
 
     return false;
@@ -3031,6 +3050,10 @@ export class Event {
       return this[native_]?.isComposing;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.IsComposing ?? false;
+    }
+
     return false;
   }
 
@@ -3041,6 +3064,10 @@ export class Event {
 
     if (__APPLE__) {
       return this[native_]?.timeStamp;
+    }
+
+    if (__WINDOWS__) {
+      return this[native_]?.TimeStamp ?? 0;
     }
 
     return 0;
@@ -3055,6 +3082,10 @@ export class Event {
       return this[native_]?.defaultPrevented;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.DefaultPrevented ?? false;
+    }
+
     return false;
   }
 
@@ -3067,6 +3098,10 @@ export class Event {
       return this[native_]?.propagationStopped;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.PropagationStopped ?? false;
+    }
+
     return false;
   }
 
@@ -3077,6 +3112,10 @@ export class Event {
 
     if (__APPLE__) {
       return this[native_]?.immediatePropagationStopped;
+    }
+
+    if (__WINDOWS__) {
+      return this[native_]?.ImmediatePropagationStopped ?? false;
     }
 
     return false;
@@ -3097,6 +3136,10 @@ export class Event {
     if (__APPLE__) {
       return this[native_]?.stopImmediatePropagation();
     }
+
+    if (__WINDOWS__) {
+      return this[native_]?.StopImmediatePropagation();
+    }
   }
 
   stopPropagation(): void {
@@ -3107,6 +3150,10 @@ export class Event {
     if (__APPLE__) {
       return this[native_]?.stopPropagation();
     }
+
+    if (__WINDOWS__) {
+      return this[native_]?.StopPropagation();
+    }
   }
 
   preventDefault(): void {
@@ -3116,6 +3163,10 @@ export class Event {
 
     if (__APPLE__) {
       return this[native_]?.preventDefault();
+    }
+
+    if (__WINDOWS__) {
+      return this[native_]?.PreventDefault();
     }
   }
 
@@ -3131,6 +3182,9 @@ export class Event {
     }
     if (__ANDROID__) {
       return this[native_]?.getType();
+    }
+    if (__WINDOWS__) {
+      return this[native_]?.Type;
     }
     return this[native_]?.type;
   }
@@ -3153,6 +3207,14 @@ export class Event {
   }
 
   set target(_: any) {}
+
+  get object(): any {
+    return this['_target'];
+  }
+
+  get eventName(): string {
+    return this.type;
+  }
   set currentTarget(_: any) {}
   set bubbles(_: boolean) {}
   set cancelable(_: boolean) {}
@@ -3196,6 +3258,10 @@ export class InputEvent extends Event {
       return this[native_]?.data;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.Data ?? null;
+    }
+
     return false;
   }
 
@@ -3208,6 +3274,49 @@ export class InputEvent extends Event {
       return this[native_]?.inputType;
     }
 
+    if (__WINDOWS__) {
+      return this[native_]?.InputType ?? '';
+    }
+
     return false;
+  }
+}
+
+/** DOM KeyboardEvent: dispatched on Windows. */
+export class KeyboardEvent extends Event {
+  get key(): string {
+    return this[native_]?.Key ?? '';
+  }
+
+  get repeat(): boolean {
+    return this[native_]?.Repeat ?? false;
+  }
+
+  get ctrlKey(): boolean {
+    return this[native_]?.CtrlKey ?? false;
+  }
+
+  get shiftKey(): boolean {
+    return this[native_]?.ShiftKey ?? false;
+  }
+
+  get altKey(): boolean {
+    return this[native_]?.AltKey ?? false;
+  }
+
+  get metaKey(): boolean {
+    return this[native_]?.MetaKey ?? false;
+  }
+}
+
+function wrapNativeEvent(type: string): Event {
+  switch (type) {
+    case 'beforeinput':
+    case 'input':
+      return new InputEvent();
+    case 'keydown':
+      return new KeyboardEvent();
+    default:
+      return new Event();
   }
 }

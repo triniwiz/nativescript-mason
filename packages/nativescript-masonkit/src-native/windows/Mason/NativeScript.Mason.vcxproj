@@ -113,6 +113,7 @@
     <ClInclude Include="List.h" />
     <ClInclude Include="TextNode.h" />
     <ClInclude Include="TextArea.h" />
+    <ClInclude Include="Event.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="BufferUtil.h" />
     <ClInclude Include="CssImageResult.h" />
@@ -147,6 +148,7 @@
     <ClCompile Include="List.cpp" />
     <ClCompile Include="TextNode.cpp" />
     <ClCompile Include="TextArea.cpp" />
+    <ClCompile Include="Event.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Css.cpp" />
     <ClCompile Include="Diagnostics.cpp" />
@@ -178,6 +180,7 @@
     <Midl Include="List.idl" />
     <Midl Include="TextNode.idl" />
     <Midl Include="TextArea.idl" />
+    <Midl Include="Event.idl" />
     <Midl Include="Input.idl" />
     <Midl Include="CssImageResult.idl" />
     <Midl Include="Css.idl" />

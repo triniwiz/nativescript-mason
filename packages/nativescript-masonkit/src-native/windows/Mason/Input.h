@@ -2,6 +2,7 @@
 #include "Input.g.h"
 #include "Invalidation.h"
 #include "VisualState.h"
+#include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -29,6 +30,9 @@ namespace winrt::NativeScript::Mason::implementation
         hstring Accept() const { return m_accept; }
         void Accept(hstring const& value) { m_accept = value; }
 
+        int64_t AddEventListener(hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
+        bool RemoveEventListener(hstring const& type, int64_t id);
+
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const& available);
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
 
@@ -36,6 +40,9 @@ namespace winrt::NativeScript::Mason::implementation
         void Rebuild();
         void ApplyValue(hstring const& value);
         void ApplyPlaceholder(hstring const& value);
+        void Listen();
+        bool Dispatch(winrt::NativeScript::Mason::Event const& e);
+        void Commit();
 
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
@@ -45,6 +52,18 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_placeholder;
         bool m_multiple{ false };
         hstring m_accept;
+
+        struct Listener { hstring type; int64_t id; winrt::NativeScript::Mason::EventListener fn; };
+        std::vector<Listener> m_listeners;
+        int64_t m_nextId{ 1 };
+        // Set while code writes the value, whose changes aren't user input.
+        bool m_applying{ false };
+        // The value `input` last reported, and the one `change` last committed.
+        hstring m_reported;
+        hstring m_committed;
+        // What the pending edit inserts, from beforeinput.
+        hstring m_pendingData;
+        hstring m_pendingType;
     };
 }
 
