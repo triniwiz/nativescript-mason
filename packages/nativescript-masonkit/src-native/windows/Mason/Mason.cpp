@@ -3,6 +3,7 @@
 #include "Mason.g.cpp"
 #include "Node.h"
 #include "Css.h"
+#include "PanelCore.h"
 #include <winrt/Windows.Storage.Streams.h>
 
 using namespace winrt;
@@ -112,5 +113,25 @@ namespace winrt::NativeScript::Mason::implementation
     void Mason::RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child)
     {
         Css::RemoveChild(parent, child);
+    }
+
+    static void SetPercent(winrt::Microsoft::UI::Xaml::UIElement const& element, bool horizontal, float fraction)
+    {
+        auto fe = element.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>();
+        if (!fe) return;
+        fe.SetValue(mason_panel::PercentProperty(horizontal), winrt::box_value(static_cast<double>(fraction)));
+        // The parent syncs its children's boxes when it measures.
+        if (auto parent = fe.Parent().try_as<winrt::Microsoft::UI::Xaml::UIElement>()) parent.InvalidateMeasure();
+        mason_leaf::InvalidateLayoutRoot(element);
+    }
+
+    void Mason::SetPercentWidth(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction)
+    {
+        SetPercent(element, true, fraction);
+    }
+
+    void Mason::SetPercentHeight(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction)
+    {
+        SetPercent(element, false, fraction);
     }
 }

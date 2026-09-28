@@ -27,6 +27,8 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Windows::Storage::Streams::IBuffer StyleValues(winrt::NativeScript::Mason::IMasonElement const& element);
         void ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index);
         void RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child);
+        void SetPercentWidth(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction);
+        void SetPercentHeight(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction);
 
         // Not projected; used internally by the factory.
         ::CMason* Ptr() const noexcept { return m_ptr; }

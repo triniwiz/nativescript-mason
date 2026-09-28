@@ -11,10 +11,13 @@
 // of filling the parent's width); the single-root compute gives the parent's block context a chance
 // to stretch nested flex containers to full width, exactly as CSS / iOS / Android do.
 // Header-only so the thin panel classes can share it without an extra translation unit.
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <unordered_map>
 #include <vector>
 #include <winrt/NativeScript.Mason.h>
+#include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include "Invalidation.h"
@@ -35,6 +38,62 @@ namespace mason_panel
     {
         auto unk = e.as<winrt::Windows::Foundation::IUnknown>();
         return winrt::get_abi(unk);
+    }
+
+    // Percentage width/height of a non-Mason child (Mason.SetPercentWidth/Height): XAML sizes have
+    // no percentages. NaN when unset.
+    inline mux::DependencyProperty const& PercentProperty(bool horizontal)
+    {
+        auto make = [](wchar_t const* name)
+        {
+            return mux::DependencyProperty::RegisterAttached(name, winrt::xaml_typename<double>(), winrt::xaml_typename<nsm::Mason>(),
+                mux::PropertyMetadata{ winrt::box_value(std::numeric_limits<double>::quiet_NaN()) });
+        };
+        static const mux::DependencyProperty width = make(L"PercentWidth");
+        static const mux::DependencyProperty height = make(L"PercentHeight");
+        return horizontal ? width : height;
+    }
+
+    // A non-Mason child's box for its leaf: the size, min/max and margins core writes to the XAML
+    // element, and its percentages. The engine skips the invalidation when nothing changed.
+    inline void SyncForeignBox(nsm::Node const& leaf, mux::FrameworkElement const& fe)
+    {
+        struct Length { signed char type; float value; };
+        auto size = [&fe](double value, bool horizontal) -> Length
+        {
+            double percent = winrt::unbox_value<double>(fe.GetValue(PercentProperty(horizontal)));
+            if (!std::isnan(percent)) return { 2, static_cast<float>(percent) };
+            return std::isfinite(value) ? Length{ 1, static_cast<float>(value) } : Length{ 0, 0.0f };
+        };
+        // XAML's defaults, 0 and infinity, are no limit.
+        auto limit = [](double value, double none) -> Length
+        {
+            return std::isfinite(value) && value != none ? Length{ 1, static_cast<float>(value) } : Length{ 0, 0.0f };
+        };
+        auto w = size(fe.Width(), true);
+        auto h = size(fe.Height(), false);
+        auto minW = limit(fe.MinWidth(), 0.0), minH = limit(fe.MinHeight(), 0.0);
+        auto maxW = limit(fe.MaxWidth(), std::numeric_limits<double>::infinity());
+        auto maxH = limit(fe.MaxHeight(), std::numeric_limits<double>::infinity());
+        auto m = fe.Margin();
+        auto* node = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(leaf);
+        mason_style_set_box_size(node->MasonPtr(), node->NodePtr(), w.type, w.value, h.type, h.value,
+            minW.type, minW.value, minH.type, minH.value, maxW.type, maxW.value, maxH.type, maxH.value,
+            static_cast<float>(m.Left), static_cast<float>(m.Top), static_cast<float>(m.Right), static_cast<float>(m.Bottom));
+    }
+
+    // The engine measures the border box and adds the margins itself, while XAML measures and
+    // arranges them inside the size it is given: add them to the constraint, take them off after.
+    inline int64_t MeasureForeign(mux::UIElement const& child, float kw, float kh, float aw, float ah)
+    {
+        auto fe = child.try_as<mux::FrameworkElement>();
+        if (!fe) return mason_leaf::MeasureXaml(child, kw, kh, aw, ah);
+        auto m = fe.Margin();
+        const float mx = static_cast<float>(m.Left + m.Right);
+        const float my = static_cast<float>(m.Top + m.Bottom);
+        child.Measure(winrt::Windows::Foundation::Size{ mason_leaf::XamlConstraint(kw, aw) + mx, mason_leaf::XamlConstraint(kh, ah) + my });
+        auto d = child.DesiredSize();
+        return mason_leaf::PackMeasure((std::max)(0.0f, d.Width - mx), (std::max)(0.0f, d.Height - my));
     }
 
     inline bool HasMasonAncestor(mux::UIElement const& element)
@@ -94,10 +153,11 @@ namespace mason_panel
                 {
                     auto c = weak.get();
                     if (!c) return mason_leaf::PackMeasure(0.0f, 0.0f);
-                    return mason_leaf::MeasureXaml(c, kw, kh, aw, ah);
+                    return MeasureForeign(c, kw, kh, aw, ah);
                 };
                 leaf.SetMeasure(cb);
             }
+            if (auto fe = child.try_as<mux::FrameworkElement>()) SyncForeignBox(leaf, fe);
             next.emplace(id, leaf);
             nodes.push_back(leaf);
         }
@@ -195,7 +255,20 @@ namespace mason_panel
                 }
                 mason_position::SyncChild(self, child, childNode);
             }
-            child.Arrange(winrt::Windows::Foundation::Rect{ snap(absX, originX, cl.X), snap(absY, originY, cl.Y), cl.Width, cl.Height });
+            winrt::Windows::Foundation::Rect rect{ snap(absX, originX, cl.X), snap(absY, originY, cl.Y), cl.Width, cl.Height };
+            if (!el)
+            {
+                // The frame is the border box; XAML takes the margins off the rect it arranges in.
+                if (auto fe = child.try_as<mux::FrameworkElement>())
+                {
+                    auto m = fe.Margin();
+                    rect.X -= static_cast<float>(m.Left);
+                    rect.Y -= static_cast<float>(m.Top);
+                    rect.Width += static_cast<float>(m.Left + m.Right);
+                    rect.Height += static_cast<float>(m.Top + m.Bottom);
+                }
+            }
+            child.Arrange(rect);
         }
 
         if (layer && !layerLast) mason_position::KeepLayerLastLater(self.as<muxc::Panel>());

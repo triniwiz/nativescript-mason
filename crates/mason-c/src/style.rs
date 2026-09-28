@@ -1041,6 +1041,57 @@ pub extern "C" fn mason_style_set_with_values(
     }
 }
 
+/// Sets only a node's size, min/max size and margins; the rest of its style is left as is.
+/// Types as in `mason_style_set_with_values`: 0 auto, 1 length, 2 percent (a 0-1 fraction).
+#[no_mangle]
+pub extern "C" fn mason_style_set_box_size(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    width_type: c_schar,
+    width_value: c_float,
+    height_type: c_schar,
+    height_value: c_float,
+    min_width_type: c_schar,
+    min_width_value: c_float,
+    min_height_type: c_schar,
+    min_height_value: c_float,
+    max_width_type: c_schar,
+    max_width_value: c_float,
+    max_height_type: c_schar,
+    max_height_value: c_float,
+    margin_left_value: c_float,
+    margin_top_value: c_float,
+    margin_right_value: c_float,
+    margin_bottom_value: c_float,
+) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+    use mason_core::style::utils::dimension_with_auto;
+    let size = |t: c_schar, v: c_float| -> Dimension { dimension_with_auto(t, v).into() };
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node = &(*node);
+        mason.with_style_mut(node.0.id(), |style| {
+            style.set_size(Size { width: size(width_type, width_value), height: size(height_type, height_value) });
+            style.set_min_size(Size {
+                width: size(min_width_type, min_width_value),
+                height: size(min_height_type, min_height_value),
+            });
+            style.set_max_size(Size {
+                width: size(max_width_type, max_width_value),
+                height: size(max_height_type, max_height_value),
+            });
+            style.set_margin(Rect {
+                left: LengthPercentageAuto::length(margin_left_value),
+                right: LengthPercentageAuto::length(margin_right_value),
+                top: LengthPercentageAuto::length(margin_top_value),
+                bottom: LengthPercentageAuto::length(margin_bottom_value),
+            });
+        });
+    }
+}
+
 #[repr(C)]
 pub struct CMasonBuffer {
     data: *mut u8,
