@@ -323,6 +323,8 @@ namespace mason_dwrite
         // Line box height in DIPs; 0 uses the font's own line spacing.
         float lineHeight{ 0.0f };
         uint32_t color{ 0xFF000000 };
+        // An unwrapped line wider than its box ends in an ellipsis.
+        bool ellipsis{ false };
         bool operator==(Paragraph const&) const = default;
     };
 
@@ -339,6 +341,15 @@ namespace mason_dwrite
         }
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         format->SetTextAlignment(p.alignment);
+        if (p.ellipsis)
+        {
+            winrt::com_ptr<IDWriteInlineObject> sign;
+            if (SUCCEEDED(factory->CreateEllipsisTrimmingSign(format.get(), sign.put())))
+            {
+                const DWRITE_TRIMMING trimming{ DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0 };
+                format->SetTrimming(&trimming, sign.get());
+            }
+        }
 
         // Blink rounds the font's ascent, descent and gap to whole pixels, so a 14px Segoe UI line
         // is 19px where DirectWrite's own spacing gives 18.6. Uniform spacing can't grow a line for

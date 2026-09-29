@@ -2004,7 +2004,7 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return getInt32(this.style_view, StyleKeys.TEXT_WRAP);
+    return getUint8(this.style_view, StyleKeys.TEXT_WRAP);
   }
 
   set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
@@ -2016,10 +2016,10 @@ export class Style {
 
     switch (value) {
       case 'nowrap':
-        wrap = 0;
+        wrap = 1;
         break;
       case 'wrap':
-        wrap = 1;
+        wrap = 0;
         break;
       case 'balance':
         wrap = 2;
@@ -2032,7 +2032,7 @@ export class Style {
 
     if (wrap !== -1) {
       this.prepareMut();
-      setInt32(this.style_view, StyleKeys.TEXT_WRAP, wrap);
+      setUint8(this.style_view, StyleKeys.TEXT_WRAP, wrap);
       setInt8(this.style_view, StyleKeys.TEXT_WRAP_STATE, 1);
       this.commitState(StateKeys.TEXT_WRAP);
     }
@@ -4522,7 +4522,7 @@ export class Style {
       // clip ?
       return 'clip';
     }
-    const type = getInt32(this.style_view, StyleKeys.TEXT_OVERFLOW);
+    const type = getUint8(this.style_view, StyleKeys.TEXT_OVERFLOW);
     switch (type) {
       case 0:
         return 'clip';
@@ -4555,7 +4555,7 @@ export class Style {
 
     if (flow !== -1) {
       this.prepareMut();
-      setInt32(this.style_view, StyleKeys.TEXT_OVERFLOW, flow);
+      setUint8(this.style_view, StyleKeys.TEXT_OVERFLOW, flow);
       setInt8(this.style_view, StyleKeys.TEXT_OVERFLOW_STATE, 1);
       this.commitState(StateKeys.TEXT_OVERFLOW);
     }
