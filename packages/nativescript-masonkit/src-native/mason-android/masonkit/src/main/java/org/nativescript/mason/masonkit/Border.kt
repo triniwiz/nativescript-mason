@@ -1485,7 +1485,11 @@ internal fun scanNumberUnit(value: String): NumberUnit? {
     if (i < n && (value[i] == '+' || value[i] == '-')) i++
     if (!digits()) i = mark
   }
-  val num = value.substring(0, i).toFloatOrNull() ?: return null
+  val num = try {
+    java.lang.Float.parseFloat(value.substring(0, i))
+  } catch (_: NumberFormatException) {
+    return null
+  }
   if (i == n) return NumberUnit(num, null)
   val unit = value.substring(i)
   return if (unit in lengthUnits) NumberUnit(num, unit) else null

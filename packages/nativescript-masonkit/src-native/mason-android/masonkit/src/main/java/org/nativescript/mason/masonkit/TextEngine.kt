@@ -1832,9 +1832,9 @@ class TextEngine(val container: TextContainer) {
   private var advancesVersion = -1
   private var advancesLength = -1
   private var cachedAdvances: FloatArray? = null
-  private val advancesPaint = TextPaint()
+  private val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
-  internal val plainTextPaint = TextPaint()
+  internal val plainTextPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
   private var plainTextRunStyle: Spans.RunStyleSpan? = null
 
   internal fun preparePlainTextPaint(base: TextPaint) {
@@ -1966,10 +1966,10 @@ class TextEngine(val container: TextContainer) {
   // Reused per text-run in collectAndCacheSegments() instead of a fresh
   // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
   // Nothing retains this instance across runs.
-  private val scratchRunPaint = TextPaint()
+  private val scratchRunPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
-  private val scratchSegmentPaint = TextPaint()
+  private val scratchSegmentPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
