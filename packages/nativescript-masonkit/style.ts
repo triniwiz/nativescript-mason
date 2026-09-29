@@ -4,7 +4,7 @@ import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
-import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
+import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
 
 // The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
@@ -842,12 +842,49 @@ function expandSidesShorthand(value: string): [string, string, string, string] |
 export type WindowsRadius = { type: 0 | 1; value: number };
 
 /** Corners in CSS shorthand order. */
-const WINDOWS_RADIUS_KEYS = [
+const RADIUS_KEYS = [
   ['tl', { xType: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE }],
   ['tr', { xType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE }],
   ['br', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE }],
   ['bl', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE }],
 ] as const;
+
+const FAST_RADIUS_TOKEN = /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(px|dip|dppx|%)?$/;
+
+function fastRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
+  const out: WindowsRadius[] = [];
+  for (const token of part.split(/\s+/)) {
+    if (!token) continue;
+    const m = FAST_RADIUS_TOKEN.exec(token);
+    if (!m) return null;
+    const raw = parseFloat(m[1]);
+    const num = Math.min(9999, Math.max(-9999, raw));
+    if (m[2] === '%') out.push({ type: 1, value: raw / 100 });
+    else if (m[2] === 'dppx') out.push({ type: 0, value: num });
+    else out.push({ type: 0, value: num * scale });
+  }
+  return out;
+}
+
+function radiusCorners<T>(t: T[]): T[] | null {
+  switch (t.length) {
+    case 1:
+      return [t[0], t[0], t[0], t[0]];
+    case 2:
+      return [t[0], t[1], t[0], t[1]];
+    case 3:
+      return [t[0], t[1], t[2], t[1]];
+    case 4:
+      return t;
+    default:
+      return null;
+  }
+}
+
+let deviceScaleCache = 0;
+function deviceScale(): number {
+  return deviceScaleCache || (deviceScaleCache = Screen.mainScreen.scale);
+}
 
 function parseWindowsRadius(token: string, emBasis?: number): WindowsRadius {
   const t = token.trim();
@@ -1219,6 +1256,7 @@ export class Style {
   private nativeView: any;
   private nativeNode: any;
   private _pseudo: number;
+  private _borderRadiusCss: string | undefined;
   static fromView(view: View, nativeView): Style {
     //console.time('fromView');
     const ret = new Style();
@@ -1443,7 +1481,7 @@ export class Style {
     if (name === 'border-radius') {
       const r = parseBorderRadiusShorthand(value, this.emBasis());
       this.prepareMut();
-      for (const [corner, keys] of WINDOWS_RADIUS_KEYS) {
+      for (const [corner, keys] of RADIUS_KEYS) {
         const { type, value: v } = r[corner];
         setFloat32(this.style_view, keys.xValue, v);
         setFloat32(this.style_view, keys.yValue, v);
@@ -4959,7 +4997,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorderRadius(this.nativeView);
+      return this._borderRadiusCss ?? org.nativescript.mason.masonkit.NodeHelper.getShared().getBorderRadius(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4968,7 +5006,7 @@ export class Style {
 
     if (__WINDOWS__ && this.style_view) {
       // Read back so a single corner longhand keeps the other three instead of resetting them to 0.
-      return WINDOWS_RADIUS_KEYS.map(([, keys]) => {
+      return RADIUS_KEYS.map(([, keys]) => {
         const v = getFloat32(this.style_view, keys.xValue);
         return getUint8(this.style_view, keys.xType) === 1 ? `${v * 100}%` : `${v}px`;
       }).join(' ');
@@ -4979,12 +5017,41 @@ export class Style {
 
   set borderRadius(value: string) {
     value = this.coerceCssStringValue(value);
+    if (__ANDROID__ && this.nativeView && !this._pseudo && this._writeBorderRadius(value, deviceScale())) {
+      return;
+    }
+    if (!this._pseudo) this._borderRadiusCss = undefined;
     this.setPseudoCssStringValue(
       'border-radius',
       value,
       () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderRadius = value),
     );
+  }
+
+  _writeBorderRadius(value: string, scale: number): boolean {
+    let cleaned = value.trim();
+    if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1);
+    const slash = cleaned.indexOf('/');
+    const h = fastRadiusTokens(slash < 0 ? cleaned : cleaned.slice(0, slash).trim(), scale);
+    if (!h) return false;
+    const vPart = slash < 0 ? '' : cleaned.slice(slash + 1).trim();
+    const v = vPart ? fastRadiusTokens(vPart, scale) : h;
+    if (!v) return false;
+    this._borderRadiusCss = value;
+    const hm = radiusCorners(h);
+    const vm = v.length ? radiusCorners(v) : hm;
+    if (!hm || !vm) return true;
+    this.prepareMut();
+    for (let i = 0; i < 4; i++) {
+      const keys = RADIUS_KEYS[i][1];
+      setUint8(this.style_view, keys.xType, hm[i].type);
+      setFloat32(this.style_view, keys.xValue, hm[i].value);
+      setUint8(this.style_view, keys.yType, vm[i].type);
+      setFloat32(this.style_view, keys.yValue, vm[i].value);
+    }
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
   }
 
   get whiteSpace(): string {

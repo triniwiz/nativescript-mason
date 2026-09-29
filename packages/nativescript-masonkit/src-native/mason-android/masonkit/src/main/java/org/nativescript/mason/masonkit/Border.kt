@@ -1926,6 +1926,8 @@ fun parseBorderRadius(style: Style, value: String) {
   if (hMapped.isEmpty() || vMapped.isEmpty()) return
 
   // Assign elliptical radii per corner: (horizontal, vertical)
+  val batch = !style.inBatch
+  if (batch) style.inBatch = true
   style.borderTopLeftRadius = Point(hMapped[0], vMapped[0])
   style.borderTopRightRadius = Point(hMapped[1], vMapped[1])
   style.borderBottomRightRadius = Point(hMapped[2], vMapped[2])
@@ -1933,4 +1935,5 @@ fun parseBorderRadius(style: Style, value: String) {
   // Always invalidate renderer and notify native update for radius changes
   style.invalidateBorderRenderer()
   style.setOrAppendState(StateKeys.BORDER_RADIUS)
+  if (batch) style.inBatch = false
 }
