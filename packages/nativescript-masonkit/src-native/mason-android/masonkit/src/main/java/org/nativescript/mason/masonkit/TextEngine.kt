@@ -139,6 +139,11 @@ class TextEngine(val container: TextContainer) {
       return buildString { appendText(node) }
     }
     set(value) {
+      val only = node.children.singleOrNull() as? TextNode
+      if (only != null && only.javaClass == TextNode::class.java && only.container === container) {
+        if (only.data == value) invalidateInlineSegments() else only.data = value
+        return
+      }
       // Remove all existing children
       var hadNativeChildren = false
       for (child in node.children) {
