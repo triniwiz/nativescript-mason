@@ -322,6 +322,15 @@ class TextView @JvmOverloads constructor(
     return super.getText()
   }
 
+  // The platform version asks hasSelection() -> getText() on every display-list update,
+  // which would apply the deferred text on the draw path. Pending text has no selection,
+  // so answer the platform's other conditions without materialising it.
+  override fun hasOverlappingRendering(): Boolean {
+    if (pendingText == null) return super.hasOverlappingRendering()
+    return background?.current != null || pendingTextType != BufferType.NORMAL ||
+      isHorizontalFadingEdgeEnabled || shadowColor != 0
+  }
+
   private fun applyPendingText() {
     val text = pendingText ?: return
     pendingText = null
