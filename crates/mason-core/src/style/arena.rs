@@ -425,10 +425,11 @@ impl StyleArena {
             }
             // alloc() overwrites this slot on reuse, and the generation bump
             // below rejects stale reads in the meantime — no need to zero.
-            #[cfg(target_os = "android")]
-            {
-                buf.buffer = -1;
-            }
+            // The slot's bytes are boxed and reused in place, so its platform
+            // buffer (Android: DirectByteBuffer id in ObjectManager) stays
+            // valid for the next occupant and is kept. Resetting it leaked one
+            // ObjectManager entry per released buffer, since the next
+            // occupant registered a new one.
             self.generations[idx] = self.generations[idx].wrapping_add(1);
             self.free_list.push(idx as u32);
         }

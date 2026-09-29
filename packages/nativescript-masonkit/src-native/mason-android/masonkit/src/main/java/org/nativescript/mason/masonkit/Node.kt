@@ -297,7 +297,26 @@ open class Node internal constructor(
       return stateValue.get(NodeStateKeys.IS_NODE_DIRTY) > 0
     }
 
-  internal var measureFuncImpl: MeasureFuncImpl? = null;
+  /**
+   * ObjectManager id of the current [measureFuncImpl]. GC reads it at cleanup
+   * without holding the node, since ObjectManager keeps the impl strongly.
+   */
+  internal class MeasureSlot {
+    @Volatile
+    var id = -1
+  }
+
+  internal val measureSlot = MeasureSlot()
+
+  internal var measureFuncImpl: MeasureFuncImpl? = null
+    set(value) {
+      val old = field
+      field = value
+      measureSlot.id = value?.objectId ?: -1
+      if (old != null && old !== value) {
+        old.release()
+      }
+    }
 
   internal var measureFunc: MeasureFunc = object : MeasureFunc {
     override fun measure(
@@ -1457,7 +1476,12 @@ open class Node internal constructor(
       // views attached to the wrong ViewGroup.
       NodeUtils.removeView(this, removed.view as? View)
       if (removed.nativePtr != 0L) {
-        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        // The call returns a new NodeRef for the removed child; release it, or it
+        // pins the child (and its whole subtree) in the Rust tree forever.
+        val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        if (ref != 0L) {
+          NativeHelpers.nativeNodeDestroy(ref)
+        }
       }
       removed.parent = null
       (removed.view as? Element)?.onNodeDetached()
@@ -1497,11 +1521,11 @@ open class Node internal constructor(
 
   fun setMeasureFunction(measure: MeasureFunc) {
     val func = MeasureFuncImpl(WeakReference(measure))
-    measureFuncImpl = func
     measureFunc = measure
     NativeHelpers.nativeNodeSetContext(
       mason.nativePtr, nativePtr, func.objectId
     )
+    measureFuncImpl = func
   }
 
   fun removeMeasureFunction() {
@@ -1519,9 +1543,9 @@ open class Node internal constructor(
     }
 
     val func = MeasureFuncImpl(WeakReference(measureFunc))
-    measureFuncImpl = func
 
     NativeHelpers.nativeNodeSetContext(mason.nativePtr, nativePtr, func.objectId)
+    measureFuncImpl = func
 
   }
 

@@ -1497,7 +1497,11 @@ extension MasonNode {
       // Detach from the Rust layout tree as well (matches Android) — without
       // this the layout engine keeps measuring the removed child.
       if let ptr = nativePtr, let childPtr = removed.nativePtr {
-        mason_node_remove_child(mason.nativePtr, ptr, childPtr)
+        // The call returns a new node handle for the removed child; release it,
+        // or it pins the child (and its whole subtree) in the Rust tree forever.
+        if let ref = mason_node_remove_child(mason.nativePtr, ptr, childPtr) {
+          mason_node_destroy(ref)
+        }
       }
       removed.parent = nil
       // Removing a non-text child (e.g. a Br) changes the parent's composed

@@ -25,10 +25,16 @@ internal class MeasureFuncImpl(
     ObjectManager.shared.add(this)
   }
 
+  private var released = false
+
+  /**
+   * Drop the ObjectManager entry. ObjectManager holds this strongly, so a
+   * finalizer never runs; the owning node releases it when replaced or collected.
+   */
   @Synchronized
-  @Throws(Throwable::class)
-  protected fun finalize() {
-    if (hasObjectId) {
+  internal fun release() {
+    if (hasObjectId && !released) {
+      released = true
       ObjectManager.shared.remove(objectId)
     }
   }

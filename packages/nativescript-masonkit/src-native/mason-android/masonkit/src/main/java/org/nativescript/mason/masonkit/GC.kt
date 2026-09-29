@@ -54,6 +54,14 @@ internal class GC(val mason: Mason) {
     Collections.synchronizedSet(mutableSetOf<PhantomReference<*>>())
   }
 
+  private fun releaseMeasure(slot: Node.MeasureSlot) {
+    val id = slot.id
+    if (id != -1) {
+      slot.id = -1
+      ObjectManager.shared.remove(id)
+    }
+  }
+
   fun track(native: NativeObject) {
     if (native.isTracked) {
       return
@@ -67,6 +75,7 @@ internal class GC(val mason: Mason) {
     } else {
       -1
     }
+    val measureSlot = (native as? Node)?.measureSlot
 
     if (Build.VERSION.SDK_INT >= 33) {
       cleaner.register(native) {
@@ -78,6 +87,7 @@ internal class GC(val mason: Mason) {
               if (objectId != -1) {
                 ObjectManager.shared.remove(objectId)
               }
+              measureSlot?.let { releaseMeasure(it) }
             }
           }
 
@@ -98,6 +108,7 @@ internal class GC(val mason: Mason) {
                 if (objectId != -1) {
                   ObjectManager.shared.remove(objectId)
                 }
+                measureSlot?.let { releaseMeasure(it) }
               }
             }
 
