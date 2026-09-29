@@ -128,10 +128,9 @@ export class View extends ViewBase {
     const nativeView = this._view;
     if (nativeView && (child.nativeViewProtected || child.ios)) {
       child._hasNativeView = true;
-      const jsIndex = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       // Map the JS index onto the native children list (views attach lazily,
       // so the raw index can run ahead of native state).
-      const index = jsIndex <= -1 ? jsIndex : (this as any)._nativeIndexFor(jsIndex);
+      const { nativeIndex: index } = (this as any)._nativeAttachIndex(child, atIndex);
       child._isMasonChild = true;
       if (child[isPlaceholder_]) {
         // @ts-ignore
@@ -148,6 +147,7 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
+    (this as any)._invalidateAttachCursor();
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
     // Unlink the mason node so removal detaches

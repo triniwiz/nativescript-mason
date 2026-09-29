@@ -1073,6 +1073,40 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return index;
   }
 
+  // Last child attached through _nativeAttachIndex (see there).
+  private _attachCursor: { child: any; jsIndex: number; nativeIndex: number } | undefined;
+
+  /**
+   * Where to attach `child` natively: its JS slot (`atIndex`, or its current
+   * slot when -1) and the native index `_nativeIndexFor` would give.
+   *
+   * NativeScript attaches children one at a time, in order, as they load. Doing
+   * `indexOf` + `_nativeIndexFor` for each is O(n) per child, O(n²) per
+   * container (millions of checks for a few thousand children). The previous
+   * attach is remembered: when `child` sits in the slot right after it and that
+   * sibling has not moved, the answer is one more than last time, in O(1).
+   * Anything else takes the full scan. Mutations that can change the native
+   * counts without moving that sibling reset the cursor (_invalidateAttachCursor).
+   */
+  _nativeAttachIndex(child: any, atIndex: number): { jsIndex: number; nativeIndex: number } {
+    const cur = this._attachCursor;
+    let jsIndex: number;
+    let nativeIndex: number;
+    if (atIndex <= -1 && cur && this._children[cur.jsIndex] === cur.child && this._children[cur.jsIndex + 1] === child) {
+      jsIndex = cur.jsIndex + 1;
+      nativeIndex = cur.nativeIndex + 1;
+    } else {
+      jsIndex = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeIndex = jsIndex <= -1 ? jsIndex : this._nativeIndexFor(jsIndex);
+    }
+    this._attachCursor = jsIndex >= 0 && nativeIndex >= 0 ? { child, jsIndex, nativeIndex } : undefined;
+    return { jsIndex, nativeIndex };
+  }
+
+  _invalidateAttachCursor() {
+    this._attachCursor = undefined;
+  }
+
   // Windows attaches element children on load with no index, after text runs that attached
   // straight away, so an append would land them after text that comes later.
   _windowsNativeIndexOf(child: any, atIndex: number): number {
@@ -1089,6 +1123,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   insertChild(child: any, atIndex: number) {
+    this._invalidateAttachCursor();
     if (__WINDOWS__) {
       this._windowsSplitAnonymousText(atIndex);
     }
@@ -1122,6 +1157,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   replaceChild(child: any, atIndex: number) {
+    this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
       this._children[atIndex] = child;
       if (this[isText_]) {
@@ -1171,6 +1207,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChild(child: any) {
+    this._invalidateAttachCursor();
     // Placeholder (e.g. Br): it was attached straight to the mason tree via the
     // native element APIs (never `_addView`-ed), so `_removeView` would throw.
     // Remove the native node directly instead.
@@ -1289,6 +1326,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
     }
     this._children.splice(0);
+    this._invalidateAttachCursor();
   }
 
   [zIndexProperty.setNative](value: number) {
@@ -1510,6 +1548,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       isBreak?: boolean;
     } | null = null,
   ) {
+    this._invalidateAttachCursor();
     const text = String(node.text ?? node.data ?? '');
     const textNode = this._createOrUpdateNativeTextNode(node, text);
 
