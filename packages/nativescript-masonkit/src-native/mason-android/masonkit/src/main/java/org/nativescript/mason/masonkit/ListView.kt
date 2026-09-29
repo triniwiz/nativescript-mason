@@ -396,7 +396,8 @@ class ListView @JvmOverloads constructor(
   override val view: View
     get() = this
 
-  constructor(context: Context, mason: Mason) : this(context) {
+  // override = true: skip init's Mason.shared node; this constructor creates the node.
+  constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode().apply {
       view = this@ListView
     }

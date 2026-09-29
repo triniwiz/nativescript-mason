@@ -1542,13 +1542,28 @@ export class Style {
     }
   }
 
+  /**
+   * `border-color` shorthand straight into the buffer (one batched sync). Used
+   * on Windows, and on Android, where the side colors are buffer-backed and a
+   * BORDER_COLOR sync re-reads them (Border.kt), so the JNI string call and
+   * native re-parse per property are unnecessary.
+   */
   setBorderColor(value: string) {
-    if (!__WINDOWS__ || !this.style_view) return;
+    if (!(__WINDOWS__ || __ANDROID__) || !this.style_view) return;
     const c = parseSidesColorShorthand(String(value ?? ''));
     this.writeBorderSide('top', null, null, c.t);
     this.writeBorderSide('right', null, null, c.r);
     this.writeBorderSide('bottom', null, null, c.b);
     this.writeBorderSide('left', null, null, c.l);
+    this.commitState(StateKeys.BORDER_COLOR);
+  }
+
+  /** One side's border color (a core border-*-color longhand) into the buffer. */
+  setBorderSideColor(side: 'top' | 'right' | 'bottom' | 'left', value: number | string | { argb?: number }) {
+    if (!this.style_view) return;
+    const color = normalizeColorValue(value);
+    if (color == null) return;
+    this.writeBorderSide(side, null, null, color);
     this.commitState(StateKeys.BORDER_COLOR);
   }
 

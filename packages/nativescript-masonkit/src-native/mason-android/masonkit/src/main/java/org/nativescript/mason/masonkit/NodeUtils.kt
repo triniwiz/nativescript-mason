@@ -25,6 +25,15 @@ internal object NodeUtils {
     return false
   }
 
+  /** Same count as collectAuthorChildren(out, nodes).size, without building the list. */
+  fun countAuthorChildren(nodes: List<Node>): Int {
+    var count = 0
+    for (child in nodes) {
+      count += if (child.isAnonymous) countAuthorChildren(child.children) else 1
+    }
+    return count
+  }
+
   fun collectAuthorChildren(out: MutableList<Node>, nodes: List<Node>) {
     for (child in nodes) {
       if (child.isAnonymous) {

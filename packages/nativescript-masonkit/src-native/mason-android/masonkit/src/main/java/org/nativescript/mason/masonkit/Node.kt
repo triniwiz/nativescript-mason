@@ -1200,12 +1200,14 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
-    val authorChildren = getChildren()
-    // if index is past end, fall back to append behavior
-    if (index >= authorChildren.size) {
+    // Index past the end is an append, the common case while a container's
+    // children attach in order. Check it by counting, without building the
+    // author-children list (that made each append O(n) with an allocation).
+    if (index >= NodeUtils.countAuthorChildren(children)) {
       appendChild(child)
       return
     }
+    val authorChildren = getChildren()
 
     val reference = authorChildren[index]
 

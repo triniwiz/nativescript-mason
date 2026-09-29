@@ -1857,6 +1857,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
+    if (__ANDROID__) {
+      // Buffer write, synced with the node's other style changes. Core expands
+      // border-color into four longhands, so the JNI path below cost 4 calls
+      // (each re-parsing all four colors natively) per restyled node.
+      const s = (this as any)._styleHelper as MasonStyle | undefined;
+      if (s) {
+        s.setBorderSideColor(side === 't' ? 'top' : side === 'r' ? 'right' : side === 'b' ? 'bottom' : 'left', value);
+        return;
+      }
+    }
     let sides = (this as any)[borderSideColors_];
     if (!sides) {
       sides = (this as any)[borderSideColors_] = { t: 'transparent', r: 'transparent', b: 'transparent', l: 'transparent' };
@@ -2073,8 +2083,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // @ts-ignore
   [borderColorProperty.setNative](value: any) {
     if (__ANDROID__) {
+      const s = (this as any)._styleHelper as MasonStyle | undefined;
+      if (s) s.setBorderColor(String(value));
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, String(value));
+      else org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.setBorderColor(String(value));
