@@ -1,0 +1,29 @@
+namespace NativeScript.Mason
+{
+    // A DOM-style event an element dispatches to its listeners. Input events carry Data and
+    // InputType, keyboard events Key and the modifier state.
+    runtimeclass Event
+    {
+        String Type{ get; };
+        Boolean Bubbles{ get; };
+        Boolean Cancelable{ get; };
+        Boolean IsComposing{ get; };
+        Double TimeStamp{ get; };
+        Boolean DefaultPrevented{ get; };
+        Boolean PropagationStopped{ get; };
+        Boolean ImmediatePropagationStopped{ get; };
+        String Data{ get; };
+        String InputType{ get; };
+        String Key{ get; };
+        Boolean Repeat{ get; };
+        Boolean CtrlKey{ get; };
+        Boolean ShiftKey{ get; };
+        Boolean AltKey{ get; };
+        Boolean MetaKey{ get; };
+        void PreventDefault();
+        void StopPropagation();
+        void StopImmediatePropagation();
+    }
+
+    delegate void EventListener(Event e);
+}

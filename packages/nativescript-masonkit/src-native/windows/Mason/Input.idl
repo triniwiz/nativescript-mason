@@ -1,4 +1,5 @@
 import "Element.idl";
+import "Event.idl";
 
 namespace NativeScript.Mason
 {
@@ -17,5 +18,9 @@ namespace NativeScript.Mason
         String Placeholder;
         Boolean Multiple;
         String Accept;
+
+        // beforeinput, input, change, focus, blur and keydown, as in the DOM. The id removes it.
+        Int64 AddEventListener(String type, EventListener listener);
+        Boolean RemoveEventListener(String type, Int64 id);
     }
 }
