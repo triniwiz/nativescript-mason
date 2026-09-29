@@ -1799,6 +1799,18 @@ impl Tree {
             }
 
             Tree::mark_dirty_inner(tree, parent);
+
+            // Detached children nothing references any more are garbage now.
+            let collectable: Vec<Id> = children
+                .into_iter()
+                .filter(|child| crate::node::is_collectable_root(tree, *child))
+                .collect();
+            if !collectable.is_empty() {
+                let mut nd = self.2.write();
+                for child in collectable {
+                    crate::node::remove_unreferenced_subtree(tree, &mut nd, child);
+                }
+            }
         }
     }
 

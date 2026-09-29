@@ -317,6 +317,11 @@ impl Mason {
     pub fn arena_state(&self) -> ArenaStats {
         self.0.inner().style_arena.stats()
     }
+
+    /// Live nodes in the tree (diagnostics: leak checks).
+    pub fn node_count(&self) -> usize {
+        self.0.nodes().len()
+    }
     pub fn new() -> Self {
         // 128 measurably undershoots a typical real screen (the perf-audit
         // baseline scenario alone was 287 nodes) - every platform's default

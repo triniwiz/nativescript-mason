@@ -22,7 +22,9 @@ extern "C" fn span_measure(
     MeasureOutput::make(w, h)
 }
 
-fn build_middle_plus_span(mason: &mut Mason) -> (Id, Id) {
+// Returns the NodeRefs too: a parentless node with no NodeRef is garbage and
+// is freed when its last ref drops, so callers must hold them.
+fn build_middle_plus_span(mason: &mut Mason) -> (NodeRef, NodeRef, Id, Id) {
     let middle = mason.create_node();
     let middle_id = middle.id();
     mason.with_style_mut(middle_id, |s| {
@@ -37,7 +39,7 @@ fn build_middle_plus_span(mason: &mut Mason) -> (Id, Id) {
     mason.set_measure(span_id, Some(span_measure), std::ptr::null_mut());
 
     mason.append_node(middle_id, &[span_id.into()]);
-    (middle_id, span_id)
+    (middle, span, middle_id, span_id)
 }
 
 #[test]
@@ -53,7 +55,7 @@ fn span_in_plain_div_as_direct_block_child_gets_nonzero_height() {
         });
     });
 
-    let (middle_id, span_id) = build_middle_plus_span(&mut mason);
+    let (_middle, _span, middle_id, span_id) = build_middle_plus_span(&mut mason);
     mason.append_node(root_id, &[middle_id.into()]);
 
     mason.compute_wh(root_id, 400.0, f32::NAN);
@@ -80,7 +82,7 @@ fn span_in_plain_div_as_flex_row_item_gets_nonzero_height() {
         });
     });
 
-    let (middle_id, span_id) = build_middle_plus_span(&mut mason);
+    let (_middle, _span, middle_id, span_id) = build_middle_plus_span(&mut mason);
     mason.append_node(root_id, &[middle_id.into()]);
 
     mason.compute_wh(root_id, 400.0, f32::NAN);
@@ -107,7 +109,7 @@ fn span_in_plain_div_as_flex_column_item_gets_nonzero_height() {
         });
     });
 
-    let (middle_id, span_id) = build_middle_plus_span(&mut mason);
+    let (_middle, _span, middle_id, span_id) = build_middle_plus_span(&mut mason);
     mason.append_node(root_id, &[middle_id.into()]);
 
     mason.compute_wh(root_id, 400.0, f32::NAN);

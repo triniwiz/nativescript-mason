@@ -1163,6 +1163,59 @@ impl PartialEq for NodeRef {
     }
 }
 
+/// Remove `root` and, depth first, every descendant no `NodeRef` references
+/// any more (guard count 1: only the tree's own). Descendants that are still
+/// referenced are detached (parent cleared) and kept; the same rule collects
+/// them when their last `NodeRef` drops.
+///
+/// `root` must have no parent. Before, a node was only removed when it had
+/// neither parent nor children, so no node of an unmounted subtree (the root
+/// has children, the rest have parents) was ever freed.
+pub(crate) fn remove_unreferenced_subtree(
+    tree: &mut TreeInner,
+    node_data: &mut SecondaryMap<Id, NodeData>,
+    root: Id,
+) {
+    let mut stack = vec![root];
+    while let Some(id) = stack.pop() {
+        if let Some(children) = tree.children.remove(id) {
+            for child in children {
+                match tree.parents.get_mut(child) {
+                    Some(parent) if *parent == Some(id) => *parent = None,
+                    _ => continue,
+                }
+                let unreferenced = tree
+                    .nodes
+                    .get(child)
+                    .map(|node| Arc::strong_count(&node.guard) == 1)
+                    .unwrap_or(false);
+                if unreferenced {
+                    stack.push(child);
+                }
+            }
+        }
+        // Style::drop releases the arena handle.
+        tree.nodes.remove(id);
+        forget_block_measure(tree.uid, id);
+        tree.parents.remove(id);
+        tree.hoisted_children.remove(id);
+        tree.float_context.remove(id);
+        node_data.remove(id);
+        tree.structure_dirty = true;
+    }
+}
+
+/// Whether `id` is a parentless node no `NodeRef` references any more.
+pub(crate) fn is_collectable_root(tree: &TreeInner, id: Id) -> bool {
+    let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
+    !has_parent
+        && tree
+            .nodes
+            .get(id)
+            .map(|node| Arc::strong_count(&node.guard) == 1)
+            .unwrap_or(false)
+}
+
 /// Drain deferred node removals. Must be called when no read/write lock
 /// is held on the tree (e.g. before `compute_layout`).
 pub(crate) fn drain_deferred_cleanup(
@@ -1180,64 +1233,35 @@ pub(crate) fn drain_deferred_cleanup(
     let mut tree = tree.write();
     let mut nd = node_data.write();
     for id in ids {
-        let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
-        let has_children = tree
-            .children
-            .get(id)
-            .map(|children| !children.is_empty())
-            .unwrap_or(false);
-        if !has_parent && !has_children {
-            // Remove the node; Style::drop will release the arena handle
-            tree.nodes.remove(id);
-            forget_block_measure(tree.uid, id);
-            tree.parents.remove(id);
-            tree.children.remove(id);
-            tree.float_context.remove(id);
-            nd.remove(id);
-            tree.structure_dirty = true;
+        if is_collectable_root(&tree, id) {
+            remove_unreferenced_subtree(&mut tree, &mut nd, id);
         }
     }
 }
 
 impl Drop for NodeRef {
     fn drop(&mut self) {
-        // 2 = this ref + default ref
-        if Arc::strong_count(&self.guard) == 2 {
-            // Try non-blocking write lock first to avoid deadlocking with
-            // concurrent read locks held by the layout algorithm.
-            if let Some(mut tree) = self.tree.try_write() {
-                let has_parent = tree
-                    .parents
-                    .get(self.id)
-                    .map(|p| p.is_some())
-                    .unwrap_or(false);
-                let has_children = tree
-                    .children
-                    .get(self.id)
-                    .map(|children| !children.is_empty())
-                    .unwrap_or(false);
-                if !has_parent && !has_children {
-                    // Remove the node; Style::drop will release the arena handle
-                    tree.nodes.remove(self.id);
-                    forget_block_measure(tree.uid, self.id);
-                    tree.parents.remove(self.id);
-                    tree.children.remove(self.id);
-                    tree.float_context.remove(self.id);
-                    tree.structure_dirty = true;
-                    if let Some(mut nd) = self.node_data.try_write() {
-                        nd.remove(self.id);
-                    } else {
-                        // node_data lock is contended — defer so the data
-                        // (and any measure-func context it holds) is still
-                        // released on the next drain instead of leaking.
-                        self.deferred_cleanup.lock().push(self.id);
-                    }
-                }
-            } else {
-                // Lock is contended — defer cleanup to avoid deadlock.
-                self.deferred_cleanup.lock().push(self.id);
+        // 2 = this ref + the tree's own: this is the last external reference.
+        if Arc::strong_count(&self.guard) != 2 {
+            return;
+        }
+        // Non-blocking locks: the layout algorithm may hold read locks. A node
+        // that still has a parent stays until its parent is collected or it
+        // is detached (remove_child* return a NodeRef whose drop lands here).
+        if let Some(mut tree) = self.tree.try_write() {
+            let has_parent = tree.parents.get(self.id).map(|p| p.is_some()).unwrap_or(false);
+            if has_parent {
+                return;
+            }
+            if let Some(mut nd) = self.node_data.try_write() {
+                // The count check inside sees this ref gone once the node is removed;
+                // descendants are checked for count 1.
+                remove_unreferenced_subtree(&mut tree, &mut nd, self.id);
+                return;
             }
         }
+        // Lock contended: collect on the next drain (the guard count is re-checked there).
+        self.deferred_cleanup.lock().push(self.id);
     }
 }
 
