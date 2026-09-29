@@ -27,6 +27,7 @@ internal object NodeUtils {
 
   /** Same count as collectAuthorChildren(out, nodes).size, without building the list. */
   fun countAuthorChildren(nodes: List<Node>): Int {
+    if (nodes is ChildList && !nodes.mayHaveAnonymous) return nodes.size
     var count = 0
     for (child in nodes) {
       count += if (child.isAnonymous) countAuthorChildren(child.children) else 1
