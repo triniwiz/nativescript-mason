@@ -257,6 +257,9 @@ open class Node internal constructor(
 
   internal var isAnonymous = false
 
+  internal var floatScanFrame = 0L
+  internal var floatScanHasFloat = false
+
   var onNodeAttached: (() -> Unit)? = null
   var onNodeDetached: (() -> Unit)? = null
 

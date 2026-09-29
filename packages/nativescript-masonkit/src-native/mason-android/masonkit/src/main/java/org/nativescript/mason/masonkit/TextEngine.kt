@@ -407,7 +407,7 @@ class TextEngine(val container: TextContainer) {
     return h
   }
 
-  private val DRAW_WIDTH_SLACK = 1
+  private val DRAW_WIDTH_SLACK = 2
 
   private fun findCachedStaticLayout(
     length: Int,
@@ -919,6 +919,8 @@ class TextEngine(val container: TextContainer) {
 
     val parentNode = node.parent ?: return null
     val view = container.node.view as? View ?: return null
+    val frame = view.drawingTime
+    if (frame != 0L && parentNode.floatScanFrame == frame && !parentNode.floatScanHasFloat) return null
 
     // Collect floated sibling exclusions from the parent's children.
     // Expand each exclusion by the float's margins to match CSS margin-box behavior.
@@ -956,6 +958,15 @@ class TextEngine(val container: TextContainer) {
       )
     }
 
+    if (frame != 0L) {
+      val selfFloats = node.style.isValueInitialized && try {
+        node.style.float != org.nativescript.mason.masonkit.enums.Float.None
+      } catch (_: Throwable) {
+        false
+      }
+      parentNode.floatScanFrame = frame
+      parentNode.floatScanHasFloat = exclusions.isNotEmpty() || selfFloats
+    }
     if (exclusions.isEmpty()) return null
 
     // Get text from the container (already set during measure)
