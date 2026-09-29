@@ -396,23 +396,16 @@ class ListView @JvmOverloads constructor(
   override val view: View
     get() = this
 
-  // override = true: skip init's Mason.shared node; this constructor creates the node.
+  // override = true: skip init's Mason.shared node; this constructor creates the
+  // node (one Rust node per list, not two) and then runs the node setup.
   constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode().apply {
       view = this@ListView
     }
-    node.style.setStyleChangeListener(this)
+    setupNode()
   }
 
   init {
-    if (!override) {
-      if (!::node.isInitialized) {
-        node = Mason.shared.createNode().apply {
-          view = this@ListView
-        }
-        node.style.setStyleChangeListener(this)
-      }
-    }
     // css visible default
     clipChildren = false
     clipToPadding = false
@@ -420,6 +413,22 @@ class ListView @JvmOverloads constructor(
     list.layoutParams = RecyclerView.LayoutParams(
       LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
     )
+
+    if (!override) {
+      if (!::node.isInitialized) {
+        node = Mason.shared.createNode().apply {
+          view = this@ListView
+        }
+      }
+      setupNode()
+    }
+
+//    isChildrenDrawingOrderEnabled = true
+  }
+
+  /** Everything that needs `node`; runs once the node exists (init, or the Mason constructor). */
+  private fun setupNode() {
+    node.style.setStyleChangeListener(this)
 
     style.prepareMut()
 
@@ -429,8 +438,6 @@ class ListView @JvmOverloads constructor(
     node.dirty()
 
     addView(list)
-
-//    isChildrenDrawingOrderEnabled = true
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
