@@ -292,6 +292,14 @@ namespace winrt::NativeScript::Mason::implementation
         return { g_layoutSink[3], g_layoutSink[4] };
     }
 
+    winrt::Windows::Foundation::Size Node::ScrollExtent()
+    {
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        if (g_layoutSink.size() < 19) return { 0.0f, 0.0f };
+        return { (std::max)(g_layoutSink[3], g_layoutSink[17]), (std::max)(g_layoutSink[4], g_layoutSink[18]) };
+    }
+
     void Node::ContentInsets(float& left, float& top, float& right, float& bottom)
     {
         // After the frame: border then padding, each top, right, bottom, left.

@@ -73,6 +73,8 @@ namespace winrt::NativeScript::Mason::implementation
         // This node's laid-out width and size, without building a Layout.
         float LayoutWidth();
         winrt::Windows::Foundation::Size LayoutSize();
+        // The laid-out size grown to the scrollable overflow.
+        winrt::Windows::Foundation::Size ScrollExtent();
         // This node's frame, then its direct children's, without building Layouts.
         void ShallowFrames(std::vector<winrt::Windows::Foundation::Rect>& out);
         // Border plus padding on each side of this node's content box.
@@ -81,6 +83,8 @@ namespace winrt::NativeScript::Mason::implementation
         // Position relative to the layout root in DIPs, set by the parent panel's arrange.
         float ArrangeX{ 0.0f };
         float ArrangeY{ 0.0f };
+        // The scroll extent a scroller's content last measured at.
+        winrt::Windows::Foundation::Size MeasuredExtent{ -1.0f, -1.0f };
 
     private:
         // C trampoline registered with mason_node_set_context; recovers `this` from measure_data

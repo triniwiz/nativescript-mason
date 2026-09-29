@@ -111,6 +111,14 @@ namespace mason_panel
         return false;
     }
 
+    // A ScrollViewer around a Mason panel (a scroll element): the panel's node carries the element's
+    // style, so it stands in for the ScrollViewer in the parent's tree.
+    inline nsm::IMasonElement ScrollContentOf(mux::UIElement const& child)
+    {
+        auto sv = child.try_as<muxc::ScrollViewer>();
+        return sv ? sv.Content().try_as<nsm::IMasonElement>() : nullptr;
+    }
+
     inline std::vector<mux::UIElement> SyncChildren(
         nsm::Mason const& engine, nsm::Node const& node,
         muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
@@ -128,6 +136,12 @@ namespace mason_panel
             {
                 visible.push_back(child);
                 nodes.push_back(el.Node());
+                continue;
+            }
+            if (auto content = ScrollContentOf(child))
+            {
+                visible.push_back(child);
+                nodes.push_back(content.Node());
                 continue;
             }
             if (mason_position::AsLayer(child))
@@ -181,7 +195,13 @@ namespace mason_panel
         if (isRoot) mason_leaf::FlushBeforeCompute();
         mux::UIElement layer{ nullptr };
         auto visible = SyncChildren(engine, node, children, leaves, layer);
-        for (auto const& c : visible) c.Measure(available);
+        for (auto const& c : visible)
+        {
+            // A scroller is measured at its frame, here and in Arrange: XAML clips an element arranged
+            // smaller than it asked for, and a viewport that changes in arrange re-measures it mid-pass.
+            auto content = ScrollContentOf(c);
+            c.Measure(content ? winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(content.Node())->LayoutSize() : available);
+        }
 
         if (isRoot)
         {
@@ -200,6 +220,14 @@ namespace mason_panel
         // The root's compute sizes a nested panel, after this measure. Reporting the last layout's size
         // would get a panel that shrank a layout clip, since XAML clips an element arranged smaller than
         // it asked for, and nothing measures it again.
+        // A scroller's content is the exception: its size is the scroll extent. Arrange measures it
+        // again when a compute changes that.
+        if (auto fe = self.try_as<mux::FrameworkElement>(); fe && fe.Parent().try_as<muxc::ScrollViewer>())
+        {
+            auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node);
+            impl->MeasuredExtent = impl->ScrollExtent();
+            return impl->MeasuredExtent;
+        }
         return winrt::Windows::Foundation::Size{ 0.0f, 0.0f };
     }
 
@@ -255,8 +283,18 @@ namespace mason_panel
                 }
                 mason_position::SyncChild(self, child, childNode);
             }
+            auto scrollContent = el ? nullptr : ScrollContentOf(child);
+            if (scrollContent)
+            {
+                auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(scrollContent.Node());
+                impl->ArrangeX = absX;
+                impl->ArrangeY = absY;
+                auto extent = impl->ScrollExtent();
+                if (extent != impl->MeasuredExtent) scrollContent.as<mux::UIElement>().InvalidateMeasure();
+                child.Measure({ cl.Width, cl.Height });
+            }
             winrt::Windows::Foundation::Rect rect{ snap(absX, originX, cl.X), snap(absY, originY, cl.Y), cl.Width, cl.Height };
-            if (!el)
+            if (!el && !scrollContent)
             {
                 // The frame is the border box; XAML takes the margins off the rect it arranges in.
                 if (auto fe = child.try_as<mux::FrameworkElement>())
