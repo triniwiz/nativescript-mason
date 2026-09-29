@@ -1,4 +1,4 @@
-import { Color, CoreTypes } from '@nativescript/core';
+import { Color, CoreTypes, ItemsSource, KeyedTemplate, Template } from '@nativescript/core';
 
 import { TextBase, ViewBase } from './common';
 import { LengthPercentage } from '@nativescript/core/css/parser';
@@ -363,9 +363,27 @@ export class TextNode {
   substringData(offset: number, count: number): string;
 }
 
-export class Ul extends VBase {}
+/**
+ * Virtualized list (UICollectionView on iOS, RecyclerView on Android) with the
+ * core ListView-shaped API. `itemLoading` hands over the new or recycled view.
+ */
+declare class MasonList extends VBase {
+  static itemLoadingEvent: string;
+  static itemTapEvent: string;
+  static loadMoreItemsEvent: string;
+  items: any[] | ItemsSource;
+  itemTemplate: string | Template;
+  itemTemplates: string | Array<KeyedTemplate>;
+  itemTemplateSelector: string | ((item: any, index: number, items: any) => string);
+  itemIdGenerator: (item: any, index: number, items: any) => number;
+  refresh(): void;
+  scrollToIndex(index: number): void;
+  scrollToIndexAnimated(index: number): void;
+}
 
-export class Ol extends VBase {}
+export class Ul extends MasonList {}
+
+export class Ol extends MasonList {}
 
 export class Li extends VBase {}
 

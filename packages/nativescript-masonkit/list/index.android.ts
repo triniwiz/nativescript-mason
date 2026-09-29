@@ -28,7 +28,9 @@ class Listener extends java.lang.Object implements org.nativescript.mason.masonk
   public onCreate(type: number): android.view.View {
     const owner = this._owner.get();
     if (owner) {
-      const template = owner._getItemTemplate(type);
+      // `type` is the view type from getItemViewType, i.e. an index into
+      // _itemTemplatesInternal, not a data index.
+      const template = owner._itemTemplatesInternal[type] ?? owner._itemTemplatesInternal[0];
 
       const view = template.createView();
 

@@ -1233,7 +1233,11 @@ export class Style {
         // if a non mason view is passed
         style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(nativeView);
       }
-      const styleBuffer = style.getValues();
+      // Take the node's private (writable) buffer up front: nearly every node
+      // is styled right away, and starting on the shared default buffer made
+      // the first write pay a copy-on-write round trip from JS (getStyle,
+      // prepareMut, getValues, and a second ArrayBuffer wrap).
+      const styleBuffer = typeof style.getWritableValue === 'function' ? style.getWritableValue() : style.getValues();
       const buffer = (<any>ArrayBuffer).from(styleBuffer);
       ret.style_view = new DataView(buffer);
       ret.i8View = new Int8Array(buffer);

@@ -69,6 +69,12 @@ impl StyleHandle {
     pub fn index(self) -> usize {
         (self.0 & Self::INDEX_MASK) as usize
     }
+
+    /// Packed index + generation, the form `from_raw` takes across the FFI.
+    #[inline]
+    pub fn raw(self) -> u32 {
+        self.0
+    }
 }
 
 #[derive(Debug)]

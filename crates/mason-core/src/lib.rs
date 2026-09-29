@@ -1113,6 +1113,12 @@ impl Mason {
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
     }
 
+    /// The node's style handle (packed, for `buffer_from` / `set_handle_buffer`).
+    #[cfg(target_os = "android")]
+    pub fn style_handle(&self, node: Id) -> Option<u32> {
+        self.0.nodes().get(node).map(|n| n.style().handle.raw())
+    }
+
     #[cfg(target_os = "android")]
     pub fn set_handle_buffer(&mut self, handle: u32, buffer_id: i32) {
         let mut reader = self.0 .0.write();

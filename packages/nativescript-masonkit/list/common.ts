@@ -35,6 +35,11 @@ export const itemTemplateProperty = new Property<ListBase, string | Template>({
 
 export const itemTemplatesProperty = new Property<ListBase, string | Array<KeyedTemplate>>({
   name: 'itemTemplates',
+  // Keyed templates were accepted but never reached _itemTemplatesInternal,
+  // so every item used the default template.
+  valueChanged: (target, _oldValue, newValue) => {
+    target._onItemTemplatesChanged(Array.isArray(newValue) ? newValue : null);
+  },
   valueConverter: (value) => {
     if (typeof value === 'string') {
       if (__UI_USE_XML_PARSER__) {
@@ -111,6 +116,18 @@ export abstract class ListBase extends ViewBase implements Omit<TemplatedItemsVi
   }
   set itemIdGenerator(generatorFn: (item: any, index: number, items: any) => number) {
     this._itemIdGenerator = generatorFn;
+  }
+
+  /** Keyed templates in use: the default one first, then `templates` (a view type is an index here). */
+  public _onItemTemplatesChanged(templates: KeyedTemplate[] | null) {
+    this._itemTemplatesInternal = [this._defaultTemplate, ...(templates ?? [])];
+    this._registerItemTemplates();
+    this.refresh();
+  }
+
+  /** Platform hook: iOS registers one cell reuse identifier per template. */
+  public _registerItemTemplates() {
+    //
   }
 
   public refresh() {
