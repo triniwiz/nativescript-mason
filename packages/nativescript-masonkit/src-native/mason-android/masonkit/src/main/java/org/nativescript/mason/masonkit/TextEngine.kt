@@ -151,6 +151,7 @@ class TextEngine(val container: TextContainer) {
 
       // Create a single text node with the new text
       val textNode = TextNode(node.mason, value)
+      textNode.attributes.sync(node.style)
       textNode.container = container
 
       // Add to children
