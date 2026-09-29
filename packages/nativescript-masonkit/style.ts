@@ -1215,6 +1215,10 @@ export class Style {
   // each render); if the bytes end up unchanged the native sync is skipped.
   // `false` means a write happened without a snapshot, so always sync.
   private _turnSnapshot: Uint8Array | false | undefined = undefined;
+  // Whether this style has been synced to native at least once. A style that
+  // never synced always needs its first sync, so it skips the snapshot copy
+  // (a slice + compare of the whole buffer per new node on mount).
+  private _synced = false;
   private nativeView: any;
   private nativeNode: any;
   private _pseudo: number;
@@ -1553,12 +1557,19 @@ export class Style {
   }
 
   private syncStyle() {
+    this._synced = true;
     const snapshot = this._turnSnapshot;
     this._turnSnapshot = undefined;
     if (snapshot && this.isDirty !== -1n && bytesEqual(snapshot, this.u8View)) {
       this.resetState();
       return;
     }
+    this._sendSync();
+    this.resetState();
+  }
+
+  /** Hands the dirty mask to the native element, which re-reads those style keys from the buffer. */
+  private _sendSync() {
     if (__ANDROID__) {
       const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
@@ -1578,7 +1589,6 @@ export class Style {
       (view as NativeScript.Mason.IMasonElement).SyncStyle('', '');
       (this.view as any)?._windowsSyncAnonymousText?.();
     }
-    this.resetState();
   }
 
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
@@ -1652,7 +1662,7 @@ export class Style {
       return;
     }
     if (this._turnSnapshot === undefined && this.isDirty === -1n && this.u8View) {
-      this._turnSnapshot = this.u8View.slice();
+      this._turnSnapshot = this._synced ? this.u8View.slice() : false;
     }
     const ref = getUint32(this.style_view, StyleKeys.REF_COUNT);
     if (ref !== 1) {
