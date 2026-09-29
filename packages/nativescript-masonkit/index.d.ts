@@ -363,10 +363,6 @@ export class TextNode {
   substringData(offset: number, count: number): string;
 }
 
-/**
- * Virtualized list (UICollectionView on iOS, RecyclerView on Android) with the
- * core ListView-shaped API. `itemLoading` hands over the new or recycled view.
- */
 declare class MasonList extends VBase {
   static itemLoadingEvent: string;
   static itemTapEvent: string;

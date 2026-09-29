@@ -799,8 +799,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintAre
     }
 }
 
-/// Diagnostics for leak checks: [liveNodes, totalBuffers, activeBuffers,
-/// sharedBuffers, freeSlots, bufferMemoryBytes].
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeDebugStats<'a>(
     mut env: JNIEnv<'a>,

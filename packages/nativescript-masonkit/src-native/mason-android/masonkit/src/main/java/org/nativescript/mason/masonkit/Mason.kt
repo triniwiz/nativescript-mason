@@ -171,11 +171,6 @@ class Mason {
     nativePrintArenaStats(nativePtr)
   }
 
-  /**
-   * Diagnostics for leak checks. Keys: liveNodes (Rust tree), totalBuffers,
-   * activeBuffers, sharedBuffers, freeSlots, bufferMemory (arena bytes),
-   * trackedNodes (Kotlin registry), objectManager (ObjectManager entries).
-   */
   fun debugStats(): Map<String, Long> {
     val native = nativeDebugStats(nativePtr)
     return linkedMapOf(

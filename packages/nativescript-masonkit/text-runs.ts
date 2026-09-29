@@ -8,7 +8,6 @@ export function hasTextRun(children: readonly any[], node: unknown): boolean {
 
 export interface TextRunReconcileContext {
   _children: any[];
-  /** Resets ViewBase's in-order attach cursor (optional so test doubles need not provide it). */
   _invalidateAttachCursor?(): void;
   _nativeRemoveChildNode(node: any, index: number): void;
   _updateTextNode(
@@ -49,7 +48,6 @@ export function reconcileTextRuns(context: TextRunReconcileContext, nodes: any[]
     }
   }
 
-  // Runs are spliced in and out of `_children` below.
   context._invalidateAttachCursor?.();
 
   // Drop native runs whose framework node is gone or has become empty.

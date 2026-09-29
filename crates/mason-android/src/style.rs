@@ -342,13 +342,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
         });
     }
 }
-/// Buffer id (ObjectManager) of the node's current style buffer.
-///
-/// The DirectByteBuffer over the arena bytes is created once per buffer and
-/// its id persisted on the arena slot. Before, the id was never stored, so
-/// every call (Style.fromView, every prepareMut) created another
-/// DirectByteBuffer and ObjectManager entry that was never released.
-/// Arena bytes are boxed and never move; a released slot resets its id.
 unsafe fn node_style_buffer_id(env: &mut JNIEnv, mason: &mut Mason, node: &NodeRef) -> jni::sys::jint {
     let data = mason.style_data(node.id());
     if data >= 0 {

@@ -1,10 +1,5 @@
-// Nodes are freed when the last NodeRef to them drops. An unmounted subtree
-// must be freed whatever order its NodeRefs drop in: before, only nodes with
-// neither parent nor children were removed, so no node of a detached subtree
-// (the root has children, the rest have parents) was ever freed.
 use mason_core::*;
 
-/// root + 3 children, each with 2 grandchildren (10 nodes), attached to `host`.
 fn subtree(mason: &mut Mason, host: &NodeRef) -> (NodeRef, Vec<NodeRef>) {
     let root = mason.create_node();
     let mut refs = Vec::new();
@@ -62,7 +57,6 @@ fn referenced_descendants_survive_and_are_freed_later() {
     let baseline = mason.node_count();
 
     drop(root);
-    // The child is still referenced: detached and kept.
     assert_eq!(mason.node_count(), baseline - 1);
     drop(child);
     assert_eq!(mason.node_count(), baseline - 2);

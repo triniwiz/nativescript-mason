@@ -28,7 +28,6 @@ class ObjectManager private constructor() {
     }
   }
 
-  /** Live entries (diagnostics). */
   val size: Int
     get() = objects.size
 

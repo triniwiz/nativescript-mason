@@ -2,11 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { ViewBase } from './common';
 import { text_ } from './symbols';
 
-// `_nativeAttachIndex` answers in-order attaches from a cursor instead of the
-// O(n) `indexOf` + `_nativeIndexFor` scan. It must always agree with the scan.
-// Both methods only read `_children` (and the cursor), so a bare object with
-// ViewBase's prototype is enough.
-
 type Child = { id: number; _isMasonChild?: boolean; [text_]?: string };
 
 function host(children: Child[]) {
@@ -18,7 +13,6 @@ function host(children: Child[]) {
 const views = (n: number, from = 0): Child[] => Array.from({ length: n }, (_, i) => ({ id: from + i }));
 const textRun = (id: number): Child => ({ id, [text_]: `t${id}` });
 
-/** Attach `child` the way `_addViewToNativeVisualTree` does, checking the answer against the scan. */
 function attach(h: any, child: Child) {
   const expectedJs = h._children.indexOf(child);
   const expectedNative = h._nativeIndexFor(expectedJs);
@@ -46,7 +40,6 @@ describe('_nativeAttachIndex', () => {
     const children = views(10);
     const h = host(children);
     for (const c of children.slice(0, 5)) attach(h, c);
-    // A detached view inserted before the cursor shifts everything after it, without invalidation.
     children.splice(2, 0, { id: 99 });
     attach(h, children[6]);
     attach(h, children[7]);
@@ -56,7 +49,7 @@ describe('_nativeAttachIndex', () => {
     const children = views(10);
     const h = host(children);
     for (const c of children.slice(0, 4)) attach(h, c);
-    children.splice(1, 1); // remove an attached sibling, as removeChild does
+    children.splice(1, 1);
     h._invalidateAttachCursor();
     for (const c of children.slice(3)) attach(h, c);
   });

@@ -1,13 +1,5 @@
 package org.nativescript.mason.masonkit
 
-/**
- * A node's child list that remembers whether it may hold an anonymous node.
- * Without one, the author-children count is just [size], so appends need no
- * scan (NodeUtils.countAuthorChildren was O(n) per append, O(n²) per container).
- *
- * The flag is sticky until [clear]: removals keep it set, which only costs the
- * fast path. `isAnonymous` is fixed when a node is created, before it is added.
- */
 internal class ChildList(initialCapacity: Int) : ArrayList<Node>(initialCapacity) {
   var mayHaveAnonymous = false
     private set

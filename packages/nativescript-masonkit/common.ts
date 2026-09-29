@@ -1073,21 +1073,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return index;
   }
 
-  // Last child attached through _nativeAttachIndex (see there).
   private _attachCursor: { child: any; jsIndex: number; nativeIndex: number } | undefined;
 
-  /**
-   * Where to attach `child` natively: its JS slot (`atIndex`, or its current
-   * slot when -1) and the native index `_nativeIndexFor` would give.
-   *
-   * NativeScript attaches children one at a time, in order, as they load. Doing
-   * `indexOf` + `_nativeIndexFor` for each is O(n) per child, O(n²) per
-   * container (millions of checks for a few thousand children). The previous
-   * attach is remembered: when `child` sits in the slot right after it and that
-   * sibling has not moved, the answer is one more than last time, in O(1).
-   * Anything else takes the full scan. Mutations that can change the native
-   * counts without moving that sibling reset the cursor (_invalidateAttachCursor).
-   */
   _nativeAttachIndex(child: any, atIndex: number): { jsIndex: number; nativeIndex: number } {
     const cur = this._attachCursor;
     let jsIndex: number;
@@ -1858,9 +1845,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
     if (__ANDROID__) {
-      // Buffer write, synced with the node's other style changes. Core expands
-      // border-color into four longhands, so the JNI path below cost 4 calls
-      // (each re-parsing all four colors natively) per restyled node.
       const s = (this as any)._styleHelper as MasonStyle | undefined;
       if (s) {
         s.setBorderSideColor(side === 't' ? 'top' : side === 'r' ? 'right' : side === 'b' ? 'bottom' : 'left', value);

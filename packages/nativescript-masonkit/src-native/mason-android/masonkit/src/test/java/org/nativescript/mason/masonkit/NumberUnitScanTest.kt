@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** scanNumberUnit must accept exactly what lengthPercentageRegex accepts. */
 class NumberUnitScanTest {
   private fun viaRegex(s: String): Pair<Float, String?>? {
     val m = lengthPercentageRegex.matchEntire(s) ?: return null

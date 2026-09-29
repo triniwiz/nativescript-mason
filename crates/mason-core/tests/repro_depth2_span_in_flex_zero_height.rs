@@ -22,8 +22,6 @@ extern "C" fn span_measure(
     MeasureOutput::make(w, h)
 }
 
-// Returns the NodeRefs too: a parentless node with no NodeRef is garbage and
-// is freed when its last ref drops, so callers must hold them.
 fn build_middle_plus_span(mason: &mut Mason) -> (NodeRef, NodeRef, Id, Id) {
     let middle = mason.create_node();
     let middle_id = middle.id();

@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ListBase } from './common';
 
-// Keyed item templates must reach _itemTemplatesInternal (default first), so
-// the selector picks them and a view type (an index) maps back to a template.
-
 function list() {
   const l = Object.create(ListBase.prototype) as any;
   l._defaultTemplate = { key: 'default', createView: () => null };

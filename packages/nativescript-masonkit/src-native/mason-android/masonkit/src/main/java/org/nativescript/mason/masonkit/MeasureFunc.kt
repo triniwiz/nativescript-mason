@@ -27,10 +27,6 @@ internal class MeasureFuncImpl(
 
   private var released = false
 
-  /**
-   * Drop the ObjectManager entry. ObjectManager holds this strongly, so a
-   * finalizer never runs; the owning node releases it when replaced or collected.
-   */
   @Synchronized
   internal fun release() {
     if (hasObjectId && !released) {

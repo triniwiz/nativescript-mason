@@ -318,7 +318,6 @@ impl Mason {
         self.0.inner().style_arena.stats()
     }
 
-    /// Live nodes in the tree (diagnostics: leak checks).
     pub fn node_count(&self) -> usize {
         self.0.nodes().len()
     }
@@ -1118,7 +1117,6 @@ impl Mason {
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
     }
 
-    /// The node's style handle (packed, for `buffer_from` / `set_handle_buffer`).
     #[cfg(target_os = "android")]
     pub fn style_handle(&self, node: Id) -> Option<u32> {
         self.0.nodes().get(node).map(|n| n.style().handle.raw())

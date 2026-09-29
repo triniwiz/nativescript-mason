@@ -1163,14 +1163,6 @@ impl PartialEq for NodeRef {
     }
 }
 
-/// Remove `root` and, depth first, every descendant no `NodeRef` references
-/// any more (guard count 1: only the tree's own). Descendants that are still
-/// referenced are detached (parent cleared) and kept; the same rule collects
-/// them when their last `NodeRef` drops.
-///
-/// `root` must have no parent. Before, a node was only removed when it had
-/// neither parent nor children, so no node of an unmounted subtree (the root
-/// has children, the rest have parents) was ever freed.
 pub(crate) fn remove_unreferenced_subtree(
     tree: &mut TreeInner,
     node_data: &mut SecondaryMap<Id, NodeData>,
@@ -1194,7 +1186,7 @@ pub(crate) fn remove_unreferenced_subtree(
                 }
             }
         }
-        // Style::drop releases the arena handle.
+        // Remove the node; Style::drop will release the arena handle
         tree.nodes.remove(id);
         forget_block_measure(tree.uid, id);
         tree.parents.remove(id);
@@ -1205,7 +1197,6 @@ pub(crate) fn remove_unreferenced_subtree(
     }
 }
 
-/// Whether `id` is a parentless node no `NodeRef` references any more.
 pub(crate) fn is_collectable_root(tree: &TreeInner, id: Id) -> bool {
     let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
     !has_parent
@@ -1241,26 +1232,23 @@ pub(crate) fn drain_deferred_cleanup(
 
 impl Drop for NodeRef {
     fn drop(&mut self) {
-        // 2 = this ref + the tree's own: this is the last external reference.
+        // 2 = this ref + default ref
         if Arc::strong_count(&self.guard) != 2 {
             return;
         }
-        // Non-blocking locks: the layout algorithm may hold read locks. A node
-        // that still has a parent stays until its parent is collected or it
-        // is detached (remove_child* return a NodeRef whose drop lands here).
+        // Try non-blocking write lock first to avoid deadlocking with
+        // concurrent read locks held by the layout algorithm.
         if let Some(mut tree) = self.tree.try_write() {
             let has_parent = tree.parents.get(self.id).map(|p| p.is_some()).unwrap_or(false);
             if has_parent {
                 return;
             }
             if let Some(mut nd) = self.node_data.try_write() {
-                // The count check inside sees this ref gone once the node is removed;
-                // descendants are checked for count 1.
                 remove_unreferenced_subtree(&mut tree, &mut nd, self.id);
                 return;
             }
         }
-        // Lock contended: collect on the next drain (the guard count is re-checked there).
+        // Lock is contended — defer cleanup to avoid deadlock.
         self.deferred_cleanup.lock().push(self.id);
     }
 }

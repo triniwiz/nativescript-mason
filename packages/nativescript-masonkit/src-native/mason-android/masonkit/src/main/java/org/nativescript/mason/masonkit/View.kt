@@ -48,7 +48,6 @@ open class View @JvmOverloads constructor(
   private val nodes = mutableMapOf<android.view.View, Node>()
 
 
-  // override = true: skip init's Mason.shared node; this constructor creates the node.
   constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
     node = mason.createNode().apply {
       view = this@View

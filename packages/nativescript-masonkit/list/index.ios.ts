@@ -101,7 +101,6 @@ export class List extends ListBase {
     return this._view;
   }
 
-  /** One reuse identifier per template; also run when templates change after the native view exists. */
   public _registerItemTemplates() {
     const view = this[native_] as any;
     if (!view) return;

@@ -3,11 +3,7 @@ import { Color } from '@nativescript/core';
 import { styleUnderTest } from '../../tools/testing/mason-test-kit/style-under-test';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 
-// Android border-*-color longhands write the style buffer directly (one batched
-// sync) instead of a JNI string call per property. The side colors must land
-// where Border.kt reads them, as ARGB, with the BORDER_COLOR dirty bit set.
-
-const BORDER_COLOR_BIT = 1n << 42n; // StateKeys.BORDER_COLOR = flag(42)
+const BORDER_COLOR_BIT = 1n << 42n;
 
 describe('setBorderSideColor', () => {
   it('writes the side color as ARGB at the side offset and marks BORDER_COLOR dirty', () => {

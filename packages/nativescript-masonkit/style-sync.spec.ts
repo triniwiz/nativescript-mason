@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { styleUnderTest } from '../../tools/testing/mason-test-kit/style-under-test';
 
-// A style skips its native sync when a turn's writes leave the buffer bytes
-// unchanged (frameworks re-apply identical values). A style that has never
-// synced must always sync, and skips the snapshot copy that check needs.
-
 function tracked() {
   const t = styleUnderTest();
   const style = t.style as any;

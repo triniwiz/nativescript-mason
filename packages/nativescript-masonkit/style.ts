@@ -1215,9 +1215,6 @@ export class Style {
   // each render); if the bytes end up unchanged the native sync is skipped.
   // `false` means a write happened without a snapshot, so always sync.
   private _turnSnapshot: Uint8Array | false | undefined = undefined;
-  // Whether this style has been synced to native at least once. A style that
-  // never synced always needs its first sync, so it skips the snapshot copy
-  // (a slice + compare of the whole buffer per new node on mount).
   private _synced = false;
   private nativeView: any;
   private nativeNode: any;
@@ -1233,10 +1230,6 @@ export class Style {
         // if a non mason view is passed
         style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(nativeView);
       }
-      // Take the node's private (writable) buffer up front: nearly every node
-      // is styled right away, and starting on the shared default buffer made
-      // the first write pay a copy-on-write round trip from JS (getStyle,
-      // prepareMut, getValues, and a second ArrayBuffer wrap).
       const styleBuffer = typeof style.getWritableValue === 'function' ? style.getWritableValue() : style.getValues();
       const buffer = (<any>ArrayBuffer).from(styleBuffer);
       ret.style_view = new DataView(buffer);
@@ -1546,12 +1539,6 @@ export class Style {
     }
   }
 
-  /**
-   * `border-color` shorthand straight into the buffer (one batched sync). Used
-   * on Windows, and on Android, where the side colors are buffer-backed and a
-   * BORDER_COLOR sync re-reads them (Border.kt), so the JNI string call and
-   * native re-parse per property are unnecessary.
-   */
   setBorderColor(value: string) {
     if (!(__WINDOWS__ || __ANDROID__) || !this.style_view) return;
     const c = parseSidesColorShorthand(String(value ?? ''));
@@ -1562,7 +1549,6 @@ export class Style {
     this.commitState(StateKeys.BORDER_COLOR);
   }
 
-  /** One side's border color (a core border-*-color longhand) into the buffer. */
   setBorderSideColor(side: 'top' | 'right' | 'bottom' | 'left', value: number | string | { argb?: number }) {
     if (!this.style_view) return;
     const color = normalizeColorValue(value);
@@ -1587,7 +1573,6 @@ export class Style {
     this.resetState();
   }
 
-  /** Hands the dirty mask to the native element, which re-reads those style keys from the buffer. */
   private _sendSync() {
     if (__ANDROID__) {
       const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);

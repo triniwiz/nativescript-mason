@@ -297,10 +297,6 @@ open class Node internal constructor(
       return stateValue.get(NodeStateKeys.IS_NODE_DIRTY) > 0
     }
 
-  /**
-   * ObjectManager id of the current [measureFuncImpl]. GC reads it at cleanup
-   * without holding the node, since ObjectManager keeps the impl strongly.
-   */
   internal class MeasureSlot {
     @Volatile
     var id = -1
@@ -1219,9 +1215,7 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
-    // Index past the end is an append, the common case while a container's
-    // children attach in order. Check it by counting, without building the
-    // author-children list (that made each append O(n) with an allocation).
+    // if index is past end, fall back to append behavior
     if (index >= NodeUtils.countAuthorChildren(children)) {
       appendChild(child)
       return
@@ -1476,8 +1470,6 @@ open class Node internal constructor(
       // views attached to the wrong ViewGroup.
       NodeUtils.removeView(this, removed.view as? View)
       if (removed.nativePtr != 0L) {
-        // The call returns a new NodeRef for the removed child; release it, or it
-        // pins the child (and its whole subtree) in the Rust tree forever.
         val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
         if (ref != 0L) {
           NativeHelpers.nativeNodeDestroy(ref)

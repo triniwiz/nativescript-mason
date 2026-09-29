@@ -1465,10 +1465,6 @@ private val lengthUnits = setOf("dppx", "px", "%", "dip", "rem", "em", "vmin", "
 
 internal class NumberUnit(@JvmField val num: Float, @JvmField val unit: String?)
 
-/**
- * Same grammar as [lengthPercentageRegex], without the regex: style setters call
- * this per token, and Regex.matchEntire dominated border-radius updates.
- */
 internal fun scanNumberUnit(value: String): NumberUnit? {
   val n = value.length
   var i = 0
@@ -1483,7 +1479,6 @@ internal fun scanNumberUnit(value: String): NumberUnit? {
     i++
     if (!digits()) return null
   }
-  // Optional exponent, taken only when digits follow, so "2em" stays 2 + "em".
   if (i < n && (value[i] == 'e' || value[i] == 'E')) {
     val mark = i
     i++
@@ -1496,7 +1491,6 @@ internal fun scanNumberUnit(value: String): NumberUnit? {
   return if (unit in lengthUnits) NumberUnit(num, unit) else null
 }
 
-/** Whitespace split that drops empty tokens (what `SPLIT_REGEX.split` + mapNotNull kept). */
 internal inline fun forEachWhitespaceToken(value: String, block: (String) -> Unit) {
   val n = value.length
   var i = 0
@@ -1508,7 +1502,6 @@ internal inline fun forEachWhitespaceToken(value: String, block: (String) -> Uni
   }
 }
 
-/** `\s` in java.util.regex (ASCII only). */
 @Suppress("NOTHING_TO_INLINE")
 internal inline fun Char.isRegexSpace(): Boolean =
   this == ' ' || this == '\t' || this == '\n' || this == '\u000B' || this == '\u000C' || this == '\r'
@@ -1935,8 +1928,5 @@ fun parseBorderRadius(style: Style, value: String) {
   style.borderBottomLeftRadius = Point(hMapped[3], vMapped[3])
   // Always invalidate renderer and notify native update for radius changes
   style.invalidateBorderRenderer()
-  // Append, don't assign: the empty state is -1 in both halves, so assigning only
-  // the low half left isDirtyHigh = -1 and every radius write looked like a change
-  // to every high flag (text restyle dispatch included).
   style.setOrAppendState(StateKeys.BORDER_RADIUS)
 }
