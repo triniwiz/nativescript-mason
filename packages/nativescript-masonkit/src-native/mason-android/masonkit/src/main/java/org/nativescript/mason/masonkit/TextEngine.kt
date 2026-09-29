@@ -1840,7 +1840,10 @@ class TextEngine(val container: TextContainer) {
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
-  internal val plainTextPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+  internal var plainTextPaintOrNull: TextPaint? = null
+    private set
+  internal val plainTextPaint: TextPaint
+    get() = plainTextPaintOrNull ?: TextPaint().also { plainTextPaintOrNull = it }
   private var plainTextRunStyle: Spans.RunStyleSpan? = null
 
   internal fun preparePlainTextPaint(base: TextPaint) {
