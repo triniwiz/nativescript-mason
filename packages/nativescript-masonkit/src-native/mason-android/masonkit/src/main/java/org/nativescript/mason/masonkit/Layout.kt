@@ -2,39 +2,40 @@ package org.nativescript.mason.masonkit
 
 import kotlin.math.abs
 
-private val EMPTY_EXPORT_BUFFER = FloatArray(0)
+private val EMPTY_FLOATS = FloatArray(0)
+private val EMPTY_INTS = IntArray(0)
 
 // MARK: - Flat Layout Tree (Android equivalent of iOS MasonLayoutTree)
 
 class MasonLayoutTree {
   // Per-node floats: stride-4 (x, y, width, height)
-  var frames = FloatArray(0)
+  var frames = EMPTY_FLOATS
     internal set
 
   // Per-node floats: stride-4 (top, right, bottom, left)
-  var borders = FloatArray(0)
+  var borders = EMPTY_FLOATS
     internal set
-  var margins = FloatArray(0)
+  var margins = EMPTY_FLOATS
     internal set
-  var paddings = FloatArray(0)
+  var paddings = EMPTY_FLOATS
     internal set
 
   // Per-node floats: stride-2 (width, height)
-  var contentSizes = FloatArray(0)
+  var contentSizes = EMPTY_FLOATS
     internal set
-  var scrollbarSizes = FloatArray(0)
+  var scrollbarSizes = EMPTY_FLOATS
     internal set
 
   // Per-node ints
-  var order = IntArray(0)
+  var order = EMPTY_INTS
     internal set
-  var childStart = IntArray(0)
+  var childStart = EMPTY_INTS
     internal set
-  var childCount = IntArray(0)
+  var childCount = EMPTY_INTS
     internal set
 
   // Flat list of child indices
-  var childIndices = IntArray(0)
+  var childIndices = EMPTY_INTS
     internal set
 
   var nodeCount = 0
@@ -45,7 +46,7 @@ class MasonLayoutTree {
 
   private var childIndicesCount = 0
 
-  internal var exportBuffer = EMPTY_EXPORT_BUFFER
+  internal var exportBuffer = EMPTY_FLOATS
     private set
 
   internal fun ensureExportCapacity(required: Int) {

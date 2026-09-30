@@ -34,6 +34,8 @@ enum class PseudoState(val mask: Int) {
 }
 
 
+private val UNSET_COMPUTE_CACHE = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) : NativeObject {
@@ -50,7 +52,9 @@ open class Node internal constructor(
    * ViewBase, so NativeScript's selector engine never sees it. Keeping them lets
    * an app find and style a parsed subtree itself.
    */
-  val htmlAttributes: MutableMap<String, String> = mutableMapOf()
+  private var mHtmlAttributes: MutableMap<String, String>? = null
+  val htmlAttributes: MutableMap<String, String>
+    get() = mHtmlAttributes ?: mutableMapOf<String, String>().also { mHtmlAttributes = it }
 
 
   internal var computeCacheDirty = false
@@ -73,11 +77,11 @@ open class Node internal constructor(
 
   internal var lastTextAttachParent: Node? = null
   internal var detachTextEpoch = -1
-  var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+  var computeCache: SizeF = UNSET_COMPUTE_CACHE
     set(value) {
       computeCacheDirty = true
       field = if (isImage && value.width == -1f && value.height == -1f) {
-        SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+        UNSET_COMPUTE_CACHE
       } else {
         value
       }

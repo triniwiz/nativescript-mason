@@ -778,7 +778,12 @@ private val TRANSFORM_WS_REGEX = Regex("\\s+")
 
 class Style internal constructor(@Transient internal var node: Node) {
   internal var isValueInitialized: Boolean = false
-  internal var gridState = GridState()
+  private var mGridState: GridState? = null
+  internal var gridState: GridState
+    get() = mGridState ?: GridState().also { mGridState = it }
+    set(value) {
+      mGridState = value
+    }
 
   internal var fontDirty = false
     private set(value) {
@@ -796,13 +801,20 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   // Published fontmanager fires reload listeners off the main thread.
-  private var reloadListener: (FontFace, String?) -> Unit = { _, _ ->
-    if (android.os.Looper.myLooper() === android.os.Looper.getMainLooper()) {
-      syncFontMetrics()
-    } else {
-      android.os.Handler(android.os.Looper.getMainLooper()).post { syncFontMetrics() }
+  private var mReloadListener: ((FontFace, String?) -> Unit)? = null
+  private val reloadListener: (FontFace, String?) -> Unit
+    get() {
+      mReloadListener?.let { return it }
+      val listener: (FontFace, String?) -> Unit = { _, _ ->
+        if (android.os.Looper.myLooper() === android.os.Looper.getMainLooper()) {
+          syncFontMetrics()
+        } else {
+          android.os.Handler(android.os.Looper.getMainLooper()).post { syncFontMetrics() }
+        }
+      }
+      mReloadListener = listener
+      return listener
     }
-  }
 
   // Lazily constructed: FontFace's own constructor (fontmanager) spins up a
   // dedicated single-thread Executor with no way to shut it down, so eagerly
@@ -920,9 +932,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     return FontMetrics.from(this)
   }
 
-  private val xBounds = android.graphics.Rect()
+  private var xBounds: android.graphics.Rect? = null
 
-  private val capBounds = android.graphics.Rect()
+  private var capBounds: android.graphics.Rect? = null
 
 
   /**
@@ -940,7 +952,11 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   private fun syncFontMetricsNow(): Boolean {
-    val m = sharedFontMetrics(paint, xBounds, capBounds)
+    val m = sharedFontMetrics(
+      paint,
+      xBounds ?: android.graphics.Rect().also { xBounds = it },
+      capBounds ?: android.graphics.Rect().also { capBounds = it }
+    )
     val ascent = m[0]
     val descent = m[1]
     val leading = m[2]
@@ -1008,10 +1024,14 @@ class Style internal constructor(@Transient internal var node: Node) {
     values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
   }
 
-  private val mPlaceholder by lazy {
+  private var mPlaceholderBuffer: ByteBuffer? = null
+  private val mPlaceholder: ByteBuffer
+    get() = mPlaceholderBuffer ?: createPlaceholder().also { mPlaceholderBuffer = it }
+
+  private fun createPlaceholder(): ByteBuffer {
     isValueInitialized = true
     // use the same capacity set in rust
-    ByteBuffer.allocateDirect(596).apply {
+    return ByteBuffer.allocateDirect(596).apply {
       order(ByteOrder.nativeOrder())
 
       // default ratio to NAN
@@ -1219,7 +1239,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     isDirty = -1
     isDirtyHigh = -1L
     isSlowDirty = false
-    gridState.clear()
+    mGridState?.clear()
   }
 
   var inBatch: Boolean = false
@@ -3017,9 +3037,9 @@ class Style internal constructor(@Transient internal var node: Node) {
   fun hasOutsetBoxShadow(): Boolean = mHasOutsetBoxShadow
 
   private var mBoxShadowRaw: String = ""
-  internal val mBoxShadowRenderer by lazy {
-    BoxShadowRenderer(this)
-  }
+  private var mBoxShadowRendererOrNull: BoxShadowRenderer? = null
+  internal val mBoxShadowRenderer: BoxShadowRenderer
+    get() = mBoxShadowRendererOrNull ?: BoxShadowRenderer(this).also { mBoxShadowRendererOrNull = it }
 
   // Computed once per write in the boxShadow setter; readers (renderer cache
   // keys, filtered-list checks) call boxShadowsHash() on every draw.
@@ -3070,27 +3090,28 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   internal var mBorder: String = ""
-  private val borderRendererLazy = lazy { BorderRenderer(this) }
-  internal val mBorderRenderer by borderRendererLazy
+  private var mBorderRendererOrNull: BorderRenderer? = null
+  internal val mBorderRenderer: BorderRenderer
+    get() = mBorderRendererOrNull ?: BorderRenderer(this).also { mBorderRendererOrNull = it }
 
   internal fun invalidateBorderRenderer() {
-    if (borderRendererLazy.isInitialized()) mBorderRenderer.invalidate()
+    mBorderRendererOrNull?.invalidate()
   }
-  internal val mBorderLeft by lazy {
-    Border(this, Border.Side.Left)
-  }
+  private var mBorderLeftOrNull: Border? = null
+  internal val mBorderLeft: Border
+    get() = mBorderLeftOrNull ?: Border(this, Border.Side.Left).also { mBorderLeftOrNull = it }
 
-  internal val mBorderTop by lazy {
-    Border(this, Border.Side.Top)
-  }
+  private var mBorderTopOrNull: Border? = null
+  internal val mBorderTop: Border
+    get() = mBorderTopOrNull ?: Border(this, Border.Side.Top).also { mBorderTopOrNull = it }
 
-  internal val mBorderRight by lazy {
-    Border(this, Border.Side.Right)
-  }
+  private var mBorderRightOrNull: Border? = null
+  internal val mBorderRight: Border
+    get() = mBorderRightOrNull ?: Border(this, Border.Side.Right).also { mBorderRightOrNull = it }
 
-  internal val mBorderBottom by lazy {
-    Border(this, Border.Side.Bottom)
-  }
+  private var mBorderBottomOrNull: Border? = null
+  internal val mBorderBottom: Border
+    get() = mBorderBottomOrNull ?: Border(this, Border.Side.Bottom).also { mBorderBottomOrNull = it }
 
 
   var border: String
