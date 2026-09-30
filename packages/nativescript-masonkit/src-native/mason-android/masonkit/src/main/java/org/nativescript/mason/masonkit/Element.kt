@@ -301,8 +301,7 @@ interface Element : EventTarget {
   fun computeAndLayout(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
-    TextEngine.flushPendingTextStyles(node)
-    Style.flushPendingMetrics(node)
+    TextEngine.warmMeasures(node)
     var applied = true
     mason.inCompute = true
     try {
@@ -358,6 +357,7 @@ interface Element : EventTarget {
       return node.layoutTree
     }
 
+    TextEngine.warmMeasures(node)
     var applied = true
     mason.inCompute = true
     try {
