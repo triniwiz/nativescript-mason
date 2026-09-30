@@ -5042,6 +5042,22 @@ export class Style {
     );
   }
 
+  _writeCornerRadius(corner: number, radius: readonly [string, string], shorthand: string, scale = deviceScale()): boolean {
+    if (!this.nativeView || this._pseudo || !this.style_view) return false;
+    const h = fastRadiusTokens(radius[0], scale);
+    const v = radius[1] === radius[0] ? h : fastRadiusTokens(radius[1], scale);
+    if (!h || h.length !== 1 || !v || v.length !== 1) return false;
+    this._borderRadiusCss = shorthand;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    setUint8(this.style_view, keys.xType, h[0].type);
+    setFloat32(this.style_view, keys.xValue, h[0].value);
+    setUint8(this.style_view, keys.yType, v[0].type);
+    setFloat32(this.style_view, keys.yValue, v[0].value);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
   _writeBorderRadius(value: string, scale: number): boolean {
     let cleaned = value.trim();
     if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1);

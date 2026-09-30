@@ -58,3 +58,45 @@ describe('_writeBorderRadius', () => {
     }
   });
 });
+
+describe('_writeCornerRadius', () => {
+  function withNativeView() {
+    const t = styleUnderTest();
+    (t.style as any).nativeView = {};
+    return t;
+  }
+
+  it('writes only its own corner and keeps the composed shorthand', () => {
+    const t = withNativeView();
+    t.style._writeBorderRadius('1 2 3 4', 2);
+    expect(t.style._writeCornerRadius(2, ['5px', '5px'], '1 2 5px 4', 2)).toBe(true);
+    expect(corners(t)).toEqual([
+      [0, 2, 0, 2],
+      [0, 4, 0, 4],
+      [0, 10, 0, 10],
+      [0, 8, 0, 8],
+    ]);
+    expect((t.style as any)._borderRadiusCss).toBe('1 2 5px 4');
+    expect(t.dirty() & BORDER_RADIUS_BIT).toBe(BORDER_RADIUS_BIT);
+  });
+
+  it('writes percent and elliptical corners', () => {
+    const t = withNativeView();
+    expect(t.style._writeCornerRadius(0, ['50%', '4'], '50% 0 0 0 / 4 0 0 0', 3)).toBe(true);
+    expect(corners(t)[0]).toEqual([1, 0.5, 0, 12]);
+  });
+
+  it('leaves units that need native context to the native parser', () => {
+    for (const css of ['2rem', 'calc(4px + 1px)', '4px 8px']) {
+      const t = withNativeView();
+      expect(t.style._writeCornerRadius(1, [css, css], css, 2)).toBe(false);
+      expect(t.dirty()).toBe(-1n);
+    }
+  });
+
+  it('does nothing for a style without a native view', () => {
+    const t = styleUnderTest();
+    expect(t.style._writeCornerRadius(0, ['4', '4'], '4 0 0 0', 2)).toBe(false);
+    expect(t.dirty()).toBe(-1n);
+  });
+});

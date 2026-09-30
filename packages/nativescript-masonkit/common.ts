@@ -1808,9 +1808,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!corners) {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    corners[corner] = parseCornerRadius(lengthToCssString(masonLength(value)));
+    const css = lengthToCssString(masonLength(value));
+    const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
+    const shorthand = composeBorderRadius(corners);
+    if (__ANDROID__ && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
+      return;
+    }
     // @ts-ignore
-    style.borderRadius = composeBorderRadius(corners);
+    style.borderRadius = shorthand;
   }
 
   private _nativeCornerRadius(corner: CornerIndex): string {
