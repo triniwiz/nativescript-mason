@@ -90,7 +90,7 @@ const scenarios: Scenario[] = [
   { key: 'rich', title: 'Rich text', desc: '30 cards, each a paragraph of 12 mixed bold/italic/colored spans plus a 4-span meta line (~500 spans total). Retext, restyle, reflow on resize.', mason: RichMason, core: RichCore },
 ];
 
-const iterations = ref(5);
+const iterations = ref((globalThis as { __benchIterations?: number }).__benchIterations ?? 5);
 
 function open(page: Component): void {
   $navigateTo(page);
@@ -110,8 +110,8 @@ function closeBench(): void {
   }
 }
 
-async function runPage(page: Component, label: string): Promise<void> {
-  const done = beginNavigation();
+async function runPage(page: Component, label: string, scenario: ScenarioKey, flavour: Flavour): Promise<void> {
+  const done = beginNavigation(scenario, flavour);
   $navigateTo(page, { animated: false, props: { auto: true } });
   await done;
   await idle(250);
@@ -133,7 +133,7 @@ async function runAll(): Promise<void> {
     for (let i = 0; i < iterations.value; i++) {
       for (const s of scenarios) {
         for (const [flavour, page] of warmupBalancedOrder(s, i)) {
-          await runPage(page, `Run ${i + 1}/${iterations.value} · ${s.title} · ${flavour}`);
+          await runPage(page, `Run ${i + 1}/${iterations.value} · ${s.title} · ${flavour}`, s.key, flavour);
         }
       }
     }
