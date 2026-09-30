@@ -1593,7 +1593,7 @@ export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
   },
 });
 
-cornerShapeProperty.register(Style);
+registerAlongsideCore(cornerShapeProperty);
 registerAlongsideCore(boxShadowProperty);
 registerAlongsideCore(transformProperty);
 cornerShapeTopLeftProperty.register(Style);
@@ -1664,15 +1664,15 @@ rightProperty.register(Style);
 topProperty.register(Style);
 bottomProperty.register(Style);
 
-maxWidthProperty.register(Style);
-maxHeightProperty.register(Style);
+registerAlongsideCore(maxWidthProperty);
+registerAlongsideCore(maxHeightProperty);
 
 gridRowGapProperty.register(Style);
 gridColumnGapProperty.register(Style);
 gridGapProperty.register(Style);
-gapProperty.register(Style);
-rowGapProperty.register(Style);
-columnGapProperty.register(Style);
+registerAlongsideCore(gapProperty);
+registerAlongsideCore(rowGapProperty);
+registerAlongsideCore(columnGapProperty);
 
 scrollBarWidthProperty.register(Style);
 

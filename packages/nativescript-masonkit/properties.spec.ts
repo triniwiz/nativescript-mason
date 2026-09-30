@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
+import * as coreStyleProperties from '@nativescript/core/ui/styling/style-properties';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
@@ -205,7 +206,7 @@ describe('every CSS name mason claims is actually registered', () => {
   // silently did nothing on every plain NativeScript view — see
   // core-view-unaffected.spec.ts.) The list is here so a *new* name colliding
   // with core has to be routed deliberately rather than shadowing it.
-  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space'];
+  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space', 'max-width', 'max-height', 'gap', 'row-gap', 'column-gap', 'corner-shape'];
 
   it('registers no unexpected duplicate CSS name', () => {
     const seen = new Map<string, number>();
@@ -241,6 +242,14 @@ describe('plain NativeScript views keep core semantics', () => {
     // the mason passthrough leaked would be the raw string surviving.
     const read = (style as any)[toCamelCase(cssName)];
     expect(read).not.toBe(undefined);
+  });
+
+  // Core 9.1 added its own properties for these, so a plain view must reach core's.
+  it.each(['max-width', 'max-height', 'row-gap', 'column-gap'])("%s lands in core's property on a non-mason view", (cssName) => {
+    const coreProperty = (coreStyleProperties as any)[`${toCamelCase(cssName)}Property`];
+    const { style } = coreHost();
+    (style as any)[cssName] = '10px';
+    expect((style as any)[coreProperty.key]).toBeDefined();
   });
 
   it('font-size on a non-mason view stays numeric', () => {

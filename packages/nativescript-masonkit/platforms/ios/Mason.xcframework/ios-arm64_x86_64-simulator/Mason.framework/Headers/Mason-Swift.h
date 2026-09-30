@@ -1769,6 +1769,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)setDeviceScale:(float)value;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
 - (void)setMeasureForView:(UIView * _Nonnull)view block:(CGSize (^ _Nonnull)(CGFloat, CGFloat, CGFloat, CGFloat))block;
+- (void)setPercentWidth:(UIView * _Nonnull)view :(float)fraction;
+- (void)setPercentHeight:(UIView * _Nonnull)view :(float)fraction;
 - (void)configureStyleForView:(UIView * _Nonnull)view :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
 - (MasonStyle * _Nonnull)styleForView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
 - (MasonStyle * _Nullable)styleForViewOrNode:(id _Nullable)viewOrNode SWIFT_WARN_UNUSED_RESULT;
@@ -3835,6 +3837,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)setDeviceScale:(float)value;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
 - (void)setMeasureForView:(UIView * _Nonnull)view block:(CGSize (^ _Nonnull)(CGFloat, CGFloat, CGFloat, CGFloat))block;
+- (void)setPercentWidth:(UIView * _Nonnull)view :(float)fraction;
+- (void)setPercentHeight:(UIView * _Nonnull)view :(float)fraction;
 - (void)configureStyleForView:(UIView * _Nonnull)view :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
 - (MasonStyle * _Nonnull)styleForView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
 - (MasonStyle * _Nullable)styleForViewOrNode:(id _Nullable)viewOrNode SWIFT_WARN_UNUSED_RESULT;

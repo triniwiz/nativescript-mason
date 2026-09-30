@@ -228,7 +228,9 @@ declare module '@nativescript/core/ui/styling/style' {
     flexDirection: FlexDirection;
     // @ts-ignore
     flex: string | 'auto' | 'none' | number | 'initial';
+    // @ts-ignore
     maxWidth: LengthAuto;
+    // @ts-ignore
     maxHeight: LengthAuto;
     inset: LengthAuto;
     left: LengthAuto;
@@ -237,7 +239,9 @@ declare module '@nativescript/core/ui/styling/style' {
     bottom: LengthAuto;
     gridGap: Gap;
     gap: Gap;
+    // @ts-ignore
     rowGap: Length;
+    // @ts-ignore
     columnGap: Length;
     aspectRatio: number;
     // @ts-ignore
@@ -268,6 +272,7 @@ declare module '@nativescript/core/ui/styling/style' {
     textOverFlow: 'clip' | 'ellipsis' | `${string}`;
     float: Float;
     clear: Clear;
+    // @ts-ignore
     cornerShape: string;
     transform: string;
   }
@@ -375,7 +380,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if ((__ANDROID__ || __APPLE__ || __WINDOWS__) && this._masonPendingTeardown) {
       this._masonPendingTeardown = false;
       if (this._context === context) {
-        if (!this.mIsRootView && this.parent && !this._isAddedToNativeVisualTree) {
+        // core 9.1 renamed mIsRootView to the private _isRootView
+        const isRootView = (this as any)._isRootView ?? (this as any).mIsRootView;
+        if (!isRootView && this.parent && !this._isAddedToNativeVisualTree) {
           const nativeIndex = this.parent._childIndexToNativeChildIndex(atIndex ?? -1);
           this._isAddedToNativeVisualTree = this.parent._addViewToNativeVisualTree(this, nativeIndex);
         }
@@ -2479,19 +2486,23 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  set maxWidth(value: LengthAuto) {
-    this.style.maxWidth = value;
+  // @ts-ignore core declares maxWidth as a field on View
+  set maxWidth(value: LengthAuto | CoreTypes.PercentLengthType) {
+    this.style.maxWidth = value as CoreTypes.PercentLengthType;
   }
 
-  get maxWidth(): LengthAuto {
+  // @ts-ignore
+  get maxWidth(): CoreTypes.PercentLengthType {
     return this.style.maxWidth;
   }
 
-  set maxHeight(value: LengthAuto) {
-    this.style.maxHeight = value;
+  // @ts-ignore core declares maxHeight as a field on View
+  set maxHeight(value: LengthAuto | CoreTypes.PercentLengthType) {
+    this.style.maxHeight = value as CoreTypes.PercentLengthType;
   }
 
-  get maxHeight(): LengthAuto {
+  // @ts-ignore
+  get maxHeight(): CoreTypes.PercentLengthType {
     return this.style.maxHeight;
   }
 
@@ -2609,11 +2620,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set gap(value: Length) {
-    this.style.gap = value;
+    this.style.gap = value as never;
   }
 
   get gap(): Length {
-    return this.style.gap;
+    return this.style.gap as Length;
   }
 
   set gridGap(value: Length) {
@@ -2625,11 +2636,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set rowGap(value: Length) {
-    this.style.rowGap = value;
+    this.style.rowGap = value as never;
   }
 
   get rowGap(): Length {
-    return this.style.rowGap;
+    return this.style.rowGap as Length;
   }
 
   [rowGapProperty.setNative](value) {
@@ -2642,11 +2653,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set columnGap(value: Length) {
-    this.style.columnGap = value;
+    this.style.columnGap = value as never;
   }
 
   get columnGap(): Length {
-    return this.style.columnGap;
+    return this.style.columnGap as Length;
   }
 
   [columnGapProperty.setNative](value) {
