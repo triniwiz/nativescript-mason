@@ -69,6 +69,11 @@ impl StyleHandle {
     pub fn index(self) -> usize {
         (self.0 & Self::INDEX_MASK) as usize
     }
+
+    #[inline]
+    pub fn raw(self) -> u32 {
+        self.0
+    }
 }
 
 #[derive(Debug)]
@@ -419,10 +424,6 @@ impl StyleArena {
             }
             // alloc() overwrites this slot on reuse, and the generation bump
             // below rejects stale reads in the meantime — no need to zero.
-            #[cfg(target_os = "android")]
-            {
-                buf.buffer = -1;
-            }
             self.generations[idx] = self.generations[idx].wrapping_add(1);
             self.free_list.push(idx as u32);
         }

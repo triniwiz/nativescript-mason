@@ -6,12 +6,12 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // The per-corner radius and per-side colour longhands core's `border-radius`
 // / `border-color` shorthands expand into. They live in the styling module
 // rather than core's root export, unlike the border *width* longhands above.
-import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
+import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
-import { Style as MasonStyle, Style } from './style';
+import { Style as MasonStyle, Style, nodeHelper } from './style';
 import {
   alignContentProperty,
   aspectRatioProperty,
@@ -467,6 +467,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // is non-configurable, so units Mason understands but core does not (`vh`,
     // `rem`, `pt`, …) have to be resolved on this view's own Style object.
     installMasonSizeUnits(this.style);
+    if (__ANDROID__) {
+      (this as any)._isPaddingRelative = false;
+    }
   }
 
   get innerHTML() {
@@ -1073,6 +1076,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return index;
   }
 
+  private _attachCursor: { child: any; jsIndex: number; nativeIndex: number } | undefined;
+
+  _nativeAttachIndex(child: any, atIndex: number): { jsIndex: number; nativeIndex: number } {
+    const cur = this._attachCursor;
+    let jsIndex: number;
+    let nativeIndex: number;
+    if (atIndex <= -1 && cur && this._children[cur.jsIndex] === cur.child && this._children[cur.jsIndex + 1] === child) {
+      jsIndex = cur.jsIndex + 1;
+      nativeIndex = cur.nativeIndex + 1;
+    } else {
+      jsIndex = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeIndex = jsIndex <= -1 ? jsIndex : this._nativeIndexFor(jsIndex);
+    }
+    this._attachCursor = jsIndex >= 0 && nativeIndex >= 0 ? { child, jsIndex, nativeIndex } : undefined;
+    return { jsIndex, nativeIndex };
+  }
+
+  _invalidateAttachCursor() {
+    this._attachCursor = undefined;
+  }
+
   // Windows attaches element children on load with no index, after text runs that attached
   // straight away, so an append would land them after text that comes later.
   _windowsNativeIndexOf(child: any, atIndex: number): number {
@@ -1089,6 +1113,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   insertChild(child: any, atIndex: number) {
+    this._invalidateAttachCursor();
     if (__WINDOWS__) {
       this._windowsSplitAnonymousText(atIndex);
     }
@@ -1122,6 +1147,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   replaceChild(child: any, atIndex: number) {
+    this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
       this._children[atIndex] = child;
       if (this[isText_]) {
@@ -1171,6 +1197,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChild(child: any) {
+    this._invalidateAttachCursor();
     // Placeholder (e.g. Br): it was attached straight to the mason tree via the
     // native element APIs (never `_addView`-ed), so `_removeView` would throw.
     // Remove the native node directly instead.
@@ -1289,6 +1316,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
     }
     this._children.splice(0);
+    this._invalidateAttachCursor();
   }
 
   [zIndexProperty.setNative](value: number) {
@@ -1510,6 +1538,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       isBreak?: boolean;
     } | null = null,
   ) {
+    this._invalidateAttachCursor();
     const text = String(node.text ?? node.data ?? '');
     const textNode = this._createOrUpdateNativeTextNode(node, text);
 
@@ -1757,7 +1786,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private _nativeBorderRadiusCorners(): CornerRadius[] {
     // @ts-ignore
-    const native = String(this._styleHelper?.borderRadius ?? '').trim();
+    const style = this._styleHelper as MasonStyle | undefined;
+    if (__ANDROID__ && style && !style.hasBorderRadius()) {
+      return borderRadiusCorners('0');
+    }
+    const native = String(style?.borderRadius ?? '').trim();
     try {
       return borderRadiusCorners(native || '0');
     } catch {
@@ -1775,9 +1808,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!corners) {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    corners[corner] = parseCornerRadius(lengthToCssString(masonLength(value)));
+    const css = lengthToCssString(masonLength(value));
+    const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
+    const shorthand = composeBorderRadius(corners);
+    if (__ANDROID__ && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
+      return;
+    }
     // @ts-ignore
-    style.borderRadius = composeBorderRadius(corners);
+    style.borderRadius = shorthand;
   }
 
   private _nativeCornerRadius(corner: CornerIndex): string {
@@ -1818,6 +1856,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
+    if (__ANDROID__) {
+      const s = (this as any)._styleHelper as MasonStyle | undefined;
+      if (s) {
+        s.setBorderSideColor(side === 't' ? 'top' : side === 'r' ? 'right' : side === 'b' ? 'bottom' : 'left', value);
+        return;
+      }
+    }
     let sides = (this as any)[borderSideColors_];
     if (!sides) {
       sides = (this as any)[borderSideColors_] = { t: 'transparent', r: 'transparent', b: 'transparent', l: 'transparent' };
@@ -1826,7 +1871,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const shorthand = `${sides.t} ${sides.r} ${sides.b} ${sides.l}`;
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, shorthand);
+      nodeHelper().setBorderColor(this.nativeView, shorthand);
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any)?.style?.setBorderColor(shorthand);
@@ -2034,8 +2079,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // @ts-ignore
   [borderColorProperty.setNative](value: any) {
     if (__ANDROID__) {
+      const s = (this as any)._styleHelper as MasonStyle | undefined;
+      if (s) s.setBorderColor(String(value));
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, String(value));
+      else nodeHelper().setBorderColor(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.setBorderColor(String(value));
@@ -2071,7 +2118,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [listStyleTypeProperty.setNative](value: any) {
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setListStyleType(this.nativeView, String(value));
+      nodeHelper().setListStyleType(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStyleType(String(value));
@@ -2082,7 +2129,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [listStylePositionProperty.setNative](value: any) {
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setListStylePosition(this.nativeView, String(value));
+      nodeHelper().setListStylePosition(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStylePosition(String(value));
@@ -2453,6 +2500,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   _redrawNativeBackground(value: any): void {}
+
+  [backgroundInternalProperty.getDefault](): any {
+    if (__ANDROID__ || __APPLE__) return null;
+    // @ts-ignore
+    return super[backgroundInternalProperty.getDefault]?.();
+  }
 
   [marginProperty.setNative](value) {
     // @ts-ignore

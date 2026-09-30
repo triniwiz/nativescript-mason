@@ -1461,6 +1461,55 @@ class BorderRenderer(private val style: Style) {
 // Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
 internal val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
 
+private val lengthUnits = setOf("dppx", "px", "%", "dip", "rem", "em", "vmin", "vmax", "vw", "vh", "pt")
+
+internal class NumberUnit(@JvmField val num: Float, @JvmField val unit: String?)
+
+internal fun scanNumberUnit(value: String): NumberUnit? {
+  val n = value.length
+  var i = 0
+  if (i < n && value[i] == '-') i++
+  fun digits(): Boolean {
+    val start = i
+    while (i < n && value[i] in '0'..'9') i++
+    return i > start
+  }
+  if (!digits()) return null
+  if (i < n && value[i] == '.') {
+    i++
+    if (!digits()) return null
+  }
+  if (i < n && (value[i] == 'e' || value[i] == 'E')) {
+    val mark = i
+    i++
+    if (i < n && (value[i] == '+' || value[i] == '-')) i++
+    if (!digits()) i = mark
+  }
+  val num = try {
+    java.lang.Float.parseFloat(value.substring(0, i))
+  } catch (_: NumberFormatException) {
+    return null
+  }
+  if (i == n) return NumberUnit(num, null)
+  val unit = value.substring(i)
+  return if (unit in lengthUnits) NumberUnit(num, unit) else null
+}
+
+internal inline fun forEachWhitespaceToken(value: String, block: (String) -> Unit) {
+  val n = value.length
+  var i = 0
+  while (i < n) {
+    while (i < n && value[i].isRegexSpace()) i++
+    val start = i
+    while (i < n && !value[i].isRegexSpace()) i++
+    if (i > start) block(value.substring(start, i))
+  }
+}
+
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun Char.isRegexSpace(): Boolean =
+  this == ' ' || this == '\t' || this == '\n' || this == '\u000B' || this == '\u000C' || this == '\r'
+
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 private const val PX_PER_PT = 96f / 72f
 
@@ -1487,13 +1536,13 @@ internal fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
 private val colorRegex = Regex("""^(#\w{3,8}|[a-zA-Z]+|(?:rgb|rgba|hsl|hsla|hsv|hsva)\([^)]*\))$""")
 
 fun parseLengthPercentage(value: String): LengthPercentage? {
-  val match = lengthPercentageRegex.matchEntire(value.trim()) ?: return null
-  val raw = match.groupValues[1].toFloatOrNull() ?: return null
+  val match = scanNumberUnit(value.trim()) ?: return null
+  val raw = match.num
   // Clamp values that exceed a practical maximum (e.g. Float.MAX_VALUE from
   // calc(infinity*1px) evaluated by NS's CSS parser) so cssRadiusScale()
   // doesn't overflow when summing corner pairs.
   val num = raw.coerceIn(-9999f, 9999f)
-  val unit = match.groupValues.getOrNull(2)
+  val unit = match.unit
   return when (unit) {
     "dppx" -> Points(num)
     "%" -> Percent(raw / 100f)  // percentages don't overflow so use raw
@@ -1506,9 +1555,9 @@ fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
   // "auto" has no numeric part, so it can never match lengthPercentageRegex
   // below (its first group is a mandatory digit run) — check it separately.
   if (trimmed == "auto") return LengthPercentageAuto.Auto
-  val match = lengthPercentageRegex.matchEntire(trimmed) ?: return null
-  val num = match.groupValues[1].toFloatOrNull() ?: return null
-  val unit = match.groupValues.getOrNull(2)
+  val match = scanNumberUnit(trimmed) ?: return null
+  val num = match.num
+  val unit = match.unit
   return when (unit) {
     "dppx" -> LengthPercentageAuto.Points(num)
     "%" -> LengthPercentageAuto.Percent(num / 100f)
@@ -1517,9 +1566,9 @@ fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
 }
 
 fun parseLength(style: Style, value: String): Float? {
-  val match = lengthPercentageRegex.matchEntire(value.trim()) ?: return null
-  val num = match.groupValues[1].toFloatOrNull() ?: return null
-  val unit = match.groupValues.getOrNull(2)
+  val match = scanNumberUnit(value.trim()) ?: return null
+  val num = match.num
+  val unit = match.unit
   return when (unit) {
     "dppx" -> num
     "%" -> 0f // don't parse
@@ -1851,9 +1900,14 @@ fun parseBorderRadius(style: Style, value: String) {
     cleaned to ""
   }
 
-  val hTokens = SPLIT_REGEX.split(hPart).mapNotNull { parseLengthPercentage(it) }
-  val vTokens = if (vPart.isNotEmpty()) SPLIT_REGEX.split(vPart)
-    .mapNotNull { parseLengthPercentage(it) } else emptyList()
+  fun tokens(part: String): List<LengthPercentage> {
+    val out = ArrayList<LengthPercentage>(4)
+    forEachWhitespaceToken(part) { t -> parseLengthPercentage(t)?.let { out.add(it) } }
+    return out
+  }
+
+  val hTokens = tokens(hPart)
+  val vTokens = if (vPart.isNotEmpty()) tokens(vPart) else emptyList()
 
   // Helper to map 1-4 tokens to per-corner values
   fun mapTokens(tokens: List<LengthPercentage>): List<LengthPercentage> {
@@ -1872,14 +1926,14 @@ fun parseBorderRadius(style: Style, value: String) {
   if (hMapped.isEmpty() || vMapped.isEmpty()) return
 
   // Assign elliptical radii per corner: (horizontal, vertical)
+  val batch = !style.inBatch
+  if (batch) style.inBatch = true
   style.borderTopLeftRadius = Point(hMapped[0], vMapped[0])
   style.borderTopRightRadius = Point(hMapped[1], vMapped[1])
   style.borderBottomRightRadius = Point(hMapped[2], vMapped[2])
   style.borderBottomLeftRadius = Point(hMapped[3], vMapped[3])
   // Always invalidate renderer and notify native update for radius changes
   style.invalidateBorderRenderer()
-  if (!style.inBatch) {
-    style.isDirty = StateKeys.BORDER_RADIUS.bits
-    style.updateNativeStyle()
-  }
+  style.setOrAppendState(StateKeys.BORDER_RADIUS)
+  if (batch) style.inBatch = false
 }

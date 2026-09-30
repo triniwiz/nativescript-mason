@@ -317,6 +317,10 @@ impl Mason {
     pub fn arena_state(&self) -> ArenaStats {
         self.0.inner().style_arena.stats()
     }
+
+    pub fn node_count(&self) -> usize {
+        self.0.nodes().len()
+    }
     pub fn new() -> Self {
         // 128 measurably undershoots a typical real screen (the perf-audit
         // baseline scenario alone was 287 nodes) - every platform's default
@@ -1111,6 +1115,11 @@ impl Mason {
     pub fn buffer_from(&self, handle: u32) -> Option<jni::sys::jint> {
         let reader = self.0 .0.read();
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn style_handle(&self, node: Id) -> Option<u32> {
+        self.0.nodes().get(node).map(|n| n.style().handle.raw())
     }
 
     #[cfg(target_os = "android")]

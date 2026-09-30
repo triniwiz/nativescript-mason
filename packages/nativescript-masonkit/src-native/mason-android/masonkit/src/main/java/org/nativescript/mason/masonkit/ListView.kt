@@ -396,22 +396,14 @@ class ListView @JvmOverloads constructor(
   override val view: View
     get() = this
 
-  constructor(context: Context, mason: Mason) : this(context) {
+  constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode().apply {
       view = this@ListView
     }
-    node.style.setStyleChangeListener(this)
+    setupNode()
   }
 
   init {
-    if (!override) {
-      if (!::node.isInitialized) {
-        node = Mason.shared.createNode().apply {
-          view = this@ListView
-        }
-        node.style.setStyleChangeListener(this)
-      }
-    }
     // css visible default
     clipChildren = false
     clipToPadding = false
@@ -419,6 +411,20 @@ class ListView @JvmOverloads constructor(
     list.layoutParams = RecyclerView.LayoutParams(
       LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
     )
+
+    if (!override) {
+      if (!::node.isInitialized) {
+        node = Mason.shared.createNode().apply {
+          view = this@ListView
+        }
+      }
+      setupNode()
+    }
+
+  }
+
+  private fun setupNode() {
+    node.style.setStyleChangeListener(this)
 
     style.prepareMut()
 

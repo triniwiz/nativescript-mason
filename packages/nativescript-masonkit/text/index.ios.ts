@@ -253,10 +253,9 @@ export class Text extends TextBase {
 
     if (nativeView && child.nativeViewProtected) {
       child[isTextChild_] = true;
-      const jsIndex = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       // Map the JS index onto the native children list (views attach lazily,
       // so the raw index can run ahead of native state).
-      const index = jsIndex <= -1 ? jsIndex : (this as any)._nativeIndexFor(jsIndex);
+      const { nativeIndex: index } = (this as any)._nativeAttachIndex(child, atIndex);
       child._isMasonChild = true;
       nativeView.addViewAt(child.nativeViewProtected, index);
       this._masonMeasureForeign(child);
@@ -267,6 +266,7 @@ export class Text extends TextBase {
   }
 
   _removeViewFromNativeVisualTree(view: ViewBase): void {
+    (this as any)._invalidateAttachCursor();
     view[isTextChild_] = false;
     // todo
     //  super._removeViewFromNativeVisualTree(view);

@@ -488,6 +488,29 @@ void mason_style_set_with_values(struct CMason *mason,
                                  const char *grid_area,
                                  const char *grid_template_areas);
 
+/**
+ * Sets only a node's size, min/max size and margins; the rest of its style is left as is.
+ * Types as in `mason_style_set_with_values`: 0 auto, 1 length, 2 percent (a 0-1 fraction).
+ */
+void mason_style_set_box_size(struct CMason *mason,
+                              struct CMasonNode *node,
+                              signed char width_type,
+                              float width_value,
+                              signed char height_type,
+                              float height_value,
+                              signed char min_width_type,
+                              float min_width_value,
+                              signed char min_height_type,
+                              float min_height_value,
+                              signed char max_width_type,
+                              float max_width_value,
+                              signed char max_height_type,
+                              float max_height_value,
+                              float margin_left_value,
+                              float margin_top_value,
+                              float margin_right_value,
+                              float margin_bottom_value);
+
 void mason_style_prepare_style_for_mut(struct CMason *mason, struct CMasonNode *node);
 
 void mason_style_release_style_buffer(struct CMasonBuffer *buffer);

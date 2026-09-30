@@ -101,12 +101,18 @@ export class List extends ListBase {
     return this._view;
   }
 
+  public _registerItemTemplates() {
+    const view = this[native_] as any;
+    if (!view) return;
+    for (let i = 0; i < this._itemTemplatesInternal.length; i++) {
+      view.registerWithCellClassForCellWithReuseIdentifier(MasonListCell.class(), `template-${i}`);
+    }
+  }
+
   initNativeView(): void {
     super.initNativeView();
 
-    for (let i = 0; i < this._itemTemplatesInternal.length; i++) {
-      this._view.registerWithCellClassForCellWithReuseIdentifier(MasonListCell.class(), `template-${i}`);
-    }
+    this._registerItemTemplates();
 
     this._delegate = ListDelegateImpl.initWithOwner(new WeakRef(this));
     this._view.delegate = this._delegate;

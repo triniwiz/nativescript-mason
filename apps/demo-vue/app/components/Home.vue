@@ -67,7 +67,8 @@
 </template>
 
 <script lang="ts" setup>
-import { $navigateTo, ref } from 'nativescript-vue';
+import { $navigateTo, onMounted, ref } from 'nativescript-vue';
+import { Application } from '@nativescript/core';
 import { appearance } from '~/theme';
 
 import FlexboxDemo from '~/plugin-demos/FlexboxDemo.vue';
@@ -90,6 +91,21 @@ import WebSamples from '~/web-samples/WebSamples.vue';
 import Professions from '~/web-samples/Professions.vue';
 import Stress from '~/stress/Stress.vue';
 import BenchPage from '~/bench/BenchPage.vue';
+
+// `adb shell am start -n org.nativescript.plugindemovue/com.tns.NativeScriptActivity --ei bench 3`
+// opens the layout benchmark and runs it 3 times. The intent is read after mount because the
+// start activity is not always set yet when Home first mounts.
+onMounted(() => {
+  if (!__ANDROID__) return;
+  setTimeout(() => {
+    const activity = Application.android.foregroundActivity ?? Application.android.startActivity;
+    const n = activity?.getIntent()?.getIntExtra('bench', 0) ?? 0;
+    if (n <= 0) return;
+    console.log(`BENCH_AUTOSTART ${n}`);
+    Object.assign(globalThis, { __benchAutoStart: true, __benchIterations: n });
+    $navigateTo(BenchPage, { animated: false });
+  }, 800);
+});
 
 const groups = [
   {

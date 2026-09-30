@@ -35,6 +35,9 @@ export const itemTemplateProperty = new Property<ListBase, string | Template>({
 
 export const itemTemplatesProperty = new Property<ListBase, string | Array<KeyedTemplate>>({
   name: 'itemTemplates',
+  valueChanged: (target, _oldValue, newValue) => {
+    target._onItemTemplatesChanged(Array.isArray(newValue) ? newValue : null);
+  },
   valueConverter: (value) => {
     if (typeof value === 'string') {
       if (__UI_USE_XML_PARSER__) {
@@ -112,6 +115,14 @@ export abstract class ListBase extends ViewBase implements Omit<TemplatedItemsVi
   set itemIdGenerator(generatorFn: (item: any, index: number, items: any) => number) {
     this._itemIdGenerator = generatorFn;
   }
+
+  public _onItemTemplatesChanged(templates: KeyedTemplate[] | null) {
+    this._itemTemplatesInternal = [this._defaultTemplate, ...(templates ?? [])];
+    this._registerItemTemplates();
+    this.refresh();
+  }
+
+  public _registerItemTemplates() {}
 
   public refresh() {
     //

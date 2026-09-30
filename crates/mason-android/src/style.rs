@@ -342,6 +342,47 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
         });
     }
 }
+unsafe fn node_style_buffer_id(env: &mut JNIEnv, mason: &mut Mason, node: &NodeRef) -> jni::sys::jint {
+    let data = mason.style_data(node.id());
+    if data >= 0 {
+        return data;
+    }
+
+    let (ptr, len) = mason.style_data_raw(node.id());
+    if ptr.is_null() || len == 0 {
+        return -1;
+    }
+
+    let id = match env.new_direct_byte_buffer(ptr as _, len) {
+        Ok(buffer) => match mason_core::JVM_CACHE.get() {
+            Some(cache) => {
+                let manager = JClass::from_raw(cache.object_manager_clazz.as_raw());
+                let result = env.call_static_method_unchecked(
+                    manager,
+                    cache.object_manager_add_id,
+                    ReturnType::Primitive(jni::signature::Primitive::Int),
+                    &[jni::sys::jvalue {
+                        l: buffer.into_raw(),
+                    }],
+                );
+                match result {
+                    Ok(result) => result.i().unwrap_or(-1),
+                    Err(_) => -1,
+                }
+            }
+            None => -1,
+        },
+        Err(_) => -1,
+    };
+
+    if id >= 0 {
+        if let Some(handle) = mason.style_handle(node.id()) {
+            mason.set_handle_buffer(handle, id);
+        }
+    }
+    id
+}
+
 // #[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "system" fn nativeGetStyleBuffer(
@@ -356,45 +397,7 @@ pub extern "system" fn nativeGetStyleBuffer(
     unsafe {
         let mason = &mut *(mason as *mut Mason);
         let node = &mut *(node as *mut NodeRef);
-
-        let data = mason.style_data(node.id());
-        if data >= 0 {
-            return data;
-        }
-
-        let (ptr, len) = mason.style_data_raw(node.id());
-
-        if ptr.is_null() || len == 0 {
-            return -1;
-        }
-
-        unsafe {
-            match env.new_direct_byte_buffer(ptr as _, len) {
-                Ok(buffer) => match mason_core::JVM_CACHE.get() {
-                    Some(cache) => {
-                        let manager =
-                            unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
-                        let result = unsafe {
-                            env.call_static_method_unchecked(
-                                manager,
-                                cache.object_manager_add_id,
-                                ReturnType::Primitive(jni::signature::Primitive::Int),
-                                &[jni::sys::jvalue {
-                                    l: buffer.into_raw(),
-                                }],
-                            )
-                        };
-
-                        match result {
-                            Ok(result) => result.i().unwrap_or(-1),
-                            Err(_) => -1,
-                        }
-                    }
-                    None => -1,
-                },
-                Err(_) => -1,
-            }
-        }
+        node_style_buffer_id(&mut env, mason, node)
     }
 }
 
@@ -411,47 +414,8 @@ pub extern "system" fn nativePrepareMut(
     unsafe {
         let mason = &mut *(mason as *mut Mason);
         let node = &mut *(node as *mut NodeRef);
-
         mason.prepare_mut(node);
-
-        let data = mason.style_data(node.id());
-        if data >= 0 {
-            return data;
-        }
-
-        let (ptr, len) = mason.style_data_raw(node.id());
-
-        if ptr.is_null() || len == 0 {
-            return -1;
-        }
-
-        unsafe {
-            match env.new_direct_byte_buffer(ptr as _, len) {
-                Ok(buffer) => match mason_core::JVM_CACHE.get() {
-                    Some(cache) => {
-                        let manager =
-                            unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
-                        let result = unsafe {
-                            env.call_static_method_unchecked(
-                                manager,
-                                cache.object_manager_add_id,
-                                ReturnType::Primitive(jni::signature::Primitive::Int),
-                                &[jni::sys::jvalue {
-                                    l: buffer.into_raw(),
-                                }],
-                            )
-                        };
-
-                        match result {
-                            Ok(result) => result.i().unwrap_or(-1),
-                            Err(_) => -1,
-                        }
-                    }
-                    None => -1,
-                },
-                Err(_) => -1,
-            }
-        }
+        node_style_buffer_id(&mut env, mason, node)
     }
 }
 

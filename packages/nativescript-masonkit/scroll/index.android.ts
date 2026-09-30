@@ -51,10 +51,9 @@ export class Scroll extends ViewBase {
 
     if (nativeView && (child.nativeViewProtected || child.android)) {
       child._hasNativeView = true;
-      const jsIndex = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       // Map the JS index onto the native children list (views attach lazily,
       // so the raw index can run ahead of native state).
-      const index = jsIndex <= -1 ? jsIndex : (this as any)._nativeIndexFor(jsIndex);
+      const { nativeIndex: index } = (this as any)._nativeAttachIndex(child, atIndex);
       child._isMasonChild = true;
       if (child[isPlaceholder_]) {
         nativeView.addChildAt(child.android, index as never);
@@ -69,6 +68,7 @@ export class Scroll extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
+    (this as any)._invalidateAttachCursor();
     // @ts-ignore
     super._removeViewFromNativeVisualTree(view);
   }

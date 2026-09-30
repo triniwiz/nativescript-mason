@@ -28,6 +28,9 @@ class ObjectManager private constructor() {
     }
   }
 
+  val size: Int
+    get() = objects.size
+
   operator fun get(id: Int): Any? {
     return objects[id]
   }

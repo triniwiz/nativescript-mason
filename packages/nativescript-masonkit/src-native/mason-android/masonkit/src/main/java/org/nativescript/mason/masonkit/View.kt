@@ -45,10 +45,10 @@ open class View @JvmOverloads constructor(
   override val view: android.view.View
     get() = this
 
-  private val nodes = mutableMapOf<android.view.View, Node>()
+  private var nodes: MutableMap<android.view.View, Node>? = null
 
 
-  constructor(context: Context, mason: Mason) : this(context) {
+  constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
     node = mason.createNode().apply {
       view = this@View
     }
@@ -518,7 +518,7 @@ open class View @JvmOverloads constructor(
 
   override fun removeAllViewsInLayout() {
     if (node.suppressChildOps > 0) {
-      val childCount = nodes.count()
+      val childCount = nodes?.size ?: 0
       for (i in 0 until childCount) {
         removeViewFromMasonTree(getChildAt(i), true)
       }
@@ -527,7 +527,7 @@ open class View @JvmOverloads constructor(
   }
 
   private fun removeViewFromMasonTree(view: android.view.View, inLayout: Boolean) {
-    nodes[view]?.let { node ->
+    nodes?.get(view)?.let { node ->
       val owner = node.parent as Node
       val count = owner.getChildCount()
       for (i in 0 until count) {
@@ -539,7 +539,7 @@ open class View @JvmOverloads constructor(
         }
       }
       node.view = null
-      nodes.remove(view)
+      nodes?.remove(view)
       if (inLayout) {
         computeMaxContent()
       }

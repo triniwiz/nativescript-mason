@@ -1163,6 +1163,50 @@ impl PartialEq for NodeRef {
     }
 }
 
+pub(crate) fn remove_unreferenced_subtree(
+    tree: &mut TreeInner,
+    node_data: &mut SecondaryMap<Id, NodeData>,
+    root: Id,
+) {
+    let mut stack = vec![root];
+    while let Some(id) = stack.pop() {
+        if let Some(children) = tree.children.remove(id) {
+            for child in children {
+                match tree.parents.get_mut(child) {
+                    Some(parent) if *parent == Some(id) => *parent = None,
+                    _ => continue,
+                }
+                let unreferenced = tree
+                    .nodes
+                    .get(child)
+                    .map(|node| Arc::strong_count(&node.guard) == 1)
+                    .unwrap_or(false);
+                if unreferenced {
+                    stack.push(child);
+                }
+            }
+        }
+        // Remove the node; Style::drop will release the arena handle
+        tree.nodes.remove(id);
+        forget_block_measure(tree.uid, id);
+        tree.parents.remove(id);
+        tree.hoisted_children.remove(id);
+        tree.float_context.remove(id);
+        node_data.remove(id);
+        tree.structure_dirty = true;
+    }
+}
+
+pub(crate) fn is_collectable_root(tree: &TreeInner, id: Id) -> bool {
+    let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
+    !has_parent
+        && tree
+            .nodes
+            .get(id)
+            .map(|node| Arc::strong_count(&node.guard) == 1)
+            .unwrap_or(false)
+}
+
 /// Drain deferred node removals. Must be called when no read/write lock
 /// is held on the tree (e.g. before `compute_layout`).
 pub(crate) fn drain_deferred_cleanup(
@@ -1180,21 +1224,8 @@ pub(crate) fn drain_deferred_cleanup(
     let mut tree = tree.write();
     let mut nd = node_data.write();
     for id in ids {
-        let has_parent = tree.parents.get(id).map(|p| p.is_some()).unwrap_or(false);
-        let has_children = tree
-            .children
-            .get(id)
-            .map(|children| !children.is_empty())
-            .unwrap_or(false);
-        if !has_parent && !has_children {
-            // Remove the node; Style::drop will release the arena handle
-            tree.nodes.remove(id);
-            forget_block_measure(tree.uid, id);
-            tree.parents.remove(id);
-            tree.children.remove(id);
-            tree.float_context.remove(id);
-            nd.remove(id);
-            tree.structure_dirty = true;
+        if is_collectable_root(&tree, id) {
+            remove_unreferenced_subtree(&mut tree, &mut nd, id);
         }
     }
 }
@@ -1202,42 +1233,23 @@ pub(crate) fn drain_deferred_cleanup(
 impl Drop for NodeRef {
     fn drop(&mut self) {
         // 2 = this ref + default ref
-        if Arc::strong_count(&self.guard) == 2 {
-            // Try non-blocking write lock first to avoid deadlocking with
-            // concurrent read locks held by the layout algorithm.
-            if let Some(mut tree) = self.tree.try_write() {
-                let has_parent = tree
-                    .parents
-                    .get(self.id)
-                    .map(|p| p.is_some())
-                    .unwrap_or(false);
-                let has_children = tree
-                    .children
-                    .get(self.id)
-                    .map(|children| !children.is_empty())
-                    .unwrap_or(false);
-                if !has_parent && !has_children {
-                    // Remove the node; Style::drop will release the arena handle
-                    tree.nodes.remove(self.id);
-                    forget_block_measure(tree.uid, self.id);
-                    tree.parents.remove(self.id);
-                    tree.children.remove(self.id);
-                    tree.float_context.remove(self.id);
-                    tree.structure_dirty = true;
-                    if let Some(mut nd) = self.node_data.try_write() {
-                        nd.remove(self.id);
-                    } else {
-                        // node_data lock is contended — defer so the data
-                        // (and any measure-func context it holds) is still
-                        // released on the next drain instead of leaking.
-                        self.deferred_cleanup.lock().push(self.id);
-                    }
-                }
-            } else {
-                // Lock is contended — defer cleanup to avoid deadlock.
-                self.deferred_cleanup.lock().push(self.id);
+        if Arc::strong_count(&self.guard) != 2 {
+            return;
+        }
+        // Try non-blocking write lock first to avoid deadlocking with
+        // concurrent read locks held by the layout algorithm.
+        if let Some(mut tree) = self.tree.try_write() {
+            let has_parent = tree.parents.get(self.id).map(|p| p.is_some()).unwrap_or(false);
+            if has_parent {
+                return;
+            }
+            if let Some(mut nd) = self.node_data.try_write() {
+                remove_unreferenced_subtree(&mut tree, &mut nd, self.id);
+                return;
             }
         }
+        // Lock is contended — defer cleanup to avoid deadlock.
+        self.deferred_cleanup.lock().push(self.id);
     }
 }
 

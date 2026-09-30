@@ -1799,6 +1799,17 @@ impl Tree {
             }
 
             Tree::mark_dirty_inner(tree, parent);
+
+            let collectable: Vec<Id> = children
+                .into_iter()
+                .filter(|child| crate::node::is_collectable_root(tree, *child))
+                .collect();
+            if !collectable.is_empty() {
+                let mut nd = self.2.write();
+                for child in collectable {
+                    crate::node::remove_unreferenced_subtree(tree, &mut nd, child);
+                }
+            }
         }
     }
 
@@ -1999,6 +2010,9 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
     let mut order = Vec::new();
     let mut stack = vec![root];
     while let Some(id) = stack.pop() {
+        if tree.nodes.get(id).is_some_and(|n| !n.cache.is_empty()) {
+            continue;
+        }
         order.push(id);
         if let Some(children) = tree.children.get(id) {
             stack.extend(children.iter().copied());

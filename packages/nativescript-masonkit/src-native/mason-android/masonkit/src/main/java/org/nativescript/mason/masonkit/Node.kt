@@ -34,6 +34,8 @@ enum class PseudoState(val mask: Int) {
 }
 
 
+private val UNSET_COMPUTE_CACHE = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) : NativeObject {
@@ -50,7 +52,9 @@ open class Node internal constructor(
    * ViewBase, so NativeScript's selector engine never sees it. Keeping them lets
    * an app find and style a parsed subtree itself.
    */
-  val htmlAttributes: MutableMap<String, String> = mutableMapOf()
+  private var mHtmlAttributes: MutableMap<String, String>? = null
+  val htmlAttributes: MutableMap<String, String>
+    get() = mHtmlAttributes ?: mutableMapOf<String, String>().also { mHtmlAttributes = it }
 
 
   internal var computeCacheDirty = false
@@ -73,11 +77,11 @@ open class Node internal constructor(
 
   internal var lastTextAttachParent: Node? = null
   internal var detachTextEpoch = -1
-  var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+  var computeCache: SizeF = UNSET_COMPUTE_CACHE
     set(value) {
       computeCacheDirty = true
       field = if (isImage && value.width == -1f && value.height == -1f) {
-        SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+        UNSET_COMPUTE_CACHE
       } else {
         value
       }
@@ -233,10 +237,15 @@ open class Node internal constructor(
     return hasObjectId
   }
 
-  internal val objectId by lazy {
-    hasObjectId = true
-    ObjectManager.shared.add(WeakReference(this))
-  }
+  private var objectIdValue = 0
+  internal val objectId: Int
+    get() {
+      if (!hasObjectId) {
+        hasObjectId = true
+        objectIdValue = ObjectManager.shared.add(WeakReference(this))
+      }
+      return objectIdValue
+    }
 
   override fun objectId(): Int {
     return objectId
@@ -256,6 +265,9 @@ open class Node internal constructor(
   }
 
   internal var isAnonymous = false
+
+  internal var floatScanFrame = 0L
+  internal var floatScanHasFloat = false
 
   var onNodeAttached: (() -> Unit)? = null
   var onNodeDetached: (() -> Unit)? = null
@@ -297,7 +309,22 @@ open class Node internal constructor(
       return stateValue.get(NodeStateKeys.IS_NODE_DIRTY) > 0
     }
 
-  internal var measureFuncImpl: MeasureFuncImpl? = null;
+  internal class MeasureSlot {
+    @Volatile
+    var id = -1
+  }
+
+  internal val measureSlot = MeasureSlot()
+
+  internal var measureFuncImpl: MeasureFuncImpl? = null
+    set(value) {
+      val old = field
+      field = value
+      measureSlot.id = value?.objectId ?: -1
+      if (old != null && old !== value) {
+        old.release()
+      }
+    }
 
   internal var measureFunc: MeasureFunc = object : MeasureFunc {
     override fun measure(
@@ -404,7 +431,7 @@ open class Node internal constructor(
 
   var view: Any? = null
 
-  internal var children = ArrayList<Node>(4)
+  internal val children = ChildList(4)
   internal val style = Style(this)
 
   internal var suppressChildOps = 0
@@ -509,7 +536,11 @@ open class Node internal constructor(
     return children
   }
 
-  internal val stateValue by lazy {
+  private var stateValueOrNull: ByteBuffer? = null
+  internal val stateValue: ByteBuffer
+    get() = stateValueOrNull ?: createStateValue().also { stateValueOrNull = it }
+
+  private fun createStateValue(): ByteBuffer = run {
     val id = NativeHelpers.nativeGetStateBuffer(
       mason.nativePtr,
       nativePtr
@@ -1200,12 +1231,12 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
-    val authorChildren = getChildren()
     // if index is past end, fall back to append behavior
-    if (index >= authorChildren.size) {
+    if (index >= NodeUtils.countAuthorChildren(children)) {
       appendChild(child)
       return
     }
+    val authorChildren = getChildren()
 
     val reference = authorChildren[index]
 
@@ -1455,7 +1486,10 @@ open class Node internal constructor(
       // views attached to the wrong ViewGroup.
       NodeUtils.removeView(this, removed.view as? View)
       if (removed.nativePtr != 0L) {
-        NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        if (ref != 0L) {
+          NativeHelpers.nativeNodeDestroy(ref)
+        }
       }
       removed.parent = null
       (removed.view as? Element)?.onNodeDetached()
@@ -1495,11 +1529,11 @@ open class Node internal constructor(
 
   fun setMeasureFunction(measure: MeasureFunc) {
     val func = MeasureFuncImpl(WeakReference(measure))
-    measureFuncImpl = func
     measureFunc = measure
     NativeHelpers.nativeNodeSetContext(
       mason.nativePtr, nativePtr, func.objectId
     )
+    measureFuncImpl = func
   }
 
   fun removeMeasureFunction() {
@@ -1517,9 +1551,9 @@ open class Node internal constructor(
     }
 
     val func = MeasureFuncImpl(WeakReference(measureFunc))
-    measureFuncImpl = func
 
     NativeHelpers.nativeNodeSetContext(mason.nativePtr, nativePtr, func.objectId)
+    measureFuncImpl = func
 
   }
 

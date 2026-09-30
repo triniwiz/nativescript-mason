@@ -25,10 +25,12 @@ internal class MeasureFuncImpl(
     ObjectManager.shared.add(this)
   }
 
+  private var released = false
+
   @Synchronized
-  @Throws(Throwable::class)
-  protected fun finalize() {
-    if (hasObjectId) {
+  internal fun release() {
+    if (hasObjectId && !released) {
+      released = true
       ObjectManager.shared.remove(objectId)
     }
   }

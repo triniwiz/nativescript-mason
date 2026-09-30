@@ -8,6 +8,7 @@ export function hasTextRun(children: readonly any[], node: unknown): boolean {
 
 export interface TextRunReconcileContext {
   _children: any[];
+  _invalidateAttachCursor?(): void;
   _nativeRemoveChildNode(node: any, index: number): void;
   _updateTextNode(
     node: any,
@@ -46,6 +47,8 @@ export function reconcileTextRuns(context: TextRunReconcileContext, nodes: any[]
       live.add(nodes[i]);
     }
   }
+
+  context._invalidateAttachCursor?.();
 
   // Drop native runs whose framework node is gone or has become empty.
   for (let i = context._children.length - 1; i >= 0; i--) {

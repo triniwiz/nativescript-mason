@@ -171,6 +171,20 @@ class Mason {
     nativePrintArenaStats(nativePtr)
   }
 
+  fun debugStats(): Map<String, Long> {
+    val native = nativeDebugStats(nativePtr)
+    return linkedMapOf(
+      "liveNodes" to native[0],
+      "totalBuffers" to native[1],
+      "activeBuffers" to native[2],
+      "sharedBuffers" to native[3],
+      "freeSlots" to native[4],
+      "bufferMemory" to native[5],
+      "trackedNodes" to nodes.size.toLong(),
+      "objectManager" to ObjectManager.shared.size.toLong(),
+    )
+  }
+
   fun addEventListener(
     node: Node,
     type: String,
@@ -558,6 +572,9 @@ class Mason {
 
     @JvmStatic
     private external fun nativePrintArenaStats(mason: Long)
+
+    @JvmStatic
+    private external fun nativeDebugStats(mason: Long): LongArray
 
     @JvmStatic
     private external fun nativeGetBuffer(mason: Long, handle: Int): Int

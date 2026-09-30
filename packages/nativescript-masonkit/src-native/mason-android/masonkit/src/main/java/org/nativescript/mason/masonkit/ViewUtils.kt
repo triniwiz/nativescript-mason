@@ -214,7 +214,7 @@ class ViewUtils {
       // Resolve filter CSS (pseudo-aware) so :active/:hover strings apply
       // only when the node's pseudo mask is active.
       val css = style.resolvedFilterString
-      if (style.mFilter == null || style.mFilter?.css != css) {
+      if ((style.mFilter == null && css.isNotEmpty()) || (style.mFilter != null && style.mFilter?.css != css)) {
         val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
         style.mFilter = CSSFilters.parse(css)
         if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {

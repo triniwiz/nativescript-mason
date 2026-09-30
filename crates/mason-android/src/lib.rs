@@ -800,6 +800,32 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintAre
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeDebugStats<'a>(
+    mut env: JNIEnv<'a>,
+    _: JObject,
+    mason: jlong,
+) -> jni::objects::JLongArray<'a> {
+    let mut values = [0i64; 6];
+    if mason != 0 {
+        unsafe {
+            let mason = &*(mason as *const Mason);
+            let stats = mason.arena_state();
+            values = [
+                mason.node_count() as i64,
+                stats.total_buffers as i64,
+                stats.active_buffers as i64,
+                stats.shared_buffers as i64,
+                stats.free_slots as i64,
+                stats.buffer_memory as i64,
+            ];
+        }
+    }
+    let array = env.new_long_array(values.len() as i32).unwrap();
+    let _ = env.set_long_array_region(&array, 0, &values);
+    array
+}
+
+#[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetPreflight(
     _: JNIEnv,
     _: JObject,

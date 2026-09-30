@@ -4,7 +4,7 @@ import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
-import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
+import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
 
 // The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
@@ -842,12 +842,49 @@ function expandSidesShorthand(value: string): [string, string, string, string] |
 export type WindowsRadius = { type: 0 | 1; value: number };
 
 /** Corners in CSS shorthand order. */
-const WINDOWS_RADIUS_KEYS = [
+const RADIUS_KEYS = [
   ['tl', { xType: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE }],
   ['tr', { xType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE }],
   ['br', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE }],
   ['bl', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE }],
 ] as const;
+
+const FAST_RADIUS_TOKEN = /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(px|dip|dppx|%)?$/;
+
+function fastRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
+  const out: WindowsRadius[] = [];
+  for (const token of part.split(/\s+/)) {
+    if (!token) continue;
+    const m = FAST_RADIUS_TOKEN.exec(token);
+    if (!m) return null;
+    const raw = parseFloat(m[1]);
+    const num = Math.min(9999, Math.max(-9999, raw));
+    if (m[2] === '%') out.push({ type: 1, value: raw / 100 });
+    else if (m[2] === 'dppx') out.push({ type: 0, value: num });
+    else out.push({ type: 0, value: num * scale });
+  }
+  return out;
+}
+
+function radiusCorners<T>(t: T[]): T[] | null {
+  switch (t.length) {
+    case 1:
+      return [t[0], t[0], t[0], t[0]];
+    case 2:
+      return [t[0], t[1], t[0], t[1]];
+    case 3:
+      return [t[0], t[1], t[2], t[1]];
+    case 4:
+      return t;
+    default:
+      return null;
+  }
+}
+
+let deviceScaleCache = 0;
+function deviceScale(): number {
+  return deviceScaleCache || (deviceScaleCache = Screen.mainScreen.scale);
+}
 
 function parseWindowsRadius(token: string, emBasis?: number): WindowsRadius {
   const t = token.trim();
@@ -1183,6 +1220,23 @@ function queueStyleSync(style: Style) {
   }
 }
 
+let nodeHelperShared: org.nativescript.mason.masonkit.NodeHelper | undefined;
+export function nodeHelper(): org.nativescript.mason.masonkit.NodeHelper {
+  return (nodeHelperShared ??= org.nativescript.mason.masonkit.NodeHelper.getShared());
+}
+
+function androidWritableStyleBuffer(nativeView: any): java.nio.ByteBuffer {
+  if (typeof nativeView?.getWritableStyleBuffer === 'function') {
+    return nativeView.getWritableStyleBuffer();
+  }
+  let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
+  if (!style) {
+    // if a non mason view is passed
+    style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(nativeView);
+  }
+  return typeof style.getWritableValue === 'function' ? style.getWritableValue() : style.getValues();
+}
+
 function windowsStyleValues(nativeView: any) {
   if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
   return NativeScript.Mason.Mason.Instance().CreateNode(false).Style.Values;
@@ -1215,22 +1269,18 @@ export class Style {
   // each render); if the bytes end up unchanged the native sync is skipped.
   // `false` means a write happened without a snapshot, so always sync.
   private _turnSnapshot: Uint8Array | false | undefined = undefined;
+  private _synced = false;
   private nativeView: any;
   private nativeNode: any;
   private _pseudo: number;
+  private _borderRadiusCss: string | undefined;
   static fromView(view: View, nativeView): Style {
     //console.time('fromView');
     const ret = new Style();
     ret.view_ = view;
     ret.nativeView = nativeView;
     if (__ANDROID__) {
-      let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
-      if (!style) {
-        // if a non mason view is passed
-        style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(nativeView);
-      }
-      const styleBuffer = style.getValues();
-      const buffer = (<any>ArrayBuffer).from(styleBuffer);
+      const buffer = (<any>ArrayBuffer).from(androidWritableStyleBuffer(nativeView));
       ret.style_view = new DataView(buffer);
       ret.i8View = new Int8Array(buffer);
       ret.u8View = new Uint8Array(buffer);
@@ -1442,7 +1492,7 @@ export class Style {
     if (name === 'border-radius') {
       const r = parseBorderRadiusShorthand(value, this.emBasis());
       this.prepareMut();
-      for (const [corner, keys] of WINDOWS_RADIUS_KEYS) {
+      for (const [corner, keys] of RADIUS_KEYS) {
         const { type, value: v } = r[corner];
         setFloat32(this.style_view, keys.xValue, v);
         setFloat32(this.style_view, keys.yValue, v);
@@ -1539,7 +1589,7 @@ export class Style {
   }
 
   setBorderColor(value: string) {
-    if (!__WINDOWS__ || !this.style_view) return;
+    if (!(__WINDOWS__ || __ANDROID__) || !this.style_view) return;
     const c = parseSidesColorShorthand(String(value ?? ''));
     this.writeBorderSide('top', null, null, c.t);
     this.writeBorderSide('right', null, null, c.r);
@@ -1548,17 +1598,31 @@ export class Style {
     this.commitState(StateKeys.BORDER_COLOR);
   }
 
+  setBorderSideColor(side: 'top' | 'right' | 'bottom' | 'left', value: number | string | { argb?: number }) {
+    if (!this.style_view) return;
+    const color = normalizeColorValue(value);
+    if (color == null) return;
+    this.writeBorderSide(side, null, null, color);
+    this.commitState(StateKeys.BORDER_COLOR);
+  }
+
   resetState() {
     this.isDirty = -1n;
   }
 
   private syncStyle() {
+    this._synced = true;
     const snapshot = this._turnSnapshot;
     this._turnSnapshot = undefined;
     if (snapshot && this.isDirty !== -1n && bytesEqual(snapshot, this.u8View)) {
       this.resetState();
       return;
     }
+    this._sendSync();
+    this.resetState();
+  }
+
+  private _sendSync() {
     if (__ANDROID__) {
       const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
@@ -1578,7 +1642,6 @@ export class Style {
       (view as NativeScript.Mason.IMasonElement).SyncStyle('', '');
       (this.view as any)?._windowsSyncAnonymousText?.();
     }
-    this.resetState();
   }
 
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
@@ -1652,7 +1715,7 @@ export class Style {
       return;
     }
     if (this._turnSnapshot === undefined && this.isDirty === -1n && this.u8View) {
-      this._turnSnapshot = this.u8View.slice();
+      this._turnSnapshot = this._synced ? this.u8View.slice() : false;
     }
     const ref = getUint32(this.style_view, StyleKeys.REF_COUNT);
     if (ref !== 1) {
@@ -1673,14 +1736,7 @@ export class Style {
       }
 
       if (__ANDROID__) {
-        let style = (this.nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
-        if (!style) {
-          // if a non mason view is passed
-          style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(this.nativeView);
-        }
-        style.prepareMut();
-        const styleBuffer = style.getValues();
-        const buffer = (<any>ArrayBuffer).from(styleBuffer);
+        const buffer = (<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView));
         this.style_view = new DataView(buffer);
         this.i8View = new Int8Array(buffer);
         this.u8View = new Uint8Array(buffer);
@@ -3874,7 +3930,7 @@ export class Style {
     }
 
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoRows(this.nativeView);
+      return nodeHelper().getGridAutoRows(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -3891,7 +3947,7 @@ export class Style {
     // A bare number can't marshal over JNI into the native String setter.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
+      nodeHelper().setGridAutoRows(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -3908,7 +3964,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoColumns(this.nativeView);
+      return nodeHelper().getGridAutoColumns(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -3925,7 +3981,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoColumns(this.nativeView, value);
+      nodeHelper().setGridAutoColumns(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -3982,7 +4038,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumn(this.nativeView, value);
+      nodeHelper().setGridColumn(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -3999,7 +4055,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumn(this.nativeView);
+      return nodeHelper().getGridColumn(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4014,7 +4070,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnStart(this.nativeView);
+      return nodeHelper().getGridColumnStart(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4031,7 +4087,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnStart(this.nativeView, value);
+      nodeHelper().setGridColumnStart(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4048,7 +4104,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnEnd(this.nativeView);
+      return nodeHelper().getGridColumnEnd(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4065,7 +4121,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnEnd(this.nativeView, value);
+      nodeHelper().setGridColumnEnd(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4084,7 +4140,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRow(this.nativeView, value);
+      nodeHelper().setGridRow(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4101,7 +4157,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRow(this.nativeView);
+      return nodeHelper().getGridRow(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4116,7 +4172,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowStart(this.nativeView);
+      return nodeHelper().getGridRowStart(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4133,7 +4189,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowStart(this.nativeView, value);
+      nodeHelper().setGridRowStart(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4150,7 +4206,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowEnd(this.nativeView);
+      return nodeHelper().getGridRowEnd(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4167,7 +4223,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowEnd(this.nativeView, value);
+      nodeHelper().setGridRowEnd(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4186,7 +4242,7 @@ export class Style {
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridArea(this.nativeView, value);
+      nodeHelper().setGridArea(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4203,7 +4259,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridArea(this.nativeView);
+      return nodeHelper().getGridArea(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4220,7 +4276,7 @@ export class Style {
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(this.nativeView, value);
+      nodeHelper().setGridTemplateRows(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4237,7 +4293,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateRows(this.nativeView);
+      return nodeHelper().getGridTemplateRows(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4252,7 +4308,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateColumns(this.nativeView);
+      return nodeHelper().getGridTemplateColumns(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4269,7 +4325,7 @@ export class Style {
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateColumns(this.nativeView, value);
+      nodeHelper().setGridTemplateColumns(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4286,7 +4342,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateAreas(this.nativeView);
+      return nodeHelper().getGridTemplateAreas(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4303,7 +4359,7 @@ export class Style {
     // null clears it; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateAreas(this.nativeView, value);
+      nodeHelper().setGridTemplateAreas(this.nativeView, value);
     }
 
     if (__APPLE__) {
@@ -4680,7 +4736,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackground(this.nativeView);
+      return nodeHelper().getBackground(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4695,7 +4751,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackground(this.nativeView, value),
+      () => nodeHelper().setBackground(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.background = value),
     );
   }
@@ -4705,7 +4761,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundImage(this.nativeView);
+      return nodeHelper().getBackgroundImage(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4720,7 +4776,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-image',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundImage(this.nativeView, value),
+      () => nodeHelper().setBackgroundImage(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundImage = value),
     );
   }
@@ -4730,7 +4786,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundRepeat(this.nativeView);
+      return nodeHelper().getBackgroundRepeat(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4745,7 +4801,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-repeat',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundRepeat(this.nativeView, value),
+      () => nodeHelper().setBackgroundRepeat(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundRepeat = value),
     );
   }
@@ -4755,7 +4811,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPosition(this.nativeView);
+      return nodeHelper().getBackgroundPosition(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4770,7 +4826,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-position',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPosition(this.nativeView, value),
+      () => nodeHelper().setBackgroundPosition(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundPosition = value),
     );
   }
@@ -4780,7 +4836,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundSize(this.nativeView);
+      return nodeHelper().getBackgroundSize(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4795,7 +4851,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-size',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundSize(this.nativeView, value),
+      () => nodeHelper().setBackgroundSize(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundSize = value),
     );
   }
@@ -4805,7 +4861,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundClip(this.nativeView);
+      return nodeHelper().getBackgroundClip(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4820,7 +4876,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-clip',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundClip(this.nativeView, value),
+      () => nodeHelper().setBackgroundClip(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundClip = value),
     );
   }
@@ -4830,7 +4886,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPositionX(this.nativeView);
+      return nodeHelper().getBackgroundPositionX(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backgroundPositionX;
@@ -4843,7 +4899,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-position-x',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPositionX(this.nativeView, value),
+      () => nodeHelper().setBackgroundPositionX(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundPositionX = value),
     );
   }
@@ -4853,7 +4909,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundPositionY(this.nativeView);
+      return nodeHelper().getBackgroundPositionY(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backgroundPositionY;
@@ -4866,7 +4922,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-position-y',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundPositionY(this.nativeView, value),
+      () => nodeHelper().setBackgroundPositionY(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundPositionY = value),
     );
   }
@@ -4876,7 +4932,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundOrigin(this.nativeView);
+      return nodeHelper().getBackgroundOrigin(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backgroundOrigin;
@@ -4889,7 +4945,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-origin',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundOrigin(this.nativeView, value),
+      () => nodeHelper().setBackgroundOrigin(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundOrigin = value),
     );
   }
@@ -4899,7 +4955,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundAttachment(this.nativeView);
+      return nodeHelper().getBackgroundAttachment(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backgroundAttachment;
@@ -4912,7 +4968,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-attachment',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundAttachment(this.nativeView, value),
+      () => nodeHelper().setBackgroundAttachment(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundAttachment = value),
     );
   }
@@ -4922,7 +4978,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundBlendMode(this.nativeView);
+      return nodeHelper().getBackgroundBlendMode(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backgroundBlendMode;
@@ -4935,9 +4991,18 @@ export class Style {
     this.setPseudoCssStringValue(
       'background-blend-mode',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundBlendMode(this.nativeView, value),
+      () => nodeHelper().setBackgroundBlendMode(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backgroundBlendMode = value),
     );
+  }
+
+  hasBorderRadius(): boolean {
+    const view = this.style_view;
+    if (!view) return true;
+    for (const [, keys] of RADIUS_KEYS) {
+      if (getFloat32(view, keys.xValue) !== 0 || getFloat32(view, keys.yValue) !== 0) return true;
+    }
+    return false;
   }
 
   get borderRadius() {
@@ -4945,7 +5010,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorderRadius(this.nativeView);
+      return this._borderRadiusCss ?? nodeHelper().getBorderRadius(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -4954,7 +5019,7 @@ export class Style {
 
     if (__WINDOWS__ && this.style_view) {
       // Read back so a single corner longhand keeps the other three instead of resetting them to 0.
-      return WINDOWS_RADIUS_KEYS.map(([, keys]) => {
+      return RADIUS_KEYS.map(([, keys]) => {
         const v = getFloat32(this.style_view, keys.xValue);
         return getUint8(this.style_view, keys.xType) === 1 ? `${v * 100}%` : `${v}px`;
       }).join(' ');
@@ -4965,12 +5030,57 @@ export class Style {
 
   set borderRadius(value: string) {
     value = this.coerceCssStringValue(value);
+    if (__ANDROID__ && this.nativeView && !this._pseudo && this._writeBorderRadius(value, deviceScale())) {
+      return;
+    }
+    if (!this._pseudo) this._borderRadiusCss = undefined;
     this.setPseudoCssStringValue(
       'border-radius',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, value),
+      () => nodeHelper().setBorderRadius(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderRadius = value),
     );
+  }
+
+  _writeCornerRadius(corner: number, radius: readonly [string, string], shorthand: string, scale = deviceScale()): boolean {
+    if (!this.nativeView || this._pseudo || !this.style_view) return false;
+    const h = fastRadiusTokens(radius[0], scale);
+    const v = radius[1] === radius[0] ? h : fastRadiusTokens(radius[1], scale);
+    if (!h || h.length !== 1 || !v || v.length !== 1) return false;
+    this._borderRadiusCss = shorthand;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    setUint8(this.style_view, keys.xType, h[0].type);
+    setFloat32(this.style_view, keys.xValue, h[0].value);
+    setUint8(this.style_view, keys.yType, v[0].type);
+    setFloat32(this.style_view, keys.yValue, v[0].value);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
+  _writeBorderRadius(value: string, scale: number): boolean {
+    let cleaned = value.trim();
+    if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1);
+    const slash = cleaned.indexOf('/');
+    const h = fastRadiusTokens(slash < 0 ? cleaned : cleaned.slice(0, slash).trim(), scale);
+    if (!h) return false;
+    const vPart = slash < 0 ? '' : cleaned.slice(slash + 1).trim();
+    const v = vPart ? fastRadiusTokens(vPart, scale) : h;
+    if (!v) return false;
+    this._borderRadiusCss = value;
+    const hm = radiusCorners(h);
+    const vm = v.length ? radiusCorners(v) : hm;
+    if (!hm || !vm) return true;
+    this.prepareMut();
+    for (let i = 0; i < 4; i++) {
+      const keys = RADIUS_KEYS[i][1];
+      setUint8(this.style_view, keys.xType, hm[i].type);
+      setFloat32(this.style_view, keys.xValue, hm[i].value);
+      setUint8(this.style_view, keys.yType, vm[i].type);
+      setFloat32(this.style_view, keys.yValue, vm[i].value);
+    }
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
   }
 
   get whiteSpace(): string {
@@ -5041,7 +5151,7 @@ export class Style {
   get fontFamily(): string {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getFontFamily(this.nativeView);
+      return nodeHelper().getFontFamily(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.fontFamily;
@@ -5056,7 +5166,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'font-family',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setFontFamily(this.nativeView, value),
+      () => nodeHelper().setFontFamily(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.fontFamily = value),
     );
   }
@@ -5066,7 +5176,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'text-decoration',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecoration(this.nativeView, value),
+      () => nodeHelper().setTextDecoration(this.nativeView, value),
       () => (this.nativeView as MasonElementObjc).style.setTextDecoration(value),
     );
   }
@@ -5076,7 +5186,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationLine(this.nativeView);
+      return nodeHelper().getTextDecorationLine(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationLine;
@@ -5092,7 +5202,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'text-decoration-line',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationLine(this.nativeView, value),
+      () => nodeHelper().setTextDecorationLine(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.textDecorationLine = value),
     );
   }
@@ -5102,7 +5212,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationStyle(this.nativeView);
+      return nodeHelper().getTextDecorationStyle(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationStyle;
@@ -5118,7 +5228,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'text-decoration-style',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationStyle(this.nativeView, value),
+      () => nodeHelper().setTextDecorationStyle(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.textDecorationStyle = value),
     );
   }
@@ -5128,7 +5238,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextDecorationColor(this.nativeView);
+      return nodeHelper().getTextDecorationColor(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.textDecorationColor;
@@ -5145,7 +5255,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'text-decoration-color',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextDecorationColor(this.nativeView, value),
+      () => nodeHelper().setTextDecorationColor(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.textDecorationColor = value),
     );
   }
@@ -5155,7 +5265,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorder(this.nativeView);
+      return nodeHelper().getBorder(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5169,7 +5279,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorder(this.nativeView, value),
+      () => nodeHelper().setBorder(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.border = value),
     );
   }
@@ -5177,7 +5287,7 @@ export class Style {
   get paddingCss() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getPaddingCssValue(this.nativeView);
+      return nodeHelper().getPaddingCssValue(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.paddingCss;
@@ -5192,7 +5302,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'padding',
       strValue,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setPaddingCss(this.nativeView, strValue),
+      () => nodeHelper().setPaddingCss(this.nativeView, strValue),
       () => ((this.nativeView as MasonElementObjc).style.paddingCss = strValue),
     );
   }
@@ -5200,7 +5310,7 @@ export class Style {
   get marginCss() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getMarginCssValue(this.nativeView);
+      return nodeHelper().getMarginCssValue(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.marginCss;
@@ -5214,7 +5324,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'margin',
       strValue,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setMarginCss(this.nativeView, strValue),
+      () => nodeHelper().setMarginCss(this.nativeView, strValue),
       () => ((this.nativeView as MasonElementObjc).style.marginCss = strValue),
     );
   }
@@ -5222,7 +5332,7 @@ export class Style {
   get insetCss() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getInsetCssValue(this.nativeView);
+      return nodeHelper().getInsetCssValue(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.insetCss;
@@ -5236,7 +5346,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'inset',
       strValue,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setInsetCss(this.nativeView, strValue),
+      () => nodeHelper().setInsetCss(this.nativeView, strValue),
       () => ((this.nativeView as MasonElementObjc).style.insetCss = strValue),
     );
   }
@@ -5250,7 +5360,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border-left',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderLeft(this.nativeView, value),
+      () => nodeHelper().setBorderLeft(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderLeft = value),
     );
   }
@@ -5264,7 +5374,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border-top',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderTop(this.nativeView, value),
+      () => nodeHelper().setBorderTop(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderTop = value),
     );
   }
@@ -5278,7 +5388,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border-right',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRight(this.nativeView, value),
+      () => nodeHelper().setBorderRight(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderRight = value),
     );
   }
@@ -5292,7 +5402,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border-bottom',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderBottom(this.nativeView, value),
+      () => nodeHelper().setBorderBottom(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderBottom = value),
     );
   }
@@ -5302,7 +5412,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getFilter(this.nativeView);
+      return nodeHelper().getFilter(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5317,7 +5427,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'filter',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setFilter(this.nativeView, value),
+      () => nodeHelper().setFilter(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.filter = value),
     );
   }
@@ -5327,7 +5437,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBoxShadow(this.nativeView);
+      return nodeHelper().getBoxShadow(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5350,7 +5460,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'box-shadow',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBoxShadow(this.nativeView, value),
+      () => nodeHelper().setBoxShadow(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.boxShadow = value),
     );
   }
@@ -5360,7 +5470,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTransform(this.nativeView);
+      return nodeHelper().getTransform(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5375,7 +5485,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'transform',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTransform(this.nativeView, value),
+      () => nodeHelper().setTransform(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.transform = value),
     );
   }
@@ -5534,7 +5644,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextShadow(this.nativeView);
+      return nodeHelper().getTextShadow(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5549,7 +5659,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'text-shadow',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setTextShadow(this.nativeView, value),
+      () => nodeHelper().setTextShadow(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.textShadow = value),
     );
   }
@@ -5644,7 +5754,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'corner-shape',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShape(this.nativeView, value),
+      () => nodeHelper().setCornerShape(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.cornerShape = value),
     );
   }
@@ -5654,7 +5764,7 @@ export class Style {
       return '';
     }
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShape(this.nativeView);
+      return nodeHelper().getCornerShape(this.nativeView);
     }
 
     if (__APPLE__) {
@@ -5667,7 +5777,7 @@ export class Style {
   get cornerShapeTopLeft() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShapeTopLeft(this.nativeView);
+      return nodeHelper().getCornerShapeTopLeft(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.cornerShapeTopLeft;
@@ -5680,7 +5790,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'corner-shape-top-left',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShapeTopLeft(this.nativeView, value),
+      () => nodeHelper().setCornerShapeTopLeft(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.cornerShapeTopLeft = value),
     );
   }
@@ -5688,7 +5798,7 @@ export class Style {
   get cornerShapeTopRight() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShapeTopRight(this.nativeView);
+      return nodeHelper().getCornerShapeTopRight(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.cornerShapeTopRight;
@@ -5701,7 +5811,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'corner-shape-top-right',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShapeTopRight(this.nativeView, value),
+      () => nodeHelper().setCornerShapeTopRight(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.cornerShapeTopRight = value),
     );
   }
@@ -5709,7 +5819,7 @@ export class Style {
   get cornerShapeBottomRight() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShapeBottomRight(this.nativeView);
+      return nodeHelper().getCornerShapeBottomRight(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.cornerShapeBottomRight;
@@ -5722,7 +5832,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'corner-shape-bottom-right',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShapeBottomRight(this.nativeView, value),
+      () => nodeHelper().setCornerShapeBottomRight(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.cornerShapeBottomRight = value),
     );
   }
@@ -5730,7 +5840,7 @@ export class Style {
   get cornerShapeBottomLeft() {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getCornerShapeBottomLeft(this.nativeView);
+      return nodeHelper().getCornerShapeBottomLeft(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.cornerShapeBottomLeft;
@@ -5743,7 +5853,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'corner-shape-bottom-left',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setCornerShapeBottomLeft(this.nativeView, value),
+      () => nodeHelper().setCornerShapeBottomLeft(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.cornerShapeBottomLeft = value),
     );
   }
@@ -5889,7 +5999,7 @@ export class Style {
   get borderImage(): string {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorderImage(this.nativeView);
+      return nodeHelper().getBorderImage(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.borderImage;
@@ -5902,7 +6012,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'border-image',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderImage(this.nativeView, value),
+      () => nodeHelper().setBorderImage(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.borderImage = value),
     );
   }
@@ -5944,7 +6054,7 @@ export class Style {
   get fontFeatureSettings(): string {
     if (!this.nativeView) return 'normal';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getFontFeatureSettings(this.nativeView);
+      return nodeHelper().getFontFeatureSettings(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.fontFeatureSettings;
@@ -5957,7 +6067,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'font-feature-settings',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setFontFeatureSettings(this.nativeView, value),
+      () => nodeHelper().setFontFeatureSettings(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.fontFeatureSettings = value),
     );
   }
@@ -6053,7 +6163,7 @@ export class Style {
   get backdropFilter(): string {
     if (!this.nativeView) return '';
     if (__ANDROID__) {
-      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackdropFilter(this.nativeView);
+      return nodeHelper().getBackdropFilter(this.nativeView);
     }
     if (__APPLE__) {
       return (this.nativeView as MasonElementObjc).style.backdropFilter;
@@ -6066,7 +6176,7 @@ export class Style {
     this.setPseudoCssStringValue(
       'backdrop-filter',
       value,
-      () => org.nativescript.mason.masonkit.NodeHelper.getShared().setBackdropFilter(this.nativeView, value),
+      () => nodeHelper().setBackdropFilter(this.nativeView, value),
       () => ((this.nativeView as MasonElementObjc).style.backdropFilter = value),
     );
   }
