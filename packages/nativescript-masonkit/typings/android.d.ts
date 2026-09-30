@@ -2877,6 +2877,8 @@ declare module org {
 					public createNode(it: androidNative.Array<org.nativescript.mason.masonkit.Node>, item$iv$iv: boolean): org.nativescript.mason.masonkit.Node;
 					public getNativePtr(): number;
 					public styleForView(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Style;
+					public setPercentWidth(view: globalAndroid.view.View, fraction: number): void;
+					public setPercentHeight(view: globalAndroid.view.View, fraction: number): void;
 					public createInput(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Input;
 					/** Enable or disable CSS Preflight defaults for the entire Mason tree. */
 					public setPreflight(enabled: boolean): void;

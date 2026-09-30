@@ -494,6 +494,24 @@ class Mason {
     return node.style
   }
 
+  /**
+   * Percentage width/height (a 0-1 fraction, NaN clears it) of a view Mason doesn't own, resolved
+   * against its containing block.
+   */
+  fun setPercentWidth(view: android.view.View, fraction: Float) = setPercent(view, true, fraction)
+
+  fun setPercentHeight(view: android.view.View, fraction: Float) = setPercent(view, false, fraction)
+
+  private fun setPercent(view: android.view.View, horizontal: Boolean, fraction: Float) {
+    if (view is Element) return
+    val node = nodeForView(view)
+    val size = if (fraction.isNaN()) Dimension.Auto else Dimension.Percent(fraction)
+    if (horizontal) node.style.setSizeWidth(size) else node.style.setSizeHeight(size)
+    // A leaf's style write doesn't invalidate its layout the way an Element's does.
+    node.dirty()
+    view.requestLayout()
+  }
+
   fun styleForViewOrNode(viewOrNode: Any?): Style? {
     val view = viewOrNode as? android.view.View
     if (view != null) {

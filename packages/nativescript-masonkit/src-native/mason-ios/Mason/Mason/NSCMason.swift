@@ -97,6 +97,29 @@ public class NSCMason: NSObject {
     node.markDirty()
   }
 
+  // Percentage width/height (a 0-1 fraction, NaN clears it) of a view Mason doesn't own, resolved
+  // against its containing block.
+  public func setPercentWidth(_ view: UIView, _ fraction: Float) {
+    setPercent(view, true, fraction)
+  }
+
+  public func setPercentHeight(_ view: UIView, _ fraction: Float) {
+    setPercent(view, false, fraction)
+  }
+
+  private func setPercent(_ view: UIView, _ horizontal: Bool, _ fraction: Float) {
+    if view is MasonElement { return }
+    let node = nodeForView(view)
+    let size: MasonDimension = fraction.isNaN ? .Auto : .Percent(fraction)
+    if horizontal {
+      node.style.setSizeWidth(size)
+    } else {
+      node.style.setSizeHeight(size)
+    }
+    node.markDirty()
+    (node.getRoot() ?? view).setNeedsLayout()
+  }
+
   public func configureStyleForView(_ view: UIView, _ block :(MasonStyle) -> Void){
     let node = nodeForView(view, view.subviews.isEmpty)
     node.style.inBatch = true
