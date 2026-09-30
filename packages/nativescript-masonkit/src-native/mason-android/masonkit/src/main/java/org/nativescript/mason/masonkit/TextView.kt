@@ -1,15 +1,21 @@
 package org.nativescript.mason.masonkit
 
 import android.annotation.SuppressLint
+import android.app.assist.AssistStructure
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Build
+import android.text.InputFilter
 import android.text.StaticLayout
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.ViewStructure
 import androidx.core.widget.TextViewCompat
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
@@ -329,6 +335,86 @@ class TextView @JvmOverloads constructor(
     if (pendingText == null) return super.hasOverlappingRendering()
     return background?.current != null || pendingTextType != BufferType.NORMAL ||
       isHorizontalFadingEdgeEnabled || shadowColor != 0
+  }
+
+  override fun onProvideContentCaptureStructure(structure: ViewStructure, flags: Int) {
+    val text = pendingText ?: return super.onProvideContentCaptureStructure(structure, flags)
+    provideStructureWithoutApplyingPendingText(structure, text)
+  }
+
+  private fun provideStructureWithoutApplyingPendingText(structure: ViewStructure, text: CharSequence) {
+    provideViewStructure(structure)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
+    val drawn = floatAwareStaticLayout ?: cachedStaticLayout
+    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length) {
+      structure.setText(text, -1, -1)
+    } else {
+      provideVisibleLines(structure, text, drawn)
+    }
+    var style = 0
+    val typefaceStyle = paint.typeface?.style ?: Typeface.NORMAL
+    if (typefaceStyle and Typeface.BOLD != 0 || paint.flags and Paint.FAKE_BOLD_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_BOLD
+    if (typefaceStyle and Typeface.ITALIC != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_ITALIC
+    if (paint.flags and Paint.UNDERLINE_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_UNDERLINE
+    if (paint.flags and Paint.STRIKE_THRU_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_STRIKE_THRU
+    structure.setTextStyle(textSize, currentTextColor, AssistStructure.ViewNode.TEXT_COLOR_UNDEFINED, style)
+    structure.setMinTextEms(minEms)
+    structure.setMaxTextEms(maxEms)
+    structure.setMaxTextLength(filters.firstNotNullOfOrNull { it as? InputFilter.LengthFilter }?.max ?: -1)
+    structure.setHint(hint)
+    structure.setInputType(inputType)
+  }
+
+  private fun provideVisibleLines(structure: ViewStructure, text: CharSequence, layout: android.text.Layout) {
+    val location = IntArray(2)
+    getLocationInWindow(location)
+    var root: android.view.View = this
+    while (true) root = root.parent as? android.view.View ?: break
+    val top = if (location[1] >= 0) 0 else -location[1]
+    fun lineAt(y: Int) = layout.getLineForVertical(y - paddingTop + scrollY)
+    val topLine = lineAt(top)
+    val bottomLine = lineAt(top + root.height - 1)
+    val contextLines = (bottomLine - topLine) / 2
+    val topChar = layout.getLineStart((topLine - contextLines).coerceAtLeast(0))
+    val bottomChar = layout.getLineEnd((bottomLine + contextLines).coerceAtMost(layout.lineCount - 1))
+    val visible = if (topChar > 0 || bottomChar < text.length) text.subSequence(topChar, bottomChar) else text
+    structure.setText(visible, -1 - topChar, -1 - topChar)
+    val count = bottomLine - topLine + 1
+    structure.setTextLines(
+      IntArray(count) { layout.getLineStart(topLine + it) },
+      IntArray(count) { layout.getLineBaseline(topLine + it) + paddingTop }
+    )
+  }
+
+  private fun provideViewStructure(structure: ViewStructure) {
+    val id = id
+    var pkg: String? = null
+    var type: String? = null
+    var entry: String? = null
+    if (id != NO_ID && !(id and 0xFF000000.toInt() == 0 && id and 0x00FFFFFF != 0)) {
+      try {
+        pkg = resources.getResourcePackageName(id)
+        type = resources.getResourceTypeName(id)
+        entry = resources.getResourceEntryName(id)
+      } catch (_: Resources.NotFoundException) {
+      }
+    }
+    structure.setId(id, pkg, type, entry)
+    structure.setImportantForAutofill(importantForAutofill)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
+    structure.setDimens(left, top, scrollX, scrollY, width, height)
+    structure.setVisibility(visibility)
+    structure.setEnabled(isEnabled)
+    if (isClickable) structure.setClickable(true)
+    if (isFocusable) structure.setFocusable(true)
+    if (isFocused) structure.setFocused(true)
+    if (isSelected) structure.setSelected(true)
+    if (isActivated) structure.setActivated(true)
+    if (isLongClickable) structure.setLongClickable(true)
+    if (isOpaque) structure.setOpaque(true)
+    if (isContextClickable) structure.setContextClickable(true)
+    structure.setClassName(accessibilityClassName.toString())
+    structure.setContentDescription(contentDescription)
   }
 
   private fun applyPendingText() {
