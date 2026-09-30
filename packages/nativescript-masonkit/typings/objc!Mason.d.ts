@@ -3753,6 +3753,10 @@ declare class NSCMason extends NSObject {
 
 	styleForView(view: UIView): MasonStyle;
 
+	setPercentWidth(view: UIView, fraction: number): void;
+
+	setPercentHeight(view: UIView, fraction: number): void;
+
 	styleForViewOrNode(viewOrNode: any): MasonStyle;
 }
 
