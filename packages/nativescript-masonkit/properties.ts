@@ -866,13 +866,16 @@ const MASON_SIZE_KEYS = [widthProperty, heightProperty].flatMap((property) => [p
 /**
  * The stylesheet-facing accessor a `CssAnimationProperty` installs is
  * non-configurable, so it can't be overridden on `Style.prototype`. Shadow it
- * on this Style instance instead, once per mason view.
+ * on a prototype between `Style.prototype` and each mason view's Style.
  */
-export function installMasonSizeUnits(style: Style): void {
-  if (!style || (style as { [MASON_SIZE_UNITS]?: boolean })[MASON_SIZE_UNITS]) {
-    return;
+const masonStyleProtos = new WeakMap<object, object>();
+
+function masonStyleProto(proto: object): object {
+  let masonProto = masonStyleProtos.get(proto);
+  if (masonProto) {
+    return masonProto;
   }
-  const proto = Object.getPrototypeOf(style);
+  masonProto = Object.create(proto);
   for (const key of new Set(MASON_SIZE_KEYS)) {
     const descriptor = Object.getOwnPropertyDescriptor(proto, key);
     const set = descriptor?.set;
@@ -880,7 +883,7 @@ export function installMasonSizeUnits(style: Style): void {
     if (!set) {
       continue;
     }
-    Object.defineProperty(style, key, {
+    Object.defineProperty(masonProto, key, {
       enumerable: false,
       configurable: true,
       get,
@@ -889,7 +892,16 @@ export function installMasonSizeUnits(style: Style): void {
       },
     });
   }
-  Object.defineProperty(style, MASON_SIZE_UNITS, { value: true, enumerable: false });
+  Object.defineProperty(masonProto, MASON_SIZE_UNITS, { value: true, enumerable: false });
+  masonStyleProtos.set(proto, masonProto);
+  return masonProto;
+}
+
+export function installMasonSizeUnits(style: Style): void {
+  if (!style || (style as { [MASON_SIZE_UNITS]?: boolean })[MASON_SIZE_UNITS]) {
+    return;
+  }
+  Object.setPrototypeOf(style, masonStyleProto(Object.getPrototypeOf(style)));
 }
 
 export const insetProperty = new ShorthandProperty<Style, LengthAuto>({

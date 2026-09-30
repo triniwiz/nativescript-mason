@@ -13,12 +13,16 @@ import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.events.Event
+import java.nio.ByteBuffer
 import java.util.UUID
 import kotlin.math.ceil
 import kotlin.math.floor
 
 interface Element : EventTarget {
   val style: Style
+
+  val writableStyleBuffer: ByteBuffer
+    get() = style.writableValue
 
   override val node: Node
 

@@ -6,12 +6,12 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // The per-corner radius and per-side colour longhands core's `border-radius`
 // / `border-color` shorthands expand into. They live in the styling module
 // rather than core's root export, unlike the border *width* longhands above.
-import { fontInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
+import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
-import { Style as MasonStyle, Style } from './style';
+import { Style as MasonStyle, Style, nodeHelper } from './style';
 import {
   alignContentProperty,
   aspectRatioProperty,
@@ -467,6 +467,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // is non-configurable, so units Mason understands but core does not (`vh`,
     // `rem`, `pt`, …) have to be resolved on this view's own Style object.
     installMasonSizeUnits(this.style);
+    if (__ANDROID__) {
+      (this as any)._isPaddingRelative = false;
+    }
   }
 
   get innerHTML() {
@@ -1783,7 +1786,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private _nativeBorderRadiusCorners(): CornerRadius[] {
     // @ts-ignore
-    const native = String(this._styleHelper?.borderRadius ?? '').trim();
+    const style = this._styleHelper as MasonStyle | undefined;
+    if (__ANDROID__ && style && !style.hasBorderRadius()) {
+      return borderRadiusCorners('0');
+    }
+    const native = String(style?.borderRadius ?? '').trim();
     try {
       return borderRadiusCorners(native || '0');
     } catch {
@@ -1859,7 +1866,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const shorthand = `${sides.t} ${sides.r} ${sides.b} ${sides.l}`;
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, shorthand);
+      nodeHelper().setBorderColor(this.nativeView, shorthand);
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any)?.style?.setBorderColor(shorthand);
@@ -2070,7 +2077,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const s = (this as any)._styleHelper as MasonStyle | undefined;
       if (s) s.setBorderColor(String(value));
       // @ts-ignore
-      else org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderColor(this.nativeView, String(value));
+      else nodeHelper().setBorderColor(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.setBorderColor(String(value));
@@ -2106,7 +2113,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [listStyleTypeProperty.setNative](value: any) {
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setListStyleType(this.nativeView, String(value));
+      nodeHelper().setListStyleType(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStyleType(String(value));
@@ -2117,7 +2124,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [listStylePositionProperty.setNative](value: any) {
     if (__ANDROID__) {
       // @ts-ignore
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setListStylePosition(this.nativeView, String(value));
+      nodeHelper().setListStylePosition(this.nativeView, String(value));
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStylePosition(String(value));
@@ -2488,6 +2495,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   _redrawNativeBackground(value: any): void {}
+
+  [backgroundInternalProperty.getDefault](): any {
+    if (__ANDROID__ || __APPLE__) return null;
+    // @ts-ignore
+    return super[backgroundInternalProperty.getDefault]?.();
+  }
 
   [marginProperty.setNative](value) {
     // @ts-ignore
