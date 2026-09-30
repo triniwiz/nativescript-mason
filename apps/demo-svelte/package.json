@@ -2,14 +2,14 @@
   "main": "./app/app.ts",
   "description": "NativeScript Svelte demo for MasonKit",
   "dependencies": {
-    "@nativescript/core": "~9.0.20",
+    "@nativescript/core": "~9.1.2",
     "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit",
     "svelte-native": "^1.0.29"
   },
   "devDependencies": {
-    "@nativescript/android": "~9.0.2",
-    "@nativescript/ios": "9.0.2",
-    "@nativescript/webpack": "~5.0.24",
+    "@nativescript/android": "~9.1.1",
+    "@nativescript/ios": "~9.1.0",
+    "@nativescript/webpack": "~5.0.38",
     "svelte": "^4.2.19",
     "svelte-loader": "^3.2.4",
     "svelte-preprocess": "^6.0.3",

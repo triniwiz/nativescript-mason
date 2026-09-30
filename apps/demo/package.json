@@ -8,10 +8,10 @@
     "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit"
   },
   "devDependencies": {
-    "@nativescript/android": "~9.0.0",
-    "@nativescript/ios": "~9.0.0",
+    "@nativescript/android": "~9.1.1",
+    "@nativescript/ios": "~9.1.0",
     "@nativescript/windows": "beta",
-    "@nativescript/webpack": "5.0.37-dev.0",
+    "@nativescript/webpack": "~5.0.38",
     "nativescript": "dev"
   },
   "scripts": {
