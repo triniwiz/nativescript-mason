@@ -8,6 +8,7 @@ import android.text.StaticLayout
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.ContextThemeWrapper
 import android.view.View
 import androidx.core.widget.TextViewCompat
 import org.nativescript.fontmanager.FontStyle
@@ -18,14 +19,57 @@ import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
+import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
+import java.util.WeakHashMap
 
 val white_space = "\\s+".toRegex()
+
+internal class ThemelessContext private constructor(base: Context, template: android.widget.TextView) :
+  ContextThemeWrapper(base, base.resources.newTheme()) {
+  private val paintFlags = template.paintFlags
+  private val typeface = template.typeface
+  private val textColors = template.textColors
+  private val linkTextColors = template.linkTextColors
+  private val highlightColor = template.highlightColor
+  private val breakStrategy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) template.breakStrategy else 0
+  private val hyphenationFrequency =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) template.hyphenationFrequency else 0
+
+  fun applyTextDefaults(view: android.widget.TextView) {
+    view.paintFlags = paintFlags
+    view.typeface = typeface
+    textColors?.let { view.setTextColor(it) }
+    linkTextColors?.let { view.setLinkTextColor(it) }
+    view.highlightColor = highlightColor
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      view.breakStrategy = breakStrategy
+      view.hyphenationFrequency = hyphenationFrequency
+    }
+  }
+
+  companion object {
+    private val wrappers = WeakHashMap<Context, WeakReference<ThemelessContext>>()
+
+    @Synchronized
+    fun wrap(context: Context): Context {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || context is ThemelessContext) return context
+      wrappers[context]?.get()?.let { return it }
+      val wrapper = ThemelessContext(context, android.widget.TextView(context))
+      wrappers[context] = WeakReference(wrapper)
+      return wrapper
+    }
+  }
+}
 
 @SuppressLint("AppCompatCustomView")
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : android.widget.TextView(context, attrs), Element, MeasureFunc,
+) : android.widget.TextView(
+  if (attrs == null) ThemelessContext.wrap(context) else context,
+  attrs,
+  if (attrs == null) 0 else android.R.attr.textViewStyle
+), Element, MeasureFunc,
   TextContainer {
 
   override val view: View
@@ -285,6 +329,7 @@ class TextView @JvmOverloads constructor(
   }
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {
+    (context as? ThemelessContext)?.applyTextDefaults(this)
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
     node = mason.createTextNode(this, isAnonymous).apply {
       view = this@TextView
