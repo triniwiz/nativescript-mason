@@ -237,10 +237,15 @@ open class Node internal constructor(
     return hasObjectId
   }
 
-  internal val objectId by lazy {
-    hasObjectId = true
-    ObjectManager.shared.add(WeakReference(this))
-  }
+  private var objectIdValue = 0
+  internal val objectId: Int
+    get() {
+      if (!hasObjectId) {
+        hasObjectId = true
+        objectIdValue = ObjectManager.shared.add(WeakReference(this))
+      }
+      return objectIdValue
+    }
 
   override fun objectId(): Int {
     return objectId
@@ -531,7 +536,11 @@ open class Node internal constructor(
     return children
   }
 
-  internal val stateValue by lazy {
+  private var stateValueOrNull: ByteBuffer? = null
+  internal val stateValue: ByteBuffer
+    get() = stateValueOrNull ?: createStateValue().also { stateValueOrNull = it }
+
+  private fun createStateValue(): ByteBuffer = run {
     val id = NativeHelpers.nativeGetStateBuffer(
       mason.nativePtr,
       nativePtr

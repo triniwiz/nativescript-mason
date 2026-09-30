@@ -2010,6 +2010,9 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
     let mut order = Vec::new();
     let mut stack = vec![root];
     while let Some(id) = stack.pop() {
+        if tree.nodes.get(id).is_some_and(|n| !n.cache.is_empty()) {
+            continue;
+        }
         order.push(id);
         if let Some(children) = tree.children.get(id) {
             stack.extend(children.iter().copied());

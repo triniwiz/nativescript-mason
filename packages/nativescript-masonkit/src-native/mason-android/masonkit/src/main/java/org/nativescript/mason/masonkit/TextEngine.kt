@@ -139,6 +139,11 @@ class TextEngine(val container: TextContainer) {
       return buildString { appendText(node) }
     }
     set(value) {
+      val only = node.children.singleOrNull() as? TextNode
+      if (only != null && only.javaClass == TextNode::class.java && only.container === container) {
+        if (only.data == value) invalidateInlineSegments() else only.data = value
+        return
+      }
       // Remove all existing children
       var hadNativeChildren = false
       for (child in node.children) {
@@ -151,6 +156,7 @@ class TextEngine(val container: TextContainer) {
 
       // Create a single text node with the new text
       val textNode = TextNode(node.mason, value)
+      textNode.attributes.sync(node.style)
       textNode.container = container
 
       // Add to children
@@ -806,6 +812,10 @@ class TextEngine(val container: TextContainer) {
     // measured many times per compute and each post was a Handler message.
     val pendingInvalidate = style.fontDirty && !style.pendingMetricsSync
     try {
+      if (!warming) deferredSegments?.let {
+        deferredSegments = null
+        NativeHelpers.nativeNodeSetSegmentsPacked(node.mason.nativePtr, node.nativePtr, it.floats, it.longs, it.kinds)
+      }
       flushTextStyleIfNeeded()
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
       val mcWKey = mcSpec.constraint.toLong()
@@ -813,6 +823,12 @@ class TextEngine(val container: TextContainer) {
         -1f -> 0L
         -2f -> 1L
         else -> 2L
+      }
+      if (mcWMode == 2L && !warming) {
+        lastDefiniteKnownWidth = knownWidth
+        lastDefiniteKnownHeight = knownHeight
+        lastDefiniteAvailableWidth = availableWidth
+        lastDefiniteAvailableHeight = availableHeight
       }
       val ver = segmentsInvalidateVersion.toLong()
       for (probe in 0 until MEASURE_CACHE_SIZE) {
@@ -1364,16 +1380,18 @@ class TextEngine(val container: TextContainer) {
           }
         }
       }
-      // Call the packed JNI path synchronously. This path is safe when
-      // invoked inside the expected native/Java measurement flow and we
-      // prefer the fast packed primitive arrays.
-      NativeHelpers.nativeNodeSetSegmentsPacked(
-        node.mason.nativePtr,
-        node.nativePtr,
-        floats,
-        longs,
-        kinds
-      )
+      if (warming) {
+        deferredSegments = PackedSegments(floats, longs, kinds)
+      } else {
+        deferredSegments = null
+        NativeHelpers.nativeNodeSetSegmentsPacked(
+          node.mason.nativePtr,
+          node.nativePtr,
+          floats,
+          longs,
+          kinds
+        )
+      }
     }
 
     // segments are up-to-date now — align attributedStringVersion so cache checks succeed
@@ -1771,6 +1789,12 @@ class TextEngine(val container: TextContainer) {
   private var maxContentWidth = 0
   private var maxContentConstraint = 0
   private var maxContentOut = 0L
+  private var deferredSegments: PackedSegments? = null
+
+  private var lastDefiniteKnownWidth = 0f
+  private var lastDefiniteKnownHeight = 0f
+  private var lastDefiniteAvailableWidth = Float.NaN
+  private var lastDefiniteAvailableHeight = 0f
   private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
   private var isBuilding = false
@@ -1834,7 +1858,10 @@ class TextEngine(val container: TextContainer) {
   private var cachedAdvances: FloatArray? = null
   private val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
-  internal val plainTextPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+  internal var plainTextPaintOrNull: TextPaint? = null
+    private set
+  internal val plainTextPaint: TextPaint
+    get() = plainTextPaintOrNull ?: TextPaint().also { plainTextPaintOrNull = it }
   private var plainTextRunStyle: Spans.RunStyleSpan? = null
 
   internal fun preparePlainTextPaint(base: TextPaint) {
@@ -2360,6 +2387,7 @@ class TextEngine(val container: TextContainer) {
   internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
     Node.bumpTextInvalidationEpoch()
     segmentsInvalidateVersion += 1
+    staleMeasures[this] = true
     cachedAttributedString = null
     minMeasuredTextWidth = 0f
     minMeasuredTextHeight = 0f
@@ -2432,8 +2460,58 @@ class TextEngine(val container: TextContainer) {
     return null
   }
 
+  private fun warmable(): Boolean {
+    if (textStyleFlushPending || style.fontDirty) return false
+    for (child in node.children) if (child !is TextNode) return false
+    val parentFloat = try {
+      node.parent?.style?.float
+    } catch (_: Throwable) {
+      null
+    }
+    return parentFloat == null || parentFloat == org.nativescript.mason.masonkit.enums.Float.None
+  }
+
   companion object {
     private const val MEASURE_CACHE_SIZE = 32
+
+    private val staleMeasures = java.util.WeakHashMap<TextEngine, Boolean>()
+
+    private var warming = false
+
+    private const val KNOWN_NONE = -3f
+
+    @JvmStatic
+    internal fun warmMeasures(forRoot: Node) {
+      flushPendingTextStyles(forRoot)
+      Style.flushPendingMetrics(forRoot)
+      if (staleMeasures.isEmpty()) return
+      val batch = ArrayList<TextEngine>()
+      val it = staleMeasures.entries.iterator()
+      while (it.hasNext()) {
+        val engine = it.next().key ?: continue
+        if ((engine.node.getRootNode() ?: engine.node) !== forRoot) continue
+        it.remove()
+        if (engine.container !is TextView || !engine.warmable()) continue
+        batch.add(engine)
+      }
+      if (batch.isEmpty()) return
+      warming = true
+      try {
+        for (engine in batch) {
+          val paint = (engine.container as TextView).paint
+          engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -1f, -2f)
+          engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -2f, -2f)
+          if (!engine.lastDefiniteAvailableWidth.isNaN()) {
+            engine.measure(
+              paint, engine.lastDefiniteKnownWidth, engine.lastDefiniteKnownHeight,
+              engine.lastDefiniteAvailableWidth, engine.lastDefiniteAvailableHeight
+            )
+          }
+        }
+      } finally {
+        warming = false
+      }
+    }
 
     // Flags that affect text measurement/layout (require full inline-segment recompute).
     @JvmStatic
@@ -2509,6 +2587,8 @@ class TextEngine(val container: TextContainer) {
 }
 
 /** Describes a floated sibling element's position and side for float-aware text wrapping. */
+private class PackedSegments(val floats: FloatArray, val longs: LongArray, val kinds: IntArray)
+
 internal data class FloatExclusion(
   val left: Int,
   val top: Int,

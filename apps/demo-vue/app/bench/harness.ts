@@ -25,6 +25,25 @@ function iosThreadCpuMs(): number {
   }
 }
 
+// Async trace sections named vb:<scenario>:<flavour>:<phase> span each measured window, so a
+// perfetto capture gives per-phase main-thread and whole-process CPU from the scheduler.
+interface AsyncTrace {
+  beginAsyncSection(name: string, cookie: number): void;
+  endAsyncSection(name: string, cookie: number): void;
+}
+const asyncTrace = __ANDROID__ ? (android.os.Trace as unknown as AsyncTrace) : undefined;
+let traceCookie = 0;
+function traceBegin(name: string): number {
+  if (!asyncTrace) return 0;
+  const cookie = ++traceCookie;
+  asyncTrace.beginAsyncSection(name, cookie);
+  return cookie;
+}
+function traceEnd(name: string, cookie: number): void {
+  if (asyncTrace && cookie) asyncTrace.endAsyncSection(name, cookie);
+}
+const section = (scenario: string, flavour: string, phase: string): string => `vb:${scenario}:${flavour}:${phase}`;
+
 export type Flavour = 'mason' | 'core';
 export type ScenarioKey = 'feed' | 'dashboard' | 'nested' | 'rich';
 
@@ -186,31 +205,44 @@ export class PageBench {
   ) {
     this.navStart = pendingNavStart ?? now();
     this.navStartCpu = pendingNavStartCpu ?? cpuNow();
+    this.mountTrace = pendingNavTrace;
     pendingNavStart = undefined;
     pendingNavStartCpu = undefined;
+    pendingNavTrace = undefined;
   }
+
+  private mountTrace: { name: string; cookie: number } | undefined;
+  private firstFrameCookie = 0;
 
   loaded(page?: any): void {
     watchLayout(page);
     this.loadedAt = now();
     this.loadedAtCpu = cpuNow();
+    if (this.mountTrace) traceEnd(this.mountTrace.name, this.mountTrace.cookie);
+    this.firstFrameCookie = traceBegin(section(this.scenario, this.flavour, 'first frame'));
     record(this.scenario, this.flavour, 'mount', { ms: this.loadedAt - this.navStart, cpuMs: this.loadedAtCpu - this.navStartCpu });
   }
 
   async firstFrame(): Promise<void> {
     await settled();
+    traceEnd(section(this.scenario, this.flavour, 'first frame'), this.firstFrameCookie);
     record(this.scenario, this.flavour, 'first frame', { ms: now() - this.loadedAt, cpuMs: cpuNow() - this.loadedAtCpu });
   }
 
   async run(phase: string, mutate: () => void): Promise<void> {
+    const name = section(this.scenario, this.flavour, phase);
+    const cookie = traceBegin(name);
     const start = now();
     const startCpu = cpuNow();
     mutate();
     await settled();
+    traceEnd(name, cookie);
     record(this.scenario, this.flavour, phase, { ms: now() - start, cpuMs: cpuNow() - startCpu });
   }
 
   async ticks(phase: string, count: number, mutate: (i: number) => void): Promise<void> {
+    const name = section(this.scenario, this.flavour, `${phase} x${count}`);
+    const cookie = traceBegin(name);
     const start = now();
     const startCpu = cpuNow();
     let worst = 0;
@@ -226,6 +258,7 @@ export class PageBench {
       worst = Math.max(worst, now() - frameStart);
     }
     await settled();
+    traceEnd(name, cookie);
     record(this.scenario, this.flavour, `${phase} x${count}`, {
       ms: now() - start,
       cpuMs: cpuNow() - startCpu,
@@ -239,9 +272,14 @@ export class PageBench {
 
 let pendingNavStart: number | undefined;
 let pendingNavStartCpu: number | undefined;
+let pendingNavTrace: { name: string; cookie: number } | undefined;
 let pendingDone: (() => void) | undefined;
 
-export function beginNavigation(): Promise<void> {
+export function beginNavigation(scenario?: ScenarioKey, flavour?: Flavour): Promise<void> {
+  if (scenario && flavour) {
+    const name = section(scenario, flavour, 'mount');
+    pendingNavTrace = { name, cookie: traceBegin(name) };
+  }
   pendingNavStart = now();
   pendingNavStartCpu = cpuNow();
   return new Promise((resolve) => {
