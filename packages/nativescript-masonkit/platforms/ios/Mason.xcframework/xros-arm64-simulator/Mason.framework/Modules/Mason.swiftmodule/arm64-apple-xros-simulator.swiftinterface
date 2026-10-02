@@ -3132,10 +3132,6 @@ public enum VerticalAlign {
   public var description: Swift.String {
     get
   }
-  public init?(rawValue: Swift.Int32)
-  public var rawValue: Swift.Int32 {
-    get
-  }
   public init?(rawValue: Swift.Int8)
   public var rawValue: Swift.Int8 {
     get
