@@ -48,6 +48,11 @@ android {
   // Use release build for benchmarks to get accurate performance measurements
   testBuildType = "release"
 
+  // JVM unit tests get stubbed android.jar methods (Background.kt builds a Paint at class load).
+  testOptions {
+    unitTests.returnDefaultValues = true
+  }
+
   buildTypes {
     release {
       minifyEnabled false

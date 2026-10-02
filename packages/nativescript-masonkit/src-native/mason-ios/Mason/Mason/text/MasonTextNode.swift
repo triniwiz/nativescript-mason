@@ -28,7 +28,8 @@ enum MasonError: Error {
 @objcMembers
 public class MasonTextNode: MasonNode, MasonCharacterData {
    
-  internal var container: TextContainer?
+  // Weak: the container owns this node through its children.
+  internal weak var container: TextContainer?
   
   public var data: String {
     didSet {
@@ -39,8 +40,14 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
     }
   }
   
-  internal var attributes: [NSAttributedString.Key: Any] = [:]
-  
+  internal var attributes: [NSAttributedString.Key: Any] = [:] {
+    didSet { attributesStale = false }
+  }
+
+  // Set when the container's text style changes; attributed() rebuilds from
+  // the container's defaults, so a mount's repeated syncs build them once.
+  internal var attributesStale = false
+
   internal var attributesInitialized: Bool = false
 
   
@@ -135,7 +142,9 @@ extension MasonTextNode {
     public func attributed() -> NSAttributedString {
         // Apply text transforms and whitespace processing
         let processedText = processText(data)
-      
+        if attributesStale, let container = container {
+          attributes = container.node.getDefaultAttributes()
+        }
         return NSAttributedString(string: processedText, attributes: attributes)
     }
   

@@ -12,9 +12,9 @@ class NodeUtils {
     node.markDirty()
     let root = node.getRootNode()
     let view = if(root.type == .document){
-      root.document?.documentElement as? MasonElement
+      MasonViewKind.element(root.document?.documentElement)
     }else {
-      root.view as? MasonElement
+      MasonViewKind.element(root.view)
     }
 
     // Coalesced, not immediate: this runs on every appended text node, and a
@@ -26,7 +26,7 @@ class NodeUtils {
   static func addView(_ node: MasonNode, _ view: UIView?){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is TextContainer){
+    if MasonViewKind.textContainer(parent) != nil {
       return
     }
     node.suppressChildOperations {
@@ -37,7 +37,7 @@ class NodeUtils {
   static func addView(_ node: MasonNode, _ view: UIView?, _ index: Int){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is TextContainer){return}
+    if MasonViewKind.textContainer(parent) != nil {return}
     node.suppressChildOperations {
       parent.insertSubview(view, at: index)
     }
@@ -47,12 +47,12 @@ class NodeUtils {
   static func removeView(_ node: MasonNode, _ view: UIView?){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is TextContainer){return}
+    if MasonViewKind.textContainer(parent) != nil {return}
     node.suppressChildOperations {
       // only remove if child belongs to parent
       if(parent == view.superview){
         view.removeFromSuperview()
-      } else if let element = view as? MasonElement, element.node.style.position == .Fixed {
+      } else if let element = MasonViewKind.element(view), element.node.style.position == .Fixed {
         // Fixed views live under their containing block, not their tree parent.
         view.removeFromSuperview()
       }

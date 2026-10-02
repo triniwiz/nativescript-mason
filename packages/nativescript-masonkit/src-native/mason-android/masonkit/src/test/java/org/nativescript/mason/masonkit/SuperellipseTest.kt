@@ -40,8 +40,8 @@ class SuperellipseTest {
     width: Double, height: Double
   ): Pair<Double, Double> {
     val (cx, cy) = superellipsePoint(t, exponent)
-    val px = width - rx * (1 - cx)
-    val py = ry * (1 - cy)
+    val px = width - rx * (1 - cy)
+    val py = ry * (1 - cx)
     return Pair(px, py)
   }
 
@@ -146,15 +146,10 @@ class SuperellipseTest {
     val width = 100.0
     val height = 100.0
 
-    // At t=0: point should be at (width - rx*(1-1), ry*(1-0)) = (width, ry) - wait...
-    // Actually: px = width - rx*(1 - cx) where cx = cos(0)^n = 1
-    // So px = width - rx*(1-1) = width, py = ry*(1-0) = 0
-    // This is the start of the top-right corner arc: (width, 0) -> just past the top edge
-    // Wait, looking at the code flow: the path moves along the top edge to (width-trX, 0),
-    // then addCorner adds the curve from there going down the right side.
-
+    // The arc runs from the end of the top edge (width - rx, 0) down to the
+    // start of the right edge (width, ry), as Border.kt draws it.
     val (px0, py0) = topRightCornerPoint(0.0, 0.5, rx, ry, width, height)
-    assertEquals("Start x should be at width", width, px0, EPSILON)
+    assertEquals("Start x should be at width - rx", width - rx, px0, EPSILON)
     assertEquals("Start y should be at 0", 0.0, py0, EPSILON)
 
     val (px1, py1) = topRightCornerPoint(1.0, 0.5, rx, ry, width, height)

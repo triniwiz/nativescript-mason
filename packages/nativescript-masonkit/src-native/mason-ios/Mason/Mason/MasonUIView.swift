@@ -13,7 +13,7 @@ import Foundation
 public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
   func onStyleChange(_ low: UInt64, _ high: UInt64) {
     invalidateDrawFlags()
-    MasonNode.invalidateDescendantTextViews(node, low, high)
+    MasonNode.invalidateDescendantTextViews(inheritedBy: node, low, high)
   }
   
   internal let maskPath = CGMutablePath()

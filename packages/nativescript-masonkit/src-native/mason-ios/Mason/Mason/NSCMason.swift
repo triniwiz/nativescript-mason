@@ -325,6 +325,23 @@ public class NSCMason: NSObject {
    * one exists — an unresolvable viewport unit collapses to 0 rather than
    * silently becoming a bare number in the wrong unit.
    */
+  /// Leak diagnostics, with the keys Android's Mason.debugStats uses: live engine nodes and style
+  /// buffers, plus live C node wrappers (`cNodes`) and Swift MasonNode objects (`trackedNodes`).
+  @objc public func debugStats() -> [String: NSNumber] {
+    var values = [Int64](repeating: 0, count: 7)
+    mason_debug_stats(nativePtr, &values, UInt(values.count))
+    return [
+      "liveNodes": NSNumber(value: values[0]),
+      "totalBuffers": NSNumber(value: values[1]),
+      "activeBuffers": NSNumber(value: values[2]),
+      "sharedBuffers": NSNumber(value: values[3]),
+      "freeSlots": NSNumber(value: values[4]),
+      "bufferMemory": NSNumber(value: values[5]),
+      "cNodes": NSNumber(value: values[6]),
+      "trackedNodes": NSNumber(value: MasonNode.liveCount),
+    ]
+  }
+
   @objc public static var rootFontSize: Float = 16
 
   @objc public static var viewportSize: CGSize {

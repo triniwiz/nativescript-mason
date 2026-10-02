@@ -6,7 +6,7 @@
 	<dict>
 		<key>Headers/Mason-Swift.h</key>
 		<data>
-		xqKOKWxXjHGEVeFP6267z4KEl+s=
+		Oie8T7p/cP+u3CUnnbVOyMONkug=
 		</data>
 		<key>Headers/Mason.h</key>
 		<data>
@@ -14,7 +14,7 @@
 		</data>
 		<key>Headers/mason_native.h</key>
 		<data>
-		BAB1Hz6N9jhvsT3xFQqjF8cPRAs=
+		5TZVqDHT5yx9xPo61716VmR/vLQ=
 		</data>
 		<key>Info.plist</key>
 		<data>
@@ -22,27 +22,27 @@
 		</data>
 		<key>Modules/Mason.swiftmodule/Project/arm64-apple-xros-simulator.swiftsourceinfo</key>
 		<data>
-		ep4Ubiel5U7GiQ4FGbUPtZZRMpQ=
+		DcCn8vK3S9fgZoro248iyLi05q0=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.abi.json</key>
 		<data>
-		Z77gaHpE+Kk1/SkKzNYKzRsxgiI=
+		Ph/Y/HQfGOJo9D5ElPQoSRWKIfQ=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.private.swiftinterface</key>
 		<data>
-		Hq/X8ty9Zsd/6R1U+I2t7iRHqVE=
+		cz7F3m2OU7e6Cp+G208cvTGvLPo=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftdoc</key>
 		<data>
-		2SAg+3bx6x5u26jhGekgDL/ikSQ=
+		X70vTl+QbvEDuZPZiTqOQLQk+LY=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftinterface</key>
 		<data>
-		Hq/X8ty9Zsd/6R1U+I2t7iRHqVE=
+		cz7F3m2OU7e6Cp+G208cvTGvLPo=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftmodule</key>
 		<data>
-		leIpDfWxqomPsYDncWqy4u7iu0M=
+		4ipXNmKar968IdN8ihAa7hwkEKg=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -55,7 +55,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			q4LnCmAsg+0loUf4JcjeBqDNKyskQsS0CLs4ChhRSD8=
+			Inv74V8S1Gm9efuD7aGxrbi8nO4YzBokQT8TrlttvA4=
 			</data>
 		</dict>
 		<key>Headers/Mason.h</key>
@@ -69,49 +69,49 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			FORayL+h1W0iNJsLHwIW3aZa3F+QPjv6UlA//buTnD0=
+			eGKC3kTc+ZPCF7UkbWs3appCf2sRbysPgP/u8YPrVi4=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/Project/arm64-apple-xros-simulator.swiftsourceinfo</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			vXpu/K9ojlfz9skHXIDrGApq5exbe1hvQUrogM1jzps=
+			Gibz23pg6ggJoN74kdEfBSwnPDguS54jpIGSxIEcEcQ=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.abi.json</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			1rViL0EiAvzMxSEPqSSXFXYENs3ceaglZC8+mk6DPEs=
+			wHu1Ol/dC2FP+6MkV6HTfyRnghqUIJKsAB/qT7hiKCQ=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.private.swiftinterface</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			jWqeE18SCGZ8CVLsk3jkBIz2DzpQrHD9hL25YB/CCGE=
+			3BYQgVFU1yb+Vcj8ZAxYi6QabyAU/qihKx430/WbsnQ=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftdoc</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			9qGIYoDr43ABKtvUcV9ax0Dr2uSt0LgHAWV66ja5cc0=
+			CXsMTF8SZNizresW27toneFPUKIsQZEEJTnvogcMYcQ=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftinterface</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			jWqeE18SCGZ8CVLsk3jkBIz2DzpQrHD9hL25YB/CCGE=
+			3BYQgVFU1yb+Vcj8ZAxYi6QabyAU/qihKx430/WbsnQ=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.swiftmodule</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			tLshGF0tUlVppgvFZ+WqkA6f7F1SMK/ZTZp8Dw1wKHo=
+			uvUhSOG57eRuQ1X78oQVPep1rtDFZXuGgpJLbxfJKaU=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

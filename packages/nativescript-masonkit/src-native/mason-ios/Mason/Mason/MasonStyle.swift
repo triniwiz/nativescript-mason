@@ -837,6 +837,17 @@ public class MasonStyle: NSObject {
   
   private var pendingInvalidation: InvalidationState = .none
   
+  // All text-relevant keys that TextEngine.onStyleChange checks.
+  private static let textStateMask: StateKeys = [
+    StateKeys.color, .fontSize, .fontWeight, .fontStyle, .fontFamily,
+    .textTransform, .textWrap, .whiteSpace, .textOverflow,
+    .backgroundColor, .decorationColor, .decorationLine, .decorationStyle,
+    .letterSpacing, .lineHeight, .textAlign, .textJustify,
+    .verticalAlign, .textShadow, .fontVariantNumeric,
+    .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
+    .decorationThinkness
+  ].reduce(StateKeys.none) { $0.union($1) }
+
   private func updateTextStyle() {
     if (node.nativePtr == nil) {
       return
@@ -845,27 +856,10 @@ public class MasonStyle: NSObject {
     let lowDirty = isDirty
     let highDirty = isDirtyHigh
     if (lowDirty > 0 || highDirty > 0) {
-      let value = StateKeys(low: lowDirty, high: highDirty)
-
-      // All text-relevant keys that TextEngine.onStyleChange checks.
       // Forward the intersection of dirty flags and text keys so the
       // engine takes the correct layout vs visual-only branch.
-      let textKeys: [StateKeys] = [
-        .color, .fontSize, .fontWeight, .fontStyle, .fontFamily,
-        .textTransform, .textWrap, .whiteSpace, .textOverflow,
-        .backgroundColor, .decorationColor, .decorationLine, .decorationStyle,
-        .letterSpacing, .lineHeight, .textAlign, .textJustify,
-        .verticalAlign, .textShadow, .fontVariantNumeric,
-        .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
-        .decorationThinkness
-      ]
-
-      var state: StateKeys = .none
-      for key in textKeys {
-        if value.contains(key) {
-          state = state.union(key)
-        }
-      }
+      let mask = MasonStyle.textStateMask
+      let state = StateKeys(low: lowDirty & mask.low, high: highDirty & mask.high)
 
       if (state != .none) {
         pendingInvalidation = pendingInvalidation.union(.pending)
@@ -975,6 +969,7 @@ public class MasonStyle: NSObject {
   }
 
   private func writeMatrixToBuffer(_ a: Float, _ b: Float, _ c: Float, _ d: Float, _ tx: Float, _ ty: Float) {
+    prepareMut()
     setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
     setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX)
     let base = StyleKeys.TRANSFORM_MATRIX
@@ -989,6 +984,7 @@ public class MasonStyle: NSObject {
   }
 
   private func writeMatrix3dToBuffer(_ nums: [Float]) {
+    prepareMut()
     setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
     setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX | StyleKeys.TRANSFORM_FLAG_IS_3D)
     let base = StyleKeys.TRANSFORM_MATRIX
@@ -1201,11 +1197,13 @@ public class MasonStyle: NSObject {
   }
   
   private func updateIntField(offset: Int, value: Int8, state: StateKeys){
+    prepareMut()
     setInt8(offset, value)
     setOrAppendState(state)
   }
   
   private func updateFloatField(offset: Int, value: Float, state: StateKeys){
+    prepareMut()
     setFloat(offset, value)
     setOrAppendState(state)
   }
@@ -1399,14 +1397,20 @@ public class MasonStyle: NSObject {
   }
   
   
-  lazy var mFilter: CSSFilters.CSSFilter = {
-    CSSFilters.CSSFilter()
-  }()
+  // Created on first parse: CSSFilter owns a CAMetalLayer, and every draw
+  // checks for a filter, so views without one shouldn't pay for it.
+  private var mFilterStorage: CSSFilters.CSSFilter?
+  var mFilter: CSSFilters.CSSFilter {
+    if let filter = mFilterStorage { return filter }
+    let filter = CSSFilters.CSSFilter()
+    mFilterStorage = filter
+    return filter
+  }
   
   public var filter: String = "" {
     didSet {
-      if(filter.isEmpty && !mFilter.filters.isEmpty){
-        mFilter.reset()
+      if filter.isEmpty {
+        if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
         return
       }
       
@@ -1443,7 +1447,7 @@ public class MasonStyle: NSObject {
   internal func applyResolvedFilter(in context: CGContext, rect: CGRect, view: UIView? = nil) {
     let css = resolvedFilterString
     if css.isEmpty {
-      if !mFilter.filters.isEmpty { mFilter.reset() }
+      if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
       return
     }
     mFilter.parse(css: css)
@@ -1633,6 +1637,7 @@ public class MasonStyle: NSObject {
   
   
   public func setLineHeight(_ value: Float, _ isRelative: Bool){
+    prepareMut()
     setFloat(StyleKeys.LINE_HEIGHT, value)
     setUInt8(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
     if(!isRelative){
@@ -1654,6 +1659,7 @@ public class MasonStyle: NSObject {
       return getFloat(StyleKeys.LINE_HEIGHT)
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.LINE_HEIGHT, newValue)
       setUInt8(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
       setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 0)
@@ -1671,6 +1677,7 @@ public class MasonStyle: NSObject {
       return getFloat(StyleKeys.LETTER_SPACING)
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.LETTER_SPACING, newValue)
       setUInt8(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
       
@@ -1687,6 +1694,7 @@ public class MasonStyle: NSObject {
       return FontVariantNumeric(rawValue: getUInt8(StyleKeys.FONT_VARIANT_NUMERIC))
     }
     set {
+      prepareMut()
       let old = getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)
       if newValue.rawValue != old {
         setUInt8(StyleKeys.FONT_VARIANT_NUMERIC, newValue.rawValue)
@@ -1904,6 +1912,7 @@ public class MasonStyle: NSObject {
       return getInt32(StyleKeys.FONT_SIZE)
     }
     set {
+      prepareMut()
       setInt32(StyleKeys.FONT_SIZE, newValue)
       setUInt8(StyleKeys.FONT_SIZE_TYPE, 0)
       setUInt8(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
@@ -1919,6 +1928,7 @@ public class MasonStyle: NSObject {
   }
   
   public func setFontStyle(_ style: FontStyle, _ slant: Int32){
+    prepareMut()
     // slant ignored unless it's oblique
     
     let previous = fontStyle
@@ -1956,6 +1966,7 @@ public class MasonStyle: NSObject {
       return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY))!
     }
     set {
+      prepareMut()
       let previous = textJustify
       if(previous != newValue){
         
@@ -2020,6 +2031,7 @@ public class MasonStyle: NSObject {
       
     }
     set {
+      prepareMut()
       let previous = fontStyle
       if(previous != newValue){
         setInt8(StyleKeys.FONT_STYLE_TYPE, newValue.rawValue)
@@ -2078,6 +2090,7 @@ public class MasonStyle: NSObject {
   }
   
   internal func setFontWeight(_ weight: Int,_ name: String?){
+    prepareMut()
     var newWeight: NSCFontWeight? = nil
     if weight >= 100 && weight <= 1000 {
       var newWeightName: String? = name
@@ -2138,6 +2151,7 @@ public class MasonStyle: NSObject {
       return font.family
     }
     set {
+      prepareMut()
       let oldFamily = font.family
       if (oldFamily != newValue) {
         guard let oldFont = font else {return}
@@ -2168,6 +2182,7 @@ public class MasonStyle: NSObject {
       return weightName
     }
     set {
+      prepareMut()
       let previous = weightName
       switch newValue {
       case "thin":
@@ -2230,6 +2245,7 @@ public class MasonStyle: NSObject {
   // Text overflow
   public var textOverflow: TextOverflow = .Clip {
     didSet {
+      prepareMut()
       setInt32(StyleKeys.TEXT_OVERFLOW, textOverflow.rawValue)
       setUInt8(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
       // Text overflow only affects rendering, not measurement
@@ -2257,6 +2273,7 @@ public class MasonStyle: NSObject {
       return TextTransform(rawValue: getInt8(StyleKeys.TEXT_TRANSFORM))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.TEXT_TRANSFORM, newValue.rawValue)
       setUInt8(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
       if(inBatch){
@@ -2272,6 +2289,7 @@ public class MasonStyle: NSObject {
       return WhiteSpace(rawValue: getInt8(StyleKeys.WHITE_SPACE))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.WHITE_SPACE, newValue.rawValue)
       setUInt8(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
       if(inBatch){
@@ -2287,6 +2305,7 @@ public class MasonStyle: NSObject {
       return TextWrap(rawValue: getInt8(StyleKeys.TEXT_WRAP))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.TEXT_WRAP, newValue.rawValue)
       setUInt8(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
       if(inBatch){
@@ -2970,6 +2989,7 @@ public class MasonStyle: NSObject {
   internal var textShadows: [TextShadow] = []
   public var textShadow: String = "" {
     didSet {
+      prepareMut()
       textShadows = ShadowParser.parseTextShadow(style: self, value: textShadow)
       
       if(textShadows.isEmpty){
@@ -3393,6 +3413,7 @@ public class MasonStyle: NSObject {
       return TextAlign(rawValue: getInt8(StyleKeys.TEXT_ALIGN))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.TEXT_ALIGN, newValue.rawValue)
       setUInt8(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
       setOrAppendState(StateKeys.textAlign)
@@ -3938,6 +3959,7 @@ public class MasonStyle: NSObject {
     }
     
     set {
+      prepareMut()
       setInt8(StyleKeys.GRID_AUTO_FLOW, newValue.rawValue)
       setOrAppendState(.gridAutoFlow)
     }
@@ -4090,17 +4112,24 @@ public class MasonStyle: NSObject {
   
   // MARK: - backdrop-filter (string-based, parsed natively)
 
-  lazy var mBackdropFilter: CSSFilters.CSSFilter = {
-    CSSFilters.CSSFilter()
-  }()
+  // Created on first parse, like mFilter; layoutSubviews checks it on every view.
+  private var mBackdropFilterStorage: CSSFilters.CSSFilter?
+  var mBackdropFilter: CSSFilters.CSSFilter {
+    if let filter = mBackdropFilterStorage { return filter }
+    let filter = CSSFilters.CSSFilter()
+    mBackdropFilterStorage = filter
+    return filter
+  }
 
   @objc public var backdropFilter: String = "" {
     didSet {
-      if backdropFilter.isEmpty && !mBackdropFilter.filters.isEmpty {
-        mBackdropFilter.reset()
-        if let view = node.view {
-          view.subviews.filter { $0.layer.name == "_mason_backdrop" }.forEach { $0.removeFromSuperview() }
-          view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+      if backdropFilter.isEmpty {
+        if let current = mBackdropFilterStorage, !current.filters.isEmpty {
+          current.reset()
+          if let view = node.view {
+            view.subviews.filter { $0.layer.name == "_mason_backdrop" }.forEach { $0.removeFromSuperview() }
+            view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+          }
         }
         return
       }
@@ -4125,7 +4154,7 @@ public class MasonStyle: NSObject {
   /// the view has a non-zero bounds, so the initial frame in `applyAsBackdrop`
   /// would otherwise stay `.zero` and the effect would never appear.
   func updateBackdropFrames(for bounds: CGRect) {
-    guard !mBackdropFilter.filters.isEmpty, let view = node.view else { return }
+    guard let backdrop = mBackdropFilterStorage, !backdrop.filters.isEmpty, let view = node.view else { return }
     if let effectView = view.subviews.first(where: { $0.layer.name == "_mason_backdrop" }) {
       if effectView.frame != bounds { effectView.frame = bounds }
     }
@@ -4154,6 +4183,11 @@ public class MasonStyle: NSObject {
     }
     
     if (isSlowDirty) {
+      if isDirty != 0 || isDirtyHigh != 0 {
+        // Bumped before the text notify, so the attributes the text engine
+        // rebuilds there match the final version instead of going stale.
+        styleVersion &+= 1
+      }
       updateTextStyle()
       
       if(isDirty == 0 && isDirtyHigh == 0){
@@ -4305,7 +4339,6 @@ public class MasonStyle: NSObject {
       isSlowDirty = false
       isDirty = 0
       isDirtyHigh = 0
-      styleVersion &+= 1
       pendingInvalidation = pendingInvalidation.union(.invalidating)
       (node.view as? MasonElement)?.requestLayout()
       pendingInvalidation = .none
@@ -4317,7 +4350,9 @@ public class MasonStyle: NSObject {
       let element = node.view as? MasonElement
       let state = StateKeys(low: isDirty, high: isDirtyHigh)
 
-       updateTextStyle()
+      // Before the text notify; see the slow path above.
+      styleVersion &+= 1
+      updateTextStyle()
       
       if(isDirty > 0){
         if(state.contains(.zIndex)){
@@ -4337,7 +4372,6 @@ public class MasonStyle: NSObject {
       
       isDirty = 0
       isDirtyHigh = 0
-      styleVersion &+= 1
       pendingInvalidation = pendingInvalidation.union(.invalidating)
       element?.requestLayout()
       pendingInvalidation = .none
@@ -4780,21 +4814,25 @@ extension MasonStyle {
   
   // Reset methods
   func resetFontFamilyToInherit() {
+    prepareMut()
     setUInt8(StyleKeys.FONT_FAMILY_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.fontFamily)
   }
   
   func resetFontWeightToInherit() {
+    prepareMut()
     setUInt8(StyleKeys.FONT_WEIGHT_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.fontWeight)
   }
   
   func resetFontStyleToInherit() {
+    prepareMut()
     setUInt8(StyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.fontWeight)
   }
 
   func resetFontVariantNumericToInherit() {
+    prepareMut()
     setUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.fontVariantNumeric)
   }

@@ -14,7 +14,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
     isScrollHandlingStyleChange = true
     defer { isScrollHandlingStyleChange = false }
 
-    MasonNode.invalidateDescendantTextViews(node, low, high)
+    MasonNode.invalidateDescendantTextViews(inheritedBy: node, low, high)
   }
 
   // Same as MasonUIView.didMoveToSuperview -- see the reasoning there. Regular

@@ -74,9 +74,9 @@ export default function WebSpec() {
     const token = idx + 1
     setTimeout(() => {
       if (runToken() === token && results()[idx]?.status === 'running') {
-        handleFixtureError(idx, new Error('timed out waiting for native layout (4s)'))
+        handleFixtureError(idx, new Error('timed out waiting for native layout (15s)'))
       }
-    }, 4000)
+    }, 15000)
   }
 
   function runFrom(idx: number) {
@@ -159,7 +159,7 @@ export default function WebSpec() {
     } catch (err) {
       // A throw here (e.g. from getLocationRelativeTo on a view left in a bad
       // state) used to leave this fixture's status stuck at 'running' forever
-      // since advance() above was never reached — only the 4s JS watchdog
+      // since advance() above was never reached — only the 15s JS watchdog
       // caught it, and the same throw then repeated for every fixture after.
       console.error(`[WebSpec] handleMounted threw for ${fixtures[idx]?.name}:`, err)
       handleFixtureError(idx, err)

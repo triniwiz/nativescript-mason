@@ -1,22 +1,26 @@
 use crate::{CMason, CMasonNode};
 use mason_core::{InlineSegment, Size};
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 use std::ffi::{c_float, c_longlong, c_void};
 use std::sync::Mutex as StdMutex;
 
-static REGISTRY: Lazy<StdMutex<Vec<usize>>> = Lazy::new(|| StdMutex::new(Vec::new()));
+// A set, not a list: every node destroy unregisters, and a linear scan made
+// unmounting n nodes O(n^2).
+static REGISTRY: Lazy<StdMutex<HashSet<usize>>> = Lazy::new(|| StdMutex::new(HashSet::new()));
 
 fn register_cnode(ptr: *mut CMasonNode) {
     let mut reg = REGISTRY.lock().unwrap();
-    reg.push(ptr as usize);
+    reg.insert(ptr as usize);
+}
+
+pub(crate) fn registered_cnode_count() -> usize {
+    REGISTRY.lock().unwrap().len()
 }
 
 fn unregister_cnode(ptr: *mut CMasonNode) {
     let mut reg = REGISTRY.lock().unwrap();
-    let key = ptr as usize;
-    if let Some(pos) = reg.iter().position(|p| *p == key) {
-        reg.swap_remove(pos);
-    }
+    reg.remove(&(ptr as usize));
 }
 
 #[repr(C)]

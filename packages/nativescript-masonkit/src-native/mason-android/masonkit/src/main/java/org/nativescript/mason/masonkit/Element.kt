@@ -17,6 +17,7 @@ import java.nio.ByteBuffer
 import java.util.UUID
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.round
 
 interface Element : EventTarget {
   val style: Style
@@ -595,6 +596,16 @@ interface Element : EventTarget {
       return
     }
 
+    // A direct request lets this frame's traversal run the compute (onMeasure ->
+    // computeAndLayout, the root cache is dirty); posting it first cost a frame.
+    // Requests made mid-compute or mid-layout still go through the post below.
+    if (root.type != NodeType.Document && targetView.isAttachedToWindow &&
+      !node.mason.inCompute && !targetView.isInLayout
+    ) {
+      targetView.requestLayout()
+      return
+    }
+
     // Schedule a one-shot compute on the view's message queue to coalesce
     // rapid invalidations and keep layout work off the caller thread. Falls
     // back to a synchronous compute only when no view is available.
@@ -1041,16 +1052,19 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
           }
 
-          // Snap outward so the view is never narrower than its layout box.
+          // Text snaps outward so its view is never narrower than the width it was
+          // measured at (a lost pixel re-wraps the last word). Other boxes round
+          // both edges, as taffy and browsers do, so siblings share edges exactly.
           val fx = nv.x.orZero()
           val fy = nv.y.orZero()
           val fw = nv.width.orZero()
           val fh = nv.height.orZero()
-          var x = floor(fx).toInt()
-          var y = floor(fy).toInt()
+          val snapOutward = view is TextContainer
+          var x = if (snapOutward) floor(fx).toInt() else round(fx).toInt()
+          var y = if (snapOutward) floor(fy).toInt() else round(fy).toInt()
 
-          var width = ceil(fx + fw).toInt() - x
-          var height = ceil(fy + fh).toInt() - y
+          var width = (if (snapOutward) ceil(fx + fw) else round(fx + fw)).toInt() - x
+          var height = (if (snapOutward) ceil(fy + fh) else round(fy + fh)).toInt() - y
 
           // Foreign views are leaf nodes. If the first pass produced an empty
           // axis, remeasure outside Rust's lock so nested Mason children can
@@ -1158,8 +1172,10 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // matches the target (mirrors the setPadding() guard above); safe
           // since this function's own DFS drives child layout directly. Li
           // is excluded: its onLayout re-triggers applyLayoutFlat against
-          // its own RecyclerView-backed layout tree and must always run.
-          val skipMeasureAndLayout = view !is Li && !leafChanged &&
+          // its own RecyclerView-backed layout tree and must always run. A
+          // pending request (e.g. a Scroll that gained content) must run too, or
+          // its children are never laid out and the request never clears.
+          val skipMeasureAndLayout = view !is Li && !view.isLayoutRequested &&
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom
 

@@ -1666,6 +1666,21 @@ impl Tree {
 
     pub fn mark_dirty(&mut self, node: Id) {
         let mut tree = self.0.write();
+        // Buffer-backed style writes (the platform bindings) end here rather than
+        // in `with_style_mut`, so refresh the sticky float/scroll hints too.
+        if let Some(n) = tree.nodes.get(node) {
+            let style = n.style();
+            let floats = style.get_float() != Float::None;
+            let overflow = style.get_overflow();
+            let scrolls = matches!(overflow.x, crate::style::Overflow::Scroll | crate::style::Overflow::Auto)
+                || matches!(overflow.y, crate::style::Overflow::Scroll | crate::style::Overflow::Auto);
+            if floats {
+                tree.has_floats = true;
+            }
+            if scrolls {
+                tree.has_scroll_containers = true;
+            }
+        }
         Self::mark_dirty_inner(&mut tree, node);
     }
 
