@@ -1923,6 +1923,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _nativeCornerRadius(corner: CornerIndex): string {
+    // @ts-ignore
+    const style = this._styleHelper as MasonStyle | undefined;
+    if ((__ANDROID__ || __APPLE__) && style && !style.hasBorderRadius()) {
+      return '0';
+    }
     const [h, v] = this._nativeBorderRadiusCorners()[corner];
     return h === v ? h : `${h} ${v}`;
   }
