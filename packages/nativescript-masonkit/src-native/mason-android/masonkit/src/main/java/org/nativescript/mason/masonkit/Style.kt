@@ -767,6 +767,14 @@ interface StyleChangeListener {
   fun onChange(low: Long, high: Long)
 }
 
+private const val DEFAULT_FONT_FAMILY = "sans-serif"
+
+internal fun toAndroidLayoutDirection(direction: Direction): Int = when (direction) {
+  Direction.LTR -> android.view.View.LAYOUT_DIRECTION_LTR
+  Direction.RTL -> android.view.View.LAYOUT_DIRECTION_RTL
+  Direction.Inherit -> android.view.View.LAYOUT_DIRECTION_INHERIT
+}
+
 internal object StyleState {
   const val INHERIT: Byte = 0
   const val SET: Byte = 1
@@ -826,7 +834,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     get() {
       var current = _font
       if (current == null) {
-        current = FontFace("sans-serif").apply {
+        current = FontFace(DEFAULT_FONT_FAMILY).apply {
           addOnReloadListener(reloadListener)
         }
         _font = current
@@ -1336,6 +1344,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       prepareMut()
       values.put(StyleKeys.FLOAT, value.value)
       setOrAppendState(StateKeys.FLOAT)
+      // Tells the native tree it now has floats, also for nodes without a view.
+      node.dirty()
     }
 
   var clear: Clear
@@ -1524,6 +1534,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   private fun writeMatrixToBuffer(a: Float, b: Float, c: Float, d: Float, tx: Float, ty: Float) {
+    prepareMut()
     values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
     values.put(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX.toByte())
     // Write as 4x4 column-major identity with 2D affine embedded
@@ -1551,6 +1562,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   private fun writeMatrix3dToBuffer(nums: List<Float>) {
+    prepareMut()
     values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
     values.put(
       StyleKeys.TRANSFORM_FLAGS,
@@ -1833,6 +1845,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return TextJustify.from(values.get(StyleKeys.TEXT_JUSTIFY))
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.TEXT_JUSTIFY, value.value)
       values.put(StyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
       if (inBatch) {
@@ -1845,6 +1858,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   var color: Int
     get() = values.getInt(StyleKeys.FONT_COLOR)
     set(value) {
+      prepareMut()
       values.putInt(StyleKeys.FONT_COLOR, value)
       values.put(StyleKeys.FONT_COLOR_STATE, StyleState.SET)
       if (inBatch) {
@@ -1865,6 +1879,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return font.fontFamily
     }
     set(value) {
+      prepareMut()
       val oldFamily = font.fontFamily
       if (oldFamily != value) {
         val oldFont = font
@@ -1938,6 +1953,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getInt(StyleKeys.FONT_SIZE)
     }
     set(value) {
+      prepareMut()
       values.putInt(StyleKeys.FONT_SIZE, value)
       values.put(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
       if (inBatch) {
@@ -1953,11 +1969,13 @@ class Style internal constructor(@Transient internal var node: Node) {
       return FontWeight.from(weight)
     }
     set(value) {
+      prepareMut()
       val old = fontWeight
       if (value != old) {
         values.putInt(StyleKeys.FONT_WEIGHT, value.weight)
         values.put(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
-        font.weight = value
+        // Weight lives in the buffer; only a face this style already owns needs it.
+        _font?.weight = value
         invalidateResolvedFontFace()
         if (inBatch) {
           setOrAppendState(StateKeys.FONT_WEIGHT)
@@ -1969,6 +1987,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var fontStyle: FontStyle
     set(value) {
+      prepareMut()
       val previous = fontStyle
       if (previous != value) {
         // Buffer encoding: 0 normal, 1 italic, 2 oblique.
@@ -1979,7 +1998,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         }
         values.put(StyleKeys.FONT_STYLE_TYPE, encoded)
         values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
-        font.style = value
+        _font?.style = value
         invalidateResolvedFontFace()
         if (inBatch) {
           setOrAppendState(StateKeys.FONT_STYLE)
@@ -2015,6 +2034,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getFloat(StyleKeys.LETTER_SPACING)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.LETTER_SPACING, value)
       values.put(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
       if (inBatch) {
@@ -2029,6 +2049,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
     }
     set(value) {
+      prepareMut()
       val old = values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
       if (value != old) {
         values.put(StyleKeys.FONT_VARIANT_NUMERIC, value.toByte())
@@ -2052,6 +2073,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return TextWrap.from(values.get(StyleKeys.TEXT_WRAP))
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.TEXT_WRAP, value.value)
       values.put(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
       if (inBatch) {
@@ -2066,6 +2088,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.WHITE_SPACE, value.value)
       values.put(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
       if (inBatch) {
@@ -2080,6 +2103,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.TEXT_TRANSFORM, value.value)
       values.put(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
       if (inBatch) {
@@ -2130,6 +2154,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getInt(StyleKeys.BACKGROUND_COLOR)
     }
     set(value) {
+      prepareMut()
       values.putInt(StyleKeys.BACKGROUND_COLOR, value)
       values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       if (inBatch) {
@@ -2144,6 +2169,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return Styles.DecorationLine.from(values.get(StyleKeys.DECORATION_LINE))
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.DECORATION_LINE, value.value)
       values.put(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
       if (inBatch) {
@@ -2226,6 +2252,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getInt(StyleKeys.DECORATION_COLOR)
     }
     set(value) {
+      prepareMut()
       values.putInt(StyleKeys.DECORATION_COLOR, value)
       values.put(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
       if (inBatch) {
@@ -2242,6 +2269,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       )
     }
     set(value) {
+      prepareMut()
       values.put(StyleKeys.DECORATION_STYLE, value.value)
       values.put(StyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
       if (inBatch) {
@@ -2257,6 +2285,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getFloat(StyleKeys.DECORATION_THICKNESS)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.DECORATION_THICKNESS, value)
       values.put(StyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
       if (inBatch) {
@@ -2271,6 +2300,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       return values.getFloat(StyleKeys.LINE_HEIGHT)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.LINE_HEIGHT, value)
       values.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
       values.put(StyleKeys.LINE_HEIGHT_TYPE, 0)
@@ -2282,6 +2312,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setLineHeight(value: Float, isRelative: Boolean) {
+    prepareMut()
     values.putFloat(StyleKeys.LINE_HEIGHT, value)
     values.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
     if (!isRelative) {
@@ -2299,6 +2330,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
     set(value) {
+      prepareMut()
       field = value
       values.put(StyleKeys.TEXT_OVERFLOW, value.value)
       values.put(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
@@ -3079,6 +3111,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal var textShadows: List<Shadow.TextShadow> = listOf()
   var textShadow: String = ""
     set(value) {
+      prepareMut()
       field = value
       textShadows = Shadow.parseTextShadow(this, value)
       if (textShadows.isEmpty()) {
@@ -4318,12 +4351,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     val directionDirty = stateKeys.hasFlag(StateKeys.DIRECTION)
     if (directionDirty) {
       val androidView = node.view as? android.view.View
-      val resolvedLayoutDirection = when (direction) {
-        Direction.LTR -> android.view.View.LAYOUT_DIRECTION_LTR
-        Direction.RTL -> android.view.View.LAYOUT_DIRECTION_RTL
-        Direction.Inherit -> android.view.View.LAYOUT_DIRECTION_INHERIT
-      }
-      androidView?.layoutDirection = resolvedLayoutDirection
+      androidView?.layoutDirection = toAndroidLayoutDirection(direction)
     }
 
     val borderState = (isDirty and StateKeys.BORDER.low) or (isDirtyHigh and StateKeys.BORDER.high)
@@ -4665,8 +4693,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       val styleState = values.get(StyleKeys.FONT_STYLE_STATE)
 
       // If all font properties are inherited, use parent's font face
-      if (familyState == StyleState.INHERIT && weightState == StyleState.INHERIT && styleState == StyleState.INHERIT) {
-        val result = parentStyleWithTextValues?.resolvedFontFace ?: font
+      val parentFace = parentStyleWithTextValues?.resolvedFontFace
+      if (familyState == StyleState.INHERIT && weightState == StyleState.INHERIT && styleState == StyleState.INHERIT && (parentFace != null || _font != null)) {
+        val result = parentFace ?: font
         _cachedResolvedFontFace = result
         _resolvedFontFaceDirty = false
         ensureResolvedFontLoaded(result)
@@ -4674,10 +4703,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
 
       // If family is inherited but weight/style are set, need to create a new FontFace
+      // Reading `font` would build a private FontFace per node; the shared cache covers plain descriptors.
+      val ownFamily = _font?.fontFamily ?: DEFAULT_FONT_FAMILY
       val baseFamily = if (familyState == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedFontFace?.fontFamily ?: font.fontFamily
+        parentFace?.fontFamily ?: ownFamily
       } else {
-        font.fontFamily
+        ownFamily
       }
 
       val resolvedWeight = if (weightState == StyleState.INHERIT) {
@@ -4694,7 +4725,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
 
       // If everything matches current font, return it
-      if (font.fontFamily == baseFamily && font.weight == resolvedWeight && font.style == resolvedStyle) {
+      val own = _font
+      if (own != null && own.fontFamily == baseFamily && own.weight == resolvedWeight && own.style == resolvedStyle) {
         _cachedResolvedFontFace = font
         _resolvedFontFaceDirty = false
         ensureResolvedFontLoaded(font)
@@ -5220,16 +5252,19 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   // Reset methods
   fun resetFontFamilyToInherit() {
+    prepareMut()
     values.put(StyleKeys.FONT_FAMILY_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.FONT_FAMILY)
   }
 
   fun resetFontWeightToInherit() {
+    prepareMut()
     values.put(StyleKeys.FONT_WEIGHT_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.FONT_WEIGHT)
   }
 
   fun resetFontStyleToInherit() {
+    prepareMut()
     values.put(StyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
     notifyTextStyleChanged(StateKeys.FONT_STYLE)
   }

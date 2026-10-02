@@ -648,31 +648,33 @@ open class Node internal constructor(
     }
   }
 
-  private val cache = mutableMapOf<Int, ByteBuffer>()
+  // Pseudo-state storage, created on first write: most nodes never use it.
+  private var cache: MutableMap<Int, ByteBuffer>? = null
 
   // Storage for pseudo string properties (keyed by pseudo mask)
   // Example: pseudoStrings[state.mask] = mapOf("filter" to "brightness(0.5)")
-  private val pseudoStrings: MutableMap<Int, MutableMap<String, String>> = mutableMapOf()
+  private var pseudoStrings: MutableMap<Int, MutableMap<String, String>>? = null
 
   fun setPseudoString(flags: Int, key: String, value: String) {
-    val dict = pseudoStrings.getOrPut(flags) { mutableMapOf() }
+    val strings = pseudoStrings ?: mutableMapOf<Int, MutableMap<String, String>>().also { pseudoStrings = it }
+    val dict = strings.getOrPut(flags) { mutableMapOf() }
     dict[key] = value
   }
 
   fun getPseudoString(flags: Int, key: String): String? {
-    return pseudoStrings[flags]?.get(key)
+    return pseudoStrings?.get(flags)?.get(key)
   }
 
   fun clearPseudoString(flags: Int, key: String) {
-    pseudoStrings[flags]?.let { dict ->
+    pseudoStrings?.get(flags)?.let { dict ->
       dict.remove(key)
-      if (dict.isEmpty()) pseudoStrings.remove(flags)
+      if (dict.isEmpty()) pseudoStrings?.remove(flags)
     }
   }
 
   fun getPseudoBuffer(flags: Int): ByteBuffer {
     try {
-      cache[flags]?.let {
+      cache?.get(flags)?.let {
         return it
       }
 
@@ -688,7 +690,7 @@ open class Node internal constructor(
         order(ByteOrder.nativeOrder())
       }
 
-      cache[flags] = buffer
+      (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
 
       registerPseudoBufferOwner(buffer, this@Node, flags)
       return buffer
@@ -701,7 +703,7 @@ open class Node internal constructor(
 
   fun preparePseudoBuffer(flags: Int): ByteBuffer {
     try {
-      cache[flags]?.let {
+      cache?.get(flags)?.let {
         return it
       }
 
@@ -716,7 +718,7 @@ open class Node internal constructor(
       buffer.apply {
         order(ByteOrder.nativeOrder())
       }
-      cache[flags] = buffer
+      (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
       registerPseudoBufferOwner(buffer, this@Node, flags)
       return buffer
     } catch (_: Throwable) {
@@ -986,6 +988,9 @@ open class Node internal constructor(
         NodeUtils.addView(this, child.view as? View)
       }
       computeCacheDirty = true
+      // The root's compute fast path only checks its own flag; without this it
+      // reuses the old layout tree and the new subtree is never laid out.
+      getRootNode()?.computeCacheDirty = true
       if (view is TextContainer) {
         invalidateDescendantTextViews(this, StateKeys.INVALIDATE_TEXT)
         invalidateDescendantInlineSegments(this)

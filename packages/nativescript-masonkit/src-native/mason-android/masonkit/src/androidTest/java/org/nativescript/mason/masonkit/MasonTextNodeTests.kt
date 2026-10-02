@@ -1,7 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.text.SpannableStringBuilder
-import android.text.style.ForegroundColorSpan
+import android.text.TextPaint
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -18,16 +18,18 @@ class MasonTextNodeTests {
 
     TextNode.applyAttributes(spannable, 0, spannable.length, attrs)
 
-    val spans = spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java)
+    // Color and size are applied together by one run-style span.
+    val spans = spannable.getSpans(0, spannable.length, Spans.RunStyleSpan::class.java)
     assertTrue(spans.isNotEmpty())
-    val colorSpan = spans[0]
-    // ForegroundColorSpan has getForegroundColor() on TextPaint only at draw-time; we at least ensure span exists
-    assertNotNull(colorSpan)
+    val paint = TextPaint()
+    spans[0].updateDrawState(paint)
+    assertEquals(0xFF112233.toInt(), paint.color)
   }
 
   @Test
   fun test_processText_transforms_whitespace() {
-    val style = Style(Node(Mason.shared, 0L))
+    // A real node: a Style over a null native pointer has no buffer to write to.
+    val style = Mason.shared.createNode().style
     // ensure a known transform without relying on view
     style.textTransform = Styles.TextTransform.Uppercase
     style.whiteSpace = Styles.WhiteSpace.Normal

@@ -385,6 +385,11 @@ class BorderRenderer(private val style: Style) {
   private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
   private val path by lazy(LazyThreadSafetyMode.NONE) { Path() }
   private val ringPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+
+  // Reused across draws: Path and Paint are native-backed, so allocating them per frame churns the GC.
+  private val insetPathA by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val insetPathB by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private val ringFillPaint by lazy(LazyThreadSafetyMode.NONE) { Paint() }
   private val clipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
   private val outerClipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
 
@@ -918,10 +923,11 @@ class BorderRenderer(private val style: Style) {
         paint.color = topColor
         paint.isDither = true
 
-        val outer = buildBorderPathInset(0f, width, height)
-        val inner = buildBorderPathInset(topWidth, width, height)
+        val outer = buildBorderPathInset(0f, width, height, insetPathA)
+        val inner = buildBorderPathInset(topWidth, width, height, insetPathB)
 
-        val fillPaint = Paint(paint)
+        val fillPaint = ringFillPaint
+        fillPaint.set(paint)
         fillPaint.style = Paint.Style.FILL
         fillPaint.pathEffect = null
 
@@ -1192,7 +1198,7 @@ class BorderRenderer(private val style: Style) {
         paint.pathEffect = null
         paint.strokeCap = Paint.Cap.ROUND
         // draw on a path inset for this side so stroke centers match per-side widths
-        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight)
+        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight, insetPathA)
         canvas.drawPath(sidePath, paint)
       }
 
@@ -1230,13 +1236,13 @@ class BorderRenderer(private val style: Style) {
           paint.style = Paint.Style.STROKE
           paint.strokeWidth = line
           paint.strokeCap = Paint.Cap.BUTT
-          val outerPath = buildBorderPathInset(line / 2f, viewWidth, viewHeight)
+          val outerPath = buildBorderPathInset(line / 2f, viewWidth, viewHeight, insetPathA)
           canvas.drawPath(outerPath, paint)
 
           // Inner stroke
           paint.strokeWidth = line
           val innerCenter = line + gap
-          val innerPath = buildBorderPathInset(innerCenter + line / 2f, viewWidth, viewHeight)
+          val innerPath = buildBorderPathInset(innerCenter + line / 2f, viewWidth, viewHeight, insetPathB)
           canvas.drawPath(innerPath, paint)
         }
       }
@@ -1306,7 +1312,7 @@ class BorderRenderer(private val style: Style) {
       else -> {
         paint.pathEffect = null
         paint.strokeCap = Paint.Cap.BUTT
-        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight)
+        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight, insetPathA)
         canvas.drawPath(sidePath, paint)
       }
     }
@@ -1319,13 +1325,14 @@ class BorderRenderer(private val style: Style) {
    * but uses the provided offset so each side can be stroked centered at a different inset
    * (matching CSS where each side's stroke is centered on a path inset by half that side's width).
    */
-  private fun buildBorderPathInset(ofs: Float, width: Float, height: Float): Path {
+  private fun buildBorderPathInset(ofs: Float, width: Float, height: Float, into: Path): Path {
     val tl = topLeftCorner
     val tr = topRightCorner
     val br = bottomRightCorner
     val bl = bottomLeftCorner
 
-    val p = Path()
+    val p = into
+    p.reset()
 
     val innerWidth = (width - ofs * 2).coerceAtLeast(0f)
     val innerHeight = (height - ofs * 2).coerceAtLeast(0f)

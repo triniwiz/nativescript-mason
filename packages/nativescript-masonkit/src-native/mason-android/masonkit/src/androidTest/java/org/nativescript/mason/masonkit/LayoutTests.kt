@@ -21,38 +21,30 @@ class LayoutTests {
 
   private val measure20x10 = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>,
-      availableSpace: Size<Float?>
-    ): Size<Float> {
-      return Size(20f, 10f)
-    }
+      knownWidth: Float, knownHeight: Float,
+      availableWidth: Float, availableHeight: Float
+    ): Long = MeasureOutput.make(20f, 10f)
   }
 
   private val measure30x15 = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>,
-      availableSpace: Size<Float?>
-    ): Size<Float> {
-      return Size(30f, 15f)
-    }
+      knownWidth: Float, knownHeight: Float,
+      availableWidth: Float, availableHeight: Float
+    ): Long = MeasureOutput.make(30f, 15f)
   }
 
   private val measure68x68 = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>,
-      availableSpace: Size<Float?>
-    ): Size<Float> {
-      return Size(68f, 68f)
-    }
+      knownWidth: Float, knownHeight: Float,
+      availableWidth: Float, availableHeight: Float
+    ): Long = MeasureOutput.make(68f, 68f)
   }
 
   private val measure200x20 = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>,
-      availableSpace: Size<Float?>
-    ): Size<Float> {
-      return Size(200f, 20f)
-    }
+      knownWidth: Float, knownHeight: Float,
+      availableWidth: Float, availableHeight: Float
+    ): Long = MeasureOutput.make(200f, 20f)
   }
 
   /**
@@ -81,6 +73,20 @@ class LayoutTests {
     return n
   }
 
+  /**
+   * Point every node at its slot in the root's flat layout tree, as applyLayoutFlat
+   * does for views. Node-only trees have no views, so nothing else links them.
+   */
+  private fun linkLayout(node: Node, tree: MasonLayoutTree = node.layoutTree, idx: Int = 0) {
+    node.layoutTreeRef = tree
+    node.layoutTreeIndex = idx
+    val start = tree.childStart[idx]
+    val kids = node.children.filter { it.nativePtr != 0L }
+    for (i in 0 until tree.childCount[idx]) {
+      kids.getOrNull(i)?.let { linkLayout(it, tree, tree.childIndices[start + i]) }
+    }
+  }
+
   // tests
 
   @Test
@@ -100,6 +106,7 @@ class LayoutTests {
 
       val floats = NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.getNativePtr(), root.nativePtr, 100f, 100f)
       if (floats.isNotEmpty()) root.layoutTree.fromFloatArray(floats)
+    linkLayout(root)
 
       val layout = child.computedLayout
       assertTrue(layout.width >= 0f && layout.width.isFinite())
@@ -127,8 +134,11 @@ class LayoutTests {
       // unconstrained compute (compute+layout to populate layoutTree)
       val floats = NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.getNativePtr(), n.nativePtr, 50f, 50f)
       if (floats.isNotEmpty()) n.layoutTree.fromFloatArray(floats)
+    linkLayout(n)
       val lay = n.computedLayout
-      assertTrue(lay.width > 0f && lay.width.isFinite())
+      // display: none generates no box, so it has no size.
+      if (variant == Display.None) assertEquals(0f, lay.width, 0f)
+      else assertTrue(lay.width > 0f && lay.width.isFinite())
       assertTrue(lay.height.isFinite())
     }
   }
@@ -151,6 +161,7 @@ class LayoutTests {
 
     val floats = NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.getNativePtr(), root.nativePtr, 100f, 100f)
     if (floats.isNotEmpty()) root.layoutTree.fromFloatArray(floats)
+    linkLayout(root)
 
     val lb = b.computedLayout
     val lf = f.computedLayout
@@ -176,6 +187,7 @@ class LayoutTests {
 
     val floats = NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.getNativePtr(), root.nativePtr, 100f, 100f)
     if (floats.isNotEmpty()) root.layoutTree.fromFloatArray(floats)
+    linkLayout(root)
 
     assertTrue(inlineNode.computedLayout.width > 0f)
     assertTrue(boxNode.computedLayout.width > 0f)
@@ -205,10 +217,11 @@ class LayoutTests {
 
     val floats = NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.getNativePtr(), root.nativePtr, 300f, Float.NaN)
     if (floats.isNotEmpty()) root.layoutTree.fromFloatArray(floats)
+    linkLayout(root)
 
-    val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), root.nativePtr)
+    // Floats are recorded on their parent container; entries are [left, top, right, bottom].
+    val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), card.nativePtr)
     assertTrue(rects.isNotEmpty())
-    // third element in the flat array is width of third rectangle
     assertEquals(68f, rects[2], 0.001f)
   }
 }

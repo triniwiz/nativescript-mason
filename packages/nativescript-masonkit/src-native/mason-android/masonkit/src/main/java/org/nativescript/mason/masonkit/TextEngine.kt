@@ -833,9 +833,9 @@ class TextEngine(val container: TextContainer) {
       val ver = segmentsInvalidateVersion.toLong()
       for (probe in 0 until MEASURE_CACHE_SIZE) {
         val i = (measureCacheNext - 1 - probe + MEASURE_CACHE_SIZE) % MEASURE_CACHE_SIZE
-        val b = i * 4
+        val b = i * 3
         if (measureCacheKeys[b] == ver && measureCacheKeys[b + 1] == mcWKey &&
-          measureCacheKeys[b + 2] == mcWMode && measureCacheKeys[b + 3] == 0L
+          measureCacheKeys[b + 2] == mcWMode
         ) {
           style.syncFontMetrics()
           return measureCacheVals[i]
@@ -1771,16 +1771,16 @@ class TextEngine(val container: TextContainer) {
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
 
-  private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 4)
+  // (version, widthKey, widthMode) per entry.
+  private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 3)
   private val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
   private var measureCacheNext = 0
 
   private fun storeMeasure(version: Long, widthKey: Long, widthMode: Long, out: Long) {
-    val b = measureCacheNext * 4
+    val b = measureCacheNext * 3
     measureCacheKeys[b] = version
     measureCacheKeys[b + 1] = widthKey
     measureCacheKeys[b + 2] = widthMode
-    measureCacheKeys[b + 3] = 0L
     measureCacheVals[measureCacheNext] = out
     measureCacheNext = (measureCacheNext + 1) % MEASURE_CACHE_SIZE
   }
@@ -2472,7 +2472,8 @@ class TextEngine(val container: TextContainer) {
   }
 
   companion object {
-    private const val MEASURE_CACHE_SIZE = 32
+    // Every entry is keyed by text version, so a text view only ever needs a few live constraints.
+    private const val MEASURE_CACHE_SIZE = 8
 
     private val staleMeasures = java.util.WeakHashMap<TextEngine, Boolean>()
 
