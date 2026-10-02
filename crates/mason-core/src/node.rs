@@ -31,24 +31,29 @@ use crate::style::utils::{
 #[cfg(target_os = "android")]
 use crate::{JVM, JVM_CACHE};
 
+/// The Swift node backing this one. Not retained: the Swift node owns this node and clears the
+/// pointer before it is deallocated (retaining it made each pair keep the other alive forever).
 #[cfg(target_vendor = "apple")]
 #[derive(Debug, Clone)]
-pub struct AppleNode(objc2::rc::Retained<NSObject>);
+pub struct AppleNode(std::ptr::NonNull<NSObject>);
 
 #[cfg(target_vendor = "apple")]
 impl AppleNode {
     pub fn from_ptr(ptr: *mut NSObject) -> Option<Self> {
-        unsafe { objc2::rc::Retained::from_raw(ptr).map(AppleNode) }
+        std::ptr::NonNull::new(ptr).map(AppleNode)
+    }
+    fn object(&self) -> &NSObject {
+        unsafe { self.0.as_ref() }
     }
     pub fn set_computed_size(&mut self, width: f64, height: f64) {
-        let _: () = unsafe { objc2::msg_send![&self.0, setComputedSize: width, height: height] };
+        let _: () = unsafe { objc2::msg_send![self.object(), setComputedSize: width, height: height] };
     }
     pub fn computed_width(&self) -> f64 {
-        unsafe { objc2::msg_send![&self.0, computedWidth] }
+        unsafe { objc2::msg_send![self.object(), computedWidth] }
     }
 
     pub fn computed_height(&self) -> f64 {
-        unsafe { objc2::msg_send![&self.0, computedHeight] }
+        unsafe { objc2::msg_send![self.object(), computedHeight] }
     }
 }
 

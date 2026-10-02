@@ -25,11 +25,44 @@ private let cssNames = [
 
 // `px` is a CSS pixel (the same size as a dip), matching the web; `dppx` is the
 // escape hatch for a literal device pixel.
-// Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
-private let lengthPercentageRegex = try! NSRegularExpression(
-    pattern: "^(-?(?:\\d*\\.\\d+|\\d+\\.\\d*|\\d+)(?:[eE][+-]?\\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?;?$",
-    options: []
-)
+private let lengthUnits: Set<String> = ["dppx", "px", "%", "dip", "rem", "em", "vmin", "vmax", "vw", "vh", "pt"]
+
+/// Splits a trimmed length token into its number and unit without a regex.
+/// Grammar: `-?(\d*\.\d+|\d+\.\d*|\d+)([eE][+-]?\d+)?<unit>?;?`. An `e` only
+/// starts an exponent when digits follow, so `2em` stays 2 + `em`.
+private func scanLengthToken(_ value: String) -> (number: Double?, unit: String?)? {
+  var v = value
+  return v.withUTF8 { b -> (number: Double?, unit: String?)? in
+    let n = b.count
+    var i = 0
+    if i < n && b[i] == UInt8(ascii: "-") { i += 1 }
+    var digits = 0
+    while i < n && b[i] >= 48 && b[i] <= 57 { i += 1; digits += 1 }
+    if i < n && b[i] == UInt8(ascii: ".") {
+      i += 1
+      while i < n && b[i] >= 48 && b[i] <= 57 { i += 1; digits += 1 }
+    }
+    if digits == 0 { return nil }
+    if i < n && (b[i] == UInt8(ascii: "e") || b[i] == UInt8(ascii: "E")) {
+      var j = i + 1
+      if j < n && (b[j] == UInt8(ascii: "+") || b[j] == UInt8(ascii: "-")) { j += 1 }
+      let expStart = j
+      while j < n && b[j] >= 48 && b[j] <= 57 { j += 1 }
+      if j > expStart { i = j }
+    }
+    let numberEnd = i
+    var end = n
+    if end > numberEnd && b[end - 1] == UInt8(ascii: ";") { end -= 1 }
+    var unit: String? = nil
+    if end > numberEnd {
+      let u = String(decoding: UnsafeBufferPointer(rebasing: b[numberEnd..<end]), as: UTF8.self)
+      guard lengthUnits.contains(u) else { return nil }
+      unit = u
+    }
+    let number = Double(String(decoding: UnsafeBufferPointer(rebasing: b[0..<numberEnd]), as: UTF8.self))
+    return (number, unit)
+  }
+}
 
 /// 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px.
 private let pxPerPt: Float = 96.0 / 72.0
@@ -38,15 +71,19 @@ private let pxPerPt: Float = 96.0 / 72.0
 /// against `emBasis` (the element's own font size) when given, else the root
 /// font size — matching `tokenToDevicePx` in style.ts.
 private func cssPxForUnit(_ num: Float, _ unit: String?, _ emBasis: Float?) -> Float {
-  let viewport = NSCMason.viewportSize
   switch unit {
   case "rem": return num * NSCMason.rootFontSize
   case "em": return num * ((emBasis ?? 0) > 0 ? emBasis! : NSCMason.rootFontSize)
   case "pt": return num * pxPerPt
-  case "vw": return (num / 100) * Float(viewport.width)
-  case "vh": return (num / 100) * Float(viewport.height)
-  case "vmin": return (num / 100) * Float(min(viewport.width, viewport.height))
-  case "vmax": return (num / 100) * Float(max(viewport.width, viewport.height))
+  // viewportSize walks the scenes' windows, so only viewport units read it.
+  case "vw": return (num / 100) * Float(NSCMason.viewportSize.width)
+  case "vh": return (num / 100) * Float(NSCMason.viewportSize.height)
+  case "vmin":
+    let viewport = NSCMason.viewportSize
+    return (num / 100) * Float(min(viewport.width, viewport.height))
+  case "vmax":
+    let viewport = NSCMason.viewportSize
+    return (num / 100) * Float(max(viewport.width, viewport.height))
   default: return num
   }
 }
@@ -54,21 +91,13 @@ private func cssPxForUnit(_ num: Float, _ unit: String?, _ emBasis: Float?) -> F
 // Swift port of parseLengthPercentage
 func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentage? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
+  guard let (parsed, unit) = scanLengthToken(v) else {
     return nil
   }
-  let ns = v as NSString
-  let parsed = Double(ns.substring(with: match.range(at: 1)))
   // Clamp values that exceed a practical maximum (e.g. Float.MAX_VALUE from
   // calc(infinity*1px) evaluated by NS's CSS parser) to avoid overflow.
   let rawNum = Float(parsed ?? 0)
   let num = max(-9999, min(9999, rawNum))
-
-  let unitRange = match.range(at: 2)
-  let unit: String? =
-      unitRange.location != NSNotFound
-      ? String(v[Range(unitRange, in: v)!])
-      : nil
 
   switch unit {
   case "dppx": return .Points(num)
@@ -82,21 +111,13 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
 
 func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentageAuto? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  // "auto" has no numeric part, so it can never match lengthPercentageRegex
-  // below (its first group is a mandatory digit run) — check it separately.
+  // "auto" has no numeric part, so scanLengthToken (which needs a digit)
+  // can never accept it; check it separately.
   if v == "auto" { return .Auto }
-  guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
+  guard let (parsed, unit) = scanLengthToken(v) else {
     return nil
   }
-  let ns = v as NSString
-  let parsed = Double(ns.substring(with: match.range(at: 1)))
   let num = Float(parsed ?? 0)
-
-  let unitRange = match.range(at: 2)
-  let unit: String? =
-      unitRange.location != NSNotFound
-      ? String(v[Range(unitRange, in: v)!])
-      : nil
 
   switch unit {
   case "dppx": return .Points(num)
@@ -110,19 +131,11 @@ func parseLengthPercentageAuto(_ value: String, scale: Float = NSCMason.scale) -
 
 func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.scale, resolve: Bool = false) -> Float? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
+  guard let (parsed, unit) = scanLengthToken(v) else {
     return nil
   }
-  let ns = v as NSString
-  let parsed = Double(ns.substring(with: match.range(at: 1)))
   let num = Float(parsed ?? 0)
   
-
-  let unitRange = match.range(at: 2)
-  let unit: String? =
-      unitRange.location != NSNotFound
-      ? String(v[Range(unitRange, in: v)!])
-      : nil
   
   switch unit {
   case "dppx": return num
@@ -377,6 +390,34 @@ extension CSSBorderRenderer {
         style.isDirtyHigh |= StateKeys.border.high
         style.updateNativeStyle()
       }
+  }
+
+  /// Rebuilds the radius struct from the style buffer, for radii written from JS.
+  static func syncBorderRadiusFromBuffer(_ style: MasonStyle) {
+    func length(_ value: Int, _ type: Int) -> MasonLengthPercentage {
+      let v = style.getFloat(value)
+      let t = Int(style.getInt8(type))
+      if v == 0 { return .Zero }
+      return MasonLengthPercentage.fromValueType(v, t) ?? .Zero
+    }
+    func corner(_ xType: Int, _ xValue: Int, _ yType: Int, _ yValue: Int, _ exp: Int) -> CornerRadius {
+      let e = style.getFloat(exp)
+      return CornerRadius(horizontal: length(xValue, xType), vertical: length(yValue, yType), exponent: e > 0 ? CGFloat(e) : 1)
+    }
+    let render = style.mBorderRender
+    render.radius.topLeft = corner(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE,
+                                   StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE,
+                                   StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT)
+    render.radius.topRight = corner(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE,
+                                    StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE,
+                                    StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT)
+    render.radius.bottomRight = corner(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE,
+                                       StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE,
+                                       StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT)
+    render.radius.bottomLeft = corner(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE,
+                                      StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE,
+                                      StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT)
+    render.invalidateCache()
   }
 
   static func parsePaddingShorthand(_ style: MasonStyle, _ value: String) {

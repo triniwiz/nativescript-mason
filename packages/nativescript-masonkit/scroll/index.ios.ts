@@ -161,6 +161,7 @@ export class Scroll extends ViewBase {
     const nativeView = this._view as any;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {
       nativeView.removeView(view.nativeViewProtected);
+      (this as any)._masonRequestLayoutAfterRemoval();
     }
     // @ts-ignore
     super._removeViewFromNativeVisualTree(view);

@@ -99,14 +99,6 @@ public protocol MasonElement: NSObjectProtocol {
   func replaceChildAt(node: MasonNode, _ index: Int)
 }
 
-private struct MasonElementProperties {
-  static var computeCache: UInt8 = 0
-  static var isInLayout: UInt8 = 1
-  static var computeCacheDirty: UInt8 = 2
-  static var lastAutoComputeSize: UInt8 = 3
-  static var layoutPassScheduled: UInt8 = 4
-  static var hostRootSize: UInt8 = 5
-}
 
 // Resolved CTFonts by face, size, weight and style: building one goes through
 // font descriptors and is costly, and every text view asks for one.
@@ -234,22 +226,41 @@ extension MasonElement {
   
 
   public func syncStyle(_ low: String, _ high: String) {
-    func parseDecimalToUInt64(_ s: String) -> UInt64? {
-      if s.isEmpty { return nil }
-      if s.first == "-" {
-        return UInt64(s)
-      }
-      
-      return UInt64(s)
+    // JS sends each half as a signed 64-bit decimal, so a half with its top
+    // bit set (white-space is bit 63) arrives negative.
+    func parse(_ s: String) -> UInt64? {
+      if let v = UInt64(s) { return v }
+      return Int64(s).map { UInt64(bitPattern: $0) }
     }
-
-    let lowValue = parseDecimalToUInt64(low)
-    let highValue = parseDecimalToUInt64(high)
-
+    let lowValue = parse(low)
+    let highValue = parse(high)
     if lowValue != nil || highValue != nil {
-      let l = lowValue ?? 0
-      let h = highValue ?? 0
-      style.setStateFromHalves(l, h)
+      syncStyle(low: lowValue ?? 0, high: highValue ?? 0)
+    }
+  }
+
+  /// The dirty mask as four 32-bit parts, low to high; no string round trip.
+  public func syncStyleParts(_ lowLow: Int32, _ lowHigh: Int32, _ highLow: Int32, _ highHigh: Int32) {
+    let low = UInt64(UInt32(bitPattern: lowHigh)) << 32 | UInt64(UInt32(bitPattern: lowLow))
+    let high = UInt64(UInt32(bitPattern: highHigh)) << 32 | UInt64(UInt32(bitPattern: highLow))
+    syncStyle(low: low, high: high)
+  }
+
+  public func syncStyle(low l: UInt64, high h: UInt64) {
+    // Border radii and colors written from JS only touch the buffer: load
+    // the radii the renderer keeps, and refresh the cached draw flags as
+    // the native setters do.
+    let state = StateKeys(low: l, high: h)
+    if state.contains(.borderRadius) {
+      CSSBorderRenderer.syncBorderRadiusFromBuffer(style)
+    }
+    style.setStateFromHalves(l, h)
+    if state.contains(.borderColor) || state.contains(.borderRadius) {
+      if let view = node.view as? MasonUIView {
+        view.invalidateDrawFlags()
+      } else {
+        node.view?.setNeedsDisplay()
+      }
     }
   }
   
@@ -369,39 +380,27 @@ extension MasonElement {
   
   
   internal var computeCacheDirty: Bool {
-    get {
-      return objc_getAssociatedObject(self, &MasonElementProperties.computeCacheDirty) as? Bool ?? false
-    }
-    set {
-      objc_setAssociatedObject(self, &MasonElementProperties.computeCacheDirty, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
+    get { node.elementComputeCacheDirty }
+    set { node.elementComputeCacheDirty = newValue }
   }
 
   internal var isInLayout: Bool {
-    get {
-      return objc_getAssociatedObject(self, &MasonElementProperties.isInLayout) as? Bool ?? false
-    }
-    set {
-      objc_setAssociatedObject(self, &MasonElementProperties.isInLayout, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
+    get { node.elementIsInLayout }
+    set { node.elementIsInLayout = newValue }
   }
   
   internal func computeCache() -> CGSize {
-    return objc_getAssociatedObject(self, &MasonElementProperties.computeCache) as? CGSize ?? .zero
+    return node.elementComputeCache
   }
   
   internal func setComputeCache(_ value: CGSize) {
-    objc_setAssociatedObject(self, &MasonElementProperties.computeCache, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    node.elementComputeCache = value
     computeCacheDirty = true
   }
 
   private var _lastAutoComputeSize: CGSize {
-    get {
-      return objc_getAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize) as? CGSize ?? .zero
-    }
-    set {
-      objc_setAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
+    get { node.elementLastAutoComputeSize }
+    set { node.elementLastAutoComputeSize = newValue }
   }
 
   /// The box the host framework measured this root against, in device pixels.
@@ -409,21 +408,13 @@ extension MasonElement {
   /// `.zero` means "no host is driving this root", and `autoComputeIfRoot`
   /// falls back to the superview's bounds. See `markRootComputeApplied`.
   private var _hostRootSize: CGSize {
-    get {
-      return objc_getAssociatedObject(self, &MasonElementProperties.hostRootSize) as? CGSize ?? .zero
-    }
-    set {
-      objc_setAssociatedObject(self, &MasonElementProperties.hostRootSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
+    get { node.elementHostRootSize }
+    set { node.elementHostRootSize = newValue }
   }
 
   private var layoutPassScheduled: Bool {
-    get {
-      return objc_getAssociatedObject(self, &MasonElementProperties.layoutPassScheduled) as? Bool ?? false
-    }
-    set {
-      objc_setAssociatedObject(self, &MasonElementProperties.layoutPassScheduled, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
+    get { node.elementLayoutPassScheduled }
+    set { node.elementLayoutPassScheduled = newValue }
   }
 
   /// Ask for one layout pass over this root, at most once per run-loop turn.

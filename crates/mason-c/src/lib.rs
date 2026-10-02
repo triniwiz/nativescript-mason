@@ -52,6 +52,30 @@ pub extern "C" fn mason_clear(mason: *mut CMason) {
     }
 }
 
+/// Fills `out` with [live nodes, total buffers, active buffers, shared buffers, free slots,
+/// buffer memory, live C node wrappers], the same counters Android's Mason.debugStats reports.
+#[no_mangle]
+pub extern "C" fn mason_debug_stats(mason: *mut CMason, out: *mut i64, len: usize) {
+    if mason.is_null() || out.is_null() {
+        return;
+    }
+    let mason = unsafe { &(*mason).0 };
+    let stats = mason.arena_state();
+    let values = [
+        mason.node_count() as i64,
+        stats.total_buffers as i64,
+        stats.active_buffers as i64,
+        stats.shared_buffers as i64,
+        stats.free_slots as i64,
+        stats.buffer_memory as i64,
+        crate::node::registered_cnode_count() as i64,
+    ];
+    let out = unsafe { std::slice::from_raw_parts_mut(out, len) };
+    for (slot, value) in out.iter_mut().zip(values) {
+        *slot = value;
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_release(mason: *mut CMason) {
     if mason.is_null() {

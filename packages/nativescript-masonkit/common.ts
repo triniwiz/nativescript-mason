@@ -350,6 +350,22 @@ const TEARDOWN_SLICE_MS = 8;
 // Reading the clock costs more than a teardown on some devices.
 const TEARDOWNS_PER_CLOCK_READ = 16;
 
+// Mason roots whose requestLayout already climbed to the page in this turn.
+let climbedRoots: Set<any> | null = null;
+
+function markClimbed(root: any) {
+  if (!climbedRoots) {
+    climbedRoots = new Set();
+    queueMicrotask(() => (climbedRoots = null));
+  }
+  climbedRoots.add(root);
+}
+
+// A layout in between clears core's flag, so the next request climbs again.
+function climbedThisTurn(root: any): boolean {
+  return !!climbedRoots?.has(root) && !!root.isLayoutRequested;
+}
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
@@ -695,7 +711,58 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // nativeView.frame = frame;
   }
 
+  /**
+   * iOS: the views in this subtree a root's layout pass must visit (non-Mason children, which core
+   * lays out, and Mason views listening to layoutChanged). The pass skips subtrees where it's 0.
+   */
+  _masonLayoutWork = 0;
+
+  private _masonAddLayoutWork(delta: number) {
+    // Up to the root: a non-Mason parent is laid out by core and its Mason roots keep their own count.
+    let view: any = this;
+    while (view?.[isMasonView_]) {
+      view._masonLayoutWork += delta;
+      view = view.parent;
+    }
+  }
+
+  private _masonListensToLayout(): boolean {
+    return this.hasListeners(NSView.layoutChangedEvent);
+  }
+
+  public _addViewCore(view: any, atIndex?: number) {
+    // Before setup: listeners the child gains while loading add themselves through `parent`.
+    if (__APPLE__) {
+      const work = view?.[isMasonView_] ? view._masonLayoutWork : 1;
+      if (work) this._masonAddLayoutWork(work);
+    }
+    // @ts-ignore
+    super._addViewCore(view, atIndex);
+  }
+
+  public _removeViewCore(view: any) {
+    // @ts-ignore
+    super._removeViewCore(view);
+    // After teardown: listeners removed while unloading already subtracted themselves.
+    if (__APPLE__) {
+      const work = view?.[isMasonView_] ? view._masonLayoutWork : 1;
+      if (work) this._masonAddLayoutWork(-work);
+    }
+  }
+
   public addEventListener(arg: string, callback: any, thisArg?: any) {
+    const listened = __APPLE__ && this._masonListensToLayout();
+    this._addEventListener(arg, callback, thisArg);
+    if (__APPLE__ && !listened && this._masonListensToLayout()) this._masonAddLayoutWork(1);
+  }
+
+  public removeEventListener(arg: string, callback: any, thisArg?: any) {
+    const listened = __APPLE__ && this._masonListensToLayout();
+    this._removeEventListener(arg, callback, thisArg);
+    if (__APPLE__ && listened && !this._masonListensToLayout()) this._masonAddLayoutWork(-1);
+  }
+
+  private _addEventListener(arg: string, callback: any, thisArg?: any) {
     if (typeof thisArg === 'boolean') {
       thisArg = {
         capture: thisArg,
@@ -716,7 +783,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     super.addEventListener(arg, callback, thisArg);
   }
 
-  public removeEventListener(arg: string, callback: any, thisArg?: any) {
+  private _removeEventListener(arg: string, callback: any, thisArg?: any) {
     if (typeof thisArg === 'boolean') {
       thisArg = {
         capture: thisArg,
@@ -894,12 +961,21 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return true;
   }
 
+  /**
+   * A native removal relays out natively but runs no core layout pass, so `layoutChanged`
+   * and non-Mason descendants miss it. Ask for one; a subtree being torn down is unloaded.
+   */
+  _masonRequestLayoutAfterRemoval(): void {
+    if (__APPLE__ && this.isLoaded) this.requestLayout();
+  }
+
   /** Lay out the non-Mason views in this root's subtree from the frames Mason set. */
   _masonLayoutForeignDescendants(): void {
     if (!__APPLE__) return;
     const visit = (view: any) => {
       view.eachChildView((child: any) => {
         if (child[isMasonView_]) {
+          if (!(child._masonLayoutWork > 0)) return true;
           // Keep `layoutChanged` working for the few views that listen to it.
           if (child.hasListeners?.(NSView.layoutChangedEvent)) {
             const b = child._getCurrentLayoutBounds();
@@ -927,10 +1003,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (this._masonPlacedNatively) {
       let root: any = this.parent;
       while (root?.parent?.[isMasonView_]) root = root.parent;
+      if (root && climbedThisTurn(root)) return;
       root?.requestLayout();
       return;
     }
+    // Core climbs on every call, once per changed property; once per turn is enough.
+    if (__APPLE__ && climbedThisTurn(this)) return;
     super.requestLayout();
+    if (__APPLE__) markClimbed(this);
+  }
+
+  _parentChanged(oldParent: any): void {
+    climbedRoots?.delete(this);
+    super._parentChanged(oldParent);
   }
 
   getMeasuredWidth(): number {
@@ -1806,7 +1891,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private _nativeBorderRadiusCorners(): CornerRadius[] {
     // @ts-ignore
     const style = this._styleHelper as MasonStyle | undefined;
-    if (__ANDROID__ && style && !style.hasBorderRadius()) {
+    if ((__ANDROID__ || __APPLE__) && style && !style.hasBorderRadius()) {
       return borderRadiusCorners('0');
     }
     const native = String(style?.borderRadius ?? '').trim();
@@ -1830,7 +1915,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const css = lengthToCssString(masonLength(value));
     const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
     const shorthand = composeBorderRadius(corners);
-    if (__ANDROID__ && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
+    if ((__ANDROID__ || __APPLE__) && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
       return;
     }
     // @ts-ignore
@@ -1875,7 +1960,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _borderSideColor(side: 't' | 'r' | 'b' | 'l', value: any) {
-    if (__ANDROID__) {
+    if (__ANDROID__ || __APPLE__) {
       const s = (this as any)._styleHelper as MasonStyle | undefined;
       if (s) {
         s.setBorderSideColor(side === 't' ? 'top' : side === 'r' ? 'right' : side === 'b' ? 'bottom' : 'left', value);
@@ -2103,8 +2188,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       // @ts-ignore
       else nodeHelper().setBorderColor(this.nativeView, String(value));
     } else if (__APPLE__) {
+      const s = (this as any)._styleHelper as MasonStyle | undefined;
+      if (s) s.setBorderColor(String(value));
       // @ts-ignore
-      (this.nativeView as any).style.setBorderColor(String(value));
+      else (this.nativeView as any).style.setBorderColor(String(value));
     } else if (__WINDOWS__) {
       // @ts-ignore
       const style = this._styleHelper;

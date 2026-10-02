@@ -268,8 +268,17 @@ export class Text extends TextBase {
   _removeViewFromNativeVisualTree(view: ViewBase): void {
     (this as any)._invalidateAttachCursor();
     view[isTextChild_] = false;
-    // todo
-    //  super._removeViewFromNativeVisualTree(view);
+    (view as any)._isMasonChild = false;
+    // Detach the Mason node and its view; inline children render as text runs,
+    // so removing only the UIView would leave them drawn.
+    const nativeView = this._view as any;
+    const child = (view as any).nativeViewProtected;
+    if (nativeView && child && typeof nativeView.removeView === 'function') {
+      nativeView.removeView(child);
+      (this as any)._masonRequestLayoutAfterRemoval();
+    }
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(view);
   }
 }
 

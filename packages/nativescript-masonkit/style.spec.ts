@@ -100,6 +100,14 @@ const TEXT_DIP: Case[] = [
   { prop: 'fontSize', input: { value: 20, unit: 'dip' }, valueOffset: K.FONT_SIZE, expected: dipConstant(20) },
 ];
 
+// An absolute line-height (TYPE 1) is CSS px: iOS reads points, Android's span applies the density.
+const LINE_HEIGHT_DIP: Case[] = [
+  { prop: 'lineHeight', input: 20, valueOffset: K.LINE_HEIGHT, expected: dipConstant(20), typeOffset: K.LINE_HEIGHT_TYPE, typeValue: 1 },
+  { prop: 'lineHeight', input: '20px', valueOffset: K.LINE_HEIGHT, expected: dipConstant(20), typeOffset: K.LINE_HEIGHT_TYPE, typeValue: 1 },
+  { prop: 'lineHeight', input: { value: 20, unit: 'dip' }, valueOffset: K.LINE_HEIGHT, expected: dipConstant(20), typeOffset: K.LINE_HEIGHT_TYPE, typeValue: 1 },
+  { prop: 'lineHeight', input: '1.5', valueOffset: K.LINE_HEIGHT, expected: dipConstant(1.5), typeOffset: K.LINE_HEIGHT_TYPE, typeValue: 0 },
+];
+
 function assign(t: StyleUnderTest, prop: string, input: unknown) {
   (t.style as any)[prop] = input;
 }
@@ -123,6 +131,15 @@ describe.each(SCALES)('screen scale %i', (scale) => {
       const t = styleUnderTest();
       assign(t, c.prop, c.input);
       expect(t.getInt32(c.valueOffset)).toBe(c.expected(scale));
+    });
+  });
+
+  describe('absolute line-height is stored in dip', () => {
+    it.each(LINE_HEIGHT_DIP.map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s', (_label, c) => {
+      const t = styleUnderTest();
+      assign(t, c.prop, c.input);
+      expect(t.getFloat32(c.valueOffset)).toBeCloseTo(c.expected(scale), 4);
+      expect(t.getInt8(c.typeOffset!)).toBe(c.typeValue);
     });
   });
 

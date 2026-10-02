@@ -662,30 +662,8 @@ const setUint8 = (view: DataView, offset: number, value: number) => {
   view.setUint8(offset, value);
 };
 
-const splitBigIntToInt64Parts = (value: bigint): [string, string] => {
-  const MASK64 = (1n << 64n) - 1n;
-  const LOW = value & MASK64;
-  let HIGH = value >> 64n;
-
-  // Ensure HIGH fits into signed 64-bit range
-  const SIGN_BIT = 1n << 63n;
-  if ((HIGH & SIGN_BIT) !== 0n) {
-    // convert to signed representation
-    HIGH = HIGH - (1n << 64n);
-  }
-
-  let lowSigned = LOW;
-  if ((LOW & SIGN_BIT) !== 0n) {
-    lowSigned = LOW - (1n << 64n);
-  }
-
-  return [lowSigned.toString(), HIGH.toString()];
-};
-
-// Android-only fast path for syncStyle(): splits the 128-bit dirty mask into
-// four signed 32-bit words (plain {N} int marshalling) instead of two 64-bit
-// decimal strings. Recombined via (high32 << 32) | (low32 & 0xffffffff) in
-// Element.syncStyleParts.
+// Splits the 128-bit dirty mask into four signed 32-bit words (plain {N} int
+// marshalling) for Element.syncStyleParts on Android and mason_syncStyleParts on iOS.
 const splitBigIntToInt32Parts = (value: bigint): [number, number, number, number] => {
   const MASK64 = (1n << 64n) - 1n;
   const MASK32 = 0xffffffffn;
@@ -1589,7 +1567,7 @@ export class Style {
   }
 
   setBorderColor(value: string) {
-    if (!(__WINDOWS__ || __ANDROID__) || !this.style_view) return;
+    if (!(__WINDOWS__ || __ANDROID__ || __APPLE__) || !this.style_view) return;
     const c = parseSidesColorShorthand(String(value ?? ''));
     this.writeBorderSide('top', null, null, c.t);
     this.writeBorderSide('right', null, null, c.r);
@@ -1630,11 +1608,11 @@ export class Style {
       // @ts-ignore - syncStyleParts is a newer native method; typings regenerate from the AAR separately.
       view.syncStyleParts(lowLow, lowHigh, highLow, highHigh);
     } else if (__APPLE__) {
-      const [low, high] = splitBigIntToInt64Parts(this.isDirty);
+      const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
       const view = this.view?.ios ?? (this.view._view as never as MasonText);
       // @ts-ignore
-      view.mason_syncStyle(low, high);
+      view.mason_syncStyleParts(lowLow, lowHigh, highLow, highHigh);
     } else if (__WINDOWS__) {
       // The Windows elements re-read the whole buffer, so the dirty bits aren't passed.
       // @ts-ignore
@@ -4541,7 +4519,8 @@ export class Style {
       // length — TYPE 0 means "multiply by the resolved font size".
       const unitless = /^-?[\d.]+$/.test(t);
       this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : tokenToDevicePx(t, parseFloat(t) || 0));
+      // An absolute line-height is stored in CSS px (iOS points, Android dip), as the number path.
+      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0)));
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, unitless ? 0 : 1);
       this.commitState(StateKeys.LINE_HEIGHT);
@@ -4557,14 +4536,14 @@ export class Style {
       switch (value.unit) {
         case 'dip':
           this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDevicePixels(value.value));
+          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value.value);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
           this.commitState(StateKeys.LINE_HEIGHT);
           break;
         case 'px':
           this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDevicePixels(value.value));
+          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDeviceIndependentPixels(value.value));
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
           setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
           this.commitState(StateKeys.LINE_HEIGHT);
@@ -5014,7 +4993,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.borderRadius;
+      return this._borderRadiusCss ?? (this.nativeView as MasonElementObjc).style.borderRadius;
     }
 
     if (__WINDOWS__ && this.style_view) {
@@ -5030,7 +5009,7 @@ export class Style {
 
   set borderRadius(value: string) {
     value = this.coerceCssStringValue(value);
-    if (__ANDROID__ && this.nativeView && !this._pseudo && this._writeBorderRadius(value, deviceScale())) {
+    if ((__ANDROID__ || __APPLE__) && this.nativeView && !this._pseudo && this._writeBorderRadius(value, deviceScale())) {
       return;
     }
     if (!this._pseudo) this._borderRadiusCss = undefined;

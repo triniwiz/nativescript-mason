@@ -484,6 +484,11 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     guard let element = self as? MasonElement else { return }
     element.syncStyle(low, high)
   }
+
+  @objc public func mason_syncStyleParts(_ lowLow: Int32, _ lowHigh: Int32, _ highLow: Int32, _ highHigh: Int32){
+    guard let element = self as? MasonElement else { return }
+    element.syncStyleParts(lowLow, lowHigh, highLow, highHigh)
+  }
   
   @objc public func mason_addView(_ view: UIView){
     guard let element = self as? MasonElement else { return }

@@ -102,7 +102,13 @@ internal let PSEUDO_CSS_ORDER: [PseudoState] = [.hover, .focus, .active, .disabl
 public class MasonNode: NSObject {
   public internal(set) var mason: NSCMason
   
-  internal var isAnonymous = false
+  internal var isAnonymous = false {
+    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+  }
+
+  // Set once an anonymous node is linked under this one (sticky). Without one,
+  // the author children are exactly `children`, so no walk is needed.
+  private var hasAnonymousChild = false
   internal var isPlaceholder: Bool = false
 
   /// True while a deferred font-metrics flush is already queued for this node
@@ -135,7 +141,7 @@ public class MasonNode: NSObject {
     node.invalidateDefaultAttributes()
 
     // Direct invalidation if this is a MasonText
-    if let view = node.view as? TextContainer {
+    if let view = MasonViewKind.textContainer(node.view) {
       // Notify all text style changes to ensure paint is fully updated
       view.onStyleChange(state)
     }
@@ -149,6 +155,19 @@ public class MasonNode: NSObject {
   
   static func invalidateDescendantTextViews(_ node: MasonNode, _ low: UInt64, _ high: UInt64) {
     invalidateDescendantTextViews(node,StateKeys(low: low, high: high))
+  }
+
+  // Text keys a descendant never reads from an ancestor: each box paints its
+  // own background, and vertical-align / text-overflow aren't inherited.
+  private static let notInheritedTextKeys = StateKeys.backgroundColor.union(.verticalAlign).union(.textOverflow)
+
+  /// A box's own style change, forwarded to the text below it: only what
+  /// descendants inherit, and nothing when that leaves no change.
+  static func invalidateDescendantTextViews(inheritedBy node: MasonNode, _ low: UInt64, _ high: UInt64) {
+    let low = low & ~notInheritedTextKeys.low
+    let high = high & ~notInheritedTextKeys.high
+    if low == 0 && high == 0 { return }
+    invalidateDescendantTextViews(node, StateKeys(low: low, high: high))
   }
 
   // getDefaultAttributes() only recomputes when style.styleVersion changes on
@@ -225,6 +244,15 @@ public class MasonNode: NSObject {
   /// NativeScript can read this to skip redundant layout passes for Mason-managed children.
   @objc public var isLayoutValid: Bool = false
   internal var hasClickGesture: Bool = false
+
+  // Layout state of this node's element. The MasonElement protocol can't hold
+  // stored properties, and associated objects cost a locked global lookup per access.
+  internal var elementComputeCache: CGSize = .zero
+  internal var elementComputeCacheDirty = false
+  internal var elementIsInLayout = false
+  internal var elementLastAutoComputeSize: CGSize = .zero
+  internal var elementHostRootSize: CGSize = .zero
+  internal var elementLayoutPassScheduled = false
 
   // Deferred-compute bookkeeping — see `computeNestedRootLater` in MasonElement.swift.
   internal var nestedComputePending = false
@@ -439,7 +467,9 @@ public class MasonNode: NSObject {
   }()
   
   
-  internal weak var layoutParent: MasonNode? = nil
+  internal weak var layoutParent: MasonNode? = nil {
+    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+  }
   public internal(set) var parent: MasonNode? {
     get {
       var p = layoutParent
@@ -465,9 +495,20 @@ public class MasonNode: NSObject {
   public internal(set) var type: MasonNodeType = .element
   
   public func getChildren() -> [MasonNode] {
+    if !hasAnonymousChild { return children }
     var out: [MasonNode] = []
     collectAuthorChildren(into: &out, from: children)
     return out
+  }
+
+  /// The count of getChildren(), without building the list.
+  private func authorChildCount() -> Int {
+    if !hasAnonymousChild { return children.count }
+    var count = 0
+    for child in children {
+      count += child.isAnonymous ? child.authorChildCount() : 1
+    }
+    return count
   }
   
   
@@ -500,6 +541,7 @@ public class MasonNode: NSObject {
     nativePtr = nil
     type = .text
     super.init()
+    MasonNode.liveCount += 1
   }
   
   
@@ -508,7 +550,8 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_line_break_node(mason.nativePtr)
     type = .element
     super.init()
-    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+    MasonNode.liveCount += 1
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   
@@ -517,7 +560,8 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_image_node(mason.nativePtr)
     type = .element
     super.init()
-    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+    MasonNode.liveCount += 1
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
 
   internal init(masonButton doc: NSCMason) {
@@ -525,7 +569,8 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_button_node(mason.nativePtr)
     type = .element
     super.init()
-    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+    MasonNode.liveCount += 1
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   
@@ -534,8 +579,9 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_node(mason.nativePtr, isAnonymous)
     type = .element
     super.init()
+    MasonNode.liveCount += 1
     self.isAnonymous = isAnonymous
-    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   
@@ -544,6 +590,7 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_text_node(mason.nativePtr, isAnonymous)
     type = .element
     super.init()
+    MasonNode.liveCount += 1
     self.isAnonymous = isAnonymous
   }
   
@@ -556,8 +603,10 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_node_with_children(mason.nativePtr, &childrenMap, UInt(childrenMap.count))
     
     children = nodes
+    hasAnonymousChild = nodes.contains { $0.isAnonymous }
     type = .element
     super.init()
+    MasonNode.liveCount += 1
     
     children.forEach { node in
       node.parent = self
@@ -570,13 +619,15 @@ public class MasonNode: NSObject {
     mason = doc
     nativePtr = mason_node_new_node(mason.nativePtr, false)
     super.init()
-    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+    MasonNode.liveCount += 1
+    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
   }
   
   internal init(listItem doc : NSCMason) {
     mason = doc
     nativePtr = mason_node_new_list_item_node(mason.nativePtr)
     super.init()
+    MasonNode.liveCount += 1
   }
   
   internal init(listItem doc : NSCMason, measureFunc function: @escaping MeasureFunc) {
@@ -584,13 +635,26 @@ public class MasonNode: NSObject {
     mason = doc
     nativePtr = mason_node_new_list_item_node(mason.nativePtr)
     super.init()
-    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+    MasonNode.liveCount += 1
+    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
   }
   
+  /// Live MasonNode instances, for NSCMason.debugStats. Main-thread only, like the tree.
+  internal static var liveCount = 0
+
   deinit {
+    MasonNode.liveCount -= 1
+    // An anonymous text container under a text container keeps its own view alive, and the view
+    // owns that node: release the pair with this parent.
+    for child in children where child.retainedAnonymousView != nil {
+      child.retainedAnonymousView = nil
+    }
     // Clean up event listeners to break strong reference from NSCMason
     mason.removeAllEventListeners(self)
     guard let nativePtr else { return }
+    // Rust only borrows this node (apple data, measure context): drop both before it goes away.
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, nil)
+    mason_node_remove_context(mason.nativePtr, nativePtr)
     mason_node_destroy(nativePtr)
   }
   
@@ -915,7 +979,7 @@ extension MasonNode {
   
   public func appendChild(_ child: MasonNode) {
     if (child is MasonTextNode) {
-      let container = if (view is TextContainer) {
+      let container = if (MasonViewKind.textContainer(view) != nil) {
         self
       } else {
         getOrCreateAnonymousTextContainer()
@@ -923,12 +987,12 @@ extension MasonNode {
     
   
       container.children.append(child)
-      if let child = child as? MasonTextNode, let it = container.view as? TextContainer {
+      if let child = child as? MasonTextNode, let it = MasonViewKind.textContainer(container.view) {
         child.attributes = it.node.getDefaultAttributes()
         child.container = it
         it.engine.invalidateInlineSegments()
       }
-      (container.view as? TextContainer)?.engine.invalidateInlineSegments()
+      MasonViewKind.textContainer(container.view)?.engine.invalidateInlineSegments()
       NodeUtils.invalidateLayout(self)
     } else {
       children.append(child)
@@ -937,7 +1001,7 @@ extension MasonNode {
       NodeUtils.addView(self, child.view)
       // A non-text child (e.g. a Br) changes the parent's composed text —
       // rebuild the inline segment cache when the parent renders text.
-      if let tc = view as? TextContainer {
+      if let tc = MasonViewKind.textContainer(view) {
         tc.engine.invalidateInlineSegments()
       }
       // Single pass invalidation of descendants with text styles
@@ -995,6 +1059,11 @@ extension MasonNode {
     
     if (children.isEmpty) {
       return nil
+    }
+    // Elements are removed through their layout parent; building the author
+    // list to find the index made each removal O(n).
+    if !(child is MasonTextNode) {
+      return removeElementChild(child)
     }
     let nodes = getChildren()
     guard let idx = nodes.firstIndex(of: child) else {return nil}
@@ -1259,14 +1328,13 @@ extension MasonNode {
       return
     }
 
-    let authorChildren = getChildren()
-
     // if index is past end, fallback to append behavior
-    if index >= authorChildren.count {
+    if index >= authorChildCount() {
       appendChild(child)
       return
     }
-    
+
+    let authorChildren = getChildren()
     let reference = authorChildren[index]
     
     // Inserting a TextNode
@@ -1479,6 +1547,9 @@ extension MasonNode {
       return nil
     }
     let reference = children[index]
+    if !(reference is MasonTextNode) {
+      return removeElementChild(reference)
+    }
     guard let idx =
             reference.layoutParent?.children.firstIndex(of: reference) else {return nil}
     guard let removed = reference.layoutParent?.children.remove(at: idx) else {return nil}
@@ -1492,23 +1563,29 @@ extension MasonNode {
         reference.layoutParent?.parent = nil
         NodeUtils.syncNode(self, children)
       }
-    } else {
-      NodeUtils.removeView(self, removed.view)
-      // Detach from the Rust layout tree as well (matches Android) — without
-      // this the layout engine keeps measuring the removed child.
-      if let ptr = nativePtr, let childPtr = removed.nativePtr {
-        if let ref = mason_node_remove_child(mason.nativePtr, ptr, childPtr) {
-          mason_node_destroy(ref)
-        }
-      }
-      removed.parent = nil
-      // Removing a non-text child (e.g. a Br) changes the parent's composed
-      // text — rebuild the inline segment cache when the parent renders text.
-      if let tc = view as? TextContainer {
-        tc.engine.invalidateInlineSegments()
-      }
-      NodeUtils.invalidateLayout(self)
     }
+    return removed
+  }
+
+  private func removeElementChild(_ reference: MasonNode) -> MasonNode? {
+    guard let idx =
+            reference.layoutParent?.children.firstIndex(of: reference) else {return nil}
+    guard let removed = reference.layoutParent?.children.remove(at: idx) else {return nil}
+    NodeUtils.removeView(self, removed.view)
+    // Detach from the Rust layout tree as well (matches Android); without
+    // this the layout engine keeps measuring the removed child.
+    if let ptr = nativePtr, let childPtr = removed.nativePtr {
+      if let ref = mason_node_remove_child(mason.nativePtr, ptr, childPtr) {
+        mason_node_destroy(ref)
+      }
+    }
+    removed.parent = nil
+    // Removing a non-text child (e.g. a Br) changes the parent's composed
+    // text, so rebuild the inline segment cache when the parent renders text.
+    if let tc = MasonViewKind.textContainer(view) {
+      tc.engine.invalidateInlineSegments()
+    }
+    NodeUtils.invalidateLayout(self)
     return removed
   }
   
@@ -1525,8 +1602,6 @@ extension MasonNode {
         continue
       }
 
-      // Release the retained reference the Rust side holds via apple_data.
-      // set_apple_data(nil) drops the Retained<NSObject>, balancing passRetained from init.
       mason_node_set_apple_node(mason.nativePtr, childPtr, nil)
 
       // Clear measure function context on the Rust side.

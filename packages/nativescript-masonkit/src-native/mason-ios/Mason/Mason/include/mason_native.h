@@ -103,6 +103,12 @@ struct CMason *mason_init_with_capacity(uintptr_t capacity);
 
 void mason_clear(struct CMason *mason);
 
+/**
+ * Fills `out` with [live nodes, total buffers, active buffers, shared buffers, free slots,
+ * buffer memory, live C node wrappers], the same counters Android's Mason.debugStats reports.
+ */
+void mason_debug_stats(struct CMason *mason, int64_t *out, uintptr_t len);
+
 void mason_release(struct CMason *mason);
 
 void mason_print_tree(struct CMason *mason, struct CMasonNode *node);

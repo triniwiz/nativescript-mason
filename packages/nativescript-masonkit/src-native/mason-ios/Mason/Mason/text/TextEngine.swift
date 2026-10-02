@@ -110,8 +110,11 @@ public class TextEngine: NSObject {
       // Remove all existing children
       node.children.removeAll()
       
-      // Create a single text node with the new text
-      let textNode = MasonTextNode(mason: node.mason, data: newValue, attributes: node.getDefaultAttributes())
+      // Create a single text node with the new text; its attributes are built
+      // on first use, after the style syncs that usually follow.
+      let textNode = MasonTextNode(mason: node.mason, data: newValue)
+      textNode.attributesInitialized = true
+      textNode.attributesStale = true
       textNode.container = container
       
       // Add to children
@@ -130,12 +133,10 @@ public class TextEngine: NSObject {
   
   // Update attributes on all direct TextNode children when styles change
   internal func updateStyleOnTextNodes() {
-    let defaultAttrs = node.getDefaultAttributes()
-    
     for child in node.children {
       if let child = (child as? MasonTextNode), child.container?.engine == self {
         // Only update TextNodes that belong to this TextView
-        child.attributes = defaultAttrs
+        child.attributesStale = true
       }
     }
   }
@@ -390,16 +391,12 @@ public class TextEngine: NSObject {
     var maxWidth = CGFloat.greatestFiniteMagnitude
     var maxHeight = CGFloat.greatestFiniteMagnitude
     
-    // Check for explicit line breaks (from <br> tags)
-    let hasExplicitLineBreaks = text.string.contains("\n")
-    
     var allowWrap = true
     if engine.node.style.isValueInitialized {
       let ws = engine.node.style.whiteSpace
-      // No wrap for pre / nowrap - but still allow if there are explicit line breaks
-      if (ws == .Pre || ws == .NoWrap) && !hasExplicitLineBreaks { allowWrap = false }
-      // Explicit override - but still allow if there are explicit line breaks
-      if engine.node.style.textWrap == .NoWrap && !hasExplicitLineBreaks { allowWrap = false }
+      let noWrap = ws == .Pre || ws == .NoWrap || engine.node.style.textWrap == .NoWrap
+      // No wrap for pre / nowrap - but still allow if there are explicit line breaks (<br>)
+      if noWrap && !hasLineBreak(text) { allowWrap = false }
     }
     
     
@@ -961,10 +958,10 @@ public class TextEngine: NSObject {
       if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
       if let ctFont = attrs[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
         let font = ctFont as! CTFont
-        let traits = CTFontCopyTraits(font) as? [CFString: Any]
         let symbolicTraits = CTFontGetSymbolicTraits(font)
         let isBold = symbolicTraits.contains(.traitBold)
-        let weight = attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
+        let weight = attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
+          ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
         // Fake-bold only when a bold weight is requested but no real bold face
         // exists. `weight` is the CSS weight (100–900), so threshold is 600.
         if !isBold && weight >= 600 {
@@ -1361,10 +1358,11 @@ public class TextEngine: NSObject {
         if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
         if let ctFont = attributes[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
           let font = ctFont as! CTFont
-          let traits = CTFontCopyTraits(font) as? [CFString: Any]
           let symbolicTraits = CTFontGetSymbolicTraits(font)
           let isBold = symbolicTraits.contains(.traitBold)
-          let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
+          // The font's traits are only read when the run carries no weight.
+          let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
+            ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
           // Fake-bold only when a bold weight is requested but no real bold face
           // exists. `weight` is the CSS weight (100–900), so threshold is 600.
           if !isBold && weight >= 600 {
@@ -1469,15 +1467,13 @@ public class TextEngine: NSObject {
     context.translateBy(x: 0, y: rect.height)
     context.scaleBy(x: 1.0, y: -1.0)
     
-    // Check if text contains explicit line breaks (from <br> tags)
-    let hasExplicitLineBreaks = text.string.contains("\n")
-
     // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
     // properties that both force single-line drawing; match Android's OR.
     let noWrap = style.textWrap == .NoWrap || style.whiteSpace == .NoWrap || style.whiteSpace == .Pre
 
-    // Handle nowrap case - but still respect explicit line breaks from <br>
-    if noWrap && !hasExplicitLineBreaks {
+    // Handle nowrap case - but still respect explicit line breaks from <br>.
+    // Only nowrap text needs the scan for them.
+    if noWrap && !TextEngine.hasLineBreak(text) {
       drawSingleLine(text: text, in: context, bounds: rect)
       context.restoreGState()
       drawState = .idle
@@ -1490,6 +1486,12 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Whether the text has an explicit line break (from <br>); NSString's search
+  /// avoids walking the whole string as Swift Characters.
+  static func hasLineBreak(_ text: NSAttributedString) -> Bool {
+    return (text.string as NSString).range(of: "\n").location != NSNotFound
+  }
+
   internal func buildAttributedString(forMeasurement: Bool = false) -> NSAttributedString {
     // Return cached version if valid
     if let cached = cachedAttributedString, attributedStringVersion == segmentsInvalidateVersion {
