@@ -1759,6 +1759,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * 
 
 @class NSUUID;
 @class MasonScroll;
+@class NSNumber;
 SWIFT_CLASS_NAMED("NSCMason")
 @interface NSCMason : NSObject
 @property (nonatomic, readonly) void * _Nullable nativePtr;
@@ -1807,6 +1808,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 /// CSS default is 16); the viewport is read from the key window, and is 0 until
 /// one exists — an unresolvable viewport unit collapses to 0 rather than
 /// silently becoming a bare number in the wrong unit.
+/// Leak diagnostics, with the keys Android’s Mason.debugStats uses: live engine nodes and style
+/// buffers, plus live C node wrappers (<code>cNodes</code>) and Swift MasonNode objects (<code>trackedNodes</code>).
+- (NSDictionary<NSString *, NSNumber *> * _Nonnull)debugStats SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
 + (float)rootFontSize SWIFT_WARN_UNUSED_RESULT;
 + (void)setRootFontSize:(float)value;
@@ -1830,6 +1834,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
+- (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
 - (void)mason_markNodeDirty;
@@ -3827,6 +3832,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * 
 
 @class NSUUID;
 @class MasonScroll;
+@class NSNumber;
 SWIFT_CLASS_NAMED("NSCMason")
 @interface NSCMason : NSObject
 @property (nonatomic, readonly) void * _Nullable nativePtr;
@@ -3875,6 +3881,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 /// CSS default is 16); the viewport is read from the key window, and is 0 until
 /// one exists — an unresolvable viewport unit collapses to 0 rather than
 /// silently becoming a bare number in the wrong unit.
+/// Leak diagnostics, with the keys Android’s Mason.debugStats uses: live engine nodes and style
+/// buffers, plus live C node wrappers (<code>cNodes</code>) and Swift MasonNode objects (<code>trackedNodes</code>).
+- (NSDictionary<NSString *, NSNumber *> * _Nonnull)debugStats SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
 + (float)rootFontSize SWIFT_WARN_UNUSED_RESULT;
 + (void)setRootFontSize:(float)value;
@@ -3898,6 +3907,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
+- (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
 - (void)mason_markNodeDirty;

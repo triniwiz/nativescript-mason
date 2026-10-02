@@ -240,6 +240,7 @@ extension Mason.Button {
     @objc get
     @objc set
   }
+  @objc public func debugStats() -> [Swift.String : Foundation.NSNumber]
   @objc public static var rootFontSize: Swift.Float
   @objc public static var viewportSize: CoreFoundation.CGSize {
     @objc get
@@ -460,6 +461,8 @@ extension Mason.MasonElement {
   public func elementFromPoint(_ x: CoreFoundation.CGFloat, _ y: CoreFoundation.CGFloat) -> UIKit.UIView?
   public func getDefaultAttributes() -> [Foundation.NSAttributedString.Key : Any]
   public func syncStyle(_ low: Swift.String, _ high: Swift.String)
+  public func syncStyleParts(_ lowLow: Swift.Int32, _ lowHigh: Swift.Int32, _ highLow: Swift.Int32, _ highHigh: Swift.Int32)
+  public func syncStyle(low l: Swift.UInt64, high h: Swift.UInt64)
   public func addChildAt(text: Swift.String, _ index: Swift.Int)
   public func addChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
   public func addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
@@ -2399,6 +2402,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_removeEventListener(_ event: Swift.String) -> Swift.Bool
   @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent)
   @objc dynamic public func mason_syncStyle(_ low: Swift.String, _ high: Swift.String)
+  @objc dynamic public func mason_syncStyleParts(_ lowLow: Swift.Int32, _ lowHigh: Swift.Int32, _ highLow: Swift.Int32, _ highHigh: Swift.Int32)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView, at: Swift.Int)
   @objc dynamic public func mason_markNodeDirty()
