@@ -159,8 +159,18 @@ export function parseCornerRadius(value: string): CornerRadius {
   return [h, v];
 }
 
+// The same few radius strings repeat across a tree, so parse each once. Callers
+// get copies: views keep and mutate their corner arrays.
+const cornersCache = new Map<string, CornerRadius[]>();
+
 export function borderRadiusCorners(value: string): CornerRadius[] {
-  return splitBorderRadius(value).map(parseCornerRadius);
+  let corners = cornersCache.get(value);
+  if (!corners) {
+    corners = splitBorderRadius(value).map(parseCornerRadius);
+    if (cornersCache.size >= 256) cornersCache.clear();
+    cornersCache.set(value, corners);
+  }
+  return corners.map(([h, v]) => [h, v] as CornerRadius);
 }
 
 export function composeBorderRadius(corners: CornerRadius[]): string {
