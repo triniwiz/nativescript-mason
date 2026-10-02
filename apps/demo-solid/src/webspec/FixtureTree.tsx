@@ -107,8 +107,12 @@ export function FixtureTree(props: { tree: FixtureNode; onMounted: (refs: Map<nu
       }
       // require a minimum poll count so an early cold-start match doesn't
       // pass as "settled"; hard-cap so a stuck fixture still falls through
-      // to WebSpec.tsx's 4s watchdog
-      if ((stableRounds >= 3 && attempts >= 5) || attempts >= 60) {
+      // to WebSpec.tsx's 15s watchdog
+      // An all-zero snapshot is "not laid out yet", not "settled": a slow device
+      // can hold a fresh tree at 0x0 for many polls before its first layout pass.
+      const laidOut = /[1-9]/.test(snap)
+      // A fixture that really is all zero settles once that holds for ~2s.
+      if ((laidOut && stableRounds >= 3 && attempts >= 5) || stableRounds >= 60 || attempts >= 300) {
         props.onMounted(refs)
       } else {
         setTimeout(poll, 32)
