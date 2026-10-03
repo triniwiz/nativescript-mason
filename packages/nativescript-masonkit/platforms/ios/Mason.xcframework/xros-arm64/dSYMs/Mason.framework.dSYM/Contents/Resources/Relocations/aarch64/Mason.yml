@@ -6849,8 +6849,8 @@ relocations:
   - { offset: 0x23BD04, size: 0x8, addend: 0x0, symName: _OUTLINED_FUNCTION_0, symObjAddr: 0xB38, symBinAddr: 0x194CC0, symSize: 0x20 }
   - { offset: 0x23BD1C, size: 0x8, addend: 0x0, symName: _OUTLINED_FUNCTION_1, symObjAddr: 0xB58, symBinAddr: 0x194CE0, symSize: 0x18 }
   - { offset: 0x23BE28, size: 0x8, addend: 0x0, symName: '+[SDImageCachesManager sharedManager]', symObjAddr: 0x0, symBinAddr: 0x194CF8, symSize: 0x50 }
-  - { offset: 0x23BE52, size: 0x8, addend: 0x0, symName: _sharedManager.onceToken, symObjAddr: 0x182E0, symBinAddr: 0x3B8240, symSize: 0x0 }
-  - { offset: 0x23BE68, size: 0x8, addend: 0x0, symName: _sharedManager.manager, symObjAddr: 0x182E8, symBinAddr: 0x3B8248, symSize: 0x0 }
+  - { offset: 0x23BE52, size: 0x8, addend: 0x0, symName: _sharedManager.onceToken, symObjAddr: 0x182D8, symBinAddr: 0x3B8240, symSize: 0x0 }
+  - { offset: 0x23BE68, size: 0x8, addend: 0x0, symName: _sharedManager.manager, symObjAddr: 0x182E0, symBinAddr: 0x3B8248, symSize: 0x0 }
   - { offset: 0x23C1A0, size: 0x8, addend: 0x0, symName: '+[SDImageCachesManager sharedManager].cold.1', symObjAddr: 0x2EA0, symBinAddr: 0x1C1D30, symSize: 0x14 }
   - { offset: 0x23C1BC, size: 0x8, addend: 0x0, symName: '+[SDImageCachesManager sharedManager].cold.1', symObjAddr: 0x2EA0, symBinAddr: 0x1C1D30, symSize: 0x14 }
   - { offset: 0x23C1CE, size: 0x8, addend: 0x0, symName: '___37+[SDImageCachesManager sharedManager]_block_invoke', symObjAddr: 0x50, symBinAddr: 0x194D48, symSize: 0x38 }
@@ -7035,8 +7035,8 @@ relocations:
   - { offset: 0x242C21, size: 0x8, addend: 0x0, symName: _kSDCGImagePropertyHEICSDelayTime, symObjAddr: 0x500, symBinAddr: 0x334358, symSize: 0x0 }
   - { offset: 0x242C37, size: 0x8, addend: 0x0, symName: _kSDCGImagePropertyHEICSUnclampedDelayTime, symObjAddr: 0x508, symBinAddr: 0x334360, symSize: 0x0 }
   - { offset: 0x242C41, size: 0x8, addend: 0x0, symName: '+[SDImageHEICCoder sharedCoder]', symObjAddr: 0xB0, symBinAddr: 0x19BC0C, symSize: 0x50 }
-  - { offset: 0x242C6B, size: 0x8, addend: 0x0, symName: _sharedCoder.coder, symObjAddr: 0x4F58, symBinAddr: 0x3B82B8, symSize: 0x0 }
-  - { offset: 0x242C81, size: 0x8, addend: 0x0, symName: _sharedCoder.onceToken, symObjAddr: 0x4F60, symBinAddr: 0x3B82C0, symSize: 0x0 }
+  - { offset: 0x242C6B, size: 0x8, addend: 0x0, symName: _sharedCoder.coder, symObjAddr: 0x4F50, symBinAddr: 0x3B82B8, symSize: 0x0 }
+  - { offset: 0x242C81, size: 0x8, addend: 0x0, symName: _sharedCoder.onceToken, symObjAddr: 0x4F58, symBinAddr: 0x3B82C0, symSize: 0x0 }
   - { offset: 0x242D9C, size: 0x8, addend: 0x0, symName: '+[SDImageHEICCoder initialize]', symObjAddr: 0x0, symBinAddr: 0x19BB5C, symSize: 0xB0 }
   - { offset: 0x242E01, size: 0x8, addend: 0x0, symName: '+[SDImageHEICCoder sharedCoder].cold.1', symObjAddr: 0x3C8, symBinAddr: 0x1C243C, symSize: 0x14 }
   - { offset: 0x242E1D, size: 0x8, addend: 0x0, symName: '+[SDImageHEICCoder sharedCoder].cold.1', symObjAddr: 0x3C8, symBinAddr: 0x1C243C, symSize: 0x14 }
@@ -7109,8 +7109,8 @@ relocations:
   - { offset: 0x245E9F, size: 0x8, addend: 0x0, symName: _OUTLINED_FUNCTION_0, symObjAddr: 0x3EE4, symBinAddr: 0x19FBDC, symSize: 0x20 }
   - { offset: 0x245EB7, size: 0x8, addend: 0x0, symName: _OUTLINED_FUNCTION_2, symObjAddr: 0x3F10, symBinAddr: 0x19FBFC, symSize: 0x10 }
   - { offset: 0x246114, size: 0x8, addend: 0x0, symName: '+[SDImageIOCoder sharedCoder]', symObjAddr: 0xD8, symBinAddr: 0x19FCE4, symSize: 0x50 }
-  - { offset: 0x24613E, size: 0x8, addend: 0x0, symName: _sharedCoder.coder, symObjAddr: 0xC268, symBinAddr: 0x3B82F8, symSize: 0x0 }
-  - { offset: 0x246154, size: 0x8, addend: 0x0, symName: _sharedCoder.onceToken, symObjAddr: 0xC270, symBinAddr: 0x3B8300, symSize: 0x0 }
+  - { offset: 0x24613E, size: 0x8, addend: 0x0, symName: _sharedCoder.coder, symObjAddr: 0xC260, symBinAddr: 0x3B82F8, symSize: 0x0 }
+  - { offset: 0x246154, size: 0x8, addend: 0x0, symName: _sharedCoder.onceToken, symObjAddr: 0xC268, symBinAddr: 0x3B8300, symSize: 0x0 }
   - { offset: 0x2462DA, size: 0x8, addend: 0x0, symName: '-[SDImageIOCoder dealloc]', symObjAddr: 0x0, symBinAddr: 0x19FC0C, symSize: 0xA4 }
   - { offset: 0x246330, size: 0x8, addend: 0x0, symName: '-[SDImageIOCoder didReceiveMemoryWarning:]', symObjAddr: 0xA4, symBinAddr: 0x19FCB0, symSize: 0x34 }
   - { offset: 0x2463CC, size: 0x8, addend: 0x0, symName: '+[SDImageIOCoder sharedCoder].cold.1', symObjAddr: 0x1590, symBinAddr: 0x1C265C, symSize: 0x14 }
@@ -7141,8 +7141,8 @@ relocations:
   - { offset: 0x247B63, size: 0x8, addend: 0x0, symName: _SDImageLoaderDecodeProgressiveImageData.cold.3, symObjAddr: 0xD08, symBinAddr: 0x1C298C, symSize: 0x70 }
   - { offset: 0x247B7B, size: 0x8, addend: 0x0, symName: _OUTLINED_FUNCTION_0, symObjAddr: 0xD78, symBinAddr: 0x1A1BE4, symSize: 0x20 }
   - { offset: 0x247C3F, size: 0x8, addend: 0x0, symName: '+[SDImageLoadersManager sharedManager]', symObjAddr: 0x0, symBinAddr: 0x1A1C04, symSize: 0x50 }
-  - { offset: 0x247C69, size: 0x8, addend: 0x0, symName: _sharedManager.onceToken, symObjAddr: 0x64F0, symBinAddr: 0x3B8308, symSize: 0x0 }
-  - { offset: 0x247C7F, size: 0x8, addend: 0x0, symName: _sharedManager.manager, symObjAddr: 0x64F8, symBinAddr: 0x3B8310, symSize: 0x0 }
+  - { offset: 0x247C69, size: 0x8, addend: 0x0, symName: _sharedManager.onceToken, symObjAddr: 0x64E8, symBinAddr: 0x3B8308, symSize: 0x0 }
+  - { offset: 0x247C7F, size: 0x8, addend: 0x0, symName: _sharedManager.manager, symObjAddr: 0x64F0, symBinAddr: 0x3B8310, symSize: 0x0 }
   - { offset: 0x247E52, size: 0x8, addend: 0x0, symName: '+[SDImageLoadersManager sharedManager].cold.1', symObjAddr: 0x8F0, symBinAddr: 0x1C29FC, symSize: 0x14 }
   - { offset: 0x247E6E, size: 0x8, addend: 0x0, symName: '+[SDImageLoadersManager sharedManager].cold.1', symObjAddr: 0x8F0, symBinAddr: 0x1C29FC, symSize: 0x14 }
   - { offset: 0x247E80, size: 0x8, addend: 0x0, symName: '___38+[SDImageLoadersManager sharedManager]_block_invoke', symObjAddr: 0x50, symBinAddr: 0x1A1C54, symSize: 0x38 }
@@ -7302,8 +7302,8 @@ relocations:
   - { offset: 0x24B3D4, size: 0x8, addend: 0x0, symName: _SDWebImageDownloadStopNotification, symObjAddr: 0x3700, symBinAddr: 0x3020C0, symSize: 0x0 }
   - { offset: 0x24B3EA, size: 0x8, addend: 0x0, symName: _SDWebImageDownloadFinishNotification, symObjAddr: 0x3708, symBinAddr: 0x3020C8, symSize: 0x0 }
   - { offset: 0x24B3F4, size: 0x8, addend: 0x0, symName: '+[SDWebImageDownloader sharedDownloader]', symObjAddr: 0x180, symBinAddr: 0x1A51FC, symSize: 0x94 }
-  - { offset: 0x24B41E, size: 0x8, addend: 0x0, symName: _sharedDownloader.once, symObjAddr: 0x167F0, symBinAddr: 0x3B8318, symSize: 0x0 }
-  - { offset: 0x24B434, size: 0x8, addend: 0x0, symName: _sharedDownloader.instance, symObjAddr: 0x167F8, symBinAddr: 0x3B8320, symSize: 0x0 }
+  - { offset: 0x24B41E, size: 0x8, addend: 0x0, symName: _sharedDownloader.once, symObjAddr: 0x167E8, symBinAddr: 0x3B8318, symSize: 0x0 }
+  - { offset: 0x24B434, size: 0x8, addend: 0x0, symName: _sharedDownloader.instance, symObjAddr: 0x167F0, symBinAddr: 0x3B8320, symSize: 0x0 }
   - { offset: 0x24B4C6, size: 0x8, addend: 0x0, symName: _SDWebImageDownloaderContext, symObjAddr: 0x4918, symBinAddr: 0x3344F8, symSize: 0x0 }
   - { offset: 0x24B9D2, size: 0x8, addend: 0x0, symName: '+[SDWebImageDownloader initialize]', symObjAddr: 0x0, symBinAddr: 0x1A507C, symSize: 0x180 }
   - { offset: 0x24BAE9, size: 0x8, addend: 0x0, symName: '___40+[SDWebImageDownloader sharedDownloader]_block_invoke', symObjAddr: 0x214, symBinAddr: 0x1A5290, symSize: 0x34 }
@@ -8026,9 +8026,9 @@ relocations:
   - { offset: 0x2651B8, size: 0x8, addend: 0x0, symName: '-[SDImageCachesManagerOperation isFinished]', symObjAddr: 0x378, symBinAddr: 0x1C03D8, symSize: 0x14 }
   - { offset: 0x2651EF, size: 0x8, addend: 0x0, symName: '-[SDImageCachesManagerOperation isCancelled]', symObjAddr: 0x38C, symBinAddr: 0x1C03EC, symSize: 0x14 }
   - { offset: 0x2652A4, size: 0x8, addend: 0x0, symName: '+[SDImageFramePool providerFramePoolMap]', symObjAddr: 0x0, symBinAddr: 0x1C0400, symSize: 0x50 }
-  - { offset: 0x2652CE, size: 0x8, addend: 0x0, symName: _providerFramePoolMap.providerFramePoolMap, symObjAddr: 0x7208, symBinAddr: 0x3B83A0, symSize: 0x0 }
-  - { offset: 0x2652E4, size: 0x8, addend: 0x0, symName: _providerFramePoolMap.onceToken, symObjAddr: 0x7210, symBinAddr: 0x3B83A8, symSize: 0x0 }
-  - { offset: 0x265337, size: 0x8, addend: 0x0, symName: __providerFramePoolMapLock, symObjAddr: 0x7218, symBinAddr: 0x3B83B0, symSize: 0x0 }
+  - { offset: 0x2652CE, size: 0x8, addend: 0x0, symName: _providerFramePoolMap.providerFramePoolMap, symObjAddr: 0x7200, symBinAddr: 0x3B83A0, symSize: 0x0 }
+  - { offset: 0x2652E4, size: 0x8, addend: 0x0, symName: _providerFramePoolMap.onceToken, symObjAddr: 0x7208, symBinAddr: 0x3B83A8, symSize: 0x0 }
+  - { offset: 0x265337, size: 0x8, addend: 0x0, symName: __providerFramePoolMapLock, symObjAddr: 0x7210, symBinAddr: 0x3B83B0, symSize: 0x0 }
   - { offset: 0x2654A2, size: 0x8, addend: 0x0, symName: '+[SDImageFramePool providerFramePoolMap].cold.1', symObjAddr: 0xB9C, symBinAddr: 0x1C2CEC, symSize: 0x14 }
   - { offset: 0x2654BE, size: 0x8, addend: 0x0, symName: '+[SDImageFramePool providerFramePoolMap].cold.1', symObjAddr: 0xB9C, symBinAddr: 0x1C2CEC, symSize: 0x14 }
   - { offset: 0x2654D0, size: 0x8, addend: 0x0, symName: '___40+[SDImageFramePool providerFramePoolMap]_block_invoke', symObjAddr: 0x50, symBinAddr: 0x1C0450, symSize: 0x48 }
