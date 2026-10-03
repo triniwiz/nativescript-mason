@@ -3002,7 +3002,7 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
     }
   }
   
-  public init?(rawValue: Int32) {
+  public init?(rawValue: Int8) {
     switch(rawValue){
     case 0:
       self = .Text
@@ -3049,7 +3049,7 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
     }
   }
   
-  public var rawValue: Int32 {
+  public var rawValue: Int8 {
     switch(self){case .Text:
       0
     case .Button:

@@ -128,6 +128,15 @@ See **Testing** below. `cargo test -p mason-core --all-targets` is green (65
 binaries) — the old note here about `wpt_css_align_batch1.rs` not compiling and
 `display_contents_text_only_smoke` failing is stale, both were fixed.
 
+Android: `./gradlew :masonkit:testReleaseUnitTest` runs the JVM tests (they need
+`unitTests.returnDefaultValues`, since `Background.kt` builds a `Paint` at class
+load). Anything that loads `libmasonnative` or uses framework text classes lives in
+`androidTest` and runs on a device or emulator via
+`./gradlew :masonkit:connectedReleaseAndroidTest`. Node-only trees have no views,
+so tests that read child layouts link nodes to the root's flat tree themselves
+(see `linkLayout` in `LayoutTests.kt`). iOS: `xcodebuild test -scheme Mason` in
+`src-native/mason-ios/Mason`.
+
 ---
 
 ## Architecture Invariants
@@ -196,6 +205,78 @@ When a view has a non-identity transform: position via `view.bounds` (size only)
 **Clipping views** (`masksToBounds == true`, overflow hidden/scroll/clip) keep the superview-hosted path so the shadow can escape the clip. That path retains the reconcile sweep (`reconcileShadowLayers`), per-frame reposition from `applyToView`, and disabled implicit animation (`action(forKey:)` → `NSNull()`).
 
 `MasonShadowLayer.draw` clips out the view interior and only paints outside. The inner-clip and caster paths must be in exact agreement — an inflation gap (even 1px) opens a corner wedge where the opaque caster fill leaks through.
+
+### 10. Typed style setters must `prepareMut()` before writing
+
+Unstyled nodes share one copy-on-write style buffer. A Kotlin or Swift setter that
+writes `values` without `prepareMut()` writes into every node sharing it (one
+text view's font became every text view's font). NativeScript never hit this
+because `style.ts` copies first; the native typed APIs (`Style.kt`,
+`MasonStyle.swift`) must do the same.
+
+### 11. Android: `Node.appendChild` flags the root's compute cache
+
+`Element.computeAndLayout` returns the cached layout tree while the root's
+`computeCacheDirty` is clear. Appending under a non-root node (Scroll content)
+must also flag the root, or the new subtree is never laid out and stays 0x0.
+
+### 12. Android: `applyLayoutFlat` never skips a child with a pending request
+
+The unchanged-frame skip also checks `isLayoutRequested`; skipping a child that
+asked for layout leaves its request (and its children) stuck.
+
+### 13. Android: `invalidateLayout` requests layout directly
+
+When attached and not mid-compute or mid-layout it calls `requestLayout()` so the
+current traversal computes; the posted compute is only for the other cases.
+Posting first cost a frame on every mutation.
+
+### 14. Android pixel snapping
+
+Box edges round to the nearest device pixel, as taffy and browsers do, so siblings
+share edges. Text views still snap outward (floor the near edge, ceil the far one),
+since a view narrower than its measured width re-wraps the last word.
+
+### 15. Float and scroll-container hints come from `mark_dirty`
+
+`collect_floats` and `fix_scroll_container_sizes` only run when the tree's sticky
+`has_floats` / `has_scroll_containers` hint is set. Buffer writes reach Rust via
+`mark_dirty`, not `with_style_mut`, so `mark_dirty` refreshes both hints.
+
+### 16. iOS node ownership
+
+The Rust `AppleNode` points at its Swift `MasonNode` without retaining it (it is
+cleared in `deinit`); a text node's container is weak. Either one strong turns
+every node into a leak. `NSCMason.shared.debugStats()` reports live nodes and
+style buffers for checking.
+
+### 17. The shipped `.swiftinterface` must compile
+
+NativeScript reads Mason through the ObjC runtime, but Swift apps import the
+textual interface. Overloads Swift accepts in-module can be invalid there (an enum
+with an `Int8` raw type and an `Int32` `rawValue` overload broke every Swift
+consumer). Build a Swift app against the release xcframework when changing public
+Swift API.
+
+---
+
+## Benchmarking
+
+Performance numbers come from the `xplat-benchmarks` repo, which runs the same
+scenarios on NativeScript core, NativeScript + Mason and Mason used directly from
+Swift/Kotlin. Its README covers how to build and run each app. Two things matter
+when measuring Mason changes:
+
+- Compare A/B builds interleaved across rounds and take the median of per-round
+  medians; one stalled round can otherwise move a result.
+- On the Android emulator, compile apps ahead of time after every install
+  (`adb shell cmd package compile -m speed -f <pkg>`); a fresh install runs
+  interpreted and is several times slower.
+
+Where the time goes (iOS, styled-cards M, NativeScript + Mason): NativeScript
+core's CSS apply ~31%, its native replay through masonkit setters ~27%, UIKit
+`addSubview` ~14%. Mason driven directly from Swift mounts the same scene about
+2.6x faster, so the NativeScript layer is the remaining gap.
 
 ---
 
@@ -329,8 +410,11 @@ Buffer units, which is where this gets confusing:
 
 | Field | Buffer holds | So a dip input is |
 |---|---|---|
-| geometry (width, padding, inset, gap, border width, letter-spacing, line-height) | device px | multiplied by the screen scale |
-| `FONT_SIZE` | dip | stored as-is (the natives apply the density) |
+| geometry (width, padding, inset, gap, border width) | device px | multiplied by the screen scale |
+| `FONT_SIZE`, `LETTER_SPACING`, absolute `LINE_HEIGHT` (TYPE 1) | dip | stored as-is (iOS reads points, Android's spans apply the density) |
+
+A unitless `line-height` (TYPE 0) is a multiplier of the font size. Native callers of
+the typed APIs follow the same rule: `setLineHeight(20, false)` means 20 dip/pt.
 
 The getters return CSS px in both cases, so `style.width` round-trips.
 
@@ -399,9 +483,9 @@ dropping something shows up as a new line — no fixture per property, no device
 
 ```
 commitState(StateKeys.X)
-  → microtask syncStyle
-  → mason_syncStyle(low, high)   // 64-bit dirty flags, passed as decimal STRINGS
-  → Element.syncStyle(String,String)  // Android parses them
+  → microtask flushStyleSyncs
+  → syncStyleParts(lowLow, lowHigh, highLow, highHigh)   // 128-bit dirty mask as four int32 words
+      Android: Element.syncStyleParts   iOS: mason_syncStyleParts
   → Style.setStateFromHalves
   → updateNativeStyle
   → updateTextStyle
@@ -637,29 +721,17 @@ text node the ground truth never had. Getting this wrong took the suite from
 381/416 to **48/416** — a whitespace text node inside a flex container squeezes
 every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
-### Current on-device state (Android emulator, density 3)
+### Current state
 
-**381 / 416.** Of the 35 failures, **32 are the Ahem text fixtures** — the ones
-that were skipped outright before. They now render text, but their metrics do not
-yet match the browser: bundling the font and making `font-family` settable was
-necessary but is not sufficient, and matching Ahem's exact 1em advances through
-the native text engine is the remaining work.
+**415 / 416 on both iOS (simulator) and Android (emulator).** The one failure,
+`grid_relayout_vertical_text`, needs `writing-mode`, which is not implemented.
 
-The other three:
-
-- `absolute_layout_align_items_and_justify_content_center_and_bottom_position` —
-  measures 0x0, the known cold-start race (already recorded as harness-only).
-- `flex_grow_less_than_factor_one` and
-  `width_smaller_then_content_with_flex_grow_small_size` — deterministic, and
-  **not** caused by the `px` work: an on-device dump shows the style buffer holds
-  the right values (`flexBasis {px, 40}`, `flexGrow 0.2`, root `width 500`), and
-  `crates/mason-core/tests/flex_grow_sum_below_one.rs` proves the engine computes
-  132/92/184 from exactly those inputs. Restoring the old `px`->`dip` rewrite does
-  not fix them either. So the gap is between the style buffer and what the engine
-  actually receives on Android - i.e. the sync path for `FLEX_BASIS`, which none
-  of this work touched. Most likely pre-existing; not confirmed against a clean
-  baseline (reverting the plugin TS against the current harness crashes on
-  launch, so that comparison could not be run).
+`FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
+all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0
+until its first layout pass, and on a slow device the old "stable for 3 polls"
+rule recorded unlaid fixtures as 0x0 failures (this was the old "cold-start race",
+and it produced runs of 100+ false failures on a loaded emulator). An all-zero
+fixture settles after ~2 s stable; the poll cap is ~10 s and the watchdog 15 s.
 
 ## Backdrop Filter
 

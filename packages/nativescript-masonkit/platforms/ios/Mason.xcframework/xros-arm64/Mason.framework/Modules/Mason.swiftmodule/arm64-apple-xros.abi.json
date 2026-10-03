@@ -83409,77 +83409,6 @@
               },
               {
                 "kind": "TypeNominal",
-                "name": "Int32",
-                "printedName": "Swift.Int32",
-                "usr": "s:s5Int32V"
-              }
-            ],
-            "declKind": "Constructor",
-            "usr": "s:5Mason0A9InputTypeO8rawValueACSgs5Int32V_tcfc",
-            "mangledName": "$s5Mason0A9InputTypeO8rawValueACSgs5Int32V_tcfc",
-            "moduleName": "Mason",
-            "declAttributes": ["AccessControl"],
-            "init_kind": "Designated"
-          },
-          {
-            "kind": "Var",
-            "name": "rawValue",
-            "printedName": "rawValue",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Int32",
-                "printedName": "Swift.Int32",
-                "usr": "s:s5Int32V"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "s:5Mason0A9InputTypeO8rawValues5Int32Vvp",
-            "mangledName": "$s5Mason0A9InputTypeO8rawValues5Int32Vvp",
-            "moduleName": "Mason",
-            "declAttributes": ["AccessControl"],
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Int32",
-                    "printedName": "Swift.Int32",
-                    "usr": "s:s5Int32V"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "s:5Mason0A9InputTypeO8rawValues5Int32Vvg",
-                "mangledName": "$s5Mason0A9InputTypeO8rawValues5Int32Vvg",
-                "moduleName": "Mason",
-                "accessorKind": "get"
-              }
-            ]
-          },
-          {
-            "kind": "Constructor",
-            "name": "init",
-            "printedName": "init(rawValue:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Optional",
-                "printedName": "Mason.MasonInputType?",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "MasonInputType",
-                    "printedName": "Mason.MasonInputType",
-                    "usr": "c:@M@Mason@E@MasonInputType"
-                  }
-                ],
-                "usr": "s:Sq"
-              },
-              {
-                "kind": "TypeNominal",
                 "name": "Int8",
                 "printedName": "Swift.Int8",
                 "usr": "s:s4Int8V"
@@ -83489,7 +83418,7 @@
             "usr": "s:5Mason0A9InputTypeO8rawValueACSgs4Int8V_tcfc",
             "mangledName": "$s5Mason0A9InputTypeO8rawValueACSgs4Int8V_tcfc",
             "moduleName": "Mason",
-            "implicit": true,
+            "declAttributes": ["AccessControl"],
             "init_kind": "Designated"
           },
           {
@@ -83508,7 +83437,7 @@
             "usr": "s:5Mason0A9InputTypeO8rawValues4Int8Vvp",
             "mangledName": "$s5Mason0A9InputTypeO8rawValues4Int8Vvp",
             "moduleName": "Mason",
-            "implicit": true,
+            "declAttributes": ["AccessControl"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -83526,7 +83455,6 @@
                 "usr": "s:5Mason0A9InputTypeO8rawValues4Int8Vvg",
                 "mangledName": "$s5Mason0A9InputTypeO8rawValues4Int8Vvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "get"
               }
             ]
@@ -103281,161 +103209,161 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58151,
+      "offset": 58149,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58825,
+      "offset": 58823,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58839,
+      "offset": 58837,
       "length": 4,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58851,
+      "offset": 58849,
       "length": 6,
       "value": "3"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58865,
+      "offset": 58863,
       "length": 6,
       "value": "4"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 58879,
+      "offset": 58877,
       "length": 7,
       "value": "5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60107,
+      "offset": 60105,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60112,
+      "offset": 60110,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60184,
+      "offset": 60182,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60189,
+      "offset": 60187,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60261,
+      "offset": 60259,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60266,
+      "offset": 60264,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60338,
+      "offset": 60336,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60343,
+      "offset": 60341,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60415,
+      "offset": 60413,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60420,
+      "offset": 60418,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60492,
+      "offset": 60490,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60497,
+      "offset": 60495,
       "length": 1,
       "value": "5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60569,
+      "offset": 60567,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60574,
+      "offset": 60572,
       "length": 1,
       "value": "6"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60646,
+      "offset": 60644,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 60651,
+      "offset": 60649,
       "length": 1,
       "value": "7"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/Enums.swift",
       "kind": "Array",
-      "offset": 60703,
+      "offset": 60701,
       "length": 2,
       "value": "[]"
     },
