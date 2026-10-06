@@ -97,7 +97,7 @@ export class TextArea extends TextAreaBase {
           // @ts-ignore
           this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
           // @ts-ignore
-          const layout = this.ios.mason_layout();
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

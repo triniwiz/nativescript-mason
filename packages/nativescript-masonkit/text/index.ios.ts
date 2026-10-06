@@ -181,7 +181,7 @@ export class Text extends TextBase {
 
           // todo
           // @ts-ignore
-          var layout = this.ios.mason_layout();
+          var layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

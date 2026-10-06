@@ -485,6 +485,14 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     element.syncStyle(low, high)
   }
 
+  /// The node's own style buffer (copied off the shared default if needed), in one call.
+  @objc public func mason_writableStyleValues() -> NSMutableData? {
+    let style = (self as? MasonElement)?.style ?? NSCMason.shared.styleForViewOrNode(self)
+    guard let style else { return nil }
+    style.prepareMut()
+    return style.values
+  }
+
   @objc public func mason_syncStyleParts(_ lowLow: Int32, _ lowHigh: Int32, _ highLow: Int32, _ highHigh: Int32){
     guard let element = self as? MasonElement else { return }
     element.syncStyleParts(lowLow, lowHigh, highLow, highHigh)
