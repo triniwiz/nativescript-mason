@@ -1834,6 +1834,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
+/// The node’s own style buffer (copied off the shared default if needed), in one call.
+- (NSMutableData * _Nullable)mason_writableStyleValues SWIFT_WARN_UNUSED_RESULT;
 - (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
@@ -3907,6 +3909,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
+/// The node’s own style buffer (copied off the shared default if needed), in one call.
+- (NSMutableData * _Nullable)mason_writableStyleValues SWIFT_WARN_UNUSED_RESULT;
 - (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;

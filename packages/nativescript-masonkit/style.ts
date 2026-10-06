@@ -540,14 +540,31 @@ const enum DisplayMode {
   Box = 2,
 }
 
+// The 128-bit dirty mask as four signed 32-bit words, low to high (the
+// syncStyleParts argument order). Plain numbers: BigInt ops allocate.
 class StateKeys {
-  private constructor(public readonly bits: bigint) {}
+  private constructor(
+    public readonly w0: number,
+    public readonly w1: number,
+    public readonly w2: number,
+    public readonly w3: number,
+  ) {}
 
   private static flag(n: number): StateKeys {
-    return new StateKeys(1n << BigInt(n));
+    const bit = (1 << (n & 31)) | 0;
+    switch (n >> 5) {
+      case 0:
+        return new StateKeys(bit, 0, 0, 0);
+      case 1:
+        return new StateKeys(0, bit, 0, 0);
+      case 2:
+        return new StateKeys(0, 0, bit, 0);
+      default:
+        return new StateKeys(0, 0, 0, bit);
+    }
   }
 
-  static readonly NONE = new StateKeys(0n);
+  static readonly NONE = new StateKeys(0, 0, 0, 0);
   static readonly DISPLAY = StateKeys.flag(0);
   static readonly POSITION = StateKeys.flag(1);
   static readonly DIRECTION = StateKeys.flag(2);
@@ -628,22 +645,28 @@ class StateKeys {
   static readonly WORD_SPACING = StateKeys.flag(77);
   static readonly FONT_STRETCH = StateKeys.flag(78);
 
-  // compatibility: return low bits when code expects single 64-bit value
-  get bitsLow(): bigint {
-    return this.bits;
+  static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
+
+  /** The mask as one unsigned 128-bit value (tests and diagnostics). */
+  get bits(): bigint {
+    return wordsToBigInt(this.w0, this.w1, this.w2, this.w3);
   }
 
   or(other: StateKeys): StateKeys {
-    return new StateKeys(this.bits | other.bits);
+    return new StateKeys(this.w0 | other.w0, this.w1 | other.w1, this.w2 | other.w2, this.w3 | other.w3);
   }
 
   and(other: StateKeys): StateKeys {
-    return new StateKeys(this.bits & other.bits);
+    return new StateKeys(this.w0 & other.w0, this.w1 & other.w1, this.w2 & other.w2, this.w3 & other.w3);
   }
 
   hasFlag(flag: StateKeys): boolean {
-    return (this.bits & flag.bits) !== 0n;
+    return (this.w0 & flag.w0) !== 0 || (this.w1 & flag.w1) !== 0 || (this.w2 & flag.w2) !== 0 || (this.w3 & flag.w3) !== 0;
   }
+}
+
+function wordsToBigInt(w0: number, w1: number, w2: number, w3: number): bigint {
+  return BigInt(w0 >>> 0) | (BigInt(w1 >>> 0) << 32n) | (BigInt(w2 >>> 0) << 64n) | (BigInt(w3 >>> 0) << 96n);
 }
 
 const getInt8 = (view: DataView, offset: number) => {
@@ -660,22 +683,6 @@ const getUint8 = (view: DataView, offset: number) => {
 
 const setUint8 = (view: DataView, offset: number, value: number) => {
   view.setUint8(offset, value);
-};
-
-// Splits the 128-bit dirty mask into four signed 32-bit words (plain {N} int
-// marshalling) for Element.syncStyleParts on Android and mason_syncStyleParts on iOS.
-const splitBigIntToInt32Parts = (value: bigint): [number, number, number, number] => {
-  const MASK64 = (1n << 64n) - 1n;
-  const MASK32 = 0xffffffffn;
-  const LOW = value & MASK64;
-  const HIGH = (value >> 64n) & MASK64;
-
-  const lowLow32 = Number(BigInt.asIntN(32, LOW & MASK32));
-  const lowHigh32 = Number(BigInt.asIntN(32, (LOW >> 32n) & MASK32));
-  const highLow32 = Number(BigInt.asIntN(32, HIGH & MASK32));
-  const highHigh32 = Number(BigInt.asIntN(32, (HIGH >> 32n) & MASK32));
-
-  return [lowLow32, lowHigh32, highLow32, highHigh32];
 };
 
 const getInt16 = (view: DataView, offset: number) => {
@@ -1215,6 +1222,15 @@ function androidWritableStyleBuffer(nativeView: any): java.nio.ByteBuffer {
   return typeof style.getWritableValue === 'function' ? style.getWritableValue() : style.getValues();
 }
 
+let appleWritableStyleValues: boolean | undefined;
+// Newer frameworks return the node's own (copied-on-write) buffer in one call.
+function appleHasWritableStyleValues(nativeView: any): boolean {
+  if (appleWritableStyleValues === undefined && nativeView) {
+    appleWritableStyleValues = typeof nativeView.mason_writableStyleValues === 'function';
+  }
+  return !!appleWritableStyleValues;
+}
+
 function windowsStyleValues(nativeView: any) {
   if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
   return NativeScript.Mason.Mason.Instance().CreateNode(false).Style.Values;
@@ -1236,10 +1252,17 @@ function cssInitialIfReset(value: string, initial: string): string {
 
 export class Style {
   private view_: View;
-  private style_view: DataView;
-  private i8View: Int8Array;
-  private u8View: Uint8Array;
-  private isDirty = -1n;
+  // Fetched on first use; see loadBuffer.
+  private _sv: DataView | undefined;
+  private _i8: Int8Array | undefined;
+  private _u8: Uint8Array | undefined;
+  private _bufferRequested = false;
+  // Dirty mask words (StateKeys layout); `_hasDirty` false means clean.
+  private _d0 = 0;
+  private _d1 = 0;
+  private _d2 = 0;
+  private _d3 = 0;
+  private _hasDirty = false;
   private inBatch = false;
   private _syncScheduled = false;
   // Buffer bytes before this turn's first write. Frameworks often undo and
@@ -1252,40 +1275,91 @@ export class Style {
   private nativeNode: any;
   private _pseudo: number;
   private _borderRadiusCss: string | undefined;
+  private _appleStyle: MasonStyle | undefined;
+
   static fromView(view: View, nativeView): Style {
-    //console.time('fromView');
     const ret = new Style();
     ret.view_ = view;
     ret.nativeView = nativeView;
-    if (__ANDROID__) {
-      const buffer = (<any>ArrayBuffer).from(androidWritableStyleBuffer(nativeView));
-      ret.style_view = new DataView(buffer);
-      ret.i8View = new Int8Array(buffer);
-      ret.u8View = new Uint8Array(buffer);
-    } else if (__APPLE__) {
-      let style: MasonStyle = nativeView?.style as never;
-      if (!style) {
-        style = NSCMason.shared.styleForViewOrNode(nativeView) as never;
-      }
-      const styleBuffer = style.values;
+    return ret;
+  }
 
-      const buffer = interop.bufferFromData(styleBuffer);
-      ret.style_view = new DataView(buffer);
-      ret.i8View = new Int8Array(buffer);
-      ret.u8View = new Uint8Array(buffer);
+  private get style_view(): DataView {
+    if (!this._bufferRequested) this.loadBuffer(false);
+    return this._sv;
+  }
+
+  private set style_view(value: DataView) {
+    this._bufferRequested = true;
+    this._sv = value;
+  }
+
+  private get i8View(): Int8Array {
+    if (!this._bufferRequested) this.loadBuffer(false);
+    if (this._i8 === undefined && this._sv) this._i8 = new Int8Array(this._sv.buffer, this._sv.byteOffset, this._sv.byteLength);
+    return this._i8;
+  }
+
+  private set i8View(value: Int8Array) {
+    this._i8 = value;
+  }
+
+  private get u8View(): Uint8Array {
+    if (!this._bufferRequested) this.loadBuffer(false);
+    if (this._u8 === undefined && this._sv) this._u8 = new Uint8Array(this._sv.buffer, this._sv.byteOffset, this._sv.byteLength);
+    return this._u8;
+  }
+
+  private set u8View(value: Uint8Array) {
+    this._u8 = value;
+  }
+
+  /** The native MasonStyle, fetched once (each `nativeView.style` read is a bridge call). */
+  private get appleStyle(): MasonStyle {
+    if (this._appleStyle === undefined) {
+      this._appleStyle = ((this.nativeView as MasonElementObjc)?.style ?? NSCMason.shared.styleForViewOrNode(this.nativeView)) as never;
+    }
+    return this._appleStyle;
+  }
+
+  // The byte views are rarely read, so they are made on demand.
+  private setBuffer(buffer: ArrayBuffer) {
+    this._bufferRequested = true;
+    this._sv = new DataView(buffer);
+    this._i8 = undefined;
+    this._u8 = undefined;
+  }
+
+  // A new node shares the arena's default buffer, so a style whose first use
+  // is a write asks for its own copy up front instead of fetching twice.
+  private loadBuffer(writable: boolean) {
+    this._bufferRequested = true;
+    if (__ANDROID__) {
+      this.setBuffer((<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView)));
+    } else if (__APPLE__) {
+      const nativeView = this.nativeView;
+      let data: NSMutableData | null = null;
+      if (writable && appleHasWritableStyleValues(nativeView)) {
+        data = nativeView.mason_writableStyleValues();
+      }
+      if (!data) {
+        const style = this.appleStyle;
+        if (writable) style.prepareMut();
+        data = style.values;
+      }
+      this.setBuffer(interop.bufferFromData(data));
     } else if (__WINDOWS__) {
       // Live IBuffer over the engine's arena style memory; the @nativescript/windows runtime
       // projects it as a writable ArrayBuffer, so the same StyleKeys-offset writes used on
       // iOS/Android land straight in the node's style.
       //@ts-ignore
-      const buffer = NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(nativeView)) as ArrayBuffer;
-      ret.style_view = new DataView(buffer);
-      ret.i8View = new Int8Array(buffer);
-      ret.u8View = new Uint8Array(buffer);
+      this.setBuffer(NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(this.nativeView)) as ArrayBuffer);
     }
-    //console.timeEnd('fromView');
+  }
 
-    return ret;
+  /** The dirty mask as one value, `-1n` when clean (tests and diagnostics). */
+  private get isDirty(): bigint {
+    return this._hasDirty ? wordsToBigInt(this._d0, this._d1, this._d2, this._d3) : -1n;
   }
   static fromPseudo(pseudo: string, view: View, nativeView) {
     var mask = -1;
@@ -1370,15 +1444,11 @@ export class Style {
 
     if (this.style_view.byteLength < HIGH_OFFSET + 8) return;
 
-    const low = this.style_view.getBigUint64(LOW_OFFSET, true);
-    const high = this.style_view.getBigUint64(HIGH_OFFSET, true);
-
-    const MASK64 = (1n << 64n) - 1n;
-    const keyLow = key.bits & MASK64;
-    const keyHigh = (key.bits >> 64n) & MASK64;
-
-    this.style_view.setBigUint64(LOW_OFFSET, low | keyLow, true);
-    this.style_view.setBigUint64(HIGH_OFFSET, high | keyHigh, true);
+    const v = this.style_view;
+    setInt32(v, LOW_OFFSET, getInt32(v, LOW_OFFSET) | key.w0);
+    setInt32(v, LOW_OFFSET + 4, getInt32(v, LOW_OFFSET + 4) | key.w1);
+    setInt32(v, HIGH_OFFSET, getInt32(v, HIGH_OFFSET) | key.w2);
+    setInt32(v, HIGH_OFFSET + 4, getInt32(v, HIGH_OFFSET + 4) | key.w3);
   }
 
   private commitState(value: StateKeys) {
@@ -1585,14 +1655,15 @@ export class Style {
   }
 
   resetState() {
-    this.isDirty = -1n;
+    this._hasDirty = false;
+    this._d0 = this._d1 = this._d2 = this._d3 = 0;
   }
 
   private syncStyle() {
     this._synced = true;
     const snapshot = this._turnSnapshot;
     this._turnSnapshot = undefined;
-    if (snapshot && this.isDirty !== -1n && bytesEqual(snapshot, this.u8View)) {
+    if (snapshot && this._hasDirty && bytesEqual(snapshot, this.u8View)) {
       this.resetState();
       return;
     }
@@ -1602,17 +1673,15 @@ export class Style {
 
   private _sendSync() {
     if (__ANDROID__) {
-      const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
       const view = this.view?.android ?? (this.view._view as never as org.nativescript.mason.masonkit.Element);
       // @ts-ignore - syncStyleParts is a newer native method; typings regenerate from the AAR separately.
-      view.syncStyleParts(lowLow, lowHigh, highLow, highHigh);
+      view.syncStyleParts(this._d0, this._d1, this._d2, this._d3);
     } else if (__APPLE__) {
-      const [lowLow, lowHigh, highLow, highHigh] = splitBigIntToInt32Parts(this.isDirty);
       //@ts-ignore
       const view = this.view?.ios ?? (this.view._view as never as MasonText);
       // @ts-ignore
-      view.mason_syncStyleParts(lowLow, lowHigh, highLow, highHigh);
+      view.mason_syncStyleParts(this._d0, this._d1, this._d2, this._d3);
     } else if (__WINDOWS__) {
       // The Windows elements re-read the whole buffer, so the dirty bits aren't passed.
       // @ts-ignore
@@ -1636,11 +1705,11 @@ export class Style {
     if (this._turnSnapshot === undefined) {
       this._turnSnapshot = false;
     }
-    if (this.isDirty == -1n) {
-      this.isDirty = value.bits;
-    } else {
-      this.isDirty = this.isDirty | value.bits;
-    }
+    this._d0 |= value.w0;
+    this._d1 |= value.w1;
+    this._d2 |= value.w2;
+    this._d3 |= value.w3;
+    this._hasDirty = true;
     if (!this.inBatch) {
       // Coalesce rapid-fire property changes (e.g. CSS batch apply) into a
       // single syncStyle() call on the next microtask. This avoids N
@@ -1655,7 +1724,7 @@ export class Style {
 
   _flushScheduledSync() {
     this._syncScheduled = false;
-    if (this.isDirty !== -1n) {
+    if (this._hasDirty) {
       this.syncStyle();
     }
   }
@@ -1688,45 +1757,18 @@ export class Style {
   }
 
   private prepareMut() {
-    // always mut
     if (this._pseudo) {
       return;
     }
-    if (this._turnSnapshot === undefined && this.isDirty === -1n && this.u8View) {
+    if (!this._bufferRequested) {
+      this.loadBuffer(true);
+    }
+    if (this._turnSnapshot === undefined && !this._hasDirty && this._sv) {
       this._turnSnapshot = this._synced ? this.u8View.slice() : false;
     }
-    const ref = getUint32(this.style_view, StyleKeys.REF_COUNT);
-    if (ref !== 1) {
-      if (__APPLE__) {
-        let style: MasonStyle = this.nativeView?.style as never;
-        if (!style) {
-          style = NSCMason.shared.styleForViewOrNode(this.nativeView) as never;
-        }
-
-        style.prepareMut();
-
-        const styleBuffer = style.values;
-
-        const buffer = interop.bufferFromData(styleBuffer);
-        this.style_view = new DataView(buffer);
-        this.i8View = new Int8Array(buffer);
-        this.u8View = new Uint8Array(buffer);
-      }
-
-      if (__ANDROID__) {
-        const buffer = (<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView));
-        this.style_view = new DataView(buffer);
-        this.i8View = new Int8Array(buffer);
-        this.u8View = new Uint8Array(buffer);
-      }
-
-      if (__WINDOWS__) {
-        //@ts-ignore
-        const buffer = NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(this.nativeView)) as ArrayBuffer;
-        this.style_view = new DataView(buffer);
-        this.i8View = new Int8Array(buffer);
-        this.u8View = new Uint8Array(buffer);
-      }
+    if (getUint32(this._sv, StyleKeys.REF_COUNT) !== 1) {
+      // Still the shared buffer (read before the first write): take a copy.
+      this.loadBuffer(true);
     }
   }
 
@@ -2144,13 +2186,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.DISPLAY, display);
       setInt8(this.style_view, StyleKeys.DISPLAY_MODE, displayMode);
-      if (this.isDirty == -1n) {
-        this.isDirty = StateKeys.DISPLAY_MODE.bits;
-      } else {
-        this.isDirty = this.isDirty | StateKeys.DISPLAY_MODE.bits;
-      }
-      // DISPLAY/DISPLAY_MODE are disjoint bits; use .or(), not .and()
-      this.commitState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE));
+      this.commitState(StateKeys.DISPLAY_AND_MODE);
     }
   }
 
@@ -2312,8 +2348,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
 
     this.commitState(StateKeys.MIN_SIZE);
@@ -2356,8 +2396,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
     this.commitState(StateKeys.MIN_SIZE);
   }
@@ -2398,8 +2442,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
     this.commitState(StateKeys.SIZE);
   }
@@ -2440,8 +2488,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
     this.commitState(StateKeys.SIZE);
   }
@@ -2482,8 +2534,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
     this.commitState(StateKeys.MAX_SIZE);
   }
@@ -2524,8 +2580,12 @@ export class Style {
             setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, value.value);
             break;
+          default:
+            return;
         }
         break;
+      default:
+        return;
     }
     this.commitState(StateKeys.MAX_SIZE);
   }
@@ -3912,7 +3972,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridAutoRows;
+      return this.appleStyle.gridAutoRows;
     }
 
     return '';
@@ -3929,7 +3989,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridAutoRows = value;
+      this.appleStyle.gridAutoRows = value;
     }
 
     if (__WINDOWS__) {
@@ -3946,7 +4006,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridAutoColumns;
+      return this.appleStyle.gridAutoColumns;
     }
 
     return '';
@@ -3963,7 +4023,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridAutoColumns = value;
+      this.appleStyle.gridAutoColumns = value;
     }
 
     if (__WINDOWS__) {
@@ -4020,7 +4080,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridColumn = value;
+      this.appleStyle.gridColumn = value;
     }
 
     if (__WINDOWS__) {
@@ -4037,7 +4097,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridColumn;
+      return this.appleStyle.gridColumn;
     }
 
     return '';
@@ -4052,7 +4112,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridColumnStart;
+      return this.appleStyle.gridColumnStart;
     }
 
     return '';
@@ -4069,7 +4129,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridColumnStart = value;
+      this.appleStyle.gridColumnStart = value;
     }
 
     if (__WINDOWS__) {
@@ -4086,7 +4146,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridColumnEnd;
+      return this.appleStyle.gridColumnEnd;
     }
 
     return '';
@@ -4103,7 +4163,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridColumnEnd = value;
+      this.appleStyle.gridColumnEnd = value;
     }
 
     if (__WINDOWS__) {
@@ -4122,7 +4182,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridRow = value;
+      this.appleStyle.gridRow = value;
     }
 
     if (__WINDOWS__) {
@@ -4139,7 +4199,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridRow;
+      return this.appleStyle.gridRow;
     }
 
     return '';
@@ -4154,7 +4214,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridRowStart;
+      return this.appleStyle.gridRowStart;
     }
 
     return '';
@@ -4171,7 +4231,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridRowStart = value;
+      this.appleStyle.gridRowStart = value;
     }
 
     if (__WINDOWS__) {
@@ -4188,7 +4248,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridRowEnd;
+      return this.appleStyle.gridRowEnd;
     }
 
     return '';
@@ -4205,7 +4265,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridRowEnd = value;
+      this.appleStyle.gridRowEnd = value;
     }
 
     if (__WINDOWS__) {
@@ -4224,7 +4284,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridArea = value;
+      this.appleStyle.gridArea = value;
     }
 
     if (__WINDOWS__) {
@@ -4241,7 +4301,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridArea;
+      return this.appleStyle.gridArea;
     }
 
     return '';
@@ -4258,7 +4318,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridTemplateRows = value;
+      this.appleStyle.gridTemplateRows = value;
     }
 
     if (__WINDOWS__) {
@@ -4275,7 +4335,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridTemplateRows;
+      return this.appleStyle.gridTemplateRows;
     }
 
     return '';
@@ -4290,7 +4350,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridTemplateColumns;
+      return this.appleStyle.gridTemplateColumns;
     }
 
     return '';
@@ -4307,7 +4367,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridTemplateColumns = value;
+      this.appleStyle.gridTemplateColumns = value;
     }
 
     if (__WINDOWS__) {
@@ -4324,7 +4384,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.gridTemplateAreas;
+      return this.appleStyle.gridTemplateAreas;
     }
 
     return '';
@@ -4341,7 +4401,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.gridTemplateAreas = value;
+      this.appleStyle.gridTemplateAreas = value;
     }
 
     if (__WINDOWS__) {
@@ -4719,7 +4779,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.background;
+      return this.appleStyle.background;
     }
 
     return '';
@@ -4731,7 +4791,7 @@ export class Style {
       'background',
       value,
       () => nodeHelper().setBackground(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.background = value),
+      () => (this.appleStyle.background = value),
     );
   }
 
@@ -4744,7 +4804,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundImage;
+      return this.appleStyle.backgroundImage;
     }
 
     return '';
@@ -4756,7 +4816,7 @@ export class Style {
       'background-image',
       value,
       () => nodeHelper().setBackgroundImage(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundImage = value),
+      () => (this.appleStyle.backgroundImage = value),
     );
   }
 
@@ -4769,7 +4829,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundRepeat;
+      return this.appleStyle.backgroundRepeat;
     }
 
     return '';
@@ -4781,7 +4841,7 @@ export class Style {
       'background-repeat',
       value,
       () => nodeHelper().setBackgroundRepeat(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundRepeat = value),
+      () => (this.appleStyle.backgroundRepeat = value),
     );
   }
 
@@ -4794,7 +4854,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundPosition;
+      return this.appleStyle.backgroundPosition;
     }
 
     return '';
@@ -4806,7 +4866,7 @@ export class Style {
       'background-position',
       value,
       () => nodeHelper().setBackgroundPosition(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundPosition = value),
+      () => (this.appleStyle.backgroundPosition = value),
     );
   }
 
@@ -4819,7 +4879,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundSize;
+      return this.appleStyle.backgroundSize;
     }
 
     return '';
@@ -4831,7 +4891,7 @@ export class Style {
       'background-size',
       value,
       () => nodeHelper().setBackgroundSize(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundSize = value),
+      () => (this.appleStyle.backgroundSize = value),
     );
   }
 
@@ -4844,7 +4904,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundClip;
+      return this.appleStyle.backgroundClip;
     }
 
     return '';
@@ -4856,7 +4916,7 @@ export class Style {
       'background-clip',
       value,
       () => nodeHelper().setBackgroundClip(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundClip = value),
+      () => (this.appleStyle.backgroundClip = value),
     );
   }
 
@@ -4868,7 +4928,7 @@ export class Style {
       return nodeHelper().getBackgroundPositionX(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundPositionX;
+      return this.appleStyle.backgroundPositionX;
     }
     return '';
   }
@@ -4879,7 +4939,7 @@ export class Style {
       'background-position-x',
       value,
       () => nodeHelper().setBackgroundPositionX(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundPositionX = value),
+      () => (this.appleStyle.backgroundPositionX = value),
     );
   }
 
@@ -4891,7 +4951,7 @@ export class Style {
       return nodeHelper().getBackgroundPositionY(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundPositionY;
+      return this.appleStyle.backgroundPositionY;
     }
     return '';
   }
@@ -4902,7 +4962,7 @@ export class Style {
       'background-position-y',
       value,
       () => nodeHelper().setBackgroundPositionY(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundPositionY = value),
+      () => (this.appleStyle.backgroundPositionY = value),
     );
   }
 
@@ -4914,7 +4974,7 @@ export class Style {
       return nodeHelper().getBackgroundOrigin(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundOrigin;
+      return this.appleStyle.backgroundOrigin;
     }
     return '';
   }
@@ -4925,7 +4985,7 @@ export class Style {
       'background-origin',
       value,
       () => nodeHelper().setBackgroundOrigin(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundOrigin = value),
+      () => (this.appleStyle.backgroundOrigin = value),
     );
   }
 
@@ -4937,7 +4997,7 @@ export class Style {
       return nodeHelper().getBackgroundAttachment(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundAttachment;
+      return this.appleStyle.backgroundAttachment;
     }
     return '';
   }
@@ -4948,7 +5008,7 @@ export class Style {
       'background-attachment',
       value,
       () => nodeHelper().setBackgroundAttachment(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundAttachment = value),
+      () => (this.appleStyle.backgroundAttachment = value),
     );
   }
 
@@ -4960,7 +5020,7 @@ export class Style {
       return nodeHelper().getBackgroundBlendMode(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backgroundBlendMode;
+      return this.appleStyle.backgroundBlendMode;
     }
     return '';
   }
@@ -4971,7 +5031,7 @@ export class Style {
       'background-blend-mode',
       value,
       () => nodeHelper().setBackgroundBlendMode(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backgroundBlendMode = value),
+      () => (this.appleStyle.backgroundBlendMode = value),
     );
   }
 
@@ -4993,7 +5053,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return this._borderRadiusCss ?? (this.nativeView as MasonElementObjc).style.borderRadius;
+      return this._borderRadiusCss ?? this.appleStyle.borderRadius;
     }
 
     if (__WINDOWS__ && this.style_view) {
@@ -5017,7 +5077,7 @@ export class Style {
       'border-radius',
       value,
       () => nodeHelper().setBorderRadius(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderRadius = value),
+      () => (this.appleStyle.borderRadius = value),
     );
   }
 
@@ -5133,7 +5193,7 @@ export class Style {
       return nodeHelper().getFontFamily(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.fontFamily;
+      return this.appleStyle.fontFamily;
     }
     return '';
   }
@@ -5146,7 +5206,7 @@ export class Style {
       'font-family',
       value,
       () => nodeHelper().setFontFamily(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.fontFamily = value),
+      () => (this.appleStyle.fontFamily = value),
     );
   }
 
@@ -5156,7 +5216,7 @@ export class Style {
       'text-decoration',
       value,
       () => nodeHelper().setTextDecoration(this.nativeView, value),
-      () => (this.nativeView as MasonElementObjc).style.setTextDecoration(value),
+      () => this.appleStyle.setTextDecoration(value),
     );
   }
 
@@ -5168,7 +5228,7 @@ export class Style {
       return nodeHelper().getTextDecorationLine(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.textDecorationLine;
+      return this.appleStyle.textDecorationLine;
     }
     if (__WINDOWS__ && this.style_view) {
       return textDecorationLineToCss(getUint8(this.style_view, StyleKeys.DECORATION_LINE));
@@ -5182,7 +5242,7 @@ export class Style {
       'text-decoration-line',
       value,
       () => nodeHelper().setTextDecorationLine(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.textDecorationLine = value),
+      () => (this.appleStyle.textDecorationLine = value),
     );
   }
 
@@ -5194,7 +5254,7 @@ export class Style {
       return nodeHelper().getTextDecorationStyle(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.textDecorationStyle;
+      return this.appleStyle.textDecorationStyle;
     }
     if (__WINDOWS__ && this.style_view) {
       return textDecorationStyleToCss(getUint8(this.style_view, StyleKeys.DECORATION_STYLE));
@@ -5208,7 +5268,7 @@ export class Style {
       'text-decoration-style',
       value,
       () => nodeHelper().setTextDecorationStyle(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.textDecorationStyle = value),
+      () => (this.appleStyle.textDecorationStyle = value),
     );
   }
 
@@ -5220,7 +5280,7 @@ export class Style {
       return nodeHelper().getTextDecorationColor(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.textDecorationColor;
+      return this.appleStyle.textDecorationColor;
     }
     if (__WINDOWS__ && this.style_view) {
       const argb = getUint32(this.style_view, StyleKeys.DECORATION_COLOR);
@@ -5235,7 +5295,7 @@ export class Style {
       'text-decoration-color',
       value,
       () => nodeHelper().setTextDecorationColor(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.textDecorationColor = value),
+      () => (this.appleStyle.textDecorationColor = value),
     );
   }
 
@@ -5248,7 +5308,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.border;
+      return this.appleStyle.border;
     }
     return '';
   }
@@ -5259,7 +5319,7 @@ export class Style {
       'border',
       value,
       () => nodeHelper().setBorder(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.border = value),
+      () => (this.appleStyle.border = value),
     );
   }
 
@@ -5269,7 +5329,7 @@ export class Style {
       return nodeHelper().getPaddingCssValue(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.paddingCss;
+      return this.appleStyle.paddingCss;
     }
     return '';
   }
@@ -5282,7 +5342,7 @@ export class Style {
       'padding',
       strValue,
       () => nodeHelper().setPaddingCss(this.nativeView, strValue),
-      () => ((this.nativeView as MasonElementObjc).style.paddingCss = strValue),
+      () => (this.appleStyle.paddingCss = strValue),
     );
   }
 
@@ -5292,7 +5352,7 @@ export class Style {
       return nodeHelper().getMarginCssValue(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.marginCss;
+      return this.appleStyle.marginCss;
     }
     return '';
   }
@@ -5304,7 +5364,7 @@ export class Style {
       'margin',
       strValue,
       () => nodeHelper().setMarginCss(this.nativeView, strValue),
-      () => ((this.nativeView as MasonElementObjc).style.marginCss = strValue),
+      () => (this.appleStyle.marginCss = strValue),
     );
   }
 
@@ -5314,7 +5374,7 @@ export class Style {
       return nodeHelper().getInsetCssValue(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.insetCss;
+      return this.appleStyle.insetCss;
     }
     return '';
   }
@@ -5326,7 +5386,7 @@ export class Style {
       'inset',
       strValue,
       () => nodeHelper().setInsetCss(this.nativeView, strValue),
-      () => ((this.nativeView as MasonElementObjc).style.insetCss = strValue),
+      () => (this.appleStyle.insetCss = strValue),
     );
   }
 
@@ -5340,7 +5400,7 @@ export class Style {
       'border-left',
       value,
       () => nodeHelper().setBorderLeft(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderLeft = value),
+      () => (this.appleStyle.borderLeft = value),
     );
   }
 
@@ -5354,7 +5414,7 @@ export class Style {
       'border-top',
       value,
       () => nodeHelper().setBorderTop(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderTop = value),
+      () => (this.appleStyle.borderTop = value),
     );
   }
 
@@ -5368,7 +5428,7 @@ export class Style {
       'border-right',
       value,
       () => nodeHelper().setBorderRight(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderRight = value),
+      () => (this.appleStyle.borderRight = value),
     );
   }
 
@@ -5382,7 +5442,7 @@ export class Style {
       'border-bottom',
       value,
       () => nodeHelper().setBorderBottom(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderBottom = value),
+      () => (this.appleStyle.borderBottom = value),
     );
   }
 
@@ -5395,7 +5455,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.filter;
+      return this.appleStyle.filter;
     }
 
     return '';
@@ -5407,7 +5467,7 @@ export class Style {
       'filter',
       value,
       () => nodeHelper().setFilter(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.filter = value),
+      () => (this.appleStyle.filter = value),
     );
   }
 
@@ -5420,7 +5480,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.boxShadow;
+      return this.appleStyle.boxShadow;
     }
 
     return '';
@@ -5440,7 +5500,7 @@ export class Style {
       'box-shadow',
       value,
       () => nodeHelper().setBoxShadow(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.boxShadow = value),
+      () => (this.appleStyle.boxShadow = value),
     );
   }
 
@@ -5453,7 +5513,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.transform;
+      return this.appleStyle.transform;
     }
 
     return '';
@@ -5465,7 +5525,7 @@ export class Style {
       'transform',
       value,
       () => nodeHelper().setTransform(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.transform = value),
+      () => (this.appleStyle.transform = value),
     );
   }
 
@@ -5627,7 +5687,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.textShadow;
+      return this.appleStyle.textShadow;
     }
 
     return '';
@@ -5639,7 +5699,7 @@ export class Style {
       'text-shadow',
       value,
       () => nodeHelper().setTextShadow(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.textShadow = value),
+      () => (this.appleStyle.textShadow = value),
     );
   }
 
@@ -5734,7 +5794,7 @@ export class Style {
       'corner-shape',
       value,
       () => nodeHelper().setCornerShape(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.cornerShape = value),
+      () => (this.appleStyle.cornerShape = value),
     );
   }
 
@@ -5747,7 +5807,7 @@ export class Style {
     }
 
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.cornerShape;
+      return this.appleStyle.cornerShape;
     }
 
     return '';
@@ -5759,7 +5819,7 @@ export class Style {
       return nodeHelper().getCornerShapeTopLeft(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.cornerShapeTopLeft;
+      return this.appleStyle.cornerShapeTopLeft;
     }
     return '';
   }
@@ -5770,7 +5830,7 @@ export class Style {
       'corner-shape-top-left',
       value,
       () => nodeHelper().setCornerShapeTopLeft(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.cornerShapeTopLeft = value),
+      () => (this.appleStyle.cornerShapeTopLeft = value),
     );
   }
 
@@ -5780,7 +5840,7 @@ export class Style {
       return nodeHelper().getCornerShapeTopRight(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.cornerShapeTopRight;
+      return this.appleStyle.cornerShapeTopRight;
     }
     return '';
   }
@@ -5791,7 +5851,7 @@ export class Style {
       'corner-shape-top-right',
       value,
       () => nodeHelper().setCornerShapeTopRight(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.cornerShapeTopRight = value),
+      () => (this.appleStyle.cornerShapeTopRight = value),
     );
   }
 
@@ -5801,7 +5861,7 @@ export class Style {
       return nodeHelper().getCornerShapeBottomRight(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.cornerShapeBottomRight;
+      return this.appleStyle.cornerShapeBottomRight;
     }
     return '';
   }
@@ -5812,7 +5872,7 @@ export class Style {
       'corner-shape-bottom-right',
       value,
       () => nodeHelper().setCornerShapeBottomRight(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.cornerShapeBottomRight = value),
+      () => (this.appleStyle.cornerShapeBottomRight = value),
     );
   }
 
@@ -5822,7 +5882,7 @@ export class Style {
       return nodeHelper().getCornerShapeBottomLeft(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.cornerShapeBottomLeft;
+      return this.appleStyle.cornerShapeBottomLeft;
     }
     return '';
   }
@@ -5833,7 +5893,7 @@ export class Style {
       'corner-shape-bottom-left',
       value,
       () => nodeHelper().setCornerShapeBottomLeft(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.cornerShapeBottomLeft = value),
+      () => (this.appleStyle.cornerShapeBottomLeft = value),
     );
   }
 
@@ -5981,7 +6041,7 @@ export class Style {
       return nodeHelper().getBorderImage(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.borderImage;
+      return this.appleStyle.borderImage;
     }
     return '';
   }
@@ -5992,7 +6052,7 @@ export class Style {
       'border-image',
       value,
       () => nodeHelper().setBorderImage(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.borderImage = value),
+      () => (this.appleStyle.borderImage = value),
     );
   }
 
@@ -6036,7 +6096,7 @@ export class Style {
       return nodeHelper().getFontFeatureSettings(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.fontFeatureSettings;
+      return this.appleStyle.fontFeatureSettings;
     }
     return 'normal';
   }
@@ -6047,7 +6107,7 @@ export class Style {
       'font-feature-settings',
       value,
       () => nodeHelper().setFontFeatureSettings(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.fontFeatureSettings = value),
+      () => (this.appleStyle.fontFeatureSettings = value),
     );
   }
 
@@ -6145,7 +6205,7 @@ export class Style {
       return nodeHelper().getBackdropFilter(this.nativeView);
     }
     if (__APPLE__) {
-      return (this.nativeView as MasonElementObjc).style.backdropFilter;
+      return this.appleStyle.backdropFilter;
     }
     return '';
   }
@@ -6156,7 +6216,7 @@ export class Style {
       'backdrop-filter',
       value,
       () => nodeHelper().setBackdropFilter(this.nativeView, value),
-      () => ((this.nativeView as MasonElementObjc).style.backdropFilter = value),
+      () => (this.appleStyle.backdropFilter = value),
     );
   }
 

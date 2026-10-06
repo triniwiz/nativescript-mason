@@ -56,3 +56,28 @@ describe('style sync', () => {
     expect(slice).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('dirty mask words', () => {
+  it('sends the 128-bit mask as four int32 words, low to high', () => {
+    const { style, send } = tracked();
+    let words: number[] = [];
+    send.mockImplementation(function (this: any) {
+      words = [this._d0, this._d1, this._d2, this._d3];
+    });
+    style.batch(() => {
+      style.display = 'flex'; // bits 0 and 34
+      style.whiteSpace = 'nowrap'; // bit 63, the sign bit of word 1
+      style.fontWeight = 'bold'; // bit 64
+    });
+    expect(words).toEqual([1, (1 << 2) | (1 << 31), 1, 0]);
+    expect(style.isDirty).toBe(-1n);
+  });
+
+  it('reads back as one unsigned value', () => {
+    const { style } = tracked();
+    style.inBatch = true;
+    style.whiteSpace = 'nowrap';
+    style.fontWeight = 'bold';
+    expect(style.isDirty).toBe((1n << 63n) | (1n << 64n));
+  });
+});

@@ -557,7 +557,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
 
     if (!nativeHit) return null;
-    return nativeOwnerFor(nativeHit) ?? findOwnerForNativeView(this, nativeHit);
+    const known = nativeOwnerFor(nativeHit);
+    if (known) return known;
+    // Owners are remembered on first hit rather than for every view at init.
+    const found = findOwnerForNativeView(this, nativeHit);
+    (found as any)?._rememberNativeOwner?.(nativeHit);
+    return found;
   }
 
   _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
@@ -698,7 +703,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   initNativeView(): void {
     super.initNativeView();
-    this._rememberNativeOwner();
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {
@@ -901,8 +905,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public eachChild(callback: (child: NSViewBase) => boolean) {
-    for (const child of this._viewChildren) {
-      callback(child);
+    this._eachViewChild(callback as never);
+  }
+
+  // Live and allocation-free, like core's LayoutBase.eachChildView (walks run per view).
+  private _eachViewChild(callback: (child: NSView) => unknown) {
+    const children = this._children;
+    for (let i = 0, length = children.length; i < length; i++) {
+      const child = children[i];
+      if (child && !child[isPlaceholder_] && child instanceof NSView) {
+        callback(child);
+      }
     }
   }
 
@@ -997,14 +1010,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     visit(this);
   }
 
+  private _masonClimbRoot: any;
+  private _masonClimbTurn: Set<any> | null = null;
+
   requestLayout(): void {
     // A natively placed view only needs its Mason root re-measured: skip the
     // per-ancestor hops (each a JS call plus a native setNeedsLayout).
     if (this._masonPlacedNatively) {
+      // CSS asks once per layout property; reuse this turn's root while it is still flagged.
+      if (climbedRoots && this._masonClimbTurn === climbedRoots && climbedThisTurn(this._masonClimbRoot)) return;
       let root: any = this.parent;
       while (root?.parent?.[isMasonView_]) root = root.parent;
-      if (root && climbedThisTurn(root)) return;
-      root?.requestLayout();
+      if (root && !climbedThisTurn(root)) root.requestLayout();
+      this._masonClimbRoot = root;
+      this._masonClimbTurn = climbedRoots;
       return;
     }
     // Core climbs on every call, once per changed property; once per turn is enough.
@@ -1015,6 +1034,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   _parentChanged(oldParent: any): void {
     climbedRoots?.delete(this);
+    this._masonClimbTurn = null;
     super._parentChanged(oldParent);
   }
 
@@ -1033,9 +1053,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public eachChildView(callback: (child: NSView) => boolean): void {
-    for (const view of this._viewChildren) {
-      callback(view);
-    }
+    this._eachViewChild(callback);
   }
 
   _addChildFromBuilder(name: string, value: any): void {
@@ -1043,19 +1061,32 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   getChildrenCount() {
-    return this._viewChildren.length;
+    let count = 0;
+    this._eachViewChild(() => count++);
+    return count;
   }
 
   get _childrenCount() {
-    return this._viewChildren.length;
+    return this.getChildrenCount();
   }
 
   getChildAt(index: number) {
-    return this._viewChildren[index];
+    let found: NSView;
+    let i = 0;
+    this._eachViewChild((child) => {
+      if (i++ === index) found = child;
+    });
+    return found;
   }
 
   getChildIndex(child: NSView) {
-    return this._viewChildren.indexOf(child);
+    let index = -1;
+    let i = 0;
+    this._eachViewChild((c) => {
+      if (c === child && index === -1) index = i;
+      i++;
+    });
+    return index;
   }
   getChildById(id: string) {
     return getViewById(this as never, id);
@@ -3027,19 +3058,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set textOverFlow(value) {
-    this.style.textOverFlow = value;
+    this.style.textOverflow = value;
   }
 
   get textOverFlow() {
-    return this.style.textOverFlow;
+    return this.style.textOverflow;
   }
 
   [textOverFlowProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      // @ts-ignore
-      style.textOverFlow = value;
+      style.textOverflow = value;
     }
   }
 

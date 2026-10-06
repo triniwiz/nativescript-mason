@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
 import * as coreStyleProperties from '@nativescript/core/ui/styling/style-properties';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { setCssUnitContext } from './units';
-import { installMasonSizeUnits } from './properties';
+import { installMasonSizeUnits, maxWidthProperty } from './properties';
 import { toCamelCase } from './css-shorthands';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
@@ -38,6 +38,20 @@ describe('the .css stylesheet path reaches the mason style buffer', () => {
     const { under, style } = masonHost();
     (style as any)['max-width'] = '25%';
     expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(0.25, 4);
+  });
+});
+
+describe('a mason view writes each declaration once', () => {
+  it('leaves the write to setNative when the view has one', () => {
+    setScreenScale(1);
+    const { under, style, view } = masonHost();
+    const write = vi.spyOn(under.style as any, 'maxWidth', 'set');
+    view[maxWidthProperty.setNative] = function (value: unknown) {
+      this._styleHelper.maxWidth = value;
+    };
+    (style as any)['max-width'] = '100px';
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(100, 4);
   });
 });
 

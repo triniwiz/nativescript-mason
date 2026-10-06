@@ -2402,6 +2402,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_removeEventListener(_ event: Swift.String) -> Swift.Bool
   @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent)
   @objc dynamic public func mason_syncStyle(_ low: Swift.String, _ high: Swift.String)
+  @objc dynamic public func mason_writableStyleValues() -> Foundation.NSMutableData?
   @objc dynamic public func mason_syncStyleParts(_ lowLow: Swift.Int32, _ lowHigh: Swift.Int32, _ highLow: Swift.Int32, _ highHigh: Swift.Int32)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView, at: Swift.Int)

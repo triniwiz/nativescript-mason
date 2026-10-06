@@ -21,7 +21,8 @@ export class Scroll extends ViewBase {
     if (!this[native_]) {
       // MasonUIView has its own scroll handling; UIScrollView breaks when nested.
       const view = Tree.instance.createView() as never;
-      (view as any).isScrollContainer = this._visibleOverflowScrolls;
+      // Native default is false; most block elements keep it.
+      if (this._visibleOverflowScrolls) (view as any).isScrollContainer = true;
       this[native_] = view;
       return view;
     }
@@ -80,7 +81,7 @@ export class Scroll extends ViewBase {
           // _setNativeViewFrame
 
           // @ts-ignore
-          var layout = this.ios.mason_layout();
+          var layout = this.ios.node.computedLayout;
           //const layout = this.ios.layout();
           // A scroll container is a VIEWPORT: its own box must never exceed the
           // available space, even though its children (the scrollable content)

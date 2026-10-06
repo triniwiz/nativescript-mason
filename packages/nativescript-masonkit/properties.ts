@@ -21,6 +21,13 @@ function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle
   return ret?._styleHelper as MasonStyle | undefined;
 }
 
+/** Mason views write these in setNative, which core runs after valueChanged; one write is enough. */
+function appliedInSetNative(target: Style, property: { setNative: symbol }): boolean {
+  const ref = target?.viewRef;
+  const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
+  return !!(view && view[isMasonView_] && view[property.setNative]);
+}
+
 // Mason parses CSS values itself, so for its own elements the raw declaration is
 // passed straight through; anything else has to go through core's parser first.
 //
@@ -90,6 +97,7 @@ export const displayProperty = new CssProperty<Style, Display>({
   cssName: 'display',
   defaultValue: 'block',
   valueChanged: (target, oldValue, newValue) => {
+    if (appliedInSetNative(target, displayProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view && newValue) {
       view.display = newValue;
@@ -254,6 +262,7 @@ export const overflowXProperty = new CssProperty<Style, Overflow>({
   defaultValue: 'visible',
   valueConverter: overflowConverter,
   valueChanged: (target, oldValue, newValue) => {
+    if (newValue && appliedInSetNative(target, overflowXProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -272,6 +281,7 @@ export const overflowYProperty = new CssProperty<Style, Overflow>({
   defaultValue: 'visible',
   valueConverter: overflowConverter,
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, overflowYProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -538,6 +548,7 @@ function overrideForMasonViews<TValue>(
 ): void {
   const handlers: Record<string, unknown> = {
     valueChanged(target: Style, _oldValue: TValue, newValue: TValue) {
+      if (appliedInSetNative(target, property as never)) return;
       const masonStyle = getViewStyle(target.viewRef);
       // No mason style means a plain NativeScript view: core's setNative owns
       // it, so leave the value exactly as core produced it.
@@ -576,6 +587,7 @@ flexGrowProperty.overrideHandlers({
   name: 'flexGrow',
   cssName: 'flex-grow',
   valueChanged(target, oldValue, newValue) {
+    if (typeof newValue === 'number' && !isNaN(newValue) && appliedInSetNative(target, flexGrowProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       // 0 is a valid flex-grow; don't treat it as falsy/invalid
@@ -600,6 +612,7 @@ fontSizeProperty.overrideHandlers({
     return parseFloat(value as never);
   },
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, fontSizeProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -657,6 +670,7 @@ export const rowGapProperty = new CssProperty<Style, Length>({
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, rowGapProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.rowGap = newValue;
@@ -678,6 +692,7 @@ export const columnGapProperty = new CssProperty<Style, Length>({
     return parsed;
   },
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, columnGapProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.columnGap = newValue;
@@ -767,6 +782,7 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonMaxSizeConverter,
   valueChanged: (target, oldValue, newValue) => {
+    if (appliedInSetNative(target, maxWidthProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.maxWidth = newValue;
@@ -785,6 +801,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonMaxSizeConverter,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, maxHeightProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.maxHeight = newValue;
@@ -1006,6 +1023,7 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, leftProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.left = newValue;
@@ -1022,6 +1040,7 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, rightProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.right = newValue;
@@ -1038,6 +1057,7 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, topProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.top = newValue;
@@ -1054,6 +1074,7 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, bottomProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.bottom = newValue;
@@ -1066,6 +1087,7 @@ export const positionProperty = new CssProperty<Style, Position>({
   cssName: 'position',
   defaultValue: 'static',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, positionProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.position = newValue;
@@ -1078,6 +1100,7 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
   cssName: 'box-sizing',
   defaultValue: 'border-box',
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, boxSizingProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1123,6 +1146,7 @@ alignItemsProperty.overrideHandlers({
     return AlignItemsParse(value) as never;
   },
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, alignItemsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1146,6 +1170,7 @@ alignSelfProperty.overrideHandlers({
     return AlignSelfParse(value) as never;
   },
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, alignSelfProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1173,6 +1198,7 @@ export const alignContentProperty = new CssProperty<Style, AlignContent>({
     return AlignContentParse(value) as never;
   },
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, alignContentProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1191,6 +1217,7 @@ export const justifyItemsProperty = new CssProperty<Style, JustifyItems>({
   cssName: 'justify-items',
   defaultValue: 'normal',
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, justifyItemsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1209,6 +1236,7 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   cssName: 'justify-self',
   defaultValue: 'normal',
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, justifySelfProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1235,6 +1263,7 @@ justifyContentProperty.overrideHandlers({
     return JustifyContentParse(value) as never;
   },
   valueChanged(target, oldValue, newValue) {
+    if (newValue && appliedInSetNative(target, justifyContentProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {
@@ -1258,6 +1287,7 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, flexBasisProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.flexBasis = newValue;
@@ -1274,6 +1304,7 @@ export const aspectRatioProperty = new CssProperty<Style, number>({
   // @ts-ignore
   valueConverter: parseAspectRatio,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, aspectRatioProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.aspectRatio = newValue;
@@ -1286,6 +1317,7 @@ export const gridAutoRowsProperty = new CssProperty<Style, string>({
   cssName: 'grid-auto-rows',
   defaultValue: '',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridAutoRowsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridAutoRows = newValue;
@@ -1298,6 +1330,7 @@ export const gridAutoColumnsProperty = new CssProperty<Style, string>({
   cssName: 'grid-auto-columns',
   defaultValue: '',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridAutoColumnsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridAutoColumns = newValue;
@@ -1310,6 +1343,7 @@ export const gridAutoFlowProperty = new CssProperty<Style, GridAutoFlow>({
   cssName: 'grid-auto-flow',
   defaultValue: 'row',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridAutoFlowProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridAutoFlow = newValue;
@@ -1322,6 +1356,7 @@ export const gridAreaProperty = new CssProperty<Style, string>({
   cssName: 'grid-area',
   defaultValue: '',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridAreaProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridArea = newValue;
@@ -1334,6 +1369,7 @@ export const gridColumnStartProperty = new CssProperty<Style, string>({
   cssName: 'grid-column-start',
   defaultValue: 'auto',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridColumnStartProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridColumnStart = newValue;
@@ -1346,6 +1382,7 @@ export const gridColumnEndProperty = new CssProperty<Style, string>({
   cssName: 'grid-column-end',
   defaultValue: 'auto',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridColumnEndProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridColumnEnd = newValue;
@@ -1358,6 +1395,7 @@ export const gridColumnProperty = new CssProperty<Style, string>({
   cssName: 'grid-column',
   defaultValue: '',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridColumnProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridColumn = newValue;
@@ -1370,6 +1408,7 @@ export const gridRowStartProperty = new CssProperty<Style, string>({
   cssName: 'grid-row-start',
   defaultValue: 'auto',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridRowStartProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridRowStart = newValue;
@@ -1382,6 +1421,7 @@ export const gridRowEndProperty = new CssProperty<Style, string>({
   cssName: 'grid-row-end',
   defaultValue: 'auto',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridRowEndProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridRowEnd = newValue;
@@ -1394,6 +1434,7 @@ export const gridRowProperty = new CssProperty<Style, string>({
   cssName: 'grid-row',
   defaultValue: '',
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridRowProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridRow = newValue;
@@ -1406,6 +1447,7 @@ export const gridTemplateAreasProperty = new CssProperty<Style, string>({
   cssName: 'grid-template-areas',
   defaultValue: null,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridTemplateAreasProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridTemplateAreas = newValue;
@@ -1418,6 +1460,7 @@ export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   cssName: 'grid-template-rows',
   defaultValue: null,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridTemplateRowsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridTemplateRows = newValue;
@@ -1430,6 +1473,7 @@ export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
   cssName: 'grid-template-columns',
   defaultValue: null,
   valueChanged(target, oldValue, newValue) {
+    if (appliedInSetNative(target, gridTemplateColumnsProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.gridTemplateColumns = newValue;
@@ -1443,6 +1487,7 @@ export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'bala
   affectsLayout: true,
   defaultValue: 'wrap',
   valueChanged(target: any, oldValue, newValue) {
+    if (appliedInSetNative(target, textWrapProperty)) return;
     const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
     if (view) {
       view.textWrap = newValue;
@@ -1467,6 +1512,7 @@ export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' |
   cssName: 'text-overflow',
   defaultValue: 'clip',
   valueChanged(target: any, oldValue, newValue) {
+    if (appliedInSetNative(target, textOverFlowProperty)) return;
     const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
     if (view) {
       view.textOverflow = newValue;
@@ -1479,6 +1525,7 @@ export const verticalAlignProperty = new CssProperty<Style, VerticalAlign>({
   cssName: 'vertical-align',
   defaultValue: 'baseline',
   valueChanged: (target, oldValue, newValue) => {
+    if (newValue && appliedInSetNative(target, verticalAlignProperty)) return;
     const view = getViewStyle(target.viewRef);
     if (view) {
       if (newValue) {

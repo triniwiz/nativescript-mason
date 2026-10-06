@@ -92664,6 +92664,34 @@
           },
           {
             "kind": "Function",
+            "name": "mason_writableStyleValues",
+            "printedName": "mason_writableStyleValues()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Foundation.NSMutableData?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSMutableData",
+                    "printedName": "Foundation.NSMutableData",
+                    "usr": "c:objc(cs)NSMutableData"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)NSObject(im)mason_writableStyleValues",
+            "mangledName": "$sSo8NSObjectC5MasonE25mason_writableStyleValuesSo13NSMutableDataCSgyF",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "AccessControl", "ObjC", "RawDocComment"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "mason_syncStyleParts",
             "printedName": "mason_syncStyleParts(_:_:_:_:)",
             "children": [

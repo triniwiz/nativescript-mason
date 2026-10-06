@@ -139,7 +139,7 @@ export class List extends ListBase {
           this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
 
           // @ts-ignore
-          const layout = this.ios.mason_layout();
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -227,7 +227,7 @@ export class List extends ListBase {
     masonElement.mason_computeWithSize(listWidth * scale, -2);
 
     // @ts-ignore
-    const layout = masonElement.mason_layout();
+    const layout = masonElement.node.computedLayout;
     const w = layout.width;
     const h = layout.height;
 
