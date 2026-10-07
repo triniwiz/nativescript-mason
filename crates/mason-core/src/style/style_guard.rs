@@ -225,7 +225,8 @@ impl<'a> GridContainerStyle for StyleGuard<'a> {
     #[inline(always)]
     fn grid_template_rows(&self) -> Option<Self::TemplateTrackList<'_>> {
         Some(
-            self.grid_template_rows
+            self.grid()
+                .grid_template_rows
                 .iter()
                 .map(|value| value.as_component_ref()),
         )
@@ -234,7 +235,8 @@ impl<'a> GridContainerStyle for StyleGuard<'a> {
     #[inline(always)]
     fn grid_template_columns(&self) -> Option<Self::TemplateTrackList<'_>> {
         Some(
-            self.grid_template_columns
+            self.grid()
+                .grid_template_columns
                 .iter()
                 .map(|value| value.as_component_ref()),
         )
@@ -242,23 +244,24 @@ impl<'a> GridContainerStyle for StyleGuard<'a> {
 
     #[inline(always)]
     fn grid_auto_rows(&self) -> Self::AutoTrackList<'_> {
-        self.grid_auto_rows.iter().copied()
+        self.grid().grid_auto_rows.iter().copied()
     }
 
     #[inline(always)]
     fn grid_auto_columns(&self) -> Self::AutoTrackList<'_> {
-        self.grid_auto_columns.iter().copied()
+        self.grid().grid_auto_columns.iter().copied()
     }
 
     #[inline(always)]
     fn grid_template_areas(&self) -> Option<Self::GridTemplateAreas<'_>> {
-        Some(self.grid_template_areas.iter().cloned())
+        Some(self.grid().grid_template_areas.iter().cloned())
     }
 
     #[inline(always)]
     fn grid_template_column_names(&self) -> Option<Self::TemplateLineNames<'_>> {
         Some(
-            self.grid_template_column_names
+            self.grid()
+                .grid_template_column_names
                 .iter()
                 .map(|names| names.iter()),
         )
@@ -267,7 +270,8 @@ impl<'a> GridContainerStyle for StyleGuard<'a> {
     #[inline(always)]
     fn grid_template_row_names(&self) -> Option<Self::TemplateLineNames<'_>> {
         Some(
-            self.grid_template_row_names
+            self.grid()
+                .grid_template_row_names
                 .iter()
                 .map(|names| names.iter()),
         )
