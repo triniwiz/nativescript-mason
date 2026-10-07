@@ -1070,8 +1070,8 @@ fn taffy_g_names_xp() -> Result<(), ()> {
 
     let mut root_style = taffy::Style::default();
     root_style.display = Display::Grid;
-    root_style.align_content = Some(AlignContent::START);
-    root_style.justify_content = Some(JustifyContent::START);
+    root_style.align_content = AlignContent::START;
+    root_style.justify_content = JustifyContent::START;
     root_style.gap = Size {
         width: LengthPercentage::length(10.),
         height: LengthPercentage::length(10.),

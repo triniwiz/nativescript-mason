@@ -8,6 +8,89 @@ use taffy::{
     ResolveOrZero, Size, SizingMode,
 };
 
+/// Reusable per-thread buffers for inline layout, which otherwise allocates and frees
+/// several Vecs per node on every pass. Dropping a `ScratchVec` returns its buffer.
+mod scratch {
+    use std::ops::{Deref, DerefMut};
+
+    // Buffers that grew past this are freed rather than kept.
+    const MAX_KEPT_CAPACITY: usize = 1024;
+    const MAX_POOLED: usize = 32;
+
+    pub(super) trait Pooled: Sized + 'static {
+        fn with_pool<R>(f: impl FnOnce(&mut Vec<Vec<Self>>) -> R) -> Option<R>;
+    }
+
+    macro_rules! pooled {
+        ($($t:ty),*) => {$(
+            impl crate::tree_inline::scratch::Pooled for $t {
+                fn with_pool<R>(f: impl FnOnce(&mut Vec<Vec<Self>>) -> R) -> Option<R> {
+                    thread_local!(static POOL: std::cell::RefCell<Vec<Vec<$t>>> =
+                        const { std::cell::RefCell::new(Vec::new()) });
+                    // try_with: a drop during thread teardown just frees the buffer
+                    POOL.try_with(|p| f(&mut p.borrow_mut())).ok()
+                }
+            }
+        )*};
+    }
+    pub(super) use pooled;
+
+    pub(super) struct ScratchVec<T: Pooled>(Vec<T>);
+
+    impl<T: Pooled> ScratchVec<T> {
+        pub(super) fn take() -> Self {
+            ScratchVec(T::with_pool(|p| p.pop()).flatten().unwrap_or_default())
+        }
+    }
+
+    impl<T: Pooled> Drop for ScratchVec<T> {
+        fn drop(&mut self) {
+            let mut v = std::mem::take(&mut self.0);
+            if v.capacity() == 0 || v.capacity() > MAX_KEPT_CAPACITY {
+                return;
+            }
+            v.clear();
+            T::with_pool(|p| {
+                if p.len() < MAX_POOLED {
+                    p.push(v);
+                }
+            });
+        }
+    }
+
+    impl<T: Pooled> Deref for ScratchVec<T> {
+        type Target = Vec<T>;
+        fn deref(&self) -> &Vec<T> {
+            &self.0
+        }
+    }
+
+    impl<T: Pooled> DerefMut for ScratchVec<T> {
+        fn deref_mut(&mut self) -> &mut Vec<T> {
+            &mut self.0
+        }
+    }
+
+    impl<'a, T: Pooled> IntoIterator for &'a ScratchVec<T> {
+        type Item = &'a T;
+        type IntoIter = std::slice::Iter<'a, T>;
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.iter()
+        }
+    }
+
+    impl<'a, T: Pooled> IntoIterator for &'a mut ScratchVec<T> {
+        type Item = &'a mut T;
+        type IntoIter = std::slice::IterMut<'a, T>;
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.iter_mut()
+        }
+    }
+}
+
+use scratch::ScratchVec;
+scratch::pooled!(LineItem, Line, PreparedItem, Id, (Id, f32, f32));
+
 /// Represents an item in a line during inline layout
 #[derive(Clone, Debug)]
 enum LineItem {
@@ -44,7 +127,7 @@ enum LineItem {
 
 /// A completed line ready for placement
 struct Line {
-    items: Vec<LineItem>,
+    items: ScratchVec<LineItem>,
     width: f32,
     /// Parent font metrics for text-relative alignments
     parent_font: FontMetrics,
@@ -62,7 +145,7 @@ impl Line {
     fn new(parent_font: FontMetrics) -> Self {
         let font = parent_font.or_default();
         Self {
-            items: Vec::new(),
+            items: ScratchVec::take(),
             width: 0.0,
             parent_font: font,
             // Start with zero - only add strut contribution when text is present
@@ -404,7 +487,7 @@ enum PreparedItem {
 /// Context for inline formatting
 struct InlineFormattingContext {
     available_width: f32,
-    lines: Vec<Line>,
+    lines: ScratchVec<Line>,
     current_line: Line,
     content_box_left: f32,
     content_box_top: f32,
@@ -432,7 +515,7 @@ impl InlineFormattingContext {
     ) -> Self {
         let mut s = Self {
             available_width,
-            lines: Vec::new(),
+            lines: ScratchVec::take(),
             current_line: Line::new(parent_font),
             content_box_left: content_box_left,
             content_box_top,
@@ -673,12 +756,12 @@ impl InlineFormattingContext {
         }
     }
 
-    fn finalize(&mut self) -> (f32, f32, Vec<(Id, f32, f32)>) {
+    fn finalize(&mut self) -> (f32, f32, ScratchVec<(Id, f32, f32)>) {
         self.wrap_line();
         let mut total_height = 0.0;
         let mut max_width = 0.0f32;
         let mut y_offset = self.content_box_top;
-        let mut placements: Vec<(Id, f32, f32)> = Vec::new();
+        let mut placements: ScratchVec<(Id, f32, f32)> = ScratchVec::take();
 
         for (_, line) in self.lines.iter().enumerate() {
             // Compute a conservative text-derived ascent/descent baseline
@@ -2261,12 +2344,15 @@ impl Tree {
         _block_ctx: Option<&mut BlockContext<'_>>,
     ) -> LayoutOutput {
         let id: Id = node_id.into();
-        let child_ids: Vec<Id> = self.inner().children.get(id).cloned().unwrap_or_default();
+        let mut child_ids: ScratchVec<Id> = ScratchVec::take();
+        if let Some(children) = self.inner().children.get(id) {
+            child_ids.extend_from_slice(children);
+        }
 
         // Partition children: absolutely-positioned children are removed from
         // the normal flow and laid out separately after the IFC pass.
-        let mut flow_child_ids: Vec<Id> = Vec::with_capacity(child_ids.len());
-        let mut abs_child_ids: Vec<Id> = Vec::new();
+        let mut flow_child_ids: ScratchVec<Id> = ScratchVec::take();
+        let mut abs_child_ids: ScratchVec<Id> = ScratchVec::take();
         for &cid in &child_ids {
             if self.is_absolutely_positioned(cid) {
                 abs_child_ids.push(cid);
@@ -2468,7 +2554,7 @@ impl Tree {
             if !flow_child_ids.is_empty()
                 || (!segments.is_empty() && ret.size.width <= 1e-6 && ret.size.height <= 1e-6)
             {
-                let mut prepared_items: Vec<PreparedItem> = Vec::new();
+                let mut prepared_items: ScratchVec<PreparedItem> = ScratchVec::take();
 
                 // Build prepared items from segments (which include text and inline children)
                 for segment in segments.iter() {
@@ -2764,7 +2850,7 @@ impl Tree {
             }
         }
 
-        let mut prepared_items: Vec<PreparedItem> = Vec::new();
+        let mut prepared_items: ScratchVec<PreparedItem> = ScratchVec::take();
 
         if has_segments && flow_child_ids.is_empty() {
             let nd = self.node_data();
@@ -2881,7 +2967,7 @@ impl Tree {
         let (content_width, content_height, placements) = ifc.finalize();
 
         let parent_is_list = style.get_item_is_list();
-        for (child_id, x, y) in placements {
+        for &(child_id, x, y) in placements.iter() {
             if let Some(node) = self.nodes_mut().get_mut(child_id) {
                 node.unrounded_layout.location.x = x;
                 if parent_is_list && node.is_list_item() {
