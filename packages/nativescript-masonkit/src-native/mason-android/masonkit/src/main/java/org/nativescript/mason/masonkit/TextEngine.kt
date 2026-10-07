@@ -13,6 +13,7 @@ import android.text.StaticLayout
 import android.text.TextDirectionHeuristic
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
+import android.text.TextUtils
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.AlignmentSpan
 import android.text.style.CharacterStyle
@@ -53,14 +54,21 @@ private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
   return w
 }
 
+// Every strong right-to-left character and bidi control is at or above U+0590.
+private const val FIRST_RTL_CHAR = '\u0590'
+
 private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextPaint): FloatArray? {
   val len = text.length
   if (len == 0) return null
-  for (i in 0 until len) {
-    val c = text[i]
+  // One bulk copy instead of an interface charAt per character.
+  val chars = CharArray(len)
+  TextUtils.getChars(text, 0, len, chars, 0)
+  var maybeRtl = false
+  for (c in chars) {
     if (c == '\t' || c == '\n') return null
+    if (c >= FIRST_RTL_CHAR) maybeRtl = true
   }
-  if (TextDirectionHeuristics.ANYRTL_LTR.isRtl(text, 0, len)) return null
+  if (maybeRtl && TextDirectionHeuristics.ANYRTL_LTR.isRtl(chars, 0, len)) return null
   scratch.set(paint)
   if (text is Spanned) {
     if (text.nextSpanTransition(0, len, MetricAffectingSpan::class.java) < len ||
@@ -72,7 +80,7 @@ private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextP
     }
   }
   val advances = FloatArray(len)
-  scratch.getTextWidths(text, 0, len, advances)
+  scratch.getTextWidths(chars, 0, len, advances)
   return advances
 }
 
@@ -102,10 +110,12 @@ private fun maxWordWidth(
 ): Float {
   var maxW = 0f
   val len = text.length
+  val chars = CharArray(len)
+  TextUtils.getChars(text, 0, len, chars, 0)
   var start = 0
   var i = 0
   while (i <= len) {
-    val isWs = i < len && text[i].isSoftWrapOpportunity()
+    val isWs = i < len && chars[i].isSoftWrapOpportunity()
     if (i == len || isWs) {
       if (i > start) {
         // Measure the range directly; slicing a Spannable per word copies
