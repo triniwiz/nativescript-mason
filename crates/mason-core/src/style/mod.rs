@@ -30,9 +30,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use style_atoms::Atom;
 use taffy::{
-    AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
-    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CompactLength, CoreStyle, Dimension,
-    Direction, Display, FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
+    AbsoluteAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle, BlockItemStyle,
+    BoxGenerationMode, BoxSizing, Clear, CompactLength, CoreStyle, Dimension, Direction, Display,
+    FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
     GenericGridTemplateComponent, GridAutoFlow, GridContainerStyle, GridItemStyle, GridPlacement,
     GridTemplateArea, GridTemplateComponent, GridTemplateRepetition, JustifyContent, JustifyItems,
     JustifySelf, LengthPercentage, LengthPercentageAuto, Line, Point, Position, Rect, Size,
@@ -3067,18 +3067,18 @@ impl FlexboxContainerStyle for Style {
     }
 
     #[inline(always)]
-    fn align_content(&self) -> Option<AlignContent> {
-        self.get_align_content()
+    fn align_content(&self) -> AlignContent {
+        self.get_align_content().unwrap_or(AlignContent::NORMAL)
     }
 
     #[inline(always)]
-    fn align_items(&self) -> Option<AlignItems> {
-        self.get_align_items()
+    fn align_items(&self) -> AlignItems {
+        self.get_align_items().unwrap_or(AlignItems::NORMAL)
     }
 
     #[inline(always)]
-    fn justify_content(&self) -> Option<JustifyContent> {
-        self.get_justify_content()
+    fn justify_content(&self) -> JustifyContent {
+        self.get_justify_content().unwrap_or(JustifyContent::NORMAL)
     }
 }
 
@@ -3199,23 +3199,23 @@ impl GridContainerStyle for Style {
     }
 
     #[inline(always)]
-    fn align_content(&self) -> Option<AlignContent> {
-        self.get_align_content()
+    fn align_content(&self) -> AlignContent {
+        self.get_align_content().unwrap_or(AlignContent::NORMAL)
     }
 
     #[inline(always)]
-    fn justify_content(&self) -> Option<JustifyContent> {
-        self.get_justify_content()
+    fn justify_content(&self) -> JustifyContent {
+        self.get_justify_content().unwrap_or(JustifyContent::NORMAL)
     }
 
     #[inline(always)]
-    fn align_items(&self) -> Option<AlignItems> {
-        self.get_align_items()
+    fn align_items(&self) -> AlignItems {
+        self.get_align_items().unwrap_or(AlignItems::NORMAL)
     }
 
     #[inline(always)]
-    fn justify_items(&self) -> Option<AlignItems> {
-        self.get_justify_items()
+    fn justify_items(&self) -> AlignItems {
+        self.get_justify_items().unwrap_or(AlignItems::NORMAL)
     }
 
     #[inline(always)]
@@ -3223,14 +3223,6 @@ impl GridContainerStyle for Style {
         match axis {
             AbsoluteAxis::Horizontal => self.grid_template_columns(),
             AbsoluteAxis::Vertical => self.grid_template_rows(),
-        }
-    }
-
-    #[inline(always)]
-    fn grid_align_content(&self, axis: AbstractAxis) -> AlignContent {
-        match axis {
-            AbstractAxis::Inline => self.get_justify_content().unwrap_or(AlignContent::STRETCH),
-            AbstractAxis::Block => self.get_align_content().unwrap_or(AlignContent::STRETCH),
         }
     }
 }

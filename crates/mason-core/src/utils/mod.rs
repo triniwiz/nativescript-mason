@@ -103,6 +103,7 @@ pub const fn align_content_to_enum(value: AlignContent) -> i8 {
         AlignContentKeyword::SpaceEvenly => 6,
         AlignContentKeyword::FlexStart => 7,
         AlignContentKeyword::FlexEnd => 8,
+        AlignContentKeyword::Normal => -1,
     }
 }
 
@@ -153,6 +154,7 @@ pub const fn align_items_to_enum(value: AlignItems) -> i8 {
         AlignItemsKeyword::FlexEnd => 6,
         AlignItemsKeyword::SelfStart => 7,
         AlignItemsKeyword::SelfEnd => 8,
+        AlignItemsKeyword::Normal => -1,
     }
 }
 
@@ -182,6 +184,7 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i8 {
         AlignItemsKeyword::FlexEnd => 6,
         AlignItemsKeyword::SelfStart => 7,
         AlignItemsKeyword::SelfEnd => 8,
+        AlignItemsKeyword::Normal => -1,
     }
 }
 
@@ -198,6 +201,7 @@ pub const fn align_self_op_to_enum(value: Option<AlignSelf>) -> Option<i8> {
             AlignItemsKeyword::FlexEnd => 6,
             AlignItemsKeyword::SelfStart => 7,
             AlignItemsKeyword::SelfEnd => 8,
+            AlignItemsKeyword::Normal => -1,
         }),
     }
 }
@@ -289,6 +293,7 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i8 {
         AlignContentKeyword::SpaceEvenly => 6,
         AlignContentKeyword::FlexStart => 7,
         AlignContentKeyword::FlexEnd => 8,
+        AlignContentKeyword::Normal => -1,
     }
 }
 
