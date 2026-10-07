@@ -52,12 +52,13 @@ impl Debug for Style {
                 "flex_basis",
                 &dimension_to_format_type_value(self.get_flex_basis()),
             )
-            .field("grid_area", &self.grid_area)
+            .field("grid_area", &self.grid().grid_area)
             .field("grid_template_areas", &self.get_grid_template_areas_css())
             .field("grid_template_rows", &self.get_grid_template_rows_css())
             .field(
                 "grid_template_row_names",
                 &self
+                    .grid()
                     .grid_template_row_names
                     .iter()
                     .map(|value| {
@@ -75,6 +76,7 @@ impl Debug for Style {
             .field(
                 "grid_template_column_names",
                 &self
+                    .grid()
                     .grid_template_column_names
                     .iter()
                     .map(|value| {
