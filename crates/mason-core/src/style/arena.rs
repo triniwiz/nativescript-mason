@@ -85,15 +85,18 @@ struct StyleBuffer {
     #[cfg(not(target_vendor = "apple"))]
     data: Box<[u8; STYLE_BUFFER_SIZE]>,
     pub(crate) ref_count: u32,
+    // Key this buffer was registered under in `hash_index`, if interned.
+    interned_hash: Option<u64>,
 }
 
 impl StyleBuffer {
     #[cfg(target_vendor = "apple")]
     pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
-        let buffer = NSMutableData::from_vec(data.to_vec());
+        let buffer = NSMutableData::with_bytes(data);
         StyleBuffer {
             ref_count: 0,
             buffer,
+            interned_hash: None,
         }
     }
 
@@ -124,13 +127,18 @@ impl StyleBuffer {
             data,
             ref_count: 0,
             buffer: -1,
+            interned_hash: None,
         }
     }
 
     #[cfg(not(any(target_vendor = "apple", target_os = "android")))]
     pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
         let data = Box::new(*data);
-        StyleBuffer { data, ref_count: 0 }
+        StyleBuffer {
+            data,
+            ref_count: 0,
+            interned_hash: None,
+        }
     }
 
     #[cfg(target_vendor = "apple")]
@@ -413,13 +421,14 @@ impl StyleArena {
         set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, ref_count);
 
         if buf.ref_count == 0 {
-            // Remove from hash index before the slot is reused
-            let hash =
-                Self::hash_buffer(<&[u8; STYLE_BUFFER_SIZE]>::try_from(buf.bytes()).unwrap());
-            if let Some(indices) = self.hash_index.get_mut(&hash) {
-                indices.retain(|&i| i != idx as u32);
-                if indices.is_empty() {
-                    self.hash_index.remove(&hash);
+            // Remove from hash index before the slot is reused. Uses the key it was
+            // interned under: the bytes may have been mutated since.
+            if let Some(hash) = buf.interned_hash.take() {
+                if let Some(indices) = self.hash_index.get_mut(&hash) {
+                    indices.retain(|&i| i != idx as u32);
+                    if indices.is_empty() {
+                        self.hash_index.remove(&hash);
+                    }
                 }
             }
             // alloc() overwrites this slot on reuse, and the generation bump
@@ -617,6 +626,7 @@ impl StyleArena {
         let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
             buf.ref_count = 1;
+            buf.interned_hash = None;
             buf.buffer.set_bytes(data);
             set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
@@ -651,6 +661,7 @@ impl StyleArena {
         }
 
         let handle = self.alloc(data);
+        self.buffers[handle.index()].interned_hash = Some(hash);
         self.hash_index
             .entry(hash)
             .or_insert_with(Vec::new)
@@ -760,6 +771,7 @@ impl StyleArena {
             let buf = &mut self.buffers[free_idx as usize];
             buf.data.copy_from_slice(data);
             buf.ref_count = 1;
+            buf.interned_hash = None;
             set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
@@ -796,6 +808,7 @@ impl StyleArena {
         }
 
         let handle = self.alloc(data);
+        self.buffers[handle.index()].interned_hash = Some(hash);
         self.hash_index
             .entry(hash)
             .or_insert_with(Vec::new)

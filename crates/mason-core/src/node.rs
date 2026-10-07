@@ -463,16 +463,20 @@ struct InlineMeasureCacheEntry {
     result: Size<f32>,
 }
 
+type InlineMeasureEntries = [Option<InlineMeasureCacheEntry>; INLINE_MEASURE_CACHE_SIZE];
+
+// Boxed on first store: only measured leaves use it, and inline it would make up
+// over half of every Node.
 #[derive(Debug, Clone)]
 pub(crate) struct InlineMeasureCache {
-    entries: [Option<InlineMeasureCacheEntry>; INLINE_MEASURE_CACHE_SIZE],
+    entries: Option<Box<InlineMeasureEntries>>,
     next_write_idx: u8,
 }
 
 impl InlineMeasureCache {
     pub(crate) const fn new() -> Self {
         Self {
-            entries: [None; INLINE_MEASURE_CACHE_SIZE],
+            entries: None,
             next_write_idx: 0,
         }
     }
@@ -483,7 +487,7 @@ impl InlineMeasureCache {
         known_dimensions: Size<Option<f32>>,
         available_space: Size<AvailableSpace>,
     ) -> Option<Size<f32>> {
-        self.entries.iter().flatten().find_map(|entry| {
+        self.entries.as_deref()?.iter().flatten().find_map(|entry| {
             (entry.known_width == known_dimensions.width
                 && entry.known_height == known_dimensions.height
                 && entry.available_width == available_space.width
@@ -500,7 +504,10 @@ impl InlineMeasureCache {
         result: Size<f32>,
     ) {
         let idx = self.next_write_idx as usize % INLINE_MEASURE_CACHE_SIZE;
-        self.entries[idx] = Some(InlineMeasureCacheEntry {
+        let entries = self
+            .entries
+            .get_or_insert_with(|| Box::new([None; INLINE_MEASURE_CACHE_SIZE]));
+        entries[idx] = Some(InlineMeasureCacheEntry {
             known_width: known_dimensions.width,
             known_height: known_dimensions.height,
             available_width: available_space.width,
@@ -512,7 +519,9 @@ impl InlineMeasureCache {
 
     #[inline]
     pub(crate) fn clear(&mut self) {
-        self.entries = [None; INLINE_MEASURE_CACHE_SIZE];
+        if let Some(entries) = self.entries.as_deref_mut() {
+            *entries = [None; INLINE_MEASURE_CACHE_SIZE];
+        }
         self.next_write_idx = 0;
     }
 
