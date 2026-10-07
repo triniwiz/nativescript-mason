@@ -1691,22 +1691,19 @@ impl Tree {
         // parent's inline context) reports AlreadyEmpty even when its
         // parent still holds a stale cache entry.
         let mut first_step = true;
-        let mut visited: Vec<Id> = Vec::new();
+        // Locked on first use and evicted while climbing; collecting ids first
+        // cost a heap allocation per call.
+        let mut side = None;
         while let Some(id) = current {
             match tree.nodes[id].mark_dirty() {
                 ClearState::AlreadyEmpty if !first_step => break,
                 _ => {
-                    visited.push(id);
+                    side.get_or_insert_with(block_measure_cache)
+                        .remove(&block_key(tree.uid, id));
                     current = tree.parents.get(id).copied().flatten();
                 }
             }
             first_step = false;
-        }
-        if !visited.is_empty() {
-            let mut side = block_measure_cache();
-            for id in visited {
-                side.remove(&block_key(tree.uid, id));
-            }
         }
     }
 
