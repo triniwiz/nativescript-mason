@@ -349,6 +349,24 @@ class TextEngine(val container: TextContainer) {
     val visualPending = textVisualFlushPending
     textLayoutFlushPending = false
     textVisualFlushPending = false
+    // A first flush has nothing to compare against, so skip hashing; the next flush
+    // stores the signatures (treating them as changed).
+    if (!signaturesKnown) {
+      if (!layoutPending && !visualPending) return
+      if (flushedOnce) {
+        signaturesKnown = true
+        lastTextLayoutSignature = textLayoutSignature()
+        lastTextVisualSignature = textVisualSignature()
+      }
+      flushedOnce = true
+      updateStyleOnTextNodes()
+      if (layoutPending) {
+        invalidateInlineSegments(quiet = quiet)
+      } else if (!quiet) {
+        (node.view as? View)?.invalidate()
+      }
+      return
+    }
     if (layoutPending) {
       val sig = textLayoutSignature()
       if (sig == null || sig != lastTextLayoutSignature) {
@@ -373,6 +391,8 @@ class TextEngine(val container: TextContainer) {
 
   private var lastTextLayoutSignature: Long? = null
   private var lastTextVisualSignature: Long? = null
+  private var flushedOnce = false
+  private var signaturesKnown = false
 
   private fun textLayoutSignature(): Long? = try {
     textLayoutSignatureUnsafe()
