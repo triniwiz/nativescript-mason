@@ -18,7 +18,8 @@ fn available_space_to_f32(space: AvailableSpace) -> f32 {
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
 
-use parking_lot::{Mutex, RwLock};
+use crate::pass_lock::RwLock;
+use parking_lot::Mutex;
 use slotmap::SecondaryMap;
 use std::sync::Arc;
 use taffy::{AvailableSpace, ClearState, Layout, Size};

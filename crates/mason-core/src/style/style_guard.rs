@@ -1,6 +1,6 @@
+use crate::pass_lock::RawRwLock;
 use crate::Style;
 use parking_lot::lock_api::MappedRwLockReadGuard;
-use parking_lot::RawRwLock;
 use std::ops::Deref;
 use style_atoms::Atom;
 use taffy::{

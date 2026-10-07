@@ -3,7 +3,8 @@ use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
-use parking_lot::{Mutex, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use crate::pass_lock::{PassGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::Mutex;
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::cell::Cell;
 use std::fmt::Debug;
@@ -1057,6 +1058,11 @@ impl Tree {
         // growing unboundedly and cleans up nodes that couldn't be removed
         // earlier because the tree lock was contended.
         drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue(), &self.2);
+
+        // Hold both locks for the whole pass so its many short-lived guards skip the atomics.
+        let (tree_lock, data_lock) = (Arc::clone(&self.0), Arc::clone(&self.2));
+        // SAFETY: `raw()` is only used to begin and end the pass; the guard is dropped last.
+        let _pass_lock = unsafe { PassGuard::enter(tree_lock.raw(), data_lock.raw()) };
 
         // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
         self.set_use_rounding(use_rounding);

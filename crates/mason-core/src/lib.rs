@@ -3,7 +3,7 @@ pub use crate::tree::{Id, Tree};
 use objc2_foundation::NSMutableData;
 
 use parking_lot::lock_api::MappedRwLockReadGuard;
-use parking_lot::{RawRwLock, RwLockReadGuard};
+use crate::pass_lock::{RawRwLock, RwLockReadGuard};
 use slotmap::Key;
 use std::ffi::{c_float, c_longlong, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,6 +23,7 @@ pub use taffy::Layout;
 pub use taffy::Overflow;
 mod layout_cache;
 mod node;
+mod pass_lock;
 
 #[cfg(target_vendor = "apple")]
 use crate::node::AppleNode;
