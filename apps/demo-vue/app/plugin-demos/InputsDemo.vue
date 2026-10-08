@@ -71,7 +71,8 @@
           <Input class="field c-border-long" value="border-color longhand green" />
           <Input class="field c-text-lit" value="text literal red" />
           <Input class="field c-text-var" value="text var(--primary)" />
-          <Input class="field c-text-lit" placeholder="placeholder (not colored)" />
+          <Input class="field" placeholder="placeholder (theme color)" />
+          <Input class="field c-ph" placeholder="::placeholder { color: red }" />
           <div class="c-div d-a"><span class="d-t">A: border: 2 solid #ff0000</span></div>
           <div class="c-div d-b"><span class="d-t">B: border: 2 solid red</span></div>
           <div class="c-div d-c"><span class="d-t">C: width+style+color longhands</span></div>
@@ -254,6 +255,9 @@ const noop = () => {};
 .d-b { background-color: #ffffff; border: 2 solid red; }
 .d-c { background-color: #ffffff; border-width: 2; border-style: solid; border-color: #ff0000; }
 .d-d { background-color: #ffffff; border: 2px solid #ff0000; }
+.c-ph::placeholder {
+  color: #ff0000;
+}
 .c-div {
   padding: 8;
 }

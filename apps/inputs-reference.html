@@ -156,6 +156,9 @@
       .c-text-var {
         color: var(--primary);
       }
+      .c-ph::placeholder {
+        color: #ff0000;
+      }
       .c-div {
         padding: 8px;
       }
@@ -284,7 +287,8 @@
         <input class="field c-border-long" value="border-color longhand green" />
         <input class="field c-text-lit" value="text literal red" />
         <input class="field c-text-var" value="text var(--primary)" />
-        <input class="field c-text-lit" placeholder="placeholder (not colored)" />
+        <input class="field" placeholder="placeholder (theme color)" />
+        <input class="field c-ph" placeholder="::placeholder { color: red }" />
         <div class="c-div d-a"><span class="d-t">A: border: 2 solid #ff0000</span></div>
         <div class="c-div d-b"><span class="d-t">B: border: 2 solid red</span></div>
         <div class="c-div d-c"><span class="d-t">C: width+style+color longhands</span></div>
