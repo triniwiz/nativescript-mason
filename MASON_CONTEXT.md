@@ -206,6 +206,8 @@ When a view has a non-identity transform: position via `view.bounds` (size only)
 
 `MasonShadowLayer.draw` clips out the view interior and only paints outside. The inner-clip and caster paths must be in exact agreement — an inflation gap (even 1px) opens a corner wedge where the opaque caster fill leaks through.
 
+On Windows the outer shadow likewise paints only outside the box: `BuildShadow` (`Css.cpp`) draws the caster through a `MaskBrush` whose mask is a nine-grid with a hollow rounded centre (`RoundedHole` in `RoundedMask.h`). The shadow visual sits over the element's children, so an unmasked one greys whatever it covers.
+
 ### 10. Typed style setters must `prepareMut()` before writing
 
 Unstyled nodes share one copy-on-write style buffer. A Kotlin or Swift setter that
@@ -744,18 +746,25 @@ with sideways glyphs (`text-orientation: mixed` for Latin text).
   (first line at the right). vertical-lr keeps the clockwise glyphs but stacks
   lines from the left, which no single rotation does: Android draws each line on
   its own (`TextView.drawVertical`), iOS mirrors line origins within the content
-  box (`TextEngine.drawMultiLine`).
+  box (`TextEngine.drawMultiLine`), Windows draws vertical-rl as one rotated
+  layout and vertical-lr line by line, each clipped to its band (`TextAtlas.h`).
+  Windows reads the resolved mode through `mason_node_get_writing_mode`, and
+  hit testing, inline boxes and UIA bounds go through `Text::ToLayout` /
+  `FromLayout`.
 - **Orthogonal-flow sizing.** A vertical box's line length is its own height, a
   known height, or a definite containing-block height (taffy's percentage
-  basis); an available height offered by an auto-height parent doesn't count
-  (`orthogonal_flow_inputs`). Failing all of those it falls back to the
+  basis), including a fixed-height parent's content height when block layout
+  offers none (`containing_block_height`); an available height offered by an
+  auto-height parent doesn't count (`orthogonal_flow_inputs`). Failing all of those it falls back to the
   viewport height, as CSS does. In horizontal block flow its auto width is its
   line stack, not the parent's width: block items report `justify-self: start`
   for it, which taffy sizes as fit-content.
 - **Mixed inline content** (text runs plus inline-blocks, buttons, images)
   inside a vertical box runs the inline layout in the box's own frame: sizes
   and margins transposed, line length = height, items centred on each line,
-  placements turned back (`transpose_prepared_item`).
+  placements turned back (`transpose_prepared_item`). Inline-blocks holding
+  text are measured at their inherent size before the text is, so a box isn't
+  shrunk to its min-content.
 - **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
   containers whose children flow vertically (taffy only supports horizontal-tb),
   float exclusions, and turning the label of a button or other widget inside
@@ -813,8 +822,11 @@ inline flow, as on the web, so text wraps across element boundaries.
 - **Inline boxes** stay live XAML children of the Text, so they get real input.
   Their nodes are the Text node's children, the core sizes them before measuring
   the text, and DirectWrite places each as a U+FFFC inline object
-  (`DWriteText.h`); `Text::ArrangeBoxes` arranges them where it put them. The
-  TextBlock fallback (`Text.DirectWrite = false`) doesn't place boxes.
+  (`DWriteText.h`); `Text::ArrangeBoxes` arranges them where it put them. A
+  baseline-aligned inline-block sits on its last line's baseline
+  (`Text::LastBaseline`), one without text on its bottom edge. A Text on the
+  TextBlock fallback (`Text.DirectWrite = false`) switches to DirectWrite when
+  it first hosts a box, since a TextBlock can't leave room for one.
 - **Click** goes through `Mason.AddEventListener` (`Events.cpp`): one `Tapped`
   handler per listening element or text holding inline elements, the target hit
   tested in the DirectWrite layout, then dispatched up the element tree (a
