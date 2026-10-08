@@ -60,17 +60,16 @@ class Input @JvmOverloads constructor(
   override lateinit var node: Node
     private set
 
-  // iOS's UIColor.placeholderText, so both platforms draw the same light/dark placeholder.
-  internal fun placeholderColor(uiMode: Int = resources.configuration.uiMode): Int {
-    val night = uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-    return if (night == android.content.res.Configuration.UI_MODE_NIGHT_YES) 0x4DEBEBF5 else 0x4D3C3C43
+  // As in core's TextField, the hint keeps the theme's colors unless CSS sets placeholder-color.
+  val placeholderTextColors: ColorStateList
+    get() = textInput.hintTextColors
+
+  fun setPlaceholderTextColor(color: Int) {
+    textInput.setHintTextColor(color)
   }
 
-  override fun onConfigurationChanged(newConfig: android.content.res.Configuration?) {
-    super.onConfigurationChanged(newConfig)
-    if (newConfig != null && type.isTextLike) {
-      textInput.setHintTextColor(placeholderColor(newConfig.uiMode))
-    }
+  fun setPlaceholderTextColor(colors: ColorStateList) {
+    textInput.setHintTextColor(colors)
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -147,7 +146,6 @@ class Input @JvmOverloads constructor(
       setHorizontallyScrolling(true)
       setPadding(0, 0, 0, 0)
       background = null
-      setHintTextColor(placeholderColor())
       ellipsize = null
       inputType =
         InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker

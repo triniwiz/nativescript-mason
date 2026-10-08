@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -167,30 +166,18 @@ class InputInstrumentedTest {
   }
 
   @Test
-  fun placeholderUsesSystemColorForLightAndDark() {
-    val (input, _) = layoutInput {
-      it.placeholder = "you@example.com"
-      it.configure { style -> style.color = 0xFFFF0000.toInt() }
-    }
-    val light = 0x4D3C3C43
-    val dark = 0x4DEBEBF5
-    val night = input.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-    assertEquals(
-      "matches the current mode, not the text color",
-      if (night == Configuration.UI_MODE_NIGHT_YES) dark else light,
-      input.textInput.currentHintTextColor
-    )
-
+  fun placeholderKeepsThemeColorsUntilPlaceholderColorIsSet() {
+    val (input, _) = layoutInput { it.placeholder = "you@example.com" }
     InstrumentationRegistry.getInstrumentation().runOnMainSync {
-      fun switchTo(mode: Int) = input.dispatchConfigurationChanged(
-        Configuration(input.resources.configuration).apply {
-          uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
-        }
-      )
-      switchTo(Configuration.UI_MODE_NIGHT_YES)
-      assertEquals("dark", dark, input.textInput.currentHintTextColor)
-      switchTo(Configuration.UI_MODE_NIGHT_NO)
-      assertEquals("light", light, input.textInput.currentHintTextColor)
+      val themeDefault = android.widget.EditText(input.context).hintTextColors
+      val initial = input.placeholderTextColors
+      assertEquals("theme hint color, as in core", themeDefault.defaultColor, initial.defaultColor)
+
+      input.setPlaceholderTextColor(0xFFFF0000.toInt())
+      assertEquals("placeholder-color applies", 0xFFFF0000.toInt(), input.textInput.currentHintTextColor)
+
+      input.setPlaceholderTextColor(initial)
+      assertEquals("unset restores the theme colors", themeDefault.defaultColor, input.textInput.currentHintTextColor)
     }
   }
 

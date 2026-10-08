@@ -1,4 +1,5 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { Color, CSSType, Utils } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
 import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
@@ -102,6 +103,19 @@ export class Input extends InputElementBase {
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
       this._view.setPlaceholder(value);
+    }
+  }
+
+  // Core's placeholder-color (also what ::placeholder { color } compiles to), as on TextField.
+  [placeholderColorProperty.getDefault]() {
+    return this._view.getPlaceholderTextColors();
+  }
+
+  [placeholderColorProperty.setNative](value: Color | android.content.res.ColorStateList) {
+    if (value instanceof Color) {
+      this._view.setPlaceholderTextColor(value.android);
+    } else {
+      this._view.setPlaceholderTextColor(value);
     }
   }
 
