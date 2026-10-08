@@ -723,8 +723,35 @@ every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
 ### Current state
 
-**415 / 416 on both iOS (simulator) and Android (emulator).** The one failure,
-`grid_relayout_vertical_text`, needs `writing-mode`, which is not implemented.
+**416 / 416 on both iOS (simulator) and Android (emulator).** The last one,
+`grid_relayout_vertical_text`, passes since `writing-mode` support (see below).
+
+### writing-mode
+
+`vertical-rl` / `vertical-lr` work for a vertical box inside a horizontal layout,
+with sideways glyphs (`text-orientation: mixed` for Latin text).
+
+- **Layout lives in mason-core.** For text, Rust only sizes boxes; the platform
+  breaks and draws lines. So `cached_leaf_measure` (`tree_inline.rs`) and the
+  leaf measure path (`tree.rs`) transpose known/available sizes into the
+  platform's horizontal frame and transpose the result back. The platform
+  measure and every measure cache stay horizontal. `is_vertical_writing_mode`
+  walks parents, since anonymous text containers inherit. A vertical box's own
+  height is its children's line length, and vertical nodes opt out of
+  `ignores_offered_height`.
+- **Drawing is per platform.** The layout is built with the content height as
+  its line length, then turned 90° clockwise. vertical-rl is one transform
+  (first line at the right). vertical-lr keeps the clockwise glyphs but stacks
+  lines from the left, which no single rotation does: Android draws each line on
+  its own (`TextView.drawVertical`), iOS mirrors line origins within the content
+  box (`TextEngine.drawMultiLine`).
+- **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
+  containers whose children flow vertically (taffy only supports horizontal-tb),
+  inline element children inside vertical text, float exclusions, and the CSS
+  orthogonal-flow fallback to the viewport when the line length is indefinite
+  (such text stays on one line). A block-level vertical box in a horizontal
+  block parent stretches to the parent's width, where CSS would shrink it to its
+  lines.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0
