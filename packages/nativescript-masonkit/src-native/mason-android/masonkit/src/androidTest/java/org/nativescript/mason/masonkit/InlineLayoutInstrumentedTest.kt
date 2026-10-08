@@ -85,7 +85,9 @@ class InlineLayoutInstrumentedTest {
     p.append(code2)
 
     // Compute layout with a reasonable container width
-    val layout = computeAndLayout(p, mason, 400f, -1f)
+    // Wide enough for one line at any density.
+    val layout = computeAndLayout(p, mason, 4000f, -1f)
+    val lineHeight = p.paint.fontSpacing
 
     Log.i(TAG, "P layout: width=${layout.width} height=${layout.height}")
     Log.i(TAG, "P children count: ${layout.children.size}")
@@ -94,13 +96,10 @@ class InlineLayoutInstrumentedTest {
       Log.i(TAG, "  child[$i]: x=${child.x} y=${child.y} w=${child.width} h=${child.height}")
     }
 
-    // The <code> children should be flattened, so the <p> height should be
-    // approximately one line of text (typically 14-60 px depending on density).
-    // The critical assertion: height must NOT be roughly 2x or more of a
-    // single-line height.  A single line is at most ~60px at xxhdpi.
+    // The <code> children should be flattened, so the <p> is one line high.
     Assert.assertTrue(
-      "P height (${layout.height}) looks inflated — expected single-line height (<80px)",
-      layout.height < 80f
+      "P height (${layout.height}) looks inflated, expected one line ($lineHeight)",
+      layout.height < lineHeight * 1.5f
     )
 
     // Verify code children exist as flattened (zero or near-zero size)
@@ -129,7 +128,7 @@ class InlineLayoutInstrumentedTest {
     p1.append("Text ")
     p1.append(c1)
 
-    val layout1 = computeAndLayout(p1, mason, 400f, -1f)
+    val layout1 = computeAndLayout(p1, mason, 4000f, -1f)
     val height1 = layout1.height
     Log.i(TAG, "1 child → height=$height1")
 
@@ -144,7 +143,7 @@ class InlineLayoutInstrumentedTest {
       if (i < 3) p4.append(" ")
     }
 
-    val layout4 = computeAndLayout(p4, mason, 400f, -1f)
+    val layout4 = computeAndLayout(p4, mason, 4000f, -1f)
     val height4 = layout4.height
     Log.i(TAG, "4 children → height=$height4")
 
@@ -242,7 +241,8 @@ class InlineLayoutInstrumentedTest {
     }
     p.append(" end")
 
-    val layout = computeAndLayout(p, mason, 500f, -1f)
+    val layout = computeAndLayout(p, mason, 5000f, -1f)
+    val lineHeight = p.paint.fontSpacing
 
     Log.i(TAG, "Parent layout: ${layout.width}x${layout.height}")
     Log.i(TAG, "Child layouts (${layout.children.size}):")
@@ -252,8 +252,8 @@ class InlineLayoutInstrumentedTest {
 
     // The parent should have a reasonable single-line height
     Assert.assertTrue(
-      "Parent height ${layout.height} is too large for a single line of text",
-      layout.height in 1f..100f
+      "Parent height ${layout.height} is too large for a single line of text ($lineHeight)",
+      layout.height in 1f..(lineHeight * 1.5f)
     )
 
     // Sum of children heights should not exceed parent height significantly
@@ -307,10 +307,10 @@ class InlineLayoutInstrumentedTest {
     val captured: List<Triple<Int, Float, Float>> = synchronized(events) { events.toList() }
     Log.i(TAG, "Captured writebacks (${captured.size}): $captured")
 
-    // Check for suspicious writebacks — engine says height=0 but platform wrote non-zero
+    // Check for suspicious writebacks: anything taller than one line
     val suspicious = mutableListOf<Triple<Int, Float, Float>>()
     for ((id, w, h) in captured) {
-      if (h > 100f) {
+      if (h > p.paint.fontSpacing * 1.5f) {
         Log.w(TAG, "Large writeback: id=$id w=$w h=$h")
         suspicious.add(Triple(id, w, h))
       }

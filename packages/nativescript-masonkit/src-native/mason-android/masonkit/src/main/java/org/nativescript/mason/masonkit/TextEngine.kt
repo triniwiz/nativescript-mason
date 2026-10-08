@@ -2300,7 +2300,8 @@ class TextEngine(val container: TextContainer) {
       isBuilding = false
     }
 
-    if (!nested) collapseFlowSpaces(composed)
+    // Text set as given (TextView.text) keeps its spaces.
+    if (!nested && node.children.none { it is TextNode && it.verbatim != null }) collapseFlowSpaces(composed)
 
     // Wrap with Unicode bidi control characters when unicode-bidi requires
     // character-level overrides beyond what StaticLayout's text direction
@@ -2647,6 +2648,9 @@ class TextEngine(val container: TextContainer) {
     private var textStyleFlushPosted = false
 
     internal fun registerPendingTextStyle(engine: TextEngine) {
+      // The batch is flushed on the main thread. Text built on another thread is flushed
+      // when it is measured or drawn instead, so the batch is never shared across threads.
+      if (android.os.Looper.myLooper() !== android.os.Looper.getMainLooper()) return
       pendingTextStyleFlush.add(engine)
       if (!textStyleFlushPosted) {
         textStyleFlushPosted = true

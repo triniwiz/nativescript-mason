@@ -136,6 +136,22 @@ class InlineRunsInstrumentedTest {
   }
 
   @Test
+  fun spannedTextIsShownAsGivenWithItsSpans() {
+    val mason = Mason()
+    val tv = mason.createTextView(context, TextType.P)
+    val spanned = android.text.SpannableString("red  and plain").apply {
+      setSpan(android.text.style.ForegroundColorSpan(0xFFFF0000.toInt()), 0, 3, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+    tv.text = spanned
+    val built = tv.engine.applyTextIfNeeded()
+
+    Assert.assertEquals("red  and plain", built.toString())
+    val colors = built.getSpans(0, 3, android.text.style.ForegroundColorSpan::class.java)
+    Assert.assertTrue("the text's own color span is kept", colors.any { it.foregroundColor == 0xFFFF0000.toInt() })
+    Assert.assertEquals("red  and plain", tv.text.toString())
+  }
+
+  @Test
   fun tapOnFlattenedLinkClicksTheLinkThenBubbles() {
     val mason = Mason()
     val p = mason.createTextView(context, TextType.P)

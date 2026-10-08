@@ -33,7 +33,8 @@ class FloatActivityInstrumentedTest {
 
     NativeHelpers.nativeNodeComputeWH(mason.getNativePtr(), root.nativePtr, 300f, Float.NaN)
 
-    val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), root.nativePtr)
+    // Floats are recorded on their parent container; entries are [left, top, right, bottom].
+    val rects = NativeHelpers.nativeNodeGetFloatRects(mason.getNativePtr(), card.nativePtr)
     assertTrue(rects.isNotEmpty())
     assertEquals(68f, rects[2], 0.001f)
   }

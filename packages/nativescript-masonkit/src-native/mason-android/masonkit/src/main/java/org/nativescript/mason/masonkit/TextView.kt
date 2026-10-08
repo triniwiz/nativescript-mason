@@ -656,11 +656,16 @@ class TextView @JvmOverloads constructor(
 
   internal fun setTextDeferred(text: CharSequence, type: BufferType) = setText(text, type)
 
-  /** The text as laid out. Setting it replaces the content with a single text node. */
+  /**
+   * The text as laid out. Setting it replaces the content with a single text node shown as
+   * given, spans included, as on a platform TextView.
+   */
   var text: CharSequence
     get() = currentText
     set(value) {
       textContent = value.toString()
+      (node.children.singleOrNull() as? TextNode)?.verbatim = value
+      engine.invalidateInlineSegments()
     }
 
   private val accessibilityManager by lazy {
