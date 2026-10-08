@@ -1,7 +1,7 @@
 /**
  * NativeScript-Vue's patchProp maps `modelValue` / `onUpdate:modelValue` through the
- * element's `meta.model`: one prop and one event per tag. An `<input>` binds `checked`
- * or `value` depending on its type, so its model prop is an accessor that picks one.
+ * element's `meta.model`: one prop and one event per tag. An `<input>` binds by type,
+ * so its model prop is an accessor rather than `checked` or `value`.
  */
 export const MODEL_PROP = 'vueModelValue';
 
@@ -21,8 +21,28 @@ export interface Bindable {
 
 type BindableClass = new (...args: any[]) => Bindable;
 
-function isCheckable(target: Bindable): boolean {
-  return target.type === 'checkbox' || target.type === 'radio';
+// A checkbox binds its checked state. A radio binds the picked radio's value, as in Vue
+// on the web: every radio sharing the model re-renders, so no native group is needed.
+function read(target: Bindable): unknown {
+  switch (target.type) {
+    case 'checkbox':
+      return target.checked;
+    default:
+      return target.value;
+  }
+}
+
+function write(target: Bindable, model: unknown): void {
+  switch (target.type) {
+    case 'checkbox':
+      target.checked = !!model;
+      break;
+    case 'radio':
+      target.checked = model != null && String(model) === target.value;
+      break;
+    default:
+      target.value = model as string;
+  }
 }
 
 /**
@@ -36,7 +56,7 @@ export function withVueModel<T extends BindableClass>(Base: T): T {
     #watchingType = false;
 
     get [MODEL_PROP](): unknown {
-      return isCheckable(this) ? this.checked : this.value;
+      return read(this);
     }
 
     set [MODEL_PROP](model: unknown) {
@@ -53,11 +73,7 @@ export function withVueModel<T extends BindableClass>(Base: T): T {
     }
 
     #route() {
-      if (isCheckable(this)) {
-        this.checked = !!this.#model;
-      } else {
-        this.value = this.#model as string;
-      }
+      write(this, this.#model);
     }
   };
 }

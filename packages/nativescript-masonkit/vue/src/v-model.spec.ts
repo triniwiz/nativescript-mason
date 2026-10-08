@@ -52,7 +52,7 @@ describe('withVueModel', () => {
   it('routes immediately once the native view exists', () => {
     const input = new VueInput() as any;
     input.nativeViewProtected = {};
-    input.type = 'radio';
+    input.type = 'checkbox';
 
     input[MODEL_PROP] = 1;
 
@@ -69,5 +69,25 @@ describe('withVueModel', () => {
     input.type = 'checkbox';
 
     expect(input.checked).toBe(true);
+  });
+
+  it('binds a radio to the picked value, as in Vue on the web', () => {
+    const a = new VueInput() as any;
+    const b = new VueInput() as any;
+    for (const [radio, value] of [
+      [a, 'a'],
+      [b, 'b'],
+    ]) {
+      radio.nativeViewProtected = {};
+      radio.type = 'radio';
+      radio.value = value;
+      radio[MODEL_PROP] = 'b';
+    }
+
+    expect(a.checked).toBe(false);
+    expect(b.checked).toBe(true);
+
+    a.checked = true;
+    expect(a[MODEL_PROP]).toBe('a');
   });
 });
