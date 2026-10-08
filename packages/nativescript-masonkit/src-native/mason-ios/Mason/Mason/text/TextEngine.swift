@@ -446,7 +446,9 @@ public class TextEngine: NSObject {
 
     // Fetch floats now so we know whether we need the suggested-size pre-pass.
     let containerNode = engine.node.parent ?? engine.node
-    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode)
+    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
+    let floatEntries = engine.verticalWritingMode == 0
+      ? NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode) : []
     let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
 
     // With floats we need the actual text height first to size the exclusion
@@ -866,15 +868,7 @@ public class TextEngine: NSObject {
 
   internal func drawSingleLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     var drawBounds = bounds
-    let computedPadding = node.computedLayout.padding
-    if !computedPadding.isEmpty() {
-      let scale = NSCMason.scale
-      let padding = UIEdgeInsets(
-        top: CGFloat(computedPadding.top / scale),
-        left: CGFloat(computedPadding.left / scale),
-        bottom: CGFloat(computedPadding.bottom / scale),
-        right: CGFloat(computedPadding.right / scale)
-      )
+    if let padding = textFramePadding() {
       drawBounds = drawBounds.inset(by: padding)
       context.saveGState()
       context.clip(to: drawBounds)
@@ -1188,16 +1182,8 @@ public class TextEngine: NSObject {
     var drawBounds = bounds
 
     guard drawBounds.width > 0 else { return }
-    let computedPadding = node.computedLayout.padding
-    if !computedPadding.isEmpty() {
+    if let padding = textFramePadding() {
       paddingRestore = true
-      let scale = NSCMason.scale
-      let padding = UIEdgeInsets(
-        top: CGFloat(computedPadding.top / scale),
-        left: CGFloat(computedPadding.left / scale),
-        bottom: CGFloat(computedPadding.bottom / scale),
-        right: CGFloat(computedPadding.right / scale)
-      )
       drawBounds = drawBounds.inset(by: padding)
       guard drawBounds.width > 0, drawBounds.height > 0 else { return }
     }
@@ -1228,7 +1214,8 @@ public class TextEngine: NSObject {
     let scale = CGFloat(NSCMason.scale)
     // Compute this text view's origin in container coordinates (points)
     let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
-    if floatEntries.count > 0 {
+    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
+    if floatEntries.count > 0 && verticalWritingMode == 0 {
       for (nodePtr, rectLogical) in floatEntries {
         // Prefer using the actual child view frame if the native view exists
         // so exclusion holes exactly match placed native views. Fallback to
@@ -1303,6 +1290,21 @@ public class TextEngine: NSObject {
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
+      }
+    }
+
+    // vertical-lr: glyphs still turn clockwise but lines stack from the left, so mirror
+    // each line's block position within the content box (CoreText y-up).
+    if verticalWritingMode == 2 {
+      let blockLow = bounds.height - drawBounds.maxY
+      let blockHigh = bounds.height - drawBounds.minY
+      for i in 0..<linesCount {
+        let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+        let y = origins[i].y + textBaseY
+        origins[i].y = blockLow + blockHigh - y - ascent + descent - textBaseY
       }
     }
 
@@ -1451,6 +1453,28 @@ public class TextEngine: NSObject {
     }
   
   
+  /// writing-mode: 1 for vertical-rl, 2 for vertical-lr, 0 for horizontal text.
+  internal var verticalWritingMode: UInt8 {
+    let mode = style.resolvedWritingMode
+    return mode == 1 || mode == 2 ? mode : 0
+  }
+
+  /// Padding in the text's own frame. Vertical text is drawn turned clockwise, so its
+  /// line-start side is the physical top and its first-line side the physical right.
+  private func textFramePadding() -> UIEdgeInsets? {
+    let computedPadding = node.computedLayout.padding
+    if computedPadding.isEmpty() { return nil }
+    let scale = NSCMason.scale
+    let top = CGFloat(computedPadding.top / scale)
+    let left = CGFloat(computedPadding.left / scale)
+    let bottom = CGFloat(computedPadding.bottom / scale)
+    let right = CGFloat(computedPadding.right / scale)
+    if verticalWritingMode != 0 {
+      return UIEdgeInsets(top: right, left: top, bottom: left, right: bottom)
+    }
+    return UIEdgeInsets(top: top, left: left, bottom: bottom, right: right)
+  }
+
   func drawText(context: CGContext, rect: CGRect){
     // When this TextContainer is flattened into a parent TextContainer, the parent's
     // text layer renders our content. Drawing here would produce duplicate text.
@@ -1464,8 +1488,16 @@ public class TextEngine: NSObject {
     let text = buildAttributedString(forMeasurement: false)
     context.saveGState()
     context.textMatrix = .identity
-    context.translateBy(x: 0, y: rect.height)
-    context.scaleBy(x: 1.0, y: -1.0)
+    var rect = rect
+    if verticalWritingMode != 0 {
+      // Lines run down the box and stack from the right, glyphs turned clockwise:
+      // CoreText's (x, y) lands at (y, x). vertical-lr mirrors its lines in drawMultiLine.
+      context.concatenate(CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0))
+      rect = CGRect(x: 0, y: 0, width: rect.height, height: rect.width)
+    } else {
+      context.translateBy(x: 0, y: rect.height)
+      context.scaleBy(x: 1.0, y: -1.0)
+    }
     
     // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
     // properties that both force single-line drawing; match Android's OR.
