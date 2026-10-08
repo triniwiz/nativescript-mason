@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.Typeface
 import android.os.Build
 import android.text.InputFilter
@@ -13,6 +14,8 @@ import android.text.StaticLayout
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewStructure
@@ -28,6 +31,7 @@ import org.nativescript.mason.masonkit.events.Event
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.util.WeakHashMap
+import kotlin.math.abs
 
 val white_space = "\\s+".toRegex()
 
@@ -274,6 +278,9 @@ class TextView @JvmOverloads constructor(
         if (layoutToDraw.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(paint)
         val tx = paddingLeft.toFloat()
         val ty = paddingTop.toFloat() + dy
+        drawnLayout = layoutToDraw
+        drawnDx = tx
+        drawnDy = ty
         if (tx != 0f || ty != 0f) {
           val save = c.save()
           c.translate(tx, ty)
@@ -305,6 +312,7 @@ class TextView @JvmOverloads constructor(
       engine.rebuildCachedStaticLayout(paint, lineLength)
     }
     val layout = cachedStaticLayout ?: return
+    drawnLayout = layout
     if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(paint)
     val top = paddingTop.toFloat()
     if (style.resolvedWritingMode.toInt() == 1) {
@@ -327,6 +335,100 @@ class TextView @JvmOverloads constructor(
       TextDecorations.draw(c, layout)
       c.restoreToCount(save)
     }
+  }
+
+  // The layout last drawn and its offset, for mapping touches into it.
+  private var drawnLayout: android.text.Layout? = null
+  private var drawnDx = 0f
+  private var drawnDy = 0f
+
+  /** Maps a point in this view into the drawn layout's coordinates, undoing [drawVertical]. */
+  private fun toLayoutPoint(x: Float, y: Float): PointF? {
+    val layout = drawnLayout ?: return null
+    if (!engine.isVerticalWritingMode) return PointF(x - drawnDx, y - drawnDy)
+    val lx = y - paddingTop
+    if (style.resolvedWritingMode.toInt() == 1) return PointF(lx, width - paddingRight - x)
+    for (i in 0 until layout.lineCount) {
+      val lineTop = layout.getLineTop(i)
+      val lineBottom = layout.getLineBottom(i)
+      val ly = paddingLeft + lineTop + lineBottom - x
+      if (ly >= lineTop && ly < lineBottom) return PointF(lx, ly)
+    }
+    return null
+  }
+
+  // An inline element being pressed: an inline box or a flattened element such as <a>.
+  private var inlineTarget: Node? = null
+  private var inlineTracking = false
+  private var inlineDownX = 0f
+  private var inlineDownY = 0f
+
+  /** The pressed inline element and its ancestors inside this container. */
+  private fun setInlinePressed(target: Node, pressed: Boolean) {
+    var current: Node? = target
+    while (current != null && current !== node) {
+      current.setPseudo(PseudoState.ACTIVE, pressed)
+      current = current.parent
+    }
+    (target.view as? View)?.isPressed = pressed
+    invalidate()
+  }
+
+  private fun endInlineTap() {
+    inlineTarget?.let { setInlinePressed(it, false) }
+    inlineTarget = null
+  }
+
+  // Inline boxes and flattened elements are drawn by this view, so it routes their taps: the
+  // click goes to the element under the finger and bubbles from there, as on the web.
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent): Boolean {
+    when (event.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        endInlineTap()
+        inlineTracking = false
+        val layout = drawnLayout
+        val point = if (layout != null && isEnabled) toLayoutPoint(event.x, event.y) else null
+        val target = point?.let { engine.inlineNodeAt(layout!!, it.x, it.y) }
+        if (target != null && node.mason.hasListenerOnPath(target, "click")) {
+          inlineTarget = target
+          inlineTracking = true
+          inlineDownX = event.x
+          inlineDownY = event.y
+          setInlinePressed(target, true)
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_MOVE -> {
+        if (inlineTracking) {
+          val slop = ViewConfiguration.get(context).scaledTouchSlop
+          if (abs(event.x - inlineDownX) > slop || abs(event.y - inlineDownY) > slop) endInlineTap()
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_UP -> {
+        if (inlineTracking) {
+          val target = inlineTarget
+          endInlineTap()
+          inlineTracking = false
+          (target?.view as? EventTarget)?.let {
+            node.mason.dispatch(Event(type = "click").apply { this.target = it })
+          }
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_CANCEL -> {
+        if (inlineTracking) {
+          endInlineTap()
+          inlineTracking = false
+          return true
+        }
+      }
+    }
+    return super.onTouchEvent(event)
   }
 
   var textContent: String
@@ -590,9 +692,9 @@ class TextView @JvmOverloads constructor(
           node.style.display = Display.Inline
           // No forced underline — match web (CSS resets links); honor text-decoration.
 
+          // Focusable for keyboard navigation only, so a tap clicks at once.
           isClickable = true
           isFocusable = true
-          isFocusableInTouchMode = true
 
           node.hasNativeClickDispatch = true
           setOnClickListener {

@@ -212,6 +212,16 @@ class Mason {
       ?.remove(id)
   }
 
+  /** True when [node] or one of its ancestors listens for [type]. */
+  internal fun hasListenerOnPath(node: Node, type: String): Boolean {
+    var current: Node? = node
+    while (current != null) {
+      if (nodeEventListeners[current]?.get(type)?.isNotEmpty() == true) return true
+      current = current.parent
+    }
+    return false
+  }
+
   fun dispatch(event: Event) {
     if (LOG_EVENTS) {
       Log.d("Mason", "dispatch type=${event.type} target=${event.target?.node?.objectId()}")
