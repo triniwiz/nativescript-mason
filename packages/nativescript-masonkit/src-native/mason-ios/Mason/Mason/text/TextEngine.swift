@@ -1393,7 +1393,12 @@ public class TextEngine: NSObject {
       let maxLineHeight = paragraph?.maximumLineHeight ?? 0
       if linesCount == 1 {
         let baselineOffset = (text.attribute(.baselineOffset, at: 0, effectiveRange: nil) as? CGFloat) ?? 0
-        let baselineFromTop = singleLineBaselineFromTop(ascent: fontAscent, descent: naturalLineHeight - fontAscent, capHeight: CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: drawBounds)
+        // An inline box taller than the font raises the line's ascent; keep the box inside.
+        let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
+        var lineAscent: CGFloat = 0
+        CTLineGetTypographicBounds(line0, &lineAscent, nil, nil)
+        let boxRaised = lineAscent > fontAscent + 0.5
+        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: drawBounds)
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
