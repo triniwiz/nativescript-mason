@@ -521,6 +521,21 @@ pub extern "C" fn mason_node_layout(
     }
 }
 
+/// 0 horizontal-tb, 1 vertical-rl, 2 vertical-lr.
+#[no_mangle]
+pub extern "C" fn mason_node_get_writing_mode(mason: *mut CMason, node: *mut CMasonNode) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe {
+        match (*mason).0.resolved_writing_mode((*node).0.id()) {
+            mason_core::style::WritingMode::HorizontalTb => 0,
+            mason_core::style::WritingMode::VerticalRl => 1,
+            mason_core::style::WritingMode::VerticalLr => 2,
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_node_get_unrounded_size(
     mason: *mut CMason,

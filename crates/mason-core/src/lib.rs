@@ -791,6 +791,11 @@ impl Mason {
         *self.0.layout(node_id.into())
     }
 
+    /// The writing mode `node_id` lays its text out in: its own, else the nearest ancestor's.
+    pub fn resolved_writing_mode(&self, node_id: Id) -> crate::style::WritingMode {
+        crate::tree::resolved_writing_mode(&self.0.inner(), node_id)
+    }
+
     pub fn unrounded_size(&self, node_id: Id) -> Size<f32> {
         self.0
             .nodes()
