@@ -200,6 +200,8 @@ namespace winrt::NativeScript::Mason::implementation
             float ascent{ 0.0f };
             float descent{ 0.0f };
             float lineHeight{ 0.0f };
+            // writing-mode: 0 horizontal-tb, 1 vertical-rl, 2 vertical-lr.
+            uint8_t writingMode{ 0 };
 
             IDWriteTextLayout* Layout()
             {
@@ -253,8 +255,20 @@ namespace winrt::NativeScript::Mason::implementation
             float originY{ 0.0f };
             int width{ 0 };
             int height{ 0 };
+            uint8_t vertical{ 0 };
             bool operator==(Drawn const&) const = default;
         };
+        // The content box the layout was arranged in; vertical text runs its lines down it.
+        struct Frame
+        {
+            float left{ 0.0f };
+            float top{ 0.0f };
+            float right{ 0.0f };
+            uint8_t vertical{ 0 };
+        };
+        Frame m_frame;
+        bool ToLayout(winrt::Windows::Foundation::Point const& point, float& u, float& v) const;
+        winrt::Windows::Foundation::Rect FromLayout(float u, float v, float width, float height) const;
         Drawn m_drawn;
         bool m_drawnValid{ false };
         // Shared with the measure callback, which only holds weak references.
@@ -267,6 +281,7 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_isLink{ false };
         bool m_inputHooked{ false };
         bool m_hostsBoxes{ false };
+        bool m_textTurned{ false };
         // WHITE_SPACE byte: 0 normal, 1 pre, 2 pre-wrap, 3 pre-line, 4 nowrap, 5 break-spaces.
         uint8_t m_whiteSpace{ 0 };
         std::vector<Piece> m_pieces;

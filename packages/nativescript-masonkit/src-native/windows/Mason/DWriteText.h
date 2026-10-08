@@ -452,6 +452,34 @@ namespace mason_dwrite
         return layout;
     }
 
+    // Where each line sits across the line stack, from the layout's top.
+    struct LineBand
+    {
+        float top{ 0.0f };
+        float bottom{ 0.0f };
+        float baseline{ 0.0f };
+        uint32_t start{ 0 };
+        uint32_t length{ 0 };
+    };
+
+    inline std::vector<LineBand> LineBands(IDWriteTextLayout* layout)
+    {
+        std::vector<LineBand> bands;
+        UINT32 count = 0;
+        layout->GetLineMetrics(nullptr, 0, &count);
+        std::vector<DWRITE_LINE_METRICS> lines(count);
+        if (count == 0 || FAILED(layout->GetLineMetrics(lines.data(), count, &count))) return bands;
+        float top = 0.0f;
+        uint32_t start = 0;
+        for (auto const& line : lines)
+        {
+            bands.push_back({ top, top + line.height, top + line.baseline, start, line.length });
+            top += line.height;
+            start += line.length;
+        }
+        return bands;
+    }
+
     struct BoxRect
     {
         float x{ 0.0f };

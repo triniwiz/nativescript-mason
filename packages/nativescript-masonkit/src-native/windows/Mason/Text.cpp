@@ -1395,8 +1395,11 @@ namespace winrt::NativeScript::Mason::implementation
         }
 
         float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
-        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
-        const float width = (std::max)(0.0f, finalSize.Width - left - right);
+        auto* self = winrt::get_self<implementation::Node>(m_node);
+        self->ContentInsets(left, top, right, bottom);
+        const uint8_t vertical = mason_node_get_writing_mode(self->MasonPtr(), self->NodePtr());
+        m_frame = { left, top, finalSize.Width - right, vertical };
+        const float width = (std::max)(0.0f, vertical ? finalSize.Height - top - bottom : finalSize.Width - left - right);
         const float scale = mason_visual::RasterScale(get_strong().as<mux::UIElement>());
         const float slack = SlackFor(scale);
         const float inf = std::numeric_limits<float>::infinity();
@@ -1422,10 +1425,27 @@ namespace winrt::NativeScript::Mason::implementation
 
         // The ink in device pixels around the content box, a pixel of margin for antialiasing. The
         // element sits on whole pixels, so the slot does, and the layout keeps its fraction.
-        const float inkLeft = left - overhang.left;
-        const float inkTop = top - overhang.top;
-        const float inkRight = left + maxWidth + overhang.right;
-        const float inkBottom = top + mason_dwrite::kUnbounded + overhang.bottom;
+        // Along the lines (u) and across them (v), in the layout's frame:
+        const float u0 = -overhang.left, u1 = maxWidth + overhang.right;
+        const float v0 = -overhang.top, v1 = mason_dwrite::kUnbounded + overhang.bottom;
+        float inkLeft = left + u0, inkTop = top + v0, inkRight = left + u1, inkBottom = top + v1;
+        float layoutX = left;
+        if (vertical == 1)
+        {
+            layoutX = m_frame.right;
+            inkLeft = layoutX - v1;
+            inkRight = layoutX - v0;
+            inkTop = top + u0;
+            inkBottom = top + u1;
+        }
+        else if (vertical == 2)
+        {
+            const float spill = (std::max)(0.0f, -v0);
+            inkLeft = left - spill;
+            inkRight = left + v1 + spill;
+            inkTop = top + u0;
+            inkBottom = top + u1;
+        }
         if (inkRight <= inkLeft || inkBottom <= inkTop || metrics.lineCount == 0)
         {
             HideSprite();
@@ -1441,10 +1461,11 @@ namespace winrt::NativeScript::Mason::implementation
         next.maxWidth = maxWidth;
         next.wrap = wrap;
         next.scale = scale;
-        next.originX = left - pxLeft / scale;
+        next.originX = layoutX - pxLeft / scale;
         next.originY = top - pxTop / scale;
         next.width = pxRight - pxLeft;
         next.height = pxBottom - pxTop;
+        next.vertical = vertical;
 
         if (!m_sprite) m_sprite = std::make_unique<mason_atlas::Sprite>();
         auto& sprite = *m_sprite;
@@ -1483,6 +1504,7 @@ namespace winrt::NativeScript::Mason::implementation
         for (auto const& span : c.paragraph.spans) sprite.colors.push_back({ DWRITE_TEXT_RANGE{ span.start, span.length }, span.color });
         sprite.originX = next.originX;
         sprite.originY = next.originY;
+        sprite.vertical = vertical;
         sprite.width = next.width;
         sprite.height = next.height;
         sprite.scale = scale;
@@ -1514,8 +1536,19 @@ namespace winrt::NativeScript::Mason::implementation
             // The layout's cache can answer the final size without calling measure, leaving the
             // TextBlock laid out for whichever probe ran last (often min-content), so lay it out for
             // the final width here, with the same pixel of slack.
-            if (!m_measureCache->SingleLineFits(finalSize.Width)) LayOut(m_text, *m_measureCache, finalSize.Width);
-            m_text.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width + OnePixel(m_text), finalSize.Height });
+            auto* self = winrt::get_self<implementation::Node>(m_node);
+            const bool vertical = mason_node_get_writing_mode(self->MasonPtr(), self->NodePtr()) != 0;
+            const float lineLength = vertical ? finalSize.Height : finalSize.Width;
+            if (!m_measureCache->SingleLineFits(lineLength)) LayOut(m_text, *m_measureCache, lineLength);
+            m_text.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, lineLength + OnePixel(m_text), vertical ? finalSize.Width : finalSize.Height });
+            if (vertical || m_textTurned)
+            {
+                // Turned 90° clockwise, its first line on the right.
+                muxm::MatrixTransform turn;
+                if (vertical) turn.Matrix(muxm::Matrix{ 0.0, 1.0, -1.0, 0.0, finalSize.Width, 0.0 });
+                m_text.RenderTransform(vertical ? turn : nullptr);
+                m_textTurned = vertical;
+            }
         }
         ArrangeBoxes();
         mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
@@ -1582,6 +1615,12 @@ namespace winrt::NativeScript::Mason::implementation
 
     bool Text::RefreshBoxes(MeasureCache& c)
     {
+        if (c.boxNodes.empty()) return false;
+        if (auto node = c.node.get())
+        {
+            auto* impl = winrt::get_self<implementation::Node>(node);
+            c.writingMode = mason_node_get_writing_mode(impl->MasonPtr(), impl->NodePtr());
+        }
         bool changed = false;
         const size_t count = (std::min)(c.boxNodes.size(), c.paragraph.boxes.size());
         for (size_t i = 0; i < count; ++i)
@@ -1603,7 +1642,9 @@ namespace winrt::NativeScript::Mason::implementation
                 std::memcpy(&offset, d + 297, sizeof(float));
                 percent = d[301] != 0;
             }
-            const float baseline = BoxBaseline(align, offset, percent, height, c.ascent, c.descent, c.lineHeight);
+            if (c.writingMode) std::swap(width, height);
+            const float baseline = c.writingMode ? height * 0.5f + (c.ascent - c.descent) * 0.5f
+                                                 : BoxBaseline(align, offset, percent, height, c.ascent, c.descent, c.lineHeight);
             auto& box = c.paragraph.boxes[i];
             if (box.width == width && box.height == height && box.baseline == baseline) continue;
             box.width = width;
@@ -1629,13 +1670,11 @@ namespace winrt::NativeScript::Mason::implementation
         auto boxes = InlineBoxes();
         std::vector<mason_dwrite::BoxRect> rects;
         auto& c = *m_measureCache;
-        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
         auto* self = winrt::get_self<implementation::Node>(m_node);
         if (m_direct && c.layout && m_drawnValid && !boxes.empty())
         {
             mason_dwrite::Configure(c.layout.get(), m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
             mason_dwrite::BoxRects(c.layout.get(), c.paragraph.boxes, rects);
-            self->ContentInsets(left, top, right, bottom);
         }
         const float scale = mason_visual::RasterScale(get_strong().as<mux::UIElement>());
         auto snap = [scale](float absolute, float origin)
@@ -1652,10 +1691,10 @@ namespace winrt::NativeScript::Mason::implementation
                 child.Arrange({ 0.0f, 0.0f, 0.0f, 0.0f });
                 continue;
             }
-            auto const& r = rects[index];
-            const float absX = self->ArrangeX + left + r.x;
-            const float absY = self->ArrangeY + top + r.y;
-            Size size{ r.width, r.height };
+            const auto r = FromLayout(rects[index].x, rects[index].y, rects[index].width, rects[index].height);
+            const float absX = self->ArrangeX + r.X;
+            const float absY = self->ArrangeY + r.Y;
+            Size size{ r.Width, r.Height };
             if (auto node = NodeOfBox(child))
             {
                 auto* impl = winrt::get_self<implementation::Node>(node);
@@ -1674,10 +1713,8 @@ namespace winrt::NativeScript::Mason::implementation
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return nullptr;
         mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
-        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
-        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
-        const float x = point.X - left;
-        const float y = point.Y - top;
+        float x = 0.0f, y = 0.0f;
+        if (!ToLayout(point, x, y)) return nullptr;
         std::vector<mason_dwrite::BoxRect> rects;
         mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
         size_t box = 0;
@@ -1708,8 +1745,6 @@ namespace winrt::NativeScript::Mason::implementation
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return items;
         mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
-        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
-        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
         std::vector<mason_dwrite::BoxRect> rects;
         mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
         std::wstring_view chars{ c.paragraph.text };
@@ -1722,7 +1757,7 @@ namespace winrt::NativeScript::Mason::implementation
                 InlineItem item;
                 item.element = piece.element;
                 item.isBox = true;
-                if (box < rects.size()) item.bounds = { left + rects[box].x, top + rects[box].y, rects[box].width, rects[box].height };
+                if (box < rects.size()) item.bounds = FromLayout(rects[box].x, rects[box].y, rects[box].width, rects[box].height);
                 ++box;
                 items.push_back(std::move(item));
                 continue;
@@ -1757,7 +1792,7 @@ namespace winrt::NativeScript::Mason::implementation
             if (count == 0 || FAILED(layout->HitTestTextRange(piece.start, piece.length, 0.0f, 0.0f, hits.data(), count, &count))) continue;
             InlineItem item;
             item.element = target;
-            item.bounds = { left + hits[0].left, top + hits[0].top, hits[0].width, hits[0].height };
+            item.bounds = FromLayout(hits[0].left, hits[0].top, hits[0].width, hits[0].height);
             item.label = winrt::hstring{ label };
             item.isLink = isLink;
             items.push_back(std::move(item));
@@ -1810,6 +1845,59 @@ namespace winrt::NativeScript::Mason::implementation
         for (auto const& element : chain)
         {
             if (!contains(previous, element)) mason_events::Dispatch(element, L"mason:active", false, L"1");
+        }
+    }
+
+    bool Text::ToLayout(Point const& point, float& u, float& v) const
+    {
+        switch (m_frame.vertical)
+        {
+        case 1:
+            u = point.Y - m_frame.top;
+            v = m_frame.right - point.X;
+            return true;
+        case 2:
+        {
+            auto* layout = m_measureCache->layout.get();
+            if (!layout) return false;
+            const float across = point.X - m_frame.left;
+            for (auto const& line : mason_dwrite::LineBands(layout))
+            {
+                if (across < line.top || across >= line.bottom) continue;
+                u = point.Y - m_frame.top;
+                v = line.top + line.bottom - across;
+                return true;
+            }
+            return false;
+        }
+        default:
+            u = point.X - m_frame.left;
+            v = point.Y - m_frame.top;
+            return true;
+        }
+    }
+
+    Rect Text::FromLayout(float u, float v, float width, float height) const
+    {
+        switch (m_frame.vertical)
+        {
+        case 1:
+            return { m_frame.right - v - height, m_frame.top + u, height, width };
+        case 2:
+        {
+            float sum = 2.0f * v + height;
+            if (auto* layout = m_measureCache->layout.get())
+            {
+                const float middle = v + height * 0.5f;
+                for (auto const& line : mason_dwrite::LineBands(layout))
+                {
+                    if (middle >= line.top && middle < line.bottom) sum = line.top + line.bottom;
+                }
+            }
+            return { m_frame.left + sum - v - height, m_frame.top + u, height, width };
+        }
+        default:
+            return { m_frame.left + u, m_frame.top + v, width, height };
         }
     }
 }
