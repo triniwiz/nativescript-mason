@@ -12,6 +12,11 @@
           <Input class="field" v-model="live" placeholder="type here" />
           <span class="note">value: {{ live }}</span>
           <div class="row"><Input v-model="agree" type="checkbox" /><span class="note">checkbox: {{ show(agree) }}</span></div>
+          <div class="row">
+            <Input type="radio" value="s" v-model="size" /><span class="label">small</span>
+            <Input type="radio" value="m" v-model="size" /><span class="label">medium</span>
+            <span class="note">radio: {{ show(size) }}</span>
+          </div>
           <Input type="range" v-model="volume" />
           <span class="note">range: {{ show(volume) }}</span>
           <Input type="date" v-model="day" />
@@ -113,12 +118,14 @@ const centered = ref('Centered');
 const right = ref('Right aligned');
 const live = ref('');
 const agree = ref(true);
+const size = ref('m');
 const volume = ref(30);
 const day = ref('2026-01-15');
 const tint = ref('#ff0000');
 const show = (v: unknown) => `${JSON.stringify(v)} (${typeof v})`;
 const setBound = () => {
   agree.value = !agree.value;
+  size.value = 's';
   volume.value = 80;
   day.value = '2026-12-25';
   tint.value = '#00aa00';

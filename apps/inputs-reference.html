@@ -193,6 +193,52 @@
     <main class="page-body">
       <p class="note">Each block mirrors plain HTML. Compare with the same markup in a browser.</p>
 
+      <p class="section">Bound value</p>
+      <div class="stack">
+        <input class="field" data-model="live" placeholder="type here" />
+        <span class="note" data-echo="live" data-plain></span>
+        <div class="row"><input data-model="agree" type="checkbox" /><span class="note" data-echo="agree" data-label="checkbox"></span></div>
+        <div class="row">
+          <input type="radio" name="size" value="s" data-model="size" /><span class="label">small</span> <input type="radio" name="size" value="m" data-model="size" /><span class="label">medium</span>
+          <span class="note" data-echo="size" data-label="radio"></span>
+        </div>
+        <input type="range" data-model="volume" />
+        <span class="note" data-echo="volume" data-label="range"></span>
+        <input type="date" data-model="day" />
+        <span class="note" data-echo="day" data-label="date"></span>
+        <input type="color" data-model="tint" />
+        <span class="note" data-echo="tint" data-label="color"></span>
+        <button class="btn" id="set-bound">Set from code</button>
+      </div>
+      <script>
+        // A stand-in for Vue's v-model, so values and their types read the same as on the demo page.
+        const state = { live: '', agree: true, size: 'm', volume: 30, day: '2026-01-15', tint: '#ff0000' };
+        const show = (v) => `${JSON.stringify(v)} (${typeof v})`;
+        function render() {
+          for (const el of document.querySelectorAll('[data-model]')) {
+            const v = state[el.dataset.model];
+            if (el.type === 'checkbox') el.checked = !!v;
+            else if (el.type === 'radio') el.checked = el.value === v;
+            else el.value = v;
+          }
+          for (const el of document.querySelectorAll('[data-echo]')) {
+            const v = state[el.dataset.echo];
+            el.textContent = 'plain' in el.dataset ? `value: ${v}` : `${el.dataset.label}: ${show(v)}`;
+          }
+        }
+        document.addEventListener('input', (e) => {
+          const el = e.target;
+          if (!el.dataset || !el.dataset.model) return;
+          state[el.dataset.model] = el.type === 'checkbox' ? el.checked : el.value;
+          render();
+        });
+        document.getElementById('set-bound').addEventListener('click', () => {
+          Object.assign(state, { agree: !state.agree, size: 's', volume: 80, day: '2026-12-25', tint: '#00aa00' });
+          render();
+        });
+        render();
+      </script>
+
       <p class="section">Unstyled (UA defaults)</p>
       <div class="stack">
         <input placeholder="type=text" />
@@ -268,12 +314,6 @@
         <input type="file" />
         <input type="button" value="type=button" />
         <input type="submit" value="type=submit" />
-      </div>
-
-      <p class="section">Bound value</p>
-      <div class="stack">
-        <input class="field" id="live" placeholder="type here" oninput="document.getElementById('echo').textContent = 'value: ' + this.value" />
-        <span class="note" id="echo">value: </span>
       </div>
     </main>
   </body>
