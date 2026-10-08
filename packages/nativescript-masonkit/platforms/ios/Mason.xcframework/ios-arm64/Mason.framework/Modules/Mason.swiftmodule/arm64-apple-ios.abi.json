@@ -104725,267 +104725,274 @@
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "IntegerLiteral",
+      "offset": 3447,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 3355,
+      "offset": 3485,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 3398,
+      "offset": 3528,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 3576,
+      "offset": 3706,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "StringLiteral",
-      "offset": 3781,
+      "offset": 3911,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "Dictionary",
-      "offset": 4018,
+      "offset": 4148,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 4063,
+      "offset": 4193,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 4104,
+      "offset": 4234,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 6464,
+      "offset": 6594,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 7160,
+      "offset": 7290,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 7239,
+      "offset": 7369,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 7335,
+      "offset": 7465,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 7416,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 8109,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "IntegerLiteral",
-      "offset": 8311,
+      "offset": 7546,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 8732,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 8777,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 9043,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 9084,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 9243,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
-      "kind": "BooleanLiteral",
-      "offset": 9378,
+      "offset": 8239,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 9427,
+      "offset": 8441,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 8862,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 8907,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 9173,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 9214,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 9373,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 9508,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "IntegerLiteral",
+      "offset": 9557,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 9473,
+      "offset": 9603,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "Array",
-      "offset": 9922,
+      "offset": 10052,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "Dictionary",
-      "offset": 10184,
+      "offset": 10314,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 10924,
+      "offset": 11054,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11034,
+      "offset": 11164,
       "length": 1,
       "value": "5"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11050,
+      "offset": 11180,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11145,
+      "offset": 11275,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11175,
+      "offset": 11305,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11205,
+      "offset": 11335,
       "length": 1,
       "value": "8"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 11453,
+      "offset": 11583,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 17251,
+      "offset": 17381,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 18680,
+      "offset": 18810,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 19851,
+      "offset": 19981,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 20216,
+      "offset": 20346,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 21908,
+      "offset": 22038,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 43441,
+      "offset": 43571,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 43465,
+      "offset": 43595,
       "length": 4,
       "value": "true"
     },
@@ -109150,735 +109157,735 @@
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 43311,
+      "offset": 43668,
       "length": 5,
       "value": "\"deg\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 43344,
+      "offset": 43701,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 43351,
+      "offset": 43708,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 43374,
+      "offset": 43731,
       "length": 5,
       "value": "\"rad\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 43408,
+      "offset": 43765,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 43415,
+      "offset": 43772,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "FloatLiteral",
-      "offset": 43420,
+      "offset": 43777,
       "length": 5,
       "value": "180.0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 43457,
+      "offset": 43814,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 52480,
+      "offset": 52837,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 53303,
+      "offset": 53660,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 53335,
+      "offset": 53692,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 53412,
+      "offset": 53769,
       "length": 8,
       "value": "\"filter\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 68948,
+      "offset": 69305,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 68983,
+      "offset": 69340,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 69018,
+      "offset": 69375,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 69093,
+      "offset": 69450,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 69193,
+      "offset": 69550,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "Array",
-      "offset": 97030,
+      "offset": 97387,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 97067,
+      "offset": 97424,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "Array",
-      "offset": 97483,
+      "offset": 97840,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 97788,
+      "offset": 98145,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 97877,
+      "offset": 98234,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 100499,
+      "offset": 100856,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 101061,
+      "offset": 101418,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 104124,
+      "offset": 104481,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 104250,
+      "offset": 104607,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 104376,
+      "offset": 104733,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 104507,
+      "offset": 104864,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 126980,
+      "offset": 127337,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 127782,
+      "offset": 128139,
       "length": 17,
       "value": "\"_mason_backdrop\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 127899,
+      "offset": 128256,
       "length": 23,
       "value": "\"_mason_backdrop_layer\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 127540,
+      "offset": 127897,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 129667,
+      "offset": 130024,
       "length": 8,
       "value": "\"normal\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135449,
+      "offset": 135806,
       "length": 11,
       "value": "\"undefined\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135649,
+      "offset": 136006,
       "length": 45,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135671,
+      "offset": 136028,
       "length": 1,
       "value": "\" \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135693,
+      "offset": 136050,
       "length": 1,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135734,
+      "offset": 136091,
       "length": 30,
       "value": "\"display: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135763,
+      "offset": 136120,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135772,
+      "offset": 136129,
       "length": 32,
       "value": "\"position: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135803,
+      "offset": 136160,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135812,
+      "offset": 136169,
       "length": 42,
       "value": "\"flexDirection: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135853,
+      "offset": 136210,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135862,
+      "offset": 136219,
       "length": 27,
       "value": "\"overflow: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135888,
+      "offset": 136245,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135897,
+      "offset": 136254,
       "length": 32,
       "value": "\"flexWrap: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135928,
+      "offset": 136285,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135937,
+      "offset": 136294,
       "length": 36,
       "value": "\"alignItems: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135972,
+      "offset": 136329,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 135981,
+      "offset": 136338,
       "length": 34,
       "value": "\"alignSelf: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136014,
+      "offset": 136371,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136023,
+      "offset": 136380,
       "length": 40,
       "value": "\"alignContent: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136062,
+      "offset": 136419,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136071,
+      "offset": 136428,
       "length": 40,
       "value": "\"justifyItems: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136110,
+      "offset": 136467,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136119,
+      "offset": 136476,
       "length": 38,
       "value": "\"justifySelf: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136156,
+      "offset": 136513,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136165,
+      "offset": 136522,
       "length": 44,
       "value": "\"justifyContent: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136208,
+      "offset": 136565,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136217,
+      "offset": 136574,
       "length": 28,
       "value": "\"margin: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136244,
+      "offset": 136601,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136253,
+      "offset": 136610,
       "length": 30,
       "value": "\"padding: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136282,
+      "offset": 136639,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136291,
+      "offset": 136648,
       "length": 19,
       "value": "\"border: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136309,
+      "offset": 136666,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136318,
+      "offset": 136675,
       "length": 22,
       "value": "\"gap: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136339,
+      "offset": 136696,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136348,
+      "offset": 136705,
       "length": 23,
       "value": "\"flexGrow: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136370,
+      "offset": 136727,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136379,
+      "offset": 136736,
       "length": 27,
       "value": "\"flexShrink: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136405,
+      "offset": 136762,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136414,
+      "offset": 136771,
       "length": 34,
       "value": "\"flexBasis: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136447,
+      "offset": 136804,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136456,
+      "offset": 136813,
       "length": 24,
       "value": "\"size: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136479,
+      "offset": 136836,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136488,
+      "offset": 136845,
       "length": 30,
       "value": "\"minSize: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136517,
+      "offset": 136874,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136526,
+      "offset": 136883,
       "length": 30,
       "value": "\"maxSize: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136555,
+      "offset": 136912,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136564,
+      "offset": 136921,
       "length": 33,
       "value": "\"aspectRatio: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136596,
+      "offset": 136953,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136605,
+      "offset": 136962,
       "length": 31,
       "value": "\"gridAutoRows: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136635,
+      "offset": 136992,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136644,
+      "offset": 137001,
       "length": 37,
       "value": "\"gridAutoColumns: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136680,
+      "offset": 137037,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136689,
+      "offset": 137046,
       "length": 27,
       "value": "\"gridColumn: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136715,
+      "offset": 137072,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136724,
+      "offset": 137081,
       "length": 21,
       "value": "\"gridRow: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136744,
+      "offset": 137101,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136753,
+      "offset": 137110,
       "length": 39,
       "value": "\"gridTemplateRows: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136791,
+      "offset": 137148,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136800,
+      "offset": 137157,
       "length": 45,
       "value": "\"gridTemplateColumns: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136844,
+      "offset": 137201,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136853,
+      "offset": 137210,
       "length": 35,
       "value": "\"scrollBarWidth: \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136887,
+      "offset": 137244,
       "length": 1,
       "value": "\"\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136941,
+      "offset": 137298,
       "length": 7,
       "value": "\",\n  \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 136966,
+      "offset": 137323,
       "length": 68,
       "value": "\"(MasonStyle) {\n  \""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 137012,
+      "offset": 137369,
       "length": 1,
       "value": "\"\n}\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "Array",
-      "offset": 138037,
+      "offset": 138394,
       "length": 143,
       "value": "[\"sans-serif\", \"serif\", \"monospace\", \"system\", \"system-ui\", \"ui-sans-serif\", \"ui-serif\", \"ui-monospace\", \"-apple-system\", \"cursive\", \"fantasy\"]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "Dictionary",
-      "offset": 138246,
+      "offset": 138603,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 145949,
+      "offset": 146306,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 151979,
+      "offset": 152336,
       "length": 14,
       "value": "\"border-image\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 152270,
+      "offset": 152627,
       "length": 17,
       "value": "\"backdrop-filter\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 152573,
+      "offset": 152930,
       "length": 23,
       "value": "\"font-feature-settings\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 153405,
+      "offset": 153762,
       "length": 1,
       "value": "0"
     },
