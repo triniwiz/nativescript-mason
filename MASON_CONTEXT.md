@@ -784,21 +784,27 @@ inline flow, as on the web, so text wraps across element boundaries.
 - **Whitespace** collapses across the pieces of a flow: no doubled space at an
   element boundary, none at a line start. HTML parsers keep whitespace-only text
   between inline elements as one space (not in flex or grid containers).
-- **Taps.** Inline elements inside a text container are drawn by it (Android
-  `ViewSpan`, iOS run-delegate attachments, flattened text merged into the
-  string), so they have no live views. The container records where it drew each
-  inline box and which element produced each range of text (`NodeSpan` /
-  `TextEngine.inlineNodeKey`), hit tests taps, sets `:active` on the element
-  while pressed, and dispatches `click` to it. Events bubble through node
+- **Inline boxes are real child views.** Inline-blocks, buttons, images and
+  inputs inside text are children of the text view (the Android `TextView` is a
+  ViewGroup; iOS `MasonText` adds them as subviews). The text only leaves room
+  for them (Android `ViewSpan`, iOS run delegates) and the text view lays each
+  one out where that room is: from the drawn text once drawn, else from Mason's
+  placement (`TextView.layoutInlineBox`, `MasonText.placeInlineBox`, called from
+  the layout pass). They inherit the text's opacity, transform and clip and get
+  touches, gestures and accessibility like any view. In vertical text, sizes run
+  along the line by height; Android turns a button (its label is platform-drawn)
+  with the text, while text views draw their own text vertically.
+- **Taps on text pieces.** Flattened elements (`<a>`, `<b>`, `<span>` merged
+  into the string) have no views. The container records which element produced
+  each range of text (`NodeSpan` / `TextEngine.inlineNodeKey`), hit tests taps,
+  sets `:active` on the element while pressed, and dispatches `click` to it. Events bubble through node
   parents on both platforms and honour `stopPropagation`. On iOS a
   `MasonGestureRecognizer` only fires when no deeper element handles the touch.
-- **Accessibility.** Android installs an `ExploreByTouchHelper` (only while
-  accessibility is on) exposing inline boxes and links as virtual nodes. iOS text
-  views read as static text, or, when they hold interactive inline elements,
-  expose their text pieces, links and boxes as `accessibilityElements`.
-- **Not supported yet:** inline boxes that need real touch delivery (an input
-  inside an inline-block, NativeScript core gestures on an inline box) only get
-  `click`; they would need to be attached as live views at their drawn rect.
+- **Accessibility.** Android exposes links as virtual nodes through
+  `getAccessibilityNodeProvider` (NativeScript core replaces view delegates),
+  wrapping an `ExploreByTouchHelper` and adding the real children it can't hold.
+  iOS text views read as static text, or, when they hold links or inline boxes,
+  expose text pieces, links and the box views as `accessibilityElements`.
 
 ## Backdrop Filter
 
