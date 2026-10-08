@@ -11,7 +11,7 @@
         <div class="stack">
           <Input class="field" v-model="live" placeholder="type here" />
           <span class="note">value: {{ live }}</span>
-          <div class="row"><Input type="checkbox" v-model="agree" /><span class="note">checkbox: {{ show(agree) }}</span></div>
+          <div class="row"><Input v-model="agree" type="checkbox" /><span class="note">checkbox: {{ show(agree) }}</span></div>
           <Input type="range" v-model="volume" />
           <span class="note">range: {{ show(volume) }}</span>
           <Input type="date" v-model="day" />
