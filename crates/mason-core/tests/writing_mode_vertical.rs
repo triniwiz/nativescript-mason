@@ -201,3 +201,70 @@ fn vertical_block_with_a_fixed_height_under_an_auto_height_parent() {
 
     check(&mason, &[("vertical", vertical, 0.0, 0.0, 40.0, 40.0)]);
 }
+
+#[test]
+fn vertical_block_in_a_horizontal_block_parent_sizes_its_width_to_its_lines() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Block);
+        s.set_size(Size {
+            width: Dimension::length(300.0),
+            height: Dimension::auto(),
+        });
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    // Block flow would stretch an auto width to 300; a vertical box's width is its lines.
+    let vertical = add_text_div(&mut mason, root_id, measure_seven, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(WritingMode::VerticalRl);
+        s.set_size(Size {
+            width: Dimension::auto(),
+            height: Dimension::length(40.0),
+        });
+    });
+    let horizontal = add_text_div(&mut mason, root_id, measure_three, |s| {
+        s.set_display(Display::Block);
+    });
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+
+    check(
+        &mason,
+        &[
+            ("vertical", vertical, 0.0, 0.0, 40.0, 40.0),
+            ("horizontal", horizontal, 0.0, 40.0, 300.0, 10.0),
+        ],
+    );
+}
+
+#[test]
+fn vertical_text_with_no_definite_height_wraps_at_the_viewport_height() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Flex);
+        s.set_align_items(Some(AlignItems::START));
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    // Nothing above sets a height, so the 100px viewport is the line length: five 20px runs
+    // per line, two lines of 10px.
+    let vertical = add_text_div(&mut mason, root_id, measure_seven, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(WritingMode::VerticalLr);
+    });
+
+    mason.compute_wh(stage_id, 1280.0, 100.0);
+
+    check(&mason, &[("vertical", vertical, 0.0, 0.0, 20.0, 100.0)]);
+}

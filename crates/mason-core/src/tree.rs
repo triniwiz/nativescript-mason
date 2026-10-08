@@ -76,6 +76,9 @@ pub(crate) struct TreeInner {
     // Set when a node is removed from `nodes`; tells compute_layout's
     // sanitize pass it needs to scrub stale ids from `children`.
     pub(crate) structure_dirty: bool,
+    /// Definite height offered to the current layout root. CSS falls back to it as the line
+    /// length of vertical text whose height is otherwise indefinite.
+    pub(crate) viewport_height: Option<f32>,
     pub(crate) uid: u64,
 }
 
@@ -96,6 +99,7 @@ impl TreeInner {
             has_floats: false,
             has_scroll_containers: false,
             structure_dirty: false,
+            viewport_height: None,
             uid: next_tree_uid(),
         }
     }
@@ -116,6 +120,7 @@ impl TreeInner {
             has_floats: false,
             has_scroll_containers: false,
             structure_dirty: false,
+            viewport_height: None,
             uid: next_tree_uid(),
         }
     }
@@ -1097,6 +1102,7 @@ impl Tree {
         }
 
         mark_ignores_offered_height(&mut self.inner_mut(), root.into());
+        self.inner_mut().viewport_height = available_space.height.into_option();
 
         {
             let _pass = LayoutPassGuard::enter();
@@ -2076,6 +2082,34 @@ pub(crate) fn is_vertical_writing_mode(tree: &TreeInner, id: Id) -> bool {
     false
 }
 
+/// Vertical text with no definite line length (no known or definite available height) takes
+/// the viewport height, as CSS does for orthogonal flows. Works on transposed sizes, where the
+/// line length is the width.
+#[inline]
+pub(crate) fn with_viewport_line_length(
+    known: Size<Option<f32>>,
+    mut available: Size<AvailableSpace>,
+    viewport_height: Option<f32>,
+) -> Size<AvailableSpace> {
+    if known.width.is_none() && !matches!(available.width, AvailableSpace::Definite(_)) {
+        if let Some(height) = viewport_height {
+            available.width = AvailableSpace::Definite(height);
+        }
+    }
+    available
+}
+
+/// A vertical box's line length is its height. CSS only takes it from the containing block when
+/// that block's height is definite (taffy's percentage basis); an available height offered by an
+/// auto-height parent doesn't count, so drop it and let the viewport fallback apply.
+#[inline]
+pub(crate) fn orthogonal_flow_inputs(mut inputs: LayoutInput) -> LayoutInput {
+    if inputs.known_dimensions.height.is_none() && inputs.parent_size.height.is_none() {
+        inputs.available_space.height = AvailableSpace::MaxContent;
+    }
+    inputs
+}
+
 #[inline]
 pub(crate) fn transpose<T>(size: Size<T>) -> Size<T> {
     Size {
@@ -2419,6 +2453,7 @@ impl LayoutBlockContainer for Tree {
                             is_text_container,
                             tree_uid,
                             vertical,
+                            viewport_height,
                         ) = {
                             let inner = tree.inner();
                             let tree_uid = inner.uid;
@@ -2429,6 +2464,7 @@ impl LayoutBlockContainer for Tree {
                             let is_text_container = node.is_text_container();
                             let vertical =
                                 is_text_container && is_vertical_writing_mode(&inner, id);
+                            let viewport_height = inner.viewport_height;
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
                             (
                                 has_measure,
@@ -2438,9 +2474,15 @@ impl LayoutBlockContainer for Tree {
                                 is_text_container,
                                 tree_uid,
                                 vertical,
+                                viewport_height,
                             )
                         };
 
+                        let inputs = if vertical {
+                            orthogonal_flow_inputs(inputs)
+                        } else {
+                            inputs
+                        };
                         compute_leaf_layout(
                             inputs,
                             &style,
@@ -2524,11 +2566,18 @@ impl LayoutBlockContainer for Tree {
                                 } else {
                                     // Vertical text runs its lines along the height: measure in
                                     // the platform's horizontal frame, then turn the result back.
-                                    let (final_known, available_space, known_dimensions) = if vertical {
-                                        (transpose(final_known), transpose(available_space), transpose(known_dimensions))
-                                    } else {
-                                        (final_known, available_space, known_dimensions)
-                                    };
+                                    let (final_known, available_space, known_dimensions) =
+                                        if vertical {
+                                            let known = transpose(final_known);
+                                            let available = with_viewport_line_length(
+                                                known,
+                                                transpose(available_space),
+                                                viewport_height,
+                                            );
+                                            (known, available, transpose(known_dimensions))
+                                        } else {
+                                            (final_known, available_space, known_dimensions)
+                                        };
                                     let canonical_avail =
                                         if is_text_container && known_dimensions.height.is_none() {
                                             Size {
@@ -2572,7 +2621,11 @@ impl LayoutBlockContainer for Tree {
                                             .store(q_known, key_avail, meas);
                                         meas
                                     };
-                                    if vertical { transpose(measured) } else { measured }
+                                    if vertical {
+                                        transpose(measured)
+                                    } else {
+                                        measured
+                                    }
                                 };
 
                                 // clamp measured results too (skipped in ContentSize mode —

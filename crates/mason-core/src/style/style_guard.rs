@@ -119,6 +119,18 @@ impl<'a> BlockContainerStyle for StyleGuard<'a> {
 }
 
 impl<'a> BlockItemStyle for StyleGuard<'a> {
+    /// A box that sets a vertical writing mode inside horizontal block flow has its width
+    /// sized by its lines, not stretched: `start` makes block layout size an auto width as
+    /// fit-content. Everything else keeps `normal`.
+    #[inline(always)]
+    fn justify_self(&self) -> Option<AlignSelf> {
+        let vertical = matches!(
+            self.get_writing_mode(),
+            Some(crate::style::WritingMode::VerticalRl | crate::style::WritingMode::VerticalLr)
+        );
+        (vertical && self.get_size().width.is_auto()).then_some(AlignSelf::START)
+    }
+
     #[inline(always)]
     fn is_table(&self) -> bool {
         self.get_item_is_table()

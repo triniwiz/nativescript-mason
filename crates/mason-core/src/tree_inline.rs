@@ -1428,13 +1428,12 @@ impl Tree {
         // Vertical text runs its lines along the height: measure in the platform's
         // horizontal frame, then turn the result back.
         if crate::tree::is_vertical_writing_mode(&self.inner(), child_id) {
-            use crate::tree::transpose;
-            let measured = self.cached_leaf_measure_horizontal(
-                child_id,
-                measure,
-                transpose(known_dimensions),
-                transpose(available_space),
-            );
+            use crate::tree::{transpose, with_viewport_line_length};
+            let known = transpose(known_dimensions);
+            let viewport_height = self.inner().viewport_height;
+            let available =
+                with_viewport_line_length(known, transpose(available_space), viewport_height);
+            let measured = self.cached_leaf_measure_horizontal(child_id, measure, known, available);
             return transpose(measured);
         }
         self.cached_leaf_measure_horizontal(child_id, measure, known_dimensions, available_space)
@@ -2367,6 +2366,12 @@ impl Tree {
         _block_ctx: Option<&mut BlockContext<'_>>,
     ) -> LayoutOutput {
         let id: Id = node_id.into();
+        let vertical_box = crate::tree::is_vertical_writing_mode(&self.inner(), id);
+        let inputs = if vertical_box {
+            crate::tree::orthogonal_flow_inputs(inputs)
+        } else {
+            inputs
+        };
         let mut child_ids: ScratchVec<Id> = ScratchVec::take();
         if let Some(children) = self.inner().children.get(id) {
             child_ids.extend_from_slice(children);
@@ -2448,7 +2453,6 @@ impl Tree {
         // establish a content box for this purpose and pass through the
         // parent's dimensions unchanged.
         let is_inline_container = matches!(style.display_mode(), DisplayMode::Inline);
-        let vertical_box = crate::tree::is_vertical_writing_mode(&self.inner(), id);
         let content_box_child_base = if !is_inline_container {
             let content_box_parent_size = Size {
                 width: _node_size
