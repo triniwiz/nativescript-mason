@@ -2088,20 +2088,34 @@ pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::W
 }
 
 /// Vertical text with no definite line length (no known or definite available height) takes
-/// the viewport height, as CSS does for orthogonal flows. Works on transposed sizes, where the
-/// line length is the width.
+/// its containing block's definite content height, else the viewport height, as CSS does for
+/// orthogonal flows. Works on transposed sizes, where the line length is the width.
 #[inline]
 pub(crate) fn with_viewport_line_length(
     known: Size<Option<f32>>,
     mut available: Size<AvailableSpace>,
+    containing_height: Option<f32>,
     viewport_height: Option<f32>,
 ) -> Size<AvailableSpace> {
     if known.width.is_none() && !matches!(available.width, AvailableSpace::Definite(_)) {
-        if let Some(height) = viewport_height {
+        if let Some(height) = containing_height.or(viewport_height) {
             available.width = AvailableSpace::Definite(height);
         }
     }
     available
+}
+
+/// The definite content height of `id`'s parent, from its own style. Intrinsic sizing passes
+/// don't offer it, but it is the line length of vertical text the parent holds.
+pub(crate) fn containing_block_height(tree: &TreeInner, id: Id) -> Option<f32> {
+    let parent = tree.parents.get(id).copied().flatten()?;
+    let style = tree.nodes.get(parent)?.style();
+    let height = style.get_size().height.maybe_resolve(None, |_, _| 0.0)?;
+    if style.get_box_sizing() == taffy::BoxSizing::ContentBox {
+        return Some(height);
+    }
+    let edges = style.get_padding().resolve_or_zero(None, |_, _| 0.0) + style.border().resolve_or_zero(None, |_, _| 0.0);
+    Some((height - edges.top - edges.bottom).max(0.0))
 }
 
 /// A vertical box's line length is its height. CSS only takes it from the containing block when
@@ -2109,8 +2123,15 @@ pub(crate) fn with_viewport_line_length(
 /// auto-height parent doesn't count, so drop it and let the viewport fallback apply.
 #[inline]
 pub(crate) fn orthogonal_flow_inputs(mut inputs: LayoutInput) -> LayoutInput {
-    if inputs.known_dimensions.height.is_none() && inputs.parent_size.height.is_none() {
-        inputs.available_space.height = AvailableSpace::MaxContent;
+    if inputs.known_dimensions.height.is_none() {
+        match inputs.parent_size.height {
+            None => inputs.available_space.height = AvailableSpace::MaxContent,
+            // A block child is offered no height, but its containing block's is definite.
+            Some(height) if !matches!(inputs.available_space.height, AvailableSpace::Definite(_)) => {
+                inputs.available_space.height = AvailableSpace::Definite(height);
+            }
+            _ => {}
+        }
     }
     inputs
 }
@@ -2459,6 +2480,7 @@ impl LayoutBlockContainer for Tree {
                             tree_uid,
                             vertical,
                             viewport_height,
+                            containing_height,
                         ) = {
                             let inner = tree.inner();
                             let tree_uid = inner.uid;
@@ -2470,6 +2492,8 @@ impl LayoutBlockContainer for Tree {
                             let vertical =
                                 is_text_container && is_vertical_writing_mode(&inner, id);
                             let viewport_height = inner.viewport_height;
+                            let containing_height =
+                                if vertical { containing_block_height(&inner, id) } else { None };
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
                             (
                                 has_measure,
@@ -2480,6 +2504,7 @@ impl LayoutBlockContainer for Tree {
                                 tree_uid,
                                 vertical,
                                 viewport_height,
+                                containing_height,
                             )
                         };
 
@@ -2577,6 +2602,7 @@ impl LayoutBlockContainer for Tree {
                                             let available = with_viewport_line_length(
                                                 known,
                                                 transpose(available_space),
+                                                containing_height,
                                                 viewport_height,
                                             );
                                             (known, available, transpose(known_dimensions))

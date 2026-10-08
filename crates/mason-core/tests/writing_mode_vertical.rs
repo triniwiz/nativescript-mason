@@ -202,6 +202,52 @@ fn vertical_block_with_a_fixed_height_under_an_auto_height_parent() {
     check(&mason, &[("vertical", vertical, 0.0, 0.0, 40.0, 40.0)]);
 }
 
+/// A block's inline content sits in an anonymous block text container; its lines run along
+/// the block's definite height.
+#[test]
+fn anonymous_block_text_takes_its_line_length_from_a_fixed_height_vertical_parent() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Flex);
+        s.set_align_items(Some(AlignItems::START));
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    let vertical = mason.create_node();
+    let vertical_id = vertical.id();
+    mason.with_style_mut(vertical_id, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(WritingMode::VerticalRl);
+        s.set_size(Size {
+            width: Dimension::auto(),
+            height: Dimension::length(40.0),
+        });
+    });
+    mason.append_node(root_id, &[vertical_id]);
+
+    let container = mason.create_text_node();
+    let container_id = container.id();
+    mason.with_style_mut(container_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::None);
+    });
+    mason.set_measure(container_id, Some(measure_seven), std::ptr::null_mut());
+    mason.append_node(vertical_id, &[container_id]);
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+
+    // Two "HH" pairs fit in each 40px line: four lines, 40 thick.
+    check(
+        &mason,
+        &[("vertical", vertical_id, 0.0, 0.0, 40.0, 40.0), ("container", container_id, 0.0, 0.0, 40.0, 40.0)],
+    );
+}
+
 #[test]
 fn vertical_block_in_a_horizontal_block_parent_sizes_its_width_to_its_lines() {
     let mut mason = Mason::new();
@@ -403,4 +449,107 @@ fn inline_block_counts_toward_its_lines_intrinsic_width() {
         b.location.x,
         s2.location.x
     );
+}
+
+ahem_measure!(measure_empty, &[]);
+
+/// What a text container's measure saw of its inline box: the box's size as a platform reads it
+/// to place the box in its text.
+struct BoxProbe {
+    mason: *const Mason,
+    span: Option<Id>,
+    seen: Vec<(f32, f32)>,
+}
+
+extern "C" fn measure_three_and_probe(
+    data: *const std::ffi::c_void,
+    known_w: std::ffi::c_float,
+    known_h: std::ffi::c_float,
+    avail_w: std::ffi::c_float,
+    _avail_h: std::ffi::c_float,
+) -> std::ffi::c_longlong {
+    let probe = unsafe { &mut *(data as *mut BoxProbe) };
+    if let Some(span) = probe.span {
+        let size = unsafe { (*probe.mason).unrounded_size(span) };
+        probe.seen.push((size.width, size.height));
+    }
+    let (w, h) = measure_segments(THREE_PAIRS, known_w, avail_w);
+    MeasureOutput::make(w, if known_h > 0.0 { known_h } else { h })
+}
+
+/// A text container (a `<p>` or a block's anonymous run) holding an empty `<span>` styled
+/// `display: inline-block; width: 30px; height: 16px`, itself a text container. Returns every
+/// size of the span the container's measure saw.
+fn text_inline_block(mode: Option<WritingMode>) -> Vec<(f32, f32)> {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Flex);
+        s.set_align_items(Some(AlignItems::START));
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    let block = mason.create_node();
+    let block_id = block.id();
+    mason.with_style_mut(block_id, |s| {
+        s.set_display(Display::Block);
+        if let Some(mode) = mode {
+            s.set_writing_mode(mode);
+            s.set_size(Size {
+                width: Dimension::auto(),
+                height: Dimension::length(100.0),
+            });
+        }
+    });
+    mason.append_node(root_id, &[block_id]);
+
+    let mut probe = Box::new(BoxProbe { mason: &mason, span: None, seen: Vec::new() });
+    let container = mason.create_text_node();
+    let container_id = container.id();
+    mason.with_style_mut(container_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::None);
+    });
+    mason.set_measure(container_id, Some(measure_three_and_probe), &mut *probe as *mut BoxProbe as *mut std::ffi::c_void);
+    mason.append_node(block_id, &[container_id]);
+
+    let span = mason.create_text_node();
+    let span_id = span.id();
+    mason.with_style_mut(span_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Box);
+        s.set_size(Size {
+            width: Dimension::length(30.0),
+            height: Dimension::length(16.0),
+        });
+    });
+    mason.set_measure(span_id, Some(measure_empty), std::ptr::null_mut());
+    mason.append_node(container_id, &[span_id]);
+    probe.span = Some(span_id);
+    probe.mason = &mason;
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+    std::mem::take(&mut probe.seen)
+}
+
+fn assert_box_sizes(seen: &[(f32, f32)]) {
+    assert!(!seen.is_empty(), "the container was never measured");
+    assert!(
+        seen.iter().all(|&(w, h)| (w - 30.0).abs() < 0.5 && (h - 16.0).abs() < 0.5),
+        "the container's measure saw the span as {seen:?} (want 30x16 each time)"
+    );
+}
+
+#[test]
+fn text_inline_block_keeps_its_size_while_horizontal_text_is_measured() {
+    assert_box_sizes(&text_inline_block(None));
+}
+
+#[test]
+fn text_inline_block_keeps_its_size_while_vertical_text_is_measured() {
+    assert_box_sizes(&text_inline_block(Some(WritingMode::VerticalRl)));
 }
