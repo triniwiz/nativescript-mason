@@ -86,6 +86,42 @@ public class TextEngine: NSObject {
     self.container = container
   }
   
+  /// Marks the range a flattened element produced, so a tap on it can find it.
+  static let inlineNodeKey = NSAttributedString.Key("MasonInlineNode")
+
+  // Hit regions from the last draw, in CoreText coordinates; drawnTransform maps them to the view.
+  private var drawnLines: [(line: CTLine, origin: CGPoint)] = []
+  private var drawnBoxes: [(rect: CGRect, node: InlineNodeRef)] = []
+  private var drawnTransform = CGAffineTransform.identity
+
+  /// The inline element under a point in the view: an inline box, else the innermost flattened
+  /// element whose text is under the point. Nil over plain text or empty space.
+  internal func inlineNode(at point: CGPoint) -> MasonNode? {
+    let p = point.applying(drawnTransform.inverted())
+    for box in drawnBoxes where box.rect.contains(p) {
+      return box.node.node
+    }
+    for (line, origin) in drawnLines {
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, nil))
+      guard p.y >= origin.y - descent, p.y <= origin.y + ascent,
+            p.x >= origin.x, p.x <= origin.x + width else { continue }
+      for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+        var position = CGPoint.zero
+        CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+        let runWidth = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), nil, nil, nil))
+        let x = origin.x + position.x
+        if p.x >= x && p.x < x + runWidth {
+          let attrs = CTRunGetAttributes(run) as NSDictionary
+          return (attrs[TextEngine.inlineNodeKey] as? InlineNodeRef)?.node
+        }
+      }
+      return nil
+    }
+    return nil
+  }
+
   internal func handlePressDown() {
   }
 
@@ -926,6 +962,7 @@ public class TextEngine: NSObject {
     }
 
     drawInlineBackgrounds(for: drawLine, at: baselineOrigin, in: context)
+    drawnLines.append((drawLine, baselineOrigin))
 
     // Draw text shadows if any
     if !style.textShadows.isEmpty {
@@ -1353,6 +1390,7 @@ public class TextEngine: NSObject {
       // Same double-alignment pitfall as the shadow pass above - `lineOrigin.x`
       // already reflects the paragraph style's alignment.
       context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
+      drawnLines.append((line, context.textPosition))
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -1437,6 +1475,7 @@ public class TextEngine: NSObject {
         
         guard clipRect.intersects(drawRect) else { continue }
         guard let childView = helper.view else { continue }
+        drawnBoxes.append((drawRect, InlineNodeRef(helper.node)))
         
         context.saveGState()
         context.clip(to: clipRect)
@@ -1449,6 +1488,8 @@ public class TextEngine: NSObject {
           childView.frame = CGRect(origin: .zero, size: drawRect.size)
           childView.layoutIfNeeded()
         }
+        // Pick up state changes such as :active before taking the snapshot.
+        childView.layer.displayIfNeeded()
         childView.layer.render(in: context)
         
         context.restoreGState()
@@ -1489,15 +1530,19 @@ public class TextEngine: NSObject {
     drawState = .drawing
     // Build attributed string for drawing (uses cache if valid)
     let text = buildAttributedString(forMeasurement: false)
+    drawnLines.removeAll(keepingCapacity: true)
+    drawnBoxes.removeAll(keepingCapacity: true)
     context.saveGState()
     context.textMatrix = .identity
     var rect = rect
     if verticalWritingMode != 0 {
       // Lines run down the box and stack from the right, glyphs turned clockwise:
       // CoreText's (x, y) lands at (y, x). vertical-lr mirrors its lines in drawMultiLine.
-      context.concatenate(CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0))
+      drawnTransform = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+      context.concatenate(drawnTransform)
       rect = CGRect(x: 0, y: 0, width: rect.height, height: rect.width)
     } else {
+      drawnTransform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.height)
       context.translateBy(x: 0, y: rect.height)
       context.scaleBy(x: 1.0, y: -1.0)
     }
@@ -1521,6 +1566,19 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Collapses each run of spaces and tabs to one space, which keeps the attributes of the
+  /// run's first character, so inner ranges (bold, links, inline boxes) survive.
+  static func collapsingWhitespace(_ text: NSAttributedString) -> NSMutableAttributedString {
+    let result = NSMutableAttributedString(attributedString: text)
+    guard let rx = horizontalWsRegex else { return result }
+    let matches = rx.matches(in: text.string, options: [], range: NSRange(location: 0, length: result.length))
+    let ns = text.string as NSString
+    for match in matches.reversed() where !(match.range.length == 1 && ns.character(at: match.range.location) == 0x20) {
+      result.replaceCharacters(in: match.range, with: " ")
+    }
+    return result
+  }
+
   /// Whether the text has an explicit line break (from <br>); NSString's search
   /// avoids walking the whole string as Swift Characters.
   static func hasLineBreak(_ text: NSAttributedString) -> Bool {
@@ -1544,17 +1602,6 @@ public class TextEngine: NSObject {
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = CharacterSet.whitespacesAndNewlines
-    // Use [ \t]+ to only match horizontal whitespace, not newlines or line separators
-    let collapseRegex = TextEngine.horizontalWsRegex
-
-    func collapsedString(_ s: String) -> String {
-      guard let rx = collapseRegex else { return s }
-      // replace runs of horizontal whitespace with single ASCII space
-      let ns = s as NSString
-      let r = rx.rangeOfFirstMatch(in: s, options: [], range: NSRange(location: 0, length: ns.length))
-      if r.location == NSNotFound && !s.isEmpty { return s }
-      return rx.stringByReplacingMatches(in: s, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: " ")
-    }
 
     let composed = NSMutableAttributedString()
     var prevEndedWithWhitespace = false
@@ -1581,7 +1628,13 @@ public class TextEngine: NSObject {
         fragment = nil
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
-          fragment = TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor)
+          let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor))
+          // Nested elements marked their own ranges first, so the innermost wins.
+          let ref = InlineNodeRef(child)
+          piece.enumerateAttribute(TextEngine.inlineNodeKey, in: NSRange(location: 0, length: piece.length)) { value, range, _ in
+            if value == nil { piece.addAttribute(TextEngine.inlineNodeKey, value: ref, range: range) }
+          }
+          fragment = piece
         } else {
           fragment = createPlaceholder(for: child)
         }
@@ -1649,9 +1702,11 @@ public class TextEngine: NSObject {
         continue
       }
 
-      // For normal text fragment: collapse internal whitespace
+      // For normal text fragment: collapse internal whitespace, keeping the
+      // attributes of a flattened element's inner ranges.
       let raw = frag.string
-      let collapsed = collapsedString(raw)
+      let collapsedFrag = TextEngine.collapsingWhitespace(frag)
+      let collapsed = collapsedFrag.string
 
       if collapsed.isEmpty {
         // nothing to append but mark prevEndedWithWhitespace if original had whitespace
@@ -1666,9 +1721,9 @@ public class TextEngine: NSObject {
       // prepare fragment attributes for the collapsed text
       let attrs = frag.attributes(at: 0, effectiveRange: nil)
       // strip leading/trailing single spaces from collapsed when appending (we'll handle separator)
-      var middle = collapsed
-      if startsWithSpace && !middle.isEmpty { middle.removeFirst() }
-      if endsWithSpace && !middle.isEmpty { middle.removeLast() }
+      let middle = collapsedFrag
+      if startsWithSpace && middle.length > 0 { middle.deleteCharacters(in: NSRange(location: 0, length: 1)) }
+      if endsWithSpace && middle.length > 0 { middle.deleteCharacters(in: NSRange(location: middle.length - 1, length: 1)) }
 
       // Insert separator if needed: if composed not empty and (prevEndedWithWhitespace || startsWithSpace)
       if composed.length > 0 && (prevEndedWithWhitespace || startsWithSpace) {
@@ -1695,10 +1750,9 @@ public class TextEngine: NSObject {
         }
       }
 
-      // append the trimmed/collapsed middle text with frag attrs
-      if !middle.isEmpty {
-        let a = NSAttributedString(string: middle, attributes: attrs)
-        composed.append(a)
+      // append the trimmed/collapsed middle text with its own attributes
+      if middle.length > 0 {
+        composed.append(middle)
       }
 
       // update prevEndedWithWhitespace to endsWithSpace
@@ -1922,5 +1976,25 @@ final class TextLayoutCache {
   func store(_ key: Key, _ entry: Entry) {
     if entries.count >= TextLayoutCache.capacity { entries.removeAll(keepingCapacity: true) }
     entries[key] = entry
+  }
+}
+
+
+/// A weak reference to the element that produced a range of flattened text. Equal when it
+/// names the same node, so rebuilt strings still match layout caches.
+final class InlineNodeRef: NSObject {
+  weak var node: MasonNode?
+
+  init(_ node: MasonNode) {
+    self.node = node
+  }
+
+  override func isEqual(_ object: Any?) -> Bool {
+    guard let other = object as? InlineNodeRef else { return false }
+    return other.node === node
+  }
+
+  override var hash: Int {
+    node.map { ObjectIdentifier($0).hashValue } ?? 0
   }
 }

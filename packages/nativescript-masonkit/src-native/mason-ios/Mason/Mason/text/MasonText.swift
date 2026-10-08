@@ -547,6 +547,100 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
   }
   
+  // An inline element being pressed: an inline box or a flattened element such as <a>.
+  private var inlineTapTarget: MasonNode?
+  private var inlineTapStart: CGPoint?
+
+  /// The inline element a tap at `point` goes to, when it or an ancestor listens for click.
+  internal func inlineClickTarget(at point: CGPoint) -> MasonNode? {
+    guard let target = engine.inlineNode(at: point), target !== node,
+          node.mason.hasListenerOnPath(target, "click") else { return nil }
+    return target
+  }
+
+  /// The pressed inline element and its ancestors inside this text view.
+  private func setInlinePressed(_ target: MasonNode, _ pressed: Bool) {
+    var current: MasonNode? = target
+    while let n = current, n !== node {
+      if n.hasPseudo(.active) != pressed {
+        n.setPseudo(.active, pressed)
+        n.view?.setNeedsDisplay()
+        n.view?.layer.setNeedsDisplay()
+      }
+      current = n.parent
+    }
+    textLayer.setNeedsDisplay()
+  }
+
+  private func endInlineTap() {
+    if let target = inlineTapTarget { setInlinePressed(target, false) }
+    inlineTapTarget = nil
+    inlineTapStart = nil
+  }
+
+  // Inline boxes and flattened elements are drawn by this view, so it routes their taps: the
+  // click goes to the element under the finger and bubbles from there, as on the web.
+  public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if let touch = touches.first, beginInlineTap(at: touch.location(in: self), windowLocation: touch.location(in: nil)) {
+      return
+    }
+    super.touchesBegan(touches, with: event)
+  }
+
+  internal func beginInlineTap(at point: CGPoint, windowLocation: CGPoint) -> Bool {
+    endInlineTap()
+    guard let target = inlineClickTarget(at: point) else { return false }
+    inlineTapTarget = target
+    inlineTapStart = windowLocation
+    setInlinePressed(target, true)
+    return true
+  }
+
+  public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if inlineTapTarget != nil {
+      if let touch = touches.first, let start = inlineTapStart {
+        let now = touch.location(in: nil)
+        if hypot(now.x - start.x, now.y - start.y) > 10 { endInlineTap() }
+      }
+      return
+    }
+    super.touchesMoved(touches, with: event)
+  }
+
+  public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    guard inlineTapTarget != nil else {
+      super.touchesEnded(touches, with: event)
+      return
+    }
+    finishInlineTap(at: touches.first?.location(in: self) ?? .zero)
+  }
+
+  internal func finishInlineTap(at location: CGPoint) {
+    guard let target = inlineTapTarget else { return }
+    endInlineTap()
+    let click = MasonMouseEvent(
+      type: "click",
+      options: MasonMouseEventOptions().apply {
+        $0.clientX = Float(location.x)
+        $0.clientY = Float(location.y)
+        $0.screenX = Float(location.x)
+        $0.screenY = Float(location.y)
+        $0.pageX = Float(location.x)
+        $0.pageY = Float(location.y)
+      }
+    )
+    click.target = target.view
+    node.mason.dispatch(click, target)
+  }
+
+  public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if inlineTapTarget != nil {
+      endInlineTap()
+      return
+    }
+    super.touchesCancelled(touches, with: event)
+  }
+
   public func addView(_ view: UIView){
     if(view.superview == self){
       return

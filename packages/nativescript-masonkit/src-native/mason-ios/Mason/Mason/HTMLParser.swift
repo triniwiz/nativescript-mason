@@ -264,9 +264,13 @@ public class HTMLParser: NSObject {
       case .text(let text):
         let parentIsRawText = stack.last.map { Self.rawTextElements.contains($0.name) } ?? false
         // Outside a raw-text element, HTML collapses whitespace runs to one
-        // space and drops whitespace-only text nodes, so pretty-printed markup
-        // doesn't add stray indentation nodes between block children.
-        let trimmed = parentIsRawText ? text : Self.collapseWhitespace(text)
+        // space. Whitespace-only text stays a space inside an inline flow
+        // (`<b>b</b> <i>c</i>`); flex and grid containers ignore it.
+        var trimmed = parentIsRawText ? text : Self.collapseWhitespace(text)
+        if trimmed.isEmpty && !text.isEmpty, let parent = stack.last,
+           [Display.Block, Display.Inline, Display.InlineBlock].contains(parent.node.style.display) {
+          trimmed = " "
+        }
         if trimmed.isEmpty { continue }
 
         if let parent = stack.last {
