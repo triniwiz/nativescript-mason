@@ -20,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.RadioButton
 import android.widget.SeekBar
@@ -132,6 +133,7 @@ class Input @JvmOverloads constructor(
       setHorizontallyScrolling(true)
       setPadding(0, 0, 0, 0)
       background = null
+      setHintTextColor(0xFF757575.toInt())
       ellipsize = null
       inputType =
         InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
@@ -543,11 +545,7 @@ class Input @JvmOverloads constructor(
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
         configure {
-          val x = (2 * resources.displayMetrics.density).toInt()
-          val y = (resources.displayMetrics.density).toInt()
-          textInput.setPadding(
-            x, y, x, y
-          )
+          style.paddingCss = "1 2"
           style.border = "1"
           style.borderRadius = "4"
           style.textAlign = TextAlign.Left
@@ -605,6 +603,9 @@ class Input @JvmOverloads constructor(
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
           }
         }
+        // setInputType forces monospace for password variations.
+        textInput.typeface = android.graphics.Typeface.DEFAULT
+        syncHintStyle()
         addView(textInput)
       }
 
@@ -775,13 +776,41 @@ class Input @JvmOverloads constructor(
       attributes.lineHeight = null
     }
     TextNode.applyAttributes(text, 0, text.length, attributes)
-    view.setText(text, TextView.BufferType.SPANNABLE)
+    if (view is EditText) {
+      val start = view.selectionStart
+      val end = view.selectionEnd
+      view.setText(text, TextView.BufferType.SPANNABLE)
+      if (start >= 0) view.setSelection(start.coerceAtMost(text.length), end.coerceAtMost(text.length))
+    } else {
+      view.setText(text, TextView.BufferType.SPANNABLE)
+    }
+  }
+
+  // The hint is drawn with the view's own paint and gravity, not the spans syncTextStyle applies to the text.
+  private fun syncHintStyle() {
+    val attributes = node.getDefaultAttributes()
+    attributes.fontSize?.takeIf { it > 0 }?.let {
+      textInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, it * resources.displayMetrics.density)
+    }
+    attributes.font?.let { face ->
+      face.resolvedTypeface?.let {
+        textInput.setTypeface(it, if (face.weight.weight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+      }
+    }
+    val horizontal = when (style.textAlign) {
+      TextAlign.Center -> android.view.Gravity.CENTER_HORIZONTAL
+      TextAlign.Right, TextAlign.End -> android.view.Gravity.END
+      else -> android.view.Gravity.START
+    }
+    textInput.gravity = horizontal or android.view.Gravity.CENTER_VERTICAL
   }
 
   var value: String
     set(value) {
       when (type) {
         Type.Tel, Type.Url, Type.Text, Type.Email, Type.Password, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
+          // Two-way bindings write back what was just typed; re-setting it would reset the caret.
+          if (textInput.text.toString() == value) return
           syncTextStyle(value, textInput)
         }
 
@@ -1075,6 +1104,7 @@ class Input @JvmOverloads constructor(
     var sizeHeight = 150f
 
     var ch: Float? = null
+    var fontScale = 1f
     when (type) {
       Type.Checkbox -> {
         val dim = TypedValue.applyDimension(
@@ -1141,7 +1171,9 @@ class Input @JvmOverloads constructor(
       }
 
       else -> {
-        ch = style.paint.measureText("0")
+        // style.paint is fixed at the default size for non-text views.
+        fontScale = style.resolvedFontSize.toFloat() / Constants.DEFAULT_FONT_SIZE
+        ch = style.paint.measureText("0") * fontScale
       }
     }
 
@@ -1160,7 +1192,7 @@ class Input @JvmOverloads constructor(
     } else {
       ch?.let {
         val fm = style.paint.fontMetrics
-        sizeHeight = fm.descent - fm.ascent
+        sizeHeight = (fm.descent - fm.ascent) * fontScale
       }
     }
 
@@ -1187,6 +1219,7 @@ class Input @JvmOverloads constructor(
           textInput.cursorPaint.textSize = style.resolvedFontSize.toFloat()
           textInput.cursorPaint.color = style.resolvedCaretColor
           syncTextStyle(textInput.text.toString(), textInput)
+          syncHintStyle()
         } else if (caretColorChanged) {
           textInput.cursorPaint.color = style.resolvedCaretColor
           textInput.invalidate()

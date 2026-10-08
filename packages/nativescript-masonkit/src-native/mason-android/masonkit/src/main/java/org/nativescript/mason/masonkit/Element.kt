@@ -1223,7 +1223,12 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
                 )
               )
               view.layout(x, y, right, bottom)
-              view.layoutChild(0, 0, width, height)
+              view.layoutChild(
+                padLeft + nv.borderLeft.toInt(),
+                padTop + nv.borderTop.toInt(),
+                width - padRight - nv.borderRight.toInt(),
+                height - padBottom - nv.borderBottom.toInt()
+              )
             }
           } else {
             if (!skipMeasureAndLayout) {
