@@ -792,8 +792,13 @@ inline flow, as on the web, so text wraps across element boundaries.
   placement (`TextView.layoutInlineBox`, `MasonText.placeInlineBox`, called from
   the layout pass). They inherit the text's opacity, transform and clip and get
   touches, gestures and accessibility like any view. In vertical text, sizes run
-  along the line by height; Android turns a button (its label is platform-drawn)
-  with the text, while text views draw their own text vertically.
+  along the line by height. Text views (buttons included) draw their own text
+  vertically; a form control is turned clockwise with the text, so its text runs
+  down the page as in a browser's vertical form controls.
+- **Android text views are ViewGroups.** `TextView` (and `Button`, which
+  extends it) owns its `TextPaint` and text instead of extending
+  `android.widget.TextView`. Setting `text` to a `Spanned` shows it as given,
+  spans drawn over the element's style, as the platform view did.
 - **Taps on text pieces.** Flattened elements (`<a>`, `<b>`, `<span>` merged
   into the string) have no views. The container records which element produced
   each range of text (`NodeSpan` / `TextEngine.inlineNodeKey`), hit tests taps,
