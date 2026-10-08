@@ -618,6 +618,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   internal func finishInlineTap(at location: CGPoint) {
     guard let target = inlineTapTarget else { return }
     endInlineTap()
+    dispatchInlineClick(target, at: location)
+  }
+
+  internal func dispatchInlineClick(_ target: MasonNode, at location: CGPoint) {
     let click = MasonMouseEvent(
       type: "click",
       options: MasonMouseEventOptions().apply {
@@ -631,6 +635,36 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     )
     click.target = target.view
     node.mason.dispatch(click, target)
+  }
+
+  // MARK: Accessibility
+  // Reads as static text. A text view drawing interactive inline elements (links, buttons,
+  // elements with click listeners) is instead a container of its text pieces and those elements.
+  private var accessibilityElementOverride: Bool?
+
+  private var accessibilityText: String {
+    let text = engine.buildAttributedString().string.replacingOccurrences(of: "\u{FFFC}", with: "")
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  public override var isAccessibilityElement: Bool {
+    get { accessibilityElementOverride ?? (engine.inlineAccessibilityElements(in: self) == nil && !accessibilityText.isEmpty) }
+    set { accessibilityElementOverride = newValue }
+  }
+
+  public override var accessibilityLabel: String? {
+    get { super.accessibilityLabel ?? accessibilityText }
+    set { super.accessibilityLabel = newValue }
+  }
+
+  public override var accessibilityTraits: UIAccessibilityTraits {
+    get { super.accessibilityTraits.union(type == .A ? .link : .staticText) }
+    set { super.accessibilityTraits = newValue }
+  }
+
+  public override var accessibilityElements: [Any]? {
+    get { super.accessibilityElements ?? engine.inlineAccessibilityElements(in: self) }
+    set { super.accessibilityElements = newValue }
   }
 
   public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {

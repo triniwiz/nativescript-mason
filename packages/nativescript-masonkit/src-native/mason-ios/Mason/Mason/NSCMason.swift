@@ -204,6 +204,10 @@ public class NSCMason: NSObject {
       }
   }
 
+  internal func hasListener(_ node: MasonNode, _ type: String) -> Bool {
+      return nodeEventListeners[node]?[type]?.isEmpty == false
+  }
+
   /// True when `node` or one of its ancestors listens for `type`.
   internal func hasListenerOnPath(_ node: MasonNode, _ type: String) -> Bool {
       var current: MasonNode? = node

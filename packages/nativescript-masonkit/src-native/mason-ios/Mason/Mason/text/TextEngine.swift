@@ -122,6 +122,73 @@ public class TextEngine: NSObject {
     return nil
   }
 
+  private var accessibilityElementsCache: [Any]??
+
+  /// Accessibility elements for the last draw: text pieces, links and inline boxes in reading
+  /// order. Nil when nothing in the text is interactive, so the view reads as plain text.
+  internal func inlineAccessibilityElements(in view: MasonText) -> [Any]? {
+    if let cached = accessibilityElementsCache { return cached }
+    var elements: [InlineAccessibilityElement] = []
+    var interactive = false
+
+    func add(_ node: MasonNode?, _ label: String, _ traits: UIAccessibilityTraits, _ rect: CGRect) {
+      let frame = rect.applying(drawnTransform)
+      if let last = elements.last, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
+        last.accessibilityLabel = (last.accessibilityLabel ?? "") + label
+        last.accessibilityFrameInContainerSpace = last.accessibilityFrameInContainerSpace.union(frame)
+        return
+      }
+      let element = InlineAccessibilityElement(accessibilityContainer: view)
+      element.node = node
+      element.accessibilityLabel = label
+      element.accessibilityTraits = traits
+      element.accessibilityFrameInContainerSpace = frame
+      elements.append(element)
+    }
+
+    for (line, origin) in drawnLines {
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+      for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+        let attrs = CTRunGetAttributes(run) as NSDictionary
+        let range = CTRunGetStringRange(run)
+        if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {
+          let child = helper.node
+          guard let box = drawnBoxes.first(where: { $0.node.node === child }) else { continue }
+          let childView = helper.view
+          let label = childView?.accessibilityLabel
+            ?? (childView as? TextContainer)?.engine.buildAttributedString().string
+            ?? ""
+          let isButton = childView is Button
+          guard isButton || !label.isEmpty || child.mason.hasListener(child, "click") else { continue }
+          interactive = true
+          add(child, label, isButton ? .button : .none, box.rect)
+          continue
+        }
+        if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+        var position = CGPoint.zero
+        CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+        let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), nil, nil, nil))
+        let rect = CGRect(x: origin.x + position.x, y: origin.y - descent, width: width, height: ascent + descent)
+        var label = ""
+        if let string = cachedAttributedString?.string as NSString?, range.location >= 0, range.location + range.length <= string.length {
+          label = string.substring(with: NSRange(location: range.location, length: range.length))
+        }
+        if let child = (attrs[TextEngine.inlineNodeKey] as? InlineNodeRef)?.node,
+           (child.view as? MasonText)?.type == .A || child.mason.hasListener(child, "click") {
+          interactive = true
+          add(child, label, (child.view as? MasonText)?.type == .A ? .link : .button, rect)
+        } else {
+          add(nil, label, .staticText, rect)
+        }
+      }
+    }
+    let result: [Any]? = interactive ? elements : nil
+    accessibilityElementsCache = .some(result)
+    return result
+  }
+
   internal func handlePressDown() {
   }
 
@@ -1532,6 +1599,7 @@ public class TextEngine: NSObject {
     let text = buildAttributedString(forMeasurement: false)
     drawnLines.removeAll(keepingCapacity: true)
     drawnBoxes.removeAll(keepingCapacity: true)
+    accessibilityElementsCache = nil
     context.saveGState()
     context.textMatrix = .identity
     var rect = rect
@@ -1979,6 +2047,18 @@ final class TextLayoutCache {
   }
 }
 
+
+/// An accessibility element for a piece of a text view: plain text, a link or an inline box.
+final class InlineAccessibilityElement: UIAccessibilityElement {
+  weak var node: MasonNode?
+
+  override func accessibilityActivate() -> Bool {
+    guard let node = node, let text = accessibilityContainer as? MasonText else { return false }
+    let frame = accessibilityFrameInContainerSpace
+    text.dispatchInlineClick(node, at: CGPoint(x: frame.midX, y: frame.midY))
+    return true
+  }
+}
 
 /// A weak reference to the element that produced a range of flattened text. Equal when it
 /// names the same node, so rebuilt strings still match layout caches.
