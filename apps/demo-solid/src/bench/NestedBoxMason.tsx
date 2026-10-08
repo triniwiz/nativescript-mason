@@ -18,7 +18,7 @@ export default function NestedBoxMason(props: Props) {
     <div class={boxClass()}>
       {/* One array child, so a hidden <p> or a leaf's empty list leaves no "" placeholder text node, which Mason would lay out as an anonymous text run. */}
       {[
-        <Show when={props.showOdd || odd()}>
+        <Show when={props.showOdd || odd() || !props.node.children.length}>
           <p class={textClass()} text={props.node.text} />
         </Show>,
         <For each={props.node.children}>{(child) => <NestedBoxMason node={child} showOdd={props.showOdd} cell />}</For>,
