@@ -2398,7 +2398,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.put(StyleKeys.DISPLAY_MODE, displayMode.value)
       values.put(StyleKeys.DISPLAY, display)
 
-      setOrAppendState(StateKeys.DISPLAY.and(StateKeys.DISPLAY_MODE))
+      setOrAppendState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE))
 
       // `display: none` gives the subtree a zero-sized layout, but a
       // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
