@@ -2310,6 +2310,8 @@ class TextEngine(val container: TextContainer) {
             child.appendAttributedTo(composed)
           }
 
+          child.style.isValueInitialized && child.style.display == Display.None -> {}
+
           child.view is TextContainer -> {
             val childTextContainer = child.view as TextContainer
             if (shouldFlattenTextContainer(childTextContainer)) {
@@ -2438,8 +2440,9 @@ class TextEngine(val container: TextContainer) {
       node.dirty()
     }
     // If this TextView is a child of another TextView, invalidate parent to
-    // This handles the case where a flattened child's styles change
-    val parent = node.parent
+    // This handles the case where a flattened child's styles change. The layout
+    // parent, since an inline run's anonymous container holds its elements.
+    val parent = node.layoutParent
 
     if (parent?.view is TextContainer) {
       (parent.view as TextContainer).engine.invalidateInlineSegments(quiet = quiet)
