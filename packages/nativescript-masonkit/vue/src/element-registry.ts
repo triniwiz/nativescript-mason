@@ -28,6 +28,14 @@ function preserveCoreElement(tag: string): void {
   registerElement(alias, () => coreClass, getViewMeta(tag));
 }
 
+// NativeScript-Vue's patchProp maps `modelValue` / `onUpdate:modelValue` through
+// `meta.model` and silently drops both when it is missing.
+const valueModel = { prop: 'value', event: 'input' };
+const modelMeta: Record<string, typeof valueModel> = {
+  input: valueModel,
+  textarea: valueModel,
+};
+
 function register(tag: string, cls: ElementClass, isContainer: boolean): void {
   const key = tag ? normalizeElementName(tag) : '';
   if (!key || registered.has(key)) {
@@ -37,6 +45,7 @@ function register(tag: string, cls: ElementClass, isContainer: boolean): void {
   preserveCoreElement(tag);
   registerElement(tag, () => cls, {
     ...(isContainer ? masonMeta : undefined),
+    model: modelMeta[key],
     overwriteExisting: isKnownView(tag),
   });
   registered.add(key);
