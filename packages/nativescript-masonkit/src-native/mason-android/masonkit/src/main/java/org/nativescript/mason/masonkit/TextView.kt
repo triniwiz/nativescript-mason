@@ -28,6 +28,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeProvider
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.core.view.accessibility.AccessibilityNodeProviderCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
@@ -299,6 +300,7 @@ class TextView @JvmOverloads constructor(
           layoutToDraw.draw(c)
           TextDecorations.draw(c, layoutToDraw)
         }
+        layoutInlineBoxes(layoutToDraw)
         updateInlineAccessibility()
       }
     }
@@ -326,6 +328,7 @@ class TextView @JvmOverloads constructor(
       layout.draw(c)
       TextDecorations.draw(c, layout)
       c.restoreToCount(save)
+      layoutInlineBoxes(layout)
       updateInlineAccessibility()
       return
     }
@@ -340,6 +343,7 @@ class TextView @JvmOverloads constructor(
       TextDecorations.draw(c, layout)
       c.restoreToCount(save)
     }
+    layoutInlineBoxes(layout)
     updateInlineAccessibility()
   }
 
@@ -516,10 +520,36 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+  private var inlineProvider: AccessibilityNodeProvider? = null
+
   // A provider rather than a delegate: NativeScript core replaces every view's delegate.
   override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider? {
     val helper = inlineAccessibility ?: return super.getAccessibilityNodeProvider()
-    return helper.getAccessibilityNodeProvider(this)?.provider as? AccessibilityNodeProvider
+    inlineProvider?.let { return it }
+    val compat = helper.getAccessibilityNodeProvider(this) ?: return super.getAccessibilityNodeProvider()
+    return InlineProvider(compat).also { inlineProvider = it }
+  }
+
+  /**
+   * The link helper's provider, plus this view's real children (inline boxes). The helper only
+   * knows virtual children, so they are added to its host node afterwards.
+   */
+  private inner class InlineProvider(private val compat: AccessibilityNodeProviderCompat) : AccessibilityNodeProvider() {
+    override fun createAccessibilityNodeInfo(virtualViewId: Int): AccessibilityNodeInfo? {
+      val info = compat.createAccessibilityNodeInfo(virtualViewId)?.unwrap() ?: return null
+      if (virtualViewId == HOST_VIEW_ID) {
+        for (i in 0 until childCount) info.addChild(getChildAt(i))
+      }
+      return info
+    }
+
+    override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean =
+      compat.performAction(virtualViewId, action, arguments)
+
+    override fun findAccessibilityNodeInfosByText(text: String, virtualViewId: Int): MutableList<AccessibilityNodeInfo>? =
+      compat.findAccessibilityNodeInfosByText(text, virtualViewId)?.map { it.unwrap() }?.toMutableList()
+
+    override fun findFocus(focus: Int): AccessibilityNodeInfo? = compat.findFocus(focus)?.unwrap()
   }
 
   override fun dispatchHoverEvent(event: MotionEvent): Boolean {
@@ -544,6 +574,84 @@ class TextView @JvmOverloads constructor(
     clearCachedStaticLayout()
     floatAwareStaticLayout = null
     currentText = text
+    syncInlineBoxViews()
+  }
+
+  // The inline boxes in this text are its child views; the text only leaves room for them.
+  private fun syncInlineBoxViews() {
+    val wanted = ArrayList<View>()
+    engine.forEachInlineBox(currentText) { box, _ -> (box.view as? View)?.let { wanted.add(it) } }
+    if (wanted.isEmpty() && childCount == 0) return
+    var changed = false
+    for (i in childCount - 1 downTo 0) {
+      val child = getChildAt(i)
+      if (child !in wanted) {
+        removeViewInLayout(child)
+        (child as? Element)?.node?.let {
+          if (it.inlineTurn != 0f) {
+            it.inlineTurn = 0f
+            it.style.applyTransformToView()
+          }
+        }
+        changed = true
+      }
+    }
+    for (view in wanted) {
+      if (view.parent === this) continue
+      node.detachViewQuietly(view)
+      addViewInLayout(view, -1, view.layoutParams ?: generateDefaultLayoutParams(), true)
+      changed = true
+    }
+    if (changed) invalidate()
+  }
+
+  // Lays each inline box out where the drawn text left room for it.
+  private fun layoutInlineBoxes(layout: android.text.Layout) {
+    if (childCount == 0) return
+    engine.forEachInlineBox(layout.text) { box, rect ->
+      val view = box.view as? View ?: return@forEachInlineBox
+      if (rect == null || view.parent !== this) return@forEachInlineBox
+      placeInlineBox(box, view, toViewRect(rect))
+    }
+  }
+
+  /**
+   * Lays out an inline box during Mason's layout pass: where the drawn text left room for it,
+   * or, before the text has been drawn, where Mason placed it.
+   */
+  internal fun layoutInlineBox(box: Node, view: View, x: Int, y: Int, width: Int, height: Int) {
+    var drawn: RectF? = null
+    drawnLayout?.let { layout ->
+      engine.forEachInlineBox(layout.text) { n, rect -> if (n === box && rect != null) drawn = rect }
+    }
+    placeInlineBox(box, view, drawn?.let { toViewRect(it) } ?: Rect(x, y, x + width, y + height))
+  }
+
+  private fun placeInlineBox(box: Node, view: View, rect: Rect) {
+    var r = rect
+    // Vertical text is turned clockwise, and so is a box in it: lay it out unturned around
+    // the same centre, then turn it.
+    val turn = if (engine.isVerticalWritingMode) 90f else 0f
+    if (turn != 0f) {
+      val w = r.height()
+      val h = r.width()
+      val left = r.centerX() - w / 2
+      val top = r.centerY() - h / 2
+      r = Rect(left, top, left + w, top + h)
+    }
+    if (box.inlineTurn != turn) {
+      box.inlineTurn = turn
+      box.style.applyTransformToView()
+    }
+    if (view.left == r.left && view.top == r.top && view.right == r.right && view.bottom == r.bottom &&
+      !view.isLayoutRequested
+    ) return
+    view.measure(
+      MeasureSpec.makeMeasureSpec(r.width().coerceAtLeast(0), MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(r.height().coerceAtLeast(0), MeasureSpec.EXACTLY)
+    )
+    view.layout(r.left, r.top, r.right, r.bottom)
+    if (view is Input) view.layoutChild(0, 0, r.width(), r.height())
   }
 
   internal fun setTextDeferred(text: CharSequence, type: BufferType) = setText(text, type)

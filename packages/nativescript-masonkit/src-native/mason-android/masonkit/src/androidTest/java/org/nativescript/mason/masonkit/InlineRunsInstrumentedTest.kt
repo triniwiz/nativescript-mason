@@ -103,6 +103,39 @@ class InlineRunsInstrumentedTest {
   }
 
   @Test
+  fun inlineBoxIsARealChildLaidOutInItsText() {
+    val mason = Mason()
+    val div = blockDiv(mason)
+    val box = mason.createView(context).apply {
+      node.style.display = Display.InlineBlock
+      node.style.setSizeWidth(60f, Dimension.Kind.Points.value)
+      node.style.setSizeHeight(30f, Dimension.Kind.Points.value)
+    }
+    div.append("some text before ")
+    div.append(box)
+    div.append(" and after")
+
+    NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.nativePtr, div.node.nativePtr, 1000f, -1f)
+    div.measure(
+      MeasureSpec.makeMeasureSpec(1000, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+    )
+    div.layout(0, 0, 1000, maxOf(div.measuredHeight, 1))
+    div.draw(Canvas(Bitmap.createBitmap(1000, maxOf(div.height, 1), Bitmap.Config.ARGB_8888)))
+
+    val run = div.node.children[0].view as TextView
+    Assert.assertSame(run, box.parent)
+    Assert.assertEquals(60, box.width)
+    Assert.assertEquals(30, box.height)
+    Assert.assertTrue("box sits after the leading text", box.left > 0)
+    Assert.assertTrue("box sits inside its text", box.right <= run.width && box.bottom <= run.height)
+
+    box.node.style.display = Display.None
+    run.engine.applyTextIfNeeded()
+    Assert.assertNull("hidden box leaves its text", box.parent)
+  }
+
+  @Test
   fun tapOnFlattenedLinkClicksTheLinkThenBubbles() {
     val mason = Mason()
     val p = mason.createTextView(context, TextType.P)

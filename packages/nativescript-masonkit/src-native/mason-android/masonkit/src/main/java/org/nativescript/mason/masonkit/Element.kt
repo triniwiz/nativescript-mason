@@ -1178,7 +1178,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom
 
-          if (view is Scroll) {
+          val textHost = view.parent as? TextView
+          if (textHost != null) {
+            // An inline box inside text: its text view knows where the text left room.
+            textHost.layoutInlineBox(node, view, x, y, layoutWidth, layoutHeight)
+          } else if (view is Scroll) {
             // Scroll is a single-view container: position it at the box
             // dimensions (viewport) and update its content dimensions for
             // scroll-range calculations.

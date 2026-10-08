@@ -268,6 +268,9 @@ open class Node internal constructor(
 
   internal var isAnonymous = false
 
+  // Degrees an inline box is turned to follow vertical text, on top of its own transform.
+  internal var inlineTurn = 0f
+
   internal var floatScanFrame = 0L
   internal var floatScanHasFloat = false
 
@@ -545,7 +548,7 @@ open class Node internal constructor(
   private fun isRunContainer(node: Node) = node.isAnonymous && node.view is TextContainer
 
   /** Detach [view] from whatever group holds it without touching the Mason tree. */
-  private fun detachViewQuietly(view: View) {
+  internal fun detachViewQuietly(view: View) {
     NodeUtils.cancelRemoval(view)
     val group = view.parent as? ViewGroup ?: return
     val owner = (group as? Element)?.node
@@ -731,8 +734,10 @@ open class Node internal constructor(
   }
 
   /** Called when this node's display, position or float changes. */
-  internal fun onFlowTypeChanged() {
+  internal fun onFlowTypeChanged(firstSync: Boolean = false) {
     if (isAnonymous || normalizingRuns) return
+    // Text holding this element as an inline piece or box must rebuild around the change.
+    if (!firstSync) (layoutParent?.view as? TextContainer)?.engine?.invalidateInlineSegments()
     if (runsEstablished != establishesInlineRuns()) normalizeInlineRuns()
     val owner = parent ?: return
     if (owner.view is TextContainer || owner.normalizingRuns) return
