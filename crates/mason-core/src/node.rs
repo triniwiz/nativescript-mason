@@ -897,6 +897,9 @@ impl Node {
             // White space (u8)
             merge_u8!(StyleKeys::WHITE_SPACE, StyleKeys::WHITE_SPACE_STATE);
 
+            // Writing mode (u8)
+            merge_u8!(StyleKeys::WRITING_MODE, StyleKeys::WRITING_MODE_STATE);
+
             // Decoration line (u8)
             merge_u8!(StyleKeys::DECORATION_LINE, StyleKeys::DECORATION_LINE_STATE);
 

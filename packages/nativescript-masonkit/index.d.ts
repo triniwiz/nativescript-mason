@@ -127,7 +127,7 @@ declare module '@nativescript/core/ui/styling/style' {
     fontFeatureSettings: string;
     wordSpacing: string;
     hyphens: 'none' | 'manual' | 'auto';
-    writingMode: 'horizontal-tb' | 'horizontal-lr' | 'vertical-rl' | 'vertical-lr';
+    writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
     unicodeBidi: 'normal' | 'embed' | 'bidi-override';
     backdropFilter: string;
     caretColor: string | Color;
@@ -214,7 +214,7 @@ interface Style {
   fontFeatureSettings: string;
   wordSpacing: string;
   hyphens: 'none' | 'manual' | 'auto';
-  writingMode: 'horizontal-tb' | 'horizontal-lr' | 'vertical-rl' | 'vertical-lr';
+  writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   caretColor: string | Color;
@@ -288,7 +288,7 @@ interface IViewBase {
   fontFeatureSettings: string;
   wordSpacing: string;
   hyphens: 'none' | 'manual' | 'auto';
-  writingMode: 'horizontal-tb' | 'horizontal-lr' | 'vertical-rl' | 'vertical-lr';
+  writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   caretColor: string | Color;
