@@ -67,6 +67,13 @@ class MasonGestureRecognizer: UIGestureRecognizer {
       return
     }
 
+    // The click bubbles from the innermost element under the finger, so an
+    // ancestor's recognizer leaves the touch to that element.
+    if MasonGestureRecognizer.deeperTarget(from: touch.view, below: view, location: { touch.location(in: $0) }) {
+      state = .failed
+      return
+    }
+
     let click = MasonMouseEvent(
       type: "click",
       options: MasonMouseEventOptions().apply {
@@ -91,6 +98,25 @@ class MasonGestureRecognizer: UIGestureRecognizer {
     }
 
     eventDispatched = true
+  }
+
+  /// Whether an element between the touched view and `view` handles this click: one with its own
+  /// recognizer, or an inline element drawn by a text view.
+  static func deeperTarget(from hitView: UIView?, below view: UIView, location: (UIView) -> CGPoint) -> Bool {
+    var current = hitView
+    while let v = current, v !== view {
+      if v.gestureRecognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true {
+        return true
+      }
+      if let text = v as? MasonText, text.inlineClickTarget(at: location(text)) != nil {
+        return true
+      }
+      current = v.superview
+    }
+    if let text = view as? MasonText, text.inlineClickTarget(at: location(text)) != nil {
+      return true
+    }
+    return false
   }
 
   override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {

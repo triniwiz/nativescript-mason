@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
 import android.text.BoringLayout
@@ -1515,6 +1516,9 @@ class TextEngine(val container: TextContainer) {
   private inner class ViewSpan(
     val childNode: Node, private val viewHelper: ViewHelper
   ) : ReplacementSpan() {
+    // Where the box was last drawn, in layout coordinates, for hit testing.
+    internal val drawnRect = RectF()
+    internal var drawn = false
 
     override fun getSize(
       paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
@@ -1776,6 +1780,8 @@ class TextEngine(val container: TextContainer) {
         }
       }
 
+      drawnRect.set(x, drawY, x + cachedWidth, drawY + cachedHeight)
+      drawn = true
       canvas.withTranslation(x, drawY) {
         childView.draw(this)
       }
@@ -1834,6 +1840,7 @@ class TextEngine(val container: TextContainer) {
   private var lastDefiniteAvailableHeight = 0f
   private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
+  private var cachedAttributedStringNested = false
   private var isBuilding = false
 
   private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
@@ -2280,10 +2287,13 @@ class TextEngine(val container: TextContainer) {
   }
 
   // When building attributed string, walk tree and apply current styles
-  private fun buildAttributedString(): SpannableStringBuilder {
+  // [nested] builds a flattened child's piece, which the outer flow collapses as a whole.
+  private fun buildAttributedString(nested: Boolean = false): SpannableStringBuilder {
 
     // Return cached version if valid
-    if (cachedAttributedString != null && attributedStringVersion == segmentsInvalidateVersion) {
+    if (cachedAttributedString != null && attributedStringVersion == segmentsInvalidateVersion &&
+      cachedAttributedStringNested == nested
+    ) {
       return cachedAttributedString!!
     }
 
@@ -2310,14 +2320,19 @@ class TextEngine(val container: TextContainer) {
             child.appendAttributedTo(composed)
           }
 
+          child.style.isValueInitialized && child.style.display == Display.None -> {}
+
           child.view is TextContainer -> {
             val childTextContainer = child.view as TextContainer
             if (shouldFlattenTextContainer(childTextContainer)) {
-              val nested = childTextContainer.engine.buildAttributedString()
+              val nested = childTextContainer.engine.buildAttributedString(nested = true)
               val start = composed.length
               composed.append(nested)
               val end = composed.length
               applyTextViewStylesToSpan(composed, start, end, childTextContainer)
+              if (end > start) {
+                composed.setSpan(NodeSpan(child), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+              }
             } else {
               val placeholder = createPlaceholder(child)
               // If the child is a block-level element, ensure it sits on its
@@ -2355,6 +2370,8 @@ class TextEngine(val container: TextContainer) {
     } finally {
       isBuilding = false
     }
+
+    if (!nested) collapseFlowSpaces(composed)
 
     // Wrap with Unicode bidi control characters when unicode-bidi requires
     // character-level overrides beyond what StaticLayout's text direction
@@ -2415,10 +2432,115 @@ class TextEngine(val container: TextContainer) {
 
     // Cache the result
     cachedAttributedString = wrapped
+    cachedAttributedStringNested = nested
     // mark cached string as up-to-date with the current invalidate version
     attributedStringVersion = segmentsInvalidateVersion
 
     return wrapped
+  }
+
+  /**
+   * Collapses spaces across the pieces of one inline flow, as each text node only collapses its
+   * own: a space after another space, or at the start of a line, is dropped.
+   */
+  private fun collapseFlowSpaces(text: SpannableStringBuilder) {
+    if (style.isValueInitialized) {
+      when (style.whiteSpace) {
+        Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.PreLine -> {}
+        else -> return
+      }
+    }
+    var i = 0
+    while (i < text.length) {
+      if (text[i] == ' ' && (i == 0 || text[i - 1] == ' ' || text[i - 1] == '\n')) {
+        text.delete(i, i + 1)
+      } else {
+        i++
+      }
+    }
+  }
+
+  /** Marks the range a flattened element produced, so a tap on it can find it. */
+  internal class NodeSpan(val node: Node)
+
+  /**
+   * The inline element under a point in [layout]'s coordinates: an inline box, else the innermost
+   * flattened element whose text is under the point. Null over plain text or empty space.
+   */
+  internal fun inlineNodeAt(layout: Layout, x: Float, y: Float): Node? {
+    val text = layout.text as? Spanned ?: return null
+    for (span in text.getSpans(0, text.length, ViewSpan::class.java)) {
+      if (span.drawn && span.drawnRect.contains(x, y)) return span.childNode
+    }
+    if (y < 0f || y >= layout.height) return null
+    val line = layout.getLineForVertical(y.toInt())
+    if (x < layout.getLineLeft(line) || x >= layout.getLineRight(line)) return null
+    val lineStart = layout.getLineStart(line)
+    var offset = layout.getOffsetForHorizontal(line, x)
+    // The nearest boundary can sit after the character under the point.
+    val h = layout.getPrimaryHorizontal(offset)
+    val rtl = layout.getParagraphDirection(line) == Layout.DIR_RIGHT_TO_LEFT
+    if (offset > lineStart && (if (rtl) x > h else x < h)) offset--
+    if (offset >= layout.getLineEnd(line)) offset = layout.getLineEnd(line) - 1
+    if (offset < lineStart) return null
+    var best: NodeSpan? = null
+    var bestLength = Int.MAX_VALUE
+    for (span in text.getSpans(offset, offset + 1, NodeSpan::class.java)) {
+      val start = text.getSpanStart(span)
+      val end = text.getSpanEnd(span)
+      if (offset < start || offset >= end) continue
+      if (end - start < bestLength) {
+        best = span
+        bestLength = end - start
+      }
+    }
+    return best?.node
+  }
+
+  /** An inline element exposed to accessibility, with its bounds in layout coordinates. */
+  internal class InlineItem(val node: Node, val bounds: RectF, val label: CharSequence, val isButton: Boolean, val start: Int)
+
+  internal fun hasInlineItems(layout: Layout): Boolean {
+    val text = layout.text as? Spanned ?: return false
+    val length = text.length
+    return text.getSpans(0, length, ViewSpan::class.java).isNotEmpty() ||
+      text.getSpans(0, length, NodeSpan::class.java).isNotEmpty()
+  }
+
+  /**
+   * The inline boxes and clickable flattened elements (links, elements with click listeners)
+   * in [layout], in reading order. A piece that wraps reports its first line's bounds.
+   */
+  internal fun inlineAccessibilityItems(layout: Layout): List<InlineItem> {
+    val text = layout.text as? Spanned ?: return emptyList()
+    val items = ArrayList<InlineItem>()
+    for (span in text.getSpans(0, text.length, ViewSpan::class.java)) {
+      if (!span.drawn) continue
+      val child = span.childNode
+      val view = child.view as? View
+      val label = view?.contentDescription
+        ?: (view as? TextContainer)?.engine?.textContent
+        ?: ""
+      val isButton = view is android.widget.Button || view is Button
+      if (label.isBlank() && !isButton && !child.mason.hasListener(child, "click")) continue
+      items.add(InlineItem(child, RectF(span.drawnRect), label, isButton, text.getSpanStart(span)))
+    }
+    for (span in text.getSpans(0, text.length, NodeSpan::class.java)) {
+      val child = span.node
+      val isLink = (child.view as? TextView)?.type == org.nativescript.mason.masonkit.enums.TextType.A
+      if (!isLink && !child.mason.hasListener(child, "click")) continue
+      val start = text.getSpanStart(span)
+      val end = text.getSpanEnd(span)
+      if (end <= start) continue
+      val line = layout.getLineForOffset(start)
+      val lineEnd = minOf(end, layout.getLineEnd(line))
+      val x0 = layout.getPrimaryHorizontal(start)
+      val x1 = if (lineEnd < end || lineEnd == layout.getLineEnd(line)) layout.getLineRight(line) else layout.getPrimaryHorizontal(lineEnd)
+      val bounds = RectF(minOf(x0, x1), layout.getLineTop(line).toFloat(), maxOf(x0, x1), layout.getLineBottom(line).toFloat())
+      items.add(InlineItem(child, bounds, text.subSequence(start, end).toString(), false, start))
+    }
+    items.sortBy { it.start }
+    return items
   }
 
   internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
@@ -2437,9 +2559,9 @@ class TextEngine(val container: TextContainer) {
     if (markDirty) {
       node.dirty()
     }
-    // If this TextView is a child of another TextView, invalidate parent to
-    // This handles the case where a flattened child's styles change
-    val parent = node.parent
+    // A flattened child's changes must rebuild its container. Use the layout
+    // parent, since an inline run's anonymous container holds its elements.
+    val parent = node.layoutParent
 
     if (parent?.view is TextContainer) {
       (parent.view as TextContainer).engine.invalidateInlineSegments(quiet = quiet)

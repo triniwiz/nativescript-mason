@@ -149,7 +149,7 @@ class Scroll @JvmOverloads constructor(
     if (child == this) return
     val childNode = if (child is Element) child.node else node.mason.nodeForView(child)
     if (node.suppressChildOps > 0) { super.addView(child); return }
-    if (childNode.parent == node) { super.addView(child); return }
+    if (childNode.parent == node) { if (childNode.layoutParent === node) super.addView(child); return }
     node.appendChild(childNode)
   }
 
@@ -157,7 +157,7 @@ class Scroll @JvmOverloads constructor(
     child ?: return
     val childNode = if (child is Element) child.node else node.mason.nodeForView(child)
     if (node.suppressChildOps > 0) { super.addView(child, index); return }
-    if (childNode.parent == node) { super.addView(child, index); return }
+    if (childNode.parent == node) { if (childNode.layoutParent === node) super.addView(child, index); return }
     node.addChildAt(childNode, index)
   }
 
@@ -165,7 +165,7 @@ class Scroll @JvmOverloads constructor(
     child ?: return
     val childNode = if (child is Element) child.node else node.mason.nodeForView(child)
     if (node.suppressChildOps > 0) { super.addView(child, params); return }
-    if (childNode.parent == node) { super.addView(child, params); return }
+    if (childNode.parent == node) { if (childNode.layoutParent === node) super.addView(child, params); return }
     node.appendChild(childNode)
   }
 
@@ -173,7 +173,7 @@ class Scroll @JvmOverloads constructor(
     child ?: return
     val childNode = if (child is Element) child.node else node.mason.nodeForView(child)
     if (node.suppressChildOps > 0) { super.addView(child, index, params); return }
-    if (childNode.parent == node) { super.addView(child, index, params); return }
+    if (childNode.parent == node) { if (childNode.layoutParent === node) super.addView(child, index, params); return }
     node.addChildAt(childNode, index)
   }
 

@@ -2398,7 +2398,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.put(StyleKeys.DISPLAY_MODE, displayMode.value)
       values.put(StyleKeys.DISPLAY, display)
 
-      setOrAppendState(StateKeys.DISPLAY.and(StateKeys.DISPLAY_MODE))
+      setOrAppendState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE))
 
       // `display: none` gives the subtree a zero-sized layout, but a
       // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
@@ -4343,11 +4343,18 @@ class Style internal constructor(@Transient internal var node: Node) {
     // Mark the style as initialized so ViewUtils.render() draws
     // backgrounds, borders, etc. This is the first point where TS-driven
     // style writes reach Kotlin (via syncStyle → setStateFromHalves).
+    val firstSync = !isValueInitialized
     isValueInitialized = true
 
     updateTextStyle()
 
     val stateKeys = StateKeys(isDirty, isDirtyHigh)
+    // A first sync counts too: until then display reads as unset, whatever its value.
+    if (firstSync || stateKeys.hasFlag(StateKeys.DISPLAY) || stateKeys.hasFlag(StateKeys.DISPLAY_MODE) ||
+      stateKeys.hasFlag(StateKeys.POSITION) || stateKeys.hasFlag(StateKeys.FLOAT)
+    ) {
+      node.onFlowTypeChanged()
+    }
     val directionDirty = stateKeys.hasFlag(StateKeys.DIRECTION)
     if (directionDirty) {
       val androidView = node.view as? android.view.View

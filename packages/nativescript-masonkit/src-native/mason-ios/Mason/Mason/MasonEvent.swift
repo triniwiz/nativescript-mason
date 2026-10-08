@@ -62,7 +62,8 @@ public class MasonEvent: NSObject {
   public init(type eventType: String, bubbles eventBubbles: Bool = false, cancelable eventCancelable: Bool = false, options: MasonEventOptions? = nil) {
     self.type = eventType
     self.bubbles = eventBubbles
-    self.cancelable = eventCancelable
+    // click is cancelable on the web whatever the caller says.
+    self.cancelable = eventCancelable || eventType == "click"
     self.isComposing = options?.isComposing ?? false
     self.timeStamp = CACurrentMediaTime() * 1000
   }
@@ -78,6 +79,7 @@ public class MasonEvent: NSObject {
   
   public func stopImmediatePropagation() {
     immediatePropagationStopped = true
+    propagationStopped = true
   }
 }
 

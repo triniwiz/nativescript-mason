@@ -3401,7 +3401,15 @@ export class Event {
   set button(_: number) {}
 
   get target(): any {
-    return this['_target'];
+    // The element the event started at, which differs from currentTarget once it bubbles.
+    const nativeEvent = this[native_];
+    const nativeTarget = __ANDROID__ ? nativeEvent?.getTarget?.() : __APPLE__ ? nativeEvent?.target : null;
+    const current = this['_target'];
+    if (nativeTarget && nativeTarget !== nativeViewFor(current)) {
+      const found = nativeOwnerFor(nativeTarget) ?? findOwnerForNativeView(current, nativeTarget);
+      if (found) return found;
+    }
+    return current;
   }
 
   set target(_: any) {}

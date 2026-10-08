@@ -190,12 +190,32 @@ public class NSCMason: NSObject {
   }
   
 
+  /// Calls the listeners of `node`, then of each ancestor until propagation stops.
   public func dispatch(_ event: MasonEvent, _ node: MasonNode) {
-      if let listeners = nodeEventListeners[node]?[event.type] {
-          for listener in listeners.values {
-              listener(event)
+      var current: MasonNode? = node
+      while let target = current, !event.propagationStopped {
+          if let listeners = nodeEventListeners[target]?[event.type] {
+              for listener in Array(listeners.values) {
+                  if event.immediatePropagationStopped { break }
+                  listener(event)
+              }
           }
+          current = target.parent
       }
+  }
+
+  internal func hasListener(_ node: MasonNode, _ type: String) -> Bool {
+      return nodeEventListeners[node]?[type]?.isEmpty == false
+  }
+
+  /// True when `node` or one of its ancestors listens for `type`.
+  internal func hasListenerOnPath(_ node: MasonNode, _ type: String) -> Bool {
+      var current: MasonNode? = node
+      while let target = current {
+          if nodeEventListeners[target]?[type]?.isEmpty == false { return true }
+          current = target.parent
+      }
+      return false
   }
 
   internal func removeAllEventListeners(_ node: MasonNode) {
