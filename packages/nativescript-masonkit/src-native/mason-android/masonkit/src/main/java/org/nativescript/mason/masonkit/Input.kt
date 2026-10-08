@@ -60,6 +60,17 @@ class Input @JvmOverloads constructor(
   override lateinit var node: Node
     private set
 
+  // iOS's UIColor.placeholderText, so both platforms draw the same light/dark placeholder.
+  internal fun placeholderColor(uiMode: Int = resources.configuration.uiMode): Int {
+    val night = uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+    return if (night == android.content.res.Configuration.UI_MODE_NIGHT_YES) 0x4DEBEBF5 else 0x4D3C3C43
+  }
+
+  override fun onConfigurationChanged(newConfig: android.content.res.Configuration?) {
+    super.onConfigurationChanged(newConfig)
+    newConfig?.let { textInput.setHintTextColor(placeholderColor(it.uiMode)) }
+  }
+
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach {
       it.shader = null
@@ -133,7 +144,7 @@ class Input @JvmOverloads constructor(
       setHorizontallyScrolling(true)
       setPadding(0, 0, 0, 0)
       background = null
-      setHintTextColor(0xFF757575.toInt())
+      setHintTextColor(placeholderColor())
       ellipsize = null
       inputType =
         InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
