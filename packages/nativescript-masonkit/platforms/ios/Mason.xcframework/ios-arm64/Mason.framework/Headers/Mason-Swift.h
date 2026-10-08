@@ -1431,6 +1431,14 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)didMoveToWindow;
 - (void)requestLayout;
 - (void)layoutSubviews;
+- (void)touchesBegan:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
+- (void)touchesMoved:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
+- (void)touchesEnded:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
+@property (nonatomic) BOOL isAccessibilityElement;
+@property (nonatomic, copy) NSString * _Nullable accessibilityLabel;
+@property (nonatomic) UIAccessibilityTraits accessibilityTraits;
+@property (nonatomic, copy) NSArray * _Nullable accessibilityElements;
+- (void)touchesCancelled:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
 - (void)removeView:(UIView * _Nonnull)view;
@@ -1779,6 +1787,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (NSUUID * _Nonnull)addEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
+/// Calls the listeners of <code>node</code>, then of each ancestor until propagation stops.
 - (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
 @property (nonatomic, strong) MasonHTMLParser * _Nonnull htmlParser;
 - (void)clear;
