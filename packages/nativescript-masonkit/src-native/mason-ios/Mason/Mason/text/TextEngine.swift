@@ -21,11 +21,25 @@ private func runDelegateDealloc(_ refCon: UnsafeMutableRawPointer) {
   Unmanaged<MasonNode>.fromOpaque(refCon).release()
 }
 
+// Vertical text runs its lines down the page, so a box's height runs along the line.
+private func boxIsInVerticalText(_ node: MasonNode) -> Bool {
+  let mode = node.style.resolvedWritingMode
+  return mode == 1 || mode == 2
+}
+
+/// A box's size in points: measured, else laid out (a box with no content isn't measured).
+internal func inlineBoxSize(_ node: MasonNode) -> CGSize {
+  let scale = CGFloat(NSCMason.scale)
+  let layout = node.computedLayout
+  let width = node.cachedWidth > 0 ? CGFloat(node.cachedWidth) : CGFloat(layout.width.isNaN ? 0 : layout.width)
+  let height = node.cachedHeight > 0 ? CGFloat(node.cachedHeight) : CGFloat(layout.height.isNaN ? 0 : layout.height)
+  return CGSize(width: width / scale, height: height / scale)
+}
+
 private func runDelegateGetAscent(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
   let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
-  let scale = CGFloat(NSCMason.scale)
-  let height = node.cachedHeight / scale
-  return height
+  let size = inlineBoxSize(node)
+  return boxIsInVerticalText(node) ? size.width : size.height
 }
 
 private func runDelegateGetDescent(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
@@ -34,9 +48,8 @@ private func runDelegateGetDescent(_ refCon: UnsafeMutableRawPointer) -> CGFloat
 
 private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
   let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
-  let scale = CGFloat(NSCMason.scale)
-  let width = node.cachedWidth / scale
-  return width
+  let size = inlineBoxSize(node)
+  return boxIsInVerticalText(node) ? size.height : size.width
 }
 
 
@@ -128,12 +141,12 @@ public class TextEngine: NSObject {
   /// order. Nil when nothing in the text is interactive, so the view reads as plain text.
   internal func inlineAccessibilityElements(in view: MasonText) -> [Any]? {
     if let cached = accessibilityElementsCache { return cached }
-    var elements: [InlineAccessibilityElement] = []
+    var elements: [Any] = []
     var interactive = false
 
     func add(_ node: MasonNode?, _ label: String, _ traits: UIAccessibilityTraits, _ rect: CGRect) {
       let frame = rect.applying(drawnTransform)
-      if let last = elements.last, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
+      if let last = elements.last as? InlineAccessibilityElement, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
         last.accessibilityLabel = (last.accessibilityLabel ?? "") + label
         last.accessibilityFrameInContainerSpace = last.accessibilityFrameInContainerSpace.union(frame)
         return
@@ -154,16 +167,11 @@ public class TextEngine: NSObject {
         let attrs = CTRunGetAttributes(run) as NSDictionary
         let range = CTRunGetStringRange(run)
         if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {
-          let child = helper.node
-          guard let box = drawnBoxes.first(where: { $0.node.node === child }) else { continue }
-          let childView = helper.view
-          let label = childView?.accessibilityLabel
-            ?? (childView as? TextContainer)?.engine.buildAttributedString().string
-            ?? ""
-          let isButton = childView is Button
-          guard isButton || !label.isEmpty || child.mason.hasListener(child, "click") else { continue }
-          interactive = true
-          add(child, label, isButton ? .button : .none, box.rect)
+          // An inline box is a real subview and reaches accessibility itself, in reading order.
+          if let boxView = helper.view, boxView.superview === view {
+            interactive = true
+            elements.append(boxView)
+          }
           continue
         }
         if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
@@ -1534,9 +1542,11 @@ public class TextEngine: NSObject {
         var runPosition = CGPoint.zero
         CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
         
-        let scale = CGFloat(NSCMason.scale)
-        let childWidth = CGFloat(helper.node.cachedWidth / scale)
-        let childHeight = CGFloat(helper.node.cachedHeight / scale)
+        // Along the line, then across it: vertical text runs its lines down the page.
+        let vertical = verticalWritingMode != 0
+        let size = inlineBoxSize(helper.node)
+        let childWidth = vertical ? size.height : size.width
+        let childHeight = vertical ? size.width : size.height
         
         // Context is already in CoreText coordinates (flipped in drawText/drawMultiLine)
         // So use CoreText coordinates directly
@@ -1545,28 +1555,27 @@ public class TextEngine: NSObject {
         
         let drawRect = CGRect(x: ctX, y: ctY, width: childWidth, height: childHeight)
         
-        guard clipRect.intersects(drawRect) else { continue }
-        guard let childView = helper.view else { continue }
+        // The box is a real subview; record where the text left room for it.
+        guard helper.view != nil else { continue }
         drawnBoxes.append((drawRect, InlineNodeRef(helper.node)))
-        
-        context.saveGState()
-        context.clip(to: clipRect)
-        
-        // Translate to top of child (ctY + childHeight) and flip for UIView rendering
-        context.translateBy(x: drawRect.origin.x, y: drawRect.origin.y + drawRect.height)
-        context.scaleBy(x: 1, y: -1)
-        
-        if childView.bounds.size != drawRect.size {
-          childView.frame = CGRect(origin: .zero, size: drawRect.size)
-          childView.layoutIfNeeded()
-        }
-        // Pick up state changes such as :active before taking the snapshot.
-        childView.layer.displayIfNeeded()
-        childView.layer.render(in: context)
-        
-        context.restoreGState()
       }
     }
+
+  /// Where the last draw left room for [node]'s box, in the view's coordinates.
+  internal func drawnBoxFrame(for node: MasonNode) -> CGRect? {
+    guard let box = drawnBoxes.first(where: { $0.node.node === node }) else { return nil }
+    return box.rect.applying(drawnTransform)
+  }
+
+  /// The views of the inline boxes in the current text.
+  internal func inlineBoxViews() -> [UIView] {
+    let text = buildAttributedString(forMeasurement: false)
+    var views: [UIView] = []
+    text.enumerateAttribute(Constants.VIEW_PLACEHOLDER_KEY, in: NSRange(location: 0, length: text.length)) { value, _, _ in
+      if let view = (value as? ViewHelper)?.view { views.append(view) }
+    }
+    return views
+  }
   
   
   /// writing-mode: 1 for vertical-rl, 2 for vertical-lr, 0 for horizontal text.

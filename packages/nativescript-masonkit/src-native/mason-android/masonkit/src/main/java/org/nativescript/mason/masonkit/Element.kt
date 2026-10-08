@@ -7,7 +7,6 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
@@ -1179,7 +1178,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom
 
-          if (view is Scroll) {
+          val textHost = view.parent as? TextView
+          if (textHost != null) {
+            // An inline box inside text: its text view knows where the text left room.
+            textHost.layoutInlineBox(node, view, x, y, layoutWidth, layoutHeight)
+          } else if (view is Scroll) {
             // Scroll is a single-view container: position it at the box
             // dimensions (viewport) and update its content dimensions for
             // scroll-range calculations.

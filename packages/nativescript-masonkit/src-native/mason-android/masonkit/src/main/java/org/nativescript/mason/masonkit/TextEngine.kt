@@ -33,7 +33,6 @@ import android.view.View.MeasureSpec
 import android.view.ViewGroup
 import android.widget.TextView.BufferType
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.withTranslation
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
@@ -1024,7 +1023,7 @@ class TextEngine(val container: TextContainer) {
     if (exclusions.isEmpty()) return null
 
     // Get text from the container (already set during measure)
-    if (container !is android.widget.TextView) return null
+    if (container !is TextView && container !is android.widget.TextView) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
 
@@ -1123,7 +1122,7 @@ class TextEngine(val container: TextContainer) {
    */
   internal fun rebuildCachedStaticLayout(paint: TextPaint, contentWidth: Int): android.text.Layout? {
     if (contentWidth <= 0) return null
-    if (container !is android.widget.TextView) return null
+    if (container !is TextView && container !is android.widget.TextView) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
 
@@ -1516,37 +1515,42 @@ class TextEngine(val container: TextContainer) {
   private inner class ViewSpan(
     val childNode: Node, private val viewHelper: ViewHelper
   ) : ReplacementSpan() {
-    // Where the box was last drawn, in layout coordinates, for hit testing.
+    // Where the box sits, in layout coordinates, as of the last draw. The text view lays
+    // the box's real view out there.
     internal val drawnRect = RectF()
     internal var drawn = false
 
-    override fun getSize(
-      paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
-    ): Int {
-      var width = if (childNode.cachedWidth > 0) {
-        childNode.cachedWidth.toInt()
-      } else {
-        childNode.computedWidth.toInt()
-      }
-
-      var height = if (childNode.cachedHeight > 0) {
-        childNode.cachedHeight.toInt()
-      } else {
-        childNode.computedHeight.toInt()
-      }
-
-      // Fallback: if computed sizes are zero, try measuring the child view
+    /**
+     * The box's extent along the line, then across it. Vertical text runs its lines down
+     * the page, so the box's height runs along the line.
+     */
+    private fun lineExtents(): Pair<Int, Int> {
+      var width = if (childNode.cachedWidth > 0) childNode.cachedWidth.toInt() else childNode.computedWidth.toInt()
+      var height = if (childNode.cachedHeight > 0) childNode.cachedHeight.toInt() else childNode.computedHeight.toInt()
       if ((width <= 0 || height <= 0) && childNode.view is View) {
         val childView = childNode.view as View
         childView.measure(
           MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
           MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
-        val mw = childView.measuredWidth
-        val mh = childView.measuredHeight
-        if (mw > 0) width = mw
-        if (mh > 0) height = mh
+        if (childView.measuredWidth > 0) width = childView.measuredWidth
+        if (childView.measuredHeight > 0) height = childView.measuredHeight
       }
+      if (isVerticalWritingMode) return height to width
+      // A block-level box spans the line, as the web's block in inline content does.
+      if (childNode.style.display == Display.Block) {
+        var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
+        if (parentWidth <= 0) parentWidth = findAncestorElement(childNode)?.node?.computedWidth?.toInt() ?: 0
+        if (parentWidth <= 0) parentWidth = container.node.computedWidth.toInt()
+        if (parentWidth > 0) width = parentWidth
+      }
+      return width to height
+    }
+
+    override fun getSize(
+      paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
+    ): Int {
+      val (width, height) = lineExtents()
 
       // Get vertical-align from child's style
       val verticalAlign = if (childNode.style.isValueInitialized) {
@@ -1627,34 +1631,6 @@ class TextEngine(val container: TextContainer) {
         // metrics here. Let the native layout compute line-box contributions
         // according to the reported ascent/descent values.
       }
-
-      // If this is a block-level child, try to use the parent's available
-      // width so the placeholder spans the full line instead of shrinking to
-      // the child's computed width (which may be zero while layouts are
-      // being computed).
-      if (childNode.style.display == Display.Block) {
-        var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
-        if (parentWidth <= 0) {
-          // Fallback to nearest ancestor Element width to get the real container width
-          val ancestorElement = findAncestorElement(childNode)
-          parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
-        }
-
-        if (parentWidth <= 0) {
-          // Fallback to this TextContainer's computed width
-          try {
-            val fallback = container.node.computedWidth.toInt()
-            if (fallback > 0) parentWidth = fallback
-          } catch (_: Throwable) {
-          }
-        }
-
-        // Match web semantics: if we have a parent/container width, use it.
-        // Otherwise leave the measured width as-is to allow overflow when nowrap.
-        if (parentWidth > 0) {
-          width = parentWidth
-        }
-      }
       return width
     }
 
@@ -1669,53 +1645,9 @@ class TextEngine(val container: TextContainer) {
       bottom: Int,
       paint: Paint
     ) {
-      var cachedWidth = if (childNode.cachedWidth > 0) {
-        childNode.cachedWidth.toInt()
-      } else {
-        childNode.computedWidth.toInt()
-      }
-
-      var cachedHeight = if (childNode.cachedHeight > 0) {
-        childNode.cachedHeight.toInt()
-      } else {
-        childNode.computedHeight.toInt()
-      }
-
-      val childView = childNode.view as? View ?: return
-
-      // Ensure the child view has a measured size. Prefer cached/computed
-      // sizes but fall back to an intrinsic measure pass when necessary.
-      if (cachedWidth <= 0 || cachedHeight <= 0) {
-        childView.measure(
-          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
-          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-        )
-        val mw = childView.measuredWidth
-        val mh = childView.measuredHeight
-        if (mw > 0) cachedWidth = mw
-        if (mh > 0) cachedHeight = mh
-      }
-
-      // If this child is a block, prefer to size it to the parent's width so
-      // borders and backgrounds span the full line.
-      if (childNode.style.display == Display.Block) {
-        var parentWidth = childNode.parent?.computedWidth?.toInt() ?: 0
-        if (parentWidth <= 0) {
-          val ancestorElement = findAncestorElement(childNode)
-          parentWidth = ancestorElement?.node?.computedWidth?.toInt() ?: parentWidth
-        }
-        if (parentWidth > 0) {
-          cachedWidth = parentWidth
-        }
-      }
-
-      if (cachedWidth > 0 && cachedHeight > 0) {
-        childView.measure(
-          MeasureSpec.makeMeasureSpec(cachedWidth, MeasureSpec.EXACTLY),
-          MeasureSpec.makeMeasureSpec(cachedHeight, MeasureSpec.EXACTLY)
-        )
-        childView.layout(0, 0, cachedWidth, cachedHeight)
-      }
+      // The box is a real child view, drawn by the text view's dispatchDraw; this only
+      // records where it goes.
+      val (cachedWidth, cachedHeight) = lineExtents()
 
       // Get vertical-align from child's style
       val verticalAlign = if (childNode.style.isValueInitialized) {
@@ -1782,9 +1714,6 @@ class TextEngine(val container: TextContainer) {
 
       drawnRect.set(x, drawY, x + cachedWidth, drawY + cachedHeight)
       drawn = true
-      canvas.withTranslation(x, drawY) {
-        childView.draw(this)
-      }
     }
   }
 
@@ -2460,6 +2389,14 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
+  /** The inline boxes in [text], each with where it was last drawn in layout coordinates. */
+  internal fun forEachInlineBox(text: CharSequence, block: (Node, RectF?) -> Unit) {
+    val spanned = text as? Spanned ?: return
+    for (span in spanned.getSpans(0, spanned.length, ViewSpan::class.java)) {
+      block(span.childNode, if (span.drawn) span.drawnRect else null)
+    }
+  }
+
   /** Marks the range a flattened element produced, so a tap on it can find it. */
   internal class NodeSpan(val node: Node)
 
@@ -2502,29 +2439,17 @@ class TextEngine(val container: TextContainer) {
 
   internal fun hasInlineItems(layout: Layout): Boolean {
     val text = layout.text as? Spanned ?: return false
-    val length = text.length
-    return text.getSpans(0, length, ViewSpan::class.java).isNotEmpty() ||
-      text.getSpans(0, length, NodeSpan::class.java).isNotEmpty()
+    return text.getSpans(0, text.length, NodeSpan::class.java).isNotEmpty()
   }
 
   /**
-   * The inline boxes and clickable flattened elements (links, elements with click listeners)
-   * in [layout], in reading order. A piece that wraps reports its first line's bounds.
+   * The clickable flattened elements (links, elements with click listeners) in [layout], in
+   * reading order. A piece that wraps reports its first line's bounds. Inline boxes are real
+   * child views and reach accessibility on their own.
    */
   internal fun inlineAccessibilityItems(layout: Layout): List<InlineItem> {
     val text = layout.text as? Spanned ?: return emptyList()
     val items = ArrayList<InlineItem>()
-    for (span in text.getSpans(0, text.length, ViewSpan::class.java)) {
-      if (!span.drawn) continue
-      val child = span.childNode
-      val view = child.view as? View
-      val label = view?.contentDescription
-        ?: (view as? TextContainer)?.engine?.textContent
-        ?: ""
-      val isButton = view is android.widget.Button || view is Button
-      if (label.isBlank() && !isButton && !child.mason.hasListener(child, "click")) continue
-      items.add(InlineItem(child, RectF(span.drawnRect), label, isButton, text.getSpanStart(span)))
-    }
     for (span in text.getSpans(0, text.length, NodeSpan::class.java)) {
       val child = span.node
       val isLink = (child.view as? TextView)?.type == org.nativescript.mason.masonkit.enums.TextType.A

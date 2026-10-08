@@ -319,6 +319,7 @@ public class MasonTextLayer: CALayer {
 
     // Draw text
     textView.engine.drawText(context: context, rect: bounds)
+    (textView as? MasonText)?.inlineBoxesDrawn()
 
     // Restore pre-clip state before drawing border — border uses its own rounded path
     // and must not be constrained by the content clip set above.
@@ -502,6 +503,12 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   public override func layoutSubviews() {
     super.layoutSubviews()
+    syncInlineBoxViews()
+    for view in inlineBoxes.values {
+      if let box = (view as? MasonElement)?.node {
+        placeInlineBox(box, view, view.frame)
+      }
+    }
 
     // On a size change, redraw the text layer at the new width rather than
     // letting CoreAnimation rescale a stale bitmap.
@@ -555,7 +562,60 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   internal func inlineClickTarget(at point: CGPoint) -> MasonNode? {
     guard let target = engine.inlineNode(at: point), target !== node,
           node.mason.hasListenerOnPath(target, "click") else { return nil }
+    // A box with its own click recognizer takes the touch itself.
+    if let view = target.view, view.superview === self,
+       view.gestureRecognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true {
+      return nil
+    }
     return target
+  }
+
+  // MARK: Inline boxes
+  // The inline boxes in this text are its subviews; the text only leaves room for them.
+  private var inlineBoxes: [ObjectIdentifier: UIView] = [:]
+
+  internal func syncInlineBoxViews() {
+    let wanted = engine.inlineBoxViews()
+    if wanted.isEmpty && inlineBoxes.isEmpty { return }
+    let wantedIds = Set(wanted.map { ObjectIdentifier($0) })
+    for (id, view) in inlineBoxes where !wantedIds.contains(id) {
+      inlineBoxes[id] = nil
+      if view.superview === self { node.suppressChildOperations { view.removeFromSuperview() } }
+    }
+    for view in wanted where view.superview !== self {
+      if let owner = MasonViewKind.element(view.superview)?.node {
+        owner.suppressChildOperations { view.removeFromSuperview() }
+      } else {
+        view.removeFromSuperview()
+      }
+      node.suppressChildOperations { addSubview(view) }
+      inlineBoxes[ObjectIdentifier(view)] = view
+    }
+  }
+
+  internal func ownsInlineBox(_ view: UIView) -> Bool {
+    return inlineBoxes[ObjectIdentifier(view)] != nil && view.superview === self
+  }
+
+  /// Places an inline box: where the drawn text left room for it, else at `frame` (Mason's).
+  internal func placeInlineBox(_ box: MasonNode, _ view: UIView, _ frame: CGRect) {
+    let rect = engine.drawnBoxFrame(for: box) ?? frame
+    let bounds = CGRect(origin: view.bounds.origin, size: rect.size)
+    let center = CGPoint(x: rect.midX, y: rect.midY)
+    if view.bounds.size != bounds.size { view.bounds = bounds }
+    if view.center != center { view.center = center }
+  }
+
+  // After a draw, boxes the text moved are laid out again.
+  internal func inlineBoxesDrawn() {
+    guard !inlineBoxes.isEmpty else { return }
+    for view in inlineBoxes.values {
+      guard let box = (view as? MasonElement)?.node, let rect = engine.drawnBoxFrame(for: box) else { continue }
+      if view.center != CGPoint(x: rect.midX, y: rect.midY) || view.bounds.size != rect.size {
+        DispatchQueue.main.async { [weak self] in self?.setNeedsLayout() }
+        return
+      }
+    }
   }
 
   /// The pressed inline element and its ancestors inside this text view.

@@ -105006,28 +105006,28 @@
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "BooleanLiteral",
-      "offset": 47185,
+      "offset": 47204,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "Dictionary",
-      "offset": 48800,
+      "offset": 48819,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "IntegerLiteral",
-      "offset": 48845,
+      "offset": 48864,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "IntegerLiteral",
-      "offset": 48885,
+      "offset": 48904,
       "length": 1,
       "value": "2"
     },
@@ -105216,7 +105216,14 @@
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "Dictionary",
-      "offset": 9002,
+      "offset": 9051,
+      "length": 3,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "Dictionary",
+      "offset": 17795,
       "length": 3,
       "value": "[]"
     },
@@ -105251,154 +105258,154 @@
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "StringLiteral",
-      "offset": 2274,
+      "offset": 3022,
       "length": 17,
       "value": "\"MasonInlineNode\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "Array",
-      "offset": 2456,
+      "offset": 3204,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "Array",
-      "offset": 2525,
+      "offset": 3273,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "StringLiteral",
-      "offset": 10971,
+      "offset": 11407,
       "length": 6,
       "value": "\"\\s+\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "StringLiteral",
-      "offset": 11287,
+      "offset": 11723,
       "length": 17,
       "value": "\"[\\s\\x{200B}]+\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "StringLiteral",
-      "offset": 11403,
+      "offset": 11839,
       "length": 9,
       "value": "\"[ \\t]+\""
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "Array",
-      "offset": 11423,
+      "offset": 11859,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "IntegerLiteral",
-      "offset": 14179,
+      "offset": 14615,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "IntegerLiteral",
-      "offset": 14220,
+      "offset": 14656,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "BooleanLiteral",
-      "offset": 15965,
+      "offset": 16401,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "BooleanLiteral",
-      "offset": 17404,
+      "offset": 17840,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "BooleanLiteral",
-      "offset": 26739,
+      "offset": 27175,
       "length": 5,
       "value": "false"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
-      "kind": "IntegerLiteral",
-      "offset": 27360,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
-      "kind": "IntegerLiteral",
-      "offset": 27410,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
-      "kind": "IntegerLiteral",
-      "offset": 27784,
-      "length": 2,
-      "value": "-1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "IntegerLiteral",
       "offset": 27796,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
+      "kind": "IntegerLiteral",
+      "offset": 27846,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
+      "kind": "IntegerLiteral",
+      "offset": 28220,
+      "length": 2,
+      "value": "-1"
+    },
+    {
+      "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
+      "kind": "IntegerLiteral",
+      "offset": 28232,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "BooleanLiteral",
-      "offset": 29708,
+      "offset": 30144,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "FloatLiteral",
-      "offset": 43644,
+      "offset": 44080,
       "length": 3,
       "value": "1.0"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "BooleanLiteral",
-      "offset": 70480,
+      "offset": 71073,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "IntegerLiteral",
-      "offset": 85471,
+      "offset": 86064,
       "length": 4,
       "value": "2048"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "Dictionary",
-      "offset": 85870,
+      "offset": 86463,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/tmp\/mason-ifl\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/TextEngine.swift",
       "kind": "IntegerLiteral",
-      "offset": 88462,
+      "offset": 89055,
       "length": 1,
       "value": "0"
     },
