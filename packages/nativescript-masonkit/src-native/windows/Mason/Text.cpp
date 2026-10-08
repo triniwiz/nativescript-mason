@@ -735,9 +735,15 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_sprite) mason_atlas::Forget(m_sprite.get());
     }
 
-    void Text::SyncStyle(winrt::hstring const&, winrt::hstring const&)
+    void Text::SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
     {
         m_visual.styleDirty = true;
+        const auto dirty = mason_leaf::DirtyWords(d0, d1, d2, d3);
+        if (!m_inlineOwner && !mason_leaf::AnyDirty(dirty, mason_leaf::kTextKeys))
+        {
+            mason_leaf::StyleSynced(get_strong().as<mux::UIElement>(), m_node, dirty);
+            return;
+        }
         ApplyStyleFromBuffer();
         InvalidateText();
     }
@@ -839,14 +845,9 @@ namespace winrt::NativeScript::Mason::implementation
     void Text::ApplyStyleFromBuffer()
     {
         if (!m_node) return;
-        auto st = m_node.Style();
-        if (!st) return;
-        auto buf = st.Values();
-        if (!buf) return;
-        auto acc = buf.try_as<mason_buf::IBufferByteAccess>();
-        uint8_t* d = nullptr;
-        if (!acc || FAILED(acc->Buffer(&d)) || !d) return;
-        const uint32_t len = buf.Length();
+        uint32_t len = 0;
+        const uint8_t* d = winrt::get_self<implementation::Node>(m_node)->StyleData(len);
+        if (!d) return;
 
         auto u8 = [&](uint32_t o) -> uint8_t { return o < len ? d[o] : 0; };
         auto i32 = [&](uint32_t o) -> int32_t { int32_t v = 0; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };

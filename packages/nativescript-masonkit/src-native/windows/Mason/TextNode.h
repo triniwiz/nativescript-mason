@@ -12,7 +12,7 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node ? m_node.Style() : nullptr; }
 
-        void SyncStyle(winrt::hstring const&, winrt::hstring const&) {}
+        void SyncStyle(int32_t, int32_t, int32_t, int32_t) {}
 
         hstring Data() const;
         void Data(hstring const& value);

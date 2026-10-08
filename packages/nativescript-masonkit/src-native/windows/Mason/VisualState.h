@@ -24,6 +24,11 @@ namespace mason_visual
         winrt::Microsoft::UI::Composition::CompositionClip clip{ nullptr };
         winrt::Microsoft::UI::Composition::Visual visual{ nullptr };
         bool border{ false };
+        winrt::Microsoft::UI::Composition::ShapeVisual borderVisual{ nullptr };
+        winrt::Microsoft::UI::Composition::CompositionRoundedRectangleGeometry borderGeometry{ nullptr };
+        float borderStroke{ 0.0f };
+        uint32_t borderColor{ 0 };
+        float borderRadius{ 0.0f };
         float width{ -1.0f };
         float height{ -1.0f };
         uint32_t scaleEpoch{ 0 };

@@ -1815,10 +1815,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  _windowsSyncAnonymousText() {
+  _windowsSyncAnonymousText(d0: number, d1: number, d2: number, d3: number) {
     // @ts-ignore
     const style = this._styleHelper;
-    if (style) this._forEachAnonymousText((anonymous) => style.copyTextStyleTo(anonymous));
+    if (style) this._forEachAnonymousText((anonymous) => style.copyTextStyleTo(anonymous, d0, d1, d2, d3));
   }
 
   [fontInternalProperty.setNative](value: any) {

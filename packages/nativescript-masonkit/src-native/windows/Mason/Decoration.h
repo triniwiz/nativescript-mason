@@ -4,7 +4,8 @@
 // child-visual slot, holding a tagged child layer per feature ("mason-shadow", "mason-border") so
 // border and box-shadow can coexist.
 
-#include <unordered_set>
+#include <algorithm>
+#include <unordered_map>
 #include <vector>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Hosting.h>
@@ -32,50 +33,52 @@ namespace mason_deco
         return ThreadCompositor();
     }
 
-    // Elements given a decoration root. Asking XAML for a child visual costs ~40 µs, so an element
-    // not in here is known to have none of ours. An address reused by a new element only costs it
-    // that lookup.
-    inline std::unordered_set<void*>& Decorated()
+    // The decoration root of each element given one, since asking XAML for a child visual costs
+    // ~40 µs. The weak element tells a reused address from the element the root was made for.
+    struct Decorated
     {
-        thread_local auto* elements = new std::unordered_set<void*>();
-        return *elements;
+        winrt::weak_ref<mux::UIElement> element;
+        mucomp::ContainerVisual root{ nullptr };
+    };
+
+    inline std::unordered_map<void*, Decorated>& DecoratedRoots()
+    {
+        thread_local auto* roots = new std::unordered_map<void*, Decorated>();
+        return *roots;
+    }
+
+    // Get the existing decoration root without creating one.
+    inline mucomp::ContainerVisual ExistingRoot(mux::UIElement const& element)
+    {
+        if (!element) return nullptr;
+        auto& roots = DecoratedRoots();
+        auto it = roots.find(winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>()));
+        if (it == roots.end()) return nullptr;
+        if (it->second.element.get() == element) return it->second.root;
+        roots.erase(it);
+        return nullptr;
     }
 
     // Return the element's decoration root ContainerVisual, creating + installing it if absent.
     inline mucomp::ContainerVisual EnsureRoot(mux::UIElement const& element)
     {
         if (!element) return nullptr;
-        void* id = winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>());
-        auto existing = Decorated().count(id) ? hosting::ElementCompositionPreview::GetElementChildVisual(element) : nullptr;
-        if (existing)
-        {
-            if (auto cv = existing.try_as<mucomp::ContainerVisual>())
-            {
-                if (cv.Comment() == L"mason-deco") return cv;
-            }
-        }
+        if (auto existing = ExistingRoot(element)) return existing;
         auto comp = CompositorFor(element);
         if (!comp) return nullptr;
         auto root = comp.CreateContainerVisual();
         root.Comment(L"mason-deco");
         hosting::ElementCompositionPreview::SetElementChildVisual(element, root);
-        Decorated().insert(id);
-        return root;
-    }
 
-    // Get the existing decoration root without creating one.
-    inline mucomp::ContainerVisual ExistingRoot(mux::UIElement const& element)
-    {
-        if (!element || !Decorated().count(winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>()))) return nullptr;
-        auto existing = hosting::ElementCompositionPreview::GetElementChildVisual(element);
-        if (existing)
+        auto& roots = DecoratedRoots();
+        thread_local size_t sweepAt = 1024;
+        if (roots.size() >= sweepAt)
         {
-            if (auto cv = existing.try_as<mucomp::ContainerVisual>())
-            {
-                if (cv.Comment() == L"mason-deco") return cv;
-            }
+            std::erase_if(roots, [](auto const& entry) { return !entry.second.element.get(); });
+            sweepAt = (std::max)(size_t{ 1024 }, roots.size() * 2);
         }
-        return nullptr;
+        roots[winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>())] = { winrt::make_weak(element), root };
+        return root;
     }
 
     // Replace (or, when layer == nullptr, remove) the tagged layer inside the decoration root.

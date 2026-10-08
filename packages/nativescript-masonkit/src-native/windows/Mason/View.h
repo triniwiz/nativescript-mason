@@ -15,7 +15,7 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
         int32_t NodeKind() const noexcept { return m_nodeKind; }
 
-        void SyncStyle(winrt::hstring const&, winrt::hstring const&);
+        void SyncStyle(int32_t, int32_t, int32_t, int32_t);
 
         void Invalidate();
 

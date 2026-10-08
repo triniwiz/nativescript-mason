@@ -445,6 +445,8 @@ void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
 
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 
+const uint8_t *mason_style_get_style_data(struct CMason *mason, struct CMasonNode *node, uintptr_t *out_len);
+
 char *mason_style_get_grid_area_css(struct CMason *mason, struct CMasonNode *node);
 
 char *mason_style_get_grid_template_areas_css(struct CMason *mason, struct CMasonNode *node);

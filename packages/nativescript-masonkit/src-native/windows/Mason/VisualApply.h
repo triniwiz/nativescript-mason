@@ -172,7 +172,7 @@ namespace mason_visual
         float lW, float rW, float tW, float bW,
         uint32_t lC, uint32_t rC, uint32_t tC, uint32_t bC,
         int8_t lS, int8_t rS, int8_t tS, int8_t bS,
-        float width, float height, float radius)
+        float width, float height, float radius, AppliedState& state)
     {
         const bool drawL = lW > 0.0f && AlphaOf(lC) > 0 && lS != 1;
         const bool drawR = rW > 0.0f && AlphaOf(rC) > 0 && rS != 1;
@@ -182,6 +182,30 @@ namespace mason_visual
         if ((!drawL && !drawR && !drawT && !drawB) || width <= 0.0f || height <= 0.0f)
         {
             mason_deco::SetLayer(element, L"mason-border", nullptr);
+            state.borderVisual = nullptr;
+            state.borderGeometry = nullptr;
+            return;
+        }
+
+        const bool uniform = drawL && drawR && drawT && drawB &&
+            lW == rW && rW == tW && tW == bW &&
+            lC == rC && rC == tC && tC == bC;
+
+        const float sw = lW;
+        float r = radius;
+        const float maxR = (width < height ? width : height) * 0.5f;
+        if (r > maxR) r = maxR;
+        const float innerR = (std::max)(0.0f, r - sw * 0.5f);
+        const winrt::Windows::Foundation::Numerics::float2 inner{ (std::max)(0.0f, width - sw), (std::max)(0.0f, height - sw) };
+        if (uniform && state.borderGeometry && state.borderStroke == sw && state.borderColor == lC)
+        {
+            state.borderVisual.Size({ width, height });
+            state.borderGeometry.Size(inner);
+            if (state.borderRadius != innerR)
+            {
+                state.borderGeometry.CornerRadius({ innerR, innerR });
+                state.borderRadius = innerR;
+            }
             return;
         }
 
@@ -190,27 +214,25 @@ namespace mason_visual
 
         auto shapeVisual = comp.CreateShapeVisual();
         shapeVisual.Size({ width, height });
-
-        const bool uniform = drawL && drawR && drawT && drawB &&
-            lW == rW && rW == tW && tW == bW &&
-            lC == rC && rC == tC && tC == bC;
+        state.borderVisual = nullptr;
+        state.borderGeometry = nullptr;
 
         if (uniform)
         {
-            const float sw = lW;
-            float r = radius;
-            const float maxR = (width < height ? width : height) * 0.5f;
-            if (r > maxR) r = maxR;
             // CSS borders sit inside the box; inset by half the stroke width so the outer edge lands on it.
             auto geo = comp.CreateRoundedRectangleGeometry();
             geo.Offset({ sw * 0.5f, sw * 0.5f });
-            geo.Size({ (std::max)(0.0f, width - sw), (std::max)(0.0f, height - sw) });
-            const float innerR = (std::max)(0.0f, r - sw * 0.5f);
+            geo.Size(inner);
             geo.CornerRadius({ innerR, innerR });
             auto shape = comp.CreateSpriteShape(geo);
             shape.StrokeThickness(sw);
             shape.StrokeBrush(comp.CreateColorBrush(ColorFromArgb(lC)));
             shapeVisual.Shapes().Append(shape);
+            state.borderVisual = shapeVisual;
+            state.borderGeometry = geo;
+            state.borderStroke = sw;
+            state.borderColor = lC;
+            state.borderRadius = innerR;
         }
         else
         {
@@ -245,13 +267,7 @@ namespace mason_visual
     // and run a copy-on-write check on every call.
     inline const uint8_t* StyleBytes(nsm::Node const& node, uint32_t& size)
     {
-        auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node);
-        ::CMasonBuffer* buf = mason_style_get_style_buffer(impl->MasonPtr(), impl->NodePtr());
-        if (!buf) return nullptr;
-        const uint8_t* data = buf->data;
-        size = static_cast<uint32_t>(buf->size);
-        mason_style_release_style_buffer(buf);
-        return data;
+        return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
     }
 
     inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
@@ -417,7 +433,7 @@ namespace mason_visual
             || (bTW > 0.0f && AlphaOf(bTC) > 0 && bTS != 1) || (bBW > 0.0f && AlphaOf(bBC) > 0 && bBS != 1));
         if (anyBorder || state.border)
         {
-            DrawBorder(element, bLW, bRW, bTW, bBW, bLC, bRC, bTC, bBC, bLS, bRS, bTS, bBS, width, height, radius);
+            DrawBorder(element, bLW, bRW, bTW, bBW, bLC, bRC, bTC, bBC, bLS, bRS, bTS, bBS, width, height, radius, state);
         }
         state.border = anyBorder;
 

@@ -160,20 +160,15 @@ namespace winrt::NativeScript::Mason::implementation
             // node/buffer isn't available.
             if (auto el = element.try_as<nsm::IMasonElement>())
             {
-                if (auto style = el.Node() ? el.Node().Style() : nullptr)
+                if (auto node = el.Node())
                 {
-                    if (auto buf = style.Values())
+                    uint32_t size = 0;
+                    const uint8_t* data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
+                    if (data && size >= 230)
                     {
-                        if (auto access = buf.try_as<mason_buf::IBufferByteAccess>())
-                        {
-                            uint8_t* data = nullptr;
-                            if (SUCCEEDED(access->Buffer(&data)) && data && buf.Length() >= 230)
-                            {
-                                float r = 0.0f; std::memcpy(&r, data + 226, 4);
-                                if (data[218] == 1) r *= (w < h ? w : h);
-                                if (r > 0.0f) cr = r;
-                            }
-                        }
+                        float r = 0.0f; std::memcpy(&r, data + 226, 4);
+                        if (data[218] == 1) r *= (w < h ? w : h);
+                        if (r > 0.0f) cr = r;
                     }
                 }
             }

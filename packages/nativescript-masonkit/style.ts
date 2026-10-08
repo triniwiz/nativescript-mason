@@ -288,7 +288,7 @@ function windowsSetGrid(nativeView: any, field: string, value: string) {
   // UpdateGrid doesn't mark the node dirty / invalidate XAML measure on its own;
   // SyncStyle does, so a grid item's placement change re-runs the container layout.
   try {
-    (nativeView as NativeScript.Mason.IMasonElement).SyncStyle('0', '0');
+    (nativeView as NativeScript.Mason.IMasonElement).SyncStyle(-1, -1, -1, -1);
   } catch (_) {}
 }
 
@@ -646,6 +646,8 @@ class StateKeys {
   static readonly FONT_STRETCH = StateKeys.flag(78);
 
   static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
+
+  static readonly WINDOWS_TEXT = [49, 50, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 73, 74, 75, 77, 78].reduce((mask, n) => mask.or(StateKeys.flag(n)), StateKeys.NONE);
 
   /** The mask as one unsigned 128-bit value (tests and diagnostics). */
   get bits(): bigint {
@@ -1683,22 +1685,29 @@ export class Style {
       // @ts-ignore
       view.mason_syncStyleParts(this._d0, this._d1, this._d2, this._d3);
     } else if (__WINDOWS__) {
-      // The Windows elements re-read the whole buffer, so the dirty bits aren't passed.
       // @ts-ignore
       const view = (this.view as any)?.windows ?? this.view._view;
-      (view as NativeScript.Mason.IMasonElement).SyncStyle('', '');
-      (this.view as any)?._windowsSyncAnonymousText?.();
+      const all = !this._hasDirty;
+      const d0 = all ? -1 : this._d0;
+      const d1 = all ? -1 : this._d1;
+      const d2 = all ? -1 : this._d2;
+      const d3 = all ? -1 : this._d3;
+      (view as NativeScript.Mason.IMasonElement).SyncStyle(d0, d1, d2, d3);
+      const text = StateKeys.WINDOWS_TEXT;
+      if ((d0 & text.w0) | (d1 & text.w1) | (d2 & text.w2) | (d3 & text.w3)) {
+        (this.view as any)?._windowsSyncAnonymousText?.(d0, d1, d2, d3);
+      }
     }
   }
 
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
-  copyTextStyleTo(text: NativeScript.Mason.Text) {
+  copyTextStyleTo(text: NativeScript.Mason.Text, d0 = -1, d1 = -1, d2 = -1, d3 = -1) {
     if (!__WINDOWS__ || !this.u8View) return;
     //@ts-ignore
     const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(masonEngine().StyleValues(text)) as ArrayBuffer);
     target.set(this.u8View.subarray(StyleKeys.FONT_COLOR, StyleKeys.BACKGROUND_COLOR), StyleKeys.FONT_COLOR);
     target.set(this.u8View.subarray(StyleKeys.DECORATION_LINE, StyleKeys.PSEUDO_SET_MASK_LOW), StyleKeys.DECORATION_LINE);
-    (text as unknown as NativeScript.Mason.IMasonElement).SyncStyle('0', '0');
+    (text as unknown as NativeScript.Mason.IMasonElement).SyncStyle(d0, d1, d2, d3);
   }
 
   private setOrAppendState(value: StateKeys) {

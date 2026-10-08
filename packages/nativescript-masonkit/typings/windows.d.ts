@@ -188,7 +188,7 @@ declare namespace NativeScript.Mason {
   interface IMasonElement {
     readonly Node: Node;
     readonly Style: Style;
-    SyncStyle(dirtyLow: string, dirtyHigh: string): void;
+    SyncStyle(d0: number, d1: number, d2: number, d3: number): void;
   }
 
   // Rasterized visual result (Image + size + overhang) returned by Css.CreateShadow/CreateBorder.
