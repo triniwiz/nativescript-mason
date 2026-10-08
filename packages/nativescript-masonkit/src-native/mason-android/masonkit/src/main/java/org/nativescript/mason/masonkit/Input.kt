@@ -100,6 +100,7 @@ class Input @JvmOverloads constructor(
 
 
   private val beforeFilter = InputFilter { source, start, end, dest, dstart, dend ->
+    if (textInput.settingText) return@InputFilter null
     val event = InputEvent(
       type = "beforeinput",
       data = source?.toString(),
@@ -538,11 +539,11 @@ class Input @JvmOverloads constructor(
       }
       if (field == value) return
       val previous = field
-      // The text survives a switch between text-like types, as on the web.
-      val previousText = if (previous.isTextLike && value.isTextLike) this.value else null
+      // As on the web, the value survives a type change; a checkbox or radio keeps its own.
+      val previousValue = if (!previous.isCheckable && !value.isCheckable) this.value else null
       field = value
       setupType(previous)
-      previousText?.let { this.value = it }
+      previousValue?.let { this.value = it }
     }
 
   private enum class UaStyle { Field, Button, Swatch, Bare }
@@ -552,6 +553,9 @@ class Input @JvmOverloads constructor(
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> true
       else -> false
     }
+
+  private val Type.isCheckable: Boolean
+    get() = this == Type.Checkbox || this == Type.Radio
 
   private val Type.uaStyle: UaStyle
     get() = when {
@@ -642,8 +646,6 @@ class Input @JvmOverloads constructor(
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
           }
         }
-        // setInputType forces monospace for password variations.
-        textInput.typeface = android.graphics.Typeface.DEFAULT
         syncHintStyle()
         addView(textInput)
       }
@@ -789,7 +791,7 @@ class Input @JvmOverloads constructor(
       val restyle = view.text.toString() == value
       val start = view.selectionStart
       val end = view.selectionEnd
-      view.setText(text, TextView.BufferType.SPANNABLE)
+      if (view is TextInput) view.setTextFromCode(text, TextView.BufferType.SPANNABLE) else view.setText(text, TextView.BufferType.SPANNABLE)
       if (restyle && start >= 0) {
         view.setSelection(start.coerceAtMost(text.length), end.coerceAtMost(text.length))
       } else {
@@ -806,10 +808,15 @@ class Input @JvmOverloads constructor(
     attributes.fontSize?.takeIf { it > 0 }?.let {
       textInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, it * resources.displayMetrics.density)
     }
-    attributes.font?.let { face ->
-      face.resolvedTypeface?.let {
-        textInput.setTypeface(it, if (face.weight.weight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-      }
+    val face = attributes.font
+    val typeface = face?.resolvedTypeface
+    if (face != null && typeface != null) {
+      val bold = if (TextNode.isBold(face)) android.graphics.Typeface.BOLD else 0
+      val italic = if (TextNode.isItalic(face)) android.graphics.Typeface.ITALIC else 0
+      textInput.setTypeface(typeface, bold or italic)
+    } else {
+      // Also undoes the monospace face that setInputType forces for passwords.
+      textInput.typeface = android.graphics.Typeface.DEFAULT
     }
     val horizontal = when (style.textAlign) {
       TextAlign.Center -> android.view.Gravity.CENTER_HORIZONTAL
@@ -967,12 +974,15 @@ class Input @JvmOverloads constructor(
   // Setting `checked` from code fires no events, as on the web.
   private fun setCheckedWidget(value: Boolean) {
     settingChecked = true
-    when (type) {
-      Type.Checkbox -> checkBoxInput.isChecked = value
-      Type.Radio -> radioInput.isChecked = value
-      else -> {}
+    try {
+      when (type) {
+        Type.Checkbox -> checkBoxInput.isChecked = value
+        Type.Radio -> radioInput.isChecked = value
+        else -> {}
+      }
+    } finally {
+      settingChecked = false
     }
-    settingChecked = false
   }
 
   var checked: Boolean

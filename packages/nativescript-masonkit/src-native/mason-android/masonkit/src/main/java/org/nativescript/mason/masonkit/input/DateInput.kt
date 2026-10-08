@@ -147,6 +147,7 @@ class DateInput(context: Context) : FrameLayout(context) {
     fields.forEachIndexed { i, field ->
       field.addTextChangedListener(object : TextWatcher {
         override fun afterTextChanged(s: Editable?) {
+          if (settingValue) return
           if (s?.length == (field.filters.firstOrNull() as? InputFilter.LengthFilter)?.max) {
             if (i + 1 < fields.size) fields[i + 1].requestFocus()
           }
@@ -323,6 +324,9 @@ class DateInput(context: Context) : FrameLayout(context) {
     }
   }
 
+  // A value set from code is not user input: no input events and no focus moves.
+  private var settingValue = false
+
   var value: String
     get() {
       val y = yearInput.text.toString().padStart(4, '0')
@@ -333,9 +337,14 @@ class DateInput(context: Context) : FrameLayout(context) {
     set(v) {
       val parts = v.split("-")
       if (parts.size == 3) {
-        yearInput.setText(parts[0])
-        monthInput.setText(parts[1])
-        dayInput.setText(parts[2])
+        settingValue = true
+        try {
+          yearInput.setText(parts[0])
+          monthInput.setText(parts[1])
+          dayInput.setText(parts[2])
+        } finally {
+          settingValue = false
+        }
       }
     }
 }

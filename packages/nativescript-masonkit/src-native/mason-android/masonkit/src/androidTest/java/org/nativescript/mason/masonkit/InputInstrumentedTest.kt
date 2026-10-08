@@ -277,4 +277,55 @@ class InputInstrumentedTest {
       assertEquals(13, input.textInput.selectionStart)
     }
   }
+
+  @Test
+  fun settingAValueFromCodeFiresNoInputEvents() {
+    val types = listOf(Input.Type.Text, Input.Type.Password, Input.Type.Date, Input.Type.Range)
+    val values = mapOf(Input.Type.Date to "2026-12-25", Input.Type.Range to "30")
+    for (type in types) {
+      val (input, _) = layoutInput { it.type = type }
+      val events = mutableListOf<String>()
+      InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        input.addEventListener("input") { events += "input" }
+        input.addEventListener("beforeinput") { events += "beforeinput" }
+        input.value = values[type] ?: "hello"
+      }
+      assertEquals("$type value set from code", emptyList<String>(), events)
+    }
+  }
+
+  @Test
+  fun typingStillFiresInput() {
+    val (input, _) = layoutInput { }
+    var inputs = 0
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.addEventListener("input") { inputs++ }
+      input.textInput.text.append("a")
+    }
+    assertEquals(1, inputs)
+  }
+
+  @Test
+  fun placeholderFollowsItalic() {
+    val (input, _) = layoutInput {
+      it.placeholder = "hint"
+      it.configure { style -> style.fontStyle = org.nativescript.fontmanager.FontStyle.Italic }
+    }
+    assertTrue("hint is italic", input.textInput.typeface?.isItalic == true)
+  }
+
+  @Test
+  fun valueSurvivesATypeChangeExceptIntoACheckbox() {
+    val (range, _) = layoutInput {
+      it.value = "30"
+      it.type = Input.Type.Range
+    }
+    assertEquals("text -> range keeps the value", 30, range.rangeInput.progress)
+
+    val (checkbox, _) = layoutInput {
+      it.value = "hello"
+      it.type = Input.Type.Checkbox
+    }
+    assertEquals("a checkbox keeps its own value", "on", checkbox.value)
+  }
 }

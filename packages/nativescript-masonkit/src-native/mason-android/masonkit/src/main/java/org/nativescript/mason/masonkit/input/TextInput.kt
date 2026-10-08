@@ -39,6 +39,7 @@ open class TextInput @JvmOverloads constructor(
   // reference `beforeFilter` when configuring `filters` to ensure unified
   // 'beforeinput' dispatch semantics.
   protected val beforeFilter = InputFilter { source, start, end, dest, dstart, dend ->
+    if (settingText) return@InputFilter null
     val ownerRef = owner ?: return@InputFilter null
 
     val event = InputEvent(
@@ -69,6 +70,19 @@ open class TextInput @JvmOverloads constructor(
   private var lastIsComposing = false
 
   private var skipNextCommitText = false
+
+  // Text set from code is not user input, so it fires no beforeinput or input, as on the web.
+  internal var settingText = false
+    private set
+
+  fun setTextFromCode(text: CharSequence, type: BufferType) {
+    settingText = true
+    try {
+      setText(text, type)
+    } finally {
+      settingText = false
+    }
+  }
 
   init {
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
@@ -115,6 +129,7 @@ open class TextInput @JvmOverloads constructor(
 
     addTextChangedListener(object : TextWatcher {
       override fun afterTextChanged(s: Editable?) {
+        if (settingText) return
         if (isUndoOrRedo) return
 
         val type = lastInputType ?: return
@@ -146,6 +161,7 @@ open class TextInput @JvmOverloads constructor(
 
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+        if (settingText) return
         // Handle deletions
         if (before > 0 && count == 0) {
           lastInputType = Event.InputType.DeleteContentBackward.value

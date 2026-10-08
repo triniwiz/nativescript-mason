@@ -44,7 +44,7 @@ class ColorInput @JvmOverloads constructor(
 
   internal fun syncSelectedColor(){
     if (selectedColorHex == null){
-      selectedColorHex = String.format("#%06X", 0xFFFFFF and selectedColor)
+      selectedColorHex = String.format("#%06x", 0xFFFFFF and selectedColor)
     }
   }
 
@@ -88,6 +88,14 @@ class ColorInput @JvmOverloads constructor(
       var l = 0f
 
       var dlgSelectedColor = this@ColorInput.selectedColor
+      val originalColor = this@ColorInput.selectedColor
+
+      // As on the web, the value follows the picker live and each edit fires `input`.
+      fun emitInput(color: Int) {
+        this@ColorInput.selectedColor = color
+        colorView.setBackgroundColor(color)
+        dispatchInputEvent(type = "input", value = color, cancelable = false)
+      }
       var outMode = 0 // 0 = RGB, 1 = HSL, 2 = HEX
 
       fun updateOutputFields(col: Int) {
@@ -223,11 +231,7 @@ class ColorInput @JvmOverloads constructor(
         updatePreview()
         updateOutputFields(dlgSelectedColor)
         // emit input event when user edits numeric/hex fields
-        dispatchInputEvent(
-          type = "input",
-          value = dlgSelectedColor,
-          cancelable = false
-        )
+        emitInput(dlgSelectedColor)
       }
 
       // apply edits when fields lose focus
@@ -325,11 +329,7 @@ class ColorInput @JvmOverloads constructor(
           setHueThumb(hue, trackColor, huePressed)
           updateOutputFields(dlgSelectedColor)
           // emit live input event for hue changes
-          dispatchInputEvent(
-            type = "input",
-            value = dlgSelectedColor,
-            cancelable = false
-          )
+          emitInput(dlgSelectedColor)
           // update hue drawable gap
           val tb = try {
             hue.thumb?.bounds
@@ -369,11 +369,7 @@ class ColorInput @JvmOverloads constructor(
           setHueThumb(hue, trackColorSV, huePressed)
           updateOutputFields(dlgSelectedColor)
           // emit live input event for saturation/value changes
-          dispatchInputEvent(
-            type = "input",
-            value = dlgSelectedColor,
-            cancelable = false
-          )
+          emitInput(dlgSelectedColor)
           // keep gap updated when SV changes
           val tb = try {
             hue.thumb?.bounds
@@ -405,29 +401,19 @@ class ColorInput @JvmOverloads constructor(
       val widthPx = (340 * dm.density).toInt()
       dlg.window?.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
       btnCancel?.setOnClickListener {
-        // Emit cancel event
-        dispatchInputEvent(
-          type = "cancel",
-          value = dlgSelectedColor,
-          cancelable = false
-        )
+        if (this@ColorInput.selectedColor != originalColor) {
+          emitInput(originalColor)
+        }
+        dispatchInputEvent(type = "cancel", value = originalColor, cancelable = false)
         dlg.dismiss()
       }
       btnOk?.setOnClickListener {
-        // commit dialog color into this ColorInput instance and persist in view
-        this@ColorInput.selectedColor = dlgSelectedColor
-        colorView.setBackgroundColor(this@ColorInput.selectedColor)
-        // The dialog's own input events fire before the value is committed, so v-model needs one after.
-        dispatchInputEvent(
-          type = "input",
-          value = this@ColorInput.selectedColor,
-          cancelable = false
-        )
-        dispatchInputEvent(
-          type = "change",
-          value = this@ColorInput.selectedColor,
-          cancelable = false
-        )
+        if (this@ColorInput.selectedColor != dlgSelectedColor) {
+          emitInput(dlgSelectedColor)
+        }
+        if (dlgSelectedColor != originalColor) {
+          dispatchInputEvent(type = "change", value = dlgSelectedColor, cancelable = false)
+        }
         dlg.dismiss()
       }
     }
@@ -440,7 +426,7 @@ class ColorInput @JvmOverloads constructor(
   ): Boolean {
     val event = InputEvent(
       type = type,
-      data = String.format("#%06X", 0xFFFFFF and value),
+      data = String.format("#%06x", 0xFFFFFF and value),
       null,
       EventOptions().apply {
         bubbles = true
