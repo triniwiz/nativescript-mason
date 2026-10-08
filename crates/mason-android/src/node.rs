@@ -606,9 +606,9 @@ pub extern "system" fn NodeNativeComputeNormal(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAndLayout(
-    env: &mut JNIEnv,
-    _: JObject,
+pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeComputeAndLayout(
+    env: JNIEnv,
+    _: JClass,
     taffy: jlong,
     node: jlong,
 ) -> jfloatArray {

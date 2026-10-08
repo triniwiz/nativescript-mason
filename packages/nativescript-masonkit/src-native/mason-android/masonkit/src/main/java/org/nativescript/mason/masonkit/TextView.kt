@@ -78,7 +78,7 @@ internal class ThemelessContext private constructor(base: Context, template: and
  * A Mason text element. It lays out and draws its text itself, and is a ViewGroup so the
  * inline boxes in its text can be real child views.
  */
-class TextView @JvmOverloads constructor(
+open class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : ViewGroup(if (attrs == null) ThemelessContext.wrap(context) else context, attrs), Element, MeasureFunc,
   TextContainer {
@@ -104,7 +104,7 @@ class TextView @JvmOverloads constructor(
     private set
 
   override lateinit var node: Node
-    private set
+    internal set
 
 
   constructor(context: Context, mason: Mason) : this(context, null, true) {
@@ -197,7 +197,8 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
-    engine.flushTextStyleIfNeeded()
+    // Text changed since the last measure (no layout pass in between) is applied here.
+    engine.applyTextIfNeeded()
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
@@ -281,6 +282,8 @@ class TextView @JvmOverloads constructor(
           val glyphCenter = baseline0 +
             (layoutToDraw.getLineAscent(0) + layoutToDraw.getLineDescent(0)) / 2f
           contentH / 2f - glyphCenter
+        } else if (centersVertically && contentH > layoutToDraw.height) {
+          (contentH - layoutToDraw.height) / 2f
         } else 0f
         // We bypass super.onDraw, which normally insets the layout by the view's
         // padding — so apply paddingLeft/paddingTop here.
@@ -629,15 +632,13 @@ class TextView @JvmOverloads constructor(
 
   private fun placeInlineBox(box: Node, view: View, rect: Rect) {
     var r = rect
-    // Text views draw their own text vertically. A button's label is platform-drawn and stays
-    // horizontal, so the button is turned with the text: laid out unturned around the same centre.
-    val turn = if (engine.isVerticalWritingMode && view is Button) 90f else 0f
+    // A form control in vertical text runs down the page like the text: the platform control
+    // is horizontal, so it is laid out unturned around the same centre and turned clockwise.
+    val turn = if (view is Input && engine.isVerticalWritingMode) 90f else 0f
     if (turn != 0f) {
-      val w = r.height()
-      val h = r.width()
-      val left = r.centerX() - w / 2
-      val top = r.centerY() - h / 2
-      r = Rect(left, top, left + w, top + h)
+      val left = r.centerX() - r.height() / 2
+      val top = r.centerY() - r.width() / 2
+      r = Rect(left, top, left + r.height(), top + r.width())
     }
     if (box.inlineTurn != turn) {
       box.inlineTurn = turn
@@ -654,13 +655,19 @@ class TextView @JvmOverloads constructor(
     if (view is Input) view.layoutChild(0, 0, r.width(), r.height())
   }
 
+
   internal fun setTextDeferred(text: CharSequence, type: BufferType) = setText(text, type)
 
-  /** The text as laid out. Setting it replaces the content with a single text node. */
+  /**
+   * The text as laid out. Setting it replaces the content with a single text node shown as
+   * given, spans included, as on a platform TextView.
+   */
   var text: CharSequence
     get() = currentText
     set(value) {
       textContent = value.toString()
+      (node.children.singleOrNull() as? TextNode)?.verbatim = value
+      engine.invalidateInlineSegments()
     }
 
   private val accessibilityManager by lazy {
@@ -778,8 +785,15 @@ class TextView @JvmOverloads constructor(
     structure.setContentDescription(contentDescription)
   }
 
-  private fun setup(mason: Mason, isAnonymous: Boolean = false) {
-    node = mason.createTextNode(this, isAnonymous).apply {
+  internal open fun createOwnNode(mason: Mason, isAnonymous: Boolean): Node =
+    mason.createTextNode(this, isAnonymous)
+
+  // A button centres its label, several lines included.
+  internal open val centersVertically: Boolean
+    get() = false
+
+  internal fun setup(mason: Mason, isAnonymous: Boolean = false) {
+    node = createOwnNode(mason, isAnonymous).apply {
       view = this@TextView
       this.isAnonymous = isAnonymous
     }

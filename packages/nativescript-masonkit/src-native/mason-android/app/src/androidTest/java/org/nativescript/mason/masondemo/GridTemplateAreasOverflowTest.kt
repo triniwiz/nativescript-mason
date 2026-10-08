@@ -44,10 +44,10 @@ class GridTemplateAreasOverflowTest {
     // Scroll root with system bar padding (vertical only, like the demo)
     val scroll = Scroll(context, mason)
     scroll.style.padding = Rect(
-      LengthPercentage.Points(0f),
-      LengthPercentage.Points(0f),
-      LengthPercentage.Points(290f),  // top — simulates system bar
-      LengthPercentage.Points(132f)   // bottom
+      top = LengthPercentage.Points(290f), // simulates the system bar
+      right = LengthPercentage.Points(0f),
+      bottom = LengthPercentage.Points(132f),
+      left = LengthPercentage.Points(0f),
     )
 
     // Body with 40px uniform margin
@@ -64,7 +64,8 @@ class GridTemplateAreasOverflowTest {
 		"sidebar2 sidebar2"
 		"footer  footer"
       """.trimIndent()
-      it.gridTemplateColumns = "${toPx(100f).toInt()}px auto"
+      // CSS px, which Mason scales by density like the web's device pixel ratio
+      it.gridTemplateColumns = "100px auto"
       it.gap = Size(LengthPercentage.Points(8f), LengthPercentage.Points(8f))
     }
 

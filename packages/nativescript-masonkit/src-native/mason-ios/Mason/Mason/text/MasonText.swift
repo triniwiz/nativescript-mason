@@ -581,6 +581,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     for (id, view) in inlineBoxes where !wantedIds.contains(id) {
       inlineBoxes[id] = nil
       if view.superview === self { node.suppressChildOperations { view.removeFromSuperview() } }
+      if let box = (view as? MasonElement)?.node, box.inlineTurn != 0 {
+        box.inlineTurn = 0
+        box.style.applyTransformFromBuffer()
+      }
     }
     for view in wanted where view.superview !== self {
       if let owner = MasonViewKind.element(view.superview)?.node {
@@ -599,7 +603,17 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
 
   /// Places an inline box: where the drawn text left room for it, else at `frame` (Mason's).
   internal func placeInlineBox(_ box: MasonNode, _ view: UIView, _ frame: CGRect) {
-    let rect = engine.drawnBoxFrame(for: box) ?? frame
+    var rect = engine.drawnBoxFrame(for: box) ?? frame
+    // A form control in vertical text runs down the page like the text: the control is
+    // horizontal, so it is laid out unturned around the same centre and turned clockwise.
+    let turn: CGFloat = view is MasonInput && engine.verticalWritingMode != 0 ? .pi / 2 : 0
+    if turn != 0 {
+      rect = CGRect(x: rect.midX - rect.height / 2, y: rect.midY - rect.width / 2, width: rect.height, height: rect.width)
+    }
+    if box.inlineTurn != turn {
+      box.inlineTurn = turn
+      box.style.applyTransformFromBuffer()
+    }
     let bounds = CGRect(origin: view.bounds.origin, size: rect.size)
     let center = CGPoint(x: rect.midX, y: rect.midY)
     if view.bounds.size != bounds.size { view.bounds = bounds }
@@ -611,7 +625,8 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     guard !inlineBoxes.isEmpty else { return }
     for view in inlineBoxes.values {
       guard let box = (view as? MasonElement)?.node, let rect = engine.drawnBoxFrame(for: box) else { continue }
-      if view.center != CGPoint(x: rect.midX, y: rect.midY) || view.bounds.size != rect.size {
+      let size = box.inlineTurn != 0 ? CGSize(width: rect.height, height: rect.width) : rect.size
+      if view.center != CGPoint(x: rect.midX, y: rect.midY) || view.bounds.size != size {
         DispatchQueue.main.async { [weak self] in self?.setNeedsLayout() }
         return
       }

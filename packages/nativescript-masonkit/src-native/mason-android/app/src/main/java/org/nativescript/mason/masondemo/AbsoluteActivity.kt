@@ -298,7 +298,7 @@ class AbsoluteActivity : AppCompatActivity() {
   fun testText(rootLayout: View) {
 
     val ct = mason.createTextView(this)
-    ct.setText("Center Text")
+    ct.text = "Center Text"
     ct.color = Color.MAGENTA
     ct.configure {
       it.position = Position.Absolute

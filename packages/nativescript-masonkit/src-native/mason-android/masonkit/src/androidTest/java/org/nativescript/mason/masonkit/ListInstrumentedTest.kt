@@ -317,6 +317,9 @@ class ListInstrumentedTest {
       val parent = mason.createView(context)
 
       val ul = mason.createListView(context, isOrdered = false)
+      // A list is virtualized: its items aren't in the layout tree, so it doesn't size to
+      // them and needs a height of its own, as a scrolling list does.
+      ul.node.style.setSizeHeight(120f, Dimension.Kind.Points.value)
 
       val li = mason.createListItem(context)
       val tv = mason.createTextView(context)
@@ -325,7 +328,9 @@ class ListInstrumentedTest {
       ul.addStaticView(li)
 
       parent.append(ul)
-      parent.computeAndLayout(300f, 300f)
+      // Node sizes are read from the laid-out tree, which applying the layout links them to.
+      val tree = parent.computeAndLayout(300f, 300f)
+      parent.applyLayoutFlat(parent.node, tree)
 
       val width = ul.node.computedWidth
       val height = ul.node.computedHeight

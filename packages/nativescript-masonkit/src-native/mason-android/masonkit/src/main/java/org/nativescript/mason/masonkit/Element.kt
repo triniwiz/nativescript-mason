@@ -156,7 +156,10 @@ interface Element : EventTarget {
     node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
-  fun compute(width: Float, height: Float) {
+  fun compute(widthArg: Float, heightArg: Float) {
+    // NaN (no constraint) is computed as max-content, which the cache can hold.
+    val width = if (widthArg.isNaN()) -2f else widthArg
+    val height = if (heightArg.isNaN()) -2f else heightArg
     // Fast-path: if compute cache already contains the requested size and
     // cache is clean, skip the native compute to avoid redundant work and
     // repeated max-content (-2 x -2) cycles caused by races.

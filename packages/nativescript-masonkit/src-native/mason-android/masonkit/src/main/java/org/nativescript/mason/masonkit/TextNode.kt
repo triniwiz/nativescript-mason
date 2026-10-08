@@ -3,6 +3,8 @@ package org.nativescript.mason.masonkit
 import android.graphics.Paint
 import android.text.Spannable
 import android.text.SpannableStringBuilder
+import android.text.TextUtils
+import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.AlignmentSpan
 import android.text.style.LineHeightSpan
@@ -21,10 +23,17 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
   internal var container: TextContainer? = null
 
+  /**
+   * Text set through [TextView.text], shown as given (no whitespace collapsing) with its own
+   * spans drawn over the node's style, as a platform TextView shows it.
+   */
+  internal var verbatim: CharSequence? = null
+
   override var data: String = ""
     set(value) {
       if (field == value) return
       field = value
+      verbatim = null
       // Invalidate the container when text changes
       container?.engine?.invalidateInlineSegments()
     }
@@ -175,6 +184,17 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
   }
 
   internal fun appendAttributedTo(target: SpannableStringBuilder) {
+    verbatim?.let { text ->
+      val start = target.length
+      target.append(text.toString())
+      val previousBG = attributes.backgroundColor
+      attributes.backgroundColor = null
+      applyAttributes(target, start, target.length, attributes)
+      attributes.backgroundColor = previousBG
+      // Applied after the node's own style, so its spans win, as they would on a TextView.
+      if (text is Spanned) TextUtils.copySpansFrom(text, 0, text.length, null, target, start)
+      return
+    }
     val processed = this.container?.let {
       processText(data, it.style)
     } ?: data
