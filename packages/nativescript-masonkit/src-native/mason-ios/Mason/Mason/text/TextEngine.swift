@@ -86,6 +86,109 @@ public class TextEngine: NSObject {
     self.container = container
   }
   
+  /// Marks the range a flattened element produced, so a tap on it can find it.
+  static let inlineNodeKey = NSAttributedString.Key("MasonInlineNode")
+
+  // Hit regions from the last draw, in CoreText coordinates; drawnTransform maps them to the view.
+  private var drawnLines: [(line: CTLine, origin: CGPoint)] = []
+  private var drawnBoxes: [(rect: CGRect, node: InlineNodeRef)] = []
+  private var drawnTransform = CGAffineTransform.identity
+
+  /// The inline element under a point in the view: an inline box, else the innermost flattened
+  /// element whose text is under the point. Nil over plain text or empty space.
+  internal func inlineNode(at point: CGPoint) -> MasonNode? {
+    let p = point.applying(drawnTransform.inverted())
+    for box in drawnBoxes where box.rect.contains(p) {
+      return box.node.node
+    }
+    for (line, origin) in drawnLines {
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, nil))
+      guard p.y >= origin.y - descent, p.y <= origin.y + ascent,
+            p.x >= origin.x, p.x <= origin.x + width else { continue }
+      for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+        var position = CGPoint.zero
+        CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+        let runWidth = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), nil, nil, nil))
+        let x = origin.x + position.x
+        if p.x >= x && p.x < x + runWidth {
+          let attrs = CTRunGetAttributes(run) as NSDictionary
+          return (attrs[TextEngine.inlineNodeKey] as? InlineNodeRef)?.node
+        }
+      }
+      return nil
+    }
+    return nil
+  }
+
+  private var accessibilityElementsCache: [Any]??
+
+  /// Accessibility elements for the last draw: text pieces, links and inline boxes in reading
+  /// order. Nil when nothing in the text is interactive, so the view reads as plain text.
+  internal func inlineAccessibilityElements(in view: MasonText) -> [Any]? {
+    if let cached = accessibilityElementsCache { return cached }
+    var elements: [InlineAccessibilityElement] = []
+    var interactive = false
+
+    func add(_ node: MasonNode?, _ label: String, _ traits: UIAccessibilityTraits, _ rect: CGRect) {
+      let frame = rect.applying(drawnTransform)
+      if let last = elements.last, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
+        last.accessibilityLabel = (last.accessibilityLabel ?? "") + label
+        last.accessibilityFrameInContainerSpace = last.accessibilityFrameInContainerSpace.union(frame)
+        return
+      }
+      let element = InlineAccessibilityElement(accessibilityContainer: view)
+      element.node = node
+      element.accessibilityLabel = label
+      element.accessibilityTraits = traits
+      element.accessibilityFrameInContainerSpace = frame
+      elements.append(element)
+    }
+
+    for (line, origin) in drawnLines {
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+      for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+        let attrs = CTRunGetAttributes(run) as NSDictionary
+        let range = CTRunGetStringRange(run)
+        if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {
+          let child = helper.node
+          guard let box = drawnBoxes.first(where: { $0.node.node === child }) else { continue }
+          let childView = helper.view
+          let label = childView?.accessibilityLabel
+            ?? (childView as? TextContainer)?.engine.buildAttributedString().string
+            ?? ""
+          let isButton = childView is Button
+          guard isButton || !label.isEmpty || child.mason.hasListener(child, "click") else { continue }
+          interactive = true
+          add(child, label, isButton ? .button : .none, box.rect)
+          continue
+        }
+        if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+        var position = CGPoint.zero
+        CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+        let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), nil, nil, nil))
+        let rect = CGRect(x: origin.x + position.x, y: origin.y - descent, width: width, height: ascent + descent)
+        var label = ""
+        if let string = cachedAttributedString?.string as NSString?, range.location >= 0, range.location + range.length <= string.length {
+          label = string.substring(with: NSRange(location: range.location, length: range.length))
+        }
+        if let child = (attrs[TextEngine.inlineNodeKey] as? InlineNodeRef)?.node,
+           (child.view as? MasonText)?.type == .A || child.mason.hasListener(child, "click") {
+          interactive = true
+          add(child, label, (child.view as? MasonText)?.type == .A ? .link : .button, rect)
+        } else {
+          add(nil, label, .staticText, rect)
+        }
+      }
+    }
+    let result: [Any]? = interactive ? elements : nil
+    accessibilityElementsCache = .some(result)
+    return result
+  }
+
   internal func handlePressDown() {
   }
 
@@ -446,7 +549,9 @@ public class TextEngine: NSObject {
 
     // Fetch floats now so we know whether we need the suggested-size pre-pass.
     let containerNode = engine.node.parent ?? engine.node
-    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode)
+    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
+    let floatEntries = engine.verticalWritingMode == 0
+      ? NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode) : []
     let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
 
     // With floats we need the actual text height first to size the exclusion
@@ -675,7 +780,7 @@ public class TextEngine: NSObject {
     // Propagate to parent TextContainer: when this node is flattened into its
     // parent's attributed string the parent's cache embeds our old content.
     // Bump the parent version so its next buildAttributedString() rebuilds.
-    if let parentNode = node.parent, let parentContainer = parentNode.view as? TextContainer {
+    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer {
       parentContainer.engine.invalidateInlineSegments(markDirty)
     }
   }
@@ -695,6 +800,9 @@ public class TextEngine: NSObject {
     guard style.isValueInitialized else {
       return true
     }
+
+    // An inline-block (a button, say) is an atomic box, never merged into the text.
+    if style.display == .InlineBlock { return false }
     
     // A background image/gradient needs a real box; a plain color is painted per
     // run when flattened, like an inline box's background on the web (and Android).
@@ -866,15 +974,7 @@ public class TextEngine: NSObject {
 
   internal func drawSingleLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     var drawBounds = bounds
-    let computedPadding = node.computedLayout.padding
-    if !computedPadding.isEmpty() {
-      let scale = NSCMason.scale
-      let padding = UIEdgeInsets(
-        top: CGFloat(computedPadding.top / scale),
-        left: CGFloat(computedPadding.left / scale),
-        bottom: CGFloat(computedPadding.bottom / scale),
-        right: CGFloat(computedPadding.right / scale)
-      )
+    if let padding = textFramePadding() {
       drawBounds = drawBounds.inset(by: padding)
       context.saveGState()
       context.clip(to: drawBounds)
@@ -929,6 +1029,7 @@ public class TextEngine: NSObject {
     }
 
     drawInlineBackgrounds(for: drawLine, at: baselineOrigin, in: context)
+    drawnLines.append((drawLine, baselineOrigin))
 
     // Draw text shadows if any
     if !style.textShadows.isEmpty {
@@ -1188,16 +1289,8 @@ public class TextEngine: NSObject {
     var drawBounds = bounds
 
     guard drawBounds.width > 0 else { return }
-    let computedPadding = node.computedLayout.padding
-    if !computedPadding.isEmpty() {
+    if let padding = textFramePadding() {
       paddingRestore = true
-      let scale = NSCMason.scale
-      let padding = UIEdgeInsets(
-        top: CGFloat(computedPadding.top / scale),
-        left: CGFloat(computedPadding.left / scale),
-        bottom: CGFloat(computedPadding.bottom / scale),
-        right: CGFloat(computedPadding.right / scale)
-      )
       drawBounds = drawBounds.inset(by: padding)
       guard drawBounds.width > 0, drawBounds.height > 0 else { return }
     }
@@ -1228,7 +1321,8 @@ public class TextEngine: NSObject {
     let scale = CGFloat(NSCMason.scale)
     // Compute this text view's origin in container coordinates (points)
     let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
-    if floatEntries.count > 0 {
+    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
+    if floatEntries.count > 0 && verticalWritingMode == 0 {
       for (nodePtr, rectLogical) in floatEntries {
         // Prefer using the actual child view frame if the native view exists
         // so exclusion holes exactly match placed native views. Fallback to
@@ -1299,10 +1393,30 @@ public class TextEngine: NSObject {
       let maxLineHeight = paragraph?.maximumLineHeight ?? 0
       if linesCount == 1 {
         let baselineOffset = (text.attribute(.baselineOffset, at: 0, effectiveRange: nil) as? CGFloat) ?? 0
-        let baselineFromTop = singleLineBaselineFromTop(ascent: fontAscent, descent: naturalLineHeight - fontAscent, capHeight: CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: drawBounds)
+        // An inline box taller than the font raises the line's ascent; keep the box inside.
+        let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
+        var lineAscent: CGFloat = 0
+        CTLineGetTypographicBounds(line0, &lineAscent, nil, nil)
+        let boxRaised = lineAscent > fontAscent + 0.5
+        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: drawBounds)
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
+      }
+    }
+
+    // vertical-lr: glyphs still turn clockwise but lines stack from the left, so mirror
+    // each line's block position within the content box (CoreText y-up).
+    if verticalWritingMode == 2 {
+      let blockLow = bounds.height - drawBounds.maxY
+      let blockHigh = bounds.height - drawBounds.minY
+      for i in 0..<linesCount {
+        let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+        let y = origins[i].y + textBaseY
+        origins[i].y = blockLow + blockHigh - y - ascent + descent - textBaseY
       }
     }
 
@@ -1348,6 +1462,7 @@ public class TextEngine: NSObject {
       // Same double-alignment pitfall as the shadow pass above - `lineOrigin.x`
       // already reflects the paragraph style's alignment.
       context.textPosition = CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY)
+      drawnLines.append((line, context.textPosition))
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -1432,6 +1547,7 @@ public class TextEngine: NSObject {
         
         guard clipRect.intersects(drawRect) else { continue }
         guard let childView = helper.view else { continue }
+        drawnBoxes.append((drawRect, InlineNodeRef(helper.node)))
         
         context.saveGState()
         context.clip(to: clipRect)
@@ -1444,6 +1560,8 @@ public class TextEngine: NSObject {
           childView.frame = CGRect(origin: .zero, size: drawRect.size)
           childView.layoutIfNeeded()
         }
+        // Pick up state changes such as :active before taking the snapshot.
+        childView.layer.displayIfNeeded()
         childView.layer.render(in: context)
         
         context.restoreGState()
@@ -1451,10 +1569,32 @@ public class TextEngine: NSObject {
     }
   
   
+  /// writing-mode: 1 for vertical-rl, 2 for vertical-lr, 0 for horizontal text.
+  internal var verticalWritingMode: UInt8 {
+    let mode = style.resolvedWritingMode
+    return mode == 1 || mode == 2 ? mode : 0
+  }
+
+  /// Padding in the text's own frame. Vertical text is drawn turned clockwise, so its
+  /// line-start side is the physical top and its first-line side the physical right.
+  private func textFramePadding() -> UIEdgeInsets? {
+    let computedPadding = node.computedLayout.padding
+    if computedPadding.isEmpty() { return nil }
+    let scale = NSCMason.scale
+    let top = CGFloat(computedPadding.top / scale)
+    let left = CGFloat(computedPadding.left / scale)
+    let bottom = CGFloat(computedPadding.bottom / scale)
+    let right = CGFloat(computedPadding.right / scale)
+    if verticalWritingMode != 0 {
+      return UIEdgeInsets(top: right, left: top, bottom: left, right: bottom)
+    }
+    return UIEdgeInsets(top: top, left: left, bottom: bottom, right: right)
+  }
+
   func drawText(context: CGContext, rect: CGRect){
     // When this TextContainer is flattened into a parent TextContainer, the parent's
     // text layer renders our content. Drawing here would produce duplicate text.
-    if let parentNode = node.parent, let parentContainer = parentNode.view as? TextContainer,
+    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer,
        parentContainer.engine.shouldFlattenTextContainer(container) {
       drawState = .idle
       return
@@ -1462,10 +1602,23 @@ public class TextEngine: NSObject {
     drawState = .drawing
     // Build attributed string for drawing (uses cache if valid)
     let text = buildAttributedString(forMeasurement: false)
+    drawnLines.removeAll(keepingCapacity: true)
+    drawnBoxes.removeAll(keepingCapacity: true)
+    accessibilityElementsCache = nil
     context.saveGState()
     context.textMatrix = .identity
-    context.translateBy(x: 0, y: rect.height)
-    context.scaleBy(x: 1.0, y: -1.0)
+    var rect = rect
+    if verticalWritingMode != 0 {
+      // Lines run down the box and stack from the right, glyphs turned clockwise:
+      // CoreText's (x, y) lands at (y, x). vertical-lr mirrors its lines in drawMultiLine.
+      drawnTransform = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+      context.concatenate(drawnTransform)
+      rect = CGRect(x: 0, y: 0, width: rect.height, height: rect.width)
+    } else {
+      drawnTransform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.height)
+      context.translateBy(x: 0, y: rect.height)
+      context.scaleBy(x: 1.0, y: -1.0)
+    }
     
     // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
     // properties that both force single-line drawing; match Android's OR.
@@ -1486,6 +1639,19 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Collapses each run of spaces and tabs to one space, which keeps the attributes of the
+  /// run's first character, so inner ranges (bold, links, inline boxes) survive.
+  static func collapsingWhitespace(_ text: NSAttributedString) -> NSMutableAttributedString {
+    let result = NSMutableAttributedString(attributedString: text)
+    guard let rx = horizontalWsRegex else { return result }
+    let matches = rx.matches(in: text.string, options: [], range: NSRange(location: 0, length: result.length))
+    let ns = text.string as NSString
+    for match in matches.reversed() where !(match.range.length == 1 && ns.character(at: match.range.location) == 0x20) {
+      result.replaceCharacters(in: match.range, with: " ")
+    }
+    return result
+  }
+
   /// Whether the text has an explicit line break (from <br>); NSString's search
   /// avoids walking the whole string as Swift Characters.
   static func hasLineBreak(_ text: NSAttributedString) -> Bool {
@@ -1509,17 +1675,6 @@ public class TextEngine: NSObject {
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = CharacterSet.whitespacesAndNewlines
-    // Use [ \t]+ to only match horizontal whitespace, not newlines or line separators
-    let collapseRegex = TextEngine.horizontalWsRegex
-
-    func collapsedString(_ s: String) -> String {
-      guard let rx = collapseRegex else { return s }
-      // replace runs of horizontal whitespace with single ASCII space
-      let ns = s as NSString
-      let r = rx.rangeOfFirstMatch(in: s, options: [], range: NSRange(location: 0, length: ns.length))
-      if r.location == NSNotFound && !s.isEmpty { return s }
-      return rx.stringByReplacingMatches(in: s, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: " ")
-    }
 
     let composed = NSMutableAttributedString()
     var prevEndedWithWhitespace = false
@@ -1542,9 +1697,17 @@ public class TextEngine: NSObject {
         
       }else if let textNode = child as? MasonTextNode {
         fragment = textNode.attributed()
+      } else if child.style.isValueInitialized && child.style.display == .None {
+        fragment = nil
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
-          fragment = TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor)
+          let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor))
+          // Nested elements marked their own ranges first, so the innermost wins.
+          let ref = InlineNodeRef(child)
+          piece.enumerateAttribute(TextEngine.inlineNodeKey, in: NSRange(location: 0, length: piece.length)) { value, range, _ in
+            if value == nil { piece.addAttribute(TextEngine.inlineNodeKey, value: ref, range: range) }
+          }
+          fragment = piece
         } else {
           fragment = createPlaceholder(for: child)
         }
@@ -1612,9 +1775,11 @@ public class TextEngine: NSObject {
         continue
       }
 
-      // For normal text fragment: collapse internal whitespace
+      // For normal text fragment: collapse internal whitespace, keeping the
+      // attributes of a flattened element's inner ranges.
       let raw = frag.string
-      let collapsed = collapsedString(raw)
+      let collapsedFrag = TextEngine.collapsingWhitespace(frag)
+      let collapsed = collapsedFrag.string
 
       if collapsed.isEmpty {
         // nothing to append but mark prevEndedWithWhitespace if original had whitespace
@@ -1629,9 +1794,9 @@ public class TextEngine: NSObject {
       // prepare fragment attributes for the collapsed text
       let attrs = frag.attributes(at: 0, effectiveRange: nil)
       // strip leading/trailing single spaces from collapsed when appending (we'll handle separator)
-      var middle = collapsed
-      if startsWithSpace && !middle.isEmpty { middle.removeFirst() }
-      if endsWithSpace && !middle.isEmpty { middle.removeLast() }
+      let middle = collapsedFrag
+      if startsWithSpace && middle.length > 0 { middle.deleteCharacters(in: NSRange(location: 0, length: 1)) }
+      if endsWithSpace && middle.length > 0 { middle.deleteCharacters(in: NSRange(location: middle.length - 1, length: 1)) }
 
       // Insert separator if needed: if composed not empty and (prevEndedWithWhitespace || startsWithSpace)
       if composed.length > 0 && (prevEndedWithWhitespace || startsWithSpace) {
@@ -1658,10 +1823,9 @@ public class TextEngine: NSObject {
         }
       }
 
-      // append the trimmed/collapsed middle text with frag attrs
-      if !middle.isEmpty {
-        let a = NSAttributedString(string: middle, attributes: attrs)
-        composed.append(a)
+      // append the trimmed/collapsed middle text with its own attributes
+      if middle.length > 0 {
+        composed.append(middle)
       }
 
       // update prevEndedWithWhitespace to endsWithSpace
@@ -1885,5 +2049,37 @@ final class TextLayoutCache {
   func store(_ key: Key, _ entry: Entry) {
     if entries.count >= TextLayoutCache.capacity { entries.removeAll(keepingCapacity: true) }
     entries[key] = entry
+  }
+}
+
+
+/// An accessibility element for a piece of a text view: plain text, a link or an inline box.
+final class InlineAccessibilityElement: UIAccessibilityElement {
+  weak var node: MasonNode?
+
+  override func accessibilityActivate() -> Bool {
+    guard let node = node, let text = accessibilityContainer as? MasonText else { return false }
+    let frame = accessibilityFrameInContainerSpace
+    text.dispatchInlineClick(node, at: CGPoint(x: frame.midX, y: frame.midY))
+    return true
+  }
+}
+
+/// A weak reference to the element that produced a range of flattened text. Equal when it
+/// names the same node, so rebuilt strings still match layout caches.
+final class InlineNodeRef: NSObject {
+  weak var node: MasonNode?
+
+  init(_ node: MasonNode) {
+    self.node = node
+  }
+
+  override func isEqual(_ object: Any?) -> Bool {
+    guard let other = object as? InlineNodeRef else { return false }
+    return other.node === node
+  }
+
+  override var hash: Int {
+    node.map { ObjectIdentifier($0).hashValue } ?? 0
   }
 }

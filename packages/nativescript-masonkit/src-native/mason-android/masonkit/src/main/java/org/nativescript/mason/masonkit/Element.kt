@@ -908,9 +908,9 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       }
 
       // Skip flattened text containers — parent draws their text
-      if (child.parent?.view is TextContainer && child.view is TextContainer) {
+      if (child.layoutParent?.view is TextContainer && child.view is TextContainer) {
         val flatten =
-          (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+          (child.layoutParent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
         if (flatten) {
           // Ensure the flattened view occupies no space
           (child.view as? View)?.layout(0, 0, 0, 0)
@@ -1262,9 +1262,9 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val child = nativeChildren.getOrNull(i) ?: continue
           if (child.type == NodeType.Text) continue
 
-          if (child.parent?.view is TextContainer && child.view is TextContainer) {
+          if (child.layoutParent?.view is TextContainer && child.view is TextContainer) {
             val flatten =
-              (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+              (child.layoutParent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
             if (flatten) {
               (child.view as? View)?.measure(
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),

@@ -6,6 +6,10 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PointF
+import android.graphics.Rect
+import android.graphics.RectF
+import android.os.Bundle
 import android.graphics.Typeface
 import android.os.Build
 import android.text.InputFilter
@@ -13,10 +17,15 @@ import android.text.StaticLayout
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewStructure
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.widget.TextViewCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.Styles.TextJustify
@@ -28,6 +37,7 @@ import org.nativescript.mason.masonkit.events.Event
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.util.WeakHashMap
+import kotlin.math.abs
 
 val white_space = "\\s+".toRegex()
 
@@ -174,8 +184,9 @@ class TextView @JvmOverloads constructor(
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
       // Keep the float-aware layout intact — we just expanded to fit it.
     } else {
-      val contentW = w - paddingLeft - paddingRight
-      if (!cachedStaticLayoutFits(contentW)) clearCachedStaticLayout()
+      val lineLength = if (engine.isVerticalWritingMode) h - paddingTop - paddingBottom
+      else w - paddingLeft - paddingRight
+      if (!cachedStaticLayoutFits(lineLength)) clearCachedStaticLayout()
       floatAwareStaticLayout = null
       floatExpandedHeight = -1
     }
@@ -189,6 +200,10 @@ class TextView @JvmOverloads constructor(
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
+      if (engine.isVerticalWritingMode) {
+        drawVertical(c)
+        return@onDraw
+      }
       // Build float-aware layout lazily if we have floated siblings.
       // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
       // when applyLayoutFlat positions the view), so try building float-aware
@@ -269,6 +284,9 @@ class TextView @JvmOverloads constructor(
         if (layoutToDraw.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(paint)
         val tx = paddingLeft.toFloat()
         val ty = paddingTop.toFloat() + dy
+        drawnLayout = layoutToDraw
+        drawnDx = tx
+        drawnDy = ty
         if (tx != 0f || ty != 0f) {
           val save = c.save()
           c.translate(tx, ty)
@@ -279,6 +297,7 @@ class TextView @JvmOverloads constructor(
           layoutToDraw.draw(c)
           TextDecorations.draw(c, layoutToDraw)
         }
+        updateInlineAccessibility()
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
         applyPendingText()
@@ -286,6 +305,222 @@ class TextView @JvmOverloads constructor(
         TextDecorations.drawPlatform(c, this)
       }
     }
+  }
+
+  /**
+   * writing-mode: vertical-rl / vertical-lr with sideways glyphs. The layout is built with the
+   * content height as its line length, then each line is turned 90° clockwise. vertical-rl stacks
+   * lines from the right, which is one rotation; vertical-lr stacks them from the left with the
+   * glyphs still turned clockwise, so each line is placed on its own.
+   */
+  private fun drawVertical(c: Canvas) {
+    val lineLength = height - paddingTop - paddingBottom
+    if (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength))) {
+      engine.rebuildCachedStaticLayout(paint, lineLength)
+    }
+    val layout = cachedStaticLayout ?: return
+    drawnLayout = layout
+    if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(paint)
+    val top = paddingTop.toFloat()
+    if (style.resolvedWritingMode.toInt() == 1) {
+      val save = c.save()
+      c.translate((width - paddingRight).toFloat(), top)
+      c.rotate(90f)
+      layout.draw(c)
+      TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+      updateInlineAccessibility()
+      return
+    }
+    for (i in 0 until layout.lineCount) {
+      val lineTop = layout.getLineTop(i)
+      val lineBottom = layout.getLineBottom(i)
+      val save = c.save()
+      c.translate((paddingLeft + lineTop + lineBottom).toFloat(), top)
+      c.rotate(90f)
+      c.clipRect(0, lineTop, layout.width, lineBottom)
+      layout.draw(c)
+      TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+    }
+    updateInlineAccessibility()
+  }
+
+  // The layout last drawn and its offset, for mapping touches into it.
+  private var drawnLayout: android.text.Layout? = null
+  private var drawnDx = 0f
+  private var drawnDy = 0f
+
+  /** Maps a point in this view into the drawn layout's coordinates, undoing [drawVertical]. */
+  private fun toLayoutPoint(x: Float, y: Float): PointF? {
+    val layout = drawnLayout ?: return null
+    if (!engine.isVerticalWritingMode) return PointF(x - drawnDx, y - drawnDy)
+    val lx = y - paddingTop
+    if (style.resolvedWritingMode.toInt() == 1) return PointF(lx, width - paddingRight - x)
+    for (i in 0 until layout.lineCount) {
+      val lineTop = layout.getLineTop(i)
+      val lineBottom = layout.getLineBottom(i)
+      val ly = paddingLeft + lineTop + lineBottom - x
+      if (ly >= lineTop && ly < lineBottom) return PointF(lx, ly)
+    }
+    return null
+  }
+
+  // An inline element being pressed: an inline box or a flattened element such as <a>.
+  private var inlineTarget: Node? = null
+  private var inlineTracking = false
+  private var inlineDownX = 0f
+  private var inlineDownY = 0f
+
+  /** The pressed inline element and its ancestors inside this container. */
+  private fun setInlinePressed(target: Node, pressed: Boolean) {
+    var current: Node? = target
+    while (current != null && current !== node) {
+      current.setPseudo(PseudoState.ACTIVE, pressed)
+      current = current.parent
+    }
+    (target.view as? View)?.isPressed = pressed
+    invalidate()
+  }
+
+  private fun endInlineTap() {
+    inlineTarget?.let { setInlinePressed(it, false) }
+    inlineTarget = null
+  }
+
+  // Inline boxes and flattened elements are drawn by this view, so it routes their taps: the
+  // click goes to the element under the finger and bubbles from there, as on the web.
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent): Boolean {
+    when (event.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        endInlineTap()
+        inlineTracking = false
+        val layout = drawnLayout
+        val point = if (layout != null && isEnabled) toLayoutPoint(event.x, event.y) else null
+        val target = point?.let { engine.inlineNodeAt(layout!!, it.x, it.y) }
+        if (target != null && node.mason.hasListenerOnPath(target, "click")) {
+          inlineTarget = target
+          inlineTracking = true
+          inlineDownX = event.x
+          inlineDownY = event.y
+          setInlinePressed(target, true)
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_MOVE -> {
+        if (inlineTracking) {
+          val slop = ViewConfiguration.get(context).scaledTouchSlop
+          if (abs(event.x - inlineDownX) > slop || abs(event.y - inlineDownY) > slop) endInlineTap()
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_UP -> {
+        if (inlineTracking) {
+          val target = inlineTarget
+          endInlineTap()
+          inlineTracking = false
+          target?.let { dispatchInlineClick(it) }
+          return true
+        }
+      }
+
+      MotionEvent.ACTION_CANCEL -> {
+        if (inlineTracking) {
+          endInlineTap()
+          inlineTracking = false
+          return true
+        }
+      }
+    }
+    return super.onTouchEvent(event)
+  }
+
+  private fun dispatchInlineClick(target: Node) {
+    (target.view as? EventTarget)?.let {
+      node.mason.dispatch(Event(type = "click").apply { this.target = it })
+    }
+  }
+
+  /** Maps a rect in the drawn layout's coordinates back into this view, the inverse of [toLayoutPoint]. */
+  private fun toViewRect(r: RectF): Rect {
+    val layout = drawnLayout
+    if (layout == null || !engine.isVerticalWritingMode) {
+      return Rect((r.left + drawnDx).toInt(), (r.top + drawnDy).toInt(), (r.right + drawnDx).toInt(), (r.bottom + drawnDy).toInt())
+    }
+    val top = paddingTop + r.left
+    val bottom = paddingTop + r.right
+    if (style.resolvedWritingMode.toInt() == 1) {
+      val right = width - paddingRight
+      return Rect((right - r.bottom).toInt(), top.toInt(), (right - r.top).toInt(), bottom.toInt())
+    }
+    val line = layout.getLineForVertical(r.centerY().toInt())
+    val sum = paddingLeft + layout.getLineTop(line) + layout.getLineBottom(line)
+    return Rect((sum - r.bottom).toInt(), top.toInt(), (sum - r.top).toInt(), bottom.toInt())
+  }
+
+  /** Exposes inline boxes and links drawn by this view as virtual accessibility nodes. */
+  private inner class InlineAccessibility : ExploreByTouchHelper(this) {
+    var items: List<TextEngine.InlineItem> = emptyList()
+
+    fun refresh() {
+      items = drawnLayout?.let { engine.inlineAccessibilityItems(it) } ?: emptyList()
+    }
+
+    override fun getVirtualViewAt(x: Float, y: Float): Int {
+      val p = toLayoutPoint(x, y) ?: return INVALID_ID
+      val index = items.indexOfFirst { it.bounds.contains(p.x, p.y) }
+      return if (index >= 0) index else INVALID_ID
+    }
+
+    override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
+      refresh()
+      for (i in items.indices) virtualViewIds.add(i)
+    }
+
+    override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
+      val item = items.getOrNull(virtualViewId)
+      if (item == null) {
+        node.contentDescription = ""
+        node.setBoundsInParent(Rect(0, 0, 1, 1))
+        return
+      }
+      node.contentDescription = item.label
+      node.className = if (item.isButton) "android.widget.Button" else "android.widget.TextView"
+      node.setBoundsInParent(toViewRect(item.bounds).takeUnless { it.isEmpty } ?: Rect(0, 0, 1, 1))
+      node.isClickable = true
+      node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
+    }
+
+    override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
+      if (action != AccessibilityNodeInfoCompat.ACTION_CLICK) return false
+      val item = items.getOrNull(virtualViewId) ?: return false
+      dispatchInlineClick(item.node)
+      return true
+    }
+  }
+
+  private var inlineAccessibility: InlineAccessibility? = null
+  private var inlineAccessibilityLayout: android.text.Layout? = null
+
+  // Installed only while accessibility is on and the text holds inline elements.
+  private fun updateInlineAccessibility() {
+    val layout = drawnLayout ?: return
+    if (layout === inlineAccessibilityLayout || accessibilityManager?.isEnabled != true) return
+    inlineAccessibilityLayout = layout
+    val helper = inlineAccessibility
+    if (helper == null) {
+      if (!engine.hasInlineItems(layout)) return
+      inlineAccessibility = InlineAccessibility().also { ViewCompat.setAccessibilityDelegate(this, it) }
+    } else {
+      helper.invalidateRoot()
+    }
+  }
+
+  override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+    return inlineAccessibility?.dispatchHoverEvent(event) == true || super.dispatchHoverEvent(event)
   }
 
   var textContent: String
@@ -346,7 +581,7 @@ class TextView @JvmOverloads constructor(
     provideViewStructure(structure)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
     val drawn = floatAwareStaticLayout ?: cachedStaticLayout
-    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length) {
+    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length || engine.isVerticalWritingMode) {
       structure.setText(text, -1, -1)
     } else {
       provideVisibleLines(structure, text, drawn)
@@ -549,9 +784,9 @@ class TextView @JvmOverloads constructor(
           node.style.display = Display.Inline
           // No forced underline — match web (CSS resets links); honor text-decoration.
 
+          // Focusable for keyboard navigation only, so a tap clicks at once.
           isClickable = true
           isFocusable = true
-          isFocusableInTouchMode = true
 
           node.hasNativeClickDispatch = true
           setOnClickListener {
@@ -590,6 +825,8 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun getBaseline(): Int {
+    // Vertical text has no horizontal baseline to align with.
+    if (engine.isVerticalWritingMode) return -1
     // Return baseline calculated from our font metrics
     if (style.isValueInitialized) {
       val metrics = style.getFontMetrics()

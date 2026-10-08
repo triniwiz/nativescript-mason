@@ -723,8 +723,43 @@ every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
 ### Current state
 
-**415 / 416 on both iOS (simulator) and Android (emulator).** The one failure,
-`grid_relayout_vertical_text`, needs `writing-mode`, which is not implemented.
+**416 / 416 on both iOS (simulator) and Android (emulator).** The last one,
+`grid_relayout_vertical_text`, passes since `writing-mode` support (see below).
+
+### writing-mode
+
+`vertical-rl` / `vertical-lr` work for a vertical box inside a horizontal layout,
+with sideways glyphs (`text-orientation: mixed` for Latin text).
+
+- **Layout lives in mason-core.** For text, Rust only sizes boxes; the platform
+  breaks and draws lines. So `cached_leaf_measure` (`tree_inline.rs`) and the
+  leaf measure path (`tree.rs`) transpose known/available sizes into the
+  platform's horizontal frame and transpose the result back. The platform
+  measure and every measure cache stay horizontal. `is_vertical_writing_mode`
+  walks parents, since anonymous text containers inherit. A vertical box's own
+  height is its children's line length, and vertical nodes opt out of
+  `ignores_offered_height`.
+- **Drawing is per platform.** The layout is built with the content height as
+  its line length, then turned 90° clockwise. vertical-rl is one transform
+  (first line at the right). vertical-lr keeps the clockwise glyphs but stacks
+  lines from the left, which no single rotation does: Android draws each line on
+  its own (`TextView.drawVertical`), iOS mirrors line origins within the content
+  box (`TextEngine.drawMultiLine`).
+- **Orthogonal-flow sizing.** A vertical box's line length is its own height, a
+  known height, or a definite containing-block height (taffy's percentage
+  basis); an available height offered by an auto-height parent doesn't count
+  (`orthogonal_flow_inputs`). Failing all of those it falls back to the
+  viewport height, as CSS does. In horizontal block flow its auto width is its
+  line stack, not the parent's width: block items report `justify-self: start`
+  for it, which taffy sizes as fit-content.
+- **Mixed inline content** (text runs plus inline-blocks, buttons, images)
+  inside a vertical box runs the inline layout in the box's own frame: sizes
+  and margins transposed, line length = height, items centred on each line,
+  placements turned back (`transpose_prepared_item`).
+- **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
+  containers whose children flow vertically (taffy only supports horizontal-tb),
+  float exclusions, and turning the label of a button or other widget inside
+  vertical text.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0
@@ -732,6 +767,38 @@ until its first layout pass, and on a slow device the old "stable for 3 polls"
 rule recorded unlaid fixtures as 0x0 failures (this was the old "cold-start race",
 and it produced runs of 100+ false failures on a loaded emulator). An all-zero
 fixture settles after ~2 s stable; the poll cap is ~10 s and the watchdog 15 s.
+
+## Inline flow in blocks
+
+A block's inline children (text, `<b>`, `<a>`, inline-blocks, buttons) form one
+inline flow, as on the web, so text wraps across element boundaries.
+
+- **Runs.** `Node.normalizeInlineRuns` (Android) / `MasonNode` (iOS) group each
+  run of consecutive inline-level children of a block container into one
+  anonymous text container (`display: block`, CSS's anonymous block box). Block
+  children stay direct children. Runs rebuild on append, insert, remove and when
+  a child's or the parent's display, position or float changes. Flex and grid
+  parents keep one item per child. `parent` skips anonymous nodes;
+  `layoutParent` is the real parent and must be used for invalidation and native
+  removal.
+- **Whitespace** collapses across the pieces of a flow: no doubled space at an
+  element boundary, none at a line start. HTML parsers keep whitespace-only text
+  between inline elements as one space (not in flex or grid containers).
+- **Taps.** Inline elements inside a text container are drawn by it (Android
+  `ViewSpan`, iOS run-delegate attachments, flattened text merged into the
+  string), so they have no live views. The container records where it drew each
+  inline box and which element produced each range of text (`NodeSpan` /
+  `TextEngine.inlineNodeKey`), hit tests taps, sets `:active` on the element
+  while pressed, and dispatches `click` to it. Events bubble through node
+  parents on both platforms and honour `stopPropagation`. On iOS a
+  `MasonGestureRecognizer` only fires when no deeper element handles the touch.
+- **Accessibility.** Android installs an `ExploreByTouchHelper` (only while
+  accessibility is on) exposing inline boxes and links as virtual nodes. iOS text
+  views read as static text, or, when they hold interactive inline elements,
+  expose their text pieces, links and boxes as `accessibilityElements`.
+- **Not supported yet:** inline boxes that need real touch delivery (an input
+  inside an inline-block, NativeScript core gestures on an inline box) only get
+  `click`; they would need to be attached as live views at their drawn rect.
 
 ## Backdrop Filter
 
