@@ -483,11 +483,11 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   public func requestLayout() {
     engine.invalidateInlineSegments()
     // handle text nesting
-    if(node.parent?.view is TextContainer){
+    if(node.layoutParent?.view is TextContainer){
       if(!engine.shouldFlattenTextContainer(self)){
         setNeedsDisplay()
       }
-      if let parent = node.parent?.view as? MasonText{
+      if let parent = node.layoutParent?.view as? MasonText{
         parent.requestLayout()
       }
       return

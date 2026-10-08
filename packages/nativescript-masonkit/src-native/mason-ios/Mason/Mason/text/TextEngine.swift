@@ -677,7 +677,7 @@ public class TextEngine: NSObject {
     // Propagate to parent TextContainer: when this node is flattened into its
     // parent's attributed string the parent's cache embeds our old content.
     // Bump the parent version so its next buildAttributedString() rebuilds.
-    if let parentNode = node.parent, let parentContainer = parentNode.view as? TextContainer {
+    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer {
       parentContainer.engine.invalidateInlineSegments(markDirty)
     }
   }
@@ -697,6 +697,9 @@ public class TextEngine: NSObject {
     guard style.isValueInitialized else {
       return true
     }
+
+    // An inline-block (a button, say) is an atomic box, never merged into the text.
+    if style.display == .InlineBlock { return false }
     
     // A background image/gradient needs a real box; a plain color is painted per
     // run when flattened, like an inline box's background on the web (and Android).
@@ -1478,7 +1481,7 @@ public class TextEngine: NSObject {
   func drawText(context: CGContext, rect: CGRect){
     // When this TextContainer is flattened into a parent TextContainer, the parent's
     // text layer renders our content. Drawing here would produce duplicate text.
-    if let parentNode = node.parent, let parentContainer = parentNode.view as? TextContainer,
+    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer,
        parentContainer.engine.shouldFlattenTextContainer(container) {
       drawState = .idle
       return
@@ -1574,6 +1577,8 @@ public class TextEngine: NSObject {
         
       }else if let textNode = child as? MasonTextNode {
         fragment = textNode.attributed()
+      } else if child.style.isValueInitialized && child.style.display == .None {
+        fragment = nil
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
           fragment = TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor)

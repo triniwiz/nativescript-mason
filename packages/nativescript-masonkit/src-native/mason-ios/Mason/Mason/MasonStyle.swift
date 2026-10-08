@@ -808,6 +808,10 @@ public class MasonStyle: NSObject {
       }
       updateNativeStyle()
     }
+    let changed = StateKeys(low: low, high: high)
+    if changed.contains(StateKeys.display.union(.displayMode).union(.position).union(.float)) {
+      node.onFlowTypeChanged()
+    }
   }
   
   

@@ -109,6 +109,9 @@ public class MasonNode: NSObject {
   // Set once an anonymous node is linked under this one (sticky). Without one,
   // the author children are exactly `children`, so no walk is needed.
   private var hasAnonymousChild = false
+  // Inline-run bookkeeping, see normalizeInlineRuns.
+  fileprivate var normalizingRuns = false
+  fileprivate var runsEstablished = false
   internal var isPlaceholder: Bool = false
 
   /// True while a deferred font-metrics flush is already queued for this node
@@ -978,6 +981,14 @@ extension MasonNode {
   
   
   public func appendChild(_ child: MasonNode) {
+    if establishesInlineRuns() {
+      runsEstablished = true
+      let lastIsRun = children.last.map { isRunContainer($0) } ?? false
+      if joinsInlineRun(child, runOpen: lastIsRun) {
+        appendToRun(child)
+        return
+      }
+    }
     if (child is MasonTextNode) {
       let container = if (MasonViewKind.textContainer(view) != nil) {
         self
@@ -1011,6 +1022,231 @@ extension MasonNode {
   }
   
   
+  // MARK: - Inline runs
+  // CSS inline formatting. In a block container, consecutive inline-level children (text,
+  // inline elements, inline-blocks, buttons, images) share one anonymous text container, an
+  // anonymous block box, so text wraps across them and the whitespace between them is kept.
+  // Other containers (flex, grid) keep one anonymous box per text run: each is an item there.
+
+  /// Whether this node groups its inline-level children into shared runs.
+  internal func establishesInlineRuns() -> Bool {
+    guard let view = view, !(view is TextContainer) else { return false }
+    switch style.display {
+    case .Block, .InlineBlock: return true
+    default: return false
+    }
+  }
+
+  /// Whether `child` takes part in an inline run here. `display: none` children stay where
+  /// they are (they don't split a run, and don't start one).
+  private func joinsInlineRun(_ child: MasonNode, runOpen: Bool) -> Bool {
+    if child is MasonTextNode || child.view is MasonBr.FakeView { return true }
+    let s = child.style
+    if s.position == .Absolute || s.position == .Fixed { return false }
+    if s.float != .None { return false }
+    switch s.display {
+    case .Inline, .InlineBlock, .InlineFlex, .InlineGrid: return true
+    case .None: return runOpen
+    default: return false
+    }
+  }
+
+  private func isRunContainer(_ node: MasonNode) -> Bool {
+    node.isAnonymous && node.view is TextContainer
+  }
+
+  /// Takes `view` out of its superview without touching the Mason tree.
+  private func detachViewQuietly(_ view: UIView) {
+    guard let superview = view.superview else { return }
+    if let owner = (superview as? MasonElement)?.node {
+      owner.suppressChildOperations { view.removeFromSuperview() }
+    } else {
+      view.removeFromSuperview()
+    }
+  }
+
+  private enum RunItem {
+    case direct(MasonNode)
+    case run([MasonNode])
+  }
+
+  /// Re-groups this node's children, in `author` order, into runs and direct children.
+  internal func normalizeInlineRuns(_ author: [MasonNode]? = nil) {
+    if normalizingRuns || view is TextContainer { return }
+    let author = author ?? getChildren()
+    let inlineRuns = establishesInlineRuns()
+    var plan: [RunItem] = []
+    plan.reserveCapacity(author.count)
+    var run: [MasonNode]? = nil
+    for child in author {
+      let joins = inlineRuns ? joinsInlineRun(child, runOpen: run != nil) : child is MasonTextNode
+      if joins {
+        if run == nil { run = [] }
+        run!.append(child)
+      } else {
+        if let open = run { plan.append(.run(open)) }
+        run = nil
+        plan.append(.direct(child))
+      }
+    }
+    if let open = run { plan.append(.run(open)) }
+    runsEstablished = inlineRuns
+    if layoutMatches(plan, inlineRuns) { return }
+    normalizingRuns = true
+    defer { normalizingRuns = false }
+    applyRunPlan(plan, inlineRuns)
+  }
+
+  private func runDisplay(_ inlineRuns: Bool) -> Display { inlineRuns ? .Block : .Inline }
+
+  private func layoutMatches(_ plan: [RunItem], _ inlineRuns: Bool) -> Bool {
+    if plan.count != children.count { return false }
+    for (i, item) in plan.enumerated() {
+      let current = children[i]
+      switch item {
+      case .direct(let node):
+        if node !== current { return false }
+      case .run(let members):
+        if !isRunContainer(current) || current.style.display != runDisplay(inlineRuns) { return false }
+        if members.count != current.children.count { return false }
+        for (j, member) in members.enumerated() where member !== current.children[j] { return false }
+      }
+    }
+    return true
+  }
+
+  private func applyRunPlan(_ plan: [RunItem], _ inlineRuns: Bool) {
+    var spare = children.filter { isRunContainer($0) }
+    var next: [MasonNode] = []
+    next.reserveCapacity(plan.count)
+    for item in plan {
+      switch item {
+      case .direct(let node):
+        next.append(node)
+      case .run(let members):
+        let anon = spare.isEmpty
+          ? getOrCreateAnonymousTextContainer(false, checkLast: false)
+          : spare.removeFirst()
+        fillRun(anon, members, inlineRuns)
+        next.append(anon)
+      }
+    }
+    for anon in spare {
+      anon.children.removeAll()
+      if let ptr = nativePtr, let anonPtr = anon.nativePtr,
+         let ref = mason_node_remove_child(mason.nativePtr, ptr, anonPtr) {
+        mason_node_destroy(ref)
+      }
+      anon.parent = nil
+      if let anonView = anon.view { detachViewQuietly(anonView) }
+    }
+    children = next
+    // Direct children, run containers included, belong to this node and are subviews here.
+    if let host = view {
+      var viewIndex = 0
+      for child in next {
+        child.parent = self
+        guard let childView = child.view else { continue }
+        if childView.superview !== host {
+          detachViewQuietly(childView)
+          suppressChildOperations {
+            host.insertSubview(childView, at: min(viewIndex, host.subviews.count))
+          }
+        }
+        viewIndex = (host.subviews.firstIndex(of: childView) ?? viewIndex) + 1
+      }
+    }
+    NodeUtils.syncNode(self, next)
+    NodeUtils.invalidateLayout(self)
+  }
+
+  private func fillRun(_ anon: MasonNode, _ members: [MasonNode], _ inlineRuns: Bool) {
+    anon.parent = self
+    guard let container = MasonViewKind.textContainer(anon.view) else { return }
+    let display = runDisplay(inlineRuns)
+    if anon.style.display != display { anon.style.display = display }
+    anon.children = members
+    for member in members {
+      if let text = member as? MasonTextNode {
+        text.attributes = container.node.getDefaultAttributes()
+        text.container = container
+      } else {
+        member.parent = anon
+        // The run draws it inline; it isn't a subview of this node.
+        if let memberView = member.view { detachViewQuietly(memberView) }
+      }
+    }
+    NodeUtils.syncNode(anon, members)
+    container.engine.invalidateInlineSegments()
+  }
+
+  /// Run container to append an inline-level child to: the last child if it is one.
+  private func runForAppend() -> MasonNode {
+    let anon: MasonNode
+    if let last = children.last, isRunContainer(last) {
+      anon = last
+    } else {
+      anon = getOrCreateAnonymousTextContainer(true, checkLast: false)
+    }
+    if anon.style.display != .Block { anon.style.display = .Block }
+    return anon
+  }
+
+  private func appendToRun(_ child: MasonNode) {
+    let anon = runForAppend()
+    guard let container = MasonViewKind.textContainer(anon.view) else { return }
+    anon.children.append(child)
+    if let text = child as? MasonTextNode {
+      text.attributes = container.node.getDefaultAttributes()
+      text.container = container
+    } else {
+      child.parent = anon
+      NativeHelpers.nativeNodeAddChild(mason, anon, child)
+      if let childView = child.view { detachViewQuietly(childView) }
+      MasonNode.invalidateDescendantTextViews(child, .invalidateText)
+      onNodeAttached?()
+    }
+    container.engine.invalidateInlineSegments()
+    NodeUtils.invalidateLayout(self)
+  }
+
+  /// Links a child that `normalizeInlineRuns` is about to place.
+  private func attachForRebuild(_ child: MasonNode) {
+    if child is MasonTextNode { return }
+    child.parent = self
+    MasonNode.invalidateDescendantTextViews(child, .invalidateText)
+    onNodeAttached?()
+  }
+
+  /// Unlinks a child that `normalizeInlineRuns` will leave out.
+  private func detachForRebuild(_ removed: MasonNode) {
+    let layoutParent = removed.layoutParent
+    if let idx = layoutParent?.children.firstIndex(of: removed) {
+      layoutParent?.children.remove(at: idx)
+    }
+    if let text = removed as? MasonTextNode {
+      text.container?.engine.invalidateInlineSegments()
+      text.container = nil
+      return
+    }
+    if let removedView = removed.view { detachViewQuietly(removedView) }
+    if let parentPtr = layoutParent?.nativePtr, let childPtr = removed.nativePtr,
+       let ref = mason_node_remove_child(mason.nativePtr, parentPtr, childPtr) {
+      mason_node_destroy(ref)
+    }
+    removed.parent = nil
+  }
+
+  /// Called when this node's display, position or float changes.
+  internal func onFlowTypeChanged() {
+    if isAnonymous || normalizingRuns { return }
+    if runsEstablished != establishesInlineRuns() { normalizeInlineRuns() }
+    guard let owner = parent, !(owner.view is TextContainer), !owner.normalizingRuns else { return }
+    let inRun = layoutParent?.isAnonymous == true
+    let shouldJoin = owner.establishesInlineRuns() && owner.joinsInlineRun(self, runOpen: inRun)
+    if inRun != shouldJoin { owner.normalizeInlineRuns() }
+  }
+
   internal func getOrCreateAnonymousTextContainer(_ append: Bool = true, checkLast: Bool = true) -> MasonNode {
     // Check if last child is an anonymous text container
     if checkLast,
@@ -1060,6 +1296,10 @@ extension MasonNode {
     if (children.isEmpty) {
       return nil
     }
+    if establishesInlineRuns() {
+      guard let idx = getChildren().firstIndex(of: child) else { return nil }
+      return removeChildAt(index: idx)
+    }
     // Elements are removed through their layout parent; building the author
     // list to find the index made each removal O(n).
     if !(child is MasonTextNode) {
@@ -1087,6 +1327,15 @@ extension MasonNode {
     
     let reference = nodes[index]
     if reference === child {
+      return
+    }
+
+    if establishesInlineRuns() {
+      var author = nodes
+      detachForRebuild(reference)
+      author[index] = child
+      attachForRebuild(child)
+      normalizeInlineRuns(author)
       return
     }
     
@@ -1335,6 +1584,13 @@ extension MasonNode {
     }
 
     let authorChildren = getChildren()
+    if establishesInlineRuns() {
+      var author = authorChildren
+      author.insert(child, at: index)
+      attachForRebuild(child)
+      normalizeInlineRuns(author)
+      return
+    }
     let reference = authorChildren[index]
     
     // Inserting a TextNode
@@ -1546,6 +1802,13 @@ extension MasonNode {
     if (index >= children.count) {
       return nil
     }
+    if establishesInlineRuns() {
+      var author = children
+      let removed = author.remove(at: index)
+      detachForRebuild(removed)
+      normalizeInlineRuns(author)
+      return removed
+    }
     let reference = children[index]
     if !(reference is MasonTextNode) {
       return removeElementChild(reference)
@@ -1570,11 +1833,12 @@ extension MasonNode {
   private func removeElementChild(_ reference: MasonNode) -> MasonNode? {
     guard let idx =
             reference.layoutParent?.children.firstIndex(of: reference) else {return nil}
-    guard let removed = reference.layoutParent?.children.remove(at: idx) else {return nil}
+    let layoutParent = reference.layoutParent
+    guard let removed = layoutParent?.children.remove(at: idx) else {return nil}
     NodeUtils.removeView(self, removed.view)
     // Detach from the Rust layout tree as well (matches Android); without
     // this the layout engine keeps measuring the removed child.
-    if let ptr = nativePtr, let childPtr = removed.nativePtr {
+    if let ptr = layoutParent?.nativePtr, let childPtr = removed.nativePtr {
       if let ref = mason_node_remove_child(mason.nativePtr, ptr, childPtr) {
         mason_node_destroy(ref)
       }
