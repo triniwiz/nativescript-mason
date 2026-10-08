@@ -1425,6 +1425,29 @@ impl Tree {
         known_dimensions: Size<Option<f32>>,
         available_space: Size<AvailableSpace>,
     ) -> Size<f32> {
+        // Vertical text runs its lines along the height: measure in the platform's
+        // horizontal frame, then turn the result back.
+        if crate::tree::is_vertical_writing_mode(&self.inner(), child_id) {
+            use crate::tree::transpose;
+            let measured = self.cached_leaf_measure_horizontal(
+                child_id,
+                measure,
+                transpose(known_dimensions),
+                transpose(available_space),
+            );
+            return transpose(measured);
+        }
+        self.cached_leaf_measure_horizontal(child_id, measure, known_dimensions, available_space)
+    }
+
+    #[inline]
+    fn cached_leaf_measure_horizontal(
+        &mut self,
+        child_id: Id,
+        measure: &NodeMeasure,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Size<f32> {
         // A text leaf's size is a function of the width it's offered, not the
         // height it's given — it wraps horizontally and reports how tall the
         // result came out. Canonicalise the height for text containers so the
@@ -2425,6 +2448,7 @@ impl Tree {
         // establish a content box for this purpose and pass through the
         // parent's dimensions unchanged.
         let is_inline_container = matches!(style.display_mode(), DisplayMode::Inline);
+        let vertical_box = crate::tree::is_vertical_writing_mode(&self.inner(), id);
         let content_box_child_base = if !is_inline_container {
             let content_box_parent_size = Size {
                 width: _node_size
@@ -2443,11 +2467,17 @@ impl Tree {
                     }
                     other => other,
                 },
-                height: match available_space.height {
-                    AvailableSpace::Definite(h) => {
+                height: match (
+                    vertical_box,
+                    content_box_parent_size.height,
+                    available_space.height,
+                ) {
+                    // A vertical box's own height is its line length.
+                    (true, Some(h), _) => AvailableSpace::Definite(h),
+                    (_, _, AvailableSpace::Definite(h)) => {
                         AvailableSpace::Definite((h - pb.top - pb.bottom).max(0.0))
                     }
-                    other => other,
+                    (_, _, other) => other,
                 },
             };
             LayoutInput {

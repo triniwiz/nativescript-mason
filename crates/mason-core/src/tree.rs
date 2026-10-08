@@ -2051,10 +2051,36 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
             && style.get_flex_wrap() != taffy::FlexWrap::NoWrap;
         let free = !scrolls_y
             && !wraps_column
+            && !is_vertical_writing_mode(tree, id)
             && tree.children.get(id).map_or(true, |children| {
                 children.iter().all(|c| tree.nodes.get(*c).map_or(true, |n| n.ignores_offered_height))
             });
         tree.nodes[id].ignores_offered_height = free;
+    }
+}
+
+/// Whether `id` lays its text out vertically: its own `writing-mode`, else the nearest
+/// ancestor's (it inherits, and an anonymous text container never sets its own).
+pub(crate) fn is_vertical_writing_mode(tree: &TreeInner, id: Id) -> bool {
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(mode) = tree
+            .nodes
+            .get(n)
+            .and_then(|node| node.style().get_writing_mode())
+        {
+            return mode != crate::style::WritingMode::HorizontalTb;
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    false
+}
+
+#[inline]
+pub(crate) fn transpose<T>(size: Size<T>) -> Size<T> {
+    Size {
+        width: size.height,
+        height: size.width,
     }
 }
 
@@ -2385,7 +2411,15 @@ impl LayoutBlockContainer for Tree {
                     (_, false) => {
                         // Extract data under short locks, then drop before
                         // calling compute_leaf_layout (measure is FFI).
-                        let (has_measure, style, style_size, measure, is_text_container, tree_uid) = {
+                        let (
+                            has_measure,
+                            style,
+                            style_size,
+                            measure,
+                            is_text_container,
+                            tree_uid,
+                            vertical,
+                        ) = {
                             let inner = tree.inner();
                             let tree_uid = inner.uid;
                             let node = inner.nodes.get(id).unwrap();
@@ -2393,8 +2427,18 @@ impl LayoutBlockContainer for Tree {
                             let style = leaf_layout_style(node.style());
                             let style_size = node.style().get_size();
                             let is_text_container = node.is_text_container();
+                            let vertical =
+                                is_text_container && is_vertical_writing_mode(&inner, id);
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
-                            (has_measure, style, style_size, measure, is_text_container, tree_uid)
+                            (
+                                has_measure,
+                                style,
+                                style_size,
+                                measure,
+                                is_text_container,
+                                tree_uid,
+                                vertical,
+                            )
                         };
 
                         compute_leaf_layout(
@@ -2478,6 +2522,13 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
+                                    // Vertical text runs its lines along the height: measure in
+                                    // the platform's horizontal frame, then turn the result back.
+                                    let (final_known, available_space, known_dimensions) = if vertical {
+                                        (transpose(final_known), transpose(available_space), transpose(known_dimensions))
+                                    } else {
+                                        (final_known, available_space, known_dimensions)
+                                    };
                                     let canonical_avail =
                                         if is_text_container && known_dimensions.height.is_none() {
                                             Size {
@@ -2508,7 +2559,7 @@ impl LayoutBlockContainer for Tree {
                                     } else {
                                         None
                                     };
-                                    if let Some(cached) = cached.or(fit) {
+                                    let measured = if let Some(cached) = cached.or(fit) {
                                         cached
                                     } else {
                                         // IMPORTANT: `measure` was obtained via `copy_measure()`
@@ -2520,7 +2571,8 @@ impl LayoutBlockContainer for Tree {
                                             .or_insert_with(InlineMeasureCache::new)
                                             .store(q_known, key_avail, meas);
                                         meas
-                                    }
+                                    };
+                                    if vertical { transpose(measured) } else { measured }
                                 };
 
                                 // clamp measured results too (skipped in ContentSize mode —
