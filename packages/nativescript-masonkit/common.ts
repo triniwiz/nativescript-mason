@@ -71,9 +71,9 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_ } from './symbols';
 import { Tree } from './tree';
-import { masonEngine } from './windows-panel-helpers';
+import { masonEngine, removeNativeChild } from './windows-panel-helpers';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
 import { frameworkRegistry } from './framework-registry';
@@ -199,7 +199,7 @@ function findOwnerForNativeView(owner: any, nativeView: any): ViewBase | NSViewB
   if (!owner || !nativeView) return null;
 
   const ownNativeView = nativeViewFor(owner);
-  if (ownNativeView === nativeView) return owner;
+  if (ownNativeView === nativeView || owner?.[native_] === nativeView) return owner;
 
   const children = owner._children ?? owner._viewChildren;
   if (!children) return null;
@@ -344,6 +344,33 @@ function onWindowsActiveLeave(args: EventData) {
 
 function clearWindowsActive(view: any) {
   for (const state of WINDOWS_ACTIVE_STATES) view._removeVisualState(state);
+}
+
+const windowsRunCounts = new WeakMap<object, number>();
+
+function windowsNativeOf(child: any) {
+  return child?.nativeViewProtected ?? child?._view;
+}
+
+function windowsBreakRun(child: any) {
+  let run = child[breakRun_];
+  if (!run) {
+    run = new NativeScript.Mason.TextNode();
+    run.SetBreak(true);
+    child[breakRun_] = run;
+  }
+  return run;
+}
+
+export function windowsMemberKind(child: any): 'run' | 'break' | 'text' | 'box' {
+  if (child[textNode_]) return 'run';
+  if (child[isPlaceholder_]) return 'break';
+  if (child[isText_] && !(child instanceof ButtonBase)) {
+    const style = child._styleHelper;
+    const display = style?.display;
+    if ((display === 'inline' || display === 'none') && !style.hasBoxStyle) return 'text';
+  }
+  return 'box';
 }
 
 const TEARDOWN_SLICE_MS = 8;
@@ -605,7 +632,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         callback['mason:event:id'] = id;
       }
       if (__WINDOWS__) {
-        if (arg === 'click' || arg === 'tap') {
+        if (arg === 'click' && typeof masonEngine().AddEventListener === 'function') {
+          const ref = new WeakRef(this);
+          const listener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', (event: any) => {
+            const owner = ref.deref();
+            if (!owner) return;
+            const ret: any = wrapNativeEvent(arg);
+            ret[native_] = event;
+            ret._target = owner;
+            callback.call(thisArg || owner, ret);
+          });
+          callback['mason:event:id'] = masonEngine().AddEventListener((this as any)._view, arg, listener);
+          callback['mason:event:listener'] = listener;
+        } else if (arg === 'click' || arg === 'tap') {
           try {
             const NSWinRT_: any = (globalThis as any).NSWinRT;
             const MUX: any = (globalThis as any).Microsoft;
@@ -680,7 +719,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         }
       }
       if (__WINDOWS__) {
-        if (id && (arg === 'click' || arg === 'tap')) {
+        if (id && arg === 'click' && callback['mason:event:listener']) {
+          masonEngine().RemoveEventListener((this as any)._view, arg, id);
+          callback['mason:event:id'] = undefined;
+          callback['mason:event:listener'] = undefined;
+        } else if (id && (arg === 'click' || arg === 'tap')) {
           try {
             const view: any = (this as any)._view;
             const tappedEvent = callback['mason:event:tapped'];
@@ -846,10 +889,37 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         this.off('mouseLeave', onWindowsActiveLeave);
         clearWindowsActive(this);
       }
+      this._windowsListenActive(subscribe);
       // A button dims while held only when it has no :active style of its own.
       // @ts-ignore
       const view = this._view;
       if (view?.IsButton) view.DimsWhenPressed = !subscribe;
+    }
+  }
+
+  private _windowsActiveListener: any;
+  private _windowsActiveId = 0;
+
+  // Inline elements a Text draws get no pointer events of their own; the Text reports their presses.
+  private _windowsListenActive(on: boolean) {
+    const view = (this as any)._view;
+    if (!view || typeof masonEngine().AddEventListener !== 'function') return;
+    if (on && !this._windowsActiveId) {
+      const ref = new WeakRef(this);
+      this._windowsActiveListener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', (event: any) => {
+        const owner: any = ref.deref();
+        if (!owner) return;
+        if (event.Data === '1') {
+          for (const state of WINDOWS_ACTIVE_STATES) owner._addVisualState(state);
+        } else {
+          clearWindowsActive(owner);
+        }
+      });
+      this._windowsActiveId = masonEngine().AddEventListener(view, 'mason:active', this._windowsActiveListener);
+    } else if (!on && this._windowsActiveId) {
+      masonEngine().RemoveEventListener(view, 'mason:active', this._windowsActiveId);
+      this._windowsActiveId = 0;
+      this._windowsActiveListener = undefined;
     }
   }
 
@@ -1104,15 +1174,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         this._view.mason_append(child._view);
       }
 
-      if (__WINDOWS__) {
-        this._windowsAttachPlaceholder(child, -1);
-      }
-
       if (this[isText_]) {
         child[isTextChild_] = true;
       }
 
       this._children.push(child);
+
+      if (__WINDOWS__) {
+        this._windowsAttachPlaceholder(child, -1);
+      }
       return;
     }
     if (child instanceof NSView) {
@@ -1203,9 +1273,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         group = anonymous;
         continue;
       }
-      group = undefined;
       if (c[textNode_] || c instanceof TextNode || text_ in c || (c[isPlaceholder_] && c[native_]) || c._isMasonChild) {
         index++;
+        group = undefined;
       }
     }
     return index;
@@ -1249,9 +1319,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   insertChild(child: any, atIndex: number) {
     this._invalidateAttachCursor();
-    if (__WINDOWS__) {
-      this._windowsSplitAnonymousText(atIndex);
-    }
     if (child && child[isPlaceholder_] && child._view) {
       const nativeIndex = this._nativeIndexFor(atIndex);
       this._children.splice(atIndex, 0, child);
@@ -1350,6 +1417,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         }
         if (__WINDOWS__) {
           this._windowsDetachPlaceholder(child);
+          this._windowsMergeAt(index);
         }
         child[isTextChild_] = false;
         (this as any).requestLayout?.();
@@ -1370,7 +1438,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         // Drop the proxy binding so a later re-adopt re-installs cleanly.
         child[textNodeProxied_] = false;
         child[textNode_] = undefined;
-        this._syncTextRunLayout();
         (this as any).requestLayout?.();
         return;
       }
@@ -1380,6 +1447,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (index > -1) {
       this._children.splice(index, 1);
       this._removeView(child);
+      if (__WINDOWS__) {
+        this._windowsMergeAt(index);
+      }
     }
   }
 
@@ -1404,32 +1474,29 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__WINDOWS__) {
       //@ts-ignore
       if (typeof view.RemoveRun === 'function') view.RemoveRun(node);
-      else this._windowsRemoveAnonymousRun(index);
+      else this._windowsRemoveMember(this._children[index]);
     }
   }
 
-  // Windows text lays out TextNode runs, not child panels, so a placeholder inside one
-  // becomes a break run; any other parent hosts its native panel.
+  // Windows text lays out TextNode runs, not child panels, so a placeholder inside one, or inside a
+  // block's inline run, becomes a break run; any other parent hosts its native panel.
   private _windowsAttachPlaceholder(child: any, index: number) {
     const view = (this as any)._view;
     if (!view) return;
     if (this._windowsHostsRuns()) {
-      let run = child[breakRun_];
-      if (!run) {
-        run = new NativeScript.Mason.TextNode();
-        run.SetBreak(true);
-        child[breakRun_] = run;
-      }
-      view.SetRun(run, index);
-    } else {
-      masonEngine().ReparentChild(view, child._view, index);
+      view.SetRun(windowsBreakRun(child), index);
+    } else if (!this._windowsAttach(child)) {
+      const slot = this._children.indexOf(child);
+      masonEngine().ReparentChild(view, child._view, slot > -1 ? this._nativeIndexFor(slot) : index);
     }
   }
 
   private _windowsDetachPlaceholder(child: any) {
     const view = (this as any)._view;
     if (!view) return;
-    if (child[breakRun_] && typeof view.RemoveRun === 'function') {
+    if (child[anonymousText_]) {
+      this._windowsRemoveMember(child);
+    } else if (child[breakRun_] && typeof view.RemoveRun === 'function') {
       view.RemoveRun(child[breakRun_]);
     } else {
       masonEngine().RemoveChild(view, child._view);
@@ -1449,6 +1516,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
     if (__WINDOWS__) {
       this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
+      for (const c of this._children as any[]) {
+        if (!c) continue;
+        c[anonymousText_] = undefined;
+        c[runMember_] = undefined;
+      }
     }
     this._children.splice(0);
     this._invalidateAttachCursor();
@@ -1691,14 +1763,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
     switch (operation.type) {
       case 'add':
-        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, this._children.length, false);
-        else this._nativeAddChild(textNode, this._children.length);
+        if (anonymous) {
+          //@ts-ignore
+          this._children.push({ ...entry, [textNodeIndex_]: this._children.length });
+          this._windowsInsertMember(this._children.length - 1, this._windowsRunsInline());
+          break;
+        }
+        this._nativeAddChild(textNode, this._children.length);
         //@ts-ignore
         this._children.push({ ...entry, [textNodeIndex_]: this._children.length });
         break;
       case 'replace':
-        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, operation.index, true);
-        else if (!__WINDOWS__ || (this._children[operation.index] as any)?.[textNode_] !== textNode) this._nativeReplaceChild(textNode, operation.index);
+        if (anonymous) {
+          this._windowsReplaceRun(operation.index, entry);
+          break;
+        }
+        if (!__WINDOWS__ || (this._children[operation.index] as any)?.[textNode_] !== textNode) this._nativeReplaceChild(textNode, operation.index);
         this._setOrPushChild(operation.index, entry);
         break;
       case 'insert': {
@@ -1706,13 +1786,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         // lag behind it (elements attach lazily on `loaded`), so map it the
         // same way `insertChild` does or the run lands past the end.
         const index = Math.max(0, Math.min(operation.index ?? this._children.length, this._children.length));
-        if (anonymous) entry[anonymousText_] = this._windowsAddAnonymousRun(textNode, index, false);
-        else this._nativeAddChild(textNode, this._nativeIndexFor(index));
+        if (anonymous) {
+          this._spliceOrPushChild(index, entry);
+          this._windowsInsertMember(index, this._windowsRunsInline());
+          break;
+        }
+        this._nativeAddChild(textNode, this._nativeIndexFor(index));
         this._spliceOrPushChild(index, entry);
         break;
       }
     }
-    this._syncTextRunLayout();
   }
 
   // Only Text lays out runs on Windows, so any other container puts consecutive runs in one
@@ -1739,71 +1822,351 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return hosts;
   }
 
-  private _windowsAddAnonymousRun(textNode: any, slot: number, replace: boolean) {
+  // A block container's consecutive inline-level children share one anonymous Text, CSS's anonymous
+  // block box; a flex or grid container groups only consecutive text.
+  _windowsRunsInline(): boolean {
+    if ((this as any)[runsSettled_] !== true) return false;
+    const display = (this as any)._styleHelper?.display;
+    return display === 'block' || display === 'inline-block';
+  }
+
+  // A container's display arrives with its CSS, after its children attach, so runs are grouped once the turn ends.
+  private _windowsScheduleSettle() {
+    if ((this as any)[runsSettled_] !== undefined) return;
+    (this as any)[runsSettled_] = false;
+    queueMicrotask(() => this._windowsSettleRuns());
+  }
+
+  _windowsSettleRuns() {
+    (this as any)[runsSettled_] = true;
+    const inline = this._windowsRunsInline();
     const children = this._children as any[];
-    const old = replace ? children[slot] : undefined;
-    const current = old?.[anonymousText_];
-    if (current) {
-      if (old[textNode_] !== textNode) {
-        const at = this._windowsRunsBefore(slot, current);
-        current.RemoveRun(old[textNode_]);
-        current.SetRun(textNode, at);
+    for (const c of children) if (c?._isMasonChild) this._windowsBlockify(c, inline);
+    const regroup = children.some((c, i) => c && !c[textNode_] && (c[anonymousText_] || c[runMember_] === 'solo' || ((c._isMasonChild || c[isPlaceholder_]) && this._windowsJoinsAt(i, inline))));
+    if (regroup) this._windowsReflow(0, true);
+    (this as any)[runsInline_] = inline;
+  }
+
+  // Undefined for display: none, which stays in an open run.
+  private _windowsJoins(c: any, inline: boolean): boolean | undefined {
+    if (!c) return false;
+    if (c[textNode_]) return true;
+    if (!inline) return false;
+    if (c[isPlaceholder_]) return true;
+    if (!c[isMasonView_]) return false;
+    const style = c._styleHelper;
+    if (!style) return false;
+    const display = style.display;
+    if (display === 'none') return undefined;
+    if (display !== 'inline' && display !== 'inline-block' && display !== 'inline-flex' && display !== 'inline-grid') return false;
+    const position = style.position;
+    if (position === 'absolute' || position === 'fixed') return false;
+    return style.float === 'none';
+  }
+
+  private _windowsJoinsAt(slot: number, inline: boolean): boolean {
+    const joins = this._windowsJoins((this._children as any[])[slot], inline);
+    return joins === undefined ? slot > 0 && this._windowsJoinsAt(slot - 1, inline) : joins;
+  }
+
+  // The anonymous Text or lone element holding the run on each side of `slot`, and whether either is lone.
+  private _windowsRunsAround(slot: number, inline: boolean): [any, any, boolean] {
+    const children = this._children as any[];
+    let left: any;
+    let right: any;
+    let solo = false;
+    for (let i = slot - 1; i >= 0; i--) {
+      const c = children[i];
+      left = c?.[anonymousText_] ?? (c?.[runMember_] === 'solo' ? c : undefined);
+      if (left) {
+        solo = left === c && !c[anonymousText_];
+        break;
       }
-      return current;
+      if (!this._windowsJoinsAt(i, inline)) break;
     }
-    const prev = children[slot - 1]?.[anonymousText_];
-    if (prev) {
-      prev.SetRun(textNode, this._windowsRunsBefore(slot, prev));
-      return prev;
+    for (let i = slot + 1; i < children.length; i++) {
+      const c = children[i];
+      right = c?.[anonymousText_] ?? (c?.[runMember_] === 'solo' ? c : undefined);
+      if (right) {
+        solo = solo || (right === c && !c[anonymousText_]);
+        break;
+      }
+      if (!this._windowsJoinsAt(i, inline)) break;
     }
-    const next = children[replace ? slot + 1 : slot]?.[anonymousText_];
-    if (next) {
-      next.SetRun(textNode, 0);
-      return next;
-    }
-    const anonymous = this._windowsCreateAnonymousText(this._nativeIndexFor(slot));
-    anonymous.SetRun(textNode, 0);
-    return anonymous;
+    return [left, right, solo];
   }
 
-  private _windowsRunsBefore(slot: number, anonymous: any) {
-    let n = 0;
-    for (let i = slot - 1; i >= 0 && (this._children[i] as any)?.[anonymousText_] === anonymous; i--) n++;
-    return n;
+  _windowsAttach(child: any): boolean {
+    if (!__WINDOWS__ || !this._windowsNeedsAnonymousText()) return false;
+    const slot = this._children.indexOf(child);
+    if (slot < 0) return false;
+    const settled = (this as any)[runsSettled_] === true;
+    if (!settled) this._windowsScheduleSettle();
+    const inline = this._windowsRunsInline();
+    if (settled) this._windowsBlockify(child, inline);
+    if (this._windowsJoinsAt(slot, inline)) {
+      this._windowsInsertMember(slot, inline, child);
+      if (!child[anonymousText_]) return false;
+      child._isMasonChild = true;
+      return true;
+    }
+    const [left, right] = this._windowsRunsAround(slot, inline);
+    if (left && left === right) this._windowsReflow(slot);
+    return false;
   }
 
-  private _windowsCreateAnonymousText(nativeIndex: number): NativeScript.Mason.Text {
+  // A run of one element needs no anonymous Text: the element is laid out as it is.
+  private _windowsInsertMember(slot: number, inline: boolean, attaching?: any) {
+    this._windowsScheduleSettle();
+    const children = this._children as any[];
+    const c = children[slot];
+    const [left, right, solo] = this._windowsRunsAround(slot, inline);
+    if (solo || (left && right && left !== right)) {
+      this._windowsReflow(slot, false, attaching);
+      return;
+    }
+    let anonymous = left ?? right;
+    if (!anonymous) {
+      if (c[isMasonView_] && !c[isPlaceholder_]) {
+        c[runMember_] = 'solo';
+        return;
+      }
+      anonymous = this._windowsCreateAnonymousText();
+      this._windowsPlaceAnonymous(anonymous, slot);
+    }
+    const index = right ? this._windowsMemberIndex(slot, anonymous, inline) : (windowsRunCounts.get(anonymous) ?? 0);
+    this._windowsAddMember(anonymous, c, index);
+  }
+
+  private _windowsMemberIndex(slot: number, anonymous: any, inline: boolean): number {
+    const children = this._children as any[];
+    let index = 0;
+    for (let i = slot - 1; i >= 0; i--) {
+      const owner = children[i]?.[anonymousText_];
+      if (owner === anonymous) index++;
+      else if (owner || !this._windowsJoinsAt(i, inline)) break;
+    }
+    return index;
+  }
+
+  private _windowsAddMember(anonymous: any, c: any, index: number) {
+    const kind = windowsMemberKind(c);
+    switch (kind) {
+      case 'run':
+        anonymous.SetRun(c[textNode_], index);
+        break;
+      case 'break':
+        anonymous.SetRun(windowsBreakRun(c), index);
+        break;
+      case 'text':
+        if (c._isMasonChild) masonEngine().RemoveChild((this as any)._view, c._view);
+        anonymous.SetInlineText(c._view, index);
+        break;
+      default:
+        if (c._isMasonChild) masonEngine().RemoveChild((this as any)._view, windowsNativeOf(c));
+        anonymous.SetInlineBox(windowsNativeOf(c), index);
+        break;
+    }
+    c[anonymousText_] = anonymous;
+    c[runMember_] = kind;
+    windowsRunCounts.set(anonymous, (windowsRunCounts.get(anonymous) ?? 0) + 1);
+  }
+
+  _windowsRemoveMember(c: any) {
+    const anonymous = c?.[anonymousText_];
+    if (!anonymous) return;
+    switch (c[runMember_]) {
+      case 'run':
+        anonymous.RemoveRun(c[textNode_]);
+        break;
+      case 'break':
+        anonymous.RemoveRun(c[breakRun_]);
+        break;
+      case 'text':
+        anonymous.RemoveInlineText(c._view);
+        break;
+      default:
+        anonymous.RemoveInlineBox(windowsNativeOf(c));
+        break;
+    }
+    c[anonymousText_] = undefined;
+    c[runMember_] = undefined;
+    const count = (windowsRunCounts.get(anonymous) ?? 1) - 1;
+    windowsRunCounts.set(anonymous, count);
+    if (count <= 0) masonEngine().RemoveChild((this as any)._view, anonymous);
+  }
+
+  private _windowsReplaceRun(slot: number, entry: any) {
+    const old = (this._children as any[])[slot];
+    const anonymous = old?.[anonymousText_];
+    if (anonymous && old[runMember_] === 'run') {
+      if (old[textNode_] !== entry[textNode_]) {
+        const index = this._windowsMemberIndex(slot, anonymous, this._windowsRunsInline());
+        anonymous.RemoveRun(old[textNode_]);
+        anonymous.SetRun(entry[textNode_], index);
+      }
+      entry[anonymousText_] = anonymous;
+      entry[runMember_] = 'run';
+      this._setOrPushChild(slot, entry);
+      return;
+    }
+    if (old) this._windowsRemoveMember(old);
+    this._setOrPushChild(slot, entry);
+    this._windowsInsertMember(Math.min(slot, this._children.length - 1), this._windowsRunsInline());
+  }
+
+  private _windowsCreateAnonymousText(): NativeScript.Mason.Text {
     const anonymous = new NativeScript.Mason.Text();
+    anonymous.IsAnonymous = true;
     // @ts-ignore
-    this._styleHelper?.copyTextStyleTo(anonymous);
+    this._styleHelper?.copyTextStyleTo(anonymous, -1, -1, -1, -1, true);
     const font = (this as any)[windowsFontSource_];
     if (font) anonymous.SetFontFamily(font);
-    masonEngine().ReparentChild((this as any)._view, anonymous, nativeIndex);
     return anonymous;
   }
 
-  private _windowsRemoveAnonymousRun(index: number) {
+  private _windowsPlaceAnonymous(anonymous: any, slot: number) {
+    masonEngine().ReparentChild((this as any)._view, anonymous, this._nativeIndexFor(slot));
+  }
+
+  // `attaching` counts as attached; the caller adds it to the panel if it stays a direct child.
+  private _windowsReflow(slot: number, all = false, attaching?: any) {
     const children = this._children as any[];
-    const anonymous = children[index]?.[anonymousText_];
-    if (!anonymous) return;
-    anonymous.RemoveRun(children[index][textNode_]);
-    if (children[index - 1]?.[anonymousText_] !== anonymous && children[index + 1]?.[anonymousText_] !== anonymous) {
-      masonEngine().RemoveChild((this as any)._view, anonymous);
+    const view = (this as any)._view;
+    if (!view || children.length === 0) return;
+    const inline = this._windowsRunsInline();
+    let a = Math.max(0, Math.min(slot, children.length - 1));
+    let b = a;
+    if (all) {
+      a = 0;
+      b = children.length - 1;
+      for (const c of children) if (c?._isMasonChild) this._windowsBlockify(c, inline);
+    } else {
+      const inRegion = (i: number) => !!children[i]?.[anonymousText_] || this._windowsJoinsAt(i, inline);
+      while (a > 0 && inRegion(a - 1)) a--;
+      while (b < children.length - 1 && inRegion(b + 1)) b++;
+    }
+    // Every member of an anonymous Text being regrouped is regrouped with it.
+    const pool: any[] = [];
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (let i = a; i <= b; i++) {
+        const anonymous = children[i]?.[anonymousText_];
+        if (anonymous && pool.indexOf(anonymous) < 0) pool.push(anonymous);
+      }
+      for (let i = 0; i < children.length; i++) {
+        if ((i < a || i > b) && pool.indexOf(children[i]?.[anonymousText_]) > -1) {
+          a = Math.min(a, i);
+          b = Math.max(b, i);
+          grew = true;
+        }
+      }
+    }
+    const members = new Set<any>();
+    for (let i = a; i <= b; i++) if (children[i]?.[anonymousText_]) members.add(children[i]);
+    for (const anonymous of pool) {
+      anonymous.ClearRuns();
+      windowsRunCounts.set(anonymous, 0);
+    }
+    for (let i = a; i <= b; i++) {
+      const c = children[i];
+      if (!c) continue;
+      c[anonymousText_] = undefined;
+      c[runMember_] = undefined;
+    }
+    const isElement = (c: any) => !!c[isMasonView_] && !c[isPlaceholder_];
+    const groups: number[][] = [];
+    let run: number[] | null = null;
+    for (let i = a; i <= b; i++) {
+      const c = children[i];
+      if (!c) continue;
+      if (this._windowsJoinsAt(i, inline)) {
+        if (isElement(c) && c !== attaching && !c._isMasonChild) continue;
+        if (!run) groups.push((run = []));
+        run.push(i);
+      } else {
+        run = null;
+        groups.push([-1 - i]);
+      }
+    }
+    for (const group of groups) {
+      const first = group[0] < 0 ? -1 - group[0] : group[0];
+      const c = children[first];
+      if (group[0] < 0 || (group.length === 1 && isElement(c))) {
+        if (group[0] >= 0) c[runMember_] = 'solo';
+        if (c === attaching || !members.has(c)) continue;
+        if (isElement(c) && c._isMasonChild) masonEngine().ReparentChild(view, windowsNativeOf(c), this._nativeIndexFor(first));
+        else if (c[isPlaceholder_] && c._view) masonEngine().ReparentChild(view, c._view, this._nativeIndexFor(first));
+        continue;
+      }
+      const anonymous = pool.shift() ?? this._windowsCreateAnonymousText();
+      this._windowsPlaceAnonymous(anonymous, first);
+      group.forEach((i, k) => this._windowsAddMember(anonymous, children[i], k));
+    }
+    for (const anonymous of pool) masonEngine().RemoveChild(view, anonymous);
+    (this as any)[runsInline_] = inline;
+  }
+
+  private _windowsMergeAt(slot: number) {
+    if (!this._windowsNeedsAnonymousText() || this._children.length === 0) return;
+    const inline = this._windowsRunsInline();
+    const [left] = this._windowsRunsAround(slot, inline);
+    const [, right] = this._windowsRunsAround(slot - 1, inline);
+    if (left && right && left !== right) this._windowsReflow(Math.max(0, slot - 1));
+  }
+
+  _windowsFlowTypeChanged() {
+    if ((this as any)[runsSettled_] === true && this._windowsNeedsAnonymousText() && this._windowsRunsInline() !== (this as any)[runsInline_]) {
+      this._windowsSettleRuns();
+    }
+    (this.parent as any)?._windowsChildFlowChanged?.(this);
+  }
+
+  _windowsChildFlowChanged(child: any) {
+    if (!child?._isMasonChild) return;
+    if (!this._windowsHostsRuns() && (this as any)[runsSettled_] !== true) return;
+    if (this._windowsHostsRuns()) {
+      if (child[runMember_] && child[runMember_] !== windowsMemberKind(child)) (this as any)._windowsRehost?.(child);
+      return;
+    }
+    if (!this._windowsNeedsAnonymousText()) return;
+    const inline = this._windowsRunsInline();
+    if (child[blockified_] && child._styleHelper?.display !== 'block') child[blockified_] = false;
+    this._windowsBlockify(child, inline);
+    const member = child[runMember_];
+    let joins = this._windowsJoins(child, inline);
+    let slot = -1;
+    if (joins === undefined) {
+      slot = this._children.indexOf(child);
+      joins = slot > 0 && this._windowsJoinsAt(slot - 1, inline);
+    }
+    if (member === 'solo') {
+      if (!joins) child[runMember_] = undefined;
+      return;
+    }
+    if (joins === !!member && (!member || member === windowsMemberKind(child))) return;
+    if (slot < 0) slot = this._children.indexOf(child);
+    if (slot > -1) this._windowsReflow(slot);
+  }
+
+  // CSS blockifies flex and grid items.
+  private _windowsBlockify(child: any, inline: boolean) {
+    if (!child?.[isText_] || child instanceof ButtonBase) return;
+    const style = child._styleHelper;
+    if (!style) return;
+    if (!inline && !child[blockified_] && style.display === 'inline') {
+      child[blockified_] = true;
+      style.display = 'block';
+    } else if (inline && child[blockified_]) {
+      child[blockified_] = false;
+      if (style.display === 'block') style.display = 'inline';
     }
   }
 
-  // An element landing between two runs of one anonymous Text splits it, so the runs after it
-  // render after it.
-  private _windowsSplitAnonymousText(slot: number) {
-    const children = this._children as any[];
-    const anonymous = children[slot - 1]?.[anonymousText_];
-    if (!anonymous || children[slot]?.[anonymousText_] !== anonymous) return;
-    const tail = this._windowsCreateAnonymousText(this._nativeIndexFor(slot));
-    for (let i = slot, k = 0; children[i]?.[anonymousText_] === anonymous; i++, k++) {
-      anonymous.RemoveRun(children[i][textNode_]);
-      tail.SetRun(children[i][textNode_], k);
-      children[i][anonymousText_] = tail;
-    }
+  _windowsDetachChild(child: any) {
+    if (child?.[anonymousText_]) this._windowsRemoveMember(child);
+    else removeNativeChild((this as any)._view, child);
+    if (child) child[runMember_] = undefined;
   }
 
   private _forEachAnonymousText(fn: (anonymous: NativeScript.Mason.Text) => void) {
@@ -1826,18 +2189,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const source = windowsFontSource(value);
     (this as any)[windowsFontSource_] = source;
     this._forEachAnonymousText((anonymous) => anonymous.SetFontFamily(source));
-  }
-
-  private _syncTextRunLayout() {
-    if (!__WINDOWS__ || !this._windowsHostsRuns()) return;
-    // @ts-ignore
-    const sh = this._styleHelper;
-    if (!sh || sh.display === 'block') return;
-    try {
-      sh.display = 'block';
-    } catch (_) {
-      // empty
-    }
   }
 
   // -- Text setter: framework adapter driven --
@@ -3403,7 +3754,7 @@ export class Event {
   get target(): any {
     // The element the event started at, which differs from currentTarget once it bubbles.
     const nativeEvent = this[native_];
-    const nativeTarget = __ANDROID__ ? nativeEvent?.getTarget?.() : __APPLE__ ? nativeEvent?.target : null;
+    const nativeTarget = __ANDROID__ ? nativeEvent?.getTarget?.() : __APPLE__ ? nativeEvent?.target : __WINDOWS__ ? nativeEvent?.Target : null;
     const current = this['_target'];
     if (nativeTarget && nativeTarget !== nativeViewFor(current)) {
       const found = nativeOwnerFor(nativeTarget) ?? findOwnerForNativeView(current, nativeTarget);

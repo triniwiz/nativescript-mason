@@ -647,6 +647,7 @@ class StateKeys {
 
   static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
 
+  static readonly FLOW_TYPE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE).or(StateKeys.POSITION).or(StateKeys.FLOAT);
   static readonly WINDOWS_TEXT = [49, 50, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 73, 74, 75, 77, 78].reduce((mask, n) => mask.or(StateKeys.flag(n)), StateKeys.NONE);
 
   /** The mask as one unsigned 128-bit value (tests and diagnostics). */
@@ -1697,16 +1698,24 @@ export class Style {
       if ((d0 & text.w0) | (d1 & text.w1) | (d2 & text.w2) | (d3 & text.w3)) {
         (this.view as any)?._windowsSyncAnonymousText?.(d0, d1, d2, d3);
       }
+      const flow = StateKeys.FLOW_TYPE;
+      if (!this._pseudo && (d0 & flow.w0) | (d1 & flow.w1) | (d2 & flow.w2) | (d3 & flow.w3)) {
+        (this.view as any)?._windowsFlowTypeChanged?.();
+      }
     }
   }
 
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
-  copyTextStyleTo(text: NativeScript.Mason.Text, d0 = -1, d1 = -1, d2 = -1, d3 = -1) {
+  copyTextStyleTo(text: NativeScript.Mason.Text, d0 = -1, d1 = -1, d2 = -1, d3 = -1, block = false) {
     if (!__WINDOWS__ || !this.u8View) return;
     //@ts-ignore
     const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(masonEngine().StyleValues(text)) as ArrayBuffer);
     target.set(this.u8View.subarray(StyleKeys.FONT_COLOR, StyleKeys.BACKGROUND_COLOR), StyleKeys.FONT_COLOR);
     target.set(this.u8View.subarray(StyleKeys.DECORATION_LINE, StyleKeys.PSEUDO_SET_MASK_LOW), StyleKeys.DECORATION_LINE);
+    if (block) {
+      target[StyleKeys.DISPLAY] = 3;
+      target[StyleKeys.DISPLAY_MODE] = DisplayMode.None;
+    }
     (text as unknown as NativeScript.Mason.IMasonElement).SyncStyle(d0, d1, d2, d3);
   }
 
@@ -2044,6 +2053,12 @@ export class Style {
     }
     const normalized = normalizeColorValue(value);
     if (normalized == null) {
+      // Leaving :active on Windows resets an unset color, which then inherits again.
+      if (__WINDOWS__ && getInt8(this.style_view, StyleKeys.FONT_COLOR_STATE)) {
+        this.prepareMut();
+        setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 0);
+        this.commitState(StateKeys.FONT_COLOR);
+      }
       return;
     }
     this.prepareMut();
@@ -2125,6 +2140,14 @@ export class Style {
 
   get styleView(): DataView {
     return this.style_view;
+  }
+
+  get hasBoxStyle(): boolean {
+    const view = this.style_view;
+    if (!view) return false;
+    if (getInt8(view, StyleKeys.WIDTH_TYPE) !== 0 || getInt8(view, StyleKeys.HEIGHT_TYPE) !== 0) return true;
+    const sides = [StyleKeys.PADDING_LEFT_VALUE, StyleKeys.PADDING_RIGHT_VALUE, StyleKeys.PADDING_TOP_VALUE, StyleKeys.PADDING_BOTTOM_VALUE, StyleKeys.BORDER_LEFT_VALUE, StyleKeys.BORDER_RIGHT_VALUE, StyleKeys.BORDER_TOP_VALUE, StyleKeys.BORDER_BOTTOM_VALUE];
+    return sides.some((offset) => getFloat32(view, offset) > 0);
   }
 
   get display() {

@@ -70,8 +70,29 @@ namespace winrt::NativeScript::Mason::implementation
         void ClearRuns();
         void SetInlineText(winrt::NativeScript::Mason::Text const& child, int32_t index);
         void RemoveInlineText(winrt::NativeScript::Mason::Text const& child);
+        void SetInlineBox(winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index);
+        void RemoveInlineBox(winrt::Microsoft::UI::Xaml::UIElement const& child);
+
+        bool IsAnonymous() const { return m_isAnonymous; }
+        void IsAnonymous(bool value) { m_isAnonymous = value; }
+        bool IsLink() const { return m_isLink; }
+        void IsLink(bool value) { m_isLink = value; }
 
         void OnRunChanged();
+
+        Text* InlineOwner() const { return m_inlineOwner; }
+        winrt::Windows::Foundation::IInspectable InlineElementAt(winrt::Windows::Foundation::Point const& point);
+
+        struct InlineItem
+        {
+            winrt::Windows::Foundation::IInspectable element;
+            winrt::Windows::Foundation::Rect bounds;
+            winrt::hstring label;
+            bool isLink{ false };
+            bool isBox{ false };
+        };
+        std::vector<InlineItem> InlineItems();
+        std::vector<winrt::Microsoft::UI::Xaml::UIElement> InlineBoxes() const;
 
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const& available);
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
@@ -99,20 +120,41 @@ namespace winrt::NativeScript::Mason::implementation
             winrt::hstring text;
             Resolved format;
             bool isBreak{ false };
+            Text const* owner{ nullptr };
+            winrt::Microsoft::UI::Xaml::UIElement box{ nullptr };
             bool operator==(BuiltRun const&) const = default;
         };
 
-        // One of the two is set.
+        // One of the three is set.
         struct Entry
         {
             winrt::NativeScript::Mason::TextNode run{ nullptr };
             winrt::NativeScript::Mason::Text text{ nullptr };
+            winrt::Microsoft::UI::Xaml::UIElement box{ nullptr };
+        };
+
+        struct Piece
+        {
+            uint32_t start{ 0 };
+            uint32_t length{ 0 };
+            winrt::Windows::Foundation::IInspectable element;
+            bool isBox{ false };
         };
 
         Resolved Resolve(Resolved parent) const;
-        void AppendRuns(Resolved const& format, std::vector<BuiltRun>& out) const;
+        void AppendRuns(Resolved const& format, Text const* owner, std::vector<BuiltRun>& out) const;
         void Detach(Entry const& entry);
         int32_t ClampIndex(int32_t index) const;
+        bool IsHidden() const;
+        Text* TopHost();
+        void AdoptBoxes(Text* from, Text* to);
+        void HostBox(winrt::Microsoft::UI::Xaml::UIElement const& box);
+        void ReleaseBox(winrt::Microsoft::UI::Xaml::UIElement const& box);
+        void SyncBoxNodes(std::vector<BuiltRun> const& runs);
+        void HookInput();
+        void SetPressed(winrt::Windows::Foundation::IInspectable const& target);
+        void ArrangeBoxes();
+        void CollapseFlowSpaces(std::vector<BuiltRun>& runs) const;
 
         void ApplyStyleFromBuffer();
         // False, with nothing touched, when the Runs would come out unchanged.
@@ -154,6 +196,11 @@ namespace winrt::NativeScript::Mason::implementation
             winrt::com_ptr<IDWriteTextLayout> layout;
             uint64_t version{ 0 };
 
+            std::vector<winrt::NativeScript::Mason::Node> boxNodes;
+            float ascent{ 0.0f };
+            float descent{ 0.0f };
+            float lineHeight{ 0.0f };
+
             IDWriteTextLayout* Layout()
             {
                 if (!layout) layout = mason_dwrite::Build(paragraph);
@@ -167,6 +214,8 @@ namespace winrt::NativeScript::Mason::implementation
 
             void Reset() { minValid = false; maxValid = false; breaks = -1; count = 0; next = 0; laidOutWidth = -1.0f; }
         };
+
+        static bool RefreshBoxes(MeasureCache& cache);
 
         // Lays the TextBlock out for a line width, infinity for max-content.
         static void LayOut(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, float width);
@@ -214,6 +263,15 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_inlinesDirty{ false };
         uint32_t m_textForeground{ 0xFF000000 };
         Text* m_inlineOwner{ nullptr };
+        bool m_isAnonymous{ false };
+        bool m_isLink{ false };
+        bool m_inputHooked{ false };
+        bool m_hostsBoxes{ false };
+        // WHITE_SPACE byte: 0 normal, 1 pre, 2 pre-wrap, 3 pre-line, 4 nowrap, 5 break-spaces.
+        uint8_t m_whiteSpace{ 0 };
+        std::vector<Piece> m_pieces;
+        std::vector<winrt::NativeScript::Mason::Node> m_boxNodes;
+        std::vector<winrt::Windows::Foundation::IInspectable> m_pressedChain;
 
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };
         winrt::NativeScript::Mason::Node m_node{ nullptr };

@@ -29,6 +29,8 @@ namespace winrt::NativeScript::Mason::implementation
         void RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child);
         void SetPercentWidth(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction);
         void SetPercentHeight(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction);
+        int64_t AddEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
+        void RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id);
 
         // Not projected; used internally by the factory.
         ::CMason* Ptr() const noexcept { return m_ptr; }

@@ -311,10 +311,53 @@ namespace mason_dwrite
         bool operator==(Span const&) const = default;
     };
 
+    struct Box
+    {
+        uint32_t position{ 0 };
+        float width{ 0.0f };
+        float height{ 0.0f };
+        float baseline{ 0.0f };
+        bool operator==(Box const&) const = default;
+    };
+
+    struct InlineBox : winrt::implements<InlineBox, IDWriteInlineObject>
+    {
+        explicit InlineBox(Box const& box)
+        {
+            metrics.width = box.width;
+            metrics.height = box.height;
+            metrics.baseline = box.baseline;
+        }
+
+        HRESULT __stdcall Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, ::IUnknown*) noexcept override { return S_OK; }
+
+        HRESULT __stdcall GetMetrics(DWRITE_INLINE_OBJECT_METRICS* out) noexcept override
+        {
+            *out = metrics;
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetOverhangMetrics(DWRITE_OVERHANG_METRICS* out) noexcept override
+        {
+            *out = {};
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
+        {
+            *before = DWRITE_BREAK_CONDITION_CAN_BREAK;
+            *after = DWRITE_BREAK_CONDITION_CAN_BREAK;
+            return S_OK;
+        }
+
+        DWRITE_INLINE_OBJECT_METRICS metrics{};
+    };
+
     struct Paragraph
     {
         std::wstring text;
         std::vector<Span> spans;
+        std::vector<Box> boxes;
         Font font;
         float fontSize{ 14.0f };
         DWRITE_FONT_WEIGHT weight{ DWRITE_FONT_WEIGHT_NORMAL };
@@ -371,7 +414,13 @@ namespace mason_dwrite
             const float gap = std::round(m.lineGap * p.fontSize);
             const float line = p.lineHeight > 0.0f ? p.lineHeight : ascent + descent + gap;
             // CSS centres the ascent and descent in the line box, splitting the leading.
-            format->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, line, (line - ascent - descent) * 0.5f + ascent);
+            const float baseline = (line - ascent - descent) * 0.5f + ascent;
+            // Uniform lines don't grow, so a box taller than the line needs DirectWrite's own spacing.
+            for (auto const& b : p.boxes)
+            {
+                if (b.baseline > baseline || b.height - b.baseline > line - baseline) uniform = false;
+            }
+            if (uniform) format->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, line, baseline);
         }
 
         winrt::com_ptr<IDWriteTextLayout> layout;
@@ -395,7 +444,55 @@ namespace mason_dwrite
             if (s.strikethrough) layout->SetStrikethrough(TRUE, range);
             if (s.letterSpacing != 0.0f && spacing) spacing->SetCharacterSpacing(0.0f, s.letterSpacing, 0.0f, range);
         }
+        for (auto const& b : p.boxes)
+        {
+            auto box = winrt::make_self<InlineBox>(b);
+            layout->SetInlineObject(box.get(), DWRITE_TEXT_RANGE{ b.position, 1 });
+        }
         return layout;
+    }
+
+    struct BoxRect
+    {
+        float x{ 0.0f };
+        float y{ 0.0f };
+        float width{ 0.0f };
+        float height{ 0.0f };
+    };
+
+    inline void BoxRects(IDWriteTextLayout* layout, std::vector<Box> const& boxes, std::vector<BoxRect>& out)
+    {
+        out.clear();
+        if (boxes.empty()) return;
+        UINT32 count = 0;
+        layout->GetLineMetrics(nullptr, 0, &count);
+        std::vector<DWRITE_LINE_METRICS> lines(count);
+        if (count == 0 || FAILED(layout->GetLineMetrics(lines.data(), count, &count))) return;
+        for (auto const& b : boxes)
+        {
+            FLOAT x = 0.0f, y = 0.0f;
+            DWRITE_HIT_TEST_METRICS hit{};
+            layout->HitTestTextPosition(b.position, FALSE, &x, &y, &hit);
+            float top = 0.0f;
+            uint32_t start = 0;
+            float baseline = 0.0f;
+            for (auto const& line : lines)
+            {
+                baseline = top + line.baseline;
+                if (b.position < start + line.length) break;
+                start += line.length;
+                top += line.height;
+            }
+            out.push_back({ hit.left, baseline - b.baseline, b.width, b.height });
+        }
+    }
+
+    inline int32_t PositionAt(IDWriteTextLayout* layout, float x, float y)
+    {
+        BOOL trailing = FALSE, inside = FALSE;
+        DWRITE_HIT_TEST_METRICS hit{};
+        if (FAILED(layout->HitTestPoint(x, y, &trailing, &inside, &hit)) || !inside) return -1;
+        return static_cast<int32_t>(hit.textPosition);
     }
 
     // Measuring, arranging and drawing share one layout, and each change of wrapping or width

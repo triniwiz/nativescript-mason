@@ -1,0 +1,10 @@
+import "Text.idl";
+
+namespace NativeScript.Mason
+{
+    // A link or clickable element a Text draws inside its own text, as UI Automation sees it.
+    [default_interface]
+    runtimeclass InlineAutomationPeer : Microsoft.UI.Xaml.Automation.Peers.AutomationPeer, Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider
+    {
+    }
+}

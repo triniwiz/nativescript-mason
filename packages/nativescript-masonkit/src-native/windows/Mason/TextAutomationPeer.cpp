@@ -2,6 +2,7 @@
 #include "TextAutomationPeer.h"
 #include "TextAutomationPeer.g.cpp"
 #include "Text.h"
+#include "InlineAutomationPeer.h"
 #include <winrt/Microsoft.UI.Xaml.Automation.h>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -56,5 +57,38 @@ namespace winrt::NativeScript::Mason::implementation
         {
             winrt::get_self<implementation::Text>(owner)->RaiseInvoked();
         }
+    }
+
+    winrt::Windows::Foundation::Collections::IVector<peers::AutomationPeer> TextAutomationPeer::GetChildrenCore() const
+    {
+        auto owner = m_owner.get();
+        if (!owner) return TextAutomationPeerT<TextAutomationPeer>::GetChildrenCore();
+        auto items = winrt::get_self<implementation::Text>(owner)->InlineItems();
+        if (items.empty())
+        {
+            m_inline.clear();
+            return TextAutomationPeerT<TextAutomationPeer>::GetChildrenCore();
+        }
+        auto children = winrt::single_threaded_vector<peers::AutomationPeer>();
+        std::vector<winrt::NativeScript::Mason::InlineAutomationPeer> kept;
+        for (auto const& item : items)
+        {
+            if (item.isBox)
+            {
+                if (auto peer = peers::FrameworkElementAutomationPeer::CreatePeerForElement(item.element.as<winrt::Microsoft::UI::Xaml::UIElement>())) children.Append(peer);
+                continue;
+            }
+            winrt::NativeScript::Mason::InlineAutomationPeer peer{ nullptr };
+            for (auto const& existing : m_inline)
+            {
+                if (winrt::get_self<InlineAutomationPeer>(existing)->Element() == item.element) peer = existing;
+            }
+            if (!peer) peer = winrt::make<InlineAutomationPeer>(owner, item.element);
+            winrt::get_self<InlineAutomationPeer>(peer)->Update(item.bounds, item.label, item.isLink);
+            kept.push_back(peer);
+            children.Append(peer);
+        }
+        m_inline = std::move(kept);
+        return children;
     }
 }

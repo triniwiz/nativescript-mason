@@ -73,8 +73,6 @@ export class Button extends ButtonBase {
     for (const observer of this.getGestureObservers(GestureTypes.tap) ?? []) {
       observer.callback?.call(observer.context, args);
     }
-    // `tap` listeners on Mason views are registered as `click`.
-    this.notify({ eventName: 'click', object: this, _target: this } as never);
   }
 
   // Like Text, nested text elements render inside the label's runs.
