@@ -10,6 +10,8 @@ import UIKit
 class MasonCheckboxInput: UIControl {
 
   internal var owner: MasonElement?
+  /// Reports a tap, so the owner's checked state follows the user.
+  internal var onUserToggle: ((Bool) -> Void)?
   
   var isChecked: Bool = false {
     didSet {
@@ -87,6 +89,7 @@ class MasonCheckboxInput: UIControl {
   }
 
   func setCheckedFromUser(_ checked: Bool) {
+      onUserToggle?(checked)
       isChecked = checked
       dispatchInputAndChange()
   }

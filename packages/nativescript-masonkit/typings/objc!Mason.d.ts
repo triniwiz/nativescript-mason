@@ -817,6 +817,8 @@ declare class MasonInput extends UIView {
 
 	accept: string;
 
+	checked: boolean;
+
 	readonly mason: NSCMason;
 
 	multiple: boolean;

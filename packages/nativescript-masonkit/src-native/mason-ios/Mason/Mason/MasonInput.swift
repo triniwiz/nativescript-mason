@@ -159,12 +159,14 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   internal lazy var checkboxInput: MasonCheckboxInput  = {
     let cb = MasonCheckboxInput()
     cb.owner = self
+    cb.onUserToggle = { [weak self] checked in self?.checkedState = checked }
     return cb
   }()
   
   internal lazy var radioInput: MasonRadioInput  = {
     let rb = MasonRadioInput()
     rb.owner = self
+    rb.onUserToggle = { [weak self] checked in self?.checkedState = checked }
     return rb
   }()
   
@@ -225,12 +227,42 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   private var initializing = true
-  // Captured in `willSet` (old widget), re-applied in `didSet` after
-  // `configureInput` rebuilds the widget for the new type.
+
+  // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
+  private var checkedState = false
+  // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
+  private var checkableValue = "on"
+
+  /// Setting `checked` from code fires no events, as on the web.
+  public var checked: Bool {
+    get { checkedState }
+    set {
+      checkedState = newValue
+      applyChecked()
+    }
+  }
+
+  private func applyChecked() {
+    switch type {
+    case .Checkbox:
+      checkboxInput.isChecked = checkedState
+    case .Radio:
+      radioInput.isSelectedRadio = checkedState
+    default:
+      break
+    }
+  }
+
+  private static func isCheckable(_ type: MasonInputType) -> Bool {
+    return type == .Checkbox || type == .Radio
+  }
+
+  // As on the web, the value survives a type change and a checkbox or radio keeps its own:
+  // captured in `willSet` from the old widget, re-applied in `didSet` after the rebuild.
   private var pendingTypeSwitchValue: String?
   public var type: MasonInputType = .Text {
     willSet {
-      if !initializing {
+      if !initializing && !MasonInput.isCheckable(type) && !MasonInput.isCheckable(newValue) {
         pendingTypeSwitchValue = self.value
       }
     }
@@ -239,6 +271,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         return
       }
       configureInput(type)
+      applyChecked()
       invalidateLayout()
       if let previousValue = pendingTypeSwitchValue {
         self.value = previousValue
@@ -268,11 +301,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
           buttonInput.setAttributedTitle(title, for: .normal)
         }
       case .Checkbox:
-        checkboxInput.isChecked = (newValue == "true")
+        checkableValue = newValue
       case .Date:
         dateInput.value = newValue
       case .Radio:
-        radioInput.isSelected = (newValue == "true")
+        checkableValue = newValue
       case .Range:
         rangeInput.value = Float(newValue) ?? 0
       case .Color:
@@ -294,15 +327,16 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       case .Submit:
         return submitInput.currentAttributedTitle?.string ?? ""
       case .Checkbox:
-        return checkboxInput.isChecked ? "true" : "false"
+        return checkableValue
       case .Date:
         return dateInput.value
       case .Radio:
-        return radioInput.isSelected ? "true" : "false"
+        return checkableValue
       case .Range:
         return String(rangeInput.value)
       case .Color:
-        return colorInput.selectedColor?.toCSS(includeAlpha: true) ?? "#000000"
+        // As on the web: lowercase #rrggbb, no alpha.
+        return colorInput.selectedColor?.toCSS().lowercased() ?? "#000000"
       case .File:
         return fileInput.labelText
       }
