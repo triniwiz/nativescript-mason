@@ -1,5 +1,5 @@
 diff --git a/node_modules/@nativescript/tailwind/src/removeUnsupported.js b/node_modules/@nativescript/tailwind/src/removeUnsupported.js
-index 6d71326..50ffac5 100644
+index 6d71326..905c4e5 100644
 --- a/node_modules/@nativescript/tailwind/src/removeUnsupported.js
 +++ b/node_modules/@nativescript/tailwind/src/removeUnsupported.js
 @@ -93,6 +93,15 @@ module.exports = (options = { debug: false }) => {
@@ -27,7 +27,7 @@ index 6d71326..50ffac5 100644
    "align-items": true,
    "align-self": true,
    "android-selected-tab-highlight-color": true,
-@@ -260,47 +269,96 @@ const supportedProperties = {
+@@ -260,47 +269,102 @@ const supportedProperties = {
    "animation-iteration-count": true,
    "animation-name": true,
    "animation-timing-function": true,
@@ -40,6 +40,12 @@ index 6d71326..50ffac5 100644
    "background-repeat": ["repeat", "repeat-x", "repeat-y", "no-repeat"],
    "background-size": true,
 +  "backdrop-filter": true,
++  border: true,
++  "border-top": true,
++  "border-right": true,
++  "border-bottom": true,
++  "border-left": true,
++  "border-style": true,
    "border-bottom-color": true,
    "border-bottom-left-radius": true,
    "border-bottom-right-radius": true,
@@ -124,7 +130,7 @@ index 6d71326..50ffac5 100644
    "letter-spacing": true,
    "line-height": true,
    margin: true,
-@@ -314,11 +372,17 @@ const supportedProperties = {
+@@ -314,11 +378,17 @@ const supportedProperties = {
    "margin-inline": true,
    "margin-inline-start": true,
    "margin-inline-end": true,
@@ -142,7 +148,7 @@ index 6d71326..50ffac5 100644
    padding: true,
    "padding-block": true,
    "padding-bottom": true,
-@@ -330,20 +394,30 @@ const supportedProperties = {
+@@ -330,20 +400,30 @@ const supportedProperties = {
    "placeholder-color": true,
    "place-items": true,
    "place-self": true,
