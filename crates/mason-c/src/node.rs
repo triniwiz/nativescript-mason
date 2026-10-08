@@ -522,6 +522,23 @@ pub extern "C" fn mason_node_layout(
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_get_unrounded_size(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    width: *mut c_float,
+    height: *mut c_float,
+) {
+    if mason.is_null() || node.is_null() || width.is_null() || height.is_null() {
+        return;
+    }
+    unsafe {
+        let size = (*mason).0.unrounded_size((*node).0.id());
+        *width = size.width;
+        *height = size.height;
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_layout_shallow(
     mason: *mut CMason,
     node: *mut CMasonNode,

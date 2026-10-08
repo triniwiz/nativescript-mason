@@ -791,6 +791,14 @@ impl Mason {
         *self.0.layout(node_id.into())
     }
 
+    pub fn unrounded_size(&self, node_id: Id) -> Size<f32> {
+        self.0
+            .nodes()
+            .get(node_id)
+            .map(|n| n.unrounded_layout.size)
+            .unwrap_or(Size::ZERO)
+    }
+
     /// Return transient float rects for a container as a flat `[left, top, right, bottom, …]` vec.
     pub fn get_float_rects(&self, container_id: Id) -> Vec<f32> {
         self.0

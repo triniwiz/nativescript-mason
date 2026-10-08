@@ -173,6 +173,11 @@ struct CMasonNode *mason_node_new_list_item_node_with_context(struct CMason *mas
 void *mason_node_layout(struct CMason *mason, struct CMasonNode *node, void *(*layout)(const float*,
                                                                                        uintptr_t));
 
+void mason_node_get_unrounded_size(struct CMason *mason,
+                                   struct CMasonNode *node,
+                                   float *width,
+                                   float *height);
+
 void *mason_node_layout_shallow(struct CMason *mason,
                                 struct CMasonNode *node,
                                 void *(*layout)(const float*, uintptr_t));
