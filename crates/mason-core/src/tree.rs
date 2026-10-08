@@ -2068,6 +2068,11 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
 /// Whether `id` lays its text out vertically: its own `writing-mode`, else the nearest
 /// ancestor's (it inherits, and an anonymous text container never sets its own).
 pub(crate) fn is_vertical_writing_mode(tree: &TreeInner, id: Id) -> bool {
+    resolved_writing_mode(tree, id) != crate::style::WritingMode::HorizontalTb
+}
+
+/// `id`'s writing mode: its own, else the nearest ancestor's.
+pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::WritingMode {
     let mut current = Some(id);
     while let Some(n) = current {
         if let Some(mode) = tree
@@ -2075,11 +2080,11 @@ pub(crate) fn is_vertical_writing_mode(tree: &TreeInner, id: Id) -> bool {
             .get(n)
             .and_then(|node| node.style().get_writing_mode())
         {
-            return mode != crate::style::WritingMode::HorizontalTb;
+            return mode;
         }
         current = tree.parents.get(n).copied().flatten();
     }
-    false
+    crate::style::WritingMode::HorizontalTb
 }
 
 /// Vertical text with no definite line length (no known or definite available height) takes

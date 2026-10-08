@@ -268,3 +268,139 @@ fn vertical_text_with_no_definite_height_wraps_at_the_viewport_height() {
 
     check(&mason, &[("vertical", vertical, 0.0, 0.0, 20.0, 100.0)]);
 }
+
+ahem_measure!(measure_two, &[20.0; 2]);
+
+fn add_text_run(mason: &mut Mason, parent: Id, measure: MeasureFn) -> Id {
+    let container = mason.create_text_node();
+    let id = container.id();
+    mason.with_style_mut(id, |s| s.set_display_mode(DisplayMode::Inline));
+    mason.set_measure(id, Some(measure), std::ptr::null_mut());
+    mason.append_node(parent, &[id]);
+    id
+}
+
+/// `xs` are the expected x of the first run, the box and the second run.
+fn inline_flow(mode: WritingMode, xs: [f32; 3]) {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Flex);
+        s.set_align_items(Some(AlignItems::START));
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    let vertical = mason.create_node();
+    let vertical_id = vertical.id();
+    mason.with_style_mut(vertical_id, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(mode);
+        s.set_size(Size {
+            width: Dimension::auto(),
+            height: Dimension::length(100.0),
+        });
+    });
+    mason.append_node(root_id, &[vertical_id]);
+
+    // "HH HH HH" (60 along the line), a 30x16 inline-block, then "HH HH" (40).
+    let first = add_text_run(&mut mason, vertical_id, measure_three);
+    let boxed = mason.create_node();
+    let box_id = boxed.id();
+    mason.with_style_mut(box_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Box);
+        s.set_size(Size {
+            width: Dimension::length(30.0),
+            height: Dimension::length(16.0),
+        });
+    });
+    mason.append_node(vertical_id, &[box_id]);
+    let second = add_text_run(&mut mason, vertical_id, measure_two);
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+
+    // Line 1: the first run and the box, centred on the box's 30px thickness. Line 2: the
+    // second run. vertical-rl stacks lines from the right, vertical-lr from the left.
+    check(
+        &mason,
+        &[
+            ("vertical", vertical_id, 0.0, 0.0, 40.0, 100.0),
+            ("first", first, xs[0], 0.0, 10.0, 60.0),
+            ("box", box_id, xs[1], 60.0, 30.0, 16.0),
+            ("second", second, xs[2], 0.0, 10.0, 40.0),
+        ],
+    );
+}
+
+#[test]
+fn inline_children_of_a_vertical_rl_box_flow_down_its_lines() {
+    inline_flow(WritingMode::VerticalRl, [20.0, 10.0, 0.0]);
+}
+
+#[test]
+fn inline_children_of_a_vertical_lr_box_flow_down_its_lines() {
+    inline_flow(WritingMode::VerticalLr, [10.0, 0.0, 30.0]);
+}
+
+/// Not writing-mode specific: an inline-block counted as 0x0 while its line was sized, so an
+/// auto-width box came out too narrow and wrapped content that fits.
+#[test]
+fn inline_block_counts_toward_its_lines_intrinsic_width() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+
+    let root = mason.create_node();
+    let root_id = root.id();
+    mason.with_style_mut(root_id, |s| {
+        s.set_position(Position::Absolute);
+        s.set_display(Display::Flex);
+        s.set_align_items(Some(AlignItems::START));
+    });
+    mason.append_node(stage_id, &[root_id]);
+
+    let paragraph = mason.create_node();
+    let paragraph_id = paragraph.id();
+    mason.with_style_mut(paragraph_id, |s| s.set_display(Display::Block));
+    mason.append_node(root_id, &[paragraph_id]);
+
+    let first = add_text_run(&mut mason, paragraph_id, measure_three);
+    let boxed = mason.create_node();
+    let box_id = boxed.id();
+    mason.with_style_mut(box_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Box);
+        s.set_size(Size {
+            width: Dimension::length(30.0),
+            height: Dimension::length(16.0),
+        });
+    });
+    mason.append_node(paragraph_id, &[box_id]);
+    let second = add_text_run(&mut mason, paragraph_id, measure_two);
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+
+    let l = mason.layout_raw(paragraph_id);
+    assert!(
+        (l.size.width - 130.0).abs() < 0.5,
+        "paragraph width {} (want 130: 60 + 30 + 40)",
+        l.size.width
+    );
+    let (f, b, s2) = (
+        mason.layout_raw(first),
+        mason.layout_raw(box_id),
+        mason.layout_raw(second),
+    );
+    assert!(
+        (f.location.x - 0.0).abs() < 0.5
+            && (b.location.x - 60.0).abs() < 0.5
+            && (s2.location.x - 90.0).abs() < 0.5,
+        "one line expected: first x={} box x={} second x={}",
+        f.location.x,
+        b.location.x,
+        s2.location.x
+    );
+}
