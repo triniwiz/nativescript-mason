@@ -1667,7 +1667,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     if (count == 0 && (flags and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) == 0) {
       // No transform — reset to identity
       v.translationX = 0f; v.translationY = 0f
-      v.scaleX = 1f; v.scaleY = 1f; v.rotation = node.inlineTurn
+      v.scaleX = 1f; v.scaleY = 1f; v.rotation = 0f
       v.invalidate()
       return
     }
@@ -1692,7 +1692,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         v.pivotX = v.width / 2f; v.pivotY = v.height / 2f
       }
       v.translationX = tx; v.translationY = ty
-      v.rotation = rotate + node.inlineTurn; v.scaleX = scaleX; v.scaleY = scaleY
+      v.rotation = rotate; v.scaleX = scaleX; v.scaleY = scaleY
     } else {
       // Compose inline ops
       var tx = 0f;
@@ -1725,7 +1725,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         v.pivotX = v.width / 2f; v.pivotY = v.height / 2f
       }
       v.translationX = tx; v.translationY = ty
-      v.rotation = rot + node.inlineTurn; v.scaleX = sx; v.scaleY = sy
+      v.rotation = rot; v.scaleX = sx; v.scaleY = sy
     }
     v.invalidate()
   }
