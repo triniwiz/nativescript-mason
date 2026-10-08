@@ -1024,7 +1024,7 @@ class TextEngine(val container: TextContainer) {
     if (exclusions.isEmpty()) return null
 
     // Get text from the container (already set during measure)
-    if (container !is android.widget.TextView) return null
+    if (container !is TextView && container !is android.widget.TextView) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
 
@@ -1123,7 +1123,7 @@ class TextEngine(val container: TextContainer) {
    */
   internal fun rebuildCachedStaticLayout(paint: TextPaint, contentWidth: Int): android.text.Layout? {
     if (contentWidth <= 0) return null
-    if (container !is android.widget.TextView) return null
+    if (container !is TextView && container !is android.widget.TextView) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
 

@@ -7,7 +7,6 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow

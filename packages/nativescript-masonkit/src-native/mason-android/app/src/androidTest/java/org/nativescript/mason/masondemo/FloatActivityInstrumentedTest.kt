@@ -61,7 +61,7 @@ class FloatActivityInstrumentedTest {
         rootView.findViewsWithText(matches, "Lorem ipsum", android.view.View.FIND_VIEWS_WITH_TEXT)
         Log.d("FloatActivityTest", "matches count=${matches.size}")
         assertTrue("prose TextView missing", matches.isNotEmpty())
-        val proseView = matches[0] as android.widget.TextView
+        val proseView = matches[0] as org.nativescript.mason.masonkit.TextView
         // Trigger engine compute/layout for the prose's root node to ensure measurements
         try {
           val rootNode = (proseView as? Element)?.node?.getRootNode()
