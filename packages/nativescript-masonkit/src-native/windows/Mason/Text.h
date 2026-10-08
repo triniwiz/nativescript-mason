@@ -154,6 +154,7 @@ namespace winrt::NativeScript::Mason::implementation
         void HookInput();
         void SetPressed(winrt::Windows::Foundation::IInspectable const& target);
         void ArrangeBoxes();
+        bool LastBaseline(float& baseline);
         void CollapseFlowSpaces(std::vector<BuiltRun>& runs) const;
 
         void ApplyStyleFromBuffer();
@@ -197,6 +198,7 @@ namespace winrt::NativeScript::Mason::implementation
             uint64_t version{ 0 };
 
             std::vector<winrt::NativeScript::Mason::Node> boxNodes;
+            std::vector<winrt::weak_ref<winrt::NativeScript::Mason::Text>> boxTexts;
             float ascent{ 0.0f };
             float descent{ 0.0f };
             float lineHeight{ 0.0f };

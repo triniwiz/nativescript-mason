@@ -940,6 +940,17 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::HostBox(mux::UIElement const& box)
     {
+        if (!m_direct && mason_atlas::Available())
+        {
+            uint32_t index = 0;
+            if (m_text && Children().IndexOf(m_text, index)) Children().RemoveAt(index);
+            m_text = nullptr;
+            m_direct = true;
+            m_builtValid = false;
+            m_paragraphDirty = true;
+            m_measureCache->Reset();
+            InitDirect();
+        }
         m_hostsBoxes = true;
         nsm::Text self = *this;
         implementation::Css::ReparentChild(self, box, -1);
@@ -1213,6 +1224,7 @@ namespace winrt::NativeScript::Mason::implementation
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;
         std::vector<nsm::Node> boxNodes;
+        std::vector<winrt::weak_ref<nsm::Text>> boxTexts;
         m_pieces.clear();
         for (auto const& b : runs)
         {
@@ -1232,6 +1244,8 @@ namespace winrt::NativeScript::Mason::implementation
                 p.text += L'\uFFFC';
                 p.boxes.push_back(box);
                 boxNodes.push_back(node);
+                auto boxText = b.box.try_as<nsm::Text>();
+                boxTexts.push_back(boxText ? winrt::make_weak(boxText) : winrt::weak_ref<nsm::Text>{});
                 m_pieces.push_back({ box.position, 1, b.box, true });
                 continue;
             }
@@ -1277,6 +1291,7 @@ namespace winrt::NativeScript::Mason::implementation
             c.lineHeight = p.lineHeight > 0.0f ? p.lineHeight : (metrics.ascent + metrics.descent + metrics.lineGap) * p.fontSize;
         }
         c.boxNodes = std::move(boxNodes);
+        c.boxTexts = std::move(boxTexts);
         if (c.layout && c.paragraph == p) return;
         c.paragraph = std::move(p);
         c.layout = nullptr;
@@ -1643,8 +1658,17 @@ namespace winrt::NativeScript::Mason::implementation
                 percent = d[301] != 0;
             }
             if (c.writingMode) std::swap(width, height);
+            float own = height;
+            if (!c.writingMode && i < c.boxTexts.size())
+            {
+                if (auto text = c.boxTexts[i].get())
+                {
+                    float last = 0.0f;
+                    if (winrt::get_self<implementation::Text>(text)->LastBaseline(last)) own = last;
+                }
+            }
             const float baseline = c.writingMode ? height * 0.5f + (c.ascent - c.descent) * 0.5f
-                                                 : BoxBaseline(align, offset, percent, height, c.ascent, c.descent, c.lineHeight);
+                                                 : BoxBaseline(align, offset, percent, align == 0 ? own : height, c.ascent, c.descent, c.lineHeight);
             auto& box = c.paragraph.boxes[i];
             if (box.width == width && box.height == height && box.baseline == baseline) continue;
             box.width = width;
@@ -1899,5 +1923,18 @@ namespace winrt::NativeScript::Mason::implementation
         default:
             return { m_frame.left + u, m_frame.top + v, width, height };
         }
+    }
+
+    bool Text::LastBaseline(float& baseline)
+    {
+        if (!m_direct || m_measureCache->paragraph.text.empty()) return false;
+        auto* layout = m_measureCache->Layout();
+        if (!layout) return false;
+        const auto lines = mason_dwrite::LineBands(layout);
+        if (lines.empty()) return false;
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        baseline = top + lines.back().baseline;
+        return true;
     }
 }
