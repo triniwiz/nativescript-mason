@@ -629,9 +629,9 @@ class TextView @JvmOverloads constructor(
 
   private fun placeInlineBox(box: Node, view: View, rect: Rect) {
     var r = rect
-    // Vertical text is turned clockwise, and so is a box in it: lay it out unturned around
-    // the same centre, then turn it.
-    val turn = if (engine.isVerticalWritingMode) 90f else 0f
+    // Text views draw their own text vertically. A button's label is platform-drawn and stays
+    // horizontal, so the button is turned with the text: laid out unturned around the same centre.
+    val turn = if (engine.isVerticalWritingMode && view is Button) 90f else 0f
     if (turn != 0f) {
       val w = r.height()
       val h = r.width()
