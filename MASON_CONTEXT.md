@@ -745,13 +745,21 @@ with sideways glyphs (`text-orientation: mixed` for Latin text).
   lines from the left, which no single rotation does: Android draws each line on
   its own (`TextView.drawVertical`), iOS mirrors line origins within the content
   box (`TextEngine.drawMultiLine`).
+- **Orthogonal-flow sizing.** A vertical box's line length is its own height, a
+  known height, or a definite containing-block height (taffy's percentage
+  basis); an available height offered by an auto-height parent doesn't count
+  (`orthogonal_flow_inputs`). Failing all of those it falls back to the
+  viewport height, as CSS does. In horizontal block flow its auto width is its
+  line stack, not the parent's width: block items report `justify-self: start`
+  for it, which taffy sizes as fit-content.
+- **Mixed inline content** (text runs plus inline-blocks, buttons, images)
+  inside a vertical box runs the inline layout in the box's own frame: sizes
+  and margins transposed, line length = height, items centred on each line,
+  placements turned back (`transpose_prepared_item`).
 - **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
   containers whose children flow vertically (taffy only supports horizontal-tb),
-  inline element children inside vertical text, float exclusions, and the CSS
-  orthogonal-flow fallback to the viewport when the line length is indefinite
-  (such text stays on one line). A block-level vertical box in a horizontal
-  block parent stretches to the parent's width, where CSS would shrink it to its
-  lines.
+  float exclusions, and turning the label of a button or other widget inside
+  vertical text.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0
