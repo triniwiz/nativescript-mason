@@ -12,10 +12,10 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
 
-        void SyncStyle(winrt::hstring const&, winrt::hstring const&)
+        void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
         {
             m_visual.styleDirty = true;
-            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
+            mason_leaf::StyleSynced(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, mason_leaf::DirtyWords(d0, d1, d2, d3));
         }
 
         hstring Value() const;

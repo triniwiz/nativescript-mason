@@ -1460,9 +1460,16 @@ impl Tree {
         if crate::tree::is_vertical_writing_mode(&self.inner(), child_id) {
             use crate::tree::{transpose, with_viewport_line_length};
             let known = transpose(known_dimensions);
-            let viewport_height = self.inner().viewport_height;
-            let available =
-                with_viewport_line_length(known, transpose(available_space), viewport_height);
+            let (containing_height, viewport_height) = {
+                let inner = self.inner();
+                (crate::tree::containing_block_height(&inner, child_id), inner.viewport_height)
+            };
+            let available = with_viewport_line_length(
+                known,
+                transpose(available_space),
+                containing_height,
+                viewport_height,
+            );
             let measured = self.cached_leaf_measure_horizontal(child_id, measure, known, available);
             return transpose(measured);
         }
@@ -1739,8 +1746,18 @@ impl Tree {
             }
 
             let measure = self.node_data().get(child_id).unwrap().copy_measure();
-            let is_inline =
-                matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
+            let display_mode = self.nodes()[child_id].style().display_mode();
+            let is_inline = matches!(display_mode, DisplayMode::Inline);
+            // An inline-block keeps its own width and height while its line is sized, as in the
+            // DisplayMode::Box path below.
+            let inputs = if matches!(display_mode, DisplayMode::Box) {
+                LayoutInput {
+                    sizing_mode: SizingMode::InherentSize,
+                    ..inputs
+                }
+            } else {
+                inputs
+            };
 
             let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
 

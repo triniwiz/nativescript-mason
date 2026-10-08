@@ -11,7 +11,7 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
 
-        void SyncStyle(winrt::hstring const&, winrt::hstring const&)
+        void SyncStyle(int32_t, int32_t, int32_t, int32_t)
         {
             mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
         }

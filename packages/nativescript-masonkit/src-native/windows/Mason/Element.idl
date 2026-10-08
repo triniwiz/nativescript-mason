@@ -13,8 +13,7 @@ namespace NativeScript.Mason
         Style Style{ get; };
 
         // Flush a batch of style writes (the .windows.ts layer wrote them through Style.Values).
-        // dirtyLow/dirtyHigh are the StateKeys bitmask halves as decimal strings. Currently advisory;
-        // marks the node dirty and requests a WinUI relayout.
-        void SyncStyle(String dirtyLow, String dirtyHigh);
+        // d0..d3 are the StateKeys dirty mask, low word first.
+        void SyncStyle(Int32 d0, Int32 d1, Int32 d2, Int32 d3);
     }
 }

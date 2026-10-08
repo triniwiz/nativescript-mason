@@ -20,6 +20,8 @@ namespace NativeScript.Mason
         Boolean ShiftKey{ get; };
         Boolean AltKey{ get; };
         Boolean MetaKey{ get; };
+        // The element the event started at.
+        Object Target{ get; };
         void PreventDefault();
         void StopPropagation();
         void StopImmediatePropagation();

@@ -24,6 +24,7 @@ namespace winrt::NativeScript::Mason::implementation
         bool ShiftKey() const noexcept { return shiftKey; }
         bool AltKey() const noexcept { return altKey; }
         bool MetaKey() const noexcept { return metaKey; }
+        winrt::Windows::Foundation::IInspectable Target() const { return target; }
 
         void PreventDefault() noexcept { if (cancelable) defaultPrevented = true; }
         void StopPropagation() noexcept { propagationStopped = true; }
@@ -45,5 +46,6 @@ namespace winrt::NativeScript::Mason::implementation
         bool shiftKey{ false };
         bool altKey{ false };
         bool metaKey{ false };
+        winrt::Windows::Foundation::IInspectable target{ nullptr };
     };
 }

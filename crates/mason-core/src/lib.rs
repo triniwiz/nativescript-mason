@@ -791,6 +791,19 @@ impl Mason {
         *self.0.layout(node_id.into())
     }
 
+    /// The writing mode `node_id` lays its text out in: its own, else the nearest ancestor's.
+    pub fn resolved_writing_mode(&self, node_id: Id) -> crate::style::WritingMode {
+        crate::tree::resolved_writing_mode(&self.0.inner(), node_id)
+    }
+
+    pub fn unrounded_size(&self, node_id: Id) -> Size<f32> {
+        self.0
+            .nodes()
+            .get(node_id)
+            .map(|n| n.unrounded_layout.size)
+            .unwrap_or(Size::ZERO)
+    }
+
     /// Return transient float rects for a container as a flat `[left, top, right, bottom, …]` vec.
     pub fn get_float_rects(&self, container_id: Id) -> Vec<f32> {
         self.0

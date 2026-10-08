@@ -3,7 +3,7 @@ import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, native_, style_ } from '../symbols';
-import { appendNativeChild, removeNativeChild } from '../windows-panel-helpers';
+import { appendNativeChild } from '../windows-panel-helpers';
 
 class ListView extends ViewBase {
   [style_];
@@ -39,6 +39,7 @@ class ListView extends ViewBase {
 
   // @ts-ignore
   public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
+    if (this._windowsAttach(child)) return true;
     const index = this._windowsNativeIndexOf(child, atIndex);
     super._addViewToNativeVisualTree(child, index);
     return appendNativeChild(this._view, child, index);
@@ -46,8 +47,8 @@ class ListView extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(child: any): void {
+    this._windowsDetachChild(child);
     child._isMasonChild = false;
-    removeNativeChild(this._view, child);
     // @ts-ignore
     super._removeViewFromNativeVisualTree(child);
   }

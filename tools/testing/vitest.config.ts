@@ -51,12 +51,30 @@ export default defineConfig({
     root,
     environment: 'node',
     setupFiles: [resolve(root, 'tools/testing/mason-test-kit/setup.ts')],
-    include: ['packages/**/*.spec.ts', 'tools/testing/**/*.spec.ts'],
     server: {
       // @nativescript/core is ESM with directory imports ("./globals"), which
       // Node's own resolver rejects. Inlining routes it through Vite's resolver
       // instead, which understands them.
       deps: { inline: [/@nativescript[\\/]core/] },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'masonkit',
+          include: ['packages/**/*.spec.ts', 'tools/testing/**/*.spec.ts'],
+          exclude: ['**/node_modules/**', 'packages/**/*.windows.spec.ts'],
+        },
+      },
+      {
+        // Windows code paths, against mocked NativeScript.Mason natives.
+        extends: true,
+        define: { __WINDOWS__: 'true' },
+        test: {
+          name: 'windows',
+          include: ['packages/**/*.windows.spec.ts'],
+        },
+      },
+    ],
   },
 });

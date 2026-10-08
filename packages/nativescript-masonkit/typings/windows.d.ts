@@ -181,6 +181,9 @@ declare namespace NativeScript.Mason {
     // Percentage size (0-1, NaN clears) of a core (non-Mason) child.
     SetPercentWidth(element: any, fraction: number): void;
     SetPercentHeight(element: any, fraction: number): void;
+    // Events Mason dispatches (click), bubbling through the element tree; returns a listener id.
+    AddEventListener(element: any, type: string, listener: any): number;
+    RemoveEventListener(element: any, type: string, id: number): void;
   }
 
   // Implemented by every Mason element (View + the leaf controls). A parent View pulls any child's
@@ -188,7 +191,7 @@ declare namespace NativeScript.Mason {
   interface IMasonElement {
     readonly Node: Node;
     readonly Style: Style;
-    SyncStyle(dirtyLow: string, dirtyHigh: string): void;
+    SyncStyle(d0: number, d1: number, d2: number, d3: number): void;
   }
 
   // Rasterized visual result (Image + size + overhang) returned by Css.CreateShadow/CreateBorder.
@@ -257,6 +260,13 @@ declare namespace NativeScript.Mason {
     // A nested text element rendered inside this one's runs; the index counts runs and nested elements.
     SetInlineText(child: Text, index: number): void;
     RemoveInlineText(child: Text): void;
+    // An inline-level element placed in the text and arranged where the text puts it.
+    SetInlineBox(child: any, index: number): void;
+    RemoveInlineBox(child: any): void;
+    // Holds a block's inline content, so it is never an event target.
+    IsAnonymous: boolean;
+    // An <a>, exposed to UI Automation as a hyperlink.
+    IsLink: boolean;
   }
 
   // Frame and layout-pass counters for benchmarks; JS-assigned EventHandler<Object> handlers never fire.

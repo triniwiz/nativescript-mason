@@ -49,9 +49,12 @@ namespace mason_atlas
         float maxWidth{ 0.0f };
         std::vector<std::pair<DWRITE_TEXT_RANGE, uint32_t>> colors;
         uint32_t color{ 0xFF000000 };
-        // DIPs from the slot's top-left to the layout's origin.
+        // DIPs from the slot's top-left to the layout's origin. Vertical text (1 vertical-rl, 2
+        // vertical-lr) is turned 90° clockwise: the origin is where its first line starts, for
+        // vertical-lr the left of the line stack.
         float originX{ 0.0f };
         float originY{ 0.0f };
+        uint8_t vertical{ 0 };
         int width{ 0 };
         int height{ 0 };
         float scale{ 1.0f };
@@ -294,7 +297,8 @@ namespace mason_atlas
             Sprite* s = item.sprite;
             const float scale = s->scale;
             context->SetDpi(96.0f * scale, 96.0f * scale);
-            context->SetTransform(D2D1::Matrix3x2F::Translation((offset.x + item.x - region.rect.left) / scale, (offset.y + item.y - region.rect.top) / scale));
+            const auto slot = D2D1::Matrix3x2F::Translation((offset.x + item.x - region.rect.left) / scale, (offset.y + item.y - region.rect.top) / scale);
+            context->SetTransform(slot);
             IDWriteTextLayout* layout = s->layout.get();
             mason_dwrite::Configure(layout, s->wrapping, s->maxWidth);
             ID2D1SolidColorBrush* fill = BrushFor(a, context.get(), s->color);
@@ -303,7 +307,28 @@ namespace mason_atlas
             {
                 if (argb != s->color) layout->SetDrawingEffect(BrushFor(a, context.get(), argb), range);
             }
-            context->DrawTextLayout(D2D1::Point2F(s->originX, s->originY), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            if (s->vertical == 1)
+            {
+                context->SetTransform(D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX, s->originY) * slot);
+                context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            }
+            else if (s->vertical == 2)
+            {
+                // Lines stack from the left with their glyphs still turned clockwise, so each is drawn on its own.
+                for (auto const& line : mason_dwrite::LineBands(layout))
+                {
+                    context->SetTransform(slot);
+                    context->PushAxisAlignedClip(D2D1::RectF(s->originX + line.top, -mason_dwrite::kUnbounded, s->originX + line.bottom, mason_dwrite::kUnbounded),
+                        D2D1_ANTIALIAS_MODE_ALIASED);
+                    context->SetTransform(D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX + line.top + line.bottom, s->originY) * slot);
+                    context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                    context->PopAxisAlignedClip();
+                }
+            }
+            else
+            {
+                context->DrawTextLayout(D2D1::Point2F(s->originX, s->originY), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            }
         }
         context->SetDpi(96.0f, 96.0f);
         context->SetTransform(D2D1::Matrix3x2F::Identity());

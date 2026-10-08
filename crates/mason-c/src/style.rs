@@ -1117,11 +1117,30 @@ pub extern "C" fn mason_style_prepare_style_for_mut(mason: *mut CMason, node: *m
 
 #[no_mangle]
 pub extern "C" fn mason_style_release_style_buffer(buffer: *mut CMasonBuffer) {
-    if buffer.is_null() {
+    if !buffer.is_null() {
         unsafe {
             let _ = Box::from_raw(buffer);
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_style_data(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    out_len: *mut usize,
+) -> *const u8 {
+    let (ptr, len) = if mason.is_null() || node.is_null() {
+        (std::ptr::null(), 0)
+    } else {
+        unsafe { (*mason).0.style_data_raw((*node).0.id()) }
+    };
+    if !out_len.is_null() {
+        unsafe {
+            *out_len = len;
+        }
+    }
+    ptr
 }
 
 #[no_mangle]

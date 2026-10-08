@@ -13,9 +13,9 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node ? m_node.Style() : nullptr; }
 
-        void SyncStyle(winrt::hstring const& dirtyLow, winrt::hstring const& dirtyHigh)
+        void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
         {
-            if (auto el = m_target.try_as<winrt::NativeScript::Mason::IMasonElement>()) el.SyncStyle(dirtyLow, dirtyHigh);
+            if (auto el = m_target.try_as<winrt::NativeScript::Mason::IMasonElement>()) el.SyncStyle(d0, d1, d2, d3);
         }
 
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const&) { return { 0.0f, 0.0f }; }
