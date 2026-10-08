@@ -174,8 +174,9 @@ class TextView @JvmOverloads constructor(
     if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
       // Keep the float-aware layout intact — we just expanded to fit it.
     } else {
-      val contentW = w - paddingLeft - paddingRight
-      if (!cachedStaticLayoutFits(contentW)) clearCachedStaticLayout()
+      val lineLength = if (engine.isVerticalWritingMode) h - paddingTop - paddingBottom
+      else w - paddingLeft - paddingRight
+      if (!cachedStaticLayoutFits(lineLength)) clearCachedStaticLayout()
       floatAwareStaticLayout = null
       floatExpandedHeight = -1
     }
@@ -189,6 +190,10 @@ class TextView @JvmOverloads constructor(
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
+      if (engine.isVerticalWritingMode) {
+        drawVertical(c)
+        return@onDraw
+      }
       // Build float-aware layout lazily if we have floated siblings.
       // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
       // when applyLayoutFlat positions the view), so try building float-aware
@@ -288,6 +293,42 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+  /**
+   * writing-mode: vertical-rl / vertical-lr with sideways glyphs. The layout is built with the
+   * content height as its line length, then each line is turned 90° clockwise. vertical-rl stacks
+   * lines from the right, which is one rotation; vertical-lr stacks them from the left with the
+   * glyphs still turned clockwise, so each line is placed on its own.
+   */
+  private fun drawVertical(c: Canvas) {
+    val lineLength = height - paddingTop - paddingBottom
+    if (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength))) {
+      engine.rebuildCachedStaticLayout(paint, lineLength)
+    }
+    val layout = cachedStaticLayout ?: return
+    if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(paint)
+    val top = paddingTop.toFloat()
+    if (style.resolvedWritingMode.toInt() == 1) {
+      val save = c.save()
+      c.translate((width - paddingRight).toFloat(), top)
+      c.rotate(90f)
+      layout.draw(c)
+      TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+      return
+    }
+    for (i in 0 until layout.lineCount) {
+      val lineTop = layout.getLineTop(i)
+      val lineBottom = layout.getLineBottom(i)
+      val save = c.save()
+      c.translate((paddingLeft + lineTop + lineBottom).toFloat(), top)
+      c.rotate(90f)
+      c.clipRect(0, lineTop, layout.width, lineBottom)
+      layout.draw(c)
+      TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+    }
+  }
+
   var textContent: String
     get() {
       return engine.textContent
@@ -346,7 +387,7 @@ class TextView @JvmOverloads constructor(
     provideViewStructure(structure)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
     val drawn = floatAwareStaticLayout ?: cachedStaticLayout
-    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length) {
+    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length || engine.isVerticalWritingMode) {
       structure.setText(text, -1, -1)
     } else {
       provideVisibleLines(structure, text, drawn)
@@ -590,6 +631,8 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun getBaseline(): Int {
+    // Vertical text has no horizontal baseline to align with.
+    if (engine.isVerticalWritingMode) return -1
     // Return baseline calculated from our font metrics
     if (style.isValueInitialized) {
       val metrics = style.getFontMetrics()

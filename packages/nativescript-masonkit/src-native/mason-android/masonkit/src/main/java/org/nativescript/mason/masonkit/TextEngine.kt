@@ -612,7 +612,10 @@ class TextEngine(val container: TextContainer) {
     // is the widest unbreakable word and isn't reduced by max-width. Clamping
     // there would make a grid item's min-content as large as its max-width,
     // preventing an `auto` track from shrinking to fit its container.
-    if (availableWidth != -1f) when (val msw = style.maxWidth) {
+    // The line length runs along the height in vertical writing modes (mason-core hands it
+    // over as the width), so max-height limits it there.
+    val vertical = isVerticalWritingMode
+    if (availableWidth != -1f) when (val msw = if (vertical) style.maxHeight else style.maxWidth) {
       is Dimension.Points -> {
         val resolvedMax = msw.points.toInt()
         if (resolvedMax > 0) {
@@ -629,7 +632,7 @@ class TextEngine(val container: TextContainer) {
     // cause wrapping to behave differently; clamp the widthConstraint to
     // the parent's content-box when possible.
 
-    val p = node.parent
+    val p = if (vertical) null else node.parent
     if (p != null) {
       val pFloat = try {
         p.style.float
@@ -776,6 +779,10 @@ class TextEngine(val container: TextContainer) {
    *   4 = isolate-override → force LTR/RTL
    *   5 = plaintext        → use first-strong heuristic
    */
+
+  /** writing-mode: vertical-rl / vertical-lr. Lines run along the height and are drawn rotated. */
+  internal val isVerticalWritingMode: Boolean
+    get() = style.isValueInitialized && style.resolvedWritingMode.toInt().let { it == 1 || it == 2 }
 
   internal fun getTextDirectionHeuristic(): TextDirectionHeuristic {
     val writingMode = style.resolvedWritingMode.toInt()
@@ -931,7 +938,7 @@ class TextEngine(val container: TextContainer) {
    * Returns null if there are no float exclusions or API level < M.
    */
   internal fun buildFloatAwareStaticLayout(paint: TextPaint): StaticLayout? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isVerticalWritingMode) return null
 
     val parentNode = node.parent ?: return null
     val view = container.node.view as? View ?: return null
