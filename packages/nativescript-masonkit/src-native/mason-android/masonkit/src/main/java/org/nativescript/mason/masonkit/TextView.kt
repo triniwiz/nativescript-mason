@@ -589,6 +589,12 @@ open class TextView @JvmOverloads constructor(
       val child = getChildAt(i)
       if (child !in wanted) {
         removeViewInLayout(child)
+        (child as? Element)?.node?.let {
+          if (it.inlineTurn != 0f) {
+            it.inlineTurn = 0f
+            it.style.applyTransformToView()
+          }
+        }
         changed = true
       }
     }
@@ -607,7 +613,7 @@ open class TextView @JvmOverloads constructor(
     engine.forEachInlineBox(layout.text) { box, rect ->
       val view = box.view as? View ?: return@forEachInlineBox
       if (rect == null || view.parent !== this) return@forEachInlineBox
-      placeInlineBox(view, toViewRect(rect))
+      placeInlineBox(box, view, toViewRect(rect))
     }
   }
 
@@ -620,10 +626,23 @@ open class TextView @JvmOverloads constructor(
     drawnLayout?.let { layout ->
       engine.forEachInlineBox(layout.text) { n, rect -> if (n === box && rect != null) drawn = rect }
     }
-    placeInlineBox(view, drawn?.let { toViewRect(it) } ?: Rect(x, y, x + width, y + height))
+    placeInlineBox(box, view, drawn?.let { toViewRect(it) } ?: Rect(x, y, x + width, y + height))
   }
 
-  private fun placeInlineBox(view: View, r: Rect) {
+  private fun placeInlineBox(box: Node, view: View, rect: Rect) {
+    var r = rect
+    // A form control in vertical text runs down the page like the text: the platform control
+    // is horizontal, so it is laid out unturned around the same centre and turned clockwise.
+    val turn = if (view is Input && engine.isVerticalWritingMode) 90f else 0f
+    if (turn != 0f) {
+      val left = r.centerX() - r.height() / 2
+      val top = r.centerY() - r.width() / 2
+      r = Rect(left, top, left + r.height(), top + r.width())
+    }
+    if (box.inlineTurn != turn) {
+      box.inlineTurn = turn
+      box.style.applyTransformToView()
+    }
     if (view.left == r.left && view.top == r.top && view.right == r.right && view.bottom == r.bottom &&
       !view.isLayoutRequested
     ) return

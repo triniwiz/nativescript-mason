@@ -268,6 +268,9 @@ open class Node internal constructor(
 
   internal var isAnonymous = false
 
+  // Degrees an inline box is turned to follow vertical text, on top of its own transform.
+  internal var inlineTurn = 0f
+
   internal var floatScanFrame = 0L
   internal var floatScanHasFloat = false
 

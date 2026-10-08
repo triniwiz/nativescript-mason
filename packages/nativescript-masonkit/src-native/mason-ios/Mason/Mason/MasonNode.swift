@@ -111,6 +111,8 @@ public class MasonNode: NSObject {
   private var hasAnonymousChild = false
   // Inline-run bookkeeping, see normalizeInlineRuns.
   fileprivate var normalizingRuns = false
+  // Radians an inline box is turned to follow vertical text, on top of its own transform.
+  internal var inlineTurn: CGFloat = 0
   fileprivate var runsEstablished = false
   internal var isPlaceholder: Bool = false
 
