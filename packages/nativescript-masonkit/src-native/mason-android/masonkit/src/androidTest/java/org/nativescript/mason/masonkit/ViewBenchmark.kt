@@ -605,8 +605,9 @@ class ViewBenchmark {
         // grow the root to child's size
         parent.invalidateLayout()
 
-        // force immediate run (since test not running looper)
-        parent.compute(-2f, -2f) // mimic posted runnable
+        // force immediate run (since test not running looper); sizes are read from the
+        // laid-out tree, so compute and lay out as the posted runnable's pass does
+        parent.computeAndLayout(-2f, -2f)
 
         Assert.assertTrue(
             "after invalidation parent height should be >0 but was ${parent.node.computedHeight}",
@@ -615,34 +616,31 @@ class ViewBenchmark {
     }
 
     @Test
-    fun invalidationMaxContent_updatesToViewSize() {
+    fun invalidationRecomputesAtTheViewSize() = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync {
         val parent = View(context, mason)
         val child = TextView(context, mason)
         child.text = "hello"
         parent.addView(child)
 
-        // pretend we previously computed with max-content and cached -2
-        parent.node.computeCache = SizeF(-2f, -2f)
-        parent.node.computeCacheDirty = true
-
-        // simulate the Android framework assigning a real size to the view
+        val width = MeasureSpec.makeMeasureSpec(123, MeasureSpec.EXACTLY)
+        val height = MeasureSpec.makeMeasureSpec(456, MeasureSpec.EXACTLY)
+        parent.measure(width, height)
         parent.layout(0, 0, 123, 456)
 
-        // invalidateLayout should notice the -2 sentinel and swap in the
-        // view's dimensions before scheduling any compute work.
+        // a content change invalidates the root, and the next pass computes at the
+        // size the framework gave the view
+        child.text = "hello again"
         parent.invalidateLayout()
+        Assert.assertTrue("root should be dirty", parent.node.computeCacheDirty)
+        // a detached view gets no layout request from the window; ask for the pass it would run
+        parent.requestLayout()
+        parent.measure(width, height)
 
-        Assert.assertEquals(
-            "computeCache should be updated to view width",
-            123f,
-            parent.node.computeCache.width
-        )
-        Assert.assertEquals(
-            "computeCache should be updated to view height",
-            456f,
-            parent.node.computeCache.height
-        )
+        Assert.assertEquals("computeCache width", 123f, parent.node.computeCache.width)
+        Assert.assertEquals("computeCache height", 456f, parent.node.computeCache.height)
+        Assert.assertFalse("root should be clean", parent.node.computeCacheDirty)
     }
+
     @Test
     fun benchmark_fullLayoutCycleFlat() {
         val parent = View.createFlexView(mason, context)

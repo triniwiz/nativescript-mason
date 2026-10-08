@@ -197,7 +197,8 @@ open class TextView @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
-    engine.flushTextStyleIfNeeded()
+    // Text changed since the last measure (no layout pass in between) is applied here.
+    engine.applyTextIfNeeded()
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
