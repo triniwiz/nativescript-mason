@@ -14,10 +14,8 @@ export class Input extends InputElementBase {
     this[isMasonView_] = true;
   }
 
-  private _type: InputType = 'text';
-
   private getType(): org.nativescript.mason.masonkit.Input.Type {
-    switch (this._type) {
+    switch (this.type) {
       case 'text':
         return org.nativescript.mason.masonkit.Input.Type.Text;
       case 'button':
@@ -96,7 +94,6 @@ export class Input extends InputElementBase {
   }
 
   [typeProperty.setNative](value: InputType) {
-    this._type = value;
     if (this._view) {
       this._view.setType(this.getType());
     }
@@ -131,7 +128,7 @@ export class Input extends InputElementBase {
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      const view = Tree.instance.createInputView(context, this._type) as never;
+      const view = Tree.instance.createInputView(context, this.type) as never;
       this[native_] = view;
       return view;
     }

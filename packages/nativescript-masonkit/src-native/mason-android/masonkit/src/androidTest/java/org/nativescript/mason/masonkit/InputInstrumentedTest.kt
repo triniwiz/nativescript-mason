@@ -110,7 +110,7 @@ class InputInstrumentedTest {
 
       input.checkBoxInput.performClick()
       assertEquals("a tap updates checked", false, input.checked)
-      assertEquals("value still reports the state", "false", input.value)
+      assertEquals("value stays the submitted string", "on", input.value)
     }
   }
 
@@ -191,6 +191,90 @@ class InputInstrumentedTest {
       assertEquals("dark", dark, input.textInput.currentHintTextColor)
       switchTo(Configuration.UI_MODE_NIGHT_NO)
       assertEquals("light", light, input.textInput.currentHintTextColor)
+    }
+  }
+
+  private fun relayout(input: Input): MasonNodeView {
+    val root = input.parent as View
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      root.applyLayoutFlat(root.node, root.computeAndLayout(400f, -1f))
+    }
+    return root.node.layoutTree.cursor.also { it.pointTo(1) }
+  }
+
+  @Test
+  fun nonTextTypesGetNoUserAgentPadding() {
+    for (type in listOf(Input.Type.Checkbox, Input.Type.Radio, Input.Type.Range, Input.Type.Date)) {
+      val (input, nv) = layoutInput { it.type = type }
+      assertEquals("$type padding", 0f, nv.paddingLeft)
+      assertEquals("$type border", 0f, nv.borderLeft)
+      val widget = input.getChildAt(0)
+      assertEquals("$type widget is not inset", 0, widget.left)
+    }
+  }
+
+  @Test
+  fun switchingBetweenTextTypesKeepsAuthorPadding() {
+    val (input, before) = layoutInput {
+      it.configure { style -> style.paddingCss = "8 12" }
+    }
+    val authorPadding = before.paddingLeft
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.value = "secret"
+      input.type = Input.Type.Password
+    }
+    val after = relayout(input)
+    assertEquals("padding survives text -> password", authorPadding, after.paddingLeft)
+    assertEquals("text survives text -> password", "secret", input.value)
+  }
+
+  @Test
+  fun checkboxValueIsHeldApartFromChecked() {
+    val (input, _) = layoutInput { it.type = Input.Type.Checkbox }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      assertEquals("default value", "on", input.value)
+      input.checked = true
+      input.value = "yes"
+      assertTrue("setting value leaves checked alone", input.checked)
+      assertEquals("yes", input.value)
+    }
+  }
+
+  @Test
+  fun paddingChangeWithAnUnchangedFrameReinsetsTheField() {
+    val (input, _) = layoutInput {
+      it.configure { style ->
+        style.size = Size(Dimension.Points(300f), Dimension.Points(60f))
+        style.paddingCss = "4"
+      }
+    }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.configure { style -> style.paddingCss = "10" }
+    }
+    val nv = relayout(input)
+    assertEquals("frame unchanged", 300, input.width)
+    assertEquals("field follows the new padding", (nv.paddingLeft + nv.borderLeft).toInt(), input.textInput.left)
+  }
+
+  @Test
+  fun insetNeverGoesNegative() {
+    val (input, _) = layoutInput {
+      it.configure { style ->
+        style.size = Size(Dimension.Points(10f), Dimension.Points(10f))
+        style.paddingCss = "20"
+      }
+    }
+    assertTrue("width ${input.textInput.width}", input.textInput.width >= 0)
+    assertTrue("height ${input.textInput.height}", input.textInput.height >= 0)
+  }
+
+  @Test
+  fun newValueFromCodePutsTheCaretAtTheEnd() {
+    val (input, _) = layoutInput { it.value = "hello" }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.textInput.setSelection(2)
+      input.value = "goodbye world"
+      assertEquals(13, input.textInput.selectionStart)
     }
   }
 }

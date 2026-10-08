@@ -68,7 +68,9 @@ class Input @JvmOverloads constructor(
 
   override fun onConfigurationChanged(newConfig: android.content.res.Configuration?) {
     super.onConfigurationChanged(newConfig)
-    newConfig?.let { textInput.setHintTextColor(placeholderColor(it.uiMode)) }
+    if (newConfig != null && type.isTextLike) {
+      textInput.setHintTextColor(placeholderColor(newConfig.uiMode))
+    }
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -530,37 +532,63 @@ class Input @JvmOverloads constructor(
   private var initializing = true
   var type: Type = Type.Text
     set(value) {
-      // Capture the current value (read against the old type/widget) before
-      // switching - setupType() tears down and rebuilds the underlying
-      // native widget, so anything already set (e.g. a `value` applied while
-      // the default Text widget was still active) would otherwise be lost
-      // when the real type is applied right after.
-      val previousValue = if (!initializing) this.value else null
-      field = value
       if (initializing) {
+        field = value
         return
       }
-      setupType()
-      // A checkbox or radio keeps its checked state; text from the old widget is not a value for it.
-      if (value != Type.Checkbox && value != Type.Radio) previousValue?.let { this.value = it }
+      if (field == value) return
+      val previous = field
+      // The text survives a switch between text-like types, as on the web.
+      val previousText = if (previous.isTextLike && value.isTextLike) this.value else null
+      field = value
+      setupType(previous)
+      previousText?.let { this.value = it }
     }
 
-  private fun setupType(initial: Boolean = false) {
-    if (!initial) {
+  private enum class UaStyle { Field, Button, Swatch, Bare }
+
+  private val Type.isTextLike: Boolean
+    get() = when (this) {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> true
+      else -> false
+    }
+
+  private val Type.uaStyle: UaStyle
+    get() = when {
+      isTextLike -> UaStyle.Field
+      this == Type.Button || this == Type.Submit || this == Type.Reset -> UaStyle.Button
+      this == Type.Color -> UaStyle.Swatch
+      else -> UaStyle.Bare
+    }
+
+  // The UA defaults act like a user-agent stylesheet: they change only with the kind of
+  // control, so switching text to password keeps the author's padding and border.
+  private fun applyUaStyle() {
+    val kind = type.uaStyle
+    configure {
+      style.paddingCss = if (kind == UaStyle.Field) "1 2" else "0"
+      style.border = if (kind == UaStyle.Bare) "" else "1"
+      style.borderRadius = if (kind == UaStyle.Field || kind == UaStyle.Button) "4" else ""
+      style.textAlign = when (kind) {
+        UaStyle.Field -> TextAlign.Left
+        UaStyle.Button -> TextAlign.Center
+        else -> TextAlign.Auto
+      }
+    }
+  }
+
+  /** [previous] is null on construction. */
+  private fun setupType(previous: Type? = null) {
+    if (previous != null) {
       removeAllViews()
       style.inBatch = true
-      style.border = ""
-      style.borderRadius = ""
-      style.textAlign = TextAlign.Auto
+    }
+    val kindChanged = if (previous == null) type.uaStyle != UaStyle.Bare else previous.uaStyle != type.uaStyle
+    if (kindChanged) {
+      applyUaStyle()
     }
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
-        configure {
-          style.paddingCss = "1 2"
-          style.border = "1"
-          style.borderRadius = "4"
-          style.textAlign = TextAlign.Left
-        }
         textInput.imeOptions = EditorInfo.IME_ACTION_DONE
         when (type) {
           Type.Email -> {
@@ -621,24 +649,6 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Button, Type.Submit, Type.Reset -> {
-        configure {
-          (2 * resources.displayMetrics.density).toInt()
-          (resources.displayMetrics.density).toInt()
-//          textInput.setPadding(
-//            x, y, x, y
-//          )
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
-          style.border = "1"
-          style.borderRadius = "4"
-          style.textAlign = TextAlign.Center
-        }
-
         if (type == Type.Submit) {
           addView(
             submitInput, -2, -2
@@ -669,21 +679,6 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Color -> {
-        configure {
-          (2 * resources.displayMetrics.density).toInt()
-          (resources.displayMetrics.density).toInt()
-//          textInput.setPadding(
-//            x, y, x, y
-//          )
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
-          style.border = "1"
-        }
         addView(colorInput)
       }
 
@@ -717,7 +712,7 @@ class Input @JvmOverloads constructor(
     node.style.values.put(StyleKeys.ITEM_IS_REPLACED, 1.toByte())
     node.style.display = Display.InlineBlock
     this.type = type
-    this.setupType(true)
+    this.setupType()
     node.style.setStyleChangeListener(this)
     initializing = false
   }
@@ -790,10 +785,16 @@ class Input @JvmOverloads constructor(
     }
     TextNode.applyAttributes(text, 0, text.length, attributes)
     if (view is EditText) {
+      // A restyle keeps the caret; a new value puts it at the end, as on the web.
+      val restyle = view.text.toString() == value
       val start = view.selectionStart
       val end = view.selectionEnd
       view.setText(text, TextView.BufferType.SPANNABLE)
-      if (start >= 0) view.setSelection(start.coerceAtMost(text.length), end.coerceAtMost(text.length))
+      if (restyle && start >= 0) {
+        view.setSelection(start.coerceAtMost(text.length), end.coerceAtMost(text.length))
+      } else {
+        view.setSelection(text.length)
+      }
     } else {
       view.setText(text, TextView.BufferType.SPANNABLE)
     }
@@ -836,7 +837,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Checkbox -> {
-          checked = value == "true"
+          checkableValue = value
         }
 
         Type.Date -> {
@@ -844,7 +845,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Radio -> {
-          checked = value == "true"
+          checkableValue = value
         }
 
         Type.Range -> {
@@ -882,21 +883,7 @@ class Input @JvmOverloads constructor(
           submitInput.text.toString()
         }
 
-        Type.Checkbox -> {
-          if (checkBoxInput.isChecked) {
-            "true"
-          } else {
-            "false"
-          }
-        }
-
-        Type.Radio -> {
-          if (radioInput.isChecked) {
-            "true"
-          } else {
-            "false"
-          }
-        }
+        Type.Checkbox, Type.Radio -> checkableValue
 
         Type.Date -> {
           dateInput.value
@@ -972,6 +959,9 @@ class Input @JvmOverloads constructor(
 
   // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
   private var checkedState = false
+
+  // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
+  private var checkableValue = "on"
   private var settingChecked = false
 
   // Setting `checked` from code fires no events, as on the web.

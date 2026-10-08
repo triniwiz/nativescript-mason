@@ -2,7 +2,7 @@ import { getViewClass, getViewMeta, isKnownView, normalizeElementName, registerE
 import { getMasonKitElements, type ElementClass, type GetMasonKitElementsOptions } from '@triniwiz/nativescript-masonkit/elements';
 
 import { masonMeta } from './mason-meta';
-import { defineModelAccessor, MODEL_PROP, modelMeta } from './v-model';
+import { MODEL_PROP, modelMeta, withVueModel } from './v-model';
 
 export type InstallMasonKitOptions = GetMasonKitElementsOptions;
 
@@ -36,10 +36,8 @@ function register(tag: string, cls: ElementClass, isContainer: boolean): void {
   }
 
   preserveCoreElement(tag);
-  if (modelMeta[key]?.prop === MODEL_PROP) {
-    defineModelAccessor(cls);
-  }
-  registerElement(tag, () => cls, {
+  const viewClass = modelMeta[key]?.prop === MODEL_PROP ? withVueModel(cls as never) : cls;
+  registerElement(tag, () => viewClass, {
     ...(isContainer ? masonMeta : undefined),
     model: modelMeta[key],
     overwriteExisting: isKnownView(tag),

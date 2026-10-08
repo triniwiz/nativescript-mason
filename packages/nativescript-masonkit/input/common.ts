@@ -10,8 +10,15 @@ export const pendingValue = Symbol('input:pending:value');
 export const getCheckedProperty = Symbol('input:get:checked');
 export const setCheckedProperty = Symbol('input:set:checked');
 export const pendingChecked = Symbol('input:pending:checked');
+export const syncCheckedProperty = Symbol('input:sync:checked');
+const checkedState = Symbol('input:checked');
+
+function isCheckable(type: InputType): boolean {
+  return type === 'checkbox' || type === 'radio';
+}
 
 export class InputBase extends ViewBase {
+  declare type: InputType;
   [pendingValue] = null;
 
   [defaultValueProperty]() {
@@ -59,15 +66,27 @@ export class InputBase extends ViewBase {
 /** HTMLInputElement's state beyond `value`; `<textarea>` has none of it. */
 export class InputElementBase extends InputBase {
   [pendingChecked]: boolean | null = null;
+  [checkedState]: boolean = false;
 
-  // Platforms without a native checked state keep it in the checkbox's "true"/"false" value.
+  // iOS and Windows have no native checked state. It lives here, and a checkbox or radio
+  // mirrors it into the "true"/"false" value those controls store it in.
   [getCheckedProperty](): boolean {
-    return this[getValueProperty]() === 'true';
+    return isCheckable(this.type) ? this[getValueProperty]() === 'true' : (this[checkedState] as boolean);
   }
 
   //@ts-ignore
   [setCheckedProperty](checked: boolean) {
-    this[setValueProperty](String(checked));
+    this[checkedState] = checked;
+    if (isCheckable(this.type)) {
+      this[setValueProperty](String(checked));
+    }
+  }
+
+  /** For platforms without a native checked state, after the native `type` changes. */
+  [syncCheckedProperty]() {
+    if (isCheckable(this.type)) {
+      this[setValueProperty](String(this[checkedState]));
+    }
   }
 
   get checked(): boolean {
