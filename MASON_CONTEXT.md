@@ -800,6 +800,33 @@ inline flow, as on the web, so text wraps across element boundaries.
   inside an inline-block, NativeScript core gestures on an inline box) only get
   `click`; they would need to be attached as live views at their drawn rect.
 
+### Windows
+
+- **Runs** are grouped in `common.ts` (`_windowsAttach`, `_windowsInsertMember`,
+  `_windowsReflow`): each run gets an anonymous `NativeScript.Mason.Text`
+  (`IsAnonymous`), stamped on its members as `anonymousText_`. An inline text
+  element without a border, padding or explicit size is flattened into the run
+  (`SetInlineText`); any other inline-level element is an inline box
+  (`SetInlineBox`). A `<p>` places its non-text children the same way. Display,
+  position or float changes reach the runs from `Style._sendSync`
+  (`_windowsFlowTypeChanged`).
+- **Inline boxes** stay live XAML children of the Text, so they get real input.
+  Their nodes are the Text node's children, the core sizes them before measuring
+  the text, and DirectWrite places each as a U+FFFC inline object
+  (`DWriteText.h`); `Text::ArrangeBoxes` arranges them where it put them. The
+  TextBlock fallback (`Text.DirectWrite = false`) doesn't place boxes.
+- **Click** goes through `Mason.AddEventListener` (`Events.cpp`): one `Tapped`
+  handler per listening element or text holding inline elements, the target hit
+  tested in the DirectWrite layout, then dispatched up the element tree (a
+  flattened element's parent is the Text drawing it) as one cancelable Mason
+  `Event` with `Target`. `stopPropagation` also marks the tap handled. A
+  button's Enter, Space and UI Automation Invoke dispatch the same click.
+- **`:active`** on a flattened element comes from the Text's pointer handlers as
+  a `mason:active` event, which JS turns into the visual state.
+- **Accessibility.** `TextAutomationPeer` exposes links and elements listening
+  for clicks as `InlineAutomationPeer` children (hyperlink or text, with bounds
+  and Invoke), and inline boxes as their own peers.
+
 ## Backdrop Filter
 
 ### Android
