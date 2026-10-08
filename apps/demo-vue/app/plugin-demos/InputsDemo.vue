@@ -7,6 +7,20 @@
       <main class="page-body">
         <p class="note">Each block mirrors plain HTML. Compare with the same markup in a browser.</p>
 
+        <p class="section">Bound value</p>
+        <div class="stack">
+          <Input class="field" v-model="live" placeholder="type here" />
+          <span class="note">value: {{ live }}</span>
+          <div class="row"><Input type="checkbox" v-model="agree" /><span class="note">checkbox: {{ show(agree) }}</span></div>
+          <Input type="range" v-model="volume" />
+          <span class="note">range: {{ show(volume) }}</span>
+          <Input type="date" v-model="day" />
+          <span class="note">date: {{ show(day) }}</span>
+          <Input type="color" v-model="tint" />
+          <span class="note">color: {{ show(tint) }}</span>
+          <button class="btn" @tap="setBound">Set from code</button>
+        </div>
+
         <p class="section">Unstyled (UA defaults)</p>
         <div class="stack">
           <Input placeholder="type=text" />
@@ -83,12 +97,6 @@
           <Input type="button" value="type=button" />
           <Input type="submit" value="type=submit" />
         </div>
-
-        <p class="section">Bound value</p>
-        <div class="stack">
-          <Input class="field" v-model="live" placeholder="type here" />
-          <span class="note">value: {{ live }}</span>
-        </div>
       </main>
     </Scroll>
   </Page>
@@ -104,6 +112,17 @@ const bold = ref('Bold text');
 const centered = ref('Centered');
 const right = ref('Right aligned');
 const live = ref('');
+const agree = ref(true);
+const volume = ref(30);
+const day = ref('2026-01-15');
+const tint = ref('#ff0000');
+const show = (v: unknown) => `${JSON.stringify(v)} (${typeof v})`;
+const setBound = () => {
+  agree.value = !agree.value;
+  volume.value = 80;
+  day.value = '2026-12-25';
+  tint.value = '#00aa00';
+};
 const noop = () => {};
 </script>
 
