@@ -22,6 +22,7 @@
 #include "BufferUtil.h"
 #include "ColorInterpolation.h"
 #include "Decoration.h"
+#include "VisualApply.h"
 #include "Positioning.h"
 #include "Invalidation.h"
 
@@ -201,7 +202,31 @@ namespace winrt::NativeScript::Mason::implementation
             auto sprite = comp.CreateSpriteVisual();
             sprite.Size({ w, h });
             sprite.Shadow(shadow);
-            mason_deco::SetLayer(element, L"mason-shadow", sprite);
+
+            // The layer sits above the element's children, and an outer shadow only shows outside the
+            // box, so it is drawn through a mask with the box cut out.
+            const float frame = std::ceil(static_cast<float>(blur) + static_cast<float>((std::max)(std::abs(ox), std::abs(oy)))) + 2.0f;
+            auto hole = mason_mask::RoundedHole(comp, frame, static_cast<float>(cr), mason_visual::RasterScale(element));
+            if (!hole)
+            {
+                mason_deco::SetLayer(element, L"mason-shadow", sprite);
+                return;
+            }
+            sprite.Offset({ frame, frame, 0.0f });
+            auto source = comp.CreateContainerVisual();
+            source.Size({ w + 2.0f * frame, h + 2.0f * frame });
+            source.Children().InsertAtTop(sprite);
+            auto rendered = comp.CreateVisualSurface();
+            rendered.SourceVisual(source);
+            rendered.SourceSize({ w + 2.0f * frame, h + 2.0f * frame });
+            auto masked = comp.CreateMaskBrush();
+            masked.Source(comp.CreateSurfaceBrush(rendered));
+            masked.Mask(hole);
+            auto outside = comp.CreateSpriteVisual();
+            outside.Size({ w + 2.0f * frame, h + 2.0f * frame });
+            outside.Offset({ -frame, -frame, 0.0f });
+            outside.Brush(masked);
+            mason_deco::SetLayer(element, L"mason-shadow", outside);
         }
     }
 

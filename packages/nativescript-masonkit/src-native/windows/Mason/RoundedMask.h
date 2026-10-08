@@ -23,12 +23,23 @@ namespace mason_mask
         float radius{ 0.0f };
     };
 
+    // Opaque around a rounded hole: what may show of a box's outer shadow.
+    struct Hole
+    {
+        mucomp::CompositionDrawingSurface surface{ nullptr };
+        mucomp::CompositionSurfaceBrush brush{ nullptr };
+        float frame{ 0.0f };
+        float radius{ 0.0f };
+    };
+
     struct Device
     {
         mucomp::Compositor compositor{ nullptr };
         mucomp::CompositionGraphicsDevice graphics{ nullptr };
         // Keyed by the radius in quarter device pixels.
         std::unordered_map<int, Corner> corners;
+        // Keyed by the frame and radius in quarter device pixels.
+        std::unordered_map<int64_t, Hole> holes;
         // The D3D device under the rendering device, watched for removal.
         winrt::com_ptr<ID3D11Device4> d3d;
         DWORD removedCookie{ 0 };
@@ -71,9 +82,28 @@ namespace mason_mask
         return SUCCEEDED(interop->EndDraw());
     }
 
+    inline bool Draw(Hole const& hole)
+    {
+        auto interop = hole.surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
+        winrt::com_ptr<ID2D1DeviceContext> context;
+        POINT offset{};
+        if (FAILED(interop->BeginDraw(nullptr, __uuidof(ID2D1DeviceContext), context.put_void(), &offset))) return false;
+        context->SetTransform(D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
+        context->Clear(D2D1::ColorF(1, 1, 1, 1));
+        context->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_COPY);
+        winrt::com_ptr<ID2D1SolidColorBrush> clear;
+        context->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0, 0), clear.put());
+        const float side = hole.surface.Size().Width;
+        context->FillRoundedRectangle(
+            D2D1::RoundedRect(D2D1::RectF(hole.frame, hole.frame, side - hole.frame, side - hole.frame), hole.radius, hole.radius), clear.get());
+        context->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_SOURCE_OVER);
+        return SUCCEEDED(interop->EndDraw());
+    }
+
     inline void RedrawAll(Device& device)
     {
         for (auto const& [key, corner] : device.corners) Draw(corner);
+        for (auto const& [key, hole] : device.holes) Draw(hole);
     }
 
     inline bool ReplaceRenderingDevice(Device& device);
@@ -138,6 +168,7 @@ namespace mason_mask
         device->compositor = compositor;
         device->graphics = created.as<mucomp::CompositionGraphicsDevice>();
         device->corners.clear();
+        device->holes.clear();
         Device* current = device;
         device->graphics.RenderingDeviceReplaced([current](auto&&, auto&&) { RedrawAll(*current); });
         WatchRemoval(*device, d3d);
@@ -181,6 +212,43 @@ namespace mason_mask
         // Exactly the drawn radius: any more and a circle's corners overlap and get squeezed.
         nine.SetInsets(QuarterPixels(radiusPx) / 4.0f);
         nine.SetInsetScales(1.0f / scale);
+        return nine;
+    }
+
+    // Nine-grid mask for a box `frame` DIPs inside the brush's edges: opaque around the box, clear
+    // inside it with corners of radius `radius` DIPs.
+    inline mucomp::CompositionBrush RoundedHole(mucomp::Compositor const& compositor, float frame, float radius, float scale)
+    {
+        auto* device = DeviceFor(compositor);
+        if (!device) return nullptr;
+        const int frameQ = QuarterPixels(frame * scale);
+        const int radiusQ = QuarterPixels(radius * scale);
+        const int64_t key = (static_cast<int64_t>(frameQ) << 32) | static_cast<uint32_t>(radiusQ);
+        mucomp::CompositionSurfaceBrush brush{ nullptr };
+        if (auto it = device->holes.find(key); it != device->holes.end())
+        {
+            brush = it->second.brush;
+        }
+        else
+        {
+            Hole hole;
+            hole.frame = frameQ / 4.0f;
+            hole.radius = radiusQ / 4.0f;
+            const float side = (std::ceil(hole.frame) + std::ceil(hole.radius)) * 2.0f + 2.0f;
+            hole.surface = device->graphics.CreateDrawingSurface({ side, side },
+                winrt::Microsoft::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
+                winrt::Microsoft::Graphics::DirectX::DirectXAlphaMode::Premultiplied);
+            if (!Draw(hole) && !(ReplaceRenderingDevice(*device) && Draw(hole))) return nullptr;
+            hole.brush = compositor.CreateSurfaceBrush(hole.surface);
+            hole.brush.Stretch(mucomp::CompositionStretch::Fill);
+            brush = hole.brush;
+            device->holes.emplace(key, hole);
+        }
+        auto nine = compositor.CreateNineGridBrush();
+        nine.Source(brush);
+        nine.SetInsets((frameQ + radiusQ) / 4.0f);
+        nine.SetInsetScales(1.0f / scale);
+        nine.IsCenterHollow(true);
         return nine;
     }
 }
