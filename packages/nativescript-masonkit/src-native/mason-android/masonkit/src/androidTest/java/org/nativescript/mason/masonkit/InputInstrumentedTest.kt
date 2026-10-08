@@ -101,6 +101,48 @@ class InputInstrumentedTest {
   }
 
   @Test
+  fun checkedSurvivesTypeChangeAndTracksTheUser() {
+    val (input, _) = layoutInput { }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.checked = true
+      input.type = Input.Type.Checkbox
+      assertTrue("checkbox shows checked set before the type", input.checkBoxInput.isChecked)
+
+      input.checkBoxInput.performClick()
+      assertEquals("a tap updates checked", false, input.checked)
+      assertEquals("value still reports the state", "false", input.value)
+    }
+  }
+
+  @Test
+  fun settingCheckedFromCodeFiresNoInputEvent() {
+    val (input, _) = layoutInput { it.type = Input.Type.Checkbox }
+    var inputs = 0
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.addEventListener("input") { inputs++ }
+      input.checked = true
+      input.checked = false
+      assertEquals("programmatic sets", 0, inputs)
+
+      input.checkBoxInput.performClick()
+      assertEquals("a user tap", 1, inputs)
+    }
+  }
+
+  @Test
+  fun radioFiresInputWhenChecked() {
+    val (input, _) = layoutInput { it.type = Input.Type.Radio }
+    val events = mutableListOf<String>()
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.addEventListener("input") { events += "input" }
+      input.addEventListener("change") { events += "change" }
+      input.radioInput.performClick()
+      assertEquals(listOf("input", "change"), events)
+      assertTrue(input.checked)
+    }
+  }
+
+  @Test
   fun writingBackTypedValueKeepsCaret() {
     val (input, _) = layoutInput { it.value = "ab" }
     InstrumentationRegistry.getInstrumentation().runOnMainSync {

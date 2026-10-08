@@ -2,6 +2,7 @@ import { getViewClass, getViewMeta, isKnownView, normalizeElementName, registerE
 import { getMasonKitElements, type ElementClass, type GetMasonKitElementsOptions } from '@triniwiz/nativescript-masonkit/elements';
 
 import { masonMeta } from './mason-meta';
+import { defineModelAccessor, MODEL_PROP, modelMeta } from './v-model';
 
 export type InstallMasonKitOptions = GetMasonKitElementsOptions;
 
@@ -28,14 +29,6 @@ function preserveCoreElement(tag: string): void {
   registerElement(alias, () => coreClass, getViewMeta(tag));
 }
 
-// NativeScript-Vue's patchProp maps `modelValue` / `onUpdate:modelValue` through
-// `meta.model` and silently drops both when it is missing.
-const valueModel = { prop: 'value', event: 'input' };
-const modelMeta: Record<string, typeof valueModel> = {
-  input: valueModel,
-  textarea: valueModel,
-};
-
 function register(tag: string, cls: ElementClass, isContainer: boolean): void {
   const key = tag ? normalizeElementName(tag) : '';
   if (!key || registered.has(key)) {
@@ -43,6 +36,9 @@ function register(tag: string, cls: ElementClass, isContainer: boolean): void {
   }
 
   preserveCoreElement(tag);
+  if (modelMeta[key]?.prop === MODEL_PROP) {
+    defineModelAccessor(cls);
+  }
   registerElement(tag, () => cls, {
     ...(isContainer ? masonMeta : undefined),
     model: modelMeta[key],

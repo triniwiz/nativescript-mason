@@ -1,5 +1,5 @@
 import { CSSType } from '@nativescript/core';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { acceptProperty, defaultValueProperty, getValueProperty, InputElementBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { InputType } from '..';
@@ -41,7 +41,7 @@ function typeToInt(t: InputType): number {
 }
 
 @CSSType('input')
-export class Input extends InputBase {
+export class Input extends InputElementBase {
   [style_];
   constructor() {
     super();

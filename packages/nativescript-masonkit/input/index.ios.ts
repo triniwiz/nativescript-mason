@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty } from './common';
+import { acceptProperty, defaultValueProperty, getValueProperty, InputElementBase, multipleProperty, setValueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -7,7 +7,7 @@ import { InputType } from '..';
 import { Style } from '../style';
 
 @CSSType('input')
-export class Input extends InputBase {
+export class Input extends InputElementBase {
   [style_];
 
   private _type: InputType = 'text';

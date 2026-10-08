@@ -347,7 +347,9 @@ export class Br extends TextBase {}
 
 export class InputBase extends VBase {}
 
-export class Input extends InputBase {}
+export class Input extends InputBase {
+  checked: boolean;
+}
 
 export class TextNode {
   data: string;

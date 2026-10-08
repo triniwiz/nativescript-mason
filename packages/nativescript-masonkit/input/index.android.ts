@@ -1,12 +1,12 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { InputType } from '..';
 
 @CSSType('input')
-export class Input extends InputBase {
+export class Input extends InputElementBase {
   [style_];
   _inBatch = false;
   constructor() {
@@ -85,6 +85,14 @@ export class Input extends InputBase {
 
   [setValueProperty](value) {
     this._view.setValue(value);
+  }
+
+  [getCheckedProperty]() {
+    return this._view.getChecked();
+  }
+
+  [setCheckedProperty](checked: boolean) {
+    this._view.setChecked(checked);
   }
 
   [typeProperty.setNative](value: InputType) {

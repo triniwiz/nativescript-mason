@@ -249,6 +249,7 @@ class Input @JvmOverloads constructor(
     CheckBox(context).apply {
       setCheckboxColors(this)
       setOnCheckedChangeListener { checkBox, isChecked ->
+        if (settingChecked) return@setOnCheckedChangeListener
         val before = InputEvent(
           type = "beforeinput",
           data = isChecked,
@@ -260,10 +261,11 @@ class Input @JvmOverloads constructor(
         node.mason.dispatch(before)
 
         if (before.defaultPrevented) {
-          checkBox.isChecked = !isChecked
+          setCheckedWidget(!isChecked)
           return@setOnCheckedChangeListener
         }
 
+        checkedState = isChecked
         node.mason.dispatch(
           InputEvent("input", isChecked, Event.InputType.InsertReplacementText.value).apply {
             target = this@Input
@@ -301,14 +303,11 @@ class Input @JvmOverloads constructor(
       }
 
       setOnCheckedChangeListener { _, isChecked ->
+        if (settingChecked) return@setOnCheckedChangeListener
+        checkedState = isChecked
         if (isChecked) {
-          node.mason.dispatch(
-            InputEvent(
-              "change", true
-            ).apply {
-              target = this@Input
-            }
-          )
+          node.mason.dispatch(InputEvent("input", true).apply { target = this@Input })
+          node.mason.dispatch(InputEvent("change", true).apply { target = this@Input })
         }
       }
     }
@@ -542,7 +541,8 @@ class Input @JvmOverloads constructor(
         return
       }
       setupType()
-      previousValue?.let { this.value = it }
+      // A checkbox or radio keeps its checked state; text from the old widget is not a value for it.
+      if (value != Type.Checkbox && value != Type.Radio) previousValue?.let { this.value = it }
     }
 
   private fun setupType(initial: Boolean = false) {
@@ -651,6 +651,7 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Checkbox -> {
+        setCheckedWidget(checkedState)
         addView(checkBoxInput)
       }
 
@@ -659,6 +660,7 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Radio -> {
+        setCheckedWidget(checkedState)
         addView(radioInput)
       }
 
@@ -834,7 +836,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Checkbox -> {
-          checkBoxInput.isChecked = value == "true"
+          checked = value == "true"
         }
 
         Type.Date -> {
@@ -842,7 +844,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Radio -> {
-          radioInput.isChecked = value == "true"
+          checked = value == "true"
         }
 
         Type.Range -> {
@@ -968,20 +970,26 @@ class Input @JvmOverloads constructor(
       }
     }
 
-  var checked: Boolean = false
+  // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
+  private var checkedState = false
+  private var settingChecked = false
+
+  // Setting `checked` from code fires no events, as on the web.
+  private fun setCheckedWidget(value: Boolean) {
+    settingChecked = true
+    when (type) {
+      Type.Checkbox -> checkBoxInput.isChecked = value
+      Type.Radio -> radioInput.isChecked = value
+      else -> {}
+    }
+    settingChecked = false
+  }
+
+  var checked: Boolean
+    get() = checkedState
     set(value) {
-      field = value
-      when (type) {
-        Type.Checkbox -> {
-          checkBoxInput.isChecked = value
-        }
-
-        Type.Radio -> {
-          radioInput.isChecked = value
-        }
-
-        else -> {}
-      }
+      checkedState = value
+      setCheckedWidget(value)
     }
 
   var size: Int = 20

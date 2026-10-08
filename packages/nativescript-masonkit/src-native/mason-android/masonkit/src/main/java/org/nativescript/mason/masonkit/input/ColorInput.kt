@@ -417,7 +417,12 @@ class ColorInput @JvmOverloads constructor(
         // commit dialog color into this ColorInput instance and persist in view
         this@ColorInput.selectedColor = dlgSelectedColor
         colorView.setBackgroundColor(this@ColorInput.selectedColor)
-        // Emit change event for final color selection
+        // The dialog's own input events fire before the value is committed, so v-model needs one after.
+        dispatchInputEvent(
+          type = "input",
+          value = this@ColorInput.selectedColor,
+          cancelable = false
+        )
         dispatchInputEvent(
           type = "change",
           value = this@ColorInput.selectedColor,
