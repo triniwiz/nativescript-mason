@@ -2497,6 +2497,52 @@ class TextEngine(val container: TextContainer) {
     return best?.node
   }
 
+  /** An inline element exposed to accessibility, with its bounds in layout coordinates. */
+  internal class InlineItem(val node: Node, val bounds: RectF, val label: CharSequence, val isButton: Boolean, val start: Int)
+
+  internal fun hasInlineItems(layout: Layout): Boolean {
+    val text = layout.text as? Spanned ?: return false
+    val length = text.length
+    return text.getSpans(0, length, ViewSpan::class.java).isNotEmpty() ||
+      text.getSpans(0, length, NodeSpan::class.java).isNotEmpty()
+  }
+
+  /**
+   * The inline boxes and clickable flattened elements (links, elements with click listeners)
+   * in [layout], in reading order. A piece that wraps reports its first line's bounds.
+   */
+  internal fun inlineAccessibilityItems(layout: Layout): List<InlineItem> {
+    val text = layout.text as? Spanned ?: return emptyList()
+    val items = ArrayList<InlineItem>()
+    for (span in text.getSpans(0, text.length, ViewSpan::class.java)) {
+      if (!span.drawn) continue
+      val child = span.childNode
+      val view = child.view as? View
+      val label = view?.contentDescription
+        ?: (view as? TextContainer)?.engine?.textContent
+        ?: ""
+      val isButton = view is android.widget.Button || view is Button
+      if (label.isBlank() && !isButton && !child.mason.hasListener(child, "click")) continue
+      items.add(InlineItem(child, RectF(span.drawnRect), label, isButton, text.getSpanStart(span)))
+    }
+    for (span in text.getSpans(0, text.length, NodeSpan::class.java)) {
+      val child = span.node
+      val isLink = (child.view as? TextView)?.type == org.nativescript.mason.masonkit.enums.TextType.A
+      if (!isLink && !child.mason.hasListener(child, "click")) continue
+      val start = text.getSpanStart(span)
+      val end = text.getSpanEnd(span)
+      if (end <= start) continue
+      val line = layout.getLineForOffset(start)
+      val lineEnd = minOf(end, layout.getLineEnd(line))
+      val x0 = layout.getPrimaryHorizontal(start)
+      val x1 = if (lineEnd < end || lineEnd == layout.getLineEnd(line)) layout.getLineRight(line) else layout.getPrimaryHorizontal(lineEnd)
+      val bounds = RectF(minOf(x0, x1), layout.getLineTop(line).toFloat(), maxOf(x0, x1), layout.getLineBottom(line).toFloat())
+      items.add(InlineItem(child, bounds, text.subSequence(start, end).toString(), false, start))
+    }
+    items.sortBy { it.start }
+    return items
+  }
+
   internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
     Node.bumpTextInvalidationEpoch()
     segmentsInvalidateVersion += 1

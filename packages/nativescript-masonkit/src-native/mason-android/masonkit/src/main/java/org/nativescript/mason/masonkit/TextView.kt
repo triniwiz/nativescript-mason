@@ -7,6 +7,9 @@ import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PointF
+import android.graphics.Rect
+import android.graphics.RectF
+import android.os.Bundle
 import android.graphics.Typeface
 import android.os.Build
 import android.text.InputFilter
@@ -19,7 +22,10 @@ import android.view.ViewConfiguration
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewStructure
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.widget.TextViewCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.Styles.TextJustify
@@ -291,6 +297,7 @@ class TextView @JvmOverloads constructor(
           layoutToDraw.draw(c)
           TextDecorations.draw(c, layoutToDraw)
         }
+        updateInlineAccessibility()
       } else {
         // Fall back to platform drawing if building a StaticLayout fails.
         applyPendingText()
@@ -322,6 +329,7 @@ class TextView @JvmOverloads constructor(
       layout.draw(c)
       TextDecorations.draw(c, layout)
       c.restoreToCount(save)
+      updateInlineAccessibility()
       return
     }
     for (i in 0 until layout.lineCount) {
@@ -335,6 +343,7 @@ class TextView @JvmOverloads constructor(
       TextDecorations.draw(c, layout)
       c.restoreToCount(save)
     }
+    updateInlineAccessibility()
   }
 
   // The layout last drawn and its offset, for mapping touches into it.
@@ -413,9 +422,7 @@ class TextView @JvmOverloads constructor(
           val target = inlineTarget
           endInlineTap()
           inlineTracking = false
-          (target?.view as? EventTarget)?.let {
-            node.mason.dispatch(Event(type = "click").apply { this.target = it })
-          }
+          target?.let { dispatchInlineClick(it) }
           return true
         }
       }
@@ -429,6 +436,91 @@ class TextView @JvmOverloads constructor(
       }
     }
     return super.onTouchEvent(event)
+  }
+
+  private fun dispatchInlineClick(target: Node) {
+    (target.view as? EventTarget)?.let {
+      node.mason.dispatch(Event(type = "click").apply { this.target = it })
+    }
+  }
+
+  /** Maps a rect in the drawn layout's coordinates back into this view, the inverse of [toLayoutPoint]. */
+  private fun toViewRect(r: RectF): Rect {
+    val layout = drawnLayout
+    if (layout == null || !engine.isVerticalWritingMode) {
+      return Rect((r.left + drawnDx).toInt(), (r.top + drawnDy).toInt(), (r.right + drawnDx).toInt(), (r.bottom + drawnDy).toInt())
+    }
+    val top = paddingTop + r.left
+    val bottom = paddingTop + r.right
+    if (style.resolvedWritingMode.toInt() == 1) {
+      val right = width - paddingRight
+      return Rect((right - r.bottom).toInt(), top.toInt(), (right - r.top).toInt(), bottom.toInt())
+    }
+    val line = layout.getLineForVertical(r.centerY().toInt())
+    val sum = paddingLeft + layout.getLineTop(line) + layout.getLineBottom(line)
+    return Rect((sum - r.bottom).toInt(), top.toInt(), (sum - r.top).toInt(), bottom.toInt())
+  }
+
+  /** Exposes inline boxes and links drawn by this view as virtual accessibility nodes. */
+  private inner class InlineAccessibility : ExploreByTouchHelper(this) {
+    var items: List<TextEngine.InlineItem> = emptyList()
+
+    fun refresh() {
+      items = drawnLayout?.let { engine.inlineAccessibilityItems(it) } ?: emptyList()
+    }
+
+    override fun getVirtualViewAt(x: Float, y: Float): Int {
+      val p = toLayoutPoint(x, y) ?: return INVALID_ID
+      val index = items.indexOfFirst { it.bounds.contains(p.x, p.y) }
+      return if (index >= 0) index else INVALID_ID
+    }
+
+    override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
+      refresh()
+      for (i in items.indices) virtualViewIds.add(i)
+    }
+
+    override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
+      val item = items.getOrNull(virtualViewId)
+      if (item == null) {
+        node.contentDescription = ""
+        node.setBoundsInParent(Rect(0, 0, 1, 1))
+        return
+      }
+      node.contentDescription = item.label
+      node.className = if (item.isButton) "android.widget.Button" else "android.widget.TextView"
+      node.setBoundsInParent(toViewRect(item.bounds).takeUnless { it.isEmpty } ?: Rect(0, 0, 1, 1))
+      node.isClickable = true
+      node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
+    }
+
+    override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
+      if (action != AccessibilityNodeInfoCompat.ACTION_CLICK) return false
+      val item = items.getOrNull(virtualViewId) ?: return false
+      dispatchInlineClick(item.node)
+      return true
+    }
+  }
+
+  private var inlineAccessibility: InlineAccessibility? = null
+  private var inlineAccessibilityLayout: android.text.Layout? = null
+
+  // Installed only while accessibility is on and the text holds inline elements.
+  private fun updateInlineAccessibility() {
+    val layout = drawnLayout ?: return
+    if (layout === inlineAccessibilityLayout || accessibilityManager?.isEnabled != true) return
+    inlineAccessibilityLayout = layout
+    val helper = inlineAccessibility
+    if (helper == null) {
+      if (!engine.hasInlineItems(layout)) return
+      inlineAccessibility = InlineAccessibility().also { ViewCompat.setAccessibilityDelegate(this, it) }
+    } else {
+      helper.invalidateRoot()
+    }
+  }
+
+  override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+    return inlineAccessibility?.dispatchHoverEvent(event) == true || super.dispatchHoverEvent(event)
   }
 
   var textContent: String

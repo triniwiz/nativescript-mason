@@ -212,6 +212,9 @@ class Mason {
       ?.remove(id)
   }
 
+  internal fun hasListener(node: Node, type: String): Boolean =
+    nodeEventListeners[node]?.get(type)?.isNotEmpty() == true
+
   /** True when [node] or one of its ancestors listens for [type]. */
   internal fun hasListenerOnPath(node: Node, type: String): Boolean {
     var current: Node? = node
