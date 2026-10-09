@@ -852,6 +852,7 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 
 SWIFT_ENUM_FWD_DECL(int8_t, MasonInputType)
 @class NSDate;
+@class UIColor;
 SWIFT_CLASS_NAMED("MasonInput")
 @interface MasonInput : UIView
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
@@ -861,6 +862,8 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, copy) NSString * _Nonnull accept;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+/// Setting <code>checked</code> from code fires no events, as on the web.
+@property (nonatomic) BOOL checked;
 @property (nonatomic) enum MasonInputType type;
 @property (nonatomic) int32_t size;
 @property (nonatomic, copy) NSString * _Nonnull value;
@@ -868,6 +871,8 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, copy) NSDate * _Nullable valueAsDate;
 @property (nonatomic, copy) NSString * _Nonnull placeholder;
 - (void)drawRect:(CGRect)rect;
+/// Core’s placeholder-color; nil keeps the system placeholder color.
+@property (nonatomic, strong) UIColor * _Nullable placeholderColor;
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
 @end
@@ -1239,7 +1244,6 @@ SWIFT_CLASS_NAMED("MasonSizeHelper")
 @class NSCFontFace;
 @class MasonVerticalAlignValue;
 SWIFT_ENUM_FWD_DECL(NSInteger, MasonObjectFit)
-@class UIColor;
 SWIFT_ENUM_FWD_DECL(NSInteger, MasonTextJustify)
 @class MasonTextOverflowCompat;
 SWIFT_ENUM_FWD_DECL(NSInteger, MasonTextTransform)
