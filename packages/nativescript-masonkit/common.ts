@@ -393,6 +393,12 @@ function climbedThisTurn(root: any): boolean {
   return !!climbedRoots?.has(root) && !!root.isLayoutRequested;
 }
 
+let windowsInnerHTML: ((view: any, html: string) => void) | undefined;
+
+export function setWindowsInnerHTML(build: (view: any, html: string) => void) {
+  windowsInnerHTML = build;
+}
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
@@ -523,6 +529,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   get innerHTML() {
+    if (__WINDOWS__) return (this as any)._windowsInnerHTML ?? '';
     //@ts-ignore
     const nativeView = this._view as any;
     if (__ANDROID__) {
@@ -540,6 +547,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set innerHTML(value: string) {
+    if (__WINDOWS__) {
+      (this as any)._windowsInnerHTML = value ?? '';
+      windowsInnerHTML?.(this, value ?? '');
+      return;
+    }
     //@ts-ignore
     const nativeView = this._view as any;
     if (__ANDROID__) {
