@@ -15,6 +15,7 @@
           "packages/nativescript-masonkit/*.md",
           "packages/nativescript-masonkit/index.d.ts",
           "packages/nativescript-masonkit/references.d.ts",
+          "packages/nativescript-masonkit/nativescript.webpack.js",
           "LICENSE",
           {
             "glob": "**/*",
