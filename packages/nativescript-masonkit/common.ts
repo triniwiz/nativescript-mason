@@ -570,6 +570,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   /**
    * Returns the top-most Mason/NativeScript element at a point in this view's
    * visible local coordinate space, similar to the browser's elementFromPoint().
+   * `x` and `y` are CSS pixels (dips) on every platform, the unit touch events report.
    */
   public elementFromPoint(x: number, y: number): ViewBase | NSViewBase | null {
     const nativeView = nativeViewFor(this) ?? (this as any)._view;
@@ -579,7 +580,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
     let nativeHit: any = null;
     if (__ANDROID__ && typeof nativeView.elementFromPoint === 'function') {
-      nativeHit = nativeView.elementFromPoint(x, y);
+      // Android views hit-test in device pixels.
+      nativeHit = nativeView.elementFromPoint(Utils.layout.toDevicePixels(x), Utils.layout.toDevicePixels(y));
     } else if (__APPLE__) {
       const hitTest = nativeView.mason_elementFromPointY ?? nativeView.mason_elementFromPoint ?? nativeView.elementFromPoint;
       if (typeof hitTest === 'function') {
@@ -2081,7 +2083,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
     // Every member of an anonymous Text being regrouped is regrouped with it.
     const pool: any[] = [];
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
       for (let i = a; i <= b; i++) {
         const anonymous = children[i]?.[anonymousText_];
