@@ -212,6 +212,7 @@ export default function Home() {
               style={{
                 backgroundColor: 'white',
                 borderRadius: '18px',
+                overflow: 'hidden',
                 minHeight: 168,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
               }}
