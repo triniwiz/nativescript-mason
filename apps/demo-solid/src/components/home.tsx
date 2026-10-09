@@ -66,6 +66,14 @@ const FEATURES = [
     count: 'Playground',
   },
   {
+    id: 'Inputs',
+    label: 'Inputs',
+    desc: 'Input styling, values and checked state against a browser',
+    bg: '#e17055',
+    glyph: 'In',
+    count: 'Playground',
+  },
+  {
     id: 'QA',
     label: 'QA Harness',
     desc: 'Scroll-auto, backdrop-filter & stress tests',
