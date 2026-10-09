@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" @loaded="scheduleRead(400)">
     <ActionBar title="Core Views">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" v-bind="$backIcon" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="page-body">
