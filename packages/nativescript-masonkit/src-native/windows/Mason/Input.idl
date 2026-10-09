@@ -18,6 +18,7 @@ namespace NativeScript.Mason
         String Placeholder;
         Boolean Multiple;
         String Accept;
+        void SetFontFamily(String families);
 
         // beforeinput, input, change, focus, blur and keydown, as in the DOM. The id removes it.
         Int64 AddEventListener(String type, EventListener listener);

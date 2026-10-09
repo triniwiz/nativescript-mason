@@ -1,8 +1,10 @@
 #pragma once
 #include "Input.g.h"
+#include "FormEvents.h"
+#include "FormStyle.h"
 #include "Invalidation.h"
 #include "VisualState.h"
-#include <vector>
+#include <memory>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -13,11 +15,8 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
 
-        void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
-        {
-            m_visual.styleDirty = true;
-            mason_leaf::StyleSynced(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, mason_leaf::DirtyWords(d0, d1, d2, d3));
-        }
+        void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3);
+        void SetFontFamily(hstring const& families);
 
         int32_t Type() const noexcept { return m_type; }
         void Type(int32_t value);
@@ -40,9 +39,8 @@ namespace winrt::NativeScript::Mason::implementation
         void Rebuild();
         void ApplyValue(hstring const& value);
         void ApplyPlaceholder(hstring const& value);
-        void Listen();
-        bool Dispatch(winrt::NativeScript::Mason::Event const& e);
-        void Commit();
+        void SyncOrientation();
+        void SyncTextStyle(bool force);
 
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
@@ -52,18 +50,9 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_placeholder;
         bool m_multiple{ false };
         hstring m_accept;
-
-        struct Listener { hstring type; int64_t id; winrt::NativeScript::Mason::EventListener fn; };
-        std::vector<Listener> m_listeners;
-        int64_t m_nextId{ 1 };
-        // Set while code writes the value, whose changes aren't user input.
-        bool m_applying{ false };
-        // The value `input` last reported, and the one `change` last committed.
-        hstring m_reported;
-        hstring m_committed;
-        // What the pending edit inserts, from beforeinput.
-        hstring m_pendingData;
-        hstring m_pendingType;
+        hstring m_fontFamily;
+        std::shared_ptr<mason_form::Events> m_events;
+        mason_form::TextStyle m_textApplied;
     };
 }
 

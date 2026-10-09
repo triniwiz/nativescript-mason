@@ -141,6 +141,11 @@ namespace winrt::NativeScript::Mason::implementation
         return mason_events::Add(element, type, listener);
     }
 
+    winrt::Windows::Foundation::IInspectable Mason::ElementFromPoint(winrt::Microsoft::UI::Xaml::UIElement const& element, float x, float y)
+    {
+        return mason_events::ElementAt(element, x, y);
+    }
+
     void Mason::RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id)
     {
         mason_events::Remove(element, type, id);

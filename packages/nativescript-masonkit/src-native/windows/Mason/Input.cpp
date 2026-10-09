@@ -2,15 +2,21 @@
 #include "Input.h"
 #include "Input.g.cpp"
 #include "Event.h"
+#include "Events.h"
 #include "LeafCommon.h"
+#include "Node.h"
+#include "Text.h"
 #include <winrt/NativeScript.Mason.h>
 // Slider (IRangeBase.Value) and CheckBox/RadioButton (IToggleButton.IsChecked) resolve their
 // accessors through the Controls.Primitives projection.
 #include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include "VisualApply.h"
 #include <winrt/Microsoft.UI.Xaml.Input.h>
-#include <winrt/Windows.System.h>
-#include <winrt/Windows.UI.Core.h>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <ctime>
+#include <optional>
 #include <cwchar>
 #include <string>
 
@@ -22,6 +28,14 @@ namespace
     namespace nsm = winrt::NativeScript::Mason;
     namespace mux = winrt::Microsoft::UI::Xaml;
     namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
+    namespace muxi = winrt::Microsoft::UI::Xaml::Input;
+
+    enum : int32_t
+    {
+        kText = 0, kButton = 1, kCheckbox = 2, kEmail = 3, kPassword = 4, kDate = 5, kRadio = 6, kNumber = 7,
+        kRange = 8, kTel = 9, kUrl = 10, kColor = 11, kFile = 12, kSubmit = 13, kSearch = 14, kTime = 15,
+        kDateTimeLocal = 16, kMonth = 17, kWeek = 18, kReset = 19,
+    };
 
     double ParseDouble(winrt::hstring const& s)
     {
@@ -29,57 +43,59 @@ namespace
         catch (...) { return 0.0; }
     }
 
-    bool Down(int vk) { return (GetKeyState(vk) & 0x8000) != 0; }
-
-    // The DOM's KeyboardEvent.key: a named key, or the text the key types with the current layout
-    // and modifiers (Ctrl alone doesn't change it, AltGr does).
-    winrt::hstring KeyName(int32_t vk, uint32_t scanCode)
+    std::optional<DateTime> ParseDate(winrt::hstring const& s)
     {
-        switch (vk)
-        {
-        case VK_RETURN: return L"Enter";
-        case VK_ESCAPE: return L"Escape";
-        case VK_TAB: return L"Tab";
-        case VK_BACK: return L"Backspace";
-        case VK_DELETE: return L"Delete";
-        case VK_INSERT: return L"Insert";
-        case VK_LEFT: return L"ArrowLeft";
-        case VK_RIGHT: return L"ArrowRight";
-        case VK_UP: return L"ArrowUp";
-        case VK_DOWN: return L"ArrowDown";
-        case VK_HOME: return L"Home";
-        case VK_END: return L"End";
-        case VK_PRIOR: return L"PageUp";
-        case VK_NEXT: return L"PageDown";
-        case VK_SHIFT: case VK_LSHIFT: case VK_RSHIFT: return L"Shift";
-        case VK_CONTROL: case VK_LCONTROL: case VK_RCONTROL: return L"Control";
-        case VK_MENU: case VK_LMENU: case VK_RMENU: return L"Alt";
-        case VK_LWIN: case VK_RWIN: return L"Meta";
-        case VK_CAPITAL: return L"CapsLock";
-        case VK_NUMLOCK: return L"NumLock";
-        default: break;
-        }
-        if (vk >= VK_F1 && vk <= VK_F24) return L"F" + winrt::to_hstring(vk - VK_F1 + 1);
-        BYTE state[256]{};
-        if (!GetKeyboardState(state)) return L"Unidentified";
-        if (!(state[VK_MENU] & 0x80)) state[VK_CONTROL] = state[VK_LCONTROL] = state[VK_RCONTROL] = 0;
-        wchar_t text[8]{};
-        // 0x4 leaves the keyboard state, dead keys included, as it was.
-        const int n = ToUnicodeEx(static_cast<UINT>(vk), scanCode, state, text, 8, 0x4, GetKeyboardLayout(0));
-        if (n < 0) return L"Dead";
-        return n > 0 ? winrt::hstring(text, static_cast<uint32_t>(n)) : winrt::hstring(L"Unidentified");
+        int y = 0, m = 0, d = 0;
+        if (swscanf_s(s.c_str(), L"%d-%d-%d", &y, &m, &d) != 3 || m < 1 || m > 12 || d < 1 || d > 31) return std::nullopt;
+        std::tm tm{};
+        tm.tm_year = y - 1900;
+        tm.tm_mon = m - 1;
+        tm.tm_mday = d;
+        tm.tm_isdst = -1;
+        const std::time_t t = std::mktime(&tm);
+        if (t == -1) return std::nullopt;
+        return winrt::clock::from_sys(std::chrono::system_clock::from_time_t(t));
     }
 
-    // An edit as InputEvent.data and inputType, from the text before and after it.
-    void DescribeEdit(std::wstring_view before, std::wstring_view after, winrt::hstring& data, winrt::hstring& inputType)
+    winrt::hstring FormatDate(DateTime const& value)
     {
-        size_t start = 0;
-        while (start < before.size() && start < after.size() && before[start] == after[start]) ++start;
-        size_t end = 0;
-        while (end < before.size() - start && end < after.size() - start && before[before.size() - 1 - end] == after[after.size() - 1 - end]) ++end;
-        const auto inserted = after.substr(start, after.size() - start - end);
-        data = winrt::hstring(inserted);
-        inputType = inserted.empty() && before.size() > after.size() ? L"deleteContentBackward" : L"insertText";
+        const std::time_t t = std::chrono::system_clock::to_time_t(winrt::clock::to_sys(value));
+        std::tm tm{};
+        if (localtime_s(&tm, &t) != 0) return {};
+        wchar_t buf[16]{};
+        swprintf_s(buf, L"%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+        return buf;
+    }
+
+    std::optional<TimeSpan> ParseTime(winrt::hstring const& s)
+    {
+        int h = 0, m = 0;
+        if (swscanf_s(s.c_str(), L"%d:%d", &h, &m) != 2 || h < 0 || h > 23 || m < 0 || m > 59) return std::nullopt;
+        return std::chrono::hours(h) + std::chrono::minutes(m);
+    }
+
+    winrt::hstring FormatTime(TimeSpan const& value)
+    {
+        const int minutes = static_cast<int>(std::chrono::duration_cast<std::chrono::minutes>(value).count());
+        wchar_t buf[8]{};
+        swprintf_s(buf, L"%02d:%02d", (minutes / 60) % 24, minutes % 60);
+        return buf;
+    }
+
+    muxi::InputScope ScopeFor(int32_t type)
+    {
+        muxi::InputScopeNameValue value;
+        switch (type)
+        {
+        case kEmail: value = muxi::InputScopeNameValue::EmailNameOrAddress; break;
+        case kTel: value = muxi::InputScopeNameValue::TelephoneNumber; break;
+        case kUrl: value = muxi::InputScopeNameValue::Url; break;
+        case kSearch: value = muxi::InputScopeNameValue::Search; break;
+        default: return nullptr;
+        }
+        muxi::InputScope scope;
+        scope.Names().Append(muxi::InputScopeName(value));
+        return scope;
     }
 }
 
@@ -88,12 +104,24 @@ namespace winrt::NativeScript::Mason::implementation
     Input::Input()
     {
         m_node = nsm::Mason::Instance().CreateNode(false);
+        m_events = std::make_shared<mason_form::Events>();
+        m_events->value = [this]() -> hstring { return Value(); };
         Rebuild();
 
         nsm::MeasureFunc cb = [this](float kw, float kh, float aw, float ah) -> int64_t
         {
             if (!m_control) return mason_leaf::PackMeasure(0.0f, 0.0f);
-            return mason_leaf::MeasureXaml(m_control, kw, kh, aw, ah);
+            SyncOrientation();
+            auto slider = m_control.try_as<muxc::Slider>();
+            if (!slider) return mason_leaf::MeasureXaml(m_control, kw, kh, aw, ah);
+            constexpr float kRangeLength = 129.0f;
+            m_control.Measure(Size{ mason_leaf::XamlConstraint(kw, aw), mason_leaf::XamlConstraint(kh, ah) });
+            const auto d = m_control.DesiredSize();
+            if (slider.Orientation() == muxc::Orientation::Vertical)
+            {
+                return mason_leaf::PackMeasure(std::isnan(kw) ? d.Width : kw, std::isnan(kh) ? kRangeLength : kh);
+            }
+            return mason_leaf::PackMeasure(std::isnan(kw) ? kRangeLength : kw, std::isnan(kh) ? d.Height : kh);
         };
         m_node.SetMeasure(cb);
     }
@@ -104,166 +132,108 @@ namespace winrt::NativeScript::Mason::implementation
         mux::FrameworkElement control{ nullptr };
         switch (m_type)
         {
-        case 4: control = muxc::PasswordBox(); break;                 // password
-        case 7: control = muxc::NumberBox(); break;                  // number
-        case 8: control = muxc::Slider(); break;                     // range
-        case 2: control = muxc::CheckBox(); break;                   // checkbox
-        case 6: control = muxc::RadioButton(); break;                // radio
-        case 1: case 13: control = muxc::Button(); break;            // button / submit
-        case 5: control = muxc::CalendarDatePicker(); break;         // date
-        default: control = muxc::TextBox(); break;                   // text/email/tel/url/color/file
+        case kPassword: control = muxc::PasswordBox(); break;
+        case kNumber: control = muxc::NumberBox(); break;
+        case kRange: control = muxc::Slider(); break;
+        case kCheckbox: control = muxc::CheckBox(); break;
+        case kRadio: control = muxc::RadioButton(); break;
+        case kButton: case kSubmit: case kReset: control = muxc::Button(); break;
+        case kDate: control = muxc::CalendarDatePicker(); break;
+        case kTime: control = muxc::TimePicker(); break;
+        default:
+        {
+            muxc::TextBox box;
+            if (auto scope = ScopeFor(m_type)) box.InputScope(scope);
+            control = box;
+            break;
+        }
         }
         m_control = control;
         Children().Append(m_control);
         ApplyValue(m_value);
         ApplyPlaceholder(m_placeholder);
-        Listen();
+        SyncOrientation();
+        SyncTextStyle(true);
+        m_events->Wire(m_control);
     }
 
-    // The hosted control's events as DOM events. A rebuilt control is wired again, and the old one
-    // goes with its handlers.
-    void Input::Listen()
+    // A range follows the writing mode: vertical runs from the top as in browsers, and rtl flips it.
+    void Input::SyncOrientation()
     {
-        auto weak = get_weak();
-        m_control.PreviewKeyDown([weak](auto&&, mux::Input::KeyRoutedEventArgs const& args)
-        {
-            auto self = weak.get();
-            if (!self) return;
-            auto e = winrt::make_self<implementation::Event>(L"keydown", true);
-            e->key = KeyName(static_cast<int32_t>(args.Key()), args.KeyStatus().ScanCode);
-            e->repeat = args.KeyStatus().WasKeyDown;
-            e->ctrlKey = Down(VK_CONTROL);
-            e->shiftKey = Down(VK_SHIFT);
-            e->altKey = Down(VK_MENU);
-            e->metaKey = Down(VK_LWIN) || Down(VK_RWIN);
-            if (!self->Dispatch(*e))
-            {
-                args.Handled(true);
-                return;
-            }
-            if (args.Key() == winrt::Windows::System::VirtualKey::Enter) self->Commit();
-        });
-        m_control.GotFocus([weak](auto&&, auto&&)
-        {
-            auto self = weak.get();
-            if (!self) return;
-            auto e = winrt::make_self<implementation::Event>(L"focus", false);
-            e->bubbles = false;
-            self->Dispatch(*e);
-        });
-        m_control.LostFocus([weak](auto&&, auto&&)
-        {
-            auto self = weak.get();
-            if (!self) return;
-            self->Commit();
-            auto e = winrt::make_self<implementation::Event>(L"blur", false);
-            e->bubbles = false;
-            self->Dispatch(*e);
-        });
-
-        auto edited = [weak](hstring const& fallbackType)
-        {
-            auto self = weak.get();
-            if (!self || self->m_applying) return;
-            const hstring value = self->Value();
-            if (value == self->m_reported) return;
-            self->m_reported = value;
-            auto e = winrt::make_self<implementation::Event>(L"input", false);
-            e->data = self->m_pendingData;
-            e->inputType = self->m_pendingType.empty() ? fallbackType : self->m_pendingType;
-            self->m_pendingData = {};
-            self->m_pendingType = {};
-            self->Dispatch(*e);
-        };
-        if (auto tb = m_control.try_as<muxc::TextBox>())
-        {
-            tb.BeforeTextChanging([weak](muxc::TextBox const& box, muxc::TextBoxBeforeTextChangingEventArgs const& args)
-            {
-                auto self = weak.get();
-                if (!self || self->m_applying) return;
-                auto e = winrt::make_self<implementation::Event>(L"beforeinput", true);
-                DescribeEdit(box.Text(), args.NewText(), e->data, e->inputType);
-                self->m_pendingData = e->data;
-                self->m_pendingType = e->inputType;
-                if (!self->Dispatch(*e)) args.Cancel(true);
-            });
-            // Raised after the change, so a write from code is told apart by its value.
-            tb.TextChanged([edited](auto&&, auto&&) { edited(L"insertText"); });
-        }
-        else if (auto pb = m_control.try_as<muxc::PasswordBox>())
-        {
-            pb.PasswordChanged([edited](auto&&, auto&&) { edited(L"insertText"); });
-        }
-        else if (auto toggle = m_control.try_as<muxc::Primitives::ToggleButton>())
-        {
-            auto toggled = [weak, edited](auto&&, auto&&)
-            {
-                edited(L"insertReplacementText");
-                if (auto self = weak.get()) self->Commit();
-            };
-            toggle.Checked(toggled);
-            toggle.Unchecked(toggled);
-        }
-        else if (auto slider = m_control.try_as<muxc::Slider>())
-        {
-            slider.ValueChanged([edited](auto&&, auto&&) { edited(L"insertReplacementText"); });
-            slider.PointerCaptureLost([weak](auto&&, auto&&) { if (auto self = weak.get()) self->Commit(); });
-        }
+        auto slider = m_control ? m_control.try_as<muxc::Slider>() : nullptr;
+        if (!slider) return;
+        auto* node = winrt::get_self<implementation::Node>(m_node);
+        const bool vertical = mason_node_get_writing_mode(node->MasonPtr(), node->NodePtr()) != 0;
+        const bool rtl = mason_node_get_direction(node->MasonPtr(), node->NodePtr()) != 0;
+        const auto orientation = vertical ? muxc::Orientation::Vertical : muxc::Orientation::Horizontal;
+        if (slider.Orientation() != orientation) slider.Orientation(orientation);
+        if (slider.IsDirectionReversed() != (vertical != rtl)) slider.IsDirectionReversed(vertical != rtl);
     }
 
-    // False when a listener prevented the default.
-    bool Input::Dispatch(nsm::Event const& e)
+    void Input::SyncTextStyle(bool force)
     {
-        const auto type = e.Type();
-        std::vector<nsm::EventListener> targets;
-        for (auto const& l : m_listeners)
-        {
-            if (l.type == type) targets.push_back(l.fn);
-        }
-        for (auto const& fn : targets)
-        {
-            try { fn(e); }
-            catch (...) {}
-            if (e.ImmediatePropagationStopped()) break;
-        }
-        return !e.DefaultPrevented();
+        auto control = m_control ? m_control.try_as<muxc::Control>() : nullptr;
+        if (!control) return;
+        mason_form::TextStyle style;
+        mason_form::ReadTextStyle(m_node, style);
+        style.fontFamily = m_fontFamily;
+        mason_form::ApplyTextStyle(control, style, m_textApplied, force);
     }
 
-    // change: the value is committed, by Enter or leaving the control, and differs from the last one.
-    void Input::Commit()
+    void Input::SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
     {
-        const hstring value = Value();
-        if (value == m_committed) return;
-        m_committed = value;
-        Dispatch(winrt::make<implementation::Event>(L"change", false));
+        m_visual.styleDirty = true;
+        const auto dirty = mason_leaf::DirtyWords(d0, d1, d2, d3);
+        if (mason_leaf::AnyDirty(dirty, mason_leaf::kControlKeys)) SyncTextStyle(false);
+        mason_leaf::StyleSynced(get_strong().as<mux::UIElement>(), m_node, dirty);
+    }
+
+    void Input::SetFontFamily(hstring const& families)
+    {
+        m_fontFamily = Text::ResolveFontFamily(families);
+        SyncTextStyle(false);
+        m_node.MarkDirty();
+        InvalidateMeasure();
     }
 
     int64_t Input::AddEventListener(hstring const& type, nsm::EventListener const& listener)
     {
-        if (!listener) return 0;
-        const int64_t id = m_nextId++;
-        m_listeners.push_back({ type, id, listener });
-        return id;
+        return mason_events::Add(get_strong().as<mux::UIElement>(), type, listener);
     }
 
     bool Input::RemoveEventListener(hstring const& type, int64_t id)
     {
-        return std::erase_if(m_listeners, [&](Listener const& l) { return l.id == id && l.type == type; }) > 0;
+        mason_events::Remove(get_strong().as<mux::UIElement>(), type, id);
+        return true;
     }
 
     void Input::ApplyValue(hstring const& value)
     {
         if (!m_control) return;
-        m_applying = true;
-        struct Done { Input* self; ~Done() { self->m_applying = false; self->m_reported = self->m_committed = self->Value(); } } done{ this };
+        m_events->applying = true;
+        struct Done { mason_form::Events& events; ~Done() { events.applying = false; events.Settled(); } } done{ *m_events };
         // Writing the text it already has would move the caret.
         if (auto tb = m_control.try_as<muxc::TextBox>()) { if (tb.Text() != value) tb.Text(value); }
         else if (auto pb = m_control.try_as<muxc::PasswordBox>()) { pb.Password(value); }
-        else if (auto nb = m_control.try_as<muxc::NumberBox>()) { nb.Value(ParseDouble(value)); }
+        else if (auto nb = m_control.try_as<muxc::NumberBox>()) { nb.Value(value.empty() ? std::nan("") : ParseDouble(value)); }
         else if (auto sl = m_control.try_as<muxc::Slider>()) { sl.Value(ParseDouble(value)); }
-        else if (auto btn = m_control.try_as<muxc::Button>()) { btn.Content(winrt::box_value(value)); }
+        else if (auto btn = m_control.try_as<muxc::Button>())
+        {
+            const hstring label = !value.empty() ? value : m_type == kSubmit ? hstring{ L"Submit" } : m_type == kReset ? hstring{ L"Reset" } : hstring{};
+            btn.Content(winrt::box_value(label));
+        }
         else if (auto cb = m_control.try_as<muxc::CheckBox>()) { cb.IsChecked(value == L"true"); }
         else if (auto rb = m_control.try_as<muxc::RadioButton>()) { rb.IsChecked(value == L"true"); }
+        else if (auto date = m_control.try_as<muxc::CalendarDatePicker>())
+        {
+            if (auto parsed = ParseDate(value)) date.Date(*parsed);
+            else date.Date(nullptr);
+        }
+        else if (auto time = m_control.try_as<muxc::TimePicker>())
+        {
+            if (auto parsed = ParseTime(value)) time.SelectedTime(*parsed);
+            else time.SelectedTime(nullptr);
+        }
     }
 
     void Input::ApplyPlaceholder(hstring const& value)
@@ -272,6 +242,7 @@ namespace winrt::NativeScript::Mason::implementation
         if (auto tb = m_control.try_as<muxc::TextBox>()) { tb.PlaceholderText(value); }
         else if (auto pb = m_control.try_as<muxc::PasswordBox>()) { pb.PlaceholderText(value); }
         else if (auto nb = m_control.try_as<muxc::NumberBox>()) { nb.PlaceholderText(value); }
+        else if (auto date = m_control.try_as<muxc::CalendarDatePicker>()) { if (!value.empty()) date.PlaceholderText(value); }
     }
 
     void Input::Type(int32_t value)
@@ -288,10 +259,12 @@ namespace winrt::NativeScript::Mason::implementation
         if (!m_control) return m_value;
         if (auto tb = m_control.try_as<muxc::TextBox>()) return tb.Text();
         if (auto pb = m_control.try_as<muxc::PasswordBox>()) return pb.Password();
-        if (auto nb = m_control.try_as<muxc::NumberBox>()) return winrt::to_hstring(nb.Value());
+        if (auto nb = m_control.try_as<muxc::NumberBox>()) { const double v = nb.Value(); return std::isnan(v) ? hstring{} : winrt::to_hstring(v); }
         if (auto sl = m_control.try_as<muxc::Slider>()) return winrt::to_hstring(sl.Value());
         if (auto cb = m_control.try_as<muxc::CheckBox>()) { auto v = cb.IsChecked(); return (v && v.Value()) ? L"true" : L"false"; }
         if (auto rb = m_control.try_as<muxc::RadioButton>()) { auto v = rb.IsChecked(); return (v && v.Value()) ? L"true" : L"false"; }
+        if (auto date = m_control.try_as<muxc::CalendarDatePicker>()) { auto v = date.Date(); return v ? FormatDate(v.Value()) : hstring{}; }
+        if (auto time = m_control.try_as<muxc::TimePicker>()) { auto v = time.SelectedTime(); return v ? FormatTime(v.Value()) : hstring{}; }
         return m_value;
     }
 

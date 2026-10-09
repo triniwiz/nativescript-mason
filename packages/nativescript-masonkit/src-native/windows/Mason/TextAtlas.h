@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 #include <d2d1_1.h>
+#include <d2d1effects.h>
 #include <dwrite_3.h>
 #include <winrt/Microsoft.Graphics.DirectX.h>
 #include <winrt/Microsoft.UI.Composition.h>
@@ -49,6 +50,8 @@ namespace mason_atlas
         float maxWidth{ 0.0f };
         std::vector<std::pair<DWRITE_TEXT_RANGE, uint32_t>> colors;
         uint32_t color{ 0xFF000000 };
+        std::vector<mason_dwrite::Span> extras;
+        std::vector<mason_dwrite::Shadow> shadows;
         // DIPs from the slot's top-left to the layout's origin. Vertical text (1 vertical-rl, 2
         // vertical-lr) is turned 90° clockwise: the origin is where its first line starts, for
         // vertical-lr the left of the line stack.
@@ -276,6 +279,160 @@ namespace mason_atlas
     }
 
 
+    inline std::vector<DWRITE_HIT_TEST_METRICS> RangeRects(IDWriteTextLayout* layout, uint32_t start, uint32_t length)
+    {
+        UINT32 count = 0;
+        layout->HitTestTextRange(start, length, 0.0f, 0.0f, nullptr, 0, &count);
+        std::vector<DWRITE_HIT_TEST_METRICS> rects(count);
+        if (count == 0 || FAILED(layout->HitTestTextRange(start, length, 0.0f, 0.0f, rects.data(), count, &count))) return {};
+        rects.resize(count);
+        return rects;
+    }
+
+    inline std::vector<std::pair<float, float>> Baselines(IDWriteTextLayout* layout)
+    {
+        UINT32 count = 0;
+        layout->GetLineMetrics(nullptr, 0, &count);
+        std::vector<DWRITE_LINE_METRICS> lines(count);
+        if (count == 0 || FAILED(layout->GetLineMetrics(lines.data(), count, &count))) return {};
+        std::vector<std::pair<float, float>> out;
+        float top = 0.0f;
+        for (UINT32 i = 0; i < count; ++i)
+        {
+            out.emplace_back(top, top + lines[i].baseline);
+            top += lines[i].height;
+        }
+        return out;
+    }
+
+    inline float BaselineAt(std::vector<std::pair<float, float>> const& lines, float top)
+    {
+        float baseline = lines.empty() ? top : lines.front().second;
+        for (auto const& [lineTop, lineBaseline] : lines)
+        {
+            if (lineTop <= top + 0.5f) baseline = lineBaseline;
+        }
+        return baseline;
+    }
+
+    inline void DrawBackgrounds(Atlas& a, ID2D1DeviceContext* context, IDWriteTextLayout* layout, float ox, float oy, std::vector<mason_dwrite::Span> const& spans)
+    {
+        for (auto const& span : spans)
+        {
+            if ((span.background >> 24) == 0) continue;
+            auto* brush = BrushFor(a, context, span.background);
+            for (auto const& r : RangeRects(layout, span.start, span.length))
+            {
+                context->FillRectangle(D2D1::RectF(ox + r.left, oy + r.top, ox + r.left + r.width, oy + r.top + r.height), brush);
+            }
+        }
+    }
+
+    inline void DrawDecorations(Atlas& a, ID2D1DeviceContext* context, IDWriteTextLayout* layout, float ox, float oy, float scale,
+        std::vector<mason_dwrite::Span> const& spans)
+    {
+        winrt::com_ptr<ID2D1Factory> factory;
+        context->GetFactory(factory.put());
+        const auto lines = Baselines(layout);
+        for (auto const& span : spans)
+        {
+            if (!span.decoration) continue;
+            auto* brush = BrushFor(a, context, span.decorationColor);
+            const float t = span.decorationThickness > 0.0f ? span.decorationThickness : (std::max)(1.0f / scale, span.fontSize / 15.0f);
+            winrt::com_ptr<ID2D1StrokeStyle> stroke;
+            if (span.decorationStyle == 2 || span.decorationStyle == 3)
+            {
+                const bool dotted = span.decorationStyle == 2;
+                const D2D1_CAP_STYLE cap = dotted ? D2D1_CAP_STYLE_ROUND : D2D1_CAP_STYLE_FLAT;
+                const float dashes[] = { 3.0f, 2.0f };
+                factory->CreateStrokeStyle(D2D1::StrokeStyleProperties(cap, cap, cap, D2D1_LINE_JOIN_MITER, 10.0f,
+                    dotted ? D2D1_DASH_STYLE_DOT : D2D1_DASH_STYLE_CUSTOM, 0.0f), dotted ? nullptr : dashes, dotted ? 0 : 2, stroke.put());
+            }
+            for (auto const& r : RangeRects(layout, span.start, span.length))
+            {
+                const float baseline = oy + BaselineAt(lines, r.top);
+                const float x0 = ox + r.left, x1 = ox + r.left + r.width;
+                for (uint8_t flag : { uint8_t{ 1 }, uint8_t{ 2 }, uint8_t{ 4 } })
+                {
+                    if (!(span.decoration & flag)) continue;
+                    const float y = flag == 1 ? baseline + (std::max)(t, span.fontSize * 0.1f)
+                        : flag == 2 ? baseline - span.fontSize * 0.92f
+                        : baseline - span.fontSize * 0.28f;
+                    switch (span.decorationStyle)
+                    {
+                    case 1:
+                        context->FillRectangle(D2D1::RectF(x0, y - t * 1.5f, x1, y - t * 0.5f), brush);
+                        context->FillRectangle(D2D1::RectF(x0, y + t * 0.5f, x1, y + t * 1.5f), brush);
+                        break;
+                    case 2:
+                    case 3:
+                        context->DrawLine(D2D1::Point2F(x0, y), D2D1::Point2F(x1, y), brush, t, stroke.get());
+                        break;
+                    case 4:
+                    {
+                        winrt::com_ptr<ID2D1PathGeometry> wave;
+                        winrt::com_ptr<ID2D1GeometrySink> sink;
+                        if (FAILED(factory->CreatePathGeometry(wave.put())) || FAILED(wave->Open(sink.put()))) break;
+                        const float half = (std::max)(t * 3.0f, 2.0f / scale);
+                        const float amplitude = t * 1.5f;
+                        sink->BeginFigure(D2D1::Point2F(x0, y), D2D1_FIGURE_BEGIN_HOLLOW);
+                        bool up = true;
+                        for (float x = x0; x < x1; x += half)
+                        {
+                            const float end = (std::min)(x + half, x1);
+                            sink->AddQuadraticBezier(D2D1::QuadraticBezierSegment(D2D1::Point2F((x + end) * 0.5f, up ? y - amplitude * 2.0f : y + amplitude * 2.0f),
+                                D2D1::Point2F(end, y)));
+                            up = !up;
+                        }
+                        sink->EndFigure(D2D1_FIGURE_END_OPEN);
+                        if (SUCCEEDED(sink->Close())) context->DrawGeometry(wave.get(), brush, t);
+                        break;
+                    }
+                    default:
+                        context->FillRectangle(D2D1::RectF(x0, y - t * 0.5f, x1, y + t * 0.5f), brush);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    inline constexpr GUID kTextShadowBlur = { 0x1feb6d69, 0x2fe6, 0x4ac9, { 0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5 } };
+
+    inline void DrawShadows(Atlas& a, ID2D1DeviceContext* context, IDWriteTextLayout* layout, float ox, float oy, std::vector<mason_dwrite::Shadow> const& shadows)
+    {
+        for (auto it = shadows.rbegin(); it != shadows.rend(); ++it)
+        {
+            auto* brush = BrushFor(a, context, it->color);
+            layout->SetDrawingEffect(brush, DWRITE_TEXT_RANGE{ 0, UINT32_MAX });
+            if (it->blur <= 0.0f)
+            {
+                context->DrawTextLayout(D2D1::Point2F(ox + it->x, oy + it->y), layout, brush);
+                continue;
+            }
+            winrt::com_ptr<ID2D1Device> device;
+            context->GetDevice(device.put());
+            winrt::com_ptr<ID2D1DeviceContext> recorder;
+            winrt::com_ptr<ID2D1CommandList> list;
+            if (!device || FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, recorder.put()))
+                || FAILED(recorder->CreateCommandList(list.put()))) continue;
+            float dpiX = 96.0f, dpiY = 96.0f;
+            context->GetDpi(&dpiX, &dpiY);
+            recorder->SetDpi(dpiX, dpiY);
+            recorder->SetTarget(list.get());
+            recorder->BeginDraw();
+            recorder->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            recorder->DrawTextLayout(D2D1::Point2F(ox + it->x, oy + it->y), layout, brush);
+            if (FAILED(recorder->EndDraw()) || FAILED(list->Close())) continue;
+            winrt::com_ptr<ID2D1Effect> blur;
+            if (FAILED(context->CreateEffect(kTextShadowBlur, blur.put()))) continue;
+            blur->SetInput(0, list.get());
+            blur->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, it->blur * 0.5f);
+            blur->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_SOFT);
+            context->DrawImage(blur.get());
+        }
+    }
+
     inline HRESULT Draw(Atlas& a, Region const& region)
     {
         auto interop = region.page->surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
@@ -327,7 +484,18 @@ namespace mason_atlas
             }
             else
             {
+                DrawBackgrounds(a, context.get(), layout, s->originX, s->originY, s->extras);
+                if (!s->shadows.empty())
+                {
+                    DrawShadows(a, context.get(), layout, s->originX, s->originY, s->shadows);
+                    layout->SetDrawingEffect(fill, DWRITE_TEXT_RANGE{ 0, UINT32_MAX });
+                    for (auto const& [range, argb] : s->colors)
+                    {
+                        if (argb != s->color) layout->SetDrawingEffect(BrushFor(a, context.get(), argb), range);
+                    }
+                }
                 context->DrawTextLayout(D2D1::Point2F(s->originX, s->originY), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                DrawDecorations(a, context.get(), layout, s->originX, s->originY, scale, s->extras);
             }
         }
         context->SetDpi(96.0f, 96.0f);

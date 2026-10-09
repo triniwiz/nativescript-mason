@@ -806,6 +806,11 @@ namespace winrt::NativeScript::Mason::implementation
     double Text::FontSize() const { return m_fontSize; }
     void Text::FontSize(double value) { if (value > 0.0) { m_fontSize = value; if (m_text) m_text.FontSize(value); RequestRebuild(); } }
 
+    hstring Text::ResolveFontFamily(hstring const& families)
+    {
+        return hstring{ ResolveFamily(std::wstring_view(families)) };
+    }
+
     void Text::SetFontFamily(hstring const& families)
     {
         m_requestedFamily = families;
@@ -998,6 +1003,13 @@ namespace winrt::NativeScript::Mason::implementation
         if (u8(339)) { int32_t fw = i32(335); if (fw > 0) m_fontWeight = fw; } // FONT_WEIGHT / 339
         if (u8(345)) { m_fontStyle = u8(344); m_hasFontStyle = true; }        // FONT_STYLE_TYPE (0 normal, 1 italic, 2 oblique) / 345
         if (u8(367)) { m_letterSpacingPx = static_cast<double>(f32(363)); }  // LETTER_SPACING (px) / 367
+        m_fontStretch = u8(592) ? i32(588) : 0;                              // FONT_STRETCH (% x 100) / 592
+        m_hasWordSpacing = u8(587) && u8(586) != 1;                           // WORD_SPACING 582, type 586 (0 px, 2 normal) / 587
+        m_wordSpacing = m_hasWordSpacing && u8(586) == 0 ? f32(582) : 0.0f;
+        {
+            auto* node = winrt::get_self<implementation::Node>(m_node);
+            m_rtl = mason_node_get_direction(node->MasonPtr(), node->NodePtr()) != 0;
+        }
         if (u8(388))                                                         // LINE_HEIGHT / state 388, type 389
         {
             const float lh = f32(384);
@@ -1015,11 +1027,19 @@ namespace winrt::NativeScript::Mason::implementation
                 if (line & 1) m_decorations = m_decorations | TextDecorations::Underline;
                 if (line & 4) m_decorations = m_decorations | TextDecorations::Strikethrough;
             }
+            m_decoration = line < 8 ? line : 0;
+            m_decorationStyle = u8(362) ? u8(361) : 0;
+            m_hasDecorationColor = u8(360) != 0;
+            m_decorationColor = m_hasDecorationColor ? u32(356) : 0;
+            m_decorationThickness = u8(394) ? f32(390) : 0.0f;
+            m_hasTransform = u8(373) != 0;
+            m_transform = m_hasTransform ? u8(372) : 0;
+            m_background = u32(348);
         }
         // TEXT_ALIGN value byte at 374. (The JS TEXT_ALIGN_STATE offset overlaps this int32, so the
         // value byte alone is the reliable source.)
         m_textAlign = u8(374);
-        m_measureCache->startAligned = m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
+        m_measureCache->startAligned = !m_rtl && m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
         // WHITE_SPACE byte at 370 (1 pre, 4 nowrap) / 371, TEXT_WRAP at 368 (1 nowrap) / 369,
         // TEXT_OVERFLOW at 396 (1 ellipsis) / 397.
         m_measureCache->noWrap = (u8(371) && (u8(370) == 1 || u8(370) == 4)) || (u8(369) && u8(368) == 1);
@@ -1055,19 +1075,89 @@ namespace winrt::NativeScript::Mason::implementation
             const double fs = m_text.FontSize();
             m_text.CharacterSpacing(fs > 0.0 ? static_cast<int32_t>(std::lround(m_letterSpacingPx / fs * 1000.0)) : 0);
         }
+        m_text.FontStretch(static_cast<winrt::Windows::UI::Text::FontStretch>(mason_dwrite::StretchOf(m_fontStretch)));
+        m_text.FlowDirection(m_rtl ? mux::FlowDirection::RightToLeft : mux::FlowDirection::LeftToRight);
         {
             mux::TextAlignment a = mux::TextAlignment::Left;
             switch (m_textAlign)
             {
-            case 2: case 6: a = mux::TextAlignment::Right; break;
+            case 1: a = m_rtl ? mux::TextAlignment::Right : mux::TextAlignment::Left; break;
+            case 2: a = m_rtl ? mux::TextAlignment::Left : mux::TextAlignment::Right; break;
+            case 6: a = mux::TextAlignment::End; break;
             case 3: a = mux::TextAlignment::Center; break;
             case 4: a = mux::TextAlignment::Justify; break;
-            default: break;
+            default: a = mux::TextAlignment::Start; break;
             }
             m_text.TextAlignment(a);
         }
 
         QueueRebuild();
+    }
+
+    hstring Text::Transformed(hstring const& text, uint8_t transform)
+    {
+        if (transform == 0 || text.empty()) return text;
+        std::wstring out(text);
+        auto map = [](std::wstring& s, DWORD flags)
+        {
+            const int n = LCMapStringEx(LOCALE_NAME_USER_DEFAULT, flags, s.c_str(), static_cast<int>(s.size()), nullptr, 0, nullptr, nullptr, 0);
+            if (n <= 0) return;
+            std::wstring mapped(static_cast<size_t>(n), L'\0');
+            LCMapStringEx(LOCALE_NAME_USER_DEFAULT, flags, s.c_str(), static_cast<int>(s.size()), mapped.data(), n, nullptr, nullptr, 0);
+            s = std::move(mapped);
+        };
+        if (transform == 2) map(out, LCMAP_UPPERCASE | LCMAP_LINGUISTIC_CASING);
+        else if (transform == 3) map(out, LCMAP_LOWERCASE | LCMAP_LINGUISTIC_CASING);
+        else
+        {
+            bool start = true;
+            for (auto& ch : out)
+            {
+                if (iswspace(ch)) start = true;
+                else if (start)
+                {
+                    ch = towupper(ch);
+                    start = false;
+                }
+            }
+        }
+        return hstring{ out };
+    }
+
+    void Text::SetTextShadow(hstring const& shadows)
+    {
+        std::vector<mason_dwrite::Shadow> parsed;
+        const std::wstring_view spec = shadows;
+        size_t pos = 0;
+        while (pos < spec.size())
+        {
+            size_t end = spec.find(L';', pos);
+            if (end == std::wstring_view::npos) end = spec.size();
+            const std::wstring part(spec.substr(pos, end - pos));
+            float inset = 0.0f, spread = 0.0f;
+            double argb = 0.0;
+            mason_dwrite::Shadow s;
+            if (swscanf_s(part.c_str(), L"%f,%f,%f,%f,%f,%lf", &inset, &s.x, &s.y, &s.blur, &spread, &argb) == 6)
+            {
+                s.color = static_cast<uint32_t>(argb);
+                if ((s.color >> 24) != 0) parsed.push_back(s);
+            }
+            pos = end + 1;
+        }
+        if (parsed == m_shadows) return;
+        m_shadows = std::move(parsed);
+        m_paragraphDirty = true;
+        RequestRebuild();
+    }
+
+    void Text::SetFontFeatureSettings(hstring const& value)
+    {
+        const bool has = !value.empty() && value != L"normal";
+        if (has == m_hasFeatures && value == m_features) return;
+        m_hasFeatures = has;
+        m_features = has ? value : hstring{};
+        m_paragraphDirty = true;
+        RequestRebuild();
     }
 
     Text::Resolved Text::Resolve(Resolved parent) const
@@ -1077,8 +1167,20 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_fontWeight > 0) parent.fontWeight = m_fontWeight;
         if (m_hasFontStyle) parent.fontStyle = m_fontStyle;
         if (m_letterSpacingPx != 0.0) parent.letterSpacing = m_letterSpacingPx;
+        if (m_fontStretch > 0) parent.fontStretch = m_fontStretch;
+        if (m_hasWordSpacing) parent.wordSpacing = m_wordSpacing;
+        if (m_hasFeatures) parent.features = m_features;
         // Not inherited in CSS, but an ancestor's line is drawn through its descendants' text.
         parent.decorations = parent.decorations | m_decorations;
+        if (m_decoration)
+        {
+            parent.decoration |= m_decoration;
+            parent.decorationStyle = m_decorationStyle;
+            parent.hasDecorationColor = m_hasDecorationColor;
+            parent.decorationColor = m_decorationColor;
+            parent.decorationThickness = m_decorationThickness;
+        }
+        if (m_hasTransform) parent.transform = m_transform;
         if (!m_fontFamily.empty()) parent.family = m_fontFamily;
         return parent;
     }
@@ -1091,7 +1193,9 @@ namespace winrt::NativeScript::Mason::implementation
             {
                 auto child = winrt::get_self<implementation::Text>(entry.text);
                 if (child->IsHidden()) continue;
-                child->AppendRuns(child->Resolve(format), child, out);
+                auto childFormat = child->Resolve(format);
+                if ((child->m_background >> 24) != 0) childFormat.background = child->m_background;
+                child->AppendRuns(childFormat, child, out);
                 continue;
             }
             if (entry.box)
@@ -1110,7 +1214,7 @@ namespace winrt::NativeScript::Mason::implementation
             b.isBreak = impl->IsBreak();
             if (!b.isBreak)
             {
-                b.text = impl->RunText();
+                b.text = Transformed(impl->RunText(), format.transform);
                 b.format = format;
                 if (impl->HasColor()) b.format.color = impl->RunColor();
                 if (impl->HasFontSize()) b.format.fontSize = impl->RunFontSize();
@@ -1210,9 +1314,13 @@ namespace winrt::NativeScript::Mason::implementation
         p.weight = WeightOf(container.fontWeight);
         p.style = StyleOf(container.fontStyle);
         p.color = container.color;
+        p.stretch = mason_dwrite::StretchOf(container.fontStretch);
+        p.rtl = m_rtl;
         switch (m_textAlign)
         {
-        case 2: case 6: p.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING; break;
+        case 1: p.alignment = m_rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING; break;
+        case 2: p.alignment = m_rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING; break;
+        case 6: p.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING; break;
         case 3: p.alignment = DWRITE_TEXT_ALIGNMENT_CENTER; break;
         case 4: p.alignment = DWRITE_TEXT_ALIGNMENT_JUSTIFIED; break;
         default: p.alignment = DWRITE_TEXT_ALIGNMENT_LEADING; break;
@@ -1220,6 +1328,7 @@ namespace winrt::NativeScript::Mason::implementation
         // A length line-height stays as it is, as XAML leaves LineHeight unscaled.
         p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * p.fontSize);
         p.ellipsis = m_ellipsis && m_measureCache->noWrap;
+        p.shadows = m_shadows;
 
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;
@@ -1264,9 +1373,24 @@ namespace winrt::NativeScript::Mason::implementation
             span.weight = WeightOf(f.fontWeight);
             span.style = StyleOf(f.fontStyle);
             span.letterSpacing = static_cast<float>(f.letterSpacing);
-            span.underline = (f.decorations & TextDecorations::Underline) != TextDecorations::None;
-            span.strikethrough = (f.decorations & TextDecorations::Strikethrough) != TextDecorations::None;
+            span.stretch = mason_dwrite::StretchOf(f.fontStretch);
+            span.wordSpacing = f.wordSpacing;
+            span.features = std::wstring(std::wstring_view(f.features));
             span.color = f.color;
+            span.background = f.background;
+            const bool plain = !(f.decoration & 2) && f.decorationStyle == 0 && !f.hasDecorationColor && f.decorationThickness <= 0.0f;
+            if (plain)
+            {
+                span.underline = (f.decorations & TextDecorations::Underline) != TextDecorations::None;
+                span.strikethrough = (f.decorations & TextDecorations::Strikethrough) != TextDecorations::None;
+            }
+            else
+            {
+                span.decoration = f.decoration;
+                span.decorationStyle = f.decorationStyle;
+                span.decorationColor = f.hasDecorationColor ? f.decorationColor : f.color;
+                span.decorationThickness = f.decorationThickness;
+            }
             if (b.owner && span.length > 0)
             {
                 nsm::Text element = *const_cast<Text*>(b.owner);
@@ -1430,7 +1554,7 @@ namespace winrt::NativeScript::Mason::implementation
         // trimmed at the box.
         const bool overflows = width + slack < c.max.Width;
         const bool wrap = overflows && !c.noWrap;
-        const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING;
+        const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING && !c.paragraph.rtl;
         const float maxWidth = wrap || (overflows && c.paragraph.ellipsis) ? width + slack : leading ? mason_dwrite::kUnbounded : width;
         mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth);
         DWRITE_TEXT_METRICS metrics{};
@@ -1460,6 +1584,25 @@ namespace winrt::NativeScript::Mason::implementation
             inkRight = left + v1 + spill;
             inkTop = top + u0;
             inkBottom = top + u1;
+        }
+        if (!vertical)
+        {
+            const float l = inkLeft, t = inkTop, r = inkRight, b = inkBottom;
+            for (auto const& s : c.paragraph.shadows)
+            {
+                const float grow = s.blur * 1.5f;
+                inkLeft = (std::min)(inkLeft, l + s.x - grow);
+                inkTop = (std::min)(inkTop, t + s.y - grow);
+                inkRight = (std::max)(inkRight, r + s.x + grow);
+                inkBottom = (std::max)(inkBottom, b + s.y + grow);
+            }
+            float decoration = 0.0f;
+            for (auto const& span : c.paragraph.spans)
+            {
+                if (span.decoration) decoration = (std::max)(decoration, span.fontSize * 0.3f + span.decorationThickness * 2.0f);
+            }
+            inkTop -= decoration;
+            inkBottom += decoration;
         }
         if (inkRight <= inkLeft || inkBottom <= inkTop || metrics.lineCount == 0)
         {
@@ -1517,6 +1660,12 @@ namespace winrt::NativeScript::Mason::implementation
         sprite.color = c.paragraph.color;
         sprite.colors.clear();
         for (auto const& span : c.paragraph.spans) sprite.colors.push_back({ DWRITE_TEXT_RANGE{ span.start, span.length }, span.color });
+        sprite.extras.clear();
+        for (auto const& span : c.paragraph.spans)
+        {
+            if ((span.background >> 24) != 0 || span.decoration) sprite.extras.push_back(span);
+        }
+        sprite.shadows = vertical ? std::vector<mason_dwrite::Shadow>{} : c.paragraph.shadows;
         sprite.originX = next.originX;
         sprite.originY = next.originY;
         sprite.vertical = vertical;
@@ -1538,6 +1687,114 @@ namespace winrt::NativeScript::Mason::implementation
         std::wstring text = m_measureCache->paragraph.text;
         std::erase(text, L'\uFFFC');
         return winrt::hstring{ text };
+    }
+
+    void Text::IsListItem(bool value)
+    {
+        if (m_listItem == value) return;
+        m_listItem = value;
+        InvalidateArrange();
+    }
+
+    void Text::SyncMarker(Size const& finalSize)
+    {
+        auto self = get_strong().as<mux::UIElement>();
+        auto clear = [&]
+        {
+            if (m_marker) mason_deco::SetLayer(self, L"mason-marker", nullptr);
+            m_marker = nullptr;
+            m_markerKey.clear();
+        };
+        auto parent = m_listItem ? Parent().try_as<muxc::Panel>() : nullptr;
+        if (!parent)
+        {
+            clear();
+            return;
+        }
+        int32_t index = 1;
+        for (auto const& child : parent.Children())
+        {
+            if (child == self) break;
+            if (auto text = child.try_as<nsm::Text>(); text && winrt::get_self<Text>(text)->m_listItem) ++index;
+        }
+        auto listType = [](nsm::Node const& node, bool& set) -> uint8_t
+        {
+            uint32_t size = 0;
+            const uint8_t* d = node ? winrt::get_self<implementation::Node>(node)->StyleData(size) : nullptr;
+            set = d && size > 319 && d[319] != 0;
+            return set ? d[317] : 0;
+        };
+        bool set = false;
+        uint8_t type = 0;
+        if (auto list = parent.try_as<nsm::IMasonElement>()) type = listType(list.Node(), set);
+        if (!set) type = listType(m_node, set);
+        if (!set) type = mason_get_preflight() ? 0 : 2;
+        if (type == 0 || finalSize.Width <= 0.0f)
+        {
+            clear();
+            return;
+        }
+
+        const float fontSize = static_cast<float>(ScaledFontSize(m_fontSize > 0.0 ? m_fontSize : 14.0));
+        const float line = m_lineHeightPx > 0.0 ? static_cast<float>(m_lineHeightPx)
+            : m_lineHeightMultiplier > 0.0 ? static_cast<float>(m_lineHeightMultiplier) * fontSize : fontSize * 1.33f;
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        const float boxW = fontSize * 3.0f;
+        const float boxH = (std::max)(line, fontSize * 1.4f);
+        const float gap = fontSize * 0.5f;
+        const uint32_t color = m_hasColor ? m_color : 0xFF000000;
+        const float scale = mason_visual::RasterScale(self);
+        auto comp = mason_deco::ThreadCompositor();
+        auto* device = comp ? mason_mask::DeviceFor(comp) : nullptr;
+        if (!device)
+        {
+            clear();
+            return;
+        }
+        struct Key { uint8_t type; int32_t index; uint32_t color; float fontSize; float boxH; float scale; } key{ type, type == 5 ? index : 0, color, fontSize, boxH, scale };
+        const std::string k = mason_mask::KeyOf('L', key);
+        if (k != m_markerKey)
+        {
+            const float pxW = std::ceil(boxW * scale), pxH = std::ceil(boxH * scale), pxFont = fontSize * scale;
+            auto brush = mason_mask::PaintedBrush(*device, k, pxW, pxH,
+                [type, index, color, pxFont](ID2D1DeviceContext* context, float w, float h)
+                {
+                    winrt::com_ptr<ID2D1SolidColorBrush> paint;
+                    context->CreateSolidColorBrush(mason_mask::Color(color), paint.put());
+                    const float size = pxFont * 0.35f;
+                    const float cy = h * 0.5f;
+                    const float cx = w - size * 0.5f;
+                    if (type == 2) context->FillEllipse(D2D1::Ellipse(D2D1::Point2F(cx, cy), size * 0.5f, size * 0.5f), paint.get());
+                    else if (type == 3) context->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(cx, cy), size * 0.5f, size * 0.5f), paint.get(), (std::max)(1.0f, pxFont * 0.08f));
+                    else if (type == 4) context->FillRectangle(D2D1::RectF(cx - size * 0.5f, cy - size * 0.5f, cx + size * 0.5f, cy + size * 0.5f), paint.get());
+                    else
+                    {
+                        auto* factory = mason_dwrite::Factory();
+                        winrt::com_ptr<IDWriteTextFormat> format;
+                        if (!factory || FAILED(factory->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                            DWRITE_FONT_STRETCH_NORMAL, pxFont, L"en-us", format.put()))) return;
+                        format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
+                        format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                        const std::wstring text = type == 5 ? std::to_wstring(index) + L"." : std::wstring(L"\u2022");
+                        context->DrawText(text.c_str(), static_cast<UINT32>(text.size()), format.get(), D2D1::RectF(0, 0, w, h), paint.get());
+                    }
+                });
+            if (!brush)
+            {
+                clear();
+                return;
+            }
+            if (!m_marker)
+            {
+                m_marker = comp.CreateSpriteVisual();
+                mason_deco::SetLayer(self, L"mason-marker", m_marker);
+            }
+            m_marker.Brush(brush);
+            m_markerKey = k;
+        }
+        m_marker.Size({ boxW, boxH });
+        m_marker.Offset({ -gap - boxW, top + line * 0.5f - boxH * 0.5f, 0.0f });
     }
 
     Size Text::ArrangeOverride(Size const& finalSize)
@@ -1567,6 +1824,7 @@ namespace winrt::NativeScript::Mason::implementation
         }
         ArrangeBoxes();
         mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
+        if (m_listItem || m_marker) SyncMarker(finalSize);
         return finalSize;
     }
 

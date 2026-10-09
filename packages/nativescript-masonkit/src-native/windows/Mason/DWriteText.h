@@ -308,7 +308,24 @@ namespace mason_dwrite
         bool underline{ false };
         bool strikethrough{ false };
         uint32_t color{ 0xFF000000 };
+        uint32_t background{ 0 };
+        uint8_t decoration{ 0 };
+        uint8_t decorationStyle{ 0 };
+        uint32_t decorationColor{ 0 };
+        float decorationThickness{ 0.0f };
+        DWRITE_FONT_STRETCH stretch{ DWRITE_FONT_STRETCH_NORMAL };
+        float wordSpacing{ 0.0f };
+        std::wstring features;
         bool operator==(Span const&) const = default;
+    };
+
+    struct Shadow
+    {
+        float x{ 0.0f };
+        float y{ 0.0f };
+        float blur{ 0.0f };
+        uint32_t color{ 0 };
+        bool operator==(Shadow const&) const = default;
     };
 
     struct Box
@@ -363,13 +380,69 @@ namespace mason_dwrite
         DWRITE_FONT_WEIGHT weight{ DWRITE_FONT_WEIGHT_NORMAL };
         DWRITE_FONT_STYLE style{ DWRITE_FONT_STYLE_NORMAL };
         DWRITE_TEXT_ALIGNMENT alignment{ DWRITE_TEXT_ALIGNMENT_LEADING };
+        DWRITE_FONT_STRETCH stretch{ DWRITE_FONT_STRETCH_NORMAL };
+        bool rtl{ false };
         // Line box height in DIPs; 0 uses the font's own line spacing.
         float lineHeight{ 0.0f };
         uint32_t color{ 0xFF000000 };
         // An unwrapped line wider than its box ends in an ellipsis.
         bool ellipsis{ false };
+        std::vector<Shadow> shadows;
         bool operator==(Paragraph const&) const = default;
     };
+
+    inline DWRITE_FONT_STRETCH StretchOf(int32_t value)
+    {
+        if (value <= 0) return DWRITE_FONT_STRETCH_NORMAL;
+        const float pct = value / 100.0f;
+        if (pct <= 56.25f) return DWRITE_FONT_STRETCH_ULTRA_CONDENSED;
+        if (pct <= 68.75f) return DWRITE_FONT_STRETCH_EXTRA_CONDENSED;
+        if (pct <= 81.25f) return DWRITE_FONT_STRETCH_CONDENSED;
+        if (pct <= 93.75f) return DWRITE_FONT_STRETCH_SEMI_CONDENSED;
+        if (pct < 106.25f) return DWRITE_FONT_STRETCH_NORMAL;
+        if (pct <= 118.75f) return DWRITE_FONT_STRETCH_SEMI_EXPANDED;
+        if (pct <= 137.5f) return DWRITE_FONT_STRETCH_EXPANDED;
+        if (pct <= 175.0f) return DWRITE_FONT_STRETCH_EXTRA_EXPANDED;
+        return DWRITE_FONT_STRETCH_ULTRA_EXPANDED;
+    }
+
+    inline std::vector<DWRITE_FONT_FEATURE> FeaturesOf(std::wstring_view spec)
+    {
+        std::vector<DWRITE_FONT_FEATURE> out;
+        size_t pos = 0;
+        while (pos < spec.size())
+        {
+            size_t end = spec.find(L',', pos);
+            if (end == std::wstring_view::npos) end = spec.size();
+            std::wstring_view part = spec.substr(pos, end - pos);
+            pos = end + 1;
+            const size_t open = part.find_first_of(L"\"'");
+            if (open == std::wstring_view::npos) continue;
+            const size_t close = part.find(part[open], open + 1);
+            if (close == std::wstring_view::npos || close - open != 5) continue;
+            const std::wstring_view tag = part.substr(open + 1, 4);
+            std::wstring rest(part.substr(close + 1));
+            rest.erase(0, rest.find_first_not_of(L" \t"));
+            rest.erase(rest.find_last_not_of(L" \t") + 1);
+            UINT32 value = 1;
+            if (rest == L"off") value = 0;
+            else if (!rest.empty() && rest != L"on")
+            {
+                wchar_t* stop = nullptr;
+                const long n = std::wcstol(rest.c_str(), &stop, 10);
+                if (stop == rest.c_str() || *stop != L'\0' || n < 0) continue;
+                value = static_cast<UINT32>(n);
+            }
+            const auto name = static_cast<DWRITE_FONT_FEATURE_TAG>(DWRITE_MAKE_OPENTYPE_TAG(tag[0], tag[1], tag[2], tag[3]));
+            out.push_back({ name, value });
+        }
+        return out;
+    }
+
+    inline bool IsWordSeparator(wchar_t ch)
+    {
+        return ch == L' ' || ch == L'\u00A0' || ch == L'\u1361' || ch == L'\u3000';
+    }
 
     inline winrt::com_ptr<IDWriteTextLayout> Build(Paragraph const& p)
     {
@@ -377,13 +450,14 @@ namespace mason_dwrite
         if (!factory) return nullptr;
         const DWRITE_FONT_WEIGHT weight = MatchWeight(p.font, p.weight, p.style);
         winrt::com_ptr<IDWriteTextFormat> format;
-        if (FAILED(factory->CreateTextFormat(p.font.family.c_str(), p.font.Collection(), weight, p.style, DWRITE_FONT_STRETCH_NORMAL,
+        if (FAILED(factory->CreateTextFormat(p.font.family.c_str(), p.font.Collection(), weight, p.style, p.stretch,
             (std::max)(p.fontSize, 0.1f), L"en-us", format.put())))
         {
             return nullptr;
         }
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         format->SetTextAlignment(p.alignment);
+        if (p.rtl) format->SetReadingDirection(DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
         if (p.ellipsis)
         {
             winrt::com_ptr<IDWriteInlineObject> sign;
@@ -442,7 +516,25 @@ namespace mason_dwrite
             if (s.style != p.style) layout->SetFontStyle(s.style, range);
             if (s.underline) layout->SetUnderline(TRUE, range);
             if (s.strikethrough) layout->SetStrikethrough(TRUE, range);
+            if (s.stretch != p.stretch) layout->SetFontStretch(s.stretch, range);
             if (s.letterSpacing != 0.0f && spacing) spacing->SetCharacterSpacing(0.0f, s.letterSpacing, 0.0f, range);
+            if (s.wordSpacing != 0.0f && spacing)
+            {
+                for (uint32_t i = s.start; i < s.start + s.length && i < p.text.size(); ++i)
+                {
+                    if (IsWordSeparator(p.text[i])) spacing->SetCharacterSpacing(0.0f, s.letterSpacing + s.wordSpacing, 0.0f, DWRITE_TEXT_RANGE{ i, 1 });
+                }
+            }
+            if (!s.features.empty())
+            {
+                const auto features = FeaturesOf(s.features);
+                winrt::com_ptr<IDWriteTypography> typography;
+                if (!features.empty() && SUCCEEDED(factory->CreateTypography(typography.put())))
+                {
+                    for (auto const& f : features) typography->AddFontFeature(f);
+                    layout->SetTypography(typography.get(), range);
+                }
+            }
         }
         for (auto const& b : p.boxes)
         {

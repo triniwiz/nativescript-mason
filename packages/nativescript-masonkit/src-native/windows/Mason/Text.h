@@ -64,6 +64,10 @@ namespace winrt::NativeScript::Mason::implementation
         double FontSize() const;
         void FontSize(double value);
         void SetFontFamily(hstring const& families);
+        void SetTextShadow(hstring const& shadows);
+        void SetFontFeatureSettings(hstring const& value);
+        static hstring Transformed(hstring const& text, uint8_t transform);
+        static hstring ResolveFontFamily(hstring const& families);
 
         void SetRun(winrt::NativeScript::Mason::TextNode const& run, int32_t index);
         void RemoveRun(winrt::NativeScript::Mason::TextNode const& run);
@@ -77,6 +81,8 @@ namespace winrt::NativeScript::Mason::implementation
         void IsAnonymous(bool value) { m_isAnonymous = value; }
         bool IsLink() const { return m_isLink; }
         void IsLink(bool value) { m_isLink = value; }
+        bool IsListItem() const { return m_listItem; }
+        void IsListItem(bool value);
 
         void OnRunChanged();
 
@@ -112,6 +118,16 @@ namespace winrt::NativeScript::Mason::implementation
             double letterSpacing{ 0.0 };
             winrt::Windows::UI::Text::TextDecorations decorations{ winrt::Windows::UI::Text::TextDecorations::None };
             winrt::hstring family{};
+            uint8_t transform{ 0 };
+            uint32_t background{ 0 };
+            uint8_t decoration{ 0 };
+            uint8_t decorationStyle{ 0 };
+            bool hasDecorationColor{ false };
+            uint32_t decorationColor{ 0 };
+            float decorationThickness{ 0.0f };
+            int32_t fontStretch{ 0 };
+            float wordSpacing{ 0.0f };
+            winrt::hstring features{};
             bool operator==(Resolved const&) const = default;
         };
 
@@ -298,6 +314,10 @@ namespace winrt::NativeScript::Mason::implementation
         std::vector<Entry> m_runs;
         
         double m_fontSize{ 0.0 };
+        bool m_listItem{ false };
+        winrt::Microsoft::UI::Composition::SpriteVisual m_marker{ nullptr };
+        std::string m_markerKey;
+        void SyncMarker(winrt::Windows::Foundation::Size const& finalSize);
         uint32_t m_color{ 0xFF000000 };
         bool m_hasColor{ false };
         int32_t m_fontWeight{ 0 };
@@ -311,6 +331,21 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_ellipsis{ false };
         double m_letterSpacingPx{ 0.0 };
         winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
+        bool m_hasTransform{ false };
+        uint8_t m_transform{ 0 };
+        uint32_t m_background{ 0 };
+        uint8_t m_decoration{ 0 };
+        uint8_t m_decorationStyle{ 0 };
+        bool m_hasDecorationColor{ false };
+        uint32_t m_decorationColor{ 0 };
+        float m_decorationThickness{ 0.0f };
+        std::vector<mason_dwrite::Shadow> m_shadows;
+        int32_t m_fontStretch{ 0 };
+        bool m_hasWordSpacing{ false };
+        float m_wordSpacing{ 0.0f };
+        bool m_hasFeatures{ false };
+        winrt::hstring m_features{};
+        bool m_rtl{ false };
         winrt::hstring m_fontFamily{};
         // The CSS family list, resolved again when a font loads.
         winrt::hstring m_requestedFamily{};

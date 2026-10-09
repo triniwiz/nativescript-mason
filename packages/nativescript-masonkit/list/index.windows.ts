@@ -1,13 +1,14 @@
-import { CSSType } from '@nativescript/core';
-import { ViewBase } from '../common';
+import { CSSType, ItemEventData, View } from '@nativescript/core';
+import { ListBase } from './common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, native_, style_ } from '../symbols';
 import { appendNativeChild } from '../windows-panel-helpers';
 
-class ListView extends ViewBase {
+class ListView extends ListBase {
   [style_];
   protected _ordered = false;
+  private _itemViews: View[] = [];
 
   constructor() {
     super();
@@ -35,6 +36,25 @@ class ListView extends ViewBase {
 
   createNativeView() {
     return this._view;
+  }
+
+  public refresh(): void {
+    for (const view of this._itemViews) this.removeChild(view);
+    this._itemViews = [];
+    const items: any = this.items;
+    const count = items ? (typeof items.length === 'number' ? items.length : 0) : 0;
+    for (let index = 0; index < count; index++) {
+      const view = ((this._getItemTemplate(index).createView() as View) ?? this._getDefaultItemContent(index)) as View;
+      this.notify(<ItemEventData>{ eventName: ListBase.itemLoadingEvent, object: this, index, view, android: undefined, ios: undefined });
+      if (!view) continue;
+      this._prepareItem(view, index);
+      this.addChild(view);
+      this._itemViews.push(view);
+    }
+  }
+
+  public _onItemsChanged(): void {
+    this.refresh();
   }
 
   // @ts-ignore

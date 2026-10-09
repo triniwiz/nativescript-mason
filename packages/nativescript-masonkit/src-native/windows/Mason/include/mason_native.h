@@ -175,6 +175,8 @@ void *mason_node_layout(struct CMason *mason, struct CMasonNode *node, void *(*l
 
 uint8_t mason_node_get_writing_mode(struct CMason *mason, struct CMasonNode *node);
 
+uint8_t mason_node_get_direction(struct CMason *mason, struct CMasonNode *node);
+
 void mason_node_get_unrounded_size(struct CMason *mason,
                                    struct CMasonNode *node,
                                    float *width,

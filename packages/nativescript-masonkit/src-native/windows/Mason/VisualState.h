@@ -1,8 +1,15 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Composition.h>
+
+namespace mason_shadow
+{
+    struct State;
+}
 
 namespace mason_visual
 {
@@ -29,6 +36,13 @@ namespace mason_visual
         float borderStroke{ 0.0f };
         uint32_t borderColor{ 0 };
         float borderRadius{ 0.0f };
+        winrt::Microsoft::UI::Composition::SpriteVisual borderSprite{ nullptr };
+        std::string borderKey;
+        std::shared_ptr<mason_shadow::State> shadow;
+        uint64_t shadowVersion{ 0 };
+        uint64_t filterVersion{ 0 };
+        int32_t zIndex{ 0 };
+        bool watchingBackground{ false };
         float width{ -1.0f };
         float height{ -1.0f };
         uint32_t scaleEpoch{ 0 };

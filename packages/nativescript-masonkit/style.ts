@@ -3,8 +3,10 @@ import { cssUnits } from './units';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
+import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
+import { encodeCssFilter, parseCssFilter } from './css-filter';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
-import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen } from '@nativescript/core';
+import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
 
 // The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
@@ -802,6 +804,90 @@ export function parseLinearGradientCss(value: string): { angle: number; offsets:
   return { angle, offsets: resolveStopPositions(positions), colors, interpolation };
 }
 
+const RADIAL_GRADIENT_ARGS = /radial-gradient\s*\(([\s\S]*)\)\s*$/i;
+
+function positionFraction(token: string | undefined, axis: 'x' | 'y'): number | null {
+  if (token == null) return null;
+  const t = token.trim().toLowerCase();
+  if (t === 'center') return 0.5;
+  if (t === (axis === 'x' ? 'left' : 'top')) return 0;
+  if (t === (axis === 'x' ? 'right' : 'bottom')) return 1;
+  if (t.endsWith('%')) {
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? n / 100 : null;
+  }
+  return null;
+}
+
+export function parseBoxPosition(value: string, fallback = 0.5): { x: number; y: number } {
+  const parts = value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let x: number | null = null;
+  let y: number | null = null;
+  for (const part of parts) {
+    if ((part === 'top' || part === 'bottom') && y == null) y = positionFraction(part, 'y');
+    else if ((part === 'left' || part === 'right') && x == null) x = positionFraction(part, 'x');
+    else if (x == null) x = positionFraction(part, 'x');
+    else if (y == null) y = positionFraction(part, 'y');
+  }
+  if (x != null || y != null) return { x: x ?? 0.5, y: y ?? 0.5 };
+  return { x: fallback, y: fallback };
+}
+
+export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string } | null {
+  const m = RADIAL_GRADIENT_ARGS.exec(value.trim());
+  if (!m) return null;
+  const parts = splitTopLevelCommas(m[1])
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  let start = 0;
+  let cx = 0.5;
+  let cy = 0.5;
+  let size = 'farthest-corner';
+  let interpolation = '';
+  let head = parts[0];
+  const method = INTERPOLATION_METHOD.exec(head);
+  if (method) {
+    interpolation = method[1].toLowerCase().replace(/\s+/g, ' ');
+    head = (head.slice(0, method.index) + head.slice(method.index + method[0].length)).trim();
+    start = 1;
+  }
+  if (/\b(circle|ellipse|closest-side|farthest-side|closest-corner|farthest-corner|at)\b/i.test(head)) {
+    start = 1;
+    const at = /\bat\s+(.+)$/i.exec(head);
+    if (at) {
+      const p = parseBoxPosition(at[1]);
+      cx = p.x;
+      cy = p.y;
+    }
+    const sizeKeyword = /(closest-side|farthest-side|closest-corner|farthest-corner)/i.exec(head);
+    if (sizeKeyword) size = sizeKeyword[1].toLowerCase();
+  }
+  const sideX = size.startsWith('closest') ? Math.min(cx, 1 - cx) : Math.max(cx, 1 - cx);
+  const sideY = size.startsWith('closest') ? Math.min(cy, 1 - cy) : Math.max(cy, 1 - cy);
+  const corner = size.endsWith('corner') ? Math.SQRT2 : 1;
+  const colors: number[] = [];
+  const positions: Array<number | null> = [];
+  for (const stop of expandColorStops(parts.slice(start))) {
+    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
+    const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
+    const argb = normalizeColorValue(colorStr);
+    if (argb == null) continue;
+    colors.push(argb >>> 0);
+    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
+  }
+  if (colors.length < 1) return null;
+  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation };
+}
+
+export function backgroundFit(size: string | null | undefined): number {
+  const t = (size ?? '').trim().toLowerCase();
+  if (t === 'cover') return 3;
+  if (t === 'contain') return 2;
+  if (t === '100%' || t === '100% 100%') return 1;
+  return 0;
+}
+
 const SIDE_TOKEN = /^(auto|[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(px|dip|dppx|rem|em|pt|vw|vh|vmin|vmax|%)?|[a-z-]+\(.*\))$/i;
 
 /** 1-4 lengths, percentages or `auto`. Anything else makes the whole declaration invalid, which CSS ignores. */
@@ -1495,32 +1581,91 @@ export class Style {
 
     if (__WINDOWS__) {
       // Android and iOS parse these natively; Windows parses them here into the style buffer.
+      if (!this._pseudo) this._windowsCss.set(name, value);
       this.applyWindowsCssString(name, value);
     }
+  }
+
+  private _windowsCss = new Map<string, string>();
+  private _windowsBackground?: string;
+  private _windowsBackgroundSize?: string;
+  private _windowsBackgroundPosition?: string;
+
+  private applyWindowsBackground(shorthand: boolean) {
+    const v = (this._windowsBackground ?? '').trim();
+    const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
+    const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
+    try {
+      if (/^radial-gradient/i.test(layer)) {
+        const g = parseRadialGradientCss(layer);
+        if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
+        return;
+      }
+      if (/^linear-gradient/i.test(layer)) {
+        const g = parseLinearGradientCss(layer);
+        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stopsOf(g), g.interpolation);
+        return;
+      }
+      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
+      if (url) {
+        let source = url[2];
+        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
+        const rest = layer.slice(url.index + url[0].length).trim();
+        const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box)\b/gi;
+        const [positionPart, sizePart] = rest.split('/').map((p) => p.replace(keywords, '').trim());
+        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : this._windowsBackgroundSize;
+        const position = parseBoxPosition(shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '0% 0%'), 0);
+        const align = (f: number) => (f <= 0.25 ? 0 : f >= 0.75 ? 2 : 1);
+        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(position.x), align(position.y));
+        return;
+      }
+      if (!ANY_GRADIENT.test(layer)) {
+        NativeScript.Mason.Css.ClearBackground(this.nativeView);
+        if (shorthand && v.length && v.toLowerCase() !== 'none') this.backgroundColor = v as never;
+      }
+    } catch (_) {}
   }
 
   private applyWindowsCssString(name: string, value: string) {
     // A gradient is a Panel brush from Css that VisualApply leaves over BACKGROUND_COLOR; clearing
     // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
-      const v = typeof value === 'string' ? value : String(value ?? '');
-      if (LINEAR_GRADIENT.test(v)) {
-        const g = parseLinearGradientCss(v);
-        if (g && g.colors.length) {
-          try {
-            // Pass stops as an "offset:argb,..." string — WinRT array_view params don't marshal
-            // reliably from the NS-Windows JS runtime (plain arrays -> E_FAIL, typed arrays -> crash).
-            const stops = g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
-            NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stops, g.interpolation);
-          } catch (_) {}
-        }
-      } else if (!ANY_GRADIENT.test(v)) {
-        try {
-          NativeScript.Mason.Css.ClearBackground(this.nativeView);
-        } catch (_) {}
-        if (name === 'background' && v.trim().length && v.trim().toLowerCase() !== 'none') {
-          this.backgroundColor = v as never;
-        }
+      this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
+      this.applyWindowsBackground(name === 'background');
+      return;
+    }
+    if (name === 'background-size' || name === 'background-position') {
+      if (name === 'background-size') this._windowsBackgroundSize = String(value ?? '');
+      else this._windowsBackgroundPosition = String(value ?? '');
+      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      return;
+    }
+
+    if (name === 'filter' || name === 'backdrop-filter') {
+      const view: any = this.nativeView;
+      if (!view) return;
+      const current = (this.color as unknown as number) >>> 0 || 0xff000000;
+      const spec = encodeCssFilter(
+        parseCssFilter(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasis())),
+        (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current),
+      );
+      if (name === 'filter') NativeScript.Mason.Css.SetFilter(view, spec);
+      else NativeScript.Mason.Css.SetBackdropFilter(view, spec);
+      return;
+    }
+
+    if (name === 'font-feature-settings') {
+      const view: any = this.nativeView;
+      if (view && typeof view.SetFontFeatureSettings === 'function') view.SetFontFeatureSettings(typeof value === 'string' ? value : '');
+      return;
+    }
+
+    if (name === 'text-shadow') {
+      const view: any = this.nativeView;
+      if (view && typeof view.SetTextShadow === 'function') {
+        const current = (this.color as unknown as number) >>> 0 || 0xff000000;
+        const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasis()));
+        view.SetTextShadow(encodeBoxShadows(shadows, (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current)));
       }
       return;
     }
@@ -1613,6 +1758,9 @@ export class Style {
         break;
       case 'text-decoration-color':
         color = parseTextDecorationColor(value);
+        break;
+      case 'text-decoration-thickness':
+        thickness = cssLengthToDip(value, this.emBasis()) ?? null;
         break;
     }
     if (line == null && style == null && color == null && thickness == null) return;
@@ -1763,7 +1911,7 @@ export class Style {
    * one, otherwise the root font size. FONT_SIZE is stored in dip, which is the
    * same as a CSS px, so no conversion is needed.
    */
-  private emBasis(): number {
+  emBasis(): number {
     if (!this.style_view) {
       return cssUnits.rootFontSize;
     }
@@ -1815,6 +1963,25 @@ export class Style {
       setUint8(this.style_view, StyleKeys.BOX_SIZING, boxSizing);
       this.commitState(StateKeys.BOX_SIZING);
     }
+  }
+
+  get direction(): 'inherit' | 'ltr' | 'rtl' {
+    switch (getUint8(this.style_view, StyleKeys.DIRECTION)) {
+      case 1:
+        return 'ltr';
+      case 2:
+        return 'rtl';
+      default:
+        return 'inherit';
+    }
+  }
+
+  set direction(value: 'inherit' | 'ltr' | 'rtl') {
+    const direction = value === 'ltr' ? 1 : value === 'rtl' ? 2 : 0;
+    if (getUint8(this.style_view, StyleKeys.DIRECTION) === direction) return;
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DIRECTION, direction);
+    this.commitState(StateKeys.DIRECTION);
   }
 
   get listStyleType(): 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal' {
@@ -4007,7 +4174,7 @@ export class Style {
       return this.appleStyle.gridAutoRows;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridAutoRowsCss ?? '') : '';
   }
 
   set gridAutoRows(value: string) {
@@ -4041,7 +4208,7 @@ export class Style {
       return this.appleStyle.gridAutoColumns;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridAutoColumnsCss ?? '') : '';
   }
 
   set gridAutoColumns(value: string) {
@@ -4132,7 +4299,7 @@ export class Style {
       return this.appleStyle.gridColumn;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridColumnCss ?? '') : '';
   }
 
   get gridColumnStart(): string {
@@ -4147,7 +4314,7 @@ export class Style {
       return this.appleStyle.gridColumnStart;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridColumnStartCss ?? '') : '';
   }
 
   set gridColumnStart(value: string) {
@@ -4181,7 +4348,7 @@ export class Style {
       return this.appleStyle.gridColumnEnd;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridColumnEndCss ?? '') : '';
   }
 
   set gridColumnEnd(value: string) {
@@ -4234,7 +4401,7 @@ export class Style {
       return this.appleStyle.gridRow;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridRowCss ?? '') : '';
   }
 
   get gridRowStart(): string {
@@ -4249,7 +4416,7 @@ export class Style {
       return this.appleStyle.gridRowStart;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridRowStartCss ?? '') : '';
   }
 
   set gridRowStart(value: string) {
@@ -4283,7 +4450,7 @@ export class Style {
       return this.appleStyle.gridRowEnd;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridRowEndCss ?? '') : '';
   }
 
   set gridRowEnd(value: string) {
@@ -4336,7 +4503,7 @@ export class Style {
       return this.appleStyle.gridArea;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridAreaCss ?? '') : '';
   }
 
   set gridTemplateRows(value: string) {
@@ -4370,7 +4537,7 @@ export class Style {
       return this.appleStyle.gridTemplateRows;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridTemplateRowsCss ?? '') : '';
   }
 
   get gridTemplateColumns() {
@@ -4385,7 +4552,7 @@ export class Style {
       return this.appleStyle.gridTemplateColumns;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridTemplateColumnsCss ?? '') : '';
   }
 
   set gridTemplateColumns(value: string) {
@@ -4419,7 +4586,7 @@ export class Style {
       return this.appleStyle.gridTemplateAreas;
     }
 
-    return '';
+    return __WINDOWS__ ? ((this.nativeView as any)?.Style?.GridTemplateAreasCss ?? '') : '';
   }
 
   set gridTemplateAreas(value: string) {
@@ -4814,7 +4981,7 @@ export class Style {
       return this.appleStyle.background;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background') ?? '') : '';
   }
 
   set background(value: string) {
@@ -4839,7 +5006,7 @@ export class Style {
       return this.appleStyle.backgroundImage;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-image') ?? '') : '';
   }
 
   set backgroundImage(value: string) {
@@ -4864,7 +5031,7 @@ export class Style {
       return this.appleStyle.backgroundRepeat;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-repeat') ?? '') : '';
   }
 
   set backgroundRepeat(value: string) {
@@ -4889,7 +5056,7 @@ export class Style {
       return this.appleStyle.backgroundPosition;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-position') ?? '') : '';
   }
 
   set backgroundPosition(value: string) {
@@ -4914,7 +5081,7 @@ export class Style {
       return this.appleStyle.backgroundSize;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-size') ?? '') : '';
   }
 
   set backgroundSize(value: string) {
@@ -4939,7 +5106,7 @@ export class Style {
       return this.appleStyle.backgroundClip;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-clip') ?? '') : '';
   }
 
   set backgroundClip(value: string) {
@@ -4962,7 +5129,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backgroundPositionX;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-position-x') ?? '') : '';
   }
 
   set backgroundPositionX(value: string) {
@@ -4985,7 +5152,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backgroundPositionY;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-position-y') ?? '') : '';
   }
 
   set backgroundPositionY(value: string) {
@@ -5008,7 +5175,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backgroundOrigin;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-origin') ?? '') : '';
   }
 
   set backgroundOrigin(value: string) {
@@ -5031,7 +5198,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backgroundAttachment;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-attachment') ?? '') : '';
   }
 
   set backgroundAttachment(value: string) {
@@ -5054,7 +5221,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backgroundBlendMode;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('background-blend-mode') ?? '') : '';
   }
 
   set backgroundBlendMode(value: string) {
@@ -5173,7 +5340,7 @@ export class Style {
 
   get objectFit(): string {
     const map = ['contain', 'cover', 'fill', 'none', 'scale-down'] as const;
-    return map[getUint8(this.style_view, StyleKeys.OBJECT_FIT)] ?? 'contain';
+    return map[getUint8(this.style_view, StyleKeys.OBJECT_FIT)] ?? 'fill';
   }
 
   /** Read by `Img`; previously reachable only through the native HTML parser. */
@@ -5227,7 +5394,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.fontFamily;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('font-family') ?? '') : '';
   }
 
   // `font-family` is a native Style property (builds a FontFace), not a
@@ -5342,7 +5509,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.border;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('border') ?? '') : '';
   }
 
   set border(value: string) {
@@ -5363,7 +5530,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.paddingCss;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('padding') ?? '') : '';
   }
 
   set paddingCss(value: string | number) {
@@ -5386,7 +5553,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.marginCss;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('margin') ?? '') : '';
   }
 
   set marginCss(value: string | number) {
@@ -5408,7 +5575,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.insetCss;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('inset') ?? '') : '';
   }
 
   set insetCss(value: string | number) {
@@ -5490,7 +5657,7 @@ export class Style {
       return this.appleStyle.filter;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('filter') ?? '') : '';
   }
 
   set filter(value: string) {
@@ -5515,7 +5682,7 @@ export class Style {
       return this.appleStyle.boxShadow;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('box-shadow') ?? '') : '';
   }
 
   set 'box-shadow'(value: string) {
@@ -5548,7 +5715,7 @@ export class Style {
       return this.appleStyle.transform;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('transform') ?? '') : '';
   }
 
   set transform(value: string) {
@@ -5722,7 +5889,7 @@ export class Style {
       return this.appleStyle.textShadow;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('text-shadow') ?? '') : '';
   }
 
   set textShadow(value: string) {
@@ -5842,7 +6009,7 @@ export class Style {
       return this.appleStyle.cornerShape;
     }
 
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape') ?? '') : '';
   }
 
   get cornerShapeTopLeft() {
@@ -5853,7 +6020,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.cornerShapeTopLeft;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-top-left') ?? '') : '';
   }
 
   set cornerShapeTopLeft(value: string) {
@@ -5874,7 +6041,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.cornerShapeTopRight;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-top-right') ?? '') : '';
   }
 
   set cornerShapeTopRight(value: string) {
@@ -5895,7 +6062,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.cornerShapeBottomRight;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-bottom-right') ?? '') : '';
   }
 
   set cornerShapeBottomRight(value: string) {
@@ -5916,7 +6083,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.cornerShapeBottomLeft;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-bottom-left') ?? '') : '';
   }
 
   set cornerShapeBottomLeft(value: string) {
@@ -6075,7 +6242,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.borderImage;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('border-image') ?? '') : '';
   }
 
   set borderImage(value: string) {
@@ -6130,7 +6297,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.fontFeatureSettings;
     }
-    return 'normal';
+    return __WINDOWS__ ? this._windowsCss.get('font-feature-settings') || 'normal' : 'normal';
   }
 
   set fontFeatureSettings(value: string) {
@@ -6239,7 +6406,7 @@ export class Style {
     if (__APPLE__) {
       return this.appleStyle.backdropFilter;
     }
-    return '';
+    return __WINDOWS__ ? (this._windowsCss.get('backdrop-filter') ?? '') : '';
   }
 
   set backdropFilter(value: string) {

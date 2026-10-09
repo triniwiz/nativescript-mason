@@ -1,4 +1,5 @@
 import "Element.idl";
+import "Event.idl";
 
 namespace NativeScript.Mason
 {
@@ -14,5 +15,9 @@ namespace NativeScript.Mason
         Int32 Rows;
         Int32 Cols;
         Int32 MaxLength;
+        void SetFontFamily(String families);
+
+        Int64 AddEventListener(String type, EventListener listener);
+        Boolean RemoveEventListener(String type, Int64 id);
     }
 }

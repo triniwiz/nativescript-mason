@@ -7,6 +7,7 @@ import Shadows from './components/shadows'
 import Transforms from './components/transforms'
 import Backgrounds from './components/backgrounds'
 import Position from './components/position'
+import Forms from './components/forms'
 import QA from './components/qa'
 import WebSpec from './webspec/WebSpec'
 import MaxWidthChurnRepro from './webspec/MaxWidthChurnRepro'
@@ -23,6 +24,7 @@ declare module 'solid-navigation' {
       Transforms: RouteDefinition
       Backgrounds: RouteDefinition
       Position: RouteDefinition
+      Forms: RouteDefinition
       QA: RouteDefinition
       WebSpec: RouteDefinition
       MaxWidthChurnRepro: RouteDefinition
@@ -41,6 +43,7 @@ const App = () => {
       <Route name="Transforms" component={Transforms} />
       <Route name="Backgrounds" component={Backgrounds} />
       <Route name="Position" component={Position} />
+      <Route name="Forms" component={Forms} />
       <Route name="QA" component={QA} />
       <Route name="WebSpec" component={WebSpec} />
       <Route name="MaxWidthChurnRepro" component={MaxWidthChurnRepro} />

@@ -796,6 +796,10 @@ impl Mason {
         crate::tree::resolved_writing_mode(&self.0.inner(), node_id)
     }
 
+    pub fn is_rtl(&self, node_id: Id) -> bool {
+        matches!(crate::tree::resolved_direction(&self.0.inner(), node_id), taffy::style::Direction::Rtl)
+    }
+
     pub fn unrounded_size(&self, node_id: Id) -> Size<f32> {
         self.0
             .nodes()

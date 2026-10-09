@@ -32,6 +32,10 @@ namespace winrt::NativeScript::Mason::implementation
 
         static void ApplyLinearGradient(winrt::Microsoft::UI::Xaml::UIElement const& element,
             double angleDegrees, winrt::hstring const& stops, winrt::hstring const& interpolation);
+        static void ApplyRadialGradientAt(winrt::Microsoft::UI::Xaml::UIElement const& element, double centerX, double centerY, double radiusX,
+            double radiusY, hstring const& stops, hstring const& interpolation);
+        static void ApplyBackgroundImage(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& source, int32_t fit, int32_t alignX,
+            int32_t alignY);
         static void ApplyRadialGradient(winrt::Microsoft::UI::Xaml::UIElement const& element,
             winrt::hstring const& stops, winrt::hstring const& interpolation);
 
@@ -43,6 +47,9 @@ namespace winrt::NativeScript::Mason::implementation
 
         static void ApplyShadow(winrt::Microsoft::UI::Xaml::UIElement const& element,
             double offsetX, double offsetY, double blurRadius, uint32_t argb, double cornerRadius);
+        static void SetBoxShadow(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& shadows);
+        static void SetFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
+        static void SetBackdropFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
         static void ClearShadow(winrt::Microsoft::UI::Xaml::UIElement const& element);
     };
 }
