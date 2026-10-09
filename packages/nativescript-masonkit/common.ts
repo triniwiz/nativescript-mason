@@ -1027,7 +1027,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   /** Size a non-Mason child with core's measure: its native view rarely implements sizeThatFits. */
   _masonMeasureForeign(child: any): void {
     if (!__APPLE__ || child[isMasonView_] || !child.nativeViewProtected) return;
-    const mason = (this.nativeViewProtected as any)?.mason;
+    // Text views (MasonText) have no `mason` of their own; their node does.
+    const native = this.nativeViewProtected as any;
+    const mason = native?.mason ?? native?.node?.mason;
     if (typeof mason?.setMeasureForViewBlock !== 'function') return;
     const parentRef = new WeakRef(this);
     const childRef = new WeakRef(child);
@@ -2081,7 +2083,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
     // Every member of an anonymous Text being regrouped is regrouped with it.
     const pool: any[] = [];
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
       for (let i = a; i <= b; i++) {
         const anonymous = children[i]?.[anonymousText_];

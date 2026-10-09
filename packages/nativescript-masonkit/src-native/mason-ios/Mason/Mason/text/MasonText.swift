@@ -505,9 +505,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     super.layoutSubviews()
     syncInlineBoxViews()
     for view in inlineBoxes.values {
-      if let box = (view as? MasonElement)?.node {
-        placeInlineBox(box, view, view.frame)
-      }
+      placeInlineBox(inlineBoxNode(view), view, view.frame)
     }
 
     // On a size change, redraw the text layer at the new width rather than
@@ -624,7 +622,8 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   internal func inlineBoxesDrawn() {
     guard !inlineBoxes.isEmpty else { return }
     for view in inlineBoxes.values {
-      guard let box = (view as? MasonElement)?.node, let rect = engine.drawnBoxFrame(for: box) else { continue }
+      let box = inlineBoxNode(view)
+      guard let rect = engine.drawnBoxFrame(for: box) else { continue }
       let size = box.inlineTurn != 0 ? CGSize(width: rect.height, height: rect.width) : rect.size
       if view.center != CGPoint(x: rect.midX, y: rect.midY) || view.bounds.size != size {
         DispatchQueue.main.async { [weak self] in self?.setNeedsLayout() }
@@ -757,7 +756,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     if(view is MasonElement){
       append((view as! MasonElement))
     }else {
-      append(node: node.mason.nodeForView(view))
+      append(node: inlineNode(forForeign: view))
     }
   }
   
@@ -769,8 +768,24 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     if(view is MasonElement){
       node.addChildAt((view as! MasonElement).node, at)
     }else {
-      node.addChildAt(node.mason.nodeForView(view), at)
+      node.addChildAt(inlineNode(forForeign: view), at)
     }
+  }
+
+  /// A plain UIView (an SVG, a canvas, a native control) in text is an atomic inline box, as a
+  /// replaced element is in HTML; its node would otherwise be a block and break the line.
+  private func inlineNode(forForeign view: UIView) -> MasonNode {
+    let child = node.mason.nodeForView(view)
+    if child.style.display == .Block {
+      child.style.display = .InlineBlock
+    }
+    return child
+  }
+
+  /// The node an inline box's view is laid out by: its own for a Mason element, else the leaf
+  /// Mason made for it.
+  private func inlineBoxNode(_ view: UIView) -> MasonNode {
+    return (view as? MasonElement)?.node ?? node.mason.nodeForView(view)
   }
 
   public func removeView(_ view: UIView) {
