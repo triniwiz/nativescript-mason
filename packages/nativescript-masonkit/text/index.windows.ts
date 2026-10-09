@@ -20,7 +20,7 @@ export const UA_DEFAULTS: Record<string, [number, number, number, number, number
 };
 
 // By web.ts TextType value.
-const TAGS: Record<number, string> = { 1: 'p', 3: 'code', 4: 'h1', 5: 'h2', 6: 'h3', 7: 'h4', 8: 'h5', 9: 'h6', 11: 'blockquote', 12: 'b', 13: 'pre', 14: 'strong', 15: 'em', 16: 'i' };
+const TAGS: Record<number, string> = { 1: 'p', 3: 'code', 10: 'li', 4: 'h1', 5: 'h2', 6: 'h3', 7: 'h4', 8: 'h5', 9: 'h6', 11: 'blockquote', 12: 'b', 13: 'pre', 14: 'strong', 15: 'em', 16: 'i' };
 const BOLD = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong']);
 
 export class Text extends TextBase {
@@ -52,9 +52,14 @@ export class Text extends TextBase {
         style.marginRight = ua[4];
       }
     }
+    if (tag === 'li') {
+      style.display = 'block';
+      this._view.IsListItem = true;
+    }
     if (BOLD.has(tag)) style.fontWeight = 'bold';
     if (tag === 'em' || tag === 'i') style.fontStyle = 'italic';
     if (tag === 'code' || tag === 'pre') this._view.SetFontFamily('monospace');
+    if (tag === 'pre') style.whiteSpace = 'pre';
   }
 
   get _view(): NativeScript.Mason.Text {

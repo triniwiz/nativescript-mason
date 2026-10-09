@@ -37,6 +37,8 @@ namespace NativeScript.Mason
         // `interpolation` is the text after the gradient's `in` ("oklch longer hue"), or empty.
         static void ApplyLinearGradient(Microsoft.UI.Xaml.UIElement element, Double angleDegrees, String stops, String interpolation);
         static void ApplyRadialGradient(Microsoft.UI.Xaml.UIElement element, String stops, String interpolation);
+        static void ApplyRadialGradientAt(Microsoft.UI.Xaml.UIElement element, Double centerX, Double centerY, Double radiusX, Double radiusY, String stops, String interpolation);
+        static void ApplyBackgroundImage(Microsoft.UI.Xaml.UIElement element, String source, Int32 fit, Int32 alignX, Int32 alignY);
 
         // Robustly (re)parent a native child: detach it from its current logical parent panel (if
         // different) before inserting into `parent` at `index` (or appending when index is out of
@@ -54,6 +56,9 @@ namespace NativeScript.Mason
         // behind the element's content. Re-applies itself on SizeChanged so it tracks layout/resize.
         // cornerRadius matches the element's border-radius. argb is 0xAARRGGBB.
         static void ApplyShadow(Microsoft.UI.Xaml.UIElement element, Double offsetX, Double offsetY, Double blurRadius, UInt32 argb, Double cornerRadius);
+        static void SetBoxShadow(Microsoft.UI.Xaml.UIElement element, String shadows);
+        static void SetFilter(Microsoft.UI.Xaml.UIElement element, String filter);
+        static void SetBackdropFilter(Microsoft.UI.Xaml.UIElement element, String filter);
         static void ClearShadow(Microsoft.UI.Xaml.UIElement element);
     }
 }

@@ -24,6 +24,7 @@
 #include "LeafCommon.h"
 #include "Node.h"
 #include "Positioning.h"
+#include "ScrollHost.h"
 #include "RootScale.h"
 #include "TextAtlas.h"
 #include "VisualState.h"
@@ -282,10 +283,12 @@ namespace mason_panel
                     impl->ArrangeY = absY;
                 }
                 mason_position::SyncChild(self, child, childNode);
+                if (auto panel = self.try_as<muxc::Panel>()) mason_scroll::SyncChild(panel, child, childNode);
             }
             auto scrollContent = el ? nullptr : ScrollContentOf(child);
             if (scrollContent)
             {
+                mason_scroll::SyncScroller(child.as<muxc::ScrollViewer>(), scrollContent);
                 auto* impl = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(scrollContent.Node());
                 impl->ArrangeX = absX;
                 impl->ArrangeY = absY;

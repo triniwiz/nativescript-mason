@@ -1,6 +1,47 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CustomLayoutView, Utils, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, textDecorationProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty, PseudoClassHandler } from '@nativescript/core';
+import {
+  AddChildFromBuilder,
+  CustomLayoutView,
+  Utils,
+  View as NSView,
+  ViewBase as NSViewBase,
+  getViewById,
+  Property,
+  widthProperty,
+  heightProperty,
+  View,
+  CoreTypes,
+  Length as CoreLength,
+  PercentLength as CorePercentLength,
+  marginLeftProperty,
+  marginRightProperty,
+  marginTopProperty,
+  marginBottomProperty,
+  minWidthProperty,
+  minHeightProperty,
+  fontSizeProperty,
+  fontWeightProperty,
+  fontStyleProperty,
+  colorProperty,
+  Color,
+  lineHeightProperty,
+  letterSpacingProperty,
+  textAlignmentProperty,
+  textDecorationProperty,
+  borderLeftWidthProperty,
+  borderTopWidthProperty,
+  borderRightWidthProperty,
+  borderBottomWidthProperty,
+  backgroundColorProperty,
+  paddingLeftProperty,
+  paddingRightProperty,
+  paddingTopProperty,
+  paddingBottomProperty,
+  zIndexProperty,
+  directionProperty,
+  PseudoClassHandler,
+} from '@nativescript/core';
 import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection, Float, Clear } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 // The per-corner radius and per-side colour longhands core's `border-radius`
@@ -11,7 +52,9 @@ import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
-import { Style as MasonStyle, Style, nodeHelper } from './style';
+import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip } from './style';
+import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
+import { parseCssTransform } from './css-transform';
 import {
   alignContentProperty,
   aspectRatioProperty,
@@ -87,77 +130,6 @@ function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle
 }
 
 export interface MasonChild extends ViewBase {}
-
-// move to cpp
-function parseCssTransformToMatrix(s: string): { m11: number; m12: number; m21: number; m22: number; tx: number; ty: number } | null {
-  if (!s || s === 'none') return null;
-  let tx = 0,
-    ty = 0,
-    rad = 0,
-    sx = 1,
-    sy = 1;
-  let found = false;
-  const re = /(\w+)\(([^)]*)\)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s))) {
-    found = true;
-    const args = m[2].split(',').map((a) => parseFloat(a.trim()));
-    switch (m[1]) {
-      case 'translate':
-        tx += args[0] || 0;
-        ty += args[1] || 0;
-        break;
-      case 'translateX':
-        tx += args[0] || 0;
-        break;
-      case 'translateY':
-        ty += args[0] || 0;
-        break;
-      case 'rotate':
-      case 'rotateZ':
-        rad += ((args[0] || 0) * Math.PI) / 180;
-        break;
-      case 'scale':
-        sx *= args[0] != null ? args[0] : 1;
-        sy *= args[1] != null ? args[1] : args[0] != null ? args[0] : 1;
-        break;
-      case 'scaleX':
-        sx *= args[0] != null ? args[0] : 1;
-        break;
-      case 'scaleY':
-        sy *= args[0] != null ? args[0] : 1;
-        break;
-    }
-  }
-  if (!found) return null;
-  const cos = Math.cos(rad),
-    sin = Math.sin(rad);
-  // CSS matrix(a,b,c,d,e,f) of rotate*scale → WinUI Matrix(M11,M12,M21,M22,OffsetX,OffsetY).
-  return { m11: sx * cos, m12: sx * sin, m21: -sy * sin, m22: sy * cos, tx, ty };
-}
-
-// move to cpp
-function parseBoxShadow(s: string): { ox: number; oy: number; blur: number; argb: number } | null {
-  if (!s || s === 'none') return null;
-  let color = 'rgba(0,0,0,0.2)';
-  let rest = s;
-  const m = s.match(/rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}/);
-  if (m) {
-    color = m[0];
-    rest = s.replace(m[0], ' ');
-  }
-  const nums = (rest.match(/-?\d*\.?\d+/g) || []).map((n) => parseFloat(n));
-  const ox = nums[0] || 0,
-    oy = nums[1] || 0,
-    blur = nums[2] || 0;
-  let argb = 0x33000000;
-  try {
-    argb = new Color(color as never).argb >>> 0;
-  } catch (_) {
-    /* keep default */
-  }
-  return { ox, oy, blur, argb };
-}
 
 function getWeakRefValue<T extends object>(value: WeakRef<T> | T | null | undefined): T | null {
   if (!value) return null;
@@ -344,6 +316,22 @@ function onWindowsActiveLeave(args: EventData) {
 
 function clearWindowsActive(view: any) {
   for (const state of WINDOWS_ACTIVE_STATES) view._removeVisualState(state);
+}
+
+function onWindowsHoverEnter(args: EventData) {
+  (args.object as any)._addVisualState('hover');
+}
+
+function onWindowsHoverLeave(args: EventData) {
+  (args.object as any)._removeVisualState('hover');
+}
+
+function onWindowsFocus(this: any) {
+  this._addVisualState('focus');
+}
+
+function onWindowsBlur(this: any) {
+  this._removeVisualState('focus');
 }
 
 const windowsRunCounts = new WeakMap<object, number>();
@@ -593,6 +581,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (typeof hitTest === 'function') {
         nativeHit = hitTest.call(nativeView, x, y);
       }
+    } else if (__WINDOWS__ && typeof masonEngine().ElementFromPoint === 'function') {
+      nativeHit = masonEngine().ElementFromPoint(nativeView, x, y);
     }
 
     if (!nativeHit) return null;
@@ -644,7 +634,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         callback['mason:event:id'] = id;
       }
       if (__WINDOWS__) {
-        if (arg === 'click' && typeof masonEngine().AddEventListener === 'function') {
+        if (typeof masonEngine().AddEventListener === 'function') {
           const ref = new WeakRef(this);
           const listener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', (event: any) => {
             const owner = ref.deref();
@@ -731,7 +721,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         }
       }
       if (__WINDOWS__) {
-        if (id && arg === 'click' && callback['mason:event:listener']) {
+        if (id && callback['mason:event:listener'] && !callback['mason:event:tapped']) {
           masonEngine().RemoveEventListener((this as any)._view, arg, id);
           callback['mason:event:id'] = undefined;
           callback['mason:event:listener'] = undefined;
@@ -884,6 +874,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const styles = compile(this);
     //@ts-ignore
     this._applyPseudoClassStyles('hover', this._view, styles);
+    if (__WINDOWS__) {
+      if (subscribe) {
+        this.on('mouseEnter', onWindowsHoverEnter);
+        this.on('mouseLeave', onWindowsHoverLeave);
+      } else {
+        this.off('mouseEnter', onWindowsHoverEnter);
+        this.off('mouseLeave', onWindowsHoverLeave);
+        (this as any)._removeVisualState('hover');
+      }
+    }
   }
 
   @PseudoClassHandler('highlighted', 'pressed', 'active')
@@ -947,6 +947,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const styles = compile(this);
     //@ts-ignore
     this._applyPseudoClassStyles('focus', this._view, styles);
+    if (__WINDOWS__) {
+      if (subscribe) {
+        this.on('focus', onWindowsFocus, this);
+        this.on('blur', onWindowsBlur, this);
+      } else {
+        this.off('focus', onWindowsFocus, this);
+        this.off('blur', onWindowsBlur, this);
+        (this as any)._removeVisualState('focus');
+      }
+    }
   }
 
   @PseudoClassHandler('blur')
@@ -1545,6 +1555,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       // @ts-ignore
       style.zIndex = value;
     }
+  }
+
+  [directionProperty.setNative](value: CoreTypes.LayoutDirectionType) {
+    // @ts-ignore
+    super[directionProperty.setNative]?.(value);
+    const style = (this as any)._styleHelper;
+    if (style) style.direction = value === 'rtl' || value === 'ltr' ? value : 'inherit';
   }
 
   set verticalAlign(value) {
@@ -2627,6 +2644,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStyleType(String(value));
+    } else if (__WINDOWS__) {
+      const style = (this as any)._styleHelper;
+      const type = String(value).trim().toLowerCase();
+      if (style && (type === 'none' || type === 'disc' || type === 'circle' || type === 'square' || type === 'decimal')) style.listStyleType = type;
     }
   }
 
@@ -3469,13 +3490,19 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       // @ts-ignore
       style.boxShadow = value;
       if (__WINDOWS__) {
-        // box-shadow isn't a Mason buffer prop — render it as a Composition DropShadow on the element
-        // (masked to its rounded-rect shape, re-applied on resize). The corner radius is read natively.
         const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
         try {
-          const sh = parseBoxShadow(typeof value === 'string' ? value : '');
-          if (!sh) NativeScript.Mason.Css.ClearShadow(nv);
-          else NativeScript.Mason.Css.ApplyShadow(nv, sh.ox, sh.oy, sh.blur, sh.argb, 0);
+          const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasis()));
+          const current = (style as any).color >>> 0 || 0xff000000;
+          const spec = encodeBoxShadows(shadows, (color) => {
+            if (!color || color.toLowerCase() === 'currentcolor') return current;
+            try {
+              return new Color(color as never).argb >>> 0;
+            } catch (_) {
+              return current;
+            }
+          });
+          NativeScript.Mason.Css.SetBoxShadow(nv, spec);
         } catch (_) {}
       }
     }
@@ -3493,9 +3520,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         // doesn't drive transforms on). Parse the CSS string to a matrix and set RenderTransform.
         const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
         try {
-          const mtx = parseCssTransformToMatrix(typeof value === 'string' ? value : '');
-          if (!mtx) NativeScript.Mason.Css.ClearTransform(nv);
-          else NativeScript.Mason.Css.ApplyTransform(nv, mtx.m11, mtx.m12, mtx.m21, mtx.m22, mtx.tx, mtx.ty);
+          const size = { width: nv?.ActualWidth ?? 0, height: nv?.ActualHeight ?? 0 };
+          const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasis()), size);
+          if (!m) NativeScript.Mason.Css.ClearTransform(nv);
+          else {
+            NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
+            nv.RenderTransformOrigin = { X: (this as any).originX ?? 0.5, Y: (this as any).originY ?? 0.5 };
+          }
         } catch (_) {}
       }
     }
@@ -3506,7 +3537,7 @@ textProperty.register(ViewBase);
 
 // Core's Windows Font resolves app/fonts files to an ms-appx URI (and generics to system fonts);
 // the bare family name only finds installed fonts.
-function windowsFontSource(font: any): string {
+export function windowsFontSource(font: any): string {
   try {
     const source = font?.getWindowsFontDescriptor?.()?.fontFamilyNative?.Source;
     if (source) return String(source);

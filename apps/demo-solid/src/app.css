@@ -21,3 +21,11 @@
   font-weight: normal;
   font-style: normal;
 }
+
+.forms-focus:focus {
+  background-color: #ffeaa7;
+}
+
+.forms-hover:hover {
+  background-color: #74b9ff;
+}

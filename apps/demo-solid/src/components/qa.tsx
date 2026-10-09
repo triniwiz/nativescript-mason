@@ -1,12 +1,15 @@
-import { createSignal, For } from 'solid-js'
+import { createSignal, For, Show } from 'solid-js'
 import { BG, MUTED, TEXT, Card, Field, Segmented, Stepper } from './controls'
 
 // QA harness — deliberately throws varied/edge-case markup at the lib to make
 // sure nothing breaks: scroll-auto default, backdrop-filter (content must stay
 // sharp), dynamic add/remove churn, nested scrolling and extreme styles.
+const TEST_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAA8CAIAAAAiz+n/AAAAvklEQVR4nO3QQQlCURQA0b81jDuxgH1MYQMNYwdjuLGEYAq9w/PABBjOtj8c9YO28YM/CTTotQINenno1+kab7vf4oEGDTrYuCPoSqBBgw427gi6EmjQoIONO4KuBBo06GDjjqArgQYNOti4I+hKoEGDDrYI9O7yjPd+nOOBBg062Lgj6EqgQYMONu4IuhJo0KCDjTuCrgQaNOhg446gK4EGDTrYuCPoSqBBgw62CLS+EWjQawUa9FqBPv4G+gNgLYJbtaKhMAAAAABJRU5ErkJggg=='
+
 export default function QA() {
   const [blur, setBlur] = createSignal(18)
   const [filterKind, setFilterKind] = createSignal('blur')
+  const [filtersOn, setFiltersOn] = createSignal(true)
   const [count, setCount] = createSignal(6)
 
   const filterCss = () => {
@@ -46,6 +49,38 @@ export default function QA() {
             <span style={{ color: 'red', 'font-weight': 600, 'font-size': 18 }}>DEPTH-2 COLUMN (bug: blank on iOS)</span>
           </div>
         </div>
+        <Card title="INNER HTML">
+          <div
+            ref={(el: any) =>
+              setTimeout(() => {
+                el.innerHTML =
+                  '<h3 style="margin: 0 0 6px 0">Parsed &amp; built</h3><p>Plain <b>bold</b>, <i>italic</i> and <span style="color: #e84393; background-color: #ffeaa7">styled</span> text.<br>After a break.</p><ul><li>one<li>two</ul><div style="display: flex; gap: 8px"><div style="width: 40px; height: 24px; background-color: #74b9ff; border-radius: 6px"></div><div style="width: 40px; height: 24px; background-color: #00b894; border-radius: 6px"></div></div>'
+              }, 0)
+            }
+          />
+        </Card>
+
+        <Card title="FILTERS">
+          <input type="checkbox" value="true" on:change={() => setFiltersOn(!filtersOn())} />
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <For each={['none', 'grayscale(1)', 'sepia(1)', 'hue-rotate(120deg)', 'invert(1)', 'blur(3px)', 'brightness(1.6)', 'contrast(0.4)', 'saturate(3)', 'opacity(0.4)']}>
+              {(f) => (
+                <div style={{ width: 120, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ width: 120, height: 70, borderRadius: '10px', background: 'linear-gradient(135deg, #e84393, #fdcb6e, #00b894)', padding: 8, filter: filtersOn() ? f : 'none' } as any}>
+                    <p style={{ fontSize: 18, fontWeight: 'bold', color: '#2d3436' }}>Aa 12</p>
+                  </div>
+                  <p style={{ fontSize: 11, color: MUTED }}>{f}</p>
+                </div>
+              )}
+            </For>
+            <Show when={filtersOn()}>
+              <div style={{ width: 120, height: 70, borderRadius: '10px', background: 'linear-gradient(135deg, #e84393, #fdcb6e, #00b894)', padding: 8, filter: 'drop-shadow(4px 4px 4px rgba(0,0,0,0.6))' } as any}>
+                <p style={{ fontSize: 18, fontWeight: 'bold', color: '#2d3436' }}>shadow</p>
+              </div>
+            </Show>
+          </div>
+        </Card>
+
         {/* ── 1. Backdrop-filter: content must stay SHARP ── */}
         <Card title="BACKDROP-FILTER — TEXT MUST BE SHARP">
           <div
@@ -161,6 +196,140 @@ export default function QA() {
               </For>
             </div>
           </scroll>
+        </Card>
+
+        <Card title="BORDERS & CLIPPING">
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+            <div style={{ width: 90, height: 70, backgroundColor: '#6c5ce7', borderTopLeftRadius: '30px', borderBottomRightRadius: '30px' }} />
+            <div style={{ width: 120, height: 70, backgroundColor: '#00b894', borderRadius: '50%' }} />
+            <div style={{ width: 90, height: 70, backgroundColor: '#ffeaa7', borderRadius: '40px 10px / 20px 30px' }} />
+            <div style={{ width: 90, height: 70, border: '4px dashed #e17055', borderRadius: '12px' }} />
+            <div style={{ width: 90, height: 70, border: '4px dotted #0984e3' }} />
+            <div style={{ width: 90, height: 70, border: '8px double #2d3436', borderRadius: '10px' }} />
+            <div style={{ width: 90, height: 70, border: '8px inset #74b9ff' }} />
+            <div style={{ width: 90, height: 70, borderWidth: '6px 2px 10px 4px', borderColor: '#e84393 #fdcb6e #00b894 #6c5ce7', borderStyle: 'solid', borderRadius: '16px' }} />
+            <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden' }}>
+              <div style={{ width: 80, height: 40, backgroundColor: '#e84393' }} />
+              <div style={{ width: 80, height: 40, backgroundColor: '#0984e3' }} />
+            </div>
+            <div style={{ width: 90, height: 70, backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }} />
+            <div style={{ width: 90, height: 70, backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 0 0 4px #6c5ce7' }} />
+            <div style={{ width: 90, height: 70, backgroundColor: '#dfe6e9', borderRadius: '12px', boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.45)' }} />
+            <div style={{ width: 90, height: 70, backgroundColor: 'white', borderRadius: '30px 4px', boxShadow: '-6px -6px 0 #fdcb6e, 6px 6px 0 #0984e3' }} />
+            <div style={{ width: 70, height: 70, backgroundColor: '#e84393', borderRadius: '50%', boxShadow: '0 0 20px 4px rgba(232,67,147,0.7)' }} />
+            <div style={{ width: 90, height: 70, overflow: 'hidden', borderRadius: '14px', border: '2px solid #2d3436' }}>
+              <div style={{ width: 140, height: 140, marginLeft: -20, marginTop: -20, backgroundColor: '#fdcb6e' }} />
+            </div>
+          </div>
+        </Card>
+
+        <Card title="BACKGROUNDS">
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ width: 110, height: 80, background: 'radial-gradient(#fdcb6e, #e17055)' }} />
+            <div style={{ width: 110, height: 80, background: 'radial-gradient(circle at top left, #74b9ff, #6c5ce7)' }} />
+            <div style={{ width: 110, height: 80, background: 'radial-gradient(closest-side at 30% 50%, white, #00b894 60%, #2d3436)' }} />
+            <div style={{ width: 110, height: 80, borderRadius: '24px', background: 'radial-gradient(#e84393, #2d3436)' }} />
+            <div style={{ width: 110, height: 80, backgroundColor: '#dfe6e9', background: `url(${TEST_IMAGE}) center / cover no-repeat` }} />
+            <div style={{ width: 110, height: 80, backgroundColor: '#dfe6e9', backgroundImage: `url(${TEST_IMAGE})`, backgroundSize: 'contain', backgroundPosition: 'center' } as any} />
+            <div style={{ width: 110, height: 80, borderRadius: '50%', backgroundImage: `url(${TEST_IMAGE})`, backgroundSize: 'cover' } as any} />
+          </div>
+        </Card>
+
+        <Card title="TEXT">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p style={{ fontSize: 16, textTransform: 'uppercase' as any }}>uppercase text-transform</p>
+            <p style={{ fontSize: 16, textTransform: 'capitalize' as any }}>capitalize every word here</p>
+            <p style={{ fontSize: 16 }}>
+              Plain <span style={{ backgroundColor: '#ffeaa7' }}>highlighted span</span> and <span style={{ backgroundColor: '#74b9ff', color: 'white' }}>another</span>.
+            </p>
+            <p style={{ fontSize: 16, textDecoration: 'underline wavy #e17055' }}>Wavy underline</p>
+            <p style={{ fontSize: 16, textDecoration: 'underline double #6c5ce7' }}>Double underline</p>
+            <p style={{ fontSize: 16, textDecoration: 'line-through dotted #0984e3' }}>Dotted line-through</p>
+            <p style={{ fontSize: 16, textDecoration: 'overline dashed #00b894' }}>Dashed overline</p>
+            <p style={{ fontSize: 16, textDecoration: 'underline solid #e84393 3px' }}>Thick coloured underline</p>
+            <p style={{ fontSize: 22, fontWeight: 'bold', textShadow: '2px 2px 0 #fdcb6e' } as any}>Hard text shadow</p>
+            <p style={{ fontSize: 22, fontWeight: 'bold', color: 'white', textShadow: '0 2px 6px rgba(0,0,0,0.6)' } as any}>Blurred text shadow</p>
+            <p style={{ fontSize: 22, fontWeight: 'bold', textShadow: '-2px -2px 0 #74b9ff, 2px 2px 0 #e84393' } as any}>Two shadows</p>
+            <p style={{ fontSize: 20, fontFamily: 'Bahnschrift', fontStretch: 'condensed' } as any}>Condensed Bahnschrift</p>
+            <p style={{ fontSize: 20, fontFamily: 'Bahnschrift' } as any}>Normal Bahnschrift</p>
+            <p style={{ fontSize: 16, wordSpacing: 16 } as any}>word spacing sixteen pixels</p>
+            <p style={{ fontSize: 22, fontFamily: 'Gabriola', fontFeatureSettings: '"ss06"' } as any}>Gabriola stylistic set six</p>
+            <p style={{ fontSize: 22, fontFamily: 'Gabriola' } as any}>Gabriola stylistic set six</p>
+            <p style={{ fontSize: 18, fontFamily: 'Calibri', fontFeatureSettings: '"smcp"' } as any}>Calibri small caps</p>
+            <p style={{ fontSize: 18, direction: 'rtl', backgroundColor: '#dfe6e9' } as any}>שלום עולם — مرحبا بالعالم</p>
+            <p style={{ fontSize: 18, direction: 'rtl', textAlignment: 'left', backgroundColor: '#dfe6e9' } as any}>RTL text-align left</p>
+          </div>
+        </Card>
+
+        <Card title="LISTS">
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 24 }}>
+            <ul>
+              <li>Disc item one</li>
+              <li>Disc item two</li>
+              <li>Disc item three</li>
+            </ul>
+            <ol>
+              <li>First</li>
+              <li>Second</li>
+              <li>Third</li>
+            </ol>
+            <ul style={{ listStyleType: 'square' as any }}>
+              <li>Square</li>
+              <li>Square</li>
+            </ul>
+            <ul style={{ listStyleType: 'circle' as any, color: '#6c5ce7' }}>
+              <li style={{ color: '#6c5ce7' }}>Circle</li>
+              <li style={{ color: '#6c5ce7' }}>Circle</li>
+            </ul>
+          </div>
+        </Card>
+
+        <Card title="IMAGES">
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }}>
+            <For each={['fill', 'contain', 'cover', 'none', 'scale-down']}>
+              {(fit) => (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <img src={TEST_IMAGE} style={{ width: 80, height: 80, objectFit: fit as any, backgroundColor: '#dfe6e9' }} />
+                  <p style={{ fontSize: 11, color: MUTED }}>{fit}</p>
+                </div>
+              )}
+            </For>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src={TEST_IMAGE} style={{ width: 80, height: 80, objectFit: 'none', objectPosition: 'left top', backgroundColor: '#dfe6e9' }} />
+              <p style={{ fontSize: 11, color: MUTED }}>none · left top</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src="ms-appx:///Assets/Square44x44Logo.scale-200.png" style={{ width: 80, height: 80, objectFit: 'contain', backgroundColor: '#dfe6e9' }} />
+              <p style={{ fontSize: 11, color: MUTED }}>ms-appx contain</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src="ms-appx:///Assets/Square44x44Logo.scale-200.png" />
+              <p style={{ fontSize: 11, color: MUTED }}>ms-appx natural</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src={TEST_IMAGE} />
+              <p style={{ fontSize: 11, color: MUTED }}>natural size</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src={TEST_IMAGE} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '50%' }} />
+              <p style={{ fontSize: 11, color: MUTED }}>avatar</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="OVERFLOW ON A DIV">
+          <div style={{ display: 'flex', flexDirection: 'row', gap: 12 }}>
+            <div style={{ height: 120, width: 160, overflow: 'auto', backgroundColor: '#dfe6e9', borderRadius: '8px', padding: 8 }}>
+              <For each={Array.from({ length: 12 })}>{(_, i) => <p style={{ fontSize: 13, color: '#2d3436' }}>{`Row ${i()} of 12`}</p>}</For>
+            </div>
+            <div style={{ flexGrow: 1, overflowX: 'auto', overflowY: 'hidden', backgroundColor: '#dfe6e9', borderRadius: '8px', padding: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', gap: 8, width: 1200 }}>
+                <For each={Array.from({ length: 12 })}>
+                  {(_, i) => <div style={{ width: 90, height: 90, flexShrink: 0, borderRadius: '10px', backgroundColor: ['#e84393', '#6c5ce7', '#0984e3', '#00b894'][i() % 4] }} />}
+                </For>
+              </div>
+            </div>
+          </div>
         </Card>
 
         {/* ── 4. Extreme / edge styles ── */}

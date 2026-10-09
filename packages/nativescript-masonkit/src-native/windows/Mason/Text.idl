@@ -48,5 +48,8 @@ namespace NativeScript.Mason
         Boolean IsAnonymous;
         // An <a>, exposed to UI Automation as a hyperlink.
         Boolean IsLink;
+        Boolean IsListItem;
+        void SetTextShadow(String shadows);
+        void SetFontFeatureSettings(String value);
     }
 }

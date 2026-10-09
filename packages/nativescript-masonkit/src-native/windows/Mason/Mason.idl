@@ -46,9 +46,11 @@ namespace NativeScript.Mason
         void SetPercentWidth(Microsoft.UI.Xaml.UIElement element, Single fraction);
         void SetPercentHeight(Microsoft.UI.Xaml.UIElement element, Single fraction);
 
-        // Events Mason dispatches (click), bubbling through the element tree, inline elements a Text
+        // Events Mason dispatches (click, input, change, focus, keydown, ...), bubbling through the element tree, inline elements a Text
         // draws included.
         Int64 AddEventListener(Microsoft.UI.Xaml.UIElement element, String type, EventListener listener);
         void RemoveEventListener(Microsoft.UI.Xaml.UIElement element, String type, Int64 id);
+
+        Object ElementFromPoint(Microsoft.UI.Xaml.UIElement element, Single x, Single y);
     }
 }

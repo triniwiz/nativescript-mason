@@ -2,6 +2,8 @@
 #include "Image.g.h"
 #include "Invalidation.h"
 #include "VisualState.h"
+#include <memory>
+#include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -25,10 +27,23 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
 
     private:
+        struct Natural
+        {
+            float width{ 0.0f };
+            float height{ 0.0f };
+        };
+
+        void Loaded(uint64_t generation, float width, float height);
+        static winrt::fire_and_forget LoadData(winrt::Microsoft::UI::Xaml::Media::Imaging::BitmapImage bitmap, hstring uri);
+        static winrt::fire_and_forget LoadFile(winrt::Microsoft::UI::Xaml::Media::Imaging::BitmapImage bitmap, hstring path);
+
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
         winrt::Microsoft::UI::Xaml::Controls::Image m_image{ nullptr };
         hstring m_source;
+        std::shared_ptr<Natural> m_natural = std::make_shared<Natural>();
+        uint64_t m_generation{ 0 };
+        bool m_clipped{ false };
     };
 }
 

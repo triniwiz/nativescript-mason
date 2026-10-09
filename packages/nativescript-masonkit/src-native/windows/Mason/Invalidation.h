@@ -52,7 +52,8 @@ namespace mason_leaf
 
     // StateKeys flag numbers from style.ts, as Android's StateKeys.LAYOUT_MASK and TEXT_LAYOUT.
     inline constexpr StyleDirty kLayoutKeys = StateFlags({ { 0, 39 }, { 43, 44 }, { 47, 49 }, { 53, 54 }, { 56, 61 }, { 63, 66 }, { 69, 71 }, { 73, 75 }, { 77, 78 } });
-    inline constexpr StyleDirty kTextKeys = StateFlags({ { 49, 54 }, { 56, 71 }, { 73, 75 }, { 77, 78 } });
+    inline constexpr StyleDirty kTextKeys = StateFlags({ { 2, 2 }, { 49, 54 }, { 56, 71 }, { 73, 75 }, { 77, 78 } });
+    inline constexpr StyleDirty kControlKeys = StateFlags({ { 49, 71 }, { 73, 75 }, { 77, 78 } });
 
     inline bool AnyDirty(StyleDirty const& dirty, StyleDirty const& mask)
     {

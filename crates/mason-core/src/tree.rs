@@ -2087,6 +2087,20 @@ pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::W
     crate::style::WritingMode::HorizontalTb
 }
 
+pub(crate) fn resolved_direction(tree: &TreeInner, id: Id) -> taffy::style::Direction {
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(node) = tree.nodes.get(n) {
+            let raw = node.style().data()[crate::style::StyleKeys::DIRECTION as usize] as i8;
+            if let Some(direction) = crate::utils::direction_from_enum(raw) {
+                return direction;
+            }
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    taffy::style::Direction::Ltr
+}
+
 /// Vertical text with no definite line length (no known or definite available height) takes
 /// its containing block's definite content height, else the viewport height, as CSS does for
 /// orthogonal flows. Works on transposed sizes, where the line length is the width.

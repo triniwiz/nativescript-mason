@@ -84,13 +84,12 @@ namespace
         return mux::Media::VisualTreeHelper::GetParent(object);
     }
 
-    winrt::com_ptr<nsm::implementation::Event> Fire(IInspectable const& target, winrt::hstring const& type, bool bubbles, winrt::hstring const& data)
+    void Fire(IInspectable const& target, winrt::com_ptr<nsm::implementation::Event> const& event, bool bubbles)
     {
-        auto event = winrt::make_self<nsm::implementation::Event>(type, type == L"click");
         // Mason has bubbled it already; a framework re-dispatching it must not bubble it again.
         event->bubbles = false;
         event->target = target;
-        event->data = data;
+        const winrt::hstring type = event->type;
         nsm::Event projected = *event;
         for (IInspectable cur = target; cur; cur = bubbles ? ParentOf(cur) : nullptr)
         {
@@ -115,6 +114,13 @@ namespace
             }
             if (event->propagationStopped) break;
         }
+    }
+
+    winrt::com_ptr<nsm::implementation::Event> Fire(IInspectable const& target, winrt::hstring const& type, bool bubbles, winrt::hstring const& data)
+    {
+        auto event = winrt::make_self<nsm::implementation::Event>(type, type == L"click");
+        event->data = data;
+        Fire(target, event, bubbles);
         return event;
     }
 
@@ -185,6 +191,24 @@ namespace mason_events
         return false;
     }
 
+    IInspectable ElementAt(mux::UIElement const& element, float x, float y)
+    {
+        if (!element) return nullptr;
+        const auto point = element.TransformToVisual(nullptr).TransformPoint({ x, y });
+        for (auto const& hit : mux::Media::VisualTreeHelper::FindElementsInHostCoordinates(point, element, true))
+        {
+            if (auto text = hit.try_as<nsm::Text>())
+            {
+                auto* impl = winrt::get_self<nsm::implementation::Text>(text);
+                if (auto inl = impl->InlineElementAt(hit.TransformToVisual(nullptr).Inverse().TransformPoint(point))) return inl;
+                if (!impl->IsAnonymous()) return text;
+                continue;
+            }
+            if (hit.try_as<nsm::IMasonElement>()) return hit;
+        }
+        return nullptr;
+    }
+
     void HookTaps(mux::UIElement const& element)
     {
         auto& entry = EnsureEntry(element);
@@ -202,5 +226,12 @@ namespace mason_events
     {
         if (!target) return true;
         return !Fire(target, type, bubbles, data)->defaultPrevented;
+    }
+
+    bool DispatchEvent(IInspectable const& target, winrt::com_ptr<nsm::implementation::Event> const& event, bool bubbles)
+    {
+        if (!target || !event) return true;
+        Fire(target, event, bubbles);
+        return !event->defaultPrevented;
     }
 }

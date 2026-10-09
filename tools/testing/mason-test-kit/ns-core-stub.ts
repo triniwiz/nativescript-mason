@@ -16,7 +16,7 @@ export { Property, CoercibleProperty, InheritedProperty, CssProperty, CssAnimati
 export { Style } from '@nativescript/core/ui/styling/style';
 export { ViewBase } from '@nativescript/core/ui/core/view-base';
 export { Font } from '@nativescript/core/ui/styling/font';
-export { backgroundColorProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, colorProperty, fontSizeProperty, fontStyleProperty, fontWeightProperty, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, verticalAlignmentProperty, widthProperty, zIndexProperty } from '@nativescript/core/ui/styling/style-properties';
+export { backgroundColorProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, colorProperty, fontSizeProperty, fontStyleProperty, fontWeightProperty, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, verticalAlignmentProperty, widthProperty, zIndexProperty, directionProperty } from '@nativescript/core/ui/styling/style-properties';
 export { letterSpacingProperty, lineHeightProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, textShadowProperty } from '@nativescript/core/ui/text-base/text-base-common';
 export { getViewById } from '@nativescript/core/ui/core/view-base';
 export { CustomLayoutView, View } from '@nativescript/core/ui/core/view';
