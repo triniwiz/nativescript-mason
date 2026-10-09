@@ -2015,6 +2015,20 @@ export class Style {
     this.commitState(StateKeys.LIST_STYLE_TYPE);
   }
 
+  get listStylePosition(): 'outside' | 'inside' {
+    return getUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION) === 1 ? 'inside' : 'outside';
+  }
+
+  set listStylePosition(value: 'outside' | 'inside') {
+    if (value !== 'outside' && value !== 'inside') {
+      return;
+    }
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION, value === 'inside' ? 1 : 0);
+    setInt8(this.style_view, StyleKeys.LIST_STYLE_POSITION_STATE, 1);
+    this.commitState(StateKeys.LIST_STYLE_POSITION);
+  }
+
   get fontSize() {
     if (!this.style_view) {
       // BLACK ?

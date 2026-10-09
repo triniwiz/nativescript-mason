@@ -50,32 +50,52 @@ namespace mason_form
         s.hasBackground = (bg >> 24) != 0;
     }
 
-    inline void ApplyBackground(muxc::Control const& control, bool transparent)
+    inline void OverrideTheme(muxc::Control const& control, std::initializer_list<const wchar_t*> keys, winrt::Microsoft::UI::Xaml::Media::Brush const& brush)
     {
-        static const wchar_t* keys[] = {
-            L"TextControlBackground", L"TextControlBackgroundPointerOver", L"TextControlBackgroundFocused", L"TextControlBackgroundDisabled",
-            L"ButtonBackground", L"ButtonBackgroundPointerOver", L"ButtonBackgroundPressed", L"ButtonBackgroundDisabled",
-        };
         auto resources = control.Resources();
         for (auto key : keys)
         {
             auto boxed = winrt::box_value(winrt::hstring{ key });
-            if (transparent) resources.Insert(boxed, mason_visual::SharedSolid(0));
+            if (brush) resources.Insert(boxed, brush);
             else if (resources.HasKey(boxed)) resources.Remove(boxed);
         }
-        if (transparent) control.Background(mason_visual::SharedSolid(0));
-        else control.ClearValue(muxc::Control::BackgroundProperty());
+    }
+
+    inline void RefreshTheme(muxc::Control const& control)
+    {
         namespace mux = winrt::Microsoft::UI::Xaml;
         const auto theme = control.RequestedTheme();
         control.RequestedTheme(theme == mux::ElementTheme::Light ? mux::ElementTheme::Dark : mux::ElementTheme::Light);
         control.RequestedTheme(theme);
     }
 
+    inline void ApplyBackground(muxc::Control const& control, bool transparent)
+    {
+        OverrideTheme(control, {
+            L"TextControlBackground", L"TextControlBackgroundPointerOver", L"TextControlBackgroundFocused", L"TextControlBackgroundDisabled",
+            L"ButtonBackground", L"ButtonBackgroundPointerOver", L"ButtonBackgroundPressed", L"ButtonBackgroundDisabled",
+        }, transparent ? mason_visual::SharedSolid(0) : nullptr);
+        if (transparent) control.Background(mason_visual::SharedSolid(0));
+        else control.ClearValue(muxc::Control::BackgroundProperty());
+    }
+
+    inline void ApplyForeground(muxc::Control const& control, bool hasColor, uint32_t color)
+    {
+        OverrideTheme(control, {
+            L"TextControlForeground", L"TextControlForegroundPointerOver", L"TextControlForegroundFocused",
+            L"ButtonForeground", L"ButtonForegroundPointerOver", L"ButtonForegroundPressed",
+        }, hasColor ? mason_visual::SharedSolid(color) : nullptr);
+    }
+
     inline void ApplyTextStyle(muxc::Control const& control, TextStyle const& s, TextStyle& applied, bool force)
     {
         if (!control || (!force && s == applied)) return;
         using winrt::Windows::UI::Text::FontStyle;
-        if (force || s.hasBackground != applied.hasBackground) ApplyBackground(control, s.hasBackground);
+        const bool background = force || s.hasBackground != applied.hasBackground;
+        const bool foreground = force || s.hasColor != applied.hasColor || s.color != applied.color;
+        if (background) ApplyBackground(control, s.hasBackground);
+        if (foreground) ApplyForeground(control, s.hasColor, s.color);
+        if (background || foreground) RefreshTheme(control);
         if (s.hasColor) control.Foreground(mason_visual::SharedSolid(s.color));
         else control.ClearValue(muxc::Control::ForegroundProperty());
         if (s.fontSize > 0.0) control.FontSize(s.fontSize);

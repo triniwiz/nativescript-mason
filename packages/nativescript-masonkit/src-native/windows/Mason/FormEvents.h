@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -78,6 +79,9 @@ namespace mason_form
         winrt::hstring committed;
         winrt::hstring pendingData;
         winrt::hstring pendingType;
+        bool pendingComposing{ false };
+        bool composing{ false };
+        winrt::hstring hint;
 
         winrt::hstring Current() const { return value ? value() : winrt::hstring{}; }
 
@@ -105,8 +109,10 @@ namespace mason_form
             auto e = winrt::make_self<winrt::NativeScript::Mason::implementation::Event>(L"input", false);
             e->data = pendingData;
             e->inputType = pendingType.empty() ? fallbackType : pendingType;
+            e->isComposing = pendingComposing;
             pendingData = {};
             pendingType = {};
+            pendingComposing = false;
             Dispatch(e, true);
         }
 
@@ -130,10 +136,23 @@ namespace mason_form
                 e->shiftKey = Down(VK_SHIFT);
                 e->altKey = Down(VK_MENU);
                 e->metaKey = Down(VK_LWIN) || Down(VK_RWIN);
+                e->isComposing = self->composing;
                 if (!self->Dispatch(e, true))
                 {
                     args.Handled(true);
                     return;
+                }
+                self->hint = {};
+                if (e->ctrlKey && !e->altKey)
+                {
+                    using winrt::Windows::System::VirtualKey;
+                    switch (args.Key())
+                    {
+                    case VirtualKey::Z: self->hint = e->shiftKey ? L"historyRedo" : L"historyUndo"; break;
+                    case VirtualKey::Y: self->hint = L"historyRedo"; break;
+                    case VirtualKey::X: self->hint = L"deleteByCut"; break;
+                    default: break;
+                    }
                 }
                 if (!multiline && args.Key() == winrt::Windows::System::VirtualKey::Enter) self->Commit();
             });
@@ -165,11 +184,54 @@ namespace mason_form
                     if (!self || self->applying) return;
                     auto e = winrt::make_self<winrt::NativeScript::Mason::implementation::Event>(L"beforeinput", true);
                     DescribeEdit(box.Text(), args.NewText(), e->data, e->inputType);
+                    if (self->composing)
+                    {
+                        e->inputType = e->data.empty() ? L"deleteCompositionText" : L"insertCompositionText";
+                        e->isComposing = true;
+                    }
+                    else if (!self->hint.empty())
+                    {
+                        e->inputType = self->hint;
+                        if (self->hint != L"insertFromPaste") e->data = {};
+                    }
+                    self->hint = {};
                     self->pendingData = e->data;
                     self->pendingType = e->inputType;
+                    self->pendingComposing = e->isComposing;
                     if (!self->Dispatch(e, true)) args.Cancel(true);
                 });
                 tb.TextChanged([edited](auto&&, auto&&) { edited(L"insertText"); });
+                tb.Paste([weak](auto&&, auto&&)
+                {
+                    if (auto self = weak.lock()) self->hint = L"insertFromPaste";
+                });
+                auto composition = [weak](wchar_t const* type, muxc::TextBox const& box, int32_t start, int32_t length)
+                {
+                    auto self = weak.lock();
+                    if (!self) return;
+                    auto e = winrt::make_self<winrt::NativeScript::Mason::implementation::Event>(type, false);
+                    const std::wstring_view text{ box.Text() };
+                    if (start >= 0 && static_cast<size_t>(start) <= text.size())
+                    {
+                        e->data = winrt::hstring(text.substr(start, (std::min)(static_cast<size_t>((std::max)(length, 0)), text.size() - start)));
+                    }
+                    e->isComposing = self->composing;
+                    self->Dispatch(e, true);
+                };
+                tb.TextCompositionStarted([weak, composition](muxc::TextBox const& box, muxc::TextCompositionStartedEventArgs const& args)
+                {
+                    if (auto self = weak.lock()) self->composing = true;
+                    composition(L"compositionstart", box, args.StartIndex(), 0);
+                });
+                tb.TextCompositionChanged([composition](muxc::TextBox const& box, muxc::TextCompositionChangedEventArgs const& args)
+                {
+                    composition(L"compositionupdate", box, args.StartIndex(), args.Length());
+                });
+                tb.TextCompositionEnded([weak, composition](muxc::TextBox const& box, muxc::TextCompositionEndedEventArgs const& args)
+                {
+                    if (auto self = weak.lock()) self->composing = false;
+                    composition(L"compositionend", box, args.StartIndex(), args.Length());
+                });
             }
             else if (auto pb = hosted.try_as<muxc::PasswordBox>())
             {
