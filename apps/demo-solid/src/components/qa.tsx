@@ -61,7 +61,7 @@ export default function QA() {
         </Card>
 
         <Card title="FILTERS">
-          <input type="checkbox" value="true" on:change={() => setFiltersOn(!filtersOn())} />
+          <input type="checkbox" checked={filtersOn()} on:change={() => setFiltersOn(!filtersOn())} />
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             <For each={['none', 'grayscale(1)', 'sepia(1)', 'hue-rotate(120deg)', 'invert(1)', 'blur(3px)', 'brightness(1.6)', 'contrast(0.4)', 'saturate(3)', 'opacity(0.4)']}>
               {(f) => (

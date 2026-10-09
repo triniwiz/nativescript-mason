@@ -7,6 +7,7 @@
 
 import UIKit
 import Foundation
+import CoreText
 
 @objcMembers
 @objc(MasonUIView)
@@ -28,6 +29,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   internal func invalidateDrawFlags() {
     _drawFlagsDirty = true
     setNeedsDisplay()
+    // Radius and shadows can change without a resize, so refresh what depends on them.
+    guard bounds.width > 0, bounds.height > 0 else { return }
+    updateOpacity()
+    style.updateShadowLayer(for: CGRect(origin: .zero, size: bounds.size))
+  }
+
+  // An opaque backing store is only safe when the box fills its bounds.
+  private func updateOpacity() {
+    style.mBorderRender.resolve(for: bounds)
+    let opaqueBackground = style.mBackground.map { bg in
+      bg.color != nil && bg.color!.cgColor.alpha >= 1.0 && bg.layers.isEmpty
+    } ?? false
+    isOpaque = opaqueBackground && !style.mBorderRender.hasRadii() && style.boxShadows.isEmpty
   }
   
   private func updateDrawFlagsIfNeeded() {
@@ -91,7 +105,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // Core Animation paints a layer's own border above its sublayers, but CSS paints
     // children (and their shadows) over the parent's border. With anything layered
     // inside, the border moves to a sublayer at the bottom of the stack.
-    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder()
+    // A view that clips its children keeps the border on its own layer, above them:
+    // CSS clips children inside the border, so they never cover it.
+    let clipsChildren = clipsToBounds || layer.mask != nil
+    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder() && !clipsChildren
     let ownWidth = useSublayer ? 0 : paint.borderWidth
     let ownColor = useSublayer ? nil : paint.borderColor
     if layer.borderWidth != ownWidth { layer.borderWidth = ownWidth }
@@ -253,26 +270,79 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     var position = 0
     for sv in subviews {
       guard let liText = sv as? MasonText, liText.type == .Li else { continue }
-      drawMarkerFor(listItem: liText, in: context, position: position)
+      // An inside marker is text in the item; rebuild it when the list, type or index changed.
+      let marker = MasonUIView.insideMarker(for: liText)
+      if marker != liText.engine.insideMarker {
+        liText.engine.insideMarker = marker
+        DispatchQueue.main.async { [weak liText] in liText?.engine.invalidate() }
+      }
+      if !MasonUIView.isInside(list: style, item: liText) {
+        drawMarkerFor(listItem: liText, in: context, position: position)
+      }
       position += 1
     }
   }
 
-  private func resolveListStyleTypeFor(_ child: MasonText) -> ListStyleType {
-    if style.isValueInitialized {
+  private static func listStyleType(list: MasonStyle, item: MasonText, preflight: Bool) -> ListStyleType {
+    for style in [list, item.style] where style.isValueInitialized {
       let isSet = style.getUInt8(StyleKeys.LIST_STYLE_TYPE_STATE) != 0
       if isSet, let type = ListStyleType(rawValue: Int8(style.getUInt8(StyleKeys.LIST_STYLE_TYPE))) {
         return type
       }
     }
-    if child.style.isValueInitialized {
-      let isSet = child.style.getUInt8(StyleKeys.LIST_STYLE_TYPE_STATE) != 0
-      if isSet, let type = ListStyleType(rawValue: Int8(child.style.getUInt8(StyleKeys.LIST_STYLE_TYPE))) {
-        return type
+    // UA lists default to disc; preflight resets them to none.
+    return preflight ? .None : .Disc
+  }
+
+  // The item's own list-style-position wins over the list's.
+  private static func isInside(list: MasonStyle, item: MasonText) -> Bool {
+    for style in [item.style, list] where style.isValueInitialized {
+      if style.getUInt8(StyleKeys.LIST_STYLE_POSITION_STATE) != 0 {
+        return style.getUInt8(StyleKeys.LIST_STYLE_POSITION) == UInt8(ListStylePosition.Inside.rawValue)
       }
     }
-    // UA lists default to disc; preflight resets them to none.
-    return node.mason.preflight ? .None : .Disc
+    return false
+  }
+
+  /// Leading text for the item's `inside` marker, drawn in its own font, or "" when it has none.
+  internal static func insideMarker(for item: MasonText) -> String {
+    guard item.type == .Li, let list = item.node.parent else { return "" }
+    guard isInside(list: list.style, item: item) else { return "" }
+    var index = 1
+    for child in list.children {
+      guard let view = child.view as? MasonText else { continue }
+      if view === item { break }
+      if view.type == .Li { index += 1 }
+    }
+    switch listStyleType(list: list.style, item: item, preflight: list.mason.preflight) {
+    case .Disc, .Custom: return "\u{2022} "
+    case .Circle: return "\u{25E6} "
+    case .Square: return "\u{25AA} "
+    case .Decimal: return "\(index). "
+    case .None: return ""
+    }
+  }
+
+  private func resolveListStyleTypeFor(_ child: MasonText) -> ListStyleType {
+    return MasonUIView.listStyleType(list: style, item: child, preflight: node.mason.preflight)
+  }
+
+  // Through CoreText at an explicit baseline, as the item's text is drawn; UIKit string
+  // drawing puts SF's baseline higher.
+  private func drawMarkerText(_ text: String, font: UIFont, color: UIColor, right: CGFloat, baseline: CGFloat, in context: CGContext) {
+    let attributed = NSAttributedString(string: text, attributes: [
+      .font: font,
+      NSAttributedString.Key(kCTForegroundColorAttributeName as String): color.cgColor,
+    ])
+    let line = CTLineCreateWithAttributedString(attributed)
+    let width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    context.saveGState()
+    context.textMatrix = .identity
+    context.translateBy(x: right - width, y: baseline)
+    context.scaleBy(x: 1, y: -1)
+    context.textPosition = .zero
+    CTLineDraw(line, context)
+    context.restoreGState()
   }
 
   private func drawMarkerFor(listItem child: MasonText, in context: CGContext, position: Int) {
@@ -297,11 +367,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let lineBox: CGFloat = {
       if lineHeightType == 1 { return max(lineHeightVal, fontLineHeight) }   // absolute pt
       if lineHeightVal > 0 { return max(lineHeightVal * fontSize, fontLineHeight) } // multiplier
-      return fontLineHeight
+      return max(fontLineHeight, fontSize * 1.2) // block text's normal line box
     }()
     let lineCenter = childFrame.minY + lineBox / 2.0
-    // Baseline of the first line, derived from the centred line box.
-    let baseline = lineCenter + (ascent + descent) / 2.0
+    // Baseline of the first line, placed exactly as the item's own text places it.
+    let lineRect = CGRect(x: childFrame.minX, y: childFrame.minY, width: childFrame.width, height: lineBox)
+    let baseline = child.engine.singleLineBaselineFromTop(ascent: ascent, descent: -descent, capHeight: uiFont.capHeight, baselineOffset: 0, in: lineRect)
     // Marker shape centres on the line's visual middle (cap/x-height midpoint).
     let cy = lineCenter
 
@@ -339,18 +410,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       context.fill(CGRect(x: cx - half, y: cy - half, width: half * 2, height: half * 2))
 
     case .Decimal:
-      let text = "\(position + 1)."
-      let attrs: [NSAttributedString.Key: Any] = [.font: uiFont, .foregroundColor: textColor]
-      let attributed = NSAttributedString(string: text, attributes: attrs)
-      let textWidth = attributed.size().width
-      attributed.draw(at: CGPoint(x: markerRight - textWidth, y: baseline - ascent))
+      drawMarkerText("\(position + 1).", font: uiFont, color: textColor, right: markerRight, baseline: baseline, in: context)
 
     case .Custom:
-      let text = "\u{2022}"
-      let attrs: [NSAttributedString.Key: Any] = [.font: uiFont, .foregroundColor: textColor]
-      let attributed = NSAttributedString(string: text, attributes: attrs)
-      let textWidth = attributed.size().width
-      attributed.draw(at: CGPoint(x: markerRight - textWidth, y: baseline - ascent))
+      drawMarkerText("\u{2022}", font: uiFont, color: textColor, right: markerRight, baseline: baseline, in: context)
 
     case .None:
       break
@@ -477,16 +540,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     _lastBoundsSize = currentSize
     invalidateDrawFlags()
     // Optimize compositing: set isOpaque for solid opaque backgrounds
-    style.mBorderRender.resolve(for: bounds)
-    guard let bg = style.mBackground else {return}
-    let hasOpaqueBackground = bg.color != nil && (bg.color!.cgColor.alpha >= 1.0) && bg.layers.isEmpty
-    let hasBoxShadow = !style.boxShadows.isEmpty
-
-    if hasOpaqueBackground && !style.mBorderRender.hasRadii() && !hasBoxShadow {
-      isOpaque = true
-    } else {
-      isOpaque = false
-    }
+    guard style.mBackground != nil else { return }
+    updateOpacity()
 
     // Never rasterize: it flattens the sublayer subtree into an offscreen bitmap
     // that gets resampled when composited, softening child text. draw(_:) already

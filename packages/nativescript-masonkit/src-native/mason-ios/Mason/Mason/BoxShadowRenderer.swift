@@ -163,10 +163,10 @@ class BoxShadowRenderer {
       let newX = max(0, resolved.x + spread)
       let newY = max(0, resolved.y + spread)
       
-      // Return new corner with Points values
+      // `.Points` holds device pixels.
       return CSSBorderRenderer.CornerRadius(
-        horizontal: .Points(Float(newX)),
-        vertical: .Points(Float(newY)),
+        horizontal: .Points(Float(newX) * NSCMason.scale),
+        vertical: .Points(Float(newY) * NSCMason.scale),
         exponent: corner.exponent
       )
     }

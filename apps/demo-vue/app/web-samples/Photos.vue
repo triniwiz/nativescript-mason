@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" style="background-color: #101014">
     <ActionBar title="Photos">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" v-bind="$backIcon" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="gallery page-body">

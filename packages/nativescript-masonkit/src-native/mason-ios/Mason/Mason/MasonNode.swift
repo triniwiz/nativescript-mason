@@ -704,6 +704,7 @@ public class MasonNode: NSObject {
     
     let paragraphStyle = NSMutableParagraphStyle()
     var fontNaturalLineHeight: CGFloat = 0
+    var normalBlockLineHeight: CGFloat = 0
 
     var type = MasonTextType.None
     
@@ -773,6 +774,7 @@ public class MasonNode: NSObject {
       attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.rawValue
       attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = fontStyle
       fontNaturalLineHeight = CTFontGetAscent(font) + CTFontGetDescent(font)
+      normalBlockLineHeight = max(fontNaturalLineHeight + CTFontGetLeading(font), CGFloat(fontSize) * 1.2)
     }
     
     
@@ -851,6 +853,11 @@ public class MasonNode: NSObject {
       lineBox = CGFloat(lineHeight)
     } else if(lineHeight > 0){
       lineBox = CGFloat(lineHeight) * CGFloat(style.resolvedFontSize)
+    }
+    // `normal` on block text: every line gets the box a single line is measured with
+    // (TextEngine.measureUncached), not CoreText's tighter natural line pitch.
+    if lineBox == 0 && !TextEngine.isInlineTextType(type) {
+      lineBox = normalBlockLineHeight
     }
     if lineBox > 0 {
       paragraphStyle.minimumLineHeight = lineBox

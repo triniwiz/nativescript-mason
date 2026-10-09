@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.ListStylePosition
 import org.nativescript.mason.masonkit.enums.ListStyleType
 import org.nativescript.mason.masonkit.enums.TextType
 import kotlin.math.max
@@ -25,7 +26,45 @@ internal object ListMarkers {
     for (i in 0 until container.childCount) {
       val child = container.getChildAt(i) as? TextView ?: continue
       if (child.type != TextType.Li) continue
-      drawMarker(canvas, containerStyle, child, liIndex++)
+      val position = liIndex++
+      // An inside marker is text in the item; rebuild it when the list, type or index changed.
+      val marker = insideMarker(child)
+      if (marker != child.engine.insideMarker) {
+        child.engine.insideMarker = marker
+        child.post { child.engine.invalidateInlineSegments() }
+      }
+      if (isInside(containerStyle, child)) continue
+      drawMarker(canvas, containerStyle, child, position)
+    }
+  }
+
+  // The item's own list-style-position wins over the list's.
+  private fun isInside(containerStyle: Style, child: TextView): Boolean {
+    for (style in arrayOf(child.style, containerStyle)) {
+      if (style.isValueInitialized && style.values.get(StyleKeys.LIST_STYLE_POSITION_STATE) != StyleState.INHERIT) {
+        return style.values.get(StyleKeys.LIST_STYLE_POSITION) == ListStylePosition.Inside.value
+      }
+    }
+    return false
+  }
+
+  /** Leading text for [item]'s `inside` marker, drawn in its own font, or "" when it has none. */
+  fun insideMarker(item: TextView): String {
+    if (item.type != TextType.Li) return ""
+    val list = item.node.parent ?: return ""
+    if (!isInside(list.style, item)) return ""
+    var index = 1
+    for (child in list.children) {
+      val view = child.view as? TextView ?: continue
+      if (view === item) break
+      if (view.type == TextType.Li) index++
+    }
+    return when (resolveListStyleType(list.style, item)) {
+      ListStyleType.Disc.value, ListStyleType.Custom.value -> "\u2022 "
+      ListStyleType.Circle.value -> "\u25E6 "
+      ListStyleType.Square.value -> "\u25AA "
+      ListStyleType.Decimal.value -> "$index. "
+      else -> ""
     }
   }
 

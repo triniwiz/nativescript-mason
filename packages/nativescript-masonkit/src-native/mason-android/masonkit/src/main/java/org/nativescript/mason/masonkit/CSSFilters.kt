@@ -596,7 +596,7 @@ class CSSFilters {
               if (filter.radiusPx > 0) {
                 val r = filter.radiusPx.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
                 effects.add(
-                  RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
+                  RenderEffect.createBlurEffect(r, r, Shader.TileMode.DECAL)
                 )
               }
             }
@@ -642,7 +642,7 @@ class CSSFilters {
 
               val shadowEffect = if (filter.blur > 0f) {
                 val r = filter.blur.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
-                val blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
+                val blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.DECAL)
                 RenderEffect.createChainEffect(colorEffect, blurEffect)
               } else {
                 colorEffect

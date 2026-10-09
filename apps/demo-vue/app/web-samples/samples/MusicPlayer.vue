@@ -1,7 +1,7 @@
 <template>
   <Page iosOverflowSafeAreaEnabled="false" style="background-color: #12121c">
     <ActionBar title="Music Player">
-      <NavigationButton text="Back" android.systemIcon="ic_menu_back" @tap="$navigateBack()" />
+      <NavigationButton text="Back" v-bind="$backIcon" @tap="$navigateBack()" />
     </ActionBar>
     <Scroll class="page">
       <main class="page-body">

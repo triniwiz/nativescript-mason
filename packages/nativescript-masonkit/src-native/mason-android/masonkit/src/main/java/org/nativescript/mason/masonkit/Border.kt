@@ -378,8 +378,6 @@ class BorderRenderer(private val style: Style) {
 
   companion object {
     // Static DashPathEffect instances — avoid allocation per draw
-    private val DASH_EFFECT = android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
-    private val DOT_EFFECT = android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
   }
 
   private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
@@ -902,62 +900,128 @@ class BorderRenderer(private val style: Style) {
     if (!hasVisibleBorder()) return
 
     if (drawUniformSolid(canvas, width, height)) return
+    paintRings(canvas, width, height)
+  }
 
-    // Build path with corners and sides
-    buildBorderPath(width, height)
+  /** The rounded edge [f] of the way from the border edge to the padding edge. */
+  private fun buildEdgePath(f: Float, width: Float, height: Float, into: Path): Path {
+    val l = leftWidth * f
+    val t = topWidth * f
+    val r = rightWidth * f
+    val b = bottomWidth * f
+    val w = (width - l - r).coerceAtLeast(0f)
+    val h = (height - t - b).coerceAtLeast(0f)
+    val s = cssRadiusScale(width, height)
+    val tlX = (topLeftCorner.x * s - l).coerceAtLeast(0f)
+    val tlY = (topLeftCorner.y * s - t).coerceAtLeast(0f)
+    val trX = (topRightCorner.x * s - r).coerceAtLeast(0f)
+    val trY = (topRightCorner.y * s - t).coerceAtLeast(0f)
+    val brX = (bottomRightCorner.x * s - r).coerceAtLeast(0f)
+    val brY = (bottomRightCorner.y * s - b).coerceAtLeast(0f)
+    val blX = (bottomLeftCorner.x * s - l).coerceAtLeast(0f)
+    val blY = (bottomLeftCorner.y * s - b).coerceAtLeast(0f)
 
-    // Ensure paint has smooth joins and dithering for crisper rounded corners
-    paint.isDither = true
-    paint.strokeJoin = Paint.Join.ROUND
+    into.reset()
+    into.moveTo(tlX, 0f)
+    into.lineTo(w - trX, 0f)
+    tempRadius.set(trX, trY)
+    addCorner(into, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, 0f)
+    into.lineTo(w, h - brY)
+    tempRadius.set(brX, brY)
+    addCorner(into, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, 0f)
+    into.lineTo(blX, h)
+    tempRadius.set(blX, blY)
+    addCorner(into, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, 0f)
+    into.lineTo(0f, tlY)
+    tempRadius.set(tlX, tlY)
+    addCorner(into, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, 0f)
+    into.close()
+    into.offset(l, t)
+    return into
+  }
 
-    // Fast path: if all sides share the same color, style, and width, draw a filled
-    // ring (outer minus inner) using even-odd fill to avoid stroked-join artifacts.
-    if (topColor == rightColor && rightColor == bottomColor && bottomColor == leftColor &&
-      topStyle == rightStyle && rightStyle == bottomStyle && bottomStyle == leftStyle &&
-      topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth &&
-      topWidth > 0f
+  private val ringFill by lazy(LazyThreadSafetyMode.NONE) {
+    Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; isDither = true }
+  }
+  private val ringPart = Path()
+  private val sidePath = Path()
+
+  // Shared with Windows' PaintBorder: each style fills rings between rounded edges, split per
+  // side by the corner diagonals, so radii, double lines and 3D shades follow the shape.
+  private fun paintRings(canvas: Canvas, width: Float, height: Float) {
+    val styles = arrayOf(topStyle, rightStyle, bottomStyle, leftStyle)
+    val colors = intArrayOf(topColor, rightColor, bottomColor, leftColor)
+    val widths = floatArrayOf(topWidth, rightWidth, bottomWidth, leftWidth)
+    val drawn = (0 until 4).filter {
+      widths[it] > 0f && styles[it] != BorderStyle.None && styles[it] != BorderStyle.Hidden && Color.alpha(colors[it]) > 0
+    }
+    if (drawn.isEmpty()) return
+
+    // Dotted or dashed alike on every side: one stroke along the middle of the border.
+    val first = drawn[0]
+    val patterned = styles[first] == BorderStyle.Dashed || styles[first] == BorderStyle.Dotted
+    if (patterned && drawn.size == 4 &&
+      drawn.all { styles[it] == styles[first] && widths[it] == widths[first] && colors[it] == colors[first] }
     ) {
-      if (topStyle == BorderStyle.Solid) {
-        // Solid single-color border: draw a filled ring with even-odd fill.
-        // This avoids CLEAR-layer edge artifacts around rounded corners.
-        paint.color = topColor
-        paint.isDither = true
+      val w = widths[first]
+      val dotted = styles[first] == BorderStyle.Dotted
+      strokePaint.color = colors[first]
+      strokePaint.strokeWidth = w
+      strokePaint.strokeCap = if (dotted) Paint.Cap.ROUND else Paint.Cap.BUTT
+      strokePaint.strokeJoin = Paint.Join.ROUND
+      strokePaint.pathEffect = android.graphics.DashPathEffect(
+        if (dotted) floatArrayOf(0f, w * 2) else floatArrayOf(w * 2, w * 2), 0f
+      )
+      canvas.drawPath(buildEdgePath(0.5f, width, height, insetPathA), strokePaint)
+      strokePaint.pathEffect = null
+      strokePaint.strokeCap = Paint.Cap.BUTT
+      return
+    }
 
-        val outer = buildBorderPathInset(0f, width, height, insetPathA)
-        val inner = buildBorderPathInset(topWidth, width, height, insetPathB)
-
-        val fillPaint = ringFillPaint
-        fillPaint.set(paint)
-        fillPaint.style = Paint.Style.FILL
-        fillPaint.pathEffect = null
-
-        ringPath.reset()
-        ringPath.fillType = Path.FillType.EVEN_ODD
-        ringPath.addPath(outer)
-        ringPath.addPath(inner)
-        canvas.drawPath(ringPath, fillPaint)
-      } else {
-        // Non-solid single-color border: stroke the path once and apply pathEffect
-        paint.color = topColor
-        paint.strokeWidth = topWidth
-        paint.style = Paint.Style.STROKE
-        paint.isDither = true
-        paint.strokeJoin = Paint.Join.ROUND
-        // Use butt caps for closed path strokes to avoid rounded end artifacts
-        paint.strokeCap = Paint.Cap.BUTT
-        when (topStyle) {
-          BorderStyle.Dashed -> paint.pathEffect = DASH_EFFECT
-          BorderStyle.Dotted -> paint.pathEffect = DOT_EFFECT
-          else -> paint.pathEffect = null
-        }
-        canvas.drawPath(path, paint)
+    val allDouble = drawn.all { styles[it] == BorderStyle.Double }
+    val bands = if (allDouble) arrayOf(0f to 1f / 3f, 2f / 3f to 1f) else arrayOf(0f to 1f)
+    // inset and groove darken the top and left; outset and ridge the bottom and right.
+    fun shade(i: Int): Float {
+      val topLeft = i == 0 || i == 3
+      return when (styles[i]) {
+        BorderStyle.Inset, BorderStyle.Groove -> if (topLeft) 0.6f else 1f
+        BorderStyle.Outset, BorderStyle.Ridge -> if (topLeft) 1f else 0.6f
+        else -> 1f
       }
-    } else {
-      // Draw each side separately for per-side colors and styles
-      drawSide(canvas, Side.Top, topColor, topStyle, width, height)
-      drawSide(canvas, Side.Right, rightColor, rightStyle, width, height)
-      drawSide(canvas, Side.Bottom, bottomColor, bottomStyle, width, height)
-      drawSide(canvas, Side.Left, leftColor, leftStyle, width, height)
+    }
+    fun color(i: Int): Int {
+      val f = shade(i)
+      val c = colors[i]
+      if (f == 1f) return c
+      return Color.argb(Color.alpha(c), (Color.red(c) * f).toInt(), (Color.green(c) * f).toInt(), (Color.blue(c) * f).toInt())
+    }
+    val oneColor = drawn.size == 4 && drawn.all { colors[it] == colors[0] && shade(it) == 1f }
+    val il = leftWidth
+    val it0 = topWidth
+    val ir = width - rightWidth
+    val ib = height - bottomWidth
+
+    for ((from, to) in bands) {
+      ringPath.reset()
+      ringPath.op(buildEdgePath(from, width, height, insetPathA), buildEdgePath(to, width, height, insetPathB), Path.Op.DIFFERENCE)
+      if (oneColor) {
+        ringFill.color = colors[0]
+        canvas.drawPath(ringPath, ringFill)
+        continue
+      }
+      for (i in drawn) {
+        sidePath.reset()
+        when (i) {
+          0 -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(width, 0f); sidePath.lineTo(ir, it0); sidePath.lineTo(il, it0) }
+          1 -> { sidePath.moveTo(width, 0f); sidePath.lineTo(width, height); sidePath.lineTo(ir, ib); sidePath.lineTo(ir, it0) }
+          2 -> { sidePath.moveTo(0f, height); sidePath.lineTo(il, ib); sidePath.lineTo(ir, ib); sidePath.lineTo(width, height) }
+          else -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(il, it0); sidePath.lineTo(il, ib); sidePath.lineTo(0f, height) }
+        }
+        sidePath.close()
+        if (!ringPart.op(ringPath, sidePath, Path.Op.INTERSECT)) continue
+        ringFill.color = color(i)
+        canvas.drawPath(ringPart, ringFill)
+      }
     }
   }
 
@@ -992,79 +1056,6 @@ class BorderRenderer(private val style: Style) {
   }
 
   private enum class Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT }
-
-  private fun buildBorderPath(width: Float, height: Float) {
-    val tl = topLeftCorner
-    val tr = topRightCorner
-    val br = bottomRightCorner
-    val bl = bottomLeftCorner
-
-    path.reset()
-
-    // Inset the border path by half the maximum stroke so strokes draw inside bounds
-    val maxStrokeHalf = maxOf(leftWidth, topWidth, rightWidth, bottomWidth) / 2f
-    val innerWidth = (width - maxStrokeHalf * 2).coerceAtLeast(0f)
-    val innerHeight = (height - maxStrokeHalf * 2).coerceAtLeast(0f)
-
-    // CSS spec proportional radius reduction on the outer box, then inset the
-    // centerline radii by half the maximum stroke.
-    val f = cssRadiusScale(width, height)
-    val tlX = insetRadius(tl.x * f, maxStrokeHalf)
-    val tlY = insetRadius(tl.y * f, maxStrokeHalf)
-    val trX = insetRadius(tr.x * f, maxStrokeHalf)
-    val trY = insetRadius(tr.y * f, maxStrokeHalf)
-    val brX = insetRadius(br.x * f, maxStrokeHalf)
-    val brY = insetRadius(br.y * f, maxStrokeHalf)
-    val blX = insetRadius(bl.x * f, maxStrokeHalf)
-    val blY = insetRadius(bl.y * f, maxStrokeHalf)
-
-    val ofs = maxStrokeHalf
-
-    path.moveTo(ofs + tlX, ofs)
-
-    // Top edge
-    path.lineTo(ofs + innerWidth - trX, ofs)
-
-    // Corners (reuse tempRadius to avoid PointF allocation)
-    tempRadius.set(trX, trY)
-    addCorner(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, innerWidth, innerHeight, ofs)
-
-    // Right edge
-    path.lineTo(ofs + innerWidth, ofs + innerHeight - brY)
-
-    tempRadius.set(brX, brY)
-    addCorner(
-      path,
-      Corner.BOTTOM_RIGHT,
-      tempRadius,
-      bottomRightExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    // Bottom edge
-    path.lineTo(ofs + blX, ofs + innerHeight)
-
-    tempRadius.set(blX, blY)
-    addCorner(
-      path,
-      Corner.BOTTOM_LEFT,
-      tempRadius,
-      bottomLeftExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    // Left edge
-    path.lineTo(ofs, ofs + tlY)
-
-    tempRadius.set(tlX, tlY)
-    addCorner(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, innerWidth, innerHeight, ofs)
-
-    path.close()
-  }
 
   private fun addCorner(
     path: Path,
@@ -1166,298 +1157,8 @@ class BorderRenderer(private val style: Style) {
     }
   }
 
-  private fun drawSide(
-    canvas: Canvas,
-    side: Side,
-    color: Int,
-    style: BorderStyle,
-    viewWidth: Float,
-    viewHeight: Float
-  ) {
-    val sideWidth = getWidthForSide(side)
-    if (style == BorderStyle.None || color == 0 || sideWidth <= 0f) return
-
-    canvas.save()
-
-    // Clip to this side's band so fill/stroke doesn't bleed into other sides
-    when (side) {
-      Side.Top -> canvas.clipRect(0f, 0f, viewWidth, sideWidth)
-      Side.Right -> canvas.clipRect(viewWidth - sideWidth, 0f, viewWidth, viewHeight)
-      Side.Bottom -> canvas.clipRect(0f, viewHeight - sideWidth, viewWidth, viewHeight)
-      Side.Left -> canvas.clipRect(0f, 0f, sideWidth, viewHeight)
-    }
-
-    paint.color = color
-    paint.strokeWidth = sideWidth
-    paint.style = Paint.Style.STROKE
-    paint.strokeJoin = Paint.Join.ROUND
-
-    // choose stroke cap & pattern per style, scale pattern to stroke width for better visual parity
-    when (style) {
-      BorderStyle.Solid -> {
-        paint.pathEffect = null
-        paint.strokeCap = Paint.Cap.ROUND
-        // draw on a path inset for this side so stroke centers match per-side widths
-        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight, insetPathA)
-        canvas.drawPath(sidePath, paint)
-      }
-
-      BorderStyle.Dashed -> {
-        paint.strokeCap = Paint.Cap.ROUND
-        val pattern = floatArrayOf(sideWidth * 3f, sideWidth * 2f)
-        paint.pathEffect = android.graphics.DashPathEffect(pattern, 0f)
-        val sidePath = buildStraightEdgePath(side, sideWidth / 2f, viewWidth, viewHeight)
-        canvas.drawPath(sidePath, paint)
-      }
-
-      BorderStyle.Dotted -> {
-        // use round caps with dash length ~ strokeWidth to create circular dots
-        paint.strokeCap = Paint.Cap.ROUND
-        val pattern = floatArrayOf(sideWidth, sideWidth * 2f)
-        paint.pathEffect = android.graphics.DashPathEffect(pattern, 0f)
-        val sidePath = buildStraightEdgePath(side, sideWidth / 2f, viewWidth, viewHeight)
-        canvas.drawPath(sidePath, paint)
-      }
-
-      BorderStyle.Double -> {
-        val total = sideWidth
-        if (total < 3f) {
-          // fallback to solid fill band
-          paint.pathEffect = null
-          paint.style = Paint.Style.FILL
-          val band = bandRectForSide(side, viewWidth, viewHeight, total)
-          canvas.drawRect(band, paint)
-        } else {
-          val line = total / 3f
-          val gap = total / 3f
-
-          // Outer stroke
-          paint.pathEffect = null
-          paint.style = Paint.Style.STROKE
-          paint.strokeWidth = line
-          paint.strokeCap = Paint.Cap.BUTT
-          val outerPath = buildBorderPathInset(line / 2f, viewWidth, viewHeight, insetPathA)
-          canvas.drawPath(outerPath, paint)
-
-          // Inner stroke
-          paint.strokeWidth = line
-          val innerCenter = line + gap
-          val innerPath = buildBorderPathInset(innerCenter + line / 2f, viewWidth, viewHeight, insetPathB)
-          canvas.drawPath(innerPath, paint)
-        }
-      }
-
-      BorderStyle.Groove -> {
-        val band = bandRectForSide(side, viewWidth, viewHeight, sideWidth)
-        val dark = darkenColor(color, 0.2f)
-        val light = lightenColor(color, 0.2f)
-        paint.style = Paint.Style.FILL
-        if (side == Side.Top || side == Side.Bottom) {
-          val half = band.width() / 2f
-          val leftRect = RectF(band.left, band.top, band.left + half, band.bottom)
-          val rightRect = RectF(band.left + half, band.top, band.right, band.bottom)
-          paint.color = dark
-          canvas.drawRect(leftRect, paint)
-          paint.color = light
-          canvas.drawRect(rightRect, paint)
-        } else {
-          val half = band.height() / 2f
-          val topRect = RectF(band.left, band.top, band.right, band.top + half)
-          val bottomRect = RectF(band.left, band.top + half, band.right, band.bottom)
-          paint.color = dark
-          canvas.drawRect(topRect, paint)
-          paint.color = light
-          canvas.drawRect(bottomRect, paint)
-        }
-      }
-
-      BorderStyle.Ridge -> {
-        val band = bandRectForSide(side, viewWidth, viewHeight, sideWidth)
-        val dark = darkenColor(color, 0.2f)
-        val light = lightenColor(color, 0.2f)
-        paint.style = Paint.Style.FILL
-        if (side == Side.Top || side == Side.Bottom) {
-          val half = band.width() / 2f
-          val leftRect = RectF(band.left, band.top, band.left + half, band.bottom)
-          val rightRect = RectF(band.left + half, band.top, band.right, band.bottom)
-          paint.color = light
-          canvas.drawRect(leftRect, paint)
-          paint.color = dark
-          canvas.drawRect(rightRect, paint)
-        } else {
-          val half = band.height() / 2f
-          val topRect = RectF(band.left, band.top, band.right, band.top + half)
-          val bottomRect = RectF(band.left, band.top + half, band.right, band.bottom)
-          paint.color = light
-          canvas.drawRect(topRect, paint)
-          paint.color = dark
-          canvas.drawRect(bottomRect, paint)
-        }
-      }
-
-      BorderStyle.Inset -> {
-        val band = bandRectForSide(side, viewWidth, viewHeight, sideWidth)
-        paint.style = Paint.Style.FILL
-        paint.color = darkenColor(color, 0.35f)
-        canvas.drawRect(band, paint)
-      }
-
-      BorderStyle.Outset -> {
-        val band = bandRectForSide(side, viewWidth, viewHeight, sideWidth)
-        paint.style = Paint.Style.FILL
-        paint.color = lightenColor(color, 0.35f)
-        canvas.drawRect(band, paint)
-      }
-
-      else -> {
-        paint.pathEffect = null
-        paint.strokeCap = Paint.Cap.BUTT
-        val sidePath = buildBorderPathInset(sideWidth / 2f, viewWidth, viewHeight, insetPathA)
-        canvas.drawPath(sidePath, paint)
-      }
-    }
-
-    canvas.restore()
-  }
-
-  /**
-   * Build a border path inset by a custom half-stroke (ofs). This mirrors buildBorderPath
-   * but uses the provided offset so each side can be stroked centered at a different inset
-   * (matching CSS where each side's stroke is centered on a path inset by half that side's width).
-   */
-  private fun buildBorderPathInset(ofs: Float, width: Float, height: Float, into: Path): Path {
-    val tl = topLeftCorner
-    val tr = topRightCorner
-    val br = bottomRightCorner
-    val bl = bottomLeftCorner
-
-    val p = into
-    p.reset()
-
-    val innerWidth = (width - ofs * 2).coerceAtLeast(0f)
-    val innerHeight = (height - ofs * 2).coerceAtLeast(0f)
-
-    // CSS spec proportional radius reduction on the outer box, then inset the
-    // requested path so border centerlines and inner rings do not bulge outward.
-    val f = cssRadiusScale(width, height)
-    val tlX = insetRadius(tl.x * f, ofs)
-    val tlY = insetRadius(tl.y * f, ofs)
-    val trX = insetRadius(tr.x * f, ofs)
-    val trY = insetRadius(tr.y * f, ofs)
-    val brX = insetRadius(br.x * f, ofs)
-    val brY = insetRadius(br.y * f, ofs)
-    val blX = insetRadius(bl.x * f, ofs)
-    val blY = insetRadius(bl.y * f, ofs)
-
-    p.moveTo(ofs + tlX, ofs)
-    p.lineTo(ofs + innerWidth - trX, ofs)
-
-    tempRadius.set(trX, trY)
-    addCorner(p, Corner.TOP_RIGHT, tempRadius, topRightExponent, innerWidth, innerHeight, ofs)
-
-    p.lineTo(ofs + innerWidth, ofs + innerHeight - brY)
-
-    tempRadius.set(brX, brY)
-    addCorner(p, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, innerWidth, innerHeight, ofs)
-
-    p.lineTo(ofs + blX, ofs + innerHeight)
-
-    tempRadius.set(blX, blY)
-    addCorner(p, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, innerWidth, innerHeight, ofs)
-
-    p.lineTo(ofs, ofs + tlY)
-
-    tempRadius.set(tlX, tlY)
-    addCorner(p, Corner.TOP_LEFT, tempRadius, topLeftExponent, innerWidth, innerHeight, ofs)
-
-    p.close()
-    return p
-  }
-
-  /** Build a straight-edge centerline path for a single side (excludes corner arcs). */
-  private fun buildStraightEdgePath(side: Side, ofs: Float, width: Float, height: Float): Path {
-    val f = cssRadiusScale(width, height)
-    val tlX = insetRadius(topLeftCorner.x * f, ofs)
-    val tlY = insetRadius(topLeftCorner.y * f, ofs)
-    val trX = insetRadius(topRightCorner.x * f, ofs)
-    val trY = insetRadius(topRightCorner.y * f, ofs)
-    val brX = insetRadius(bottomRightCorner.x * f, ofs)
-    val brY = insetRadius(bottomRightCorner.y * f, ofs)
-    val blX = insetRadius(bottomLeftCorner.x * f, ofs)
-    val blY = insetRadius(bottomLeftCorner.y * f, ofs)
-
-    val p = Path()
-    when (side) {
-      Side.Top -> {
-        val y = ofs
-        p.moveTo(ofs + tlX, y)
-        p.lineTo(width - ofs - trX, y)
-      }
-
-      Side.Right -> {
-        val x = width - ofs
-        p.moveTo(x, ofs + trY)
-        p.lineTo(x, height - ofs - brY)
-      }
-
-      Side.Bottom -> {
-        val y = height - ofs
-        p.moveTo(ofs + blX, y)
-        p.lineTo(width - ofs - brX, y)
-      }
-
-      Side.Left -> {
-        val x = ofs
-        p.moveTo(x, ofs + tlY)
-        p.lineTo(x, height - ofs - blY)
-      }
-    }
-    return p
-  }
-
-  /** Compute the RectF band for a given side and band thickness (in pixels) */
-  private fun bandRectForSide(side: Side, width: Float, height: Float, band: Float): RectF {
-    return when (side) {
-      Side.Top -> RectF(0f, 0f, width, band)
-      Side.Right -> RectF(width - band, 0f, width, height)
-      Side.Bottom -> RectF(0f, height - band, width, height)
-      Side.Left -> RectF(0f, 0f, band, height)
-    }
-  }
-
-  private fun clamp01(v: Float): Float = when {
-    v < 0f -> 0f
-    v > 1f -> 1f
-    else -> v
-  }
-
   private fun insetRadius(radius: Float, inset: Float): Float {
     return (radius - inset).coerceAtLeast(0f)
-  }
-
-  private fun darkenColor(color: Int, amount: Float): Int {
-    val a = Color.alpha(color)
-    val r = (Color.red(color) * (1f - clamp01(amount))).toInt().coerceIn(0, 255)
-    val g = (Color.green(color) * (1f - clamp01(amount))).toInt().coerceIn(0, 255)
-    val b = (Color.blue(color) * (1f - clamp01(amount))).toInt().coerceIn(0, 255)
-    return Color.argb(a, r, g, b)
-  }
-
-  private fun lightenColor(color: Int, amount: Float): Int {
-    val a = Color.alpha(color)
-    val r = (Color.red(color) + (255 - Color.red(color)) * clamp01(amount)).toInt().coerceIn(0, 255)
-    val g =
-      (Color.green(color) + (255 - Color.green(color)) * clamp01(amount)).toInt().coerceIn(0, 255)
-    val b =
-      (Color.blue(color) + (255 - Color.blue(color)) * clamp01(amount)).toInt().coerceIn(0, 255)
-    return Color.argb(a, r, g, b)
-  }
-
-  private fun getWidthForSide(side: Side): Float = when (side) {
-    Side.Left -> leftWidth
-    Side.Top -> topWidth
-    Side.Right -> rightWidth
-    Side.Bottom -> bottomWidth
   }
 
   enum class Side { Left, Top, Right, Bottom }

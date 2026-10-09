@@ -24,6 +24,7 @@ class MasonShadowLayer: CALayer {
   // Cache for invalidation
   private var cachedBounds: CGRect = .zero
   private var cachedShadowsHash: Int = 0
+  private var cachedRadius: CSSBorderRenderer.BorderRadius = .zero
   private var cachedOutsetShadows: [BoxShadow] = []
   private var cachedOutsetHash: Int = 0
   
@@ -110,9 +111,13 @@ class MasonShadowLayer: CALayer {
     if !CATransform3DEqualToTransform(transform, viewLayer.transform) { transform = viewLayer.transform }
     
     let shadowsHash = style.boxShadows.hashValue
-    if cachedBounds != viewBounds || cachedShadowsHash != shadowsHash {
+    // The radius can arrive after the first layout; the casters and cutout follow it.
+    style.mBorderRender.resolve(for: viewBounds)
+    let radius = style.mBorderRender.radius
+    if cachedBounds != viewBounds || cachedShadowsHash != shadowsHash || cachedRadius != radius {
       cachedBounds = viewBounds
       cachedShadowsHash = shadowsHash
+      cachedRadius = radius
       updateCasters(style, outsetShadows)
     }
   }
@@ -199,9 +204,10 @@ class MasonShadowLayer: CALayer {
       let resolved = corner.resolved(rect: rect)
       let newX = max(0, resolved.x + spread)
       let newY = max(0, resolved.y + spread)
+      // `.Points` holds device pixels.
       return CSSBorderRenderer.CornerRadius(
-        horizontal: .Points(Float(newX)),
-        vertical: .Points(Float(newY)),
+        horizontal: .Points(Float(newX) * NSCMason.scale),
+        vertical: .Points(Float(newY) * NSCMason.scale),
         exponent: corner.exponent
       )
     }

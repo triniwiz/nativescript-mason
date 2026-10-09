@@ -829,7 +829,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
       let type = self.type
-      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B || type == .Strong || type == .Em || type == .I , known, available)
+      return TextEngine.measure(self.engine, TextEngine.isInlineTextType(type), known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
     let scale = NSCMason.scale
