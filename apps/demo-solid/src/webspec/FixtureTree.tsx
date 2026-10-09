@@ -79,7 +79,11 @@ function renderNode(node: FixtureNode, refs: Map<number, any>, isRoot = false): 
 function snapshotSizes(refs: Map<number, any>): string {
   let out = ''
   for (const view of refs.values()) {
-    const { width, height } = view.getActualSize()
+    let { width, height } = view.getActualSize()
+    if (__WINDOWS__) {
+      width = view.nativeView?.ActualWidth ?? 0
+      height = view.nativeView?.ActualHeight ?? 0
+    }
     out += `${width},${height};`
   }
   return out
