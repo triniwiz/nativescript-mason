@@ -6569,7 +6569,8 @@ export class Style {
     } else {
       const normalized = normalizeColorValue(value);
       if (normalized == null) return;
-      setUint32(this.style_view, StyleKeys.CARET_COLOR, normalized);
+      // 0 is `auto`, so a fully transparent caret is stored as transparent white: as invisible, but distinct.
+      setUint32(this.style_view, StyleKeys.CARET_COLOR, normalized === 0 ? 0x00ffffff : normalized);
       setUint8(this.style_view, StyleKeys.CARET_COLOR_STATE, 1);
     }
     this.commitState(StateKeys.CARET_COLOR);

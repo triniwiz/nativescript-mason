@@ -4883,15 +4883,19 @@ extension MasonStyle {
     return fontFeatureSettings
   }
 
+  // caret-color inherits, but `auto` (the initial value) inherits as `auto` and means this element's
+  // own currentColor - not the color of whichever ancestor the inheritance chain ends at.
   internal var resolvedCaretColor: UInt32 {
-    let state = getUInt8(StyleKeys.CARET_COLOR_STATE)
-    if state == StyleState.SET {
-      return getUInt32(Int(StyleKeys.CARET_COLOR))
-    } else if state == StyleState.INHERIT {
-      return parentStyleWithTextValues?.resolvedCaretColor ?? resolvedColor
+    return explicitCaretColor ?? resolvedColor
+  }
+
+  // The nearest explicit caret-color, here or inherited. The JS setter stores `auto` as SET with 0.
+  private var explicitCaretColor: UInt32? {
+    if getUInt8(StyleKeys.CARET_COLOR_STATE) == StyleState.SET {
+      let color = getUInt32(Int(StyleKeys.CARET_COLOR))
+      return color != 0 ? color : nil
     }
-    // auto → fall back to currentColor
-    return resolvedColor
+    return parentStyleWithTextValues?.explicitCaretColor
   }
 
   internal var resolvedWordSpacing: Float {
