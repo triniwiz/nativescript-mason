@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cwchar>
 #include <cwctype>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -370,6 +371,115 @@ namespace mason_dwrite
         DWRITE_INLINE_OBJECT_METRICS metrics{};
     };
 
+    inline constexpr wchar_t kSoftHyphen = 0x00AD;
+
+    struct Hyphens
+    {
+        std::vector<uint32_t> positions;
+        std::vector<float> widths;
+        std::vector<bool> disabled;
+        float fittedWidth{ -1.0f };
+        float lineWidth{ 0.0f };
+    };
+
+    struct SoftHyphen : winrt::implements<SoftHyphen, IDWriteInlineObject>
+    {
+        SoftHyphen(std::shared_ptr<Hyphens> owner, size_t index) : owner(std::move(owner)), index(index) {}
+
+        HRESULT __stdcall Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, ::IUnknown*) noexcept override { return S_OK; }
+
+        HRESULT __stdcall GetMetrics(DWRITE_INLINE_OBJECT_METRICS* out) noexcept override
+        {
+            *out = {};
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetOverhangMetrics(DWRITE_OVERHANG_METRICS* out) noexcept override
+        {
+            *out = {};
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
+        {
+            *before = DWRITE_BREAK_CONDITION_MAY_NOT_BREAK;
+            *after = owner->disabled[index] ? DWRITE_BREAK_CONDITION_MAY_NOT_BREAK : DWRITE_BREAK_CONDITION_CAN_BREAK;
+            return S_OK;
+        }
+
+        std::shared_ptr<Hyphens> owner;
+        size_t index{ 0 };
+    };
+
+    inline std::unordered_map<IDWriteTextLayout*, std::weak_ptr<Hyphens>>& HyphenRegistry()
+    {
+        thread_local std::unordered_map<IDWriteTextLayout*, std::weak_ptr<Hyphens>> registry;
+        return registry;
+    }
+
+    inline std::shared_ptr<Hyphens> HyphensOf(IDWriteTextLayout* layout)
+    {
+        auto& registry = HyphenRegistry();
+        auto it = registry.find(layout);
+        if (it == registry.end()) return nullptr;
+        if (auto hyphens = it->second.lock()) return hyphens;
+        registry.erase(it);
+        return nullptr;
+    }
+
+    inline void SetHyphenEnabled(IDWriteTextLayout* layout, Hyphens& hyphens, size_t index, bool enabled)
+    {
+        if (hyphens.disabled[index] == !enabled) return;
+        hyphens.disabled[index] = !enabled;
+        winrt::com_ptr<IDWriteInlineObject> object;
+        const DWRITE_TEXT_RANGE range{ hyphens.positions[index], 1 };
+        if (SUCCEEDED(layout->GetInlineObject(range.startPosition, object.put(), nullptr)) && object) layout->SetInlineObject(object.get(), range);
+    }
+
+    inline void FitHyphens(IDWriteTextLayout* layout, Hyphens& hyphens, float maxWidth)
+    {
+        if (hyphens.fittedWidth == maxWidth) return;
+        hyphens.fittedWidth = maxWidth;
+        for (size_t i = 0; i < hyphens.positions.size(); ++i) SetHyphenEnabled(layout, hyphens, i, true);
+        std::vector<DWRITE_LINE_METRICS> lines;
+        for (int pass = 0; pass < 64; ++pass)
+        {
+            UINT32 count = 0;
+            layout->GetLineMetrics(nullptr, 0, &count);
+            lines.resize(count);
+            if (count == 0 || FAILED(layout->GetLineMetrics(lines.data(), count, &count))) return;
+            hyphens.lineWidth = 0.0f;
+            bool changed = false;
+            UINT32 start = 0;
+            for (UINT32 i = 0; i + 1 < count && !changed; ++i)
+            {
+                const UINT32 visible = lines[i].length - lines[i].trailingWhitespaceLength;
+                const UINT32 last = start + visible - 1;
+                auto it = visible > 0 ? std::lower_bound(hyphens.positions.begin(), hyphens.positions.end(), last) : hyphens.positions.end();
+                if (it != hyphens.positions.end() && *it == last)
+                {
+                    const size_t index = static_cast<size_t>(it - hyphens.positions.begin());
+                    FLOAT x0 = 0.0f, x1 = 0.0f, y = 0.0f;
+                    DWRITE_HIT_TEST_METRICS hit{};
+                    layout->HitTestTextPosition(start, FALSE, &x0, &y, &hit);
+                    layout->HitTestTextPosition(last, FALSE, &x1, &y, &hit);
+                    const float width = std::fabs(x1 - x0) + hyphens.widths[index];
+                    if (width > maxWidth + 0.01f)
+                    {
+                        SetHyphenEnabled(layout, hyphens, index, false);
+                        changed = true;
+                    }
+                    else
+                    {
+                        hyphens.lineWidth = (std::max)(hyphens.lineWidth, width);
+                    }
+                }
+                start += lines[i].length;
+            }
+            if (!changed) return;
+        }
+    }
+
     struct Paragraph
     {
         std::wstring text;
@@ -541,6 +651,50 @@ namespace mason_dwrite
             auto box = winrt::make_self<InlineBox>(b);
             layout->SetInlineObject(box.get(), DWRITE_TEXT_RANGE{ b.position, 1 });
         }
+        if (p.text.find(kSoftHyphen) != std::wstring::npos)
+        {
+            auto hyphens = std::make_shared<Hyphens>();
+            std::unordered_map<size_t, float> widthBySpan;
+            auto widthAt = [&](uint32_t position) -> float
+            {
+                size_t span = p.spans.size();
+                for (size_t i = 0; i < p.spans.size(); ++i)
+                {
+                    if (position >= p.spans[i].start && position < p.spans[i].start + p.spans[i].length) span = i;
+                }
+                if (auto it = widthBySpan.find(span); it != widthBySpan.end()) return it->second;
+                const bool own = span < p.spans.size();
+                const Font& font = own ? p.spans[span].font : p.font;
+                const float size = own ? p.spans[span].fontSize : p.fontSize;
+                const DWRITE_FONT_STYLE style = own ? p.spans[span].style : p.style;
+                const DWRITE_FONT_WEIGHT fontWeight = MatchWeight(font, own ? p.spans[span].weight : p.weight, style);
+                float width = size * 0.33f;
+                winrt::com_ptr<IDWriteTextFormat> hyphenFormat;
+                winrt::com_ptr<IDWriteTextLayout> hyphen;
+                if (SUCCEEDED(factory->CreateTextFormat(font.family.c_str(), font.Collection(), fontWeight, style, own ? p.spans[span].stretch : p.stretch,
+                        (std::max)(size, 0.1f), L"en-us", hyphenFormat.put()))
+                    && SUCCEEDED(factory->CreateTextLayout(L"-", 1, hyphenFormat.get(), kUnbounded, kUnbounded, hyphen.put())))
+                {
+                    DWRITE_TEXT_METRICS m{};
+                    if (SUCCEEDED(hyphen->GetMetrics(&m))) width = m.widthIncludingTrailingWhitespace;
+                }
+                widthBySpan.emplace(span, width);
+                return width;
+            };
+            for (uint32_t i = 0; i < p.text.size(); ++i)
+            {
+                if (p.text[i] != kSoftHyphen) continue;
+                hyphens->positions.push_back(i);
+                hyphens->widths.push_back(widthAt(i));
+                hyphens->disabled.push_back(false);
+            }
+            for (size_t i = 0; i < hyphens->positions.size(); ++i)
+            {
+                auto object = winrt::make_self<SoftHyphen>(hyphens, i);
+                layout->SetInlineObject(object.get(), DWRITE_TEXT_RANGE{ hyphens->positions[i], 1 });
+            }
+            HyphenRegistry()[layout.get()] = hyphens;
+        }
         return layout;
     }
 
@@ -621,6 +775,8 @@ namespace mason_dwrite
     {
         if (layout->GetWordWrapping() != wrapping) layout->SetWordWrapping(wrapping);
         if (layout->GetMaxWidth() != maxWidth) layout->SetMaxWidth(maxWidth);
+        if (wrapping == DWRITE_WORD_WRAPPING_NO_WRAP) return;
+        if (auto hyphens = HyphensOf(layout)) FitHyphens(layout, *hyphens, maxWidth);
     }
 
     // Unwrapped for an infinite width; otherwise broken only between words, a longer word
@@ -631,6 +787,10 @@ namespace mason_dwrite
         Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, wrap ? (std::max)(width, 0.0f) : kUnbounded);
         DWRITE_TEXT_METRICS m{};
         layout->GetMetrics(&m);
+        if (wrap)
+        {
+            if (auto hyphens = HyphensOf(layout)) m.width = (std::max)(m.width, hyphens->lineWidth);
+        }
         return m;
     }
 

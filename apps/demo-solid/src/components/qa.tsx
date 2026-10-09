@@ -261,6 +261,21 @@ export default function QA() {
           </div>
         </Card>
 
+        <Card title="HYPHENS">
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
+            <For each={['auto', 'manual', 'none']}>
+              {(mode) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <p style={{ fontSize: 11, color: MUTED }}>{mode}</p>
+                  <p style={{ width: 120, fontSize: 15, backgroundColor: '#dfe6e9', hyphens: mode as any }}>
+                    {mode === 'auto' ? 'Extraordinary hyphenation demonstrates internationalization responsibilities' : 'Extra\u00ADordinary hyphen\u00ADation demon\u00ADstrates inter\u00ADnational\u00ADization respon\u00ADsibilities'}
+                  </p>
+                </div>
+              )}
+            </For>
+          </div>
+        </Card>
+
         <Card title="LISTS">
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 24 }}>
             <ul>

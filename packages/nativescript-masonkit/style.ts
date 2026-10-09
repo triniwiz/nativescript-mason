@@ -1860,6 +1860,7 @@ export class Style {
     const target = new Uint8Array(NSWinRT.interop.arrayBufferFromBuffer(masonEngine().StyleValues(text)) as ArrayBuffer);
     target.set(this.u8View.subarray(StyleKeys.FONT_COLOR, StyleKeys.BACKGROUND_COLOR), StyleKeys.FONT_COLOR);
     target.set(this.u8View.subarray(StyleKeys.DECORATION_LINE, StyleKeys.PSEUDO_SET_MASK_LOW), StyleKeys.DECORATION_LINE);
+    target.set(this.u8View.subarray(StyleKeys.HYPHENS, StyleKeys.FONT_STRETCH_STATE + 1), StyleKeys.HYPHENS);
     if (block) {
       target[StyleKeys.DISPLAY] = 3;
       target[StyleKeys.DISPLAY_MODE] = DisplayMode.None;
