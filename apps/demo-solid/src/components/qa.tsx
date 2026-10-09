@@ -242,11 +242,11 @@ export default function QA() {
             <p style={{ fontSize: 16 }}>
               Plain <span style={{ backgroundColor: '#ffeaa7' }}>highlighted span</span> and <span style={{ backgroundColor: '#74b9ff', color: 'white' }}>another</span>.
             </p>
-            <p style={{ fontSize: 16, textDecoration: 'underline wavy #e17055' }}>Wavy underline</p>
-            <p style={{ fontSize: 16, textDecoration: 'underline double #6c5ce7' }}>Double underline</p>
-            <p style={{ fontSize: 16, textDecoration: 'line-through dotted #0984e3' }}>Dotted line-through</p>
-            <p style={{ fontSize: 16, textDecoration: 'overline dashed #00b894' }}>Dashed overline</p>
-            <p style={{ fontSize: 16, textDecoration: 'underline solid #e84393 3px' }}>Thick coloured underline</p>
+            <p style={{ fontSize: 16, textDecoration: 'underline wavy #e17055' } as any}>Wavy underline</p>
+            <p style={{ fontSize: 16, textDecoration: 'underline double #6c5ce7' } as any}>Double underline</p>
+            <p style={{ fontSize: 16, textDecoration: 'line-through dotted #0984e3' } as any}>Dotted line-through</p>
+            <p style={{ fontSize: 16, textDecoration: 'overline dashed #00b894' } as any}>Dashed overline</p>
+            <p style={{ fontSize: 16, textDecoration: 'underline solid #e84393 3px' } as any}>Thick coloured underline</p>
             <p style={{ fontSize: 22, fontWeight: 'bold', textShadow: '2px 2px 0 #fdcb6e' } as any}>Hard text shadow</p>
             <p style={{ fontSize: 22, fontWeight: 'bold', color: 'white', textShadow: '0 2px 6px rgba(0,0,0,0.6)' } as any}>Blurred text shadow</p>
             <p style={{ fontSize: 22, fontWeight: 'bold', textShadow: '-2px -2px 0 #74b9ff, 2px 2px 0 #e84393' } as any}>Two shadows</p>
