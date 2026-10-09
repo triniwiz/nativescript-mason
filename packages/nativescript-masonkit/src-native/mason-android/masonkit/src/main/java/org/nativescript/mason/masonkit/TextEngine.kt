@@ -510,10 +510,16 @@ class TextEngine(val container: TextContainer) {
 
     val built = singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified)
       ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      val hyphens = style.resolvedHyphens.toInt()
+      val softOnly = hyphens == 0 && TextUtils.indexOf(spannable, '\u00AD') >= 0
+      val layoutPaint = if (softOnly) TextPaint(paint).apply { textLocale = java.util.Locale.ROOT } else paint
       var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, paint, safeWidthConstraint
+        spannable, 0, spannable.length, layoutPaint, safeWidthConstraint
       )
         .setAlignment(alignment)
+        .setHyphenationFrequency(
+          if (hyphens == 2 || softOnly) Layout.HYPHENATION_FREQUENCY_NORMAL else Layout.HYPHENATION_FREQUENCY_NONE
+        )
         .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
         .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
