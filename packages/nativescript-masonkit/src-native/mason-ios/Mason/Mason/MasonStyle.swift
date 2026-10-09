@@ -849,7 +849,7 @@ public class MasonStyle: NSObject {
     .letterSpacing, .lineHeight, .textAlign, .textJustify,
     .verticalAlign, .textShadow, .fontVariantNumeric,
     .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
-    .decorationThinkness
+    .decorationThinkness, .listStylePosition, .listStyleType
   ].reduce(StateKeys.none) { $0.union($1) }
 
   private func updateTextStyle() {

@@ -89,9 +89,9 @@ private fun isLineEndSpace(ch: Char): Boolean =
   ch == ' ' || ch == '	' || ch == ' ' ||
     (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
 
-private fun hasSoftWrapOpportunity(text: CharSequence): Boolean {
+private fun hasSoftWrapOpportunity(text: CharSequence, softHyphens: Boolean = false): Boolean {
   for (i in 0 until text.length) {
-    if (text[i].isSoftWrapOpportunity()) return true
+    if (text[i].isSoftWrapOpportunity() || (softHyphens && text[i] == '\u00AD')) return true
   }
   return false
 }
@@ -106,23 +106,28 @@ private fun maxWordWidth(
   text: CharSequence,
   paint: TextPaint,
   useLayout: Boolean,
-  advances: FloatArray? = null
+  advances: FloatArray? = null,
+  softHyphens: Boolean = false
 ): Float {
   var maxW = 0f
   val len = text.length
   val chars = CharArray(len)
   TextUtils.getChars(text, 0, len, chars, 0)
+  // A piece ending at a soft hyphen carries the hyphen drawn there.
+  val hyphenWidth = if (softHyphens) paint.measureText("\u2010") else 0f
   var start = 0
   var i = 0
   while (i <= len) {
-    val isWs = i < len && chars[i].isSoftWrapOpportunity()
+    val isShy = softHyphens && i < len && chars[i] == '\u00AD'
+    val isWs = i < len && (chars[i].isSoftWrapOpportunity() || isShy)
     if (i == len || isWs) {
       if (i > start) {
         // Measure the range directly; slicing a Spannable per word copies
         // overlapping spans and turns this loop quadratic.
-        val w = if (advances != null) advanceSum(advances, start, i)
+        var w = if (advances != null) advanceSum(advances, start, i)
         else if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
         else paint.measureText(text, start, i)
+        if (isShy) w += hyphenWidth
         if (w > maxW) maxW = w
       }
       start = i + 1
@@ -490,6 +495,19 @@ class TextEngine(val container: TextContainer) {
   // expensive step (text shaping + line breaking) in measureLayout(). Other
   // work in that function (width resolution, segment collection) still runs
   // every call regardless of cache hits.
+  // `manual` breaks only at soft hyphens: hyphenation on, under a locale with no patterns.
+  private fun softHyphensOnly(text: CharSequence): Boolean =
+    style.resolvedHyphens.toInt() == 0 && TextUtils.indexOf(text, '\u00AD') >= 0
+
+  // TextPaint(paint) drops density, so copy with set().
+  private fun hyphenationPaint(text: CharSequence, paint: TextPaint): TextPaint =
+    if (softHyphensOnly(text)) TextPaint().apply { set(paint); textLocale = java.util.Locale.ROOT } else paint
+
+  // `none` ignores soft hyphens; `auto` also hyphenates by the text's locale.
+  private fun hyphenationFrequency(text: CharSequence): Int =
+    if (style.resolvedHyphens.toInt() == 2 || softHyphensOnly(text)) Layout.HYPHENATION_FREQUENCY_NORMAL
+    else Layout.HYPHENATION_FREQUENCY_NONE
+
   private fun buildStaticLayoutCached(
     spannable: CharSequence,
     paint: TextPaint,
@@ -510,16 +528,11 @@ class TextEngine(val container: TextContainer) {
 
     val built = singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified)
       ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      val hyphens = style.resolvedHyphens.toInt()
-      val softOnly = hyphens == 0 && TextUtils.indexOf(spannable, '\u00AD') >= 0
-      val layoutPaint = if (softOnly) TextPaint(paint).apply { textLocale = java.util.Locale.ROOT } else paint
       var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, layoutPaint, safeWidthConstraint
+        spannable, 0, spannable.length, hyphenationPaint(spannable, paint), safeWidthConstraint
       )
         .setAlignment(alignment)
-        .setHyphenationFrequency(
-          if (hyphens == 2 || softOnly) Layout.HYPHENATION_FREQUENCY_NORMAL else Layout.HYPHENATION_FREQUENCY_NONE
-        )
+        .setHyphenationFrequency(hyphenationFrequency(spannable))
         .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
         .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
@@ -727,10 +740,11 @@ class TextEngine(val container: TextContainer) {
     )
     val layout = entry.layout
 
+    val breaksAtSoftHyphens = style.resolvedHyphens.toInt() != 1
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
-      !(spec.isInline && !hasSoftWrapOpportunity(spannable))
+      !(spec.isInline && !hasSoftWrapOpportunity(spannable, breaksAtSoftHyphens))
     ) {
-      maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null)
+      maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null, breaksAtSoftHyphens)
     } else {
       entry.maxLineWidth
     }
@@ -1099,8 +1113,9 @@ class TextEngine(val container: TextContainer) {
 
     val heuristic = getTextDirectionHeuristic()
 
-    var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, contentWidth)
+    var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), contentWidth)
       .setAlignment(alignment)
+      .setHyphenationFrequency(hyphenationFrequency(text))
       .setLineSpacing(0f, 1f)
       .setIncludePad(includePadding)
       .setTextDirection(heuristic)
@@ -1161,8 +1176,9 @@ class TextEngine(val container: TextContainer) {
       return it.layout
     }
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, safeContentWidth)
+      var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), safeContentWidth)
         .setAlignment(alignment)
+        .setHyphenationFrequency(hyphenationFrequency(text))
         .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
         .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
@@ -1775,6 +1791,9 @@ class TextEngine(val container: TextContainer) {
   private var lastDefiniteAvailableHeight = 0f
   private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
+
+  // The inside list marker in the last built text.
+  internal var insideMarker = ""
   private var cachedAttributedStringNested = false
   private var isBuilding = false
 
@@ -2309,6 +2328,13 @@ class TextEngine(val container: TextContainer) {
     // Text set as given (TextView.text) keeps its spaces.
     if (!nested && node.children.none { it is TextNode && it.verbatim != null }) collapseFlowSpaces(composed)
 
+    // An inside list marker leads the item's text, so wrapped lines run under it.
+    var content = composed
+    if (!nested) {
+      insideMarker = (container as? TextView)?.let { ListMarkers.insideMarker(it) } ?: ""
+      if (insideMarker.isNotEmpty()) content = SpannableStringBuilder(insideMarker).append(composed)
+    }
+
     // Wrap with Unicode bidi control characters when unicode-bidi requires
     // character-level overrides beyond what StaticLayout's text direction
     // heuristic provides.
@@ -2320,7 +2346,7 @@ class TextEngine(val container: TextContainer) {
         // embed: LRE (U+202A) or RLE (U+202B) + PDF (U+202C)
         val result = SpannableStringBuilder()
         result.append(if (isRTL) "\u202B" else "\u202A")
-        result.append(composed)
+        result.append(content)
         result.append("\u202C")
         result
       }
@@ -2329,7 +2355,7 @@ class TextEngine(val container: TextContainer) {
         // bidi-override: LRO (U+202D) or RLO (U+202E) + PDF (U+202C)
         val result = SpannableStringBuilder()
         result.append(if (isRTL) "\u202E" else "\u202D")
-        result.append(composed)
+        result.append(content)
         result.append("\u202C")
         result
       }
@@ -2338,7 +2364,7 @@ class TextEngine(val container: TextContainer) {
         // isolate: LRI (U+2066) or RLI (U+2067) + PDI (U+2069)
         val result = SpannableStringBuilder()
         result.append(if (isRTL) "\u2067" else "\u2066")
-        result.append(composed)
+        result.append(content)
         result.append("\u2069")
         result
       }
@@ -2348,7 +2374,7 @@ class TextEngine(val container: TextContainer) {
         val result = SpannableStringBuilder()
         result.append(if (isRTL) "\u2067" else "\u2066")
         result.append(if (isRTL) "\u202E" else "\u202D")
-        result.append(composed)
+        result.append(content)
         result.append("\u202C")
         result.append("\u2069")
         result
@@ -2358,12 +2384,12 @@ class TextEngine(val container: TextContainer) {
         // plaintext: FSI (U+2068) + PDI (U+2069)
         val result = SpannableStringBuilder()
         result.append("\u2068")
-        result.append(composed)
+        result.append(content)
         result.append("\u2069")
         result
       }
 
-      else -> composed // 0 = normal, no wrapping needed
+      else -> content // 0 = normal, no wrapping needed
     }
 
     // Cache the result
@@ -2626,7 +2652,9 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
           StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
           StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH)
+          StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||
+          StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_POSITION) ||
+          StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_TYPE)
         )
     }
 

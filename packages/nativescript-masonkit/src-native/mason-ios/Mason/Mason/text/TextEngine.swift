@@ -282,6 +282,8 @@ public class TextEngine: NSObject {
       || state.contains(.unicodeBidi)
       || state.contains(.hyphens)
       || state.contains(.fontStretch)
+      || state.contains(.listStylePosition)
+      || state.contains(.listStyleType)
 
     // Visual-only flags: span rebuild + redraw, no layout recompute needed.
     let textVisualChanged = !textLayoutChanged && (
@@ -418,7 +420,7 @@ public class TextEngine: NSObject {
 
   fileprivate func minContent(_ text: NSAttributedString) -> CGFloat {
     syncIntrinsicVersion()
-    if intrinsicMin < 0 { intrinsicMin = TextEngine.minContentWidth(for: text) }
+    if intrinsicMin < 0 { intrinsicMin = TextEngine.minContentWidth(for: TextEngine.breakableAtSoftHyphens(text)) }
     return intrinsicMin
   }
 
@@ -464,6 +466,14 @@ public class TextEngine: NSObject {
   }
   
   // MARK: - Measurement
+
+  /// Text types measured as inline runs; the rest are block text.
+  static func isInlineTextType(_ type: MasonTextType) -> Bool {
+    switch type {
+    case .None, .Span, .Code, .B, .Strong, .Em, .I: return true
+    default: return false
+    }
+  }
   
   static func measure(_ engine: TextEngine, _ isInLine: Bool, isBlock: Bool = false, _ known: CGSize?, _ available: CGSize) -> CGSize {
     if let known = known, (!isInLine || isBlock), !known.width.isNaN, known.width >= 0, !known.height.isNaN, known.height >= 0 {
@@ -536,15 +546,7 @@ public class TextEngine: NSObject {
     // Reuse cached CTFramesetter when the attributed string hasn't changed.
     // Creating a framesetter is expensive: it triggers glyph lookup, font
     // fallback resolution, bidi analysis, and line-breaking table setup.
-    let framesetter: CTFramesetter
-    if let cached = engine.cachedFramesetter,
-       engine.framesetterStringVersion == engine.segmentsInvalidateVersion {
-      framesetter = cached
-    } else {
-      framesetter = CTFramesetterCreateWithAttributedString(text)
-      engine.cachedFramesetter = framesetter
-      engine.framesetterStringVersion = engine.segmentsInvalidateVersion
-    }
+    let framesetter = engine.framesetter(for: text, width: maxWidth)
 
     var constraintSize = CGSize(width: maxWidth, height: maxHeight)
     // Avoid passing infinite height to CoreText framesetter — use a large finite fallback.
@@ -718,10 +720,137 @@ public class TextEngine: NSObject {
   private var cachedFramesetter: CTFramesetter?
   private var framesetterStringVersion: UInt64 = UInt64.max
 
+  // The text's soft hyphens resolved for one width.
+  private var fittedHyphens: (version: UInt64, width: CGFloat, framesetter: CTFramesetter)?
+
+  /// The framesetter for `text` wrapped at `width`, with soft hyphens broken and drawn as on the web.
+  internal func framesetter(for text: NSAttributedString, width: CGFloat) -> CTFramesetter {
+    let base: CTFramesetter
+    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
+      base = cached
+    } else {
+      base = CTFramesetterCreateWithAttributedString(text)
+      cachedFramesetter = base
+      framesetterStringVersion = segmentsInvalidateVersion
+    }
+    guard width.isFinite, width > 0, width < 1_000_000,
+          (text.string as NSString).range(of: "\u{00AD}").location != NSNotFound else { return base }
+    if let fitted = fittedHyphens, fitted.version == segmentsInvalidateVersion, fitted.width == width {
+      return fitted.framesetter
+    }
+    let framesetter = TextEngine.fitSoftHyphens(text, width)
+    fittedHyphens = (segmentsInvalidateVersion, width, framesetter)
+    return framesetter
+  }
+
+  private static func lineEnds(_ framesetter: CTFramesetter, _ path: CGPath) -> [Int] {
+    let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+    return (CTFrameGetLines(frame) as? [CTLine] ?? []).map {
+      let range = CTLineGetStringRange($0)
+      return range.location + range.length
+    }
+  }
+
+  private static func isBreakSpace(_ c: unichar) -> Bool {
+    return c == 0x20 || c == 0x0A || c == 0x09 || c == 0x200B
+  }
+
+  // CoreText draws nothing at a soft hyphen and doesn't pick its breaks greedily, so every
+  // soft hyphen becomes a word joiner (same length). Then, line by line, the word that didn't
+  // fit breaks at its last soft hyphen whose piece fits with a hyphen, as browsers do.
+  private static func fitSoftHyphens(_ text: NSAttributedString, _ width: CGFloat) -> CTFramesetter {
+    let fitted = NSMutableAttributedString(attributedString: text)
+    let chars = fitted.mutableString
+    var softHyphens: [Int] = []
+    for i in 0..<chars.length where chars.character(at: i) == 0x00AD {
+      softHyphens.append(i)
+      chars.replaceCharacters(in: NSRange(location: i, length: 1), with: "\u{2060}")
+    }
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
+    var framesetter = CTFramesetterCreateWithAttributedString(fitted.copy() as! NSAttributedString)
+    var ends = lineEnds(framesetter, path)
+    var line = 0
+    while line < ends.count - 1 {
+      let start = line == 0 ? 0 : ends[line - 1]
+      let end = ends[line]
+      var wordStart = end
+      while wordStart > start, !isBreakSpace(chars.character(at: wordStart - 1)) { wordStart -= 1 }
+      var wordEnd = end
+      while wordEnd < chars.length, !isBreakSpace(chars.character(at: wordEnd)) { wordEnd += 1 }
+      for point in softHyphens.reversed() where point >= wordStart && point < wordEnd {
+        let at = NSRange(location: point, length: 1)
+        chars.replaceCharacters(in: at, with: "\u{2010}")
+        let trial = CTFramesetterCreateWithAttributedString(fitted.copy() as! NSAttributedString)
+        let trialEnds = lineEnds(trial, path)
+        if line < trialEnds.count, trialEnds[line] == point + 1 {
+          framesetter = trial
+          ends = trialEnds
+          break
+        }
+        chars.replaceCharacters(in: at, with: "\u{2060}")
+      }
+      line += 1
+    }
+    return framesetter
+  }
+
+  /// `hyphens: none`: a word joiner in place of each soft hyphen keeps offsets and forbids the break.
+  private static func joinSoftHyphens(_ text: NSMutableAttributedString) {
+    let chars = text.mutableString
+    var found = chars.range(of: "\u{00AD}")
+    while found.location != NSNotFound {
+      chars.replaceCharacters(in: found, with: "\u{2060}")
+      let next = found.location + 1
+      found = chars.range(of: "\u{00AD}", options: [], range: NSRange(location: next, length: chars.length - next))
+    }
+  }
+
+  /// `hyphens: auto`: soft hyphens where the system dictionary for the current locale breaks words.
+  private static func insertHyphenationPoints(_ text: NSMutableAttributedString) {
+    let locale = Locale.current as CFLocale
+    guard CFStringIsHyphenationAvailableForLocale(locale), text.length > 0 else { return }
+    let string = text.string as NSString
+    var points: [Int] = []
+    string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: [.byWords, .substringNotRequired]) { _, word, _, _ in
+      guard word.length >= 5 else { return }
+      let range = CFRange(location: word.location, length: word.length)
+      var before = word.location + word.length
+      while true {
+        let point = CFStringGetHyphenationLocationBeforeIndex(string as CFString, before, range, 0, locale, nil)
+        if point == kCFNotFound || point <= word.location { break }
+        if string.character(at: point - 1) != 0x00AD && string.character(at: point) != 0x00AD {
+          points.append(point)
+        }
+        before = point
+      }
+    }
+    for point in points.sorted(by: >) {
+      let attrs = text.attributes(at: point - 1, effectiveRange: nil)
+      text.insert(NSAttributedString(string: "\u{00AD}", attributes: attrs), at: point)
+    }
+  }
+
+  /// Soft hyphens are break points for min-content, each piece carrying its hyphen.
+  private static func breakableAtSoftHyphens(_ text: NSAttributedString) -> NSAttributedString {
+    let string = text.string as NSString
+    guard string.range(of: "\u{00AD}").location != NSNotFound else { return text }
+    let out = NSMutableAttributedString(attributedString: text)
+    let chars = out.mutableString
+    var found = chars.range(of: "\u{00AD}")
+    while found.location != NSNotFound {
+      chars.replaceCharacters(in: found, with: "\u{2010}\u{200B}")
+      let next = found.location + 2
+      found = chars.range(of: "\u{00AD}", options: [], range: NSRange(location: next, length: chars.length - next))
+    }
+    return out
+  }
+
   // monotonically increasing version for invalidation; cachedAttributedString is valid when
   // attributedStringVersion == segmentsInvalidateVersion
   private var segmentsInvalidateVersion: UInt64 = 0
   private var attributedStringVersion: UInt64 = 0
+  // The inside list marker in the last built text.
+  internal var insideMarker = ""
 
   // Last (version, constraintSize) collectAndCacheSegments() sent for. The
   // CTFrame itself is rebuilt every call, so it can't signal "unchanged"
@@ -1141,7 +1270,7 @@ public class TextEngine: NSObject {
   internal func widestWrappedLine(at width: CGFloat) -> CGFloat {
     let text = buildAttributedString(forMeasurement: true)
     guard text.length > 0, width > 0 else { return 0 }
-    let setter = CTFramesetterCreateWithAttributedString(text)
+    let setter = framesetter(for: text, width: width)
     let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
     let frame = CTFramesetterCreateFrame(setter, CFRange(location: 0, length: 0), path, nil)
     var widest: CGFloat = 0
@@ -1282,17 +1411,6 @@ public class TextEngine: NSObject {
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
 
-    // reuse the framesetter measure() already cached for this string,
-    // instead of rebuilding it on every redraw
-    let framesetter: CTFramesetter
-    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
-      framesetter = cached
-    } else {
-      framesetter = CTFramesetterCreateWithAttributedString(text)
-      cachedFramesetter = framesetter
-      framesetterStringVersion = segmentsInvalidateVersion
-    }
-
     var paddingRestore =  false
     var drawBounds = bounds
 
@@ -1302,6 +1420,9 @@ public class TextEngine: NSObject {
       drawBounds = drawBounds.inset(by: padding)
       guard drawBounds.width > 0, drawBounds.height > 0 else { return }
     }
+
+    // Reuses the framesetter measure() already cached for this string.
+    let framesetter = self.framesetter(for: text, width: drawBounds.width)
 
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
@@ -1399,14 +1520,19 @@ public class TextEngine: NSObject {
       let naturalLineHeight = fontAscent + CTFontGetDescent(font)
       let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
       let maxLineHeight = paragraph?.maximumLineHeight ?? 0
-      if linesCount == 1 {
+      // A fixed line box puts the first line exactly as a single line in a box that tall;
+      // the rest follow at the fixed pitch. CoreText's own first-line position sits higher.
+      let fixedLineBox = linesCount > 1 && maxLineHeight >= naturalLineHeight
+      if linesCount == 1 || fixedLineBox {
         let baselineOffset = (text.attribute(.baselineOffset, at: 0, effectiveRange: nil) as? CGFloat) ?? 0
         // An inline box taller than the font raises the line's ascent; keep the box inside.
         let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
         var lineAscent: CGFloat = 0
         CTLineGetTypographicBounds(line0, &lineAscent, nil, nil)
         let boxRaised = lineAscent > fontAscent + 0.5
-        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: drawBounds)
+        var lineBounds = drawBounds
+        if fixedLineBox { lineBounds.size.height = maxLineHeight }
+        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
@@ -1853,6 +1979,23 @@ public class TextEngine: NSObject {
           composed.deleteCharacters(in: NSRange(location: lastIndex, length: 1))
         }
       }
+    }
+
+    // `none` never breaks at a soft hyphen; `auto` adds the dictionary's break points.
+    switch style.resolvedHyphens {
+    case 1: TextEngine.joinSoftHyphens(composed)
+    case 2: TextEngine.insertHyphenationPoints(composed)
+    default: break
+    }
+
+    // An inside list marker leads the item's text, so wrapped lines run under it.
+    insideMarker = (node.view as? MasonText).map { MasonUIView.insideMarker(for: $0) } ?? ""
+    if !insideMarker.isEmpty {
+      var attrs = node.getDefaultAttributes()
+      for key: NSAttributedString.Key in [.backgroundColor, .underlineStyle, .strikethroughStyle, Constants.DECORATION_KEY] {
+        attrs.removeValue(forKey: key)
+      }
+      composed.insert(NSAttributedString(string: insideMarker, attributes: attrs), at: 0)
     }
 
     // Wrap with Unicode bidi control characters when unicode-bidi requires
