@@ -1257,8 +1257,12 @@ open class TextView @JvmOverloads constructor(
     }
   }
 
+  // A plain View (an SVG, a canvas, a native control) in text is an atomic inline box, as a
+  // replaced element is in HTML; its node would otherwise be a block and break the line.
   private fun nodeFor(child: View): Node =
-    if (child is Element) child.node else node.mason.nodeForView(child)
+    if (child is Element) child.node else node.mason.nodeForView(child).also {
+      if (it.style.display == Display.Block) it.style.display = Display.InlineBlock
+    }
 
   // Whether Mason attaches [child] as a real child view. Inline content is drawn by this view.
   private fun attachesView(child: Node): Boolean = false

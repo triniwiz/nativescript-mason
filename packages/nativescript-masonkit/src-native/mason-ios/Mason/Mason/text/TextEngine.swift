@@ -1026,7 +1026,13 @@ public class TextEngine: NSObject {
     placeholder.addAttribute(NSAttributedString.Key("ViewID"),
                              value: ObjectIdentifier(child).hashValue,
                              range: NSRange(location: 0, length: 1))
-    
+
+    // CoreText reads a paragraph's alignment from its first character, so a box that starts
+    // a line has to carry the text's paragraph style or a centred line comes out left-aligned.
+    if let paragraphStyle = node.getDefaultAttributes()[.paragraphStyle] {
+      placeholder.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: 1))
+    }
+
     return placeholder
   }
   

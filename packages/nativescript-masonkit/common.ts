@@ -1029,7 +1029,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   /** Size a non-Mason child with core's measure: its native view rarely implements sizeThatFits. */
   _masonMeasureForeign(child: any): void {
     if (!__APPLE__ || child[isMasonView_] || !child.nativeViewProtected) return;
-    const mason = (this.nativeViewProtected as any)?.mason;
+    // Text views (MasonText) have no `mason` of their own; their node does.
+    const native = this.nativeViewProtected as any;
+    const mason = native?.mason ?? native?.node?.mason;
     if (typeof mason?.setMeasureForViewBlock !== 'function') return;
     const parentRef = new WeakRef(this);
     const childRef = new WeakRef(child);
