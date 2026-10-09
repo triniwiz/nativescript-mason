@@ -161,8 +161,12 @@ export function unwatchLayout(): void {
 // WinUI only raises Rendering when it has a frame to draw, so an unchanged window gives no frames
 // to settle on. Let the style syncs queued as microtasks run, then run the pending layout pass
 // synchronously: this times layout work, not frame pacing.
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+}
+
 async function settledWindows(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushMicrotasks();
   try {
     watchedRoot?.UpdateLayout();
   } catch (e) {
@@ -283,7 +287,7 @@ export class PageBench {
       const drawsBefore = drawCount();
       mutate(i);
       if (__WINDOWS__) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await flushMicrotasks();
         try {
           watchedRoot?.UpdateLayout();
         } catch {}

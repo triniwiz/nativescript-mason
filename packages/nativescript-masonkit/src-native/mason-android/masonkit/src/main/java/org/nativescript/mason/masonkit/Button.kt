@@ -1,87 +1,34 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
 import android.os.Build
 import android.util.AttributeSet
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.ViewConfiguration
-import androidx.core.view.ViewCompat
-import androidx.core.widget.TextViewCompat
 import org.nativescript.fontmanager.FontFace
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.events.Event
 
+/**
+ * A Mason button: a text element that lays out and draws its label like any other Mason text,
+ * with the UA button look, pressed/hover/focus states and click dispatch.
+ */
 class Button @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : androidx.appcompat.widget.AppCompatTextView(context, attrs), Element, MeasureFunc,
-  TextContainer {
-
-
-  override val view: View
-    get() = this
-
-  override val style: Style
-    get() = node.style
+) : TextView(context, attrs, true) {
 
   internal val fontFace: FontFace
     get() {
       return style.font
     }
 
-  var includePadding: Boolean
-    get() {
-      return engine.includePadding
-    }
-    set(value) {
-      engine.includePadding = value
-    }
-
-  override lateinit var node: Node
-    private set
-
   // Track last-known view states to detect transitions independent of
   // the node's pseudo buffer (which may be written from touch handlers).
   private var lastPressed: Boolean = false
   private var lastDisabled: Boolean = false
   private var lastFocus: Boolean = false
-
-  override val engine: TextEngine by lazy {
-    TextEngine(this)
-  }
-
-  var textContent: String
-    get() {
-      return engine.textContent
-    }
-    set(value) {
-      engine.textContent = value
-    }
-
-  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    style.mBackground?.layers?.forEach {
-      it.shader = null
-      it.shaderWidth = -1
-      it.shaderHeight = -1
-    } // force rebuild on next draw
-    style.invalidateBorderRenderer()
-    super.onSizeChanged(w, h, oldw, oldh)
-  }
-
-
-  private val defaultPaint by lazy {
-    Paint().apply {
-      color = Color.argb(40, 0, 0, 0) // subtle dark overlay
-    }
-  }
 
   private val pressedStateTouchSlop by lazy(LazyThreadSafetyMode.NONE) {
     ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -92,73 +39,31 @@ class Button @JvmOverloads constructor(
     return x >= -slop && y >= -slop && x < width + slop && y < height + slop
   }
 
-  override fun onDraw(canvas: Canvas) {
-    engine.applyTextIfNeeded()
-    ViewUtils.onDraw(this, canvas, style) {
-      super.onDraw(it)
-      TextDecorations.drawPlatform(it, this)
-    }
-
-    // Default :active brightness fallback — only when the user hasn't set
-    // an explicit :active pseudo buffer (their bg override takes priority).
-    /*    if (node.hasPseudo(PseudoState.ACTIVE) &&
-          style.resolvedFilterString.isEmpty() &&
-          node.getPseudoBuffer(PseudoState.ACTIVE.mask).capacity() == 0
-        ) {
-          val w = width.toFloat()
-          val h = height.toFloat()
-          canvas.withSave {
-            if (style.mBorderRenderer.hasRadii()) {
-              clipPath(style.mBorderRenderer.getOuterClipPath(w, h))
-            }
-              drawRect(0f, 0f, w, h, defaultPaint)
-          }
-        }*/
+  init {
+    if (!override) setupButton(Mason.shared)
   }
 
   constructor(context: Context, mason: Mason) : this(context, null, true) {
-    setup(mason)
+    setupButton(mason)
   }
+
+  override fun createOwnNode(mason: Mason, isAnonymous: Boolean): Node = mason.createButtonNode(this)
+
+  override val centersVertically: Boolean
+    get() = true
 
   override fun getAccessibilityClassName(): CharSequence {
     return android.widget.Button::class.java.name
   }
 
-  private fun setup(mason: Mason) {
-    TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
-    node = mason.createButtonNode(this).apply {
-      view = this@Button
-    }
-
-    val fontSize = TypedValue.applyDimension(
-      TypedValue.COMPLEX_UNIT_SP,
-      Constants.DEFAULT_FONT_SIZE.toFloat(),
-      context.resources.displayMetrics
-    )
-
+  private fun setupButton(mason: Mason) {
+    setup(mason)
     val x = 6f
-
-    setPadding(0, 0, 0, 0)
-    includeFontPadding = false
-
-    paint.textSize = fontSize
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       defaultFocusHighlightEnabled = false
     }
-    minWidth = 0
-    minHeight = 0
-    isAllCaps = false
-    setBackgroundColor(Color.TRANSPARENT)
-    stateListAnimator = null
-    elevation = 0f
     isClickable = true
     isFocusable = true
-    outlineProvider = null
-    setBackgroundResource(0)
-    ViewCompat.setBackgroundTintList(view, null)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      foreground = null
-    }
     // Preflight (Tailwind-style) drops the UA border, background, padding and font size.
     val preflight = mason.preflight
     configure { style ->
@@ -180,13 +85,6 @@ class Button @JvmOverloads constructor(
       style.syncFontMetrics()
     }
 
-    // AppCompatTextView's own draw pass ignores `paint.color`/layout alignment
-    // (it rebuilds its Layout from getGravity()/mCurTextColor), so unlike P's
-    // TextView (which draws its own StaticLayout from the live paint every
-    // frame) Button needs its CSS-resolved color/alignment explicitly synced.
-    setTextColor(style.resolvedColor)
-    gravity = resolveGravity(style.resolvedTextAlign)
-
     node.hasNativeClickDispatch = true
 
     setOnClickListener {
@@ -198,11 +96,6 @@ class Button @JvmOverloads constructor(
         }
       )
     }
-
-    node.style.setStyleChangeListener(this)
-
-    // Default :active brightness is applied in ViewUtils.render as a fallback
-    // only when no explicit :active pseudo buffer has been set by the user.
   }
 
   override fun drawableStateChanged() {
@@ -320,87 +213,8 @@ class Button @JvmOverloads constructor(
     return super.onTouchEvent(ev)
   }
 
-  override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
+  override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
     super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
     node.setPseudo(PseudoState.FOCUS, gainFocus)
-  }
-
-
-  override fun measure(
-    knownWidth: Float, knownHeight: Float,
-    availableWidth: Float, availableHeight: Float
-  ): Long {
-    return engine.measure(paint, knownWidth, knownHeight, availableWidth, availableHeight)
-  }
-
-  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    val specWidth = MeasureSpec.getSize(widthMeasureSpec)
-    val specHeight = MeasureSpec.getSize(heightMeasureSpec)
-    val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
-    val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
-
-    if (parent !is Element || node.parent == null) {
-      computeOrDeferNested(
-        org.nativescript.mason.masonkit.View.mapMeasureSpec(specWidthMode, specWidth).value,
-        org.nativescript.mason.masonkit.View.mapMeasureSpec(specHeightMode, specHeight).value
-      )
-      layoutFlat()
-    } else if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
-      measureTextLayout(specWidth, specHeight)
-      return
-    }
-    measureTextLayout(node.computedWidth.toInt(), node.computedHeight.toInt())
-  }
-
-  private fun measureTextLayout(width: Int, height: Int) {
-    super.onMeasure(
-      MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
-      MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
-    )
-  }
-
-  override fun onChange(low: Long, high: Long) {
-    engine.onTextStyleChanged(low, high, paint, resources.displayMetrics)
-
-    // super.onDraw() (AppCompatTextView) reads its own mCurTextColor/gravity,
-    // not `paint` - keep both synced whenever the CSS-resolved values change.
-    if (StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR)) {
-      setTextColor(style.resolvedColor)
-    }
-    if (StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN)) {
-      gravity = resolveGravity(style.resolvedTextAlign)
-    }
-  }
-
-  private fun resolveGravity(value: TextAlign): Int {
-    val horizontal = when (value) {
-      TextAlign.Right, TextAlign.End -> Gravity.END
-      TextAlign.Left, TextAlign.Start -> Gravity.START
-      else -> Gravity.CENTER_HORIZONTAL
-    }
-    return Gravity.CENTER_VERTICAL or horizontal
-  }
-
-  fun addView(view: Element) {
-    node.addChildAt(view.node, -1)
-  }
-
-  fun addView(view: Element, index: Int) {
-    node.addChildAt(view.node, index)
-  }
-
-  fun removeView(view: Element) {
-    node.removeChild(view.node)
-    engine.invalidateInlineSegments()
-  }
-
-  fun removeView(index: Int) {
-    node.removeChildAt(index)
-    engine.invalidateInlineSegments()
-  }
-
-  fun removeAllViews() {
-    node.removeChildren()
-    engine.invalidateInlineSegments()
   }
 }

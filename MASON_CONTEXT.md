@@ -206,6 +206,8 @@ When a view has a non-identity transform: position via `view.bounds` (size only)
 
 `MasonShadowLayer.draw` clips out the view interior and only paints outside. The inner-clip and caster paths must be in exact agreement — an inflation gap (even 1px) opens a corner wedge where the opaque caster fill leaks through.
 
+On Windows the outer shadow likewise paints only outside the box: `BuildShadow` (`Css.cpp`) draws the caster through a `MaskBrush` whose mask is a nine-grid with a hollow rounded centre (`RoundedHole` in `RoundedMask.h`). The shadow visual sits over the element's children, so an unmasked one greys whatever it covers.
+
 ### 10. Typed style setters must `prepareMut()` before writing
 
 Unstyled nodes share one copy-on-write style buffer. A Kotlin or Swift setter that
@@ -723,8 +725,50 @@ every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
 ### Current state
 
-**415 / 416 on both iOS (simulator) and Android (emulator).** The one failure,
-`grid_relayout_vertical_text`, needs `writing-mode`, which is not implemented.
+**416 / 416 on both iOS (simulator) and Android (emulator).** The last one,
+`grid_relayout_vertical_text`, passes since `writing-mode` support (see below).
+
+### writing-mode
+
+`vertical-rl` / `vertical-lr` work for a vertical box inside a horizontal layout,
+with sideways glyphs (`text-orientation: mixed` for Latin text).
+
+- **Layout lives in mason-core.** For text, Rust only sizes boxes; the platform
+  breaks and draws lines. So `cached_leaf_measure` (`tree_inline.rs`) and the
+  leaf measure path (`tree.rs`) transpose known/available sizes into the
+  platform's horizontal frame and transpose the result back. The platform
+  measure and every measure cache stay horizontal. `is_vertical_writing_mode`
+  walks parents, since anonymous text containers inherit. A vertical box's own
+  height is its children's line length, and vertical nodes opt out of
+  `ignores_offered_height`.
+- **Drawing is per platform.** The layout is built with the content height as
+  its line length, then turned 90° clockwise. vertical-rl is one transform
+  (first line at the right). vertical-lr keeps the clockwise glyphs but stacks
+  lines from the left, which no single rotation does: Android draws each line on
+  its own (`TextView.drawVertical`), iOS mirrors line origins within the content
+  box (`TextEngine.drawMultiLine`), Windows draws vertical-rl as one rotated
+  layout and vertical-lr line by line, each clipped to its band (`TextAtlas.h`).
+  Windows reads the resolved mode through `mason_node_get_writing_mode`, and
+  hit testing, inline boxes and UIA bounds go through `Text::ToLayout` /
+  `FromLayout`.
+- **Orthogonal-flow sizing.** A vertical box's line length is its own height, a
+  known height, or a definite containing-block height (taffy's percentage
+  basis), including a fixed-height parent's content height when block layout
+  offers none (`containing_block_height`); an available height offered by an
+  auto-height parent doesn't count (`orthogonal_flow_inputs`). Failing all of those it falls back to the
+  viewport height, as CSS does. In horizontal block flow its auto width is its
+  line stack, not the parent's width: block items report `justify-self: start`
+  for it, which taffy sizes as fit-content.
+- **Mixed inline content** (text runs plus inline-blocks, buttons, images)
+  inside a vertical box runs the inline layout in the box's own frame: sizes
+  and margins transposed, line length = height, items centred on each line,
+  placements turned back (`transpose_prepared_item`). Inline-blocks holding
+  text are measured at their inherent size before the text is, so a box isn't
+  shrunk to its min-content.
+- **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
+  containers whose children flow vertically (taffy only supports horizontal-tb),
+  float exclusions, and turning the label of a button or other widget inside
+  vertical text.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0
@@ -732,6 +776,79 @@ until its first layout pass, and on a slow device the old "stable for 3 polls"
 rule recorded unlaid fixtures as 0x0 failures (this was the old "cold-start race",
 and it produced runs of 100+ false failures on a loaded emulator). An all-zero
 fixture settles after ~2 s stable; the poll cap is ~10 s and the watchdog 15 s.
+
+## Inline flow in blocks
+
+A block's inline children (text, `<b>`, `<a>`, inline-blocks, buttons) form one
+inline flow, as on the web, so text wraps across element boundaries.
+
+- **Runs.** `Node.normalizeInlineRuns` (Android) / `MasonNode` (iOS) group each
+  run of consecutive inline-level children of a block container into one
+  anonymous text container (`display: block`, CSS's anonymous block box). Block
+  children stay direct children. Runs rebuild on append, insert, remove and when
+  a child's or the parent's display, position or float changes. Flex and grid
+  parents keep one item per child. `parent` skips anonymous nodes;
+  `layoutParent` is the real parent and must be used for invalidation and native
+  removal.
+- **Whitespace** collapses across the pieces of a flow: no doubled space at an
+  element boundary, none at a line start. HTML parsers keep whitespace-only text
+  between inline elements as one space (not in flex or grid containers).
+- **Inline boxes are real child views.** Inline-blocks, buttons, images and
+  inputs inside text are children of the text view (the Android `TextView` is a
+  ViewGroup; iOS `MasonText` adds them as subviews). The text only leaves room
+  for them (Android `ViewSpan`, iOS run delegates) and the text view lays each
+  one out where that room is: from the drawn text once drawn, else from Mason's
+  placement (`TextView.layoutInlineBox`, `MasonText.placeInlineBox`, called from
+  the layout pass). They inherit the text's opacity, transform and clip and get
+  touches, gestures and accessibility like any view. In vertical text, sizes run
+  along the line by height. Text views (buttons included) draw their own text
+  vertically; a form control is turned clockwise with the text, so its text runs
+  down the page as in a browser's vertical form controls.
+- **Android text views are ViewGroups.** `TextView` (and `Button`, which
+  extends it) owns its `TextPaint` and text instead of extending
+  `android.widget.TextView`. Setting `text` to a `Spanned` shows it as given,
+  spans drawn over the element's style, as the platform view did.
+- **Taps on text pieces.** Flattened elements (`<a>`, `<b>`, `<span>` merged
+  into the string) have no views. The container records which element produced
+  each range of text (`NodeSpan` / `TextEngine.inlineNodeKey`), hit tests taps,
+  sets `:active` on the element while pressed, and dispatches `click` to it. Events bubble through node
+  parents on both platforms and honour `stopPropagation`. On iOS a
+  `MasonGestureRecognizer` only fires when no deeper element handles the touch.
+- **Accessibility.** Android exposes links as virtual nodes through
+  `getAccessibilityNodeProvider` (NativeScript core replaces view delegates),
+  wrapping an `ExploreByTouchHelper` and adding the real children it can't hold.
+  iOS text views read as static text, or, when they hold links or inline boxes,
+  expose text pieces, links and the box views as `accessibilityElements`.
+
+### Windows
+
+- **Runs** are grouped in `common.ts` (`_windowsAttach`, `_windowsInsertMember`,
+  `_windowsReflow`): each run gets an anonymous `NativeScript.Mason.Text`
+  (`IsAnonymous`), stamped on its members as `anonymousText_`. An inline text
+  element without a border, padding or explicit size is flattened into the run
+  (`SetInlineText`); any other inline-level element is an inline box
+  (`SetInlineBox`). A `<p>` places its non-text children the same way. Display,
+  position or float changes reach the runs from `Style._sendSync`
+  (`_windowsFlowTypeChanged`).
+- **Inline boxes** stay live XAML children of the Text, so they get real input.
+  Their nodes are the Text node's children, the core sizes them before measuring
+  the text, and DirectWrite places each as a U+FFFC inline object
+  (`DWriteText.h`); `Text::ArrangeBoxes` arranges them where it put them. A
+  baseline-aligned inline-block sits on its last line's baseline
+  (`Text::LastBaseline`), one without text on its bottom edge. A Text on the
+  TextBlock fallback (`Text.DirectWrite = false`) switches to DirectWrite when
+  it first hosts a box, since a TextBlock can't leave room for one.
+- **Click** goes through `Mason.AddEventListener` (`Events.cpp`): one `Tapped`
+  handler per listening element or text holding inline elements, the target hit
+  tested in the DirectWrite layout, then dispatched up the element tree (a
+  flattened element's parent is the Text drawing it) as one cancelable Mason
+  `Event` with `Target`. `stopPropagation` also marks the tap handled. A
+  button's Enter, Space and UI Automation Invoke dispatch the same click.
+- **`:active`** on a flattened element comes from the Text's pointer handlers as
+  a `mason:active` event, which JS turns into the visual state.
+- **Accessibility.** `TextAutomationPeer` exposes links and elements listening
+  for clicks as `InlineAutomationPeer` children (hyperlink or text, with bounds
+  and Invoke), and inline boxes as their own peers.
 
 ## Backdrop Filter
 

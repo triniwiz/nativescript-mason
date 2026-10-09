@@ -1089,10 +1089,10 @@ class MasonElementHelpers: NSObject {
         MasonPositioning.clearPositioning(node: node, view: view)
       }
 
-      // Setting `view.frame` is undefined when the view has a non-identity
-      // transform, so position via bounds+center instead (equivalent to frame
-      // when the transform is identity).
-      if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
+      // An inline box inside text: its text view knows where the text left room.
+      if let text = view.superview as? MasonText, text.ownsInlineBox(view) {
+        text.placeInlineBox(node, view, newFrame)
+      } else if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
         if view.frame != newFrame {
           view.frame = newFrame
         }

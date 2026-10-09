@@ -11,6 +11,8 @@
 #include <winrt/Windows.Graphics.Imaging.h>
 #include <winrt/Windows.Security.Cryptography.h>
 #include <winrt/Windows.UI.h>
+#include <winrt/Windows.Storage.h>
+#include <winrt/Windows.Storage.Streams.h>
 
 #include <algorithm>
 #include <cmath>
@@ -22,7 +24,9 @@
 #include "BufferUtil.h"
 #include "ColorInterpolation.h"
 #include "Decoration.h"
+#include "VisualApply.h"
 #include "Positioning.h"
+#include "ScrollHost.h"
 #include "Invalidation.h"
 
 using namespace winrt;
@@ -135,6 +139,43 @@ namespace
     }
 }
 
+namespace
+{
+    winrt::fire_and_forget LoadBitmap(winrt::Microsoft::UI::Xaml::Media::Imaging::BitmapImage bitmap, winrt::hstring source)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        using namespace winrt::Windows::Storage::Streams;
+        try
+        {
+            winrt::apartment_context ui;
+            const std::wstring_view v = source;
+            if (v.starts_with(L"data:"))
+            {
+                const size_t comma = v.find(L',');
+                if (comma == std::wstring_view::npos) co_return;
+                const std::wstring_view header = v.substr(5, comma - 5);
+                const winrt::hstring payload{ v.substr(comma + 1) };
+                const IBuffer bytes = header.ends_with(L";base64")
+                    ? CryptographicBuffer::DecodeFromBase64String(payload)
+                    : CryptographicBuffer::ConvertStringToBinary(winrt::Windows::Foundation::Uri::UnescapeComponent(payload), BinaryStringEncoding::Utf8);
+                InMemoryRandomAccessStream stream;
+                co_await stream.WriteAsync(bytes);
+                stream.Seek(0);
+                co_await ui;
+                co_await bitmap.SetSourceAsync(stream);
+                co_return;
+            }
+            auto file = co_await winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(source);
+            auto stream = co_await file.OpenReadAsync();
+            co_await ui;
+            co_await bitmap.SetSourceAsync(stream);
+        }
+        catch (...)
+        {
+        }
+    }
+}
+
 namespace winrt::NativeScript::Mason::implementation
 {
     namespace
@@ -142,91 +183,39 @@ namespace winrt::NativeScript::Mason::implementation
         namespace mucomp = winrt::Microsoft::UI::Composition;
         namespace hosting = winrt::Microsoft::UI::Xaml::Hosting;
 
-        // Build a Composition DropShadow masked to a rounded rectangle of the element's size and attach
-        // it as the element's child visual. The shadow's blur halo extends past the element's opaque
-        // body, reading as a drop shadow / colored glow. Called now (if already sized) and on every
-        // SizeChanged so it tracks layout + window resize.
-        void BuildShadow(mux::UIElement const& element, double ox, double oy, double blur, uint32_t argb, double cr)
-        {
-            auto fe = element.try_as<mux::FrameworkElement>();
-            if (!fe) return;
-            const float w = static_cast<float>(fe.ActualWidth());
-            const float h = static_cast<float>(fe.ActualHeight());
-            if (w <= 0.0f || h <= 0.0f) return;
-
-            // Match the element's border-radius (StyleKeys BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, f32;
-            // type byte 218 is 1 for a percent), clamped to half the smaller side — same as VisualApply's
-            // clip — so the shadow matches the painted rounded corner. Falls back to the passed cr if the
-            // node/buffer isn't available.
-            if (auto el = element.try_as<nsm::IMasonElement>())
-            {
-                if (auto style = el.Node() ? el.Node().Style() : nullptr)
-                {
-                    if (auto buf = style.Values())
-                    {
-                        if (auto access = buf.try_as<mason_buf::IBufferByteAccess>())
-                        {
-                            uint8_t* data = nullptr;
-                            if (SUCCEEDED(access->Buffer(&data)) && data && buf.Length() >= 230)
-                            {
-                                float r = 0.0f; std::memcpy(&r, data + 226, 4);
-                                if (data[218] == 1) r *= (w < h ? w : h);
-                                if (r > 0.0f) cr = r;
-                            }
-                        }
-                    }
-                }
-            }
-            const float maxR = (w < h ? w : h) * 0.5f;
-            if (cr > maxR) cr = maxR;
-
-            auto visual = hosting::ElementCompositionPreview::GetElementVisual(element);
-            if (!visual) return;
-            auto comp = visual.Compositor();
-
-            auto shadow = comp.CreateDropShadow();
-            shadow.Color(ColorFromArgb(argb));
-            shadow.BlurRadius(static_cast<float>(blur));
-            shadow.Offset({ static_cast<float>(ox), static_cast<float>(oy), 0.0f });
-
-            // Mask the shadow to the rounded-rect shape so it matches border-radius.
-            auto geo = comp.CreateRoundedRectangleGeometry();
-            geo.Size({ w, h });
-            geo.CornerRadius({ static_cast<float>(cr), static_cast<float>(cr) });
-            auto shape = comp.CreateSpriteShape(geo);
-            shape.FillBrush(comp.CreateColorBrush(winrt::Windows::UI::Colors::White()));
-            auto shapeVisual = comp.CreateShapeVisual();
-            shapeVisual.Size({ w, h });
-            shapeVisual.Shapes().Append(shape);
-            auto surface = comp.CreateVisualSurface();
-            surface.SourceVisual(shapeVisual);
-            surface.SourceSize({ w, h });
-            shadow.Mask(comp.CreateSurfaceBrush(surface));
-
-            auto sprite = comp.CreateSpriteVisual();
-            sprite.Size({ w, h });
-            sprite.Shadow(shadow);
-            mason_deco::SetLayer(element, L"mason-shadow", sprite);
-        }
     }
 
-    void Css::ApplyShadow(mux::UIElement const& element, double ox, double oy, double blur, uint32_t argb, double cr)
+    void Css::SetBoxShadow(mux::UIElement const& element, hstring const& shadows)
     {
         if (!element) return;
-        auto fe = element.try_as<mux::FrameworkElement>();
-        if (!fe) return;
-        BuildShadow(element, ox, oy, blur, argb, cr); // apply now if already laid out
-        // Re-apply once a real size is known + on every resize (box-shadow is set before layout).
-        fe.SizeChanged([ox, oy, blur, argb, cr](winrt::Windows::Foundation::IInspectable const& sender, mux::SizeChangedEventArgs const&)
-        {
-            if (auto el = sender.try_as<mux::UIElement>()) BuildShadow(el, ox, oy, blur, argb, cr);
-        });
+        mason_shadow::Set(element, shadows);
+        element.InvalidateArrange();
+    }
+
+    void Css::SetFilter(mux::UIElement const& element, hstring const& filter)
+    {
+        if (!element) return;
+        mason_filter::Set(element, false, filter);
+        element.InvalidateArrange();
+    }
+
+    void Css::SetBackdropFilter(mux::UIElement const& element, hstring const& filter)
+    {
+        if (!element) return;
+        mason_filter::Set(element, true, filter);
+        element.InvalidateArrange();
+    }
+
+    void Css::ApplyShadow(mux::UIElement const& element, double ox, double oy, double blur, uint32_t argb, double)
+    {
+        wchar_t spec[96]{};
+        swprintf_s(spec, L"0,%g,%g,%g,0,%u", ox, oy, blur, argb);
+        SetBoxShadow(element, spec);
     }
 
     void Css::ClearShadow(mux::UIElement const& element)
     {
-        if (!element) return;
-        mason_deco::SetLayer(element, L"mason-shadow", nullptr);
+        SetBoxShadow(element, L"");
     }
 
     void Css::ApplyBackground(mux::UIElement const& element, uint32_t argb)
@@ -463,6 +452,7 @@ namespace winrt::NativeScript::Mason::implementation
         brush.EndPoint({ static_cast<float>(0.5 + dx * 0.5), static_cast<float>(0.5 + dy * 0.5) });
         AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
         panel.Background(brush);
+        if (auto invalidated = element.try_as<mux::UIElement>()) invalidated.InvalidateArrange();
     }
 
     void Css::ApplyRadialGradient(mux::UIElement const& element, winrt::hstring const& stops, winrt::hstring const& interpolation)
@@ -473,6 +463,55 @@ namespace winrt::NativeScript::Mason::implementation
         muxm::RadialGradientBrush brush{};
         AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
         panel.Background(brush);
+        if (auto invalidated = element.try_as<mux::UIElement>()) invalidated.InvalidateArrange();
+    }
+
+    void Css::ApplyRadialGradientAt(mux::UIElement const& element, double centerX, double centerY, double radiusX, double radiusY,
+        winrt::hstring const& stops, winrt::hstring const& interpolation)
+    {
+        auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
+        if (!panel) return;
+        muxm::RadialGradientBrush brush{};
+        const winrt::Windows::Foundation::Point center{ static_cast<float>(centerX), static_cast<float>(centerY) };
+        brush.Center(center);
+        brush.GradientOrigin(center);
+        brush.RadiusX(radiusX);
+        brush.RadiusY(radiusY);
+        AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
+        panel.Background(brush);
+        if (auto invalidated = element.try_as<mux::UIElement>()) invalidated.InvalidateArrange();
+    }
+
+    void Css::ApplyBackgroundImage(mux::UIElement const& element, winrt::hstring const& source, int32_t fit, int32_t alignX, int32_t alignY)
+    {
+        auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
+        if (!panel || source.empty()) return;
+        namespace imaging = winrt::Microsoft::UI::Xaml::Media::Imaging;
+        imaging::BitmapImage bitmap;
+        const std::wstring_view v = source;
+        const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
+        if (v.starts_with(L"data:") || path)
+        {
+            LoadBitmap(bitmap, source);
+        }
+        else
+        {
+            try
+            {
+                bitmap.UriSource(winrt::Windows::Foundation::Uri{ source });
+            }
+            catch (...)
+            {
+                return;
+            }
+        }
+        muxm::ImageBrush brush;
+        brush.ImageSource(bitmap);
+        brush.Stretch(fit == 1 ? muxm::Stretch::Fill : fit == 2 ? muxm::Stretch::Uniform : fit == 3 ? muxm::Stretch::UniformToFill : muxm::Stretch::None);
+        brush.AlignmentX(alignX == 0 ? muxm::AlignmentX::Left : alignX == 2 ? muxm::AlignmentX::Right : muxm::AlignmentX::Center);
+        brush.AlignmentY(alignY == 0 ? muxm::AlignmentY::Top : alignY == 2 ? muxm::AlignmentY::Bottom : muxm::AlignmentY::Center);
+        panel.Background(brush);
+        if (auto invalidated = element.try_as<mux::UIElement>()) invalidated.InvalidateArrange();
     }
 
     void Css::ReparentChild(muxc::Panel const& parent, mux::UIElement const& child, int32_t index)
@@ -487,6 +526,11 @@ namespace winrt::NativeScript::Mason::implementation
         // relayout). Re-syncing + marking the root dirty positions it this pass.
         uint32_t existing = 0;
         if (target.IndexOf(child, existing)) { MarkLayoutRootDirty(parent); return; }
+        if (auto host = mason_scroll::HostOf(child))
+        {
+            if (target.IndexOf(host, existing)) { MarkLayoutRootDirty(parent); return; }
+        }
+        mason_scroll::Release(child);
 
         // A hosted fixed box is represented here by its slot.
         if (auto hostedIn = mason_position::HostedParentOf(child))
@@ -533,6 +577,7 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (!parent || !child) return;
         mason_position::Release(child);
+        mason_scroll::Release(child);
         auto target = parent.Children();
         uint32_t idx = 0;
         // IndexOf uses COM identity; the projected JS '===' does not, so JS-side removal silently

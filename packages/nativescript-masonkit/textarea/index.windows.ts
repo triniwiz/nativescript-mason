@@ -1,4 +1,5 @@
-import { CSSType } from '@nativescript/core';
+import { CSSType, fontInternalProperty } from '@nativescript/core';
+import { windowsFontSource } from '../common';
 import { TextAreaBase, rowsProperty, colsProperty, maxLengthProperty } from './common';
 import { defaultValueProperty, getValueProperty, setValueProperty, placeholderProperty } from '../input/common';
 import { style_, isMasonView_, native_ } from '../symbols';
@@ -62,5 +63,9 @@ export class TextArea extends TextAreaBase {
 
   [maxLengthProperty.setNative](value) {
     if (this._view) this._view.MaxLength = value | 0;
+  }
+
+  [fontInternalProperty.setNative](value: any) {
+    this._view?.SetFontFamily(windowsFontSource(value));
   }
 }

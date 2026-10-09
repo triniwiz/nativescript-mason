@@ -27,7 +27,8 @@ open class Event(val type: String, options: EventOptions? = null) {
   }
 
   val bubbles: Boolean = options?.bubbles ?: false
-  val cancelable: Boolean = options?.cancelable ?: false
+  // click and beforeinput are cancelable on the web whatever the options say.
+  val cancelable: Boolean = options?.cancelable == true || type == "click" || type == "beforeinput"
   val isComposing: Boolean = options?.isComposing ?: false
   val timeStamp: Double = (System.currentTimeMillis() * 1000).toDouble()
 
@@ -48,7 +49,7 @@ open class Event(val type: String, options: EventOptions? = null) {
 
 
   fun preventDefault() {
-    if (cancelable) {
+    if (!cancelable) {
       return
     }
     defaultPrevented = true

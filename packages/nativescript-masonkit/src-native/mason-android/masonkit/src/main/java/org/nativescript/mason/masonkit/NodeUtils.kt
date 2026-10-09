@@ -218,6 +218,12 @@ internal object NodeUtils {
   }
 
   private fun queueRemoval(expectedParent: ViewGroup, view: View) {
+    // Removals are batched for the main thread; views changed on another thread are removed
+    // at once, so the batch is never shared across threads.
+    if (android.os.Looper.myLooper() !== android.os.Looper.getMainLooper()) {
+      if (view.parent === expectedParent) expectedParent.removeViewInLayout(view)
+      return
+    }
     cancelRemoval(view)
     val old = view.visibility
     if (old != View.GONE) view.visibility = View.GONE

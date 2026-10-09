@@ -129,6 +129,8 @@
     <ClInclude Include="RootScale.h" />
     <ClInclude Include="TextAtlas.h" />
     <ClInclude Include="TextAutomationPeer.h" />
+    <ClInclude Include="Events.h" />
+    <ClInclude Include="InlineAutomationPeer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -156,6 +158,8 @@
     <ClCompile Include="FixedLayer.cpp" />
     <ClCompile Include="FixedSlot.cpp" />
     <ClCompile Include="TextAutomationPeer.cpp" />
+    <ClCompile Include="Events.cpp" />
+    <ClCompile Include="InlineAutomationPeer.cpp" />
     <ClCompile Include="exports.cpp" />
     <!-- cppwinrt generates module.g.cpp (DllGetActivationFactory / DllCanUnloadNow) under
          "Generated Files\"; a hand-authored project must compile it explicitly. NotUsing: it is
@@ -189,6 +193,7 @@
     <Midl Include="FixedLayer.idl" />
     <Midl Include="FixedSlot.idl" />
     <Midl Include="TextAutomationPeer.idl" />
+    <Midl Include="InlineAutomationPeer.idl" />
   </ItemGroup>
 
   <ItemGroup>

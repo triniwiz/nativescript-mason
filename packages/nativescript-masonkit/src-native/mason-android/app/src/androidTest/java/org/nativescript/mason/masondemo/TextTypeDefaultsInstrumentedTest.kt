@@ -96,7 +96,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Strong)
     Assert.assertEquals(
       "Strong should have bold font weight",
-      org.nativescript.mason.masonkit.FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      org.nativescript.fontmanager.FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -105,7 +105,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.B)
     Assert.assertEquals(
       "B should have bold font weight",
-      org.nativescript.mason.masonkit.FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      org.nativescript.fontmanager.FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -114,7 +114,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.H1)
     Assert.assertEquals(
       "H1 should have bold font weight",
-      org.nativescript.mason.masonkit.FontFace.NSCFontWeight.Bold, tv.style.fontWeight
+      org.nativescript.fontmanager.FontWeight.Bold, tv.style.fontWeight
     )
   }
 
@@ -123,7 +123,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Em)
     Assert.assertEquals(
       "Em should have italic font style",
-      org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      org.nativescript.fontmanager.FontStyle.Italic, tv.style.fontStyle
     )
   }
 
@@ -132,7 +132,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.I)
     Assert.assertEquals(
       "I should have italic font style",
-      org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      org.nativescript.fontmanager.FontStyle.Italic, tv.style.fontStyle
     )
   }
 
@@ -141,7 +141,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Blockquote)
     Assert.assertNotEquals(
       "Blockquote should NOT have italic font style (web standard)",
-      org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Italic, tv.style.fontStyle
+      org.nativescript.fontmanager.FontStyle.Italic, tv.style.fontStyle
     )
   }
 
@@ -182,7 +182,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Em)
     Assert.assertEquals(
       "Em should have italic font style",
-      org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Italic,
+      org.nativescript.fontmanager.FontStyle.Italic,
       tv.style.fontStyle
     )
   }
@@ -192,7 +192,7 @@ class TextTypeDefaultsInstrumentedTest {
     val tv = createTextView(TextType.Strong)
     Assert.assertEquals(
       "Strong should have bold font weight",
-      org.nativescript.mason.masonkit.FontFace.NSCFontWeight.Bold,
+      org.nativescript.fontmanager.FontWeight.Bold,
       tv.style.fontWeight
     )
   }

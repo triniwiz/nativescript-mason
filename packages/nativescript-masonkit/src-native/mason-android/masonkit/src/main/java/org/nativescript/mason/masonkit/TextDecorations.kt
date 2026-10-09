@@ -23,15 +23,6 @@ internal object TextDecorations {
   private val runPath = Path()
   private val runBounds = android.graphics.RectF()
 
-  /** Decorations for text the platform TextView drew itself (Button, fallbacks). */
-  fun drawPlatform(canvas: Canvas, view: android.widget.TextView) {
-    val layout = view.layout ?: return
-    val save = canvas.save()
-    canvas.translate(view.totalPaddingLeft.toFloat(), view.totalPaddingTop.toFloat())
-    draw(canvas, layout)
-    canvas.restoreToCount(save)
-  }
-
   fun draw(canvas: Canvas, layout: Layout) {
     val text = layout.text as? Spanned ?: return
     val spans = text.getSpans(0, text.length, Spans.DecorationSpan::class.java)

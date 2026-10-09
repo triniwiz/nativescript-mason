@@ -7,7 +7,6 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
@@ -157,7 +156,10 @@ interface Element : EventTarget {
     node.computeCacheDirty = false // compute just ran — cache is clean
   }
 
-  fun compute(width: Float, height: Float) {
+  fun compute(widthArg: Float, heightArg: Float) {
+    // NaN (no constraint) is computed as max-content, which the cache can hold.
+    val width = if (widthArg.isNaN()) -2f else widthArg
+    val height = if (heightArg.isNaN()) -2f else heightArg
     // Fast-path: if compute cache already contains the requested size and
     // cache is clean, skip the native compute to avoid redundant work and
     // repeated max-content (-2 x -2) cycles caused by races.
@@ -908,9 +910,9 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       }
 
       // Skip flattened text containers — parent draws their text
-      if (child.parent?.view is TextContainer && child.view is TextContainer) {
+      if (child.layoutParent?.view is TextContainer && child.view is TextContainer) {
         val flatten =
-          (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+          (child.layoutParent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
         if (flatten) {
           // Ensure the flattened view occupies no space
           (child.view as? View)?.layout(0, 0, 0, 0)
@@ -1179,7 +1181,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             view.measuredWidth == layoutWidth && view.measuredHeight == layoutHeight &&
             view.left == x && view.top == y && view.right == right && view.bottom == bottom
 
-          if (view is Scroll) {
+          val textHost = view.parent as? TextView
+          if (textHost != null) {
+            // An inline box inside text: its text view knows where the text left room.
+            textHost.layoutInlineBox(node, view, x, y, layoutWidth, layoutHeight)
+          } else if (view is Scroll) {
             // Scroll is a single-view container: position it at the box
             // dimensions (viewport) and update its content dimensions for
             // scroll-range calculations.
@@ -1270,9 +1276,9 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val child = nativeChildren.getOrNull(i) ?: continue
           if (child.type == NodeType.Text) continue
 
-          if (child.parent?.view is TextContainer && child.view is TextContainer) {
+          if (child.layoutParent?.view is TextContainer && child.view is TextContainer) {
             val flatten =
-              (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+              (child.layoutParent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
             if (flatten) {
               (child.view as? View)?.measure(
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),

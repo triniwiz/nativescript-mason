@@ -597,6 +597,26 @@ public enum InlineSegmentPayload {
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToWindow()
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesBegan(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesMoved(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesEnded(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var isAccessibilityElement: Swift.Bool {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var accessibilityLabel: Swift.String? {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var accessibilityTraits: UIKit.UIAccessibilityTraits {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var accessibilityElements: [Any]? {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesCancelled(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func removeView(_ view: UIKit.UIView)

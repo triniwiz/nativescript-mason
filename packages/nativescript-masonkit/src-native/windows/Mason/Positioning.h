@@ -25,6 +25,7 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/NativeScript.Mason.h>
 #include "BufferUtil.h"
+#include "Node.h"
 #include "FixedLayer.h"
 #include "FixedSlot.h"
 
@@ -68,15 +69,7 @@ namespace mason_position
         explicit StyleBytes(nsm::Node const& node)
         {
             if (!node) return;
-            auto style = node.Style();
-            if (!style) return;
-            auto buf = style.Values();
-            if (!buf) return;
-            auto access = buf.try_as<mason_buf::IBufferByteAccess>();
-            uint8_t* raw = nullptr;
-            if (!access || FAILED(access->Buffer(&raw)) || raw == nullptr) return;
-            data = raw;
-            size = buf.Length();
+            data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
         }
 
         int8_t I8(uint32_t off) const { return off < size ? static_cast<int8_t>(data[off]) : 0; }

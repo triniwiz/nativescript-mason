@@ -484,6 +484,36 @@ enum PreparedItem {
     LineBreak,
 }
 
+/// Turns a child box into a vertical box's own frame, where lines run down the box: its height
+/// is its extent along the line and its width its thickness across lines. Items centre on
+/// each line, CSS's central baseline for vertical text.
+fn transpose_prepared_item(item: &mut PreparedItem, vertical_rl: bool) {
+    let turn_margin = |m: taffy::Rect<f32>| taffy::Rect {
+        left: m.top,
+        right: m.bottom,
+        top: if vertical_rl { m.right } else { m.left },
+        bottom: if vertical_rl { m.left } else { m.right },
+    };
+    match item {
+        PreparedItem::InlineChild {
+            width,
+            height,
+            margin,
+            baseline,
+            ..
+        } => {
+            std::mem::swap(width, height);
+            *margin = turn_margin(*margin);
+            *baseline = *height / 2.0;
+        }
+        PreparedItem::BlockChild { width, height, margin, .. } => {
+            std::mem::swap(width, height);
+            *margin = turn_margin(*margin);
+        }
+        PreparedItem::Text { .. } | PreparedItem::LineBreak => {}
+    }
+}
+
 /// Context for inline formatting
 struct InlineFormattingContext {
     available_width: f32,
@@ -1425,6 +1455,35 @@ impl Tree {
         known_dimensions: Size<Option<f32>>,
         available_space: Size<AvailableSpace>,
     ) -> Size<f32> {
+        // Vertical text runs its lines along the height: measure in the platform's
+        // horizontal frame, then turn the result back.
+        if crate::tree::is_vertical_writing_mode(&self.inner(), child_id) {
+            use crate::tree::{transpose, with_viewport_line_length};
+            let known = transpose(known_dimensions);
+            let (containing_height, viewport_height) = {
+                let inner = self.inner();
+                (crate::tree::containing_block_height(&inner, child_id), inner.viewport_height)
+            };
+            let available = with_viewport_line_length(
+                known,
+                transpose(available_space),
+                containing_height,
+                viewport_height,
+            );
+            let measured = self.cached_leaf_measure_horizontal(child_id, measure, known, available);
+            return transpose(measured);
+        }
+        self.cached_leaf_measure_horizontal(child_id, measure, known_dimensions, available_space)
+    }
+
+    #[inline]
+    fn cached_leaf_measure_horizontal(
+        &mut self,
+        child_id: Id,
+        measure: &NodeMeasure,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Size<f32> {
         // A text leaf's size is a function of the width it's offered, not the
         // height it's given — it wraps horizontally and reports how tall the
         // result came out. Canonicalise the height for text containers so the
@@ -1687,8 +1746,18 @@ impl Tree {
             }
 
             let measure = self.node_data().get(child_id).unwrap().copy_measure();
-            let is_inline =
-                matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
+            let display_mode = self.nodes()[child_id].style().display_mode();
+            let is_inline = matches!(display_mode, DisplayMode::Inline);
+            // An inline-block keeps its own width and height while its line is sized, as in the
+            // DisplayMode::Box path below.
+            let inputs = if matches!(display_mode, DisplayMode::Box) {
+                LayoutInput {
+                    sizing_mode: SizingMode::InherentSize,
+                    ..inputs
+                }
+            } else {
+                inputs
+            };
 
             let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
 
@@ -1944,6 +2013,9 @@ impl Tree {
         // For inline-block, inline-flex, or inline-grid (DisplayMode::Box),
         // use normal layout which delegates to the appropriate algorithm
         // (flex, grid, or block) based on the display property.
+        // An inline-level box keeps its own width/height even while its line is being sized:
+        // ContentSize (which ignores them) is for flex items shrinking below their style size,
+        // and would size an empty inline-block as 0x0 during intrinsic probes.
         let measure_inputs = LayoutInput {
             known_dimensions: Size::NONE,
             available_space: Size {
@@ -1951,10 +2023,9 @@ impl Tree {
                 height: AvailableSpace::MaxContent,
             },
             parent_size: inputs.parent_size,
+            sizing_mode: SizingMode::InherentSize,
             ..inputs
         };
-
-        // debug prints removed
 
         let layout = self.compute_child_layout(child_node_id, measure_inputs);
 
@@ -2344,6 +2415,12 @@ impl Tree {
         _block_ctx: Option<&mut BlockContext<'_>>,
     ) -> LayoutOutput {
         let id: Id = node_id.into();
+        let vertical_box = crate::tree::is_vertical_writing_mode(&self.inner(), id);
+        let inputs = if vertical_box {
+            crate::tree::orthogonal_flow_inputs(inputs)
+        } else {
+            inputs
+        };
         let mut child_ids: ScratchVec<Id> = ScratchVec::take();
         if let Some(children) = self.inner().children.get(id) {
             child_ids.extend_from_slice(children);
@@ -2443,11 +2520,17 @@ impl Tree {
                     }
                     other => other,
                 },
-                height: match available_space.height {
-                    AvailableSpace::Definite(h) => {
+                height: match (
+                    vertical_box,
+                    content_box_parent_size.height,
+                    available_space.height,
+                ) {
+                    // A vertical box's own height is its line length.
+                    (true, Some(h), _) => AvailableSpace::Definite(h),
+                    (_, _, AvailableSpace::Definite(h)) => {
                         AvailableSpace::Definite((h - pb.top - pb.bottom).max(0.0))
                     }
-                    other => other,
+                    (_, _, other) => other,
                 },
             };
             LayoutInput {
@@ -2946,37 +3029,52 @@ impl Tree {
             }
         }
 
-        let content_available_width = inputs
-            .available_space
-            .width
-            .into_option()
-            .unwrap_or(f32::INFINITY);
+        // A vertical box flows its children down its lines and stacks lines across: run the
+        // same flow in the box's own frame (line length = height) and turn placements back.
+        let vertical_flow = vertical_box && !(has_segments && flow_child_ids.is_empty());
+        let vertical_rl = vertical_flow
+            && crate::tree::resolved_writing_mode(&self.inner(), id)
+                == crate::style::WritingMode::VerticalRl;
+        if vertical_flow {
+            for item in prepared_items.iter_mut() {
+                transpose_prepared_item(item, vertical_rl);
+            }
+        }
+
+        let content_available_width = if vertical_flow {
+            content_box_child_base.available_space.height.into_option()
+        } else {
+            inputs.available_space.width.into_option()
+        }
+        .unwrap_or(f32::INFINITY);
 
         // Pass parent_font to the IFC
-        let float_rects = self.get_float_rects_simple(id).unwrap_or_default();
+        let float_rects = if vertical_flow {
+            Vec::new()
+        } else {
+            self.get_float_rects_simple(id).unwrap_or_default()
+        };
+        let (content_left, content_top) = if vertical_flow {
+            (0.0, 0.0)
+        } else {
+            (pb.left, pb.top)
+        };
         let mut ifc = InlineFormattingContext::new(
             content_available_width,
-            pb.left,
-            pb.top,
+            content_left,
+            content_top,
             parent_font,
             style.get_text_align(),
             float_rects,
         );
         ifc.process_items(&prepared_items);
 
-        let (content_width, content_height, placements) = ifc.finalize();
-
-        let parent_is_list = style.get_item_is_list();
-        for &(child_id, x, y) in placements.iter() {
-            if let Some(node) = self.nodes_mut().get_mut(child_id) {
-                node.unrounded_layout.location.x = x;
-                if parent_is_list && node.is_list_item() {
-                    // Leave y untouched so native container can position it.
-                } else {
-                    node.unrounded_layout.location.y = y;
-                }
-            }
-        }
+        let (flow_width, flow_height, placements) = ifc.finalize();
+        let (content_width, content_height) = if vertical_flow {
+            (flow_height, flow_width)
+        } else {
+            (flow_width, flow_height)
+        };
 
         // Compute the final layout using leaf algorithm
         let mut output = compute_leaf_layout(
@@ -2988,6 +3086,32 @@ impl Tree {
                 height: content_height,
             },
         );
+
+        let parent_is_list = style.get_item_is_list();
+        let physical_content_width = (output.size.width - pb.left - pb.right).max(0.0);
+        for &(child_id, x, y) in placements.iter() {
+            if let Some(node) = self.nodes_mut().get_mut(child_id) {
+                let (x, y) = if vertical_flow {
+                    // Line position x runs down the box; block position y runs across it,
+                    // from the right for vertical-rl.
+                    let thickness = node.unrounded_layout.size.width;
+                    let across = if vertical_rl {
+                        physical_content_width - y - thickness
+                    } else {
+                        y
+                    };
+                    (pb.left + across, pb.top + x)
+                } else {
+                    (x, y)
+                };
+                node.unrounded_layout.location.x = x;
+                if parent_is_list && node.is_list_item() {
+                    // Leave y untouched so native container can position it.
+                } else {
+                    node.unrounded_layout.location.y = y;
+                }
+            }
+        }
 
         // For scroll/overflow containers, ensure content_size reflects the true
         // content extent from IFC, not the clamped layout size. This is critical

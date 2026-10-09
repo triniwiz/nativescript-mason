@@ -344,7 +344,8 @@ open class View @JvmOverloads constructor(
 
 
     if (childNode.parent == node) {
-      super.addView(child)
+      // Only a direct layout child is attached here; an inline run draws its members.
+      if (childNode.layoutParent === node) super.addView(child)
       return
     }
 
@@ -371,7 +372,8 @@ open class View @JvmOverloads constructor(
 
 
     if (childNode.parent == node) {
-      super<ViewGroup>.addView(child, index)
+      // Only a direct layout child is attached here; an inline run draws its members.
+      if (childNode.layoutParent === node) super<ViewGroup>.addView(child, index)
       return
     }
 
@@ -396,7 +398,8 @@ open class View @JvmOverloads constructor(
     }
 
     if (childNode.parent == node) {
-      super<ViewGroup>.addView(child, params)
+      // Only a direct layout child is attached here; an inline run draws its members.
+      if (childNode.layoutParent === node) super<ViewGroup>.addView(child, params)
       return
     }
 
@@ -422,7 +425,8 @@ open class View @JvmOverloads constructor(
 
 
     if (childNode.parent == node) {
-      super<ViewGroup>.addView(child, index, params)
+      // Only a direct layout child is attached here; an inline run draws its members.
+      if (childNode.layoutParent === node) super<ViewGroup>.addView(child, index, params)
       return
     }
 

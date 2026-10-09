@@ -319,6 +319,7 @@ public class MasonTextLayer: CALayer {
 
     // Draw text
     textView.engine.drawText(context: context, rect: bounds)
+    (textView as? MasonText)?.inlineBoxesDrawn()
 
     // Restore pre-clip state before drawing border — border uses its own rounded path
     // and must not be constrained by the content clip set above.
@@ -483,11 +484,11 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   public func requestLayout() {
     engine.invalidateInlineSegments()
     // handle text nesting
-    if(node.parent?.view is TextContainer){
+    if(node.layoutParent?.view is TextContainer){
       if(!engine.shouldFlattenTextContainer(self)){
         setNeedsDisplay()
       }
-      if let parent = node.parent?.view as? MasonText{
+      if let parent = node.layoutParent?.view as? MasonText{
         parent.requestLayout()
       }
       return
@@ -502,6 +503,12 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   public override func layoutSubviews() {
     super.layoutSubviews()
+    syncInlineBoxViews()
+    for view in inlineBoxes.values {
+      if let box = (view as? MasonElement)?.node {
+        placeInlineBox(box, view, view.frame)
+      }
+    }
 
     // On a size change, redraw the text layer at the new width rather than
     // letting CoreAnimation rescale a stale bitmap.
@@ -547,6 +554,202 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
   }
   
+  // An inline element being pressed: an inline box or a flattened element such as <a>.
+  private var inlineTapTarget: MasonNode?
+  private var inlineTapStart: CGPoint?
+
+  /// The inline element a tap at `point` goes to, when it or an ancestor listens for click.
+  internal func inlineClickTarget(at point: CGPoint) -> MasonNode? {
+    guard let target = engine.inlineNode(at: point), target !== node,
+          node.mason.hasListenerOnPath(target, "click") else { return nil }
+    // A box with its own click recognizer takes the touch itself.
+    if let view = target.view, view.superview === self,
+       view.gestureRecognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true {
+      return nil
+    }
+    return target
+  }
+
+  // MARK: Inline boxes
+  // The inline boxes in this text are its subviews; the text only leaves room for them.
+  private var inlineBoxes: [ObjectIdentifier: UIView] = [:]
+
+  internal func syncInlineBoxViews() {
+    let wanted = engine.inlineBoxViews()
+    if wanted.isEmpty && inlineBoxes.isEmpty { return }
+    let wantedIds = Set(wanted.map { ObjectIdentifier($0) })
+    for (id, view) in inlineBoxes where !wantedIds.contains(id) {
+      inlineBoxes[id] = nil
+      if view.superview === self { node.suppressChildOperations { view.removeFromSuperview() } }
+      if let box = (view as? MasonElement)?.node, box.inlineTurn != 0 {
+        box.inlineTurn = 0
+        box.style.applyTransformFromBuffer()
+      }
+    }
+    for view in wanted where view.superview !== self {
+      if let owner = MasonViewKind.element(view.superview)?.node {
+        owner.suppressChildOperations { view.removeFromSuperview() }
+      } else {
+        view.removeFromSuperview()
+      }
+      node.suppressChildOperations { addSubview(view) }
+      inlineBoxes[ObjectIdentifier(view)] = view
+    }
+  }
+
+  internal func ownsInlineBox(_ view: UIView) -> Bool {
+    return inlineBoxes[ObjectIdentifier(view)] != nil && view.superview === self
+  }
+
+  /// Places an inline box: where the drawn text left room for it, else at `frame` (Mason's).
+  internal func placeInlineBox(_ box: MasonNode, _ view: UIView, _ frame: CGRect) {
+    var rect = engine.drawnBoxFrame(for: box) ?? frame
+    // A form control in vertical text runs down the page like the text: the control is
+    // horizontal, so it is laid out unturned around the same centre and turned clockwise.
+    let turn: CGFloat = view is MasonInput && engine.verticalWritingMode != 0 ? .pi / 2 : 0
+    if turn != 0 {
+      rect = CGRect(x: rect.midX - rect.height / 2, y: rect.midY - rect.width / 2, width: rect.height, height: rect.width)
+    }
+    if box.inlineTurn != turn {
+      box.inlineTurn = turn
+      box.style.applyTransformFromBuffer()
+    }
+    let bounds = CGRect(origin: view.bounds.origin, size: rect.size)
+    let center = CGPoint(x: rect.midX, y: rect.midY)
+    if view.bounds.size != bounds.size { view.bounds = bounds }
+    if view.center != center { view.center = center }
+  }
+
+  // After a draw, boxes the text moved are laid out again.
+  internal func inlineBoxesDrawn() {
+    guard !inlineBoxes.isEmpty else { return }
+    for view in inlineBoxes.values {
+      guard let box = (view as? MasonElement)?.node, let rect = engine.drawnBoxFrame(for: box) else { continue }
+      let size = box.inlineTurn != 0 ? CGSize(width: rect.height, height: rect.width) : rect.size
+      if view.center != CGPoint(x: rect.midX, y: rect.midY) || view.bounds.size != size {
+        DispatchQueue.main.async { [weak self] in self?.setNeedsLayout() }
+        return
+      }
+    }
+  }
+
+  /// The pressed inline element and its ancestors inside this text view.
+  private func setInlinePressed(_ target: MasonNode, _ pressed: Bool) {
+    var current: MasonNode? = target
+    while let n = current, n !== node {
+      if n.hasPseudo(.active) != pressed {
+        n.setPseudo(.active, pressed)
+        n.view?.setNeedsDisplay()
+        n.view?.layer.setNeedsDisplay()
+      }
+      current = n.parent
+    }
+    textLayer.setNeedsDisplay()
+  }
+
+  private func endInlineTap() {
+    if let target = inlineTapTarget { setInlinePressed(target, false) }
+    inlineTapTarget = nil
+    inlineTapStart = nil
+  }
+
+  // Inline boxes and flattened elements are drawn by this view, so it routes their taps: the
+  // click goes to the element under the finger and bubbles from there, as on the web.
+  public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if let touch = touches.first, beginInlineTap(at: touch.location(in: self), windowLocation: touch.location(in: nil)) {
+      return
+    }
+    super.touchesBegan(touches, with: event)
+  }
+
+  internal func beginInlineTap(at point: CGPoint, windowLocation: CGPoint) -> Bool {
+    endInlineTap()
+    guard let target = inlineClickTarget(at: point) else { return false }
+    inlineTapTarget = target
+    inlineTapStart = windowLocation
+    setInlinePressed(target, true)
+    return true
+  }
+
+  public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if inlineTapTarget != nil {
+      if let touch = touches.first, let start = inlineTapStart {
+        let now = touch.location(in: nil)
+        if hypot(now.x - start.x, now.y - start.y) > 10 { endInlineTap() }
+      }
+      return
+    }
+    super.touchesMoved(touches, with: event)
+  }
+
+  public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    guard inlineTapTarget != nil else {
+      super.touchesEnded(touches, with: event)
+      return
+    }
+    finishInlineTap(at: touches.first?.location(in: self) ?? .zero)
+  }
+
+  internal func finishInlineTap(at location: CGPoint) {
+    guard let target = inlineTapTarget else { return }
+    endInlineTap()
+    dispatchInlineClick(target, at: location)
+  }
+
+  internal func dispatchInlineClick(_ target: MasonNode, at location: CGPoint) {
+    let click = MasonMouseEvent(
+      type: "click",
+      options: MasonMouseEventOptions().apply {
+        $0.clientX = Float(location.x)
+        $0.clientY = Float(location.y)
+        $0.screenX = Float(location.x)
+        $0.screenY = Float(location.y)
+        $0.pageX = Float(location.x)
+        $0.pageY = Float(location.y)
+      }
+    )
+    click.target = target.view
+    node.mason.dispatch(click, target)
+  }
+
+  // MARK: Accessibility
+  // Reads as static text. A text view drawing interactive inline elements (links, buttons,
+  // elements with click listeners) is instead a container of its text pieces and those elements.
+  private var accessibilityElementOverride: Bool?
+
+  private var accessibilityText: String {
+    let text = engine.buildAttributedString().string.replacingOccurrences(of: "\u{FFFC}", with: "")
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  public override var isAccessibilityElement: Bool {
+    get { accessibilityElementOverride ?? (engine.inlineAccessibilityElements(in: self) == nil && !accessibilityText.isEmpty) }
+    set { accessibilityElementOverride = newValue }
+  }
+
+  public override var accessibilityLabel: String? {
+    get { super.accessibilityLabel ?? accessibilityText }
+    set { super.accessibilityLabel = newValue }
+  }
+
+  public override var accessibilityTraits: UIAccessibilityTraits {
+    get { super.accessibilityTraits.union(type == .A ? .link : .staticText) }
+    set { super.accessibilityTraits = newValue }
+  }
+
+  public override var accessibilityElements: [Any]? {
+    get { super.accessibilityElements ?? engine.inlineAccessibilityElements(in: self) }
+    set { super.accessibilityElements = newValue }
+  }
+
+  public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    if inlineTapTarget != nil {
+      endInlineTap()
+      return
+    }
+    super.touchesCancelled(touches, with: event)
+  }
+
   public func addView(_ view: UIView){
     if(view.superview == self){
       return

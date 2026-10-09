@@ -292,11 +292,17 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         is Token.Text -> {
           val parentIsRawText = stack.lastOrNull()?.first in RAW_TEXT_ELEMENTS
           // Outside a raw-text element, HTML collapses whitespace runs to a
-          // single space and drops whitespace-only text nodes.
-          val text = if (parentIsRawText) token.content else collapseWhitespace(token.content)
+          // single space. Whitespace-only text stays a space inside an inline
+          // flow (`<b>b</b> <i>c</i>`); flex and grid containers ignore it.
+          val parent = stack.lastOrNull()
+          var text = if (parentIsRawText) token.content else collapseWhitespace(token.content)
+          if (text.isEmpty() && token.content.isNotEmpty() && parent != null &&
+            parent.second.style.display.let { it == Display.Block || it == Display.Inline || it == Display.InlineBlock }
+          ) {
+            text = " "
+          }
           if (text.isEmpty()) continue
 
-          val parent = stack.lastOrNull()
           if (parent != null) {
             val textNode = TextNode(mason, text)
             parent.second.appendChild(textNode)
@@ -327,7 +333,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   /**
    * Collapse whitespace the way HTML does outside a `white-space: pre` context:
    * every run of whitespace becomes one space, and a run that is *only*
-   * whitespace disappears. Leading and trailing spaces around markup are kept as
+   * whitespace becomes empty. Leading and trailing spaces around markup are kept as
    * a single space, because `a <b>b</b>` needs the gap.
    */
   private fun collapseWhitespace(text: String): String {

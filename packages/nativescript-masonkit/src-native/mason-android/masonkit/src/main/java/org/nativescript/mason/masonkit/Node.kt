@@ -5,6 +5,8 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
@@ -266,6 +268,9 @@ open class Node internal constructor(
 
   internal var isAnonymous = false
 
+  // Degrees an inline box is turned to follow vertical text, on top of its own transform.
+  internal var inlineTurn = 0f
+
   internal var floatScanFrame = 0L
   internal var floatScanHasFloat = false
 
@@ -507,6 +512,239 @@ open class Node internal constructor(
     return container
   }
 
+
+  // CSS inline formatting. In a block container, consecutive inline-level children (text,
+  // inline elements, inline-blocks, buttons, images) share one anonymous text container, an
+  // anonymous block box, so text wraps across them and the whitespace between them is kept.
+  // Other containers (flex, grid) keep one anonymous box per text run: each is an item there.
+
+  private var normalizingRuns = false
+  private var runsEstablished = false
+
+  /** Whether this node groups its inline-level children into shared runs. */
+  internal fun establishesInlineRuns(): Boolean {
+    // Reads the buffer even before the first style sync: display is already right there.
+    if (view is TextContainer || view !is ViewGroup) return false
+    return when (style.display) {
+      Display.Block, Display.InlineBlock -> true
+      else -> false
+    }
+  }
+
+  /** Whether [child] takes part in an inline run here. `display: none` children stay where
+   *  they are (they don't split a run, and don't start one). */
+  private fun joinsInlineRun(child: Node, runOpen: Boolean): Boolean {
+    if (child is TextNode || child.view is Br.FakeView) return true
+    val s = child.style
+    if (s.position == Position.Absolute || s.position == Position.Fixed) return false
+    if (s.float != org.nativescript.mason.masonkit.enums.Float.None) return false
+    return when (s.display) {
+      Display.Inline, Display.InlineBlock, Display.InlineFlex, Display.InlineGrid -> true
+      Display.None -> runOpen
+      else -> false
+    }
+  }
+
+  private fun isRunContainer(node: Node) = node.isAnonymous && node.view is TextContainer
+
+  /** Detach [view] from whatever group holds it without touching the Mason tree. */
+  internal fun detachViewQuietly(view: View) {
+    NodeUtils.cancelRemoval(view)
+    val group = view.parent as? ViewGroup ?: return
+    val owner = (group as? Element)?.node
+    if (owner != null) owner.suppressChildOperations { group.removeView(view) } else group.removeView(view)
+  }
+
+  /** Re-groups this node's children, in [author] order, into runs and direct children. */
+  internal fun normalizeInlineRuns(author: List<Node> = getChildren()) {
+    if (normalizingRuns || view is TextContainer) return
+    val inlineRuns = establishesInlineRuns()
+    val plan = ArrayList<Any>(author.size)
+    var run: ArrayList<Node>? = null
+    for (child in author) {
+      val joins = if (inlineRuns) joinsInlineRun(child, run != null) else child is TextNode
+      if (joins) {
+        val open = run ?: ArrayList<Node>().also {
+          run = it
+          plan.add(it)
+        }
+        open.add(child)
+      } else {
+        run = null
+        plan.add(child)
+      }
+    }
+    runsEstablished = inlineRuns
+    if (layoutMatches(plan, inlineRuns)) return
+    normalizingRuns = true
+    try {
+      applyRunPlan(plan, inlineRuns)
+    } finally {
+      normalizingRuns = false
+    }
+  }
+
+  private fun runDisplay(inlineRuns: Boolean) = if (inlineRuns) Display.Block else Display.Inline
+
+  private fun layoutMatches(plan: List<Any>, inlineRuns: Boolean): Boolean {
+    if (plan.size != children.size) return false
+    for (i in plan.indices) {
+      val item = plan[i]
+      val current = children[i]
+      if (item is Node) {
+        if (item !== current) return false
+      } else {
+        if (!isRunContainer(current) || current.style.display != runDisplay(inlineRuns)) return false
+        val members = item as List<*>
+        if (members.size != current.children.size) return false
+        for (j in members.indices) if (members[j] !== current.children[j]) return false
+      }
+    }
+    return true
+  }
+
+  private fun applyRunPlan(plan: List<Any>, inlineRuns: Boolean) {
+    val spare = ArrayDeque<Node>()
+    for (child in children) if (isRunContainer(child)) spare.add(child)
+    val next = ArrayList<Node>(plan.size)
+    for (item in plan) {
+      if (item is Node) {
+        next.add(item)
+        continue
+      }
+      @Suppress("UNCHECKED_CAST")
+      val members = item as List<Node>
+      val anon = spare.removeFirstOrNull()
+        ?: getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+      fillRun(anon, members, inlineRuns)
+      next.add(anon)
+    }
+    for (anon in spare) {
+      anon.children.clear()
+      (anon.view as? View)?.let { detachViewQuietly(it) }
+      if (anon.nativePtr != 0L) {
+        val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, anon.nativePtr)
+        if (ref != 0L) NativeHelpers.nativeNodeDestroy(ref)
+      }
+      anon.parent = null
+    }
+    children.clear()
+    children.addAll(next)
+    // Direct children, run containers included, belong to this node and are attached here.
+    val group = view as? ViewGroup
+    var viewIndex = 0
+    for (child in next) {
+      child.parent = this
+      val childView = child.view as? View ?: continue
+      if (group != null) {
+        if (childView.parent !== group) {
+          detachViewQuietly(childView)
+          suppressChildOperations { group.addView(childView, viewIndex.coerceAtMost(group.childCount)) }
+        }
+        viewIndex = group.indexOfChild(childView) + 1
+      }
+    }
+    NodeUtils.syncNode(this, next)
+    computeCacheDirty = true
+    getRootNode()?.computeCacheDirty = true
+    NodeUtils.invalidateLayout(this)
+  }
+
+  private fun fillRun(anon: Node, members: List<Node>, inlineRuns: Boolean) {
+    anon.parent = this
+    val container = anon.view as TextContainer
+    val display = runDisplay(inlineRuns)
+    if (anon.style.display != display) anon.style.display = display
+    anon.children.clear()
+    for (member in members) {
+      anon.children.add(member)
+      if (member is TextNode) {
+        member.container = container
+        member.attributes.sync(container.style)
+      } else {
+        member.parent = anon
+        // The run draws it inline; it isn't a view of this group.
+        (member.view as? View)?.let { detachViewQuietly(it) }
+      }
+    }
+    NodeUtils.syncNode(anon, members)
+    container.engine.invalidateInlineSegments()
+  }
+
+  /** Run container to append an inline-level child to: the last child if it is one. */
+  private fun runForAppend(): Node {
+    val last = children.lastOrNull()
+    val anon = if (last != null && isRunContainer(last)) last
+    else getOrCreateAnonymousTextContainer(append = true, checkLast = false)
+    if (anon.style.display != Display.Block) anon.style.display = Display.Block
+    return anon
+  }
+
+  private fun appendToRun(child: Node) {
+    val anon = runForAppend()
+    val container = anon.view as TextContainer
+    anon.children.add(child)
+    if (child is TextNode) {
+      child.attributes.sync(container.style)
+      child.container = container
+      markHasTextDescendant(anon)
+    } else {
+      child.parent = anon
+      if (child.nativePtr != 0L) {
+        NativeHelpers.nativeNodeAddChild(mason.nativePtr, anon.nativePtr, child.nativePtr)
+      }
+      (child.view as? View)?.let { detachViewQuietly(it) }
+      computeCacheDirty = true
+      getRootNode()?.computeCacheDirty = true
+      invalidateOnAttach(child)
+      onNodeAttached?.let { it() }
+    }
+    container.engine.invalidateInlineSegments()
+    NodeUtils.invalidateLayout(this)
+  }
+
+  /** Links a child that [normalizeInlineRuns] is about to place. */
+  private fun attachForRebuild(child: Node) {
+    if (child is TextNode) return
+    child.parent = this
+    computeCacheDirty = true
+    getRootNode()?.computeCacheDirty = true
+    invalidateOnAttach(child)
+    onNodeAttached?.let { it() }
+  }
+
+  /** Unlinks a child that [normalizeInlineRuns] will leave out. */
+  private fun detachForRebuild(removed: Node) {
+    val layoutParent = removed.layoutParent
+    layoutParent?.children?.remove(removed)
+    if (removed is TextNode) {
+      removed.container?.engine?.invalidateInlineSegments()
+      removed.container = null
+      return
+    }
+    (removed.view as? View)?.let { childView ->
+      if (childView.parent === view) NodeUtils.removeView(this, childView) else detachViewQuietly(childView)
+    }
+    if (removed.nativePtr != 0L && layoutParent != null) {
+      val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, layoutParent.nativePtr, removed.nativePtr)
+      if (ref != 0L) NativeHelpers.nativeNodeDestroy(ref)
+    }
+    removed.parent = null
+    (removed.view as? Element)?.onNodeDetached()
+  }
+
+  /** Called when this node's display, position or float changes. */
+  internal fun onFlowTypeChanged(firstSync: Boolean = false) {
+    if (isAnonymous || normalizingRuns) return
+    // Text holding this element as an inline piece or box must rebuild around the change.
+    if (!firstSync) (layoutParent?.view as? TextContainer)?.engine?.invalidateInlineSegments()
+    if (runsEstablished != establishesInlineRuns()) normalizeInlineRuns()
+    val owner = parent ?: return
+    if (owner.view is TextContainer || owner.normalizingRuns) return
+    val inRun = layoutParent?.isAnonymous == true
+    val shouldJoin = if (owner.establishesInlineRuns()) owner.joinsInlineRun(this, inRun) else false
+    if (inRun != shouldJoin) owner.normalizeInlineRuns()
+  }
 
   fun getNativePtr(): Long {
     return nativePtr
@@ -951,6 +1189,14 @@ open class Node internal constructor(
 
   @JvmOverloads
   open fun appendChild(child: Node, attach: Boolean = true) {
+    if (establishesInlineRuns()) {
+      runsEstablished = true
+      val last = children.lastOrNull()
+      if (joinsInlineRun(child, last != null && isRunContainer(last))) {
+        appendToRun(child)
+        return
+      }
+    }
     if (child is TextNode) {
       var pending = false
       val container = if (view is TextContainer) {
@@ -1018,6 +1264,15 @@ open class Node internal constructor(
     }
     val reference = nodes[index]
     if (reference == child) {
+      return
+    }
+
+    if (establishesInlineRuns()) {
+      val author = nodes.toMutableList()
+      detachForRebuild(reference)
+      author[index] = child
+      attachForRebuild(child)
+      normalizeInlineRuns(author)
       return
     }
 
@@ -1243,6 +1498,14 @@ open class Node internal constructor(
     }
     val authorChildren = getChildren()
 
+    if (establishesInlineRuns()) {
+      val author = authorChildren.toMutableList()
+      author.add(index, child)
+      attachForRebuild(child)
+      normalizeInlineRuns(author)
+      return
+    }
+
     val reference = authorChildren[index]
 
     // Inserting a TextNode
@@ -1467,22 +1730,30 @@ open class Node internal constructor(
     if (index >= children.size) {
       return null
     }
+    if (establishesInlineRuns()) {
+      val author = children.toMutableList()
+      val removed = author.removeAt(index)
+      detachForRebuild(removed)
+      normalizeInlineRuns(author)
+      return removed
+    }
     return removeAuthorChild(children[index])
   }
 
   private fun removeAuthorChild(reference: Node): Node? {
     val idx =
       reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return null
-    val removed = reference.layoutParent?.children?.removeAt(idx) ?: return null
+    val layoutParent = reference.layoutParent
+    val removed = layoutParent?.children?.removeAt(idx) ?: return null
     if (removed is TextNode) {
       removed.container?.engine?.invalidateInlineSegments()
       removed.container = null
-      if (reference.layoutParent?.children?.isEmpty() == true) {
-        reference.layoutParent?.layoutParent?.let {
-          NodeUtils.removeView(it, reference.layoutParent?.view as? View)
-        }
-        reference.layoutParent?.parent = null
-        NodeUtils.syncNode(this, getChildren())
+      // Drop an anonymous container left empty, so it doesn't stay behind as a 0x0 box.
+      if (layoutParent !== this && layoutParent.isAnonymous && layoutParent.children.isEmpty()) {
+        children.remove(layoutParent)
+        NodeUtils.removeView(this, layoutParent.view as? View)
+        layoutParent.parent = null
+        NodeUtils.syncNode(this, children)
       }
     } else {
       // Use `this` (the node whose children vector was updated) as the
@@ -1491,7 +1762,7 @@ open class Node internal constructor(
       // views attached to the wrong ViewGroup.
       NodeUtils.removeView(this, removed.view as? View)
       if (removed.nativePtr != 0L) {
-        val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
+        val ref = NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, layoutParent.nativePtr, removed.nativePtr)
         if (ref != 0L) {
           NativeHelpers.nativeNodeDestroy(ref)
         }
@@ -1565,6 +1836,10 @@ open class Node internal constructor(
   fun removeChild(child: Node): Node? {
     if (children.isEmpty()) {
       return null
+    }
+    if (establishesInlineRuns()) {
+      val idx = getChildren().indexOf(child).takeIf { it > -1 } ?: return null
+      return removeChildAt(idx)
     }
     if (!child.isAnonymous && child.layoutParent === this) {
       return removeAuthorChild(child)

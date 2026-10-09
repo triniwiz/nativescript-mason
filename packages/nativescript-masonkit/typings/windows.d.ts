@@ -181,6 +181,10 @@ declare namespace NativeScript.Mason {
     // Percentage size (0-1, NaN clears) of a core (non-Mason) child.
     SetPercentWidth(element: any, fraction: number): void;
     SetPercentHeight(element: any, fraction: number): void;
+    // Events Mason dispatches (click), bubbling through the element tree; returns a listener id.
+    AddEventListener(element: any, type: string, listener: any): number;
+    ElementFromPoint(element: any, x: number, y: number): any;
+    RemoveEventListener(element: any, type: string, id: number): void;
   }
 
   // Implemented by every Mason element (View + the leaf controls). A parent View pulls any child's
@@ -188,7 +192,7 @@ declare namespace NativeScript.Mason {
   interface IMasonElement {
     readonly Node: Node;
     readonly Style: Style;
-    SyncStyle(dirtyLow: string, dirtyHigh: string): void;
+    SyncStyle(d0: number, d1: number, d2: number, d3: number): void;
   }
 
   // Rasterized visual result (Image + size + overhang) returned by Css.CreateShadow/CreateBorder.
@@ -203,6 +207,8 @@ declare namespace NativeScript.Mason {
   class Css {
     static ApplyBackground(element: any, argb: number): void;
     static ClearBackground(element: any): void;
+    static ApplyRadialGradientAt(element: any, centerX: number, centerY: number, radiusX: number, radiusY: number, stops: string, interpolation: string): void;
+    static ApplyBackgroundImage(element: any, source: string, fit: number, alignX: number, alignY: number): void;
     static ApplyOpacity(element: any, opacity: number): void;
     static ApplyTransform(element: any, m11: number, m12: number, m21: number, m22: number, offsetX: number, offsetY: number): void;
     static ClearTransform(element: any): void;
@@ -215,6 +221,9 @@ declare namespace NativeScript.Mason {
     static ReparentChild(parent: any, child: any, index: number): void;
     static RemoveChild(parent: any, child: any): void;
     static ApplyShadow(element: any, offsetX: number, offsetY: number, blurRadius: number, argb: number, cornerRadius: number): void;
+    static SetBoxShadow(element: any, shadows: string): void;
+    static SetFilter(element: any, filter: string): void;
+    static SetBackdropFilter(element: any, filter: string): void;
     static ClearShadow(element: any): void;
   }
 
@@ -257,6 +266,16 @@ declare namespace NativeScript.Mason {
     // A nested text element rendered inside this one's runs; the index counts runs and nested elements.
     SetInlineText(child: Text, index: number): void;
     RemoveInlineText(child: Text): void;
+    // An inline-level element placed in the text and arranged where the text puts it.
+    SetInlineBox(child: any, index: number): void;
+    RemoveInlineBox(child: any): void;
+    // Holds a block's inline content, so it is never an event target.
+    IsAnonymous: boolean;
+    // An <a>, exposed to UI Automation as a hyperlink.
+    IsLink: boolean;
+    IsListItem: boolean;
+    SetFontFeatureSettings(value: string): void;
+    SetTextShadow(shadows: string): void;
   }
 
   // Frame and layout-pass counters for benchmarks; JS-assigned EventHandler<Object> handlers never fire.
@@ -331,6 +350,9 @@ declare namespace NativeScript.Mason {
     Rows: number;
     Cols: number;
     MaxLength: number;
+    SetFontFamily(families: string): void;
+    AddEventListener(type: string, listener: any): number;
+    RemoveEventListener(type: string, id: number): boolean;
   }
 
   // <input> — hosts a stock control chosen by Type (MasonInputType raw value).
@@ -343,6 +365,9 @@ declare namespace NativeScript.Mason {
     Placeholder: string;
     Multiple: boolean;
     Accept: string;
+    SetFontFamily(families: string): void;
+    AddEventListener(type: string, listener: any): number;
+    RemoveEventListener(type: string, id: number): boolean;
   }
 }
 

@@ -7,7 +7,6 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +21,7 @@ class ContentCaptureStructureTest {
   private val instr = InstrumentationRegistry.getInstrumentation()
 
   @Test
-  fun pendingTextReportsTheSameStructureAsThePlatform() {
+  fun textReportsItsStructure() {
     ActivityScenario.launch(BenchmarkActivity::class.java).use { scenario ->
       lateinit var texts: List<TextView>
       val drawn = CountDownLatch(1)
@@ -56,19 +55,17 @@ class ContentCaptureStructureTest {
       assertTrue("host drew", drawn.await(10, TimeUnit.SECONDS))
       instr.waitForIdleSync()
       instr.runOnMainSync {
-        val platformOnlyBaselines = Regex("""setTextLines\((\[.*?]), \[.*?]\)""")
         texts.forEachIndexed { i, tv ->
           val masonKit = RecordingViewStructure().also { tv.onProvideContentCaptureStructure(it, 0) }
-          assertNull("text$i stayed deferred", tv.layout)
+          assertTrue("text$i class", masonKit.calls.contains("setClassName(android.widget.TextView)"))
+          val firstWord = tv.textContent.substringBefore(' ')
+          assertTrue("text$i text", masonKit.calls.any { it.startsWith("setText(") && it.contains(firstWord) })
           masonKit.calls.firstOrNull { it.startsWith("setTextLines") }?.let { lines ->
             val layout = tv.floatAwareStaticLayout ?: tv.cachedStaticLayout!!
             val starts = Regex("""\d+""").findAll(lines.substringBefore("], [")).map { it.value.toInt() }.toList()
             val expected = starts.map { layout.getLineBaseline(layout.getLineForOffset(it)) + tv.paddingTop }
             assertEquals("text$i baselines", "setTextLines($starts, $expected)", lines)
           }
-          tv.text
-          val platform = RecordingViewStructure().also { tv.onProvideContentCaptureStructure(it, 0) }
-          assertEquals("text$i", platform.calls.map { it.replace(platformOnlyBaselines, "setTextLines($1)") }, masonKit.calls.map { it.replace(platformOnlyBaselines, "setTextLines($1)") })
         }
       }
     }

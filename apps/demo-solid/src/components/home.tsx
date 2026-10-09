@@ -58,6 +58,14 @@ const FEATURES = [
     count: 'Tests',
   },
   {
+    id: 'Forms',
+    label: 'Forms',
+    desc: 'Inputs and range sliders across writing modes',
+    bg: '#636e72',
+    glyph: 'Fm',
+    count: 'Playground',
+  },
+  {
     id: 'QA',
     label: 'QA Harness',
     desc: 'Scroll-auto, backdrop-filter & stress tests',

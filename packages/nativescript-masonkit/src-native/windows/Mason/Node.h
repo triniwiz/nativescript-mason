@@ -69,6 +69,13 @@ namespace winrt::NativeScript::Mason::implementation
         // Internal accessors (not projected).
         ::CMasonNode* NodePtr() const noexcept { return m_node; }
         ::CMason* MasonPtr() const noexcept { return m_mason; }
+        const uint8_t* StyleData(uint32_t& size) const noexcept
+        {
+            uintptr_t len = 0;
+            const uint8_t* data = mason_style_get_style_data(m_mason, m_node, &len);
+            size = data ? static_cast<uint32_t>(len) : 0;
+            return data;
+        }
 
         // This node's laid-out width and size, without building a Layout.
         float LayoutWidth();

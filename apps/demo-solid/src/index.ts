@@ -78,8 +78,17 @@ function makeMasonElement(base: any) {
         this.addChild(child);
         return;
       }
-      // Element child with a native ref. dominative's layout policy would index it among element
-      // children only, but mason's child list also holds text runs, so insert relative to the ref.
+      // Element child with a native ref. dominative's ref is the next element sibling, but mason's
+      // child list also holds text runs, which may sit between the two: insert before the next
+      // sibling mason tracks.
+      for (let next = (child as any).nextSibling; next != null && next !== ref; next = next.nextSibling) {
+        try {
+          super.insertBefore(child, next);
+          return;
+        } catch (e) {
+          // not a mason child; try the next sibling
+        }
+      }
       try {
         super.insertBefore(child, ref);
       } catch (e) {

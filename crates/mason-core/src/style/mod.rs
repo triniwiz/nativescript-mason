@@ -2379,6 +2379,27 @@ impl Style {
         )
     }
 
+    /// The writing mode set on this node, or None when it inherits from its parent.
+    pub fn get_writing_mode(&self) -> Option<WritingMode> {
+        if get_style_data_u8(self.data(), StyleKeys::WRITING_MODE_STATE) == 0 {
+            return None;
+        }
+        crate::utils::writing_mode_from_enum(
+            get_style_data_u8(self.data(), StyleKeys::WRITING_MODE) as i8,
+        )
+    }
+
+    pub fn set_writing_mode(&mut self, value: WritingMode) {
+        self.prepare_mut();
+        let data = self.data_mut();
+        set_style_data_u8(
+            data,
+            StyleKeys::WRITING_MODE,
+            crate::utils::writing_mode_to_enum(value) as u8,
+        );
+        set_style_data_u8(data, StyleKeys::WRITING_MODE_STATE, 1);
+    }
+
     pub fn get_flex_direction(&self) -> FlexDirection {
         flex_direction_from_enum(get_style_data_i8(self.data(), StyleKeys::FLEX_DIRECTION)).unwrap()
     }

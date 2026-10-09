@@ -4,6 +4,7 @@
 #include "Node.h"
 #include "Css.h"
 #include "PanelCore.h"
+#include "Events.h"
 #include <winrt/Windows.Storage.Streams.h>
 
 using namespace winrt;
@@ -133,5 +134,20 @@ namespace winrt::NativeScript::Mason::implementation
     void Mason::SetPercentHeight(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction)
     {
         SetPercent(element, false, fraction);
+    }
+
+    int64_t Mason::AddEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, nsm::EventListener const& listener)
+    {
+        return mason_events::Add(element, type, listener);
+    }
+
+    winrt::Windows::Foundation::IInspectable Mason::ElementFromPoint(winrt::Microsoft::UI::Xaml::UIElement const& element, float x, float y)
+    {
+        return mason_events::ElementAt(element, x, y);
+    }
+
+    void Mason::RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id)
+    {
+        mason_events::Remove(element, type, id);
     }
 }

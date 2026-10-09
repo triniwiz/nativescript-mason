@@ -38,5 +38,18 @@ namespace NativeScript.Mason
         // child panel. The index counts runs and nested elements together.
         void SetInlineText(Text child, Int32 index);
         void RemoveInlineText(Text child);
+
+        // An inline-level element (inline-block, button, image) placed in this one's text and arranged
+        // where the text puts it. The index counts runs, nested elements and boxes together.
+        void SetInlineBox(Microsoft.UI.Xaml.UIElement child, Int32 index);
+        void RemoveInlineBox(Microsoft.UI.Xaml.UIElement child);
+
+        // Holds a block's inline content (CSS's anonymous block box), so it is never an event target.
+        Boolean IsAnonymous;
+        // An <a>, exposed to UI Automation as a hyperlink.
+        Boolean IsLink;
+        Boolean IsListItem;
+        void SetTextShadow(String shadows);
+        void SetFontFeatureSettings(String value);
     }
 }

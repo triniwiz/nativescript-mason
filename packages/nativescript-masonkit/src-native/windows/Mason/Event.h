@@ -18,12 +18,17 @@ namespace winrt::NativeScript::Mason::implementation
         bool ImmediatePropagationStopped() const noexcept { return immediatePropagationStopped; }
         hstring Data() const { return data; }
         hstring InputType() const { return inputType; }
+        winrt::Windows::Foundation::Collections::IVectorView<hstring> Files() const
+        {
+            return files.empty() ? nullptr : winrt::single_threaded_vector<hstring>(std::vector<hstring>(files)).GetView();
+        }
         hstring Key() const { return key; }
         bool Repeat() const noexcept { return repeat; }
         bool CtrlKey() const noexcept { return ctrlKey; }
         bool ShiftKey() const noexcept { return shiftKey; }
         bool AltKey() const noexcept { return altKey; }
         bool MetaKey() const noexcept { return metaKey; }
+        winrt::Windows::Foundation::IInspectable Target() const { return target; }
 
         void PreventDefault() noexcept { if (cancelable) defaultPrevented = true; }
         void StopPropagation() noexcept { propagationStopped = true; }
@@ -39,11 +44,13 @@ namespace winrt::NativeScript::Mason::implementation
         bool immediatePropagationStopped{ false };
         hstring data;
         hstring inputType;
+        std::vector<hstring> files;
         hstring key;
         bool repeat{ false };
         bool ctrlKey{ false };
         bool shiftKey{ false };
         bool altKey{ false };
         bool metaKey{ false };
+        winrt::Windows::Foundation::IInspectable target{ nullptr };
     };
 }

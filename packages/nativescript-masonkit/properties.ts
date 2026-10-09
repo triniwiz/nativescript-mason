@@ -328,7 +328,7 @@ export const whiteSpaceProperty = new CssProperty<Style, string>({
 export const objectFitProperty = new CssProperty<Style, string>({
   name: 'objectFit',
   cssName: 'object-fit',
-  defaultValue: 'contain',
+  defaultValue: 'fill',
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {

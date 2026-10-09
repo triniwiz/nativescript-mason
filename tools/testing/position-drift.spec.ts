@@ -13,7 +13,7 @@ const root = resolve(__dirname, '../..');
 const pkg = 'packages/nativescript-masonkit';
 
 function read(file: string): string {
-  return readFileSync(resolve(root, file), 'utf8');
+  return readFileSync(resolve(root, file), 'utf8').replace(/\r\n/g, '\n');
 }
 
 // `position_to_enum` in mason-core is the source of truth.
@@ -115,7 +115,7 @@ describe('the Position enum', () => {
     expect([...swift[1].matchAll(/case "([a-z]+)": style\.position = \.([A-Za-z]+)/g)].map((m) => [m[1], m[2]])).toEqual(NAMES.map((name) => [name.toLowerCase(), name]));
   });
 
-  it("defaults to static, as on the web", () => {
+  it('defaults to static, as on the web', () => {
     // The style buffer is zero-initialised, so the zero value has to be the CSS initial value.
     expect(REFERENCE[0]).toEqual(['Static', 0]);
     expect(read(`${pkg}/properties.ts`)).toContain("cssName: 'position',\n  defaultValue: 'static',");

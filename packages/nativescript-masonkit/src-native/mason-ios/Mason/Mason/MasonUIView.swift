@@ -576,10 +576,22 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   }
   
   
+  /// A child already in this node's tree isn't added again. Only a direct layout child is a
+  /// subview; an inline run draws its members.
+  private func attachExistingChild(_ view: UIView) -> Bool {
+    let childNode = (view as? MasonElement)?.node ?? mason.nodeForView(view)
+    guard childNode.parent === node else { return false }
+    if childNode.layoutParent === node && view.superview == nil {
+      node.suppressChildOperations { addSubview(view) }
+    }
+    return true
+  }
+
   public func addView(_ view: UIView){
     if(view.superview == self){
       return
     }
+    if attachExistingChild(view) { return }
     if(view is MasonElement){
       append((view as! MasonElement))
     }else {
@@ -591,6 +603,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     if(view.superview == self){
       return
     }
+    if attachExistingChild(view) { return }
     //    if(at <= -1){
     //      addSubview(view)
     //    }else {

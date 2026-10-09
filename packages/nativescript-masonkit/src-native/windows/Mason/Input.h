@@ -1,7 +1,10 @@
 #pragma once
 #include "Input.g.h"
+#include "FormEvents.h"
+#include "FormStyle.h"
 #include "Invalidation.h"
 #include "VisualState.h"
+#include <memory>
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -13,11 +16,8 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node Node() const { return m_node; }
         winrt::NativeScript::Mason::Style Style() const { return m_node.Style(); }
 
-        void SyncStyle(winrt::hstring const&, winrt::hstring const&)
-        {
-            m_visual.styleDirty = true;
-            mason_leaf::StyleChanged(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node);
-        }
+        void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3);
+        void SetFontFamily(hstring const& families);
 
         int32_t Type() const noexcept { return m_type; }
         void Type(int32_t value);
@@ -40,9 +40,13 @@ namespace winrt::NativeScript::Mason::implementation
         void Rebuild();
         void ApplyValue(hstring const& value);
         void ApplyPlaceholder(hstring const& value);
-        void Listen();
-        bool Dispatch(winrt::NativeScript::Mason::Event const& e);
-        void Commit();
+        void SyncOrientation();
+        void SyncTextStyle(bool force);
+        winrt::Microsoft::UI::Xaml::FrameworkElement BuildColor();
+        winrt::Microsoft::UI::Xaml::FrameworkElement BuildFile();
+        winrt::fire_and_forget PickFiles();
+        void FilesPicked(std::vector<hstring> names, std::vector<hstring> uris);
+        void ResetFiles();
 
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
@@ -52,18 +56,14 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_placeholder;
         bool m_multiple{ false };
         hstring m_accept;
-
-        struct Listener { hstring type; int64_t id; winrt::NativeScript::Mason::EventListener fn; };
-        std::vector<Listener> m_listeners;
-        int64_t m_nextId{ 1 };
-        // Set while code writes the value, whose changes aren't user input.
-        bool m_applying{ false };
-        // The value `input` last reported, and the one `change` last committed.
-        hstring m_reported;
-        hstring m_committed;
-        // What the pending edit inserts, from beforeinput.
-        hstring m_pendingData;
-        hstring m_pendingType;
+        hstring m_fontFamily;
+        std::shared_ptr<mason_form::Events> m_events;
+        mason_form::TextStyle m_textApplied;
+        winrt::Microsoft::UI::Xaml::Controls::Border m_swatch{ nullptr };
+        winrt::Microsoft::UI::Xaml::Controls::Button m_fileButton{ nullptr };
+        winrt::Microsoft::UI::Xaml::Controls::TextBlock m_fileLabel{ nullptr };
+        std::vector<hstring> m_fileNames;
+        bool m_picking{ false };
     };
 }
 

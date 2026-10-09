@@ -1,7 +1,7 @@
-import { TextBase, textContentProperty } from '../common';
+import { TextBase, textContentProperty, windowsMemberKind } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isText_, isMasonView_, native_ } from '../symbols';
+import { style_, isText_, isMasonView_, native_, runMember_ } from '../symbols';
 import { removeNativeChild } from '../windows-panel-helpers';
 
 // crates/mason-core/src/utils/ua_defaults.rs as [font size, margin top, bottom, left, right] in CSS
@@ -20,7 +20,7 @@ export const UA_DEFAULTS: Record<string, [number, number, number, number, number
 };
 
 // By web.ts TextType value.
-const TAGS: Record<number, string> = { 1: 'p', 3: 'code', 4: 'h1', 5: 'h2', 6: 'h3', 7: 'h4', 8: 'h5', 9: 'h6', 11: 'blockquote', 12: 'b', 13: 'pre', 14: 'strong', 15: 'em', 16: 'i' };
+const TAGS: Record<number, string> = { 1: 'p', 3: 'code', 10: 'li', 4: 'h1', 5: 'h2', 6: 'h3', 7: 'h4', 8: 'h5', 9: 'h6', 11: 'blockquote', 12: 'b', 13: 'pre', 14: 'strong', 15: 'em', 16: 'i' };
 const BOLD = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong']);
 
 export class Text extends TextBase {
@@ -33,6 +33,7 @@ export class Text extends TextBase {
     this[isText_] = true;
     this[isMasonView_] = true;
     this._applyTagDefaults();
+    if (type === 17) this._view.IsLink = true;
   }
 
   // What TextView.kt sets per TextType, minus display: inline, which Windows text doesn't lay out.
@@ -51,9 +52,14 @@ export class Text extends TextBase {
         style.marginRight = ua[4];
       }
     }
+    if (tag === 'li') {
+      style.display = 'block';
+      this._view.IsListItem = true;
+    }
     if (BOLD.has(tag)) style.fontWeight = 'bold';
     if (tag === 'em' || tag === 'i') style.fontStyle = 'italic';
     if (tag === 'code' || tag === 'pre') this._view.SetFontFamily('monospace');
+    if (tag === 'pre') style.whiteSpace = 'pre';
   }
 
   get _view(): NativeScript.Mason.Text {
@@ -79,12 +85,12 @@ export class Text extends TextBase {
     return this._view;
   }
 
-  // Text lays out runs, not child panels, so a nested text element renders inside this one's runs.
+  // Text lays out runs, not child panels: a nested inline text element renders inside this one's
+  // runs, and any other Mason element is an inline box placed in the text.
   // @ts-ignore
   public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
-    if (child?.[isText_] && child._view && !child._view.IsButton) {
-      this._view.SetInlineText(child._view, this._windowsNativeIndexOf(child, atIndex));
-      child._isMasonChild = true;
+    if (child?.[isMasonView_] && child._view) {
+      this._windowsHost(child, this._windowsNativeIndexOf(child, atIndex));
       return true;
     }
     return super._addViewToNativeVisualTree(child, atIndex);
@@ -92,13 +98,33 @@ export class Text extends TextBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(child: any): void {
-    if (child?.[isText_] && child._view && !child._view.IsButton) {
-      this._view.RemoveInlineText(child._view);
-      child._isMasonChild = false;
+    if (child?.[runMember_]) {
+      this._windowsUnhost(child);
     } else {
       removeNativeChild(this._view, child);
     }
     super._removeViewFromNativeVisualTree(child);
+  }
+
+  private _windowsHost(child: any, index: number) {
+    const kind = windowsMemberKind(child);
+    if (kind === 'text') this._view.SetInlineText(child._view, index);
+    else this._view.SetInlineBox(child.nativeViewProtected ?? child._view, index);
+    child[runMember_] = kind;
+    child._isMasonChild = true;
+  }
+
+  private _windowsUnhost(child: any) {
+    if (child[runMember_] === 'text') this._view.RemoveInlineText(child._view);
+    else this._view.RemoveInlineBox(child.nativeViewProtected ?? child._view);
+    child[runMember_] = undefined;
+    child._isMasonChild = false;
+  }
+
+  _windowsRehost(child: any) {
+    const index = this._windowsNativeIndexOf(child, -1);
+    this._windowsUnhost(child);
+    this._windowsHost(child, index);
   }
 
   [textContentProperty.setNative](value) {
