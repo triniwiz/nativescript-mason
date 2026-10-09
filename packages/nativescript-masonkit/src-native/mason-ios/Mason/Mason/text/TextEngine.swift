@@ -1839,6 +1839,10 @@ public class TextEngine: NSObject {
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = TextEngine.collapsibleWhitespace
+    // pre, pre-wrap and break-spaces keep every space; only their wrapping differs. white-space
+    // inherits, so a span with no value of its own follows its <p>.
+    let whiteSpace = node.style.resolvedWhiteSpace
+    let preservesSpaces = whiteSpace == .Pre || whiteSpace == .PreWrap || whiteSpace == .BreakSpaces
 
     let composed = NSMutableAttributedString()
     var prevEndedWithWhitespace = false
@@ -1914,8 +1918,8 @@ public class TextEngine: NSObject {
         continue
       }
 
-      // If white-space is pre, preserve fragment exactly
-      if node.style.whiteSpace == .Pre {
+      // If white-space preserves spaces, keep the fragment exactly
+      if preservesSpaces {
         // append directly (no collapsing)
         composed.append(frag)
         let lastChar = (frag.string as NSString).substring(with: NSRange(location: frag.length - 1, length: 1))
@@ -2009,7 +2013,7 @@ public class TextEngine: NSObject {
     }
 
     // After all fragments, trim single trailing space (HTML collapses trailing block-end whitespace)
-    if composed.length > 0 {
+    if composed.length > 0 && !preservesSpaces {
       let lastIndex = composed.length - 1
       let lastChar = (composed.string as NSString).substring(with: NSRange(location: lastIndex, length: 1))
       if wsSet.contains(lastChar.unicodeScalars.first!) {
