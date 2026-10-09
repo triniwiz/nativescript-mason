@@ -1,5 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
+import { pickFontFamily } from './fonts';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
@@ -5415,7 +5416,8 @@ export class Style {
   // `font-family` is a native Style property (builds a FontFace), not a
   // style-buffer field, so it can't be written through the shared buffer.
   set fontFamily(value: string) {
-    value = this.coerceCssStringValue(value);
+    // A CSS list, possibly quoted (`'Roboto Mono', Courier, monospace`); the natives take one name.
+    value = pickFontFamily(this.coerceCssStringValue(value));
     this.setPseudoCssStringValue(
       'font-family',
       value,
