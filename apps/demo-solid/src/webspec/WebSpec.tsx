@@ -123,31 +123,7 @@ export default function WebSpec() {
         // iOS that never resyncs with masonkit's actual native Swift layout
         // pass (which sets the view's frame directly) — always 0 there.
         // getActualSize() reads the live native frame on both platforms.
-        let { width, height } = view.getActualSize()
-        // Core's Windows View doesn't implement getActualSize/getLocationRelativeTo yet.
-        if (__WINDOWS__) {
-          const nv = view.nativeView
-          width = nv?.ActualWidth ?? 0
-          height = nv?.ActualHeight ?? 0
-          if (exp.seq !== 0 && root?.nativeView && nv) {
-            try {
-              const p = nv.TransformToVisual(root.nativeView).TransformPoint({ X: 0, Y: 0 })
-              x = p.X
-              y = p.Y
-            } catch {
-              x = 0
-              y = 0
-              let el = nv
-              for (let depth = 0; el && depth < 64; depth++) {
-                if (el === root.nativeView) break
-                const o = el.ActualOffset
-                x += o?.X ?? 0
-                y += o?.Y ?? 0
-                el = el.Parent
-              }
-            }
-          }
-        }
+        const { width, height } = view.getActualSize()
         const actual = { x, y, width, height }
         if (Math.abs(x - exp.x) > eps || Math.abs(y - exp.y) > eps || Math.abs(width - exp.width) > eps || Math.abs(height - exp.height) > eps) {
           diffs.push({ seq: exp.seq, expected: exp, actual })
