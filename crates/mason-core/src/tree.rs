@@ -1003,18 +1003,22 @@ impl Tree {
         }
 
         let mut has_children = false;
-        let mut has_mixed_content = false;
-        let mut all_inline = true;
+        let mut has_inline = false;
+        let mut has_non_inline = false;
 
         if let Some(children) = inner.children.get(id) {
             has_children = !children.is_empty();
 
-            let mut has_inline = false;
-            let mut has_non_inline = false;
-
             for child_id in children {
                 if let Some(child) = inner.nodes.get(*child_id) {
                     let style = child.style();
+                    // An absolutely positioned box is out of flow and blockified
+                    // (CSS Display 3 §2.7), so it is neither inline nor block
+                    // content here: an absolute <span> or <button> must not send
+                    // an otherwise block container down the inline path.
+                    if style.get_position() == taffy::Position::Absolute {
+                        continue;
+                    }
                     let mode = style.display_mode();
                     let inline_or_box_inline =
                         matches!(mode, DisplayMode::Inline | DisplayMode::Box);
@@ -1025,13 +1029,10 @@ impl Tree {
                         has_inline = true;
                     } else {
                         has_non_inline = true;
-                        all_inline = false;
                     }
 
                     // Early exit if both found
                     if has_inline && has_non_inline {
-                        has_mixed_content = true;
-                        all_inline = false;
                         break;
                     }
                 } else {
@@ -1041,10 +1042,12 @@ impl Tree {
             }
         }
 
+        // Only in-flow children count: a container whose children are all
+        // absolutely positioned has no inline content and takes block layout.
         let analysis = SubtreeAnalysis {
             has_children,
-            has_mixed_content,
-            all_inline,
+            has_mixed_content: has_inline && has_non_inline,
+            all_inline: has_inline && !has_non_inline,
         };
         if let Some(node) = inner.nodes.get_mut(id) {
             node.subtree_analysis = Some(analysis);
@@ -3129,6 +3132,69 @@ mod print_tree_tests {
 
         assert!(tree.inner().nodes[parent.id()].subtree_analysis.is_none());
         assert!(!tree.analyze_subtree(parent.id()).all_inline);
+    }
+
+    #[test]
+    fn absolutely_positioned_children_are_not_inline_content() {
+        let mut tree = Tree::new();
+        let parent = tree.create_node();
+        let block = tree.create_node();
+        let abs_inline = tree.create_node();
+        tree.with_style_mut(abs_inline.id(), |style| {
+            style.set_display_mode(DisplayMode::Inline);
+            style.set_position(taffy::Position::Absolute);
+        });
+        tree.append(parent.id(), block.id());
+        tree.append(parent.id(), abs_inline.id());
+
+        // A block child plus an absolute inline one is block content only.
+        let analysis = tree.analyze_subtree(parent.id());
+        assert!(analysis.has_children);
+        assert!(!analysis.has_mixed_content);
+        assert!(!analysis.all_inline);
+
+        // Back in flow, the same child makes the content mixed.
+        tree.with_style_mut(abs_inline.id(), |style| {
+            style.set_position(taffy::Position::Relative)
+        });
+        assert!(tree.analyze_subtree(parent.id()).has_mixed_content);
+    }
+
+    #[test]
+    fn a_container_of_only_absolute_children_has_no_inline_content() {
+        let mut tree = Tree::new();
+        let parent = tree.create_node();
+        let abs_inline = tree.create_node();
+        tree.with_style_mut(abs_inline.id(), |style| {
+            style.set_display_mode(DisplayMode::Inline);
+            style.set_position(taffy::Position::Absolute);
+        });
+        tree.append(parent.id(), abs_inline.id());
+
+        let analysis = tree.analyze_subtree(parent.id());
+        assert!(analysis.has_children);
+        assert!(!analysis.has_mixed_content);
+        assert!(!analysis.all_inline);
+    }
+
+    #[test]
+    fn an_absolute_block_child_does_not_make_inline_content_mixed() {
+        let mut tree = Tree::new();
+        let parent = tree.create_node();
+        let inline = tree.create_node();
+        let abs_block = tree.create_node();
+        tree.with_style_mut(inline.id(), |style| {
+            style.set_display_mode(DisplayMode::Inline)
+        });
+        tree.with_style_mut(abs_block.id(), |style| {
+            style.set_position(taffy::Position::Absolute)
+        });
+        tree.append(parent.id(), inline.id());
+        tree.append(parent.id(), abs_block.id());
+
+        let analysis = tree.analyze_subtree(parent.id());
+        assert!(analysis.all_inline);
+        assert!(!analysis.has_mixed_content);
     }
 }
 
