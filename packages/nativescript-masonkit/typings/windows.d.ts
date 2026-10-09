@@ -362,10 +362,13 @@ declare namespace NativeScript.Mason {
     readonly Style: Style;
     Type: number;
     Value: string;
+    Checked: boolean;
     Placeholder: string;
     Multiple: boolean;
     Accept: string;
     SetFontFamily(families: string): void;
+    SetPlaceholderColor(argb: number): void;
+    ClearPlaceholderColor(): void;
     AddEventListener(type: string, listener: any): number;
     RemoveEventListener(type: string, id: number): boolean;
   }

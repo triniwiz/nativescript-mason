@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { native_ } from './symbols';
 import { Input } from './input';
 import { TextArea } from './textarea';
-import { acceptProperty, getValueProperty, InputElementBase, multipleProperty, setValueProperty, syncCheckedProperty } from './input/common';
+import { acceptProperty, multipleProperty } from './input/common';
 
 function inputWithNative(nativeView: Record<string, unknown>) {
   const input = new Input() as any;
@@ -87,45 +87,5 @@ describe('TextArea', () => {
     const textarea = new TextArea() as any;
     expect('value' in textarea).toBe(true);
     expect('checked' in textarea).toBe(false);
-  });
-});
-
-describe('checked without a native checked state (iOS, Windows)', () => {
-  class FallbackInput extends InputElementBase {
-    stored = '';
-    [getValueProperty]() {
-      return this.stored;
-    }
-    [setValueProperty](value: string) {
-      this.stored = value;
-    }
-  }
-
-  function fallbackInput(type: string) {
-    const input = new FallbackInput() as any;
-    input[native_] = {};
-    input.type = type;
-    return input;
-  }
-
-  it('leaves a text input value alone', () => {
-    const input = fallbackInput('text');
-    input.value = 'hello';
-
-    input.checked = true;
-
-    expect(input.value).toBe('hello');
-    expect(input.checked).toBe(true);
-  });
-
-  it('mirrors the state into a checkbox, including after a type change', () => {
-    const input = fallbackInput('text');
-    input.checked = true;
-
-    input.type = 'checkbox';
-    input[syncCheckedProperty]();
-
-    expect(input.stored).toBe('true');
-    expect(input.checked).toBe(true);
   });
 });

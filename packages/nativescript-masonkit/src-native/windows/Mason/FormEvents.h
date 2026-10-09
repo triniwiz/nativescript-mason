@@ -94,6 +94,7 @@ namespace mason_form
 
         void Commit()
         {
+            if (applying) return;
             const winrt::hstring current = Current();
             if (current == committed) return;
             committed = current;

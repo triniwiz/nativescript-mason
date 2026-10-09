@@ -1,6 +1,7 @@
-import { CSSType, fontInternalProperty } from '@nativescript/core';
-import { windowsFontSource } from '../common';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputElementBase, syncCheckedProperty, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
+import { ViewBase, windowsFontSource } from '../common';
+import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { InputType } from '..';
@@ -53,17 +54,71 @@ function typeToInt(t: InputType): number {
   }
 }
 
+type UaKind = 'field' | 'button' | 'swatch' | 'bare';
+
+function uaKind(type: InputType): UaKind {
+  switch (type) {
+    case 'text':
+    case 'email':
+    case 'password':
+    case 'tel':
+    case 'url':
+    case 'number':
+    case 'search':
+    case 'datetime-local':
+    case 'month':
+    case 'week':
+      return 'field';
+    case 'button':
+    case 'submit':
+    case 'reset':
+      return 'button';
+    case 'color':
+      return 'swatch';
+    default:
+      return 'bare';
+  }
+}
+
+function ua(top: number, right: number, border: string, radius: number, background: string, align: string): Record<string, unknown> {
+  return {
+    'padding-top': top,
+    'padding-right': right,
+    'padding-bottom': top,
+    'padding-left': right,
+    border,
+    'border-top-left-radius': radius,
+    'border-top-right-radius': radius,
+    'border-bottom-right-radius': radius,
+    'border-bottom-left-radius': radius,
+    'background-color': background,
+    'text-align': align,
+  };
+}
+
+const UA_STYLES: Record<UaKind, Record<string, unknown>> = {
+  field: ua(1, 2, '1 solid #767676', 4, 'transparent', 'left'),
+  button: ua(1, 6, '1 solid #767676', 4, '#efefef', 'center'),
+  swatch: ua(5, 4, '1 solid #767676', 4, '#efefef', 'center'),
+  bare: ua(0, 0, 'none', 0, 'transparent', 'left'),
+};
+
+const PREFLIGHT_RESET = /^padding-/;
+
 @CSSType('input')
 export class Input extends InputElementBase {
   [style_];
   constructor() {
     super();
     this[isMasonView_] = true;
+    this.applyUaStyle('text');
   }
 
   get _view(): NativeScript.Mason.Input {
     if (!this[native_]) {
-      this[native_] = Tree.instance.createInputView() as never;
+      const view = Tree.instance.createInputView() as never as NativeScript.Mason.Input;
+      view.Type = typeToInt(this.type);
+      this[native_] = view as never;
     }
     return this[native_] as never as NativeScript.Mason.Input;
   }
@@ -84,11 +139,36 @@ export class Input extends InputElementBase {
     return this._view;
   }
 
-  [typeProperty.setNative](value: InputType) {
-    if (this._view) {
-      this._view.Type = typeToInt(value);
-      this[syncCheckedProperty]();
+  private _uaKind: UaKind = null;
+
+  private applyUaStyle(type: InputType) {
+    const kind = uaKind(type);
+    if (kind === this._uaKind) return;
+    this._uaKind = kind;
+    const style = this.style as unknown as Record<string, unknown>;
+    const declarations = UA_STYLES[kind];
+    for (const property in declarations) {
+      if (ViewBase.preflight && PREFLIGHT_RESET.test(property)) continue;
+      style[`css:${property}`] = declarations[property];
     }
+  }
+
+  [typeProperty.setNative](value: InputType) {
+    this.applyUaStyle(value);
+    if (this._view) this._view.Type = typeToInt(value);
+  }
+
+  [getCheckedProperty]() {
+    return this._view.Checked;
+  }
+
+  [setCheckedProperty](checked: boolean) {
+    this._view.Checked = checked;
+  }
+
+  [placeholderColorProperty.setNative](value: Color) {
+    if (value instanceof Color) this._view.SetPlaceholderColor(value.argb >>> 0);
+    else this._view.ClearPlaceholderColor();
   }
 
   [placeholderProperty.setNative](value) {
