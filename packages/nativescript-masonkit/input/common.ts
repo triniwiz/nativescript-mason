@@ -68,8 +68,8 @@ export class InputElementBase extends InputBase {
   [pendingChecked]: boolean | null = null;
   [checkedState]: boolean = false;
 
-  // iOS and Windows have no native checked state. It lives here, and a checkbox or radio
-  // mirrors it into the "true"/"false" value those controls store it in.
+  // Windows has no native checked state. It lives here, and a checkbox or radio
+  // mirrors it into the "true"/"false" value its control stores it in.
   [getCheckedProperty](): boolean {
     return isCheckable(this.type) ? this[getValueProperty]() === 'true' : (this[checkedState] as boolean);
   }
