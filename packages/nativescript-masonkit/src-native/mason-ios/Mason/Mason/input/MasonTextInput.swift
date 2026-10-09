@@ -73,6 +73,9 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
   
   private func commonInit() {
     delegate = self
+    // The element paints the box; text starts at its content edge, as on the web.
+    backgroundColor = .clear
+    textContainer.lineFragmentPadding = 0
     placeholderLabel.textColor = .placeholderText
     placeholderLabel.backgroundColor = .clear
     
@@ -82,8 +85,8 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
     
     addSubview(placeholderLabel)
     
-    // remember original insets so we can preserve left/right padding
-    defaultTextContainerInset = textContainerInset
+    // The element's padding insets the field, so the view adds none of its own.
+    defaultTextContainerInset = .zero
     
     NotificationCenter.default.addObserver(
       self,

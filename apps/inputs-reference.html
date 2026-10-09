@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inputs reference</title>
+    <!-- Browser reference for apps/demo-vue/app/plugin-demos/InputsDemo.vue.
+         Same markup and the same CSS values, with px added to unitless lengths.
+         Open at ~412px wide with DevTools device mode to compare with the emulator. -->
+    <style>
+      :root {
+        --bg: #f4f5fa;
+        --surface-2: #eceef5;
+        --text: #1a1a2e;
+        --muted: #8a8fa3;
+        --border: #e3e5ee;
+        --primary: #6c5ce7;
+      }
+      :root.dark {
+        --bg: #0f1117;
+        --surface-2: #242836;
+        --text: #f1f2f7;
+        --muted: #7f849a;
+        --border: #2c303f;
+        --primary: #8b7cf6;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family:
+          Roboto,
+          -apple-system,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        max-width: 412px;
+        margin: 0 auto;
+      }
+      .toolbar {
+        padding: 8px 16px;
+        font-size: 12px;
+      }
+      .page-body {
+        padding: 16px;
+      }
+      .note {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .section {
+        margin-top: 20px;
+        margin-bottom: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--text);
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+      .grow {
+        flex-grow: 1;
+        min-width: 0;
+      }
+      .label {
+        font-size: 14px;
+        color: var(--text);
+      }
+      .btn {
+        padding: 8px 14px;
+        border-radius: 6px;
+        background-color: var(--primary);
+        color: white;
+        border: 0;
+        font: inherit;
+      }
+
+      .field {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+      }
+      .pad-0 {
+        padding: 0;
+        border: 1px solid var(--border);
+      }
+      .pad-8 {
+        padding: 8px;
+        border: 1px solid var(--border);
+      }
+      .pad-12-16 {
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+      }
+      .border-2 {
+        padding: 8px;
+        border: 2px solid var(--primary);
+      }
+      .no-border {
+        padding: 8px;
+        border: none;
+        background-color: var(--surface-2);
+      }
+      .round-0 {
+        border-radius: 0;
+      }
+      .round-8 {
+        border-radius: 8px;
+      }
+      .pill {
+        border-radius: 999px;
+        padding: 8px 16px;
+      }
+      .filled {
+        background-color: var(--surface-2);
+      }
+      .fs-12 {
+        font-size: 12px;
+      }
+      .fs-18 {
+        font-size: 18px;
+      }
+      .bold {
+        font-weight: bold;
+        color: var(--primary);
+      }
+      .centered {
+        text-align: center;
+      }
+      .right {
+        text-align: right;
+      }
+      .c-border-lit {
+        border: 2px solid #ff0000;
+      }
+      .c-border-var {
+        border: 2px solid var(--primary);
+      }
+      .c-border-long {
+        border: 2px solid;
+        border-color: #00aa00;
+      }
+      .c-text-lit {
+        color: #ff0000;
+      }
+      .c-text-var {
+        color: var(--primary);
+      }
+      .c-ph::placeholder {
+        color: #ff0000;
+      }
+      .c-div {
+        padding: 8px;
+      }
+      .d-t {
+        color: #000000;
+        font-size: 12px;
+      }
+      .d-a {
+        background-color: #ffffff;
+        border: 2px solid #ff0000;
+      }
+      .d-b {
+        background-color: #ffffff;
+        border: 2px solid red;
+      }
+      .d-c {
+        background-color: #ffffff;
+        border-width: 2px;
+        border-style: solid;
+        border-color: #ff0000;
+      }
+      .d-d {
+        background-color: #ffffff;
+        border: 2px solid #ff0000;
+      }
+      .w-half {
+        width: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <label><input type="checkbox" onchange="document.documentElement.classList.toggle('dark', this.checked)" /> dark</label>
+    </div>
+    <main class="page-body">
+      <p class="note">Each block mirrors plain HTML. Compare with the same markup in a browser.</p>
+
+      <p class="section">Bound value</p>
+      <div class="stack">
+        <input class="field" data-model="live" placeholder="type here" />
+        <span class="note" data-echo="live" data-plain></span>
+        <div class="row"><input data-model="agree" type="checkbox" /><span class="note" data-echo="agree" data-label="checkbox"></span></div>
+        <div class="row">
+          <input type="radio" name="size" value="s" data-model="size" /><span class="label">small</span> <input type="radio" name="size" value="m" data-model="size" /><span class="label">medium</span>
+          <span class="note" data-echo="size" data-label="radio"></span>
+        </div>
+        <input type="range" data-model="volume" />
+        <span class="note" data-echo="volume" data-label="range"></span>
+        <input type="date" data-model="day" />
+        <span class="note" data-echo="day" data-label="date"></span>
+        <input type="color" data-model="tint" />
+        <span class="note" data-echo="tint" data-label="color"></span>
+        <button class="btn" id="set-bound">Set from code</button>
+      </div>
+      <script>
+        // A stand-in for Vue's v-model, so values and their types read the same as on the demo page.
+        const state = { live: '', agree: true, size: 'm', volume: 30, day: '2026-01-15', tint: '#ff0000' };
+        const show = (v) => `${JSON.stringify(v)} (${typeof v})`;
+        function render() {
+          for (const el of document.querySelectorAll('[data-model]')) {
+            const v = state[el.dataset.model];
+            if (el.type === 'checkbox') el.checked = !!v;
+            else if (el.type === 'radio') el.checked = el.value === v;
+            else el.value = v;
+          }
+          for (const el of document.querySelectorAll('[data-echo]')) {
+            const v = state[el.dataset.echo];
+            el.textContent = 'plain' in el.dataset ? `value: ${v}` : `${el.dataset.label}: ${show(v)}`;
+          }
+        }
+        document.addEventListener('input', (e) => {
+          const el = e.target;
+          if (!el.dataset || !el.dataset.model) return;
+          state[el.dataset.model] = el.type === 'checkbox' ? el.checked : el.value;
+          render();
+        });
+        document.getElementById('set-bound').addEventListener('click', () => {
+          Object.assign(state, { agree: !state.agree, size: 's', volume: 80, day: '2026-12-25', tint: '#00aa00' });
+          render();
+        });
+        render();
+      </script>
+
+      <p class="section">Unstyled (UA defaults)</p>
+      <div class="stack">
+        <input placeholder="type=text" />
+        <input type="email" placeholder="type=email" />
+        <input type="password" placeholder="type=password" />
+        <input type="tel" placeholder="type=tel" />
+        <input type="url" placeholder="type=url" />
+        <input type="number" placeholder="type=number" />
+        <input type="search" placeholder="type=search" />
+        <input value="Prefilled value" />
+      </div>
+
+      <p class="section">Border and padding</p>
+      <div class="stack">
+        <input class="pad-0" placeholder="padding: 0, border 1" />
+        <input class="pad-8" placeholder="padding: 8, border 1" />
+        <input class="pad-12-16" placeholder="padding: 12 16, border 1" />
+        <input class="border-2" placeholder="border: 2 solid, padding 8" />
+        <input class="no-border" placeholder="border: none, padding 8" />
+      </div>
+
+      <p class="section">Radius and background</p>
+      <div class="stack">
+        <input class="field round-0" placeholder="radius 0" />
+        <input class="field round-8" placeholder="radius 8" />
+        <input class="field pill" placeholder="radius 999 (pill)" />
+        <input class="field filled" placeholder="filled background" />
+      </div>
+
+      <p class="section">Typography</p>
+      <div class="stack">
+        <input class="field fs-12" value="Small text" placeholder="font-size 12" />
+        <input class="field fs-18" value="Large text" placeholder="font-size 18" />
+        <input class="field bold" value="Bold text" placeholder="bold, colored text" />
+        <input class="field centered" value="Centered" placeholder="text-align: center" />
+        <input class="field right" value="Right aligned" placeholder="text-align: right" />
+      </div>
+
+      <p class="section">Colors</p>
+      <div class="stack">
+        <input class="field c-border-lit" value="border literal red" />
+        <input class="field c-border-var" value="border var(--primary)" />
+        <input class="field c-border-long" value="border-color longhand green" />
+        <input class="field c-text-lit" value="text literal red" />
+        <input class="field c-text-var" value="text var(--primary)" />
+        <input class="field" placeholder="placeholder (theme color)" />
+        <input class="field c-ph" placeholder="::placeholder { color: red }" />
+        <div class="c-div d-a"><span class="d-t">A: border: 2 solid #ff0000</span></div>
+        <div class="c-div d-b"><span class="d-t">B: border: 2 solid red</span></div>
+        <div class="c-div d-c"><span class="d-t">C: width+style+color longhands</span></div>
+        <div class="c-div d-d"><span class="d-t">D: border: 2px solid #ff0000</span></div>
+      </div>
+
+      <p class="section">Width and layout</p>
+      <div class="stack">
+        <input class="field w-half" placeholder="width: 50%" />
+        <div class="row">
+          <input class="field grow" placeholder="flex: 1" />
+          <button class="btn">Go</button>
+        </div>
+        <div class="row">
+          <input class="field grow" placeholder="first" />
+          <input class="field grow" placeholder="second" />
+        </div>
+      </div>
+
+      <p class="section">Other types</p>
+      <div class="stack">
+        <div class="row"><input type="checkbox" /><span class="label">checkbox</span></div>
+        <div class="row"><input type="radio" /><span class="label">radio</span></div>
+        <input type="range" />
+        <input type="date" />
+        <input type="color" />
+        <input type="file" />
+        <input type="button" value="type=button" />
+        <input type="submit" value="type=submit" />
+      </div>
+    </main>
+  </body>
+</html>

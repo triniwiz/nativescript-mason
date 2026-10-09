@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdio>
 #include <ctime>
+#include <limits>
 #include <optional>
 #include <cwchar>
 #include <cwctype>
@@ -49,10 +50,38 @@ namespace
         kDateTimeLocal = 16, kMonth = 17, kWeek = 18, kReset = 19,
     };
 
+    bool IsCheckable(int32_t type) { return type == kCheckbox || type == kRadio; }
+
+    bool IsButtonLike(int32_t type) { return type == kButton || type == kSubmit || type == kReset || type == kColor; }
+
+    bool IsField(mux::FrameworkElement const& control)
+    {
+        return control.try_as<muxc::TextBox>() || control.try_as<muxc::PasswordBox>() || control.try_as<muxc::NumberBox>();
+    }
+
     double ParseDouble(winrt::hstring const& s)
     {
         try { return s.empty() ? 0.0 : std::stod(std::wstring(s)); }
         catch (...) { return 0.0; }
+    }
+
+    std::optional<double> ParseNumber(winrt::hstring const& s)
+    {
+        const std::wstring_view all{ s };
+        const size_t first = all.find_first_not_of(L" \t\r\n");
+        if (first == std::wstring_view::npos) return std::nullopt;
+        const std::wstring text{ all.substr(first, all.find_last_not_of(L" \t\r\n") - first + 1) };
+        wchar_t* end = nullptr;
+        const double v = std::wcstod(text.c_str(), &end);
+        if (end != text.c_str() + text.size() || !std::isfinite(v)) return std::nullopt;
+        return v;
+    }
+
+    double RangeValue(winrt::hstring const& s, double min, double max)
+    {
+        const auto v = ParseNumber(s);
+        if (!v) return min + (max - min) / 2.0;
+        return (std::clamp)(std::round(*v), min, max);
     }
 
     std::optional<DateTime> ParseDate(winrt::hstring const& s)
@@ -223,8 +252,13 @@ namespace winrt::NativeScript::Mason::implementation
     Input::Input()
     {
         m_node = nsm::Mason::Instance().CreateNode(false);
+        RequestedTheme(mux::ElementTheme::Light);
         m_events = std::make_shared<mason_form::Events>();
-        m_events->value = [this]() -> hstring { return Value(); };
+        m_events->value = [this]() -> hstring
+        {
+            if (IsCheckable(m_type)) return m_checked ? L"true" : L"false";
+            return Value();
+        };
         Rebuild();
 
         nsm::MeasureFunc cb = [this](float kw, float kh, float aw, float ah) -> int64_t
@@ -232,7 +266,13 @@ namespace winrt::NativeScript::Mason::implementation
             if (!m_control) return mason_leaf::PackMeasure(0.0f, 0.0f);
             SyncOrientation();
             auto slider = m_control.try_as<muxc::Slider>();
-            if (!slider) return mason_leaf::MeasureXaml(m_control, kw, kh, aw, ah);
+            if (!slider)
+            {
+                if (!IsField(m_control) || !std::isnan(kw)) return mason_leaf::MeasureXaml(m_control, kw, kh, aw, ah);
+                const float width = FieldWidth();
+                m_control.Measure(Size{ width, mason_leaf::XamlConstraint(kh, ah) });
+                return mason_leaf::PackMeasure(width, std::isnan(kh) ? m_control.DesiredSize().Height : kh);
+            }
             constexpr float kRangeLength = 129.0f;
             m_control.Measure(Size{ mason_leaf::XamlConstraint(kw, aw), mason_leaf::XamlConstraint(kh, ah) });
             const auto d = m_control.DesiredSize();
@@ -274,12 +314,50 @@ namespace winrt::NativeScript::Mason::implementation
         }
         }
         m_control = control;
+        m_control.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
+        m_control.VerticalAlignment(mux::VerticalAlignment::Stretch);
+        m_fieldWidth = -1.0f;
+        StripChrome();
         Children().Append(m_control);
         ApplyValue(m_value);
+        ApplyChecked();
         ApplyPlaceholder(m_placeholder);
+        if (m_placeholderColor) ApplyPlaceholderColor();
         SyncOrientation();
         SyncTextStyle(true);
+        if (auto toggle = m_control.try_as<muxc::Primitives::ToggleButton>())
+        {
+            auto toggled = [weak = get_weak()](winrt::Windows::Foundation::IInspectable const& sender, auto&&)
+            {
+                auto self = weak.get();
+                if (!self) return;
+                auto checked = sender.as<muxc::Primitives::ToggleButton>().IsChecked();
+                self->m_checked = checked && checked.Value();
+            };
+            toggle.Checked(toggled);
+            toggle.Unchecked(toggled);
+        }
         m_events->Wire(m_control);
+    }
+
+    void Input::StripChrome()
+    {
+        auto control = m_control.try_as<muxc::Control>();
+        if (!control) return;
+        const bool field = IsField(m_control);
+        if (!field && !IsCheckable(m_type) && !IsButtonLike(m_type)) return;
+        control.MinWidth(0);
+        control.MinHeight(0);
+        control.Padding(mux::Thickness{});
+        if (IsCheckable(m_type)) return;
+        control.BorderThickness(mux::Thickness{});
+        if (!field) return;
+        auto resources = control.Resources();
+        resources.Insert(winrt::box_value(L"TextControlBorderThemeThickness"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlBorderThemeThicknessFocused"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlThemePadding"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlThemeMinHeight"), winrt::box_value(0.0));
+        resources.Insert(winrt::box_value(L"TextControlThemeMinWidth"), winrt::box_value(0.0));
     }
 
     // A range follows the writing mode: vertical runs from the top as in browsers, and rtl flips it.
@@ -302,8 +380,21 @@ namespace winrt::NativeScript::Mason::implementation
         mason_form::TextStyle style;
         mason_form::ReadTextStyle(m_node, style);
         style.fontFamily = m_fontFamily;
+        if (m_control && (IsField(m_control) || IsButtonLike(m_type))) style.hasBackground = true;
         if (!force && style == m_textApplied) return;
+        m_fieldWidth = -1.0f;
         mason_form::ApplyTextStyle(control, style, m_textApplied, force);
+        if (m_type == kButton || m_type == kSubmit || m_type == kReset)
+        {
+            auto align = mux::HorizontalAlignment::Left;
+            switch (style.textAlign)
+            {
+            case 2: case 6: align = mux::HorizontalAlignment::Right; break;
+            case 3: align = mux::HorizontalAlignment::Center; break;
+            default: break;
+            }
+            control.HorizontalContentAlignment(align);
+        }
         if (!m_fileLabel) return;
         if (style.hasColor) m_fileLabel.Foreground(mason_visual::SharedSolid(style.color));
         else m_fileLabel.ClearValue(muxc::TextBlock::ForegroundProperty());
@@ -316,12 +407,11 @@ namespace winrt::NativeScript::Mason::implementation
     mux::FrameworkElement Input::BuildColor()
     {
         muxc::Button button;
-        button.Padding(mux::Thickness{ 4, 4, 4, 4 });
-        button.MinWidth(0);
-        button.MinHeight(0);
+        button.HorizontalContentAlignment(mux::HorizontalAlignment::Stretch);
+        button.VerticalContentAlignment(mux::VerticalAlignment::Stretch);
         muxc::Border swatch;
-        swatch.Width(40);
-        swatch.Height(15);
+        swatch.MinWidth(40);
+        swatch.MinHeight(15);
         swatch.CornerRadius(mux::CornerRadius{ 2, 2, 2, 2 });
         swatch.BorderThickness(mux::Thickness{ 1, 1, 1, 1 });
         swatch.BorderBrush(mason_visual::SharedSolid(0x66000000));
@@ -361,31 +451,44 @@ namespace winrt::NativeScript::Mason::implementation
         button.Flyout(flyout);
 
         auto accepted = std::make_shared<bool>(false);
+        auto syncing = std::make_shared<bool>(false);
+        auto original = std::make_shared<hstring>();
         auto weak = get_weak();
         auto weakPicker = winrt::make_weak(picker);
         auto weakFlyout = winrt::make_weak(flyout);
-        flyout.Opening([weak, weakPicker, accepted](auto&&, auto&&)
+        auto pick = [](Input* self, hstring const& value)
+        {
+            if (self->m_value == value) return;
+            self->m_value = value;
+            if (self->m_swatch) self->m_swatch.Background(mason_visual::SharedSolid(0xFF000000 | ParseHexColor(value).value_or(0)));
+            self->m_events->pendingData = value;
+            self->m_events->pendingType = L"insertReplacementText";
+            self->m_events->Edited(L"insertReplacementText");
+        };
+        flyout.Opening([weak, weakPicker, accepted, syncing, original](auto&&, auto&&)
         {
             *accepted = false;
             auto self = weak.get();
             auto p = weakPicker.get();
             if (!self || !p) return;
-            const uint32_t rgb = ParseHexColor(self->m_value).value_or(0);
+            *original = self->Value();
+            const uint32_t rgb = ParseHexColor(*original).value_or(0);
+            *syncing = true;
             p.Color(winrt::Windows::UI::Color{ 255, static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8), static_cast<uint8_t>(rgb) });
+            *syncing = false;
         });
-        ok.Click([weak, weakPicker, weakFlyout, accepted](auto&&, auto&&)
+        picker.ColorChanged([weak, syncing, pick](auto&&, muxc::ColorChangedEventArgs const& args)
         {
             auto self = weak.get();
-            auto p = weakPicker.get();
-            if (!self || !p) return;
+            if (!self || *syncing) return;
+            const auto c = args.NewColor();
+            pick(self.get(), HexOf((static_cast<uint32_t>(c.R) << 16) | (static_cast<uint32_t>(c.G) << 8) | c.B));
+        });
+        ok.Click([weak, weakFlyout, accepted](auto&&, auto&&)
+        {
+            auto self = weak.get();
+            if (!self) return;
             *accepted = true;
-            const auto c = p.Color();
-            const uint32_t rgb = (static_cast<uint32_t>(c.R) << 16) | (static_cast<uint32_t>(c.G) << 8) | c.B;
-            self->m_value = HexOf(rgb);
-            if (self->m_swatch) self->m_swatch.Background(mason_visual::SharedSolid(0xFF000000 | rgb));
-            self->m_events->pendingData = self->m_value;
-            self->m_events->pendingType = L"insertReplacementText";
-            self->m_events->Edited(L"insertReplacementText");
             self->m_events->Commit();
             if (auto f = weakFlyout.get()) f.Hide();
         });
@@ -393,11 +496,12 @@ namespace winrt::NativeScript::Mason::implementation
         {
             if (auto f = weakFlyout.get()) f.Hide();
         });
-        flyout.Closed([weak, accepted](auto&&, auto&&)
+        flyout.Closed([weak, accepted, original, pick](auto&&, auto&&)
         {
             if (*accepted) return;
             auto self = weak.get();
             if (!self) return;
+            pick(self.get(), *original);
             auto e = winrt::make_self<Event>(L"cancel", false);
             e->data = self->Value();
             self->m_events->Dispatch(e, true);
@@ -551,17 +655,22 @@ namespace winrt::NativeScript::Mason::implementation
             return;
         }
         // Writing the text it already has would move the caret.
-        if (auto tb = m_control.try_as<muxc::TextBox>()) { if (tb.Text() != value) tb.Text(value); }
-        else if (auto pb = m_control.try_as<muxc::PasswordBox>()) { pb.Password(value); }
+        if (auto tb = m_control.try_as<muxc::TextBox>())
+        {
+            if (tb.Text() != value)
+            {
+                tb.Text(value);
+                tb.Select(static_cast<int32_t>(value.size()), 0);
+            }
+        }
+        else if (auto pb = m_control.try_as<muxc::PasswordBox>()) { if (pb.Password() != value) pb.Password(value); }
         else if (auto nb = m_control.try_as<muxc::NumberBox>()) { nb.Value(value.empty() ? std::nan("") : ParseDouble(value)); }
-        else if (auto sl = m_control.try_as<muxc::Slider>()) { sl.Value(ParseDouble(value)); }
+        else if (auto sl = m_control.try_as<muxc::Slider>()) { sl.Value(RangeValue(value, sl.Minimum(), sl.Maximum())); }
         else if (auto btn = m_control.try_as<muxc::Button>())
         {
             const hstring label = !value.empty() ? value : m_type == kSubmit ? hstring{ L"Submit" } : m_type == kReset ? hstring{ L"Reset" } : hstring{};
             btn.Content(winrt::box_value(label));
         }
-        else if (auto cb = m_control.try_as<muxc::CheckBox>()) { cb.IsChecked(value == L"true"); }
-        else if (auto rb = m_control.try_as<muxc::RadioButton>()) { rb.IsChecked(value == L"true"); }
         else if (auto date = m_control.try_as<muxc::CalendarDatePicker>())
         {
             if (auto parsed = ParseDate(value)) date.Date(*parsed);
@@ -572,6 +681,68 @@ namespace winrt::NativeScript::Mason::implementation
             if (auto parsed = ParseTime(value)) time.SelectedTime(*parsed);
             else time.SelectedTime(nullptr);
         }
+    }
+
+    void Input::ApplyChecked()
+    {
+        auto toggle = m_control ? m_control.try_as<muxc::Primitives::ToggleButton>() : nullptr;
+        if (!toggle) return;
+        m_events->applying = true;
+        struct Done { mason_form::Events& events; ~Done() { events.applying = false; events.Settled(); } } done{ *m_events };
+        toggle.IsChecked(m_checked);
+    }
+
+    void Input::Checked(bool value)
+    {
+        m_checked = value;
+        ApplyChecked();
+    }
+
+    void Input::SetPlaceholderColor(uint32_t argb)
+    {
+        m_placeholderColor = argb;
+        ApplyPlaceholderColor();
+    }
+
+    void Input::ClearPlaceholderColor()
+    {
+        if (!m_placeholderColor) return;
+        m_placeholderColor.reset();
+        ApplyPlaceholderColor();
+    }
+
+    void Input::ApplyPlaceholderColor()
+    {
+        auto control = m_control ? m_control.try_as<muxc::Control>() : nullptr;
+        if (!control || !IsField(m_control)) return;
+        if (auto tb = m_control.try_as<muxc::TextBox>())
+        {
+            if (m_placeholderColor) tb.PlaceholderForeground(mason_visual::SharedSolid(*m_placeholderColor));
+            else tb.ClearValue(muxc::TextBox::PlaceholderForegroundProperty());
+            return;
+        }
+        mason_form::OverrideTheme(control, {
+            L"TextControlPlaceholderForeground", L"TextControlPlaceholderForegroundPointerOver",
+            L"TextControlPlaceholderForegroundFocused", L"TextControlPlaceholderForegroundDisabled",
+        }, m_placeholderColor ? mason_visual::SharedSolid(*m_placeholderColor) : nullptr);
+        mason_form::RefreshTheme(control);
+    }
+
+    float Input::FieldWidth()
+    {
+        if (m_fieldWidth >= 0.0f) return m_fieldWidth;
+        auto control = m_control.try_as<muxc::Control>();
+        if (!control) return 0.0f;
+        muxc::TextBlock probe;
+        probe.FontSize(control.FontSize());
+        probe.FontFamily(control.FontFamily());
+        probe.FontWeight(control.FontWeight());
+        probe.FontStyle(control.FontStyle());
+        probe.CharacterSpacing(control.CharacterSpacing());
+        probe.Text(L"00000000000000000000");
+        probe.Measure(Size{ std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() });
+        m_fieldWidth = std::ceil(probe.DesiredSize().Width);
+        return m_fieldWidth;
     }
 
     void Input::ApplyPlaceholder(hstring const& value)
@@ -586,6 +757,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Input::Type(int32_t value)
     {
         if (m_type == value && m_control) return;
+        if (m_control && !IsCheckable(m_type) && !IsCheckable(value)) m_value = m_type == kFile ? hstring{} : Value();
         m_type = value;
         Rebuild();
         m_node.MarkDirty();
@@ -594,6 +766,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     hstring Input::Value() const
     {
+        if (IsCheckable(m_type)) return m_checkableValue;
         if (m_type == kColor) return HexOf(ParseHexColor(m_value).value_or(0));
         if (m_type == kFile) return m_fileNames.empty() || !m_fileLabel ? hstring{} : m_fileLabel.Text();
         if (!m_control) return m_value;
@@ -601,8 +774,6 @@ namespace winrt::NativeScript::Mason::implementation
         if (auto pb = m_control.try_as<muxc::PasswordBox>()) return pb.Password();
         if (auto nb = m_control.try_as<muxc::NumberBox>()) { const double v = nb.Value(); return std::isnan(v) ? hstring{} : winrt::to_hstring(v); }
         if (auto sl = m_control.try_as<muxc::Slider>()) return winrt::to_hstring(sl.Value());
-        if (auto cb = m_control.try_as<muxc::CheckBox>()) { auto v = cb.IsChecked(); return (v && v.Value()) ? L"true" : L"false"; }
-        if (auto rb = m_control.try_as<muxc::RadioButton>()) { auto v = rb.IsChecked(); return (v && v.Value()) ? L"true" : L"false"; }
         if (auto date = m_control.try_as<muxc::CalendarDatePicker>()) { auto v = date.Date(); return v ? FormatDate(v.Value()) : hstring{}; }
         if (auto time = m_control.try_as<muxc::TimePicker>()) { auto v = time.SelectedTime(); return v ? FormatTime(v.Value()) : hstring{}; }
         return m_value;
@@ -610,6 +781,12 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Input::Value(hstring const& value)
     {
+        if (IsCheckable(m_type))
+        {
+            m_checkableValue = value;
+            return;
+        }
+        if (m_control && value == Value()) return;
         m_value = value;
         ApplyValue(value);
         m_node.MarkDirty();
@@ -625,15 +802,31 @@ namespace winrt::NativeScript::Mason::implementation
     Size Input::MeasureOverride(Size const& available)
     {
         if (!m_control) return Size{ 0, 0 };
-        m_control.Measure(available);
-        return m_control.DesiredSize();
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        m_control.Measure(Size{ (std::max)(0.0f, available.Width - left - right), (std::max)(0.0f, available.Height - top - bottom) });
+        const auto desired = m_control.DesiredSize();
+        return Size{ desired.Width + left + right, desired.Height + top + bottom };
     }
 
     Size Input::ArrangeOverride(Size const& finalSize)
     {
         if (m_control)
         {
-            m_control.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width, finalSize.Height });
+            float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+            winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+            const float width = (std::max)(0.0f, finalSize.Width - left - right);
+            float height = (std::max)(0.0f, finalSize.Height - top - bottom);
+            if (IsField(m_control))
+            {
+                const float desired = m_control.DesiredSize().Height;
+                if (desired < height)
+                {
+                    top += (height - desired) / 2.0f;
+                    height = desired;
+                }
+            }
+            m_control.Arrange(winrt::Windows::Foundation::Rect{ left, top, width, height });
         }
         mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;

@@ -1229,8 +1229,16 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
                 )
               )
               view.layout(x, y, right, bottom)
-              view.layoutChild(0, 0, width, height)
             }
+            // Outside the skip: padding or border can change while the frame stays the same.
+            val insetLeft = padLeft + nv.borderLeft.toInt()
+            val insetTop = padTop + nv.borderTop.toInt()
+            view.layoutChild(
+              insetLeft,
+              insetTop,
+              maxOf(insetLeft, width - padRight - nv.borderRight.toInt()),
+              maxOf(insetTop, height - padBottom - nv.borderBottom.toInt())
+            )
           } else {
             if (!skipMeasureAndLayout) {
               view.measure(

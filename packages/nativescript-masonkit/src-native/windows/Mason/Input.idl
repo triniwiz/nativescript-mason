@@ -15,10 +15,13 @@ namespace NativeScript.Mason
         Style Style{ get; };
         Int32 Type;
         String Value;
+        Boolean Checked;
         String Placeholder;
         Boolean Multiple;
         String Accept;
         void SetFontFamily(String families);
+        void SetPlaceholderColor(UInt32 argb);
+        void ClearPlaceholderColor();
 
         // beforeinput, input, change, focus, blur and keydown, as in the DOM. The id removes it.
         Int64 AddEventListener(String type, EventListener listener);

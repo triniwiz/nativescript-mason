@@ -2087,6 +2087,7 @@ declare module org {
 					public computeMinContent(): void;
 					public compute(): void;
 					public getPlaceholder(): string;
+					public getPlaceholderTextColors(): android.content.res.ColorStateList;
 					public configure(block: any): org.nativescript.mason.masonkit.Element;
 					public setMaxLength(this_: number): void;
 					public prepend(param0: org.nativescript.mason.masonkit.Element): void;
@@ -2171,6 +2172,8 @@ declare module org {
 					public layoutChild$masonkit_release(height: number, this_: number, l: number, t: number): void;
 					public prepend(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public setPlaceholder(value: string): void;
+					public setPlaceholderTextColor(color: number): void;
+					public setPlaceholderTextColor(colors: android.content.res.ColorStateList): void;
 					public getType(): org.nativescript.mason.masonkit.Input.Type;
 					public setName(value: string): void;
 					public addChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;

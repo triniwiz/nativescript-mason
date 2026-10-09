@@ -44,7 +44,7 @@ class ColorInput @JvmOverloads constructor(
 
   internal fun syncSelectedColor(){
     if (selectedColorHex == null){
-      selectedColorHex = String.format("#%06X", 0xFFFFFF and selectedColor)
+      selectedColorHex = String.format("#%06x", 0xFFFFFF and selectedColor)
     }
   }
 
@@ -82,12 +82,18 @@ class ColorInput @JvmOverloads constructor(
       val outC = root.findViewById<TextView>(R.id.out_c)
       val hexView = root.findViewById<EditText>(R.id.hex_value)
 
-      // initial HSL values
-      var h = 0f
-      var s = 0f
-      var l = 0f
-
+      // dlgSelectedColor is the dialog's one source of truth. The hue is kept apart
+      // because a grey color has none, and the hue slider must not jump when s or v hits 0.
       var dlgSelectedColor = this@ColorInput.selectedColor
+      val originalColor = this@ColorInput.selectedColor
+      var h = 0f
+
+      // As on the web, the value follows the picker live and each edit fires `input`.
+      fun emitInput(color: Int) {
+        this@ColorInput.selectedColor = color
+        colorView.setBackgroundColor(color)
+        dispatchInputEvent(type = "input", value = color, cancelable = false)
+      }
       var outMode = 0 // 0 = RGB, 1 = HSL, 2 = HEX
 
       fun updateOutputFields(col: Int) {
@@ -149,23 +155,47 @@ class ColorInput @JvmOverloads constructor(
         updateOutputFields(dlgSelectedColor)
       }
 
-
-
-      fun updatePreview() {
-        val rgb = ColorUtils.HSLToColor(floatArrayOf(h, s, l))
-        preview.setBackgroundColor(rgb)
-      }
-
       hue.background = null
-      hue.progress = h.toInt()
       // add saturation/value view into the color area
       val svView = SaturationValueView(context)
       svView.layoutParams = LayoutParams(
         LayoutParams.MATCH_PARENT,
         LayoutParams.MATCH_PARENT
       )
-      svView.hue = h
       colorArea.addView(svView)
+
+      var huePressed = false
+
+      fun updateHueVisuals() {
+        setHueThumb(hue, Color.HSVToColor(floatArrayOf(h, 1f, 1f)), huePressed)
+        val tb = try {
+          hue.thumb?.bounds
+        } catch (_: Exception) {
+          null
+        }
+        val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
+          val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
+          val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
+          (hue.paddingLeft + x).toInt()
+        }
+        hueTrackDrawable?.setGap(posX, huePressed)
+      }
+
+      fun render() {
+        preview.setBackgroundColor(dlgSelectedColor)
+        updateOutputFields(dlgSelectedColor)
+      }
+
+      // Point the hue slider and the saturation/value square at dlgSelectedColor.
+      fun syncPicker() {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(dlgSelectedColor, hsv)
+        if (hsv[1] > 0f && hsv[2] > 0f) h = hsv[0]
+        svView.hue = h
+        svView.sat = hsv[1]
+        svView.valueV = hsv[2]
+        hue.progress = h.toInt()
+      }
 
       // commit edits from user into the color model when editing finishes
       fun applyEditedOutputs() {
@@ -176,10 +206,7 @@ class ColorInput @JvmOverloads constructor(
               val r = hText.text.toString().toIntOrNull() ?: 0
               val g = sText.text.toString().toIntOrNull() ?: 0
               val b = lText.text.toString().toIntOrNull() ?: 0
-              val rr = r.coerceIn(0, 255)
-              val gg = g.coerceIn(0, 255)
-              val bb = b.coerceIn(0, 255)
-              dlgSelectedColor = Color.rgb(rr, gg, bb)
+              dlgSelectedColor = Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
             }
 
             1 -> {
@@ -187,14 +214,9 @@ class ColorInput @JvmOverloads constructor(
               val hh = hText.text.toString().toFloatOrNull() ?: 0f
               val ss = sText.text.toString().toFloatOrNull() ?: 0f
               val ll = lText.text.toString().toFloatOrNull() ?: 0f
-              val rgb = ColorUtils.HSLToColor(
-                floatArrayOf(
-                  hh,
-                  (ss / 100f).coerceIn(0f, 1f),
-                  (ll / 100f).coerceIn(0f, 1f)
-                )
+              dlgSelectedColor = ColorUtils.HSLToColor(
+                floatArrayOf(hh, (ss / 100f).coerceIn(0f, 1f), (ll / 100f).coerceIn(0f, 1f))
               )
-              dlgSelectedColor = rgb
             }
 
             else -> {
@@ -210,24 +232,9 @@ class ColorInput @JvmOverloads constructor(
         } catch (_: Exception) {
         }
 
-        val hsvTmp = FloatArray(3)
-        Color.colorToHSV(dlgSelectedColor, hsvTmp)
-        h = hsvTmp[0]
-        svView.hue = h
-        svView.sat = hsvTmp[1]
-        svView.valueV = hsvTmp[2]
-        try {
-          hue.progress = h.toInt()
-        } catch (_: Exception) {
-        }
-        updatePreview()
-        updateOutputFields(dlgSelectedColor)
-        // emit input event when user edits numeric/hex fields
-        dispatchInputEvent(
-          type = "input",
-          value = dlgSelectedColor,
-          cancelable = false
-        )
+        syncPicker()
+        render()
+        emitInput(dlgSelectedColor)
       }
 
       // apply edits when fields lose focus
@@ -236,38 +243,21 @@ class ColorInput @JvmOverloads constructor(
       lText.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) applyEditedOutputs() }
       hexView.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) applyEditedOutputs() }
 
-
-      var huePressed = false
       hue.viewTreeObserver.addOnGlobalLayoutListener(object :
         ViewTreeObserver.OnGlobalLayoutListener {
         override fun onGlobalLayout() {
           val w = hue.width
           val hPx = hue.height.coerceAtLeast((6 * resources.displayMetrics.density).toInt())
           if (w <= 0 || hPx <= 0) return
-          // initialize hue track drawable and set initial gap
-          val tb = try {
-            hue.thumb?.bounds
-          } catch (_: Exception) {
-            null
-          }
-          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
-            // map progress -> pixel in the inner track area (respect paddings)
-            val avail = (w - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-            val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
-            (hue.paddingLeft + x).toInt()
-          }
-          val trackH = (12 * resources.displayMetrics.density).toInt()
           // create a fresh HueTrackDrawable for this SeekBar instance so
           // a newly-created dialog always has the correct progress drawable
+          val trackH = (12 * resources.displayMetrics.density).toInt()
           hueTrackDrawable = HueTrackDrawable(trackH, resources.displayMetrics.density)
           try {
             hue.progressDrawable = hueTrackDrawable
           } catch (_: Exception) {
           }
-          hueTrackDrawable?.setGap(posX, huePressed)
-          // ensure thumb reflects current selection (respect pressed state)
-          val trackColorInit = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-          setHueThumb(hue, trackColorInit, huePressed)
+          updateHueVisuals()
           try {
             hue.viewTreeObserver.removeOnGlobalLayoutListener(this)
           } catch (_: Exception) {
@@ -275,18 +265,16 @@ class ColorInput @JvmOverloads constructor(
         }
       })
       // change thumb when touching the hue bar
-      hue.setOnTouchListener { v, event ->
+      hue.setOnTouchListener { _, event ->
         when (event.actionMasked) {
           MotionEvent.ACTION_DOWN -> {
             huePressed = true
-            val trackColorDown = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-            setHueThumb(hue, trackColorDown, true)
+            updateHueVisuals()
           }
 
           MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
             huePressed = false
-            val trackColorUp = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-            setHueThumb(hue, trackColorUp, false)
+            updateHueVisuals()
           }
         }
         // allow SeekBar to handle the touch as well
@@ -294,54 +282,20 @@ class ColorInput @JvmOverloads constructor(
       }
       hue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
         override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-          if (fromUser) {
-            val hsv = floatArrayOf(progress.toFloat(), svView.sat, svView.valueV)
-            val nextColor = Color.HSVToColor(hsv)
-
-            val allowed = dispatchInputEvent(
-              type = "beforeinput",
-              value = nextColor,
-              cancelable = true
-            )
-            if (!allowed) return
+          // syncPicker moves the slider from code; only the visuals follow.
+          if (!fromUser) {
+            updateHueVisuals()
+            return
           }
-
+          val nextColor = Color.HSVToColor(floatArrayOf(progress.toFloat(), svView.sat, svView.valueV))
+          if (!dispatchInputEvent(type = "beforeinput", value = nextColor, cancelable = true)) return
 
           h = progress.toFloat()
           svView.hue = h
-          // compute color from HSV (h, s, v) where svView holds latest s/v
-          val hsv = floatArrayOf(h, svView.sat, svView.valueV)
-          val rgb = Color.HSVToColor(hsv)
-          val hsl = FloatArray(3)
-          ColorUtils.colorToHSL(rgb, hsl)
-          s = hsl[1]
-          l = hsl[2]
-          updatePreview()
-          hText.setText(progress.toString())
-          sText.setText("${(s * 100).toInt()}")
-          lText.setText("${(l * 100).toInt()}")
-          dlgSelectedColor = rgb
-          val trackColor = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-          setHueThumb(hue, trackColor, huePressed)
-          updateOutputFields(dlgSelectedColor)
-          // emit live input event for hue changes
-          dispatchInputEvent(
-            type = "input",
-            value = dlgSelectedColor,
-            cancelable = false
-          )
-          // update hue drawable gap
-          val tb = try {
-            hue.thumb?.bounds
-          } catch (_: Exception) {
-            null
-          }
-          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
-            val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-            val x = (progress.toFloat() / hue.max) * (avail - 1)
-            (hue.paddingLeft + x).toInt()
-          }
-          hueTrackDrawable?.setGap(posX, huePressed)
+          dlgSelectedColor = nextColor
+          render()
+          updateHueVisuals()
+          emitInput(dlgSelectedColor)
         }
 
         override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -350,52 +304,17 @@ class ColorInput @JvmOverloads constructor(
 
       // SV change handler
       svView.onSVChanged = { sv, vv ->
-        // build HSV color
-        val hsv = floatArrayOf(h, sv, vv)
-        val rgb = Color.HSVToColor(hsv)
-
-        val allowed = dispatchInputEvent(
-          type = "beforeinput",
-          value = rgb,
-          cancelable = true
-        )
-        if (allowed) {
-          val hsl = FloatArray(3)
-          ColorUtils.colorToHSL(rgb, hsl)
-          s = hsl[1]
-          l = hsl[2]
+        val rgb = Color.HSVToColor(floatArrayOf(h, sv, vv))
+        if (dispatchInputEvent(type = "beforeinput", value = rgb, cancelable = true)) {
           dlgSelectedColor = rgb
-          val trackColorSV = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-          setHueThumb(hue, trackColorSV, huePressed)
-          updateOutputFields(dlgSelectedColor)
-          // emit live input event for saturation/value changes
-          dispatchInputEvent(
-            type = "input",
-            value = dlgSelectedColor,
-            cancelable = false
-          )
-          // keep gap updated when SV changes
-          val tb = try {
-            hue.thumb?.bounds
-          } catch (_: Exception) {
-            null
-          }
-          val posX = if (tb != null && !tb.isEmpty) tb.centerX() else {
-            val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-            val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
-            (hue.paddingLeft + x).toInt()
-          }
-          hueTrackDrawable?.setGap(posX, huePressed)
-          updatePreview()
-          hText.setText(h.toInt().toString())
-          sText.setText("${(s * 100).toInt()}")
-          lText.setText("${(l * 100).toInt()}")
+          render()
+          updateHueVisuals()
+          emitInput(dlgSelectedColor)
         }
       }
 
-      updatePreview()
-      // initialize output fields to current color/mode
-      updateOutputFields(dlgSelectedColor)
+      syncPicker()
+      render()
 
       dlg.setContentView(root)
       dlg.show()
@@ -405,24 +324,19 @@ class ColorInput @JvmOverloads constructor(
       val widthPx = (340 * dm.density).toInt()
       dlg.window?.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
       btnCancel?.setOnClickListener {
-        // Emit cancel event
-        dispatchInputEvent(
-          type = "cancel",
-          value = dlgSelectedColor,
-          cancelable = false
-        )
+        if (this@ColorInput.selectedColor != originalColor) {
+          emitInput(originalColor)
+        }
+        dispatchInputEvent(type = "cancel", value = originalColor, cancelable = false)
         dlg.dismiss()
       }
       btnOk?.setOnClickListener {
-        // commit dialog color into this ColorInput instance and persist in view
-        this@ColorInput.selectedColor = dlgSelectedColor
-        colorView.setBackgroundColor(this@ColorInput.selectedColor)
-        // Emit change event for final color selection
-        dispatchInputEvent(
-          type = "change",
-          value = this@ColorInput.selectedColor,
-          cancelable = false
-        )
+        if (this@ColorInput.selectedColor != dlgSelectedColor) {
+          emitInput(dlgSelectedColor)
+        }
+        if (dlgSelectedColor != originalColor) {
+          dispatchInputEvent(type = "change", value = dlgSelectedColor, cancelable = false)
+        }
         dlg.dismiss()
       }
     }
@@ -435,7 +349,7 @@ class ColorInput @JvmOverloads constructor(
   ): Boolean {
     val event = InputEvent(
       type = type,
-      data = String.format("#%06X", 0xFFFFFF and value),
+      data = String.format("#%06x", 0xFFFFFF and value),
       null,
       EventOptions().apply {
         bubbles = true

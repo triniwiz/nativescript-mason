@@ -10,6 +10,8 @@ import UIKit
 class MasonRadioInput: UIControl {
   
   internal var owner: MasonElement?
+  /// Reports a tap, so the owner's checked state follows the user.
+  internal var onUserToggle: ((Bool) -> Void)?
 
   var isSelectedRadio: Bool = false {
     didSet {
@@ -96,6 +98,7 @@ class MasonRadioInput: UIControl {
   func setSelectedFromUser(_ selected: Bool) {
       guard selected else { return } // radios can't be deselected by user
       isSelectedRadio = true
+      onUserToggle?(true)
       dispatchInputAndChange()
   }
 

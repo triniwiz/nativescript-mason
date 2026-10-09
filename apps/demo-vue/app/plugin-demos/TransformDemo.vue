@@ -33,7 +33,7 @@
 
         <!-- Custom input -->
         <section class="input-row">
-          <Input v-model="custom" class="transform-input" hint="translate(24,12) rotate(8deg) scale(1.02)" />
+          <Input v-model="custom" class="transform-input" placeholder="translate(24,12) rotate(8deg) scale(1.02)" />
           <button class="apply-button" @tap="apply(custom)">Apply</button>
         </section>
 

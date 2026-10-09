@@ -1,12 +1,13 @@
-import { CSSType, Utils } from '@nativescript/core';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { Color, CSSType, Utils } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
+import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { InputType } from '..';
 
 @CSSType('input')
-export class Input extends InputBase {
+export class Input extends InputElementBase {
   [style_];
   _inBatch = false;
   constructor() {
@@ -14,10 +15,8 @@ export class Input extends InputBase {
     this[isMasonView_] = true;
   }
 
-  private _type: InputType = 'text';
-
   private getType(): org.nativescript.mason.masonkit.Input.Type {
-    switch (this._type) {
+    switch (this.type) {
       case 'text':
         return org.nativescript.mason.masonkit.Input.Type.Text;
       case 'button':
@@ -87,8 +86,15 @@ export class Input extends InputBase {
     this._view.setValue(value);
   }
 
+  [getCheckedProperty]() {
+    return this._view.getChecked();
+  }
+
+  [setCheckedProperty](checked: boolean) {
+    this._view.setChecked(checked);
+  }
+
   [typeProperty.setNative](value: InputType) {
-    this._type = value;
     if (this._view) {
       this._view.setType(this.getType());
     }
@@ -97,6 +103,19 @@ export class Input extends InputBase {
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
       this._view.setPlaceholder(value);
+    }
+  }
+
+  // Core's placeholder-color (also what ::placeholder { color } compiles to), as on TextField.
+  [placeholderColorProperty.getDefault]() {
+    return this._view.getPlaceholderTextColors();
+  }
+
+  [placeholderColorProperty.setNative](value: Color | android.content.res.ColorStateList) {
+    if (value instanceof Color) {
+      this._view.setPlaceholderTextColor(value.android);
+    } else {
+      this._view.setPlaceholderTextColor(value);
     }
   }
 
@@ -123,7 +142,7 @@ export class Input extends InputBase {
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      const view = Tree.instance.createInputView(context, this._type) as never;
+      const view = Tree.instance.createInputView(context, this.type) as never;
       this[native_] = view;
       return view;
     }

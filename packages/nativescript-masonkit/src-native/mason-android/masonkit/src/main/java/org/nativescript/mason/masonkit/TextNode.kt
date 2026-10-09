@@ -207,6 +207,12 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
   }
 
   companion object {
+    // Shared by the text spans and the Input placeholder, so their faces cannot drift apart.
+    internal fun isBold(face: org.nativescript.fontmanager.FontFace) = face.weight.weight >= 600
+
+    internal fun isItalic(face: org.nativescript.fontmanager.FontFace) =
+      face.style != org.nativescript.fontmanager.FontStyle.Normal
+
     internal fun applyAttributes(
       spannable: SpannableStringBuilder,
       start: Int,
@@ -230,8 +236,8 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
             measureSize,
             letterSpacing,
             typeface,
-            isBold = typeface != null && fontFace.weight.weight >= 600,
-            isItalic = typeface != null && fontFace.style != org.nativescript.fontmanager.FontStyle.Normal
+            isBold = typeface != null && isBold(fontFace),
+            isItalic = typeface != null && isItalic(fontFace)
           ),
           start, end, flags
         )

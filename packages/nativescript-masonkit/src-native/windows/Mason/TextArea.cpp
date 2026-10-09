@@ -22,6 +22,7 @@ namespace winrt::NativeScript::Mason::implementation
     TextArea::TextArea()
     {
         m_node = nsm::Mason::Instance().CreateNode(false);
+        RequestedTheme(mux::ElementTheme::Light);
         m_box = muxc::TextBox();
         m_box.AcceptsReturn(true);
         m_box.TextWrapping(mux::TextWrapping::Wrap);

@@ -1,5 +1,6 @@
-import { CSSType, Utils } from '@nativescript/core';
-import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty } from './common';
+import { Color, CSSType, Utils } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
+import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -7,13 +8,11 @@ import { InputType } from '..';
 import { Style } from '../style';
 
 @CSSType('input')
-export class Input extends InputBase {
+export class Input extends InputElementBase {
   [style_];
 
-  private _type: InputType = 'text';
-
   private getType(): MasonInputType {
-    switch (this._type) {
+    switch (this.type) {
       case 'text':
         return MasonInputType.Text;
       case 'button':
@@ -81,6 +80,14 @@ export class Input extends InputBase {
     this._view.value = value;
   }
 
+  [getCheckedProperty]() {
+    return this._view.checked;
+  }
+
+  [setCheckedProperty](checked: boolean) {
+    this._view.checked = checked;
+  }
+
   set valueAsNumber(value: number) {
     if (this._view) {
       this._view.valueAsNumber = value;
@@ -102,7 +109,6 @@ export class Input extends InputBase {
   }
 
   [typeProperty.setNative](value: InputType) {
-    this._type = value;
     if (this._view) {
       this._view.type = this.getType();
     }
@@ -114,6 +120,13 @@ export class Input extends InputBase {
     }
   }
 
+  // Core's placeholder-color (also what ::placeholder { color } compiles to), as on TextField.
+  [placeholderColorProperty.setNative](value: Color | UIColor) {
+    if (this._view) {
+      this._view.placeholderColor = value instanceof Color ? value.ios : value;
+    }
+  }
+
   [acceptProperty.setNative](value: string) {
     if (this._view) {
       this._view.accept = value;
@@ -122,7 +135,7 @@ export class Input extends InputBase {
 
   get _view() {
     if (!this[native_]) {
-      const view = Tree.instance.createInputView(null, this._type) as never;
+      const view = Tree.instance.createInputView(null, this.type) as never;
       this[native_] = view;
       return view;
     }

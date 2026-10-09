@@ -7,8 +7,13 @@ export const defaultValueProperty = Symbol('input:default:value');
 export const getValueProperty = Symbol('input:get:value');
 export const setValueProperty = Symbol('input:set:value');
 export const pendingValue = Symbol('input:pending:value');
+export const getCheckedProperty = Symbol('input:get:checked');
+export const setCheckedProperty = Symbol('input:set:checked');
+export const pendingChecked = Symbol('input:pending:checked');
+const checkedState = Symbol('input:checked');
 
 export class InputBase extends ViewBase {
+  declare type: InputType;
   [pendingValue] = null;
 
   [defaultValueProperty]() {
@@ -34,12 +39,14 @@ export class InputBase extends ViewBase {
     return this[getValueProperty]();
   }
 
+  // As on the web, value is always a string, and null clears it.
   set value(value: string) {
+    const text = value == null ? '' : String(value);
     if (!this[native_]) {
-      this[pendingValue] = value;
+      this[pendingValue] = text;
       return;
     }
-    this[setValueProperty](value);
+    this[setValueProperty](text);
   }
 
   initNativeView() {
@@ -47,6 +54,45 @@ export class InputBase extends ViewBase {
     if (this[pendingValue] !== null) {
       this[setValueProperty](this[pendingValue]);
       this[pendingValue] = null;
+    }
+  }
+}
+
+/** HTMLInputElement's state beyond `value`; `<textarea>` has none of it. */
+export class InputElementBase extends InputBase {
+  [pendingChecked]: boolean | null = null;
+  [checkedState]: boolean = false;
+
+  [getCheckedProperty](): boolean {
+    return this[checkedState];
+  }
+
+  //@ts-ignore
+  [setCheckedProperty](checked: boolean) {
+    this[checkedState] = checked;
+  }
+
+  get checked(): boolean {
+    if (!this[native_]) {
+      return this[pendingChecked] ?? false;
+    }
+    return this[getCheckedProperty]();
+  }
+
+  set checked(checked: boolean) {
+    const value = !!checked;
+    if (!this[native_]) {
+      this[pendingChecked] = value;
+      return;
+    }
+    this[setCheckedProperty](value);
+  }
+
+  initNativeView() {
+    super.initNativeView();
+    if (this[pendingChecked] !== null) {
+      this[setCheckedProperty](this[pendingChecked]);
+      this[pendingChecked] = null;
     }
   }
 }

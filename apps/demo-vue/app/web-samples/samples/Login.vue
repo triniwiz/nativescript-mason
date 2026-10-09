@@ -15,10 +15,10 @@
 
         <form class="form" @submit="signIn">
           <label class="field-label" for="email">Email</label>
-          <Input id="email" v-model="email" class="field" keyboardType="email" hint="you@example.com" />
+          <Input id="email" v-model="email" class="field" type="email" placeholder="you@example.com" />
 
           <label class="field-label" for="password">Password</label>
-          <Input id="password" v-model="password" class="field" secure="true" hint="Your password" />
+          <Input id="password" v-model="password" class="field" type="password" placeholder="Your password" />
 
           <div class="form-row">
             <div class="remember">
