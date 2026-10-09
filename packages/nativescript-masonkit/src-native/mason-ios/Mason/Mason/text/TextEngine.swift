@@ -1787,6 +1787,35 @@ public class TextEngine: NSObject {
     return result
   }
 
+  /// White space HTML may collapse: spaces, tabs and line breaks. A no-break space (U+00A0) and the
+  /// other Unicode spaces are content, so they are never trimmed or merged.
+  static let collapsibleWhitespace = CharacterSet(charactersIn: " \t\n\r\u{000C}")
+
+  /// Whether this element's text starts / ends with collapsible white space, looking through
+  /// flattened inline children; nil when there is no text at that edge.
+  ///
+  /// A flattened element's own build trims its edges as if it were a whole block, so
+  /// `<span>a</span><span> b</span>` would read "ab". The parent puts one space back at an edge
+  /// that had one, and its separator logic then keeps exactly one at the boundary, as browsers do.
+  private func edgeWhitespace(atStart: Bool) -> Bool? {
+    for child in (atStart ? node.children : node.children.reversed()) {
+      if child.view is MasonBr.FakeView { return false }
+      if let textNode = child as? MasonTextNode {
+        let text = textNode.attributed().string
+        guard let scalar = atStart ? text.unicodeScalars.first : text.unicodeScalars.last else { continue }
+        return TextEngine.collapsibleWhitespace.contains(scalar)
+      }
+      if child.style.isValueInitialized && child.style.display == .None { continue }
+      if let textView = child.view as? TextContainer, shouldFlattenTextContainer(textView) {
+        if let edge = textView.engine.edgeWhitespace(atStart: atStart) { return edge }
+        continue
+      }
+      // An inline box or other placeholder.
+      return false
+    }
+    return nil
+  }
+
   /// Whether the text has an explicit line break (from <br>); NSString's search
   /// avoids walking the whole string as Swift Characters.
   static func hasLineBreak(_ text: NSAttributedString) -> Bool {
@@ -1809,7 +1838,7 @@ public class TextEngine: NSObject {
     
     // build `composed` from child fragments using HTML-like whitespace collapsing
     // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
-    let wsSet = CharacterSet.whitespacesAndNewlines
+    let wsSet = TextEngine.collapsibleWhitespace
 
     let composed = NSMutableAttributedString()
     var prevEndedWithWhitespace = false
@@ -1837,6 +1866,18 @@ public class TextEngine: NSObject {
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
           let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor))
+          if piece.length > 0 {
+            let text = piece.string as NSString
+            if textView.engine.edgeWhitespace(atStart: true) == true,
+               let first = UnicodeScalar(text.character(at: 0)), !wsSet.contains(first) {
+              piece.insert(NSAttributedString(string: " ", attributes: piece.attributes(at: 0, effectiveRange: nil)), at: 0)
+            }
+            let last = piece.length - 1
+            if textView.engine.edgeWhitespace(atStart: false) == true,
+               let end = UnicodeScalar((piece.string as NSString).character(at: last)), !wsSet.contains(end) {
+              piece.append(NSAttributedString(string: " ", attributes: piece.attributes(at: last, effectiveRange: nil)))
+            }
+          }
           // Nested elements marked their own ranges first, so the innermost wins.
           let ref = InlineNodeRef(child)
           piece.enumerateAttribute(TextEngine.inlineNodeKey, in: NSRange(location: 0, length: piece.length)) { value, range, _ in
