@@ -2242,20 +2242,22 @@ impl Tree {
     /// Per CSS 2.1 §10.1 / CSS Position §3, absolutely-positioned elements are
     /// removed from the normal flow. Their containing block is the nearest
     /// ancestor that establishes one (here: the inline/inline-* container's
-    /// padding box). Inset properties (top/left/right/bottom) resolve against
-    /// that containing block. If both left and right (or top and bottom) are
-    /// auto the element is placed at the static position (0, 0) of the
-    /// containing block.
+    /// padding box, i.e. inside its border). Inset properties
+    /// (top/left/right/bottom) and percentage sizes resolve against that
+    /// containing block. If both left and right (or top and bottom) are auto
+    /// the element stays at its static position, the container's content-box
+    /// origin.
     fn layout_absolute_children(
         &mut self,
         abs_children: &[Id],
         container_size: Size<f32>,
+        border: taffy::Rect<f32>,
         pb: taffy::Rect<f32>,
         parent_size: Size<Option<f32>>,
         inputs: LayoutInput,
     ) {
-        let cb_width = (container_size.width - pb.left - pb.right).max(0.0);
-        let cb_height = (container_size.height - pb.top - pb.bottom).max(0.0);
+        let cb_width = (container_size.width - border.left - border.right).max(0.0);
+        let cb_height = (container_size.height - border.top - border.bottom).max(0.0);
 
         for &child_id in abs_children {
             let child_style = self.nodes()[child_id].style().clone();
@@ -2356,9 +2358,9 @@ impl Tree {
 
             // Resolve x position
             let x = if let Some(l) = inset_left {
-                pb.left + l + child_margin.left
+                border.left + l + child_margin.left
             } else if let Some(r) = inset_right {
-                (container_size.width - pb.right - r - child_margin.right - child_w).max(0.0)
+                container_size.width - border.right - r - child_margin.right - child_w
             } else {
                 // Static position: place at content-box origin
                 pb.left + child_margin.left
@@ -2366,9 +2368,9 @@ impl Tree {
 
             // Resolve y position
             let y = if let Some(t) = inset_top {
-                pb.top + t + child_margin.top
+                border.top + t + child_margin.top
             } else if let Some(b) = inset_bottom {
-                (container_size.height - pb.bottom - b - child_margin.bottom - child_h).max(0.0)
+                container_size.height - border.bottom - b - child_margin.bottom - child_h
             } else {
                 pb.top + child_margin.top
             };
@@ -2872,7 +2874,14 @@ impl Tree {
 
             // Lay out absolutely-positioned children after the IFC pass
             if !abs_child_ids.is_empty() {
-                self.layout_absolute_children(&abs_child_ids, ret.size, pb, parent_size, inputs);
+                self.layout_absolute_children(
+                    &abs_child_ids,
+                    ret.size,
+                    border,
+                    pb,
+                    parent_size,
+                    inputs,
+                );
             }
 
             return ret;
@@ -2903,6 +2912,7 @@ impl Tree {
                 self.layout_absolute_children(
                     &abs_child_ids,
                     leaf_output.size,
+                    border,
                     pb,
                     parent_size,
                     inputs,
@@ -3176,7 +3186,14 @@ impl Tree {
 
         // Lay out absolutely-positioned children after the IFC pass
         if !abs_child_ids.is_empty() {
-            self.layout_absolute_children(&abs_child_ids, output.size, pb, parent_size, inputs);
+            self.layout_absolute_children(
+                &abs_child_ids,
+                output.size,
+                border,
+                pb,
+                parent_size,
+                inputs,
+            );
         }
 
         output
