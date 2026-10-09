@@ -187,7 +187,7 @@ extension MasonTextNode {
         }
         
         // Apply whitespace processing
-      let whiteSpace = container.node.style.whiteSpace
+      let whiteSpace = container.node.style.resolvedWhiteSpace
         switch whiteSpace {
         case .Normal:
             processed = normalizeNewlines(processed)
@@ -202,8 +202,8 @@ extension MasonTextNode {
             processed = normalizeNewlines(processed)
                 .replacingOccurrences(of: collapsiblePlusLF, with: " ", options: .regularExpression)
         case .BreakSpaces:
-          // todo
-          break
+            // Spaces are preserved as in pre-wrap; break-spaces only differs in where lines may wrap.
+            processed = normalizeNewlines(processed)
         }
         
         return processed
