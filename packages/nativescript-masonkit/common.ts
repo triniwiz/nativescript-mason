@@ -2659,6 +2659,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     } else if (__APPLE__) {
       // @ts-ignore
       (this.nativeView as any).style.applyListStylePosition(String(value));
+    } else if (__WINDOWS__) {
+      const style = (this as any)._styleHelper;
+      const position = String(value).trim().toLowerCase();
+      if (style && (position === 'inside' || position === 'outside')) style.listStylePosition = position;
     }
   }
 

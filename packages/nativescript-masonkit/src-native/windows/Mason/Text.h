@@ -317,6 +317,10 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_listItem{ false };
         winrt::Microsoft::UI::Composition::SpriteVisual m_marker{ nullptr };
         std::string m_markerKey;
+        std::wstring m_insideMarker;
+        bool m_markerRebuildQueued{ false };
+        bool MarkerOf(uint8_t& type, int32_t& index, bool& inside) const;
+        std::wstring InsideMarker() const;
         void SyncMarker(winrt::Windows::Foundation::Size const& finalSize);
         uint32_t m_color{ 0xFF000000 };
         bool m_hasColor{ false };

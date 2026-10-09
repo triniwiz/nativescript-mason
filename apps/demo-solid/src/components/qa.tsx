@@ -281,6 +281,15 @@ export default function QA() {
               <li style={{ color: '#6c5ce7' }}>Circle</li>
               <li style={{ color: '#6c5ce7' }}>Circle</li>
             </ul>
+            <ul style={{ listStylePosition: 'inside' as any, width: 160, backgroundColor: '#dfe6e9' }}>
+              <li>Inside disc</li>
+              <li>Inside marker with text long enough to wrap</li>
+            </ul>
+            <ol style={{ listStylePosition: 'inside' as any, width: 160, backgroundColor: '#dfe6e9' }}>
+              <li>Inside one</li>
+              <li style={{ listStylePosition: 'outside' as any }}>Outside override</li>
+              <li>Inside three</li>
+            </ol>
           </div>
         </Card>
 

@@ -779,6 +779,11 @@ namespace winrt::NativeScript::Mason::implementation
     {
         m_visual.styleDirty = true;
         const auto dirty = mason_leaf::DirtyWords(d0, d1, d2, d3);
+        if (m_listItem && mason_leaf::AnyDirty(dirty, mason_leaf::StateFlags({ { 47, 48 } })))
+        {
+            m_paragraphDirty = true;
+            QueueRebuild();
+        }
         if (!m_inlineOwner && !mason_leaf::AnyDirty(dirty, mason_leaf::kTextKeys))
         {
             mason_leaf::StyleSynced(get_strong().as<mux::UIElement>(), m_node, dirty);
@@ -1239,6 +1244,17 @@ namespace winrt::NativeScript::Mason::implementation
             CollapseFlowSpaces(next);
             SyncBoxNodes(next);
         }
+        m_insideMarker = m_listItem && !m_inlineOwner ? InsideMarker() : std::wstring{};
+        if (!m_insideMarker.empty())
+        {
+            BuiltRun marker;
+            marker.text = winrt::hstring{ m_insideMarker };
+            marker.format = container;
+            marker.format.decorations = winrt::Windows::UI::Text::TextDecorations::None;
+            marker.format.decoration = 0;
+            marker.format.background = 0;
+            next.insert(next.begin(), std::move(marker));
+        }
         if (m_direct)
         {
             if (m_builtValid && next == m_builtRuns && !m_paragraphDirty) return false;
@@ -1693,7 +1709,57 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (m_listItem == value) return;
         m_listItem = value;
+        m_paragraphDirty = true;
+        RequestRebuild();
         InvalidateArrange();
+    }
+
+    bool Text::MarkerOf(uint8_t& type, int32_t& index, bool& inside) const
+    {
+        type = 0;
+        index = 1;
+        inside = false;
+        auto parent = m_listItem ? Parent().try_as<muxc::Panel>() : nullptr;
+        if (!parent) return false;
+        for (auto const& child : parent.Children())
+        {
+            auto text = child.try_as<nsm::Text>();
+            if (text && winrt::get_self<Text>(text) == this) break;
+            if (text && winrt::get_self<Text>(text)->m_listItem) ++index;
+        }
+        auto byteOf = [](nsm::Node const& node, uint32_t value, uint32_t state, bool& set) -> uint8_t
+        {
+            uint32_t size = 0;
+            const uint8_t* d = node ? winrt::get_self<implementation::Node>(node)->StyleData(size) : nullptr;
+            set = d && size > state && d[state] != 0;
+            return set ? d[value] : 0;
+        };
+        auto list = parent.try_as<nsm::IMasonElement>();
+        auto listNode = list ? list.Node() : nullptr;
+        bool set = false;
+        type = byteOf(listNode, 317, 319, set);
+        if (!set) type = byteOf(m_node, 317, 319, set);
+        if (!set) type = mason_get_preflight() ? 0 : 2;
+        uint8_t position = byteOf(m_node, 316, 318, set);
+        if (!set) position = byteOf(listNode, 316, 318, set);
+        inside = position == 1;
+        return true;
+    }
+
+    std::wstring Text::InsideMarker() const
+    {
+        uint8_t type = 0;
+        int32_t index = 1;
+        bool inside = false;
+        if (!MarkerOf(type, index, inside) || !inside) return {};
+        switch (type)
+        {
+        case 2: return L"\u2022 ";
+        case 3: return L"\u25E6 ";
+        case 4: return L"\u25AA ";
+        case 5: return std::to_wstring(index) + L". ";
+        default: return {};
+        }
     }
 
     void Text::SyncMarker(Size const& finalSize)
@@ -1705,31 +1771,26 @@ namespace winrt::NativeScript::Mason::implementation
             m_marker = nullptr;
             m_markerKey.clear();
         };
-        auto parent = m_listItem ? Parent().try_as<muxc::Panel>() : nullptr;
-        if (!parent)
-        {
-            clear();
-            return;
-        }
-        int32_t index = 1;
-        for (auto const& child : parent.Children())
-        {
-            if (child == self) break;
-            if (auto text = child.try_as<nsm::Text>(); text && winrt::get_self<Text>(text)->m_listItem) ++index;
-        }
-        auto listType = [](nsm::Node const& node, bool& set) -> uint8_t
-        {
-            uint32_t size = 0;
-            const uint8_t* d = node ? winrt::get_self<implementation::Node>(node)->StyleData(size) : nullptr;
-            set = d && size > 319 && d[319] != 0;
-            return set ? d[317] : 0;
-        };
-        bool set = false;
         uint8_t type = 0;
-        if (auto list = parent.try_as<nsm::IMasonElement>()) type = listType(list.Node(), set);
-        if (!set) type = listType(m_node, set);
-        if (!set) type = mason_get_preflight() ? 0 : 2;
-        if (type == 0 || finalSize.Width <= 0.0f)
+        int32_t index = 1;
+        bool inside = false;
+        const bool listed = MarkerOf(type, index, inside);
+        if (InsideMarker() != m_insideMarker && !m_markerRebuildQueued)
+        {
+            if (auto dispatcher = DispatcherQueue())
+            {
+                m_markerRebuildQueued = dispatcher.TryEnqueue([weak = get_weak()]
+                {
+                    if (auto strong = weak.get())
+                    {
+                        strong->m_markerRebuildQueued = false;
+                        strong->m_paragraphDirty = true;
+                        strong->RequestRebuild();
+                    }
+                });
+            }
+        }
+        if (!listed || inside || type == 0 || finalSize.Width <= 0.0f)
         {
             clear();
             return;
