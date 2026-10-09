@@ -14,6 +14,7 @@ namespace NativeScript.Mason
         Boolean ImmediatePropagationStopped{ get; };
         String Data{ get; };
         String InputType{ get; };
+        Windows.Foundation.Collections.IVectorView<String> Files{ get; };
         String Key{ get; };
         Boolean Repeat{ get; };
         Boolean CtrlKey{ get; };

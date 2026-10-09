@@ -16,6 +16,8 @@ const FIELDS = [
   { type: 'number', value: '42' },
   { type: 'date', value: '2026-10-08' },
   { type: 'time', value: '09:30' },
+  { type: 'color', value: '#6c5ce7' },
+  { type: 'file', accept: 'image/*,.pdf', multiple: true },
   { type: 'checkbox', value: 'true' },
   { type: 'radio' },
   { type: 'submit' },
@@ -38,7 +40,8 @@ export default function Forms() {
   const record = (e: any) => {
     const target = e?.target
     const value = target?.value !== undefined ? ` = ${target.value}` : ''
-    setLog((l) => [`${e?.type} on ${target?.type ?? target?.constructor?.name ?? '?'}${value}`, ...l].slice(0, 6))
+    const files = Array.isArray(e?.data) ? ` [${e.data.length} file(s)]` : ''
+    setLog((l) => [`${e?.type} on ${target?.type ?? target?.constructor?.name ?? '?'}${value}${files}`, ...l].slice(0, 6))
   }
 
   return (
@@ -52,12 +55,12 @@ export default function Forms() {
           </div>
         </Card>
         <Card title="INPUTS · EVENTS BUBBLE TO THE CARD">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} on:input={record} on:change={record} on:focus={record}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} on:input={record} on:change={record} on:focus={record} on:cancel={record} on:compositionstart={record} on:compositionend={record}>
             <For each={FIELDS}>
               {(f) => (
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <span style={{ width: 80, fontSize: 13, color: MUTED }} text={f.type} />
-                  <input type={f.type} value={(f as any).value ?? ''} placeholder={(f as any).placeholder ?? ''} style={{ color: '#1a1a2e', ...((f as any).style ?? {}) }} />
+                  <input type={f.type} value={(f as any).value ?? ''} placeholder={(f as any).placeholder ?? ''} accept={(f as any).accept} multiple={(f as any).multiple} style={{ color: '#1a1a2e', ...((f as any).style ?? {}) }} />
                 </div>
               )}
             </For>

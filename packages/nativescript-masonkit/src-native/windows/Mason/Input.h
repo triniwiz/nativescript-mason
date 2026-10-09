@@ -5,6 +5,7 @@
 #include "Invalidation.h"
 #include "VisualState.h"
 #include <memory>
+#include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -41,6 +42,11 @@ namespace winrt::NativeScript::Mason::implementation
         void ApplyPlaceholder(hstring const& value);
         void SyncOrientation();
         void SyncTextStyle(bool force);
+        winrt::Microsoft::UI::Xaml::FrameworkElement BuildColor();
+        winrt::Microsoft::UI::Xaml::FrameworkElement BuildFile();
+        winrt::fire_and_forget PickFiles();
+        void FilesPicked(std::vector<hstring> names, std::vector<hstring> uris);
+        void ResetFiles();
 
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
@@ -53,6 +59,11 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_fontFamily;
         std::shared_ptr<mason_form::Events> m_events;
         mason_form::TextStyle m_textApplied;
+        winrt::Microsoft::UI::Xaml::Controls::Border m_swatch{ nullptr };
+        winrt::Microsoft::UI::Xaml::Controls::Button m_fileButton{ nullptr };
+        winrt::Microsoft::UI::Xaml::Controls::TextBlock m_fileLabel{ nullptr };
+        std::vector<hstring> m_fileNames;
+        bool m_picking{ false };
     };
 }
 

@@ -158,6 +158,10 @@ function masonNativeEventName(eventName: string): string | null {
     case 'beforeinput':
     case 'input':
     case 'change':
+    case 'cancel':
+    case 'compositionstart':
+    case 'compositionupdate':
+    case 'compositionend':
     case 'focus':
     case 'blur':
     case 'keydown':
@@ -3863,6 +3867,15 @@ export class InputEvent extends Event {
     }
 
     if (__WINDOWS__) {
+      const files = this[native_]?.Files;
+      if (files) {
+        const ret = [];
+        const size = files.Size;
+        for (let i = 0; i < size; i++) {
+          ret.push(files.GetAt(i));
+        }
+        return ret;
+      }
       return this[native_]?.Data ?? null;
     }
 
@@ -3883,6 +3896,12 @@ export class InputEvent extends Event {
     }
 
     return false;
+  }
+}
+
+export class CompositionEvent extends Event {
+  get data(): string {
+    return this[native_]?.Data ?? '';
   }
 }
 
@@ -3920,6 +3939,10 @@ function wrapNativeEvent(type: string): Event {
       return new InputEvent();
     case 'keydown':
       return new KeyboardEvent();
+    case 'compositionstart':
+    case 'compositionupdate':
+    case 'compositionend':
+      return new CompositionEvent();
     default:
       return new Event();
   }
