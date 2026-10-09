@@ -307,7 +307,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       case .Radio:
         checkableValue = newValue
       case .Range:
-        rangeInput.value = Float(newValue) ?? 0
+        rangeInput.cssValue = newValue
       case .Color:
         if let color = UIColor(css: newValue) {
           colorInput.selectedColor = color
@@ -333,7 +333,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       case .Radio:
         return checkableValue
       case .Range:
-        return String(rangeInput.value)
+        return rangeInput.cssValue
       case .Color:
         // As on the web: lowercase #rrggbb, no alpha.
         return colorInput.selectedColor?.toCSS().lowercased() ?? "#000000"

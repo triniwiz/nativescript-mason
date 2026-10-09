@@ -22,7 +22,23 @@ class MasonRangeInput: UISlider {
         setup()
     }
 
+    // As on the web with the default min 0, max 100 and step 1; anything not a number is the midpoint.
+    var cssValue: String {
+        get { String(Int(value.rounded())) }
+        set {
+            guard let number = Float(newValue.trimmingCharacters(in: .whitespaces)), number.isFinite else {
+                value = (minimumValue + maximumValue) / 2
+                return
+            }
+            value = min(max(number.rounded(), minimumValue), maximumValue)
+        }
+    }
+
     private func setup() {
+        minimumValue = 0
+        maximumValue = 100
+        // A range starts at its midpoint, as on the web.
+        value = 50
         addTarget(self, action: #selector(handleTouchDown), for: .touchDown)
         addTarget(self, action: #selector(handleValueChanged), for: .valueChanged)
         addTarget(
@@ -44,10 +60,11 @@ class MasonRangeInput: UISlider {
 
     @objc private func handleValueChanged() {
         guard let owner = owner, isTrackingUser else { return }
+        value = value.rounded()
 
         let input = MasonInputEvent(
             type: "input",
-            data: String(value),
+            data: cssValue,
             inputType: "insertReplacementText",
             options: MasonEventOptions(
                 isComposing: true
@@ -68,7 +85,7 @@ class MasonRangeInput: UISlider {
 
         let change = MasonInputEvent(
             type: "change",
-            data: String(value),
+            data: cssValue,
             inputType: "insertReplacementText",
             options: MasonEventOptions(
                 isComposing: true

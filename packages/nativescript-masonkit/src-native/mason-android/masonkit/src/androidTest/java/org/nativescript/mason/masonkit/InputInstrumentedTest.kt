@@ -302,6 +302,19 @@ class InputInstrumentedTest {
   }
 
   @Test
+  fun rangeValuesFollowTheWeb() {
+    val (range, _) = layoutInput { it.type = Input.Type.Range }
+    val sync = InstrumentationRegistry.getInstrumentation()
+    assertEquals("a fresh range sits at its midpoint", "50", range.value)
+    sync.runOnMainSync { range.value = "42.6" }
+    assertEquals("a number rounds to the step", "43", range.value)
+    sync.runOnMainSync { range.value = "250" }
+    assertEquals("and clamps to max", "100", range.value)
+    sync.runOnMainSync { range.value = "hello" }
+    assertEquals("anything else is the midpoint", "50", range.value)
+  }
+
+  @Test
   fun valueSurvivesATypeChangeExceptIntoACheckbox() {
     val (range, _) = layoutInput {
       it.value = "30"

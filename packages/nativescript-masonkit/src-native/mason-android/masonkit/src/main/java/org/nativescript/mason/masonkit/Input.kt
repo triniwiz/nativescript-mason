@@ -316,6 +316,8 @@ class Input @JvmOverloads constructor(
 
   internal val rangeInput: SeekBar by lazy {
     SeekBar(context).apply {
+      // A range starts at its midpoint, as on the web.
+      progress = max / 2
       isClickable = true
       isFocusable = true
       thumb = AppCompatResources.getDrawable(context, R.drawable.seekbar_thumb_web)
@@ -854,9 +856,9 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Range -> {
-          value.toIntOrNull()?.let {
-            rangeInput.progress = it
-          }
+          // As on the web: a number rounds to the step and clamps, anything else is the midpoint.
+          val number = value.trim().toDoubleOrNull()?.takeIf { it.isFinite() }
+          rangeInput.progress = number?.let { Math.round(it).toInt().coerceIn(0, rangeInput.max) } ?: (rangeInput.max / 2)
         }
 
         Type.Color -> {
