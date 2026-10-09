@@ -1,4 +1,5 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { Color, CSSType, Utils } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
 import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
@@ -116,6 +117,13 @@ export class Input extends InputElementBase {
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
       this._view.placeholder = value;
+    }
+  }
+
+  // Core's placeholder-color (also what ::placeholder { color } compiles to), as on TextField.
+  [placeholderColorProperty.setNative](value: Color | UIColor) {
+    if (this._view) {
+      this._view.placeholderColor = value instanceof Color ? value.ios : value;
     }
   }
 

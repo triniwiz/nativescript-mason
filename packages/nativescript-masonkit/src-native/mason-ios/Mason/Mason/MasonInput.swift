@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreText
 
 // MARK: - Helpers
 internal extension UITextField {
@@ -61,17 +62,8 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
     case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
-      if(color){
-        textInput.textColor = UIColor.colorFromARGB(style.resolvedColor)
-        textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
-      } else if(caretColorChanged){
-        textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
-      }
-      if(font || size){
-        let resolved = style.resolvedFontFace
-        if let uiFont = resolved.uiFont {
-          textInput.font = uiFont
-        }
+      if color || caretColorChanged || size || font || state.contains(.textAlign) {
+        syncTextStyle()
       }
     case .Button, .Reset:
       break
@@ -270,7 +262,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       if(initializing){
         return
       }
-      configureInput(type)
+      configureInput(type, previous: oldValue)
       applyChecked()
       invalidateLayout()
       if let previousValue = pendingTypeSwitchValue {
@@ -442,7 +434,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       case .Text, .Email, .Number, .Tel, .Url, .Search, .Time, .DatetimeLocal, .Month, .Week:
         textInput.placeholder = placeholder
       case .Password:
-        passwordInput.placeholder = placeholder
+        syncTextStyle()
       case .Button, .Reset:
         break
       case .Checkbox:
@@ -582,20 +574,56 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   
+  /// Core's placeholder-color; nil keeps the system placeholder color.
+  public var placeholderColor: UIColor? {
+    didSet { syncTextStyle() }
+  }
+
+  // The text fields take the element's font, color and alignment, and the placeholder follows them.
+  internal func syncTextStyle() {
+    let attrs = node.getDefaultAttributes()
+    var font: UIFont? = nil
+    if let value = attrs[.font], CFGetTypeID(value as CFTypeRef) == CTFontGetTypeID() {
+      font = unsafeBitCast(value as CFTypeRef, to: UIFont.self)
+    }
+    let alignment = (attrs[.paragraphStyle] as? NSParagraphStyle)?.alignment ?? .natural
+    let color = UIColor.colorFromARGB(style.resolvedColor)
+    let caret = UIColor.colorFromARGB(style.resolvedCaretColor)
+    let placeholderColor = self.placeholderColor ?? .placeholderText
+    switch type {
+    case .Password:
+      if let font = font { passwordInput.font = font }
+      passwordInput.textColor = color
+      passwordInput.tintColor = caret
+      passwordInput.textAlignment = alignment
+      var placeholderAttrs: [NSAttributedString.Key: Any] = [.foregroundColor: placeholderColor]
+      if let font = font { placeholderAttrs[.font] = font }
+      passwordInput.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: placeholderAttrs)
+    case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
+      if let font = font { textInput.font = font }
+      textInput.textColor = color
+      textInput.tintColor = caret
+      textInput.textAlignment = alignment
+      textInput.placeholderLabel.textColor = placeholderColor
+    default:
+      break
+    }
+  }
+
   public override func layoutSubviews() {
     super.layoutSubviews()
     style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
-    var inputSize = bounds
-    if(!node.computedLayout.paddingIsEmpty){
-      let scale = NSCMason.scale
-      var inset = UIEdgeInsets()
-      if !node.computedLayout.paddingTop.isNaN && node.computedLayout.paddingTop.isFinite  { inset.top = CGFloat(node.computedLayout.paddingTop / scale) }
-      if !node.computedLayout.paddingRight.isNaN && node.computedLayout.paddingRight.isFinite { inset.right = CGFloat(node.computedLayout.paddingRight / scale) }
-      if !node.computedLayout.paddingBottom.isNaN && node.computedLayout.paddingBottom.isFinite { inset.bottom = CGFloat(node.computedLayout.paddingBottom / scale) }
-      if !node.computedLayout.paddingLeft.isNaN && node.computedLayout.paddingLeft.isFinite { inset.left = CGFloat(node.computedLayout.paddingLeft / scale) }
-      inputSize = bounds.insetBy(dx: inset.left, dy: inset.top)
-    }
+    // The native control sits inside the padding and the border, as CSS lays out content.
+    let layout = node.computedLayout
+    let scale = CGFloat(NSCMason.scale)
+    func side(_ value: Float) -> CGFloat { value.isFinite ? max(0, CGFloat(value) / scale) : 0 }
+    let inputSize = bounds.inset(by: UIEdgeInsets(
+      top: side(layout.paddingTop) + side(layout.borderTop),
+      left: side(layout.paddingLeft) + side(layout.borderLeft),
+      bottom: side(layout.paddingBottom) + side(layout.borderBottom),
+      right: side(layout.paddingRight) + side(layout.borderRight)
+    ))
     switch type {
     case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       textInput.frame = inputSize
@@ -632,22 +660,54 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     }
   }
   
-  private func configureInput(_ type: MasonInputType){
+  private enum UaKind { case field, button, bare }
+
+  private static func uaKind(_ type: MasonInputType) -> UaKind {
+    switch type {
+    case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week: return .field
+    case .Button, .Submit, .Reset: return .button
+    default: return .bare
+    }
+  }
+
+  // The UA defaults act like a user-agent stylesheet: they change only with the kind of
+  // control, so switching text to password keeps the author's padding and border.
+  private func applyUaStyle(_ kind: UaKind) {
     let scale = NSCMason.scale
+    configure { style in
+      switch kind {
+      case .field:
+        style.border = "1"
+        style.borderRadius = "4"
+        style.padding = MasonRect(.Points(scale), .Points(scale * 2), .Points(scale), .Points(scale * 2))
+        style.textAlign = TextAlign.Left
+      case .button:
+        style.border = "1"
+        style.borderRadius = "4"
+        style.padding = MasonRect(.Points(1), .Points(6), .Points(1), .Points(6))
+        style.textAlign = TextAlign.Center
+      case .bare:
+        style.border = ""
+        style.borderRadius = ""
+        style.padding = MasonRect(uniform: .Zero)
+        style.textAlign = TextAlign.Auto
+      }
+    }
+  }
+
+  private func configureInput(_ type: MasonInputType, previous: MasonInputType?){
     if(!initializing){
       for subview in subviews {
         subview.removeFromSuperview()
       }
     }
+    let kind = MasonInput.uaKind(type)
+    if previous.map({ MasonInput.uaKind($0) != kind }) ?? (kind != .bare) {
+      applyUaStyle(kind)
+    }
     switch type {
     case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       textInput.tintColor = UIColor.colorFromARGB(style.resolvedCaretColor)
-      configure { style in
-        style.border = "1"
-        style.borderRadius = "4"
-        style.padding = MasonRect(.Points(scale), .Points(scale * 2), .Points(scale), .Points(scale * 2))
-        style.textAlign = TextAlign.Left
-      }
       textInput.returnKeyType = .default
       switch(type){
       case .Search:
@@ -683,22 +743,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       } else {
         addSubview(textInput)
       }
+      syncTextStyle()
     case .Date:
-      configure { style in
-        style.border = ""
-        style.borderRadius = ""
-        style.padding = MasonRect(uniform: .Zero)
-        style.textAlign = TextAlign.Auto
-      }
       addSubview(dateInput)
       break
     case .Button, .Submit, .Reset:
-      configure { style in
-        style.border = "1"
-        style.borderRadius = "4"
-        style.padding = MasonRect(.Points(1), .Points(6), .Points(1), .Points(6))
-        style.textAlign = TextAlign.Center
-      }
       if(type == MasonInputType.Submit){
         addSubview(submitInput)
       }else {
@@ -718,12 +767,6 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       addSubview(colorInput)
       break
     case .File:
-      configure { style in
-        style.border = ""
-        style.borderRadius = ""
-        style.padding = MasonRect(uniform: .Zero)
-        style.textAlign = TextAlign.Auto
-      }
       addSubview(fileInput)
       break
     default:
@@ -736,7 +779,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     node.style.setUInt32(StyleKeys.ITEM_IS_REPLACED, 1)
     node.style.display = Display.InlineBlock
     self.type = type
-    configureInput(type)
+    configureInput(type, previous: nil)
     initializing = false
   }
 }

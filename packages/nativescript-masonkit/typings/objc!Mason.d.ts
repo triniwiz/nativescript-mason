@@ -825,6 +825,8 @@ declare class MasonInput extends UIView {
 
 	readonly node: MasonNode;
 
+	placeholderColor: UIColor;
+
 	placeholder: string;
 
 	size: number;
