@@ -29,6 +29,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   internal func invalidateDrawFlags() {
     _drawFlagsDirty = true
     setNeedsDisplay()
+    // Radius and shadows can change without a resize, so refresh what depends on them.
+    guard bounds.width > 0, bounds.height > 0 else { return }
+    updateOpacity()
+    style.updateShadowLayer(for: CGRect(origin: .zero, size: bounds.size))
+  }
+
+  // An opaque backing store is only safe when the box fills its bounds.
+  private func updateOpacity() {
+    style.mBorderRender.resolve(for: bounds)
+    let opaqueBackground = style.mBackground.map { bg in
+      bg.color != nil && bg.color!.cgColor.alpha >= 1.0 && bg.layers.isEmpty
+    } ?? false
+    isOpaque = opaqueBackground && !style.mBorderRender.hasRadii() && style.boxShadows.isEmpty
   }
   
   private func updateDrawFlagsIfNeeded() {
@@ -92,7 +105,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // Core Animation paints a layer's own border above its sublayers, but CSS paints
     // children (and their shadows) over the parent's border. With anything layered
     // inside, the border moves to a sublayer at the bottom of the stack.
-    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder()
+    // A view that clips its children keeps the border on its own layer, above them:
+    // CSS clips children inside the border, so they never cover it.
+    let clipsChildren = clipsToBounds || layer.mask != nil
+    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder() && !clipsChildren
     let ownWidth = useSublayer ? 0 : paint.borderWidth
     let ownColor = useSublayer ? nil : paint.borderColor
     if layer.borderWidth != ownWidth { layer.borderWidth = ownWidth }
@@ -524,16 +540,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     _lastBoundsSize = currentSize
     invalidateDrawFlags()
     // Optimize compositing: set isOpaque for solid opaque backgrounds
-    style.mBorderRender.resolve(for: bounds)
-    guard let bg = style.mBackground else {return}
-    let hasOpaqueBackground = bg.color != nil && (bg.color!.cgColor.alpha >= 1.0) && bg.layers.isEmpty
-    let hasBoxShadow = !style.boxShadows.isEmpty
-
-    if hasOpaqueBackground && !style.mBorderRender.hasRadii() && !hasBoxShadow {
-      isOpaque = true
-    } else {
-      isOpaque = false
-    }
+    guard style.mBackground != nil else { return }
+    updateOpacity()
 
     // Never rasterize: it flattens the sublayer subtree into an offscreen bitmap
     // that gets resampled when composited, softening child text. draw(_:) already
