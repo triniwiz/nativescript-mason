@@ -803,11 +803,16 @@ class Input @JvmOverloads constructor(
   }
 
   // The hint is drawn with the view's own paint and gravity, not the spans syncTextStyle applies to the text.
+  // So is text the user types: syncTextStyle's spans end where the value did, and an emptied field has
+  // none, so without the CSS color on the view typed characters take the theme's default instead. The
+  // caret is synced here too, since the first color arrives before onChange is listening.
   private fun syncHintStyle() {
     val attributes = node.getDefaultAttributes()
     attributes.fontSize?.takeIf { it > 0 }?.let {
       textInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, it * resources.displayMetrics.density)
     }
+    attributes.color?.let { textInput.setTextColor(it) }
+    textInput.cursorPaint.color = style.resolvedCaretColor
     val face = attributes.font
     val typeface = face?.resolvedTypeface
     if (face != null && typeface != null) {

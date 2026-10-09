@@ -5299,17 +5299,18 @@ class Style internal constructor(@Transient internal var node: Node) {
       )
     }
 
+  // caret-color inherits, but `auto` (the initial value) inherits as `auto` and means this element's
+  // own currentColor - not the color of whichever ancestor the inheritance chain ends at.
   internal val resolvedCaretColor: Int
+    get() = explicitCaretColor ?: resolvedColor
+
+  // The nearest explicit caret-color, here or inherited. The JS setter stores `auto` as SET with 0.
+  private val explicitCaretColor: Int?
     get() {
-      val state = values.get(StyleKeys.CARET_COLOR_STATE)
-      return if (state == StyleState.SET) {
-        values.getInt(StyleKeys.CARET_COLOR)
-      } else if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedCaretColor ?: resolvedColor
-      } else {
-        // auto / unset → fall back to currentColor (text color)
-        resolvedColor
+      if (values.get(StyleKeys.CARET_COLOR_STATE) == StyleState.SET) {
+        return values.getInt(StyleKeys.CARET_COLOR).takeIf { it != 0 }
       }
+      return parentStyleWithTextValues?.explicitCaretColor
     }
 
   internal val resolvedWordSpacing: Float
