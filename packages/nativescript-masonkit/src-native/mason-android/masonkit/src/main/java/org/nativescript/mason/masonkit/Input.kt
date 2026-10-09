@@ -20,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.RadioButton
 import android.widget.SeekBar
@@ -59,6 +60,18 @@ class Input @JvmOverloads constructor(
   override lateinit var node: Node
     private set
 
+  // As in core's TextField, the hint keeps the theme's colors unless CSS sets placeholder-color.
+  val placeholderTextColors: ColorStateList
+    get() = textInput.hintTextColors
+
+  fun setPlaceholderTextColor(color: Int) {
+    textInput.setHintTextColor(color)
+  }
+
+  fun setPlaceholderTextColor(colors: ColorStateList) {
+    textInput.setHintTextColor(colors)
+  }
+
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach {
       it.shader = null
@@ -86,6 +99,7 @@ class Input @JvmOverloads constructor(
 
 
   private val beforeFilter = InputFilter { source, start, end, dest, dstart, dend ->
+    if (textInput.settingText) return@InputFilter null
     val event = InputEvent(
       type = "beforeinput",
       data = source?.toString(),
@@ -236,6 +250,7 @@ class Input @JvmOverloads constructor(
     CheckBox(context).apply {
       setCheckboxColors(this)
       setOnCheckedChangeListener { checkBox, isChecked ->
+        if (settingChecked) return@setOnCheckedChangeListener
         val before = InputEvent(
           type = "beforeinput",
           data = isChecked,
@@ -247,10 +262,11 @@ class Input @JvmOverloads constructor(
         node.mason.dispatch(before)
 
         if (before.defaultPrevented) {
-          checkBox.isChecked = !isChecked
+          setCheckedWidget(!isChecked)
           return@setOnCheckedChangeListener
         }
 
+        checkedState = isChecked
         node.mason.dispatch(
           InputEvent("input", isChecked, Event.InputType.InsertReplacementText.value).apply {
             target = this@Input
@@ -288,14 +304,11 @@ class Input @JvmOverloads constructor(
       }
 
       setOnCheckedChangeListener { _, isChecked ->
+        if (settingChecked) return@setOnCheckedChangeListener
+        checkedState = isChecked
         if (isChecked) {
-          node.mason.dispatch(
-            InputEvent(
-              "change", true
-            ).apply {
-              target = this@Input
-            }
-          )
+          node.mason.dispatch(InputEvent("input", true).apply { target = this@Input })
+          node.mason.dispatch(InputEvent("change", true).apply { target = this@Input })
         }
       }
     }
@@ -303,6 +316,8 @@ class Input @JvmOverloads constructor(
 
   internal val rangeInput: SeekBar by lazy {
     SeekBar(context).apply {
+      // A range starts at its midpoint, as on the web.
+      progress = max / 2
       isClickable = true
       isFocusable = true
       thumb = AppCompatResources.getDrawable(context, R.drawable.seekbar_thumb_web)
@@ -518,40 +533,66 @@ class Input @JvmOverloads constructor(
   private var initializing = true
   var type: Type = Type.Text
     set(value) {
-      // Capture the current value (read against the old type/widget) before
-      // switching - setupType() tears down and rebuilds the underlying
-      // native widget, so anything already set (e.g. a `value` applied while
-      // the default Text widget was still active) would otherwise be lost
-      // when the real type is applied right after.
-      val previousValue = if (!initializing) this.value else null
-      field = value
       if (initializing) {
+        field = value
         return
       }
-      setupType()
+      if (field == value) return
+      val previous = field
+      // As on the web, the value survives a type change; a checkbox or radio keeps its own.
+      val previousValue = if (!previous.isCheckable && !value.isCheckable) this.value else null
+      field = value
+      setupType(previous)
       previousValue?.let { this.value = it }
     }
 
-  private fun setupType(initial: Boolean = false) {
-    if (!initial) {
+  private enum class UaStyle { Field, Button, Swatch, Bare }
+
+  private val Type.isTextLike: Boolean
+    get() = when (this) {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> true
+      else -> false
+    }
+
+  private val Type.isCheckable: Boolean
+    get() = this == Type.Checkbox || this == Type.Radio
+
+  private val Type.uaStyle: UaStyle
+    get() = when {
+      isTextLike -> UaStyle.Field
+      this == Type.Button || this == Type.Submit || this == Type.Reset -> UaStyle.Button
+      this == Type.Color -> UaStyle.Swatch
+      else -> UaStyle.Bare
+    }
+
+  // The UA defaults act like a user-agent stylesheet: they change only with the kind of
+  // control, so switching text to password keeps the author's padding and border.
+  private fun applyUaStyle() {
+    val kind = type.uaStyle
+    configure {
+      style.paddingCss = if (kind == UaStyle.Field) "1 2" else "0"
+      style.border = if (kind == UaStyle.Bare) "" else "1"
+      style.borderRadius = if (kind == UaStyle.Field || kind == UaStyle.Button) "4" else ""
+      style.textAlign = when (kind) {
+        UaStyle.Field -> TextAlign.Left
+        UaStyle.Button -> TextAlign.Center
+        else -> TextAlign.Auto
+      }
+    }
+  }
+
+  /** [previous] is null on construction. */
+  private fun setupType(previous: Type? = null) {
+    if (previous != null) {
       removeAllViews()
       style.inBatch = true
-      style.border = ""
-      style.borderRadius = ""
-      style.textAlign = TextAlign.Auto
+    }
+    val kindChanged = if (previous == null) type.uaStyle != UaStyle.Bare else previous.uaStyle != type.uaStyle
+    if (kindChanged) {
+      applyUaStyle()
     }
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
-        configure {
-          val x = (2 * resources.displayMetrics.density).toInt()
-          val y = (resources.displayMetrics.density).toInt()
-          textInput.setPadding(
-            x, y, x, y
-          )
-          style.border = "1"
-          style.borderRadius = "4"
-          style.textAlign = TextAlign.Left
-        }
         textInput.imeOptions = EditorInfo.IME_ACTION_DONE
         when (type) {
           Type.Email -> {
@@ -605,28 +646,11 @@ class Input @JvmOverloads constructor(
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
           }
         }
+        syncHintStyle()
         addView(textInput)
       }
 
       Type.Button, Type.Submit, Type.Reset -> {
-        configure {
-          (2 * resources.displayMetrics.density).toInt()
-          (resources.displayMetrics.density).toInt()
-//          textInput.setPadding(
-//            x, y, x, y
-//          )
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
-          style.border = "1"
-          style.borderRadius = "4"
-          style.textAlign = TextAlign.Center
-        }
-
         if (type == Type.Submit) {
           addView(
             submitInput, -2, -2
@@ -639,6 +663,7 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Checkbox -> {
+        setCheckedWidget(checkedState)
         addView(checkBoxInput)
       }
 
@@ -647,6 +672,7 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Radio -> {
+        setCheckedWidget(checkedState)
         addView(radioInput)
       }
 
@@ -655,21 +681,6 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Color -> {
-        configure {
-          (2 * resources.displayMetrics.density).toInt()
-          (resources.displayMetrics.density).toInt()
-//          textInput.setPadding(
-//            x, y, x, y
-//          )
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
-          style.border = "1"
-        }
         addView(colorInput)
       }
 
@@ -703,7 +714,7 @@ class Input @JvmOverloads constructor(
     node.style.values.put(StyleKeys.ITEM_IS_REPLACED, 1.toByte())
     node.style.display = Display.InlineBlock
     this.type = type
-    this.setupType(true)
+    this.setupType()
     node.style.setStyleChangeListener(this)
     initializing = false
   }
@@ -775,13 +786,52 @@ class Input @JvmOverloads constructor(
       attributes.lineHeight = null
     }
     TextNode.applyAttributes(text, 0, text.length, attributes)
-    view.setText(text, TextView.BufferType.SPANNABLE)
+    if (view is EditText) {
+      // A restyle keeps the caret; a new value puts it at the end, as on the web.
+      val restyle = view.text.toString() == value
+      val start = view.selectionStart
+      val end = view.selectionEnd
+      if (view is TextInput) view.setTextFromCode(text, TextView.BufferType.SPANNABLE) else view.setText(text, TextView.BufferType.SPANNABLE)
+      if (restyle && start >= 0) {
+        view.setSelection(start.coerceAtMost(text.length), end.coerceAtMost(text.length))
+      } else {
+        view.setSelection(text.length)
+      }
+    } else {
+      view.setText(text, TextView.BufferType.SPANNABLE)
+    }
+  }
+
+  // The hint is drawn with the view's own paint and gravity, not the spans syncTextStyle applies to the text.
+  private fun syncHintStyle() {
+    val attributes = node.getDefaultAttributes()
+    attributes.fontSize?.takeIf { it > 0 }?.let {
+      textInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, it * resources.displayMetrics.density)
+    }
+    val face = attributes.font
+    val typeface = face?.resolvedTypeface
+    if (face != null && typeface != null) {
+      val bold = if (TextNode.isBold(face)) android.graphics.Typeface.BOLD else 0
+      val italic = if (TextNode.isItalic(face)) android.graphics.Typeface.ITALIC else 0
+      textInput.setTypeface(typeface, bold or italic)
+    } else {
+      // Also undoes the monospace face that setInputType forces for passwords.
+      textInput.typeface = android.graphics.Typeface.DEFAULT
+    }
+    val horizontal = when (style.textAlign) {
+      TextAlign.Center -> android.view.Gravity.CENTER_HORIZONTAL
+      TextAlign.Right, TextAlign.End -> android.view.Gravity.END
+      else -> android.view.Gravity.START
+    }
+    textInput.gravity = horizontal or android.view.Gravity.CENTER_VERTICAL
   }
 
   var value: String
     set(value) {
       when (type) {
         Type.Tel, Type.Url, Type.Text, Type.Email, Type.Password, Type.Number, Type.Search, Type.Time, Type.DatetimeLocal, Type.Month, Type.Week -> {
+          // Two-way bindings write back what was just typed; re-setting it would reset the caret.
+          if (textInput.text.toString() == value) return
           syncTextStyle(value, textInput)
         }
 
@@ -794,7 +844,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Checkbox -> {
-          checkBoxInput.isChecked = value == "true"
+          checkableValue = value
         }
 
         Type.Date -> {
@@ -802,13 +852,13 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Radio -> {
-          radioInput.isChecked = value == "true"
+          checkableValue = value
         }
 
         Type.Range -> {
-          value.toIntOrNull()?.let {
-            rangeInput.progress = it
-          }
+          // As on the web: a number rounds to the step and clamps, anything else is the midpoint.
+          val number = value.trim().toDoubleOrNull()?.takeIf { it.isFinite() }
+          rangeInput.progress = number?.let { Math.round(it).toInt().coerceIn(0, rangeInput.max) } ?: (rangeInput.max / 2)
         }
 
         Type.Color -> {
@@ -840,21 +890,7 @@ class Input @JvmOverloads constructor(
           submitInput.text.toString()
         }
 
-        Type.Checkbox -> {
-          if (checkBoxInput.isChecked) {
-            "true"
-          } else {
-            "false"
-          }
-        }
-
-        Type.Radio -> {
-          if (radioInput.isChecked) {
-            "true"
-          } else {
-            "false"
-          }
-        }
+        Type.Checkbox, Type.Radio -> checkableValue
 
         Type.Date -> {
           dateInput.value
@@ -928,20 +964,32 @@ class Input @JvmOverloads constructor(
       }
     }
 
-  var checked: Boolean = false
-    set(value) {
-      field = value
+  // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
+  private var checkedState = false
+
+  // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
+  private var checkableValue = "on"
+  private var settingChecked = false
+
+  // Setting `checked` from code fires no events, as on the web.
+  private fun setCheckedWidget(value: Boolean) {
+    settingChecked = true
+    try {
       when (type) {
-        Type.Checkbox -> {
-          checkBoxInput.isChecked = value
-        }
-
-        Type.Radio -> {
-          radioInput.isChecked = value
-        }
-
+        Type.Checkbox -> checkBoxInput.isChecked = value
+        Type.Radio -> radioInput.isChecked = value
         else -> {}
       }
+    } finally {
+      settingChecked = false
+    }
+  }
+
+  var checked: Boolean
+    get() = checkedState
+    set(value) {
+      checkedState = value
+      setCheckedWidget(value)
     }
 
   var size: Int = 20
@@ -1075,6 +1123,7 @@ class Input @JvmOverloads constructor(
     var sizeHeight = 150f
 
     var ch: Float? = null
+    var fontScale = 1f
     when (type) {
       Type.Checkbox -> {
         val dim = TypedValue.applyDimension(
@@ -1141,7 +1190,9 @@ class Input @JvmOverloads constructor(
       }
 
       else -> {
-        ch = style.paint.measureText("0")
+        // style.paint is fixed at the default size for non-text views.
+        fontScale = style.resolvedFontSize.toFloat() / Constants.DEFAULT_FONT_SIZE
+        ch = style.paint.measureText("0") * fontScale
       }
     }
 
@@ -1160,7 +1211,7 @@ class Input @JvmOverloads constructor(
     } else {
       ch?.let {
         val fm = style.paint.fontMetrics
-        sizeHeight = fm.descent - fm.ascent
+        sizeHeight = (fm.descent - fm.ascent) * fontScale
       }
     }
 
@@ -1187,6 +1238,7 @@ class Input @JvmOverloads constructor(
           textInput.cursorPaint.textSize = style.resolvedFontSize.toFloat()
           textInput.cursorPaint.color = style.resolvedCaretColor
           syncTextStyle(textInput.text.toString(), textInput)
+          syncHintStyle()
         } else if (caretColorChanged) {
           textInput.cursorPaint.color = style.resolvedCaretColor
           textInput.invalidate()

@@ -5,6 +5,7 @@
 #include "Invalidation.h"
 #include "VisualState.h"
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -23,12 +24,16 @@ namespace winrt::NativeScript::Mason::implementation
         void Type(int32_t value);
         hstring Value() const;
         void Value(hstring const& value);
+        bool Checked() const noexcept { return m_checked; }
+        void Checked(bool value);
         hstring Placeholder() const { return m_placeholder; }
         void Placeholder(hstring const& value);
         bool Multiple() const noexcept { return m_multiple; }
         void Multiple(bool value) { m_multiple = value; }
         hstring Accept() const { return m_accept; }
         void Accept(hstring const& value) { m_accept = value; }
+        void SetPlaceholderColor(uint32_t argb);
+        void ClearPlaceholderColor();
 
         int64_t AddEventListener(hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
         bool RemoveEventListener(hstring const& type, int64_t id);
@@ -39,7 +44,11 @@ namespace winrt::NativeScript::Mason::implementation
     private:
         void Rebuild();
         void ApplyValue(hstring const& value);
+        void ApplyChecked();
         void ApplyPlaceholder(hstring const& value);
+        void ApplyPlaceholderColor();
+        void StripChrome();
+        float FieldWidth();
         void SyncOrientation();
         void SyncTextStyle(bool force);
         winrt::Microsoft::UI::Xaml::FrameworkElement BuildColor();
@@ -53,6 +62,10 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Microsoft::UI::Xaml::FrameworkElement m_control{ nullptr };
         int32_t m_type{ 0 };
         hstring m_value;
+        hstring m_checkableValue{ L"on" };
+        bool m_checked{ false };
+        std::optional<uint32_t> m_placeholderColor;
+        float m_fieldWidth{ -1.0f };
         hstring m_placeholder;
         bool m_multiple{ false };
         hstring m_accept;

@@ -29,3 +29,19 @@
 .forms-hover:hover {
   background-color: #74b9ff;
 }
+
+.inputs-ph::placeholder {
+  color: #ff0000;
+}
+
+.inputs-ph-blue {
+  placeholder-color: #0984e3;
+}
+
+.inputs-center {
+  text-align: center;
+}
+
+.inputs-right {
+  text-align: right;
+}

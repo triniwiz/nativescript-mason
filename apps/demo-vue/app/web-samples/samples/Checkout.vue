@@ -26,7 +26,7 @@
         </section>
 
         <section class="promo-row">
-          <Input v-model="promo" class="promo-input" hint="Promo code (try MASON10)" />
+          <Input v-model="promo" class="promo-input" placeholder="Promo code (try MASON10)" />
           <button class="promo-button" @tap="applyPromo">Apply</button>
         </section>
         <p v-if="promoMessage" class="promo-message">{{ promoMessage }}</p>

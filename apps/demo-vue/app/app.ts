@@ -1,4 +1,5 @@
 import { createApp } from 'nativescript-vue';
+import { isAndroid } from '@nativescript/core';
 import { View } from '@triniwiz/nativescript-masonkit';
 import { installMasonKit } from '@triniwiz/nativescript-masonkit/vue';
 import Home from './components/Home.vue';
@@ -9,4 +10,7 @@ View.preflight = true;
 
 installMasonKit();
 
-createApp(Home).start();
+const app = createApp(Home);
+// `android.systemIcon` as a template attribute throws on iOS, whose ActionItem has no `android`.
+app.config.globalProperties.$backIcon = isAndroid ? { 'android.systemIcon': 'ic_menu_back' } : {};
+app.start();

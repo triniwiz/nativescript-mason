@@ -784,6 +784,10 @@ extension Mason.MasonEventTarget {
   @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
     @objc get
   }
+  @objc @_Concurrency.MainActor @preconcurrency public var checked: Swift.Bool {
+    @objc get
+    @objc set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var type: Mason.MasonInputType {
     @objc get
     @objc set
@@ -809,6 +813,10 @@ extension Mason.MasonEventTarget {
     @objc set
   }
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
+  @objc @_Concurrency.MainActor @preconcurrency public var placeholderColor: UIKit.UIColor? {
+    @objc get
+    @objc set
+  }
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @objc deinit
 }

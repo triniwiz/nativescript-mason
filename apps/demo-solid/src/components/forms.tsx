@@ -18,7 +18,7 @@ const FIELDS = [
   { type: 'time', value: '09:30' },
   { type: 'color', value: '#6c5ce7' },
   { type: 'file', accept: 'image/*,.pdf', multiple: true },
-  { type: 'checkbox', value: 'true' },
+  { type: 'checkbox', checked: true },
   { type: 'radio' },
   { type: 'submit' },
   { type: 'reset' },
@@ -60,7 +60,7 @@ export default function Forms() {
               {(f) => (
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <span style={{ width: 80, fontSize: 13, color: MUTED }} text={f.type} />
-                  <input type={f.type} value={(f as any).value ?? ''} placeholder={(f as any).placeholder ?? ''} accept={(f as any).accept} multiple={(f as any).multiple} style={{ color: '#1a1a2e', ...((f as any).style ?? {}) }} />
+                  <input type={f.type} value={(f as any).value ?? ''} placeholder={(f as any).placeholder ?? ''} checked={(f as any).checked} accept={(f as any).accept} multiple={(f as any).multiple} style={{ color: '#1a1a2e', ...((f as any).style ?? {}) }} />
                 </div>
               )}
             </For>
