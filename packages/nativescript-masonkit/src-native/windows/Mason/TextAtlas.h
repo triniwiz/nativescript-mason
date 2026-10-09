@@ -52,6 +52,7 @@ namespace mason_atlas
         uint32_t color{ 0xFF000000 };
         std::vector<mason_dwrite::Span> extras;
         std::vector<mason_dwrite::Shadow> shadows;
+        std::vector<uint32_t> softHyphens;
         // DIPs from the slot's top-left to the layout's origin. Vertical text (1 vertical-rl, 2
         // vertical-lr) is turned 90° clockwise: the origin is where its first line starts, for
         // vertical-lr the left of the line stack.
@@ -433,6 +434,69 @@ namespace mason_atlas
         }
     }
 
+    inline void DrawHyphens(Atlas& a, ID2D1DeviceContext* context, IDWriteTextLayout* layout, float ox, float oy, Sprite const* s)
+    {
+        UINT32 count = 0;
+        layout->GetLineMetrics(nullptr, 0, &count);
+        std::vector<DWRITE_LINE_METRICS> lines(count);
+        if (count < 2 || FAILED(layout->GetLineMetrics(lines.data(), count, &count))) return;
+        auto* factory = mason_dwrite::Factory();
+        if (!factory) return;
+        UINT32 start = 0;
+        float top = 0.0f;
+        for (UINT32 i = 0; i < count; ++i)
+        {
+            auto const& line = lines[i];
+            const UINT32 visible = line.length - line.trailingWhitespaceLength;
+            const UINT32 last = start + visible - 1;
+            if (i + 1 < count && visible > 0 && std::binary_search(s->softHyphens.begin(), s->softHyphens.end(), last))
+            {
+                FLOAT x = 0.0f, y = 0.0f;
+                DWRITE_HIT_TEST_METRICS hit{};
+                layout->HitTestTextPosition(last, FALSE, &x, &y, &hit);
+                winrt::com_ptr<IDWriteFontCollection> collection;
+                layout->GetFontCollection(last, collection.put());
+                UINT32 nameLength = 0;
+                layout->GetFontFamilyNameLength(last, &nameLength);
+                std::wstring family(nameLength + 1, L'\0');
+                layout->GetFontFamilyName(last, family.data(), nameLength + 1);
+                family.resize(nameLength);
+                DWRITE_FONT_WEIGHT weight{};
+                DWRITE_FONT_STYLE style{};
+                DWRITE_FONT_STRETCH stretch{};
+                FLOAT size = 0.0f;
+                layout->GetFontWeight(last, &weight);
+                layout->GetFontStyle(last, &style);
+                layout->GetFontStretch(last, &stretch);
+                layout->GetFontSize(last, &size);
+                winrt::com_ptr<IDWriteTextFormat> format;
+                winrt::com_ptr<IDWriteTextLayout> hyphen;
+                if (FAILED(factory->CreateTextFormat(family.c_str(), collection.get(), weight, style, stretch, size, L"en-us", format.put()))
+                    || FAILED(factory->CreateTextLayout(L"-", 1, format.get(), mason_dwrite::kUnbounded, mason_dwrite::kUnbounded, hyphen.put())))
+                {
+                    start += line.length;
+                    top += line.height;
+                    continue;
+                }
+                DWRITE_LINE_METRICS own{};
+                UINT32 one = 0;
+                hyphen->GetLineMetrics(&own, 1, &one);
+                DWRITE_TEXT_METRICS m{};
+                hyphen->GetMetrics(&m);
+                uint32_t argb = s->color;
+                for (auto const& [range, color] : s->colors)
+                {
+                    if (last >= range.startPosition && last < range.startPosition + range.length) argb = color;
+                }
+                const float hx = (hit.bidiLevel & 1) ? x - m.widthIncludingTrailingWhitespace : x;
+                context->DrawTextLayout(D2D1::Point2F(ox + hx, oy + top + line.baseline - own.baseline), hyphen.get(), BrushFor(a, context, argb),
+                    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            }
+            start += line.length;
+            top += line.height;
+        }
+    }
+
     inline HRESULT Draw(Atlas& a, Region const& region)
     {
         auto interop = region.page->surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
@@ -495,6 +559,7 @@ namespace mason_atlas
                     }
                 }
                 context->DrawTextLayout(D2D1::Point2F(s->originX, s->originY), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                if (!s->softHyphens.empty()) DrawHyphens(a, context.get(), layout, s->originX, s->originY, s);
                 DrawDecorations(a, context.get(), layout, s->originX, s->originY, scale, s->extras);
             }
         }

@@ -128,6 +128,7 @@ namespace winrt::NativeScript::Mason::implementation
             int32_t fontStretch{ 0 };
             float wordSpacing{ 0.0f };
             winrt::hstring features{};
+            uint8_t hyphens{ 0 };
             bool operator==(Resolved const&) const = default;
         };
 
@@ -347,6 +348,8 @@ namespace winrt::NativeScript::Mason::implementation
         int32_t m_fontStretch{ 0 };
         bool m_hasWordSpacing{ false };
         float m_wordSpacing{ 0.0f };
+        bool m_hasHyphens{ false };
+        uint8_t m_hyphens{ 0 };
         bool m_hasFeatures{ false };
         winrt::hstring m_features{};
         bool m_rtl{ false };

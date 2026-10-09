@@ -28,6 +28,7 @@
 #include "BufferUtil.h"
 #include "TextAtlas.h"
 #include "TextAutomationPeer.h"
+#include "Hyphenation.h"
 #include "Css.h"
 #include "Events.h"
 #include "Node.h"
@@ -1011,6 +1012,8 @@ namespace winrt::NativeScript::Mason::implementation
         m_fontStretch = u8(592) ? i32(588) : 0;                              // FONT_STRETCH (% x 100) / 592
         m_hasWordSpacing = u8(587) && u8(586) != 1;                           // WORD_SPACING 582, type 586 (0 px, 2 normal) / 587
         m_wordSpacing = m_hasWordSpacing && u8(586) == 0 ? f32(582) : 0.0f;
+        m_hasHyphens = u8(576) != 0;
+        m_hyphens = m_hasHyphens ? u8(575) : 0;
         {
             auto* node = winrt::get_self<implementation::Node>(m_node);
             m_rtl = mason_node_get_direction(node->MasonPtr(), node->NodePtr()) != 0;
@@ -1174,6 +1177,7 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_letterSpacingPx != 0.0) parent.letterSpacing = m_letterSpacingPx;
         if (m_fontStretch > 0) parent.fontStretch = m_fontStretch;
         if (m_hasWordSpacing) parent.wordSpacing = m_wordSpacing;
+        if (m_hasHyphens) parent.hyphens = m_hyphens;
         if (m_hasFeatures) parent.features = m_features;
         // Not inherited in CSS, but an ancestor's line is drawn through its descendants' text.
         parent.decorations = parent.decorations | m_decorations;
@@ -1220,6 +1224,7 @@ namespace winrt::NativeScript::Mason::implementation
             if (!b.isBreak)
             {
                 b.text = Transformed(impl->RunText(), format.transform);
+                if (mason_hyphen::Needed(b.text, format.hyphens)) b.text = winrt::hstring{ mason_hyphen::Apply(b.text, format.hyphens) };
                 b.format = format;
                 if (impl->HasColor()) b.format.color = impl->RunColor();
                 if (impl->HasFontSize()) b.format.fontSize = impl->RunFontSize();
@@ -1619,6 +1624,13 @@ namespace winrt::NativeScript::Mason::implementation
             }
             inkTop -= decoration;
             inkBottom += decoration;
+            if (wrap && c.paragraph.text.find(mason_hyphen::kSoftHyphen) != std::wstring::npos)
+            {
+                float size = c.paragraph.fontSize;
+                for (auto const& span : c.paragraph.spans) size = (std::max)(size, span.fontSize);
+                inkLeft -= size * 0.6f;
+                inkRight += size * 0.6f;
+            }
         }
         if (inkRight <= inkLeft || inkBottom <= inkTop || metrics.lineCount == 0)
         {
@@ -1682,6 +1694,14 @@ namespace winrt::NativeScript::Mason::implementation
             if ((span.background >> 24) != 0 || span.decoration) sprite.extras.push_back(span);
         }
         sprite.shadows = vertical ? std::vector<mason_dwrite::Shadow>{} : c.paragraph.shadows;
+        sprite.softHyphens.clear();
+        if (wrap && !vertical)
+        {
+            for (uint32_t i = 0; i < c.paragraph.text.size(); ++i)
+            {
+                if (c.paragraph.text[i] == mason_hyphen::kSoftHyphen) sprite.softHyphens.push_back(i);
+            }
+        }
         sprite.originX = next.originX;
         sprite.originY = next.originY;
         sprite.vertical = vertical;
@@ -1701,7 +1721,7 @@ namespace winrt::NativeScript::Mason::implementation
     winrt::hstring Text::AccessibleText() const
     {
         std::wstring text = m_measureCache->paragraph.text;
-        std::erase(text, L'\uFFFC');
+        std::erase_if(text, [](wchar_t ch) { return ch == L'\uFFFC' || ch == mason_hyphen::kSoftHyphen || ch == mason_hyphen::kWordJoiner; });
         return winrt::hstring{ text };
     }
 
