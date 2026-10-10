@@ -1451,6 +1451,7 @@ public class TextEngine: NSObject {
     let localOuter = CGRect(origin: .zero, size: layoutBounds.size)
     let bezier = UIBezierPath(rect: localOuter)
     bezier.usesEvenOddFillRule = true
+    var exclusions: [CGRect] = []
     let containerNode = node.parent ?? node
     let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
     let scale = CGFloat(NSCMason.scale)
@@ -1479,6 +1480,7 @@ public class TextEngine: NSObject {
           // Subtract layout origin to account for any left padding/inset applied to drawBounds
           rectForPath = CGRect(x: rectX - textViewOffset.x - layoutBounds.origin.x, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
         }
+        exclusions.append(rectForPath)
         bezier.append(UIBezierPath(rect: rectForPath))
       }
     }
@@ -1501,7 +1503,20 @@ public class TextEngine: NSObject {
     }
     #endif
 
-    let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
+    var frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
+
+    // CoreText's suggested size can be shorter than the frame it then needs: a line clamped by
+    // line-height (maximumLineHeight) that holds a taller inline box fits the suggestion but
+    // not the frame, which then drops it and nothing is drawn. Lay out in the height the view
+    // was given instead, growing the path downward so the lines keep their top-anchored places.
+    var originShift: CGFloat = 0
+    if CTFrameGetVisibleStringRange(frame).length < text.length && drawBounds.height > localOuter.height {
+      originShift = drawBounds.height - localOuter.height
+      let taller = UIBezierPath(rect: CGRect(x: 0, y: -originShift, width: localOuter.width, height: drawBounds.height))
+      taller.usesEvenOddFillRule = true
+      for exclusion in exclusions { taller.append(UIBezierPath(rect: exclusion)) }
+      frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
+    }
 
     context.saveGState()
     context.clip(to: bounds)
@@ -1512,6 +1527,10 @@ public class TextEngine: NSObject {
 
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
+    // Origins count from the path's bottom edge; put them back on the original path's.
+    if originShift > 0 {
+      for i in origins.indices { origins[i].y -= originShift }
+    }
 
     // Re-anchor the vertical baseline using the font's true metrics, not
     // CoreText's frame positioning (driven by the possibly-clamped line-height).
@@ -1961,7 +1980,18 @@ public class TextEngine: NSObject {
             }
           }
           if !lastIsAttachment {
-            composed.append(NSAttributedString(string: " "))
+            // The space keeps the attributes of the text before it, as a space between
+            // two runs of text does; bare, it has no font, colour or paragraph style.
+            var sepAttrs = node.getDefaultAttributes()
+            if lastIndex >= 0 {
+              let prev = composed.attributes(at: lastIndex, effectiveRange: nil)
+              if prev[NSAttributedString.Key("BrSpan")] == nil {
+                sepAttrs = prev
+              }
+            }
+            if sepAttrs[.font] == nil { sepAttrs[.font] = node.getDefaultAttributes()[.font] }
+            if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = node.getDefaultAttributes()[.paragraphStyle] }
+            composed.append(NSAttributedString(string: " ", attributes: sepAttrs))
           }
         }
         composed.append(frag)

@@ -12,6 +12,7 @@
 		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
 		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
 		4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */; };
+		1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */; };
 		1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */; };
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -146,6 +147,7 @@
 		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
 		B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritableStyleValuesTests.swift; sourceTree = "<group>"; };
+		1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineBoxAfterTextTests.swift; sourceTree = "<group>"; };
 		AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyToViewPerfTests.swift; sourceTree = "<group>"; };
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 				A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */,
 				A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */,
 				B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */,
+				1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */,
 				AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */,
 				B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */,
 			);
@@ -731,6 +734,7 @@
 				A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */,
 				4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */,
+				1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */,
 				1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */,
 				B4D8E1F2A3C60011AABBCD11 /* CoreLayoutInteropTests.swift in Sources */,
 			);
