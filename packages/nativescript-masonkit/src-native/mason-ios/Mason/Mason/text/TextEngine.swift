@@ -1532,9 +1532,17 @@ public class TextEngine: NSObject {
       if linesCount == 1 || fixedLineBox {
         let baselineOffset = (text.attribute(.baselineOffset, at: 0, effectiveRange: nil) as? CGFloat) ?? 0
         // An inline box taller than the font raises the line's ascent; keep the box inside.
+        // Measure the boxes' own runs: the line's ascent also grows with a line-height
+        // taller than the font (minimumLineHeight), and plain text must stay centred then.
         let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
         var lineAscent: CGFloat = 0
-        CTLineGetTypographicBounds(line0, &lineAscent, nil, nil)
+        for run in CTLineGetGlyphRuns(line0) as! [CTRun] {
+          let runAttributes = CTRunGetAttributes(run) as NSDictionary
+          guard runAttributes[kCTRunDelegateAttributeName as String] != nil else { continue }
+          var runAscent: CGFloat = 0
+          CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, nil, nil)
+          lineAscent = max(lineAscent, runAscent)
+        }
         let boxRaised = lineAscent > fontAscent + 0.5
         var lineBounds = drawBounds
         if fixedLineBox { lineBounds.size.height = maxLineHeight }
