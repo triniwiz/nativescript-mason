@@ -77,8 +77,15 @@ extension Background {
     }
   }
 
+  /// Paint one layer's image or gradient, positioned in `box` per its origin and tiled across
+  /// `paintRect`, without the clip, color and blend `drawAll` adds. Masks render through this;
+  /// `caLayer` is redisplayed when a remote image arrives.
+  func drawLayerContent(_ layer: BackgroundLayer, caLayer: CALayer?, in context: CGContext, paintRect: CGRect, box: CGRect) {
+    drawLayer(layer, on: nil, on: caLayer, in: context, paintRect: paintRect, area: box.inset(by: boxInsets(layer.origin)))
+  }
+
   /// Border (and padding) insets of `box` in points, from the node's computed layout (device px).
-  private func boxInsets(_ box: BackgroundClip) -> UIEdgeInsets {
+  func boxInsets(_ box: BackgroundClip) -> UIEdgeInsets {
     if box == .borderBox { return .zero }
     let scale = CGFloat(NSCMason.scale)
     let l = style.node.computedLayout
@@ -170,8 +177,13 @@ extension Background {
     if layer.shader == nil {
       let parsed = parseGradientStops(gradient.stops)
       if parsed.colors.isEmpty { return }
-      let (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
+      var (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
+      if gradient.repeating {
+        (colors, locations) = unrollRepeatingStops(colors, locations)
+      }
       layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations.isEmpty ? nil : locations)
+      layer.shaderColors = colors
+      layer.shaderLocations = locations
       layer.shaderWidth = width
       layer.shaderHeight = height
     }
@@ -198,6 +210,9 @@ extension Background {
         hypot(width - center.x, height - center.y)
       ].max() ?? max(width, height) / 2, 1)
       context.drawRadialGradient(shader, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: options)
+    case "conic":
+      drawConicGradient(context: context, colors: layer.shaderColors, locations: layer.shaderLocations,
+                        direction: gradient.direction, width: width, height: height)
     default:
       break
     }
@@ -341,6 +356,110 @@ func linearGradientPoints(direction: String?, width: CGFloat, height: CGFloat)
   }
 }
 
+/// A repeating gradient's stops tiled across 0...1: the first-to-last stop span repeats both
+/// ways, with colours interpolated at the two ends so one CGGradient draws the whole line.
+func unrollRepeatingStops(_ colors: [CGColor], _ locations: [CGFloat]) -> (colors: [CGColor], locations: [CGFloat]) {
+  guard colors.count >= 2, colors.count == locations.count, let first = locations.first, let last = locations.last else {
+    return (colors, locations)
+  }
+  let period = last - first
+  // Nothing to repeat; CSS paints a flat average, which the last stop approximates.
+  guard period > 1e-4 else { return (colors, locations) }
+  var outColors: [CGColor] = []
+  var outLocations: [CGFloat] = []
+  // A tiny span would mean thousands of stops; past this many the bands are sub-pixel anyway.
+  let maxStops = 4096
+  var k = Int(floor((0 - first) / period))
+  let kEnd = Int(ceil((1 - first) / period))
+  outer: while k <= kEnd {
+    let shift = CGFloat(k) * period
+    for i in 0..<colors.count {
+      if outColors.count >= maxStops { break outer }
+      outColors.append(colors[i])
+      outLocations.append(locations[i] + shift)
+    }
+    k += 1
+  }
+  var clippedColors: [CGColor] = [sampleGradient(outColors, outLocations, 0)]
+  var clippedLocations: [CGFloat] = [0]
+  for (c, l) in zip(outColors, outLocations) where l > 0 && l < 1 {
+    clippedColors.append(c)
+    clippedLocations.append(l)
+  }
+  clippedColors.append(sampleGradient(outColors, outLocations, 1))
+  clippedLocations.append(1)
+  return (clippedColors, clippedLocations)
+}
+
+/// The colour of a stop list at `t`, interpolated in sRGB like CGGradient.
+func sampleGradient(_ colors: [CGColor], _ locations: [CGFloat], _ t: CGFloat) -> CGColor {
+  guard let firstColor = colors.first, let lastColor = colors.last, let firstLoc = locations.first, let lastLoc = locations.last else {
+    return UIColor.clear.cgColor
+  }
+  if t <= firstLoc { return firstColor }
+  if t >= lastLoc { return lastColor }
+  for i in 1..<locations.count where t <= locations[i] {
+    let l0 = locations[i - 1], l1 = locations[i]
+    let f = l1 - l0 > 1e-9 ? (t - l0) / (l1 - l0) : 1
+    var r0: CGFloat = 0, g0: CGFloat = 0, b0: CGFloat = 0, a0: CGFloat = 0
+    var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+    UIColor(cgColor: colors[i - 1]).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
+    UIColor(cgColor: colors[i]).getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+    return CGColor(srgbRed: r0 + (r1 - r0) * f, green: g0 + (g1 - g0) * f, blue: b0 + (b1 - b0) * f, alpha: a0 + (a1 - a0) * f)
+  }
+  return lastColor
+}
+
+/// A conic gradient over a `width` x `height` tile. CoreGraphics has none, so it is drawn as
+/// thin wedges around the centre (about 2pt of arc each at the far corner).
+private func drawConicGradient(context: CGContext, colors: [CGColor], locations: [CGFloat], direction: String?, width: CGFloat, height: CGFloat) {
+  guard !colors.isEmpty else { return }
+  var from: Double = 0
+  var center = CGPoint(x: width / 2, y: height / 2)
+  if let dir = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    var rest = dir
+    var position: String? = nil
+    if let at = dir.range(of: "at "), at.lowerBound == dir.startIndex || dir[dir.index(before: at.lowerBound)] == " " {
+      position = String(dir[at.upperBound...]).trimmingCharacters(in: .whitespaces)
+      rest = String(dir[..<at.lowerBound])
+    }
+    let tokens = rest.split(separator: " ").map(String.init)
+    if let i = tokens.firstIndex(of: "from"), i + 1 < tokens.count, let turns = cssAngleInTurns(tokens[i + 1]) {
+      from = turns
+    }
+    if let position = position, !position.isEmpty {
+      center = resolvePositionKeywords(position, width: width, height: height)
+    }
+  }
+  let radius = [
+    hypot(center.x, center.y), hypot(width - center.x, center.y),
+    hypot(center.x, height - center.y), hypot(width - center.x, height - center.y)
+  ].max() ?? 1
+  let segments = max(90, min(2048, Int(ceil(2 * .pi * radius / 2))))
+  context.saveGState()
+  // Abutting wedges would show anti-aliased seams, so they overlap instead; copying
+  // inside a transparency layer keeps a translucent overlap from painting twice.
+  context.beginTransparencyLayer(auxiliaryInfo: nil)
+  context.setShouldAntialias(false)
+  context.setBlendMode(.copy)
+  for s in 0..<segments {
+    let t0 = CGFloat(s) / CGFloat(segments)
+    let t1 = CGFloat(s + 1) / CGFloat(segments)
+    // CSS: 0deg points up and angles run clockwise; y grows downward here.
+    let a0 = (Double(t0) + from) * 2 * .pi - .pi / 2
+    // Overlap the next wedge slightly so no pixel falls between the two.
+    let a1 = (Double(t1) + from) * 2 * .pi - .pi / 2 + 0.002
+    context.move(to: center)
+    context.addLine(to: CGPoint(x: center.x + radius * 1.5 * CGFloat(cos(a0)), y: center.y + radius * 1.5 * CGFloat(sin(a0))))
+    context.addLine(to: CGPoint(x: center.x + radius * 1.5 * CGFloat(cos(a1)), y: center.y + radius * 1.5 * CGFloat(sin(a1))))
+    context.closePath()
+    context.setFillColor(sampleGradient(colors, locations, (t0 + t1) / 2))
+    context.fillPath()
+  }
+  context.endTransparencyLayer()
+  context.restoreGState()
+}
+
 /// Resolve the centre point of a radial-gradient from the CSS direction string.
 ///
 /// Accepted formats: "circle at top left", "ellipse at 30% 70%",
@@ -351,8 +470,8 @@ func resolveRadialGradientCenter(direction: String?, width: CGFloat, height: CGF
     return defaultCenter
   }
 
-  // Extract the portion after "at "
-  guard let atRange = dir.range(of: " at ") else { return defaultCenter }
+  // Extract the portion after "at " (`at 30% 70%` alone has no shape before it)
+  guard let atRange = dir.hasPrefix("at ") ? dir.range(of: "at ") : dir.range(of: " at ") else { return defaultCenter }
   let positionStr = String(dir[atRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
   if positionStr.isEmpty { return defaultCenter }
 

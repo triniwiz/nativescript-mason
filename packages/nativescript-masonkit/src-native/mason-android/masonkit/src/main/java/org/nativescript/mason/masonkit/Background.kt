@@ -19,6 +19,7 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.util.Base64
 import android.view.View
@@ -387,10 +388,12 @@ enum class BackgroundRepeat(val value: String) {
 }
 
 data class Gradient(
-  val type: String,             // linear or radial
+  val type: String,             // linear, radial or conic
   val direction: String?,       // e.g., "to bottom"
   val stops: List<String>,      // color stops
   val interpolation: ColorInterpolation? = null,
+  /** `repeating-*-gradient`: the stop run tiles along the gradient line. */
+  val repeating: Boolean = false,
 )
 
 /** [currentColor] is the element's resolved CSS `color`, for SVG `currentColor` paints. */
@@ -607,6 +610,47 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
   }
 
   if (layer.shader == null) {
+    val type = gradient.type.lowercase()
+    val w = width.toFloat()
+    val h = height.toFloat()
+
+    // Geometry first: length stops ("10px") resolve against the gradient line
+    // (the ray, for radial), so its length must be known before the stops.
+    var x0 = 0f
+    var y0 = 0f
+    var x1 = 0f
+    var y1 = 0f
+    var radius = 0f
+    var fromDeg = 0f
+    val lineLength = when (type) {
+      "linear" -> {
+        val ep = resolveLinearGradientEndpoints(gradient.direction, w, h)
+        x0 = ep[0]; y0 = ep[1]; x1 = ep[2]; y1 = ep[3]
+        hypot(x1 - x0, y1 - y0)
+      }
+
+      "radial" -> {
+        val (cx, cy) = resolveRadialGradientCenter(gradient.direction, w, h)
+        x0 = cx; y0 = cy
+        // Radius must reach the farthest corner from the resolved centre.
+        radius = maxOf(
+          hypot((cx).toDouble(), (cy).toDouble()),
+          hypot((width - cx).toDouble(), (cy).toDouble()),
+          hypot((cx).toDouble(), (height - cy).toDouble()),
+          hypot((width - cx).toDouble(), (height - cy).toDouble())
+        ).toFloat().coerceAtLeast(1f)
+        radius
+      }
+
+      "conic" -> {
+        val geometry = resolveConicGeometry(gradient.direction, w, h)
+        x0 = geometry[0]; y0 = geometry[1]; fromDeg = geometry[2]
+        0f
+      }
+
+      else -> 0f
+    }
+
     val stopCount = gradient.stops.size
     val colorsArray = IntArray(stopCount)
     val positions = ArrayList<Float?>(stopCount)
@@ -615,45 +659,35 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
       val parts = splitTopLevelWhitespace(gradient.stops[index].trim())
       colorsArray[index] = parts.firstOrNull()?.let { parseColor(it) } ?: Color.TRANSPARENT
 
-      // "0", "50%" or "100%"
-      val posPart = parts.getOrNull(1)
-      val pos = posPart?.trimEnd('%')?.toFloatOrNull()
-      positions.add(
-        pos?.let {
-          when {
-            posPart.endsWith('%') -> it / 100f
-            it <= 1f -> it
-            else -> it / 100f
-          }.coerceIn(0f, 1f)
-        }
-      )
+      // "0", "50%", "100%", "10px", or an angle for conic gradients. A repeating
+      // gradient keeps out-of-range stops: they set the period.
+      val pos = parts.getOrNull(1)?.let { parseGradientStopPosition(it, type == "conic", lineLength) }
+      positions.add(if (gradient.repeating) pos else pos?.coerceIn(0f, 1f))
     }
 
     if (colorsArray.isEmpty()) return
-    val (shaderColors, positionsArray) = expandInterpolatedStops(
+    var (shaderColors, positionsArray) = expandInterpolatedStops(
       colorsArray, resolveStopPositions(positions), gradient.interpolation
     )
+    if (gradient.repeating) {
+      val repeated = repeatGradientStops(shaderColors, positionsArray)
+      shaderColors = repeated.first
+      positionsArray = repeated.second
+    }
+    // The platform shaders need two colours; a single stop is a solid fill.
+    if (shaderColors.size == 1) {
+      shaderColors = intArrayOf(shaderColors[0], shaderColors[0])
+      positionsArray = floatArrayOf(0f, 1f)
+    }
 
-    layer.shader = when (gradient.type.lowercase()) {
-      "linear" -> {
-        val ep = resolveLinearGradientEndpoints(
-          gradient.direction, width.toFloat(), height.toFloat()
-        )
-        LinearGradient(ep[0], ep[1], ep[2], ep[3], shaderColors, positionsArray, Shader.TileMode.CLAMP)
-      }
+    layer.shader = when (type) {
+      "linear" -> LinearGradient(x0, y0, x1, y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
 
-      "radial" -> {
-        val (cx, cy) = resolveRadialGradientCenter(gradient.direction, width.toFloat(), height.toFloat())
-        // Radius must reach the farthest corner from the resolved centre.
-        val radius = maxOf(
-          hypot((cx).toDouble(), (cy).toDouble()),
-          hypot((width - cx).toDouble(), (cy).toDouble()),
-          hypot((cx).toDouble(), (height - cy).toDouble()),
-          hypot((width - cx).toDouble(), (height - cy).toDouble())
-        ).toFloat().coerceAtLeast(1f)
-        RadialGradient(
-          cx, cy, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP
-        )
+      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP)
+
+      // SweepGradient starts at 3 o'clock; CSS conic starts at 12 o'clock, both clockwise.
+      "conic" -> SweepGradient(x0, y0, shaderColors, positionsArray).apply {
+        setLocalMatrix(Matrix().apply { setRotate(fromDeg - 90f, x0, y0) })
       }
 
       else -> null
@@ -688,6 +722,117 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     canvas.restoreToCount(save)
   }
   layer.blendMode.clear(gradientPaint)
+}
+
+/**
+ * One colour-stop position as a fraction of the gradient line: a percentage, a length over
+ * [lineLength] (device px), or an angle over a full turn for conic gradients. A bare number
+ * <= 1 is a fraction, else a percentage.
+ */
+private fun parseGradientStopPosition(token: String, conic: Boolean, lineLength: Float): Float? {
+  val t = token.trim().lowercase()
+  if (t.endsWith("%")) return t.dropLast(1).toFloatOrNull()?.let { it / 100f }
+  t.toFloatOrNull()?.let { return if (it <= 1f) it else it / 100f }
+  if (conic) return parseCssAngleToRadians(t)?.let { (it / (2.0 * Math.PI)).toFloat() }
+  if (lineLength <= 0f) return null
+  return parseBackgroundLength(t)?.let { it.px / lineLength }
+}
+
+/**
+ * `conic-gradient([from <angle>] [at <position>], ...)`: centre x, centre y (px) and the
+ * start angle (degrees, CSS orientation).
+ */
+private fun resolveConicGeometry(direction: String?, width: Float, height: Float): FloatArray {
+  val out = floatArrayOf(width / 2f, height / 2f, 0f)
+  val dir = direction?.trim()?.lowercase() ?: return out
+  val at = when {
+    dir.startsWith("at ") -> 0
+    else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
+  }
+  val fromPart = (if (at >= 0) dir.substring(0, at) else dir).trim()
+  if (fromPart.startsWith("from")) {
+    parseCssAngleToRadians(fromPart.removePrefix("from").trim())?.let {
+      out[2] = Math.toDegrees(it).toFloat()
+    }
+  }
+  if (at >= 0) {
+    val position = dir.substring(at + 3).trim()
+    if (position.isNotEmpty()) {
+      val (cx, cy) = resolvePositionKeywords(position, width, height)
+      out[0] = cx
+      out[1] = cy
+    }
+  }
+  return out
+}
+
+/** Largest stop list a repeating gradient expands to; finer periods are cut off. */
+private const val MAX_REPEATED_STOPS = 2048
+
+/**
+ * Tiles a repeating gradient's stops across [0, 1]: the run from the first to the last stop
+ * repeats with that length as its period, and the ends are cut at 0 and 1 with the colour
+ * interpolated there, since the platform shaders only take stops inside [0, 1].
+ */
+internal fun repeatGradientStops(colors: IntArray, positions: FloatArray): Pair<IntArray, FloatArray> {
+  val n = positions.size
+  if (n < 2 || colors.size != n) return colors to positions
+  val first = positions[0]
+  val period = positions[n - 1] - first
+  // CSS paints a zero-length period as one averaged colour; not worth tiling.
+  if (period <= 1e-4f) return colors to positions
+
+  val tiledColors = ArrayList<Int>()
+  val tiledPositions = ArrayList<Float>()
+  var k = kotlin.math.floor(-first / period).toInt()
+  while (first + k * period <= 1f && tiledPositions.size < MAX_REPEATED_STOPS) {
+    val shift = k * period
+    for (i in 0 until n) {
+      tiledColors.add(colors[i])
+      tiledPositions.add(positions[i] + shift)
+    }
+    k++
+  }
+
+  val outColors = ArrayList<Int>(tiledColors.size + 2)
+  val outPositions = ArrayList<Float>(tiledColors.size + 2)
+  outColors.add(stopColorAt(tiledColors, tiledPositions, 0f, fromRight = true))
+  outPositions.add(0f)
+  for (i in tiledPositions.indices) {
+    val p = tiledPositions[i]
+    if (p > 0f && p < 1f) {
+      outColors.add(tiledColors[i])
+      outPositions.add(p)
+    }
+  }
+  outColors.add(stopColorAt(tiledColors, tiledPositions, 1f, fromRight = false))
+  outPositions.add(1f)
+  return outColors.toIntArray() to outPositions.toFloatArray()
+}
+
+/**
+ * The colour of a stop list at [t]. At a hard stop, [fromRight] picks the colour that
+ * follows it, otherwise the one before it.
+ */
+private fun stopColorAt(colors: List<Int>, positions: List<Float>, t: Float, fromRight: Boolean): Int {
+  val n = positions.size
+  if (t <= positions[0] && !(fromRight && t == positions[0])) return colors[0]
+  if (t >= positions[n - 1] && !(!fromRight && t == positions[n - 1])) return colors[n - 1]
+  val i = if (fromRight) positions.indexOfLast { it <= t } else positions.indexOfFirst { it >= t } - 1
+  if (i < 0) return colors[0]
+  if (i >= n - 1) return colors[n - 1]
+  val span = positions[i + 1] - positions[i]
+  if (span <= 0f) return if (fromRight) colors[i + 1] else colors[i]
+  return lerpArgb(colors[i], colors[i + 1], (t - positions[i]) / span)
+}
+
+private fun lerpArgb(a: Int, b: Int, f: Float): Int {
+  fun ch(shift: Int): Int {
+    val x = (a ushr shift) and 0xFF
+    val y = (b ushr shift) and 0xFF
+    return (x + (y - x) * f + 0.5f).toInt().coerceIn(0, 255)
+  }
+  return (ch(24) shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
 }
 
 /** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */

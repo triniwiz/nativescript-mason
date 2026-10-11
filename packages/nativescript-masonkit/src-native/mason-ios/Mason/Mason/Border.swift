@@ -511,6 +511,8 @@ public final class CSSBorderRenderer {
   // MARK: - draw
   
   public func draw(in ctx: CGContext, rect: CGRect) {
+    // A border image that can draw replaces the border styles.
+    if style.hasBorderImage && style.drawBorderImage(in: ctx, rect: rect) { return }
     resolve(for: rect)
 
     // Early bail — skip if all sides are invisible

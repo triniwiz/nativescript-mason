@@ -38,7 +38,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
 
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration
     guard hasBackground || hasBoxShadow || hasBorder else { return }
@@ -83,6 +83,10 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   }
 
   public override func layoutSubviews() {
+    // UIScrollView scrolls by moving bounds.origin, which would carry a CSS mask
+    // along with the content; keep it on the element box.
+    (layer.mask as? MasonMaskLayer)?.follow(viewBounds: bounds)
+
     if isApplyingLayout {
       super.layoutSubviews()
       return

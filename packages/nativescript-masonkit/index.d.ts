@@ -130,6 +130,21 @@ declare module '@nativescript/core/ui/styling/style' {
     writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
     unicodeBidi: 'normal' | 'embed' | 'bidi-override';
     backdropFilter: string;
+    maskImage: string;
+    maskSize: string;
+    maskPosition: string;
+    maskRepeat: string;
+    maskOrigin: string;
+    maskClip: string;
+    maskMode: string;
+    maskComposite: string;
+    clipPath: string;
+    maskBorderSource: string;
+    maskBorderSlice: string;
+    maskBorderWidth: string;
+    maskBorderOutset: string;
+    maskBorderRepeat: string;
+    maskBorderMode: string;
     caretColor: string | Color;
   }
 }
@@ -217,6 +232,21 @@ interface Style {
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
+  maskImage: string;
+  maskSize: string;
+  maskPosition: string;
+  maskRepeat: string;
+  maskOrigin: string;
+  maskClip: string;
+  maskMode: string;
+  maskComposite: string;
+  clipPath: string;
+  maskBorderSource: string;
+  maskBorderSlice: string;
+  maskBorderWidth: string;
+  maskBorderOutset: string;
+  maskBorderRepeat: string;
+  maskBorderMode: string;
   caretColor: string | Color;
 }
 
@@ -291,6 +321,21 @@ interface IViewBase {
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
+  maskImage: string;
+  maskSize: string;
+  maskPosition: string;
+  maskRepeat: string;
+  maskOrigin: string;
+  maskClip: string;
+  maskMode: string;
+  maskComposite: string;
+  clipPath: string;
+  maskBorderSource: string;
+  maskBorderSlice: string;
+  maskBorderWidth: string;
+  maskBorderOutset: string;
+  maskBorderRepeat: string;
+  maskBorderMode: string;
   caretColor: string | Color;
   elementFromPoint(x: number, y: number): ViewBase | null;
 }

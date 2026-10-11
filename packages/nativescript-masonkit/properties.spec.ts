@@ -194,6 +194,15 @@ describe('every CSS name mason claims is actually registered', () => {
     'background-size',
     'background-repeat',
     'backdrop-filter',
+    'mask',
+    'mask-image',
+    'mask-position',
+    'mask-size',
+    'mask-repeat',
+    'mask-origin',
+    'mask-clip',
+    'mask-composite',
+    'mask-mode',
     'word-spacing',
     'hyphens',
     'caret-color',
@@ -220,7 +229,7 @@ describe('every CSS name mason claims is actually registered', () => {
   // silently did nothing on every plain NativeScript view — see
   // core-view-unaffected.spec.ts.) The list is here so a *new* name colliding
   // with core has to be routed deliberately rather than shadowing it.
-  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space', 'max-width', 'max-height', 'gap', 'row-gap', 'column-gap', 'corner-shape'];
+  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space', 'max-width', 'max-height', 'gap', 'row-gap', 'column-gap', 'corner-shape', 'clip-path'];
 
   it('registers no unexpected duplicate CSS name', () => {
     const seen = new Map<string, number>();

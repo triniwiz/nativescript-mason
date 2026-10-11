@@ -6460,6 +6460,441 @@ export class Style {
     return this.backdropFilter;
   }
 
+  get maskImage(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskImage(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskImage;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-image') ?? '') : '';
+  }
+
+  set maskImage(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-image',
+      value,
+      () => nodeHelper().setMaskImage(this.nativeView, value),
+      () => (this.appleStyle.maskImage = value),
+    );
+  }
+
+  set 'mask-image'(value: string) {
+    this.maskImage = value;
+  }
+
+  get 'mask-image'() {
+    return this.maskImage;
+  }
+
+  get maskSize(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskSize(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskSize;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-size') ?? '') : '';
+  }
+
+  set maskSize(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-size',
+      value,
+      () => nodeHelper().setMaskSize(this.nativeView, value),
+      () => (this.appleStyle.maskSize = value),
+    );
+  }
+
+  set 'mask-size'(value: string) {
+    this.maskSize = value;
+  }
+
+  get 'mask-size'() {
+    return this.maskSize;
+  }
+
+  get maskPosition(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskPosition(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskPosition;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-position') ?? '') : '';
+  }
+
+  set maskPosition(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-position',
+      value,
+      () => nodeHelper().setMaskPosition(this.nativeView, value),
+      () => (this.appleStyle.maskPosition = value),
+    );
+  }
+
+  set 'mask-position'(value: string) {
+    this.maskPosition = value;
+  }
+
+  get 'mask-position'() {
+    return this.maskPosition;
+  }
+
+  get maskRepeat(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskRepeat(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskRepeat;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-repeat') ?? '') : '';
+  }
+
+  set maskRepeat(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-repeat',
+      value,
+      () => nodeHelper().setMaskRepeat(this.nativeView, value),
+      () => (this.appleStyle.maskRepeat = value),
+    );
+  }
+
+  set 'mask-repeat'(value: string) {
+    this.maskRepeat = value;
+  }
+
+  get 'mask-repeat'() {
+    return this.maskRepeat;
+  }
+
+  get maskOrigin(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskOrigin(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskOrigin;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-origin') ?? '') : '';
+  }
+
+  set maskOrigin(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-origin',
+      value,
+      () => nodeHelper().setMaskOrigin(this.nativeView, value),
+      () => (this.appleStyle.maskOrigin = value),
+    );
+  }
+
+  set 'mask-origin'(value: string) {
+    this.maskOrigin = value;
+  }
+
+  get 'mask-origin'() {
+    return this.maskOrigin;
+  }
+
+  get maskClip(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskClip(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskClip;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-clip') ?? '') : '';
+  }
+
+  set maskClip(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-clip',
+      value,
+      () => nodeHelper().setMaskClip(this.nativeView, value),
+      () => (this.appleStyle.maskClip = value),
+    );
+  }
+
+  set 'mask-clip'(value: string) {
+    this.maskClip = value;
+  }
+
+  get 'mask-clip'() {
+    return this.maskClip;
+  }
+
+  get maskMode(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskMode(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskMode;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-mode') ?? '') : '';
+  }
+
+  set maskMode(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-mode',
+      value,
+      () => nodeHelper().setMaskMode(this.nativeView, value),
+      () => (this.appleStyle.maskMode = value),
+    );
+  }
+
+  set 'mask-mode'(value: string) {
+    this.maskMode = value;
+  }
+
+  get 'mask-mode'() {
+    return this.maskMode;
+  }
+
+  get maskComposite(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskComposite(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskComposite;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-composite') ?? '') : '';
+  }
+
+  set maskComposite(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-composite',
+      value,
+      () => nodeHelper().setMaskComposite(this.nativeView, value),
+      () => (this.appleStyle.maskComposite = value),
+    );
+  }
+
+  set 'mask-composite'(value: string) {
+    this.maskComposite = value;
+  }
+
+  get 'mask-composite'() {
+    return this.maskComposite;
+  }
+
+  get clipPath(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getClipPath(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.clipPath;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('clip-path') ?? '') : '';
+  }
+
+  set clipPath(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'clip-path',
+      value,
+      () => nodeHelper().setClipPath(this.nativeView, value),
+      () => (this.appleStyle.clipPath = value),
+    );
+  }
+
+  set 'clip-path'(value: string) {
+    this.clipPath = value;
+  }
+
+  get 'clip-path'() {
+    return this.clipPath;
+  }
+
+  get maskBorderSource(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderSource(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderSource;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-source') ?? '') : '';
+  }
+
+  set maskBorderSource(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-source',
+      value,
+      () => nodeHelper().setMaskBorderSource(this.nativeView, value),
+      () => (this.appleStyle.maskBorderSource = value),
+    );
+  }
+
+  set 'mask-border-source'(value: string) {
+    this.maskBorderSource = value;
+  }
+
+  get 'mask-border-source'() {
+    return this.maskBorderSource;
+  }
+
+  get maskBorderSlice(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderSlice(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderSlice;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-slice') ?? '') : '';
+  }
+
+  set maskBorderSlice(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-slice',
+      value,
+      () => nodeHelper().setMaskBorderSlice(this.nativeView, value),
+      () => (this.appleStyle.maskBorderSlice = value),
+    );
+  }
+
+  set 'mask-border-slice'(value: string) {
+    this.maskBorderSlice = value;
+  }
+
+  get 'mask-border-slice'() {
+    return this.maskBorderSlice;
+  }
+
+  get maskBorderWidth(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderWidth(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderWidth;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-width') ?? '') : '';
+  }
+
+  set maskBorderWidth(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-width',
+      value,
+      () => nodeHelper().setMaskBorderWidth(this.nativeView, value),
+      () => (this.appleStyle.maskBorderWidth = value),
+    );
+  }
+
+  set 'mask-border-width'(value: string) {
+    this.maskBorderWidth = value;
+  }
+
+  get 'mask-border-width'() {
+    return this.maskBorderWidth;
+  }
+
+  get maskBorderOutset(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderOutset(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderOutset;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-outset') ?? '') : '';
+  }
+
+  set maskBorderOutset(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-outset',
+      value,
+      () => nodeHelper().setMaskBorderOutset(this.nativeView, value),
+      () => (this.appleStyle.maskBorderOutset = value),
+    );
+  }
+
+  set 'mask-border-outset'(value: string) {
+    this.maskBorderOutset = value;
+  }
+
+  get 'mask-border-outset'() {
+    return this.maskBorderOutset;
+  }
+
+  get maskBorderRepeat(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderRepeat(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderRepeat;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-repeat') ?? '') : '';
+  }
+
+  set maskBorderRepeat(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-repeat',
+      value,
+      () => nodeHelper().setMaskBorderRepeat(this.nativeView, value),
+      () => (this.appleStyle.maskBorderRepeat = value),
+    );
+  }
+
+  set 'mask-border-repeat'(value: string) {
+    this.maskBorderRepeat = value;
+  }
+
+  get 'mask-border-repeat'() {
+    return this.maskBorderRepeat;
+  }
+
+  get maskBorderMode(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderMode(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderMode;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-mode') ?? '') : '';
+  }
+
+  set maskBorderMode(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-mode',
+      value,
+      () => nodeHelper().setMaskBorderMode(this.nativeView, value),
+      () => (this.appleStyle.maskBorderMode = value),
+    );
+  }
+
+  set 'mask-border-mode'(value: string) {
+    this.maskBorderMode = value;
+  }
+
+  get 'mask-border-mode'() {
+    return this.maskBorderMode;
+  }
+
   get writingMode(): 'horizontal-tb' | 'vertical-rl' | 'vertical-lr' {
     if (!this.style_view) return 'horizontal-tb';
     const state = getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE);

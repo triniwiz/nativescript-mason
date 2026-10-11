@@ -245,6 +245,17 @@ class TextArea @JvmOverloads constructor(
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
+  // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+
   override fun onDraw(canvas: Canvas) {
     // View.draw() pre-translates the canvas by (-scrollX, -scrollY) for internal
     // scroll, but ViewUtils.onDraw paints background/border at (0,0,w,h) in that

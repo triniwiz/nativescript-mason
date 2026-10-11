@@ -2095,6 +2095,36 @@ declare class MasonStyle extends NSObject {
 
 	backdropFilter: string;
 
+	maskImage: string;
+
+	maskSize: string;
+
+	maskPosition: string;
+
+	maskRepeat: string;
+
+	maskOrigin: string;
+
+	maskClip: string;
+
+	maskMode: string;
+
+	maskComposite: string;
+
+	clipPath: string;
+
+	maskBorderSource: string;
+
+	maskBorderSlice: string;
+
+	maskBorderWidth: string;
+
+	maskBorderOutset: string;
+
+	maskBorderRepeat: string;
+
+	maskBorderMode: string;
+
 	background: string;
 
 	backgroundClip: string;

@@ -83,6 +83,17 @@ class Input @JvmOverloads constructor(
   }
 
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
+  // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+
   override fun dispatchDraw(canvas: Canvas) {
     // Draw children's outset box shadows at parent level, after this view's own
     // background/border so an opaque parent background can't paint over them.

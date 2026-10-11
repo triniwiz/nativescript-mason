@@ -870,6 +870,31 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "background-blend-mode" -> style.backgroundBlendMode = value
       "background-position-x" -> style.backgroundPositionX = value
       "background-position-y" -> style.backgroundPositionY = value
+      "mask-image" -> style.maskImage = value
+      "mask-size" -> style.maskSize = value
+      "mask-position" -> style.maskPosition = value
+      "mask-repeat" -> style.maskRepeat = value
+      "mask-origin" -> style.maskOrigin = value
+      "mask-clip" -> style.maskClip = value
+      "mask-mode" -> style.maskMode = value
+      "mask-composite" -> style.maskComposite = value
+      "mask-border-source" -> style.maskBorderSource = value
+      "mask-border-slice" -> style.maskBorderSlice = value
+      "mask-border-width" -> style.maskBorderWidth = value
+      "mask-border-outset" -> style.maskBorderOutset = value
+      "mask-border-repeat" -> style.maskBorderRepeat = value
+      "mask-border-mode" -> style.maskBorderMode = value
+      // No JS here to split the shorthand, so the native splitter does it.
+      "mask-border", "-webkit-mask-box-image" -> splitBorderImageShorthand(value, mask = true)?.let {
+        style.maskBorderSource = it[0]
+        style.maskBorderSlice = it[1]
+        style.maskBorderWidth = it[2]
+        style.maskBorderOutset = it[3]
+        style.maskBorderRepeat = it[4]
+        style.maskBorderMode = it[5]
+      }
+      "clip-path" -> style.clipPath = value
+      "border-image" -> style.borderImage = value
 
       "z-index" -> value.toIntOrNull()?.let { style.zIndex = it }
 

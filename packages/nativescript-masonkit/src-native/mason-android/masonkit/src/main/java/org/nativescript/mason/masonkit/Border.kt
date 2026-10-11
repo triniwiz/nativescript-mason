@@ -742,6 +742,14 @@ class BorderRenderer(private val style: Style) {
       bottomLeftCorner.x > 0f || bottomLeftCorner.y > 0f
   }
 
+  /** [getRadii] without allocating, into [out] (8 floats). Valid after updateCache(). */
+  fun copyRadii(out: FloatArray) {
+    out[0] = topLeftCorner.x; out[1] = topLeftCorner.y
+    out[2] = topRightCorner.x; out[3] = topRightCorner.y
+    out[4] = bottomRightCorner.x; out[5] = bottomRightCorner.y
+    out[6] = bottomLeftCorner.x; out[7] = bottomLeftCorner.y
+  }
+
   /**
    * Returns border radii as FloatArray(8) for use with Path.addRoundRect.
    * Format: [topLeftX, topLeftY, topRightX, topRightY, bottomRightX, bottomRightY, bottomLeftX, bottomLeftY]

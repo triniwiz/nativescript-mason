@@ -4,7 +4,7 @@ import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottom
 import { PercentLength as CorePercentLength } from '@nativescript/core/ui/styling/length-shared';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
-import { borderRadiusCorners, composeBorderRadius, splitBackground, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss } from './css-shorthands';
+import { toCamelCase, borderRadiusCorners, composeBorderRadius, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss } from './css-shorthands';
 import { backgroundAttachmentProperty, backgroundClipProperty, backgroundOriginProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, shorthandConverter } from './properties';
 
 function entry(cssName: string) {
@@ -289,6 +289,102 @@ describe('background', () => {
     expect(spies['background-image']).toHaveBeenLastCalledWith(undefined);
     expect((style as any).backgroundRepeat).toBe(undefined);
     expect((style as any).backgroundColor.hex).toBe('#FF0000');
+  });
+});
+
+describe('mask', () => {
+  const MASK_LONGHANDS = ['mask-image', 'mask-position', 'mask-size', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-composite', 'mask-mode'];
+  const split = (value: string) => Object.fromEntries(splitMask(value).map((part, i) => [MASK_LONGHANDS[i], part]));
+
+  it('fills in what a layer leaves out', () => {
+    expect(split('url(a.svg)')).toEqual({
+      'mask-image': 'url(a.svg)',
+      'mask-position': '0% 0%',
+      'mask-size': 'auto',
+      'mask-repeat': 'repeat',
+      'mask-origin': 'border-box',
+      'mask-clip': 'border-box',
+      'mask-composite': 'add',
+      'mask-mode': 'match-source',
+    });
+  });
+
+  it('reads every part, in any order', () => {
+    expect(split('luminance subtract no-repeat center / contain padding-box content-box linear-gradient(black, transparent)')).toMatchObject({
+      'mask-image': 'linear-gradient(black, transparent)',
+      'mask-position': 'center',
+      'mask-size': 'contain',
+      'mask-repeat': 'no-repeat',
+      'mask-origin': 'padding-box',
+      'mask-clip': 'content-box',
+      'mask-composite': 'subtract',
+      'mask-mode': 'luminance',
+    });
+  });
+
+  it('takes one box as both origin and clip', () => {
+    expect(split('url(a.svg) content-box')).toMatchObject({ 'mask-origin': 'content-box', 'mask-clip': 'content-box' });
+  });
+
+  it.each(['padding-box no-clip', 'no-clip padding-box'])('reads %s as an origin with no clip', (boxes) => {
+    expect(split(`url(a.svg) ${boxes}`)).toMatchObject({ 'mask-origin': 'padding-box', 'mask-clip': 'no-clip' });
+  });
+
+  it('keeps layers apart', () => {
+    expect(split('url(a.svg) no-repeat, linear-gradient(red, blue) exclude')).toMatchObject({
+      'mask-image': 'url(a.svg), linear-gradient(red, blue)',
+      'mask-repeat': 'no-repeat, repeat',
+      'mask-composite': 'add, exclude',
+    });
+  });
+
+  it.each(['url(a.svg) red', 'url(a.svg), ', 'url(a.svg) url(b.svg)', 'padding-box content-box no-clip', 'center / cover contain'])('rejects %s', (value) => {
+    expect(() => splitMask(value)).toThrow();
+  });
+
+  it("reaches a Mason view's mask longhands from a stylesheet", () => {
+    const { under, style } = masonHost();
+    const set: Record<string, string> = {};
+    for (const cssName of MASK_LONGHANDS) {
+      Object.defineProperty(under.style, toCamelCase(cssName), { configurable: true, set: (value: string) => (set[cssName] = value) });
+    }
+    applyAsCore91Stylesheet(style, 'mask', 'url(a.svg) center / contain no-repeat');
+    expect(set).toMatchObject({ 'mask-image': 'url(a.svg)', 'mask-position': 'center', 'mask-size': 'contain', 'mask-repeat': 'no-repeat', 'mask-origin': 'border-box' });
+  });
+});
+
+describe('-webkit-mask', () => {
+  it('translates composite operators and box keywords', () => {
+    expect(webkitMaskComposite('source-over, xor, source-in, source-out, destination-in, copy')).toBe('add, exclude, intersect, subtract, intersect, add');
+    expect(webkitMaskBox('padding, content-box')).toBe('padding-box, content-box');
+  });
+
+  it('splits like mask, with the WebKit keywords', () => {
+    const parts = splitWebkitMask('url(a.svg) no-repeat center / contain padding xor');
+    expect(parts[0]).toBe('url(a.svg)');
+    expect(parts[4]).toBe('padding-box');
+    expect(parts[6]).toBe('exclude');
+  });
+});
+
+describe('mask-border', () => {
+  const NAMES = ['source', 'slice', 'width', 'outset', 'repeat', 'mode'];
+  const split = (value: string) => Object.fromEntries(splitMaskBorder(value).map((part, i) => [NAMES[i], part]));
+
+  it('fills in what it leaves out', () => {
+    expect(split('url(b.svg)')).toEqual({ source: 'url(b.svg)', slice: '0', width: 'auto', outset: '0', repeat: 'stretch', mode: 'alpha' });
+  });
+
+  it('reads slice, width and outset', () => {
+    expect(split('url(b.svg) 30 fill / 10px 20px / 2px round luminance')).toEqual({ source: 'url(b.svg)', slice: '30 fill', width: '10px 20px', outset: '2px', repeat: 'round', mode: 'luminance' });
+  });
+
+  it('reads an outset with no width', () => {
+    expect(split('url(b.svg) 25% / / 4px')).toMatchObject({ slice: '25%', width: 'auto', outset: '4px' });
+  });
+
+  it.each(['url(b.svg) 30 /', 'url(b.svg) 30 / 2px /', 'url(b.svg) fill 30 fill', 'url(b.svg) red'])('rejects %s', (value) => {
+    expect(() => splitMaskBorder(value)).toThrow();
   });
 });
 
