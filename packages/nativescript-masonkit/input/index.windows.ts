@@ -1,7 +1,9 @@
 import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
 import { ViewBase, windowsFontSource } from '../common';
-import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, syncCheckedPseudoClass, typeProperty } from './common';
+import { masonEngine } from '../windows-panel-helpers';
+import { toCamelCase } from '../css-shorthands';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { InputType } from '..';
@@ -105,6 +107,12 @@ const UA_STYLES: Record<UaKind, Record<string, unknown>> = {
 
 const PREFLIGHT_RESET = /^padding-/;
 
+function sameStyleValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a instanceof Color && b instanceof Color) return a.argb === b.argb;
+  return !!a && !!b && typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b);
+}
+
 @CSSType('input')
 export class Input extends InputElementBase {
   [style_];
@@ -140,6 +148,8 @@ export class Input extends InputElementBase {
   }
 
   private _uaKind: UaKind = null;
+  // What each UA default resolved to when written, to tell it apart from author CSS later.
+  private _uaValues: Record<string, unknown> = {};
 
   private applyUaStyle(type: InputType) {
     const kind = uaKind(type);
@@ -149,13 +159,45 @@ export class Input extends InputElementBase {
     const declarations = UA_STYLES[kind];
     for (const property in declarations) {
       if (ViewBase.preflight && PREFLIGHT_RESET.test(property)) continue;
+      const key = toCamelCase(property);
+      // The type can change after the stylesheet has applied (the native view is set up after
+      // it), and a stylesheet's value must outlive the UA default it replaced.
+      if (property in this._uaValues && this._uaValues[property] !== undefined && !sameStyleValue(style[key], this._uaValues[property])) continue;
       style[`css:${property}`] = declarations[property];
+      this._uaValues[property] = style[key];
     }
   }
 
   [typeProperty.setNative](value: InputType) {
     this.applyUaStyle(value);
     if (this._view) this._view.Type = typeToInt(value);
+  }
+
+  [appearanceProperty.setNative](value: InputAppearance) {
+    if (this._view) this._view.AppearanceNone = value === 'none';
+  }
+
+  private _changeListener: any;
+  private _changeId = 0;
+
+  initNativeView() {
+    super.initNativeView();
+    // A tap changes the checked state natively and reports it as `change`; held weakly so the
+    // listener doesn't keep the owner alive.
+    const view = this._view;
+    if (!view || typeof masonEngine().AddEventListener !== 'function') return;
+    const ref = new WeakRef(this);
+    this._changeListener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', () => {
+      ref.deref()?.[syncCheckedPseudoClass]();
+    });
+    this._changeId = masonEngine().AddEventListener(view, 'change', this._changeListener);
+  }
+
+  disposeNativeView() {
+    if (this._changeId) masonEngine().RemoveEventListener(this._view, 'change', this._changeId);
+    this._changeId = 0;
+    this._changeListener = undefined;
+    super.disposeNativeView();
   }
 
   [getCheckedProperty]() {

@@ -264,6 +264,7 @@ namespace winrt::NativeScript::Mason::implementation
         nsm::MeasureFunc cb = [this](float kw, float kh, float aw, float ah) -> int64_t
         {
             if (!m_control) return mason_leaf::PackMeasure(0.0f, 0.0f);
+            if (Bare()) return mason_leaf::PackMeasure(std::isnan(kw) ? 0.0f : kw, std::isnan(kh) ? 0.0f : kh);
             SyncOrientation();
             auto slider = m_control.try_as<muxc::Slider>();
             if (!slider)
@@ -321,6 +322,7 @@ namespace winrt::NativeScript::Mason::implementation
         Children().Append(m_control);
         ApplyValue(m_value);
         ApplyChecked();
+        ApplyAppearance();
         ApplyPlaceholder(m_placeholder);
         if (m_placeholderColor) ApplyPlaceholderColor();
         SyncOrientation();
@@ -698,6 +700,25 @@ namespace winrt::NativeScript::Mason::implementation
         ApplyChecked();
     }
 
+    bool Input::Bare() const
+    {
+        return m_appearanceNone && IsCheckable(m_type);
+    }
+
+    void Input::ApplyAppearance()
+    {
+        if (m_control) m_control.Opacity(Bare() ? 0.0 : 1.0);
+    }
+
+    void Input::AppearanceNone(bool value)
+    {
+        if (m_appearanceNone == value) return;
+        m_appearanceNone = value;
+        ApplyAppearance();
+        m_node.MarkDirty();
+        InvalidateMeasure();
+    }
+
     void Input::SetPlaceholderColor(uint32_t argb)
     {
         m_placeholderColor = argb;
@@ -805,6 +826,9 @@ namespace winrt::NativeScript::Mason::implementation
         float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
         winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
         m_control.Measure(Size{ (std::max)(0.0f, available.Width - left - right), (std::max)(0.0f, available.Height - top - bottom) });
+        // A bare checkbox or radio is as big as its CSS box. Reporting the control's size would
+        // make XAML arrange the panel at that size and clip it to the smaller box.
+        if (Bare()) return Size{ 0, 0 };
         const auto desired = m_control.DesiredSize();
         return Size{ desired.Width + left + right, desired.Height + top + bottom };
     }
@@ -814,7 +838,8 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_control)
         {
             float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
-            winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+            // A bare checkbox or radio takes taps anywhere on its box.
+            if (!Bare()) winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
             const float width = (std::max)(0.0f, finalSize.Width - left - right);
             float height = (std::max)(0.0f, finalSize.Height - top - bottom);
             if (IsField(m_control))
