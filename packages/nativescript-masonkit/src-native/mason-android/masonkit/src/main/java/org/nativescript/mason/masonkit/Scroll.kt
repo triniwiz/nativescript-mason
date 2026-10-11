@@ -111,6 +111,17 @@ class Scroll @JvmOverloads constructor(
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
+  // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(this, canvas, style, beforeChildren = { c ->
       c.withSave {
@@ -208,7 +219,9 @@ class Scroll @JvmOverloads constructor(
     if (parent !is Element) {
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = -2f
+        // Only a vertical scroll container measures its content at an unbounded height; a
+        // non-scrolling block root lays out in the height it's given, as View does.
+        val heightArg = if (isScrollableY() || isAutoY()) -2f else View.mapHeightSpecArg(specHeightMode, specHeight)
         node.lastRootWidthArg = widthArg
         node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)
@@ -299,6 +312,13 @@ class Scroll @JvmOverloads constructor(
   }
 
   // Layout
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (parent !is Element) {
+      ViewUtils.holdInitialFocus(this)
+    }
+  }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // Run base TwoDScrollView logic (focus, scroll-position clamping).

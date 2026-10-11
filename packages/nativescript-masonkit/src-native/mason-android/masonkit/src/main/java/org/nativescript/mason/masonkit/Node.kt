@@ -897,6 +897,19 @@ open class Node internal constructor(
     val strings = pseudoStrings ?: mutableMapOf<Int, MutableMap<String, String>>().also { pseudoStrings = it }
     val dict = strings.getOrPut(flags) { mutableMapOf() }
     dict[key] = value
+    // Masks resolve their pseudo longhands at draw time; the element needs a mask holder
+    // (and a draw() pass) even when it has no mask outside that state.
+    if (key.startsWith("mask-")) {
+      style.ensureMask().apply {
+        hasPseudo = true
+        changed()
+      }
+    } else if (key == ClipPath.CSS_NAME) {
+      style.ensureClipPath().apply {
+        hasPseudo = true
+        changed()
+      }
+    }
   }
 
   fun getPseudoString(flags: Int, key: String): String? {

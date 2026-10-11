@@ -457,16 +457,38 @@ namespace mason_mask
             if (s == 9 || s == 7) return topLeft ? 1.0f : 0.6f;
             return 1.0f;
         };
+        // A side with no width adds nothing to the ring, so it needn't match.
+        int first = -1;
+        for (int i = 0; i < 4 && first == -1; ++i) if (b.Drawn(i)) first = i;
+        if (first == -1) return;
         bool oneColor = true;
         for (int i = 0; i < 4; ++i)
         {
-            if (!b.Drawn(i) || b.color[i] != b.color[0] || shade(i) != 1.0f) oneColor = false;
+            if (b.Drawn(i) ? (b.color[i] != b.color[first] || shade(i) != 1.0f) : b.width[i] > 0.0f) oneColor = false;
         }
+        // Where a corner's dividing line leaves the corner. The line runs from the outer corner
+        // through the inner one, the two border widths in, and on to the edge of the box the
+        // radius and widths take up (no more than half the box, so the lines can't cross).
+        // Stopping at the inner corner leaves a rounded corner's curve out of both sides' shares.
+        auto split = [&](float x, float y, float dirX, float dirY, float insetX, float insetY, int corner) -> D2D1_POINT_2F
+        {
+            const float boxX = (std::min)((std::max)(b.radii.x[corner], insetX), w / 2.0f);
+            const float boxY = (std::min)((std::max)(b.radii.y[corner], insetY), h / 2.0f);
+            const float tx = insetX > 0.0f ? boxX / insetX : INFINITY;
+            const float ty = insetY > 0.0f ? boxY / insetY : INFINITY;
+            float t = (std::min)(tx, ty);
+            if (std::isinf(t)) t = 0.0f;
+            return { x + dirX * insetX * t, y + dirY * insetY * t };
+        };
+        const auto tl = split(0, 0, 1, 1, bl, bt, mason_shape::TopLeft);
+        const auto tr = split(w, 0, -1, 1, br, bt, mason_shape::TopRight);
+        const auto brc = split(w, h, -1, -1, br, bb, mason_shape::BottomRight);
+        const auto blc = split(0, h, 1, -1, bl, bb, mason_shape::BottomLeft);
         const std::array<winrt::com_ptr<ID2D1Geometry>, 4> sides{
-            Polygon(factory.get(), { { 0, 0 }, { bl, bt }, { bl, h - bb }, { 0, h } }),
-            Polygon(factory.get(), { { 0, 0 }, { w, 0 }, { w - br, bt }, { bl, bt } }),
-            Polygon(factory.get(), { { w, 0 }, { w, h }, { w - br, h - bb }, { w - br, bt } }),
-            Polygon(factory.get(), { { 0, h }, { bl, h - bb }, { w - br, h - bb }, { w, h } }),
+            Polygon(factory.get(), { { 0, 0 }, tl, blc, { 0, h } }),
+            Polygon(factory.get(), { { 0, 0 }, { w, 0 }, tr, tl }),
+            Polygon(factory.get(), { { w, 0 }, { w, h }, brc, tr }),
+            Polygon(factory.get(), { { 0, h }, blc, brc, { w, h } }),
         };
         for (auto const& [from, to] : bands)
         {
@@ -477,7 +499,7 @@ namespace mason_mask
             if (oneColor)
             {
                 winrt::com_ptr<ID2D1SolidColorBrush> brush;
-                context->CreateSolidColorBrush(Color(b.color[0]), brush.put());
+                context->CreateSolidColorBrush(Color(b.color[first]), brush.put());
                 context->FillGeometry(ring.get(), brush.get());
                 continue;
             }

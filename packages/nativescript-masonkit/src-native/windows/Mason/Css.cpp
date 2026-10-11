@@ -15,6 +15,10 @@
 #include <winrt/Windows.Storage.Streams.h>
 
 #include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <cwctype>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -169,6 +173,216 @@ namespace
             auto stream = co_await file.OpenReadAsync();
             co_await ui;
             co_await bitmap.SetSourceAsync(stream);
+        }
+        catch (...)
+        {
+        }
+    }
+}
+
+namespace
+{
+    // ---- SVG background images -------------------------------------------------------------
+    // BitmapImage can't decode SVG, so `data:image/svg+xml` goes to SvgImageSource (Direct2D's
+    // SVG renderer: paths incl. arcs, basic shapes, groups, fill-rule, strokes, transforms). Two
+    // fix-ups first: `currentColor` becomes the element's CSS color (D2D has no CSS cascade to
+    // resolve it from), and an SVG with only a viewBox gets width/height so it has a size.
+
+    bool IsSvgDataUri(std::wstring_view v)
+    {
+        constexpr std::wstring_view prefix = L"data:image/svg";
+        if (v.size() < prefix.size()) return false;
+        for (size_t i = 0; i < prefix.size(); ++i)
+        {
+            if (std::towlower(v[i]) != prefix[i]) return false;
+        }
+        return true;
+    }
+
+    int HexDigit(char c)
+    {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    }
+
+    // Lenient percent-decoding: a malformed escape stays as written and `+` stays `+`.
+    std::string PercentDecode(std::string const& s)
+    {
+        std::string out;
+        out.reserve(s.size());
+        for (size_t i = 0; i < s.size(); ++i)
+        {
+            if (s[i] == '%' && i + 2 < s.size())
+            {
+                const int hi = HexDigit(s[i + 1]);
+                const int lo = HexDigit(s[i + 2]);
+                if (hi >= 0 && lo >= 0)
+                {
+                    out.push_back(static_cast<char>(hi * 16 + lo));
+                    i += 2;
+                    continue;
+                }
+            }
+            out.push_back(s[i]);
+        }
+        return out;
+    }
+
+    std::string DecodeSvgDataUri(std::wstring_view uri)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        const size_t comma = uri.find(L',');
+        if (comma == std::wstring_view::npos) return {};
+        std::wstring header{ uri.substr(5, comma - 5) };
+        for (auto& c : header) c = static_cast<wchar_t>(std::towlower(c));
+        const winrt::hstring payload{ uri.substr(comma + 1) };
+        if (header.find(L";base64") != std::wstring::npos)
+        {
+            winrt::com_array<uint8_t> bytes;
+            CryptographicBuffer::CopyToByteArray(CryptographicBuffer::DecodeFromBase64String(payload), bytes);
+            return std::string(bytes.begin(), bytes.end());
+        }
+        return PercentDecode(winrt::to_string(payload));
+    }
+
+    bool IsAsciiSpace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'; }
+
+    // Value of attribute `name` inside one start tag, if present.
+    bool FindAttribute(std::string const& tag, std::string_view name, std::string& value)
+    {
+        size_t i = 0;
+        while ((i = tag.find(name, i)) != std::string::npos)
+        {
+            const bool startOk = i > 0 && IsAsciiSpace(tag[i - 1]);
+            size_t j = i + name.size();
+            while (j < tag.size() && IsAsciiSpace(tag[j])) ++j;
+            if (startOk && j < tag.size() && tag[j] == '=')
+            {
+                ++j;
+                while (j < tag.size() && IsAsciiSpace(tag[j])) ++j;
+                if (j < tag.size() && (tag[j] == '"' || tag[j] == '\''))
+                {
+                    const char q = tag[j];
+                    const size_t end = tag.find(q, j + 1);
+                    value = tag.substr(j + 1, end == std::string::npos ? std::string::npos : end - j - 1);
+                }
+                else
+                {
+                    size_t end = j;
+                    while (end < tag.size() && !IsAsciiSpace(tag[end]) && tag[end] != '>' && tag[end] != '/') ++end;
+                    value = tag.substr(j, end - j);
+                }
+                return true;
+            }
+            i += name.size();
+        }
+        return false;
+    }
+
+    std::string PrepareSvg(std::string svg, uint32_t currentColor)
+    {
+        // currentColor -> #rrggbb (case-insensitive, it is a CSS keyword).
+        char hex[8];
+        std::snprintf(hex, sizeof(hex), "#%02x%02x%02x", (currentColor >> 16) & 0xFF, (currentColor >> 8) & 0xFF, currentColor & 0xFF);
+        constexpr std::string_view keyword = "currentcolor";
+        for (size_t i = 0; i + keyword.size() <= svg.size();)
+        {
+            bool match = true;
+            for (size_t k = 0; k < keyword.size(); ++k)
+            {
+                if (std::tolower(static_cast<unsigned char>(svg[i + k])) != keyword[k]) { match = false; break; }
+            }
+            if (match)
+            {
+                svg.replace(i, keyword.size(), hex);
+                i += 7;
+            }
+            else
+            {
+                ++i;
+            }
+        }
+
+        // Root <svg> without width/height: size it from its viewBox (CSS px = SVG user units).
+        size_t open = svg.find("<svg");
+        while (open != std::string::npos && open + 4 < svg.size() && !IsAsciiSpace(svg[open + 4]) && svg[open + 4] != '>')
+        {
+            open = svg.find("<svg", open + 4);
+        }
+        if (open == std::string::npos) return svg;
+        size_t close = open;
+        char quote = 0;
+        for (; close < svg.size(); ++close)
+        {
+            const char c = svg[close];
+            if (quote) { if (c == quote) quote = 0; }
+            else if (c == '"' || c == '\'') quote = c;
+            else if (c == '>') break;
+        }
+        const std::string tag = svg.substr(open, close - open);
+        std::string value;
+        // With one of width/height given, D2D derives the other from the viewBox ratio.
+        if (FindAttribute(tag, "width", value) || FindAttribute(tag, "height", value)) return svg;
+        if (!FindAttribute(tag, "viewBox", value)) return svg;
+        for (auto& c : value) if (c == ',') c = ' ';
+        double nums[4] = {};
+        const char* p = value.c_str();
+        for (int k = 0; k < 4; ++k)
+        {
+            char* end = nullptr;
+            nums[k] = std::strtod(p, &end);
+            if (end == p) return svg;
+            p = end;
+        }
+        if (nums[2] <= 0 || nums[3] <= 0) return svg;
+        char attrs[64];
+        std::snprintf(attrs, sizeof(attrs), " width=\"%g\" height=\"%g\"", nums[2], nums[3]);
+        svg.insert(open + 4, attrs);
+        return svg;
+    }
+
+    // The element's resolved CSS `color` (ARGB): its own, else the nearest Mason ancestor's.
+    uint32_t ResolveCurrentColor(mux::UIElement const& element)
+    {
+        constexpr uint32_t FONT_COLOR = 324, FONT_COLOR_STATE = 328;
+        mux::DependencyObject node = element;
+        for (int depth = 0; node && depth < 128; ++depth)
+        {
+            if (auto masonElement = node.try_as<nsm::IMasonElement>())
+            {
+                if (auto n = masonElement.Node())
+                {
+                    uint32_t size = 0;
+                    const uint8_t* d = mason_visual::StyleBytes(n, size);
+                    if (d && FONT_COLOR_STATE < size && d[FONT_COLOR_STATE] != 0)
+                    {
+                        uint32_t v = 0;
+                        std::memcpy(&v, d + FONT_COLOR, 4);
+                        return v;
+                    }
+                }
+            }
+            node = muxm::VisualTreeHelper::GetParent(node);
+        }
+        return 0xFF000000;
+    }
+
+    winrt::fire_and_forget LoadSvg(imaging::SvgImageSource svg, std::string text)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        using namespace winrt::Windows::Storage::Streams;
+        try
+        {
+            winrt::apartment_context ui;
+            const auto* begin = reinterpret_cast<const uint8_t*>(text.data());
+            const IBuffer bytes = CryptographicBuffer::CreateFromByteArray(winrt::array_view<uint8_t const>(begin, begin + text.size()));
+            InMemoryRandomAccessStream stream;
+            co_await stream.WriteAsync(bytes);
+            stream.Seek(0);
+            co_await ui;
+            co_await svg.SetSourceAsync(stream);
         }
         catch (...)
         {
@@ -487,26 +701,37 @@ namespace winrt::NativeScript::Mason::implementation
         auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
         if (!panel || source.empty()) return;
         namespace imaging = winrt::Microsoft::UI::Xaml::Media::Imaging;
-        imaging::BitmapImage bitmap;
         const std::wstring_view v = source;
-        const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
-        if (v.starts_with(L"data:") || path)
+        muxm::ImageBrush brush;
+        if (IsSvgDataUri(v))
         {
-            LoadBitmap(bitmap, source);
+            std::string svg = DecodeSvgDataUri(v);
+            if (svg.empty()) return;
+            imaging::SvgImageSource svgSource;
+            LoadSvg(svgSource, PrepareSvg(std::move(svg), ResolveCurrentColor(element)));
+            brush.ImageSource(svgSource);
         }
         else
         {
-            try
+            imaging::BitmapImage bitmap;
+            const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
+            if (v.starts_with(L"data:") || path)
             {
-                bitmap.UriSource(winrt::Windows::Foundation::Uri{ source });
+                LoadBitmap(bitmap, source);
             }
-            catch (...)
+            else
             {
-                return;
+                try
+                {
+                    bitmap.UriSource(winrt::Windows::Foundation::Uri{ source });
+                }
+                catch (...)
+                {
+                    return;
+                }
             }
+            brush.ImageSource(bitmap);
         }
-        muxm::ImageBrush brush;
-        brush.ImageSource(bitmap);
         brush.Stretch(fit == 1 ? muxm::Stretch::Fill : fit == 2 ? muxm::Stretch::Uniform : fit == 3 ? muxm::Stretch::UniformToFill : muxm::Stretch::None);
         brush.AlignmentX(alignX == 0 ? muxm::AlignmentX::Left : alignX == 2 ? muxm::AlignmentX::Right : muxm::AlignmentX::Center);
         brush.AlignmentY(alignY == 0 ? muxm::AlignmentY::Top : alignY == 2 ? muxm::AlignmentY::Bottom : muxm::AlignmentY::Center);

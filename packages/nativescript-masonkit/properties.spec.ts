@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
+import { _getStyleProperties, CssAnimationProperty } from '@nativescript/core/ui/core/properties';
 import * as coreStyleProperties from '@nativescript/core/ui/styling/style-properties';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
@@ -194,6 +194,15 @@ describe('every CSS name mason claims is actually registered', () => {
     'background-size',
     'background-repeat',
     'backdrop-filter',
+    'mask',
+    'mask-image',
+    'mask-position',
+    'mask-size',
+    'mask-repeat',
+    'mask-origin',
+    'mask-clip',
+    'mask-composite',
+    'mask-mode',
     'word-spacing',
     'hyphens',
     'caret-color',
@@ -210,7 +219,9 @@ describe('every CSS name mason claims is actually registered', () => {
   ];
 
   it.each(EXPECTED)('%s', (cssName) => {
-    expect(registered.has(cssName), `no CssProperty registered for "${cssName}"`).toBe(true);
+    // Keyframe-animatable ones (mask-position, mask-size) are CssAnimationProperties, kept apart.
+    const found = registered.has(cssName) || !!CssAnimationProperty._getByCssName(cssName);
+    expect(found, `no CssProperty registered for "${cssName}"`).toBe(true);
   });
 
   // Mason registers these CSS names alongside core's own, and both properties
@@ -220,7 +231,7 @@ describe('every CSS name mason claims is actually registered', () => {
   // silently did nothing on every plain NativeScript view — see
   // core-view-unaffected.spec.ts.) The list is here so a *new* name colliding
   // with core has to be routed deliberately rather than shadowing it.
-  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space', 'max-width', 'max-height', 'gap', 'row-gap', 'column-gap', 'corner-shape'];
+  const KNOWN_DOUBLE_REGISTERED = ['margin', 'padding', 'vertical-align', 'transform', 'background', 'background-image', 'background-repeat', 'background-size', 'background-position', 'border-color', 'border-radius', 'box-shadow', 'text-overflow', 'align-content', 'flex-flow', 'flex', 'font-family', 'white-space', 'max-width', 'max-height', 'gap', 'row-gap', 'column-gap', 'corner-shape', 'clip-path'];
 
   it('registers no unexpected duplicate CSS name', () => {
     const seen = new Map<string, number>();

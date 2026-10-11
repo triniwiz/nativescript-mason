@@ -221,7 +221,42 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   private var initializing = true
 
   // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
-  private var checkedState = false
+  private var checkedState = false {
+    didSet {
+      if oldValue != checkedState {
+        onCheckedChange?(checkedState)
+      }
+    }
+  }
+
+  /// Called whenever the checked state changes, from a tap or from code.
+  public var onCheckedChange: ((Bool) -> Void)?
+
+  /// CSS `appearance`. Under `.None` a checkbox or radio draws as its CSS box while the undrawn
+  /// native control still handles taps. Not `appearance`: that's UIAppearance's class method.
+  public var cssAppearance: MasonInputAppearance = .Auto {
+    didSet {
+      if oldValue != cssAppearance {
+        applyAppearance()
+      }
+    }
+  }
+
+  internal var drawsNativeControl: Bool {
+    return cssAppearance == .Auto || !MasonInput.isCheckable(type)
+  }
+
+  private func applyAppearance() {
+    switch type {
+    case .Checkbox:
+      checkboxInput.drawsControl = drawsNativeControl
+    case .Radio:
+      radioInput.drawsControl = drawsNativeControl
+    default:
+      break
+    }
+    setNeedsDisplay()
+  }
   // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
   private var checkableValue = "on"
 
@@ -264,6 +299,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       }
       configureInput(type, previous: oldValue)
       applyChecked()
+      applyAppearance()
       invalidateLayout()
       if let previousValue = pendingTypeSwitchValue {
         self.value = previousValue
@@ -496,7 +532,13 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     }
 
     switch(self.type){
-    case .Radio, .Checkbox, .Range,.Color:
+    case .Radio, .Checkbox:
+      // Under `appearance: none` the CSS box stands in for the native control.
+      if !drawsNativeControl {
+        style.mBorderRender.draw(in: context, rect: bounds)
+      }
+      break
+    case .Range,.Color:
       break
     default:
       style.mBorderRender.draw(in: context, rect: bounds)

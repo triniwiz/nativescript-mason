@@ -196,6 +196,17 @@ open class TextView @JvmOverloads constructor(
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
+  // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+
   override fun onDraw(canvas: Canvas) {
     // Text changed since the last measure (no layout pass in between) is applied here.
     engine.applyTextIfNeeded()
@@ -288,7 +299,7 @@ open class TextView @JvmOverloads constructor(
         // We bypass super.onDraw, which normally insets the layout by the view's
         // padding — so apply paddingLeft/paddingTop here.
         if (layoutToDraw.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
-        val tx = paddingLeft.toFloat()
+        val tx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layoutToDraw, contentWidth)
         val ty = paddingTop.toFloat() + dy
         drawnLayout = layoutToDraw
         drawnDx = tx
@@ -306,6 +317,22 @@ open class TextView @JvmOverloads constructor(
         layoutInlineBoxes(layoutToDraw)
         updateInlineAccessibility()
       }
+    }
+  }
+
+  /**
+   * `white-space: nowrap`/`pre` text is laid out a million pixels wide (see
+   * TextEngine.buildStaticLayoutCached), so centred or end-aligned lines land far outside the
+   * view. Shifts them to where they'd sit in a [contentWidth]-wide layout; the alignment is
+   * read off the layout, so right-to-left text works too.
+   */
+  private fun unconstrainedAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float {
+    if (contentWidth <= 0 || layout.width <= contentWidth || layout.lineCount == 0) return 0f
+    val slack = (layout.width - contentWidth).toFloat()
+    return when {
+      layout.getLineLeft(0) <= 0.5f -> 0f
+      layout.getLineRight(0) >= layout.width - 0.5f -> -slack
+      else -> -slack / 2f
     }
   }
 

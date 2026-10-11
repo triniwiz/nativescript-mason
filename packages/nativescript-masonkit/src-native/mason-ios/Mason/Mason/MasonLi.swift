@@ -25,7 +25,7 @@ public class MasonLi: UIView, MasonEventTarget, MasonElement, MasonElementObjc, 
   public override func draw(_ rect: CGRect) {
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
     let hasMarker = true // Li always potentially has a marker
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration

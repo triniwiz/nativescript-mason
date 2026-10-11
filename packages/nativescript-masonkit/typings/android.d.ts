@@ -2208,8 +2208,21 @@ declare module org {
 					public getDateInput$masonkit_release(): org.nativescript.mason.masonkit.input.DateInput;
 					public setAccept(value: string): void;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public getAppearance(): org.nativescript.mason.masonkit.Input.Appearance;
+					public setAppearance(value: org.nativescript.mason.masonkit.Input.Appearance): void;
+					public getOnCheckedChange(): any;
+					public setOnCheckedChange(value: any): void;
 				}
 				export module Input {
+					export class Appearance {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.Appearance>;
+						public static Auto: org.nativescript.mason.masonkit.Input.Appearance;
+						public static None: org.nativescript.mason.masonkit.Input.Appearance;
+						public static fromCss(value: string): org.nativescript.mason.masonkit.Input.Appearance;
+						public static getEntries(): any;
+						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Appearance>;
+						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Appearance;
+					}
 					export class Type {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.Type>;
 						public static Text: org.nativescript.mason.masonkit.Input.Type;
@@ -3822,6 +3835,36 @@ declare module org {
 					public setFontFeatureSettings(this_: globalAndroid.view.View, value: string): void;
 					public getBackdropFilter(this_: globalAndroid.view.View): string;
 					public setBackdropFilter(this_: globalAndroid.view.View, value: string): void;
+					public getMaskImage(this_: globalAndroid.view.View): string;
+					public setMaskImage(this_: globalAndroid.view.View, value: string): void;
+					public getMaskSize(this_: globalAndroid.view.View): string;
+					public setMaskSize(this_: globalAndroid.view.View, value: string): void;
+					public getMaskPosition(this_: globalAndroid.view.View): string;
+					public setMaskPosition(this_: globalAndroid.view.View, value: string): void;
+					public getMaskRepeat(this_: globalAndroid.view.View): string;
+					public setMaskRepeat(this_: globalAndroid.view.View, value: string): void;
+					public getMaskOrigin(this_: globalAndroid.view.View): string;
+					public setMaskOrigin(this_: globalAndroid.view.View, value: string): void;
+					public getMaskClip(this_: globalAndroid.view.View): string;
+					public setMaskClip(this_: globalAndroid.view.View, value: string): void;
+					public getMaskMode(this_: globalAndroid.view.View): string;
+					public setMaskMode(this_: globalAndroid.view.View, value: string): void;
+					public getMaskComposite(this_: globalAndroid.view.View): string;
+					public setMaskComposite(this_: globalAndroid.view.View, value: string): void;
+					public getClipPath(this_: globalAndroid.view.View): string;
+					public setClipPath(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderSource(this_: globalAndroid.view.View): string;
+					public setMaskBorderSource(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderSlice(this_: globalAndroid.view.View): string;
+					public setMaskBorderSlice(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderWidth(this_: globalAndroid.view.View): string;
+					public setMaskBorderWidth(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderOutset(this_: globalAndroid.view.View): string;
+					public setMaskBorderOutset(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderRepeat(this_: globalAndroid.view.View): string;
+					public setMaskBorderRepeat(this_: globalAndroid.view.View, value: string): void;
+					public getMaskBorderMode(this_: globalAndroid.view.View): string;
+					public setMaskBorderMode(this_: globalAndroid.view.View, value: string): void;
 				}
 			}
 		}

@@ -819,11 +819,15 @@ declare class MasonInput extends UIView {
 
 	checked: boolean;
 
+	cssAppearance: MasonInputAppearance;
+
 	readonly mason: NSCMason;
 
 	multiple: boolean;
 
 	readonly node: MasonNode;
+
+	onCheckedChange: (p1: boolean) => void;
 
 	placeholderColor: UIColor;
 
@@ -857,6 +861,13 @@ declare class MasonInputEvent extends MasonEvent {
 	constructor(o: { type: string; data: string; inputType: string; options: MasonEventOptions; });
 
 	initWithTypeDataInputTypeOptions(type: string, inputData: string, masonInputType: string, options: MasonEventOptions): this;
+}
+
+declare const enum MasonInputAppearance {
+
+	Auto = 0,
+
+	None = 1
 }
 
 declare const enum MasonInputType {
@@ -2083,6 +2094,36 @@ declare class MasonStyle extends NSObject {
 	alignSelf: MasonAlignSelf;
 
 	backdropFilter: string;
+
+	maskImage: string;
+
+	maskSize: string;
+
+	maskPosition: string;
+
+	maskRepeat: string;
+
+	maskOrigin: string;
+
+	maskClip: string;
+
+	maskMode: string;
+
+	maskComposite: string;
+
+	clipPath: string;
+
+	maskBorderSource: string;
+
+	maskBorderSlice: string;
+
+	maskBorderWidth: string;
+
+	maskBorderOutset: string;
+
+	maskBorderRepeat: string;
+
+	maskBorderMode: string;
 
 	background: string;
 

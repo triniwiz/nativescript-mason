@@ -1748,6 +1748,201 @@ class NodeHelper(val mason: Mason) {
       node.style.backdropFilter = value
     }
 
+    fun getMaskImage(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskImage
+    }
+
+    fun setMaskImage(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskImage = value
+    }
+
+    fun getMaskSize(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskSize
+    }
+
+    fun setMaskSize(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskSize = value
+    }
+
+    fun getMaskPosition(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskPosition
+    }
+
+    fun setMaskPosition(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskPosition = value
+    }
+
+    fun getMaskRepeat(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskRepeat
+    }
+
+    fun setMaskRepeat(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskRepeat = value
+    }
+
+    fun getMaskOrigin(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskOrigin
+    }
+
+    fun setMaskOrigin(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskOrigin = value
+    }
+
+    fun getMaskClip(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskClip
+    }
+
+    fun setMaskClip(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskClip = value
+    }
+
+    fun getMaskMode(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskMode
+    }
+
+    fun setMaskMode(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskMode = value
+    }
+
+    fun getMaskComposite(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskComposite
+    }
+
+    fun setMaskComposite(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskComposite = value
+    }
+
+    fun getClipPath(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.clipPath
+    }
+
+    fun setClipPath(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.clipPath = value
+    }
+
+    fun getMaskBorderSource(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderSource
+    }
+
+    fun setMaskBorderSource(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderSource = value
+    }
+
+    fun getMaskBorderSlice(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderSlice
+    }
+
+    fun setMaskBorderSlice(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderSlice = value
+    }
+
+    fun getMaskBorderWidth(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderWidth
+    }
+
+    fun setMaskBorderWidth(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderWidth = value
+    }
+
+    fun getMaskBorderOutset(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderOutset
+    }
+
+    fun setMaskBorderOutset(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderOutset = value
+    }
+
+    fun getMaskBorderRepeat(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderRepeat
+    }
+
+    fun setMaskBorderRepeat(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderRepeat = value
+    }
+
+    fun getMaskBorderMode(view: android.view.View): String {
+      val node = mason.nodeForView(view)
+      return node.style.maskBorderMode
+    }
+
+    fun setMaskBorderMode(
+      view: android.view.View,
+      value: String
+    ) {
+      val node = mason.nodeForView(view)
+      node.style.maskBorderMode = value
+    }
+
     fun getFontFeatureSettings(view: android.view.View): String {
       val node = mason.nodeForView(view)
       return node.style.fontFeatureSettings

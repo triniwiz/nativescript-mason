@@ -157,6 +157,17 @@ class Img @JvmOverloads constructor(
   val srcF = android.graphics.RectF()
   val dstF = android.graphics.RectF()
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
+  // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+
   override fun onDraw(canvas: Canvas) {
 
     // map the drawable's intrinsic rect -> destination region with a Matrix so positioning

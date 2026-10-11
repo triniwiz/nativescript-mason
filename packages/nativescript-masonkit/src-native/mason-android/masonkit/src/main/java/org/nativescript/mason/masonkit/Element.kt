@@ -1207,8 +1207,12 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             // layoutTree is empty (parent owns the layout tree), so set these here.
             view.enableScrollX = overflowX == Overflow.Scroll.value ||
               (overflowX == Overflow.Auto.value && scrollCW > layoutWidth)
+            // A `<scroll>` treats default `visible` overflow as `auto`, as Scroll.isAutoY does
+            // for a root; HTML block elements (visibleOverflowScrolls = false) don't.
+            val autoY = overflowY == Overflow.Auto.value ||
+              (view.visibleOverflowScrolls && overflowY == Overflow.Visible.value)
             view.enableScrollY = overflowY == Overflow.Scroll.value ||
-              (overflowY == Overflow.Auto.value && scrollCH > layoutHeight)
+              (autoY && scrollCH > layoutHeight)
 
             if (!skipMeasureAndLayout) {
               view.measure(

@@ -3049,7 +3049,9 @@ public class MasonStyle: NSObject {
   /// over the child's transparent rounded corners).
   private func syncShadowLayer(_ view: UIView, viewBounds: CGRect) {
     let hasOutsetShadows = boxShadows.contains { !$0.inset }
-    guard hasOutsetShadows else {
+    // A mask clips everything outside the element's box, and the shadow lies wholly outside
+    // it; hosted in the superview it would escape the mask, so it is hidden instead.
+    guard hasOutsetShadows, !isMasked else {
       if shadowLayerAdded { mShadowLayer.isHidden = true }
       return
     }
@@ -4113,11 +4115,14 @@ public class MasonStyle: NSObject {
   
   // MARK: - border-image (string-based, parsed natively)
   
+  // Parsed and drawn by NineSlice.swift in place of the border; created on first draw.
+  internal var mBorderImageStorage: BorderImage?
+  /// Set once a pseudo state carries `border-image`; until then draws skip the pseudo lookup.
+  internal var hasPseudoBorderImage = false
+
   @objc public var borderImage: String = "" {
     didSet {
-      if let view = node.view {
-        view.setNeedsDisplay()
-      }
+      if borderImage != oldValue { borderImageChanged() }
     }
   }
   
@@ -4181,6 +4186,77 @@ public class MasonStyle: NSObject {
   }
   
   
+  // MARK: - mask-* (string-based, parsed natively; see Mask.swift)
+
+  // Created on first use, so an element that never sets a mask pays nothing.
+  internal var mMaskStorage: Mask?
+  /// Set once a pseudo state carries a mask longhand; until then masks skip the pseudo lookup.
+  internal var hasPseudoMask = false
+
+  // Each holds the CSS string as last set; the `mask` shorthand is split before it gets here.
+  @objc public var maskImage: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskSize: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskPosition: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskRepeat: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskOrigin: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskClip: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskMode: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskComposite: String = "" {
+    didSet { maskChanged() }
+  }
+
+  // MARK: - clip-path / mask-border-* (string-based, composed into the mask; see ClipPath.swift, NineSlice.swift)
+
+  @objc public var clipPath: String = "" {
+    didSet { maskChanged() }
+  }
+
+  // The `mask-border` and `-webkit-mask-box-image` shorthands are split before they get here.
+  @objc public var maskBorderSource: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskBorderSlice: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskBorderWidth: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskBorderOutset: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskBorderRepeat: String = "" {
+    didSet { maskChanged() }
+  }
+
+  @objc public var maskBorderMode: String = "" {
+    didSet { maskChanged() }
+  }
+
   // MARK: - font-feature-settings (string-based)
 
   @objc public var fontFeatureSettings: String = "normal" {

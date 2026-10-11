@@ -1238,6 +1238,15 @@ class Style internal constructor(@Transient internal var node: Node) {
     ) {
       invalidateResolvedFontFace()
     }
+    // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
+    // and a view that was laid out before going `display: none` keeps drawing at its old frame.
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+      (node.view as? View)?.let { view ->
+        val visibility = if (display == Display.None) View.INVISIBLE else View.VISIBLE
+        // GONE is `visibility: collapse` or a queued removal (NodeUtils); both outrank display.
+        if (view.visibility != visibility && view.visibility != View.GONE) view.visibility = visibility
+      }
+    }
     if (!inBatch) {
       updateNativeStyle()
     }
@@ -3255,8 +3264,14 @@ class Style internal constructor(@Transient internal var node: Node) {
   var borderImage: String = ""
     set(value) {
       field = value
-      (node.view as? View)?.invalidate()
+      // Parsed once here; null (nothing drawn, the normal border shows) for `none` or invalid.
+      mBorderImage = parseBorderImage(value)?.let { spec ->
+        mBorderImage?.takeIf { it.spec == spec } ?: BorderImage(spec)
+      }
+      (node.view as? android.view.View)?.invalidate()
     }
+
+  internal var mBorderImage: BorderImage? = null
 
   // ============================================================
   // backdrop-filter (string-based)
@@ -3301,6 +3316,91 @@ class Style internal constructor(@Transient internal var node: Node) {
     helper.setFilter(filter)
     view.invalidate()
   }
+
+  // ============================================================
+  // mask-* (string-based; see Mask.kt)
+  // ============================================================
+  // Created on first write, so unmasked elements pay one null check per draw.
+  internal var mMask: Mask? = null
+
+  internal fun ensureMask(): Mask = mMask ?: Mask(this).also { mMask = it }
+
+  private fun setMaskLonghand(index: Int, value: String) {
+    if (mMask == null && value.isBlank()) return
+    ensureMask().set(index, value)
+  }
+
+  var maskImage: String
+    get() = mMask?.get(Mask.IMAGE) ?: ""
+    set(value) = setMaskLonghand(Mask.IMAGE, value)
+
+  var maskSize: String
+    get() = mMask?.get(Mask.SIZE) ?: ""
+    set(value) = setMaskLonghand(Mask.SIZE, value)
+
+  var maskPosition: String
+    get() = mMask?.get(Mask.POSITION) ?: ""
+    set(value) = setMaskLonghand(Mask.POSITION, value)
+
+  var maskRepeat: String
+    get() = mMask?.get(Mask.REPEAT) ?: ""
+    set(value) = setMaskLonghand(Mask.REPEAT, value)
+
+  var maskOrigin: String
+    get() = mMask?.get(Mask.ORIGIN) ?: ""
+    set(value) = setMaskLonghand(Mask.ORIGIN, value)
+
+  var maskClip: String
+    get() = mMask?.get(Mask.CLIP) ?: ""
+    set(value) = setMaskLonghand(Mask.CLIP, value)
+
+  var maskMode: String
+    get() = mMask?.get(Mask.MODE) ?: ""
+    set(value) = setMaskLonghand(Mask.MODE, value)
+
+  var maskComposite: String
+    get() = mMask?.get(Mask.COMPOSITE) ?: ""
+    set(value) = setMaskLonghand(Mask.COMPOSITE, value)
+
+  // mask-border-* (the shorthand is split in JS); composed into the mask by Mask.kt.
+  var maskBorderSource: String
+    get() = mMask?.get(Mask.BORDER_SOURCE) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_SOURCE, value)
+
+  var maskBorderSlice: String
+    get() = mMask?.get(Mask.BORDER_SLICE) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_SLICE, value)
+
+  var maskBorderWidth: String
+    get() = mMask?.get(Mask.BORDER_WIDTH) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_WIDTH, value)
+
+  var maskBorderOutset: String
+    get() = mMask?.get(Mask.BORDER_OUTSET) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_OUTSET, value)
+
+  var maskBorderRepeat: String
+    get() = mMask?.get(Mask.BORDER_REPEAT) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_REPEAT, value)
+
+  var maskBorderMode: String
+    get() = mMask?.get(Mask.BORDER_MODE) ?: ""
+    set(value) = setMaskLonghand(Mask.BORDER_MODE, value)
+
+  // ============================================================
+  // clip-path (string-based; see ClipPath.kt)
+  // ============================================================
+  // Created on first write, so unclipped elements pay one null check per draw.
+  internal var mClipPath: ClipPath? = null
+
+  internal fun ensureClipPath(): ClipPath = mClipPath ?: ClipPath(this).also { mClipPath = it }
+
+  var clipPath: String
+    get() = mClipPath?.get() ?: ""
+    set(value) {
+      if (mClipPath == null && value.isBlank()) return
+      ensureClipPath().set(value)
+    }
 
 
   internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {

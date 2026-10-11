@@ -12,19 +12,20 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.util.Base64
 import android.view.View
-import androidx.core.graphics.PathParser
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.hypot
 
@@ -50,11 +51,6 @@ private val RGBA_REGEX =
   )
 private val ANGLE_REGEX =
   Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
-private val SVG_DIMENSION_REGEX = Regex("""(?i)\b(width|height)=["']?([0-9.]+)""")
-private val SVG_VIEWBOX_REGEX = Regex("""(?i)\bviewBox=["']?\s*([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)""")
-private val SVG_FILL_REGEX = Regex("""(?i)\bfill=["']([^"']+)["']""")
-private val SVG_FILL_OPACITY_REGEX = Regex("""(?i)\bfill-opacity=["']([0-9.]+)["']""")
-private val SVG_PATH_REGEX = Regex("""(?i)<path\b[^>]*\bd=["']([^"']+)["'][^>]*/?>""")
 
 /**
  * CSS pseudo-state specificity order.
@@ -188,6 +184,12 @@ data class BackgroundLayer(
   var blendMode: BackgroundBlendMode = BackgroundBlendMode.NORMAL,
   /** Raster images are 1 image px = 1 CSS px; SVGs are rasterized at device scale already. */
   var bitmapIsDevicePx: Boolean = false,
+  /** A `data:image/svg+xml` image, parsed once; `bitmap` is its raster at the drawn size. */
+  var svg: SvgDocument? = null,
+  /** The SVG didn't parse; don't retry every frame. */
+  var svgFailed: Boolean = false,
+  /** The `currentColor` that `bitmap` was rasterized with (0 when the SVG doesn't use it). */
+  var svgColor: Int = 0,
   /** A color token seen in the shorthand; the last layer\'s becomes `Background.color`. */
   var layerColor: Int? = null
 ) {
@@ -386,27 +388,36 @@ enum class BackgroundRepeat(val value: String) {
 }
 
 data class Gradient(
-  val type: String,             // linear or radial
+  val type: String,             // linear, radial or conic
   val direction: String?,       // e.g., "to bottom"
   val stops: List<String>,      // color stops
   val interpolation: ColorInterpolation? = null,
+  /** `repeating-*-gradient`: the stop run tiles along the gradient line. */
+  val repeating: Boolean = false,
 )
 
+/** [currentColor] is the element's resolved CSS `color`, for SVG `currentColor` paints. */
 fun drawBackground(
-  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF
+  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
+  currentColor: Int = 0xFF000000.toInt()
 ) {
   layer.gradient?.let { drawGradient(layer, canvas, paintRect, area, view) }
 
   layer.image?.let { imageUrl ->
+    if (imageUrl.startsWith("data:image/svg", ignoreCase = true)) {
+      drawSvgLayer(context, layer, imageUrl, canvas, paintRect, area, currentColor)
+      return
+    }
+
     // Use cached bitmap if available
     layer.bitmap?.let { bitmap ->
       drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
       return
     }
 
-    decodeDataUrlBitmap(imageUrl, context.resources.displayMetrics.density)?.let { bitmap ->
+    decodeDataUrlBitmap(imageUrl)?.let { bitmap ->
       layer.bitmap = bitmap
-      layer.bitmapIsDevicePx = imageUrl.startsWith("data:image/svg", ignoreCase = true)
+      layer.bitmapIsDevicePx = false
       drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
       return
     }
@@ -424,77 +435,161 @@ fun drawBackground(
   }
 }
 
-private fun decodeDataUrlBitmap(url: String, density: Float): Bitmap? {
+/** Largest SVG raster edge, in device px; anything bigger is drawn scaled up. */
+private const val MAX_SVG_RASTER_PX = 4096
+
+/**
+ * An SVG layer keeps its parsed document and rasterizes it at the size it is drawn, in device px
+ * (so `background-size` scales stay sharp). The raster is cached on the layer and redone only
+ * when that size or the `currentColor` it used changes.
+ */
+private fun drawSvgLayer(
+  context: Context, layer: BackgroundLayer, url: String, canvas: Canvas, paintRect: RectF, area: RectF, currentColor: Int
+) {
+  if (layer.svgFailed) return
+  val doc = layer.svg ?: decodeSvgDataUrl(url)?.also { layer.svg = it }
+  if (doc == null) {
+    layer.svgFailed = true
+    return
+  }
+  val density = context.resources.displayMetrics.density
+  // Intrinsic size in device px: 1 SVG px is 1 CSS px.
+  val (drawW, drawH) = resolveBitmapSize(layer.size, doc.width * density, doc.height * density, area.width(), area.height())
+  if (drawW <= 0f || drawH <= 0f) return
+  val fit = minOf(1f, MAX_SVG_RASTER_PX / maxOf(drawW, drawH))
+  val pxW = ceil(drawW * fit).toInt().coerceAtLeast(1)
+  val pxH = ceil(drawH * fit).toInt().coerceAtLeast(1)
+  val color = if (doc.usesCurrentColor) currentColor else 0
+  val cached = layer.bitmap
+  val bitmap = if (cached != null && cached.width == pxW && cached.height == pxH && layer.svgColor == color) {
+    cached
+  } else {
+    renderSvgDocument(doc, pxW, pxH, color)?.also {
+      layer.bitmap = it
+      layer.svgColor = color
+      layer.bitmapIsDevicePx = true
+    } ?: return
+  }
+  drawBitmapLayer(bitmap, layer, canvas, paintRect, area, drawW, drawH)
+}
+
+/** Payload bytes of a `data:` URL, or null. */
+private fun decodeDataUrlBytes(url: String): ByteArray? {
   if (!url.startsWith("data:", ignoreCase = true)) return null
   val comma = url.indexOf(',')
   if (comma < 0) return null
 
   val meta = url.substring(5, comma).lowercase()
   val payload = url.substring(comma + 1)
-  val bytes = try {
+  return try {
     if (meta.contains(";base64")) {
       Base64.decode(payload, Base64.DEFAULT)
     } else {
-      URLDecoder.decode(payload, StandardCharsets.UTF_8.name()).toByteArray(StandardCharsets.UTF_8)
+      percentDecodeBytes(payload)
     }
   } catch (_: Throwable) {
-    return null
-  }
-
-  return if (meta.startsWith("image/svg+xml")) {
-    rasterizeSimpleSvg(String(bytes, StandardCharsets.UTF_8), density)
-  } else {
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    null
   }
 }
 
-private fun rasterizeSimpleSvg(svg: String, density: Float): Bitmap? {
-  val dimensions = SVG_DIMENSION_REGEX.findAll(svg)
-    .associate { it.groupValues[1].lowercase() to it.groupValues[2].toFloatOrNull() }
-  val viewBox = SVG_VIEWBOX_REGEX.find(svg)?.groupValues
-  val vbX = viewBox?.getOrNull(1)?.toFloatOrNull() ?: 0f
-  val vbY = viewBox?.getOrNull(2)?.toFloatOrNull() ?: 0f
-  val vbW = viewBox?.getOrNull(3)?.toFloatOrNull() ?: dimensions["width"] ?: 0f
-  val vbH = viewBox?.getOrNull(4)?.toFloatOrNull() ?: dimensions["height"] ?: 0f
-  val width = ((dimensions["width"] ?: vbW) * density).toInt().coerceAtLeast(1)
-  val height = ((dimensions["height"] ?: vbH) * density).toInt().coerceAtLeast(1)
-  if (vbW <= 0f || vbH <= 0f) return null
+internal fun decodeDataUrlBitmap(url: String): Bitmap? {
+  val bytes = decodeDataUrlBytes(url) ?: return null
+  return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}
 
-  val fill = SVG_FILL_REGEX.find(svg)?.groupValues?.getOrNull(1)
-  val color = parseColor(fill ?: "#000") ?: Color.BLACK
-  val opacity = SVG_FILL_OPACITY_REGEX.find(svg)?.groupValues?.getOrNull(1)?.toFloatOrNull()
-    ?.coerceIn(0f, 1f) ?: (Color.alpha(color) / 255f)
+internal fun decodeSvgDataUrl(url: String): SvgDocument? {
+  val bytes = decodeDataUrlBytes(url) ?: return null
+  return try {
+    parseSvgDocument(String(bytes, StandardCharsets.UTF_8))
+  } catch (_: Throwable) {
+    null
+  }
+}
 
-  val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+private fun svgMatrix(t: FloatArray) = Matrix().apply {
+  setValues(floatArrayOf(t[0], t[2], t[4], t[1], t[3], t[5], 0f, 0f, 1f))
+}
+
+private fun svgPaintColor(paint: SvgPaint, opacity: Float, currentColor: Int): Int {
+  val argb = when (paint) {
+    is SvgPaint.Color -> paint.argb
+    SvgPaint.CurrentColor -> currentColor
+    SvgPaint.None -> 0
+  }
+  val alpha = (((argb ushr 24) and 0xFF) * opacity.coerceIn(0f, 1f)).toInt().coerceIn(0, 255)
+  return (alpha shl 24) or (argb and 0x00FFFFFF)
+}
+
+private fun buildSvgPath(path: Path, commands: List<SvgPathCommand>) {
+  path.reset()
+  for (c in commands) {
+    when (c) {
+      is SvgPathCommand.MoveTo -> path.moveTo(c.x, c.y)
+      is SvgPathCommand.LineTo -> path.lineTo(c.x, c.y)
+      is SvgPathCommand.CubicTo -> path.cubicTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y)
+      is SvgPathCommand.QuadTo -> path.quadTo(c.x1, c.y1, c.x, c.y)
+      SvgPathCommand.Close -> path.close()
+    }
+  }
+}
+
+/** Rasterize [doc] into a [w] x [h] px bitmap; `currentColor` paints use [currentColor]. */
+internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: Int): Bitmap? {
+  if (w <= 0 || h <= 0 || doc.ops.isEmpty()) return null
+  val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply {
     setHasAlpha(true)
     eraseColor(Color.TRANSPARENT)
   }
   val canvas = Canvas(bitmap)
-  val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-    style = Paint.Style.FILL
-    this.color = color
-    alpha = (opacity * 255f).toInt().coerceIn(0, 255)
-  }
+  canvas.concat(svgMatrix(doc.viewportTransform(w.toFloat(), h.toFloat())))
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  val path = Path()
+  for (op in doc.ops) {
+    when (op) {
+      is SvgOp.BeginGroup -> {
+        @Suppress("DEPRECATION")
+        canvas.saveLayerAlpha(null, (op.opacity * 255f).toInt().coerceIn(0, 255))
+      }
 
-  val matrix = Matrix().apply {
-    postTranslate(-vbX, -vbY)
-    postScale(width / vbW, height / vbH)
+      SvgOp.EndGroup -> canvas.restore()
+      is SvgOp.Shape -> {
+        val shape = op.shape
+        buildSvgPath(path, shape.commands)
+        path.fillType = if (shape.evenOdd) Path.FillType.EVEN_ODD else Path.FillType.WINDING
+        canvas.save()
+        canvas.concat(svgMatrix(shape.transform))
+        if (shape.hasFill) {
+          paint.reset()
+          paint.isAntiAlias = true
+          paint.style = Paint.Style.FILL
+          paint.color = svgPaintColor(shape.fill, shape.fillOpacity, currentColor)
+          canvas.drawPath(path, paint)
+        }
+        if (shape.hasStroke) {
+          paint.reset()
+          paint.isAntiAlias = true
+          paint.style = Paint.Style.STROKE
+          paint.strokeWidth = shape.strokeWidth
+          paint.strokeCap = when (shape.lineCap) {
+            SvgLineCap.BUTT -> Paint.Cap.BUTT
+            SvgLineCap.ROUND -> Paint.Cap.ROUND
+            SvgLineCap.SQUARE -> Paint.Cap.SQUARE
+          }
+          paint.strokeJoin = when (shape.lineJoin) {
+            SvgLineJoin.MITER -> Paint.Join.MITER
+            SvgLineJoin.ROUND -> Paint.Join.ROUND
+            SvgLineJoin.BEVEL -> Paint.Join.BEVEL
+          }
+          paint.strokeMiter = shape.miterLimit
+          shape.dashArray?.let { paint.pathEffect = DashPathEffect(it, shape.dashOffset) }
+          paint.color = svgPaintColor(shape.stroke, shape.strokeOpacity, currentColor)
+          canvas.drawPath(path, paint)
+        }
+        canvas.restore()
+      }
+    }
   }
-
-  var drewPath = false
-  SVG_PATH_REGEX.findAll(svg).forEach { match ->
-    val data = match.groupValues[1]
-    val path = try {
-      PathParser.createPathFromPathData(data)
-    } catch (_: Throwable) {
-      null
-    } ?: return@forEach
-    path.transform(matrix)
-    canvas.drawPath(path, paint)
-    drewPath = true
-  }
-
-  return if (drewPath) bitmap else null
+  return bitmap
 }
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF, view: View? = null) {
@@ -515,6 +610,47 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
   }
 
   if (layer.shader == null) {
+    val type = gradient.type.lowercase()
+    val w = width.toFloat()
+    val h = height.toFloat()
+
+    // Geometry first: length stops ("10px") resolve against the gradient line
+    // (the ray, for radial), so its length must be known before the stops.
+    var x0 = 0f
+    var y0 = 0f
+    var x1 = 0f
+    var y1 = 0f
+    var radius = 0f
+    var fromDeg = 0f
+    val lineLength = when (type) {
+      "linear" -> {
+        val ep = resolveLinearGradientEndpoints(gradient.direction, w, h)
+        x0 = ep[0]; y0 = ep[1]; x1 = ep[2]; y1 = ep[3]
+        hypot(x1 - x0, y1 - y0)
+      }
+
+      "radial" -> {
+        val (cx, cy) = resolveRadialGradientCenter(gradient.direction, w, h)
+        x0 = cx; y0 = cy
+        // Radius must reach the farthest corner from the resolved centre.
+        radius = maxOf(
+          hypot((cx).toDouble(), (cy).toDouble()),
+          hypot((width - cx).toDouble(), (cy).toDouble()),
+          hypot((cx).toDouble(), (height - cy).toDouble()),
+          hypot((width - cx).toDouble(), (height - cy).toDouble())
+        ).toFloat().coerceAtLeast(1f)
+        radius
+      }
+
+      "conic" -> {
+        val geometry = resolveConicGeometry(gradient.direction, w, h)
+        x0 = geometry[0]; y0 = geometry[1]; fromDeg = geometry[2]
+        0f
+      }
+
+      else -> 0f
+    }
+
     val stopCount = gradient.stops.size
     val colorsArray = IntArray(stopCount)
     val positions = ArrayList<Float?>(stopCount)
@@ -523,45 +659,35 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
       val parts = splitTopLevelWhitespace(gradient.stops[index].trim())
       colorsArray[index] = parts.firstOrNull()?.let { parseColor(it) } ?: Color.TRANSPARENT
 
-      // "0", "50%" or "100%"
-      val posPart = parts.getOrNull(1)
-      val pos = posPart?.trimEnd('%')?.toFloatOrNull()
-      positions.add(
-        pos?.let {
-          when {
-            posPart.endsWith('%') -> it / 100f
-            it <= 1f -> it
-            else -> it / 100f
-          }.coerceIn(0f, 1f)
-        }
-      )
+      // "0", "50%", "100%", "10px", or an angle for conic gradients. A repeating
+      // gradient keeps out-of-range stops: they set the period.
+      val pos = parts.getOrNull(1)?.let { parseGradientStopPosition(it, type == "conic", lineLength) }
+      positions.add(if (gradient.repeating) pos else pos?.coerceIn(0f, 1f))
     }
 
     if (colorsArray.isEmpty()) return
-    val (shaderColors, positionsArray) = expandInterpolatedStops(
+    var (shaderColors, positionsArray) = expandInterpolatedStops(
       colorsArray, resolveStopPositions(positions), gradient.interpolation
     )
+    if (gradient.repeating) {
+      val repeated = repeatGradientStops(shaderColors, positionsArray)
+      shaderColors = repeated.first
+      positionsArray = repeated.second
+    }
+    // The platform shaders need two colours; a single stop is a solid fill.
+    if (shaderColors.size == 1) {
+      shaderColors = intArrayOf(shaderColors[0], shaderColors[0])
+      positionsArray = floatArrayOf(0f, 1f)
+    }
 
-    layer.shader = when (gradient.type.lowercase()) {
-      "linear" -> {
-        val ep = resolveLinearGradientEndpoints(
-          gradient.direction, width.toFloat(), height.toFloat()
-        )
-        LinearGradient(ep[0], ep[1], ep[2], ep[3], shaderColors, positionsArray, Shader.TileMode.CLAMP)
-      }
+    layer.shader = when (type) {
+      "linear" -> LinearGradient(x0, y0, x1, y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
 
-      "radial" -> {
-        val (cx, cy) = resolveRadialGradientCenter(gradient.direction, width.toFloat(), height.toFloat())
-        // Radius must reach the farthest corner from the resolved centre.
-        val radius = maxOf(
-          hypot((cx).toDouble(), (cy).toDouble()),
-          hypot((width - cx).toDouble(), (cy).toDouble()),
-          hypot((cx).toDouble(), (height - cy).toDouble()),
-          hypot((width - cx).toDouble(), (height - cy).toDouble())
-        ).toFloat().coerceAtLeast(1f)
-        RadialGradient(
-          cx, cy, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP
-        )
+      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP)
+
+      // SweepGradient starts at 3 o'clock; CSS conic starts at 12 o'clock, both clockwise.
+      "conic" -> SweepGradient(x0, y0, shaderColors, positionsArray).apply {
+        setLocalMatrix(Matrix().apply { setRotate(fromDeg - 90f, x0, y0) })
       }
 
       else -> null
@@ -596,6 +722,117 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     canvas.restoreToCount(save)
   }
   layer.blendMode.clear(gradientPaint)
+}
+
+/**
+ * One colour-stop position as a fraction of the gradient line: a percentage, a length over
+ * [lineLength] (device px), or an angle over a full turn for conic gradients. A bare number
+ * <= 1 is a fraction, else a percentage.
+ */
+private fun parseGradientStopPosition(token: String, conic: Boolean, lineLength: Float): Float? {
+  val t = token.trim().lowercase()
+  if (t.endsWith("%")) return t.dropLast(1).toFloatOrNull()?.let { it / 100f }
+  t.toFloatOrNull()?.let { return if (it <= 1f) it else it / 100f }
+  if (conic) return parseCssAngleToRadians(t)?.let { (it / (2.0 * Math.PI)).toFloat() }
+  if (lineLength <= 0f) return null
+  return parseBackgroundLength(t)?.let { it.px / lineLength }
+}
+
+/**
+ * `conic-gradient([from <angle>] [at <position>], ...)`: centre x, centre y (px) and the
+ * start angle (degrees, CSS orientation).
+ */
+private fun resolveConicGeometry(direction: String?, width: Float, height: Float): FloatArray {
+  val out = floatArrayOf(width / 2f, height / 2f, 0f)
+  val dir = direction?.trim()?.lowercase() ?: return out
+  val at = when {
+    dir.startsWith("at ") -> 0
+    else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
+  }
+  val fromPart = (if (at >= 0) dir.substring(0, at) else dir).trim()
+  if (fromPart.startsWith("from")) {
+    parseCssAngleToRadians(fromPart.removePrefix("from").trim())?.let {
+      out[2] = Math.toDegrees(it).toFloat()
+    }
+  }
+  if (at >= 0) {
+    val position = dir.substring(at + 3).trim()
+    if (position.isNotEmpty()) {
+      val (cx, cy) = resolvePositionKeywords(position, width, height)
+      out[0] = cx
+      out[1] = cy
+    }
+  }
+  return out
+}
+
+/** Largest stop list a repeating gradient expands to; finer periods are cut off. */
+private const val MAX_REPEATED_STOPS = 2048
+
+/**
+ * Tiles a repeating gradient's stops across [0, 1]: the run from the first to the last stop
+ * repeats with that length as its period, and the ends are cut at 0 and 1 with the colour
+ * interpolated there, since the platform shaders only take stops inside [0, 1].
+ */
+internal fun repeatGradientStops(colors: IntArray, positions: FloatArray): Pair<IntArray, FloatArray> {
+  val n = positions.size
+  if (n < 2 || colors.size != n) return colors to positions
+  val first = positions[0]
+  val period = positions[n - 1] - first
+  // CSS paints a zero-length period as one averaged colour; not worth tiling.
+  if (period <= 1e-4f) return colors to positions
+
+  val tiledColors = ArrayList<Int>()
+  val tiledPositions = ArrayList<Float>()
+  var k = kotlin.math.floor(-first / period).toInt()
+  while (first + k * period <= 1f && tiledPositions.size < MAX_REPEATED_STOPS) {
+    val shift = k * period
+    for (i in 0 until n) {
+      tiledColors.add(colors[i])
+      tiledPositions.add(positions[i] + shift)
+    }
+    k++
+  }
+
+  val outColors = ArrayList<Int>(tiledColors.size + 2)
+  val outPositions = ArrayList<Float>(tiledColors.size + 2)
+  outColors.add(stopColorAt(tiledColors, tiledPositions, 0f, fromRight = true))
+  outPositions.add(0f)
+  for (i in tiledPositions.indices) {
+    val p = tiledPositions[i]
+    if (p > 0f && p < 1f) {
+      outColors.add(tiledColors[i])
+      outPositions.add(p)
+    }
+  }
+  outColors.add(stopColorAt(tiledColors, tiledPositions, 1f, fromRight = false))
+  outPositions.add(1f)
+  return outColors.toIntArray() to outPositions.toFloatArray()
+}
+
+/**
+ * The colour of a stop list at [t]. At a hard stop, [fromRight] picks the colour that
+ * follows it, otherwise the one before it.
+ */
+private fun stopColorAt(colors: List<Int>, positions: List<Float>, t: Float, fromRight: Boolean): Int {
+  val n = positions.size
+  if (t <= positions[0] && !(fromRight && t == positions[0])) return colors[0]
+  if (t >= positions[n - 1] && !(!fromRight && t == positions[n - 1])) return colors[n - 1]
+  val i = if (fromRight) positions.indexOfLast { it <= t } else positions.indexOfFirst { it >= t } - 1
+  if (i < 0) return colors[0]
+  if (i >= n - 1) return colors[n - 1]
+  val span = positions[i + 1] - positions[i]
+  if (span <= 0f) return if (fromRight) colors[i + 1] else colors[i]
+  return lerpArgb(colors[i], colors[i + 1], (t - positions[i]) / span)
+}
+
+private fun lerpArgb(a: Int, b: Int, f: Float): Int {
+  fun ch(shift: Int): Int {
+    val x = (a ushr shift) and 0xFF
+    val y = (b ushr shift) and 0xFF
+    return (x + (y - x) * f + 0.5f).toInt().coerceIn(0, 255)
+  }
+  return (ch(24) shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
 }
 
 /** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */
@@ -772,13 +1009,16 @@ private fun resolvePositionKeywords(
   }
 }
 
+/** [drawW]/[drawH], when given, are the already-resolved tile size. */
 private fun drawBitmapLayer(
-  bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF
+  bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
+  drawW: Float? = null, drawH: Float? = null
 ) {
   val areaW = area.width()
   val areaH = area.height()
   val imgScale = if (layer.bitmapIsDevicePx) 1f else Mason.shared.scale
-  val (drawWidth, drawHeight) = resolveBitmapSize(layer.size, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
+  val (drawWidth, drawHeight) = if (drawW != null && drawH != null) drawW to drawH
+  else resolveBitmapSize(layer.size, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
   if (drawWidth <= 0f || drawHeight <= 0f) return
 
   // Reuse cached RectF and Paint to avoid per-tile allocations

@@ -9,8 +9,9 @@ import type { Style as MasonStyle } from './style';
 import { cssLengthToDip, parseAspectRatio } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
+import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
-import { BORDER_WIDTH_KEYWORDS, splitBackground, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
+import { BORDER_WIDTH_KEYWORDS, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
 
@@ -1839,6 +1840,296 @@ export const backdropFilterProperty = new CssProperty<Style, string>({
   },
 });
 
+// CSS masking. Android and iOS parse and draw these natively, the way they do backgrounds; the
+// `mask` shorthand is split into them here, like `background`.
+export const maskImageProperty = new CssProperty<Style, string>({
+  name: 'maskImage',
+  cssName: 'mask-image',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskImage = newValue as never;
+    }
+  },
+});
+
+export const maskSizeProperty = new CssAnimationProperty<Style, string>({
+  name: 'maskSize',
+  cssName: 'mask-size',
+  valueConverter: (value) => value,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskSize = newValue as never;
+    }
+  },
+});
+
+export const maskPositionProperty = new CssAnimationProperty<Style, string>({
+  name: 'maskPosition',
+  cssName: 'mask-position',
+  // Keyframes keep only declarations whose property has a converter; see css-keyframes.ts.
+  valueConverter: (value) => value,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskPosition = newValue as never;
+    }
+  },
+});
+
+export const maskRepeatProperty = new CssProperty<Style, string>({
+  name: 'maskRepeat',
+  cssName: 'mask-repeat',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskRepeat = newValue as never;
+    }
+  },
+});
+
+export const maskOriginProperty = new CssProperty<Style, string>({
+  name: 'maskOrigin',
+  cssName: 'mask-origin',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskOrigin = newValue as never;
+    }
+  },
+});
+
+export const maskClipProperty = new CssProperty<Style, string>({
+  name: 'maskClip',
+  cssName: 'mask-clip',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskClip = newValue as never;
+    }
+  },
+});
+
+export const maskModeProperty = new CssProperty<Style, string>({
+  name: 'maskMode',
+  cssName: 'mask-mode',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskMode = newValue as never;
+    }
+  },
+});
+
+export const maskCompositeProperty = new CssProperty<Style, string>({
+  name: 'maskComposite',
+  cssName: 'mask-composite',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskComposite = newValue as never;
+    }
+  },
+});
+
+export const clipPathProperty = new CssProperty<Style, string>({
+  name: 'clipPath',
+  cssName: 'clip-path',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.clipPath = newValue as never;
+    }
+  },
+});
+
+export const maskBorderSourceProperty = new CssProperty<Style, string>({
+  name: 'maskBorderSource',
+  cssName: 'mask-border-source',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderSource = newValue as never;
+    }
+  },
+});
+
+export const maskBorderSliceProperty = new CssProperty<Style, string>({
+  name: 'maskBorderSlice',
+  cssName: 'mask-border-slice',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderSlice = newValue as never;
+    }
+  },
+});
+
+export const maskBorderWidthProperty = new CssProperty<Style, string>({
+  name: 'maskBorderWidth',
+  cssName: 'mask-border-width',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderWidth = newValue as never;
+    }
+  },
+});
+
+export const maskBorderOutsetProperty = new CssProperty<Style, string>({
+  name: 'maskBorderOutset',
+  cssName: 'mask-border-outset',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderOutset = newValue as never;
+    }
+  },
+});
+
+export const maskBorderRepeatProperty = new CssProperty<Style, string>({
+  name: 'maskBorderRepeat',
+  cssName: 'mask-border-repeat',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderRepeat = newValue as never;
+    }
+  },
+});
+
+export const maskBorderModeProperty = new CssProperty<Style, string>({
+  name: 'maskBorderMode',
+  cssName: 'mask-border-mode',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maskBorderMode = newValue as never;
+    }
+  },
+});
+
+// The -webkit- prefixed names older and autoprefixed CSS still uses, set on the same Style
+// properties. Composite operators and box keywords are translated to the standard ones.
+
+const webkitMaskImageProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskImage',
+  cssName: '-webkit-mask-image',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskImage = (typeof value === 'string' ? value : value) as never;
+    }
+  },
+});
+
+const webkitMaskSizeProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskSize',
+  cssName: '-webkit-mask-size',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskSize = (typeof value === 'string' ? value : value) as never;
+    }
+  },
+});
+
+const webkitMaskPositionProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskPosition',
+  cssName: '-webkit-mask-position',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskPosition = (typeof value === 'string' ? value : value) as never;
+    }
+  },
+});
+
+const webkitMaskRepeatProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskRepeat',
+  cssName: '-webkit-mask-repeat',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskRepeat = (typeof value === 'string' ? value : value) as never;
+    }
+  },
+});
+
+const webkitMaskOriginProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskOrigin',
+  cssName: '-webkit-mask-origin',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskOrigin = (typeof value === 'string' ? webkitMaskBox(value) : value) as never;
+    }
+  },
+});
+
+const webkitMaskClipProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskClip',
+  cssName: '-webkit-mask-clip',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskClip = (typeof value === 'string' ? webkitMaskBox(value) : value) as never;
+    }
+  },
+});
+
+const webkitMaskCompositeProperty = new CssProperty<Style, string>({
+  name: 'webkitMaskComposite',
+  cssName: '-webkit-mask-composite',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      const value = newValue as unknown as string;
+      view.maskComposite = (typeof value === 'string' ? webkitMaskComposite(value) : value) as never;
+    }
+  },
+});
+
+const maskShorthand: MasonShorthand = {
+  cssName: 'mask',
+  longhands: [maskImageProperty, maskPositionProperty, maskSizeProperty, maskRepeatProperty, maskOriginProperty, maskClipProperty, maskCompositeProperty, maskModeProperty],
+  split: splitMask,
+};
+
+export const maskProperty = masonShorthandProperty(maskShorthand, function (this: Style) {
+  return this.maskImage;
+});
+
+const webkitMaskShorthand: MasonShorthand = { cssName: '-webkit-mask', longhands: maskShorthand.longhands, split: splitWebkitMask };
+
+const webkitMaskProperty = masonShorthandProperty(webkitMaskShorthand, function (this: Style) {
+  return this.maskImage;
+});
+
+const maskBorderShorthand: MasonShorthand = {
+  cssName: 'mask-border',
+  longhands: [maskBorderSourceProperty, maskBorderSliceProperty, maskBorderWidthProperty, maskBorderOutsetProperty, maskBorderRepeatProperty, maskBorderModeProperty],
+  split: splitMaskBorder,
+};
+
+export const maskBorderProperty = masonShorthandProperty(maskBorderShorthand, function (this: Style) {
+  return this.maskBorderSource;
+});
+
+// WebKit's name for mask-border.
+const webkitMaskBoxImageShorthand: MasonShorthand = { cssName: '-webkit-mask-box-image', longhands: maskBorderShorthand.longhands, split: splitMaskBorder };
+
+const webkitMaskBoxImageProperty = masonShorthandProperty(webkitMaskBoxImageShorthand, function (this: Style) {
+  return this.maskBorderSource;
+});
+
 export const writingModeProperty = new CssProperty<Style, string>({
   name: 'writingMode',
   cssName: 'writing-mode',
@@ -1883,6 +2174,38 @@ fontFeatureSettingsProperty.register(Style);
 wordSpacingProperty.register(Style);
 hyphensProperty.register(Style);
 backdropFilterProperty.register(Style);
+maskImageProperty.register(Style);
+maskProperty.register(Style);
+
+// Keyframes can animate mask position and size; see css-keyframes.ts.
+registerKeyframeProperty(maskPositionProperty, interpolatePositionList, '0% 0%');
+registerKeyframeProperty(maskSizeProperty, interpolateSizeList, 'auto');
+installKeyframes();
+// Core has its own clip-path for plain views; MasonKit views draw theirs natively.
+registerAlongsideCore(clipPathProperty);
+maskBorderSourceProperty.register(Style);
+maskBorderSliceProperty.register(Style);
+maskBorderWidthProperty.register(Style);
+maskBorderOutsetProperty.register(Style);
+maskBorderRepeatProperty.register(Style);
+maskBorderModeProperty.register(Style);
+webkitMaskImageProperty.register(Style);
+webkitMaskSizeProperty.register(Style);
+webkitMaskPositionProperty.register(Style);
+webkitMaskRepeatProperty.register(Style);
+webkitMaskOriginProperty.register(Style);
+webkitMaskClipProperty.register(Style);
+webkitMaskCompositeProperty.register(Style);
+webkitMaskProperty.register(Style);
+maskBorderProperty.register(Style);
+webkitMaskBoxImageProperty.register(Style);
+maskSizeProperty.register(Style);
+maskPositionProperty.register(Style);
+maskRepeatProperty.register(Style);
+maskOriginProperty.register(Style);
+maskClipProperty.register(Style);
+maskModeProperty.register(Style);
+maskCompositeProperty.register(Style);
 writingModeProperty.register(Style);
 unicodeBidiProperty.register(Style);
 caretColorProperty.register(Style);
@@ -1986,4 +2309,4 @@ for (const entry of coreShorthands) {
   masonShorthandProperty(entry);
 }
 
-export const masonShorthands: MasonShorthand[] = [...coreShorthands, overflowShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
+export const masonShorthands: MasonShorthand[] = [...coreShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
