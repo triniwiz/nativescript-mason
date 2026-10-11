@@ -313,6 +313,13 @@ class Scroll @JvmOverloads constructor(
 
   // Layout
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (parent !is Element) {
+      ViewUtils.holdInitialFocus(this)
+    }
+  }
+
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // Run base TwoDScrollView logic (focus, scroll-position clamping).
     super.onLayout(changed, l, t, r, b)

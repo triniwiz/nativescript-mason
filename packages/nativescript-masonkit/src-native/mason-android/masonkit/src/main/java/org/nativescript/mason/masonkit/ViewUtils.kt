@@ -314,6 +314,19 @@ class ViewUtils {
       render(view, canvas, style, superDraw, ignoreBorder)
     }
 
+    /**
+     * Android gives a new window's focus to its first focusable view, so an `<input>` showed a
+     * caret before anyone touched it. On the web an input is focused only by a tap, `autofocus`
+     * or `focus()`, so a Mason root takes that initial focus itself; a tap still moves it.
+     */
+    fun holdInitialFocus(root: ViewGroup) {
+      root.isFocusableInTouchMode = true
+      root.descendantFocusability = ViewGroup.FOCUS_BEFORE_DESCENDANTS
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        root.defaultFocusHighlightEnabled = false
+      }
+    }
+
     fun dispatchDraw(
       view: android.view.View,
       canvas: Canvas,

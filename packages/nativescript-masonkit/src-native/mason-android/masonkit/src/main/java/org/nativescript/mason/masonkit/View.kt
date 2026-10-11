@@ -265,6 +265,13 @@ open class View @JvmOverloads constructor(
   }
 
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (parent !is Element) {
+      ViewUtils.holdInitialFocus(this)
+    }
+  }
+
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     if (parent !is Element) {
       // Only re-read the layout from Rust if we don't already have a
