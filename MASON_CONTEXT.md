@@ -1043,6 +1043,22 @@ SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device p
 - **Build clock.** MSBuild skips stale-looking sources: if the system clock moves backwards,
   delete `Mason/NativeSc.*/<arch>/Release` and `Mason/bin/<arch>/Release` before `publish.ps1`.
 
+## <details> and <summary>
+
+`web.ts`. `Details.open` is a core `Property`, so setting it emits `openChange` and core
+re-matches `details[open]` (a plain JS attribute, as nativescript-vue sets one, never
+notifies). Closed is `undefined`, not `false`: core's `[open]` matches any value that isn't
+null or undefined. While closed, every child but the first `<summary>` gets a local
+`display: none` (cleared on open); it also gets the `:open` pseudo-class and fires `toggle`
+(`oldState`/`newState`). Opening one closes the loaded `<details>` with the same `name`
+(module-level groups, joined on load). A `<summary>` tap toggles its parent. JS-only: the
+native HTML parsers' `details` elements don't toggle, and there's no disclosure marker.
+Tests: `details.spec.ts`.
+
+On Windows, `display: none` collapses the element (`mason_leaf::SyncDisplay`, from every
+`SyncStyle`): Mason gave it an empty box but its XAML content still drew. A `ScrollViewer`
+host is collapsed in place of its content, and the parent re-syncs its Mason children.
+
 ## Backdrop Filter
 
 ### Android
