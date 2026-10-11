@@ -15,6 +15,8 @@ namespace winrt::NativeScript::Mason::implementation
         static void ApplyTransform(winrt::Microsoft::UI::Xaml::UIElement const& element,
             double m11, double m12, double m21, double m22, double offsetX, double offsetY);
         static void ClearTransform(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        static void SetTransformOrigin(winrt::Microsoft::UI::Xaml::UIElement const& element, double x, double y);
+        static void SetTransforms(winrt::Microsoft::UI::Xaml::UIElement const& element, double scaleX, double scaleY, double angle, double translateX, double translateY, double originX, double originY);
 
         static void ApplyCornerRadius(winrt::Microsoft::UI::Xaml::UIElement const& element,
             double offsetX, double offsetY, double width, double height, double radiusX, double radiusY);
@@ -50,6 +52,9 @@ namespace winrt::NativeScript::Mason::implementation
         static void SetBoxShadow(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& shadows);
         static void SetFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
         static void SetBackdropFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
+        static void SetMask(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
+        static void SetBorderImage(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
+        static void SetBackgroundLayers(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
         static void ClearShadow(winrt::Microsoft::UI::Xaml::UIElement const& element);
     };
 }

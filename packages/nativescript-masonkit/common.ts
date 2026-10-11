@@ -52,6 +52,7 @@ import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
+import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -3547,6 +3548,45 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Core's scale/rotate/translate on Windows. Core's own TransformGroup never renders on a Mason
+  // element, so View.rotate etc. did nothing; they're set natively as one matrix instead. CSS
+  // keyframes animate them through css-keyframes.ts, which sets them every frame.
+  updateNativeTransform() {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super.updateNativeTransform?.();
+    }
+    const native = this.nativeViewProtected;
+    if (!native) return;
+    const self = this as any;
+    NativeScript.Mason.Css.SetTransforms(
+      native,
+      typeof self.scaleX === 'number' ? self.scaleX : 1,
+      typeof self.scaleY === 'number' ? self.scaleY : 1,
+      self.rotate || 0,
+      self.translateX || 0,
+      self.translateY || 0,
+      self.originX ?? 0.5,
+      self.originY ?? 0.5,
+    );
+  }
+
+  [originXProperty.setNative](value: number) {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super[originXProperty.setNative]?.(value);
+    }
+    this.updateNativeTransform();
+  }
+
+  [originYProperty.setNative](value: number) {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super[originYProperty.setNative]?.(value);
+    }
+    this.updateNativeTransform();
+  }
+
   [transformProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -3564,7 +3604,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           if (!m) NativeScript.Mason.Css.ClearTransform(nv);
           else {
             NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
-            nv.RenderTransformOrigin = { X: (this as any).originX ?? 0.5, Y: (this as any).originY ?? 0.5 };
+            NativeScript.Mason.Css.SetTransformOrigin(nv, (this as any).originX ?? 0.5, (this as any).originY ?? 0.5);
           }
         } catch (_) {}
       }

@@ -15,6 +15,9 @@
 #include <winrt/Windows.Storage.Streams.h>
 
 #include <algorithm>
+#include <fstream>
+#include <iterator>
+#include <wincodec.h>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -346,27 +349,7 @@ namespace
     // The element's resolved CSS `color` (ARGB): its own, else the nearest Mason ancestor's.
     uint32_t ResolveCurrentColor(mux::UIElement const& element)
     {
-        constexpr uint32_t FONT_COLOR = 324, FONT_COLOR_STATE = 328;
-        mux::DependencyObject node = element;
-        for (int depth = 0; node && depth < 128; ++depth)
-        {
-            if (auto masonElement = node.try_as<nsm::IMasonElement>())
-            {
-                if (auto n = masonElement.Node())
-                {
-                    uint32_t size = 0;
-                    const uint8_t* d = mason_visual::StyleBytes(n, size);
-                    if (d && FONT_COLOR_STATE < size && d[FONT_COLOR_STATE] != 0)
-                    {
-                        uint32_t v = 0;
-                        std::memcpy(&v, d + FONT_COLOR, 4);
-                        return v;
-                    }
-                }
-            }
-            node = muxm::VisualTreeHelper::GetParent(node);
-        }
-        return 0xFF000000;
+        return mason_visual::CurrentColor(element);
     }
 
     winrt::fire_and_forget LoadSvg(imaging::SvgImageSource svg, std::string text)
@@ -481,6 +464,24 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (!element) return;
         mason_position::SetCssTransform(element, nullptr);
+    }
+
+    void Css::SetTransformOrigin(mux::UIElement const& element, double x, double y)
+    {
+        if (element) element.RenderTransformOrigin({ static_cast<float>(x), static_cast<float>(y) });
+    }
+
+    void Css::SetTransforms(mux::UIElement const& element, double scaleX, double scaleY, double angle, double translateX, double translateY,
+        double originX, double originY)
+    {
+        if (!element) return;
+        // Scale, then rotate, then translate, as core's TransformGroup orders them, in one matrix.
+        const double radians = angle * 3.14159265358979323846 / 180.0;
+        const double c = std::cos(radians), s = std::sin(radians);
+        muxm::MatrixTransform matrix;
+        matrix.Matrix(muxm::Matrix{ scaleX * c, scaleX * s, -scaleY * s, scaleY * c, translateX, translateY });
+        element.RenderTransformOrigin({ static_cast<float>(originX), static_cast<float>(originY) });
+        mason_position::SetAnimatedTransforms(element, matrix);
     }
 
     void Css::ApplyCornerRadius(mux::UIElement const& element,
@@ -815,5 +816,121 @@ namespace winrt::NativeScript::Mason::implementation
         // misses it, but the child SET still changed so the panel must re-sync + the root recompute
         // (else the preview "never budges" on count-down until an unrelated change forces relayout).
         MarkLayoutRootDirty(parent);
+    }
+}
+
+namespace
+{
+    // ---- Mask and border images ------------------------------------------------------------
+    // Direct2D draws masks, so their images are decoded here rather than by XAML: SVG as prepared
+    // text for its SVG renderer, anything else as premultiplied BGRA through WIC.
+
+    bool EndsWithIgnoreCase(std::wstring_view v, std::wstring_view suffix)
+    {
+        if (v.size() < suffix.size()) return false;
+        for (size_t i = 0; i < suffix.size(); ++i)
+        {
+            if (std::towlower(v[v.size() - suffix.size() + i]) != suffix[i]) return false;
+        }
+        return true;
+    }
+
+    bool DecodeRaster(IWICImagingFactory* factory, IWICBitmapDecoder* decoder, mason_cssmask::Image& image)
+    {
+        winrt::com_ptr<IWICBitmapFrameDecode> frame;
+        winrt::com_ptr<IWICFormatConverter> converter;
+        if (FAILED(decoder->GetFrame(0, frame.put())) || FAILED(factory->CreateFormatConverter(converter.put()))) return false;
+        if (FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom))) return false;
+        UINT w = 0, h = 0;
+        if (FAILED(converter->GetSize(&w, &h)) || w == 0 || h == 0 || w > 8192 || h > 8192) return false;
+        image.pixels.resize(static_cast<size_t>(w) * h * 4);
+        if (FAILED(converter->CopyPixels(nullptr, w * 4, static_cast<UINT>(image.pixels.size()), image.pixels.data()))) return false;
+        image.pixelWidth = w;
+        image.pixelHeight = h;
+        image.kind = mason_cssmask::Image::Kind::Raster;
+        return true;
+    }
+
+    mason_cssmask::Image LoadMaskImage(std::wstring const& source)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        mason_cssmask::Image image;
+        const std::wstring_view v = source;
+        try
+        {
+            if (IsSvgDataUri(v))
+            {
+                std::string svg = DecodeSvgDataUri(v);
+                if (svg.empty()) return image;
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.kind = mason_cssmask::Image::Kind::Svg;
+                return image;
+            }
+            const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
+            if (path && EndsWithIgnoreCase(v, L".svg"))
+            {
+                std::ifstream file(source, std::ios::binary);
+                std::string svg((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                if (svg.empty()) return image;
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.kind = mason_cssmask::Image::Kind::Svg;
+                return image;
+            }
+            auto factory = winrt::create_instance<IWICImagingFactory>(CLSID_WICImagingFactory);
+            winrt::com_ptr<IWICBitmapDecoder> decoder;
+            if (v.starts_with(L"data:"))
+            {
+                const size_t comma = v.find(L',');
+                if (comma == std::wstring_view::npos || v.substr(0, comma).find(L";base64") == std::wstring_view::npos) return image;
+                winrt::com_array<uint8_t> bytes;
+                CryptographicBuffer::CopyToByteArray(CryptographicBuffer::DecodeFromBase64String(winrt::hstring{ v.substr(comma + 1) }), bytes);
+                winrt::com_ptr<IWICStream> stream;
+                if (FAILED(factory->CreateStream(stream.put())) || FAILED(stream->InitializeFromMemory(bytes.data(), bytes.size()))) return image;
+                if (FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()))) return image;
+                DecodeRaster(factory.get(), decoder.get(), image);
+                return image;
+            }
+            if (!path) return image;
+            if (FAILED(factory->CreateDecoderFromFilename(source.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, decoder.put()))) return image;
+            DecodeRaster(factory.get(), decoder.get(), image);
+        }
+        catch (...)
+        {
+        }
+        return image;
+    }
+}
+
+namespace winrt::NativeScript::Mason::implementation
+{
+    void Css::SetMask(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        auto parsed = std::make_shared<mason_cssmask::Spec>(mason_cssmask::Parse(spec, LoadMaskImage));
+        if (mason_cssmask::SetMask(element, std::move(parsed)))
+        {
+            mason_filter::Touch(element);
+            element.InvalidateArrange();
+        }
+    }
+
+    void Css::SetBackgroundLayers(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        const bool had = mason_cssmask::HasBackground(element);
+        auto parsed = std::make_shared<mason_cssmask::Spec>(mason_cssmask::Parse(spec, LoadMaskImage));
+        if (!had && !parsed->HasLayers()) return;
+        mason_cssmask::SetBackground(element, std::move(parsed));
+        mason_filter::Touch(element);
+        element.InvalidateArrange();
+    }
+
+    void Css::SetBorderImage(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        auto parsed = mason_cssmask::Parse(spec, LoadMaskImage);
+        mason_cssmask::SetBorderImage(element, parsed.border ? std::make_shared<mason_cssmask::NineSlice>(std::move(*parsed.border)) : nullptr);
+        mason_filter::Touch(element);
+        element.InvalidateArrange();
     }
 }

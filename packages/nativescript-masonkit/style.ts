@@ -7,6 +7,7 @@ import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
+import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1607,12 +1608,18 @@ export class Style {
   private _windowsBackground?: string;
   private _windowsBackgroundSize?: string;
   private _windowsBackgroundPosition?: string;
+  private _windowsImageBackground = false;
 
   private applyWindowsBackground(shorthand: boolean) {
     const v = (this._windowsBackground ?? '').trim();
     const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
     const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
     try {
+      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
+      if (!url && this._windowsImageBackground) {
+        this._windowsImageBackground = false;
+        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
+      }
       if (/^radial-gradient/i.test(layer)) {
         const g = parseRadialGradientCss(layer);
         if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
@@ -1623,17 +1630,26 @@ export class Style {
         if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stopsOf(g), g.interpolation);
         return;
       }
-      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
       if (url) {
-        let source = url[2];
-        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
         const rest = layer.slice(url.index + url[0].length).trim();
         const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box)\b/gi;
         const [positionPart, sizePart] = rest.split('/').map((p) => p.replace(keywords, '').trim());
-        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : this._windowsBackgroundSize;
-        const position = parseBoxPosition(shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '0% 0%'), 0);
+        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : (this._windowsBackgroundSize ?? '');
+        const position = shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '');
+        const repeatKeywords = shorthand ? (rest.match(/\b(no-repeat|repeat-x|repeat-y|repeat|space|round)\b/gi) ?? []).join(' ') : '';
+        const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
+        // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
+        const spec = encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext());
+        if (spec) {
+          this._windowsImageBackground = true;
+          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+          return;
+        }
+        let source = url[2];
+        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
+        const box = parseBoxPosition(position || '0% 0%', 0);
         const align = (f: number) => (f <= 0.25 ? 0 : f >= 0.75 ? 2 : 1);
-        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(position.x), align(position.y));
+        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(box.x), align(box.y));
         return;
       }
       if (!ANY_GRADIENT.test(layer)) {
@@ -1643,12 +1659,67 @@ export class Style {
     } catch (_) {}
   }
 
+  private _windowsMaskSpec = '';
+  private _windowsMaskOverrides?: Map<string, string>;
+
+  private windowsMaskContext(): WindowsMaskContext {
+    return {
+      length: (token) => cssLengthToDip(token, this.emBasis()),
+      color: (color) => normalizeColorValue(color),
+      linear: parseLinearGradientCss,
+      radial: parseRadialGradientCss,
+      source: (url) => (url.startsWith('~/') ? url.replace('~/', knownFolders.currentApp().path + '/') : url),
+    };
+  }
+
+  // The mask longhands arrive one setter at a time (a shorthand sets eight, a keyframe two), so
+  // they're sent to Css.SetMask together once the current task is done.
+  private scheduleWindowsMask(name: string, value: string) {
+    const pending = this._windowsMaskOverrides !== undefined;
+    (this._windowsMaskOverrides ??= new Map()).set(name, value);
+    if (pending) return;
+    Promise.resolve().then(() => {
+      const overrides = this._windowsMaskOverrides;
+      this._windowsMaskOverrides = undefined;
+      const view = this.nativeView;
+      if (!view) return;
+      // A pseudo-class state's values aren't in _windowsCss; they win over it while applied.
+      const css = new Map(this._windowsCss);
+      for (const [key, v] of overrides ?? []) css.set(key, v);
+      let spec = '';
+      try {
+        spec = encodeWindowsMask(css, this.windowsMaskContext());
+      } catch (_) {}
+      if (spec === this._windowsMaskSpec) return;
+      this._windowsMaskSpec = spec;
+      NativeScript.Mason.Css.SetMask(view, spec);
+    });
+  }
+
   private applyWindowsCssString(name: string, value: string) {
+    if (WINDOWS_MASK_PROPERTIES.has(name)) {
+      this.scheduleWindowsMask(name, typeof value === 'string' ? value : String(value ?? ''));
+      return;
+    }
+    if (name === 'border-image') {
+      const view: any = this.nativeView;
+      if (!view) return;
+      let spec = '';
+      try {
+        spec = encodeWindowsBorderImage(typeof value === 'string' ? value : '', this.windowsMaskContext());
+      } catch (_) {}
+      NativeScript.Mason.Css.SetBorderImage(view, spec);
+      return;
+    }
     // A gradient is a Panel brush from Css that VisualApply leaves over BACKGROUND_COLOR; clearing
     // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
       this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
       this.applyWindowsBackground(name === 'background');
+      return;
+    }
+    if (name === 'background-repeat') {
+      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
     if (name === 'background-size' || name === 'background-position') {

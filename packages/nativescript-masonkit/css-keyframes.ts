@@ -2,6 +2,7 @@ import { CoreTypes, unsetValue } from '@nativescript/core';
 import type { CssAnimationProperty, Style, View } from '@nativescript/core';
 import { KeyframeAnimation } from '@nativescript/core/ui/animation/keyframe-animation';
 import { tokenizeCss } from './css-shorthands';
+import { rotateProperty, scaleXProperty, scaleYProperty, translateXProperty, translateYProperty } from '@nativescript/core/ui/styling/style-properties';
 
 /**
  * CSS keyframes for properties MasonKit draws itself.
@@ -355,6 +356,40 @@ function holdEmptyIntervals(segments: any[]) {
   }
 }
 
+/**
+ * Windows: core's native animation of scale/rotate/translate never shows on a Mason view (see
+ * ViewBase.updateNativeTransform), so they become per-frame tracks of the View properties.
+ */
+function splitTransforms(segments: any[]) {
+  for (const segment of segments) {
+    if (segment.rotate && typeof segment.rotate === 'object') segment.rotate = segment.rotate.z ?? 0;
+    if (segment.scale && typeof segment.scale === 'object') {
+      segment.scaleX = segment.scale.x;
+      segment.scaleY = segment.scale.y;
+      delete segment.scale;
+    }
+    if (segment.translate && typeof segment.translate === 'object') {
+      segment.translateX = segment.translate.x;
+      segment.translateY = segment.translate.y;
+      delete segment.translate;
+    }
+  }
+}
+
+function interpolateNumber(from: string, to: string, t: number): string {
+  const a = parseFloat(from) || 0;
+  const b = parseFloat(to) || 0;
+  return String(a + (b - a) * t);
+}
+
+if (__WINDOWS__) {
+  registerKeyframeProperty(rotateProperty as never, interpolateNumber, '0');
+  registerKeyframeProperty(scaleXProperty as never, interpolateNumber, '1');
+  registerKeyframeProperty(scaleYProperty as never, interpolateNumber, '1');
+  registerKeyframeProperty(translateXProperty as never, interpolateNumber, '0');
+  registerKeyframeProperty(translateYProperty as never, interpolateNumber, '0');
+}
+
 let installed = false;
 
 /** Installs the keyframe hooks once. */
@@ -371,6 +406,7 @@ export function installKeyframes() {
     // The keyframe intervals are shared by every play of this animation, so take the tracks
     // out once.
     if (this[tracks_] === undefined) {
+      if (__WINDOWS__) splitTransforms(this.animations);
       this[tracks_] = extractTracks(this.animations);
       if (this[tracks_].tracks.length) {
         holdEmptyIntervals(this.animations);

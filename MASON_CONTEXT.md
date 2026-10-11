@@ -855,7 +855,8 @@ inline flow, as on the web, so text wraps across element boundaries.
 `url("data:image/svg+xml,...")` images are drawn by a small static-SVG reader, one per
 platform: `SvgParser.kt` / `SvgParser.swift` (pure parsing; `SvgParserTest.kt` /
 `SvgParserTests.swift` mirror each other, keep both in step) plus a renderer in each
-`Background` file. Windows hands the SVG to WinUI's `SvgImageSource` in `Css.cpp`.
+`Background` file. Windows draws `url()` backgrounds with Direct2D's SVG renderer (see CSS
+masks (Windows)); `Css::ApplyBackgroundImage` and WinUI's `SvgImageSource` are the fallback.
 
 - **Supported:** the full path grammar (arcs become cubics per SVG F.6), basic shapes,
   `<g>` inheritance, `transform`, `style=""`, fill/stroke paint, `fill-rule`, opacity
@@ -988,6 +989,58 @@ one shorthand string, `Style.borderImage`, parsed natively on set. `HTMLParser` 
   skips the border styles. `none`, invalid, loading or failed draws the normal border.
 - Tests: `ClipPathParsingTest`, `NineSliceTest` (JVM), `ClipPathInstrumentedTest` (pixels
   and touch pass-through).
+
+## CSS masks (Windows)
+
+Windows parses in TS, as for the rest of its styling: `windows-mask.ts` turns the `mask-*`,
+`clip-path` and `mask-border-*` longhands (gathered once per microtask in
+`Style.scheduleWindowsMask`) into a JSON spec for `Css.SetMask`, `border-image` into one for
+`Css.SetBorderImage`, and a `url()` background into one for `Css.SetBackgroundLayers`. Units,
+colours and gradients are resolved there; `Css.cpp` decodes images (SVG text for Direct2D's
+SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device pixels.
+
+- **Masks.** Layers composite bottom-up into an alpha surface with D2D composite modes
+  (SOURCE_OVER / SOURCE_OUT / SOURCE_IN / XOR; `luminance` is `LuminanceToAlpha`), then the
+  clip-path and mask-border are kept with DESTINATION_IN. `FilterEffects::Sync` shows the
+  element through a `CompositionMaskBrush` on the sprite that carries `filter` (one sprite
+  for both, the source visual hidden as for filters). A mask change repaints the surface in
+  place; the sprite is rebuilt only when the mask comes or goes.
+- **Gradients:** linear and radial from the existing TS parsers; conic is parsed in
+  `windows-mask.ts` and drawn as one wedge per degree. `repeating-*` draw as non-repeating.
+- **clip-path:** every basic shape and box. `path()` is drawn by the SVG renderer, so for
+  hit testing it counts as its whole box. `Events.cpp` sends a tap outside the shape (on
+  the element or an ancestor) to whatever is under it, and `ElementFromPoint` skips it.
+- **mask-border / border-image** share `DrawNine`: each slice is copied to its own bitmap
+  (after a `Flush`, since `CopyFromBitmap` reads pixels directly) and tiled with a clamped
+  image brush on device-pixel edges. border-image is a sprite in the decoration layers and
+  replaces the border.
+- **url() backgrounds** paint `background-color` under the image layers in one surface,
+  installed rounded like other composition backgrounds; a Panel's single `Background`
+  brush would otherwise drop the colour. Gradients keep the XAML brush path.
+- **Inputs:** `Input.AppearanceNone` keeps a checkbox's or radio's WinUI control
+  (opacity 0, filling the box, so taps and keys still work) and reports no size, so the CSS
+  box shows at its CSS size. `:checked` follows the native `change` event. The Windows UA
+  defaults (`applyUaStyle`) no longer overwrite values the stylesheet set first.
+- **SVG `currentColor`** stays a placeholder in the decoded SVG and becomes the element's CSS
+  `color` (`mason_visual::CurrentColor`) when painted; the colour is part of `Apply`'s inputs,
+  so a theme switch repaints. Paint on the root `<svg>` (Bootstrap Icons' `fill`) moves to a
+  `<g>` around the shapes (`HoistRootPaint`): Direct2D's SVG renderer doesn't pass it down.
+- Tests: `windows-mask.spec.ts`.
+
+## Transforms and font sizes (Windows)
+
+- **View.scale/rotate/translate.** Core's Windows `TransformGroup` (`_ensureNativeTransforms`)
+  never renders on a Mason element, while a `MatrixTransform` does. `ViewBase.updateNativeTransform`
+  sends them to `Css.SetTransforms`, one matrix composed in `Positioning.h` with the CSS
+  `transform` and the positioning offset (`TransformParts`; each part is kept, not read back
+  from `RenderTransform`). CSS keyframes of transforms run on the per-frame driver in
+  `css-keyframes.ts` (`splitTransforms`), since core's storyboards target its own group;
+  `View.animate()` of transforms is still core's and doesn't show.
+- **Percent and em font sizes** (`FONT_SIZE_TYPE` 1) resolve against the parent: inline runs in
+  `Text::Resolve`, a Text's own size (`OwnFontSize`) against the nearest Mason ancestor with an
+  absolute size. Percent ancestors are skipped because core hands the same raw value down.
+- **Build clock.** MSBuild skips stale-looking sources: if the system clock moves backwards,
+  delete `Mason/NativeSc.*/<arch>/Release` and `Mason/bin/<arch>/Release` before `publish.ps1`.
 
 ## Backdrop Filter
 
