@@ -315,6 +315,9 @@ namespace winrt::NativeScript::Mason::implementation
         std::vector<Entry> m_runs;
         
         double m_fontSize{ 0.0 };
+        // A percent (or em) font-size, x100 of the parent's; 0 when the size is absolute.
+        int32_t m_fontSizePercent{ 0 };
+        double OwnFontSize() const;
         bool m_listItem{ false };
         winrt::Microsoft::UI::Composition::SpriteVisual m_marker{ nullptr };
         std::string m_markerKey;
