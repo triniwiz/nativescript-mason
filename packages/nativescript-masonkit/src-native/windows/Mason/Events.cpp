@@ -2,6 +2,7 @@
 #include "Events.h"
 #include "Event.h"
 #include "Text.h"
+#include "CssMask.h"
 #include <unordered_map>
 #include <vector>
 #include <winrt/Microsoft.UI.Dispatching.h>
@@ -143,6 +144,47 @@ namespace
         return source;
     }
 
+    // Whether a clip-path on the element or an ancestor leaves out a point in window coordinates.
+    bool ClippedOut(mux::UIElement const& element, winrt::Windows::Foundation::Point host)
+    {
+        for (auto cur = element; cur; cur = mux::Media::VisualTreeHelper::GetParent(cur).try_as<mux::UIElement>())
+        {
+            if (!mason_cssmask::Find(cur)) continue;
+            auto el = cur.try_as<nsm::IMasonElement>();
+            auto fe = cur.try_as<mux::FrameworkElement>();
+            if (!el || !fe) continue;
+            try
+            {
+                const auto local = cur.TransformToVisual(nullptr).Inverse().TransformPoint(host);
+                if (mason_cssmask::ClipExcludes(cur, el.Node(), static_cast<float>(fe.ActualWidth()), static_cast<float>(fe.ActualHeight()), local.X, local.Y)) return true;
+            }
+            catch (...)
+            {
+            }
+        }
+        return false;
+    }
+
+    // The topmost Mason element under a point in window coordinates, within `scope`.
+    IInspectable ElementAtHost(mux::UIElement const& scope, winrt::Windows::Foundation::Point point)
+    {
+        for (auto const& hit : mux::Media::VisualTreeHelper::FindElementsInHostCoordinates(point, scope, true))
+        {
+            const bool text = hit.try_as<nsm::Text>() != nullptr;
+            if (!text && !hit.try_as<nsm::IMasonElement>()) continue;
+            if (ClippedOut(hit, point)) continue;
+            if (text)
+            {
+                auto* impl = winrt::get_self<nsm::implementation::Text>(hit.as<nsm::Text>());
+                if (auto inl = impl->InlineElementAt(hit.TransformToVisual(nullptr).Inverse().TransformPoint(point))) return inl;
+                if (!impl->IsAnonymous()) return hit;
+                continue;
+            }
+            return hit;
+        }
+        return nullptr;
+    }
+
     // Every hooked element on the way up sees the same tap; the first one dispatches it.
     thread_local muxi::TappedRoutedEventArgs t_routing{ nullptr };
 
@@ -154,13 +196,28 @@ namespace
         {
             queue.TryEnqueue([] { t_routing = nullptr; });
         }
-        auto event = Fire(OriginOf(e), L"click", true, {});
+        auto origin = OriginOf(e);
+        // A tap outside an element's clip-path goes to what's under it.
+        if (auto element = origin.try_as<mux::UIElement>())
+        {
+            const auto point = e.GetPosition(nullptr);
+            if (ClippedOut(element, point))
+            {
+                auto root = element.XamlRoot();
+                auto content = root ? root.Content() : nullptr;
+                origin = content ? ElementAtHost(content, point) : nullptr;
+                if (!origin) return;
+            }
+        }
+        auto event = Fire(origin, L"click", true, {});
         if (event->propagationStopped) e.Handled(true);
     }
 }
 
 namespace mason_events
 {
+    using winrt::Windows::Foundation::IInspectable;
+
     int64_t Add(mux::UIElement const& element, winrt::hstring const& type, nsm::EventListener const& listener)
     {
         if (!element || !listener) return 0;
@@ -194,19 +251,7 @@ namespace mason_events
     IInspectable ElementAt(mux::UIElement const& element, float x, float y)
     {
         if (!element) return nullptr;
-        const auto point = element.TransformToVisual(nullptr).TransformPoint({ x, y });
-        for (auto const& hit : mux::Media::VisualTreeHelper::FindElementsInHostCoordinates(point, element, true))
-        {
-            if (auto text = hit.try_as<nsm::Text>())
-            {
-                auto* impl = winrt::get_self<nsm::implementation::Text>(text);
-                if (auto inl = impl->InlineElementAt(hit.TransformToVisual(nullptr).Inverse().TransformPoint(point))) return inl;
-                if (!impl->IsAnonymous()) return text;
-                continue;
-            }
-            if (hit.try_as<nsm::IMasonElement>()) return hit;
-        }
-        return nullptr;
+        return ElementAtHost(element, element.TransformToVisual(nullptr).TransformPoint({ x, y }));
     }
 
     void HookTaps(mux::UIElement const& element)

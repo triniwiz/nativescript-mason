@@ -15,6 +15,7 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Composition.h>
 #include "Decoration.h"
+#include "CssMask.h"
 
 namespace mason_filter
 {
@@ -267,6 +268,20 @@ namespace mason_filter
         return entry ? entry->version : 0;
     }
 
+    // Something else drawn through the effect sprite (a mask, a border-image) changed: the next
+    // VisualApply::Apply syncs the element again.
+    inline void Touch(mux::UIElement const& element)
+    {
+        if (!element) return;
+        auto* entry = Find(element);
+        if (!entry)
+        {
+            entry = &Registry()[winrt::get_abi(element.as<wf::IUnknown>())];
+            entry->element = winrt::make_weak(element);
+        }
+        entry->version = NextVersion();
+    }
+
     inline void Set(mux::UIElement const& element, bool backdrop, std::wstring_view spec)
     {
         if (!element) return;
@@ -298,11 +313,13 @@ namespace mason_filter
         if (auto visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element)) visual.Opacity(1.0f);
     }
 
-    inline void Sync(mux::UIElement const& element, float width, float height)
+    template <typename Node>
+    inline void Sync(mux::UIElement const& element, Node const& node, float width, float height)
     {
         auto* entry = Find(element);
         if (!entry) return;
-        if (entry->filter.empty() || width <= 0.0f || height <= 0.0f)
+        const bool masked = mason_cssmask::HasMask(element);
+        if ((entry->filter.empty() && !masked) || width <= 0.0f || height <= 0.0f)
         {
             Unshow(*entry, element);
             return;
@@ -330,7 +347,7 @@ namespace mason_filter
             }
         }
 
-        const float pad = std::ceil(Bleed(entry->filter));
+        const float pad = entry->filter.empty() ? 0.0f : std::ceil(Bleed(entry->filter));
         const winrt::Windows::Foundation::Numerics::float2 size{ width + 2.0f * pad, height + 2.0f * pad };
         auto surface = comp.CreateVisualSurface();
         surface.SourceVisual(source);
@@ -338,8 +355,17 @@ namespace mason_filter
         surface.SourceSize(size);
         auto surfaceBrush = comp.CreateSurfaceBrush(surface);
         surfaceBrush.Stretch(mucomp::CompositionStretch::None);
-        auto brush = Brush(comp, entry->filter, false, surfaceBrush, nullptr);
+        mucomp::CompositionBrush brush = entry->filter.empty() ? surfaceBrush : Brush(comp, entry->filter, false, surfaceBrush, nullptr);
         if (!brush) return;
+        if (masked)
+        {
+            auto mask = mason_cssmask::MaskBrush(element, node, width, height, pad);
+            if (!mask) return;
+            auto masking = comp.CreateMaskBrush();
+            masking.Source(brush);
+            masking.Mask(mask);
+            brush = masking;
+        }
 
         auto sprite = comp.CreateSpriteVisual();
         sprite.Size(size);

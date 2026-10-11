@@ -323,6 +323,33 @@ namespace mason_visual
         return winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
     }
 
+    // The CSS `color` an SVG's currentColor takes: the nearest Mason element (itself first) that
+    // sets one, else black.
+    inline uint32_t CurrentColor(mux::UIElement const& element)
+    {
+        constexpr uint32_t FONT_COLOR = 324, FONT_COLOR_STATE = 328;
+        mux::DependencyObject node = element;
+        for (int depth = 0; node && depth < 128; ++depth)
+        {
+            if (auto masonElement = node.try_as<nsm::IMasonElement>())
+            {
+                if (auto n = masonElement.Node())
+                {
+                    uint32_t size = 0;
+                    const uint8_t* d = StyleBytes(n, size);
+                    if (d && FONT_COLOR_STATE < size && d[FONT_COLOR_STATE] != 0)
+                    {
+                        uint32_t v = 0;
+                        std::memcpy(&v, d + FONT_COLOR, 4);
+                        return v;
+                    }
+                }
+            }
+            node = mux::Media::VisualTreeHelper::GetParent(node);
+        }
+        return 0xFF000000;
+    }
+
     inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
     {
         if (!element || !node) return;
@@ -389,9 +416,11 @@ namespace mason_visual
         const bool round = panel && comp != nullptr && rounded && sized;
         const bool roundGradient = round && gradient && state.gradient;
         const bool roundSolid = round && !gradient && AlphaOf(bg) > 0;
-        const bool hasBackground = panel && (gradient || AlphaOf(bg) > 0);
+        // url() backgrounds are painted with their colour underneath (CssMask.h).
+        const bool imageBackground = panel && comp != nullptr && sized && mason_cssmask::HasBackground(element);
+        const bool hasBackground = panel && (gradient || imageBackground || AlphaOf(bg) > 0);
         // Masked backgrounds are already rounded; anything else rounds with a clip.
-        const bool needsClip = hasBackground && rounded && sized && !roundGradient && !roundSolid;
+        const bool needsClip = hasBackground && rounded && sized && !roundGradient && !roundSolid && !imageBackground;
         int32_t zIndex = 0;
         if (size >= 314) std::memcpy(&zIndex, data + 310, 4);
         mux::FrameworkElement fe{ nullptr };
@@ -425,6 +454,8 @@ namespace mason_visual
 
         // Masks are drawn in device pixels, so a monitor move must redraw them.
         const float scale = RasterScale(element);
+        // An SVG drawn with currentColor repaints when the colour changes (a theme switch).
+        const uint32_t textColor = mason_cssmask::UsesCurrentColor(element) ? CurrentColor(element) : 0;
         const std::array<uint32_t, AppliedState::kInputs> inputs{
             bg, RadiiBits(radii), Bits(width), Bits(height), Bits(scale),
             static_cast<uint32_t>(static_cast<uint8_t>(ovX)) | (static_cast<uint32_t>(static_cast<uint8_t>(ovY)) << 8)
@@ -433,6 +464,7 @@ namespace mason_visual
             bLC, bRC, bTC, bBC,
             static_cast<uint32_t>(static_cast<uint8_t>(bLS)) | (static_cast<uint32_t>(static_cast<uint8_t>(bRS)) << 8)
                 | (static_cast<uint32_t>(static_cast<uint8_t>(bTS)) << 16) | (static_cast<uint32_t>(static_cast<uint8_t>(bBS)) << 24),
+            textColor,
         };
         auto remember = [&]()
         {
@@ -453,7 +485,21 @@ namespace mason_visual
 
         auto* filters = mason_filter::Find(element);
         const bool backdrop = panel && comp && sized && filters && !filters->backdrop.empty();
-        if (backdrop)
+        if (imageBackground && !backdrop)
+        {
+            if (auto brush = mason_cssmask::BackgroundBrush(element, node, width, height, bg, textColor, scale))
+            {
+                if (rounded) ApplyRoundedBackground(panel, brush, width, height, radii, scale);
+                else
+                {
+                    nsm::RoundedColorBrush rcb;
+                    rcb.SetCompositionBrush(brush);
+                    panel.Background(rcb);
+                }
+                state.installed = panel.Background();
+            }
+        }
+        else if (backdrop)
         {
             auto over = AlphaOf(bg) > 0 ? comp.CreateColorBrush(ColorFromArgb(bg)) : nullptr;
             if (auto brush = mason_filter::Brush(comp, filters->backdrop, true, comp.CreateBackdropBrush(), over))
@@ -535,11 +581,14 @@ namespace mason_visual
             }
         }
 
+        // border-image is drawn in place of the border.
+        const bool borderImage = mason_cssmask::HasBorderImage(element);
         mason_mask::Border border;
         border.width = { bLW, bTW, bRW, bBW };
         border.color = { bLC, bTC, bRC, bBC };
         border.style = { bLS, bTS, bRS, bBS };
         border.radii = radii;
+        if (borderImage) border = mason_mask::Border{};
         const bool anyBorder = sized && border.Any();
         if (anyBorder || state.border)
         {
@@ -554,7 +603,11 @@ namespace mason_visual
         }
         state.shadowVersion = shadowVersion;
 
-        if (filterVersion) mason_filter::Sync(element, width, height);
+        if (filterVersion)
+        {
+            mason_filter::Sync(element, node, width, height);
+            mason_cssmask::SyncBorderImage(element, node, width, height, textColor);
+        }
         state.filterVersion = filterVersion;
 
         state.inputs = inputs;

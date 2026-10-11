@@ -143,6 +143,8 @@ open class View @JvmOverloads constructor(
 
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
+    if (clipPathRejectsTouch(this, style, ev)) return false
     // higher zIndex should receive touch first
     if (hasZIndexedChildren) {
       for (i in zSortedChildren.size - 1 downTo 0) {
@@ -206,6 +208,13 @@ open class View @JvmOverloads constructor(
     super.dispatchDraw(c)
   }
 
+  // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
+  override fun draw(canvas: Canvas) {
+    val save = beginMask(this, style, canvas)
+    super.draw(canvas)
+    endMask(style, canvas, save)
+  }
+
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(
       this,
@@ -255,6 +264,13 @@ open class View @JvmOverloads constructor(
     return null
   }
 
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (parent !is Element) {
+      ViewUtils.holdInitialFocus(this)
+    }
+  }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     if (parent !is Element) {

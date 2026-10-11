@@ -15,6 +15,13 @@
 #include <winrt/Windows.Storage.Streams.h>
 
 #include <algorithm>
+#include <fstream>
+#include <iterator>
+#include <wincodec.h>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <cwctype>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -176,6 +183,196 @@ namespace
     }
 }
 
+namespace
+{
+    // ---- SVG background images -------------------------------------------------------------
+    // BitmapImage can't decode SVG, so `data:image/svg+xml` goes to SvgImageSource (Direct2D's
+    // SVG renderer: paths incl. arcs, basic shapes, groups, fill-rule, strokes, transforms). Two
+    // fix-ups first: `currentColor` becomes the element's CSS color (D2D has no CSS cascade to
+    // resolve it from), and an SVG with only a viewBox gets width/height so it has a size.
+
+    bool IsSvgDataUri(std::wstring_view v)
+    {
+        constexpr std::wstring_view prefix = L"data:image/svg";
+        if (v.size() < prefix.size()) return false;
+        for (size_t i = 0; i < prefix.size(); ++i)
+        {
+            if (std::towlower(v[i]) != prefix[i]) return false;
+        }
+        return true;
+    }
+
+    int HexDigit(char c)
+    {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    }
+
+    // Lenient percent-decoding: a malformed escape stays as written and `+` stays `+`.
+    std::string PercentDecode(std::string const& s)
+    {
+        std::string out;
+        out.reserve(s.size());
+        for (size_t i = 0; i < s.size(); ++i)
+        {
+            if (s[i] == '%' && i + 2 < s.size())
+            {
+                const int hi = HexDigit(s[i + 1]);
+                const int lo = HexDigit(s[i + 2]);
+                if (hi >= 0 && lo >= 0)
+                {
+                    out.push_back(static_cast<char>(hi * 16 + lo));
+                    i += 2;
+                    continue;
+                }
+            }
+            out.push_back(s[i]);
+        }
+        return out;
+    }
+
+    std::string DecodeSvgDataUri(std::wstring_view uri)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        const size_t comma = uri.find(L',');
+        if (comma == std::wstring_view::npos) return {};
+        std::wstring header{ uri.substr(5, comma - 5) };
+        for (auto& c : header) c = static_cast<wchar_t>(std::towlower(c));
+        const winrt::hstring payload{ uri.substr(comma + 1) };
+        if (header.find(L";base64") != std::wstring::npos)
+        {
+            winrt::com_array<uint8_t> bytes;
+            CryptographicBuffer::CopyToByteArray(CryptographicBuffer::DecodeFromBase64String(payload), bytes);
+            return std::string(bytes.begin(), bytes.end());
+        }
+        return PercentDecode(winrt::to_string(payload));
+    }
+
+    bool IsAsciiSpace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'; }
+
+    // Value of attribute `name` inside one start tag, if present.
+    bool FindAttribute(std::string const& tag, std::string_view name, std::string& value)
+    {
+        size_t i = 0;
+        while ((i = tag.find(name, i)) != std::string::npos)
+        {
+            const bool startOk = i > 0 && IsAsciiSpace(tag[i - 1]);
+            size_t j = i + name.size();
+            while (j < tag.size() && IsAsciiSpace(tag[j])) ++j;
+            if (startOk && j < tag.size() && tag[j] == '=')
+            {
+                ++j;
+                while (j < tag.size() && IsAsciiSpace(tag[j])) ++j;
+                if (j < tag.size() && (tag[j] == '"' || tag[j] == '\''))
+                {
+                    const char q = tag[j];
+                    const size_t end = tag.find(q, j + 1);
+                    value = tag.substr(j + 1, end == std::string::npos ? std::string::npos : end - j - 1);
+                }
+                else
+                {
+                    size_t end = j;
+                    while (end < tag.size() && !IsAsciiSpace(tag[end]) && tag[end] != '>' && tag[end] != '/') ++end;
+                    value = tag.substr(j, end - j);
+                }
+                return true;
+            }
+            i += name.size();
+        }
+        return false;
+    }
+
+    std::string PrepareSvg(std::string svg, uint32_t currentColor)
+    {
+        // currentColor -> #rrggbb (case-insensitive, it is a CSS keyword).
+        char hex[8];
+        std::snprintf(hex, sizeof(hex), "#%02x%02x%02x", (currentColor >> 16) & 0xFF, (currentColor >> 8) & 0xFF, currentColor & 0xFF);
+        constexpr std::string_view keyword = "currentcolor";
+        for (size_t i = 0; i + keyword.size() <= svg.size();)
+        {
+            bool match = true;
+            for (size_t k = 0; k < keyword.size(); ++k)
+            {
+                if (std::tolower(static_cast<unsigned char>(svg[i + k])) != keyword[k]) { match = false; break; }
+            }
+            if (match)
+            {
+                svg.replace(i, keyword.size(), hex);
+                i += 7;
+            }
+            else
+            {
+                ++i;
+            }
+        }
+
+        // Root <svg> without width/height: size it from its viewBox (CSS px = SVG user units).
+        size_t open = svg.find("<svg");
+        while (open != std::string::npos && open + 4 < svg.size() && !IsAsciiSpace(svg[open + 4]) && svg[open + 4] != '>')
+        {
+            open = svg.find("<svg", open + 4);
+        }
+        if (open == std::string::npos) return svg;
+        size_t close = open;
+        char quote = 0;
+        for (; close < svg.size(); ++close)
+        {
+            const char c = svg[close];
+            if (quote) { if (c == quote) quote = 0; }
+            else if (c == '"' || c == '\'') quote = c;
+            else if (c == '>') break;
+        }
+        const std::string tag = svg.substr(open, close - open);
+        std::string value;
+        // With one of width/height given, D2D derives the other from the viewBox ratio.
+        if (FindAttribute(tag, "width", value) || FindAttribute(tag, "height", value)) return svg;
+        if (!FindAttribute(tag, "viewBox", value)) return svg;
+        for (auto& c : value) if (c == ',') c = ' ';
+        double nums[4] = {};
+        const char* p = value.c_str();
+        for (int k = 0; k < 4; ++k)
+        {
+            char* end = nullptr;
+            nums[k] = std::strtod(p, &end);
+            if (end == p) return svg;
+            p = end;
+        }
+        if (nums[2] <= 0 || nums[3] <= 0) return svg;
+        char attrs[64];
+        std::snprintf(attrs, sizeof(attrs), " width=\"%g\" height=\"%g\"", nums[2], nums[3]);
+        svg.insert(open + 4, attrs);
+        return svg;
+    }
+
+    // The element's resolved CSS `color` (ARGB): its own, else the nearest Mason ancestor's.
+    uint32_t ResolveCurrentColor(mux::UIElement const& element)
+    {
+        return mason_visual::CurrentColor(element);
+    }
+
+    winrt::fire_and_forget LoadSvg(imaging::SvgImageSource svg, std::string text)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        using namespace winrt::Windows::Storage::Streams;
+        try
+        {
+            winrt::apartment_context ui;
+            const auto* begin = reinterpret_cast<const uint8_t*>(text.data());
+            const IBuffer bytes = CryptographicBuffer::CreateFromByteArray(winrt::array_view<uint8_t const>(begin, begin + text.size()));
+            InMemoryRandomAccessStream stream;
+            co_await stream.WriteAsync(bytes);
+            stream.Seek(0);
+            co_await ui;
+            co_await svg.SetSourceAsync(stream);
+        }
+        catch (...)
+        {
+        }
+    }
+}
+
 namespace winrt::NativeScript::Mason::implementation
 {
     namespace
@@ -267,6 +464,24 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (!element) return;
         mason_position::SetCssTransform(element, nullptr);
+    }
+
+    void Css::SetTransformOrigin(mux::UIElement const& element, double x, double y)
+    {
+        if (element) element.RenderTransformOrigin({ static_cast<float>(x), static_cast<float>(y) });
+    }
+
+    void Css::SetTransforms(mux::UIElement const& element, double scaleX, double scaleY, double angle, double translateX, double translateY,
+        double originX, double originY)
+    {
+        if (!element) return;
+        // Scale, then rotate, then translate, as core's TransformGroup orders them, in one matrix.
+        const double radians = angle * 3.14159265358979323846 / 180.0;
+        const double c = std::cos(radians), s = std::sin(radians);
+        muxm::MatrixTransform matrix;
+        matrix.Matrix(muxm::Matrix{ scaleX * c, scaleX * s, -scaleY * s, scaleY * c, translateX, translateY });
+        element.RenderTransformOrigin({ static_cast<float>(originX), static_cast<float>(originY) });
+        mason_position::SetAnimatedTransforms(element, matrix);
     }
 
     void Css::ApplyCornerRadius(mux::UIElement const& element,
@@ -487,26 +702,37 @@ namespace winrt::NativeScript::Mason::implementation
         auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
         if (!panel || source.empty()) return;
         namespace imaging = winrt::Microsoft::UI::Xaml::Media::Imaging;
-        imaging::BitmapImage bitmap;
         const std::wstring_view v = source;
-        const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
-        if (v.starts_with(L"data:") || path)
+        muxm::ImageBrush brush;
+        if (IsSvgDataUri(v))
         {
-            LoadBitmap(bitmap, source);
+            std::string svg = DecodeSvgDataUri(v);
+            if (svg.empty()) return;
+            imaging::SvgImageSource svgSource;
+            LoadSvg(svgSource, PrepareSvg(std::move(svg), ResolveCurrentColor(element)));
+            brush.ImageSource(svgSource);
         }
         else
         {
-            try
+            imaging::BitmapImage bitmap;
+            const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
+            if (v.starts_with(L"data:") || path)
             {
-                bitmap.UriSource(winrt::Windows::Foundation::Uri{ source });
+                LoadBitmap(bitmap, source);
             }
-            catch (...)
+            else
             {
-                return;
+                try
+                {
+                    bitmap.UriSource(winrt::Windows::Foundation::Uri{ source });
+                }
+                catch (...)
+                {
+                    return;
+                }
             }
+            brush.ImageSource(bitmap);
         }
-        muxm::ImageBrush brush;
-        brush.ImageSource(bitmap);
         brush.Stretch(fit == 1 ? muxm::Stretch::Fill : fit == 2 ? muxm::Stretch::Uniform : fit == 3 ? muxm::Stretch::UniformToFill : muxm::Stretch::None);
         brush.AlignmentX(alignX == 0 ? muxm::AlignmentX::Left : alignX == 2 ? muxm::AlignmentX::Right : muxm::AlignmentX::Center);
         brush.AlignmentY(alignY == 0 ? muxm::AlignmentY::Top : alignY == 2 ? muxm::AlignmentY::Bottom : muxm::AlignmentY::Center);
@@ -590,5 +816,121 @@ namespace winrt::NativeScript::Mason::implementation
         // misses it, but the child SET still changed so the panel must re-sync + the root recompute
         // (else the preview "never budges" on count-down until an unrelated change forces relayout).
         MarkLayoutRootDirty(parent);
+    }
+}
+
+namespace
+{
+    // ---- Mask and border images ------------------------------------------------------------
+    // Direct2D draws masks, so their images are decoded here rather than by XAML: SVG as prepared
+    // text for its SVG renderer, anything else as premultiplied BGRA through WIC.
+
+    bool EndsWithIgnoreCase(std::wstring_view v, std::wstring_view suffix)
+    {
+        if (v.size() < suffix.size()) return false;
+        for (size_t i = 0; i < suffix.size(); ++i)
+        {
+            if (std::towlower(v[v.size() - suffix.size() + i]) != suffix[i]) return false;
+        }
+        return true;
+    }
+
+    bool DecodeRaster(IWICImagingFactory* factory, IWICBitmapDecoder* decoder, mason_cssmask::Image& image)
+    {
+        winrt::com_ptr<IWICBitmapFrameDecode> frame;
+        winrt::com_ptr<IWICFormatConverter> converter;
+        if (FAILED(decoder->GetFrame(0, frame.put())) || FAILED(factory->CreateFormatConverter(converter.put()))) return false;
+        if (FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom))) return false;
+        UINT w = 0, h = 0;
+        if (FAILED(converter->GetSize(&w, &h)) || w == 0 || h == 0 || w > 8192 || h > 8192) return false;
+        image.pixels.resize(static_cast<size_t>(w) * h * 4);
+        if (FAILED(converter->CopyPixels(nullptr, w * 4, static_cast<UINT>(image.pixels.size()), image.pixels.data()))) return false;
+        image.pixelWidth = w;
+        image.pixelHeight = h;
+        image.kind = mason_cssmask::Image::Kind::Raster;
+        return true;
+    }
+
+    mason_cssmask::Image LoadMaskImage(std::wstring const& source)
+    {
+        using namespace winrt::Windows::Security::Cryptography;
+        mason_cssmask::Image image;
+        const std::wstring_view v = source;
+        try
+        {
+            if (IsSvgDataUri(v))
+            {
+                std::string svg = DecodeSvgDataUri(v);
+                if (svg.empty()) return image;
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.kind = mason_cssmask::Image::Kind::Svg;
+                return image;
+            }
+            const bool path = (v.size() > 2 && v[1] == L':') || (!v.empty() && (v[0] == L'/' || v[0] == L'\\'));
+            if (path && EndsWithIgnoreCase(v, L".svg"))
+            {
+                std::ifstream file(source, std::ios::binary);
+                std::string svg((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                if (svg.empty()) return image;
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.kind = mason_cssmask::Image::Kind::Svg;
+                return image;
+            }
+            auto factory = winrt::create_instance<IWICImagingFactory>(CLSID_WICImagingFactory);
+            winrt::com_ptr<IWICBitmapDecoder> decoder;
+            if (v.starts_with(L"data:"))
+            {
+                const size_t comma = v.find(L',');
+                if (comma == std::wstring_view::npos || v.substr(0, comma).find(L";base64") == std::wstring_view::npos) return image;
+                winrt::com_array<uint8_t> bytes;
+                CryptographicBuffer::CopyToByteArray(CryptographicBuffer::DecodeFromBase64String(winrt::hstring{ v.substr(comma + 1) }), bytes);
+                winrt::com_ptr<IWICStream> stream;
+                if (FAILED(factory->CreateStream(stream.put())) || FAILED(stream->InitializeFromMemory(bytes.data(), bytes.size()))) return image;
+                if (FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()))) return image;
+                DecodeRaster(factory.get(), decoder.get(), image);
+                return image;
+            }
+            if (!path) return image;
+            if (FAILED(factory->CreateDecoderFromFilename(source.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, decoder.put()))) return image;
+            DecodeRaster(factory.get(), decoder.get(), image);
+        }
+        catch (...)
+        {
+        }
+        return image;
+    }
+}
+
+namespace winrt::NativeScript::Mason::implementation
+{
+    void Css::SetMask(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        auto parsed = std::make_shared<mason_cssmask::Spec>(mason_cssmask::Parse(spec, LoadMaskImage));
+        if (mason_cssmask::SetMask(element, std::move(parsed)))
+        {
+            mason_filter::Touch(element);
+            element.InvalidateArrange();
+        }
+    }
+
+    void Css::SetBackgroundLayers(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        const bool had = mason_cssmask::HasBackground(element);
+        auto parsed = std::make_shared<mason_cssmask::Spec>(mason_cssmask::Parse(spec, LoadMaskImage));
+        if (!had && !parsed->HasLayers()) return;
+        mason_cssmask::SetBackground(element, std::move(parsed));
+        mason_filter::Touch(element);
+        element.InvalidateArrange();
+    }
+
+    void Css::SetBorderImage(mux::UIElement const& element, hstring const& spec)
+    {
+        if (!element) return;
+        auto parsed = mason_cssmask::Parse(spec, LoadMaskImage);
+        mason_cssmask::SetBorderImage(element, parsed.border ? std::make_shared<mason_cssmask::NineSlice>(std::move(*parsed.border)) : nullptr);
+        mason_filter::Touch(element);
+        element.InvalidateArrange();
     }
 }

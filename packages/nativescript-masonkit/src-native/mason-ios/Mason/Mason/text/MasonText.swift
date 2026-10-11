@@ -317,6 +317,19 @@ public class MasonTextLayer: CALayer {
       }
     }
 
+    // A border image paints under the text (its `fill` middle would hide it otherwise), and
+    // outside the radius clip: CSS does not round it.
+    var borderImageDrawn = false
+    if textView.style.hasBorderImage && !flattenedBlockquote {
+      if hasRadii { context.restoreGState() }
+      borderImageDrawn = textView.style.drawBorderImage(in: context, rect: bounds)
+      if hasRadii {
+        context.saveGState()
+        context.addPath(textView.style.mBorderRender.getClipPath(rect: bounds, radius: textView.style.mBorderRender.radius).cgPath)
+        context.clip()
+      }
+    }
+
     // Draw text
     textView.engine.drawText(context: context, rect: bounds)
     (textView as? MasonText)?.inlineBoxesDrawn()
@@ -328,7 +341,7 @@ public class MasonTextLayer: CALayer {
     }
 
     // Draw full border only when not flattened (flattened blockquote uses inline bar above)
-    if !flattenedBlockquote {
+    if !flattenedBlockquote && !borderImageDrawn {
       textView.style.mBorderRender.draw(in: context, rect: bounds)
     }
 

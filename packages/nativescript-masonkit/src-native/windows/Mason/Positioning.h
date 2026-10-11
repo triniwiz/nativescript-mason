@@ -97,73 +97,91 @@ namespace mason_position
         return StyleBytes(node).I8(POSITION);
     }
 
-    // RenderTransform is the CSS matrix, the positioning offset, or TransformGroup{ css, offset }.
-    inline muxm::TransformGroup OwnGroup(muxm::Transform const& t)
+    // An element's RenderTransform is composed from up to three parts, kept here rather than read
+    // back from the transform (whose shape can't tell them apart):
+    //   - `animated`: core's View.scale, rotate and translate as one matrix (Css.SetTransforms).
+    //   - `css`: the CSS `transform` matrix (Css.ApplyTransform).
+    //   - `offset`: the positioning offset (sticky links).
+    struct TransformParts
     {
-        auto group = t.try_as<muxm::TransformGroup>();
-        return group && group.Children().Size() == 2 ? group : nullptr;
+        winrt::weak_ref<mux::UIElement> element;
+        muxm::Transform animated{ nullptr };
+        muxm::Transform css{ nullptr };
+        muxm::TranslateTransform offset{ nullptr };
+        muxm::TransformGroup group{ nullptr };
+    };
+
+    inline std::unordered_map<void*, TransformParts>& TransformRegistry()
+    {
+        thread_local auto* registry = new std::unordered_map<void*, TransformParts>();
+        return *registry;
     }
 
-    inline muxm::MatrixTransform CssPart(muxm::Transform const& t)
+    inline TransformParts& PartsOf(mux::UIElement const& element)
     {
-        if (auto m = t.try_as<muxm::MatrixTransform>()) return m;
-        if (auto group = OwnGroup(t)) return group.Children().GetAt(0).try_as<muxm::MatrixTransform>();
-        return nullptr;
+        auto& registry = TransformRegistry();
+        void* key = winrt::get_abi(element.as<wf::IUnknown>());
+        auto it = registry.find(key);
+        if (it != registry.end() && it->second.element.get() == element) return it->second;
+        if (registry.size() >= 1024) std::erase_if(registry, [](auto const& e) { return !e.second.element.get(); });
+        auto& parts = registry[key];
+        parts = TransformParts{};
+        parts.element = winrt::make_weak(element);
+        return parts;
     }
 
-    inline muxm::TranslateTransform OffsetPart(muxm::Transform const& t)
+    inline void Recompose(mux::UIElement const& element, TransformParts& parts)
     {
-        if (auto tt = t.try_as<muxm::TranslateTransform>()) return tt;
-        if (auto group = OwnGroup(t)) return group.Children().GetAt(1).try_as<muxm::TranslateTransform>();
-        return nullptr;
-    }
-
-    inline void ComposeTransform(mux::UIElement const& element, muxm::MatrixTransform const& css, muxm::TranslateTransform const& offset)
-    {
-        auto group = OwnGroup(element.RenderTransform());
-        // A transform can only have one owner: detach both parts before re-seating them.
-        if (group) group.Children().Clear();
-        else element.RenderTransform(nullptr);
-
-        if (css && offset)
+        // A transform can only have one owner: detach every part before re-seating them.
+        element.RenderTransform(nullptr);
+        if (parts.group) parts.group.Children().Clear();
+        std::vector<muxm::Transform> present;
+        if (parts.animated) present.push_back(parts.animated);
+        if (parts.css) present.push_back(parts.css);
+        if (parts.offset) present.push_back(parts.offset);
+        if (present.empty()) return;
+        if (present.size() == 1)
         {
-            if (!group) group = muxm::TransformGroup();
-            group.Children().Append(css);
-            group.Children().Append(offset);
-            element.RenderTransform(group);
+            element.RenderTransform(present[0]);
+            return;
         }
-        else if (css)
-        {
-            element.RenderTransform(css);
-        }
-        else if (offset)
-        {
-            element.RenderTransform(offset);
-        }
-        else
-        {
-            element.RenderTransform(nullptr);
-        }
+        if (!parts.group) parts.group = muxm::TransformGroup();
+        for (auto const& t : present) parts.group.Children().Append(t);
+        element.RenderTransform(parts.group);
     }
 
     inline void SetCssTransform(mux::UIElement const& element, muxm::MatrixTransform const& css)
     {
-        ComposeTransform(element, css, OffsetPart(element.RenderTransform()));
+        auto& parts = PartsOf(element);
+        if (!css && !parts.css) return;
+        parts.css = css;
+        Recompose(element, parts);
     }
 
     inline muxm::TranslateTransform EnsureOffset(mux::UIElement const& element)
     {
-        auto current = element.RenderTransform();
-        if (auto offset = OffsetPart(current)) return offset;
-        muxm::TranslateTransform offset;
-        ComposeTransform(element, CssPart(current), offset);
-        return offset;
+        auto& parts = PartsOf(element);
+        if (parts.offset) return parts.offset;
+        parts.offset = muxm::TranslateTransform();
+        Recompose(element, parts);
+        return parts.offset;
     }
 
     inline void ClearOffset(mux::UIElement const& element)
     {
-        auto current = element.RenderTransform();
-        if (OffsetPart(current)) ComposeTransform(element, CssPart(current), nullptr);
+        auto& parts = PartsOf(element);
+        if (!parts.offset) return;
+        parts.offset = nullptr;
+        Recompose(element, parts);
+    }
+
+    // Core's scale, rotate and translate, as one transform.
+    inline void SetAnimatedTransforms(mux::UIElement const& element, muxm::Transform const& transform)
+    {
+        auto& parts = PartsOf(element);
+        if (parts.animated == transform) return;
+        parts.animated = transform;
+        Recompose(element, parts);
     }
 
     enum : uint32_t

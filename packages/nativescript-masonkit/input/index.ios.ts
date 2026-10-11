@@ -1,6 +1,6 @@
 import { Color, CSSType, Utils } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
-import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty } from './common';
+import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, syncCheckedPseudoClass } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -131,6 +131,27 @@ export class Input extends InputElementBase {
     if (this._view) {
       this._view.accept = value;
     }
+  }
+
+  // Not `appearance` natively: that's UIAppearance's class method.
+  [appearanceProperty.setNative](value: InputAppearance) {
+    if (this._view) {
+      this._view.cssAppearance = value === 'none' ? MasonInputAppearance.None : MasonInputAppearance.Auto;
+    }
+  }
+
+  initNativeView() {
+    super.initNativeView();
+    // A tap changes the checked state natively; held weakly so the block doesn't keep the owner alive.
+    const ref = new WeakRef(this);
+    this._view.onCheckedChange = () => {
+      ref.deref()?.[syncCheckedPseudoClass]();
+    };
+  }
+
+  disposeNativeView() {
+    this._view.onCheckedChange = null;
+    super.disposeNativeView();
   }
 
   get _view() {

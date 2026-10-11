@@ -89,10 +89,12 @@ enum BackgroundRepeat: String {
 
 // MARK: - Gradient
 struct Gradient {
-  let type: String       // "linear" or "radial"
+  let type: String       // "linear", "radial" or "conic"
   let direction: String? // "to bottom" or angle like "0deg"
   let stops: [String]    // color stops (unparsed strings)
   var interpolation: ColorInterpolation? = nil
+  /// `repeating-*-gradient`: the stop list tiles along the gradient line.
+  var repeating = false
 }
 
 // MARK: - Background position / size
@@ -148,7 +150,17 @@ class BackgroundLayer {
   // remember dimensions used to create cached gradient
   var shaderWidth: CGFloat = -1
   var shaderHeight: CGFloat = -1
+  /// The stops `shader` was built from; a conic gradient samples them itself.
+  var shaderColors: [CGColor] = []
+  var shaderLocations: [CGFloat] = []
   var bitmap: UIImage? = nil
+  /// A `data:image/svg+xml` image, parsed once; `bitmap` is its raster at the drawn size.
+  var svg: SvgDocument? = nil
+  /// The SVG didn't parse; don't retry every frame.
+  var svgFailed = false
+  /// The `currentColor` (0 when unused) and point size `bitmap` was rasterized with.
+  var svgColor: UInt32 = 0
+  var svgRasterSize: CGSize = .zero
   var clip: BackgroundClip = .borderBox
   var origin: BackgroundOrigin = .paddingBox
   var attachment: BackgroundAttachment = .scroll
@@ -423,14 +435,22 @@ internal let colorMap: [String: UIColor] = [
 
 // MARK: - Top-level splitters
 
-/// Split background layers by top-level commas (commas not inside parentheses)
+/// Split background layers by top-level commas (commas not inside parentheses or
+/// quotes: an unencoded SVG data URL can hold both).
 func splitBackgroundLayers(_ input: String) -> [String] {
   var result: [String] = []
   var current = ""
   var depth = 0
+  var quote: Character? = nil
   
   for ch in input {
-    if ch == "(" { depth += 1 }
+    if let q = quote {
+      if ch == q { quote = nil }
+      current.append(ch)
+      continue
+    }
+    if ch == "\"" || ch == "'" { quote = ch }
+    else if ch == "(" { depth += 1 }
     else if ch == ")" { depth = max(0, depth - 1) }
     
     if ch == "," && depth == 0 {
@@ -490,10 +510,16 @@ func parseRepeat(_ value: String) -> BackgroundRepeat {
   BackgroundRepeat(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) ?? .noRepeat
 }
 
-/// Cut the first `linear-gradient(...)`/`radial-gradient(...)` out of `value`, balancing parentheses.
+/// Cut the first `linear-`/`radial-`/`conic-gradient(...)` (or its `repeating-` form) out of
+/// `value`, balancing parentheses.
 private func extractGradient(from value: String) -> (gradient: String, rest: String)? {
-  let starts = ["linear-gradient(", "radial-gradient("].compactMap { value.range(of: $0, options: .caseInsensitive)?.lowerBound }
-  guard let start = starts.min() else { return nil }
+  let starts = ["linear-gradient(", "radial-gradient(", "conic-gradient("].compactMap { value.range(of: $0, options: .caseInsensitive)?.lowerBound }
+  guard var start = starts.min() else { return nil }
+  let prefix = "repeating-"
+  if value.distance(from: value.startIndex, to: start) >= prefix.count {
+    let prefixStart = value.index(start, offsetBy: -prefix.count)
+    if value[prefixStart..<start].lowercased() == prefix { start = prefixStart }
+  }
   var depth = 0
   var end = value.endIndex
   var i = start
@@ -695,8 +721,9 @@ func parseSize(_ value: String) -> BackgroundSize? {
 }
 
 func extractGradientContent(_ str: String) -> (type: String, content: String)? {
-  let lower = str.lowercased()
-  if lower.hasPrefix("linear-gradient(") || lower.hasPrefix("radial-gradient(") {
+  var lower = str.lowercased()
+  if lower.hasPrefix("repeating-") { lower.removeFirst("repeating-".count) }
+  if lower.hasPrefix("linear-gradient(") || lower.hasPrefix("radial-gradient(") || lower.hasPrefix("conic-gradient(") {
     let typeEnd = str.firstIndex(of: "(")!
     let type = String(str[..<typeEnd]).lowercased().replacingOccurrences(of: "-gradient", with: "")
     var depth = 0
@@ -747,8 +774,32 @@ func parseGradient(_ str: String) -> Gradient? {
     }
   }
 
-  let stops = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-  return Gradient(type: type, direction: direction, stops: expandColorStops(stops), interpolation: interpolation)
+  var stops = expandColorStops(parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+  var kind = type
+  let repeating = kind.hasPrefix("repeating-")
+  if repeating { kind.removeFirst("repeating-".count) }
+  // Conic stops may be placed by angle; the stop parser reads fractions of a turn.
+  if kind == "conic" { stops = stops.map(conicStopAsPercent) }
+  return Gradient(type: kind, direction: direction, stops: stops, interpolation: interpolation, repeating: repeating)
+}
+
+/// `red 90deg` -> `red 25%`; anything else is returned unchanged.
+private func conicStopAsPercent(_ stop: String) -> String {
+  var parts = splitTopLevelWhitespace(stop)
+  guard parts.count == 2, let turns = cssAngleInTurns(parts[1]) else { return stop }
+  parts[1] = "\(turns * 100)%"
+  return parts.joined(separator: " ")
+}
+
+/// A CSS `<angle>` as a fraction of a full turn, or nil when `token` is not one.
+func cssAngleInTurns(_ token: String) -> Double? {
+  let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  let units: [(String, Double)] = [("grad", 400), ("turn", 1), ("deg", 360), ("rad", 2 * Double.pi)]
+  for (unit, perTurn) in units where t.hasSuffix(unit) {
+    guard let v = Double(t.dropLast(unit.count)) else { return nil }
+    return v / perTurn
+  }
+  return nil
 }
 
 /// A stop with two positions ("red 10% 30%") is two stops of the same colour.
@@ -768,6 +819,11 @@ private func isAngleOrDirection(_ token: String) -> Bool {
     return true
   }
   
+  // conic-gradient's `from <angle>` / `at <position>`, and radial's bare `at <position>`.
+  if v.hasPrefix("from ") || v.hasPrefix("at ") {
+    return true
+  }
+
   // Check for linear-gradient direction: "to bottom", "to top left", etc.
   if v.hasPrefix("to ") {
     let parts = v.dropFirst(3).split(separator: " ")
@@ -795,20 +851,53 @@ private func isAngleOrDirection(_ token: String) -> Bool {
 }
 
 // MARK: - Parse Image URL
-private let IMAGE_URL_REGEX = try! NSRegularExpression(pattern: #"url\(["']?(.*?)["']?\)"#, options: .caseInsensitive)
-private let IMAGE_URL_REMOVAL_REGEX = try! NSRegularExpression(pattern: #"url\(["']?.*?["']?\)"#, options: .caseInsensitive)
+/// The first `url(...)` in `value`: its unquoted argument and the range of the whole call.
+/// A quoted argument ends at its closing quote, so an unencoded SVG data URL may hold
+/// parentheses, commas and the other quote; an unquoted one ends at the balancing `)`.
+private func findImageURL(_ value: String) -> (url: String, range: Range<String.Index>)? {
+  guard let open = value.range(of: "url(", options: .caseInsensitive) else { return nil }
+  var i = open.upperBound
+  while i < value.endIndex, value[i].isWhitespace { i = value.index(after: i) }
+  guard i < value.endIndex else { return nil }
+  if value[i] == "\"" || value[i] == "'" {
+    let q = value[i]
+    let start = value.index(after: i)
+    guard let close = value[start...].firstIndex(of: q) else {
+      // Unterminated: take the rest, minus a trailing `)`.
+      var url = String(value[start...])
+      if url.hasSuffix(")") { url.removeLast() }
+      return (url, open.lowerBound..<value.endIndex)
+    }
+    var end = value.index(after: close)
+    while end < value.endIndex, value[end].isWhitespace { end = value.index(after: end) }
+    if end < value.endIndex, value[end] == ")" { end = value.index(after: end) }
+    return (String(value[start..<close]), open.lowerBound..<end)
+  }
+  var depth = 1
+  var j = i
+  while j < value.endIndex {
+    if value[j] == "(" { depth += 1 }
+    else if value[j] == ")" {
+      depth -= 1
+      if depth == 0 { break }
+    }
+    j = value.index(after: j)
+  }
+  let url = String(value[i..<j]).trimmingCharacters(in: .whitespaces)
+  let end = j < value.endIndex ? value.index(after: j) : j
+  return (url, open.lowerBound..<end)
+}
 
 func parseImage(_ value: String) -> String? {
-  let ns = value as NSString
-  let range = NSRange(location: 0, length: ns.length)
-  guard let m = IMAGE_URL_REGEX.firstMatch(in: value, range: range) else { return nil }
-  return ns.substring(with: m.range(at: 1))
+  findImageURL(value)?.url
 }
 
 func removeImageURL(from value: String) -> String {
-  let range = NSRange(value.startIndex..., in: value)
-  let replaced = IMAGE_URL_REMOVAL_REGEX.stringByReplacingMatches(in: value, options: [], range: range, withTemplate: "")
-  return replaced.trimmingCharacters(in: .whitespacesAndNewlines)
+  var result = value
+  while let found = findImageURL(result) {
+    result.replaceSubrange(found.range, with: " ")
+  }
+  return result.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 // MARK: - Parse Color

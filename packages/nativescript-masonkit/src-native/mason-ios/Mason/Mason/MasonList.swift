@@ -193,7 +193,7 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
 
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration
     guard hasBackground || hasBoxShadow || hasBorder else { return }

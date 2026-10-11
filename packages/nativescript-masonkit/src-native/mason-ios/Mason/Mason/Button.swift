@@ -137,7 +137,7 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   public override func draw(_ rect: CGRect) {
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
 
     guard let context = UIGraphicsGetCurrentContext() else {
       return
@@ -175,10 +175,13 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
       style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
     }
 
+    // A border image paints under the label (its `fill` middle would hide it otherwise).
+    let borderImageDrawn = style.drawBorderImage(in: context, rect: bounds)
+
     engine.drawText(context: context, rect: bounds)
 
     // Border drawn OUTSIDE any clip scope so strokes aren't clipped
-    if hasBorder {
+    if hasBorder && !borderImageDrawn {
       style.mBorderRender.draw(in: context, rect: bounds)
     }
 

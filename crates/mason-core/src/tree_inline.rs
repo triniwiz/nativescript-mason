@@ -5,7 +5,7 @@ use crate::{Id, InlineSegment, Tree};
 use taffy::{
     compute_leaf_layout, AvailableSpace, BlockContext, BoxSizing, CoreStyle, Dimension, Display,
     LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point, Position,
-    ResolveOrZero, Size, SizingMode,
+    ResolveOrZero, RunMode, Size, SizingMode,
 };
 
 /// Reusable per-thread buffers for inline layout, which otherwise allocates and frees
@@ -2846,12 +2846,16 @@ impl Tree {
                 });
             }
 
-            // Update the node's layout
-            if let Some(node) = self.nodes_mut().get_mut(id) {
-                node.unrounded_layout.size = ret.size;
-                node.unrounded_layout.scrollable_overflow_rect = ret.scrollable_overflow_rect;
-                node.unrounded_layout.padding = padding;
-                node.unrounded_layout.border = border;
+            // Update the node's layout. Only a real layout may: a sizing probe's result is
+            // returned to the caller, and writing it here would leave the probe's size behind
+            // whenever the parent's final layout is then served from its cache.
+            if inputs.run_mode == RunMode::PerformLayout {
+                if let Some(node) = self.nodes_mut().get_mut(id) {
+                    node.unrounded_layout.size = ret.size;
+                    node.unrounded_layout.scrollable_overflow_rect = ret.scrollable_overflow_rect;
+                    node.unrounded_layout.padding = padding;
+                    node.unrounded_layout.border = border;
+                }
             }
 
             // Notify platform of computed size
@@ -3158,12 +3162,14 @@ impl Tree {
             });
         }
 
-        // Update the node's layout with proper content_size
-        if let Some(node) = self.nodes_mut().get_mut(id) {
-            node.unrounded_layout.size = output.size;
-            node.unrounded_layout.scrollable_overflow_rect = output.scrollable_overflow_rect;
-            node.unrounded_layout.padding = padding;
-            node.unrounded_layout.border = border;
+        // Update the node's layout with proper content_size (real layouts only, as above)
+        if inputs.run_mode == RunMode::PerformLayout {
+            if let Some(node) = self.nodes_mut().get_mut(id) {
+                node.unrounded_layout.size = output.size;
+                node.unrounded_layout.scrollable_overflow_rect = output.scrollable_overflow_rect;
+                node.unrounded_layout.padding = padding;
+                node.unrounded_layout.border = border;
+            }
         }
 
         // Notify platform of computed size

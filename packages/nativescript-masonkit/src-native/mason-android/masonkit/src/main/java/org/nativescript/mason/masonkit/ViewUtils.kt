@@ -44,10 +44,16 @@ class ViewUtils {
 
     private fun anyChildHasOutsetShadow(parent: ViewGroup): Boolean {
       for (i in 0 until parent.childCount) {
-        if ((parent.getChildAt(i) as? Element)?.style?.hasOutsetBoxShadow() == true) return true
+        val style = (parent.getChildAt(i) as? Element)?.style ?: continue
+        if (style.hasOutsetBoxShadow() && !isMasked(style)) return true
       }
       return false
     }
+
+    // A masked or clip-path'd element's shadow is masked/clipped too: it draws its own inside
+    // the mask layer or clip (see beginMask), so the parent must not paint it unmasked.
+    private fun isMasked(style: Style): Boolean =
+      style.mMask?.isActive() == true || style.mClipPath?.isActive() == true
 
     // Plain layout containers: nothing of their own to draw, and no clip to apply.
     private fun paintsNothing(style: Style): Boolean {
@@ -55,7 +61,7 @@ class ViewUtils {
       if (style.boxShadows.isNotEmpty()) return false
       val bg = style.mBackground
       if (bg != null && (bg.color != null || bg.layers.isNotEmpty())) return false
-      if (style.mBorderRenderer.hasVisibleBorder()) return false
+      if (style.mBorderRenderer.hasVisibleBorder() || style.mBorderImage != null) return false
       if (style.isValueInitialized &&
         (style.values.get(StyleKeys.OVERFLOW_X) != Overflow.Visible.value ||
           style.values.get(StyleKeys.OVERFLOW_Y) != Overflow.Visible.value)
@@ -68,7 +74,7 @@ class ViewUtils {
         val child = parent.getChildAt(i)
         if (child.width <= 0 || child.height <= 0) continue
         val childStyle = (child as? Element)?.style ?: continue
-        if (!childStyle.hasOutsetBoxShadow()) continue
+        if (!childStyle.hasOutsetBoxShadow() || isMasked(childStyle)) continue
 
         canvas.withTranslation(child.left.toFloat(), child.top.toFloat()) {
           childStyle.mBorderRenderer.updateCache(child.width.toFloat(), child.height.toFloat())
@@ -97,7 +103,9 @@ class ViewUtils {
       }
 
       val suppressOps = view.getTag(R.id.tag_suppress_ops) as? Boolean ?: false
-      if (suppressOps || (!style.isValueInitialized && style.mFilter == null && style.boxShadows.isEmpty() && style.mBackdropHelper == null)) {
+      if (suppressOps || (!style.isValueInitialized && style.mFilter == null && style.boxShadows.isEmpty() &&
+          style.mBackdropHelper == null && style.mBorderImage == null)
+      ) {
         beforeChildren?.invoke(canvas)
         superDraw(canvas)
         return
@@ -182,7 +190,7 @@ class ViewUtils {
                   android.graphics.RectF(0f, 0f, width, height)
                 }
                 if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
-                drawBackground(view.context, view, layer, canvas, paintRect, area)
+                drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor)
               }
             }
           }
@@ -200,9 +208,13 @@ class ViewUtils {
         )
       }
 
-      // Border draws freely — the path itself is rounded, no clip needed
+      // Border draws freely — the path itself is rounded, no clip needed. A border-image
+      // replaces it once its source is available (it isn't clipped by border-radius either).
       if (!ignoreBorder) {
-        style.mBorderRenderer.draw(canvas, width, height)
+        val image = style.mBorderImage
+        if (image == null || !image.draw(view, style, canvas, width, height)) {
+          style.mBorderRenderer.draw(canvas, width, height)
+        }
       }
       canvas.restoreToCount(boxSave)
 
@@ -300,6 +312,19 @@ class ViewUtils {
       superDraw: (Canvas) -> Unit,
     ) {
       render(view, canvas, style, superDraw, ignoreBorder)
+    }
+
+    /**
+     * Android gives a new window's focus to its first focusable view, so an `<input>` showed a
+     * caret before anyone touched it. On the web an input is focused only by a tap, `autofocus`
+     * or `focus()`, so a Mason root takes that initial focus itself; a tap still moves it.
+     */
+    fun holdInitialFocus(root: ViewGroup) {
+      root.isFocusableInTouchMode = true
+      root.descendantFocusability = ViewGroup.FOCUS_BEFORE_DESCENDANTS
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        root.defaultFocusHighlightEnabled = false
+      }
     }
 
     fun dispatchDraw(

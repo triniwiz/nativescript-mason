@@ -1,5 +1,5 @@
 import { CSSType, Utils, View } from '@nativescript/core';
-import { ViewBase } from '../common';
+import { ViewBase, setRootNativeViewFrame } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isMasonView_, native_, isPlaceholder_, isText_ } from '../symbols';
@@ -150,8 +150,12 @@ export class Scroll extends ViewBase {
     return false;
   }
 
-  _setNativeViewFrame(nativeView: any, frame: any): void {
-    nativeView.frame = frame;
+  _setNativeViewFrame(nativeView: any, frame: CGRect): void {
+    if (this.parent?.[isMasonView_]) {
+      nativeView.frame = frame;
+    } else {
+      setRootNativeViewFrame(this, nativeView, frame);
+    }
   }
 
   // @ts-ignore

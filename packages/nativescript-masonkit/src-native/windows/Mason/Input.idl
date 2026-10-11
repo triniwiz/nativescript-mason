@@ -16,6 +16,9 @@ namespace NativeScript.Mason
         Int32 Type;
         String Value;
         Boolean Checked;
+        // CSS `appearance: none` on a checkbox or radio: the control stays (taps, focus, keys)
+        // but draws nothing, so the element's CSS box shows and its CSS size alone counts.
+        Boolean AppearanceNone;
         String Placeholder;
         Boolean Multiple;
         String Accept;

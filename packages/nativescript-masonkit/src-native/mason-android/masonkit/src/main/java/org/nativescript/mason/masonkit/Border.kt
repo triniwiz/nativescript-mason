@@ -12,6 +12,8 @@ import org.nativescript.mason.masonkit.LengthPercentage.Zero
 import org.nativescript.mason.masonkit.enums.BorderStyle
 import java.nio.ByteBuffer
 import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
 
@@ -740,6 +742,14 @@ class BorderRenderer(private val style: Style) {
       bottomLeftCorner.x > 0f || bottomLeftCorner.y > 0f
   }
 
+  /** [getRadii] without allocating, into [out] (8 floats). Valid after updateCache(). */
+  fun copyRadii(out: FloatArray) {
+    out[0] = topLeftCorner.x; out[1] = topLeftCorner.y
+    out[2] = topRightCorner.x; out[3] = topRightCorner.y
+    out[4] = bottomRightCorner.x; out[5] = bottomRightCorner.y
+    out[6] = bottomLeftCorner.x; out[7] = bottomLeftCorner.y
+  }
+
   /**
    * Returns border radii as FloatArray(8) for use with Path.addRoundRect.
    * Format: [topLeftX, topLeftY, topRightX, topRightY, bottomRightX, bottomRightY, bottomLeftX, bottomLeftY]
@@ -945,6 +955,25 @@ class BorderRenderer(private val style: Style) {
   }
   private val ringPart = Path()
   private val sidePath = Path()
+  private val splitTL = PointF()
+  private val splitTR = PointF()
+  private val splitBR = PointF()
+  private val splitBL = PointF()
+
+  // Where a corner's dividing line ends: from the outer corner through the inner one (inset by
+  // the border widths) out to the radius box, capped at half the view so the lines can't cross.
+  // Stopping at the inner corner would leave a rounded corner's curve out of both sides.
+  private fun cornerSplit(
+    x: Float, y: Float, dirX: Float, dirY: Float,
+    insetX: Float, insetY: Float, radiusX: Float, radiusY: Float, width: Float, height: Float, out: PointF
+  ) {
+    val boxX = min(max(radiusX, insetX), width / 2f)
+    val boxY = min(max(radiusY, insetY), height / 2f)
+    val tx = if (insetX > 0f) boxX / insetX else Float.POSITIVE_INFINITY
+    val ty = if (insetY > 0f) boxY / insetY else Float.POSITIVE_INFINITY
+    val t = min(tx, ty).let { if (it.isInfinite()) 0f else it }
+    out.set(x + dirX * insetX * t, y + dirY * insetY * t)
+  }
 
   // Shared with Windows' PaintBorder: each style fills rings between rounded edges, split per
   // side by the corner diagonals, so radii, double lines and 3D shades follow the shape.
@@ -995,27 +1024,30 @@ class BorderRenderer(private val style: Style) {
       if (f == 1f) return c
       return Color.argb(Color.alpha(c), (Color.red(c) * f).toInt(), (Color.green(c) * f).toInt(), (Color.blue(c) * f).toInt())
     }
-    val oneColor = drawn.size == 4 && drawn.all { colors[it] == colors[0] && shade(it) == 1f }
-    val il = leftWidth
-    val it0 = topWidth
-    val ir = width - rightWidth
-    val ib = height - bottomWidth
+    // A side with no width adds nothing to the ring, so it needn't match.
+    val oneColor = drawn.all { colors[it] == colors[drawn[0]] && shade(it) == 1f } &&
+      (0 until 4).all { it in drawn || widths[it] <= 0f }
+    val s = cssRadiusScale(width, height)
+    cornerSplit(0f, 0f, 1f, 1f, leftWidth, topWidth, topLeftCorner.x * s, topLeftCorner.y * s, width, height, splitTL)
+    cornerSplit(width, 0f, -1f, 1f, rightWidth, topWidth, topRightCorner.x * s, topRightCorner.y * s, width, height, splitTR)
+    cornerSplit(width, height, -1f, -1f, rightWidth, bottomWidth, bottomRightCorner.x * s, bottomRightCorner.y * s, width, height, splitBR)
+    cornerSplit(0f, height, 1f, -1f, leftWidth, bottomWidth, bottomLeftCorner.x * s, bottomLeftCorner.y * s, width, height, splitBL)
 
     for ((from, to) in bands) {
       ringPath.reset()
       ringPath.op(buildEdgePath(from, width, height, insetPathA), buildEdgePath(to, width, height, insetPathB), Path.Op.DIFFERENCE)
       if (oneColor) {
-        ringFill.color = colors[0]
+        ringFill.color = colors[drawn[0]]
         canvas.drawPath(ringPath, ringFill)
         continue
       }
       for (i in drawn) {
         sidePath.reset()
         when (i) {
-          0 -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(width, 0f); sidePath.lineTo(ir, it0); sidePath.lineTo(il, it0) }
-          1 -> { sidePath.moveTo(width, 0f); sidePath.lineTo(width, height); sidePath.lineTo(ir, ib); sidePath.lineTo(ir, it0) }
-          2 -> { sidePath.moveTo(0f, height); sidePath.lineTo(il, ib); sidePath.lineTo(ir, ib); sidePath.lineTo(width, height) }
-          else -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(il, it0); sidePath.lineTo(il, ib); sidePath.lineTo(0f, height) }
+          0 -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(width, 0f); sidePath.lineTo(splitTR.x, splitTR.y); sidePath.lineTo(splitTL.x, splitTL.y) }
+          1 -> { sidePath.moveTo(width, 0f); sidePath.lineTo(width, height); sidePath.lineTo(splitBR.x, splitBR.y); sidePath.lineTo(splitTR.x, splitTR.y) }
+          2 -> { sidePath.moveTo(0f, height); sidePath.lineTo(splitBL.x, splitBL.y); sidePath.lineTo(splitBR.x, splitBR.y); sidePath.lineTo(width, height) }
+          else -> { sidePath.moveTo(0f, 0f); sidePath.lineTo(splitTL.x, splitTL.y); sidePath.lineTo(splitBL.x, splitBL.y); sidePath.lineTo(0f, height) }
         }
         sidePath.close()
         if (!ringPart.op(ringPath, sidePath, Path.Op.INTERSECT)) continue

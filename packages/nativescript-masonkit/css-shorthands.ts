@@ -280,6 +280,213 @@ export function splitBackground(value: string): LonghandValue[] {
   return [layers[layers.length - 1].color ?? unsetValue, perLayer('image', (layer) => layer.image), perLayer('repeat', (layer) => layer.repeat), perLayer('position', (layer) => layer.position), perLayer('size', (layer) => layer.size), perLayer('clip', (layer) => layer.clip), perLayer('origin', (layer) => layer.origin), perLayer('attachment', (layer) => layer.attachment)];
 }
 
+const MASK_BOX = new Set(['border-box', 'padding-box', 'content-box', 'margin-box', 'fill-box', 'stroke-box', 'view-box']);
+const MASK_COMPOSITE = new Set(['add', 'subtract', 'intersect', 'exclude']);
+const MASK_MODE = new Set(['alpha', 'luminance', 'match-source']);
+
+interface MaskLayer {
+  image?: string;
+  position?: string;
+  size?: string;
+  repeat?: string;
+  origin?: string;
+  clip?: string;
+  composite?: string;
+  mode?: string;
+}
+
+const MASK_INITIAL = { image: 'none', position: '0% 0%', size: 'auto', repeat: 'repeat', origin: 'border-box', clip: 'border-box', composite: 'add', mode: 'match-source' };
+
+// Like a background layer, without a colour or attachment, with a compositing operator and a
+// masking mode, and with `no-clip` as a clip box.
+function parseMaskLayer(tokens: string[], value: string): MaskLayer {
+  const layer: MaskLayer = {};
+  let boxes = 0;
+  let noClip = false;
+  const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in mask "${value}"`);
+  let i = 0;
+  const run = (accepts: (token: string) => boolean, max: number) => {
+    const start = i;
+    while (i < tokens.length && i - start < max && accepts(tokens[i])) {
+      i++;
+    }
+    return tokens.slice(start, i).join(' ');
+  };
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (layer.image === undefined && (token === 'none' || IMAGE_FUNCTION.test(token))) {
+      layer.image = token;
+      i++;
+    } else if (layer.repeat === undefined && REPEAT_SINGLE.has(token)) {
+      layer.repeat = token;
+      i++;
+    } else if (layer.repeat === undefined && REPEAT.has(token)) {
+      layer.repeat = run((t) => REPEAT.has(t), 2);
+    } else if (MASK_BOX.has(token) && (noClip ? layer.origin === undefined : boxes < 2)) {
+      if (layer.origin === undefined) {
+        layer.origin = token;
+      }
+      if (!noClip) {
+        layer.clip = token;
+      }
+      boxes++;
+      i++;
+    } else if (token === 'no-clip' && !noClip && boxes < 2) {
+      // One box and `no-clip`, either way round: the box is the origin.
+      layer.clip = token;
+      noClip = true;
+      i++;
+    } else if (layer.composite === undefined && MASK_COMPOSITE.has(token)) {
+      layer.composite = token;
+      i++;
+    } else if (layer.mode === undefined && MASK_MODE.has(token)) {
+      layer.mode = token;
+      i++;
+    } else if (layer.position === undefined && (POSITION_KEYWORD.has(token) || LENGTH.test(token))) {
+      layer.position = run((t) => POSITION_KEYWORD.has(t) || LENGTH.test(t), 4);
+      if (tokens[i] === '/') {
+        i++;
+        const size = run((t) => SIZE_KEYWORD.has(t) || LENGTH.test(t), 2).split(' ');
+        if (!size[0] || (size.length === 2 && size.some((t) => t === 'cover' || t === 'contain'))) {
+          throw invalid();
+        }
+        layer.size = size.join(' ');
+      }
+    } else {
+      throw invalid();
+    }
+  }
+  return layer;
+}
+
+/** `mask` into image, position, size, repeat, origin, clip, composite and mode, per layer. */
+export function splitMask(value: string): LonghandValue[] {
+  const layerTokens: string[][] = [[]];
+  for (const token of tokenizeCss(value)) {
+    if (token === ',') {
+      layerTokens.push([]);
+    } else {
+      layerTokens[layerTokens.length - 1].push(token);
+    }
+  }
+  const layers = layerTokens.map((tokens) => {
+    if (tokens.length === 0) {
+      throw new Error(`Empty layer in mask "${value}"`);
+    }
+    return parseMaskLayer(tokens, value);
+  });
+  // A shorthand sets every longhand, so whatever a layer leaves out gets its initial value.
+  const perLayer = (part: keyof typeof MASK_INITIAL) => layers.map((layer) => layer[part] ?? MASK_INITIAL[part]).join(', ');
+  return [perLayer('image'), perLayer('position'), perLayer('size'), perLayer('repeat'), perLayer('origin'), perLayer('clip'), perLayer('composite'), perLayer('mode')];
+}
+
+// -webkit-mask-composite uses canvas-style operator names. These are the ones with a standard
+// equivalent for how a layer combines with the layers below it.
+const WEBKIT_MASK_COMPOSITE: Record<string, string> = {
+  'source-over': 'add',
+  'source-in': 'intersect',
+  'source-out': 'subtract',
+  xor: 'exclude',
+  'destination-in': 'intersect',
+};
+
+// Older WebKit box keywords for -webkit-mask-origin/-clip.
+const WEBKIT_MASK_BOX: Record<string, string> = { border: 'border-box', padding: 'padding-box', content: 'content-box' };
+
+/** A -webkit-mask-composite list as `mask-composite`; operators with no equivalent become `add`. */
+export function webkitMaskComposite(value: string): string {
+  return splitLayerList(value)
+    .map((part) => (MASK_COMPOSITE.has(part) ? part : (WEBKIT_MASK_COMPOSITE[part] ?? 'add')))
+    .join(', ');
+}
+
+/** A -webkit-mask-origin or -clip list as the standard property. */
+export function webkitMaskBox(value: string): string {
+  return splitLayerList(value)
+    .map((part) => WEBKIT_MASK_BOX[part] ?? part)
+    .join(', ');
+}
+
+function splitLayerList(value: string): string[] {
+  const parts: string[] = [''];
+  for (const token of tokenizeCss(value)) {
+    if (token === ',') {
+      parts.push('');
+    } else {
+      parts[parts.length - 1] += (parts[parts.length - 1] ? ' ' : '') + token;
+    }
+  }
+  return parts.map((part) => part.trim());
+}
+
+/** `-webkit-mask`: `mask` with WebKit's composite operators and box keywords. */
+export function splitWebkitMask(value: string): LonghandValue[] {
+  const standard = tokenizeCss(value)
+    .map((token) => WEBKIT_MASK_COMPOSITE[token] ?? WEBKIT_MASK_BOX[token] ?? token)
+    .join(' ');
+  return splitMask(standard);
+}
+
+const MASK_BORDER_REPEAT = new Set(['stretch', 'repeat', 'round', 'space']);
+const MASK_BORDER_MODE = new Set(['alpha', 'luminance']);
+const NUMBER_OR_PERCENT = /^[+]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?%?$/i;
+
+/**
+ * `mask-border` (and `-webkit-mask-box-image`) into source, slice, width, outset, repeat and mode:
+ * `<source> || <slice> [ / <width>? [ / <outset> ]? ]? || <repeat> || <mode>`.
+ */
+export function splitMaskBorder(value: string): LonghandValue[] {
+  const tokens = tokenizeCss(value);
+  const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in mask-border "${value}"`);
+  let source: string | undefined;
+  let slice: string | undefined;
+  let width: string | undefined;
+  let outset: string | undefined;
+  let repeat: string | undefined;
+  let mode: string | undefined;
+  let i = 0;
+  const run = (accepts: (token: string) => boolean, max: number) => {
+    const start = i;
+    while (i < tokens.length && i - start < max && accepts(tokens[i])) {
+      i++;
+    }
+    return tokens.slice(start, i).join(' ');
+  };
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (source === undefined && (token === 'none' || IMAGE_FUNCTION.test(token))) {
+      source = token;
+      i++;
+    } else if (slice === undefined && (NUMBER_OR_PERCENT.test(token) || token === 'fill')) {
+      slice = run((t) => NUMBER_OR_PERCENT.test(t) || t === 'fill', 5);
+      if (slice.split(' ').filter((t) => t === 'fill').length > 1) {
+        throw invalid();
+      }
+      if (tokens[i] === '/') {
+        i++;
+        width = run((t) => t === 'auto' || LENGTH.test(t), 4) || undefined;
+        if (tokens[i] === '/') {
+          i++;
+          outset = run((t) => LENGTH.test(t), 4);
+          if (!outset) {
+            throw invalid();
+          }
+        } else if (width === undefined) {
+          throw invalid();
+        }
+      }
+    } else if (repeat === undefined && MASK_BORDER_REPEAT.has(token)) {
+      repeat = run((t) => MASK_BORDER_REPEAT.has(t), 2);
+    } else if (mode === undefined && MASK_BORDER_MODE.has(token)) {
+      mode = token;
+      i++;
+    } else {
+      throw invalid();
+    }
+  }
+  return [source ?? 'none', slice ?? '0', width ?? 'auto', outset ?? '0', repeat ?? 'stretch', mode ?? 'alpha'];
+}
+
 function keywordList(value: string, allowed: ReadonlySet<string>, max: number): string[] {
   const tokens = tokenizeCss(value);
   if (tokens.length === 0 || tokens.length > max || !tokens.every((token) => allowed.has(token))) {

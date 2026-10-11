@@ -6,6 +6,8 @@ import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
+import { resolveCssColors } from './css-colors';
+import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1340,6 +1342,19 @@ function cssInitialIfReset(value: string, initial: string): string {
   return v === '' || v === 'initial' || v === 'unset' ? initial : value;
 }
 
+/**
+ * One CSS colour (`oklch(60% 0.2 240)`, `color-mix(...)`, `rgb(0 0 0 / 15%)`)
+ * as `rgba(...)`, or null. Core's `Color` resolves `color-mix()` through
+ * @csstools' parser; any other function is handed over as an identity mix.
+ */
+export function cssColorToRgba(color: string): string | null {
+  const color_ = new Color(/^color-mix\(/i.test(color) ? color : `color-mix(in srgb, ${color} 100%, transparent)`);
+  if (color_.argb === -1) {
+    return null;
+  }
+  return `rgba(${color_.r}, ${color_.g}, ${color_.b}, ${+(color_.a / 255).toFixed(4)})`;
+}
+
 export class Style {
   private view_: View;
   // Fetched on first use; see loadBuffer.
@@ -1549,9 +1564,11 @@ export class Style {
     }
   }
 
+  // Every string-valued property goes through here on its way to the platform,
+  // whose parsers don't read modern colour syntax; see css-colors.ts.
   private coerceCssStringValue(value: any): string {
     if (typeof value === 'string') {
-      return value;
+      return resolveCssColors(value, cssColorToRgba);
     }
     if (value == null) {
       return '';
@@ -1591,12 +1608,18 @@ export class Style {
   private _windowsBackground?: string;
   private _windowsBackgroundSize?: string;
   private _windowsBackgroundPosition?: string;
+  private _windowsImageBackground = false;
 
   private applyWindowsBackground(shorthand: boolean) {
     const v = (this._windowsBackground ?? '').trim();
     const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
     const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
     try {
+      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
+      if (!url && this._windowsImageBackground) {
+        this._windowsImageBackground = false;
+        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
+      }
       if (/^radial-gradient/i.test(layer)) {
         const g = parseRadialGradientCss(layer);
         if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
@@ -1607,17 +1630,26 @@ export class Style {
         if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stopsOf(g), g.interpolation);
         return;
       }
-      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
       if (url) {
-        let source = url[2];
-        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
         const rest = layer.slice(url.index + url[0].length).trim();
         const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box)\b/gi;
         const [positionPart, sizePart] = rest.split('/').map((p) => p.replace(keywords, '').trim());
-        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : this._windowsBackgroundSize;
-        const position = parseBoxPosition(shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '0% 0%'), 0);
+        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : (this._windowsBackgroundSize ?? '');
+        const position = shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '');
+        const repeatKeywords = shorthand ? (rest.match(/\b(no-repeat|repeat-x|repeat-y|repeat|space|round)\b/gi) ?? []).join(' ') : '';
+        const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
+        // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
+        const spec = encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext());
+        if (spec) {
+          this._windowsImageBackground = true;
+          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+          return;
+        }
+        let source = url[2];
+        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
+        const box = parseBoxPosition(position || '0% 0%', 0);
         const align = (f: number) => (f <= 0.25 ? 0 : f >= 0.75 ? 2 : 1);
-        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(position.x), align(position.y));
+        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(box.x), align(box.y));
         return;
       }
       if (!ANY_GRADIENT.test(layer)) {
@@ -1627,12 +1659,67 @@ export class Style {
     } catch (_) {}
   }
 
+  private _windowsMaskSpec = '';
+  private _windowsMaskOverrides?: Map<string, string>;
+
+  private windowsMaskContext(): WindowsMaskContext {
+    return {
+      length: (token) => cssLengthToDip(token, this.emBasis()),
+      color: (color) => normalizeColorValue(color),
+      linear: parseLinearGradientCss,
+      radial: parseRadialGradientCss,
+      source: (url) => (url.startsWith('~/') ? url.replace('~/', knownFolders.currentApp().path + '/') : url),
+    };
+  }
+
+  // The mask longhands arrive one setter at a time (a shorthand sets eight, a keyframe two), so
+  // they're sent to Css.SetMask together once the current task is done.
+  private scheduleWindowsMask(name: string, value: string) {
+    const pending = this._windowsMaskOverrides !== undefined;
+    (this._windowsMaskOverrides ??= new Map()).set(name, value);
+    if (pending) return;
+    Promise.resolve().then(() => {
+      const overrides = this._windowsMaskOverrides;
+      this._windowsMaskOverrides = undefined;
+      const view = this.nativeView;
+      if (!view) return;
+      // A pseudo-class state's values aren't in _windowsCss; they win over it while applied.
+      const css = new Map(this._windowsCss);
+      for (const [key, v] of overrides ?? []) css.set(key, v);
+      let spec = '';
+      try {
+        spec = encodeWindowsMask(css, this.windowsMaskContext());
+      } catch (_) {}
+      if (spec === this._windowsMaskSpec) return;
+      this._windowsMaskSpec = spec;
+      NativeScript.Mason.Css.SetMask(view, spec);
+    });
+  }
+
   private applyWindowsCssString(name: string, value: string) {
+    if (WINDOWS_MASK_PROPERTIES.has(name)) {
+      this.scheduleWindowsMask(name, typeof value === 'string' ? value : String(value ?? ''));
+      return;
+    }
+    if (name === 'border-image') {
+      const view: any = this.nativeView;
+      if (!view) return;
+      let spec = '';
+      try {
+        spec = encodeWindowsBorderImage(typeof value === 'string' ? value : '', this.windowsMaskContext());
+      } catch (_) {}
+      NativeScript.Mason.Css.SetBorderImage(view, spec);
+      return;
+    }
     // A gradient is a Panel brush from Css that VisualApply leaves over BACKGROUND_COLOR; clearing
     // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
       this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
       this.applyWindowsBackground(name === 'background');
+      return;
+    }
+    if (name === 'background-repeat') {
+      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
     if (name === 'background-size' || name === 'background-position') {
@@ -6442,6 +6529,441 @@ export class Style {
 
   get 'backdrop-filter'() {
     return this.backdropFilter;
+  }
+
+  get maskImage(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskImage(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskImage;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-image') ?? '') : '';
+  }
+
+  set maskImage(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-image',
+      value,
+      () => nodeHelper().setMaskImage(this.nativeView, value),
+      () => (this.appleStyle.maskImage = value),
+    );
+  }
+
+  set 'mask-image'(value: string) {
+    this.maskImage = value;
+  }
+
+  get 'mask-image'() {
+    return this.maskImage;
+  }
+
+  get maskSize(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskSize(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskSize;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-size') ?? '') : '';
+  }
+
+  set maskSize(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-size',
+      value,
+      () => nodeHelper().setMaskSize(this.nativeView, value),
+      () => (this.appleStyle.maskSize = value),
+    );
+  }
+
+  set 'mask-size'(value: string) {
+    this.maskSize = value;
+  }
+
+  get 'mask-size'() {
+    return this.maskSize;
+  }
+
+  get maskPosition(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskPosition(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskPosition;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-position') ?? '') : '';
+  }
+
+  set maskPosition(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-position',
+      value,
+      () => nodeHelper().setMaskPosition(this.nativeView, value),
+      () => (this.appleStyle.maskPosition = value),
+    );
+  }
+
+  set 'mask-position'(value: string) {
+    this.maskPosition = value;
+  }
+
+  get 'mask-position'() {
+    return this.maskPosition;
+  }
+
+  get maskRepeat(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskRepeat(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskRepeat;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-repeat') ?? '') : '';
+  }
+
+  set maskRepeat(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-repeat',
+      value,
+      () => nodeHelper().setMaskRepeat(this.nativeView, value),
+      () => (this.appleStyle.maskRepeat = value),
+    );
+  }
+
+  set 'mask-repeat'(value: string) {
+    this.maskRepeat = value;
+  }
+
+  get 'mask-repeat'() {
+    return this.maskRepeat;
+  }
+
+  get maskOrigin(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskOrigin(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskOrigin;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-origin') ?? '') : '';
+  }
+
+  set maskOrigin(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-origin',
+      value,
+      () => nodeHelper().setMaskOrigin(this.nativeView, value),
+      () => (this.appleStyle.maskOrigin = value),
+    );
+  }
+
+  set 'mask-origin'(value: string) {
+    this.maskOrigin = value;
+  }
+
+  get 'mask-origin'() {
+    return this.maskOrigin;
+  }
+
+  get maskClip(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskClip(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskClip;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-clip') ?? '') : '';
+  }
+
+  set maskClip(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-clip',
+      value,
+      () => nodeHelper().setMaskClip(this.nativeView, value),
+      () => (this.appleStyle.maskClip = value),
+    );
+  }
+
+  set 'mask-clip'(value: string) {
+    this.maskClip = value;
+  }
+
+  get 'mask-clip'() {
+    return this.maskClip;
+  }
+
+  get maskMode(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskMode(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskMode;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-mode') ?? '') : '';
+  }
+
+  set maskMode(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-mode',
+      value,
+      () => nodeHelper().setMaskMode(this.nativeView, value),
+      () => (this.appleStyle.maskMode = value),
+    );
+  }
+
+  set 'mask-mode'(value: string) {
+    this.maskMode = value;
+  }
+
+  get 'mask-mode'() {
+    return this.maskMode;
+  }
+
+  get maskComposite(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskComposite(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskComposite;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-composite') ?? '') : '';
+  }
+
+  set maskComposite(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-composite',
+      value,
+      () => nodeHelper().setMaskComposite(this.nativeView, value),
+      () => (this.appleStyle.maskComposite = value),
+    );
+  }
+
+  set 'mask-composite'(value: string) {
+    this.maskComposite = value;
+  }
+
+  get 'mask-composite'() {
+    return this.maskComposite;
+  }
+
+  get clipPath(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getClipPath(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.clipPath;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('clip-path') ?? '') : '';
+  }
+
+  set clipPath(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'clip-path',
+      value,
+      () => nodeHelper().setClipPath(this.nativeView, value),
+      () => (this.appleStyle.clipPath = value),
+    );
+  }
+
+  set 'clip-path'(value: string) {
+    this.clipPath = value;
+  }
+
+  get 'clip-path'() {
+    return this.clipPath;
+  }
+
+  get maskBorderSource(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderSource(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderSource;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-source') ?? '') : '';
+  }
+
+  set maskBorderSource(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-source',
+      value,
+      () => nodeHelper().setMaskBorderSource(this.nativeView, value),
+      () => (this.appleStyle.maskBorderSource = value),
+    );
+  }
+
+  set 'mask-border-source'(value: string) {
+    this.maskBorderSource = value;
+  }
+
+  get 'mask-border-source'() {
+    return this.maskBorderSource;
+  }
+
+  get maskBorderSlice(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderSlice(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderSlice;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-slice') ?? '') : '';
+  }
+
+  set maskBorderSlice(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-slice',
+      value,
+      () => nodeHelper().setMaskBorderSlice(this.nativeView, value),
+      () => (this.appleStyle.maskBorderSlice = value),
+    );
+  }
+
+  set 'mask-border-slice'(value: string) {
+    this.maskBorderSlice = value;
+  }
+
+  get 'mask-border-slice'() {
+    return this.maskBorderSlice;
+  }
+
+  get maskBorderWidth(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderWidth(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderWidth;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-width') ?? '') : '';
+  }
+
+  set maskBorderWidth(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-width',
+      value,
+      () => nodeHelper().setMaskBorderWidth(this.nativeView, value),
+      () => (this.appleStyle.maskBorderWidth = value),
+    );
+  }
+
+  set 'mask-border-width'(value: string) {
+    this.maskBorderWidth = value;
+  }
+
+  get 'mask-border-width'() {
+    return this.maskBorderWidth;
+  }
+
+  get maskBorderOutset(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderOutset(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderOutset;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-outset') ?? '') : '';
+  }
+
+  set maskBorderOutset(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-outset',
+      value,
+      () => nodeHelper().setMaskBorderOutset(this.nativeView, value),
+      () => (this.appleStyle.maskBorderOutset = value),
+    );
+  }
+
+  set 'mask-border-outset'(value: string) {
+    this.maskBorderOutset = value;
+  }
+
+  get 'mask-border-outset'() {
+    return this.maskBorderOutset;
+  }
+
+  get maskBorderRepeat(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderRepeat(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderRepeat;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-repeat') ?? '') : '';
+  }
+
+  set maskBorderRepeat(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-repeat',
+      value,
+      () => nodeHelper().setMaskBorderRepeat(this.nativeView, value),
+      () => (this.appleStyle.maskBorderRepeat = value),
+    );
+  }
+
+  set 'mask-border-repeat'(value: string) {
+    this.maskBorderRepeat = value;
+  }
+
+  get 'mask-border-repeat'() {
+    return this.maskBorderRepeat;
+  }
+
+  get maskBorderMode(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) {
+      return nodeHelper().getMaskBorderMode(this.nativeView);
+    }
+    if (__APPLE__) {
+      return this.appleStyle.maskBorderMode;
+    }
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-mode') ?? '') : '';
+  }
+
+  set maskBorderMode(value: string) {
+    value = this.coerceCssStringValue(value);
+    this.setPseudoCssStringValue(
+      'mask-border-mode',
+      value,
+      () => nodeHelper().setMaskBorderMode(this.nativeView, value),
+      () => (this.appleStyle.maskBorderMode = value),
+    );
+  }
+
+  set 'mask-border-mode'(value: string) {
+    this.maskBorderMode = value;
+  }
+
+  get 'mask-border-mode'() {
+    return this.maskBorderMode;
   }
 
   get writingMode(): 'horizontal-tb' | 'vertical-rl' | 'vertical-lr' {

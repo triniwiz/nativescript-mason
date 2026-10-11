@@ -224,6 +224,11 @@ declare namespace NativeScript.Mason {
     static SetBoxShadow(element: any, shadows: string): void;
     static SetFilter(element: any, filter: string): void;
     static SetBackdropFilter(element: any, filter: string): void;
+    static SetMask(element: any, spec: string): void;
+    static SetBorderImage(element: any, spec: string): void;
+    static SetBackgroundLayers(element: any, spec: string): void;
+    static SetTransformOrigin(element: any, x: number, y: number): void;
+    static SetTransforms(element: any, scaleX: number, scaleY: number, angle: number, translateX: number, translateY: number, originX: number, originY: number): void;
     static ClearShadow(element: any): void;
   }
 
@@ -363,6 +368,7 @@ declare namespace NativeScript.Mason {
     Type: number;
     Value: string;
     Checked: boolean;
+    AppearanceNone: boolean;
     Placeholder: string;
     Multiple: boolean;
     Accept: string;

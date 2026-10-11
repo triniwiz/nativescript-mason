@@ -810,6 +810,34 @@ namespace winrt::NativeScript::Mason::implementation
     }
 
     double Text::FontSize() const { return m_fontSize; }
+
+    // The element's own font size. A percent one resolves against the nearest Mason ancestor
+    // with an absolute size: core hands the same raw percentage down the tree, so percent
+    // ancestors are skipped rather than compounded.
+    double Text::OwnFontSize() const
+    {
+        if (m_fontSizePercent <= 0) return m_fontSize;
+        double base = 16.0;
+        auto self = const_cast<Text*>(this)->get_strong().as<winrt::Microsoft::UI::Xaml::DependencyObject>();
+        for (auto cur = winrt::Microsoft::UI::Xaml::Media::VisualTreeHelper::GetParent(self); cur;
+             cur = winrt::Microsoft::UI::Xaml::Media::VisualTreeHelper::GetParent(cur))
+        {
+            auto element = cur.try_as<winrt::NativeScript::Mason::IMasonElement>();
+            auto node = element ? element.Node() : nullptr;
+            if (!node) continue;
+            uint32_t len = 0;
+            const uint8_t* data = winrt::get_self<implementation::Node>(node)->StyleData(len);
+            if (!data || len < 335 || data[334] == 0 || data[333] == 1) continue;
+            int32_t fs = 0;
+            std::memcpy(&fs, data + 329, 4);
+            if (fs > 0)
+            {
+                base = fs;
+                break;
+            }
+        }
+        return std::ceil(base * m_fontSizePercent / 100.0);
+    }
     void Text::FontSize(double value) { if (value > 0.0) { m_fontSize = value; if (m_text) m_text.FontSize(value); RequestRebuild(); } }
 
     hstring Text::ResolveFontFamily(hstring const& families)
@@ -1005,7 +1033,14 @@ namespace winrt::NativeScript::Mason::implementation
         // Each prop: value at its offset, applied only if its *_STATE byte is set. Offsets per style.ts.
         m_hasColor = u8(328) != 0;                                           // FONT_COLOR / state 328
         if (m_hasColor) m_color = u32(324);
-        if (u8(334)) { int32_t fs = i32(329); if (fs > 0) m_fontSize = static_cast<double>(fs); } // FONT_SIZE (dip) / 334
+        // FONT_SIZE (dip) / type 333 (1: % of the parent's, as em is stored too) / state 334
+        m_fontSizePercent = 0;
+        if (u8(334))
+        {
+            const int32_t fs = i32(329);
+            if (u8(333) == 1) m_fontSizePercent = (std::max)(fs, 0);
+            else if (fs > 0) m_fontSize = static_cast<double>(fs);
+        }
         if (u8(339)) { int32_t fw = i32(335); if (fw > 0) m_fontWeight = fw; } // FONT_WEIGHT / 339
         if (u8(345)) { m_fontStyle = u8(344); m_hasFontStyle = true; }        // FONT_STYLE_TYPE (0 normal, 1 italic, 2 oblique) / 345
         if (u8(367)) { m_letterSpacingPx = static_cast<double>(f32(363)); }  // LETTER_SPACING (px) / 367
@@ -1066,7 +1101,7 @@ namespace winrt::NativeScript::Mason::implementation
             m_text.LineHeight(m_lineHeightPx);
             m_text.LineStackingStrategy(mux::LineStackingStrategy::BlockLineHeight);
         }
-        if (m_fontSize > 0.0) m_text.FontSize(m_fontSize);
+        if (const double size = OwnFontSize(); size > 0.0) m_text.FontSize(size);
         if (m_fontWeight > 0) m_text.FontWeight(winrt::Windows::UI::Text::FontWeight{ static_cast<uint16_t>(m_fontWeight) });
         {
             using winrt::Windows::UI::Text::FontStyle;
@@ -1171,7 +1206,8 @@ namespace winrt::NativeScript::Mason::implementation
     Text::Resolved Text::Resolve(Resolved parent) const
     {
         if (m_hasColor) parent.color = m_color;
-        if (m_fontSize > 0.0) parent.fontSize = m_fontSize;
+        if (m_fontSizePercent > 0) parent.fontSize = std::ceil(parent.fontSize * m_fontSizePercent / 100.0);
+        else if (m_fontSize > 0.0) parent.fontSize = m_fontSize;
         if (m_fontWeight > 0) parent.fontWeight = m_fontWeight;
         if (m_hasFontStyle) parent.fontStyle = m_fontStyle;
         if (m_letterSpacingPx != 0.0) parent.letterSpacing = m_letterSpacingPx;
@@ -1239,8 +1275,9 @@ namespace winrt::NativeScript::Mason::implementation
     {
         if (!m_text && !m_direct) return false;
         Resolved defaults;
-        defaults.fontSize = m_fontSize > 0.0 ? m_fontSize : 14.0;
-        const Resolved container = Resolve(defaults);
+        defaults.fontSize = OwnFontSize() > 0.0 ? OwnFontSize() : 14.0;
+        Resolved container = Resolve(defaults);
+        container.fontSize = defaults.fontSize;
         std::vector<BuiltRun> next;
         next.reserve(m_runs.size());
         AppendRuns(container, nullptr, next);
@@ -1816,7 +1853,7 @@ namespace winrt::NativeScript::Mason::implementation
             return;
         }
 
-        const float fontSize = static_cast<float>(ScaledFontSize(m_fontSize > 0.0 ? m_fontSize : 14.0));
+        const float fontSize = static_cast<float>(ScaledFontSize(OwnFontSize() > 0.0 ? OwnFontSize() : 14.0));
         const float line = m_lineHeightPx > 0.0 ? static_cast<float>(m_lineHeightPx)
             : m_lineHeightMultiplier > 0.0 ? static_cast<float>(m_lineHeightMultiplier) * fontSize : fontSize * 1.33f;
         float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;

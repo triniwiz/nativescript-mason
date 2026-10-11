@@ -287,6 +287,14 @@ public class MasonNode: NSObject {
     var dict = pseudoStrings[pseudoState] ?? [:]
     dict[key] = value
     pseudoStrings[pseudoState] = dict
+    // Masks are not drawn in draw(_:), so a pseudo mask needs its own refresh.
+    if key.hasPrefix("mask-") || key == "clip-path" {
+      style.hasPseudoMask = true
+      style.maskChanged()
+    } else if key == "border-image" {
+      style.hasPseudoBorderImage = true
+      style.borderImageChanged()
+    }
   }
 
   public func getPseudoString(_ pseudoState: UInt16, _ key: String) -> String? {
@@ -297,6 +305,8 @@ public class MasonNode: NSObject {
     guard var dict = pseudoStrings[pseudoState] else { return }
     dict.removeValue(forKey: key)
     pseudoStrings[pseudoState] = dict.isEmpty ? nil : dict
+    if key.hasPrefix("mask-") || key == "clip-path" { style.maskChanged() }
+    if key == "border-image" { style.borderImageChanged() }
   }
   
   // MARK: - Pseudo State Read/Write
@@ -328,6 +338,8 @@ public class MasonNode: NSObject {
     if autoDirty {
       mason_node_mark_dirty(mason.nativePtr, nativePtr)
     }
+    if style.hasPseudoMask && updated != orig { style.maskChanged() }
+    if style.hasPseudoBorderImage && updated != orig { style.borderImageChanged() }
   }
 
   var isActive: Bool { hasPseudo(.active) }

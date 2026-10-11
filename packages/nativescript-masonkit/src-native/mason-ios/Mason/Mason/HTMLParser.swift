@@ -822,6 +822,7 @@ public class HTMLParser: NSObject {
     // MARK: Visual (pass-through CSS string parsers)
 
     case "border-radius": style.borderRadius = value
+    case "border-image": style.borderImage = value
     case "corner-shape": style.cornerShape = value
     case "box-shadow": style.boxShadow = value
     case "text-shadow": style.textShadow = value
@@ -839,6 +840,21 @@ public class HTMLParser: NSObject {
     case "background-origin": style.backgroundOrigin = value
     case "background-attachment": style.backgroundAttachment = value
     case "background-blend-mode": style.backgroundBlendMode = value
+    case "mask-image": style.maskImage = value
+    case "mask-size": style.maskSize = value
+    case "mask-position": style.maskPosition = value
+    case "mask-repeat": style.maskRepeat = value
+    case "mask-origin": style.maskOrigin = value
+    case "mask-clip": style.maskClip = value
+    case "mask-mode": style.maskMode = value
+    case "mask-composite": style.maskComposite = value
+    case "clip-path": style.clipPath = value
+    case "mask-border-source": style.maskBorderSource = value
+    case "mask-border-slice": style.maskBorderSlice = value
+    case "mask-border-width": style.maskBorderWidth = value
+    case "mask-border-outset": style.maskBorderOutset = value
+    case "mask-border-repeat": style.maskBorderRepeat = value
+    case "mask-border-mode": style.maskBorderMode = value
 
     case "z-index":
       if let v = Int32(value) { style.zIndex = v }

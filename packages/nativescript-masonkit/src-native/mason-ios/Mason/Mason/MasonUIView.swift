@@ -50,7 +50,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
     _cachedHasBackground = !bgString.isEmpty || !style.mBackground.layers.isEmpty || style.mBackground.color != nil
     _cachedHasBoxShadow = !style.boxShadows.isEmpty
-    _cachedHasBorder = !style.mBorderRender.css.isEmpty || MasonUIView.sideHasVisibleBorder(style.mBorderRender.top) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.right) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.bottom) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.left)
+    _cachedHasBorder = style.hasBorderImage || !style.mBorderRender.css.isEmpty || MasonUIView.sideHasVisibleBorder(style.mBorderRender.top) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.right) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.bottom) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.left)
     _cachedHasFilter = !style.resolvedFilterString.isEmpty
   }
 
@@ -159,7 +159,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   internal typealias LayerPaint = (background: CGColor?, borderWidth: CGFloat, borderColor: CGColor?, radius: CGFloat)
 
   private func layerPaint() -> LayerPaint? {
-    if _cachedHasFilter || hasListMarkers { return nil }
+    if _cachedHasFilter || hasListMarkers || style.hasBorderImage { return nil }
     if _cachedHasBoxShadow && style.boxShadows.contains(where: { $0.inset }) { return nil }
     let bg = style.mBackground!
     if !bg.layers.isEmpty { return nil }
@@ -1482,7 +1482,12 @@ extension MasonUIView {
   // Keep the clip mask on the viewport as bounds.origin scrolls. Layout decides
   // whether a mask exists; its path is in viewport-local coordinates.
   func _updateScrollMask() {
-    layer.mask?.frame = bounds
+    if let cssMask = layer.mask as? MasonMaskLayer {
+      // A CSS mask can be larger than the box (mask-clip: no-clip); keep its offset.
+      cssMask.follow(viewBounds: bounds)
+    } else {
+      layer.mask?.frame = bounds
+    }
   }
 
   // MARK: Pan handler

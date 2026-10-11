@@ -26,6 +26,8 @@ namespace winrt::NativeScript::Mason::implementation
         void Value(hstring const& value);
         bool Checked() const noexcept { return m_checked; }
         void Checked(bool value);
+        bool AppearanceNone() const noexcept { return m_appearanceNone; }
+        void AppearanceNone(bool value);
         hstring Placeholder() const { return m_placeholder; }
         void Placeholder(hstring const& value);
         bool Multiple() const noexcept { return m_multiple; }
@@ -45,6 +47,8 @@ namespace winrt::NativeScript::Mason::implementation
         void Rebuild();
         void ApplyValue(hstring const& value);
         void ApplyChecked();
+        void ApplyAppearance();
+        bool Bare() const;
         void ApplyPlaceholder(hstring const& value);
         void ApplyPlaceholderColor();
         void StripChrome();
@@ -64,6 +68,7 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_value;
         hstring m_checkableValue{ L"on" };
         bool m_checked{ false };
+        bool m_appearanceNone{ false };
         std::optional<uint32_t> m_placeholderColor;
         float m_fieldWidth{ -1.0f };
         hstring m_placeholder;

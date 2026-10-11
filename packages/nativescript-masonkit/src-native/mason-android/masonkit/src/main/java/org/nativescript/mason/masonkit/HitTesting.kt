@@ -34,6 +34,8 @@ internal object HitTesting {
 
   private fun clippedOutside(view: View, x: Float, y: Float): Boolean {
     val element = view as? Element ?: return !contains(view, x, y)
+    // clip-path clips the element and its subtree, hit testing included.
+    if (element.style.mClipPath?.contains(view, x, y) == false) return true
     if (!element.style.isValueInitialized) return false
 
     val overflow = element.style.overflow

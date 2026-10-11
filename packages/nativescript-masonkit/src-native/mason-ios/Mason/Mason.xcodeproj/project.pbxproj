@@ -11,6 +11,15 @@
 		A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */; };
 		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
 		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
+		5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */; };
+		5A7E0C1DB0A15F6E00C0FE03 /* SvgParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */; };
+		7C3A9E51D2B84F06000A5C01 /* Mask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C02 /* Mask.swift */; };
+		7C3A9E51D2B84F06000A5C03 /* MaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */; };
+		8D4B1F62E3C95A17000B6D01 /* ClipPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */; };
+		8D4B1F62E3C95A17000B6D03 /* NineSlice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */; };
+		8D4B1F62E3C95A17000B6D05 /* ClipPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D06 /* ClipPathTests.swift */; };
+		8D4B1F62E3C95A17000B6D07 /* NineSliceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D08 /* NineSliceTests.swift */; };
+		6D1F0A7E2B5C4E9100AA1101 /* InputAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */; };
 		4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */; };
 		1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */; };
 		1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */; };
@@ -146,6 +155,15 @@
 		A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthScanTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
+		5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParser.swift; sourceTree = "<group>"; };
+		5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParserTests.swift; sourceTree = "<group>"; };
+		7C3A9E51D2B84F06000A5C02 /* Mask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mask.swift; sourceTree = "<group>"; };
+		7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskTests.swift; sourceTree = "<group>"; };
+		8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPath.swift; sourceTree = "<group>"; };
+		8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineSlice.swift; sourceTree = "<group>"; };
+		8D4B1F62E3C95A17000B6D06 /* ClipPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPathTests.swift; sourceTree = "<group>"; };
+		8D4B1F62E3C95A17000B6D08 /* NineSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineSliceTests.swift; sourceTree = "<group>"; };
+		6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputAppearanceTests.swift; sourceTree = "<group>"; };
 		B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritableStyleValuesTests.swift; sourceTree = "<group>"; };
 		1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineBoxAfterTextTests.swift; sourceTree = "<group>"; };
 		AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyToViewPerfTests.swift; sourceTree = "<group>"; };
@@ -352,6 +370,10 @@
 				F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */,
 				F134016E2ECE04DC00D6CFD9 /* Border.swift */,
 				F134016C2ECE04CB00D6CFD9 /* Background.swift */,
+				5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */,
+				7C3A9E51D2B84F06000A5C02 /* Mask.swift */,
+				8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */,
+				8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */,
 				F1DE08982EBC1195002870F6 /* Constants.swift */,
 				F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */,
 				F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */,
@@ -393,6 +415,11 @@
 				A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */,
 				A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */,
 				A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */,
+				5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */,
+				7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */,
+				8D4B1F62E3C95A17000B6D06 /* ClipPathTests.swift */,
+				8D4B1F62E3C95A17000B6D08 /* NineSliceTests.swift */,
+				6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */,
 				B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */,
 				1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */,
 				AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */,
@@ -717,6 +744,10 @@
 				F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */,
 				F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */,
 				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
+				5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */,
+				7C3A9E51D2B84F06000A5C01 /* Mask.swift in Sources */,
+				8D4B1F62E3C95A17000B6D01 /* ClipPath.swift in Sources */,
+				8D4B1F62E3C95A17000B6D03 /* NineSlice.swift in Sources */,
 				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
 				F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */,
 				F10A1B122F02684500888DDD /* Br.swift in Sources */,
@@ -733,6 +764,11 @@
 				A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */,
+				5A7E0C1DB0A15F6E00C0FE03 /* SvgParserTests.swift in Sources */,
+				7C3A9E51D2B84F06000A5C03 /* MaskTests.swift in Sources */,
+				8D4B1F62E3C95A17000B6D05 /* ClipPathTests.swift in Sources */,
+				8D4B1F62E3C95A17000B6D07 /* NineSliceTests.swift in Sources */,
+				6D1F0A7E2B5C4E9100AA1101 /* InputAppearanceTests.swift in Sources */,
 				4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */,
 				1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */,
 				1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */,

@@ -1,4 +1,4 @@
-import { booleanConverter, Property } from '@nativescript/core';
+import { booleanConverter, CssProperty, Property, Style } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { InputType } from '..';
 import { native_ } from '../symbols';
@@ -10,7 +10,22 @@ export const pendingValue = Symbol('input:pending:value');
 export const getCheckedProperty = Symbol('input:get:checked');
 export const setCheckedProperty = Symbol('input:set:checked');
 export const pendingChecked = Symbol('input:pending:checked');
+export const syncCheckedPseudoClass = Symbol('input:sync:checked');
 const checkedState = Symbol('input:checked');
+
+export type InputAppearance = 'auto' | 'none';
+
+/**
+ * CSS `appearance`. Only `none` turns the native control off; `menulist-button`, `textfield`
+ * and every other keyword render the control as `auto` does.
+ */
+export function parseAppearance(value: unknown): InputAppearance {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'none' ? 'none' : 'auto';
+}
+
+function isCheckable(type: InputType): boolean {
+  return type === 'checkbox' || type === 'radio';
+}
 
 export class InputBase extends ViewBase {
   declare type: InputType;
@@ -83,9 +98,24 @@ export class InputElementBase extends InputBase {
     const value = !!checked;
     if (!this[native_]) {
       this[pendingChecked] = value;
-      return;
+    } else {
+      this[setCheckedProperty](value);
     }
-    this[setCheckedProperty](value);
+    this[syncCheckedPseudoClass]();
+  }
+
+  /**
+   * `:checked` matches a checked checkbox or radio, as on the web. The native view reports a
+   * tap through this too, so stylesheet rules like `.check:checked` follow the user.
+   */
+  [syncCheckedPseudoClass]() {
+    const checked = isCheckable(this.type) && this.checked;
+    if (checked === this.cssPseudoClasses.has('checked')) return;
+    if (checked) {
+      this.addPseudoClass('checked');
+    } else {
+      this.deletePseudoClass('checked');
+    }
   }
 
   initNativeView() {
@@ -94,12 +124,17 @@ export class InputElementBase extends InputBase {
       this[setCheckedProperty](this[pendingChecked]);
       this[pendingChecked] = null;
     }
+    this[syncCheckedPseudoClass]();
   }
 }
 
 export const typeProperty = new Property<InputBase, InputType>({
   name: 'type',
   defaultValue: 'text',
+  // `:checked` only matches a checkbox or radio.
+  valueChanged(target) {
+    (target as InputElementBase)[syncCheckedPseudoClass]?.();
+  },
 });
 
 typeProperty.register(InputBase);
@@ -125,3 +160,16 @@ export const acceptProperty = new Property<InputBase, string>({
 });
 
 acceptProperty.register(InputBase);
+
+/**
+ * `appearance: none` drops a checkbox's or radio's native control, so the element draws as its
+ * CSS box (background, border, border-radius) and its CSS size alone decides how big it is.
+ */
+export const appearanceProperty = new CssProperty<Style, InputAppearance>({
+  name: 'appearance',
+  cssName: 'appearance',
+  defaultValue: 'auto',
+  valueConverter: parseAppearance,
+});
+
+appearanceProperty.register(Style);

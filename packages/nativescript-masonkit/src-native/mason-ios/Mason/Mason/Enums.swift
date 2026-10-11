@@ -2935,6 +2935,48 @@ public class MasonVerticalAlignValue: NSObject {
 }
 
 
+/// CSS `appearance`.
+@objc(MasonInputAppearance)
+public enum MasonInputAppearance: Int8, RawRepresentable, CustomStringConvertible {
+  public typealias RawValue = Int8
+  case Auto
+  case None
+  public var description: String {
+    switch(self){
+    case .Auto:
+      return "auto"
+    case .None:
+      return "none"
+    }
+  }
+
+  public init?(rawValue: Int8) {
+    switch(rawValue){
+    case 0:
+      self = .Auto
+    case 1:
+      self = .None
+    default:
+      return nil
+    }
+  }
+
+  public var rawValue: Int8 {
+    switch(self){
+    case .Auto:
+      0
+    case .None:
+      1
+    }
+  }
+
+  /// Only `none` turns the native control off; `menulist-button`, `textfield` and every
+  /// other keyword render the control as `auto` does.
+  public init(css: String) {
+    self = css.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "none" ? .None : .Auto
+  }
+}
+
 @objc(MasonInputType)
 public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
   public typealias RawValue = Int8

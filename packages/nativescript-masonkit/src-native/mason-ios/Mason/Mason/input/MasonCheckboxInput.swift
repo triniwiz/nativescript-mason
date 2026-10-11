@@ -20,6 +20,16 @@ class MasonCheckboxInput: UIControl {
     }
   }
   
+  /// False under `appearance: none`: nothing is drawn, the owner's CSS box shows through
+  /// and taps still toggle.
+  var drawsControl: Bool = true {
+    didSet {
+      if oldValue != drawsControl {
+        setNeedsDisplay()
+      }
+    }
+  }
+
   override init(frame: CGRect) {
     super.init(frame: frame)
     isOpaque = false
@@ -30,7 +40,7 @@ class MasonCheckboxInput: UIControl {
   }
   
   override func draw(_ rect: CGRect) {
-    guard let ctx = UIGraphicsGetCurrentContext() else { return }
+    guard drawsControl, let ctx = UIGraphicsGetCurrentContext() else { return }
 
     let box = CGRect(x: 4, y: 3, width: 17, height: 17)
 

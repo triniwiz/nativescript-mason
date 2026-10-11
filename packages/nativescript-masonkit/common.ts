@@ -52,6 +52,8 @@ import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
+import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
+import { animateTransforms } from './css-keyframes';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -352,6 +354,33 @@ function windowsBreakRun(child: any) {
     child[breakRun_] = run;
   }
   return run;
+}
+
+/**
+ * iOS: sets the frame of a Mason root, a Mason view whose parent is a core view. Core leaves
+ * the safe area to each view (`View._modifyNativeViewFrame`), so the root honours
+ * `iosOverflowSafeArea` the same way: when the frame grows past the safe area it lays out
+ * again at the new size. Like core views, it raises `layoutChanged` when the frame changes.
+ */
+export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect): void {
+  const adjusted: CGRect = view.applySafeAreaInsets(frame) ?? frame;
+  nativeView.frame = adjusted;
+  if (!CGRectEqualToRect(adjusted, frame)) {
+    // Each measure pass lays the root out at the safe-area size again, so check the
+    // computed size rather than whether the frame changed.
+    const width = Utils.layout.toDevicePixels(adjusted.size.width);
+    const height = Utils.layout.toDevicePixels(adjusted.size.height);
+    const layout = view.ios.node.computedLayout;
+    if (Math.round(layout.width) !== Math.round(width) || Math.round(layout.height) !== Math.round(height)) {
+      view.ios.mason_computeWithSize(width, height);
+      view.ios.mason_markRootComputeAppliedWithSize(width, height);
+    }
+  }
+  const previous: CGRect | undefined = view._masonRootFrame;
+  if (!previous || !CGRectEqualToRect(previous, adjusted)) {
+    view._masonRootFrame = adjusted;
+    view._raiseLayoutChangedEvent();
+  }
 }
 
 export function windowsMemberKind(child: any): 'run' | 'break' | 'text' | 'box' {
@@ -3520,6 +3549,61 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  // Core's scale/rotate/translate on Windows. Core's own TransformGroup never renders on a Mason
+  // element, so View.rotate etc. did nothing; they're set natively as one matrix instead. CSS
+  // keyframes and animate() play them per frame (css-keyframes.ts).
+  updateNativeTransform() {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super.updateNativeTransform?.();
+    }
+    const native = this.nativeViewProtected;
+    if (!native) return;
+    const self = this as any;
+    NativeScript.Mason.Css.SetTransforms(
+      native,
+      typeof self.scaleX === 'number' ? self.scaleX : 1,
+      typeof self.scaleY === 'number' ? self.scaleY : 1,
+      self.rotate || 0,
+      self.translateX || 0,
+      self.translateY || 0,
+      self.originX ?? 0.5,
+      self.originY ?? 0.5,
+    );
+  }
+
+  animate(options: any) {
+    if (!__WINDOWS__ || !options || !('rotate' in options || 'scale' in options || 'translate' in options)) {
+      return super.animate(options);
+    }
+    // Core's storyboards would animate a transform that doesn't show on a Mason view.
+    const { rotate, scale, translate, ...rest } = options;
+    const core = ['opacity', 'backgroundColor', 'width', 'height'].some((key) => key in rest) ? super.animate(rest) : null;
+    const transforms = animateTransforms(this as never, options);
+    const promise: any = Promise.all([core, transforms.done]).then(() => undefined);
+    promise.cancel = () => {
+      transforms.cancel();
+      core?.cancel?.();
+    };
+    return promise;
+  }
+
+  [originXProperty.setNative](value: number) {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super[originXProperty.setNative]?.(value);
+    }
+    this.updateNativeTransform();
+  }
+
+  [originYProperty.setNative](value: number) {
+    if (!__WINDOWS__) {
+      // @ts-ignore
+      return super[originYProperty.setNative]?.(value);
+    }
+    this.updateNativeTransform();
+  }
+
   [transformProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -3537,7 +3621,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           if (!m) NativeScript.Mason.Css.ClearTransform(nv);
           else {
             NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
-            nv.RenderTransformOrigin = { X: (this as any).originX ?? 0.5, Y: (this as any).originY ?? 0.5 };
+            NativeScript.Mason.Css.SetTransformOrigin(nv, (this as any).originX ?? 0.5, (this as any).originY ?? 0.5);
           }
         } catch (_) {}
       }

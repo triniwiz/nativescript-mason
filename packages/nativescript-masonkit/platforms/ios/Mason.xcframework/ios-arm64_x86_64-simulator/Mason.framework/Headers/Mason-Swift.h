@@ -475,8 +475,12 @@ SWIFT_CLASS_NAMED("Button")
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @end
 
-@class UITouch;
 @class UIEvent;
+@interface MasonButton (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@class UITouch;
 @class UIWindow;
 @interface MasonButton (SWIFT_EXTENSION(Mason))
 - (void)touchesBegan:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
@@ -624,6 +628,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)layoutSubviews;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonImg (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonJustifyContent, "JustifyContent", open) {
@@ -850,6 +858,7 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 - (void)layoutSublayers;
 @end
 
+SWIFT_ENUM_FWD_DECL(int8_t, MasonInputAppearance)
 SWIFT_ENUM_FWD_DECL(int8_t, MasonInputType)
 @class NSDate;
 @class UIColor;
@@ -862,6 +871,11 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, copy) NSString * _Nonnull accept;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+/// Called whenever the checked state changes, from a tap or from code.
+@property (nonatomic, copy) void (^ _Nullable onCheckedChange)(BOOL);
+/// CSS <code>appearance</code>. Under <code>.None</code> a checkbox or radio draws as its CSS box while the undrawn
+/// native control still handles taps. Not <code>appearance</code>: that’s UIAppearance’s class method.
+@property (nonatomic) enum MasonInputAppearance cssAppearance;
 /// Setting <code>checked</code> from code fires no events, as on the web.
 @property (nonatomic) BOOL checked;
 @property (nonatomic) enum MasonInputType type;
@@ -876,6 +890,16 @@ SWIFT_CLASS_NAMED("MasonInput")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
 @end
+
+@interface MasonInput (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+/// CSS <code>appearance</code>.
+typedef SWIFT_ENUM_NAMED(int8_t, MasonInputAppearance, "MasonInputAppearance", open) {
+  MasonInputAppearanceAuto = 0,
+  MasonInputAppearanceNone = 1,
+};
 
 SWIFT_CLASS_NAMED("MasonInputEvent")
 @interface MasonInputEvent : MasonEvent
@@ -1064,6 +1088,10 @@ SWIFT_CLASS_NAMED("MasonLi")
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
 @end
 
+@interface MasonLi (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
 @protocol MasonListDelegate;
 @class UICollectionView;
 @class NSIndexPath;
@@ -1122,6 +1150,10 @@ SWIFT_CLASS_NAMED("MasonListCell")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@interface MasonList (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @class MasonMouseEventOptions;
@@ -1410,6 +1442,21 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull gridTemplateColumns;
 @property (nonatomic, copy) NSString * _Nonnull borderImage;
 @property (nonatomic, copy) NSString * _Nonnull backdropFilter;
+@property (nonatomic, copy) NSString * _Nonnull maskImage;
+@property (nonatomic, copy) NSString * _Nonnull maskSize;
+@property (nonatomic, copy) NSString * _Nonnull maskPosition;
+@property (nonatomic, copy) NSString * _Nonnull maskRepeat;
+@property (nonatomic, copy) NSString * _Nonnull maskOrigin;
+@property (nonatomic, copy) NSString * _Nonnull maskClip;
+@property (nonatomic, copy) NSString * _Nonnull maskMode;
+@property (nonatomic, copy) NSString * _Nonnull maskComposite;
+@property (nonatomic, copy) NSString * _Nonnull clipPath;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderSource;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderSlice;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderWidth;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderOutset;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderRepeat;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderMode;
 @property (nonatomic, copy) NSString * _Nonnull fontFeatureSettings;
 - (void)updateNativeStyle;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
@@ -1468,6 +1515,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 /// Text content - sets or gets the concatenated text from all text nodes
 @property (nonatomic, copy) NSString * _Nonnull textContent;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
@@ -1701,6 +1752,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (MasonLengthPercentageCompat * _Nonnull)getRowGap SWIFT_WARN_UNUSED_RESULT;
 - (MasonLengthPercentageCompat * _Nonnull)getColumnGap SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonUIView (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 SWIFT_CLASS_NAMED("MasonVerticalAlignValue")
@@ -1952,6 +2007,10 @@ SWIFT_CLASS_NAMED("Scroll")
 - (void)removeViewAt:(NSInteger)index;
 - (void)setSize:(float)width :(float)height;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonScroll (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 SWIFT_CLASS_NAMED("SwiftHelpers")
@@ -2563,8 +2622,12 @@ SWIFT_CLASS_NAMED("Button")
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @end
 
-@class UITouch;
 @class UIEvent;
+@interface MasonButton (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@class UITouch;
 @class UIWindow;
 @interface MasonButton (SWIFT_EXTENSION(Mason))
 - (void)touchesBegan:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
@@ -2712,6 +2775,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)layoutSubviews;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonImg (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonJustifyContent, "JustifyContent", open) {
@@ -2938,6 +3005,7 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 - (void)layoutSublayers;
 @end
 
+SWIFT_ENUM_FWD_DECL(int8_t, MasonInputAppearance)
 SWIFT_ENUM_FWD_DECL(int8_t, MasonInputType)
 @class NSDate;
 @class UIColor;
@@ -2950,6 +3018,11 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, copy) NSString * _Nonnull accept;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+/// Called whenever the checked state changes, from a tap or from code.
+@property (nonatomic, copy) void (^ _Nullable onCheckedChange)(BOOL);
+/// CSS <code>appearance</code>. Under <code>.None</code> a checkbox or radio draws as its CSS box while the undrawn
+/// native control still handles taps. Not <code>appearance</code>: that’s UIAppearance’s class method.
+@property (nonatomic) enum MasonInputAppearance cssAppearance;
 /// Setting <code>checked</code> from code fires no events, as on the web.
 @property (nonatomic) BOOL checked;
 @property (nonatomic) enum MasonInputType type;
@@ -2964,6 +3037,16 @@ SWIFT_CLASS_NAMED("MasonInput")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
 @end
+
+@interface MasonInput (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+/// CSS <code>appearance</code>.
+typedef SWIFT_ENUM_NAMED(int8_t, MasonInputAppearance, "MasonInputAppearance", open) {
+  MasonInputAppearanceAuto = 0,
+  MasonInputAppearanceNone = 1,
+};
 
 SWIFT_CLASS_NAMED("MasonInputEvent")
 @interface MasonInputEvent : MasonEvent
@@ -3152,6 +3235,10 @@ SWIFT_CLASS_NAMED("MasonLi")
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
 @end
 
+@interface MasonLi (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
 @protocol MasonListDelegate;
 @class UICollectionView;
 @class NSIndexPath;
@@ -3210,6 +3297,10 @@ SWIFT_CLASS_NAMED("MasonListCell")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@interface MasonList (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @class MasonMouseEventOptions;
@@ -3498,6 +3589,21 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull gridTemplateColumns;
 @property (nonatomic, copy) NSString * _Nonnull borderImage;
 @property (nonatomic, copy) NSString * _Nonnull backdropFilter;
+@property (nonatomic, copy) NSString * _Nonnull maskImage;
+@property (nonatomic, copy) NSString * _Nonnull maskSize;
+@property (nonatomic, copy) NSString * _Nonnull maskPosition;
+@property (nonatomic, copy) NSString * _Nonnull maskRepeat;
+@property (nonatomic, copy) NSString * _Nonnull maskOrigin;
+@property (nonatomic, copy) NSString * _Nonnull maskClip;
+@property (nonatomic, copy) NSString * _Nonnull maskMode;
+@property (nonatomic, copy) NSString * _Nonnull maskComposite;
+@property (nonatomic, copy) NSString * _Nonnull clipPath;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderSource;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderSlice;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderWidth;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderOutset;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderRepeat;
+@property (nonatomic, copy) NSString * _Nonnull maskBorderMode;
 @property (nonatomic, copy) NSString * _Nonnull fontFeatureSettings;
 - (void)updateNativeStyle;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
@@ -3556,6 +3662,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 /// Text content - sets or gets the concatenated text from all text nodes
 @property (nonatomic, copy) NSString * _Nonnull textContent;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
@@ -3789,6 +3899,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (MasonLengthPercentageCompat * _Nonnull)getRowGap SWIFT_WARN_UNUSED_RESULT;
 - (MasonLengthPercentageCompat * _Nonnull)getColumnGap SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonUIView (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 SWIFT_CLASS_NAMED("MasonVerticalAlignValue")
@@ -4040,6 +4154,10 @@ SWIFT_CLASS_NAMED("Scroll")
 - (void)removeViewAt:(NSInteger)index;
 - (void)setSize:(float)width :(float)height;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonScroll (SWIFT_EXTENSION(Mason))
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 SWIFT_CLASS_NAMED("SwiftHelpers")

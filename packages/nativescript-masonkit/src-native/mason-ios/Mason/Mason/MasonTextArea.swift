@@ -180,7 +180,7 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		}
 
 		let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
-		let hasBorder = !style.mBorderRender.css.isEmpty
+		let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
 
 		style.mBorderRender.resolve(for: bounds)
 		let borderWidths = style.mBorderRender.cachedWidths
