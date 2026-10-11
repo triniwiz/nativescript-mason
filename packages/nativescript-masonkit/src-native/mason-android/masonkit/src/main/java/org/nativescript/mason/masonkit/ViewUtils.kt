@@ -182,7 +182,7 @@ class ViewUtils {
                   android.graphics.RectF(0f, 0f, width, height)
                 }
                 if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
-                drawBackground(view.context, view, layer, canvas, paintRect, area)
+                drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor)
               }
             }
           }

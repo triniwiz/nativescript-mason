@@ -11,12 +11,6 @@ import CoreGraphics
 
 // Shared color space — avoids deviceRGB allocation per gradient draw
 private let deviceRGB = CGColorSpaceCreateDeviceRGB()
-private let svgDimensionRegex = try! NSRegularExpression(pattern: #"(?i)\b(width|height)=["']?([0-9.]+)["']?"#, options: [])
-private let svgViewBoxRegex = try! NSRegularExpression(pattern: #"(?i)\bviewBox=["']?\s*([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)"#, options: [])
-private let svgFillRegex = try! NSRegularExpression(pattern: #"(?i)\bfill=["']([^"']+)["']"#, options: [])
-private let svgFillOpacityRegex = try! NSRegularExpression(pattern: #"(?i)\bfill-opacity=["']([0-9.]+)["']"#, options: [])
-private let svgPathRegex = try! NSRegularExpression(pattern: #"(?i)<path\b[^>]*\bd=["']([^"']+)["'][^>]*/?>"#, options: [])
-private let svgPathTokenRegex = try! NSRegularExpression(pattern: #"[MmLlHhVvZz]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?"#, options: [])
 
 // MARK: - Background
 extension Background {
@@ -140,6 +134,10 @@ extension Background {
     }
 
     if let urlStr = layer.image {
+      if isSvgDataUrl(urlStr) {
+        drawSvgLayer(layer, url: urlStr, context: context, paintRect: paintRect, area: area)
+        return
+      }
       if let cached = layer.bitmap {
         drawBitmap(layer: layer, bitmap: cached, context: context, paintRect: paintRect, area: area)
       } else if let image = decodeDataUrlImage(url: urlStr) {
@@ -231,10 +229,47 @@ extension Background {
     }
   }
 
+  // MARK: - SVG Drawing
+
+  /// Rasterized at the drawn size and device scale so `background-size` stays sharp; cached on
+  /// the layer until that size or `currentColor` changes.
+  private func drawSvgLayer(_ layer: BackgroundLayer, url: String, context: CGContext, paintRect: CGRect, area: CGRect) {
+    if layer.svgFailed { return }
+    let doc: SvgDocument
+    if let parsed = layer.svg {
+      doc = parsed
+    } else if let parsed = decodeSvgDataUrl(url) {
+      layer.svg = parsed
+      doc = parsed
+    } else {
+      layer.svgFailed = true
+      return
+    }
+    // Intrinsic size in points: 1 SVG px is 1 CSS px.
+    let (drawWidth, drawHeight) = resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height)
+    if drawWidth <= 0 || drawHeight <= 0 { return }
+    let scale = max(CGFloat(NSCMason.scale), 1)
+    let fit = min(1, maxSvgRasterPx / (max(drawWidth, drawHeight) * scale))
+    let rasterSize = CGSize(width: drawWidth * fit, height: drawHeight * fit)
+    let color = doc.usesCurrentColor ? style.resolvedColor : 0
+    let bitmap: UIImage
+    if let cached = layer.bitmap, layer.svgRasterSize == rasterSize, layer.svgColor == color {
+      bitmap = cached
+    } else {
+      guard let image = renderSvgDocument(doc, size: rasterSize, scale: scale, currentColor: color) else { return }
+      layer.bitmap = image
+      layer.svgColor = color
+      layer.svgRasterSize = rasterSize
+      bitmap = image
+    }
+    drawBitmap(layer: layer, bitmap: bitmap, context: context, paintRect: paintRect, area: area, drawSize: (drawWidth, drawHeight))
+  }
+
   // MARK: - Bitmap Drawing
-  private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect) {
-    // Intrinsic size in points: a 1x image is 1 CSS px per pixel, a rasterized SVG keeps its point size.
-    let (drawWidth, drawHeight) = resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height)
+  /// `drawSize`, when given, is the already-resolved tile size in points.
+  private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect, drawSize: (CGFloat, CGFloat)? = nil) {
+    // Intrinsic size in points: a 1x image is 1 CSS px per pixel.
+    let (drawWidth, drawHeight) = drawSize ?? resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height)
     if drawWidth <= 0 || drawHeight <= 0 { return }
 
     // UIImage.draw keeps UIKit orientation in both UIView.draw and CALayer.draw(in:) contexts.
@@ -457,198 +492,129 @@ func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
   }.resume()
 }
 
-private func decodeDataUrlImage(url: String) -> UIImage? {
+/// Largest SVG raster edge, in device pixels; anything bigger is drawn scaled up.
+private let maxSvgRasterPx: CGFloat = 4096
+
+func isSvgDataUrl(_ url: String) -> Bool {
+  url.range(of: "data:image/svg", options: [.caseInsensitive, .anchored]) != nil
+}
+
+/// Payload bytes of a `data:` URL, and its lowercased media type and parameters.
+private func decodeDataUrl(_ url: String) -> (meta: String, data: Data)? {
   guard url.range(of: "data:", options: [.caseInsensitive, .anchored]) != nil,
         let comma = url.firstIndex(of: ",") else {
     return nil
   }
-
   let meta = String(url[url.index(url.startIndex, offsetBy: 5)..<comma]).lowercased()
   let payload = String(url[url.index(after: comma)...])
   let data: Data?
   if meta.contains(";base64") {
     data = Data(base64Encoded: payload, options: .ignoreUnknownCharacters)
   } else {
-    data = payload.removingPercentEncoding?.data(using: .utf8)
+    // Lenient: a stray `%` (e.g. `width='100%'` in an unencoded SVG) stays as written.
+    data = percentDecodeBytes(payload)
   }
+  guard let bytes = data else { return nil }
+  return (meta, bytes)
+}
 
-  guard let imageData = data else { return nil }
+func decodeSvgDataUrl(_ url: String) -> SvgDocument? {
+  guard let decoded = decodeDataUrl(url), let svg = String(data: decoded.data, encoding: .utf8) else { return nil }
+  return parseSvgDocument(svg)
+}
+
+func decodeDataUrlImage(url: String) -> UIImage? {
+  guard let decoded = decodeDataUrl(url) else { return nil }
+  let meta = decoded.meta, imageData = decoded.data
   if meta.hasPrefix("image/svg+xml") {
-    guard let svg = String(data: imageData, encoding: .utf8) else { return nil }
-    return rasterizeSimpleSvg(svg)
+    // Background layers draw SVG through `drawSvgLayer`; this is the intrinsic-size fallback.
+    guard let svg = String(data: imageData, encoding: .utf8), let doc = parseSvgDocument(svg) else { return nil }
+    return renderSvgDocument(doc, size: CGSize(width: doc.width, height: doc.height),
+                             scale: max(CGFloat(NSCMason.scale), 1), currentColor: 0xFF00_0000)
   }
   return UIImage(data: imageData)
 }
 
-private func rasterizeSimpleSvg(_ svg: String) -> UIImage? {
-  let dimensions = svgDimensions(svg)
-  let viewBox = captureGroups(svgViewBoxRegex, in: svg)
-  let vbX = CGFloat(Double(viewBox[safe: 0] ?? "") ?? 0)
-  let vbY = CGFloat(Double(viewBox[safe: 1] ?? "") ?? 0)
-  let vbW = CGFloat(Double(viewBox[safe: 2] ?? "") ?? Double(dimensions["width"] ?? 0))
-  let vbH = CGFloat(Double(viewBox[safe: 3] ?? "") ?? Double(dimensions["height"] ?? 0))
-  let imageWidth = max(CGFloat(dimensions["width"] ?? Float(vbW)), 1)
-  let imageHeight = max(CGFloat(dimensions["height"] ?? Float(vbH)), 1)
-  guard vbW > 0, vbH > 0 else { return nil }
+private func svgCGColor(_ paint: SvgPaint, opacity: CGFloat, currentColor: UInt32) -> CGColor {
+  let argb: UInt32
+  switch paint {
+  case let .color(c): argb = c
+  case .currentColor: argb = currentColor
+  case .none: argb = 0
+  }
+  let a = CGFloat((argb >> 24) & 0xFF) / 255 * min(max(opacity, 0), 1)
+  return CGColor(srgbRed: CGFloat((argb >> 16) & 0xFF) / 255, green: CGFloat((argb >> 8) & 0xFF) / 255,
+                 blue: CGFloat(argb & 0xFF) / 255, alpha: a)
+}
 
-  let fill = captureGroups(svgFillRegex, in: svg).first ?? "#000"
-  let baseColor = parseColor(fill) ?? UIColor.black
-  let fillOpacity = CGFloat(Double(captureGroups(svgFillOpacityRegex, in: svg).first ?? "") ?? 1)
-  let color = baseColor.withAlphaComponent(baseColor.alphaComponent * min(max(fillOpacity, 0), 1))
+func svgCGPath(_ commands: [SvgPathCommand]) -> CGPath {
+  let path = CGMutablePath()
+  var hasPoint = false
+  for c in commands {
+    switch c {
+    case let .move(x, y):
+      path.move(to: CGPoint(x: x, y: y))
+      hasPoint = true
+    case let .line(x, y):
+      if hasPoint { path.addLine(to: CGPoint(x: x, y: y)) }
+    case let .cubic(x1, y1, x2, y2, x, y):
+      if hasPoint { path.addCurve(to: CGPoint(x: x, y: y), control1: CGPoint(x: x1, y: y1), control2: CGPoint(x: x2, y: y2)) }
+    case let .quad(x1, y1, x, y):
+      if hasPoint { path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: x1, y: y1)) }
+    case .close:
+      if hasPoint { path.closeSubpath() }
+    }
+  }
+  return path
+}
 
-  var drewPath = false
-  let size = CGSize(width: imageWidth, height: imageHeight)
+/// Rasterize `doc` at `size` points and `scale`; `currentColor` paints use `currentColor` (ARGB).
+func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, currentColor: UInt32) -> UIImage? {
+  guard size.width > 0, size.height > 0, !doc.ops.isEmpty else { return nil }
   let format = UIGraphicsImageRendererFormat.default()
   format.opaque = false
-  let image = UIGraphicsImageRenderer(size: size, format: format).image { rendererContext in
-    let cgContext = rendererContext.cgContext
-    cgContext.setFillColor(color.cgColor)
-    let range = NSRange(svg.startIndex..., in: svg)
-    svgPathRegex.enumerateMatches(in: svg, options: [], range: range) { match, _, _ in
-      guard let match = match,
-            let pathDataRange = Range(match.range(at: 1), in: svg),
-            let path = parseSimpleSvgPath(String(svg[pathDataRange])) else {
-        return
-      }
-      path.apply(CGAffineTransform(a: imageWidth / vbW, b: 0, c: 0, d: imageHeight / vbH, tx: -vbX * imageWidth / vbW, ty: -vbY * imageHeight / vbH))
-      path.fill()
-      drewPath = true
-    }
-  }
-
-  return drewPath ? image : nil
-}
-
-private func svgDimensions(_ svg: String) -> [String: Float] {
-  var dimensions: [String: Float] = [:]
-  let range = NSRange(svg.startIndex..., in: svg)
-  svgDimensionRegex.enumerateMatches(in: svg, options: [], range: range) { match, _, _ in
-    guard let match = match,
-          let keyRange = Range(match.range(at: 1), in: svg),
-          let valueRange = Range(match.range(at: 2), in: svg),
-          let value = Float(svg[valueRange]) else {
-      return
-    }
-    dimensions[String(svg[keyRange]).lowercased()] = value
-  }
-  return dimensions
-}
-
-private func captureGroups(_ regex: NSRegularExpression, in value: String) -> [String] {
-  let range = NSRange(value.startIndex..., in: value)
-  guard let match = regex.firstMatch(in: value, options: [], range: range) else { return [] }
-  return (1..<match.numberOfRanges).compactMap { index in
-    guard let groupRange = Range(match.range(at: index), in: value) else { return nil }
-    return String(value[groupRange])
-  }
-}
-
-private func parseSimpleSvgPath(_ data: String) -> UIBezierPath? {
-  let tokens = svgPathTokens(data)
-  guard !tokens.isEmpty else { return nil }
-
-  let path = UIBezierPath()
-  var index = 0
-  var command: Character?
-  var current = CGPoint.zero
-  var subpathStart = CGPoint.zero
-  var drew = false
-
-  func isCommand(_ token: String) -> Bool {
-    guard token.count == 1, let first = token.first else { return false }
-    return "MmLlHhVvZz".contains(first)
-  }
-
-  func readNumber() -> CGFloat? {
-    guard index < tokens.count, !isCommand(tokens[index]) else { return nil }
-    defer { index += 1 }
-    return CGFloat(Double(tokens[index]) ?? .nan)
-  }
-
-  while index < tokens.count {
-    if isCommand(tokens[index]) {
-      command = tokens[index].first
-      index += 1
-    }
-    guard let activeCommand = command else { return nil }
-
-    switch activeCommand {
-    case "M", "m":
-      var firstPoint = true
-      while let xValue = readNumber(), let yValue = readNumber() {
-        let point = activeCommand == "m"
-          ? CGPoint(x: current.x + xValue, y: current.y + yValue)
-          : CGPoint(x: xValue, y: yValue)
-        if firstPoint {
-          path.move(to: point)
-          subpathStart = point
-          firstPoint = false
-        } else {
-          path.addLine(to: point)
-          drew = true
+  format.scale = scale
+  return UIGraphicsImageRenderer(size: size, format: format).image { rendererContext in
+    let cg = rendererContext.cgContext
+    cg.concatenate(doc.viewportTransform(size.width, size.height))
+    for op in doc.ops {
+      switch op {
+      case let .beginGroup(opacity):
+        cg.saveGState()
+        cg.setAlpha(opacity)
+        cg.beginTransparencyLayer(auxiliaryInfo: nil)
+      case .endGroup:
+        cg.endTransparencyLayer()
+        cg.restoreGState()
+      case let .shape(shape):
+        let path = svgCGPath(shape.commands)
+        cg.saveGState()
+        cg.concatenate(shape.transform)
+        if shape.hasFill {
+          cg.addPath(path)
+          cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
+          cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
         }
-        current = point
-        if index < tokens.count, isCommand(tokens[index]) { break }
+        if shape.hasStroke {
+          cg.addPath(path)
+          cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
+          cg.setLineWidth(shape.strokeWidth)
+          switch shape.lineCap {
+          case .butt: cg.setLineCap(.butt)
+          case .round: cg.setLineCap(.round)
+          case .square: cg.setLineCap(.square)
+          }
+          switch shape.lineJoin {
+          case .miter: cg.setLineJoin(.miter)
+          case .round: cg.setLineJoin(.round)
+          case .bevel: cg.setLineJoin(.bevel)
+          }
+          cg.setMiterLimit(shape.miterLimit)
+          if let dashes = shape.dashArray { cg.setLineDash(phase: shape.dashOffset, lengths: dashes) }
+          cg.strokePath()
+        }
+        cg.restoreGState()
       }
-      command = activeCommand == "m" ? "l" : "L"
-
-    case "L", "l":
-      while let xValue = readNumber(), let yValue = readNumber() {
-        current = activeCommand == "l"
-          ? CGPoint(x: current.x + xValue, y: current.y + yValue)
-          : CGPoint(x: xValue, y: yValue)
-        path.addLine(to: current)
-        drew = true
-        if index < tokens.count, isCommand(tokens[index]) { break }
-      }
-
-    case "H", "h":
-      while let xValue = readNumber() {
-        current.x = activeCommand == "h" ? current.x + xValue : xValue
-        path.addLine(to: current)
-        drew = true
-        if index < tokens.count, isCommand(tokens[index]) { break }
-      }
-
-    case "V", "v":
-      while let yValue = readNumber() {
-        current.y = activeCommand == "v" ? current.y + yValue : yValue
-        path.addLine(to: current)
-        drew = true
-        if index < tokens.count, isCommand(tokens[index]) { break }
-      }
-
-    case "Z", "z":
-      path.close()
-      current = subpathStart
-      drew = true
-
-    default:
-      return nil
     }
-  }
-
-  return drew ? path : nil
-}
-
-private func svgPathTokens(_ data: String) -> [String] {
-  let range = NSRange(data.startIndex..., in: data)
-  return svgPathTokenRegex.matches(in: data, options: [], range: range).compactMap { match in
-    guard let tokenRange = Range(match.range, in: data) else { return nil }
-    return String(data[tokenRange])
-  }
-}
-
-private extension UIColor {
-  var alphaComponent: CGFloat {
-    var alpha: CGFloat = 0
-    getRed(nil, green: nil, blue: nil, alpha: &alpha)
-    return alpha
-  }
-}
-
-private extension Collection {
-  subscript(safe index: Index) -> Element? {
-    indices.contains(index) ? self[index] : nil
   }
 }

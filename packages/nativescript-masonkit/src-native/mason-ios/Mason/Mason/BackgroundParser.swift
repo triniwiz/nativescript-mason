@@ -149,6 +149,13 @@ class BackgroundLayer {
   var shaderWidth: CGFloat = -1
   var shaderHeight: CGFloat = -1
   var bitmap: UIImage? = nil
+  /// A `data:image/svg+xml` image, parsed once; `bitmap` is its raster at the drawn size.
+  var svg: SvgDocument? = nil
+  /// The SVG didn't parse; don't retry every frame.
+  var svgFailed = false
+  /// The `currentColor` (0 when unused) and point size `bitmap` was rasterized with.
+  var svgColor: UInt32 = 0
+  var svgRasterSize: CGSize = .zero
   var clip: BackgroundClip = .borderBox
   var origin: BackgroundOrigin = .paddingBox
   var attachment: BackgroundAttachment = .scroll
