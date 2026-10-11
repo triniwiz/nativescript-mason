@@ -609,14 +609,32 @@ public final class CSSBorderRenderer {
       sides[i].color.getRed(&r, green: &g, blue: &b, alpha: &a)
       return UIColor(red: r * f, green: g * f, blue: b * f, alpha: a).cgColor
     }
-    let oneColor = drawn.count == 4 && drawn.allSatisfy { sides[$0].color == sides[0].color && shade($0) == 1 }
-    let inner = CGRect(x: rect.minX + w.left, y: rect.minY + w.top,
-                       width: rect.width - w.left - w.right, height: rect.height - w.top - w.bottom)
+    // A side with no width adds nothing to the ring, so it needn't match.
+    let oneColor = drawn.allSatisfy { sides[$0].color == sides[drawn[0]].color && shade($0) == 1 } &&
+      (0..<4).allSatisfy { drawn.contains($0) || widths[$0] <= 0 }
+
+    // Where a corner's dividing line ends: from the outer corner through the inner one, on to the
+    // edge of the radius box (at most half the rect, so lines can't cross); stopping at the inner
+    // corner would leave a rounded corner's curve out of both sides.
+    func split(_ corner: CGPoint, _ dirX: CGFloat, _ dirY: CGFloat, _ insetX: CGFloat, _ insetY: CGFloat, _ radius: CornerRadius) -> CGPoint {
+      let r = radius.resolved(rect: rect)
+      let boxX = min(max(r.x, insetX), rect.width / 2)
+      let boxY = min(max(r.y, insetY), rect.height / 2)
+      let tx = insetX > 0 ? boxX / insetX : .infinity
+      let ty = insetY > 0 ? boxY / insetY : .infinity
+      var t = min(tx, ty)
+      if t.isInfinite { t = 0 }
+      return CGPoint(x: corner.x + dirX * insetX * t, y: corner.y + dirY * insetY * t)
+    }
+    let tl = split(CGPoint(x: rect.minX, y: rect.minY), 1, 1, w.left, w.top, radius.topLeft)
+    let tr = split(CGPoint(x: rect.maxX, y: rect.minY), -1, 1, w.right, w.top, radius.topRight)
+    let br = split(CGPoint(x: rect.maxX, y: rect.maxY), -1, -1, w.right, w.bottom, radius.bottomRight)
+    let bl = split(CGPoint(x: rect.minX, y: rect.maxY), 1, -1, w.left, w.bottom, radius.bottomLeft)
     let trapezoids: [[CGPoint]] = [
-      [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: inner.maxX, y: inner.minY), CGPoint(x: inner.minX, y: inner.minY)],
-      [CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: inner.maxX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.minY)],
-      [CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.maxY), CGPoint(x: rect.maxX, y: rect.maxY)],
-      [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: inner.minX, y: inner.minY), CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: rect.minX, y: rect.maxY)],
+      [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), tr, tl],
+      [CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY), br, tr],
+      [CGPoint(x: rect.minX, y: rect.maxY), bl, br, CGPoint(x: rect.maxX, y: rect.maxY)],
+      [CGPoint(x: rect.minX, y: rect.minY), tl, bl, CGPoint(x: rect.minX, y: rect.maxY)],
     ]
 
     for (from, to) in bands {
@@ -625,7 +643,7 @@ public final class CSSBorderRenderer {
       ring.addPath(edgePath(rect, to).cgPath)
       if oneColor {
         ctx.addPath(ring)
-        ctx.setFillColor(sides[0].color.cgColor)
+        ctx.setFillColor(sides[drawn[0]].color.cgColor)
         ctx.fillPath(using: .evenOdd)
         continue
       }
