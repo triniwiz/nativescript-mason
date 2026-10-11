@@ -53,6 +53,7 @@ import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadiu
 import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
+import { animateTransforms } from './css-keyframes';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -3550,7 +3551,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   // Core's scale/rotate/translate on Windows. Core's own TransformGroup never renders on a Mason
   // element, so View.rotate etc. did nothing; they're set natively as one matrix instead. CSS
-  // keyframes animate them through css-keyframes.ts, which sets them every frame.
+  // keyframes and animate() play them per frame (css-keyframes.ts).
   updateNativeTransform() {
     if (!__WINDOWS__) {
       // @ts-ignore
@@ -3569,6 +3570,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       self.originX ?? 0.5,
       self.originY ?? 0.5,
     );
+  }
+
+  animate(options: any) {
+    if (!__WINDOWS__ || !options || !('rotate' in options || 'scale' in options || 'translate' in options)) {
+      return super.animate(options);
+    }
+    // Core's storyboards would animate a transform that doesn't show on a Mason view.
+    const { rotate, scale, translate, ...rest } = options;
+    const core = ['opacity', 'backgroundColor', 'width', 'height'].some((key) => key in rest) ? super.animate(rest) : null;
+    const transforms = animateTransforms(this as never, options);
+    const promise: any = Promise.all([core, transforms.done]).then(() => undefined);
+    promise.cancel = () => {
+      transforms.cancel();
+      core?.cancel?.();
+    };
+    return promise;
   }
 
   [originXProperty.setNative](value: number) {

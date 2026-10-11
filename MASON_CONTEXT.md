@@ -1034,8 +1034,9 @@ SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device p
   sends them to `Css.SetTransforms`, one matrix composed in `Positioning.h` with the CSS
   `transform` and the positioning offset (`TransformParts`; each part is kept, not read back
   from `RenderTransform`). CSS keyframes of transforms run on the per-frame driver in
-  `css-keyframes.ts` (`splitTransforms`), since core's storyboards target its own group;
-  `View.animate()` of transforms is still core's and doesn't show.
+  `css-keyframes.ts` (`splitTransforms`), and `View.animate()` plays them per frame too
+  (`animateTransforms`; the rest of the definition stays with core), since core's storyboards
+  target its own group.
 - **Percent and em font sizes** (`FONT_SIZE_TYPE` 1) resolve against the parent: inline runs in
   `Text::Resolve`, a Text's own size (`OwnFontSize`) against the nearest Mason ancestor with an
   absolute size. Percent ancestors are skipped because core hands the same raw value down.

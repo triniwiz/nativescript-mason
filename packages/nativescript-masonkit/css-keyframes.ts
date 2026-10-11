@@ -390,6 +390,59 @@ if (__WINDOWS__) {
   registerKeyframeProperty(translateYProperty as never, interpolateNumber, '0');
 }
 
+/**
+ * Windows: View.animate()'s scale, rotate and translate, played per frame on the View properties
+ * (core's storyboards target a transform that doesn't show on a Mason view).
+ */
+export function animateTransforms(view: View, options: any): { done: Promise<void>; cancel: () => void } {
+  const v = view as any;
+  const tracks: { name: string; from: number; to: number }[] = [];
+  const add = (name: string, to: unknown, initial: number) => {
+    if (typeof to === 'number' && Number.isFinite(to)) tracks.push({ name, from: typeof v[name] === 'number' ? v[name] : initial, to });
+  };
+  const rotate = options.rotate;
+  add('rotate', typeof rotate === 'object' ? rotate?.z : rotate, 0);
+  add('scaleX', options.scale?.x, 1);
+  add('scaleY', options.scale?.y, 1);
+  add('translateX', options.translate?.x, 0);
+  add('translateY', options.translate?.y, 0);
+  const duration = typeof options.duration === 'number' ? options.duration : 300;
+  const delay = typeof options.delay === 'number' ? options.delay : 0;
+  const iterations = typeof options.iterations === 'number' && options.iterations > 0 ? options.iterations : 1;
+  const curve = easing(options.curve);
+  let stopped = false;
+  let resolve: () => void;
+  const done = new Promise<void>((r) => (resolve = r));
+  const set = (t: number) => {
+    for (const track of tracks) v[track.name] = track.from + (track.to - track.from) * t;
+  };
+  const start = Date.now();
+  const tick = () => {
+    if (stopped) return;
+    const elapsed = Date.now() - start - delay;
+    if (elapsed < 0) {
+      nextFrame(tick);
+      return;
+    }
+    const iteration = duration > 0 ? Math.floor(elapsed / duration) : iterations;
+    if (iteration >= iterations) {
+      set(1);
+      resolve();
+      return;
+    }
+    set(curve((elapsed - iteration * duration) / duration));
+    nextFrame(tick);
+  };
+  tick();
+  return {
+    done,
+    cancel: () => {
+      stopped = true;
+      resolve();
+    },
+  };
+}
+
 let installed = false;
 
 /** Installs the keyframe hooks once. */
