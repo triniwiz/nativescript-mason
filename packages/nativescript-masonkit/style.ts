@@ -6,6 +6,7 @@ import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
+import { resolveCssColors } from './css-colors';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1340,6 +1341,19 @@ function cssInitialIfReset(value: string, initial: string): string {
   return v === '' || v === 'initial' || v === 'unset' ? initial : value;
 }
 
+/**
+ * One CSS colour (`oklch(60% 0.2 240)`, `color-mix(...)`, `rgb(0 0 0 / 15%)`)
+ * as `rgba(...)`, or null. Core's `Color` resolves `color-mix()` through
+ * @csstools' parser; any other function is handed over as an identity mix.
+ */
+export function cssColorToRgba(color: string): string | null {
+  const color_ = new Color(/^color-mix\(/i.test(color) ? color : `color-mix(in srgb, ${color} 100%, transparent)`);
+  if (color_.argb === -1) {
+    return null;
+  }
+  return `rgba(${color_.r}, ${color_.g}, ${color_.b}, ${+(color_.a / 255).toFixed(4)})`;
+}
+
 export class Style {
   private view_: View;
   // Fetched on first use; see loadBuffer.
@@ -1549,9 +1563,11 @@ export class Style {
     }
   }
 
+  // Every string-valued property goes through here on its way to the platform,
+  // whose parsers don't read modern colour syntax; see css-colors.ts.
   private coerceCssStringValue(value: any): string {
     if (typeof value === 'string') {
-      return value;
+      return resolveCssColors(value, cssColorToRgba);
     }
     if (value == null) {
       return '';
