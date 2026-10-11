@@ -354,6 +354,33 @@ function windowsBreakRun(child: any) {
   return run;
 }
 
+/**
+ * iOS: sets the frame of a Mason root, a Mason view whose parent is a core view. Core leaves
+ * the safe area to each view (`View._modifyNativeViewFrame`), so the root honours
+ * `iosOverflowSafeArea` the same way: when the frame grows past the safe area it lays out
+ * again at the new size. Like core views, it raises `layoutChanged` when the frame changes.
+ */
+export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect): void {
+  const adjusted: CGRect = view.applySafeAreaInsets(frame) ?? frame;
+  nativeView.frame = adjusted;
+  if (!CGRectEqualToRect(adjusted, frame)) {
+    // Each measure pass lays the root out at the safe-area size again, so check the
+    // computed size rather than whether the frame changed.
+    const width = Utils.layout.toDevicePixels(adjusted.size.width);
+    const height = Utils.layout.toDevicePixels(adjusted.size.height);
+    const layout = view.ios.node.computedLayout;
+    if (Math.round(layout.width) !== Math.round(width) || Math.round(layout.height) !== Math.round(height)) {
+      view.ios.mason_computeWithSize(width, height);
+      view.ios.mason_markRootComputeAppliedWithSize(width, height);
+    }
+  }
+  const previous: CGRect | undefined = view._masonRootFrame;
+  if (!previous || !CGRectEqualToRect(previous, adjusted)) {
+    view._masonRootFrame = adjusted;
+    view._raiseLayoutChangedEvent();
+  }
+}
+
 export function windowsMemberKind(child: any): 'run' | 'break' | 'text' | 'box' {
   if (child[textNode_]) return 'run';
   if (child[isPlaceholder_]) return 'break';

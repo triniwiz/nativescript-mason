@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { ViewBase } from '../common';
+import { ViewBase, setRootNativeViewFrame } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
@@ -120,7 +120,11 @@ export class View extends ViewBase {
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
-    nativeView.frame = frame;
+    if (this.parent?.[isMasonView_]) {
+      nativeView.frame = frame;
+    } else {
+      setRootNativeViewFrame(this, nativeView, frame);
+    }
   }
 
   // @ts-ignore
