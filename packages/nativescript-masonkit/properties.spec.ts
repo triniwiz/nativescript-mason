@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { _getStyleProperties } from '@nativescript/core/ui/core/properties';
+import { _getStyleProperties, CssAnimationProperty } from '@nativescript/core/ui/core/properties';
 import * as coreStyleProperties from '@nativescript/core/ui/styling/style-properties';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
@@ -219,7 +219,9 @@ describe('every CSS name mason claims is actually registered', () => {
   ];
 
   it.each(EXPECTED)('%s', (cssName) => {
-    expect(registered.has(cssName), `no CssProperty registered for "${cssName}"`).toBe(true);
+    // Keyframe-animatable ones (mask-position, mask-size) are CssAnimationProperties, kept apart.
+    const found = registered.has(cssName) || !!CssAnimationProperty._getByCssName(cssName);
+    expect(found, `no CssProperty registered for "${cssName}"`).toBe(true);
   });
 
   // Mason registers these CSS names alongside core's own, and both properties

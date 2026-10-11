@@ -9,6 +9,7 @@ import type { Style as MasonStyle } from './style';
 import { cssLengthToDip, parseAspectRatio } from './style';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
+import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
 import { BORDER_WIDTH_KEYWORDS, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
@@ -1852,9 +1853,10 @@ export const maskImageProperty = new CssProperty<Style, string>({
   },
 });
 
-export const maskSizeProperty = new CssProperty<Style, string>({
+export const maskSizeProperty = new CssAnimationProperty<Style, string>({
   name: 'maskSize',
   cssName: 'mask-size',
+  valueConverter: (value) => value,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -1863,9 +1865,11 @@ export const maskSizeProperty = new CssProperty<Style, string>({
   },
 });
 
-export const maskPositionProperty = new CssProperty<Style, string>({
+export const maskPositionProperty = new CssAnimationProperty<Style, string>({
   name: 'maskPosition',
   cssName: 'mask-position',
+  // Keyframes keep only declarations whose property has a converter; see css-keyframes.ts.
+  valueConverter: (value) => value,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -2172,6 +2176,11 @@ hyphensProperty.register(Style);
 backdropFilterProperty.register(Style);
 maskImageProperty.register(Style);
 maskProperty.register(Style);
+
+// Keyframes can animate mask position and size; see css-keyframes.ts.
+registerKeyframeProperty(maskPositionProperty, interpolatePositionList, '0% 0%');
+registerKeyframeProperty(maskSizeProperty, interpolateSizeList, 'auto');
+installKeyframes();
 // Core has its own clip-path for plain views; MasonKit views draw theirs natively.
 registerAlongsideCore(clipPathProperty);
 maskBorderSourceProperty.register(Style);
