@@ -90,7 +90,7 @@ class Input @JvmOverloads constructor(
       this,
       canvas,
       style,
-      ignoreBorder = (type == Type.Radio || type == Type.Checkbox),
+      ignoreBorder = type.isCheckable && drawsNativeControl,
       beforeChildren = { c -> ViewUtils.drawChildrenOutsetShadows(this, c) }
     ) {
       super.dispatchDraw(it)
@@ -530,6 +530,58 @@ class Input @JvmOverloads constructor(
     Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit, Search, Time, DatetimeLocal, Month, Week, Reset
   }
 
+  /** CSS `appearance`. */
+  enum class Appearance {
+    Auto, None;
+
+    companion object {
+      // Only `none` turns the native control off; `menulist-button`, `textfield` and every
+      // other keyword render the control as `auto` does.
+      @JvmStatic
+      fun fromCss(value: String?): Appearance =
+        if (value?.trim().equals("none", ignoreCase = true)) None else Auto
+    }
+  }
+
+  // With `appearance: none` a checkbox or radio draws as its CSS box (background, border,
+  // border-radius). The native control stays, invisible, so taps still toggle it and fire events.
+  var appearance: Appearance = Appearance.Auto
+    set(value) {
+      if (field == value) return
+      field = value
+      applyAppearance()
+    }
+
+  internal val drawsNativeControl: Boolean
+    get() = appearance == Appearance.Auto || !type.isCheckable
+
+  private val hiddenControlBackgrounds = HashMap<View, Drawable?>(2)
+
+  private fun setControlHidden(control: View, hidden: Boolean) {
+    if (hidden) {
+      // The theme's ripple is borderless and would still draw over the CSS box.
+      if (!hiddenControlBackgrounds.containsKey(control)) {
+        hiddenControlBackgrounds[control] = control.background
+        control.background = null
+      }
+      control.alpha = 0f
+    } else {
+      if (hiddenControlBackgrounds.containsKey(control)) {
+        control.background = hiddenControlBackgrounds.remove(control)
+      }
+      control.alpha = 1f
+    }
+  }
+
+  private fun applyAppearance() {
+    when (type) {
+      Type.Checkbox -> setControlHidden(checkBoxInput, !drawsNativeControl)
+      Type.Radio -> setControlHidden(radioInput, !drawsNativeControl)
+      else -> {}
+    }
+    invalidate()
+  }
+
   private var initializing = true
   var type: Type = Type.Text
     set(value) {
@@ -664,6 +716,7 @@ class Input @JvmOverloads constructor(
 
       Type.Checkbox -> {
         setCheckedWidget(checkedState)
+        setControlHidden(checkBoxInput, !drawsNativeControl)
         addView(checkBoxInput)
       }
 
@@ -673,6 +726,7 @@ class Input @JvmOverloads constructor(
 
       Type.Radio -> {
         setCheckedWidget(checkedState)
+        setControlHidden(radioInput, !drawsNativeControl)
         addView(radioInput)
       }
 
@@ -971,6 +1025,14 @@ class Input @JvmOverloads constructor(
 
   // The checked state outlives widget swaps on `type` changes; the widgets mirror it.
   private var checkedState = false
+    set(value) {
+      if (field == value) return
+      field = value
+      onCheckedChange?.invoke(value)
+    }
+
+  /** Called whenever the checked state changes, from a tap or from code. */
+  var onCheckedChange: ((Boolean) -> Unit)? = null
 
   // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
   private var checkableValue = "on"

@@ -1,10 +1,12 @@
 import { Color, CSSType, Utils } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
-import { acceptProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
+import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, syncCheckedPseudoClass, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { InputType } from '..';
+
+declare const kotlin: any;
 
 @CSSType('input')
 export class Input extends InputElementBase {
@@ -72,6 +74,31 @@ export class Input extends InputElementBase {
     if (this._view) {
       this._view.setAccept(value);
     }
+  }
+
+  [appearanceProperty.setNative](value: InputAppearance) {
+    if (this._view) {
+      this._view.setAppearance(value === 'none' ? org.nativescript.mason.masonkit.Input.Appearance.None : org.nativescript.mason.masonkit.Input.Appearance.Auto);
+    }
+  }
+
+  initNativeView() {
+    super.initNativeView();
+    // A tap changes the checked state natively; held weakly so the listener doesn't keep the owner alive.
+    const ref = new WeakRef(this);
+    this._view.setOnCheckedChange(
+      new kotlin.jvm.functions.Function1({
+        invoke() {
+          const owner = __ANDROID__ ? ref.get() : ref.deref();
+          owner?.[syncCheckedPseudoClass]();
+        },
+      }),
+    );
+  }
+
+  disposeNativeView() {
+    this._view.setOnCheckedChange(null);
+    super.disposeNativeView();
   }
 
   [defaultValueProperty]() {

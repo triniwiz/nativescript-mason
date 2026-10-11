@@ -819,11 +819,15 @@ declare class MasonInput extends UIView {
 
 	checked: boolean;
 
+	cssAppearance: MasonInputAppearance;
+
 	readonly mason: NSCMason;
 
 	multiple: boolean;
 
 	readonly node: MasonNode;
+
+	onCheckedChange: (p1: boolean) => void;
 
 	placeholderColor: UIColor;
 
@@ -857,6 +861,13 @@ declare class MasonInputEvent extends MasonEvent {
 	constructor(o: { type: string; data: string; inputType: string; options: MasonEventOptions; });
 
 	initWithTypeDataInputTypeOptions(type: string, inputData: string, masonInputType: string, options: MasonEventOptions): this;
+}
+
+declare const enum MasonInputAppearance {
+
+	Auto = 0,
+
+	None = 1
 }
 
 declare const enum MasonInputType {

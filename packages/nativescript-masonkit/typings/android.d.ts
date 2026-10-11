@@ -2208,8 +2208,21 @@ declare module org {
 					public getDateInput$masonkit_release(): org.nativescript.mason.masonkit.input.DateInput;
 					public setAccept(value: string): void;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public getAppearance(): org.nativescript.mason.masonkit.Input.Appearance;
+					public setAppearance(value: org.nativescript.mason.masonkit.Input.Appearance): void;
+					public getOnCheckedChange(): any;
+					public setOnCheckedChange(value: any): void;
 				}
 				export module Input {
+					export class Appearance {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.Appearance>;
+						public static Auto: org.nativescript.mason.masonkit.Input.Appearance;
+						public static None: org.nativescript.mason.masonkit.Input.Appearance;
+						public static fromCss(value: string): org.nativescript.mason.masonkit.Input.Appearance;
+						public static getEntries(): any;
+						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Appearance>;
+						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Appearance;
+					}
 					export class Type {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.Type>;
 						public static Text: org.nativescript.mason.masonkit.Input.Type;
