@@ -4,8 +4,12 @@
 #include <initializer_list>
 #include <utility>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/NativeScript.Mason.h>
 #include "LeafCommon.h"
+#include "Node.h"
+#include <unordered_set>
 
 namespace mason_leaf
 {
@@ -65,8 +69,59 @@ namespace mason_leaf
         return { static_cast<uint32_t>(w0), static_cast<uint32_t>(w1), static_cast<uint32_t>(w2), static_cast<uint32_t>(w3) };
     }
 
+    // `display: none` takes the element out of layout, but its XAML content (text above all) would
+    // still draw past its empty box, so it's collapsed too. Only elements collapsed here are shown
+    // again, which leaves core's `visibility` alone.
+    inline void SyncDisplay(winrt::Microsoft::UI::Xaml::UIElement const& element, winrt::NativeScript::Mason::Node const& node)
+    {
+        namespace mux = winrt::Microsoft::UI::Xaml;
+        thread_local std::unordered_set<void*> collapsed;
+        if (!element || !node) return;
+        uint32_t size = 0;
+        const uint8_t* data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
+        if (!data || size < 4) return;
+        int32_t display = 0;
+        std::memcpy(&display, data, 4); // DISPLAY: 0 is none
+        // A scrolling element is the content of a ScrollViewer, which is what its parent lays out.
+        mux::UIElement target = element;
+        if (auto fe = element.try_as<mux::FrameworkElement>())
+        {
+            if (auto host = fe.Parent().try_as<winrt::Microsoft::UI::Xaml::Controls::ScrollViewer>()) target = host;
+        }
+        void* key = winrt::get_abi(element.as<winrt::Windows::Foundation::IUnknown>());
+        bool changed = false;
+        if (display == 0)
+        {
+            if (target.Visibility() == mux::Visibility::Visible)
+            {
+                target.Visibility(mux::Visibility::Collapsed);
+                collapsed.insert(key);
+                changed = true;
+            }
+        }
+        else if (collapsed.erase(key))
+        {
+            target.Visibility(mux::Visibility::Visible);
+            if (target != element) element.Visibility(mux::Visibility::Visible);
+            changed = true;
+        }
+        // Collapsed children are left out of their panel's Mason children: the panel re-syncs
+        // them when it measures, and the layout root computes again.
+        if (!changed) return;
+        if (auto parent = mux::Media::VisualTreeHelper::GetParent(target).try_as<mux::UIElement>())
+        {
+            parent.InvalidateMeasure();
+            if (auto owner = parent.try_as<winrt::NativeScript::Mason::IMasonElement>())
+            {
+                if (auto parentNode = owner.Node()) parentNode.MarkDirty();
+            }
+            InvalidateLayoutRoot(parent);
+        }
+    }
+
     inline void StyleSynced(winrt::Microsoft::UI::Xaml::UIElement const& element, winrt::NativeScript::Mason::Node const& node, StyleDirty const& dirty)
     {
+        SyncDisplay(element, node);
         if (AnyDirty(dirty, kLayoutKeys)) StyleChanged(element, node);
         else element.InvalidateArrange();
     }
