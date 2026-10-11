@@ -850,6 +850,145 @@ inline flow, as on the web, so text wraps across element boundaries.
   for clicks as `InlineAutomationPeer` children (hyperlink or text, with bounds
   and Invoke), and inline boxes as their own peers.
 
+## SVG background images
+
+`url("data:image/svg+xml,...")` images are drawn by a small static-SVG reader, one per
+platform: `SvgParser.kt` / `SvgParser.swift` (pure parsing; `SvgParserTest.kt` /
+`SvgParserTests.swift` mirror each other, keep both in step) plus a renderer in each
+`Background` file. Windows hands the SVG to WinUI's `SvgImageSource` in `Css.cpp`.
+
+- **Supported:** the full path grammar (arcs become cubics per SVG F.6), basic shapes,
+  `<g>` inheritance, `transform`, `style=""`, fill/stroke paint, `fill-rule`, opacity
+  (group opacity composites as one layer), caps/joins/miterlimit/dashes,
+  `preserveAspectRatio`.
+- **Not supported:** gradients/patterns (`url(#id)` uses its fallback colour, else none),
+  `<use>`, `<text>`, `<image>`, clip paths, masks, filters, markers, `<style>` sheets.
+- **`currentColor`** is the element's resolved CSS `color` (`style.resolvedColor`), else the
+  SVG's own `color`. iOS/Android re-rasterize when it changes; Windows resolves it once.
+- **Raster size:** the drawn size (after `background-size`) at device scale, cached on the
+  `BackgroundLayer` until that size or the colour changes.
+
+## CSS masks (iOS)
+
+`mask-*` longhands, `clip-path` and `mask-border-*` are string properties on `MasonStyle`
+(shorthands are split in JS; pseudo values arrive through
+`MasonNode.setPseudoString` under the CSS names). All of them feed one `Mask`
+(`Mask.swift`), rasterized into a `MasonMaskLayer` installed as `view.layer.mask`, so it
+masks the whole element (background, border, content, children).
+
+- **Layers** are parsed by the background parser and painted with the background painter
+  (`Background.drawLayerContent`), so images, SVG data URLs, gradients, size, position,
+  repeat and origin behave as for backgrounds. Bottom layer first; `mask-composite` maps
+  to source-over / source-out / source-in / xor; `luminance` is luminance x alpha.
+- **Sync.** `MasonStyle.syncMask` runs from `applyToView` (every layout), the setters and
+  pseudo-state changes; with no mask ever set it returns at once and no layer exists. The
+  layer redraws through Core Animation `display()`, with implicit animations disabled.
+- **Overflow clip.** Overflow clipping also uses `layer.mask`; while a CSS mask is set the
+  clip path is folded into the mask image (`routeOverflowClip`), and removing the mask
+  restores the plain `CAShapeLayer`.
+- **Scrolling** moves `bounds.origin`, so `MasonUIView._updateScrollMask` and
+  `Scroll.layoutSubviews` keep the mask layer on the element box (`follow(viewBounds:)`).
+- **Shadows.** The outset `box-shadow` lives in the superview's layer, outside the mask, so
+  a masked element hides it (`isMasked`).
+- **Gradients.** The shared gradient code draws `conic-gradient` (thin wedges) and
+  `repeating-*` (stops unrolled across the line), for backgrounds too. Length (`px`) stop
+  positions are not supported.
+- **`url()`** parsing is quote-aware (`findImageURL`) and the layer splitter skips quoted
+  text, so unencoded SVG data URLs containing `(`, `)` or `,` work.
+- **Limits.** `mask-clip: no-clip` covers the box plus its children's frames (at most one
+  box size past each edge). `url(#id)` references to SVG `<mask>` paint nothing. Hit
+  testing ignores the mask but honours `clip-path`.
+
+### clip-path, mask-border and border-image (iOS)
+
+- **clip-path** (`ClipPath.swift`): all basic shapes (`inset`/`rect`/`xywh` with `round`,
+  `circle`/`ellipse` with `at`, `polygon`/`path` with a fill rule) and reference boxes;
+  `url()` and invalid values are `none`. Resolved against the computed layout boxes
+  (`clipReferenceBoxes`; a box alone uses the border radii) on every layout. A clip path
+  alone stays a vector `CAShapeLayer`; otherwise it clips the mask raster. The mask
+  layer's frame is the clip's bounds, so `inset(-10px)` shows overflow.
+- **Hit testing:** `MasonStyle.clipPathAllows` tests the clip shape; every Mason view
+  overrides `point(inside:with:)` with it and `MasonElementHelpers.hitTest` checks it.
+- **NineSlice.swift** is the 9-slice painter shared by `mask-border` and `border-image`:
+  `NineSliceSpec` (parsing), `NineSlice.resolve` (slices in image units, widths in points,
+  scaled down when opposite sides overlap), `NineSlice.tiles` (stretch / centred repeat /
+  round / space; middle only with `fill`), `NineSliceSource` (raster pixels, SVG viewBox
+  units, or a gradient drawn at the area). `NineSlice.draw` snaps rects to device pixels
+  and draws aliased so tiles abut without seams.
+- **mask-border** is multiplied into the mask (`destinationIn`), or alone is the mask;
+  `luminance` converts it first. A source still loading contributes nothing.
+- **border-image:** `CSSBorderRenderer.draw` calls `MasonStyle.drawBorderImage` first; a
+  ready source paints the 9-slice instead of the border styles, otherwise the normal
+  border draws, as in CSS. `Button` and `MasonText` draw it before their text so a `fill`
+  middle stays underneath. `hasBorderImage` keeps `MasonUIView` off its CALayer paint
+  path. The outset area is clipped to the view's bounds.
+
+## CSS masks (Android)
+
+`NodeHelper.get/setMask{Image,Size,Position,Repeat,Origin,Clip,Mode,Composite}` write
+string properties on `Style`; pseudo values go through `Node.setPseudoString` under the
+`mask-*` names. `Mask.kt` turns the longhands into `MaskLayer`s, each holding a
+`BackgroundLayer`, so mask layers are painted by `drawBackground` like backgrounds.
+
+- **Hook.** Every Mason view overrides `draw(canvas)` as `beginMask` → `super.draw` →
+  `endMask` (one null check without a mask). `beginMask` `saveLayer`s the mask area;
+  `endMask` draws the composed mask with `DST_IN`. A ViewGroup with `willNotDraw` skips
+  `draw()`, so setting a mask calls `setWillNotDraw(false)`. The mask is offset by
+  `scrollX/scrollY` to stay on the box.
+- **Composition.** Bottom layer first, each in its own `saveLayer` carrying the
+  `mask-composite` operator (SRC_OVER / SRC_OUT / SRC_IN / XOR); `luminance` is a
+  ColorMatrix over black. The result is an ARGB bitmap (ALPHA_8 is drawn as coverage,
+  which `DST_IN` ignores), cached per size, boxes, `currentColor`, longhands and loaded
+  images; Glide's arrival invalidates the view.
+- **Clip.** The saveLayer is the union of the layers' clip boxes (rectangular). `no-clip`
+  grows it to the outset shadow and children's frames (at most 1024px past each edge).
+- **Shadows.** The parent skips outset shadows of masked or clip-path'd children
+  (`ViewUtils.drawChildrenOutsetShadows`); a masked element draws its own inside the mask
+  layer when the mask reaches past the border box.
+- **Gradients.** `drawGradient` handles `conic-gradient` (`SweepGradient` rotated so 0deg
+  is up), `repeating-*` (`repeatGradientStops`) and length stop positions. The background
+  parser produces only linear/radial, so conic and repeating gradients reach masks only.
+- **`url()`** is quote- and escape-aware (`extractCssUrl`) and `splitMaskList` skips quoted
+  text; the background parser's `IMAGE_REGEX` stops at the first `)`.
+- **Semantics.** `space`/`round` repeat as `repeat`. A `none` layer is transparent (it
+  matters for `subtract`/`intersect`); all-`none` is no mask; an unsupported image
+  invalidates the list. The mask applies before a view-level `filter` RenderEffect,
+  the reverse of CSS order.
+- Tests: `MaskParsingTest` (JVM), `MaskInstrumentedTest` (pixels, software and HWUI).
+
+### clip-path, mask-border and border-image (Android)
+
+`NodeHelper.get/set{ClipPath,MaskBorderSource,…,MaskBorderMode}` write `style.clipPath` /
+`style.maskBorder*`; pseudo values arrive through `Node.setPseudoString`. `border-image` is
+one shorthand string, `Style.borderImage`, parsed natively on set. `HTMLParser` splits
+`mask-border` / `-webkit-mask-box-image` itself.
+
+- **clip-path** (`ClipPath.kt`, pure Kotlin): lengths stay `CssLength` until draw time
+  (`LengthContext.forStyle`). All basic shapes and boxes; `url()` and invalid values are
+  `none`. A box alone is its rounded rect; `border-box` reuses
+  `BorderRenderer.getOuterClipPath`. The path is cached per size, boxes, radii, font size
+  and value.
+- **Anti-aliased clip.** `canvas.clipPath` is aliased on Android (software and HWUI), so
+  the element draws into a `saveLayer` bounded by the shape and `endMask` erases outside
+  with the inverse path, AA, `DST_OUT`. The mask's own layer nests inside.
+- **Hit testing.** Each Mason view's `dispatchTouchEvent` refuses an `ACTION_DOWN`
+  outside the shape (`clipPathRejectsTouch`), and `HitTesting.clippedOutside` drops the
+  subtree for `elementFromPoint`. Point tests use a `Region` from the cached path.
+- **NineSlice.kt** is the shared 9-slice painter: `BorderImageSpec` →
+  `layoutNineSlice` (area, slices, used widths, up to nine `NineSlicePiece`s via
+  `axisTiles`). `NineSliceSource` loads SVG data URLs (viewBox units), rasters via Glide
+  (1 unit = 1 CSS px) and gradients (drawn at the area); vector sources rasterize at the
+  largest piece scale, capped at 2048px. Uses `RectBox` because `RectF` is a stub in JVM
+  tests.
+- **mask-border** (`Mask` longhands 8–13) is composed into the same cached bitmap with
+  `DST_IN`, or alone is the mask. While its image loads everything is masked; an
+  undisplayable image ignores the mask border.
+- **border-image:** `ViewUtils.render` asks `BorderImage.draw` first; a ready source
+  paints the 9-slice (not clipped by border-radius; the outset draws past the box) and
+  skips the border styles. `none`, invalid, loading or failed draws the normal border.
+- Tests: `ClipPathParsingTest`, `NineSliceTest` (JVM), `ClipPathInstrumentedTest` (pixels
+  and touch pass-through).
+
 ## Backdrop Filter
 
 ### Android
