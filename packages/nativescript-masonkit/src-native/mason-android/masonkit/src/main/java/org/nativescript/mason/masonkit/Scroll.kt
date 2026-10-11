@@ -208,7 +208,9 @@ class Scroll @JvmOverloads constructor(
     if (parent !is Element) {
       if (!node.mason.inCompute) {
         val widthArg = View.mapMeasureSpec(specWidthMode, specWidth).value
-        val heightArg = -2f
+        // Only a vertical scroll container measures its content at an unbounded height; a
+        // non-scrolling block root lays out in the height it's given, as View does.
+        val heightArg = if (isScrollableY() || isAutoY()) -2f else View.mapHeightSpecArg(specHeightMode, specHeight)
         node.lastRootWidthArg = widthArg
         node.lastRootHeightArg = heightArg
         val stale = node.computeStale(widthArg, heightArg)

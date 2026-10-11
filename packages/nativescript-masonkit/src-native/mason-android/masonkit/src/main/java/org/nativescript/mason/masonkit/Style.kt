@@ -1238,6 +1238,15 @@ class Style internal constructor(@Transient internal var node: Node) {
     ) {
       invalidateResolvedFontFace()
     }
+    // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
+    // and a view that was laid out before going `display: none` keeps drawing at its old frame.
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+      (node.view as? View)?.let { view ->
+        val visibility = if (display == Display.None) View.INVISIBLE else View.VISIBLE
+        // GONE is `visibility: collapse` or a queued removal (NodeUtils); both outrank display.
+        if (view.visibility != visibility && view.visibility != View.GONE) view.visibility = visibility
+      }
+    }
     if (!inBatch) {
       updateNativeStyle()
     }
