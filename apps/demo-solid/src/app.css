@@ -45,3 +45,28 @@
 .inputs-right {
   text-align: right;
 }
+
+.details-item {
+  border-width: 1px;
+  border-color: #dfe6e9;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.details-header {
+  padding: 12px;
+  font-weight: bold;
+}
+
+.details-item[open] .details-header {
+  background-color: #e8f0fe;
+  color: #0b5ed7;
+}
+
+.details-body {
+  padding: 12px;
+}
+
+.details-plain:open summary {
+  color: #00b894;
+}
