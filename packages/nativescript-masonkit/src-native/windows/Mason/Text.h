@@ -106,6 +106,8 @@ namespace winrt::NativeScript::Mason::implementation
 
         // The text a screen reader reads when this Text draws its own glyphs.
         winrt::hstring AccessibleText() const;
+        // Rebuilds after the <summary> holding this text opened or closed (its marker turns).
+        void RefreshMarker() { RequestRebuild(); }
 
     private:
         // Formatting after inheritance; a nested element resolves its own against its parent's.
@@ -325,6 +327,7 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_markerRebuildQueued{ false };
         bool MarkerOf(uint8_t& type, int32_t& index, bool& inside) const;
         std::wstring InsideMarker() const;
+        std::wstring SummaryMarker() const;
         void SyncMarker(winrt::Windows::Foundation::Size const& finalSize);
         uint32_t m_color{ 0xFF000000 };
         bool m_hasColor{ false };

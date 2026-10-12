@@ -130,6 +130,7 @@
     <ClInclude Include="RootScale.h" />
     <ClInclude Include="TextAtlas.h" />
     <ClInclude Include="TextAutomationPeer.h" />
+    <ClInclude Include="SummaryAutomationPeer.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="InlineAutomationPeer.h" />
   </ItemGroup>
@@ -159,6 +160,7 @@
     <ClCompile Include="FixedLayer.cpp" />
     <ClCompile Include="FixedSlot.cpp" />
     <ClCompile Include="TextAutomationPeer.cpp" />
+    <ClCompile Include="SummaryAutomationPeer.cpp" />
     <ClCompile Include="Events.cpp" />
     <ClCompile Include="InlineAutomationPeer.cpp" />
     <ClCompile Include="exports.cpp" />
@@ -194,6 +196,7 @@
     <Midl Include="FixedLayer.idl" />
     <Midl Include="FixedSlot.idl" />
     <Midl Include="TextAutomationPeer.idl" />
+    <Midl Include="SummaryAutomationPeer.idl" />
     <Midl Include="InlineAutomationPeer.idl" />
   </ItemGroup>
 

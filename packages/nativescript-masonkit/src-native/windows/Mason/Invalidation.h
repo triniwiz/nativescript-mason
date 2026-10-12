@@ -4,8 +4,12 @@
 #include <initializer_list>
 #include <utility>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/NativeScript.Mason.h>
 #include "LeafCommon.h"
+#include "Node.h"
+#include <unordered_map>
 
 namespace mason_leaf
 {
@@ -65,8 +69,109 @@ namespace mason_leaf
         return { static_cast<uint32_t>(w0), static_cast<uint32_t>(w1), static_cast<uint32_t>(w2), static_cast<uint32_t>(w3) };
     }
 
+    // Why an element is hidden. Each reason collapses it on its own; it shows again once none is
+    // left, and only if it was collapsed here, which leaves core's `visibility` alone.
+    enum HiddenReason : uint8_t
+    {
+        HiddenByDisplay = 1, // display: none
+        HiddenByDetails = 2, // content of a closed <details>
+    };
+
+    struct HiddenState
+    {
+        winrt::weak_ref<winrt::Microsoft::UI::Xaml::UIElement> element;
+        uint8_t reasons{ 0 };
+        bool collapsedHere{ false };
+    };
+
+    inline std::unordered_map<void*, HiddenState>& HiddenRegistry()
+    {
+        thread_local auto* registry = new std::unordered_map<void*, HiddenState>();
+        return *registry;
+    }
+
+    // Sets or clears one reason to hide [target]. With [resync] its parent re-syncs its Mason
+    // children (collapsed children are left out of them) and the layout root computes again;
+    // a parent changing its own children during its measure passes false.
+    inline void SetHidden(winrt::Microsoft::UI::Xaml::UIElement const& target, uint8_t reason, bool hidden, bool resync = true)
+    {
+        namespace mux = winrt::Microsoft::UI::Xaml;
+        if (!target) return;
+        auto& registry = HiddenRegistry();
+        void* key = winrt::get_abi(target.as<winrt::Windows::Foundation::IUnknown>());
+        auto it = registry.find(key);
+        if (it != registry.end() && it->second.element.get() != target)
+        {
+            registry.erase(it);
+            it = registry.end();
+        }
+        if (it == registry.end())
+        {
+            if (!hidden) return;
+            if (registry.size() >= 1024) std::erase_if(registry, [](auto const& e) { return !e.second.element.get(); });
+            it = registry.emplace(key, HiddenState{ winrt::make_weak(target) }).first;
+        }
+        auto& state = it->second;
+        const uint8_t before = state.reasons;
+        state.reasons = hidden ? (before | reason) : (before & ~reason);
+        bool changed = false;
+        if (before == 0 && state.reasons != 0)
+        {
+            if (target.Visibility() == mux::Visibility::Visible)
+            {
+                target.Visibility(mux::Visibility::Collapsed);
+                state.collapsedHere = true;
+                changed = true;
+            }
+        }
+        else if (before != 0 && state.reasons == 0)
+        {
+            if (state.collapsedHere)
+            {
+                target.Visibility(mux::Visibility::Visible);
+                changed = true;
+            }
+            registry.erase(it);
+        }
+        if (!changed || !resync) return;
+        if (auto parent = mux::Media::VisualTreeHelper::GetParent(target).try_as<mux::UIElement>())
+        {
+            parent.InvalidateMeasure();
+            if (auto owner = parent.try_as<winrt::NativeScript::Mason::IMasonElement>())
+            {
+                if (auto parentNode = owner.Node()) parentNode.MarkDirty();
+            }
+            InvalidateLayoutRoot(parent);
+        }
+    }
+
+    // What a parent panel lays out for [element]: a scrolling element is the content of a
+    // ScrollViewer, which is the child.
+    inline winrt::Microsoft::UI::Xaml::UIElement LayoutChildOf(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        if (auto fe = element.try_as<winrt::Microsoft::UI::Xaml::FrameworkElement>())
+        {
+            if (auto host = fe.Parent().try_as<winrt::Microsoft::UI::Xaml::Controls::ScrollViewer>()) return host;
+        }
+        return element;
+    }
+
+    // `display: none` takes the element out of layout, but its XAML content (text above all)
+    // would still draw past its empty box, so it's collapsed too.
+    inline void SyncDisplay(winrt::Microsoft::UI::Xaml::UIElement const& element, winrt::NativeScript::Mason::Node const& node)
+    {
+        if (!element || !node) return;
+        uint32_t size = 0;
+        const uint8_t* data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
+        if (!data || size < 4) return;
+        int32_t display = 0;
+        std::memcpy(&display, data, 4); // DISPLAY: 0 is none
+        SetHidden(LayoutChildOf(element), HiddenByDisplay, display == 0);
+    }
+
     inline void StyleSynced(winrt::Microsoft::UI::Xaml::UIElement const& element, winrt::NativeScript::Mason::Node const& node, StyleDirty const& dirty)
     {
+        SyncDisplay(element, node);
         if (AnyDirty(dirty, kLayoutKeys)) StyleChanged(element, node);
         else element.InvalidateArrange();
     }

@@ -1,4 +1,5 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { CSSType, Property, Utils, ViewBase, unsetValue } from '@nativescript/core';
+import { masonEngine } from './windows-panel-helpers';
 import { Scroll, View, Text } from '.';
 
 const enum TextType {
@@ -319,11 +320,185 @@ export class Figcaption extends BlockElement {}
 @CSSType('address')
 export class Address extends BlockElement {}
 
-@CSSType('details')
-export class Details extends BlockElement {}
+/** The native Mason view behind a block element, when it exists. */
+function nativeOf(view: any): any {
+  return view?._view ?? view?.nativeViewProtected;
+}
 
+/**
+ * `<details>`: shows only its first `<summary>` until it's open. `open` is a real property, so
+ * `details[open]` rules restyle whenever it changes (a plain attribute never notifies core), and
+ * the element also matches `:open`. Opening one closes the others that share its `name`, which is
+ * how an accordion stays single-open; every change fires `toggle`.
+ */
+@CSSType('details')
+export class Details extends BlockElement {
+  /** `true` when open; `undefined` (no attribute) when closed. */
+  open: boolean | undefined;
+  name: string;
+
+  /** The first `<summary>` child: what stays visible while closed, and what toggles. */
+  get summary(): Summary | null {
+    return (this._children.find((child) => child instanceof Summary) as Summary) ?? null;
+  }
+
+  addChild(child: any) {
+    super.addChild(child);
+    this._syncContent();
+  }
+
+  insertChild(child: any, atIndex: number) {
+    super.insertChild(child, atIndex);
+    this._syncContent();
+  }
+
+  removeChild(child: any) {
+    super.removeChild(child);
+    if (hiddenByDetails.has(child)) showContent(child);
+    this._syncContent();
+  }
+
+  onLoaded() {
+    super.onLoaded();
+    if (this.name) detailsGroup(this.name).add(this);
+  }
+
+  // Windows draws <details> natively (View.Role): it hides the closed content, turns the
+  // summary's marker, answers UI Automation and toggles on a summary tap, reporting "toggle".
+  private _toggleListener: any;
+  private _toggleId = 0;
+
+  initNativeView() {
+    super.initNativeView();
+    if (!__WINDOWS__) return;
+    const native = nativeOf(this);
+    if (!native) return;
+    native.Role = 1;
+    native.Open = !!this.open;
+    const ref = new WeakRef(this);
+    this._toggleListener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', () => {
+      const owner = ref.deref();
+      if (owner) owner.open = nativeOf(owner)?.Open ? true : undefined;
+    });
+    this._toggleId = masonEngine().AddEventListener(native, 'toggle', this._toggleListener);
+  }
+
+  disposeNativeView() {
+    if (__WINDOWS__ && this._toggleId) masonEngine().RemoveEventListener(nativeOf(this), 'toggle', this._toggleId);
+    this._toggleId = 0;
+    this._toggleListener = undefined;
+    super.disposeNativeView();
+  }
+
+  onUnloaded() {
+    if (this.name) detailsGroup(this.name).delete(this);
+    super.onUnloaded();
+  }
+
+  /** Hides everything but the summary while closed, as the details' content slot does. */
+  _syncContent() {
+    if (__WINDOWS__) return;
+    const summary: unknown = this.summary;
+    for (const child of this._children) {
+      if (!(child instanceof ViewBase)) continue;
+      if (this.open || child === summary) {
+        if (hiddenByDetails.has(child)) showContent(child);
+      } else if (!hiddenByDetails.has(child)) {
+        hiddenByDetails.add(child);
+        (child.style as any).display = 'none';
+      }
+    }
+  }
+
+  _onOpenChanged(oldValue: boolean, newValue: boolean) {
+    if (oldValue === newValue) return;
+    if (newValue) {
+      this.addPseudoClass('open');
+      if (this.name) {
+        for (const other of detailsGroup(this.name)) {
+          if (other !== this && other.open) other.open = undefined;
+        }
+      }
+    } else {
+      this.deletePseudoClass('open');
+    }
+    if (__WINDOWS__) {
+      const native = nativeOf(this);
+      if (native) native.Open = newValue;
+    }
+    this._syncContent();
+    this.notify({ eventName: 'toggle', object: this, oldState: oldValue ? 'open' : 'closed', newState: newValue ? 'open' : 'closed' } as never);
+  }
+
+  _onNameChanged(oldValue: string, newValue: string) {
+    if (!this.isLoaded) return;
+    if (oldValue) detailsGroup(oldValue).delete(this);
+    if (newValue) detailsGroup(newValue).add(this);
+  }
+}
+
+/** `<summary>`: a tap opens or closes the `<details>` it heads. */
 @CSSType('summary')
-export class Summary extends BlockElement {}
+export class Summary extends BlockElement {
+  constructor() {
+    super();
+    // Windows handles the tap natively.
+    if (!__WINDOWS__) this.on('tap', () => this._activate());
+  }
+
+  initNativeView() {
+    super.initNativeView();
+    if (__WINDOWS__) {
+      const native = nativeOf(this);
+      if (native) native.Role = 2;
+    }
+  }
+
+  /** What a tap does: opens or closes the `<details>` this is the summary of. */
+  _activate() {
+    const details: unknown = this.parent;
+    if (details instanceof Details && details.summary === this) details.open = details.open ? undefined : true;
+  }
+}
+
+const hiddenByDetails = new WeakSet<ViewBase>();
+
+function showContent(child: ViewBase) {
+  hiddenByDetails.delete(child);
+  (child.style as any).display = unsetValue;
+}
+
+const detailsGroups = new Map<string, Set<Details>>();
+
+function detailsGroup(name: string): Set<Details> {
+  let group = detailsGroups.get(name);
+  if (!group) {
+    group = new Set();
+    detailsGroups.set(name, group);
+  }
+  return group;
+}
+
+// `open` is a boolean attribute: present (even as "") means open. Closed is `undefined`, an
+// absent attribute, because core's `[open]` matches any value that isn't null or undefined.
+export const detailsOpenProperty = new Property<any, boolean>({
+  name: 'open',
+  defaultValue: undefined,
+  valueConverter: (value: any) => (value === '' || (value !== 'false' && !!value) ? true : undefined),
+  valueChanged: (target: Details, oldValue, newValue) => {
+    target._onOpenChanged(!!oldValue, !!newValue);
+    // The converter only sees strings: `open = false` from code is made absent here.
+    if (newValue !== true && newValue !== undefined) target.open = undefined;
+  },
+});
+detailsOpenProperty.register(Details);
+
+export const detailsNameProperty = new Property<any, string>({
+  name: 'name',
+  defaultValue: '',
+  valueChanged: (target: Details, oldValue, newValue) => target._onNameChanged(oldValue, newValue),
+});
+detailsNameProperty.register(Details);
 
 @CSSType('hgroup')
 export class Hgroup extends BlockElement {}

@@ -19,6 +19,15 @@ namespace winrt::NativeScript::Mason::implementation
 
         void Invalidate();
 
+        int32_t Role() const noexcept { return m_role; }
+        void Role(int32_t value);
+        bool Open() const noexcept { return m_open; }
+        void Open(bool value);
+        winrt::NativeScript::Mason::View Details();
+        // Toggles the details this summary heads, as a tap does, and raises "toggle".
+        void Activate();
+        winrt::Microsoft::UI::Xaml::Automation::Peers::AutomationPeer OnCreateAutomationPeer();
+
         winrt::Windows::Foundation::Size MeasureOverride(winrt::Windows::Foundation::Size const& availableSize);
         winrt::Windows::Foundation::Size ArrangeOverride(winrt::Windows::Foundation::Size const& finalSize);
 
@@ -28,6 +37,12 @@ namespace winrt::NativeScript::Mason::implementation
         mason_visual::AppliedState m_visual;
         int32_t m_nodeKind{ 0 };
         std::unordered_map<void*, winrt::NativeScript::Mason::Node> m_leaves;
+        int32_t m_role{ 0 };
+        bool m_open{ false };
+        bool m_tapHooked{ false };
+
+        void HideClosedContent(bool resync);
+        void RefreshSummary();
     };
 }
 
