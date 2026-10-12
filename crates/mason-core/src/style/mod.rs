@@ -877,6 +877,9 @@ pub struct Style {
     raw: *mut u8,
     arena: *mut StyleArena,
     pub(crate) handle: StyleHandle,
+    // Generates no box, like `display: none`, while leaving the author's `display` alone
+    // (a closed <details>' content).
+    pub(crate) hidden: bool,
 }
 
 impl Clone for Style {
@@ -889,6 +892,7 @@ impl Clone for Style {
             grid: self.grid.clone(),
             device_scale: self.device_scale.clone(),
             handle: self.handle,
+            hidden: self.hidden,
         }
     }
 }
@@ -1180,6 +1184,7 @@ impl Style {
             grid: None,
             device_scale: None,
             handle,
+            hidden: false,
         }
     }
 
@@ -1555,6 +1560,9 @@ impl Style {
     }
 
     pub fn get_display(&self) -> Display {
+        if self.hidden {
+            return Display::None;
+        }
         display_from_enum(get_style_data_i8(self.data(), StyleKeys::DISPLAY)).unwrap()
     }
 

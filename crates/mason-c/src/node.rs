@@ -1125,6 +1125,25 @@ pub extern "C" fn mason_node_set_pseudo_states(
     }
 }
 
+/// `<details>`/`<summary>` role (0 none, 1 details, 2 summary) and whether a details is open.
+#[no_mangle]
+pub extern "C" fn mason_node_set_details(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    role: u8,
+    open: bool,
+) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason);
+        let node_id = &(*node).0;
+
+        mason.0.set_details(node_id.id(), role, open);
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_node_get_pseudo_states(mason: *mut CMason, node: *mut CMasonNode) -> u16 {
     if mason.is_null() || node.is_null() {

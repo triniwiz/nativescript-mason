@@ -1866,3 +1866,23 @@ pub extern "system" fn NodeNativePreparePseudoMut(
         -1
     }
 }
+
+/// `<details>`/`<summary>` role (0 none, 1 details, 2 summary) and whether a details is open.
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeSetDetails(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    role: jint,
+    open: jboolean,
+) {
+    if mason == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+        mason.set_details(node.id(), role as u8, open != 0);
+    }
+}

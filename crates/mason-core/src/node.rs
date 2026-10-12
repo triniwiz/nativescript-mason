@@ -430,9 +430,16 @@ pub enum NodeStateKeys {
     // two bytes reserved for pseudo state bitmask (u16)
     PSEUDO_FLAGS_LOW = 3,
     PSEUDO_FLAGS_HIGH = 4,
+    // 1 while the node is hidden by a closed <details> (see `Tree::sync_details`).
+    IS_HIDDEN = 5,
 }
 
-pub const NODE_STATE_BUFFER_SIZE: usize = 5;
+pub const NODE_STATE_BUFFER_SIZE: usize = 6;
+
+/// HTML `<details>`/`<summary>` roles, set by the platform.
+pub const DETAILS_ROLE_NONE: u8 = 0;
+pub const DETAILS_ROLE_DETAILS: u8 = 1;
+pub const DETAILS_ROLE_SUMMARY: u8 = 2;
 
 /// Exact-value-keyed cache for inline/text leaf measurement results.
 ///
@@ -579,6 +586,8 @@ pub struct Node {
     // optional per-node pseudo styles (hover/active/focus/disabled/checked)
     pub(crate) pseudo_styles: Option<Box<PseudoStyles>>,
     pub(crate) ignores_offered_height: bool,
+    pub(crate) details_role: u8,
+    pub(crate) details_open: bool,
     #[cfg(target_os = "android")]
     pub(crate) state_buffer: jni::sys::jint,
 }
@@ -599,6 +608,8 @@ impl Node {
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             ignores_offered_height: false,
+            details_role: DETAILS_ROLE_NONE,
+            details_open: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -619,6 +630,8 @@ impl Node {
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
             pseudo_styles: None,
             ignores_offered_height: false,
+            details_role: DETAILS_ROLE_NONE,
+            details_open: false,
             #[cfg(target_os = "android")]
             state_buffer: -1,
         }
@@ -704,6 +717,21 @@ impl Node {
             NodeStateKeys::IS_NODE_DIRTY as usize,
             if value { 1 } else { 0 },
         );
+    }
+
+    #[inline]
+    pub fn is_hidden(&self) -> bool {
+        self.style.hidden
+    }
+
+    // Returns whether it changed.
+    pub(crate) fn set_hidden(&mut self, value: bool) -> bool {
+        if self.style.hidden == value {
+            return false;
+        }
+        self.style.hidden = value;
+        self.state[NodeStateKeys::IS_HIDDEN as usize] = value as u8;
+        true
     }
 
     #[inline(always)]
