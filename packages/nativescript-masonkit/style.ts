@@ -2323,8 +2323,8 @@ export class Style {
     }
     const normalized = normalizeColorValue(value);
     if (normalized == null) {
-      // Leaving :active on Windows resets an unset color, which then inherits again.
-      if (__WINDOWS__ && getInt8(this.style_view, StyleKeys.FONT_COLOR_STATE)) {
+      // A reset (a rule that stops matching, leaving :active) unsets the color, which then inherits again.
+      if (getInt8(this.style_view, StyleKeys.FONT_COLOR_STATE)) {
         this.prepareMut();
         setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 0);
         this.commitState(StateKeys.FONT_COLOR);
@@ -2360,6 +2360,14 @@ export class Style {
     }
     const normalized = normalizeColorValue(value);
     if (normalized == null) {
+      // A reset unsets it: transparent, as background-color doesn't inherit.
+      if (getInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE)) {
+        this.prepareMut();
+        setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, 0);
+        setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 0);
+        setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
+        this.commitState(StateKeys.BACKGROUND_COLOR);
+      }
       return;
     }
     this.prepareMut();
