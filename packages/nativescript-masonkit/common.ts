@@ -581,7 +581,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
     }
     if (__APPLE__) {
-      if (nativeView && nativeView.mason_innerHTML) {
+      // The getter returns "" until markup is set, so test for the property, not its value.
+      if (nativeView && 'mason_innerHTML' in nativeView) {
         nativeView.mason_innerHTML = value;
       }
     }
@@ -3560,16 +3561,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const native = this.nativeViewProtected;
     if (!native) return;
     const self = this as any;
-    NativeScript.Mason.Css.SetTransforms(
-      native,
-      typeof self.scaleX === 'number' ? self.scaleX : 1,
-      typeof self.scaleY === 'number' ? self.scaleY : 1,
-      self.rotate || 0,
-      self.translateX || 0,
-      self.translateY || 0,
-      self.originX ?? 0.5,
-      self.originY ?? 0.5,
-    );
+    NativeScript.Mason.Css.SetTransforms(native, typeof self.scaleX === 'number' ? self.scaleX : 1, typeof self.scaleY === 'number' ? self.scaleY : 1, self.rotate || 0, self.translateX || 0, self.translateY || 0, self.originX ?? 0.5, self.originY ?? 0.5);
   }
 
   animate(options: any) {
