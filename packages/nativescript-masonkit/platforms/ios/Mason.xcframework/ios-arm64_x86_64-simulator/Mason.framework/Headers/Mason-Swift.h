@@ -1629,6 +1629,11 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 + (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
 - (void)didAddSubview:(UIView * _Nonnull)subview;
 - (void)drawRect:(CGRect)rect;
+@property (nonatomic) BOOL isAccessibilityElement;
+@property (nonatomic, copy) NSString * _Nullable accessibilityLabel;
+@property (nonatomic) UIAccessibilityTraits accessibilityTraits;
+@property (nonatomic) UIAccessibilityExpandedStatus accessibilityExpandedStatus SWIFT_AVAILABILITY(ios,introduced=18.0);
+- (BOOL)accessibilityActivate SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
@@ -1846,7 +1851,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (NSUUID * _Nonnull)addEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
-/// Calls the listeners of <code>node</code>, then of each ancestor until propagation stops.
+/// Calls the listeners of <code>node</code>, then of each ancestor until propagation stops, then runs the
+/// click’s default action unless it was prevented.
 - (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
 @property (nonatomic, strong) MasonHTMLParser * _Nonnull htmlParser;
 - (void)clear;
@@ -1897,6 +1903,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
 @property (nonatomic, copy) NSString * _Nonnull mason_innerHTML;
+/// <details>/<summary>: 0 none, 1 details, 2 summary.
+@property (nonatomic) NSInteger mason_detailsRole;
+/// Whether a <details> is open. Set from code, it doesn’t dispatch “toggle”.
+@property (nonatomic) BOOL mason_detailsOpen;
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
@@ -3776,6 +3786,11 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 + (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
 - (void)didAddSubview:(UIView * _Nonnull)subview;
 - (void)drawRect:(CGRect)rect;
+@property (nonatomic) BOOL isAccessibilityElement;
+@property (nonatomic, copy) NSString * _Nullable accessibilityLabel;
+@property (nonatomic) UIAccessibilityTraits accessibilityTraits;
+@property (nonatomic) UIAccessibilityExpandedStatus accessibilityExpandedStatus SWIFT_AVAILABILITY(ios,introduced=18.0);
+- (BOOL)accessibilityActivate SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
@@ -3993,7 +4008,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (NSUUID * _Nonnull)addEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
-/// Calls the listeners of <code>node</code>, then of each ancestor until propagation stops.
+/// Calls the listeners of <code>node</code>, then of each ancestor until propagation stops, then runs the
+/// click’s default action unless it was prevented.
 - (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
 @property (nonatomic, strong) MasonHTMLParser * _Nonnull htmlParser;
 - (void)clear;
@@ -4044,6 +4060,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
 @property (nonatomic, copy) NSString * _Nonnull mason_innerHTML;
+/// <details>/<summary>: 0 none, 1 details, 2 summary.
+@property (nonatomic) NSInteger mason_detailsRole;
+/// Whether a <details> is open. Set from code, it doesn’t dispatch “toggle”.
+@property (nonatomic) BOOL mason_detailsOpen;
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
