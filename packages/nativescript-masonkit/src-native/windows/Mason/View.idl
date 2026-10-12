@@ -17,5 +17,13 @@ namespace NativeScript.Mason
         // Re-sync children and request a relayout (after mutating styles/children outside the
         // normal XAML invalidation path).
         void Invalidate();
+
+        // HTML <details>/<summary>: 0 none, 1 details, 2 summary. A closed details shows only its
+        // first summary. Tapping or invoking a summary toggles its details, which then raises
+        // "toggle" (data "open" or "closed"); setting Open from code doesn't.
+        Int32 Role;
+        Boolean Open;
+        // The <details> a summary heads, or null.
+        View Details{ get; };
     }
 }

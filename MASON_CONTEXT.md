@@ -1051,13 +1051,31 @@ notifies). Closed is `undefined`, not `false`: core's `[open]` matches any value
 null or undefined. While closed, every child but the first `<summary>` gets a local
 `display: none` (cleared on open); it also gets the `:open` pseudo-class and fires `toggle`
 (`oldState`/`newState`). Opening one closes the loaded `<details>` with the same `name`
-(module-level groups, joined on load). A `<summary>` tap toggles its parent. JS-only: the
-native HTML parsers' `details` elements don't toggle, and there's no disclosure marker.
+(module-level groups, joined on load). A `<summary>` tap toggles its parent.
 Tests: `details.spec.ts`.
+
+**Native (Windows; iOS/Android to follow the same contract).** Where the platform has it, the
+native view does the behaviour and JS only mirrors `open`:
+- `View.Role` (0 none, 1 details, 2 summary) is set in `initNativeView`; `View.Open` mirrors
+  `Details.open` (set from JS never raises an event).
+- A closed details hides every child but its first summary (`HideClosedContent`, through
+  `mason_leaf::SetHidden` with its own reason, so `display: none` and details don't undo each
+  other).
+- A summary tap, or UI Automation's Expand/Collapse/Invoke (`SummaryAutomationPeer`, a Button
+  with the ExpandCollapse pattern), toggles its details and dispatches `toggle` (data
+  `open`/`closed`) on it. JS listens and sets `open`, which runs the `[open]` restyle, `:open`,
+  the JS `toggle` event and `name` groups as above. JS skips its own tap and hiding there.
+- The summary's first text draws the disclosure marker inside (U+25B8 closed, U+25BE open;
+  `Text::SummaryMarker`) unless `list-style-type` is set to `none` (Bootstrap does); it's left
+  out of the accessible name, as list markers are.
+Without native support (iOS/Android today) the JS path above runs; the native HTML parsers'
+`details` elements don't toggle.
 
 On Windows, `display: none` collapses the element (`mason_leaf::SyncDisplay`, from every
 `SyncStyle`): Mason gave it an empty box but its XAML content still drew. A `ScrollViewer`
-host is collapsed in place of its content, and the parent re-syncs its Mason children.
+host is collapsed in place of its content, and the parent re-syncs its Mason children. Hiding
+goes through `SetHidden(target, reason, …)`: it shows again once no reason is left, and only if
+it was collapsed there (core's `visibility` is left alone).
 
 ## Backdrop Filter
 

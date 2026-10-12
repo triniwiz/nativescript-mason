@@ -242,6 +242,10 @@ declare namespace NativeScript.Mason {
     readonly Style: Style;
     readonly NodeKind: number;
     Invalidate(): void;
+    /** <details>/<summary>: 0 none, 1 details, 2 summary. */
+    Role: number;
+    Open: boolean;
+    readonly Details: View | null;
   }
 
   // Text leaf — hosts a TextBlock; Mason text node sized from the text's natural size.

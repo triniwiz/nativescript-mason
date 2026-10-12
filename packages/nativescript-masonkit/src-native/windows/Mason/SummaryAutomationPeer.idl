@@ -1,0 +1,12 @@
+import "View.idl";
+
+namespace NativeScript.Mason
+{
+    // A <summary> as UI Automation sees it: a button that expands or collapses its <details>.
+    [default_interface]
+    runtimeclass SummaryAutomationPeer : Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer,
+        Microsoft.UI.Xaml.Automation.Provider.IExpandCollapseProvider, Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider
+    {
+        SummaryAutomationPeer(View owner);
+    }
+}

@@ -1286,7 +1286,7 @@ namespace winrt::NativeScript::Mason::implementation
             CollapseFlowSpaces(next);
             SyncBoxNodes(next);
         }
-        m_insideMarker = m_listItem && !m_inlineOwner ? InsideMarker() : std::wstring{};
+        m_insideMarker = m_inlineOwner ? std::wstring{} : m_listItem ? InsideMarker() : SummaryMarker();
         if (!m_insideMarker.empty())
         {
             BuiltRun marker;
@@ -1758,6 +1758,8 @@ namespace winrt::NativeScript::Mason::implementation
     winrt::hstring Text::AccessibleText() const
     {
         std::wstring text = m_measureCache->paragraph.text;
+        // A marker (list bullet, summary triangle) isn't part of the accessible name.
+        if (!m_insideMarker.empty() && text.starts_with(m_insideMarker)) text.erase(0, m_insideMarker.size());
         std::erase_if(text, [](wchar_t ch) { return ch == L'\uFFFC' || ch == mason_hyphen::kSoftHyphen || ch == mason_hyphen::kWordJoiner; });
         return winrt::hstring{ text };
     }
@@ -1801,6 +1803,29 @@ namespace winrt::NativeScript::Mason::implementation
         if (!set) position = byteOf(listNode, 316, 318, set);
         inside = position == 1;
         return true;
+    }
+
+    // A <summary> is `display: list-item` with a disclosure marker, drawn inside before its first
+    // text: a right-pointing triangle while its details is closed, a down-pointing one when open.
+    // `list-style-type: none` (as Bootstrap sets) leaves it off.
+    std::wstring Text::SummaryMarker() const
+    {
+        auto parent = Parent().try_as<nsm::View>();
+        if (!parent || parent.Role() != 2) return {};
+        for (auto const& child : parent.Children())
+        {
+            if (auto text = child.try_as<nsm::Text>())
+            {
+                if (winrt::get_self<Text>(text) != this) return {};
+                break;
+            }
+        }
+        uint32_t size = 0;
+        const uint8_t* d = winrt::get_self<implementation::Node>(parent.as<nsm::IMasonElement>().Node())->StyleData(size);
+        if (d && size > 319 && d[319] != 0 && d[317] == 0) return {};
+        auto details = parent.Details();
+        constexpr wchar_t kOpen = 0x25BE, kClosed = 0x25B8; // disclosure-open, disclosure-closed
+        return std::wstring{ details && details.Open() ? kOpen : kClosed, L' ' };
     }
 
     std::wstring Text::InsideMarker() const
@@ -1943,6 +1968,8 @@ namespace winrt::NativeScript::Mason::implementation
         ArrangeBoxes();
         mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         if (m_listItem || m_marker) SyncMarker(finalSize);
+        // A summary's text can be built before it's placed in the summary.
+        else if (!m_inlineOwner && SummaryMarker() != m_insideMarker) RequestRebuild();
         return finalSize;
     }
 
