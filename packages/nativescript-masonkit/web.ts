@@ -326,6 +326,56 @@ function nativeOf(view: any): any {
 }
 
 /**
+ * Where the native view does `<details>` itself (role + open): it hides the closed content, turns
+ * the summary's marker, answers accessibility and toggles on a summary tap, reporting "toggle".
+ */
+const NATIVE_DETAILS = __WINDOWS__ || __APPLE__ || __ANDROID__;
+
+declare const kotlin: any;
+
+const enum DetailsRole {
+  Details = 1,
+  Summary = 2,
+}
+
+function setNativeRole(native: any, role: DetailsRole) {
+  if (__WINDOWS__) native.Role = role;
+  else if (__APPLE__) native.mason_detailsRole = role;
+  else if (__ANDROID__) native.setDetailsRole(role);
+}
+
+function setNativeOpen(native: any, open: boolean) {
+  if (__WINDOWS__) native.Open = open;
+  else if (__APPLE__) native.mason_detailsOpen = open;
+  else if (__ANDROID__) native.setDetailsOpen(open);
+}
+
+function isNativeOpen(native: any): boolean {
+  if (__WINDOWS__) return !!native.Open;
+  if (__APPLE__) return !!native.mason_detailsOpen;
+  if (__ANDROID__) return !!native.getDetailsOpen();
+  return false;
+}
+
+/** Calls `callback` on the native "toggle" event; returns what removes it. */
+function onNativeToggle(native: any, callback: () => void): () => void {
+  if (__WINDOWS__) {
+    const listener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', callback);
+    const id = masonEngine().AddEventListener(native, 'toggle', listener);
+    return () => masonEngine().RemoveEventListener(native, 'toggle', id);
+  }
+  if (__APPLE__) {
+    const id = native.mason_addEventListener('toggle', callback);
+    return () => native.mason_removeEventListenerId('toggle', id);
+  }
+  if (__ANDROID__) {
+    const id = native.addEventListener('toggle', new kotlin.jvm.functions.Function1({ invoke: callback }));
+    return () => native.removeEventListener('toggle', id);
+  }
+  return () => {};
+}
+
+/**
  * `<details>`: shows only its first `<summary>` until it's open. `open` is a real property, so
  * `details[open]` rules restyle whenever it changes (a plain attribute never notifies core), and
  * the element also matches `:open`. Opening one closes the others that share its `name`, which is
@@ -363,30 +413,26 @@ export class Details extends BlockElement {
     if (this.name) detailsGroup(this.name).add(this);
   }
 
-  // Windows draws <details> natively (View.Role): it hides the closed content, turns the
-  // summary's marker, answers UI Automation and toggles on a summary tap, reporting "toggle".
-  private _toggleListener: any;
-  private _toggleId = 0;
+  private _removeToggleListener: (() => void) | undefined;
 
   initNativeView() {
     super.initNativeView();
-    if (!__WINDOWS__) return;
+    if (!NATIVE_DETAILS) return;
     const native = nativeOf(this);
     if (!native) return;
-    native.Role = 1;
-    native.Open = !!this.open;
+    setNativeRole(native, DetailsRole.Details);
+    setNativeOpen(native, !!this.open);
     const ref = new WeakRef(this);
-    this._toggleListener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', () => {
+    this._removeToggleListener = onNativeToggle(native, () => {
       const owner = ref.deref();
-      if (owner) owner.open = nativeOf(owner)?.Open ? true : undefined;
+      const ownerNative = nativeOf(owner);
+      if (owner && ownerNative) owner.open = isNativeOpen(ownerNative) ? true : undefined;
     });
-    this._toggleId = masonEngine().AddEventListener(native, 'toggle', this._toggleListener);
   }
 
   disposeNativeView() {
-    if (__WINDOWS__ && this._toggleId) masonEngine().RemoveEventListener(nativeOf(this), 'toggle', this._toggleId);
-    this._toggleId = 0;
-    this._toggleListener = undefined;
+    this._removeToggleListener?.();
+    this._removeToggleListener = undefined;
     super.disposeNativeView();
   }
 
@@ -397,7 +443,7 @@ export class Details extends BlockElement {
 
   /** Hides everything but the summary while closed, as the details' content slot does. */
   _syncContent() {
-    if (__WINDOWS__) return;
+    if (NATIVE_DETAILS) return;
     const summary: unknown = this.summary;
     for (const child of this._children) {
       if (!(child instanceof ViewBase)) continue;
@@ -422,9 +468,9 @@ export class Details extends BlockElement {
     } else {
       this.deletePseudoClass('open');
     }
-    if (__WINDOWS__) {
+    if (NATIVE_DETAILS) {
       const native = nativeOf(this);
-      if (native) native.Open = newValue;
+      if (native) setNativeOpen(native, newValue);
     }
     this._syncContent();
     this.notify({ eventName: 'toggle', object: this, oldState: oldValue ? 'open' : 'closed', newState: newValue ? 'open' : 'closed' } as never);
@@ -442,16 +488,14 @@ export class Details extends BlockElement {
 export class Summary extends BlockElement {
   constructor() {
     super();
-    // Windows handles the tap natively.
-    if (!__WINDOWS__) this.on('tap', () => this._activate());
+    // The native view handles the tap itself.
+    if (!NATIVE_DETAILS) this.on('tap', () => this._activate());
   }
 
   initNativeView() {
     super.initNativeView();
-    if (__WINDOWS__) {
-      const native = nativeOf(this);
-      if (native) native.Role = 2;
-    }
+    const native = NATIVE_DETAILS ? nativeOf(this) : null;
+    if (native) setNativeRole(native, DetailsRole.Summary);
   }
 
   /** What a tap does: opens or closes the `<details>` this is the summary of. */

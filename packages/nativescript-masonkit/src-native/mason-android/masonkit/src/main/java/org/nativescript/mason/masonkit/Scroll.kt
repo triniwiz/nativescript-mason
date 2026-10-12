@@ -101,6 +101,15 @@ class Scroll @JvmOverloads constructor(
     Node.invalidateDescendantTextViews(node, low, high)
   }
 
+  // A <summary> reads as a button that expands or collapses its details (see Details).
+  override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
+    super.onInitializeAccessibilityNodeInfo(info)
+    Details.onInitializeAccessibilityNodeInfo(this, info)
+  }
+
+  override fun performAccessibilityAction(action: Int, arguments: android.os.Bundle?): Boolean =
+    Details.performAccessibilityAction(this, action, arguments) || super.performAccessibilityAction(action, arguments)
+
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach {
       it.shader = null

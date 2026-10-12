@@ -42,19 +42,33 @@ interface Element : EventTarget {
 
   override fun addEventListener(type: String, listener: (Event) -> Unit): UUID {
     val id = node.mason.addEventListener(node, type, listener)
-    if (type == "click" && !node.hasNativeClickDispatch) {
-      node.hasNativeClickDispatch = true
-      view.isClickable = true
-      view.setOnClickListener {
-        dispatch(
-          Event(type = "click").apply {
-            target = this@Element
-          }
-        )
-      }
-    }
+    if (type == "click") ensureNativeClickDispatch()
     return id
   }
+
+  /** Dispatches "click" on a tap from now on. */
+  fun ensureNativeClickDispatch() {
+    if (node.hasNativeClickDispatch) return
+    node.hasNativeClickDispatch = true
+    view.isClickable = true
+    view.setOnClickListener {
+      dispatch(
+        Event(type = "click").apply {
+          target = this@Element
+        }
+      )
+    }
+  }
+
+  /** <details>/<summary>: 0 none, 1 details, 2 summary. */
+  var detailsRole: Int
+    get() = node.detailsRole
+    set(value) = Details.setRole(this, value)
+
+  /** Whether a <details> is open. Set from code, it doesn't dispatch "toggle". */
+  var detailsOpen: Boolean
+    get() = node.detailsOpen
+    set(value) = Details.setOpen(this, value)
 
   // Reconstructs the two 64-bit dirty-mask halves from four signed 32-bit
   // words (see style.ts's splitBigIntToInt32Parts), avoiding a decimal-string
@@ -1044,6 +1058,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // Skip positioning — the root is sized by its parent.
         } else {
           if (view.isGone) return@let
+          if (node.detailsHidden || node.layoutParent?.detailsRole == Details.DETAILS) Details.syncVisibility(node, view)
 
           var overflowX = Overflow.Visible.value
           var overflowY = Overflow.Visible.value

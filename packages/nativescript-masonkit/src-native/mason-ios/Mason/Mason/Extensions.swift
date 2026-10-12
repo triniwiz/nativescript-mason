@@ -455,6 +455,30 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
       return element.innerHTML
     }
   }
+
+  /// <details>/<summary>: 0 none, 1 details, 2 summary.
+  @objc
+  public var mason_detailsRole: Int {
+    set {
+      guard let element = self as? MasonElement else { return }
+      MasonDetails.setRole(element.node, newValue)
+    }
+    get {
+      return (self as? MasonElement)?.node.detailsRole ?? 0
+    }
+  }
+
+  /// Whether a <details> is open. Set from code, it doesn't dispatch "toggle".
+  @objc
+  public var mason_detailsOpen: Bool {
+    set {
+      guard let element = self as? MasonElement else { return }
+      MasonDetails.setOpen(element.node, newValue)
+    }
+    get {
+      return (self as? MasonElement)?.node.detailsOpen ?? false
+    }
+  }
   
   @discardableResult
   @objc public func mason_addEventListener(_ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {

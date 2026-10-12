@@ -190,7 +190,8 @@ public class NSCMason: NSObject {
   }
   
 
-  /// Calls the listeners of `node`, then of each ancestor until propagation stops.
+  /// Calls the listeners of `node`, then of each ancestor until propagation stops, then runs the
+  /// click's default action unless it was prevented.
   public func dispatch(_ event: MasonEvent, _ node: MasonNode) {
       var current: MasonNode? = node
       while let target = current, !event.propagationStopped {
@@ -201,6 +202,9 @@ public class NSCMason: NSObject {
               }
           }
           current = target.parent
+      }
+      if event.type == "click" && !event.defaultPrevented {
+          MasonDetails.activate(from: node)
       }
   }
 

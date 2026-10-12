@@ -105,6 +105,9 @@ public class NativeHelpers {
   @CriticalNative
   static native void nativeNodeMarkDirty(long mason, long node);
 
+  // <details>/<summary> role (0 none, 1 details, 2 summary) and whether a details is open.
+  static native void nativeNodeSetDetails(long mason, long node, int role, boolean open);
+
   @CriticalNative
   static native boolean nativeNodeDirty(long mason, long node);
 

@@ -20,8 +20,13 @@ public class HTMLParser: NSObject {
 
   // MARK: - Public API
 
+  // MasonNode.view is weak: the views made by the last parse live here until something attaches
+  // them, or a root's view (nothing else holds it) is gone before it can be added.
+  private var created: [UIView] = []
+
   /// Parses an HTML string and returns a list of root-level MasonElement/MasonNode children.
   public func parse(_ html: String) -> [MasonNode] {
+    created.removeAll()
     let tokens = tokenize(html)
     return buildTree(tokens)
   }
@@ -29,6 +34,7 @@ public class HTMLParser: NSObject {
   /// Parses HTML and appends resulting children to the given element.
   public func parseInto(_ html: String, element: MasonElement) {
     let children = parse(html)
+    defer { created.removeAll() }
     // `innerHTML =` replaces the content, it does not add to it. This used to
     // only append, so assigning twice concatenated instead of replacing.
     element.node.removeAllChildren()
@@ -279,6 +285,7 @@ public class HTMLParser: NSObject {
         } else {
           // Top-level text — wrap in a text container
           let textView = mason.createTextView(type: .Span)
+          created.append(textView)
           let textNode = MasonTextNode(mason: mason, data: trimmed)
           textView.node.appendChild(textNode)
           roots.append(textView.node)
@@ -364,6 +371,7 @@ public class HTMLParser: NSObject {
         img.src = src
       }
       applyAttributes(attributes, to: img)
+      created.append(img)
       return img.node
 
     // Scroll
@@ -386,6 +394,16 @@ public class HTMLParser: NSObject {
     default:
       // Unknown tags become generic views
       element = mason.createView()
+    }
+
+    created.append(element.uiView)
+
+    if name == "details" {
+      MasonDetails.setRole(element.node, MasonDetails.details)
+      // A boolean attribute: present means open.
+      if attributes["open"] != nil { MasonDetails.setOpen(element.node, true) }
+    } else if name == "summary" {
+      MasonDetails.setRole(element.node, MasonDetails.summary)
     }
 
     applyAttributes(attributes, to: element)

@@ -440,6 +440,15 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       else -> mason.createView(context)
     }
 
+    when (name) {
+      "details" -> {
+        Details.setRole(element, Details.DETAILS)
+        // A boolean attribute: present means open.
+        if (attributes.containsKey("open")) Details.setOpen(element, true)
+      }
+      "summary" -> Details.setRole(element, Details.SUMMARY)
+    }
+
     applyAttributes(attributes, element)
     return element.node
   }

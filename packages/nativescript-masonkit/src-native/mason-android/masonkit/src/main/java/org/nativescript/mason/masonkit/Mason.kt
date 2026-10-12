@@ -254,6 +254,10 @@ class Mason {
         listener(event)
       }
     }
+    // The click's default action, unless it was prevented.
+    if (event.type == "click" && !event.defaultPrevented) {
+      event.target?.node?.let { Details.activate(it) }
+    }
   }
 
   @JvmOverloads
