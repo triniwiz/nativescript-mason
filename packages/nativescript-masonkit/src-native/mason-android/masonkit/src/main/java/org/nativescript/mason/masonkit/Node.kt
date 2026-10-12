@@ -21,7 +21,9 @@ object NodeStateKeys {
 
   // two bytes reserved for pseudo state bitmask (u16)
   const val PSEUDO_FLAGS_INDEX = 3
-  const val NODE_STATE_BUFFER_SIZE = 5
+  // 1 while a closed <details> hides the node.
+  const val IS_HIDDEN = 5
+  const val NODE_STATE_BUFFER_SIZE = 6
 }
 
 enum class PseudoState(val mask: Int) {
@@ -67,6 +69,12 @@ open class Node internal constructor(
   internal var lastRootWidthArg = Float.MIN_VALUE
   internal var lastRootHeightArg = Float.MIN_VALUE
   internal var hasNativeClickDispatch = false
+  // <details>/<summary> (see Details): 0 none, 1 details, 2 summary.
+  internal var detailsRole = 0
+  internal var detailsOpen = false
+  // Whether Details last hid this node's view, and the visibility it had before.
+  internal var detailsHidden = false
+  internal var visibilityBeforeDetails = android.view.View.VISIBLE
   internal var isPlaceholder = false
   internal var isImage = false
 

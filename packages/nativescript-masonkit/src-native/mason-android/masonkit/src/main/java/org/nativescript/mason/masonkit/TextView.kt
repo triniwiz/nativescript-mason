@@ -708,7 +708,10 @@ open class TextView @JvmOverloads constructor(
 
   /** The text for accessibility and autofill, without inline-box placeholders. */
   private fun readableText(): CharSequence {
-    val text = currentText
+    var text = currentText
+    // A marker (list bullet, summary triangle) isn't part of the accessible name.
+    val marker = engine.insideMarker
+    if (marker.isNotEmpty() && text.startsWith(marker)) text = text.subSequence(marker.length, text.length)
     return if (text.indexOf('\uFFFC') >= 0) text.toString().replace("\uFFFC", "") else text
   }
 

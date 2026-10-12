@@ -959,7 +959,7 @@ class MasonElementHelpers: NSObject {
       // native view is built lazily), so reassert it here where every laid-out
       // node passes through — otherwise a hidden subtree keeps painting at
       // whatever frame it last had, on top of the content that replaced it.
-      let hidden = node.style.display == .None
+      let hidden = node.style.display == .None || MasonDetails.isHidden(node)
       if view.isHidden != hidden {
         view.isHidden = hidden
       }

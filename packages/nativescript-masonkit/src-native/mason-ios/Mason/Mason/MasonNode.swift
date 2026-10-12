@@ -249,6 +249,9 @@ public class MasonNode: NSObject {
   /// NativeScript can read this to skip redundant layout passes for Mason-managed children.
   @objc public var isLayoutValid: Bool = false
   internal var hasClickGesture: Bool = false
+  // <details>/<summary> (see MasonDetails): 0 none, 1 details, 2 summary.
+  internal var detailsRole = 0
+  internal var detailsOpen = false
 
   // Layout state of this node's element. The MasonElement protocol can't hold
   // stored properties, and associated objects cost a locked global lookup per access.

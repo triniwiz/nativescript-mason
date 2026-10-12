@@ -1300,6 +1300,8 @@ public class MasonStyle: NSObject {
       setInt8(StyleKeys.LIST_STYLE_TYPE, newValue.rawValue)
       setInt8(StyleKeys.LIST_STYLE_TYPE_STATE, Int8(StyleState.SET))
       setOrAppendState(.listStyleType)
+      // A summary's marker is text in its first child, built before this rule may have arrived.
+      if node.detailsRole == MasonDetails.summary { MasonDetails.refreshMarker(node) }
     }
   }
   
@@ -2377,7 +2379,7 @@ public class MasonStyle: NSObject {
       // `display: none` gives the subtree a zero-sized layout, but a
       // zero-sized UIView still draws unclipped. Take it out of the render
       // tree to match.
-      node.view?.isHidden = newValue == .None
+      node.view?.isHidden = newValue == .None || MasonDetails.isHidden(node)
     }
   }
   

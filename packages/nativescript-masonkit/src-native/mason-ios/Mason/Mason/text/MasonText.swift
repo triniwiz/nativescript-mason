@@ -730,7 +730,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   private var accessibilityElementOverride: Bool?
 
   private var accessibilityText: String {
-    let text = engine.buildAttributedString().string.replacingOccurrences(of: "\u{FFFC}", with: "")
+    var text = engine.buildAttributedString().string.replacingOccurrences(of: "\u{FFFC}", with: "")
+    // A marker (list bullet, summary triangle) isn't part of the accessible name.
+    let marker = engine.insideMarker
+    if !marker.isEmpty, text.hasPrefix(marker) { text.removeFirst(marker.count) }
     return text.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 

@@ -1054,22 +1054,44 @@ null or undefined. While closed, every child but the first `<summary>` gets a lo
 (module-level groups, joined on load). A `<summary>` tap toggles its parent.
 Tests: `details.spec.ts`.
 
-**Native (Windows; iOS/Android to follow the same contract).** Where the platform has it, the
-native view does the behaviour and JS only mirrors `open`:
-- `View.Role` (0 none, 1 details, 2 summary) is set in `initNativeView`; `View.Open` mirrors
-  `Details.open` (set from JS never raises an event).
-- A closed details hides every child but its first summary (`HideClosedContent`, through
-  `mason_leaf::SetHidden` with its own reason, so `display: none` and details don't undo each
-  other).
-- A summary tap, or UI Automation's Expand/Collapse/Invoke (`SummaryAutomationPeer`, a Button
-  with the ExpandCollapse pattern), toggles its details and dispatches `toggle` (data
-  `open`/`closed`) on it. JS listens and sets `open`, which runs the `[open]` restyle, `:open`,
-  the JS `toggle` event and `name` groups as above. JS skips its own tap and hiding there.
-- The summary's first text draws the disclosure marker inside (U+25B8 closed, U+25BE open;
-  `Text::SummaryMarker`) unless `list-style-type` is set to `none` (Bootstrap does); it's left
+**Native (all three platforms).** The native view does the behaviour and JS only mirrors `open`
+(`web.ts` `NATIVE_DETAILS`; the JS path above runs only without a platform, as in vitest):
+- The role (0 none, 1 details, 2 summary) is set in `initNativeView` and `open` mirrors
+  `Details.open`; set from JS, neither raises an event. Windows: `View.Role`/`View.Open`. iOS:
+  `mason_detailsRole`/`mason_detailsOpen` on any Mason element (`MasonDetails`, `Details.swift`).
+  Android: `Element.detailsRole`/`detailsOpen` (`Details.kt`).
+- A closed details hides every child but its first summary, with its own reason, so
+  `display: none` and details don't undo each other. Windows: `HideClosedContent` through
+  `mason_leaf::SetHidden`. iOS/Android: mason-core (`Mason::set_details`, FFI
+  `mason_node_set_details` / `NativeHelpers.nativeNodeSetDetails`). Before each layout pass
+  `Tree::sync_details` marks those children `Style::hidden` (`get_display()` reports `None`, the
+  style buffer keeps the author's value) and writes `NodeStateKeys::IS_HIDDEN` (state byte 5).
+  Whatever a details stops hiding (opened, moved out, role cleared) is shown again. After layout,
+  iOS `applyToView` and the `display` setter treat that byte like `display: none` (`isHidden`).
+  Android's `applyLayoutFlat` calls `Details.syncVisibility`, which sets INVISIBLE and on show puts
+  back the visibility from before.
+- A summary tap, or the screen reader's action, toggles its details and dispatches `toggle` on
+  it. JS listens and sets `open`, which runs the `[open]` restyle, `:open`, the JS `toggle` event
+  and `name` groups as above. JS skips its own tap and hiding there. Windows: Tapped, and UI
+  Automation's Expand/Collapse/Invoke (`SummaryAutomationPeer`, a Button with the ExpandCollapse
+  pattern). iOS/Android: the toggle is the default action of `click`, run after dispatch unless
+  `preventDefault()` was called (`NSCMason.dispatch` / `Mason.dispatch`). It walks up from the
+  target to the summary and stops at a link, button or input. A summary gets a click recognizer
+  / `OnClickListener` when its role is set. Accessibility: iOS makes the summary one button
+  (`MasonUIView`: label from its text, `accessibilityExpandedStatus` on iOS 18+,
+  `accessibilityActivate`). Android sets Button class and EXPAND/COLLAPSE actions, plus
+  `expandedState` (API 36) or `stateDescription` (API 30+), in `View`/`Scroll`
+  `onInitializeAccessibilityNodeInfo`. That's an override, not a delegate: core replaces
+  delegates.
+- The summary's first text draws the disclosure marker inside (U+25B8 closed, U+25BE open)
+  unless `list-style-type` is set to `none` (Bootstrap does). Windows: `Text::SummaryMarker`.
+  iOS/Android: the list `insideMarker` path (`MasonDetails.marker` / `Details.marker`). It's left
   out of the accessible name, as list markers are.
-Without native support (iOS/Android today) the JS path above runs; the native HTML parsers'
-`details` elements don't toggle.
+- The native HTML parsers set the roles and `open` for `<details>`/`<summary>`, so parsed markup
+  toggles too. `name` groups are JS-only.
+- Un-applying `[open]`/`:open` rules relies on `style.ts` treating a reset (`undefined`) of
+  `color`/`background-color` as unset (state 0) on every platform. It used to keep the old value
+  everywhere but Windows.
 
 On Windows, `display: none` collapses the element (`mason_leaf::SyncDisplay`, from every
 `SyncStyle`): Mason gave it an empty box but its XAML content still drew. A `ScrollViewer`

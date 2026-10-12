@@ -266,6 +266,39 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
 
+  // MARK: Accessibility
+  // A <summary> reads as one button named by its text, expanded or collapsed with its details.
+  private var isSummary: Bool { node.detailsRole == MasonDetails.summary }
+
+  public override var isAccessibilityElement: Bool {
+    get { isSummary || super.isAccessibilityElement }
+    set { super.isAccessibilityElement = newValue }
+  }
+
+  public override var accessibilityLabel: String? {
+    get { super.accessibilityLabel ?? (isSummary ? MasonDetails.accessibleName(self) : nil) }
+    set { super.accessibilityLabel = newValue }
+  }
+
+  public override var accessibilityTraits: UIAccessibilityTraits {
+    get { isSummary ? super.accessibilityTraits.union(.button) : super.accessibilityTraits }
+    set { super.accessibilityTraits = newValue }
+  }
+
+  @available(iOS 18.0, *)
+  public override var accessibilityExpandedStatus: UIAccessibility.ExpandedStatus {
+    get {
+      guard isSummary, let details = MasonDetails.details(of: node) else { return super.accessibilityExpandedStatus }
+      return details.detailsOpen ? .expanded : .collapsed
+    }
+    set { super.accessibilityExpandedStatus = newValue }
+  }
+
+  public override func accessibilityActivate() -> Bool {
+    if isSummary, MasonDetails.toggle(summary: node) { return true }
+    return super.accessibilityActivate()
+  }
+
   private func drawListItemMarkers(in context: CGContext) {
     var position = 0
     for sv in subviews {
@@ -306,7 +339,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
 
   /// Leading text for the item's `inside` marker, drawn in its own font, or "" when it has none.
   internal static func insideMarker(for item: MasonText) -> String {
-    guard item.type == .Li, let list = item.node.parent else { return "" }
+    guard item.type == .Li else { return MasonDetails.marker(for: item) }
+    guard let list = item.node.parent else { return "" }
     guard isInside(list: list.style, item: item) else { return "" }
     var index = 1
     for child in list.children {

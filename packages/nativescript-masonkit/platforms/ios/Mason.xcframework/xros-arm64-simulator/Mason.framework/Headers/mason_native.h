@@ -209,6 +209,18 @@ struct CMasonNode *mason_node_new_list_item_node_with_context(struct CMason *mas
 void *mason_node_layout(struct CMason *mason, struct CMasonNode *node, void *(*layout)(const float*,
                                                                                        uintptr_t));
 
+/**
+ * 0 horizontal-tb, 1 vertical-rl, 2 vertical-lr.
+ */
+uint8_t mason_node_get_writing_mode(struct CMason *mason, struct CMasonNode *node);
+
+uint8_t mason_node_get_direction(struct CMason *mason, struct CMasonNode *node);
+
+void mason_node_get_unrounded_size(struct CMason *mason,
+                                   struct CMasonNode *node,
+                                   float *width,
+                                   float *height);
+
 void *mason_node_layout_shallow(struct CMason *mason,
                                 struct CMasonNode *node,
                                 void *(*layout)(const float*, uintptr_t));
@@ -316,6 +328,11 @@ bool mason_node_dirty(struct CMason *mason, struct CMasonNode *node);
 void mason_node_mark_dirty(struct CMason *mason, struct CMasonNode *node);
 
 void mason_node_set_pseudo_states(struct CMason *mason, struct CMasonNode *node, uint16_t flags);
+
+/**
+ * `<details>`/`<summary>` role (0 none, 1 details, 2 summary) and whether a details is open.
+ */
+void mason_node_set_details(struct CMason *mason, struct CMasonNode *node, uint8_t role, bool open);
 
 uint16_t mason_node_get_pseudo_states(struct CMason *mason, struct CMasonNode *node);
 
@@ -520,6 +537,10 @@ void mason_style_set_box_size(struct CMason *mason,
 void mason_style_prepare_style_for_mut(struct CMason *mason, struct CMasonNode *node);
 
 void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
+
+const uint8_t *mason_style_get_style_data(struct CMason *mason,
+                                          struct CMasonNode *node,
+                                          uintptr_t *out_len);
 
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 

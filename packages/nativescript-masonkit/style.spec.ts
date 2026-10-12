@@ -393,6 +393,27 @@ describe('Windows CSS-string shorthands', () => {
   });
 });
 
+describe('resetting a color', () => {
+  // Core resets a property to undefined when its rule stops matching (`details[open] summary`,
+  // leaving :active); the native side must see it unset, not keep the old value.
+  it('unsets color, which then inherits', () => {
+    const t = styleUnderTest();
+    t.style.color = '#ff0000';
+    expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(1);
+    (t.style as any).color = undefined;
+    expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(0);
+  });
+
+  it('unsets background-color, which goes transparent', () => {
+    const t = styleUnderTest();
+    t.style.backgroundColor = '#ff0000';
+    expect(t.getInt8(K.BACKGROUND_COLOR_STATE)).toBe(1);
+    (t.style as any).backgroundColor = undefined;
+    expect(t.getInt8(K.BACKGROUND_COLOR_STATE)).toBe(0);
+    expect(t.getInt32(K.BACKGROUND_COLOR)).toBe(0);
+  });
+});
+
 describe('text-decoration parsing', () => {
   const px = (token: string) => (/^\d+px$/.test(token) ? parseFloat(token) : undefined);
 

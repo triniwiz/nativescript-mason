@@ -32,6 +32,7 @@ pub use crate::node::InlineSegment;
 use crate::style::arena::{ArenaStats, StyleHandle, STYLE_BUFFER_SIZE};
 pub use crate::style::Style;
 pub use node::NodeRef;
+pub use node::{DETAILS_ROLE_DETAILS, DETAILS_ROLE_NONE, DETAILS_ROLE_SUMMARY};
 
 pub mod style;
 mod tree;
@@ -1064,6 +1065,17 @@ impl Mason {
 
     pub fn mark_dirty(&mut self, node: Id) {
         self.0.mark_dirty(node)
+    }
+
+    /// `<details>`/`<summary>` role (`node::DETAILS_ROLE_*`) and, for a details, whether it's
+    /// open. A closed details lays out only its first summary.
+    pub fn set_details(&mut self, node: Id, role: u8, open: bool) {
+        self.0.set_details(node, role, open)
+    }
+
+    /// Whether a closed `<details>` hides this node (as of the last layout pass).
+    pub fn is_hidden(&self, node: Id) -> bool {
+        self.0.nodes().get(node).is_some_and(|n| n.is_hidden())
     }
 
     /// Set the pseudo-state bitmask for a node and mark it dirty.

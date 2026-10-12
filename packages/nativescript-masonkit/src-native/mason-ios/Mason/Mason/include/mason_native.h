@@ -329,6 +329,11 @@ void mason_node_mark_dirty(struct CMason *mason, struct CMasonNode *node);
 
 void mason_node_set_pseudo_states(struct CMason *mason, struct CMasonNode *node, uint16_t flags);
 
+/**
+ * `<details>`/`<summary>` role (0 none, 1 details, 2 summary) and whether a details is open.
+ */
+void mason_node_set_details(struct CMason *mason, struct CMasonNode *node, uint8_t role, bool open);
+
 uint16_t mason_node_get_pseudo_states(struct CMason *mason, struct CMasonNode *node);
 
 bool mason_node_has_pseudo_state(struct CMason *mason, struct CMasonNode *node, uint16_t flag);

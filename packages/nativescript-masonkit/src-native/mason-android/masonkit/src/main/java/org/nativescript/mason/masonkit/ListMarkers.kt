@@ -50,7 +50,7 @@ internal object ListMarkers {
 
   /** Leading text for [item]'s `inside` marker, drawn in its own font, or "" when it has none. */
   fun insideMarker(item: TextView): String {
-    if (item.type != TextType.Li) return ""
+    if (item.type != TextType.Li) return Details.marker(item)
     val list = item.node.parent ?: return ""
     if (!isInside(list.style, item)) return ""
     var index = 1

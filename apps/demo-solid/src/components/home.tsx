@@ -74,6 +74,14 @@ const FEATURES = [
     count: 'Playground',
   },
   {
+    id: 'Details',
+    label: 'Details',
+    desc: 'details/summary: toggling, name groups, toggle events',
+    bg: '#0984e3',
+    glyph: 'Dt',
+    count: 'Playground',
+  },
+  {
     id: 'QA',
     label: 'QA Harness',
     desc: 'Scroll-auto, backdrop-filter & stress tests',

@@ -1,4 +1,4 @@
-use crate::node::{drain_deferred_cleanup, InlineMeasureCache, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis};
+use crate::node::{drain_deferred_cleanup, InlineMeasureCache, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis, DETAILS_ROLE_DETAILS, DETAILS_ROLE_SUMMARY};
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
@@ -80,6 +80,8 @@ pub(crate) struct TreeInner {
     /// length of vertical text whose height is otherwise indefinite.
     pub(crate) viewport_height: Option<f32>,
     pub(crate) uid: u64,
+    // Each <details> (see `Tree::sync_details`) with the children it hid on the last sync.
+    pub(crate) details: Vec<(Id, Vec<Id>)>,
 }
 
 impl TreeInner {
@@ -101,6 +103,7 @@ impl TreeInner {
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
+            details: Vec::new(),
         }
     }
 
@@ -122,6 +125,7 @@ impl TreeInner {
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
+            details: Vec::new(),
         }
     }
 
@@ -1067,6 +1071,8 @@ impl Tree {
         // earlier because the tree lock was contended.
         drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue(), &self.2);
 
+        self.sync_details();
+
         // Hold both locks for the whole pass so its many short-lived guards skip the atomics.
         let (tree_lock, data_lock) = (Arc::clone(&self.0), Arc::clone(&self.2));
         // SAFETY: `raw()` is only used to begin and end the pass; the guard is dropped last.
@@ -1677,6 +1683,67 @@ impl Tree {
 
             Tree::mark_dirty_inner(&mut tree, node);
         }
+    }
+
+    /// Sets a node's `<details>`/`<summary>` role and whether a details is open. The content is
+    /// shown or hidden on the next layout pass.
+    pub fn set_details(&mut self, node: Id, role: u8, open: bool) {
+        let mut tree = self.0.write();
+        let Some(n) = tree.nodes.get_mut(node) else { return };
+        if n.details_role == role && n.details_open == open {
+            return;
+        }
+        n.details_role = role;
+        n.details_open = open;
+        if role == DETAILS_ROLE_DETAILS && !tree.details.iter().any(|(id, _)| *id == node) {
+            tree.details.push((node, Vec::new()));
+        }
+        Self::mark_dirty_inner(&mut tree, node);
+    }
+
+    /// A closed details lays out only its first summary: every other child generates no box, as
+    /// with `display: none`, without touching its style. What a details no longer hides (it
+    /// opened, the child moved out, or it stopped being a details) is shown again.
+    fn sync_details(&mut self) {
+        let mut tree = self.0.write();
+        if tree.details.is_empty() {
+            return;
+        }
+        let entries = std::mem::take(&mut tree.details);
+        let mut next = Vec::with_capacity(entries.len());
+        let mut previous = Vec::new();
+        for (id, hid) in entries {
+            previous.extend(hid);
+            let Some(n) = tree.nodes.get(id) else { continue };
+            if n.details_role != DETAILS_ROLE_DETAILS {
+                continue;
+            }
+            let mut hide = Vec::new();
+            if !n.details_open {
+                if let Some(children) = tree.children.get(id) {
+                    let summary = children.iter().copied().find(|c| {
+                        tree.nodes.get(*c).is_some_and(|n| n.details_role == DETAILS_ROLE_SUMMARY)
+                    });
+                    hide.extend(children.iter().copied().filter(|c| Some(*c) != summary && tree.nodes.contains_key(*c)));
+                }
+            }
+            next.push((id, hide));
+        }
+        // Shown first, so a child that moved into another closed details stays hidden.
+        for child in previous {
+            if next.iter().any(|(_, hide)| hide.contains(&child)) {
+                continue;
+            }
+            if tree.nodes.get_mut(child).is_some_and(|n| n.set_hidden(false)) {
+                Self::mark_dirty_inner(&mut tree, child);
+            }
+        }
+        for &child in next.iter().flat_map(|(_, hide)| hide) {
+            if tree.nodes[child].set_hidden(true) {
+                Self::mark_dirty_inner(&mut tree, child);
+            }
+        }
+        tree.details = next;
     }
 
     pub fn mark_dirty(&mut self, node: Id) {

@@ -1242,7 +1242,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     // and a view that was laid out before going `display: none` keeps drawing at its old frame.
     if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
       (node.view as? View)?.let { view ->
-        val visibility = if (display == Display.None) View.INVISIBLE else View.VISIBLE
+        val visibility = if (display == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
         // GONE is `visibility: collapse` or a queued removal (NodeUtils); both outrank display.
         if (view.visibility != visibility && view.visibility != View.GONE) view.visibility = visibility
       }
@@ -2413,7 +2413,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
       // Mason positions children itself, and GONE is `visibility: collapse`.
       (node.view as? View)?.visibility =
-        if (value == Display.None) View.INVISIBLE else View.VISIBLE
+        if (value == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
     }
 
   var position: Position
@@ -4715,6 +4715,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       values.put(StyleKeys.LIST_STYLE_TYPE, value.value)
       values.put(StyleKeys.LIST_STYLE_TYPE_STATE, StyleState.SET)
       setOrAppendState(StateKeys.LIST_STYLE_TYPE)
+      // A summary's marker is text in its first child, built before this rule may have arrived.
+      if (node.detailsRole == Details.SUMMARY) Details.refreshMarker(node)
     }
 
   override fun toString(): String {
