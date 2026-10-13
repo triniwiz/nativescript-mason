@@ -381,6 +381,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+
     super.onSizeChanged(w, h, oldw, oldh)
     val currentFocused = findFocus()
     if (null == currentFocused || this === currentFocused) return
@@ -681,6 +682,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   fun smoothScrollBy(dx: Int, dy: Int) {
+
     val duration = AnimationUtils.currentAnimationTimeMillis() - lastScroll
     if (duration > ANIMATED_SCROLL_GAP) {
       scroller!!.startScroll(scrollX, scrollY, dx, dy)
@@ -755,6 +757,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun requestChildFocus(child: View?, focused: View) {
+
     if (!twoDScrollViewMovedFocus) {
       if (!isLayoutDirty) scrollToChild(focused)
       else childToScrollTo = focused
@@ -841,6 +844,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   fun fling(velocityX: Int, velocityY: Int) {
+
     if (childCount > 0) {
       val vx = if (enableScrollX) velocityX else 0
       val vy = if (enableScrollY) velocityY else 0
@@ -859,16 +863,21 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         if (enableScrollY) overflingDistance else 0
       )
 
-      val movingDown = velocityY > 0
-      val movingRight = velocityX > 0
+      // Move focus along with the fling only for keyboard/D-pad users. In touch
+      // mode this focused the first focusable descendant, a text field, on
+      // every fling, and requestChildFocus then scrolled to it.
+      if (!isInTouchMode) {
+        val movingDown = velocityY > 0
+        val movingRight = velocityX > 0
 
-      var newFocused = findFocusableViewInMyBounds(
-        movingRight, scroller!!.finalX, movingDown, scroller!!.finalY, findFocus()
-      )
-      if (newFocused == null) newFocused = this
-      if (newFocused !== findFocus() && newFocused.requestFocus(if (movingDown) FOCUS_DOWN else FOCUS_UP)) {
-        twoDScrollViewMovedFocus = true
-        twoDScrollViewMovedFocus = false
+        var newFocused = findFocusableViewInMyBounds(
+          movingRight, scroller!!.finalX, movingDown, scroller!!.finalY, findFocus()
+        )
+        if (newFocused == null) newFocused = this
+        if (newFocused !== findFocus() && newFocused.requestFocus(if (movingDown) FOCUS_DOWN else FOCUS_UP)) {
+          twoDScrollViewMovedFocus = true
+          twoDScrollViewMovedFocus = false
+        }
       }
 
       awakenScrollBars(SCROLL_ANIMATION_DURATION)
