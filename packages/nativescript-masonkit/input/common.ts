@@ -6,6 +6,7 @@ import { native_ } from '../symbols';
 export const defaultValueProperty = Symbol('input:default:value');
 export const getValueProperty = Symbol('input:get:value');
 export const setValueProperty = Symbol('input:set:value');
+const defaultValueState = Symbol('input:default:state');
 export const pendingValue = Symbol('input:pending:value');
 export const getCheckedProperty = Symbol('input:get:checked');
 export const setCheckedProperty = Symbol('input:set:checked');
@@ -61,7 +62,34 @@ export class InputBase extends ViewBase {
       this[pendingValue] = text;
       return;
     }
+    // Setting the text it already has is a no-op, as in the DOM: writing it
+    // back would move the caret, which breaks frameworks that sync `value`
+    // after every keystroke (React, Vue v-model, ...).
+    if (this[getValueProperty]() === text) {
+      return;
+    }
     this[setValueProperty](text);
+  }
+
+  [defaultValueState]: string | null = null;
+
+  /**
+   * As on the web: the initial value. It sets `value` while the field still
+   * holds what `defaultValue` last put there, i.e. until the user or code
+   * changes it.
+   */
+  get defaultValue(): string {
+    return this[defaultValueState] ?? '';
+  }
+
+  set defaultValue(value: string) {
+    const text = value == null ? '' : String(value);
+    const current = this.value ?? '';
+    const untouched = current === '' || current === (this[defaultValueState] ?? '');
+    this[defaultValueState] = text;
+    if (untouched) {
+      this.value = text;
+    }
   }
 
   initNativeView() {
