@@ -33,10 +33,11 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
   
   public var data: String {
     didSet {
-      if let container = container as? MasonElement {
-        container.node.parent?.markDirty()
-        container.requestLayout()
-      }
+      guard data != oldValue else { return }
+      // Drop the container's cached attributed string and mark its own node
+      // dirty (marking only the parent left the container's measurement stale,
+      // so a button whose label grew stayed at its old width).
+      container?.engine.invalidate()
     }
   }
   
