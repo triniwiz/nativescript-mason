@@ -363,8 +363,13 @@ function windowsBreakRun(child: any) {
  * again at the new size. Like core views, it raises `layoutChanged` when the frame changes.
  */
 export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect): void {
+  // Place the view before adjusting, as core does: the safe-area math reads its
+  // position on screen, and a stale one applied the insets twice.
+  nativeView.frame = frame;
   const adjusted: CGRect = view.applySafeAreaInsets(frame) ?? frame;
-  nativeView.frame = adjusted;
+  if (!CGRectEqualToRect(adjusted, frame)) {
+    nativeView.frame = adjusted;
+  }
   if (!CGRectEqualToRect(adjusted, frame)) {
     // Each measure pass lays the root out at the safe-area size again, so check the
     // computed size rather than whether the frame changed.
@@ -547,6 +552,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__ANDROID__) {
       (this as any)._isPaddingRelative = false;
     }
+    // Core's ContainerView defaults this to true: the view extends under the
+    // status bar and home indicator, and core layouts pad their children by
+    // the insets. Mason lays children out from its own style, so a root kept
+    // that default drew its content under the bars. As on the web, content
+    // stays in the safe area; set it to true for a full-bleed root (like
+    // `viewport-fit=cover`) and pad it yourself.
+    this.iosOverflowSafeArea = false;
   }
 
   get innerHTML() {
