@@ -40,3 +40,5 @@ export const borderSideColors_ = Symbol('[[borderSideColors]]');
 // Overridden `Event.type`, when a host framework's DOM shim relabels the
 // event on its way to JS listeners — see `Event` in `common.ts`.
 export const eventType_ = Symbol('[[eventType]]');
+
+export const touchAction_ = Symbol('[[touchAction]]');

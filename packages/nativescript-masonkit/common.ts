@@ -116,7 +116,7 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
 import { masonEngine, removeNativeChild } from './windows-panel-helpers';
 import { TextNode } from './text-node';
@@ -363,8 +363,13 @@ function windowsBreakRun(child: any) {
  * again at the new size. Like core views, it raises `layoutChanged` when the frame changes.
  */
 export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect): void {
+  // Place the view before adjusting, as core does: the safe-area math reads its
+  // position on screen, and a stale one applied the insets twice.
+  nativeView.frame = frame;
   const adjusted: CGRect = view.applySafeAreaInsets(frame) ?? frame;
-  nativeView.frame = adjusted;
+  if (!CGRectEqualToRect(adjusted, frame)) {
+    nativeView.frame = adjusted;
+  }
   if (!CGRectEqualToRect(adjusted, frame)) {
     // Each measure pass lays the root out at the safe-area size again, so check the
     // computed size rather than whether the frame changed.
@@ -547,6 +552,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (__ANDROID__) {
       (this as any)._isPaddingRelative = false;
     }
+    // Core's ContainerView defaults this to true: the view extends under the
+    // status bar and home indicator, and core layouts pad their children by
+    // the insets. Mason lays children out from its own style, so a root kept
+    // that default drew its content under the bars. As on the web, content
+    // stays in the safe area; set it to true for a full-bleed root (like
+    // `viewport-fit=cover`) and pad it yourself.
+    this.iosOverflowSafeArea = false;
   }
 
   get innerHTML() {
@@ -782,8 +794,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  [touchAction_]: number | undefined;
+
+  /** Hands `touch-action` to the native node, where the scroll views read it. */
+  _applyTouchAction() {
+    const flags = this[touchAction_];
+    const native = this[native_] as any;
+    if (flags === undefined || !native) return;
+    const node = native.node ?? (__IOS__ ? (this as any).ios?.node : undefined);
+    if (node) node.touchAction = flags;
+  }
+
   initNativeView(): void {
     super.initNativeView();
+    this._applyTouchAction();
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {

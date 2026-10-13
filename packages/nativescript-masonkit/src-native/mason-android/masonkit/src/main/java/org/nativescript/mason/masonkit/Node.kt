@@ -78,6 +78,13 @@ open class Node internal constructor(
   internal var isPlaceholder = false
   internal var isImage = false
 
+  /**
+   * CSS `touch-action` as TouchAction flags. Scroll views only start a drag
+   * along an axis every element from the touched one up to them allows.
+   */
+  @JvmField
+  var touchAction: Int = TouchAction.AUTO
+
   // Sticky (only ever set true, never cleared) hint that this node's own
   // view is a TextContainer or some descendant's is, maintained by
   // appendChild. Lets invalidateDescendantTextViews skip walking subtrees
@@ -1920,4 +1927,12 @@ open class Node internal constructor(
 internal fun Node.getDefaultAttributes(): TextDefaultAttributes {
   attributes.sync(style)
   return attributes
+}
+
+/** Flags for [Node.touchAction], as CSS `touch-action` names them. */
+object TouchAction {
+  const val PAN_X = 1
+  const val PAN_Y = 2
+  const val PINCH_ZOOM = 4
+  const val AUTO = PAN_X or PAN_Y or PINCH_ZOOM
 }

@@ -1,10 +1,24 @@
-import { CSSType, fontInternalProperty } from '@nativescript/core';
-import { windowsFontSource } from '../common';
+import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
+import { ViewBase, windowsFontSource } from '../common';
 import { TextAreaBase, rowsProperty, colsProperty, maxLengthProperty } from './common';
 import { defaultValueProperty, getValueProperty, setValueProperty, placeholderProperty } from '../input/common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { Style } from '../style';
+
+const UA_STYLE: Record<string, unknown> = {
+  'padding-top': 2,
+  'padding-right': 2,
+  'padding-bottom': 2,
+  'padding-left': 2,
+  border: '1 solid #767676',
+  'border-top-left-radius': 4,
+  'border-top-right-radius': 4,
+  'border-bottom-right-radius': 4,
+  'border-bottom-left-radius': 4,
+  'background-color': 'transparent',
+};
 
 @CSSType('textarea')
 export class TextArea extends TextAreaBase {
@@ -12,6 +26,11 @@ export class TextArea extends TextAreaBase {
   constructor() {
     super();
     this[isMasonView_] = true;
+    const style = this.style as unknown as Record<string, unknown>;
+    for (const property in UA_STYLE) {
+      if (ViewBase.preflight && property.startsWith('padding-')) continue;
+      style[`css:${property}`] = UA_STYLE[property];
+    }
   }
 
   get _view(): NativeScript.Mason.TextArea {
@@ -63,6 +82,11 @@ export class TextArea extends TextAreaBase {
 
   [maxLengthProperty.setNative](value) {
     if (this._view) this._view.MaxLength = value | 0;
+  }
+
+  [placeholderColorProperty.setNative](value: Color) {
+    if (value instanceof Color) this._view.SetPlaceholderColor(value.argb >>> 0);
+    else this._view.ClearPlaceholderColor();
   }
 
   [fontInternalProperty.setNative](value: any) {

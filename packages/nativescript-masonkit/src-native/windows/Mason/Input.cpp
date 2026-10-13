@@ -346,20 +346,17 @@ namespace winrt::NativeScript::Mason::implementation
     {
         auto control = m_control.try_as<muxc::Control>();
         if (!control) return;
-        const bool field = IsField(m_control);
-        if (!field && !IsCheckable(m_type) && !IsButtonLike(m_type)) return;
+        if (IsField(m_control))
+        {
+            mason_form::StripFieldChrome(control);
+            return;
+        }
+        if (!IsCheckable(m_type) && !IsButtonLike(m_type)) return;
         control.MinWidth(0);
         control.MinHeight(0);
         control.Padding(mux::Thickness{});
         if (IsCheckable(m_type)) return;
         control.BorderThickness(mux::Thickness{});
-        if (!field) return;
-        auto resources = control.Resources();
-        resources.Insert(winrt::box_value(L"TextControlBorderThemeThickness"), winrt::box_value(mux::Thickness{}));
-        resources.Insert(winrt::box_value(L"TextControlBorderThemeThicknessFocused"), winrt::box_value(mux::Thickness{}));
-        resources.Insert(winrt::box_value(L"TextControlThemePadding"), winrt::box_value(mux::Thickness{}));
-        resources.Insert(winrt::box_value(L"TextControlThemeMinHeight"), winrt::box_value(0.0));
-        resources.Insert(winrt::box_value(L"TextControlThemeMinWidth"), winrt::box_value(0.0));
     }
 
     // A range follows the writing mode: vertical runs from the top as in browsers, and rtl flips it.

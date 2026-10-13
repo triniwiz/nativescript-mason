@@ -16,6 +16,8 @@ namespace NativeScript.Mason
         Int32 Cols;
         Int32 MaxLength;
         void SetFontFamily(String families);
+        void SetPlaceholderColor(UInt32 argb);
+        void ClearPlaceholderColor();
 
         Int64 AddEventListener(String type, EventListener listener);
         Boolean RemoveEventListener(String type, Int64 id);

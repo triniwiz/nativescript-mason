@@ -1619,6 +1619,15 @@ namespace winrt::NativeScript::Mason::implementation
         DWRITE_OVERHANG_METRICS overhang{};
         layout->GetMetrics(&metrics);
         layout->GetOverhangMetrics(&overhang);
+        if (m_isButton && !vertical)
+        {
+            const float spare = finalSize.Height - top - bottom - metrics.height;
+            if (spare > 0.0f)
+            {
+                top += spare / 2.0f;
+                m_frame.top = top;
+            }
+        }
 
         // The ink in device pixels around the content box, a pixel of margin for antialiasing. The
         // element sits on whole pixels, so the slot does, and the layout keeps its fraction.

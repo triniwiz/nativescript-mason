@@ -125,10 +125,10 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 			)
 			let lineHeightPt = f.lineHeight
 
-			let inset = self.textContainerInset
-			let horizontalPaddingPt = inset.left + inset.right
-				+ self.textContainer.lineFragmentPadding * 2
-			let verticalPaddingPt = inset.top + inset.bottom
+			// Content size only: the layout engine adds the CSS padding and border,
+			// which textContainerInset mirrors.
+			let horizontalPaddingPt = self.textContainer.lineFragmentPadding * 2
+			let verticalPaddingPt: CGFloat = 0
 
 			let intrinsicWidthPx  = (charWidthPt * CGFloat(self.cols) + horizontalPaddingPt) * scale
 			let intrinsicHeightPx = (lineHeightPt * CGFloat(self._rows) + verticalPaddingPt) * scale
@@ -180,7 +180,7 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		}
 
 		let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
-		let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
+		let hasBorder = style.mBorderRender.hasVisibleBorder || style.hasBorderImage
 
 		style.mBorderRender.resolve(for: bounds)
 		let borderWidths = style.mBorderRender.cachedWidths
@@ -218,6 +218,21 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 	// MARK: - Layout
 
 	public override func layoutSubviews() {
+		// CSS padding and border inset the text (and the caret and placeholder,
+		// which follow textContainerInset), as in a browser's textarea. Set before
+		// super so the placeholder is placed with it.
+		let layout = node.computedLayout
+		let scale = CGFloat(NSCMason.scale)
+		func side(_ value: Float) -> CGFloat { value.isFinite ? max(0, CGFloat(value) / scale) : 0 }
+		let inset = UIEdgeInsets(
+			top: side(layout.paddingTop) + side(layout.borderTop),
+			left: side(layout.paddingLeft) + side(layout.borderLeft),
+			bottom: side(layout.paddingBottom) + side(layout.borderBottom),
+			right: side(layout.paddingRight) + side(layout.borderRight)
+		)
+		if inset != textContainerInset {
+			setBaseTextContainerInset(inset)
+		}
 		super.layoutSubviews()
 		style.updateShadowLayer(for: bounds)
 		autoComputeIfRoot()

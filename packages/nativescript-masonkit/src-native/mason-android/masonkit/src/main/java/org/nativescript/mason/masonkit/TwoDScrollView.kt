@@ -277,6 +277,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     when (action) {
       MotionEvent.ACTION_DOWN -> {
         if (!scroller!!.isFinished) scroller!!.abortAnimation()
+        touchAxes = touchActionAt(x, y)
         lastMotionY = y
         lastMotionX = x
         nestedXOffset = 0
@@ -291,6 +292,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_MOVE -> {
         var deltaX = (lastMotionX - x).toInt()
         var deltaY = (lastMotionY - y).toInt()
+        if ((touchAxes and TouchAction.PAN_X) == 0) deltaX = 0
+        if ((touchAxes and TouchAction.PAN_Y) == 0) deltaY = 0
 
         // Pre-scroll: give a nested parent first claim on the delta.
         if (dispatchNestedPreScroll(deltaX, deltaY, scrollConsumed, scrollOffset, ViewCompat.TYPE_TOUCH)) {
@@ -345,8 +348,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_UP -> {
         val vt = velocityTracker
         vt!!.computeCurrentVelocity(1000, maximumVelocity.toFloat())
-        val initialXVelocity = vt.xVelocity.toInt()
-        val initialYVelocity = vt.yVelocity.toInt()
+        val initialXVelocity = if ((touchAxes and TouchAction.PAN_X) != 0) vt.xVelocity.toInt() else 0
+        val initialYVelocity = if ((touchAxes and TouchAction.PAN_Y) != 0) vt.yVelocity.toInt() else 0
         if ((abs(initialXVelocity) + abs(initialYVelocity) > minimumVelocity) && childCount > 0) {
           fling(-initialXVelocity, -initialYVelocity)
         } else {
@@ -381,6 +384,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+
     super.onSizeChanged(w, h, oldw, oldh)
     val currentFocused = findFocus()
     if (null == currentFocused || this === currentFocused) return
@@ -392,8 +396,12 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun scrollTo(x: Int, y: Int) {
-    var x = x
-    var y = y
+    // An axis this view doesn't scroll (not a scroll container on it, as with
+    // `overflow: visible`) keeps offset 0. Otherwise focus-follow scrolling
+    // (requestChildFocus -> scrollToChild) could scroll a plain block while the
+    // keyboard shrank the window, and the offset outlived the keyboard.
+    var x = if (enableScrollX) x else 0
+    var y = if (enableScrollY) y else 0
     if (childCount > 0) {
       x = clamp(x, width - paddingRight - paddingLeft, scrollContentWidth)
       y = clamp(y, height - paddingBottom - paddingTop, scrollContentHeight)
@@ -681,6 +689,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   fun smoothScrollBy(dx: Int, dy: Int) {
+
     val duration = AnimationUtils.currentAnimationTimeMillis() - lastScroll
     if (duration > ANIMATED_SCROLL_GAP) {
       scroller!!.startScroll(scrollX, scrollY, dx, dy)
@@ -755,6 +764,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun requestChildFocus(child: View?, focused: View) {
+
     if (!twoDScrollViewMovedFocus) {
       if (!isLayoutDirty) scrollToChild(focused)
       else childToScrollTo = focused
@@ -772,6 +782,38 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     return handled || executeKeyEvent(event)
   }
 
+  // The pan axes the current gesture may scroll, from `touch-action`.
+  private var touchAxes = TouchAction.AUTO
+
+  /**
+   * `touch-action` for a touch at (x, y): the flags of this view and of every
+   * descendant under the point, intersected, as browsers combine them.
+   */
+  private fun touchActionAt(x: Float, y: Float): Int {
+    var flags = (this as? Element)?.node?.touchAction ?: TouchAction.AUTO
+    var group: ViewGroup = this
+    var px = x + scrollX
+    var py = y + scrollY
+    while (true) {
+      var hit: View? = null
+      for (i in group.childCount - 1 downTo 0) {
+        val child = group.getChildAt(i)
+        if (child.visibility != View.VISIBLE) continue
+        if (px >= child.left && px < child.right && py >= child.top && py < child.bottom) {
+          hit = child
+          break
+        }
+      }
+      if (hit == null) break
+      (hit as? Element)?.node?.touchAction?.let { flags = flags and it }
+      if (hit !is ViewGroup) break
+      px = px - hit.left + hit.scrollX
+      py = py - hit.top + hit.scrollY
+      group = hit
+    }
+    return flags
+  }
+
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
     val action = ev.action
     if ((action == MotionEvent.ACTION_MOVE) && isBeingDragged) return true
@@ -785,8 +827,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_MOVE -> {
         val yDiff = abs(y - lastMotionY).toInt()
         val xDiff = abs(x - lastMotionX).toInt()
-        val exceedsY = enableScrollY && yDiff > touchSlop
-        val exceedsX = enableScrollX && xDiff > touchSlop
+        val exceedsY = enableScrollY && (touchAxes and TouchAction.PAN_Y) != 0 && yDiff > touchSlop
+        val exceedsX = enableScrollX && (touchAxes and TouchAction.PAN_X) != 0 && xDiff > touchSlop
         if (exceedsY || exceedsX) isBeingDragged = true
       }
       MotionEvent.ACTION_DOWN -> {
@@ -794,6 +836,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         lastMotionX = x
         nestedXOffset = 0
         nestedYOffset = 0
+        touchAxes = touchActionAt(x, y)
         // A down during a fling, or while an edge is still stretched from one
         // (Android 12+), catches the scroll instead of tapping through to a
         // child, as the platform ScrollView does.
@@ -841,6 +884,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   fun fling(velocityX: Int, velocityY: Int) {
+
     if (childCount > 0) {
       val vx = if (enableScrollX) velocityX else 0
       val vy = if (enableScrollY) velocityY else 0
@@ -859,16 +903,21 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         if (enableScrollY) overflingDistance else 0
       )
 
-      val movingDown = velocityY > 0
-      val movingRight = velocityX > 0
+      // Move focus along with the fling only for keyboard/D-pad users. In touch
+      // mode this focused the first focusable descendant, a text field, on
+      // every fling, and requestChildFocus then scrolled to it.
+      if (!isInTouchMode) {
+        val movingDown = velocityY > 0
+        val movingRight = velocityX > 0
 
-      var newFocused = findFocusableViewInMyBounds(
-        movingRight, scroller!!.finalX, movingDown, scroller!!.finalY, findFocus()
-      )
-      if (newFocused == null) newFocused = this
-      if (newFocused !== findFocus() && newFocused.requestFocus(if (movingDown) FOCUS_DOWN else FOCUS_UP)) {
-        twoDScrollViewMovedFocus = true
-        twoDScrollViewMovedFocus = false
+        var newFocused = findFocusableViewInMyBounds(
+          movingRight, scroller!!.finalX, movingDown, scroller!!.finalY, findFocus()
+        )
+        if (newFocused == null) newFocused = this
+        if (newFocused !== findFocus() && newFocused.requestFocus(if (movingDown) FOCUS_DOWN else FOCUS_UP)) {
+          twoDScrollViewMovedFocus = true
+          twoDScrollViewMovedFocus = false
+        }
       }
 
       awakenScrollBars(SCROLL_ANIMATION_DURATION)

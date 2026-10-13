@@ -248,6 +248,11 @@ public class MasonNode: NSObject {
   /// Set to true by applyToView after Mason has applied layout to this node's view.
   /// NativeScript can read this to skip redundant layout passes for Mason-managed children.
   @objc public var isLayoutValid: Bool = false
+
+  /// CSS `touch-action` as pan flags (1 pan-x, 2 pan-y, 4 pinch-zoom; 7 is
+  /// `auto`). A Mason scroll view only pans along an axis every element from
+  /// the touched one up to it allows.
+  @objc public var touchAction: Int = 7
   internal var hasClickGesture: Bool = false
   // <details>/<summary> (see MasonDetails): 0 none, 1 details, 2 summary.
   internal var detailsRole = 0

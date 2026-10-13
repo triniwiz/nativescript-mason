@@ -1,7 +1,7 @@
 import { CssProperty, CssAnimationProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
-import { isMasonView_ } from './symbols';
+import { isMasonView_, touchAction_ } from './symbols';
 
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
@@ -322,6 +322,41 @@ export const whiteSpaceProperty = new CssProperty<Style, string>({
     const view = getViewStyle(target.viewRef);
     if (view) {
       view.whiteSpace = newValue as never;
+    }
+  },
+});
+
+/**
+ * CSS `touch-action` as the pan flags native scroll views read: 1 = pan-x,
+ * 2 = pan-y, 4 = pinch-zoom. A Mason scroll view only starts a drag along an
+ * axis every element from the touched one up to it allows, as browsers do.
+ */
+export function parseTouchAction(value: string): number {
+  const v = String(value ?? 'auto')
+    .trim()
+    .toLowerCase();
+  if (v === 'auto' || v === '') return 7;
+  if (v === 'none') return 0;
+  if (v === 'manipulation') return 7;
+  let flags = 0;
+  for (const part of v.split(/\s+/)) {
+    if (part === 'pan-x' || part === 'pan-left' || part === 'pan-right') flags |= 1;
+    else if (part === 'pan-y' || part === 'pan-up' || part === 'pan-down') flags |= 2;
+    else if (part === 'pinch-zoom') flags |= 4;
+  }
+  return flags;
+}
+
+export const touchActionProperty = new CssProperty<Style, string>({
+  name: 'touchAction',
+  cssName: 'touch-action',
+  defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const ref = target?.viewRef;
+    const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
+    if (view && view[isMasonView_]) {
+      view[touchAction_] = parseTouchAction(newValue);
+      (view as ViewBase)._applyTouchAction?.();
     }
   },
 });
@@ -2228,6 +2263,7 @@ listStylePositionProperty.register(Style);
 // core owns `white-space` too (its Label honours nowrap), so dispatch.
 registerAlongsideCore(whiteSpaceProperty);
 objectFitProperty.register(Style);
+touchActionProperty.register(Style);
 textJustifyProperty.register(Style);
 textDecorationThicknessProperty.register(Style);
 textDecorationLineProperty.register(Style);

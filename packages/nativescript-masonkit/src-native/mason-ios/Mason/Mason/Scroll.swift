@@ -38,7 +38,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
 
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
+    let hasBorder = style.mBorderRender.hasVisibleBorder || style.hasBorderImage
 
     // Early-out: skip all CoreGraphics work for plain views with no decoration
     guard hasBackground || hasBoxShadow || hasBorder else { return }

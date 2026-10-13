@@ -9,6 +9,9 @@
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Input.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <winrt/Microsoft.UI.Interop.h>
+#include <winrt/Microsoft.UI.Content.h>
 #include <winrt/Windows.System.h>
 #include "Event.h"
 #include "Events.h"
@@ -70,6 +73,27 @@ namespace mason_form
         else inputType = L"insertText";
     }
 
+    inline bool PointerOver(mux::UIElement const& element)
+    {
+        try
+        {
+            auto root = element.XamlRoot();
+            auto env = root ? root.ContentIslandEnvironment() : nullptr;
+            HWND hwnd = env ? winrt::Microsoft::UI::GetWindowFromWindowId(env.AppWindowId()) : nullptr;
+            POINT p{};
+            if (!hwnd || !GetCursorPos(&p) || !ScreenToClient(hwnd, &p)) return false;
+            const float scale = static_cast<float>(root.RasterizationScale());
+            auto fe = element.as<mux::FrameworkElement>();
+            auto box = element.TransformToVisual(nullptr).TransformBounds({ 0.0f, 0.0f, static_cast<float>(fe.ActualWidth()), static_cast<float>(fe.ActualHeight()) });
+            const float x = p.x / scale, y = p.y / scale;
+            return x >= box.X && x <= box.X + box.Width && y >= box.Y && y <= box.Y + box.Height;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
     struct Events : std::enable_shared_from_this<Events>
     {
         std::function<winrt::hstring()> value;
@@ -82,6 +106,9 @@ namespace mason_form
         bool pendingComposing{ false };
         bool composing{ false };
         winrt::hstring hint;
+        uint64_t revealUntil{ 0 };
+
+        void AllowReveal() { revealUntil = GetTickCount64() + 500; }
 
         winrt::hstring Current() const { return value ? value() : winrt::hstring{}; }
 
@@ -126,10 +153,32 @@ namespace mason_form
         {
             control = winrt::make_weak(hosted);
             std::weak_ptr<Events> weak = weak_from_this();
+            hosted.BringIntoViewRequested([weak](auto&&, mux::BringIntoViewRequestedEventArgs const& args)
+            {
+                auto self = weak.lock();
+                if (self && GetTickCount64() > self->revealUntil) args.Handled(true);
+            });
+            hosted.GettingFocus([weak](mux::UIElement const& sender, mux::Input::GettingFocusEventArgs const& args)
+            {
+                auto self = weak.lock();
+                if (!self) return;
+                auto old = args.OldFocusedElement();
+                if (old && !mux::Media::VisualTreeHelper::GetParent(old) && args.Direction() == mux::Input::FocusNavigationDirection::None && !PointerOver(sender))
+                {
+                    args.TryCancel();
+                    return;
+                }
+                if (args.FocusState() == mux::FocusState::Keyboard) self->AllowReveal();
+            });
+            hosted.AddHandler(mux::UIElement::PointerPressedEvent(), winrt::box_value(mux::Input::PointerEventHandler([weak](auto&&, auto&&)
+            {
+                if (auto self = weak.lock()) self->AllowReveal();
+            })), true);
             hosted.PreviewKeyDown([weak, multiline](auto&&, mux::Input::KeyRoutedEventArgs const& args)
             {
                 auto self = weak.lock();
                 if (!self) return;
+                self->AllowReveal();
                 auto e = winrt::make_self<winrt::NativeScript::Mason::implementation::Event>(L"keydown", true);
                 e->key = KeyName(static_cast<int32_t>(args.Key()), args.KeyStatus().ScanCode);
                 e->repeat = args.KeyStatus().WasKeyDown;
@@ -183,6 +232,7 @@ namespace mason_form
                 {
                     auto self = weak.lock();
                     if (!self || self->applying) return;
+                    self->AllowReveal();
                     auto e = winrt::make_self<winrt::NativeScript::Mason::implementation::Event>(L"beforeinput", true);
                     DescribeEdit(box.Text(), args.NewText(), e->data, e->inputType);
                     if (self->composing)
@@ -221,11 +271,16 @@ namespace mason_form
                 };
                 tb.TextCompositionStarted([weak, composition](muxc::TextBox const& box, muxc::TextCompositionStartedEventArgs const& args)
                 {
-                    if (auto self = weak.lock()) self->composing = true;
+                    if (auto self = weak.lock())
+                    {
+                        self->composing = true;
+                        self->AllowReveal();
+                    }
                     composition(L"compositionstart", box, args.StartIndex(), 0);
                 });
-                tb.TextCompositionChanged([composition](muxc::TextBox const& box, muxc::TextCompositionChangedEventArgs const& args)
+                tb.TextCompositionChanged([weak, composition](muxc::TextBox const& box, muxc::TextCompositionChangedEventArgs const& args)
                 {
+                    if (auto self = weak.lock()) self->AllowReveal();
                     composition(L"compositionupdate", box, args.StartIndex(), args.Length());
                 });
                 tb.TextCompositionEnded([weak, composition](muxc::TextBox const& box, muxc::TextCompositionEndedEventArgs const& args)
