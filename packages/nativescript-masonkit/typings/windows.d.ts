@@ -360,6 +360,8 @@ declare namespace NativeScript.Mason {
     Cols: number;
     MaxLength: number;
     SetFontFamily(families: string): void;
+    SetPlaceholderColor(argb: number): void;
+    ClearPlaceholderColor(): void;
     AddEventListener(type: string, listener: any): number;
     RemoveEventListener(type: string, id: number): boolean;
   }

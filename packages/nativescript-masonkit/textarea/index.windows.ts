@@ -1,4 +1,5 @@
-import { CSSType, fontInternalProperty } from '@nativescript/core';
+import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
+import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
 import { ViewBase, windowsFontSource } from '../common';
 import { TextAreaBase, rowsProperty, colsProperty, maxLengthProperty } from './common';
 import { defaultValueProperty, getValueProperty, setValueProperty, placeholderProperty } from '../input/common';
@@ -81,6 +82,11 @@ export class TextArea extends TextAreaBase {
 
   [maxLengthProperty.setNative](value) {
     if (this._view) this._view.MaxLength = value | 0;
+  }
+
+  [placeholderColorProperty.setNative](value: Color) {
+    if (value instanceof Color) this._view.SetPlaceholderColor(value.argb >>> 0);
+    else this._view.ClearPlaceholderColor();
   }
 
   [fontInternalProperty.setNative](value: any) {

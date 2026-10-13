@@ -5,6 +5,7 @@
 #include "Invalidation.h"
 #include "VisualState.h"
 #include <memory>
+#include <optional>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -17,6 +18,8 @@ namespace winrt::NativeScript::Mason::implementation
 
         void SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3);
         void SetFontFamily(hstring const& families);
+        void SetPlaceholderColor(uint32_t argb);
+        void ClearPlaceholderColor();
 
         hstring Value() const;
         void Value(hstring const& value);
@@ -45,6 +48,7 @@ namespace winrt::NativeScript::Mason::implementation
         int32_t m_rows{ 0 };
         int32_t m_cols{ 0 };
         hstring m_fontFamily;
+        std::optional<uint32_t> m_placeholderColor;
         std::shared_ptr<mason_form::Events> m_events;
         mason_form::TextStyle m_textApplied;
     };

@@ -113,6 +113,19 @@ namespace winrt::NativeScript::Mason::implementation
         InvalidateMeasure();
     }
 
+    void TextArea::SetPlaceholderColor(uint32_t argb)
+    {
+        m_placeholderColor = argb;
+        m_box.PlaceholderForeground(mason_visual::SharedSolid(argb));
+    }
+
+    void TextArea::ClearPlaceholderColor()
+    {
+        if (!m_placeholderColor) return;
+        m_placeholderColor.reset();
+        m_box.ClearValue(muxc::TextBox::PlaceholderForegroundProperty());
+    }
+
     int64_t TextArea::AddEventListener(hstring const& type, nsm::EventListener const& listener)
     {
         return mason_events::Add(get_strong().as<mux::UIElement>(), type, listener);
