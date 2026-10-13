@@ -1202,6 +1202,10 @@ SWIFT_CLASS_NAMED("MasonNode")
 /// Set to true by applyToView after Mason has applied layout to this node’s view.
 /// NativeScript can read this to skip redundant layout passes for Mason-managed children.
 @property (nonatomic) BOOL isLayoutValid;
+/// CSS <code>touch-action</code> as pan flags (1 pan-x, 2 pan-y, 4 pinch-zoom; 7 is
+/// <code>auto</code>). A Mason scroll view only pans along an axis every element from
+/// the touched one up to it allows.
+@property (nonatomic) NSInteger touchAction;
 @property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
 - (void)setPseudoString:(uint16_t)pseudoState :(NSString * _Nonnull)key :(NSString * _Nonnull)value;
 - (NSString * _Nullable)getPseudoString:(uint16_t)pseudoState :(NSString * _Nonnull)key SWIFT_WARN_UNUSED_RESULT;

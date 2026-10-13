@@ -358,6 +358,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     get
   }
   @objc public var isLayoutValid: Swift.Bool
+  @objc public var touchAction: Swift.Int
   @objc public var document: Mason.MasonDocument? {
     get
   }

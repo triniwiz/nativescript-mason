@@ -11689,6 +11689,100 @@
           },
           {
             "kind": "Var",
+            "name": "touchAction",
+            "printedName": "touchAction",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)touchAction",
+            "mangledName": "$s5Mason0A4NodeC11touchActionSivp",
+            "moduleName": "Mason",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "ObjC",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)touchAction",
+                "mangledName": "$s5Mason0A4NodeC11touchActionSivg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": [
+                  "ObjC"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)setTouchAction:",
+                "mangledName": "$s5Mason0A4NodeC11touchActionSivs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": [
+                  "ObjC"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A4NodeC11touchActionSivM",
+                "mangledName": "$s5Mason0A4NodeC11touchActionSivM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "document",
             "printedName": "document",
             "children": [
@@ -108057,176 +108151,183 @@
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
+      "kind": "IntegerLiteral",
+      "offset": 9100,
+      "length": 1,
+      "value": "7"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 8907,
+      "offset": 9141,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 9017,
+      "offset": 9251,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 9048,
+      "offset": 9282,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 9314,
+      "offset": 9548,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 9355,
+      "offset": 9589,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 9514,
+      "offset": 9748,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 9649,
+      "offset": 9883,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 9698,
+      "offset": 9932,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 9744,
+      "offset": 9978,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "Array",
-      "offset": 10193,
+      "offset": 10427,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "Dictionary",
-      "offset": 10455,
+      "offset": 10689,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11641,
+      "offset": 11875,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11751,
+      "offset": 11985,
       "length": 1,
       "value": "5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11767,
+      "offset": 12001,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11862,
+      "offset": 12096,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11892,
+      "offset": 12126,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 11922,
+      "offset": 12156,
       "length": 1,
       "value": "8"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 12170,
+      "offset": 12404,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 18122,
+      "offset": 18356,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 19551,
+      "offset": 19785,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 20722,
+      "offset": 20956,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 21087,
+      "offset": 21321,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "IntegerLiteral",
-      "offset": 22779,
+      "offset": 23013,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 44732,
+      "offset": 44966,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 44756,
+      "offset": 44990,
       "length": 4,
       "value": "true"
     },
