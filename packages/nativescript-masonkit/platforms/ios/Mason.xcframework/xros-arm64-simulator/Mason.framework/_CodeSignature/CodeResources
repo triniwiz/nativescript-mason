@@ -22,11 +22,11 @@
 		</data>
 		<key>Modules/Mason.swiftmodule/Project/arm64-apple-xros-simulator.swiftsourceinfo</key>
 		<data>
-		/1a+qKc150VrGVhfSSVu361XjXU=
+		+Xqof4jSeamM4kjgYaMieFbRWqE=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.abi.json</key>
 		<data>
-		+ypA1rY3XmT9x0BsxtHRP2+0NTU=
+		QEsWRT7Swj4uoKFlCrZaqNqQ0nk=
 		</data>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.private.swiftinterface</key>
 		<data>
@@ -76,14 +76,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			yQhe5A2wuLW8ssNXXo/4DgwfGyeHMnkd2SoGqGATNNU=
+			CdpUb6IU0v2idSslh7WVjeWl7kUsj5mybZb65YX7sKE=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.abi.json</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			mXDIwOY7hBgt1v+hjdHoxNzUhedcWaews/iW3NpNYSs=
+			xeYKz7n0QQJg8fyQGYHUgttBTqgfVU6rw5Oih0LfucM=
 			</data>
 		</dict>
 		<key>Modules/Mason.swiftmodule/arm64-apple-xros-simulator.private.swiftinterface</key>

@@ -109410,6 +109410,20 @@
       "value": "-1"
     },
     {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonTextArea.swift",
+      "kind": "IntegerLiteral",
+      "offset": 6367,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonTextArea.swift",
+      "kind": "IntegerLiteral",
+      "offset": 6396,
+      "length": 1,
+      "value": "0"
+    },
+    {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason-scroll-bounce\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonEvent.swift",
       "kind": "BooleanLiteral",
       "offset": 305,
