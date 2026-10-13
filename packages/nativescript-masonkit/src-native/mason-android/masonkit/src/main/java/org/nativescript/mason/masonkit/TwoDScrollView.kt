@@ -396,8 +396,12 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   }
 
   override fun scrollTo(x: Int, y: Int) {
-    var x = x
-    var y = y
+    // An axis this view doesn't scroll (not a scroll container on it, as with
+    // `overflow: visible`) keeps offset 0. Otherwise focus-follow scrolling
+    // (requestChildFocus -> scrollToChild) could scroll a plain block while the
+    // keyboard shrank the window, and the offset outlived the keyboard.
+    var x = if (enableScrollX) x else 0
+    var y = if (enableScrollY) y else 0
     if (childCount > 0) {
       x = clamp(x, width - paddingRight - paddingLeft, scrollContentWidth)
       y = clamp(y, height - paddingBottom - paddingTop, scrollContentHeight)
