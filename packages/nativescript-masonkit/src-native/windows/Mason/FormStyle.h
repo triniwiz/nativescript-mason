@@ -61,6 +61,21 @@ namespace mason_form
         }
     }
 
+    inline void StripFieldChrome(muxc::Control const& control)
+    {
+        namespace mux = winrt::Microsoft::UI::Xaml;
+        control.MinWidth(0);
+        control.MinHeight(0);
+        control.Padding(mux::Thickness{});
+        control.BorderThickness(mux::Thickness{});
+        auto resources = control.Resources();
+        resources.Insert(winrt::box_value(L"TextControlBorderThemeThickness"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlBorderThemeThicknessFocused"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlThemePadding"), winrt::box_value(mux::Thickness{}));
+        resources.Insert(winrt::box_value(L"TextControlThemeMinHeight"), winrt::box_value(0.0));
+        resources.Insert(winrt::box_value(L"TextControlThemeMinWidth"), winrt::box_value(0.0));
+    }
+
     inline void RefreshTheme(muxc::Control const& control)
     {
         namespace mux = winrt::Microsoft::UI::Xaml;

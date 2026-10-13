@@ -3,6 +3,7 @@
 #include "TextArea.g.cpp"
 #include "Events.h"
 #include "LeafCommon.h"
+#include "Node.h"
 #include "Text.h"
 #include <winrt/NativeScript.Mason.h>
 #include "VisualApply.h"
@@ -26,6 +27,9 @@ namespace winrt::NativeScript::Mason::implementation
         m_box = muxc::TextBox();
         m_box.AcceptsReturn(true);
         m_box.TextWrapping(mux::TextWrapping::Wrap);
+        m_box.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
+        m_box.VerticalAlignment(mux::VerticalAlignment::Stretch);
+        mason_form::StripFieldChrome(m_box);
         Children().Append(m_box);
         m_events = std::make_shared<mason_form::Events>();
         m_events->value = [this]() -> hstring { return m_box.Text(); };
@@ -60,10 +64,8 @@ namespace winrt::NativeScript::Mason::implementation
     void TextArea::SyncSize()
     {
         const double size = m_box.FontSize();
-        if (m_rows > 0) m_box.MinHeight(m_rows * size * 1.36);
-        else m_box.ClearValue(mux::FrameworkElement::MinHeightProperty());
-        if (m_cols > 0) m_box.MinWidth(m_cols * size * 0.5);
-        else m_box.ClearValue(mux::FrameworkElement::MinWidthProperty());
+        m_box.MinHeight(m_rows > 0 ? m_rows * size * 1.36 : 0.0);
+        m_box.MinWidth(m_cols > 0 ? m_cols * size * 0.5 : 0.0);
     }
 
     void TextArea::Rows(int32_t value)
@@ -124,13 +126,17 @@ namespace winrt::NativeScript::Mason::implementation
 
     Size TextArea::MeasureOverride(Size const& available)
     {
-        m_box.Measure(available);
-        return m_box.DesiredSize();
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        m_box.Measure(Size{ (std::max)(0.0f, available.Width - left - right), (std::max)(0.0f, available.Height - top - bottom) });
+        return Size{ 0.0f, 0.0f };
     }
 
     Size TextArea::ArrangeOverride(Size const& finalSize)
     {
-        m_box.Arrange(winrt::Windows::Foundation::Rect{ 0.0f, 0.0f, finalSize.Width, finalSize.Height });
+        float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        winrt::get_self<implementation::Node>(m_node)->ContentInsets(left, top, right, bottom);
+        m_box.Arrange(winrt::Windows::Foundation::Rect{ left, top, (std::max)(0.0f, finalSize.Width - left - right), (std::max)(0.0f, finalSize.Height - top - bottom) });
         mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;
     }
