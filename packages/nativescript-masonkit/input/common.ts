@@ -30,7 +30,7 @@ function isCheckable(type: InputType): boolean {
 
 export class InputBase extends ViewBase {
   declare type: InputType;
-  [pendingValue] = null;
+  [pendingValue]: any = null;
 
   [defaultValueProperty]() {
     return undefined;
@@ -48,11 +48,11 @@ export class InputBase extends ViewBase {
       if (this[pendingValue] !== null) {
         return this[pendingValue];
       }
-      const defaultValue = this[defaultValueProperty];
-      return defaultValue != null ? defaultValue() : undefined;
+      const defaultValue = this[defaultValueProperty] as any;
+      return (defaultValue != null ? defaultValue() : undefined) as any;
     }
 
-    return this[getValueProperty]();
+    return this[getValueProperty]() as any;
   }
 
   // As on the web, value is always a string, and null clears it.
@@ -71,7 +71,8 @@ export class InputBase extends ViewBase {
     this[setValueProperty](text);
   }
 
-  [defaultValueState]: string | null = null;
+  // `any`: core types setNative keys as plain `symbol`, so ViewBase has a symbol index signature without `string`.
+  [defaultValueState]: any = null;
 
   /**
    * As on the web: the initial value. It sets `value` while the field still
@@ -103,6 +104,7 @@ export class InputBase extends ViewBase {
 
 /** HTMLInputElement's state beyond `value`; `<textarea>` has none of it. */
 export class InputElementBase extends InputBase {
+  //@ts-ignore
   [pendingChecked]: boolean | null = null;
   [checkedState]: boolean = false;
 

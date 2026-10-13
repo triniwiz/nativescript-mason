@@ -332,7 +332,9 @@ export const whiteSpaceProperty = new CssProperty<Style, string>({
  * axis every element from the touched one up to it allows, as browsers do.
  */
 export function parseTouchAction(value: string): number {
-  const v = String(value ?? 'auto').trim().toLowerCase();
+  const v = String(value ?? 'auto')
+    .trim()
+    .toLowerCase();
   if (v === 'auto' || v === '') return 7;
   if (v === 'none') return 0;
   if (v === 'manipulation') return 7;
@@ -354,7 +356,7 @@ export const touchActionProperty = new CssProperty<Style, string>({
     const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
     if (view && view[isMasonView_]) {
       view[touchAction_] = parseTouchAction(newValue);
-      view._applyTouchAction?.();
+      (view as ViewBase)._applyTouchAction?.();
     }
   },
 });
