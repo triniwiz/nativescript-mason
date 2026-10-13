@@ -116,7 +116,7 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
 } from './properties';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
 import { masonEngine, removeNativeChild } from './windows-panel-helpers';
 import { TextNode } from './text-node';
@@ -794,8 +794,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  [touchAction_]: number | undefined;
+
+  /** Hands `touch-action` to the native node, where the scroll views read it. */
+  _applyTouchAction() {
+    const flags = this[touchAction_];
+    const native = this[native_] as any;
+    if (flags === undefined || !native) return;
+    const node = native.node ?? (__IOS__ ? (this as any).ios?.node : undefined);
+    if (node) node.touchAction = flags;
+  }
+
   initNativeView(): void {
     super.initNativeView();
+    this._applyTouchAction();
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {

@@ -1616,6 +1616,22 @@ extension MasonUIView {
   }
 }
 
+extension MasonUIView {
+  /// `touch-action` for a touch at `point`: this view's flags and those of every
+  /// view from the one under the point up to it, intersected.
+  func _touchActionAt(_ point: CGPoint) -> Int {
+    var flags = node.touchAction
+    var current = hitTest(point, with: nil)
+    while let view = current, view !== self {
+      if let element = view as? MasonElement {
+        flags &= element.node.touchAction
+      }
+      current = view.superview
+    }
+    return flags
+  }
+}
+
 // MARK: - Private gesture delegate
 // Separate class: UIView already exposes gestureRecognizerShouldBegin with the
 // same ObjC selector, so conforming MasonUIView directly would conflict.
@@ -1624,7 +1640,17 @@ private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelega
 
   func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     guard let v = owner else { return false }
-    return v._canScrollH || v._canScrollV
+    guard v._canScrollH || v._canScrollV else { return false }
+    // `touch-action`: don't start a pan along an axis the touched element (or
+    // anything between it and this view) keeps for itself, e.g. a slider.
+    if let pan = gestureRecognizer as? UIPanGestureRecognizer {
+      let axes = v._touchActionAt(pan.location(in: v))
+      let velocity = pan.velocity(in: v)
+      let horizontal = abs(velocity.x) > abs(velocity.y)
+      if horizontal && axes & 1 == 0 { return false }
+      if !horizontal && axes & 2 == 0 { return false }
+    }
+    return true
   }
 
   func gestureRecognizer(

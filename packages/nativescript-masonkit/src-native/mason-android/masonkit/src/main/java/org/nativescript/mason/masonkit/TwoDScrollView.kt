@@ -277,6 +277,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     when (action) {
       MotionEvent.ACTION_DOWN -> {
         if (!scroller!!.isFinished) scroller!!.abortAnimation()
+        touchAxes = touchActionAt(x, y)
         lastMotionY = y
         lastMotionX = x
         nestedXOffset = 0
@@ -291,6 +292,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_MOVE -> {
         var deltaX = (lastMotionX - x).toInt()
         var deltaY = (lastMotionY - y).toInt()
+        if ((touchAxes and TouchAction.PAN_X) == 0) deltaX = 0
+        if ((touchAxes and TouchAction.PAN_Y) == 0) deltaY = 0
 
         // Pre-scroll: give a nested parent first claim on the delta.
         if (dispatchNestedPreScroll(deltaX, deltaY, scrollConsumed, scrollOffset, ViewCompat.TYPE_TOUCH)) {
@@ -345,8 +348,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_UP -> {
         val vt = velocityTracker
         vt!!.computeCurrentVelocity(1000, maximumVelocity.toFloat())
-        val initialXVelocity = vt.xVelocity.toInt()
-        val initialYVelocity = vt.yVelocity.toInt()
+        val initialXVelocity = if ((touchAxes and TouchAction.PAN_X) != 0) vt.xVelocity.toInt() else 0
+        val initialYVelocity = if ((touchAxes and TouchAction.PAN_Y) != 0) vt.yVelocity.toInt() else 0
         if ((abs(initialXVelocity) + abs(initialYVelocity) > minimumVelocity) && childCount > 0) {
           fling(-initialXVelocity, -initialYVelocity)
         } else {
@@ -775,6 +778,38 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     return handled || executeKeyEvent(event)
   }
 
+  // The pan axes the current gesture may scroll, from `touch-action`.
+  private var touchAxes = TouchAction.AUTO
+
+  /**
+   * `touch-action` for a touch at (x, y): the flags of this view and of every
+   * descendant under the point, intersected, as browsers combine them.
+   */
+  private fun touchActionAt(x: Float, y: Float): Int {
+    var flags = (this as? Element)?.node?.touchAction ?: TouchAction.AUTO
+    var group: ViewGroup = this
+    var px = x + scrollX
+    var py = y + scrollY
+    while (true) {
+      var hit: View? = null
+      for (i in group.childCount - 1 downTo 0) {
+        val child = group.getChildAt(i)
+        if (child.visibility != View.VISIBLE) continue
+        if (px >= child.left && px < child.right && py >= child.top && py < child.bottom) {
+          hit = child
+          break
+        }
+      }
+      if (hit == null) break
+      (hit as? Element)?.node?.touchAction?.let { flags = flags and it }
+      if (hit !is ViewGroup) break
+      px = px - hit.left + hit.scrollX
+      py = py - hit.top + hit.scrollY
+      group = hit
+    }
+    return flags
+  }
+
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
     val action = ev.action
     if ((action == MotionEvent.ACTION_MOVE) && isBeingDragged) return true
@@ -788,8 +823,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_MOVE -> {
         val yDiff = abs(y - lastMotionY).toInt()
         val xDiff = abs(x - lastMotionX).toInt()
-        val exceedsY = enableScrollY && yDiff > touchSlop
-        val exceedsX = enableScrollX && xDiff > touchSlop
+        val exceedsY = enableScrollY && (touchAxes and TouchAction.PAN_Y) != 0 && yDiff > touchSlop
+        val exceedsX = enableScrollX && (touchAxes and TouchAction.PAN_X) != 0 && xDiff > touchSlop
         if (exceedsY || exceedsX) isBeingDragged = true
       }
       MotionEvent.ACTION_DOWN -> {
@@ -797,6 +832,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         lastMotionX = x
         nestedXOffset = 0
         nestedYOffset = 0
+        touchAxes = touchActionAt(x, y)
         // A down during a fling, or while an edge is still stretched from one
         // (Android 12+), catches the scroll instead of tapping through to a
         // child, as the platform ScrollView does.
