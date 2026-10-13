@@ -21,6 +21,7 @@ import androidx.core.view.NestedScrollingChildHelper
 import androidx.core.view.NestedScrollingParent3
 import androidx.core.view.NestedScrollingParentHelper
 import androidx.core.view.ViewCompat
+import androidx.core.widget.EdgeEffectCompat
 import androidx.core.view.isEmpty
 import androidx.core.view.isNotEmpty
 import kotlin.math.abs
@@ -227,6 +228,14 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     e.right.onRelease()
   }
 
+  private fun isEdgeStretched(): Boolean {
+    val e = edgeEffects ?: return false
+    return EdgeEffectCompat.getDistance(e.top) != 0f ||
+      EdgeEffectCompat.getDistance(e.bottom) != 0f ||
+      EdgeEffectCompat.getDistance(e.left) != 0f ||
+      EdgeEffectCompat.getDistance(e.right) != 0f
+  }
+
   private fun canScroll(): Boolean {
     return enableScrollX || enableScrollY
   }
@@ -377,7 +386,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     if (null == currentFocused || this === currentFocused) return
     currentFocused.getDrawingRect(tempRect)
     offsetDescendantRectToMyCoords(currentFocused, tempRect)
-    val scrollDeltaX = computeScrollDeltaToGetChildRectOnScreen(tempRect)
+    val scrollDeltaX = computeScrollDeltaXToGetChildRectOnScreen(tempRect)
     val scrollDeltaY = computeScrollDeltaToGetChildRectOnScreen(tempRect)
     doScroll(scrollDeltaX, scrollDeltaY)
   }
@@ -446,6 +455,12 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         else if (unconsumedX > 0 && e.right.isFinished) e.right.onAbsorb(v)
       }
       scroller!!.abortAnimation()
+      // The edge effect animates only while draw() runs, and draw() only
+      // reschedules itself once it has started; with the fling stopped,
+      // nothing else would. Without this the bounce freezes part-way and
+      // plays out on whatever redraws the view next (a restyle, say), which
+      // looks like the content scrolling on its own.
+      postInvalidateOnAnimation()
     }
 
     if (!scroller!!.isFinished) {
@@ -642,7 +657,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       if (nextFocused != null) {
         nextFocused.getDrawingRect(tempRect)
         offsetDescendantRectToMyCoords(nextFocused, tempRect)
-        doScroll(computeScrollDeltaToGetChildRectOnScreen(tempRect), 0)
+        doScroll(computeScrollDeltaXToGetChildRectOnScreen(tempRect), 0)
         nextFocused.requestFocus(direction)
       } else {
         var scrollDelta = maxJump
@@ -718,6 +733,27 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     return scrollYDelta
   }
 
+  /** Horizontal counterpart of [computeScrollDeltaToGetChildRectOnScreen]. */
+  protected fun computeScrollDeltaXToGetChildRectOnScreen(rect: Rect): Int {
+    if (childCount == 0) return 0
+    val width = getWidth()
+    var screenLeft = scrollX
+    var screenRight = screenLeft + width
+    val fadingEdge = getHorizontalFadingEdgeLength()
+    if (rect.left > 0) screenLeft += fadingEdge
+    if (rect.right < scrollContentWidth) screenRight -= fadingEdge
+    var scrollXDelta = 0
+    if (rect.right > screenRight && rect.left > screenLeft) {
+      scrollXDelta += if (rect.width() > width) (rect.left - screenLeft) else (rect.right - screenRight)
+      val distanceToRight = scrollContentWidth - screenRight
+      scrollXDelta = min(scrollXDelta, distanceToRight)
+    } else if (rect.left < screenLeft && rect.right < screenRight) {
+      scrollXDelta -= if (rect.width() > width) (screenRight - rect.right) else (screenLeft - rect.left)
+      scrollXDelta = max(scrollXDelta, -scrollX)
+    }
+    return scrollXDelta
+  }
+
   override fun requestChildFocus(child: View?, focused: View) {
     if (!twoDScrollViewMovedFocus) {
       if (!isLayoutDirty) scrollToChild(focused)
@@ -758,7 +794,10 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         lastMotionX = x
         nestedXOffset = 0
         nestedYOffset = 0
-        isBeingDragged = !scroller!!.isFinished
+        // A down during a fling, or while an edge is still stretched from one
+        // (Android 12+), catches the scroll instead of tapping through to a
+        // child, as the platform ScrollView does.
+        isBeingDragged = !scroller!!.isFinished || isEdgeStretched()
         startNestedScroll(nestedScrollAxes(), ViewCompat.TYPE_TOUCH)
       }
       MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
