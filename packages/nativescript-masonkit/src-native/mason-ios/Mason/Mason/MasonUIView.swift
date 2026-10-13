@@ -50,17 +50,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
     _cachedHasBackground = !bgString.isEmpty || !style.mBackground.layers.isEmpty || style.mBackground.color != nil
     _cachedHasBoxShadow = !style.boxShadows.isEmpty
-    _cachedHasBorder = style.hasBorderImage || !style.mBorderRender.css.isEmpty || MasonUIView.sideHasVisibleBorder(style.mBorderRender.top) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.right) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.bottom) || MasonUIView.sideHasVisibleBorder(style.mBorderRender.left)
+    _cachedHasBorder = style.hasBorderImage || style.mBorderRender.hasVisibleBorder
     _cachedHasFilter = !style.resolvedFilterString.isEmpty
-  }
-
-  private static func sideHasVisibleBorder(_ side: CSSBorderRenderer.BorderSide) -> Bool {
-    guard side.style != .none else { return false }
-    switch side.width {
-    case .Zero: return false
-    case .Points(let points): return points != 0
-    case .Percent(let percent): return percent != 0
-    }
   }
   
   public override class var layerClass: AnyClass { MasonViewLayer.self }

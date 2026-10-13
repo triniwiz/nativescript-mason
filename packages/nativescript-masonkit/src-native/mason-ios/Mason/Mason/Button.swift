@@ -128,7 +128,7 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   public override func draw(_ rect: CGRect) {
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
     let hasBoxShadow = !style.boxShadows.isEmpty
-    let hasBorder = !style.mBorderRender.css.isEmpty || style.hasBorderImage
+    let hasBorder = style.mBorderRender.hasVisibleBorder || style.hasBorderImage
 
     guard let context = UIGraphicsGetCurrentContext() else {
       return

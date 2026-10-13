@@ -382,6 +382,22 @@ public final class CSSBorderRenderer {
   internal var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
   internal var css: String = ""
 
+  /// Whether there's a border to draw: set with the `border` shorthand (`css`)
+  /// or with longhands (`border-width` + `border-style`), as Tailwind writes them.
+  public var hasVisibleBorder: Bool {
+    !css.isEmpty || CSSBorderRenderer.sideIsVisible(top) || CSSBorderRenderer.sideIsVisible(right)
+      || CSSBorderRenderer.sideIsVisible(bottom) || CSSBorderRenderer.sideIsVisible(left)
+  }
+
+  internal static func sideIsVisible(_ side: BorderSide) -> Bool {
+    guard side.style != .none else { return false }
+    switch side.width {
+    case .Zero: return false
+    case .Points(let points): return points != 0
+    case .Percent(let percent): return percent != 0
+    }
+  }
+
   // Clip path cache — avoids UIBezierPath allocation every frame
   private var cachedClipPath: UIBezierPath?
   private var cachedClipRect: CGRect = .zero
