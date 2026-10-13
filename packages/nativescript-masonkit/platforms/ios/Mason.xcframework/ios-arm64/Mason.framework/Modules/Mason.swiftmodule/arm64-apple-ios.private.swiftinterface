@@ -131,6 +131,9 @@ final public class CSSBorderRenderer {
   final public var bottom: Mason.CSSBorderRenderer.BorderSide
   final public var left: Mason.CSSBorderRenderer.BorderSide
   final public var radius: Mason.CSSBorderRenderer.BorderRadius
+  final public var hasVisibleBorder: Swift.Bool {
+    get
+  }
   public init(style: Mason.MasonStyle)
   final public func hasRadii() -> Swift.Bool
   final public func getClipPath(rect: CoreFoundation.CGRect, radius: Mason.CSSBorderRenderer.BorderRadius) -> UIKit.UIBezierPath
