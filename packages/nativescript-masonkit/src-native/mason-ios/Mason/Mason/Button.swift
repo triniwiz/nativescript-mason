@@ -68,20 +68,11 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
       }
       return
     }
-    let root = node.getRootNode()
-    let view = if(root.type == .document){
-      root.document?.documentElement as? MasonElement
-    }else {
-      root.view as? MasonElement
-    }
-    
-    if let view = view {
-      if(view.computeCacheDirty){
-        let computed = view.computeCache()
-        view.computeWithSize(Float(computed.width), Float(computed.height))
-      }
-      setNeedsDisplay()
-    }
+    // Schedule a layout pass from the layout root, as MasonText does. Only
+    // recomputing when the root's compute cache was dirty meant a label change
+    // (e.g. "Tap me" -> "Tapped 1x") never re-measured the button.
+    rootLayoutElement()?.setNeedsLayoutPass()
+    setNeedsDisplay()
   }
   
   

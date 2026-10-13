@@ -1,4 +1,4 @@
-import type { ViewClassMeta } from '@nativescript/angular';
+import { CommentNode, TextNode, type ViewClassMeta } from '@nativescript/angular';
 import { frameworkRegistry, readLinkedList } from '@triniwiz/nativescript-masonkit';
 
 /**
@@ -80,6 +80,9 @@ function rawChildIndex(parent: MasonChildOps, child: unknown): number {
  * `textProperty.setNative` already reconciles into real native text nodes.
  */
 export const masonMeta: ViewClassMeta = {
+  // Explicit so the framework adapter below recognises views registered with
+  // this meta (it keys on `skipAddToDom` being defined).
+  skipAddToDom: false,
   insertChild(parent: MasonChildOps, child: unknown, next?: unknown): void {
     const index = rawChildIndex(parent, next);
     if (index > -1) {
@@ -110,6 +113,15 @@ frameworkRegistry.register({
   },
   getChildren: readLinkedList,
   classify(node) {
+    // `instanceof` first: bundlers rename classes that clash (MasonKit has its
+    // own `TextNode`), so `TextNode` becomes `TextNode$1` and the name checks
+    // below miss, sending every text node down the `skipAddToDom` branch.
+    if (node instanceof TextNode) {
+      return 'text';
+    }
+    if (node instanceof CommentNode) {
+      return 'none';
+    }
     if (node.nodeType === 'text' || node.nodeType === 3 || node.nodeName === 'TextNode' || node.constructor?.name === 'TextNode') {
       return 'text';
     }
