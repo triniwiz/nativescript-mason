@@ -6,10 +6,13 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.os.Build
+import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputConnectionWrapper
@@ -28,6 +31,9 @@ interface TextInputOwner : Element {
     options: EventOptions? = null
   ): Boolean
 }
+
+// How long after focus, a touch or typing the caret may scroll the page.
+private const val INTERACTION_WINDOW_MS = 500L
 
 @SuppressLint("AppCompatCustomView")
 open class TextInput @JvmOverloads constructor(
@@ -231,6 +237,40 @@ open class TextInput @JvmOverloads constructor(
     isUndoOrRedo = false
   }
 
+  // Until when the user counts as interacting with the field (uptime ms).
+  private var interactingUntil = 0L
+
+  private fun markInteraction() {
+    interactingUntil = SystemClock.uptimeMillis() + INTERACTION_WINDOW_MS
+  }
+
+  /**
+   * Bring the caret into view only while the user is using the field, as
+   * browsers do. TextView also does it from onPreDraw after any relayout of
+   * its text (a restyle, say), which scrolled the page back to a focused
+   * field the user had scrolled away from.
+   */
+  override fun bringPointIntoView(offset: Int): Boolean {
+    if (SystemClock.uptimeMillis() > interactingUntil) return false
+    return super.bringPointIntoView(offset)
+  }
+
+  override fun onFocusChanged(focused: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
+    if (focused) markInteraction()
+    super.onFocusChanged(focused, direction, previouslyFocusedRect)
+  }
+
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent): Boolean {
+    markInteraction()
+    return super.onTouchEvent(event)
+  }
+
+  override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+    markInteraction()
+    return super.dispatchKeyEvent(event)
+  }
+
   override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
     if (event.isCtrlPressed) {
       when (keyCode) {
@@ -254,6 +294,7 @@ open class TextInput @JvmOverloads constructor(
     return object : InputConnectionWrapper(baseConnection, true) {
 
       override fun sendKeyEvent(event: android.view.KeyEvent): Boolean {
+        markInteraction()
         if (event.action == android.view.KeyEvent.ACTION_DOWN) {
           when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_DEL -> {
@@ -273,6 +314,7 @@ open class TextInput @JvmOverloads constructor(
       }
 
       override fun deleteSurroundingText(before: Int, after: Int): Boolean {
+        markInteraction()
         lastInputType =
           if (before > 0) Event.InputType.DeleteContentBackward.value
           else Event.InputType.DeleteContentForward.value
@@ -283,6 +325,7 @@ open class TextInput @JvmOverloads constructor(
       }
 
       override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
+        markInteraction()
         if (skipNextCommitText) {
           // Already handled as paste
           skipNextCommitText = false
@@ -315,6 +358,7 @@ open class TextInput @JvmOverloads constructor(
         text: CharSequence?,
         newCursorPosition: Int
       ): Boolean {
+        markInteraction()
         isComposingText = true
 
         lastInputType = Event.InputType.InsertCompositionText.value
