@@ -137,9 +137,32 @@ export const splitBorderWidth = sides((token) => BORDER_WIDTH_KEYWORDS.has(token
 
 export const splitBorderColor = sides((token) => token !== '/');
 
+/** A logical axis shorthand (`margin-inline: <start> [<end>]`): start and end. */
+function startEnd(accepts: (token: string) => boolean) {
+  return (value: string): string[] => {
+    const parts = values(value, accepts);
+    if (parts.length < 1 || parts.length > 2) {
+      throw new Error(`Expected 1 or 2 values in "${value}"`);
+    }
+    return [parts[0], parts[1] ?? parts[0]];
+  };
+}
+
+export const splitMarginStartEnd = startEnd((token) => token === 'auto' || isLength(token));
+export const splitPaddingStartEnd = startEnd(isLength);
+export const splitInsetStartEnd = startEnd((token) => token === 'auto' || isLength(token));
+export const splitBorderWidthStartEnd = startEnd((token) => BORDER_WIDTH_KEYWORDS.has(token) || isLength(token));
+export const splitBorderColorStartEnd = startEnd((token) => token !== '/');
+
+/** A logical property that maps onto one physical longhand: the value as is. */
+export function passThrough(value: string): string[] {
+  return [value];
+}
+
 export const BORDER_STYLES: ReadonlySet<string> = new Set(['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset']);
 
 export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLowerCase()));
+export const splitBorderStyleStartEnd = startEnd((token) => BORDER_STYLES.has(token.toLowerCase()));
 
 const LENGTH_FUNCTION = /^(calc|min|max|clamp)\(/i;
 

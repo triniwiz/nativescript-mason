@@ -576,6 +576,13 @@ camelCase accessors — `:active { background-color: red }` stamped a dead expan
 Only the accidentally-identical names (`color`, `display`, `padding`, …) ever
 worked. Both fixed.
 
+**Logical properties** (`margin-inline`, `padding-block-end`, `inset-inline-start`,
+`border-inline*`/`border-block*`, `border-start-end-radius`, `inline-size`, ...) are
+shorthands over the physical longhands (`properties.ts`, "Logical properties"),
+mapped for horizontal left-to-right text, so they cascade with the physical ones.
+Making them direction-aware needs a `direction` property and a mapping done per
+element, after the parse-time shorthand split.
+
 **`flex` shorthand.** The converter tested `value.length` (the *string's* length)
 instead of `values.length`, then pushed an object where core destructures a
 `[property, value]` tuple — so **any three-part `flex` threw** "not iterable",

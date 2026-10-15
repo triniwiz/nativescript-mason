@@ -11,7 +11,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
-import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
+import { BORDER_WIDTH_KEYWORDS, passThrough, splitBorder, splitBorderSide, splitBorderStyle, splitBorderStyleStartEnd, splitBorderWidthStartEnd, splitBorderColorStartEnd, splitInsetStartEnd, splitMarginStartEnd, splitPaddingStartEnd, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
 
@@ -2418,4 +2418,71 @@ borderRightProperty.register(Style);
 borderBottomProperty.register(Style);
 borderLeftProperty.register(Style);
 
-export const masonShorthands: MasonShorthand[] = [...coreShorthands, borderStyleShorthand, borderShorthand, ...borderSideShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
+// ---------------------------------------------------------------------------
+// Logical properties
+// ---------------------------------------------------------------------------
+//
+// `margin-inline`, `padding-block-end`, `inset-inline-start`,
+// `border-start-end-radius`, `inline-size`, ... as shorthands over the physical
+// longhands, so they cascade with them: a later `margin-left` overrides an
+// earlier `margin-inline-start`, and the other way round.
+//
+// They map for horizontal, left-to-right text (inline = left/right, block =
+// top/bottom). Mason has no `direction` or vertical `writing-mode` for its
+// box model yet, and a stylesheet shorthand is expanded while parsing, before
+// any element is known, so a direction-aware mapping would need both.
+
+type Sides = readonly [top: ShorthandLonghand, right: ShorthandLonghand, bottom: ShorthandLonghand, left: ShorthandLonghand];
+
+const LOGICAL_SIDES: ReadonlyArray<[logical: string, physical: number]> = [
+  ['block-start', 0],
+  ['inline-end', 1],
+  ['block-end', 2],
+  ['inline-start', 3],
+];
+
+/** `<prefix>-inline<suffix>`, `<prefix>-block<suffix>` and the four `-start`/`-end` sides. */
+function logicalSides(prefix: string, suffix: string, sides: Sides, splitAxis: (value: string) => string[]): MasonShorthand[] {
+  const inline: MasonShorthand = { cssName: `${prefix}-inline${suffix}`, longhands: [sides[3], sides[1]], split: splitAxis };
+  const block: MasonShorthand = { cssName: `${prefix}-block${suffix}`, longhands: [sides[0], sides[2]], split: splitAxis };
+  const perSide = LOGICAL_SIDES.map(([side, i]): MasonShorthand => ({ cssName: `${prefix}-${side}${suffix}`, longhands: [sides[i]], split: passThrough }));
+  return [inline, block, ...perSide];
+}
+
+const borderSideLonghands = (i: number) => [borderWidthLonghands[i], borderStyleLonghands[i], borderColorLonghands[i]];
+
+const logicalShorthands: MasonShorthand[] = [
+  ...logicalSides('margin', '', marginLonghands as unknown as Sides, splitMarginStartEnd),
+  ...logicalSides('padding', '', paddingLonghands as unknown as Sides, splitPaddingStartEnd),
+  ...logicalSides('inset', '', [topProperty, rightProperty, bottomProperty, leftProperty], splitInsetStartEnd),
+  ...logicalSides('border', '-width', borderWidthLonghands as unknown as Sides, splitBorderWidthStartEnd),
+  ...logicalSides('border', '-style', borderStyleLonghands as unknown as Sides, splitBorderStyleStartEnd),
+  ...logicalSides('border', '-color', borderColorLonghands as unknown as Sides, splitBorderColorStartEnd),
+  // `border-inline: 1px solid` gives both sides the same border.
+  { cssName: 'border-inline', longhands: [...borderSideLonghands(3), ...borderSideLonghands(1)], split: (value) => [...splitBorderSide(value), ...splitBorderSide(value)] },
+  { cssName: 'border-block', longhands: [...borderSideLonghands(0), ...borderSideLonghands(2)], split: (value) => [...splitBorderSide(value), ...splitBorderSide(value)] },
+  ...LOGICAL_SIDES.map(([side, i]) => ({ cssName: `border-${side}`, longhands: borderSideLonghands(i), split: splitBorderSide })),
+  // Corners are <block>-<inline>: start-start is top-left.
+  { cssName: 'border-start-start-radius', longhands: [borderTopLeftRadiusProperty], split: passThrough },
+  { cssName: 'border-start-end-radius', longhands: [borderTopRightRadiusProperty], split: passThrough },
+  { cssName: 'border-end-end-radius', longhands: [borderBottomRightRadiusProperty], split: passThrough },
+  { cssName: 'border-end-start-radius', longhands: [borderBottomLeftRadiusProperty], split: passThrough },
+  { cssName: 'inline-size', longhands: [widthProperty], split: passThrough },
+  { cssName: 'block-size', longhands: [heightProperty], split: passThrough },
+  { cssName: 'min-inline-size', longhands: [minWidthProperty], split: passThrough },
+  { cssName: 'min-block-size', longhands: [minHeightProperty], split: passThrough },
+  { cssName: 'max-inline-size', longhands: [maxWidthProperty], split: passThrough },
+  { cssName: 'max-block-size', longhands: [maxHeightProperty], split: passThrough },
+  { cssName: 'overflow-inline', longhands: [overflowXProperty], split: passThrough },
+  { cssName: 'overflow-block', longhands: [overflowYProperty], split: passThrough },
+];
+
+for (const entry of logicalShorthands) {
+  masonShorthandProperty(entry, function (this: Style) {
+    const parts = entry.longhands.map((longhand) => cssText((this as never)[longhand.name]));
+    // The axis shorthands read back as one value when both sides agree.
+    return entry.longhands.length === 2 && parts[0] === parts[1] ? parts[0] : parts.join(' ');
+  }).register(Style);
+}
+
+export const masonShorthands: MasonShorthand[] = [...coreShorthands, borderStyleShorthand, borderShorthand, ...borderSideShorthands, ...logicalShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
