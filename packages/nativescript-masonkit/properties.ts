@@ -695,16 +695,10 @@ export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
   defaultValue: 0,
-  // Length.parse has no '%' handling; use masonLengthPercentParse instead.
-  valueConverter(value) {
-    // @ts-ignore
-    const parsed = masonLengthPercentParse(value);
-    if (parsed === undefined || typeof parsed === 'string') {
-      return 0;
-    }
-    // @ts-ignore
-    return parsed;
-  },
+  // @ts-ignore
+  valueConverter: masonGapConverter,
+  // @ts-ignore
+  equalityComparer: masonLengthEquals,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, rowGapProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -718,15 +712,10 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   name: 'columnGap',
   cssName: 'column-gap',
   defaultValue: 0,
-  valueConverter(value) {
-    // @ts-ignore
-    const parsed = masonLengthPercentParse(value);
-    if (parsed === undefined || typeof parsed === 'string') {
-      return 0;
-    }
-    // @ts-ignore
-    return parsed;
-  },
+  // @ts-ignore
+  valueConverter: masonGapConverter,
+  // @ts-ignore
+  equalityComparer: masonLengthEquals,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, columnGapProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -800,6 +789,57 @@ function masonLengthPercentParse(value) {
   } catch (e) {
     return undefined;
   }
+}
+
+/** Units core's parsers read as a bare number: `parseFloat('0.5rem')` is 0.5. */
+const UNITS_CORE_MISREADS = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(r?em|pt|vw|vh|vmin|vmax|dppx)$/i;
+
+/**
+ * The CSS text of a length in a unit core can't parse (`0.5rem`, `2em`,
+ * `10vw`), or undefined for anything else.
+ *
+ * Core's `PercentLength.parse` is a bare `parseFloat`, so `gap: 0.5rem` became
+ * 0.5 dip. Kept as text, the value reaches Mason's style setter, which resolves
+ * the unit (and `em` against the element's own font size) as for any other
+ * length. px, dip, numbers and percentages still take core's parse, which
+ * already reads them as Mason does.
+ */
+function masonLengthText(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const t = value.trim();
+  return UNITS_CORE_MISREADS.test(t) ? t : undefined;
+}
+
+/** `left`/`top`/`right`/`bottom`: Mason's units, else core's parse (`%`, `auto`). */
+function masonInsetConverter(value: unknown) {
+  return (masonLengthText(value) ?? masonLengthPercentParse(value)) as never;
+}
+
+/** `row-gap`/`column-gap`: as the insets, but anything unparsable is 0. */
+function masonGapConverter(value: unknown) {
+  const text = masonLengthText(value);
+  if (text !== undefined) {
+    return text as never;
+  }
+  const parsed = masonLengthPercentParse(value);
+  if (parsed === undefined || typeof parsed === 'string') {
+    return 0 as never;
+  }
+  return parsed as never;
+}
+
+/**
+ * Core's `PercentLength.equals` compares `.value`/`.unit`, which two CSS
+ * strings both lack, so it would call `1rem` and `2rem` equal and drop the
+ * change. Text compares as text.
+ */
+function masonLengthEquals(a: unknown, b: unknown): boolean {
+  if (typeof a === 'string' || typeof b === 'string') {
+    return a === b;
+  }
+  return CorePercentLength.equals(a as never, b as never);
 }
 
 /** As `masonSizeConverter`, for Mason's own max-* properties (core has none). */
@@ -1035,10 +1075,10 @@ function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Sty
     const thickness = parseShorthandPositioning(value);
 
     return [
-      [topProperty, masonLengthPercentParse(thickness.top) as LengthAuto],
-      [rightProperty, masonLengthPercentParse(thickness.right) as LengthAuto],
-      [bottomProperty, masonLengthPercentParse(thickness.bottom) as LengthAuto],
-      [leftProperty, masonLengthPercentParse(thickness.left) as LengthAuto],
+      [topProperty, masonInsetConverter(thickness.top) as LengthAuto],
+      [rightProperty, masonInsetConverter(thickness.right) as LengthAuto],
+      [bottomProperty, masonInsetConverter(thickness.bottom) as LengthAuto],
+      [leftProperty, masonInsetConverter(thickness.left) as LengthAuto],
     ];
   } else {
     return [
@@ -1055,9 +1095,9 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'left',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CorePercentLength.equals,
+  equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonInsetConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, leftProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -1072,9 +1112,9 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'right',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CorePercentLength.equals,
+  equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonInsetConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, rightProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -1089,9 +1129,9 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'top',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CorePercentLength.equals,
+  equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonInsetConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, topProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -1106,9 +1146,9 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'bottom',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CorePercentLength.equals,
+  equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonInsetConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, bottomProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -1318,10 +1358,9 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'flex-basis',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CorePercentLength.equals,
-  // masonLengthParse has no '%' support; see maxWidthProperty above.
+  equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonLengthPercentParse,
+  valueConverter: masonInsetConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, flexBasisProperty)) return;
     const view = getViewStyle(target.viewRef);
