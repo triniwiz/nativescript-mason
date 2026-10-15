@@ -1893,6 +1893,45 @@ export class Style {
     this.commitState(StateKeys.BORDER_COLOR);
   }
 
+  // Per-side colors by name: pseudo-class styles assign each declaration of a
+  // rule this way, and `border`, `border-<side>` and `border-color` reach them
+  // as these longhands.
+  private borderSideColor(key: StyleKeys): string {
+    return new Color(getUint32(this.style_view, key)).hex;
+  }
+
+  get borderTopColor(): string {
+    return this.borderSideColor(StyleKeys.BORDER_TOP_COLOR);
+  }
+
+  set borderTopColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('top', value);
+  }
+
+  get borderRightColor(): string {
+    return this.borderSideColor(StyleKeys.BORDER_RIGHT_COLOR);
+  }
+
+  set borderRightColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('right', value);
+  }
+
+  get borderBottomColor(): string {
+    return this.borderSideColor(StyleKeys.BORDER_BOTTOM_COLOR);
+  }
+
+  set borderBottomColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('bottom', value);
+  }
+
+  get borderLeftColor(): string {
+    return this.borderSideColor(StyleKeys.BORDER_LEFT_COLOR);
+  }
+
+  set borderLeftColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('left', value);
+  }
+
   resetState() {
     this._hasDirty = false;
     this._d0 = this._d1 = this._d2 = this._d3 = 0;

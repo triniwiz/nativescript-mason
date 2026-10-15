@@ -11,7 +11,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
-import { BORDER_WIDTH_KEYWORDS, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
+import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
 
@@ -150,31 +150,6 @@ export const filterProperty = new CssProperty<Style, string>({
 export const borderColorProperty = new CssProperty<Style, string>({
   name: 'borderColor',
   cssName: 'border-color',
-});
-
-export const borderProperty = new CssProperty<Style, string>({
-  name: 'border',
-  cssName: 'border',
-});
-
-export const borderLeftProperty = new CssProperty<Style, string>({
-  name: 'borderLeft',
-  cssName: 'border-left',
-});
-
-export const borderTopProperty = new CssProperty<Style, string>({
-  name: 'borderTop',
-  cssName: 'border-top',
-});
-
-export const borderRightProperty = new CssProperty<Style, string>({
-  name: 'borderRight',
-  cssName: 'border-right',
-});
-
-export const borderBottomProperty = new CssProperty<Style, string>({
-  name: 'borderBottom',
-  cssName: 'border-bottom',
 });
 
 export const backgroundProperty = new CssProperty<Style, string>({
@@ -1776,12 +1751,6 @@ backgroundOriginProperty.register(Style);
 backgroundAttachmentProperty.register(Style);
 backgroundBlendModeProperty.register(Style);
 
-borderProperty.register(Style);
-borderLeftProperty.register(Style);
-borderTopProperty.register(Style);
-borderRightProperty.register(Style);
-borderBottomProperty.register(Style);
-
 filterProperty.register(Style);
 registerAlongsideCore(borderColorProperty);
 
@@ -1799,9 +1768,29 @@ export const objectPositionProperty = new CssProperty<Style, string>({
   },
 });
 
-export const borderStyleProperty = new CssProperty<Style, string>({
-  name: 'borderStyle',
-  cssName: 'border-style',
+// One style per side, as CSS has; `border-style`, `border` and `border-<side>`
+// are shorthands over them (below), so a later longhand overrides a shorthand.
+export const borderTopStyleProperty = new CssProperty<Style, string>({
+  name: 'borderTopStyle',
+  cssName: 'border-top-style',
+  defaultValue: 'none',
+});
+
+export const borderRightStyleProperty = new CssProperty<Style, string>({
+  name: 'borderRightStyle',
+  cssName: 'border-right-style',
+  defaultValue: 'none',
+});
+
+export const borderBottomStyleProperty = new CssProperty<Style, string>({
+  name: 'borderBottomStyle',
+  cssName: 'border-bottom-style',
+  defaultValue: 'none',
+});
+
+export const borderLeftStyleProperty = new CssProperty<Style, string>({
+  name: 'borderLeftStyle',
+  cssName: 'border-left-style',
   defaultValue: 'none',
 });
 
@@ -2202,7 +2191,10 @@ export const caretColorProperty = new CssProperty<Style, string>({
 });
 
 objectPositionProperty.register(Style);
-borderStyleProperty.register(Style);
+borderTopStyleProperty.register(Style);
+borderRightStyleProperty.register(Style);
+borderBottomStyleProperty.register(Style);
+borderLeftStyleProperty.register(Style);
 borderImageProperty.register(Style);
 fontStretchProperty.register(Style);
 fontFeatureSettingsProperty.register(Style);
@@ -2345,4 +2337,85 @@ for (const entry of coreShorthands) {
   masonShorthandProperty(entry);
 }
 
-export const masonShorthands: MasonShorthand[] = [...coreShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
+// `border`, `border-<side>` and `border-style` expand into the width, style and
+// color longhands, as `border-width` and `border-color` do, so the cascade
+// decides each longhand on its own: `border: 1px solid` followed by
+// `border-width: 0 0 1px` keeps only the bottom border, as on the web. They
+// used to be properties of their own, parsed natively, which overwrote or lost
+// to the longhands depending on which one happened to be applied last.
+const SIDES = ['top', 'right', 'bottom', 'left'];
+
+/** A longhand's value as CSS text, for the shorthand getters. */
+function cssText(value: unknown): string {
+  if (value == null || value === unsetValue) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return `${value}px`;
+  }
+  if (isCssLength(value)) {
+    return value.css;
+  }
+  const { hex, unit, value: amount } = value as { hex?: string; unit?: string; value?: number };
+  if (typeof hex === 'string') {
+    return hex;
+  }
+  if (typeof amount === 'number') {
+    return unit === '%' ? `${amount * 100}%` : `${amount}px`;
+  }
+  return String(value);
+}
+
+const borderStyleLonghands = [borderTopStyleProperty, borderRightStyleProperty, borderBottomStyleProperty, borderLeftStyleProperty];
+
+const borderStyleShorthand: MasonShorthand = { cssName: 'border-style', longhands: borderStyleLonghands, split: splitBorderStyle };
+const borderShorthand: MasonShorthand = { cssName: 'border', longhands: [...borderWidthLonghands, ...borderStyleLonghands, ...borderColorLonghands], split: splitBorder };
+const borderSideShorthands: MasonShorthand[] = [0, 1, 2, 3].map((i) => ({
+  cssName: `border-${SIDES[i]}`,
+  longhands: [borderWidthLonghands[i], borderStyleLonghands[i], borderColorLonghands[i]],
+  split: splitBorderSide,
+}));
+
+function sideValues(style: Style, longhands: { name: string }[]): string[] {
+  return longhands.map(({ name }) => cssText((style as never)[name]));
+}
+
+/** The shorthand's text when every side agrees, as `getComputedStyle` gives it; else ''. */
+function uniformSides(values: string[]): string | undefined {
+  return values.every((value) => value === values[0]) ? values[0] : undefined;
+}
+
+export const borderStyleProperty = masonShorthandProperty(borderStyleShorthand, function (this: Style) {
+  const styles = sideValues(this, borderStyleLonghands);
+  return uniformSides(styles) ?? styles.join(' ');
+});
+
+export const borderProperty = masonShorthandProperty(borderShorthand, function (this: Style) {
+  const width = uniformSides(sideValues(this, borderWidthLonghands));
+  const style = uniformSides(sideValues(this, borderStyleLonghands));
+  const color = uniformSides(sideValues(this, borderColorLonghands));
+  return width !== undefined && style !== undefined && color !== undefined ? [width, style, color].filter(Boolean).join(' ') : '';
+});
+
+function borderSideGetter(i: number) {
+  return function (this: Style) {
+    return sideValues(this, [borderWidthLonghands[i], borderStyleLonghands[i], borderColorLonghands[i]]).filter(Boolean).join(' ');
+  };
+}
+
+export const borderTopProperty = masonShorthandProperty(borderSideShorthands[0], borderSideGetter(0));
+export const borderRightProperty = masonShorthandProperty(borderSideShorthands[1], borderSideGetter(1));
+export const borderBottomProperty = masonShorthandProperty(borderSideShorthands[2], borderSideGetter(2));
+export const borderLeftProperty = masonShorthandProperty(borderSideShorthands[3], borderSideGetter(3));
+
+borderStyleProperty.register(Style);
+borderProperty.register(Style);
+borderTopProperty.register(Style);
+borderRightProperty.register(Style);
+borderBottomProperty.register(Style);
+borderLeftProperty.register(Style);
+
+export const masonShorthands: MasonShorthand[] = [...coreShorthands, borderStyleShorthand, borderShorthand, ...borderSideShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
