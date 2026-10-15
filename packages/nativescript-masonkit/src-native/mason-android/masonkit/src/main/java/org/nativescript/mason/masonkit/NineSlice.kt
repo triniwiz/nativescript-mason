@@ -694,7 +694,7 @@ internal class NineSliceSource(token: String) {
       doc != null -> renderSvgDocument(doc, pw, ph, color)
       gradientLayer != null -> Bitmap.createBitmap(pw, ph, Bitmap.Config.ARGB_8888).also {
         val rect = RectF(0f, 0f, pw.toFloat(), ph.toFloat())
-        drawGradient(gradientLayer, Canvas(it), rect, rect, view)
+        drawGradient(gradientLayer, Canvas(it), rect, rect)
       }
 
       else -> null
