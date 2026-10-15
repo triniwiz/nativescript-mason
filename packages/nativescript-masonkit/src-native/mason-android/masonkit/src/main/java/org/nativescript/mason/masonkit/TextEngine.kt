@@ -21,6 +21,7 @@ import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
 import android.text.style.LineBackgroundSpan
+import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.ParagraphStyle
 import android.text.style.ReplacementSpan
@@ -36,9 +37,13 @@ import androidx.core.graphics.createBitmap
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FontVariantNumeric
+import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import kotlin.math.ceil
@@ -1893,11 +1898,12 @@ class TextEngine(val container: TextContainer) {
     justified: Boolean
   ): android.text.Layout? {
     if (justified || text !is Spanned || keepsTrailingSpaces()) return null
-    val advances = advancesFor(text, paint) ?: return null
     val len = text.length
-    for (span in text.getSpans(0, len, ParagraphStyle::class.java)) {
-      if (span !is AlignmentSpan) return null
+    val paragraphSpans = text.getSpans(0, len, ParagraphStyle::class.java)
+    for (span in paragraphSpans) {
+      if (span !is AlignmentSpan && span !is LineHeightSpan) return null
     }
+    val advances = advancesFor(text, paint) ?: return null
     var visibleEnd = len
     while (visibleEnd > 0 && isLineEndSpace(text[visibleEnd - 1])) visibleEnd--
     val visibleWidth = advanceSum(advances, 0, visibleEnd)
@@ -1925,6 +1931,13 @@ class TextEngine(val container: TextContainer) {
     m.descent = descent
     m.bottom = bottom
     m.leading = fm.leading
+    // BoringLayout ignores paragraph spans, so apply line-height to the one line as StaticLayout does.
+    for (span in paragraphSpans) {
+      when (span) {
+        is LineHeightSpan.WithDensity -> span.chooseHeight(text, 0, len, 0, m.descent - m.ascent, m, paint)
+        is LineHeightSpan -> span.chooseHeight(text, 0, len, 0, m.descent - m.ascent, m)
+      }
+    }
     m.width = ceil(visibleWidth).toInt()
     val runStyle = plainRunStyle(text)
     if (runStyle != null) {
@@ -2577,6 +2590,39 @@ class TextEngine(val container: TextContainer) {
     return null
   }
 
+  // Block flow and a stretching flex column size a box at its container's width. When that holds
+  // from the text up to the root (or a fixed width), taffy never asks the text for min- or
+  // max-content, so warming those would be wasted.
+  private fun widthFromParent(): Boolean {
+    var child = node
+    var isText = true
+    for (depth in 0 until 64) {
+      val s = child.style
+      if (!s.isValueInitialized) return false
+      if (s.size.width is Dimension.Points) return true
+      if (s.position == Position.Absolute || s.position == Position.Fixed) return false
+      if (s.float != org.nativescript.mason.masonkit.enums.Float.None) return false
+      val parent = child.layoutParent ?: child.parent ?: return true
+      val ps = parent.style
+      if (!ps.isValueInitialized) return false
+      val stretched = when (ps.display) {
+        // In block flow an inline text joins an inline run; a flex item is blockified.
+        Display.Block, Display.ListItem -> !(isText && NodeUtils.isInlineLike(child))
+        Display.Flex -> (ps.flexDirection == FlexDirection.Column || ps.flexDirection == FlexDirection.ColumnReverse) &&
+          when (s.alignSelf) {
+            AlignSelf.Stretch -> true
+            AlignSelf.Normal -> ps.alignItems == AlignItems.Stretch || ps.alignItems == AlignItems.Normal
+            else -> false
+          }
+        else -> false
+      }
+      if (!stretched) return false
+      child = parent
+      isText = false
+    }
+    return false
+  }
+
   private fun warmable(): Boolean {
     if (textStyleFlushPending || style.fontDirty) return false
     for (child in node.children) if (child !is TextNode) return false
@@ -2617,8 +2663,10 @@ class TextEngine(val container: TextContainer) {
       try {
         for (engine in batch) {
           val paint = (engine.container as TextView).paint
-          engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -1f, -2f)
-          engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -2f, -2f)
+          if (!engine.widthFromParent()) {
+            engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -1f, -2f)
+            engine.measure(paint, KNOWN_NONE, KNOWN_NONE, -2f, -2f)
+          }
           if (!engine.lastDefiniteAvailableWidth.isNaN()) {
             engine.measure(
               paint, engine.lastDefiniteKnownWidth, engine.lastDefiniteKnownHeight,
@@ -2701,9 +2749,11 @@ class TextEngine(val container: TextContainer) {
       if (pendingTextStyleFlush.isEmpty()) return
       val pending = pendingTextStyleFlush.toTypedArray()
       pendingTextStyleFlush.clear()
-      for (engine in pending) {
-        val quiet = forRoot != null && (engine.node.getRootNode() ?: engine.node) === forRoot
-        engine.flushTextStyleIfNeeded(quiet = quiet)
+      TextDefaultAttributes.batch {
+        for (engine in pending) {
+          val quiet = forRoot != null && (engine.node.getRootNode() ?: engine.node) === forRoot
+          engine.flushTextStyleIfNeeded(quiet = quiet)
+        }
       }
     }
   }

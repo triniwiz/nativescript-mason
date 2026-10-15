@@ -4783,6 +4783,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       return null
     }
 
+  // Resolved text attributes cached for one TextDefaultAttributes.batch.
+  internal var batchAttrs: TextDefaultAttributes? = null
+  internal var batchAttrsStamp = 0
+
   // Parent's style for inherited text properties. Must NOT gate on
   // isValueInitialized: that flag lags JS style writes by a microtask, but
   // the underlying buffer is already correct, so gating on it can find no

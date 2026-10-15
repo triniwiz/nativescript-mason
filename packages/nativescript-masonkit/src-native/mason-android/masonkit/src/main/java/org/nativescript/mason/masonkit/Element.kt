@@ -315,7 +315,10 @@ interface Element : EventTarget {
     }
   }
 
-  fun computeAndLayout(): MasonLayoutTree {
+  // Text attributes resolved during a compute are cached per style for the whole pass.
+  fun computeAndLayout(): MasonLayoutTree = TextDefaultAttributes.batch { computeAndLayoutUnbatched() }
+
+  private fun computeAndLayoutUnbatched(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
     TextEngine.warmMeasures(node)
@@ -353,7 +356,10 @@ interface Element : EventTarget {
     return Layout.fromFloatArray(floats, 0).second
   }
 
-  fun computeAndLayout(width: Float, height: Float): MasonLayoutTree {
+  fun computeAndLayout(width: Float, height: Float): MasonLayoutTree =
+    TextDefaultAttributes.batch { computeAndLayoutUnbatched(width, height) }
+
+  private fun computeAndLayoutUnbatched(width: Float, height: Float): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock

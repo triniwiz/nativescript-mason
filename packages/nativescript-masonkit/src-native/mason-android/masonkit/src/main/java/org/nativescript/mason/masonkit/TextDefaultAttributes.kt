@@ -1,66 +1,255 @@
 package org.nativescript.mason.masonkit
 
-import android.os.Build
 import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 
-data class TextDefaultAttributes(
-  var color: Int? = null,
-  var fontSize: Int? = null,
-  var fontWeight: FontWeight? = null,
-  var fontStyle: FontStyle? = null,
-  var fontFamily: String? = null,
-  var font: FontFace? = null,
-  var textWrap: Styles.TextWrap? = null,
-  var whiteSpace: Styles.WhiteSpace? = null,
-  var textTransform: Styles.TextTransform? = null,
-  var backgroundColor: Int? = null,
-  var decorationLine: Styles.DecorationLine? = null,
-  var decorationColor: Int? = null,
-  var decorationStyle: Styles.DecorationStyle? = null,
-  var letterSpacing: Float? = null,
-  var lineHeight: Float? = null,
-  var lineHeightType: Byte? = null,
-  var textAlign: android.text.Layout.Alignment? = null,
-  var verticalAlign: VerticalAlign? = null,
-  var decorationThickness: Float? = null,
+class TextDefaultAttributes {
+  // A sync only records its source; values resolve on first access, so repeated syncs of one
+  // text cost a single resolve.
+  private var pendingStyle: Style? = null
+  private var pendingFrom: TextDefaultAttributes? = null
+
+  var color: Int? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var fontSize: Int? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var fontWeight: FontWeight? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var fontStyle: FontStyle? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var fontFamily: String? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var font: FontFace? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var textWrap: Styles.TextWrap? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var whiteSpace: Styles.WhiteSpace? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var textTransform: Styles.TextTransform? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var backgroundColor: Int? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var decorationLine: Styles.DecorationLine? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var decorationColor: Int? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var decorationStyle: Styles.DecorationStyle? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var letterSpacing: Float? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var lineHeight: Float? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var lineHeightType: Byte? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var textAlign: android.text.Layout.Alignment? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var verticalAlign: VerticalAlign? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+  var decorationThickness: Float? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
   var textShadow: List<Shadow.TextShadow>? = null
-) {
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
+
+  private fun resolvePending() {
+    val style = pendingStyle
+    val from = pendingFrom
+    if (style == null && from == null) return
+    pendingStyle = null
+    pendingFrom = null
+    if (style != null) resolveFrom(style) else copyFrom(from!!)
+  }
 
   fun sync(style: Style) {
-    color = style.resolvedColor
-    fontSize = style.resolvedFontSize
-    fontWeight = style.resolvedFontWeight
-    fontStyle = style.resolvedFontStyle
+    pendingFrom = null
+    pendingStyle = style
+  }
+
+  fun sync(attributes: TextDefaultAttributes) {
+    if (attributes === this) return
+    pendingStyle = null
+    pendingFrom = attributes
+  }
+
+  private fun resolveFrom(style: Style) {
+    // In a batch an inherited value is the parent's resolved one, so read it from the
+    // parent's cached attributes instead of walking every ancestor again.
+    val parent = if (batchDepth > 0 && style.node.pseudoMask == 0) style.node.parent?.style?.let { cachedFor(it) } else null
+    val v = style.values
+    fun inherits(stateKey: Int) = parent != null && v.get(stateKey) == StyleState.INHERIT
+
+    color = (if (inherits(StyleKeys.FONT_COLOR_STATE)) parent?.color else null) ?: style.resolvedColor
+    fontSize = (if (inherits(StyleKeys.FONT_SIZE_STATE) && v.get(StyleKeys.FONT_SIZE_TYPE) != StyleState.SET) parent?.fontSize else null)
+      ?: style.resolvedFontSize
+    fontWeight = (if (inherits(StyleKeys.FONT_WEIGHT_STATE)) parent?.fontWeight else null) ?: style.resolvedFontWeight
+    fontStyle = (if (inherits(StyleKeys.FONT_STYLE_STATE)) parent?.fontStyle else null) ?: style.resolvedFontStyle
     val resolvedFont = style.resolvedFontFace
     fontFamily = resolvedFont.fontFamily
     font = resolvedFont
-    textWrap = style.resolvedTextWrap
-    whiteSpace = style.resolvedWhiteSpace
-    textTransform = style.resolvedTextTransform
+    textWrap = (if (inherits(StyleKeys.TEXT_WRAP_STATE)) parent?.textWrap else null) ?: style.resolvedTextWrap
+    whiteSpace = (if (inherits(StyleKeys.WHITE_SPACE_STATE)) parent?.whiteSpace else null) ?: style.resolvedWhiteSpace
+    textTransform = (if (inherits(StyleKeys.TEXT_TRANSFORM_STATE)) parent?.textTransform else null) ?: style.resolvedTextTransform
     backgroundColor = style.resolvedBackgroundColor
-    decorationLine = style.resolvedDecorationLine
-    decorationColor = style.resolvedDecorationColor
-    decorationStyle = style.resolvedDecorationStyle
-    decorationThickness = style.resolvedDecorationThickness
-    letterSpacing = style.resolvedLetterSpacing
-    lineHeight = style.resolvedLineHeight
-    lineHeightType = style.resolvedLineHeightType
-    textAlign = when (style.resolvedTextAlign) {
+    decorationLine = (if (inherits(StyleKeys.DECORATION_LINE_STATE)) parent?.decorationLine else null) ?: style.resolvedDecorationLine
+    decorationColor = (if (inherits(StyleKeys.DECORATION_COLOR_STATE)) parent?.decorationColor else null) ?: style.resolvedDecorationColor
+    decorationStyle = (if (inherits(StyleKeys.DECORATION_STYLE_STATE)) parent?.decorationStyle else null) ?: style.resolvedDecorationStyle
+    decorationThickness = (if (inherits(StyleKeys.DECORATION_THICKNESS_STATE)) parent?.decorationThickness else null)
+      ?: style.resolvedDecorationThickness
+    letterSpacing = (if (inherits(StyleKeys.LETTER_SPACING_STATE)) parent?.letterSpacing else null) ?: style.resolvedLetterSpacing
+    if (inherits(StyleKeys.LINE_HEIGHT_STATE) && parent?.lineHeight != null && parent.lineHeightType != null) {
+      lineHeight = parent.lineHeight
+      lineHeightType = parent.lineHeightType
+    } else {
+      lineHeight = style.resolvedLineHeight
+      lineHeightType = style.resolvedLineHeightType
+    }
+    textAlign = (if (inherits(StyleKeys.TEXT_ALIGN_STATE)) parent?.textAlign else null) ?: when (style.resolvedTextAlign) {
       TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
       TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
       TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
-      TextAlign.Justify -> {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
-        } else {
-          android.text.Layout.Alignment.ALIGN_NORMAL
-        }
-      }
-
+      // Justify is handled by justificationMode.
       else -> android.text.Layout.Alignment.ALIGN_NORMAL
     }
     verticalAlign = if (!style.isValueInitialized) {
@@ -68,10 +257,10 @@ data class TextDefaultAttributes(
     } else {
       style.verticalAlign
     }
-    textShadow = style.resolvedTextShadow
+    textShadow = (if (inherits(StyleKeys.TEXT_SHADOW_STATE)) parent?.textShadow else null) ?: style.resolvedTextShadow
   }
 
-  fun sync(attributes: TextDefaultAttributes) {
+  private fun copyFrom(attributes: TextDefaultAttributes) {
     color = attributes.color
     fontSize = attributes.fontSize
     fontWeight = attributes.fontWeight
@@ -95,47 +284,29 @@ data class TextDefaultAttributes(
   }
 
   companion object {
-    fun empty(): TextDefaultAttributes {
-      return TextDefaultAttributes()
+    private var batchDepth = 0
+    private var batchStamp = 0
+
+    /** Runs [block] with each style's resolved text attributes computed at most once. No style may change inside. */
+    internal fun <T> batch(block: () -> T): T {
+      if (batchDepth++ == 0) batchStamp++
+      try {
+        return block()
+      } finally {
+        batchDepth--
+      }
     }
 
-    fun from(style: Style): TextDefaultAttributes {
-      val resolvedFont = style.resolvedFontFace
-      return TextDefaultAttributes(
-        style.resolvedColor,
-        style.resolvedFontSize,
-        style.resolvedFontWeight,
-        style.resolvedFontStyle,
-        resolvedFont.fontFamily,
-        resolvedFont,
-        style.resolvedTextWrap,
-        style.resolvedWhiteSpace,
-        style.resolvedTextTransform,
-        style.resolvedBackgroundColor,
-        style.resolvedDecorationLine,
-        style.resolvedDecorationColor,
-        style.resolvedDecorationStyle,
-        style.resolvedLetterSpacing,
-        style.resolvedLineHeight,
-        style.resolvedLineHeightType,
-        when (style.resolvedTextAlign) {
-          TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
-          TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
-          TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
-          TextAlign.Justify -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-              android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
-            } else {
-              android.text.Layout.Alignment.ALIGN_NORMAL
-            }
-          }
+    private fun cachedFor(style: Style): TextDefaultAttributes {
+      style.batchAttrs?.let { if (style.batchAttrsStamp == batchStamp) return it }
+      val attrs = TextDefaultAttributes().also { it.resolveFrom(style) }
+      style.batchAttrs = attrs
+      style.batchAttrsStamp = batchStamp
+      return attrs
+    }
 
-          else -> android.text.Layout.Alignment.ALIGN_NORMAL
-        },
-        style.verticalAlign,
-        decorationThickness = style.resolvedDecorationThickness,
-        textShadow = style.resolvedTextShadow
-      )
+    fun empty(): TextDefaultAttributes {
+      return TextDefaultAttributes()
     }
   }
 }
