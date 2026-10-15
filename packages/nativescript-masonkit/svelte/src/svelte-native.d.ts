@@ -1,6 +1,6 @@
 // The slice of svelte-native's DOM this package uses. svelte-native is an
 // optional peer dependency, so the plugin builds without it installed.
-declare module 'svelte-native/dom' {
+declare module '@nativescript-community/svelte-native/dom' {
   export class ViewNode {
     childNodes: ViewNode[];
     nodeType: number | null;
