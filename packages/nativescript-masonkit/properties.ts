@@ -1,4 +1,4 @@
-import { CssProperty, CssAnimationProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
+import { CssProperty, CssAnimationProperty, InheritedCssProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonView_, touchAction_ } from './symbols';
@@ -14,6 +14,7 @@ import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottom
 import { BORDER_WIDTH_KEYWORDS, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
+import { splitListStyle } from './css-shorthands';
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle | undefined {
   const ret: (NSViewBase & { _styleHelper: MasonStyle }) | undefined = (__ANDROID__ ? view?.get() : view?.deref()) as never;
@@ -2247,18 +2248,29 @@ caretColorProperty.register(Style);
 
 registerAlongsideCore(backgroundImageProperty);
 
-export const listStyleTypeProperty = new CssProperty<Style, string>({
+// Inherited, as in CSS: `ol.list-unstyled { list-style: none }` reaches its
+// `<li>`s, and an `<li>`'s own value overrides the list's.
+export const listStyleTypeProperty = new InheritedCssProperty<Style, string>({
   name: 'listStyleType',
   cssName: 'list-style-type',
 });
 
-export const listStylePositionProperty = new CssProperty<Style, string>({
+export const listStylePositionProperty = new InheritedCssProperty<Style, string>({
   name: 'listStylePosition',
   cssName: 'list-style-position',
 });
 
 listStyleTypeProperty.register(Style);
 listStylePositionProperty.register(Style);
+
+export const listStyleShorthand: MasonShorthand = { cssName: 'list-style', longhands: [listStyleTypeProperty, listStylePositionProperty], split: splitListStyle };
+
+export const listStyleProperty = masonShorthandProperty(listStyleShorthand, function (this: Style) {
+  const style = this as unknown as { listStyleType?: unknown; listStylePosition?: unknown };
+  const parts = [style.listStyleType, style.listStylePosition].filter((part) => typeof part === 'string' && part);
+  return parts.join(' ');
+});
+listStyleProperty.register(Style);
 
 // core owns `white-space` too (its Label honours nowrap), so dispatch.
 registerAlongsideCore(whiteSpaceProperty);

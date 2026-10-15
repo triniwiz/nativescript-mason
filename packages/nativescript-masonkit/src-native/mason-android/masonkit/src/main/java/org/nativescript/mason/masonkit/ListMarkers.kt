@@ -68,14 +68,13 @@ internal object ListMarkers {
     }
   }
 
+  // The item's own list-style-type wins over the list's, as for the position: CSS
+  // inherits it, so an item holds the list's value unless it sets its own.
   private fun resolveListStyleType(containerStyle: Style, child: TextView): Byte {
-    if (containerStyle.isValueInitialized) {
-      val isSet = containerStyle.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT
-      if (isSet) return containerStyle.values.get(StyleKeys.LIST_STYLE_TYPE)
-    }
-    if (child.style.isValueInitialized) {
-      val isSet = child.style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT
-      if (isSet) return child.style.values.get(StyleKeys.LIST_STYLE_TYPE)
+    for (style in arrayOf(child.style, containerStyle)) {
+      if (style.isValueInitialized && style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT) {
+        return style.values.get(StyleKeys.LIST_STYLE_TYPE)
+      }
     }
     // UA lists default to disc; preflight resets them to none.
     return if (containerStyle.node.mason.preflight) ListStyleType.None.value else ListStyleType.Disc.value
