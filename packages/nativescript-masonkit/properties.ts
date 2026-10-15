@@ -7,6 +7,7 @@ import { isMasonView_, touchAction_ } from './symbols';
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
 import type { Style as MasonStyle } from './style';
 import { cssLengthToDip, parseAspectRatio } from './style';
+import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
@@ -654,7 +655,11 @@ fontSizeProperty.overrideHandlers({
       if (newValue) {
         if (typeof newValue === 'string') {
           // @ts-ignore
-          if (newValue.indexOf('%') !== -1) {
+          if (isCssMathFunction(newValue)) {
+            // Mason's setter evaluates calc()/min()/max()/clamp() itself.
+            view.fontSize = newValue as never;
+            // @ts-ignore
+          } else if (newValue.indexOf('%') !== -1) {
             view.fontSize = {
               value: parseFloat(newValue as never) / 100,
               unit: '%',
@@ -824,7 +829,8 @@ function masonLengthText(value: unknown): string | undefined {
     return undefined;
   }
   const t = value.trim();
-  return UNITS_CORE_MISREADS.test(t) ? t : undefined;
+  // Core can't evaluate math functions either; Mason's setter does.
+  return UNITS_CORE_MISREADS.test(t) || isCssMathFunction(t) ? t : undefined;
 }
 
 /** `left`/`top`/`right`/`bottom`: Mason's units, else core's parse (`%`, `auto`). */

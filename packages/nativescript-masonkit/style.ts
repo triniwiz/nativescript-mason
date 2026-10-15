@@ -7,6 +7,7 @@ import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
+import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
 import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
@@ -353,6 +354,89 @@ function finite(n: number): number {
 const PX_PER_PT = 96 / 72;
 
 /**
+ * `n<unit>` in CSS px, for the units `tokenToDevicePx` knows, or undefined for
+ * any other unit. Used inside calc()/min()/max()/clamp(), where an unknown unit
+ * makes the whole expression unresolvable rather than a CSS px.
+ */
+function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefined {
+  switch (unit) {
+    case 'px':
+    case 'dip':
+      return n;
+    case 'dppx':
+      return layout.toDeviceIndependentPixels(n);
+    case 'rem':
+      return n * cssUnits.rootFontSize;
+    case 'em':
+      return n * (emBasis && emBasis > 0 ? emBasis : cssUnits.rootFontSize);
+    case 'pt':
+      return n * PX_PER_PT;
+    case 'vw':
+    case 'vh':
+    case 'vmin':
+    case 'vmax': {
+      const { viewportWidth: w, viewportHeight: h } = cssUnits;
+      if (w <= 0 || h <= 0) {
+        reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: `${n}${unit}`, detail: 'viewport size not known yet, resolved to 0' });
+        return 0;
+      }
+      const basis = unit === 'vw' ? w : unit === 'vh' ? h : unit === 'vmin' ? Math.min(w, h) : Math.max(w, h);
+      return (n / 100) * basis;
+    }
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * A calc()/min()/max()/clamp() `font-size`. There `em` is relative to the
+ * parent's font size, as `%` is, so `calc(1.5em)` is `150%` and inheritance
+ * resolves it natively. One mixing those with absolute lengths
+ * (`clamp(12px, 0.75em, 0.75em)`) can't be stored either way and resolves
+ * them against the root font size instead.
+ */
+function fontSizeMath(value: string) {
+  const parentRelative = evaluateCssMath(value, (n, unit) => (unit === 'em' ? { percent: n * 100 } : unitToCssPx(n, unit)));
+  return parentRelative ?? evaluateCssMath(value, (n, unit) => (unit === '%' ? (n / 100) * cssUnits.rootFontSize : unitToCssPx(n, unit)));
+}
+
+/** A calc()/min()/max()/clamp() length, with `em` against `emBasis`. */
+function evaluateLengthMath(value: string, emBasis?: number) {
+  return evaluateCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
+}
+
+/**
+ * Every calc()/min()/max()/clamp() in a string value that resolves, replaced
+ * by its result, for the values the native parsers read (`border-radius`,
+ * `box-shadow`, ...), which know no math functions.
+ */
+export function resolveCssMathIn(value: string, emBasis?: number): string {
+  return substituteCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
+}
+
+/**
+ * A math function in a `<length-percentage>` as the buffer's type/value pair,
+ * or undefined when `t` isn't one or doesn't resolve.
+ */
+function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType: number, percentType: number): { type: number; value: number } | undefined {
+  if (!isCssMathFunction(t)) {
+    return undefined;
+  }
+  const math = evaluateLengthMath(t, emBasis);
+  switch (math?.kind) {
+    case 'length':
+      return { type: lengthType, value: layout.toDevicePixels(finite(math.px)) };
+    case 'number':
+      return { type: lengthType, value: layout.toDevicePixels(finite(math.value)) };
+    case 'percent':
+      // percentages are stored as a [0.0, 1.0] fraction, not percentage points
+      return { type: percentType, value: finite(math.percent) / 100 };
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Resolve a CSS length token to the device pixels the geometry buffers store.
  *
  * `emBasis` is the font size `em` is relative to, in CSS px — the element's own
@@ -362,8 +446,14 @@ const PX_PER_PT = 96 / 72;
  * Suffix order matters: `rem` also ends with `em`, and `dppx` with `px`.
  */
 function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
-  const n = finite(raw);
   const t = token.trim().toLowerCase();
+  if (isCssMathFunction(t)) {
+    const math = evaluateLengthMath(t, emBasis);
+    if (math?.kind === 'length') return layout.toDevicePixels(finite(math.px));
+    // A bare number is a CSS px to Mason, as outside calc().
+    if (math?.kind === 'number') return layout.toDevicePixels(finite(math.value));
+  }
+  const n = finite(raw);
 
   if (t.endsWith(DEVICE_PIXEL_UNIT)) return n;
   if (t.endsWith('rem')) return layout.toDevicePixels(n * cssUnits.rootFontSize);
@@ -380,13 +470,14 @@ function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
     return layout.toDevicePixels((n / 100) * cssUnits.viewportHeight);
   }
 
-  // A function value — calc(), clamp(), min(), max(), var() — leaves parseFloat
-  // with nothing, so the declaration collapses to 0. Core evaluates calc() and
-  // var() for stylesheet declarations before mason sees them, but an inline
-  // style or a direct JSX assignment comes straight here.
+  // A function value Mason can't evaluate leaves parseFloat with nothing, so
+  // the declaration collapses to 0: var() (which core substitutes in a
+  // stylesheet), or a calc()/min()/max()/clamp() mixing % with a length, whose
+  // basis is only known at layout.
   const fn = /^([a-z-]+)\(/.exec(t);
   if (fn) {
-    reportCssDiagnostic({ kind: 'not-implemented', name: 'length', value: t, detail: `${fn[1]}() is not evaluated here; it resolves only in a stylesheet, where core expands it first` });
+    const detail = isCssMathFunction(t) ? `${fn[1]}() mixes % with a length, or doesn't parse, so it can't be evaluated before layout` : `${fn[1]}() is not evaluated here; it resolves only in a stylesheet, where core expands it first`;
+    reportCssDiagnostic({ kind: 'not-implemented', name: 'length', value: t, detail });
     return 0;
   }
 
@@ -462,6 +553,13 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
   if (t === '' || t === 'auto' || t.endsWith('%')) {
     return undefined;
   }
+  if (isCssMathFunction(t)) {
+    const math = evaluateLengthMath(t, emBasis);
+    if (math?.kind === 'length') return math.px;
+    if (math?.kind === 'number') return math.value;
+    // A percentage, or % mixed with a length, keeps its own path.
+    return undefined;
+  }
   // Sizing keywords and function values have their own handling.
   if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?[a-z]*$/.test(t)) {
     return undefined;
@@ -490,6 +588,10 @@ function dimensionFromString(value: string, emBasis?: number): { type: number; v
     case 'content':
       return { type: 9, value: 0 };
   }
+  const math = mathLengthPercentage(t, emBasis, 1, 2);
+  if (math) {
+    return math;
+  }
   if (t.startsWith('fit-content(') && t.endsWith(')')) {
     const limit = t.slice('fit-content('.length, -1).trim();
     if (limit.endsWith('%')) {
@@ -513,6 +615,10 @@ function lengthPercentageAutoFromString(value: string, emBasis?: number): { type
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
   }
+  const math = mathLengthPercentage(t, emBasis, 1, 2);
+  if (math) {
+    return math;
+  }
   if (t.endsWith('%')) {
     return { type: 2, value: finite(parseFloat(t) || 0) / 100 };
   }
@@ -523,6 +629,10 @@ function lengthPercentageAutoFromString(value: string, emBasis?: number): { type
 // Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
 function lengthPercentageFromString(value: string, emBasis?: number): { type: number; value: number } {
   const t = value.trim();
+  const math = mathLengthPercentage(t, emBasis, 0, 1);
+  if (math) {
+    return math;
+  }
   if (t.endsWith('%')) {
     return { type: 1, value: finite(parseFloat(t) || 0) / 100 };
   }
@@ -1568,7 +1678,9 @@ export class Style {
   // whose parsers don't read modern colour syntax; see css-colors.ts.
   private coerceCssStringValue(value: any): string {
     if (typeof value === 'string') {
-      return resolveCssColors(value, cssColorToRgba);
+      // Nor do they evaluate calc()/min()/max()/clamp(); see css-math.ts.
+      const resolved = hasCssMathFunction(value) ? resolveCssMathIn(value, this.emBasis()) : value;
+      return resolveCssColors(resolved, cssColorToRgba);
     }
     if (value == null) {
       return '';
@@ -2154,7 +2266,11 @@ export class Style {
 
         let resolved = n;
         let isPercent = false;
-        if (t.endsWith('%')) {
+        const math = isCssMathFunction(t) ? fontSizeMath(t) : undefined;
+        if (math) {
+          isPercent = math.kind === 'percent';
+          resolved = finite(math.kind === 'length' ? math.px : math.kind === 'percent' ? math.percent : math.value);
+        } else if (t.endsWith('%')) {
           isPercent = true;
         } else if (t.endsWith('rem')) {
           resolved = n * cssUnits.rootFontSize;

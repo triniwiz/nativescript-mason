@@ -54,7 +54,7 @@ import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
-import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip } from './style';
+import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
 import {
@@ -2385,7 +2385,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!corners) {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    const css = lengthToCssString(masonLength(value));
+    // calc() and friends resolve here, so the corner takes the buffer fast path.
+    const css = resolveCssMathIn(lengthToCssString(masonLength(value)), (style as MasonStyle).emBasis());
     const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
     const shorthand = composeBorderRadius(corners);
     if ((__ANDROID__ || __APPLE__) && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
