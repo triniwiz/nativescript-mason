@@ -48,7 +48,7 @@ open class View @JvmOverloads constructor(
   private var nodes: MutableMap<android.view.View, Node>? = null
 
 
-  constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.wrap(context), null, 0, true) {
     node = mason.createNode().apply {
       view = this@View
     }
