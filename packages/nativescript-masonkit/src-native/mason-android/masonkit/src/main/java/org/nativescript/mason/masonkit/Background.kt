@@ -401,7 +401,7 @@ fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
   currentColor: Int = 0xFF000000.toInt()
 ) {
-  layer.gradient?.let { drawGradient(layer, canvas, paintRect, area, view) }
+  layer.gradient?.let { drawGradient(layer, canvas, paintRect, area) }
 
   layer.image?.let { imageUrl ->
     if (imageUrl.startsWith("data:image/svg", ignoreCase = true)) {
@@ -592,7 +592,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
   return bitmap
 }
 
-fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF, view: View? = null) {
+fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
   val gradient = layer.gradient ?: return
   // A gradient is an image with no intrinsic size: `auto` is the positioning area.
   val (tileW, tileH) = resolveBitmapSize(layer.size, area.width(), area.height(), area.width(), area.height())
@@ -696,17 +696,6 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     // remember the size used to create this shader
     layer.shaderWidth = width
     layer.shaderHeight = height
-
-    // A freshly (re)built gradient Shader can miss painting on the very draw
-    // call that creates it — e.g. a deeply nested scroll child whose first
-    // real-size onDraw races the GPU texture upload for the new Shader.
-    // Solid-color fills need no texture upload so they never hit this; a
-    // gradient does, and without a follow-up invalidate it stays blank until
-    // something else (scroll, rotation) forces a redraw. Schedule one
-    // guaranteed extra draw pass so the shader is actually visible.
-    if (width > 0 && height > 0) {
-      view?.postInvalidateOnAnimation()
-    }
   }
 
   // Fail-safe: if no shader could be built (e.g. an unrecognised gradient type
