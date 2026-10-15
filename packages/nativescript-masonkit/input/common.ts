@@ -28,9 +28,59 @@ function isCheckable(type: InputType): boolean {
   return type === 'checkbox' || type === 'radio';
 }
 
+/**
+ * An `input` event with core's `textChange` fields added. A Mason event already
+ * has `object` (the input) and `eventName`, as read-only getters.
+ */
+function asTextChange(event: any, owner: InputBase) {
+  if (!event || typeof event !== 'object') {
+    return { eventName: 'textChange', object: owner, propertyName: 'text', value: owner.value };
+  }
+  event.propertyName = 'text';
+  event.value = owner.value;
+  return event;
+}
+
 export class InputBase extends ViewBase {
   declare type: InputType;
   [pendingValue]: any = null;
+  /** The `input` listener standing in for each `textChange` listener. */
+  private _textChangeListeners: Map<any, (event: any) => void> | undefined;
+
+  /**
+   * `textChange` is core's TextField event, which renderers bind `onChange`
+   * to (React NativeScript does). It fires with every `input`, carrying what
+   * core's event does (`eventName`, `object`, `value`) on top of the DOM event.
+   */
+  public addEventListener(arg: string, callback: any, thisArg?: any) {
+    if (arg !== 'textChange' || typeof callback !== 'function') {
+      super.addEventListener(arg, callback, thisArg);
+      return;
+    }
+    const listeners = (this._textChangeListeners ??= new Map());
+    if (listeners.has(callback)) return;
+    const owner = this;
+    const listener = function (this: unknown, event: any) {
+      callback.call(this, asTextChange(event, owner));
+    };
+    listeners.set(callback, listener);
+    super.addEventListener('input', listener, thisArg);
+  }
+
+  public removeEventListener(arg: string, callback?: any, thisArg?: any) {
+    if (arg !== 'textChange') {
+      super.removeEventListener(arg, callback, thisArg);
+      return;
+    }
+    const listeners = this._textChangeListeners;
+    if (!listeners) return;
+    // Without a callback, as core's `off(name)`, every one goes.
+    for (const [key, listener] of [...listeners]) {
+      if (callback !== undefined && key !== callback) continue;
+      listeners.delete(key);
+      super.removeEventListener('input', listener, thisArg);
+    }
+  }
 
   [defaultValueProperty]() {
     return undefined;
