@@ -725,11 +725,26 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   },
 });
 
+/** A gap longhand as CSS text: CSS text as is, a number in px, a core length as `<n><unit>`. */
+function gapText(value: unknown): string {
+  if (typeof value === 'number') {
+    return `${value}px`;
+  }
+  if (value && typeof value === 'object') {
+    const { value: amount, unit } = value as { value?: number; unit?: string };
+    return unit === '%' ? `${Math.round((amount ?? 0) * 1e6) / 1e4}%` : `${amount ?? 0}${unit === 'dip' ? 'px' : (unit ?? 'px')}`;
+  }
+  return String(value ?? '');
+}
+
 function gapGetter(this: Style) {
   if (this.rowGap === this.columnGap) {
     return this.rowGap;
   }
-  return `${this.rowGap} ${this.columnGap}`;
+  const row = gapText(this.rowGap);
+  const column = gapText(this.columnGap);
+  // Two equal parses are different objects.
+  return row === column ? row : `${row} ${column}`;
 }
 
 const gapShorthand: MasonShorthand = { cssName: 'gap', longhands: [rowGapProperty, columnGapProperty], split: splitGap };

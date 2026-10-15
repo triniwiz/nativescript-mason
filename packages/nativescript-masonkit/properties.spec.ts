@@ -179,6 +179,14 @@ describe('gap, insets and flex-basis resolve Mason units, not core parseFloat', 
     expect(under.getInt8(styleKey('INSET_LEFT_TYPE'))).toBe(0);
   });
 
+  it('gap reads back as CSS text', () => {
+    const { style } = masonHost();
+    (style as any)['gap'] = '4px';
+    expect((style as any).gap).toBe('4px');
+    (style as any)['gap'] = '1rem 10%';
+    expect((style as any).gap).toBe('1rem 10%');
+  });
+
   it('an unparsable gap is 0', () => {
     setScreenScale(1);
     const { under, style } = masonHost();
