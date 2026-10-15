@@ -102,8 +102,25 @@ export class InputBase extends ViewBase {
   }
 }
 
+/**
+ * Radios sharing a `name`, by name: checking one unchecks the others, as in a
+ * document. Only loaded inputs belong, as for `<details name>`.
+ */
+const radioGroups = new Map<string, Set<InputElementBase>>();
+
+function radioGroup(name: string): Set<InputElementBase> {
+  let group = radioGroups.get(name);
+  if (!group) {
+    group = new Set();
+    radioGroups.set(name, group);
+  }
+  return group;
+}
+
 /** HTMLInputElement's state beyond `value`; `<textarea>` has none of it. */
 export class InputElementBase extends InputBase {
+  /** A radio's group: checking it unchecks the other loaded radios with this name. */
+  declare name: string;
   //@ts-ignore
   [pendingChecked]: boolean | null = null;
   [checkedState]: boolean = false;
@@ -140,12 +157,46 @@ export class InputElementBase extends InputBase {
    */
   [syncCheckedPseudoClass]() {
     const checked = isCheckable(this.type) && this.checked;
+    // Code and native taps both come through here.
+    if (checked && this.type === 'radio') this._uncheckOtherRadios();
     if (checked === this.cssPseudoClasses.has('checked')) return;
     if (checked) {
       this.addPseudoClass('checked');
     } else {
       this.deletePseudoClass('checked');
     }
+  }
+
+  /** As in a document, silently: the others fire no `change`. */
+  _uncheckOtherRadios() {
+    if (!this.name) return;
+    for (const other of radioGroup(this.name)) {
+      if (other !== this && other.type === 'radio' && other.checked) other.checked = false;
+    }
+  }
+
+  _onNameChanged(oldValue: string, newValue: string) {
+    if (!this.isLoaded) return;
+    if (oldValue) radioGroup(oldValue).delete(this);
+    if (newValue) radioGroup(newValue).add(this);
+    if (newValue && this.type === 'radio' && this.checked) this._uncheckOtherRadios();
+  }
+
+  onLoaded() {
+    super.onLoaded();
+    if (!this.name) return;
+    radioGroup(this.name).add(this);
+    // A checked radio that joins a group wins, as one inserted into a document does.
+    if (this.type === 'radio' && this.checked) this._uncheckOtherRadios();
+  }
+
+  onUnloaded() {
+    if (this.name) {
+      const group = radioGroup(this.name);
+      group.delete(this);
+      if (!group.size) radioGroups.delete(this.name);
+    }
+    super.onUnloaded();
   }
 
   initNativeView() {
@@ -168,6 +219,14 @@ export const typeProperty = new Property<InputBase, InputType>({
 });
 
 typeProperty.register(InputBase);
+
+export const nameProperty = new Property<InputElementBase, string>({
+  name: 'name',
+  defaultValue: '',
+  valueChanged: (target, oldValue, newValue) => target._onNameChanged(oldValue, newValue),
+});
+
+nameProperty.register(InputElementBase);
 
 export const placeholderProperty = new Property<InputBase, string>({
   name: 'placeholder',

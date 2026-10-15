@@ -245,3 +245,99 @@ describe(':checked', () => {
     }
   });
 });
+
+describe('radio groups', () => {
+  // NativeScript's WeakRef has .get(), which core's Style calls when a pseudo-class changes.
+  const weakRef = WeakRef.prototype as any;
+  weakRef.get ??= function (this: WeakRef<object>) {
+    return this.deref();
+  };
+
+  function radio(name: string, native?: Record<string, unknown>) {
+    const input = (native ? inputWithNative(native) : new Input()) as any;
+    input.type = 'radio';
+    input.name = name;
+    input.onLoaded();
+    return input;
+  }
+
+  function nativeRadio() {
+    let state = false;
+    return {
+      get state() {
+        return state;
+      },
+      tap() {
+        state = true;
+      },
+      getChecked: () => state,
+      setChecked: vi.fn((v: boolean) => (state = v)),
+      getValue: () => 'on',
+      setValue: vi.fn(),
+    };
+  }
+
+  it('checking one unchecks the others with its name', () => {
+    const [a, b, c] = ['size', 'size', 'size'].map((name) => radio(name));
+    const other = radio('color');
+    a.checked = true;
+    other.checked = true;
+    b.checked = true;
+    expect([a.checked, b.checked, c.checked, other.checked]).toEqual([false, true, false, true]);
+    expect(a.cssPseudoClasses.has('checked')).toBe(false);
+    expect(b.cssPseudoClasses.has('checked')).toBe(true);
+  });
+
+  it('a native tap unchecks the others', () => {
+    const tapped = nativeRadio();
+    const checked = nativeRadio();
+    const a = radio('tap', checked);
+    const b = radio('tap', tapped);
+    a.checked = true;
+    // What the platform's checked-change callback does after a tap.
+    tapped.tap();
+    b[syncCheckedPseudoClass]();
+    expect(checked.setChecked).toHaveBeenLastCalledWith(false);
+    expect(a.checked).toBe(false);
+    expect(b.checked).toBe(true);
+  });
+
+  it('leaves radios without a name, checkboxes and unloaded radios alone', () => {
+    const a = radio('');
+    const b = radio('');
+    a.checked = true;
+    b.checked = true;
+    expect(a.checked).toBe(true);
+
+    const box = radio('mixed');
+    box.type = 'checkbox';
+    box.checked = true;
+    const c = radio('mixed');
+    c.checked = true;
+    expect(box.checked).toBe(true);
+
+    const d = radio('gone');
+    const e = radio('gone');
+    d.checked = true;
+    d.onUnloaded();
+    e.checked = true;
+    expect(d.checked).toBe(true);
+  });
+
+  it('a checked radio that joins a group, or is renamed into one, wins', () => {
+    const a = radio('join');
+    a.checked = true;
+    const b = new Input() as any;
+    b.type = 'radio';
+    b.name = 'join';
+    b.checked = true;
+    b.onLoaded();
+    expect(a.checked).toBe(false);
+
+    const c = radio('elsewhere');
+    c.checked = true;
+    c.name = 'join';
+    expect(b.checked).toBe(false);
+    expect(c.checked).toBe(true);
+  });
+});
