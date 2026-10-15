@@ -4787,6 +4787,30 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal var batchAttrs: TextDefaultAttributes? = null
   internal var batchAttrsStamp = 0
 
+  // Inherited values read while measuring, memoized for one batch (a bit per value).
+  private var memoStamp = 0
+  private var memoMask = 0
+  private var memoWritingMode: Byte = 0
+  private var memoUnicodeBidi: Byte = 0
+  private var memoHyphens: Byte = 0
+  private lateinit var memoTextAlign: TextAlign
+
+  private fun memoHas(bit: Int): Boolean {
+    val stamp = TextDefaultAttributes.activeBatchStamp
+    if (stamp == 0) return false
+    if (stamp != memoStamp) {
+      memoStamp = stamp
+      memoMask = 0
+      return false
+    }
+    return memoMask and bit != 0
+  }
+
+  private fun memoPut(bit: Int) {
+    val stamp = TextDefaultAttributes.activeBatchStamp
+    if (stamp != 0 && stamp == memoStamp) memoMask = memoMask or bit
+  }
+
   // Parent's style for inherited text properties. Must NOT gate on
   // isValueInitialized: that flag lags JS style writes by a microtask, but
   // the underlying buffer is already correct, so gating on it can find no
@@ -5270,6 +5294,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal val resolvedTextAlign: TextAlign
     get() {
+      if (memoHas(MEMO_TEXT_ALIGN)) return memoTextAlign
       val state = values.get(StyleKeys.TEXT_ALIGN_STATE)
       val base = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.from(
@@ -5286,11 +5311,14 @@ class Style internal constructor(@Transient internal var node: Node) {
         values.get(StyleKeys.TEXT_ALIGN),
         StateKeys.TEXT_ALIGN
       )
-      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_ALIGN)) {
+      val value = if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.TEXT_ALIGN)) {
         TextAlign.from(pseudoRaw)
       } else {
         base
       }
+      memoTextAlign = value
+      memoPut(MEMO_TEXT_ALIGN)
+      return value
     }
 
   internal val resolvedTextJustify: TextJustify
@@ -5438,32 +5466,44 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal val resolvedWritingMode: Byte
     get() {
+      if (memoHas(MEMO_WRITING_MODE)) return memoWritingMode
       val state = values.get(StyleKeys.WRITING_MODE_STATE)
-      return if (state == StyleState.INHERIT) {
+      val value = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedWritingMode ?: values.get(StyleKeys.WRITING_MODE)
       } else {
         values.get(StyleKeys.WRITING_MODE)
       }
+      memoWritingMode = value
+      memoPut(MEMO_WRITING_MODE)
+      return value
     }
 
   internal val resolvedUnicodeBidi: Byte
     get() {
+      if (memoHas(MEMO_UNICODE_BIDI)) return memoUnicodeBidi
       val state = values.get(StyleKeys.UNICODE_BIDI_STATE)
-      return if (state == StyleState.INHERIT) {
+      val value = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedUnicodeBidi ?: values.get(StyleKeys.UNICODE_BIDI)
       } else {
         values.get(StyleKeys.UNICODE_BIDI)
       }
+      memoUnicodeBidi = value
+      memoPut(MEMO_UNICODE_BIDI)
+      return value
     }
 
   internal val resolvedHyphens: Byte
     get() {
+      if (memoHas(MEMO_HYPHENS)) return memoHyphens
       val state = values.get(StyleKeys.HYPHENS_STATE)
-      return if (state == StyleState.INHERIT) {
+      val value = if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedHyphens ?: values.get(StyleKeys.HYPHENS)
       } else {
         values.get(StyleKeys.HYPHENS)
       }
+      memoHyphens = value
+      memoPut(MEMO_HYPHENS)
+      return value
     }
 
   internal val resolvedFontStretch: Int
@@ -5910,3 +5950,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     )
   }
 }
+
+private const val MEMO_WRITING_MODE = 1
+private const val MEMO_UNICODE_BIDI = 2
+private const val MEMO_HYPHENS = 4
+private const val MEMO_TEXT_ALIGN = 8

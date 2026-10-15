@@ -287,6 +287,10 @@ class TextDefaultAttributes {
     private var batchDepth = 0
     private var batchStamp = 0
 
+    /** The current batch's stamp, or 0 outside a batch. */
+    internal val activeBatchStamp: Int
+      get() = if (batchDepth > 0) batchStamp else 0
+
     /** Runs [block] with each style's resolved text attributes computed at most once. No style may change inside. */
     internal fun <T> batch(block: () -> T): T {
       if (batchDepth++ == 0) batchStamp++
