@@ -1,5 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
+import { style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
@@ -2000,15 +2001,40 @@ export class Style {
    * one, otherwise the root font size. FONT_SIZE is stored in dip, which is the
    * same as a CSS px, so no conversion is needed.
    */
+  /**
+   * The font size `em` resolves against, in CSS px: the element's own, as CSS
+   * computes it. A percentage or `em` font size (stored as a percentage) is
+   * relative to the parent's, and with none of its own the element inherits
+   * its parent's; the root font size is the last resort.
+   */
   emBasis(): number {
-    if (!this.style_view) {
-      return cssUnits.rootFontSize;
-    }
-    if (getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
-      return cssUnits.rootFontSize;
+    if (!this.style_view || getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
+      return this.parentEmBasis();
     }
     const own = getInt32(this.style_view, StyleKeys.FONT_SIZE);
-    return own > 0 ? own : cssUnits.rootFontSize;
+    if (own <= 0) {
+      return this.parentEmBasis();
+    }
+    // `0.75em` is stored as 75 (%), not 75px.
+    return getInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE) === 1 ? (own / 100) * this.parentEmBasis() : own;
+  }
+
+  /**
+   * The nearest Mason ancestor's font size (for a pseudo-class style, the
+   * element's own). Only styles that already exist are read: building one
+   * would create the ancestor's native view.
+   */
+  private parentEmBasis(): number {
+    const view = this.view_ as unknown as { parent?: unknown } | undefined;
+    let ancestor = (this._pseudo ? view : view?.parent) as { parent?: unknown; [style_]?: Style } | undefined;
+    for (let depth = 0; ancestor && depth < 256; depth++) {
+      const style = ancestor[style_];
+      if (style instanceof Style && style !== this) {
+        return style.emBasis();
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    return cssUnits.rootFontSize;
   }
 
   private prepareMut() {
