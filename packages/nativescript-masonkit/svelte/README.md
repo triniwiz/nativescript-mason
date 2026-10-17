@@ -8,13 +8,18 @@ MasonKit ships this entry point, so no extra package is required. Register the
 elements in the app entry file before starting Svelte Native:
 
 ```ts
-import { svelteNative } from 'svelte-native';
+import { svelteNative } from '@nativescript-community/svelte-native';
 import { installMasonKit } from '@triniwiz/nativescript-masonkit/svelte';
 import App from './App.svelte';
 
 installMasonKit();
 svelteNative(App, {});
 ```
+
+It imports `@nativescript-community/svelte-native`, the package's current name.
+An app still on the old `svelte-native` package has to alias one name to the
+other, so that both load the same module: MasonKit registers its elements in
+that module's element registry.
 
 The call registers MasonKit's native elements and all HTML-shaped elements from
 `@triniwiz/nativescript-masonkit/web`. It is safe to call repeatedly during HMR.

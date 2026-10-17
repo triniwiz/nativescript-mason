@@ -34,7 +34,7 @@
   "homepage": "https://github.com/triniwiz/nativescript-mason",
   "peerDependencies": {
     "@triniwiz/nativescript-masonkit": ">=1.0.0-beta.95",
-    "svelte-native": ">=1.0.0",
+    "@nativescript-community/svelte-native": ">=1.0.0",
     "svelte": "^4.0.0"
   }
 }

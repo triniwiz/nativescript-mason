@@ -1,4 +1,4 @@
-import { NativeViewElementNode, registerElement, registerNativeViewElement } from 'svelte-native/dom';
+import { NativeViewElementNode, registerElement, registerNativeViewElement } from '@nativescript-community/svelte-native/dom';
 import { Button, Label, Span } from '@nativescript/core';
 import { getMasonKitElements, type GetMasonKitElementsOptions } from '@triniwiz/nativescript-masonkit/elements';
 import { MasonElementNode } from './mason-element-node';

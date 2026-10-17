@@ -1,4 +1,4 @@
-import { NativeViewElementNode } from 'svelte-native/dom';
+import { NativeViewElementNode } from '@nativescript-community/svelte-native/dom';
 import { hasTextRun } from '@triniwiz/nativescript-masonkit';
 import { dropStaleDuplicate, rawChildIndex, type SvelteDomNode } from './raw-index';
 
@@ -15,7 +15,7 @@ interface MasonParentView {
  * MasonKit's child list. A MasonKit container instead inserts at the raw index
  * its text runs and elements share, and removes through `removeChild`.
  */
-export class MasonElementNode extends NativeViewElementNode {
+export class MasonElementNode extends NativeViewElementNode<any> {
   onInsertedChild(childNode: any, index: number): void {
     dropStaleDuplicate(this.childNodes as unknown[], childNode, index);
     if (!(childNode instanceof NativeViewElementNode) || (childNode as any).propAttribute || !this.nativeView) {

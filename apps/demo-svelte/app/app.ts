@@ -1,4 +1,4 @@
-import { svelteNative } from 'svelte-native';
+import { svelteNative } from '@nativescript-community/svelte-native';
 import { View } from '@triniwiz/nativescript-masonkit';
 import { installMasonKit } from '@triniwiz/nativescript-masonkit/svelte';
 import App from './App.svelte';
