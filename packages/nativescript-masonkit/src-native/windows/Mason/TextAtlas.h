@@ -48,6 +48,7 @@ namespace mason_atlas
         winrt::com_ptr<IDWriteTextLayout> layout;
         DWRITE_WORD_WRAPPING wrapping{ DWRITE_WORD_WRAPPING_NO_WRAP };
         float maxWidth{ 0.0f };
+        mason_dwrite::Flow flow;
         std::vector<std::pair<DWRITE_TEXT_RANGE, uint32_t>> colors;
         uint32_t color{ 0xFF000000 };
         std::vector<mason_dwrite::Span> extras;
@@ -521,7 +522,7 @@ namespace mason_atlas
             const auto slot = D2D1::Matrix3x2F::Translation((offset.x + item.x - region.rect.left) / scale, (offset.y + item.y - region.rect.top) / scale);
             context->SetTransform(slot);
             IDWriteTextLayout* layout = s->layout.get();
-            mason_dwrite::Configure(layout, s->wrapping, s->maxWidth);
+            mason_dwrite::Configure(layout, s->wrapping, s->maxWidth, s->flow);
             ID2D1SolidColorBrush* fill = BrushFor(a, context.get(), s->color);
             layout->SetDrawingEffect(fill, DWRITE_TEXT_RANGE{ 0, UINT32_MAX });
             for (auto const& [range, argb] : s->colors)
