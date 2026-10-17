@@ -186,9 +186,7 @@ export class Ul extends BlockElement {
   constructor() {
     super();
     applyListUaDefaults(this);
-    // list-style-type is inherited, so a list states its own, as the browser UA
-    // sheet does: a `<ul>` inside an `<ol>` keeps its discs. Preflight lists
-    // have none, matching the native fallback.
+    // list-style-type inherits, so a list sets its own: a `<ul>` in an `<ol>` keeps its discs.
     applyUaCss(this, { 'list-style-type': View.preflight ? 'none' : 'disc' });
   }
 }

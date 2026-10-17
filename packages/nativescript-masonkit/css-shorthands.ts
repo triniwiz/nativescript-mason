@@ -564,11 +564,8 @@ export function splitGap(value: string): string[] {
 const LIST_STYLE_POSITIONS = new Set(['inside', 'outside']);
 
 /**
- * `list-style` as `list-style-type` and `list-style-position`:
- * `<type> || <position> || <image>`, in any order. MasonKit draws no marker
- * images, so an image is accepted and dropped (the type still applies, as it
- * does on the web while an image loads). Omitted parts reset to their initial
- * values, `disc` and `outside`; a lone `none` is the type.
+ * Splits `list-style` into type and position, in any order. An image is accepted
+ * and dropped; omitted parts reset to `disc` and `outside`.
  */
 export function splitListStyle(value: string): string[] {
   let type: string | undefined;

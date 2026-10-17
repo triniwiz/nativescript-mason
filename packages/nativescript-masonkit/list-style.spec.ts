@@ -5,7 +5,7 @@ import { listStyleShorthand, shorthandConverter } from './properties';
 import { View } from '.';
 import { Div, Li, Ol, Ul } from './web';
 
-// NativeScript's WeakRef has .get(), which core's Style calls; the platform's only has .deref().
+// Core's Style calls NativeScript's WeakRef.get(); Node's only has deref().
 const weakRef = WeakRef.prototype as any;
 weakRef.get ??= function (this: WeakRef<object>) {
   return this.deref();

@@ -68,8 +68,7 @@ internal object ListMarkers {
     }
   }
 
-  // The item's own list-style-type wins over the list's, as for the position: CSS
-  // inherits it, so an item holds the list's value unless it sets its own.
+  // The item's own list-style-type wins over the list's.
   private fun resolveListStyleType(containerStyle: Style, child: TextView): Byte {
     for (style in arrayOf(child.style, containerStyle)) {
       if (style.isValueInitialized && style.values.get(StyleKeys.LIST_STYLE_TYPE_STATE) != StyleState.INHERIT) {

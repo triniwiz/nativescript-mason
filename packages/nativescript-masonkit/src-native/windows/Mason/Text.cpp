@@ -1805,8 +1805,7 @@ namespace winrt::NativeScript::Mason::implementation
         auto list = parent.try_as<nsm::IMasonElement>();
         auto listNode = list ? list.Node() : nullptr;
         bool set = false;
-        // The item's own list-style-type wins over the list's, as for the position: CSS
-        // inherits it, so an item holds the list's value unless it sets its own.
+        // The item's own list-style-type wins over the list's.
         type = byteOf(m_node, 317, 319, set);
         if (!set) type = byteOf(listNode, 317, 319, set);
         if (!set) type = mason_get_preflight() ? 0 : 2;

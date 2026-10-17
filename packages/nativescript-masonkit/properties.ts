@@ -2248,8 +2248,7 @@ caretColorProperty.register(Style);
 
 registerAlongsideCore(backgroundImageProperty);
 
-// Inherited, as in CSS: `ol.list-unstyled { list-style: none }` reaches its
-// `<li>`s, and an `<li>`'s own value overrides the list's.
+// Inherited, as in CSS, so a list's value reaches its items.
 export const listStyleTypeProperty = new InheritedCssProperty<Style, string>({
   name: 'listStyleType',
   cssName: 'list-style-type',

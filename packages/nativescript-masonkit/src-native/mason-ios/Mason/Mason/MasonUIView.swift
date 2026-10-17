@@ -307,8 +307,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
 
-  // The item's own list-style-type wins over the list's, as for the position: CSS
-  // inherits it, so an item holds the list's value unless it sets its own.
+  // The item's own list-style-type wins over the list's.
   private static func listStyleType(list: MasonStyle, item: MasonText, preflight: Bool) -> ListStyleType {
     for style in [item.style, list] where style.isValueInitialized {
       let isSet = style.getUInt8(StyleKeys.LIST_STYLE_TYPE_STATE) != 0
