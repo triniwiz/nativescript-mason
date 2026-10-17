@@ -450,7 +450,9 @@ Suffix order matters in every one of the five parsers: **`rem` also ends with
 `em`, and `dppx` with `px`.**
 
 `em` on a length resolves against the element's own font size (threaded through
-as `emBasis`); `em` on **`font-size` itself** becomes a *percentage*, because
+as `emBasis`), as CSS computes it: a `%`/`em` font size (stored as a percentage)
+is a share of the parent's, and an element with none inherits its nearest Mason
+ancestor's (read only from styles that already exist); `em` on **`font-size` itself** becomes a *percentage*, because
 that is exactly what the buffer's percent type already means — `1.5em` is stored
 as `150%` and native inheritance resolves it against the parent.
 

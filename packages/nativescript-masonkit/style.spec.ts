@@ -3,6 +3,7 @@ import { styleUnderTest, type StyleUnderTest } from '../../tools/testing/mason-t
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
+import { style_ } from './symbols';
 import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
@@ -458,5 +459,67 @@ describe('parseLinearGradientCss', () => {
 
   it('leaves gradients without a method interpolating in sRGB', () => {
     expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: '' });
+  });
+});
+
+describe('em resolves against the font size CSS would compute', () => {
+  // A Style linked to a view whose ancestors' Styles are given, nearest first.
+  function linked(...ancestors: (StyleUnderTest | null)[]) {
+    const t = styleUnderTest();
+    let parent: any = undefined;
+    for (const ancestor of [...ancestors].reverse()) {
+      parent = { parent, [style_]: ancestor?.style };
+    }
+    (t.style as any).view_ = { parent };
+    return t;
+  }
+
+  beforeEach(() => {
+    setScreenScale(1);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+  });
+
+  it('an em font size is a share of the parent font size, not that many px', () => {
+    const parent = styleUnderTest();
+    parent.style.fontSize = 20 as never;
+    const badge = linked(parent);
+    badge.style.fontSize = '0.75em' as never;
+    (badge.style as any).paddingLeft = '0.65em';
+    expect(badge.getFloat32(K.PADDING_LEFT_VALUE)).toBeCloseTo(0.65 * 15, 3);
+  });
+
+  it('a percentage font size, through several ancestors', () => {
+    const root = styleUnderTest();
+    root.style.fontSize = '2rem' as never;
+    const middle = linked(root);
+    middle.style.fontSize = '50%' as never;
+    const leaf = linked(middle, root);
+    leaf.style.fontSize = '1.5em' as never;
+    (leaf.style as any).paddingTop = '1em';
+    expect(leaf.getFloat32(K.PADDING_TOP_VALUE)).toBeCloseTo(24, 3);
+  });
+
+  it('with no font size of its own, the element inherits one', () => {
+    const parent = styleUnderTest();
+    parent.style.fontSize = 24 as never;
+    const child = linked(null, parent);
+    (child.style as any).marginTop = '1em';
+    expect(child.getFloat32(K.MARGIN_TOP_VALUE)).toBeCloseTo(24, 3);
+  });
+
+  it('with no ancestor font size, the root font size', () => {
+    const lone = styleUnderTest();
+    lone.style.fontSize = '50%' as never;
+    (lone.style as any).paddingLeft = '1em';
+    expect(lone.getFloat32(K.PADDING_LEFT_VALUE)).toBeCloseTo(8, 3);
+  });
+
+  it('an absolute font size is used as is', () => {
+    const parent = styleUnderTest();
+    parent.style.fontSize = 40 as never;
+    const child = linked(parent);
+    child.style.fontSize = 10 as never;
+    (child.style as any).paddingLeft = '2em';
+    expect(child.getFloat32(K.PADDING_LEFT_VALUE)).toBeCloseTo(20, 3);
   });
 });

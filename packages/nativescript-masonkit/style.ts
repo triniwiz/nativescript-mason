@@ -1,5 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
+import { style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
@@ -428,7 +429,7 @@ function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType
 /**
  * Resolve a CSS length token to the device pixels the geometry buffers store.
  *
- * `emBasis` is the font size `em` is relative to, in CSS px — the element's own
+ * `emBasis` is the font size `em` is relative to, in CSS px: the element's own
  * for a length, the parent's for `font-size` itself. It falls back to the root
  * font size when the element has no font size of its own yet.
  *
@@ -2134,19 +2135,36 @@ export class Style {
   }
 
   /**
-   * The font size `em` resolves against, in CSS px: the element's own when it has
-   * one, otherwise the root font size. FONT_SIZE is stored in dip, which is the
-   * same as a CSS px, so no conversion is needed.
+   * The font size `em` resolves against, in CSS px: the element's computed one,
+   * with a percentage of the parent's, or the inherited one when unset.
    */
   emBasis(): number {
-    if (!this.style_view) {
-      return cssUnits.rootFontSize;
-    }
-    if (getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
-      return cssUnits.rootFontSize;
+    if (!this.style_view || getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
+      return this.parentEmBasis();
     }
     const own = getInt32(this.style_view, StyleKeys.FONT_SIZE);
-    return own > 0 ? own : cssUnits.rootFontSize;
+    if (own <= 0) {
+      return this.parentEmBasis();
+    }
+    // `0.75em` is stored as 75 (%), not 75px.
+    return getInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE) === 1 ? (own / 100) * this.parentEmBasis() : own;
+  }
+
+  /**
+   * The nearest Mason ancestor's font size (the element's own for a pseudo-class
+   * style). Reads only existing styles, since building one creates the native view.
+   */
+  private parentEmBasis(): number {
+    const view = this.view_ as unknown as { parent?: unknown } | undefined;
+    let ancestor = (this._pseudo ? view : view?.parent) as { parent?: unknown; [style_]?: Style } | undefined;
+    for (let depth = 0; ancestor && depth < 256; depth++) {
+      const style = ancestor[style_];
+      if (style instanceof Style && style !== this) {
+        return style.emBasis();
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    return cssUnits.rootFontSize;
   }
 
   private prepareMut() {
