@@ -146,7 +146,9 @@ impl Into<CMasonDimension> for Dimension {
                 CompactLength::MIN_CONTENT_TAG => CMasonDimension::min_content(),
                 CompactLength::MAX_CONTENT_TAG => CMasonDimension::max_content(),
                 CompactLength::FIT_CONTENT_KEYWORD_TAG => CMasonDimension::fit_content(),
-                CompactLength::FIT_CONTENT_PX_TAG => CMasonDimension::fit_content_points(raw.value()),
+                CompactLength::FIT_CONTENT_PX_TAG => {
+                    CMasonDimension::fit_content_points(raw.value())
+                }
                 CompactLength::FIT_CONTENT_PERCENT_TAG => {
                     CMasonDimension::fit_content_percent(raw.value())
                 }
@@ -428,7 +430,9 @@ impl From<&Dimension> for CMasonDimension {
             CompactLength::MIN_CONTENT_TAG => CMasonDimension::min_content(),
             CompactLength::MAX_CONTENT_TAG => CMasonDimension::max_content(),
             CompactLength::FIT_CONTENT_KEYWORD_TAG => CMasonDimension::fit_content(),
-            CompactLength::FIT_CONTENT_PX_TAG => CMasonDimension::fit_content_points(dimension.value()),
+            CompactLength::FIT_CONTENT_PX_TAG => {
+                CMasonDimension::fit_content_points(dimension.value())
+            }
             CompactLength::FIT_CONTENT_PERCENT_TAG => {
                 CMasonDimension::fit_content_percent(dimension.value())
             }

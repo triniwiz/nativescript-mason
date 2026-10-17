@@ -20,5 +20,9 @@ fn max_width_overrides_width_root() {
     mason.compute_wh(rid, f32::NAN, f32::NAN);
     let l = mason.layout_raw(rid);
     println!("width={} height={}", l.size.width, l.size.height);
-    assert!((l.size.width - 100.0).abs() < 0.5, "expected clamped width 100, got {}", l.size.width);
+    assert!(
+        (l.size.width - 100.0).abs() < 0.5,
+        "expected clamped width 100, got {}",
+        l.size.width
+    );
 }

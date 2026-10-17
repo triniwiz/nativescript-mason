@@ -47,7 +47,8 @@ impl AppleNode {
         unsafe { self.0.as_ref() }
     }
     pub fn set_computed_size(&mut self, width: f64, height: f64) {
-        let _: () = unsafe { objc2::msg_send![self.object(), setComputedSize: width, height: height] };
+        let _: () =
+            unsafe { objc2::msg_send![self.object(), setComputedSize: width, height: height] };
     }
     pub fn computed_width(&self) -> f64 {
         unsafe { objc2::msg_send![self.object(), computedWidth] }
@@ -548,13 +549,23 @@ impl InlineMeasureCache {
             return None;
         }
         let max_content = self.get(
-            Size { width: None, height: known_dimensions.height },
-            Size { width: AvailableSpace::MaxContent, height: available_space.height },
+            Size {
+                width: None,
+                height: known_dimensions.height,
+            },
+            Size {
+                width: AvailableSpace::MaxContent,
+                height: available_space.height,
+            },
         )?;
         // Android's StaticLayout takes an int width, so it wraps at the offered width truncated to
         // whole pixels while reporting the fractional widest line. iOS (CoreText, in points) and
         // Windows (in DIPs) lay out at the exact width.
-        let limit = if cfg!(target_os = "android") { offered.floor() } else { offered };
+        let limit = if cfg!(target_os = "android") {
+            offered.floor()
+        } else {
+            offered
+        };
         (max_content.width <= limit).then_some(max_content)
     }
 }
@@ -1285,7 +1296,11 @@ impl Drop for NodeRef {
         // Try non-blocking write lock first to avoid deadlocking with
         // concurrent read locks held by the layout algorithm.
         if let Some(mut tree) = self.tree.try_write() {
-            let has_parent = tree.parents.get(self.id).map(|p| p.is_some()).unwrap_or(false);
+            let has_parent = tree
+                .parents
+                .get(self.id)
+                .map(|p| p.is_some())
+                .unwrap_or(false);
             if has_parent {
                 return;
             }
@@ -1304,38 +1319,75 @@ mod inline_measure_cache_tests {
     use super::*;
 
     fn known(w: Option<f32>, h: Option<f32>) -> Size<Option<f32>> {
-        Size { width: w, height: h }
+        Size {
+            width: w,
+            height: h,
+        }
     }
 
     fn avail(w: AvailableSpace, h: AvailableSpace) -> Size<AvailableSpace> {
-        Size { width: w, height: h }
+        Size {
+            width: w,
+            height: h,
+        }
     }
 
     #[test]
     fn text_fit_uses_max_content_only_when_it_fits() {
         use AvailableSpace::{Definite, MaxContent, MinContent};
         let mut cache = InlineMeasureCache::new();
-        let max = Size { width: 120.0, height: 16.0 };
+        let max = Size {
+            width: 120.0,
+            height: 16.0,
+        };
         cache.store(known(None, None), avail(MaxContent, MaxContent), max);
 
         let fit = |k, a| cache.text_fit_from_max_content(k, a);
-        assert_eq!(fit(known(None, None), avail(Definite(300.0), MaxContent)), Some(max));
-        assert_eq!(fit(known(Some(120.4), None), avail(Definite(80.0), MaxContent)), Some(max));
-        assert_eq!(fit(known(None, None), avail(Definite(119.5), MaxContent)), None);
-        assert_eq!(fit(known(Some(0.0), None), avail(Definite(300.0), MaxContent)), None);
+        assert_eq!(
+            fit(known(None, None), avail(Definite(300.0), MaxContent)),
+            Some(max)
+        );
+        assert_eq!(
+            fit(known(Some(120.4), None), avail(Definite(80.0), MaxContent)),
+            Some(max)
+        );
+        assert_eq!(
+            fit(known(None, None), avail(Definite(119.5), MaxContent)),
+            None
+        );
+        assert_eq!(
+            fit(known(Some(0.0), None), avail(Definite(300.0), MaxContent)),
+            None
+        );
         assert_eq!(fit(known(None, None), avail(MinContent, MaxContent)), None);
-        assert_eq!(fit(known(None, Some(16.0)), avail(Definite(300.0), MaxContent)), None);
+        assert_eq!(
+            fit(known(None, Some(16.0)), avail(Definite(300.0), MaxContent)),
+            None
+        );
     }
 
     #[test]
     fn text_fit_floors_fractional_widths_only_on_android() {
         use AvailableSpace::{Definite, MaxContent};
         let mut cache = InlineMeasureCache::new();
-        let max = Size { width: 55.2, height: 15.2 };
+        let max = Size {
+            width: 55.2,
+            height: 15.2,
+        };
         cache.store(known(None, None), avail(MaxContent, MaxContent), max);
 
-        let expected = if cfg!(target_os = "android") { None } else { Some(max) };
-        assert_eq!(cache.text_fit_from_max_content(known(Some(55.2), None), avail(Definite(55.2), MaxContent)), expected);
+        let expected = if cfg!(target_os = "android") {
+            None
+        } else {
+            Some(max)
+        };
+        assert_eq!(
+            cache.text_fit_from_max_content(
+                known(Some(55.2), None),
+                avail(Definite(55.2), MaxContent)
+            ),
+            expected
+        );
     }
 
     #[test]
@@ -1355,7 +1407,10 @@ mod inline_measure_cache_tests {
         let mut cache = InlineMeasureCache::new();
         let k = known(Some(120.0), None);
         let a = avail(AvailableSpace::Definite(120.0), AvailableSpace::MinContent);
-        let result = Size { width: 100.0, height: 20.0 };
+        let result = Size {
+            width: 100.0,
+            height: 20.0,
+        };
 
         cache.store(k, a, result);
         assert_eq!(cache.get(k, a), Some(result));
@@ -1372,18 +1427,51 @@ mod inline_measure_cache_tests {
         let a2 = avail(AvailableSpace::Definite(200.0), AvailableSpace::MaxContent);
         let k = known(None, None);
 
-        cache.store(k, a1, Size { width: 90.0, height: 20.0 });
-        cache.store(k, a2, Size { width: 190.0, height: 20.0 });
+        cache.store(
+            k,
+            a1,
+            Size {
+                width: 90.0,
+                height: 20.0,
+            },
+        );
+        cache.store(
+            k,
+            a2,
+            Size {
+                width: 190.0,
+                height: 20.0,
+            },
+        );
 
-        assert_eq!(cache.get(k, a1), Some(Size { width: 90.0, height: 20.0 }));
-        assert_eq!(cache.get(k, a2), Some(Size { width: 190.0, height: 20.0 }));
+        assert_eq!(
+            cache.get(k, a1),
+            Some(Size {
+                width: 90.0,
+                height: 20.0
+            })
+        );
+        assert_eq!(
+            cache.get(k, a2),
+            Some(Size {
+                width: 190.0,
+                height: 20.0
+            })
+        );
     }
 
     #[test]
     fn miss_on_different_known_dimensions() {
         let mut cache = InlineMeasureCache::new();
         let a = avail(AvailableSpace::MaxContent, AvailableSpace::MaxContent);
-        cache.store(known(Some(50.0), None), a, Size { width: 50.0, height: 10.0 });
+        cache.store(
+            known(Some(50.0), None),
+            a,
+            Size {
+                width: 50.0,
+                height: 10.0,
+            },
+        );
 
         assert_eq!(cache.get(known(Some(60.0), None), a), None);
     }
@@ -1395,8 +1483,18 @@ mod inline_measure_cache_tests {
 
         // Store more than INLINE_MEASURE_CACHE_SIZE distinct probes.
         for i in 0..(INLINE_MEASURE_CACHE_SIZE + 5) {
-            let a = avail(AvailableSpace::Definite(i as f32), AvailableSpace::MaxContent);
-            cache.store(k, a, Size { width: i as f32, height: 1.0 });
+            let a = avail(
+                AvailableSpace::Definite(i as f32),
+                AvailableSpace::MaxContent,
+            );
+            cache.store(
+                k,
+                a,
+                Size {
+                    width: i as f32,
+                    height: 1.0,
+                },
+            );
         }
 
         // The earliest entries were evicted (round-robin) — degrades to a
@@ -1406,10 +1504,16 @@ mod inline_measure_cache_tests {
 
         // The most recent entries are still present and correct.
         let last_idx = INLINE_MEASURE_CACHE_SIZE + 4;
-        let recent = avail(AvailableSpace::Definite(last_idx as f32), AvailableSpace::MaxContent);
+        let recent = avail(
+            AvailableSpace::Definite(last_idx as f32),
+            AvailableSpace::MaxContent,
+        );
         assert_eq!(
             cache.get(k, recent),
-            Some(Size { width: last_idx as f32, height: 1.0 })
+            Some(Size {
+                width: last_idx as f32,
+                height: 1.0
+            })
         );
     }
 
@@ -1418,7 +1522,14 @@ mod inline_measure_cache_tests {
         let mut cache = InlineMeasureCache::new();
         let k = known(Some(10.0), Some(10.0));
         let a = avail(AvailableSpace::MaxContent, AvailableSpace::MaxContent);
-        cache.store(k, a, Size { width: 10.0, height: 10.0 });
+        cache.store(
+            k,
+            a,
+            Size {
+                width: 10.0,
+                height: 10.0,
+            },
+        );
         assert!(cache.get(k, a).is_some());
 
         cache.clear();
@@ -1431,8 +1542,14 @@ mod inline_measure_cache_tests {
         let mut node = Node::new(&mut arena as *mut _);
         let k = known(Some(10.0), None);
         let a = avail(AvailableSpace::Definite(10.0), AvailableSpace::MaxContent);
-        node.inline_measure_cache
-            .store(k, a, Size { width: 10.0, height: 5.0 });
+        node.inline_measure_cache.store(
+            k,
+            a,
+            Size {
+                width: 10.0,
+                height: 5.0,
+            },
+        );
         assert!(node.inline_measure_cache.get(k, a).is_some());
 
         node.mark_dirty();

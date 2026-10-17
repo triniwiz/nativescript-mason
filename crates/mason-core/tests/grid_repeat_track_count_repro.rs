@@ -43,7 +43,10 @@ fn grid_repeat_five_columns_positions() {
     for (i, id) in ids.iter().enumerate() {
         let l = mason.layout_raw(*id);
         let expected_x = (i as f32) * 100.0;
-        println!("child {i}: x={}, y={}, w={}, h={}", l.location.x, l.location.y, l.size.width, l.size.height);
+        println!(
+            "child {i}: x={}, y={}, w={}, h={}",
+            l.location.x, l.location.y, l.size.width, l.size.height
+        );
         assert!(
             (l.location.x - expected_x).abs() < 1.0,
             "child {i}: expected x≈{expected_x}, got {}",

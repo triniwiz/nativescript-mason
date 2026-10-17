@@ -57,7 +57,10 @@ fn shrink_to_fit_box_includes_its_own_padding() {
 
     let root = mason.layout_raw(root_id);
     let child = mason.layout_raw(child_id);
-    println!("root = {:?}  child = {:?} {:?}", root.size, child.location, child.size);
+    println!(
+        "root = {:?}  child = {:?} {:?}",
+        root.size, child.location, child.size
+    );
     assert_eq!((root.size.width, root.size.height), (30.0, 30.0), "root");
     assert_eq!((child.size.width, child.size.height), (10.0, 10.0), "child");
 }
@@ -92,9 +95,18 @@ fn cyclic_percentage_column_gap_resolves_against_the_resulting_width() {
     mason.compute_wh(stage_id, 1280.0, 2688.0);
 
     let root = mason.layout_raw(root_id);
-    let xs: Vec<f32> = kids.iter().map(|&k| mason.layout_raw(k).location.x).collect();
-    let ws: Vec<f32> = kids.iter().map(|&k| mason.layout_raw(k).size.width).collect();
-    println!("root width = {}  xs = {xs:?}  widths = {ws:?}", root.size.width);
+    let xs: Vec<f32> = kids
+        .iter()
+        .map(|&k| mason.layout_raw(k).location.x)
+        .collect();
+    let ws: Vec<f32> = kids
+        .iter()
+        .map(|&k| mason.layout_raw(k).size.width)
+        .collect();
+    println!(
+        "root width = {}  xs = {xs:?}  widths = {ws:?}",
+        root.size.width
+    );
     assert_eq!(root.size.width, 60.0, "root width");
     assert_eq!(xs, vec![0.0, 24.0, 48.0], "item positions");
     assert_eq!(ws, vec![12.0, 12.0, 12.0], "item widths");

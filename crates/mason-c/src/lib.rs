@@ -140,10 +140,7 @@ pub struct CMasonUaDefault {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_ua_default_for_tag(
-    tag: *const c_char,
-    out: *mut CMasonUaDefault,
-) -> bool {
+pub extern "C" fn mason_ua_default_for_tag(tag: *const c_char, out: *mut CMasonUaDefault) -> bool {
     if tag.is_null() || out.is_null() {
         return false;
     }

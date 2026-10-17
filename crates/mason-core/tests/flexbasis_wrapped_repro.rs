@@ -639,7 +639,11 @@ fn regression_column_max_height_with_margin() {
         "expected root height clamped to max-height 80, got {}",
         l.size.height
     );
-    assert!(cl.location.y >= 0.0, "sanity: child y should be non-negative, got {}", cl.location.y);
+    assert!(
+        cl.location.y >= 0.0,
+        "sanity: child y should be non-negative, got {}",
+        cl.location.y
+    );
 }
 
 #[test]

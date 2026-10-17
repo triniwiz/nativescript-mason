@@ -87,7 +87,10 @@ fn percentage_row_gap_under_abspos_stage_is_zero() {
         .map(|&i| mason.layout_raw(kids[i]).location.y)
         .collect();
     let root = mason.layout_raw(root_id);
-    println!("staged row ys = {rows:?}  root height = {}", root.size.height);
+    println!(
+        "staged row ys = {rows:?}  root height = {}",
+        root.size.height
+    );
 
     assert_eq!(rows, vec![0.0, 20.0, 40.0], "row positions");
     assert_eq!(root.size.height, 60.0, "container height");

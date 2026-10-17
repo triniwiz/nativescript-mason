@@ -347,7 +347,10 @@ fn grid_margins_auto_margins_webspec_shape() {
     let (_c2, c2_id) = fixture_child(&mut mason);
     let (_c3, c3_id) = fixture_child(&mut mason);
     mason.with_style_mut(c3_id, |s| {
-        s.set_size(Size { width: Dimension::length(20.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(20.0),
+            height: Dimension::auto(),
+        });
         s.set_justify_self(Some(AlignItems::START));
         s.set_margin(Rect {
             left: LengthPercentageAuto::auto(),
@@ -359,7 +362,10 @@ fn grid_margins_auto_margins_webspec_shape() {
     let (_c4, c4_id) = fixture_child(&mut mason);
     let (_c5, c5_id) = fixture_child(&mut mason);
     mason.with_style_mut(c5_id, |s| {
-        s.set_size(Size { width: Dimension::auto(), height: Dimension::length(20.0) });
+        s.set_size(Size {
+            width: Dimension::auto(),
+            height: Dimension::length(20.0),
+        });
         s.set_align_self(Some(AlignItems::START));
         s.set_margin(Rect {
             left: LengthPercentageAuto::length(0.0),
@@ -371,7 +377,10 @@ fn grid_margins_auto_margins_webspec_shape() {
     let (_c6, c6_id) = fixture_child(&mut mason);
     let (_c7, c7_id) = fixture_child(&mut mason);
     mason.with_style_mut(c7_id, |s| {
-        s.set_size(Size { width: Dimension::length(20.0), height: Dimension::length(20.0) });
+        s.set_size(Size {
+            width: Dimension::length(20.0),
+            height: Dimension::length(20.0),
+        });
         s.set_align_self(Some(AlignItems::START));
         s.set_justify_self(Some(AlignItems::START));
         s.set_margin(Rect::<LengthPercentageAuto>::auto());
@@ -382,7 +391,9 @@ fn grid_margins_auto_margins_webspec_shape() {
     mason.append_node(stage_id, &[root_id]);
     mason.append_node(
         root_id,
-        &[c1_id, c2_id, c3_id, c4_id, c5_id, c6_id, c7_id, c8_id, c9_id],
+        &[
+            c1_id, c2_id, c3_id, c4_id, c5_id, c6_id, c7_id, c8_id, c9_id,
+        ],
     );
 
     mason.compute_wh(stage_id, 1280.0, 2688.0);

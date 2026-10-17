@@ -5,7 +5,10 @@ fn block(mason: &mut Mason, height: Option<f32>) -> NodeRef {
     mason.with_style_mut(node.id(), |s| {
         s.set_display(Display::Block);
         if let Some(height) = height {
-            s.set_size(Size { width: Dimension::auto(), height: Dimension::length(height) });
+            s.set_size(Size {
+                width: Dimension::auto(),
+                height: Dimension::length(height),
+            });
         }
     });
     node
@@ -29,7 +32,13 @@ fn tree() -> Tree {
     mason.append_node(root.id(), &[details.id()]);
     mason.set_details(details.id(), DETAILS_ROLE_DETAILS, false);
     mason.set_details(summary.id(), DETAILS_ROLE_SUMMARY, false);
-    Tree { mason, root, details, summary, body }
+    Tree {
+        mason,
+        root,
+        details,
+        summary,
+        body,
+    }
 }
 
 impl Tree {
@@ -49,11 +58,13 @@ fn closed_details_lays_out_only_its_summary() {
     assert!(t.mason.is_hidden(body.id()));
     assert!(!t.mason.is_hidden(t.summary.id()));
 
-    t.mason.set_details(details.id(), DETAILS_ROLE_DETAILS, true);
+    t.mason
+        .set_details(details.id(), DETAILS_ROLE_DETAILS, true);
     assert_eq!(t.height(&details), 50.0);
     assert!(!t.mason.is_hidden(body.id()));
 
-    t.mason.set_details(details.id(), DETAILS_ROLE_DETAILS, false);
+    t.mason
+        .set_details(details.id(), DETAILS_ROLE_DETAILS, false);
     assert_eq!(t.height(&details), 20.0);
 }
 
@@ -87,9 +98,12 @@ fn hiding_leaves_the_authors_display_alone() {
     let mut t = tree();
     let details = t.details.clone();
     let body = t.body.clone();
-    t.mason.with_style_mut(body.id(), |s| s.set_display(Display::Flex));
+    t.mason
+        .with_style_mut(body.id(), |s| s.set_display(Display::Flex));
     assert_eq!(t.height(&details), 20.0);
-    t.mason.set_details(details.id(), DETAILS_ROLE_DETAILS, true);
+    t.mason
+        .set_details(details.id(), DETAILS_ROLE_DETAILS, true);
     assert_eq!(t.height(&details), 50.0);
-    t.mason.with_style(body.id(), |s| assert_eq!(s.get_display(), Display::Flex));
+    t.mason
+        .with_style(body.id(), |s| assert_eq!(s.get_display(), Display::Flex));
 }

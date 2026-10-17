@@ -6,12 +6,20 @@ use mason_core::*;
 
 fn assert_layout(mason: &Mason, id: Id, label: &str, x: f32, y: f32, w: f32, h: f32) {
     let l = mason.layout_raw(id);
-    println!("{label}: got x={} y={} w={} h={}", l.location.x, l.location.y, l.size.width, l.size.height);
-    assert!(
-        (l.location.x - x).abs() < 0.5 && (l.location.y - y).abs() < 0.5
-            && (l.size.width - w).abs() < 0.5 && (l.size.height - h).abs() < 0.5,
-        "{label}: expected x={x} y={y} w={w} h={h}, got x={} y={} w={} h={}",
+    println!(
+        "{label}: got x={} y={} w={} h={}",
         l.location.x, l.location.y, l.size.width, l.size.height
+    );
+    assert!(
+        (l.location.x - x).abs() < 0.5
+            && (l.location.y - y).abs() < 0.5
+            && (l.size.width - w).abs() < 0.5
+            && (l.size.height - h).abs() < 0.5,
+        "{label}: expected x={x} y={y} w={w} h={h}, got x={} y={} w={} h={}",
+        l.location.x,
+        l.location.y,
+        l.size.width,
+        l.size.height
     );
 }
 
@@ -22,7 +30,10 @@ fn gap_column_gap_wrap_align_flex_end_webspec_shape() {
     let stage_id = stage.id();
     mason.with_style_mut(stage_id, |s| {
         s.set_position(Position::Absolute);
-        s.set_size(Size { width: Dimension::length(1024.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(1024.0),
+            height: Dimension::auto(),
+        });
     });
 
     let root = mason.create_node();
@@ -34,8 +45,14 @@ fn gap_column_gap_wrap_align_flex_end_webspec_shape() {
         s.set_flex_direction(FlexDirection::Row);
         s.set_flex_wrap(FlexWrap::Wrap);
         s.set_align_content(Some(AlignContent::FLEX_END));
-        s.set_size(Size { width: Dimension::length(100.0), height: Dimension::length(100.0) });
-        s.set_gap(Size { width: LengthPercentage::length(10.0), height: LengthPercentage::length(20.0) });
+        s.set_size(Size {
+            width: Dimension::length(100.0),
+            height: Dimension::length(100.0),
+        });
+        s.set_gap(Size {
+            width: LengthPercentage::length(10.0),
+            height: LengthPercentage::length(20.0),
+        });
     });
     let mut children = vec![];
     let mut child_refs = vec![];
@@ -46,7 +63,10 @@ fn gap_column_gap_wrap_align_flex_end_webspec_shape() {
             s.set_position(Position::Relative);
             s.set_display(Display::Flex);
             s.set_box_sizing(BoxSizing::BorderBox);
-            s.set_size(Size { width: Dimension::length(20.0), height: Dimension::length(20.0) });
+            s.set_size(Size {
+                width: Dimension::length(20.0),
+                height: Dimension::length(20.0),
+            });
         });
         children.push(cid);
         child_refs.push(c);
@@ -70,7 +90,10 @@ fn gap_column_gap_wrap_align_flex_start_webspec_shape() {
     let stage_id = stage.id();
     mason.with_style_mut(stage_id, |s| {
         s.set_position(Position::Absolute);
-        s.set_size(Size { width: Dimension::length(1024.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(1024.0),
+            height: Dimension::auto(),
+        });
     });
 
     let root = mason.create_node();
@@ -82,8 +105,14 @@ fn gap_column_gap_wrap_align_flex_start_webspec_shape() {
         s.set_flex_direction(FlexDirection::Row);
         s.set_flex_wrap(FlexWrap::Wrap);
         s.set_align_content(Some(AlignContent::FLEX_START));
-        s.set_size(Size { width: Dimension::length(100.0), height: Dimension::length(100.0) });
-        s.set_gap(Size { width: LengthPercentage::length(10.0), height: LengthPercentage::length(20.0) });
+        s.set_size(Size {
+            width: Dimension::length(100.0),
+            height: Dimension::length(100.0),
+        });
+        s.set_gap(Size {
+            width: LengthPercentage::length(10.0),
+            height: LengthPercentage::length(20.0),
+        });
     });
     let mut children = vec![];
     let mut child_refs = vec![];
@@ -94,7 +123,10 @@ fn gap_column_gap_wrap_align_flex_start_webspec_shape() {
             s.set_position(Position::Relative);
             s.set_display(Display::Flex);
             s.set_box_sizing(BoxSizing::BorderBox);
-            s.set_size(Size { width: Dimension::length(20.0), height: Dimension::length(20.0) });
+            s.set_size(Size {
+                width: Dimension::length(20.0),
+                height: Dimension::length(20.0),
+            });
         });
         children.push(cid);
         child_refs.push(c);

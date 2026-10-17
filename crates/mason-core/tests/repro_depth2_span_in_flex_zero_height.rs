@@ -6,8 +6,8 @@
 //! draws nothing on iOS (frame height applied verbatim); Android happens to
 //! mask it because its native TextView self-sizes via WRAP_CONTENT.
 
-use mason_core::*;
 use mason_core::style::DisplayMode;
+use mason_core::*;
 use taffy::style::{Dimension, Display, FlexDirection};
 
 extern "C" fn span_measure(
@@ -60,10 +60,21 @@ fn span_in_plain_div_as_direct_block_child_gets_nonzero_height() {
 
     let middle_l = mason.layout_raw(middle_id.into());
     let span_l = mason.layout_raw(span_id.into());
-    eprintln!("DEPTH-1-equivalent: middle={:?} span={:?}", middle_l.size, span_l.size);
+    eprintln!(
+        "DEPTH-1-equivalent: middle={:?} span={:?}",
+        middle_l.size, span_l.size
+    );
 
-    assert!(middle_l.size.height > 0.0, "middle div height should be > 0, got {}", middle_l.size.height);
-    assert!(span_l.size.height > 0.0, "span height should be > 0, got {}", span_l.size.height);
+    assert!(
+        middle_l.size.height > 0.0,
+        "middle div height should be > 0, got {}",
+        middle_l.size.height
+    );
+    assert!(
+        span_l.size.height > 0.0,
+        "span height should be > 0, got {}",
+        span_l.size.height
+    );
 }
 
 #[test]
@@ -87,10 +98,21 @@ fn span_in_plain_div_as_flex_row_item_gets_nonzero_height() {
 
     let middle_l = mason.layout_raw(middle_id.into());
     let span_l = mason.layout_raw(span_id.into());
-    eprintln!("DEPTH-2-ROW-equivalent: middle={:?} span={:?}", middle_l.size, span_l.size);
+    eprintln!(
+        "DEPTH-2-ROW-equivalent: middle={:?} span={:?}",
+        middle_l.size, span_l.size
+    );
 
-    assert!(middle_l.size.height > 0.0, "middle div height should be > 0, got {}", middle_l.size.height);
-    assert!(span_l.size.height > 0.0, "span height should be > 0, got {} (this is the DEPTH-2 bug)", span_l.size.height);
+    assert!(
+        middle_l.size.height > 0.0,
+        "middle div height should be > 0, got {}",
+        middle_l.size.height
+    );
+    assert!(
+        span_l.size.height > 0.0,
+        "span height should be > 0, got {} (this is the DEPTH-2 bug)",
+        span_l.size.height
+    );
 }
 
 #[test]
@@ -114,8 +136,19 @@ fn span_in_plain_div_as_flex_column_item_gets_nonzero_height() {
 
     let middle_l = mason.layout_raw(middle_id.into());
     let span_l = mason.layout_raw(span_id.into());
-    eprintln!("DEPTH-2-COLUMN-equivalent: middle={:?} span={:?}", middle_l.size, span_l.size);
+    eprintln!(
+        "DEPTH-2-COLUMN-equivalent: middle={:?} span={:?}",
+        middle_l.size, span_l.size
+    );
 
-    assert!(middle_l.size.height > 0.0, "middle div height should be > 0, got {}", middle_l.size.height);
-    assert!(span_l.size.height > 0.0, "span height should be > 0, got {} (this is the DEPTH-2 bug)", span_l.size.height);
+    assert!(
+        middle_l.size.height > 0.0,
+        "middle div height should be > 0, got {}",
+        middle_l.size.height
+    );
+    assert!(
+        span_l.size.height > 0.0,
+        "span height should be > 0, got {} (this is the DEPTH-2 bug)",
+        span_l.size.height
+    );
 }

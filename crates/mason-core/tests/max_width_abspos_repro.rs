@@ -41,7 +41,10 @@ fn max_width_overrides_width_when_root_is_nested_abspos() {
     mason.compute_wh(stage_id, 1280.0, 2688.0);
 
     let l = mason.layout_raw(fixture_root_id);
-    println!("fixture_root width={} height={}", l.size.width, l.size.height);
+    println!(
+        "fixture_root width={} height={}",
+        l.size.width, l.size.height
+    );
     assert!(
         (l.size.width - 100.0).abs() < 0.5,
         "expected clamped width 100, got {}",

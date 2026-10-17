@@ -1,9 +1,12 @@
-use crate::node::{drain_deferred_cleanup, InlineMeasureCache, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis, DETAILS_ROLE_DETAILS, DETAILS_ROLE_SUMMARY};
+use crate::node::{
+    drain_deferred_cleanup, InlineMeasureCache, Node, NodeData, NodeRef, NodeType, SubtreeAnalysis,
+    DETAILS_ROLE_DETAILS, DETAILS_ROLE_SUMMARY,
+};
+use crate::pass_lock::{PassGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
-use crate::pass_lock::{PassGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::cell::Cell;
@@ -213,8 +216,11 @@ fn quantize_available(space: AvailableSpace) -> AvailableSpace {
 
 /// Platforms whose text measure breaks greedily and reports the widest line,
 /// so a text leaf's max-content result answers any width at least that wide.
-pub(crate) const TEXT_FIT_FROM_MAX_CONTENT: bool =
-    cfg!(any(target_os = "android", target_vendor = "apple", target_os = "windows"));
+pub(crate) const TEXT_FIT_FROM_MAX_CONTENT: bool = cfg!(any(
+    target_os = "android",
+    target_vendor = "apple",
+    target_os = "windows"
+));
 
 static BLOCK_MEASURE_CACHE: std::sync::OnceLock<parking_lot::Mutex<BlockMeasureMap>> =
     std::sync::OnceLock::new();
@@ -1689,7 +1695,9 @@ impl Tree {
     /// shown or hidden on the next layout pass.
     pub fn set_details(&mut self, node: Id, role: u8, open: bool) {
         let mut tree = self.0.write();
-        let Some(n) = tree.nodes.get_mut(node) else { return };
+        let Some(n) = tree.nodes.get_mut(node) else {
+            return;
+        };
         if n.details_role == role && n.details_open == open {
             return;
         }
@@ -1714,7 +1722,9 @@ impl Tree {
         let mut previous = Vec::new();
         for (id, hid) in entries {
             previous.extend(hid);
-            let Some(n) = tree.nodes.get(id) else { continue };
+            let Some(n) = tree.nodes.get(id) else {
+                continue;
+            };
             if n.details_role != DETAILS_ROLE_DETAILS {
                 continue;
             }
@@ -1722,9 +1732,16 @@ impl Tree {
             if !n.details_open {
                 if let Some(children) = tree.children.get(id) {
                     let summary = children.iter().copied().find(|c| {
-                        tree.nodes.get(*c).is_some_and(|n| n.details_role == DETAILS_ROLE_SUMMARY)
+                        tree.nodes
+                            .get(*c)
+                            .is_some_and(|n| n.details_role == DETAILS_ROLE_SUMMARY)
                     });
-                    hide.extend(children.iter().copied().filter(|c| Some(*c) != summary && tree.nodes.contains_key(*c)));
+                    hide.extend(
+                        children
+                            .iter()
+                            .copied()
+                            .filter(|c| Some(*c) != summary && tree.nodes.contains_key(*c)),
+                    );
                 }
             }
             next.push((id, hide));
@@ -1734,7 +1751,11 @@ impl Tree {
             if next.iter().any(|(_, hide)| hide.contains(&child)) {
                 continue;
             }
-            if tree.nodes.get_mut(child).is_some_and(|n| n.set_hidden(false)) {
+            if tree
+                .nodes
+                .get_mut(child)
+                .is_some_and(|n| n.set_hidden(false))
+            {
                 Self::mark_dirty_inner(&mut tree, child);
             }
         }
@@ -1754,8 +1775,13 @@ impl Tree {
             let style = n.style();
             let floats = style.get_float() != Float::None;
             let overflow = style.get_overflow();
-            let scrolls = matches!(overflow.x, crate::style::Overflow::Scroll | crate::style::Overflow::Auto)
-                || matches!(overflow.y, crate::style::Overflow::Scroll | crate::style::Overflow::Auto);
+            let scrolls = matches!(
+                overflow.x,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            ) || matches!(
+                overflow.y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            );
             if floats {
                 tree.has_floats = true;
             }
@@ -1981,8 +2007,8 @@ impl Tree {
 
             func(style);
 
-            changed =
-                style.data() != &buffer_before[..] || style.non_buffer_snapshot() != non_buffer_before;
+            changed = style.data() != &buffer_before[..]
+                || style.non_buffer_snapshot() != non_buffer_before;
 
             sets_float = style.get_float() != Float::None;
             let overflow = style.get_overflow();
@@ -2113,7 +2139,9 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
         }
     }
     for &id in order.iter().rev() {
-        let Some(node) = tree.nodes.get(id) else { continue };
+        let Some(node) = tree.nodes.get(id) else {
+            continue;
+        };
         let style = node.style();
         let scrolls_y = matches!(
             style.get_overflow().y,
@@ -2129,7 +2157,11 @@ fn mark_ignores_offered_height(tree: &mut TreeInner, root: Id) {
             && !wraps_column
             && !is_vertical_writing_mode(tree, id)
             && tree.children.get(id).map_or(true, |children| {
-                children.iter().all(|c| tree.nodes.get(*c).map_or(true, |n| n.ignores_offered_height))
+                children.iter().all(|c| {
+                    tree.nodes
+                        .get(*c)
+                        .map_or(true, |n| n.ignores_offered_height)
+                })
             });
         tree.nodes[id].ignores_offered_height = free;
     }
@@ -2198,7 +2230,8 @@ pub(crate) fn containing_block_height(tree: &TreeInner, id: Id) -> Option<f32> {
     if style.get_box_sizing() == taffy::BoxSizing::ContentBox {
         return Some(height);
     }
-    let edges = style.get_padding().resolve_or_zero(None, |_, _| 0.0) + style.border().resolve_or_zero(None, |_, _| 0.0);
+    let edges = style.get_padding().resolve_or_zero(None, |_, _| 0.0)
+        + style.border().resolve_or_zero(None, |_, _| 0.0);
     Some((height - edges.top - edges.bottom).max(0.0))
 }
 
@@ -2211,7 +2244,9 @@ pub(crate) fn orthogonal_flow_inputs(mut inputs: LayoutInput) -> LayoutInput {
         match inputs.parent_size.height {
             None => inputs.available_space.height = AvailableSpace::MaxContent,
             // A block child is offered no height, but its containing block's is definite.
-            Some(height) if !matches!(inputs.available_space.height, AvailableSpace::Definite(_)) => {
+            Some(height)
+                if !matches!(inputs.available_space.height, AvailableSpace::Definite(_)) =>
+            {
                 inputs.available_space.height = AvailableSpace::Definite(height);
             }
             _ => {}
@@ -2244,7 +2279,8 @@ impl CacheTree for Tree {
     #[inline]
     fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
         let node = self.node_from_id_mut(node_id);
-        node.cache.get(&measure_cache_key(node.ignores_offered_height, inputs))
+        node.cache
+            .get(&measure_cache_key(node.ignores_offered_height, inputs))
     }
 
     #[inline]
@@ -2576,8 +2612,11 @@ impl LayoutBlockContainer for Tree {
                             let vertical =
                                 is_text_container && is_vertical_writing_mode(&inner, id);
                             let viewport_height = inner.viewport_height;
-                            let containing_height =
-                                if vertical { containing_block_height(&inner, id) } else { None };
+                            let containing_height = if vertical {
+                                containing_block_height(&inner, id)
+                            } else {
+                                None
+                            };
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
                             (
                                 has_measure,
@@ -2604,7 +2643,8 @@ impl LayoutBlockContainer for Tree {
                             |known_dimensions, available_space| {
                                 // ContentSize mode wants content size with style size ignored,
                                 // so flex-basis/flex-shrink can size below it.
-                                let use_style_fallback = inputs.sizing_mode == SizingMode::InherentSize;
+                                let use_style_fallback =
+                                    inputs.sizing_mode == SizingMode::InherentSize;
 
                                 // resolve explicit known dimensions (from parent) or style
                                 // size, then apply min/max clamping so floats or other
@@ -2624,7 +2664,9 @@ impl LayoutBlockContainer for Tree {
                                         .then(|| {
                                             style_size
                                                 .height
-                                                .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
+                                                .maybe_resolve(inputs.parent_size.height, |_, _| {
+                                                    0.0
+                                                })
                                         })
                                         .flatten()
                                 });
@@ -2633,38 +2675,38 @@ impl LayoutBlockContainer for Tree {
                                 let style_min = style.min_size();
                                 let style_max = style.max_size();
                                 if use_style_fallback {
-                                if let Some(pw) = inputs.parent_size.width {
-                                    if let Some(min_w) =
-                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
-                                    {
-                                        if let Some(w) = resolved_width {
-                                            resolved_width = Some(w.max(min_w));
+                                    if let Some(pw) = inputs.parent_size.width {
+                                        if let Some(min_w) =
+                                            style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                        {
+                                            if let Some(w) = resolved_width {
+                                                resolved_width = Some(w.max(min_w));
+                                            }
+                                        }
+                                        if let Some(max_w) =
+                                            style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                        {
+                                            if let Some(w) = resolved_width {
+                                                resolved_width = Some(w.min(max_w));
+                                            }
                                         }
                                     }
-                                    if let Some(max_w) =
-                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
-                                    {
-                                        if let Some(w) = resolved_width {
-                                            resolved_width = Some(w.min(max_w));
+                                    if let Some(ph) = inputs.parent_size.height {
+                                        if let Some(min_h) =
+                                            style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                        {
+                                            if let Some(h) = resolved_height {
+                                                resolved_height = Some(h.max(min_h));
+                                            }
+                                        }
+                                        if let Some(max_h) =
+                                            style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                        {
+                                            if let Some(h) = resolved_height {
+                                                resolved_height = Some(h.min(max_h));
+                                            }
                                         }
                                     }
-                                }
-                                if let Some(ph) = inputs.parent_size.height {
-                                    if let Some(min_h) =
-                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
-                                    {
-                                        if let Some(h) = resolved_height {
-                                            resolved_height = Some(h.max(min_h));
-                                        }
-                                    }
-                                    if let Some(max_h) =
-                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
-                                    {
-                                        if let Some(h) = resolved_height {
-                                            resolved_height = Some(h.min(max_h));
-                                        }
-                                    }
-                                }
                                 }
 
                                 let final_known = Size {
@@ -2716,10 +2758,13 @@ impl LayoutBlockContainer for Tree {
                                     let cached = block_measure_cache()
                                         .get(&cache_key)
                                         .and_then(|c| c.get(q_known, key_avail));
-                                    let fit = if TEXT_FIT_FROM_MAX_CONTENT && is_text_container && cached.is_none() {
-                                        block_measure_cache()
-                                            .get(&cache_key)
-                                            .and_then(|c| c.text_fit_from_max_content(q_known, key_avail))
+                                    let fit = if TEXT_FIT_FROM_MAX_CONTENT
+                                        && is_text_container
+                                        && cached.is_none()
+                                    {
+                                        block_measure_cache().get(&cache_key).and_then(|c| {
+                                            c.text_fit_from_max_content(q_known, key_avail)
+                                        })
                                     } else {
                                         None
                                     };
@@ -2731,7 +2776,8 @@ impl LayoutBlockContainer for Tree {
                                         // measurement while holding tree write locks; callers
                                         // must snapshot data then invoke measure.
                                         let meas = measure.measure(final_known, available_space);
-                                        block_measure_cache().entry(cache_key)
+                                        block_measure_cache()
+                                            .entry(cache_key)
                                             .or_insert_with(InlineMeasureCache::new)
                                             .store(q_known, key_avail, meas);
                                         meas
@@ -2746,30 +2792,30 @@ impl LayoutBlockContainer for Tree {
                                 // clamp measured results too (skipped in ContentSize mode —
                                 // the caller applies its own clamp afterwards).
                                 if use_style_fallback {
-                                if let Some(pw) = inputs.parent_size.width {
-                                    if let Some(min_w) =
-                                        style_min.width.maybe_resolve(pw, |_, _| 0.0)
-                                    {
-                                        result.width = result.width.max(min_w);
+                                    if let Some(pw) = inputs.parent_size.width {
+                                        if let Some(min_w) =
+                                            style_min.width.maybe_resolve(pw, |_, _| 0.0)
+                                        {
+                                            result.width = result.width.max(min_w);
+                                        }
+                                        if let Some(max_w) =
+                                            style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
+                                        {
+                                            result.width = result.width.min(max_w);
+                                        }
                                     }
-                                    if let Some(max_w) =
-                                        style_max.width.maybe_resolve(pw, |_, _| f32::INFINITY)
-                                    {
-                                        result.width = result.width.min(max_w);
+                                    if let Some(ph) = inputs.parent_size.height {
+                                        if let Some(min_h) =
+                                            style_min.height.maybe_resolve(ph, |_, _| 0.0)
+                                        {
+                                            result.height = result.height.max(min_h);
+                                        }
+                                        if let Some(max_h) =
+                                            style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
+                                        {
+                                            result.height = result.height.min(max_h);
+                                        }
                                     }
-                                }
-                                if let Some(ph) = inputs.parent_size.height {
-                                    if let Some(min_h) =
-                                        style_min.height.maybe_resolve(ph, |_, _| 0.0)
-                                    {
-                                        result.height = result.height.max(min_h);
-                                    }
-                                    if let Some(max_h) =
-                                        style_max.height.maybe_resolve(ph, |_, _| f32::INFINITY)
-                                    {
-                                        result.height = result.height.min(max_h);
-                                    }
-                                }
                                 }
                                 result
                             },
@@ -3006,7 +3052,10 @@ impl taffy::LayoutContainingBlock for Tree {
 
     fn clear_hoisted_children(&mut self, node_id: NodeId) {
         let mut tree = self.0.write();
-        let Some(mut hoisted) = tree.hoisted_children.get_mut(node_id.into()).map(std::mem::take)
+        let Some(mut hoisted) = tree
+            .hoisted_children
+            .get_mut(node_id.into())
+            .map(std::mem::take)
         else {
             return;
         };

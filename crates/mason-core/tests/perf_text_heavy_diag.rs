@@ -80,7 +80,6 @@ fn diag_incremental_build_and_compute_curve_preallocated() {
 }
 
 fn run_curve(mason: &mut Mason, handles: &mut Vec<NodeRef>) {
-
     let root = mason.create_node();
     let rid = root.id();
     mason.with_style_mut(rid, |s| {
@@ -99,7 +98,12 @@ fn run_curve(mason: &mut Mason, handles: &mut Vec<NodeRef>) {
 
     println!(
         "{:>10} {:>14} {:>16} {:>18} {:>14} {:>18}",
-        "cards", "chunk_build", "us/card(chunk)", "cumulative_build", "compute_wh", "us/node(compute)"
+        "cards",
+        "chunk_build",
+        "us/card(chunk)",
+        "cumulative_build",
+        "compute_wh",
+        "us/node(compute)"
     );
 
     for _ in 0..chunks {

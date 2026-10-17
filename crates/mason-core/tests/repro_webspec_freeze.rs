@@ -11,7 +11,13 @@ use mason_core::*;
 // freeze reproduces in pure Rust (mason-core), independent of either mobile
 // bridge.
 
-fn mount_simple_row(mason: &mut Mason, stage: Id, width: f32, height: f32, n_children: usize) -> Id {
+fn mount_simple_row(
+    mason: &mut Mason,
+    stage: Id,
+    width: f32,
+    height: f32,
+    n_children: usize,
+) -> Id {
     let root = mason.create_node();
     let root_id = root.id();
     mason.with_style_mut(root_id, |s| {

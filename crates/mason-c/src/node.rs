@@ -541,9 +541,7 @@ pub extern "C" fn mason_node_get_direction(mason: *mut CMason, node: *mut CMason
     if mason.is_null() || node.is_null() {
         return 0;
     }
-    unsafe {
-        (*mason).0.is_rtl((*node).0.id()) as u8
-    }
+    unsafe { (*mason).0.is_rtl((*node).0.id()) as u8 }
 }
 
 #[no_mangle]

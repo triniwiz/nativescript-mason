@@ -38,7 +38,8 @@ fn grid_auto_places_empty_items_into_all_explicit_tracks() {
         let expected_x = ((index % 5) as f32) * 100.0;
         let expected_y = ((index / 5) as f32) * 100.0;
         assert!(
-            (layout.location.x - expected_x).abs() < 0.5 && (layout.location.y - expected_y).abs() < 0.5,
+            (layout.location.x - expected_x).abs() < 0.5
+                && (layout.location.y - expected_y).abs() < 0.5,
             "child {index} should be at ({expected_x}, {expected_y}), got {:?}",
             layout.location
         );
