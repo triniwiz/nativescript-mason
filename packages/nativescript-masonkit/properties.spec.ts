@@ -117,6 +117,84 @@ describe('width/height resolve the units core cannot', () => {
   });
 });
 
+describe('gap, insets and flex-basis resolve Mason units, not core parseFloat', () => {
+  // These went through core's PercentLength.parse, a bare parseFloat:
+  // `gap: 0.5rem` was 0.5 dip, so Bootstrap's gap utilities collapsed.
+  const CASES: Array<[string, string, string, number]> = [
+    ['row-gap', '0.5rem', 'GAP_ROW_VALUE', 8],
+    ['column-gap', '1.5rem', 'GAP_COLUMN_VALUE', 24],
+    ['gap', '0.5rem', 'GAP_ROW_VALUE', 8],
+    ['gap', '0.5rem', 'GAP_COLUMN_VALUE', 8],
+    ['gap', '1rem 2rem', 'GAP_COLUMN_VALUE', 32],
+    ['grid-gap', '0.25rem', 'GAP_ROW_VALUE', 4],
+    ['row-gap', '10vw', 'GAP_ROW_VALUE', 40],
+    ['row-gap', '12pt', 'GAP_ROW_VALUE', 16],
+    ['left', '1rem', 'INSET_LEFT_VALUE', 16],
+    ['top', '2rem', 'INSET_TOP_VALUE', 32],
+    ['right', '5vh', 'INSET_RIGHT_VALUE', 40],
+    ['bottom', '0.5rem', 'INSET_BOTTOM_VALUE', 8],
+    ['inset', '1rem', 'INSET_LEFT_VALUE', 16],
+    ['inset', '1rem 2rem', 'INSET_RIGHT_VALUE', 32],
+    ['flex-basis', '10rem', 'FLEX_BASIS_VALUE', 160],
+  ];
+
+  it.each([1, 2, 3].flatMap((scale) => CASES.map((c) => [scale, ...c] as const)))('scale %i: %s: %s', (scale, cssName, value, key, expectedCssPx) => {
+    setScreenScale(scale);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { under, style } = masonHost();
+    (style as any)[cssName] = value;
+    expect(under.getFloat32(styleKey(key))).toBeCloseTo(expectedCssPx * scale, 3);
+  });
+
+  it("em resolves against the element's own font size", () => {
+    setScreenScale(2);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { under, style } = masonHost();
+    under.style.fontSize = 20;
+    (style as any)['row-gap'] = '0.5em';
+    expect(under.getFloat32(styleKey('GAP_ROW_VALUE'))).toBeCloseTo(10 * 2, 3);
+  });
+
+  it('a later value replaces an earlier one with the same number', () => {
+    setScreenScale(1);
+    const { under, style } = masonHost();
+    (style as any)['row-gap'] = '1rem';
+    (style as any)['row-gap'] = '1em';
+    (style as any)['left'] = '1rem';
+    (style as any)['left'] = '1px';
+    expect(under.getFloat32(styleKey('GAP_ROW_VALUE'))).toBeCloseTo(16, 3);
+    expect(under.getFloat32(styleKey('INSET_LEFT_VALUE'))).toBeCloseTo(1, 3);
+  });
+
+  it('percentages, auto and px keep their meaning', () => {
+    setScreenScale(2);
+    const { under, style } = masonHost();
+    (style as any)['column-gap'] = '10%';
+    (style as any)['left'] = '25%';
+    (style as any)['row-gap'] = '6px';
+    expect(under.getFloat32(styleKey('GAP_COLUMN_VALUE'))).toBeCloseTo(0.1, 4);
+    expect(under.getFloat32(styleKey('INSET_LEFT_VALUE'))).toBeCloseTo(0.25, 4);
+    expect(under.getFloat32(styleKey('GAP_ROW_VALUE'))).toBeCloseTo(12, 4);
+    (style as any)['left'] = 'auto';
+    expect(under.getInt8(styleKey('INSET_LEFT_TYPE'))).toBe(0);
+  });
+
+  it('gap reads back as CSS text', () => {
+    const { style } = masonHost();
+    (style as any)['gap'] = '4px';
+    expect((style as any).gap).toBe('4px');
+    (style as any)['gap'] = '1rem 10%';
+    expect((style as any).gap).toBe('1rem 10%');
+  });
+
+  it('an unparsable gap is 0', () => {
+    setScreenScale(1);
+    const { under, style } = masonHost();
+    (style as any)['row-gap'] = 'bogus';
+    expect(under.getFloat32(styleKey('GAP_ROW_VALUE'))).toBe(0);
+  });
+});
+
 describe('aspect-ratio accepts the shapes CSS does', () => {
   const CASES: Array<[string, number]> = [
     ['2 / 3', 2 / 3],
