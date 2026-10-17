@@ -71,10 +71,7 @@ describe('border shorthands split into longhands', () => {
   });
 });
 
-/**
- * A Mason view whose border longhands reach the style buffer through the same
- * setNative handlers a real element has.
- */
+/** A Mason view wired to the same border setNative handlers a real element has. */
 function borderHost() {
   const longhands = [borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderTopStyleProperty, borderRightStyleProperty, borderBottomStyleProperty, borderLeftStyleProperty];
   const members: Record<PropertyKey, unknown> = {};

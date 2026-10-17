@@ -144,11 +144,8 @@ export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLower
 const LENGTH_FUNCTION = /^(calc|min|max|clamp)\(/i;
 
 /**
- * What an omitted part of `border`/`border-<side>` becomes. These are what
- * MasonKit's native border parsers have always used (Android `Border.kt`,
- * iOS `BorderParser.swift`), so the shorthand reads as it did before it was
- * split: `medium`, `solid` (Mason's initial border style, where CSS has
- * `none`) and black (where CSS has `currentcolor`, which borders can't use).
+ * Values for omitted `border` parts, matching the native border parsers:
+ * `medium`, `solid` (CSS: `none`) and black (CSS: `currentcolor`).
  */
 const BORDER_OMITTED = { width: '3', style: 'solid', color: 'black' };
 
@@ -193,19 +190,15 @@ function parseBorderParts(value: string, maxWidths: number): BorderParts {
   };
 }
 
-/**
- * `border-<side>` as its width, style and color. Omitted parts take MasonKit's
- * long-standing defaults; see BORDER_OMITTED.
- */
+/** `border-<side>` as its width, style and color; omitted parts take BORDER_OMITTED. */
 export function splitBorderSide(value: string): string[] {
   const { widths, style, color } = parseBorderParts(value, 1);
   return [widths[0], style, color];
 }
 
 /**
- * `border` as four widths, four styles and four colors (top, right, bottom,
- * left). MasonKit's native parsers also took up to four widths here, as
- * `border-width` does, so that still works.
+ * `border` as four widths, four styles and four colors (top, right, bottom, left).
+ * Accepts up to four widths, as `border-width` does.
  */
 export function splitBorder(value: string): string[] {
   const { widths, style, color } = parseBorderParts(value, 4);
