@@ -373,13 +373,19 @@ impl StyleArena {
 
     /// Get the reference count for a handle
     pub fn ref_count(&self, handle: StyleHandle) -> u32 {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to ref_count");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to ref_count"
+        );
         self.buffers[handle.index()].ref_count
     }
 
     /// Increment reference count (for when a node copies another's handle)
     pub fn retain(&mut self, handle: StyleHandle) {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to retain");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to retain"
+        );
         let buffer = &mut self.buffers[handle.index()];
         buffer.ref_count += 1;
         let ref_count = buffer.ref_count;
@@ -388,7 +394,10 @@ impl StyleArena {
 
     /// Release a handle (decrement ref count, free if zero)
     pub fn release(&mut self, handle: StyleHandle) {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to release");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to release"
+        );
         if matches!(
             handle,
             StyleHandle::DEFAULT
@@ -607,7 +616,10 @@ impl StyleArena {
 impl StyleArena {
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> objc2::rc::Retained<NSMutableData> {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to buffer");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to buffer"
+        );
         self.buffers[handle.index()].buffer()
     }
 
@@ -671,7 +683,10 @@ impl StyleArena {
 
     /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
     pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to prepare_mut");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to prepare_mut"
+        );
         let idx = handle.index();
 
         if self.buffers[idx].ref_count == 1 {
@@ -703,7 +718,10 @@ impl StyleArena {
 
     /// Get read-only pointer to buffer data
     pub fn get_ptr(&self, handle: StyleHandle) -> *const u8 {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to get_ptr"
+        );
         self.buffers[handle.index()].bytes().as_ptr()
     }
 
@@ -717,7 +735,10 @@ impl StyleArena {
 
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
     pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr_mut");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to get_ptr_mut"
+        );
         self.buffers[handle.index()].mut_bytes().as_mut_ptr()
     }
 
@@ -743,7 +764,10 @@ impl StyleArena {
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> jni::sys::jint {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to buffer");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to buffer"
+        );
         self.buffers[handle.index()].buffer()
     }
 
@@ -818,7 +842,10 @@ impl StyleArena {
 
     /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
     pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to prepare_mut");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to prepare_mut"
+        );
         let idx = handle.index();
 
         if self.buffers[idx].ref_count == 1 {
@@ -849,7 +876,10 @@ impl StyleArena {
 
     /// Get read-only pointer to buffer data
     pub fn get_ptr(&self, handle: StyleHandle) -> *const u8 {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to get_ptr"
+        );
         self.buffers[handle.index()].data.as_ptr()
     }
 
@@ -863,7 +893,10 @@ impl StyleArena {
 
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
     pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get_ptr_mut");
+        debug_assert!(
+            self.is_current(handle),
+            "stale StyleHandle passed to get_ptr_mut"
+        );
         self.buffers[handle.index()].data.as_mut_ptr()
     }
 

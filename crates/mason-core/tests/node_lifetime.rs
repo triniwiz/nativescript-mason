@@ -72,7 +72,11 @@ fn a_node_with_a_parent_is_kept_until_detached() {
     let baseline = mason.node_count();
 
     drop(child);
-    assert_eq!(mason.node_count(), baseline, "still in the parent's children");
+    assert_eq!(
+        mason.node_count(),
+        baseline,
+        "still in the parent's children"
+    );
 
     drop(mason.remove_child(parent.id(), child_id));
     assert_eq!(mason.node_count(), baseline - 1);
@@ -91,7 +95,11 @@ fn remove_children_frees_unreferenced_children() {
     let baseline = mason.node_count();
 
     mason.remove_children(parent.id());
-    assert_eq!(mason.node_count(), baseline - 5, "the referenced child stays");
+    assert_eq!(
+        mason.node_count(),
+        baseline - 5,
+        "the referenced child stays"
+    );
     drop(kept);
     assert_eq!(mason.node_count(), baseline - 6);
 }

@@ -5,13 +5,13 @@ use crate::style::{
 };
 use crate::Style;
 pub use grid::*;
-pub use ua_defaults::*;
 use style_atoms::Atom;
 use taffy::{
     AlignContent, AlignContentKeyword, AlignItems, AlignItemsKeyword, AlignSelf, BoxSizing, Clear,
     Direction, Display, FlexDirection, FlexWrap, Float, GridAutoFlow, GridPlacement,
     GridTemplateArea, JustifyContent, Line, Position, TextAlign,
 };
+pub use ua_defaults::*;
 
 pub const fn border_style_from_enum(value: i8) -> Option<BorderStyle> {
     match value {

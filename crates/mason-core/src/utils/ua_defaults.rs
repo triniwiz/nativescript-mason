@@ -54,7 +54,7 @@ pub fn ua_default_for_tag_with(tag: &str, preflight: bool) -> Option<UaDefault> 
 
 fn ua_default_for_tag_raw(tag: &str) -> Option<UaDefault> {
     match tag {
-        "p" => Some(ua(0.0, 16.0, 16.0, 0.0, 0.0)), // 1em
+        "p" => Some(ua(0.0, 16.0, 16.0, 0.0, 0.0)),     // 1em
         "h1" => Some(ua(32.0, 21.44, 21.44, 0.0, 0.0)), // 2em / 0.67em
         "h2" => Some(ua(24.0, 19.92, 19.92, 0.0, 0.0)), // 1.5em / 0.83em
         "h3" => Some(ua(19.0, 18.72, 18.72, 0.0, 0.0)), // 1.17em ~= 18.72
@@ -62,7 +62,7 @@ fn ua_default_for_tag_raw(tag: &str) -> Option<UaDefault> {
         "h5" => Some(ua(13.0, 22.18, 22.18, 0.0, 0.0)), // 0.83em ~= 13.28 / 1.67em
         "h6" => Some(ua(11.0, 24.98, 24.98, 0.0, 0.0)), // 0.67em ~= 10.72 / 2.33em
         "blockquote" => Some(ua(0.0, 16.0, 16.0, 40.0, 40.0)), // 1em 40px
-        "pre" => Some(ua(0.0, 16.0, 16.0, 0.0, 0.0)), // 1em
+        "pre" => Some(ua(0.0, 16.0, 16.0, 0.0, 0.0)),   // 1em
         _ => None,
     }
 }

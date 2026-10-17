@@ -51,7 +51,10 @@ fn set_segments_after_first_compute_is_not_stale() {
     );
     mason.compute_wh(rid, 200.0, f32::NAN);
     let h1 = mason.layout_raw(pid).size.height;
-    assert!(h1 > 0.0, "sanity check: text container should have nonzero height, got {h1}");
+    assert!(
+        h1 > 0.0,
+        "sanity check: text container should have nonzero height, got {h1}"
+    );
 
     // Much taller line, same available width.
     mason.set_segments(
@@ -79,7 +82,11 @@ fn set_segments_after_first_compute_is_not_stale() {
 /// fixes, `with_style_mut` unconditionally dirtied the whole ancestor chain
 /// on every call (forcing a real recompute every time) and `compute_layout`
 /// unconditionally re-walked every container's children list regardless.
-fn build_deep_tree(mason: &mut Mason, depth: usize, leaves_per_level: usize) -> (Id, Id, Vec<NodeRef>) {
+fn build_deep_tree(
+    mason: &mut Mason,
+    depth: usize,
+    leaves_per_level: usize,
+) -> (Id, Id, Vec<NodeRef>) {
     let mut handles = Vec::new();
     let root = mason.create_node();
     let rid = root.id();

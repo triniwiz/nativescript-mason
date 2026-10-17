@@ -32,10 +32,7 @@ fn flex_wrap_balance_uses_balanced_line_breaks() {
     let third = leaf_with_width(&mut mason, 20.0);
     let fourth = leaf_with_width(&mut mason, 20.0);
 
-    mason.append_node(
-        root_id,
-        &[first.id(), second.id(), third.id(), fourth.id()],
-    );
+    mason.append_node(root_id, &[first.id(), second.id(), third.id(), fourth.id()]);
     mason.compute_wh(root_id, 100.0, f32::NAN);
 
     assert_eq!(mason.layout_raw(first.id()).location.y, 0.0);

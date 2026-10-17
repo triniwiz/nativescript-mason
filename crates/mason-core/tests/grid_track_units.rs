@@ -45,5 +45,8 @@ fn dppx_is_a_literal_device_pixel_and_never_scales() {
 
 #[test]
 fn minmax_scales_both_ends() {
-    assert_eq!(track("minmax(10px, 20px)", 3.0), track("minmax(30dppx, 60dppx)", 1.0));
+    assert_eq!(
+        track("minmax(10px, 20px)", 3.0),
+        track("minmax(30dppx, 60dppx)", 1.0)
+    );
 }

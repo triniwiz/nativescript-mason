@@ -17,7 +17,11 @@ const LINE: f32 = 30.0;
 fn wrap(width: f32) -> (f32, f32) {
     let (mut lines, mut line, mut widest) = (1.0, 0.0f32, 0.0f32);
     for _ in 0..WORDS {
-        let next = if line == 0.0 { WORD } else { line + SPACE + WORD };
+        let next = if line == 0.0 {
+            WORD
+        } else {
+            line + SPACE + WORD
+        };
         if next > width && line > 0.0 {
             widest = widest.max(line);
             lines += 1.0;
@@ -29,7 +33,13 @@ fn wrap(width: f32) -> (f32, f32) {
     (widest.max(line), lines * LINE)
 }
 
-extern "C" fn measure(data: *const c_void, kw: c_float, _kh: c_float, aw: c_float, _ah: c_float) -> c_longlong {
+extern "C" fn measure(
+    data: *const c_void,
+    kw: c_float,
+    _kh: c_float,
+    aw: c_float,
+    _ah: c_float,
+) -> c_longlong {
     CALLS.lock().unwrap().push((data as usize, kw, aw));
     let w = if kw.is_nan() { aw } else { kw };
     let (width, height) = match w {
@@ -50,18 +60,38 @@ fn build(mason: &mut Mason, depth: u32, max: u32, texts: &mut Vec<Id>) -> Id {
     let node = mason.create_node();
     mason.with_style_mut(node.id(), |s| {
         s.set_display(Display::Flex);
-        s.set_flex_direction(if row { FlexDirection::Row } else { FlexDirection::Column });
+        s.set_flex_direction(if row {
+            FlexDirection::Row
+        } else {
+            FlexDirection::Column
+        });
         if row {
             s.set_flex_wrap(FlexWrap::Wrap);
             s.set_align_items(Some(AlignItems::FLEX_START));
         }
-        s.set_gap(Size { width: length(11.0), height: length(11.0) });
-        s.set_padding(Rect { left: length(11.0), right: length(11.0), top: length(11.0), bottom: length(11.0) });
-        s.set_border(Rect { left: length(2.75), right: length(2.75), top: length(2.75), bottom: length(2.75) });
+        s.set_gap(Size {
+            width: length(11.0),
+            height: length(11.0),
+        });
+        s.set_padding(Rect {
+            left: length(11.0),
+            right: length(11.0),
+            top: length(11.0),
+            bottom: length(11.0),
+        });
+        s.set_border(Rect {
+            left: length(2.75),
+            right: length(2.75),
+            top: length(2.75),
+            bottom: length(2.75),
+        });
         if depth < max {
             s.set_flex_grow(1.0);
             s.set_flex_basis(Dimension::length(0.0));
-            s.set_min_size(Size { width: Dimension::length(0.0), height: Dimension::auto() });
+            s.set_min_size(Size {
+                width: Dimension::length(0.0),
+                height: Dimension::auto(),
+            });
         }
     });
 
@@ -104,5 +134,10 @@ fn retext_measures_each_leaf_at_min_content_and_final_width_only() {
     let leaf = texts.len() - 1;
     let leaf_calls: Vec<_> = calls.iter().filter(|c| c.0 == leaf).collect();
     assert_eq!(leaf_calls.len(), 2, "leaf measures: {leaf_calls:?}");
-    assert!(calls.len() <= 2 * texts.len() + texts.len() / 2, "{} measures for {} texts", calls.len(), texts.len());
+    assert!(
+        calls.len() <= 2 * texts.len() + texts.len() / 2,
+        "{} measures for {} texts",
+        calls.len(),
+        texts.len()
+    );
 }

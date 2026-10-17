@@ -118,8 +118,6 @@ describe('width/height resolve the units core cannot', () => {
 });
 
 describe('gap, insets and flex-basis resolve Mason units, not core parseFloat', () => {
-  // These went through core's PercentLength.parse, a bare parseFloat:
-  // `gap: 0.5rem` was 0.5 dip, so Bootstrap's gap utilities collapsed.
   const CASES: Array<[string, string, string, number]> = [
     ['row-gap', '0.5rem', 'GAP_ROW_VALUE', 8],
     ['column-gap', '1.5rem', 'GAP_COLUMN_VALUE', 24],

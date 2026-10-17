@@ -14,7 +14,10 @@ fn new_stage(mason: &mut Mason) -> (NodeRef, Id) {
     let stage_id = stage.id();
     mason.with_style_mut(stage_id, |s| {
         s.set_position(Position::Absolute);
-        s.set_size(Size { width: Dimension::length(1024.0), height: Dimension::auto() });
+        s.set_size(Size {
+            width: Dimension::length(1024.0),
+            height: Dimension::auto(),
+        });
     });
     (stage, stage_id)
 }
@@ -56,7 +59,10 @@ fn build_grid(
         s.set_position(Position::Absolute);
         s.set_display(Display::Grid);
         s.set_box_sizing(BoxSizing::BorderBox);
-        s.set_size(Size { width: Dimension::length(200.0), height: Dimension::length(200.0) });
+        s.set_size(Size {
+            width: Dimension::length(200.0),
+            height: Dimension::length(200.0),
+        });
         s.set_grid_template_columns_css("40px 40px 40px");
         s.set_grid_template_rows_css("40px 40px 40px");
         if with_padding_border {
@@ -88,7 +94,10 @@ fn build_grid(
         children.push((c, cid));
     }
     mason.append_node(stage_id, &[root_id]);
-    mason.append_node(root_id, &children.iter().map(|(_, id)| *id).collect::<Vec<_>>());
+    mason.append_node(
+        root_id,
+        &children.iter().map(|(_, id)| *id).collect::<Vec<_>>(),
+    );
     mason.compute_wh(stage_id, 1280.0, 2688.0);
     (root, root_id, children)
 }
@@ -96,8 +105,11 @@ fn build_grid(
 #[test]
 fn grid_align_content_space_around() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_align_content(Some(AlignContent::SPACE_AROUND)), false);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_align_content(Some(AlignContent::SPACE_AROUND)),
+        false,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_y = [13.328125_f32, 79.984375, 146.640625];
@@ -120,8 +132,11 @@ fn grid_align_content_space_around() {
 #[test]
 fn grid_align_content_space_around_with_padding_border() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_align_content(Some(AlignContent::SPACE_AROUND)), true);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_align_content(Some(AlignContent::SPACE_AROUND)),
+        true,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x0 = 48.0_f32; // border-left 8 + padding-left 40
@@ -145,8 +160,11 @@ fn grid_align_content_space_around_with_padding_border() {
 #[test]
 fn grid_align_content_space_evenly() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_align_content(Some(AlignContent::SPACE_EVENLY)), false);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_align_content(Some(AlignContent::SPACE_EVENLY)),
+        false,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_y = [20.0_f32, 80.0, 140.0];
@@ -169,8 +187,11 @@ fn grid_align_content_space_evenly() {
 #[test]
 fn grid_align_content_space_evenly_with_padding_border() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_align_content(Some(AlignContent::SPACE_EVENLY)), true);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_align_content(Some(AlignContent::SPACE_EVENLY)),
+        true,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x0 = 48.0_f32;
@@ -194,8 +215,11 @@ fn grid_align_content_space_evenly_with_padding_border() {
 #[test]
 fn grid_justify_content_space_around() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_justify_content(Some(JustifyContent::SPACE_AROUND)), false);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_justify_content(Some(JustifyContent::SPACE_AROUND)),
+        false,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x = [13.328125_f32, 79.984375, 146.640625];
@@ -218,8 +242,11 @@ fn grid_justify_content_space_around() {
 #[test]
 fn grid_justify_content_space_around_with_padding_border() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_justify_content(Some(JustifyContent::SPACE_AROUND)), true);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_justify_content(Some(JustifyContent::SPACE_AROUND)),
+        true,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x = [49.328125_f32, 91.984375, 134.640625];
@@ -243,8 +270,11 @@ fn grid_justify_content_space_around_with_padding_border() {
 #[test]
 fn grid_justify_content_space_evenly() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_justify_content(Some(JustifyContent::SPACE_EVENLY)), false);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_justify_content(Some(JustifyContent::SPACE_EVENLY)),
+        false,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x = [20.0_f32, 80.0, 140.0];
@@ -267,8 +297,11 @@ fn grid_justify_content_space_evenly() {
 #[test]
 fn grid_justify_content_space_evenly_with_padding_border() {
     let mut mason = Mason::new();
-    let (_root_ref, root_id, children) =
-        build_grid(&mut mason, |s| s.set_justify_content(Some(JustifyContent::SPACE_EVENLY)), true);
+    let (_root_ref, root_id, children) = build_grid(
+        &mut mason,
+        |s| s.set_justify_content(Some(JustifyContent::SPACE_EVENLY)),
+        true,
+    );
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 200.0, 200.0);
     let expected_x = [50.0_f32, 92.0, 134.0];

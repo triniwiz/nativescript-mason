@@ -149,8 +149,16 @@ fn rounding_total_fractial_nested_webspec_shape() {
 
     assert_layout(&mason, root_id, "root", 0.0, 0.0, 87.390625, 113.390625);
     assert_layout(&mason, child1_id, "child1", 0.0, 0.0, 87.390625, 59.03125);
-    assert_layout(&mason, child2_id, "child2", 0.0, -13.296875, 87.390625, 11.984375);
-    assert_layout(&mason, child3_id, "child3", 0.0, 25.28125, 87.390625, 47.046875);
-    assert_layout(&mason, child4_id, "child4", 0.0, 59.03125, 87.390625, 29.953125);
-    assert_layout(&mason, child5_id, "child5", 0.0, 88.984375, 87.390625, 24.40625);
+    assert_layout(
+        &mason, child2_id, "child2", 0.0, -13.296875, 87.390625, 11.984375,
+    );
+    assert_layout(
+        &mason, child3_id, "child3", 0.0, 25.28125, 87.390625, 47.046875,
+    );
+    assert_layout(
+        &mason, child4_id, "child4", 0.0, 59.03125, 87.390625, 29.953125,
+    );
+    assert_layout(
+        &mason, child5_id, "child5", 0.0, 88.984375, 87.390625, 24.40625,
+    );
 }

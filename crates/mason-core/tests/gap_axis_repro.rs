@@ -46,10 +46,25 @@ fn column_gap_spaces_items_in_row_direction_flex() {
     let l1 = mason.layout_raw(ids[1]);
     let l2 = mason.layout_raw(ids[2]);
 
-    println!("x0={} x1={} x2={}", l0.location.x, l1.location.x, l2.location.x);
+    println!(
+        "x0={} x1={} x2={}",
+        l0.location.x, l1.location.x, l2.location.x
+    );
 
     // Expected: 0, 10+10=20, 20+20+10=50 (10px column-gap between each pair)
-    assert!((l0.location.x - 0.0).abs() < 0.5, "item0 x expected 0, got {}", l0.location.x);
-    assert!((l1.location.x - 20.0).abs() < 0.5, "item1 x expected 20 (gap applied), got {}", l1.location.x);
-    assert!((l2.location.x - 50.0).abs() < 0.5, "item2 x expected 50 (gap applied), got {}", l2.location.x);
+    assert!(
+        (l0.location.x - 0.0).abs() < 0.5,
+        "item0 x expected 0, got {}",
+        l0.location.x
+    );
+    assert!(
+        (l1.location.x - 20.0).abs() < 0.5,
+        "item1 x expected 20 (gap applied), got {}",
+        l1.location.x
+    );
+    assert!(
+        (l2.location.x - 50.0).abs() < 0.5,
+        "item2 x expected 50 (gap applied), got {}",
+        l2.location.x
+    );
 }

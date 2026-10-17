@@ -2,8 +2,8 @@ pub use crate::tree::{Id, Tree};
 #[cfg(target_vendor = "apple")]
 use objc2_foundation::NSMutableData;
 
-use parking_lot::lock_api::MappedRwLockReadGuard;
 use crate::pass_lock::{RawRwLock, RwLockReadGuard};
+use parking_lot::lock_api::MappedRwLockReadGuard;
 use slotmap::Key;
 use std::ffi::{c_float, c_longlong, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -718,7 +718,10 @@ impl Mason {
     #[track_caller]
     pub fn set_android_node(&mut self, node: Id, android_node: Option<jni::sys::jint>) {
         if let Some(node) = self.0.node_data_mut().get_mut(node) {
-            node.android_data = android_node.map(|id| node::AndroidNode { id, last_computed_size: None });
+            node.android_data = android_node.map(|id| node::AndroidNode {
+                id,
+                last_computed_size: None,
+            });
         }
     }
 
@@ -798,7 +801,10 @@ impl Mason {
     }
 
     pub fn is_rtl(&self, node_id: Id) -> bool {
-        matches!(crate::tree::resolved_direction(&self.0.inner(), node_id), taffy::style::Direction::Rtl)
+        matches!(
+            crate::tree::resolved_direction(&self.0.inner(), node_id),
+            taffy::style::Direction::Rtl
+        )
     }
 
     pub fn unrounded_size(&self, node_id: Id) -> Size<f32> {
@@ -1359,7 +1365,10 @@ mod tests {
         let (a_deep, b_deep) = (&deep[RECORD..2 * RECORD], &deep[3 * RECORD..4 * RECORD]);
         let (a_shallow, b_shallow) = (&shallow[RECORD..2 * RECORD], &shallow[2 * RECORD..]);
         assert_eq!(a_deep[CHILD_COUNT], 1.0);
-        assert_eq!(a_shallow[CHILD_COUNT], 0.0, "children are reported without their own children");
+        assert_eq!(
+            a_shallow[CHILD_COUNT], 0.0,
+            "children are reported without their own children"
+        );
         assert_eq!(a_shallow[..CHILD_COUNT], a_deep[..CHILD_COUNT]);
         assert_eq!(b_shallow, b_deep);
     }
@@ -1376,12 +1385,18 @@ mod tests {
 
         mason.compute(root.id());
         let uid = mason.0.inner().uid;
-        assert!(crate::tree::block_measure_cached(uid, cid), "measure result cached");
+        assert!(
+            crate::tree::block_measure_cached(uid, cid),
+            "measure result cached"
+        );
 
         let removed = mason.remove_child(root.id(), cid);
         drop(removed);
         drop(child);
-        assert!(!crate::tree::block_measure_cached(uid, cid), "entry released with the node");
+        assert!(
+            !crate::tree::block_measure_cached(uid, cid),
+            "entry released with the node"
+        );
     }
 
     #[test]

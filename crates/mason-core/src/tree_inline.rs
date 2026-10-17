@@ -506,7 +506,12 @@ fn transpose_prepared_item(item: &mut PreparedItem, vertical_rl: bool) {
             *margin = turn_margin(*margin);
             *baseline = *height / 2.0;
         }
-        PreparedItem::BlockChild { width, height, margin, .. } => {
+        PreparedItem::BlockChild {
+            width,
+            height,
+            margin,
+            ..
+        } => {
             std::mem::swap(width, height);
             *margin = turn_margin(*margin);
         }
@@ -1462,7 +1467,10 @@ impl Tree {
             let known = transpose(known_dimensions);
             let (containing_height, viewport_height) = {
                 let inner = self.inner();
-                (crate::tree::containing_block_height(&inner, child_id), inner.viewport_height)
+                (
+                    crate::tree::containing_block_height(&inner, child_id),
+                    inner.viewport_height,
+                )
             };
             let available = with_viewport_line_length(
                 known,
@@ -1489,16 +1497,15 @@ impl Tree {
         // result came out. Canonicalise the height for text containers so the
         // cache doesn't split across every height a pass probes, and so the
         // engines (iOS clamps CTFramesetter to the offered height) agree.
-        let available_space = if self.nodes()[child_id].is_text_container()
-            && known_dimensions.height.is_none()
-        {
-            Size {
-                width: available_space.width,
-                height: AvailableSpace::MaxContent,
-            }
-        } else {
-            available_space
-        };
+        let available_space =
+            if self.nodes()[child_id].is_text_container() && known_dimensions.height.is_none() {
+                Size {
+                    width: available_space.width,
+                    height: AvailableSpace::MaxContent,
+                }
+            } else {
+                available_space
+            };
         {
             let node = &self.nodes()[child_id];
             let cache = &node.inline_measure_cache;
@@ -1506,15 +1513,19 @@ impl Tree {
                 return cached;
             }
             if crate::tree::TEXT_FIT_FROM_MAX_CONTENT && node.is_text_container() {
-                if let Some(fit) = cache.text_fit_from_max_content(known_dimensions, available_space) {
+                if let Some(fit) =
+                    cache.text_fit_from_max_content(known_dimensions, available_space)
+                {
                     return fit;
                 }
             }
         }
         let result = measure.measure(known_dimensions, available_space);
-        self.nodes_mut()[child_id]
-            .inline_measure_cache
-            .store(known_dimensions, available_space, result);
+        self.nodes_mut()[child_id].inline_measure_cache.store(
+            known_dimensions,
+            available_space,
+            result,
+        );
         result
     }
 
@@ -1636,8 +1647,10 @@ impl Tree {
         // here.
         if has_measure && !is_text_container {
             let measure = self.node_data().get(child_id).unwrap().copy_measure();
-            let is_inline =
-                matches!(self.nodes()[child_id].style().display_mode(), DisplayMode::Inline);
+            let is_inline = matches!(
+                self.nodes()[child_id].style().display_mode(),
+                DisplayMode::Inline
+            );
 
             let mut adjusted_style = crate::tree::leaf_layout_style(self.nodes()[child_id].style());
             if is_inline {
@@ -2347,7 +2360,8 @@ impl Tree {
                 },
                 available_space: Size {
                     width: known_width.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
-                    height: known_height.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
+                    height: known_height
+                        .map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
                 },
                 ..inputs
             };
@@ -2610,7 +2624,8 @@ impl Tree {
                     };
                     // Measure callback must be invoked outside of long-held
                     // tree locks; we copy the measure earlier to enforce this.
-                    let meas = self.cached_leaf_measure(id, &measure, measure_known, available_space);
+                    let meas =
+                        self.cached_leaf_measure(id, &measure, measure_known, available_space);
                     #[cfg(test)]
                     eprintln!(
                         "MEASURE_TRACE node={:?} known={:?} avail={:?} => size={:?}",

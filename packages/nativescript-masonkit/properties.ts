@@ -787,19 +787,10 @@ function masonLengthPercentParse(value) {
   }
 }
 
-/** Units core's parsers read as a bare number: `parseFloat('0.5rem')` is 0.5. */
+/** Lengths in units core's parsers read as bare numbers. */
 const UNITS_CORE_MISREADS = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(r?em|pt|vw|vh|vmin|vmax|dppx)$/i;
 
-/**
- * The CSS text of a length in a unit core can't parse (`0.5rem`, `2em`,
- * `10vw`), or undefined for anything else.
- *
- * Core's `PercentLength.parse` is a bare `parseFloat`, so `gap: 0.5rem` became
- * 0.5 dip. Kept as text, the value reaches Mason's style setter, which resolves
- * the unit (and `em` against the element's own font size) as for any other
- * length. px, dip, numbers and percentages still take core's parse, which
- * already reads them as Mason does.
- */
+/** CSS text for a length in a unit core can't parse (rem, em, vw), else undefined. */
 function masonLengthText(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
@@ -827,11 +818,7 @@ function masonGapConverter(value: unknown) {
   return parsed as never;
 }
 
-/**
- * Core's `PercentLength.equals` compares `.value`/`.unit`, which two CSS
- * strings both lack, so it would call `1rem` and `2rem` equal and drop the
- * change. Text compares as text.
- */
+/** Compares CSS text as text: core's `PercentLength.equals` calls any two strings equal. */
 function masonLengthEquals(a: unknown, b: unknown): boolean {
   if (typeof a === 'string' || typeof b === 'string') {
     return a === b;

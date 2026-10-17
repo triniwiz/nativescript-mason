@@ -2,8 +2,8 @@ use mason_core::style::DisplayMode;
 use mason_core::*;
 use std::ffi::{c_float, c_longlong, c_void};
 use taffy::geometry::Rect;
-use taffy::style::LengthPercentage;
 use taffy::style::Display;
+use taffy::style::LengthPercentage;
 
 extern "C" fn measure_40x20(
     _data: *const c_void,

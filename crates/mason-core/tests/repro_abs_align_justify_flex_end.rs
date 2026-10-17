@@ -36,6 +36,14 @@ fn abs_align_items_and_justify_content_flex_end() {
         layout.location.x, layout.location.y, layout.size.width, layout.size.height
     );
 
-    assert!((layout.location.x - 50.0).abs() < 0.5, "x = {}", layout.location.x);
-    assert!((layout.location.y - 60.0).abs() < 0.5, "y = {}", layout.location.y);
+    assert!(
+        (layout.location.x - 50.0).abs() < 0.5,
+        "x = {}",
+        layout.location.x
+    );
+    assert!(
+        (layout.location.y - 60.0).abs() < 0.5,
+        "y = {}",
+        layout.location.y
+    );
 }

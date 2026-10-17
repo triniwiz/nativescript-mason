@@ -342,7 +342,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
         });
     }
 }
-unsafe fn node_style_buffer_id(env: &mut JNIEnv, mason: &mut Mason, node: &NodeRef) -> jni::sys::jint {
+unsafe fn node_style_buffer_id(
+    env: &mut JNIEnv,
+    mason: &mut Mason,
+    node: &NodeRef,
+) -> jni::sys::jint {
     let data = mason.style_data(node.id());
     if data >= 0 {
         return data;

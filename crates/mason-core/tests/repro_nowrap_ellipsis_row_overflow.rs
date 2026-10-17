@@ -105,7 +105,10 @@ fn nowrap_label_with_min_width_zero_shrinks_to_fit_row() {
     eprintln!("row:    size={:?}", row_l.size);
     eprintln!("dot:    size={:?} loc={:?}", dot_l.size, dot_l.location);
     eprintln!("label:  size={:?} loc={:?}", label_l.size, label_l.location);
-    eprintln!("status: size={:?} loc={:?}", status_l.size, status_l.location);
+    eprintln!(
+        "status: size={:?} loc={:?}",
+        status_l.size, status_l.location
+    );
 
     let label_right_edge = label_l.location.x + label_l.size.width;
     let status_right_edge = status_l.location.x + status_l.size.width;

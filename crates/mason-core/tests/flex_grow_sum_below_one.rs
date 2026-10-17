@@ -53,7 +53,16 @@ fn free_space_is_measured_after_flex_basis() {
         mason.layout_raw(bid).size.width,
         mason.layout_raw(cid).size.width,
     );
-    assert!((wa - 132.0).abs() < 0.5, "item with flex-basis: 40px — expected 132, got {wa}");
-    assert!((wb - 92.0).abs() < 0.5, "item with no basis — expected 92, got {wb}");
-    assert!((wc - 184.0).abs() < 0.5, "item with double the factor — expected 184, got {wc}");
+    assert!(
+        (wa - 132.0).abs() < 0.5,
+        "item with flex-basis: 40px — expected 132, got {wa}"
+    );
+    assert!(
+        (wb - 92.0).abs() < 0.5,
+        "item with no basis — expected 92, got {wb}"
+    );
+    assert!(
+        (wc - 184.0).abs() < 0.5,
+        "item with double the factor — expected 184, got {wc}"
+    );
 }

@@ -64,18 +64,50 @@ fn root_definite_width_wins_over_child_min_content() {
     mason.compute_wh(rid, 10.0, 100.0);
 
     let root_l = mason.layout_raw(rid);
-    assert!((root_l.size.width - 10.0).abs() < 0.5, "root width expected 10, got {}", root_l.size.width);
-    assert!((root_l.size.height - 100.0).abs() < 0.5, "root height expected 100, got {}", root_l.size.height);
+    assert!(
+        (root_l.size.width - 10.0).abs() < 0.5,
+        "root width expected 10, got {}",
+        root_l.size.width
+    );
+    assert!(
+        (root_l.size.height - 100.0).abs() < 0.5,
+        "root height expected 100, got {}",
+        root_l.size.height
+    );
 
     let a_l = mason.layout_raw(aid);
     let b_l = mason.layout_raw(bid);
-    assert!((a_l.size.width - 5.0).abs() < 0.5, "col a width expected 5, got {}", a_l.size.width);
-    assert!((a_l.location.x - 0.0).abs() < 0.5, "col a x expected 0, got {}", a_l.location.x);
-    assert!((b_l.size.width - 5.0).abs() < 0.5, "col b width expected 5, got {}", b_l.size.width);
-    assert!((b_l.location.x - 5.0).abs() < 0.5, "col b x expected 5, got {}", b_l.location.x);
+    assert!(
+        (a_l.size.width - 5.0).abs() < 0.5,
+        "col a width expected 5, got {}",
+        a_l.size.width
+    );
+    assert!(
+        (a_l.location.x - 0.0).abs() < 0.5,
+        "col a x expected 0, got {}",
+        a_l.location.x
+    );
+    assert!(
+        (b_l.size.width - 5.0).abs() < 0.5,
+        "col b width expected 5, got {}",
+        b_l.size.width
+    );
+    assert!(
+        (b_l.location.x - 5.0).abs() < 0.5,
+        "col b x expected 5, got {}",
+        b_l.location.x
+    );
 
     let box_a_l = mason.layout_raw(box_a_id);
     let box_b_l = mason.layout_raw(box_b_id);
-    assert!((box_a_l.size.width - 70.0).abs() < 0.5, "box a width expected 70, got {}", box_a_l.size.width);
-    assert!((box_b_l.size.width - 20.0).abs() < 0.5, "box b width expected 20, got {}", box_b_l.size.width);
+    assert!(
+        (box_a_l.size.width - 70.0).abs() < 0.5,
+        "box a width expected 70, got {}",
+        box_a_l.size.width
+    );
+    assert!(
+        (box_b_l.size.width - 20.0).abs() < 0.5,
+        "box b width expected 20, got {}",
+        box_b_l.size.width
+    );
 }
