@@ -2416,16 +2416,8 @@ borderLeftProperty.register(Style);
 // ---------------------------------------------------------------------------
 // Logical properties
 // ---------------------------------------------------------------------------
-//
-// `margin-inline`, `padding-block-end`, `inset-inline-start`,
-// `border-start-end-radius`, `inline-size`, ... as shorthands over the physical
-// longhands, so they cascade with them: a later `margin-left` overrides an
-// earlier `margin-inline-start`, and the other way round.
-//
-// They map for horizontal, left-to-right text (inline = left/right, block =
-// top/bottom). Mason has no `direction` or vertical `writing-mode` for its
-// box model yet, and a stylesheet shorthand is expanded while parsing, before
-// any element is known, so a direction-aware mapping would need both.
+// Shorthands over the physical longhands for horizontal left-to-right text (inline = left/right,
+// block = top/bottom). Not direction-aware: shorthands expand at parse time, before any element exists.
 
 type Sides = readonly [top: ShorthandLonghand, right: ShorthandLonghand, bottom: ShorthandLonghand, left: ShorthandLonghand];
 
