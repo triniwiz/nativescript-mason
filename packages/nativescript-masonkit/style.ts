@@ -356,7 +356,7 @@ const PX_PER_PT = 96 / 72;
 /**
  * Resolve a CSS length token to the device pixels the geometry buffers store.
  *
- * `emBasis` is the font size `em` is relative to, in CSS px — the element's own
+ * `emBasis` is the font size `em` is relative to, in CSS px: the element's own
  * for a length, the parent's for `font-size` itself. It falls back to the root
  * font size when the element has no font size of its own yet.
  *
@@ -1996,11 +1996,6 @@ export class Style {
     return this.view_;
   }
 
-  /**
-   * The font size `em` resolves against, in CSS px: the element's own when it has
-   * one, otherwise the root font size. FONT_SIZE is stored in dip, which is the
-   * same as a CSS px, so no conversion is needed.
-   */
   /**
    * The font size `em` resolves against, in CSS px: the element's computed one,
    * with a percentage of the parent's, or the inherited one when unset.
