@@ -2002,10 +2002,8 @@ export class Style {
    * same as a CSS px, so no conversion is needed.
    */
   /**
-   * The font size `em` resolves against, in CSS px: the element's own, as CSS
-   * computes it. A percentage or `em` font size (stored as a percentage) is
-   * relative to the parent's, and with none of its own the element inherits
-   * its parent's; the root font size is the last resort.
+   * The font size `em` resolves against, in CSS px: the element's computed one,
+   * with a percentage of the parent's, or the inherited one when unset.
    */
   emBasis(): number {
     if (!this.style_view || getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
@@ -2020,9 +2018,8 @@ export class Style {
   }
 
   /**
-   * The nearest Mason ancestor's font size (for a pseudo-class style, the
-   * element's own). Only styles that already exist are read: building one
-   * would create the ancestor's native view.
+   * The nearest Mason ancestor's font size (the element's own for a pseudo-class
+   * style). Reads only existing styles, since building one creates the native view.
    */
   private parentEmBasis(): number {
     const view = this.view_ as unknown as { parent?: unknown } | undefined;

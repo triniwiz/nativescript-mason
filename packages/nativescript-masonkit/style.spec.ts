@@ -480,7 +480,6 @@ describe('em resolves against the font size CSS would compute', () => {
   });
 
   it('an em font size is a share of the parent font size, not that many px', () => {
-    // Bootstrap's badge: font-size: 0.75em; padding: 0.35em 0.65em.
     const parent = styleUnderTest();
     parent.style.fontSize = 20 as never;
     const badge = linked(parent);
