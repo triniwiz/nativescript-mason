@@ -103,7 +103,7 @@ public class TextEngine: NSObject {
   static let inlineNodeKey = NSAttributedString.Key("MasonInlineNode")
 
   // Hit regions from the last draw, in CoreText coordinates; drawnTransform maps them to the view.
-  private var drawnLines: [(line: CTLine, origin: CGPoint)] = []
+  internal private(set) var drawnLines: [(line: CTLine, origin: CGPoint)] = []
   private var drawnBoxes: [(rect: CGRect, node: InlineNodeRef)] = []
   private var drawnTransform = CGAffineTransform.identity
 
@@ -284,6 +284,8 @@ public class TextEngine: NSObject {
       || state.contains(.fontStretch)
       || state.contains(.listStylePosition)
       || state.contains(.listStyleType)
+      || state.contains(.textIndent)
+      || state.contains(.lineClamp)
 
     // Visual-only flags: span rebuild + redraw, no layout recompute needed.
     let textVisualChanged = !textLayoutChanged && (
@@ -369,11 +371,12 @@ public class TextEngine: NSObject {
     return ceil(width)
   }
 
-  internal static func minContentWidth(for text: NSAttributedString) -> CGFloat {
+  /// `firstLineIndent` (text-indent) widens the first word, which starts the first line.
+  internal static func minContentWidth(for text: NSAttributedString, firstLineIndent: CGFloat = 0) -> CGFloat {
     let nsText = text.string as NSString
     let length = nsText.length
     let matches = softWrapRegex.matches(in: text.string, range: NSRange(location: 0, length: length))
-    if matches.isEmpty { return desiredWidth(text) }
+    if matches.isEmpty { return max(0, desiredWidth(text) + firstLineIndent) }
 
     // One line for the whole string: a word's width is the caret distance across
     // it. Mixed-direction text has no such distance, so it measures word by word.
@@ -382,13 +385,18 @@ public class TextEngine: NSObject {
     let hasRTL = runs.contains { CTRunGetStatus($0 as! CTRun).contains(.rightToLeft) }
 
     var maxWidth: CGFloat = 0
+    var firstWord = true
     func word(_ start: Int, _ end: Int) {
       guard end > start else { return }
-      let width: CGFloat
+      var width: CGFloat
       if hasRTL {
         width = desiredWidth(text.attributedSubstring(from: NSRange(location: start, length: end - start)))
       } else {
         width = ceil(abs(CTLineGetOffsetForStringIndex(line, end, nil) - CTLineGetOffsetForStringIndex(line, start, nil)))
+      }
+      if firstWord {
+        firstWord = false
+        width += firstLineIndent
       }
       maxWidth = max(maxWidth, width)
     }
@@ -400,7 +408,7 @@ public class TextEngine: NSObject {
     word(last, length)
 
     if maxWidth == 0, text.length > 0 {
-      return desiredWidth(text)
+      return max(0, desiredWidth(text) + firstLineIndent)
     }
     return maxWidth
   }
@@ -418,16 +426,89 @@ public class TextEngine: NSObject {
     }
   }
 
-  fileprivate func minContent(_ text: NSAttributedString) -> CGFloat {
+  // `indent` is the intrinsic text-indent, fixed for a version (a percentage is 0 here).
+  fileprivate func minContent(_ text: NSAttributedString, indent: CGFloat) -> CGFloat {
     syncIntrinsicVersion()
-    if intrinsicMin < 0 { intrinsicMin = TextEngine.minContentWidth(for: TextEngine.breakableAtSoftHyphens(text)) }
+    if intrinsicMin < 0 { intrinsicMin = TextEngine.minContentWidth(for: TextEngine.breakableAtSoftHyphens(text), firstLineIndent: indent) }
     return intrinsicMin
   }
 
-  fileprivate func maxContent(_ text: NSAttributedString) -> CGFloat {
+  fileprivate func maxContent(_ text: NSAttributedString, indent: CGFloat) -> CGFloat {
     syncIntrinsicVersion()
-    if intrinsicMax < 0 { intrinsicMax = TextEngine.desiredWidth(text) }
+    if intrinsicMax < 0 { intrinsicMax = max(0, TextEngine.desiredWidth(text) + indent) }
     return intrinsicMax
+  }
+
+  // text-indent and line-clamp, resolved once per invalidate version.
+  private var paramsVersion: UInt64 = .max
+  private var indentValue: Float = 0
+  private var indentIsPercent = false
+  private var clampLines = 0
+
+  private func syncTextParams() {
+    guard paramsVersion != segmentsInvalidateVersion else { return }
+    paramsVersion = segmentsInvalidateVersion
+    let style = self.style
+    // A button's label takes neither from its parent, as with the web's UA `text-indent: 0`.
+    if container is Button {
+      let ownIndent = style.getUInt8(StyleKeys.TEXT_INDENT_STATE) != StyleState.INHERIT
+      indentValue = ownIndent ? style.getFloat(StyleKeys.TEXT_INDENT) : 0
+      indentIsPercent = ownIndent && style.getUInt8(StyleKeys.TEXT_INDENT_TYPE) == 1
+      clampLines = style.getUInt8(StyleKeys.LINE_CLAMP_STATE) != StyleState.INHERIT ? Int(max(0, style.getInt32(StyleKeys.LINE_CLAMP))) : 0
+      return
+    }
+    let indent = style.resolvedTextIndent
+    indentValue = indent.value
+    indentIsPercent = indent.isPercent
+    clampLines = Int(style.resolvedLineClamp)
+  }
+
+  /// line-clamp: the most lines drawn and measured, 0 for no limit.
+  internal var lineClamp: Int {
+    syncTextParams()
+    return clampLines
+  }
+
+  /// The first line's text-indent in points; a percentage resolves against `basis`, 0 if indefinite.
+  internal func textIndent(basis: CGFloat) -> CGFloat {
+    syncTextParams()
+    if indentValue == 0 { return 0 }
+    if indentIsPercent {
+      guard basis.isFinite, basis > 0, basis < 1_000_000 else { return 0 }
+      return basis * CGFloat(indentValue) / 100
+    }
+    return CGFloat(indentValue) / CGFloat(NSCMason.scale)
+  }
+
+  /// The rect lines wrap in. A negative indent hangs the first line past the start edge,
+  /// so the rect grows by it there and the other lines take it back as head indent.
+  internal func wrapRect(width: CGFloat, height: CGFloat, indent: CGFloat) -> CGRect {
+    guard indent < 0 else { return CGRect(x: 0, y: 0, width: width, height: height) }
+    let hang = -indent
+    return CGRect(x: style.direction == .RTL ? 0 : -hang, y: 0, width: width + hang, height: height)
+  }
+
+  /// `text` with its first line indented by `indent` points; see wrapRect for a negative one.
+  private static func indenting(_ text: NSAttributedString, _ indent: CGFloat) -> NSAttributedString {
+    let out = NSMutableAttributedString(attributedString: text)
+    let length = out.length
+    let newline = (text.string as NSString).range(of: "\n").location
+    let firstEnd = newline == NSNotFound ? length : newline + 1
+    func adjust(_ range: NSRange, first: CGFloat, head: CGFloat) {
+      guard range.length > 0 else { return }
+      out.enumerateAttribute(.paragraphStyle, in: range) { value, sub, _ in
+        let style = ((value as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle) ?? NSMutableParagraphStyle()
+        style.firstLineHeadIndent += first
+        style.headIndent += head
+        out.addAttribute(.paragraphStyle, value: style, range: sub)
+      }
+    }
+    let hang = max(0, -indent)
+    adjust(NSRange(location: 0, length: firstEnd), first: max(0, indent), head: hang)
+    if hang > 0 {
+      adjust(NSRange(location: firstEnd, length: length - firstEnd), first: hang, head: hang)
+    }
+    return out
   }
 
   internal static func inlineChildBaselineFromBottom(
@@ -533,20 +614,24 @@ public class TextEngine: NSObject {
       }
     }
     
+    let scale = CGFloat(NSCMason.scale)
+    // A percentage text-indent resolves against the line's width; it is 0 for intrinsic sizes.
+    let indent = engine.textIndent(basis: available.width.isFinite && available.width > 0 ? available.width / scale : 0)
+
     if(maxWidth == CGFloat.greatestFiniteMagnitude){
       if(available.width == -1){
-        maxWidth = engine.minContent(text)
+        maxWidth = engine.minContent(text, indent: indent)
       }
       
       if (available.width == -2){
-        maxWidth = engine.maxContent(text)
+        maxWidth = engine.maxContent(text, indent: indent)
       }
     }
     
     // Reuse cached CTFramesetter when the attributed string hasn't changed.
     // Creating a framesetter is expensive: it triggers glyph lookup, font
     // fallback resolution, bidi analysis, and line-breaking table setup.
-    let framesetter = engine.framesetter(for: text, width: maxWidth)
+    let framesetter = engine.framesetter(for: text, width: maxWidth, indent: indent)
 
     var constraintSize = CGSize(width: maxWidth, height: maxHeight)
     // Avoid passing infinite height to CoreText framesetter — use a large finite fallback.
@@ -554,8 +639,6 @@ public class TextEngine: NSObject {
     if !constraintSize.height.isFinite || constraintSize.height > 1_000_000 {
       constraintSize.height = 10000.0
     }
-
-    let scale = CGFloat(NSCMason.scale)
 
     // Fetch floats now so we know whether we need the suggested-size pre-pass.
     let containerNode = engine.node.parent ?? engine.node
@@ -577,7 +660,7 @@ public class TextEngine: NSObject {
         framesetter,
         CFRangeMake(0, text.length),
         nil,
-        constraintSize,
+        engine.wrapRect(width: constraintSize.width, height: constraintSize.height, indent: indent).size,
         nil
       )
       if !s.height.isFinite || s.height <= 0 {
@@ -588,7 +671,7 @@ public class TextEngine: NSObject {
     }
 
     // Build exclusion path (outer rect ± float cutouts)
-    let outerRect = CGRect(origin: .zero, size: CGSize(width: constraintSize.width, height: pathHeight))
+    let outerRect = engine.wrapRect(width: constraintSize.width, height: pathHeight, indent: indent)
     let bezier = UIBezierPath(rect: outerRect)
     bezier.usesEvenOddFillRule = true
     if !floatEntries.isEmpty {
@@ -609,17 +692,20 @@ public class TextEngine: NSObject {
     // coordinate space measures lineOrigin.y from the frame's bottom):
     //   height = (firstLineOrigin.y + firstAscent) - (lastLineOrigin.y - lastDescent)
     // Float path: SuggestFrameSize already ran above; reuse its result.
+    // line-clamp: only the first lines count, the last of them measured as it is drawn.
     var size: CGSize
-    if let s = suggestedSize {
+    let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+    let clamp = engine.lineClamp
+    let shown = clamp > 0 ? min(lines.count, clamp) : lines.count
+    if let s = suggestedSize, shown == lines.count {
       size = s  // float path: already have the correct size
     } else {
-      let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
-      if lines.isEmpty {
+      if shown == 0 {
         size = .zero
       } else {
-        let count = lines.count
+        let count = shown
         var lineOrigins = [CGPoint](repeating: .zero, count: count)
-        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &lineOrigins)
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, count), &lineOrigins)
 
         var firstAscent: CGFloat = 0
         CTLineGetTypographicBounds(lines[0], &firstAscent, nil, nil)
@@ -627,9 +713,10 @@ public class TextEngine: NSObject {
         CTLineGetTypographicBounds(lines[count - 1], nil, &lastDescent, nil)
         let measuredHeight = (lineOrigins[0].y + firstAscent) - (lineOrigins[count - 1].y - lastDescent)
 
+        // The indent moves the first line along; it is not part of the CTLine's width.
         var measuredWidth: CGFloat = 0
-        for line in lines {
-          let lw = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        for i in 0..<count {
+          let lw = CGFloat(CTLineGetTypographicBounds(lines[i], nil, nil, nil)) + (i == 0 ? indent : 0)
           if lw > measuredWidth { measuredWidth = lw }
         }
         size = CGSize(width: measuredWidth, height: max(measuredHeight, 0))
@@ -641,12 +728,12 @@ public class TextEngine: NSObject {
       var ascent: CGFloat = 0
       var descent: CGFloat = 0
       let lineWidth = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, nil))
-      if lineWidth > 0 { size.width = lineWidth }
+      if lineWidth > 0 { size.width = max(0, lineWidth + indent) }
     }
     
     
     // IMPORTANT: Collect and push segments to Rust BEFORE returning size
-    engine.collectAndCacheSegments(from: frame, constraintSize)
+    engine.collectAndCacheSegments(from: lines, shown, constraintSize)
     
     
     // Clamp to the available constraint but preserve the intrinsic width
@@ -720,11 +807,12 @@ public class TextEngine: NSObject {
   private var cachedFramesetter: CTFramesetter?
   private var framesetterStringVersion: UInt64 = UInt64.max
 
-  // The text's soft hyphens resolved for one width.
-  private var fittedHyphens: (version: UInt64, width: CGFloat, framesetter: CTFramesetter)?
+  // The text's soft hyphens and first-line indent resolved for one width (0 without soft hyphens).
+  private var fitted: (version: UInt64, width: CGFloat, indent: CGFloat, framesetter: CTFramesetter)?
 
-  /// The framesetter for `text` wrapped at `width`, with soft hyphens broken and drawn as on the web.
-  internal func framesetter(for text: NSAttributedString, width: CGFloat) -> CTFramesetter {
+  /// The framesetter for `text` wrapped at `width`, with soft hyphens broken and drawn as on the
+  /// web, and the first line indented by `indent` (lay it out in `wrapRect`).
+  internal func framesetter(for text: NSAttributedString, width: CGFloat, indent: CGFloat = 0) -> CTFramesetter {
     let base: CTFramesetter
     if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
       base = cached
@@ -733,13 +821,17 @@ public class TextEngine: NSObject {
       cachedFramesetter = base
       framesetterStringVersion = segmentsInvalidateVersion
     }
-    guard width.isFinite, width > 0, width < 1_000_000,
-          (text.string as NSString).range(of: "\u{00AD}").location != NSNotFound else { return base }
-    if let fitted = fittedHyphens, fitted.version == segmentsInvalidateVersion, fitted.width == width {
+    let hyphenWidth: CGFloat = width.isFinite && width > 0 && width < 1_000_000
+      && (text.string as NSString).range(of: "\u{00AD}").location != NSNotFound ? width : 0
+    if hyphenWidth == 0 && indent == 0 { return base }
+    if let fitted = fitted, fitted.version == segmentsInvalidateVersion, fitted.width == hyphenWidth, fitted.indent == indent {
       return fitted.framesetter
     }
-    let framesetter = TextEngine.fitSoftHyphens(text, width)
-    fittedHyphens = (segmentsInvalidateVersion, width, framesetter)
+    let source = indent == 0 ? text : TextEngine.indenting(text, indent)
+    let framesetter = hyphenWidth > 0
+      ? TextEngine.fitSoftHyphens(source, hyphenWidth + max(0, -indent))
+      : CTFramesetterCreateWithAttributedString(source)
+    fitted = (segmentsInvalidateVersion, hyphenWidth, indent, framesetter)
     return framesetter
   }
 
@@ -1132,16 +1224,19 @@ public class TextEngine: NSObject {
 
     let baselineY = singleLineBaselineY(ascent: ascent, descent: descent, in: drawBounds, bounds: bounds)
     let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    // A CTLine has no paragraph indent: text-indent narrows the line from its start side.
+    let indent = textIndent(basis: drawBounds.width)
+    let room = drawBounds.width - indent
     var horizontalOffset: CGFloat = 0
     switch style.resolvedTextAlign {
     case .Center:
-      horizontalOffset = max(0, (drawBounds.width - lineWidth) / 2)
+      horizontalOffset = max(0, (room - lineWidth) / 2)
     case .Right, .End:
-      horizontalOffset = max(0, drawBounds.width - lineWidth)
+      horizontalOffset = max(0, room - lineWidth)
     case .Left, .Auto, .Start, .Justify:
       horizontalOffset = 0
     }
-    let originX = drawBounds.origin.x + horizontalOffset
+    let originX = drawBounds.origin.x + (style.direction == .RTL ? 0 : indent) + horizontalOffset
     let baselineOrigin = CGPoint(x: originX, y: baselineY)
 
     var drawLine: CTLine = line
@@ -1155,7 +1250,7 @@ public class TextEngine: NSObject {
         attributes: text.length > 0 ? text.attributes(at: 0, effectiveRange: nil) : [:]
       )
       let tokenLine = CTLineCreateWithAttributedString(tokenAttr)
-      if let truncated = CTLineCreateTruncatedLine(line, Double(bounds.width), .end, tokenLine) {
+      if let truncated = CTLineCreateTruncatedLine(line, Double(bounds.width - indent), .end, tokenLine) {
         drawLine = truncated
       }
     case .Custom(let value):
@@ -1164,7 +1259,7 @@ public class TextEngine: NSObject {
         attributes: text.length > 0 ? text.attributes(at: 0, effectiveRange: nil) : [:]
       )
       let tokenLine = CTLineCreateWithAttributedString(tokenAttr)
-      if let truncated = CTLineCreateTruncatedLine(line, Double(bounds.width), .end, tokenLine) {
+      if let truncated = CTLineCreateTruncatedLine(line, Double(bounds.width - indent), .end, tokenLine) {
         drawLine = truncated
       }
     case .Clip:
@@ -1276,12 +1371,15 @@ public class TextEngine: NSObject {
   internal func widestWrappedLine(at width: CGFloat) -> CGFloat {
     let text = buildAttributedString(forMeasurement: true)
     guard text.length > 0, width > 0 else { return 0 }
-    let setter = framesetter(for: text, width: width)
-    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
+    let indent = textIndent(basis: width)
+    let setter = framesetter(for: text, width: width, indent: indent)
+    let path = CGPath(rect: wrapRect(width: width, height: 1_000_000, indent: indent), transform: nil)
     let frame = CTFramesetterCreateFrame(setter, CFRange(location: 0, length: 0), path, nil)
+    let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+    let clamp = lineClamp
     var widest: CGFloat = 0
-    for line in CTFrameGetLines(frame) as? [CTLine] ?? [] {
-      let w = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+    for (i, line) in lines.prefix(clamp > 0 ? clamp : lines.count).enumerated() {
+      let w = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line)) + (i == 0 ? indent : 0)
       widest = max(widest, w)
     }
     return widest
@@ -1428,13 +1526,14 @@ public class TextEngine: NSObject {
     }
 
     // Reuses the framesetter measure() already cached for this string.
-    let framesetter = self.framesetter(for: text, width: drawBounds.width)
+    let indent = textIndent(basis: drawBounds.width)
+    let framesetter = self.framesetter(for: text, width: drawBounds.width, indent: indent)
 
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
       CFRange(location: 0, length: text.length),
       nil,
-      CGSize(width: drawBounds.width, height: .greatestFiniteMagnitude),
+      wrapRect(width: drawBounds.width, height: .greatestFiniteMagnitude, indent: indent).size,
       nil
     )
 
@@ -1448,7 +1547,7 @@ public class TextEngine: NSObject {
 
     // Build exclusion path in layout-local coordinates (origin at zero).
     // We'll flip Y so CoreText's frame-coordinate space matches the engine's top-based Y.
-    let localOuter = CGRect(origin: .zero, size: layoutBounds.size)
+    let localOuter = wrapRect(width: layoutBounds.width, height: layoutBounds.height, indent: indent)
     let bezier = UIBezierPath(rect: localOuter)
     bezier.usesEvenOddFillRule = true
     var exclusions: [CGRect] = []
@@ -1512,7 +1611,7 @@ public class TextEngine: NSObject {
     var originShift: CGFloat = 0
     if CTFrameGetVisibleStringRange(frame).length < text.length && drawBounds.height > localOuter.height {
       originShift = drawBounds.height - localOuter.height
-      let taller = UIBezierPath(rect: CGRect(x: 0, y: -originShift, width: localOuter.width, height: drawBounds.height))
+      let taller = UIBezierPath(rect: CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: drawBounds.height))
       taller.usesEvenOddFillRule = true
       for exclusion in exclusions { taller.append(UIBezierPath(rect: exclusion)) }
       frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
@@ -1522,14 +1621,40 @@ public class TextEngine: NSObject {
     context.clip(to: bounds)
 
     let linesCF = CTFrameGetLines(frame)
-    let linesCount = CFArrayGetCount(linesCF)
+    var linesCount = CFArrayGetCount(linesCF)
     guard linesCount > 0 else { context.restoreGState(); return }
 
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
     // Origins count from the path's bottom edge; put them back on the original path's.
-    if originShift > 0 {
-      for i in origins.indices { origins[i].y -= originShift }
+    // Across, they count from its left edge, which a hanging indent moves.
+    if originShift > 0 || localOuter.minX != 0 {
+      for i in origins.indices {
+        origins[i].y -= originShift
+        origins[i].x += localOuter.minX
+      }
+    }
+
+    // line-clamp: the first lines only, sitting as in a frame just that tall, the last one
+    // ending in an ellipsis.
+    var clampedLast: CTLine? = nil
+    let clamp = lineClamp
+    if clamp > 0 && linesCount > clamp {
+      let cut = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, clamp - 1), to: CTLine.self)
+      var cutDescent: CGFloat = 0
+      var endDescent: CGFloat = 0
+      CTLineGetTypographicBounds(cut, nil, &cutDescent, nil)
+      CTLineGetTypographicBounds(unsafeBitCast(CFArrayGetValueAtIndex(linesCF, linesCount - 1), to: CTLine.self), nil, &endDescent, nil)
+      let drop = (origins[clamp - 1].y - cutDescent) - (origins[linesCount - 1].y - endDescent)
+      for i in 0..<clamp { origins[i].y -= drop }
+      let ellipsized = clampedLine(text, from: cut, width: drawBounds.width - (clamp == 1 ? indent : 0))
+      origins[clamp - 1].x += flushFactor(text, cut) * (TextEngine.visibleWidth(cut) - TextEngine.visibleWidth(ellipsized))
+      clampedLast = ellipsized
+      linesCount = clamp
+    }
+    func lineAt(_ i: Int) -> CTLine {
+      if i == linesCount - 1, let last = clampedLast { return last }
+      return unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
     }
 
     // Re-anchor the vertical baseline using the font's true metrics, not
@@ -1578,7 +1703,7 @@ public class TextEngine: NSObject {
       let blockLow = bounds.height - drawBounds.maxY
       let blockHigh = bounds.height - drawBounds.minY
       for i in 0..<linesCount {
-        let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+        let line = lineAt(i)
         var ascent: CGFloat = 0
         var descent: CGFloat = 0
         CTLineGetTypographicBounds(line, &ascent, &descent, nil)
@@ -1588,7 +1713,7 @@ public class TextEngine: NSObject {
     }
 
     for i in 0..<linesCount {
-      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      let line = lineAt(i)
       drawInlineBackgrounds(for: line, at: CGPoint(x: layoutBounds.origin.x + origins[i].x, y: origins[i].y + textBaseY), in: context)
     }
 
@@ -1596,7 +1721,7 @@ public class TextEngine: NSObject {
     if !style.textShadows.isEmpty {
       for shadow in style.textShadows {
         for i in 0..<linesCount {
-          let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+          let line = lineAt(i)
           let lineOrigin = origins[i]
           // The frame was laid out with `paragraphStyle.alignment` already set
           // (getDefaultAttributes), so CoreText has already centered/right-aligned
@@ -1624,7 +1749,7 @@ public class TextEngine: NSObject {
 
     // Draw main text (no shadow)
     for i in 0..<linesCount {
-      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      let line = lineAt(i)
       let lineOrigin = origins[i]
       // Same double-alignment pitfall as the shadow pass above - `lineOrigin.x`
       // already reflects the paragraph style's alignment.
@@ -1666,7 +1791,7 @@ public class TextEngine: NSObject {
     guard text.containsAttachments else { return }
 
     for i in 0..<linesCount {
-      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      let line = lineAt(i)
       let lineOrigin = CGPoint(x: origins[i].x, y: origins[i].y + (textBaseY - layoutBounds.origin.y))
       drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context, bounds: bounds)
     }
@@ -1677,6 +1802,44 @@ public class TextEngine: NSObject {
   }
   
   
+  private static func visibleWidth(_ line: CTLine) -> CGFloat {
+    return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+  }
+
+  /// How far into its free space alignment puts `line`: 0 at the left, 0.5 centred, 1 right.
+  private func flushFactor(_ text: NSAttributedString, _ line: CTLine) -> CGFloat {
+    let start = CTLineGetStringRange(line).location
+    let paragraph = start < text.length ? text.attribute(.paragraphStyle, at: start, effectiveRange: nil) as? NSParagraphStyle : nil
+    switch paragraph?.alignment ?? .natural {
+    case .center: return 0.5
+    case .right: return 1
+    case .left: return 0
+    default: return style.direction == .RTL ? 1 : 0
+    }
+  }
+
+  /// The last line line-clamp shows: `line`'s own text and an ellipsis, cut back to fit
+  /// `width` when they don't.
+  private func clampedLine(_ text: NSAttributedString, from line: CTLine, width: CGFloat) -> CTLine {
+    let range = CTLineGetStringRange(line)
+    let string = text.string as NSString
+    var end = min(range.location + range.length, text.length)
+    while end > range.location {
+      let c = string.character(at: end - 1)
+      guard c == 0x20 || c == 0x0A || c == 0x09 || c == 0x200B else { break }
+      end -= 1
+    }
+    let content = NSMutableAttributedString(attributedString: text.attributedSubstring(from: NSRange(location: range.location, length: end - range.location)))
+    var attrs = content.length > 0 ? content.attributes(at: content.length - 1, effectiveRange: nil) : node.getDefaultAttributes()
+    for key in [kCTRunDelegateAttributeName as NSAttributedString.Key, Constants.VIEW_PLACEHOLDER_KEY, NSAttributedString.Key("ViewID"), NSAttributedString.Key("BrSpan"), .attachment] {
+      attrs.removeValue(forKey: key)
+    }
+    let ellipsis = NSAttributedString(string: "\u{2026}", attributes: attrs)
+    content.append(ellipsis)
+    let full = CTLineCreateWithAttributedString(content)
+    return CTLineCreateTruncatedLine(full, Double(max(width, 0)), .end, CTLineCreateWithAttributedString(ellipsis)) ?? full
+  }
+
   private func drawInlineAttachments(
       for line: CTLine,
       origin: CGPoint,
@@ -2141,16 +2304,15 @@ public class TextEngine: NSObject {
   
   /// Collect inline segments and push to Rust
   /// This is called during measure to provide segments before Rust's inline layout runs
-  private func collectAndCacheSegments(from frame: CTFrame, _ constraints: CGSize) {
+  /// `lines` are the frame's lines, of which the first `shown` are laid out (line-clamp).
+  private func collectAndCacheSegments(from lines: [CTLine], _ shown: Int, _ constraints: CGSize) {
     // Nothing relevant changed since the segments already sent for this
     // exact (content, constraint) pair — skip the frame/line walk + FFI push.
     if lastSegmentsVersion == segmentsInvalidateVersion && lastSegmentsConstraintSize == constraints {
       return
     }
 
-    let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
-
-    guard !lines.isEmpty else {
+    guard shown > 0 else {
       lastBuiltSegments = []
       // Empty text - send empty segments
       if let ptr = node.nativePtr {
@@ -2165,7 +2327,7 @@ public class TextEngine: NSObject {
     var segments: [CMasonSegment] = []
     let scale = CGFloat(NSCMason.scale)
     
-    for (_, line) in lines.enumerated() {
+    for line in lines.prefix(shown) {
       let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
       
       for (_, run) in runs.enumerated() {
@@ -2243,6 +2405,9 @@ final class TextLayoutCache {
     let knownW: Float, knownH: Float, availW: Float, availH: Float
     let flags: UInt8
     let whiteSpace: Int8
+    // Not in the attributed string: text-indent (at the available width) and line-clamp.
+    let indent: Float
+    let lineClamp: Int32
   }
 
   struct Entry {
@@ -2274,7 +2439,9 @@ final class TextLayoutCache {
       knownW: Float(known?.width ?? -.infinity), knownH: Float(known?.height ?? -.infinity),
       availW: Float(available.width), availH: Float(available.height),
       flags: flags,
-      whiteSpace: style.isValueInitialized ? style.whiteSpace.rawValue : -1
+      whiteSpace: style.isValueInitialized ? style.whiteSpace.rawValue : -1,
+      indent: Float(engine.textIndent(basis: available.width.isFinite && available.width > 0 ? available.width / CGFloat(NSCMason.scale) : 0)),
+      lineClamp: Int32(engine.lineClamp)
     )
   }
 

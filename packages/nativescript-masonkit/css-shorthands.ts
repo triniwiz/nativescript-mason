@@ -636,6 +636,27 @@ export function splitGap(value: string): string[] {
   return [row, column];
 }
 
+const ALIGNMENT_PREFIX = new Set(['safe', 'unsafe', 'first', 'last']);
+
+/** `place-items` / `place-content` / `place-self`: the align value, then the justify value, which defaults to it. */
+export function splitPlace(value: string): string[] {
+  const tokens = tokenizeCss(value);
+  const parts: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    // `safe center` and `last baseline` are one value.
+    if (ALIGNMENT_PREFIX.has(tokens[i]) && i + 1 < tokens.length) {
+      parts.push(`${tokens[i]} ${tokens[++i]}`);
+    } else {
+      parts.push(tokens[i]);
+    }
+  }
+  if (parts.length === 0 || parts.length > 2) {
+    throw new Error(`Expected 1 or 2 values in "${value}"`);
+  }
+  const [align, justify = align] = parts;
+  return [align, justify];
+}
+
 const LIST_STYLE_POSITIONS = new Set(['inside', 'outside']);
 
 /**

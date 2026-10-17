@@ -661,5 +661,9 @@ class Mason {
    */
   var preflight: Boolean
     get() = nativeGetPreflight()
-    set(value) = nativeSetPreflight(nativePtr, value)
+    set(value) {
+      nativeSetPreflight(nativePtr, value)
+      // Rewrites the shared default buffers in place.
+      Style.sharedBufferEpoch++
+    }
 }

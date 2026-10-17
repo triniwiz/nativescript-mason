@@ -241,7 +241,8 @@ class TextArea @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     }
-    style.invalidateBorderRenderer()
+    style.invalidateBorderRendererSize()
+    style.onViewSizeChanged(this)
     super.onSizeChanged(w, h, oldw, oldh)
   }
 

@@ -98,6 +98,7 @@
     <ClInclude Include="include\mason_native.h" />
     <ClInclude Include="Layout.h" />
     <ClInclude Include="Style.h" />
+    <ClInclude Include="StyleKeys.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="MeasureOutput.h" />
     <ClInclude Include="Mason.h" />

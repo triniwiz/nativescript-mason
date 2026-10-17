@@ -180,15 +180,116 @@ fn quantize_key(w: f32) -> f32 {
     (w * 64.0).round() / 64.0
 }
 
+/// The style values a leaf layout reads, copied out so the tree lock can drop before measuring.
+#[derive(Clone, Copy)]
+pub(crate) struct LeafStyle {
+    generates_box: bool,
+    is_block: bool,
+    is_replaced: bool,
+    box_sizing: taffy::BoxSizing,
+    direction: taffy::Direction,
+    overflow: taffy::Point<taffy::Overflow>,
+    scrollbar_width: f32,
+    position: taffy::Position,
+    inset: taffy::Rect<taffy::LengthPercentageAuto>,
+    pub(crate) size: taffy::Size<taffy::Dimension>,
+    min_size: taffy::Size<taffy::LengthPercentageAuto>,
+    max_size: taffy::Size<taffy::LengthPercentageAuto>,
+    aspect_ratio: Option<f32>,
+    margin: taffy::Rect<taffy::LengthPercentageAuto>,
+    padding: taffy::Rect<taffy::LengthPercentage>,
+    border: taffy::Rect<taffy::LengthPercentage>,
+    contain: taffy::Contain,
+}
+
+impl taffy::CoreStyle for LeafStyle {
+    type CustomIdent = Atom;
+
+    #[inline(always)]
+    fn box_generation_mode(&self) -> taffy::BoxGenerationMode {
+        if self.generates_box {
+            taffy::BoxGenerationMode::Normal
+        } else {
+            taffy::BoxGenerationMode::None
+        }
+    }
+    #[inline(always)]
+    fn is_block(&self) -> bool {
+        self.is_block
+    }
+    #[inline(always)]
+    fn is_compressible_replaced(&self) -> bool {
+        self.is_replaced
+    }
+    #[inline(always)]
+    fn is_replaced(&self) -> bool {
+        self.is_replaced
+    }
+    #[inline(always)]
+    fn box_sizing(&self) -> taffy::BoxSizing {
+        self.box_sizing
+    }
+    #[inline(always)]
+    fn direction(&self) -> taffy::Direction {
+        self.direction
+    }
+    #[inline(always)]
+    fn overflow(&self) -> taffy::Point<taffy::Overflow> {
+        self.overflow
+    }
+    #[inline(always)]
+    fn scrollbar_width(&self) -> f32 {
+        self.scrollbar_width
+    }
+    #[inline(always)]
+    fn position(&self) -> taffy::Position {
+        self.position
+    }
+    #[inline(always)]
+    fn inset(&self) -> taffy::Rect<taffy::LengthPercentageAuto> {
+        self.inset
+    }
+    #[inline(always)]
+    fn size(&self) -> taffy::Size<taffy::Dimension> {
+        self.size
+    }
+    #[inline(always)]
+    fn min_size(&self) -> taffy::Size<taffy::LengthPercentageAuto> {
+        self.min_size
+    }
+    #[inline(always)]
+    fn max_size(&self) -> taffy::Size<taffy::LengthPercentageAuto> {
+        self.max_size
+    }
+    #[inline(always)]
+    fn aspect_ratio(&self) -> Option<f32> {
+        self.aspect_ratio
+    }
+    #[inline(always)]
+    fn margin(&self) -> taffy::Rect<taffy::LengthPercentageAuto> {
+        self.margin
+    }
+    #[inline(always)]
+    fn padding(&self) -> taffy::Rect<taffy::LengthPercentage> {
+        self.padding
+    }
+    #[inline(always)]
+    fn border(&self) -> taffy::Rect<taffy::LengthPercentage> {
+        self.border
+    }
+    #[inline(always)]
+    fn contain(&self) -> taffy::Contain {
+        self.contain
+    }
+}
+
 #[inline]
-pub(crate) fn leaf_layout_style(style: &Style) -> taffy::Style {
-    taffy::Style {
-        display: match style.box_generation_mode() {
-            taffy::BoxGenerationMode::None => Display::None,
-            _ if style.is_block() => Display::Block,
-            _ => Display::Flex,
-        },
-        item_is_replaced: style.is_compressible_replaced(),
+pub(crate) fn leaf_layout_style(style: &Style) -> LeafStyle {
+    let generates_box = style.box_generation_mode() != taffy::BoxGenerationMode::None;
+    LeafStyle {
+        generates_box,
+        is_block: generates_box && style.is_block(),
+        is_replaced: style.is_compressible_replaced(),
         box_sizing: style.box_sizing(),
         direction: style.direction(),
         overflow: style.overflow(),
@@ -203,7 +304,6 @@ pub(crate) fn leaf_layout_style(style: &Style) -> taffy::Style {
         padding: style.padding(),
         border: style.border(),
         contain: style.contain(),
-        ..Default::default()
     }
 }
 

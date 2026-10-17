@@ -98,7 +98,7 @@ enum MasonPositioning {
   // Undoes applyFixed once a node stops being fixed.
   static func clearPositioning(node: MasonNode, view: UIView) {
     node.stickyScrollHost = nil
-    fixedViews.remove(view)
+    if fixedViews.count > 0 { fixedViews.remove(view) }
     if let original = node.fixedOriginalSuperview {
       node.fixedOriginalSuperview = nil
       if view.superview !== original {

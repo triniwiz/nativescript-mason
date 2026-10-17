@@ -97,6 +97,20 @@ export default function Transforms() {
           </div>
         </Card>
 
+        {/* ── transform-origin: the same 30° turn about three pivots ── */}
+        <Card title="TRANSFORM-ORIGIN">
+          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-around', paddingTop: 24, paddingBottom: 40 }}>
+            {['center', 'top left', '100% 100%'].map((origin) => (
+              <div style={{ alignItems: 'center' }}>
+                <div style={{ width: 60, height: 60, border: '1px dashed #b2bec3' }}>
+                  <div style={{ width: 58, height: 58, backgroundColor: 'rgba(108,92,231,0.6)', transform: 'rotate(30deg)', transformOrigin: origin }} />
+                </div>
+                <p style={{ fontSize: 11, color: MUTED, marginTop: 28 }}>{origin}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
         {/* ── Generated CSS ── */}
         <Card title="GENERATED CSS">
           <CodeBlock lines={[`transform:`, `  ${transform()};`]} />

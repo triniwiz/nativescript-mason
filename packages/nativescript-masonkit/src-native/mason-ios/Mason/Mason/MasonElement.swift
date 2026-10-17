@@ -255,7 +255,10 @@ extension MasonElement {
       CSSBorderRenderer.syncBorderRadiusFromBuffer(style)
     }
     style.setStateFromHalves(l, h)
-    if state.contains(.borderColor) || state.contains(.borderRadius) {
+    let borderChanged = state.contains(.border) || state.contains(.borderStyle)
+    if borderChanged || state.contains(.borderColor) || state.contains(.borderRadius) {
+      // The renderer caches resolved widths per box size; a JS write keeps the size.
+      style.mBorderRender.invalidateCache()
       if let view = node.view as? MasonUIView {
         view.invalidateDrawFlags()
       } else {
@@ -952,6 +955,7 @@ class MasonElementHelpers: NSObject {
   }
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
+    let previous = node.computedLayout
     node.computedLayout = layout
     if let view = node.view, !(view is MasonBr.FakeView) {
       // Keep `display: none` out of the render tree. The style setter already
@@ -966,182 +970,235 @@ class MasonElementHelpers: NSObject {
       if hidden {
         return
       }
-      var isTextView = false
-      var realLayout = layout
-      var hasWidthConstraint: Bool = false
-      var hasHeightConstraint: Bool = false
-      // One read each: these getters decode the style buffer every call.
-      let nodeOverflow = node.style.overflow
-      if let view = view as? MasonText {
-        isTextView = true
-        realLayout = view.node.computedLayout
-        let styleSize = view.node.style.size
-        hasWidthConstraint = styleSize.width != .Auto
-        hasHeightConstraint = styleSize.height != .Auto
+      // Same box, style and view as the last pass: only the children can need work.
+      // Foreign views (sizeThatFits fallback) and inline boxes (placed by their text) always apply.
+      let unchanged = node.appliedView === view && node.appliedStyleVersion == node.style.styleVersion
+        && previous.sameBox(as: layout) && MasonViewKind.isElement(view) && !(view.superview is MasonText)
+      if !unchanged {
+        applyBox(node, view, layout)
+        node.appliedView = view
+        node.appliedStyleVersion = node.style.styleVersion
       }
-      
-      let widthIsNan = realLayout.width.isNaN
-      
-      let heightIsNan = realLayout.height.isNaN
-      
-      let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
-      
-      let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
-      
-      var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
-      
-      var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
-      
-      if(isTextView){
-        // Only grow past the resolved size for overflow:visible content. With
-        // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
-        let overflow = nodeOverflow
-        if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
-          var grown = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
-          // Rust measures the runs as one line; wrapping text only overflows by
-          // what CoreText can't break (a long word).
-          if let textView = view as? MasonText, textView.engine.canWrap {
-            grown = min(grown, max(width, textView.engine.widestWrappedLine(at: width)))
-          }
-          width = grown
+    }
+    
+    let tree = layout.tree
+    let childCount = tree.childCount[layout.index]
+    if childCount > 0 {
+      let parentText = MasonViewKind.textContainer(node.view)
+      let start = tree.childStart[layout.index]
+      // Sweep orphaned outset-shadow layers (safety net for missed per-child
+      // willMove cleanup under heavy churn).
+      reconcileShadowLayers(node.view)
+      // Children with a nativePtr line up with the Rust layout tree's children,
+      // flattened text containers included.
+      var i = 0
+      for child in node.children where child.nativePtr != nil {
+        if i >= childCount { break }
+        let childIndex = tree.childIndices[start + i]
+        i += 1
+        if(child.type == .text){
+          continue
         }
 
-        if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
-          height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
-        }
-      }
-
-      // Foreign (non-Mason) leaf with an empty auto-sized axis: remeasure via
-      // sizeThatFits (a plain UIKit call, safe mid-compute) in case a nested
-      // Mason root inside it hasn't laid itself out yet on this first pass.
-      if !MasonViewKind.isElement(view) {
-        let styleSize = node.style.size
-        let fallbackWidth = width <= 0 && styleSize.width == .Auto
-        let fallbackHeight = height <= 0 && styleSize.height == .Auto
-        if fallbackWidth || fallbackHeight {
-          let assignedWidth = width
-          let assignedHeight = height
-          let fitted = view.sizeThatFits(CGSize(
-            width: assignedWidth > 0 ? assignedWidth : .greatestFiniteMagnitude,
-            height: assignedHeight > 0 ? assignedHeight : .greatestFiniteMagnitude
-          ))
-          if fallbackWidth { width = fitted.width }
-          if fallbackHeight { height = fitted.height }
-          if width != assignedWidth || height != assignedHeight {
-            node.markDirty()
-            if let rootElement = MasonViewKind.element(node.getRootNode().view) {
-              rootElement.computeCacheDirty = true
-              rootElement.requestLayout()
-            }
+        // Skip flattened text containers: the parent draws their text
+        if let parentText = parentText, let childText = MasonViewKind.textContainer(child.view) {
+          if parentText.engine.shouldFlattenTextContainer(childText) {
+            child.view?.frame = .zero
+            continue
           }
         }
+
+        applyToView(child, MasonLayout(tree: tree, index: childIndex))
       }
-
-      let point = CGPoint(x: x, y: y)
-      
-      let size = CGSizeMake(width, height)
-      
-      var newFrame = CGRect(origin: point, size: size)
-      
-      if(!realLayout.paddingIsEmpty){
-        var top: CGFloat = 0
-        if !realLayout.paddingTop.isZero {
-          top = CGFloat(realLayout.paddingTop / NSCMason.scale)
-        }
-        
-        var left: CGFloat = 0
-        if !realLayout.paddingLeft.isZero {
-          left = CGFloat(realLayout.paddingLeft / NSCMason.scale)
-        }
-        
-        var bottom: CGFloat = 0
-        if !realLayout.paddingBottom.isZero {
-          bottom = CGFloat(realLayout.paddingBottom / NSCMason.scale)
-        }
-        
-        var right: CGFloat = 0
-        if !realLayout.paddingRight.isZero {
-          right = CGFloat(realLayout.paddingRight / NSCMason.scale)
-        }
-        
-        let insets = UIEdgeInsets(top: top, left: left, bottom: bottom, right: right)
-        newFrame.inset(by: insets)
-      }
-
-      // Root scroll container is a VIEWPORT: Mason sizes a height:auto/visible
-      // node to its full content, but the on-screen box must be clamped to the
-      // superview so content can overflow it and scrolling engages. Only roots
-      // self-size; nested nodes keep their Mason-computed frame.
-      if let mv = view as? MasonUIView, mv.isScrollContainer,
-         !MasonViewKind.isElement(view.superview),
-         let avail = view.superview?.bounds.size,
-         avail.width > 0, avail.height > 0 {
-        if newFrame.size.height > avail.height { newFrame.size.height = avail.height }
-        if newFrame.size.width > avail.width { newFrame.size.width = avail.width }
-      }
-
-      switch node.style.position {
-      case .Fixed:
-        MasonPositioning.applyFixed(node: node, view: view, frame: &newFrame)
-      case .Sticky:
-        MasonPositioning.captureSticky(node: node, view: view, frame: &newFrame)
-      default:
-        MasonPositioning.clearPositioning(node: node, view: view)
-      }
-
-      // An inline box inside text: its text view knows where the text left room.
-      if let text = view.superview as? MasonText, text.ownsInlineBox(view) {
-        text.placeInlineBox(node, view, newFrame)
-      } else if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
-        if view.frame != newFrame {
-          view.frame = newFrame
-        }
-      } else {
-        let newBounds = CGRect(origin: view.bounds.origin, size: newFrame.size)
-        let newCenter = CGPoint(x: newFrame.midX, y: newFrame.midY)
-        if view.bounds.size != newBounds.size {
-          view.bounds = newBounds
-        }
-        if view.center != newCenter {
-          view.center = newCenter
-        }
-      }
-
-      // Reposition the outset box-shadow layer here (where the frame is applied):
-      // layoutSubviews only fires on size changes, so position-only moves during
-      // reflow would otherwise leave the shadow stranded.
-      node.style.updateShadowLayer(for: CGRect(origin: .zero, size: view.bounds.size))
-
-      // Clipping per the CSS overflow spec: Hidden/Scroll/Clip always clip the
-      // axis, Auto clips only on overflow, Visible never. Border-radius always
-      // clips children to the rounded rect regardless of overflow.
+    }
+    
+  }
+  
+  
+  
+  /// Applies `layout` to `view`: frame, clipping, mask, shadow and scroll content size.
+  private static func applyBox(_ node: MasonNode, _ view: UIView, _ layout: MasonLayout) {
+    var isTextView = false
+    var realLayout = layout
+    var hasWidthConstraint: Bool = false
+    var hasHeightConstraint: Bool = false
+    // One read each: these getters decode the style buffer every call.
+    let nodeOverflow = node.style.overflow
+    if let view = view as? MasonText {
+      isTextView = true
+      realLayout = view.node.computedLayout
+      let styleSize = view.node.style.size
+      hasWidthConstraint = styleSize.width != .Auto
+      hasHeightConstraint = styleSize.height != .Auto
+    }
+    
+    let widthIsNan = realLayout.width.isNaN
+    
+    let heightIsNan = realLayout.height.isNaN
+    
+    let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
+    
+    let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
+    
+    var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
+    
+    var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
+    
+    if(isTextView){
+      // Only grow past the resolved size for overflow:visible content. With
+      // hidden/clip/scroll/auto, keep the resolved size so content clips instead.
       let overflow = nodeOverflow
-      // Scroll container: default `visible` acts as `auto` on the Y axis only;
-      // horizontal stays visible to avoid surprise sideways scrolling.
-      let _isScrollContainer = (node.view as? MasonUIView)?.isScrollContainer ?? false
-      let clipX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Clip
-        || (overflow.x == .Auto && realLayout.contentWidth > realLayout.width)
-      let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
-        || (overflow.y == .Auto && realLayout.contentHeight > realLayout.height)
-        || (overflow.y == .Visible && _isScrollContainer && realLayout.contentHeight > realLayout.height)
+      if(overflow.x == .Visible && !hasWidthConstraint && realLayout.contentWidth > realLayout.width){
+        var grown = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+        // Rust measures the runs as one line; wrapping text only overflows by
+        // what CoreText can't break (a long word).
+        if let textView = view as? MasonText, textView.engine.canWrap {
+          grown = min(grown, max(width, textView.engine.widestWrappedLine(at: width)))
+        }
+        width = grown
+      }
 
-      let borderRender = node.style.mBorderRender
-      borderRender.resolve(for: view.bounds)
-      let hasRadii = borderRender.hasRadii()
-      // Mask paths are viewport-local; the mask layer sits at bounds.origin so it follows scrolling.
-      let localBounds = CGRect(origin: .zero, size: view.bounds.size)
+      if(overflow.y == .Visible && !hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
+        height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
+      }
+    }
 
-      // A CSS mask takes over layer.mask; the overflow clip below is then folded into it.
-      node.style.syncMask(view)
+    // Foreign (non-Mason) leaf with an empty auto-sized axis: remeasure via
+    // sizeThatFits (a plain UIKit call, safe mid-compute) in case a nested
+    // Mason root inside it hasn't laid itself out yet on this first pass.
+    if !MasonViewKind.isElement(view) {
+      let styleSize = node.style.size
+      let fallbackWidth = width <= 0 && styleSize.width == .Auto
+      let fallbackHeight = height <= 0 && styleSize.height == .Auto
+      if fallbackWidth || fallbackHeight {
+        let assignedWidth = width
+        let assignedHeight = height
+        let fitted = view.sizeThatFits(CGSize(
+          width: assignedWidth > 0 ? assignedWidth : .greatestFiniteMagnitude,
+          height: assignedHeight > 0 ? assignedHeight : .greatestFiniteMagnitude
+        ))
+        if fallbackWidth { width = fitted.width }
+        if fallbackHeight { height = fitted.height }
+        if width != assignedWidth || height != assignedHeight {
+          node.markDirty()
+          if let rootElement = MasonViewKind.element(node.getRootNode().view) {
+            rootElement.computeCacheDirty = true
+            rootElement.requestLayout()
+          }
+        }
+      }
+    }
 
-      // Never touch clipsToBounds on UIScrollView here: changing it during
-      // layoutSubviews corrupts UIKit's gesture graph (UIGestureGraphEdge
-      // assertions). It's fixed to true at init.
+    let point = CGPoint(x: x, y: y)
+    
+    let size = CGSizeMake(width, height)
+    
+    var newFrame = CGRect(origin: point, size: size)
+    
+    if(!realLayout.paddingIsEmpty){
+      var top: CGFloat = 0
+      if !realLayout.paddingTop.isZero {
+        top = CGFloat(realLayout.paddingTop / NSCMason.scale)
+      }
+      
+      var left: CGFloat = 0
+      if !realLayout.paddingLeft.isZero {
+        left = CGFloat(realLayout.paddingLeft / NSCMason.scale)
+      }
+      
+      var bottom: CGFloat = 0
+      if !realLayout.paddingBottom.isZero {
+        bottom = CGFloat(realLayout.paddingBottom / NSCMason.scale)
+      }
+      
+      var right: CGFloat = 0
+      if !realLayout.paddingRight.isZero {
+        right = CGFloat(realLayout.paddingRight / NSCMason.scale)
+      }
+      
+      let insets = UIEdgeInsets(top: top, left: left, bottom: bottom, right: right)
+      newFrame.inset(by: insets)
+    }
+
+    // Root scroll container is a VIEWPORT: Mason sizes a height:auto/visible
+    // node to its full content, but the on-screen box must be clamped to the
+    // superview so content can overflow it and scrolling engages. Only roots
+    // self-size; nested nodes keep their Mason-computed frame.
+    if let mv = view as? MasonUIView, mv.isScrollContainer,
+       !MasonViewKind.isElement(view.superview),
+       let avail = view.superview?.bounds.size,
+       avail.width > 0, avail.height > 0 {
+      if newFrame.size.height > avail.height { newFrame.size.height = avail.height }
+      if newFrame.size.width > avail.width { newFrame.size.width = avail.width }
+    }
+
+    switch node.style.position {
+    case .Fixed:
+      MasonPositioning.applyFixed(node: node, view: view, frame: &newFrame)
+    case .Sticky:
+      MasonPositioning.captureSticky(node: node, view: view, frame: &newFrame)
+    default:
+      MasonPositioning.clearPositioning(node: node, view: view)
+    }
+
+    let sizeBefore = view.bounds.size
+    // An inline box inside text: its text view knows where the text left room.
+    if let text = view.superview as? MasonText, text.ownsInlineBox(view) {
+      text.placeInlineBox(node, view, newFrame)
+    } else if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
+      if view.frame != newFrame {
+        view.frame = newFrame
+      }
+    } else {
+      let newBounds = CGRect(origin: view.bounds.origin, size: newFrame.size)
+      let newCenter = CGPoint(x: newFrame.midX, y: newFrame.midY)
+      if view.bounds.size != newBounds.size {
+        view.bounds = newBounds
+      }
+      if view.center != newCenter {
+        view.center = newCenter
+      }
+    }
+    // A transform about a set transform-origin depends on the size.
+    if view.bounds.size != sizeBefore && node.style.transformDependsOnOrigin {
+      node.style.applyTransformFromBuffer()
+    }
+
+    // Reposition the outset box-shadow layer here (where the frame is applied):
+    // layoutSubviews only fires on size changes, so position-only moves during
+    // reflow would otherwise leave the shadow stranded.
+    node.style.updateShadowLayer(for: CGRect(origin: .zero, size: view.bounds.size))
+
+    // Clipping per the CSS overflow spec: Hidden/Scroll/Clip always clip the
+    // axis, Auto clips only on overflow, Visible never. Border-radius always
+    // clips children to the rounded rect regardless of overflow.
+    let overflow = nodeOverflow
+    // Scroll container: default `visible` acts as `auto` on the Y axis only;
+    // horizontal stays visible to avoid surprise sideways scrolling.
+    let _isScrollContainer = (node.view as? MasonUIView)?.isScrollContainer ?? false
+    let clipX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Clip
+      || (overflow.x == .Auto && realLayout.contentWidth > realLayout.width)
+    let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
+      || (overflow.y == .Auto && realLayout.contentHeight > realLayout.height)
+      || (overflow.y == .Visible && _isScrollContainer && realLayout.contentHeight > realLayout.height)
+
+    let borderRender = node.style.mBorderRender
+    borderRender.resolve(for: view.bounds)
+    let hasRadii = borderRender.hasRadii()
+    // Mask paths are viewport-local; the mask layer sits at bounds.origin so it follows scrolling.
+    let localBounds = CGRect(origin: .zero, size: view.bounds.size)
+
+    // A CSS mask takes over layer.mask; the overflow clip below is then folded into it.
+    if node.style.maskEverSet || node.style.hasPseudoMask { node.style.syncMask(view) }
+
+    // Never touch clipsToBounds on UIScrollView here: changing it during
+    // layoutSubviews corrupts UIKit's gesture graph (UIGestureGraphEdge
+    // assertions). It's fixed to true at init.
+    let clipWork = !(view is UIScrollView) && (clipX || clipY || view.clipsToBounds || view.layer.mask != nil)
+    if clipWork {
       CATransaction.begin()
       CATransaction.setDisableActions(true)
-      if view is UIScrollView {
-        // Nothing to do — clipping is fixed at init time.
-      } else if clipX && clipY {
+      if clipX && clipY {
         // Both axes clip — use clipsToBounds (+ border-radius mask if needed)
         view.clipsToBounds = true
         if MasonStyle.routeOverflowClip(view, hasRadii ? borderRender.getClipPath(rect: localBounds, radius: borderRender.radius).cgPath : nil) {
@@ -1199,91 +1256,57 @@ class MasonElementHelpers: NSObject {
         }
       }
       CATransaction.commit()
-
-      node.isLayoutValid = true
-      
-      // Compute content size for any scrollable view (Scroll or MasonUIView).
-      let _overflow = nodeOverflow
-      let _ox = _overflow.x
-      let _oy: Overflow = (_overflow.y == .Visible && _isScrollContainer) ? .Auto : _overflow.y
-      let _hasScrollOverflow = _ox == .Scroll || _ox == .Auto
-        || _oy == .Scroll || _oy == .Auto
-      if _hasScrollOverflow {
-        let cw = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
-        let ch = CGFloat(realLayout.contentHeight.isNaN ? 0 : realLayout.contentHeight/NSCMason.scale)
-        let bw = CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale)
-        let bh = CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale)
-
-        // For `scroll`: always use content size (allow scrolling even if smaller)
-        // For `auto`: use content size only when it overflows the box
-        // For `visible`/`hidden`/`clip`: use box size (no scrolling)
-        let scrollWidth: CGFloat
-        switch _ox {
-        case .Scroll: scrollWidth = max(cw, bw)
-        case .Auto:   scrollWidth = cw > bw ? cw : bw
-        default:      scrollWidth = bw
-        }
-        let scrollHeight: CGFloat
-        switch _oy {
-        case .Scroll: scrollHeight = max(ch, bh)
-        case .Auto:   scrollHeight = ch > bh ? ch : bh
-        default:      scrollHeight = bh
-        }
-        let newContentSize = CGSize(width: scrollWidth, height: scrollHeight)
-
-        if let scroll = node.view as? Scroll {
-          if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
-          MasonElementHelpers.handleOverflow(_overflow.x, scroll)
-          MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
-          // A shrinking contentSize can leave contentOffset past the new range.
-          let maxX = max(0, newContentSize.width - scroll.bounds.width)
-          let maxY = max(0, newContentSize.height - scroll.bounds.height)
-          let off = scroll.contentOffset
-          let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
-          if clamped != off { scroll.setContentOffset(clamped, animated: false) }
-        } else if let masonView = node.view as? MasonUIView {
-          if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
-          // Reassigning through the setter re-clamps after the size change.
-          masonView.contentOffset = masonView.contentOffset
-        }
-      }
-
     }
+
+    node.isLayoutValid = true
     
-    // `layout.children` allocates on every access; hoist it out of the loop
-    let childLayouts = layout.children
-    if !childLayouts.isEmpty {
-      // Only children with nativePtr, matching Rust layout tree order. Keep
-      // flattened text containers so indices stay aligned with childLayouts.
-      let children = node.children.filter { $0.nativePtr != nil }
-      let parentText = MasonViewKind.textContainer(node.view)
+    // Compute content size for any scrollable view (Scroll or MasonUIView).
+    let _overflow = nodeOverflow
+    let _ox = _overflow.x
+    let _oy: Overflow = (_overflow.y == .Visible && _isScrollContainer) ? .Auto : _overflow.y
+    let _hasScrollOverflow = _ox == .Scroll || _ox == .Auto
+      || _oy == .Scroll || _oy == .Auto
+    if _hasScrollOverflow {
+      let cw = CGFloat(realLayout.contentWidth.isNaN ? 0 : realLayout.contentWidth/NSCMason.scale)
+      let ch = CGFloat(realLayout.contentHeight.isNaN ? 0 : realLayout.contentHeight/NSCMason.scale)
+      let bw = CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale)
+      let bh = CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale)
 
-      let count = min(children.count, childLayouts.count)
-      // Sweep orphaned outset-shadow layers (safety net for missed per-child
-      // willMove cleanup under heavy churn).
-      reconcileShadowLayers(node.view)
-      for i in 0..<count {
-        let child = children[i]
-        if(child.type == .text){
-          continue
-        }
+      // For `scroll`: always use content size (allow scrolling even if smaller)
+      // For `auto`: use content size only when it overflows the box
+      // For `visible`/`hidden`/`clip`: use box size (no scrolling)
+      let scrollWidth: CGFloat
+      switch _ox {
+      case .Scroll: scrollWidth = max(cw, bw)
+      case .Auto:   scrollWidth = cw > bw ? cw : bw
+      default:      scrollWidth = bw
+      }
+      let scrollHeight: CGFloat
+      switch _oy {
+      case .Scroll: scrollHeight = max(ch, bh)
+      case .Auto:   scrollHeight = ch > bh ? ch : bh
+      default:      scrollHeight = bh
+      }
+      let newContentSize = CGSize(width: scrollWidth, height: scrollHeight)
 
-        // Skip flattened text containers — parent draws their text
-        if let parentText = parentText, let childText = MasonViewKind.textContainer(child.view) {
-          if parentText.engine.shouldFlattenTextContainer(childText) {
-            child.view?.frame = .zero
-            continue
-          }
-        }
-
-        applyToView(child, childLayouts[i])
+      if let scroll = node.view as? Scroll {
+        if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
+        MasonElementHelpers.handleOverflow(_overflow.x, scroll)
+        MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
+        // A shrinking contentSize can leave contentOffset past the new range.
+        let maxX = max(0, newContentSize.width - scroll.bounds.width)
+        let maxY = max(0, newContentSize.height - scroll.bounds.height)
+        let off = scroll.contentOffset
+        let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
+        if clamped != off { scroll.setContentOffset(clamped, animated: false) }
+      } else if let masonView = node.view as? MasonUIView {
+        if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
+        // Reassigning through the setter re-clamps after the size change.
+        masonView.contentOffset = masonView.contentOffset
       }
     }
-    
   }
-  
-  
-  
+
   /// Remove outset-shadow sublayers in `container` whose owner is no longer a
   /// direct child (or whose style was freed). Safety net for per-child cleanup.
   internal static func reconcileShadowLayers(_ container: UIView?) {

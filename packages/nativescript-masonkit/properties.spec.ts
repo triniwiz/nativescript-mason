@@ -292,6 +292,14 @@ describe('every CSS name mason claims is actually registered', () => {
     'text-decoration-line',
     'text-decoration-style',
     'text-decoration-color',
+    'text-indent',
+    'line-clamp',
+    '-webkit-line-clamp',
+    'transform-origin',
+    'place-items',
+    'place-content',
+    'place-self',
+    'list-style',
   ];
 
   it.each(EXPECTED)('%s', (cssName) => {

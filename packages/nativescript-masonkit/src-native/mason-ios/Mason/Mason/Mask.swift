@@ -546,6 +546,7 @@ extension MasonStyle {
 
   /// A mask longhand (or a pseudo state's) changed, or a pseudo state toggled.
   internal func maskChanged() {
+    maskEverSet = true
     guard let view = node.view else { return }
     syncMask(view)
   }

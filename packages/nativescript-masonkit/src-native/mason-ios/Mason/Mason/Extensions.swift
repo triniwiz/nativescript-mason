@@ -36,9 +36,37 @@ extension UInt32 {
   }
 }
 
+// CGColors are immutable, so one per ARGB value can be shared. Capped because
+// animated colors would otherwise grow it without bound.
+private final class ARGBColorCache {
+  static let shared = ARGBColorCache()
+  private let lock: UnsafeMutablePointer<os_unfair_lock> = {
+    let lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: 1)
+    lock.initialize(to: os_unfair_lock())
+    return lock
+  }()
+  private var colors: [UInt32: CGColor] = [:]
+
+  func color(_ argb: UInt32) -> CGColor {
+    os_unfair_lock_lock(lock)
+    defer { os_unfair_lock_unlock(lock) }
+    if let color = colors[argb] { return color }
+    if colors.count >= 256 { colors.removeAll(keepingCapacity: true) }
+    let color = UIColor.colorFromARGB(argb).cgColor
+    colors[argb] = color
+    return color
+  }
+}
+
 extension UIColor {
   internal static let deviceCS = CGColorSpaceCreateDeviceRGB()
   internal static let greyCS = CGColorSpaceCreateDeviceGray()
+
+  /// A shared CGColor for a packed ARGB value; the same value returns the same object.
+  internal static func cgColorFromARGB(_ argb: UInt32) -> CGColor {
+    ARGBColorCache.shared.color(argb)
+  }
+
   public static func colorFromARGB(_ argb: UInt32) -> UIColor {
     switch(argb){
     case BLACK_COLOR:

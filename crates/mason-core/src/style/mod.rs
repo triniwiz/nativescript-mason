@@ -455,6 +455,7 @@ impl std::fmt::Display for VerticalAlignValue {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum StyleKeys {
+    // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
     DISPLAY = 0,
     POSITION = 1,
     DIRECTION = 2,
@@ -471,80 +472,80 @@ pub enum StyleKeys {
     JUSTIFY_SELF = 11,
     JUSTIFY_CONTENT = 12,
 
-    // Contiguous types, then contiguous values per group
+    // Each box side group: four types, then four values.
     INSET_LEFT_TYPE = 13,
     INSET_RIGHT_TYPE = 14,
     INSET_TOP_TYPE = 15,
     INSET_BOTTOM_TYPE = 16,
-    INSET_LEFT_VALUE = 17,   // f32 (4 bytes: 17-20)
-    INSET_RIGHT_VALUE = 21,  // f32 (4 bytes: 21-24)
-    INSET_TOP_VALUE = 25,    // f32 (4 bytes: 25-28)
-    INSET_BOTTOM_VALUE = 29, // f32 (4 bytes: 29-32)
+    INSET_LEFT_VALUE = 17,   // f32 (17-20)
+    INSET_RIGHT_VALUE = 21,  // f32 (21-24)
+    INSET_TOP_VALUE = 25,    // f32 (25-28)
+    INSET_BOTTOM_VALUE = 29, // f32 (29-32)
 
     MARGIN_LEFT_TYPE = 33,
     MARGIN_RIGHT_TYPE = 34,
     MARGIN_TOP_TYPE = 35,
     MARGIN_BOTTOM_TYPE = 36,
-    MARGIN_LEFT_VALUE = 37,   // f32 (4 bytes: 37-40)
-    MARGIN_RIGHT_VALUE = 41,  // f32 (4 bytes: 41-44)
-    MARGIN_TOP_VALUE = 45,    // f32 (4 bytes: 45-48)
-    MARGIN_BOTTOM_VALUE = 49, // f32 (4 bytes: 49-52)
+    MARGIN_LEFT_VALUE = 37,   // f32 (37-40)
+    MARGIN_RIGHT_VALUE = 41,  // f32 (41-44)
+    MARGIN_TOP_VALUE = 45,    // f32 (45-48)
+    MARGIN_BOTTOM_VALUE = 49, // f32 (49-52)
 
     PADDING_LEFT_TYPE = 53,
     PADDING_RIGHT_TYPE = 54,
     PADDING_TOP_TYPE = 55,
     PADDING_BOTTOM_TYPE = 56,
-    PADDING_LEFT_VALUE = 57,   // f32 (4 bytes: 57-60)
-    PADDING_RIGHT_VALUE = 61,  // f32 (4 bytes: 61-64)
-    PADDING_TOP_VALUE = 65,    // f32 (4 bytes: 65-68)
-    PADDING_BOTTOM_VALUE = 69, // f32 (4 bytes: 69-72)
+    PADDING_LEFT_VALUE = 57,   // f32 (57-60)
+    PADDING_RIGHT_VALUE = 61,  // f32 (61-64)
+    PADDING_TOP_VALUE = 65,    // f32 (65-68)
+    PADDING_BOTTOM_VALUE = 69, // f32 (69-72)
 
     BORDER_LEFT_TYPE = 73,
     BORDER_RIGHT_TYPE = 74,
     BORDER_TOP_TYPE = 75,
     BORDER_BOTTOM_TYPE = 76,
-    BORDER_LEFT_VALUE = 77,   // f32 (4 bytes: 77-80)
-    BORDER_RIGHT_VALUE = 81,  // f32 (4 bytes: 81-84)
-    BORDER_TOP_VALUE = 85,    // f32 (4 bytes: 85-88)
-    BORDER_BOTTOM_VALUE = 89, // f32 (4 bytes: 89-92)
+    BORDER_LEFT_VALUE = 77,   // f32 (77-80)
+    BORDER_RIGHT_VALUE = 81,  // f32 (81-84)
+    BORDER_TOP_VALUE = 85,    // f32 (85-88)
+    BORDER_BOTTOM_VALUE = 89, // f32 (89-92)
 
-    FLEX_GROW = 93,   // f32 (4 bytes: 93-96)
-    FLEX_SHRINK = 97, // f32 (4 bytes: 97-100)
+    FLEX_GROW = 93,   // f32 (93-96)
+    FLEX_SHRINK = 97, // f32 (97-100)
 
     FLEX_BASIS_TYPE = 101,
-    FLEX_BASIS_VALUE = 102, // f32 (4 bytes: 102-105)
+    FLEX_BASIS_VALUE = 102, // f32 (102-105)
 
     WIDTH_TYPE = 106,
     HEIGHT_TYPE = 107,
-    WIDTH_VALUE = 108,  // f32 (4 bytes: 108-111)
-    HEIGHT_VALUE = 112, // f32 (4 bytes: 112-115)
+    WIDTH_VALUE = 108,  // f32 (108-111)
+    HEIGHT_VALUE = 112, // f32 (112-115)
 
     MIN_WIDTH_TYPE = 116,
     MIN_HEIGHT_TYPE = 117,
-    MIN_WIDTH_VALUE = 118,  // f32 (4 bytes: 118-121)
-    MIN_HEIGHT_VALUE = 122, // f32 (4 bytes: 122-125)
+    MIN_WIDTH_VALUE = 118,  // f32 (118-121)
+    MIN_HEIGHT_VALUE = 122, // f32 (122-125)
 
     MAX_WIDTH_TYPE = 126,
     MAX_HEIGHT_TYPE = 127,
-    MAX_WIDTH_VALUE = 128,  // f32 (4 bytes: 128-131)
-    MAX_HEIGHT_VALUE = 132, // f32 (4 bytes: 132-135)
+    MAX_WIDTH_VALUE = 128,  // f32 (128-131)
+    MAX_HEIGHT_VALUE = 132, // f32 (132-135)
 
     GAP_ROW_TYPE = 136,
     GAP_COLUMN_TYPE = 137,
-    GAP_ROW_VALUE = 138,    // f32 (4 bytes: 138-141)
-    GAP_COLUMN_VALUE = 142, // f32 (4 bytes: 142-145)
+    GAP_ROW_VALUE = 138,    // f32 (138-141)
+    GAP_COLUMN_VALUE = 142, // f32 (142-145)
 
-    ASPECT_RATIO = 146, // f32 (4 bytes: 146-149)
+    ASPECT_RATIO = 146, // f32 (146-149)
     GRID_AUTO_FLOW = 150,
     GRID_COLUMN_START_TYPE = 151,
     GRID_COLUMN_END_TYPE = 152,
     GRID_ROW_START_TYPE = 153,
     GRID_ROW_END_TYPE = 154,
-    GRID_COLUMN_START_VALUE = 155, // f32 (4 bytes: 155-158)
-    GRID_COLUMN_END_VALUE = 159,   // f32 (4 bytes: 159-162)
-    GRID_ROW_START_VALUE = 163,    // f32 (4 bytes: 163-166)
-    GRID_ROW_END_VALUE = 167,      // f32 (4 bytes: 167-170)
-    SCROLLBAR_WIDTH = 171,         // float (4 bytes: 171-174)
+    GRID_COLUMN_START_VALUE = 155, // f32 (155-158)
+    GRID_COLUMN_END_VALUE = 159,   // f32 (159-162)
+    GRID_ROW_START_VALUE = 163,    // f32 (163-166)
+    GRID_ROW_END_VALUE = 167,      // f32 (167-170)
+    SCROLLBAR_WIDTH = 171,         // f32 (171-174)
     ALIGN = 175,
     BOX_SIZING = 176,
     OVERFLOW = 177,
@@ -552,27 +553,22 @@ pub enum StyleKeys {
     ITEM_IS_REPLACED = 179,
     DISPLAY_MODE = 180,
     FORCE_INLINE = 181,
-    MIN_CONTENT_WIDTH = 182,  // float (4 bytes: 182-185)
-    MIN_CONTENT_HEIGHT = 186, // float (4 bytes: 186-189)
-    MAX_CONTENT_WIDTH = 190,  // float (4 bytes: 190-193)
-    MAX_CONTENT_HEIGHT = 194, // float (4 bytes: 194-197)
+    MIN_CONTENT_WIDTH = 182,  // f32 (182-185)
+    MIN_CONTENT_HEIGHT = 186, // f32 (186-189)
+    MAX_CONTENT_WIDTH = 190,  // f32 (190-193)
+    MAX_CONTENT_HEIGHT = 194, // f32 (194-197)
 
-    // Border Style (per side)
     BORDER_LEFT_STYLE = 198,
     BORDER_RIGHT_STYLE = 199,
     BORDER_TOP_STYLE = 200,
     BORDER_BOTTOM_STYLE = 201,
 
-    // Border Color (per side)
-    BORDER_LEFT_COLOR = 202,   // u32 (4 bytes: 202-205)
-    BORDER_RIGHT_COLOR = 206,  // u32 (4 bytes: 206-209)
-    BORDER_TOP_COLOR = 210,    // u32 (4 bytes: 210-213)
-    BORDER_BOTTOM_COLOR = 214, // u32 (4 bytes: 214-217)
+    BORDER_LEFT_COLOR = 202,   // u32 (202-205)
+    BORDER_RIGHT_COLOR = 206,  // u32 (206-209)
+    BORDER_TOP_COLOR = 210,    // u32 (210-213)
+    BORDER_BOTTOM_COLOR = 214, // u32 (214-217)
 
-    // ============================================================
-    // Border Radius (elliptical + squircle exponent)
-    // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
-    // ============================================================
+    // Elliptical radii: eight types, eight values, then four squircle exponents.
     BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,
     BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219,
     BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220,
@@ -581,136 +577,132 @@ pub enum StyleKeys {
     BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223,
     BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224,
     BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225,
+    BORDER_RADIUS_TOP_LEFT_X_VALUE = 226,      // f32 (226-229)
+    BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230,      // f32 (230-233)
+    BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234,     // f32 (234-237)
+    BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238,     // f32 (238-241)
+    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242,  // f32 (242-245)
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246,  // f32 (246-249)
+    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250,   // f32 (250-253)
+    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254,   // f32 (254-257)
+    BORDER_RADIUS_TOP_LEFT_EXPONENT = 258,     // f32 (258-261)
+    BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262,    // f32 (262-265)
+    BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266, // f32 (266-269)
+    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270,  // f32 (270-273)
 
-    BORDER_RADIUS_TOP_LEFT_X_VALUE = 226, // f32 (4 bytes: 226-229)
-    BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230, // f32 (4 bytes: 230-233)
-    BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234, // f32 (4 bytes: 234-237)
-    BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238, // f32 (4 bytes: 238-241)
-    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242, // f32 (4 bytes: 242-245)
-    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246, // f32 (4 bytes: 246-249)
-    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250, // f32 (4 bytes: 250-253)
-    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254, // f32 (4 bytes: 254-257)
-
-    BORDER_RADIUS_TOP_LEFT_EXPONENT = 258, // f32 (4 bytes: 258-261)
-    BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262, // f32 (4 bytes: 262-265)
-    BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266, // f32 (4 bytes: 266-269)
-    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270, // f32 (4 bytes: 270-273)
-
-    // Float
     FLOAT = 274,
     CLEAR = 275,
-    // Object Fit
     OBJECT_FIT = 276,
 
-    FONT_METRICS_ASCENT_OFFSET = 277,     // float (4 bytes: 277-280)
-    FONT_METRICS_DESCENT_OFFSET = 281,    // float (4 bytes: 281-284)
-    FONT_METRICS_X_HEIGHT_OFFSET = 285,   // float (4 bytes: 285-288)
-    FONT_METRICS_LEADING_OFFSET = 289,    // float (4 bytes: 289-292)
-    FONT_METRICS_CAP_HEIGHT_OFFSET = 293, // float (4 bytes: 293-296)
-    VERTICAL_ALIGN_OFFSET_OFFSET = 297,   // float (4 bytes: 297-300)
+    FONT_METRICS_ASCENT_OFFSET = 277,     // f32 (277-280)
+    FONT_METRICS_DESCENT_OFFSET = 281,    // f32 (281-284)
+    FONT_METRICS_X_HEIGHT_OFFSET = 285,   // f32 (285-288)
+    FONT_METRICS_LEADING_OFFSET = 289,    // f32 (289-292)
+    FONT_METRICS_CAP_HEIGHT_OFFSET = 293, // f32 (293-296)
+    VERTICAL_ALIGN_OFFSET_OFFSET = 297,   // f32 (297-300)
     VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301,
-    VERTICAL_ALIGN_ENUM_OFFSET = 302, // float (4 bytes: 302-305)
-    FIRST_BASELINE_OFFSET = 306,      // float (4 bytes: 306-309)
-    Z_INDEX = 310,                    // float (4 bytes: 310-313)
+    VERTICAL_ALIGN_ENUM_OFFSET = 302, // f32 (302-305)
+    FIRST_BASELINE_OFFSET = 306,      // f32 (306-309)
+    Z_INDEX = 310,                    // i32 (310-313)
     ITEM_IS_LIST = 314,
     ITEM_IS_LIST_ITEM = 315,
     LIST_STYLE_POSITION = 316,
     LIST_STYLE_TYPE = 317,
     LIST_STYLE_POSITION_STATE = 318,
     LIST_STYLE_TYPE_STATE = 319,
-    REF_COUNT = 320, // (4 bytes: 320- 324)
+    REF_COUNT = 320, // u32 (320-323), copy-on-write share count
 
-    // Text-related fields
-    FONT_COLOR = 324,                 // u32 (4 bytes: 324-327)
-    FONT_COLOR_STATE = 328,           // u8
-    FONT_SIZE = 329,                  // i32 (4 bytes: 329-332)
-    FONT_SIZE_TYPE = 333,             // u8
-    FONT_SIZE_STATE = 334,            // u8
-    FONT_WEIGHT = 335,                // i32 (4 bytes: 335-338)
-    FONT_WEIGHT_STATE = 339,          // u8
-    FONT_STYLE_SLANT = 340,           // i32 (4 bytes: 340-343)
-    FONT_STYLE_TYPE = 344,            // u8
-    FONT_STYLE_STATE = 345,           // u8
-    FONT_FAMILY_STATE = 346,          // u8
-    FONT_RESOLVED_DIRTY = 347,        // u8
-    BACKGROUND_COLOR = 348,           // i32 (4 bytes: 348-351)
-    BACKGROUND_COLOR_STATE = 352,     // u8
-    BACKGROUND_COLOR_TYPE = 353,      // u8
-    DECORATION_LINE = 354,            // u8
-    DECORATION_LINE_STATE = 355,      // u8
-    DECORATION_COLOR = 356,           // i32 (4 bytes: 356-359)
-    DECORATION_COLOR_STATE = 360,     // u8
-    DECORATION_STYLE = 361,           // u8
-    DECORATION_STYLE_STATE = 362,     // u8
-    LETTER_SPACING = 363,             // i32 (4 bytes: 363-366)
-    LETTER_SPACING_STATE = 367,       // u8
-    TEXT_WRAP = 368,                  // u8
-    TEXT_WRAP_STATE = 369,            // u8
-    WHITE_SPACE = 370,                // u8
-    WHITE_SPACE_STATE = 371,          // u8
-    TEXT_TRANSFORM = 372,             // u8
-    TEXT_TRANSFORM_STATE = 373,       // u8
-    TEXT_ALIGN = 374,                 // u8
-    TEXT_ALIGN_STATE = 375,           // u8
-    TEXT_JUSTIFY = 376,               // u8
-    TEXT_JUSTIFY_STATE = 377,         // u8
-    TEXT_INDENT = 378,                // i32 (4 bytes: 378-381)
-    TEXT_INDENT_TYPE = 382,           // u8
-    TEXT_INDENT_STATE = 383,          // u8
-    LINE_HEIGHT = 384,                // i32 (4 bytes: 384-387)
-    LINE_HEIGHT_STATE = 388,          // u8
-    LINE_HEIGHT_TYPE = 389,           // u8
-    DECORATION_THICKNESS = 390,       // i32 (4 bytes: 390-393)
-    DECORATION_THICKNESS_STATE = 394, // u8
-    TEXT_SHADOW_STATE = 395,          // u8
-    TEXT_OVERFLOW = 396,              // u8
-    TEXT_OVERFLOW_STATE = 397,        // u8
+    // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
+    FONT_COLOR = 324, // u32 (324-327)
+    FONT_COLOR_STATE = 328,
+    FONT_SIZE = 329, // i32 (329-332)
+    FONT_SIZE_TYPE = 333,
+    FONT_SIZE_STATE = 334,
+    FONT_WEIGHT = 335, // i32 (335-338)
+    FONT_WEIGHT_STATE = 339,
+    FONT_STYLE_SLANT = 340, // i32 (340-343)
+    FONT_STYLE_TYPE = 344,
+    FONT_STYLE_STATE = 345,
+    FONT_FAMILY_STATE = 346,
+    FONT_RESOLVED_DIRTY = 347,
+    BACKGROUND_COLOR = 348, // u32 (348-351)
+    BACKGROUND_COLOR_STATE = 352,
+    BACKGROUND_COLOR_TYPE = 353,
+    DECORATION_LINE = 354,
+    DECORATION_LINE_STATE = 355,
+    DECORATION_COLOR = 356, // u32 (356-359)
+    DECORATION_COLOR_STATE = 360,
+    DECORATION_STYLE = 361,
+    DECORATION_STYLE_STATE = 362,
+    LETTER_SPACING = 363, // f32 (363-366)
+    LETTER_SPACING_STATE = 367,
+    TEXT_WRAP = 368,
+    TEXT_WRAP_STATE = 369,
+    WHITE_SPACE = 370,
+    WHITE_SPACE_STATE = 371,
+    TEXT_TRANSFORM = 372,
+    TEXT_TRANSFORM_STATE = 373,
+    TEXT_ALIGN = 374,
+    TEXT_ALIGN_STATE = 375,
+    TEXT_JUSTIFY = 376,
+    TEXT_JUSTIFY_STATE = 377,
+    TEXT_INDENT = 378,      // f32 (378-381)
+    TEXT_INDENT_TYPE = 382, // 0 px, 1 %
+    TEXT_INDENT_STATE = 383,
+    LINE_HEIGHT = 384, // f32 (384-387)
+    LINE_HEIGHT_STATE = 388,
+    LINE_HEIGHT_TYPE = 389,
+    DECORATION_THICKNESS = 390, // f32 (390-393)
+    DECORATION_THICKNESS_STATE = 394,
+    TEXT_SHADOW_STATE = 395,
+    TEXT_OVERFLOW = 396,
+    TEXT_OVERFLOW_STATE = 397,
 
-    // Pseudo set mask: 128-bit bitmask (two i64s) tracking which properties
-    // were explicitly set on a pseudo style buffer. Uses the same bit layout
-    // as StateKeys. Zero-copy: lives in the style buffer itself.
-    PSEUDO_SET_MASK_LOW = 398,  // i64 (8 bytes: 398-405)
-    PSEUDO_SET_MASK_HIGH = 406, // i64 (8 bytes: 406-413)
+    // Which StateKeys a pseudo-class buffer sets explicitly (same bit layout).
+    PSEUDO_SET_MASK_LOW = 398,  // i64 (398-405)
+    PSEUDO_SET_MASK_HIGH = 406, // i64 (406-413)
 
-    // Platform-only (not in Rust StyleKeys but reserved):
-    // FONT_VARIANT_NUMERIC = 419      // u8 (bitmask)
-    // FONT_VARIANT_NUMERIC_STATE = 420 // u8
+    // 414-418 free.
+    FONT_VARIANT_NUMERIC = 419, // bitmask
+    FONT_VARIANT_NUMERIC_STATE = 420,
 
-    // ============================================================
-    // Transform buffer region (bytes 422-561)
-    // ============================================================
-    TRANSFORM_COUNT = 422,  // u8: number of inline ops (0-6)
-    TRANSFORM_FLAGS = 423,  // u8: bit 0 = HAS_MATRIX, bit 1 = IS_3D
-    TRANSFORM_OP_0 = 424,   // 12 bytes: type(u8) + pad(3) + a(f32) + b(f32)
-    TRANSFORM_OP_1 = 436,   // 12 bytes
-    TRANSFORM_OP_2 = 448,   // 12 bytes
-    TRANSFORM_OP_3 = 460,   // 12 bytes
-    TRANSFORM_OP_4 = 472,   // 12 bytes
-    TRANSFORM_OP_5 = 484,   // 12 bytes
-    TRANSFORM_MATRIX = 496, // 64 bytes: 16 x f32 (4x4 column-major matrix)
+    // Up to six inline transform ops, or a full matrix.
+    TRANSFORM_COUNT = 422,  // number of inline ops (0-6)
+    TRANSFORM_FLAGS = 423,  // bit 0 HAS_MATRIX, bit 1 IS_3D
+    TRANSFORM_OP_0 = 424,   // bytes(12) (424-435), type(u8) + pad(3) + a(f32) + b(f32)
+    TRANSFORM_OP_1 = 436,   // bytes(12) (436-447)
+    TRANSFORM_OP_2 = 448,   // bytes(12) (448-459)
+    TRANSFORM_OP_3 = 460,   // bytes(12) (460-471)
+    TRANSFORM_OP_4 = 472,   // bytes(12) (472-483)
+    TRANSFORM_OP_5 = 484,   // bytes(12) (484-495)
+    TRANSFORM_MATRIX = 496, // bytes(64) (496-559), 16 x f32, 4x4 column-major
 
-    // ============================================================
-    // New CSS properties (bytes 560-595)
-    // ============================================================
-    OBJECT_POSITION_X_TYPE = 560,  // u8  (0=px, 1=%, 2=keyword)
-    OBJECT_POSITION_Y_TYPE = 561,  // u8
-    OBJECT_POSITION_X_VALUE = 562, // f32 (4 bytes: 562-565)
-    OBJECT_POSITION_Y_VALUE = 566, // f32 (4 bytes: 566-569)
-    OBJECT_POSITION_STATE = 570,   // u8
-    WRITING_MODE = 571,            // u8
-    WRITING_MODE_STATE = 572,      // u8
-    UNICODE_BIDI = 573,            // u8
-    UNICODE_BIDI_STATE = 574,      // u8
-    HYPHENS = 575,                 // u8
-    HYPHENS_STATE = 576,           // u8
-    CARET_COLOR = 577,             // u32 (4 bytes: 577-580)
-    CARET_COLOR_STATE = 581,       // u8
-    WORD_SPACING = 582,            // f32 (4 bytes: 582-585)
-    WORD_SPACING_TYPE = 586,       // u8 (0=px, 1=%, 2=normal)
-    WORD_SPACING_STATE = 587,      // u8
-    FONT_STRETCH = 588,            // i32 (4 bytes: 588-591) percentage * 100
-    FONT_STRETCH_STATE = 592,      // u8
-                                   // End of buffer at 593, padded to 596
+    OBJECT_POSITION_X_TYPE = 560, // 0 px, 1 %, 2 keyword
+    OBJECT_POSITION_Y_TYPE = 561,
+    OBJECT_POSITION_X_VALUE = 562, // f32 (562-565)
+    OBJECT_POSITION_Y_VALUE = 566, // f32 (566-569)
+    OBJECT_POSITION_STATE = 570,
+    WRITING_MODE = 571,
+    WRITING_MODE_STATE = 572,
+    UNICODE_BIDI = 573,
+    UNICODE_BIDI_STATE = 574,
+    HYPHENS = 575,
+    HYPHENS_STATE = 576,
+    CARET_COLOR = 577, // u32 (577-580)
+    CARET_COLOR_STATE = 581,
+    WORD_SPACING = 582,      // f32 (582-585)
+    WORD_SPACING_TYPE = 586, // 0 px, 1 %, 2 normal
+    WORD_SPACING_STATE = 587,
+    FONT_STRETCH = 588, // i32 (588-591), percentage x 100
+    FONT_STRETCH_STATE = 592,
+    LINE_CLAMP = 593, // i32 (593-596), max lines, 0 none
+    LINE_CLAMP_STATE = 597,
+    TRANSFORM_ORIGIN_X_TYPE = 598, // 0 px, 1 %
+    TRANSFORM_ORIGIN_Y_TYPE = 599,
+    TRANSFORM_ORIGIN_X_VALUE = 600, // f32 (600-603)
+    TRANSFORM_ORIGIN_Y_VALUE = 604, // f32 (604-607)
+    TRANSFORM_ORIGIN_STATE = 608,
+    // </style-keys:offsets>
 }
 
 pub const MAX_INLINE_TRANSFORM_OPS: usize = 6;
@@ -754,64 +746,63 @@ impl TransformOpType {
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct StateKeys: u128 {
-        const DISPLAY         = 1u128 << 0;
-        const POSITION        = 1u128 << 1;
-        const DIRECTION       = 1u128 << 2;
-        const FLEX_DIRECTION  = 1u128 << 3;
-        const FLEX_WRAP       = 1u128 << 4;
-        const OVERFLOW_X      = 1u128 << 5;
-        const OVERFLOW_Y      = 1u128 << 6;
-        const ALIGN_ITEMS     = 1u128 << 7;
-        const ALIGN_SELF      = 1u128 << 8;
-        const ALIGN_CONTENT   = 1u128 << 9;
-        const JUSTIFY_ITEMS   = 1u128 << 10;
-        const JUSTIFY_SELF    = 1u128 << 11;
+        // <style-keys:state> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+        const DISPLAY = 1u128 << 0;
+        const POSITION = 1u128 << 1;
+        const DIRECTION = 1u128 << 2;
+        const FLEX_DIRECTION = 1u128 << 3;
+        const FLEX_WRAP = 1u128 << 4;
+        const OVERFLOW_X = 1u128 << 5;
+        const OVERFLOW_Y = 1u128 << 6;
+        const ALIGN_ITEMS = 1u128 << 7;
+        const ALIGN_SELF = 1u128 << 8;
+        const ALIGN_CONTENT = 1u128 << 9;
+        const JUSTIFY_ITEMS = 1u128 << 10;
+        const JUSTIFY_SELF = 1u128 << 11;
         const JUSTIFY_CONTENT = 1u128 << 12;
-        const INSET           = 1u128 << 13;
-        const MARGIN          = 1u128 << 14;
-        const PADDING         = 1u128 << 15;
-        const BORDER          = 1u128 << 16;
-        const FLEX_GROW       = 1u128 << 17;
-        const FLEX_SHRINK     = 1u128 << 18;
-        const FLEX_BASIS      = 1u128 << 19;
-        const SIZE            = 1u128 << 20;
-        const MIN_SIZE        = 1u128 << 21;
-        const MAX_SIZE        = 1u128 << 22;
-        const GAP             = 1u128 << 23;
-        const ASPECT_RATIO    = 1u128 << 24;
-        const GRID_AUTO_FLOW  = 1u128 << 25;
-        const GRID_COLUMN     = 1u128 << 26;
-        const GRID_ROW        = 1u128 << 27;
+        const INSET = 1u128 << 13;
+        const MARGIN = 1u128 << 14;
+        const PADDING = 1u128 << 15;
+        const BORDER = 1u128 << 16;
+        const FLEX_GROW = 1u128 << 17;
+        const FLEX_SHRINK = 1u128 << 18;
+        const FLEX_BASIS = 1u128 << 19;
+        const SIZE = 1u128 << 20;
+        const MIN_SIZE = 1u128 << 21;
+        const MAX_SIZE = 1u128 << 22;
+        const GAP = 1u128 << 23;
+        const ASPECT_RATIO = 1u128 << 24;
+        const GRID_AUTO_FLOW = 1u128 << 25;
+        const GRID_COLUMN = 1u128 << 26;
+        const GRID_ROW = 1u128 << 27;
         const SCROLLBAR_WIDTH = 1u128 << 28;
-        const ALIGN           = 1u128 << 29;
-        const BOX_SIZING      = 1u128 << 30;
-        const OVERFLOW        = 1u128 << 31;
-        const ITEM_IS_TABLE   = 1u128 << 32;
+        const ALIGN = 1u128 << 29;
+        const BOX_SIZING = 1u128 << 30;
+        const OVERFLOW = 1u128 << 31;
+        const ITEM_IS_TABLE = 1u128 << 32;
         const ITEM_IS_REPLACED = 1u128 << 33;
-        const DISPLAY_MODE   = 1u128 << 34;
+        const DISPLAY_MODE = 1u128 << 34;
         const FORCE_INLINE = 1u128 << 35;
         const MIN_CONTENT_WIDTH = 1u128 << 36;
         const MIN_CONTENT_HEIGHT = 1u128 << 37;
         const MAX_CONTENT_WIDTH = 1u128 << 38;
         const MAX_CONTENT_HEIGHT = 1u128 << 39;
-        const BORDER_STYLE    = 1u128 << 40;
-        const BORDER_RADIUS    = 1u128 << 41;
-        const BORDER_COLOR    = 1u128 << 42;
+        const BORDER_STYLE = 1u128 << 40;
+        const BORDER_RADIUS = 1u128 << 41;
+        const BORDER_COLOR = 1u128 << 42;
         const FLOAT = 1u128 << 43;
         const CLEAR = 1u128 << 44;
         const OBJECT_FIT = 1u128 << 45;
         const Z_INDEX = 1u128 << 46;
         const LIST_STYLE_POSITION = 1u128 << 47;
         const LIST_STYLE_TYPE = 1u128 << 48;
-        const _RESERVED_49 = 1u128 << 49;
-
+        const INVALIDATE_TEXT = 1u128 << 49; // Kotlin's INVALIDATE_TEXT is every bit
         const FONT_COLOR = 1u128 << 50;
         const DECORATION_LINE = 1u128 << 51;
         const DECORATION_COLOR = 1u128 << 52;
         const TEXT_ALIGN = 1u128 << 53;
         const TEXT_JUSTIFY = 1u128 << 54;
         const BACKGROUND_COLOR = 1u128 << 55;
-
         const FONT_SIZE = 1u128 << 56;
         const TEXT_TRANSFORM = 1u128 << 57;
         const FONT_STYLE = 1u128 << 58;
@@ -822,11 +813,12 @@ bitflags! {
         const WHITE_SPACE = 1u128 << 63;
         const FONT_WEIGHT = 1u128 << 64;
         const LINE_HEIGHT = 1u128 << 65;
-        const VERTICAL_ALIGN_TEXT = 1u128 << 66;
+        const VERTICAL_ALIGN = 1u128 << 66;
         const DECORATION_THICKNESS = 1u128 << 67;
         const TEXT_SHADOWS = 1u128 << 68;
         const FONT_FAMILY = 1u128 << 69;
         const LETTER_SPACING = 1u128 << 70;
+        const FONT_VARIANT_NUMERIC = 1u128 << 71;
         const OBJECT_POSITION = 1u128 << 72;
         const WRITING_MODE = 1u128 << 73;
         const UNICODE_BIDI = 1u128 << 74;
@@ -834,6 +826,10 @@ bitflags! {
         const CARET_COLOR = 1u128 << 76;
         const WORD_SPACING = 1u128 << 77;
         const FONT_STRETCH = 1u128 << 78;
+        const TEXT_INDENT = 1u128 << 79;
+        const LINE_CLAMP = 1u128 << 80;
+        const TRANSFORM_ORIGIN = 1u128 << 81;
+        // </style-keys:state>
     }
 }
 

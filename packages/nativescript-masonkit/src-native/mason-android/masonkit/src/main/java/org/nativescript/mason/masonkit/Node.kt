@@ -895,6 +895,7 @@ open class Node internal constructor(
       // Keep a JVM-side cached copy of the pseudo-mask to avoid unsafe
       // direct-buffer reads on hot paths (see pseudoMask getter).
       pseudoMaskCache = updated and 0xFFFF
+      if (orig != updated) style.styleVersion++
       if (autoDirty) {
         dirty()
       }

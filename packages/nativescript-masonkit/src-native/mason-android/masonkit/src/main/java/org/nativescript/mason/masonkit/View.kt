@@ -187,15 +187,17 @@ open class View @JvmOverloads constructor(
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     // Skip expensive work when size hasn't actually changed
     if (w != oldw || h != oldh) {
-      style.mBackground?.layers?.forEach {
-        it.shader = null
-        it.shaderWidth = -1
-        it.shaderHeight = -1
+      style.mBackground?.layers?.let { layers ->
+        for (i in layers.indices) {
+          val layer = layers[i]
+          layer.shader = null
+          layer.shaderWidth = -1
+          layer.shaderHeight = -1
+        }
       } // force rebuild on next draw
-      style.invalidateBorderRenderer()
-      // Reapply transforms now that pivot and size are known
+      style.invalidateBorderRendererSize()
       try {
-        style.applyTransformToView()
+        style.onElementSizeChanged(this)
       } catch (_: Exception) {
       }
     }
@@ -295,6 +297,8 @@ open class View @JvmOverloads constructor(
       }
     }
   }
+
+  internal fun setMeasuredSize(width: Int, height: Int) = setMeasuredDimension(width, height)
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)

@@ -431,6 +431,9 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedUnicodeBidi.toLong()
     h = h * 1000003 xor style.resolvedHyphens.toLong()
     h = h * 1000003 xor style.resolvedFontStretch.toLong()
+    h = h * 1000003 xor style.resolvedTextIndent.toRawBits().toLong()
+    h = h * 1000003 xor (if (style.resolvedTextIndentIsPercent) 1L else 0L)
+    h = h * 1000003 xor style.resolvedLineClamp.toLong()
     h = h * 1000003 xor style.textOverflow.ordinal.toLong()
     return h
   }
@@ -461,6 +464,8 @@ class TextEngine(val container: TextContainer) {
     alignment: android.text.Layout.Alignment,
     heuristic: TextDirectionHeuristic,
     justified: Boolean,
+    indent: Int,
+    maxLines: Int,
     widthSlack: Int = 0
   ): StaticLayoutCacheEntry? {
     for (entry in staticLayoutCache) {
@@ -471,12 +476,14 @@ class TextEngine(val container: TextContainer) {
         entry.alignment == alignment &&
         entry.includePadding == includePadding &&
         entry.justified == justified &&
-        entry.heuristic == heuristic
+        entry.heuristic == heuristic &&
+        entry.indent == indent &&
+        entry.maxLines == maxLines
       ) {
         return entry
       }
     }
-    if (justified) return null
+    if (justified || indent != 0) return null
     val safeWidthConstraint = if (widthConstraint == Int.MAX_VALUE) 1_000_000 else widthConstraint
     for (entry in staticLayoutCache) {
       if (entry != null &&
@@ -487,6 +494,7 @@ class TextEngine(val container: TextContainer) {
         entry.includePadding == includePadding &&
         !entry.justified &&
         entry.heuristic == heuristic &&
+        entry.maxLines == maxLines &&
         entry.maxLineWidth <= safeWidthConstraint &&
         safeWidthConstraint <= entry.layout.width + widthSlack
       ) {
@@ -513,12 +521,103 @@ class TextEngine(val container: TextContainer) {
     if (style.resolvedHyphens.toInt() == 2 || softHyphensOnly(text)) Layout.HYPHENATION_FREQUENCY_NORMAL
     else Layout.HYPHENATION_FREQUENCY_NONE
 
+  // text-indent in device px for a line length (a percentage resolves against it, 0 when
+  // unconstrained). Inline boxes don't start a block, nor do anonymous runs after the first child.
+  private fun textIndentPx(lineLength: Float): Int {
+    val raw = style.resolvedTextIndent
+    if (raw == 0f) return 0
+    if (style.isValueInitialized && style.display == Display.Inline) return 0
+    if (node.isAnonymous) {
+      val first = node.parent?.children?.firstOrNull()
+      if (first != null && first !== node) return 0
+    }
+    if (!style.resolvedTextIndentIsPercent) return kotlin.math.round(raw).toInt()
+    if (lineLength <= 0f || lineLength >= 1_000_000f) return 0
+    return kotlin.math.round(raw / 100f * lineLength).toInt()
+  }
+
+  private val percentTextIndent: Boolean
+    get() = style.resolvedTextIndentIsPercent && style.resolvedTextIndent != 0f
+
+  // line-clamp: max visible lines, 0 for none. Inline boxes are not clamped.
+  private val lineClamp: Int
+    get() {
+      val clamp = style.resolvedLineClamp
+      if (clamp <= 0) return 0
+      return if (style.isValueInitialized && style.display == Display.Inline) 0 else clamp
+    }
+
+  // StaticLayout indents the start of a line from the side its paragraph direction starts on.
+  private fun startsRtl(text: CharSequence, heuristic: TextDirectionHeuristic): Boolean =
+    heuristic.isRtl(text, 0, text.length)
+
+  // Builder's setIndents keeps the array, so each one is immutable and reused per value.
+  private var indentArray: IntArray? = null
+  private var indentArrayValue = 0
+
+  private fun indentArrayFor(indent: Int): IntArray {
+    indentArray?.let { if (indentArrayValue == indent) return it }
+    return intArrayOf(indent, 0).also {
+      indentArray = it
+      indentArrayValue = indent
+    }
+  }
+
+  // The shared StaticLayout setup. [indent] applies to the first line at the start edge,
+  // [maxLines] > 0 clamps with an end ellipsis, [ellipsizedWidth] > 0 ellipsizes long lines.
+  @androidx.annotation.RequiresApi(Build.VERSION_CODES.M)
+  private fun newStaticLayout(
+    text: CharSequence,
+    paint: TextPaint,
+    width: Int,
+    alignment: android.text.Layout.Alignment,
+    heuristic: TextDirectionHeuristic,
+    justified: Boolean,
+    indent: Int,
+    maxLines: Int,
+    ellipsizedWidth: Int = 0
+  ): StaticLayout {
+    var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), width)
+      .setAlignment(alignment)
+      .setHyphenationFrequency(hyphenationFrequency(text))
+      .setLineSpacing(0f, 1f)
+      .setIncludePad(includePadding)
+      .setTextDirection(heuristic)
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      builder = builder.setUseLineSpacingFromFallbacks(true)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      builder = if (justified) {
+        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
+      } else {
+        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
+      }
+    }
+
+    if (indent != 0) {
+      val indents = indentArrayFor(indent)
+      builder = if (startsRtl(text, heuristic)) builder.setIndents(null, indents)
+      else builder.setIndents(indents, null)
+    }
+    if (maxLines > 0) {
+      builder = builder.setMaxLines(maxLines).setEllipsize(TextUtils.TruncateAt.END)
+    }
+    if (ellipsizedWidth > 0) {
+      builder = builder.setEllipsize(TextUtils.TruncateAt.END).setEllipsizedWidth(ellipsizedWidth)
+    }
+    return builder.build()
+  }
+
   private fun buildStaticLayoutCached(
     spannable: CharSequence,
     paint: TextPaint,
     widthConstraint: Int,
     alignment: android.text.Layout.Alignment,
-    heuristic: TextDirectionHeuristic
+    heuristic: TextDirectionHeuristic,
+    indent: Int,
+    maxLines: Int
   ): StaticLayoutCacheEntry {
     val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
       style.resolvedTextAlign == TextAlign.Justify
@@ -527,34 +626,14 @@ class TextEngine(val container: TextContainer) {
     // producing garbage line breaks. Match iOS's finite fallback instead.
     val safeWidthConstraint = if (widthConstraint == Int.MAX_VALUE) 1_000_000 else widthConstraint
 
-    findCachedStaticLayout(spannable.length, widthConstraint, alignment, heuristic, justified)?.let {
+    findCachedStaticLayout(spannable.length, widthConstraint, alignment, heuristic, justified, indent, maxLines)?.let {
       return it
     }
 
-    val built = singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified)
+    // The one-line fast path has no indent; a single line never needs clamping.
+    val built = (if (indent == 0) singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified) else null)
       ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, hyphenationPaint(spannable, paint), safeWidthConstraint
-      )
-        .setAlignment(alignment)
-        .setHyphenationFrequency(hyphenationFrequency(spannable))
-        .setLineSpacing(0f, 1f)
-        .setIncludePad(includePadding)
-        .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        builder = builder.setUseLineSpacingFromFallbacks(true)
-      }
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        builder = if (justified) {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-        } else {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-        }
-      }
-
-      builder.build()
+      newStaticLayout(spannable, paint, safeWidthConstraint, alignment, heuristic, justified, indent, maxLines)
     } else {
       StaticLayout(
         spannable, paint, safeWidthConstraint, alignment, 1f, // lineSpacingMultiplier
@@ -573,7 +652,9 @@ class TextEngine(val container: TextContainer) {
       heuristic = heuristic,
       layout = built,
       keepsTrailingSpaces = keepsTrailingSpaces(),
-      advances = if (justified) null else advancesFor(spannable, paint)
+      advances = if (justified) null else advancesFor(spannable, paint),
+      indent = indent,
+      maxLines = maxLines
     )
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
@@ -613,7 +694,9 @@ class TextEngine(val container: TextContainer) {
 
   internal class MeasureWidthSpec(
     val constraint: Int,
-    val isInline: Boolean
+    val isInline: Boolean,
+    // What a percentage text-indent resolves against.
+    val indentBasis: Float
   )
 
   private fun computeWidthConstraint(
@@ -715,7 +798,13 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    return MeasureWidthSpec(widthConstraint, isInline)
+    val indentBasis = when {
+      widthConstraint != Int.MAX_VALUE -> widthConstraint.toFloat()
+      knownWidth > 0f && knownHeight != Float.MIN_VALUE -> knownWidth
+      availableWidth.isFinite() && availableWidth > 0f -> availableWidth
+      else -> 0f
+    }
+    return MeasureWidthSpec(widthConstraint, isInline, indentBasis)
   }
 
   private fun measureLayout(
@@ -740,16 +829,22 @@ class TextEngine(val container: TextContainer) {
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
     val textDirectionHeuristic = getTextDirectionHeuristic()
 
+    val indent = textIndentPx(spec.indentBasis)
+    val maxLines = lineClamp
     val entry = buildStaticLayoutCached(
-      spannable, paint, spec.constraint, alignment, textDirectionHeuristic
+      spannable, paint, spec.constraint, alignment, textDirectionHeuristic, indent, maxLines
     )
     val layout = entry.layout
+    measuredMaxLines = maxLines
 
     val breaksAtSoftHyphens = style.resolvedHyphens.toInt() != 1
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
       !(spec.isInline && !hasSoftWrapOpportunity(spannable, breaksAtSoftHyphens))
     ) {
-      maxWordWidth(spannable, paint, spec.isInline, if (spec.isInline) advancesFor(spannable, paint) else null, breaksAtSoftHyphens)
+      val advances = if (spec.isInline) advancesFor(spannable, paint) else null
+      val widest = maxWordWidth(spannable, paint, spec.isInline, advances, breaksAtSoftHyphens)
+      // The first word also carries the indent.
+      if (indent != 0) maxOf(widest, firstWordWidth(spannable, paint, advances) + indent) else widest
     } else {
       entry.maxLineWidth
     }
@@ -770,17 +865,18 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
+    val layoutHeight = visibleHeight(layout, maxLines)
     when (availableHeight) {
       -1f -> {
-        this.minMeasuredTextHeight = layout.height.toFloat()
+        this.minMeasuredTextHeight = layoutHeight
       }
 
       -2f -> {
-        this.maxMeasuredTextHeight = layout.height.toFloat()
+        this.maxMeasuredTextHeight = layoutHeight
       }
 
       else -> {
-        this.measuredTextHeight = layout.height.toFloat()
+        this.measuredTextHeight = layoutHeight
       }
     }
 
@@ -880,7 +976,13 @@ class TextEngine(val container: TextContainer) {
       }
       flushTextStyleIfNeeded()
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
-      val mcWKey = mcSpec.constraint.toLong()
+      // An unconstrained line length still resolves a percentage indent, so key on its basis too.
+      val percentIndent = percentTextIndent
+      val mcWKey = if (percentIndent && mcSpec.constraint == Int.MAX_VALUE) {
+        Int.MAX_VALUE.toLong() + 1L + mcSpec.indentBasis.toLong()
+      } else {
+        mcSpec.constraint.toLong()
+      }
       val mcWMode = when (availableWidth) {
         -1f -> 0L
         -2f -> 1L
@@ -903,7 +1005,7 @@ class TextEngine(val container: TextContainer) {
           return measureCacheVals[i]
         }
       }
-      if (mcWMode == 2L && maxContentVersion == ver &&
+      if (mcWMode == 2L && !percentIndent && maxContentVersion == ver &&
         mcSpec.constraint >= maxContentWidth && mcSpec.constraint <= maxContentConstraint
       ) {
         storeMeasure(ver, mcWKey, mcWMode, maxContentOut)
@@ -943,7 +1045,7 @@ class TextEngine(val container: TextContainer) {
 
       val minLineHeight = minLineHeight(paint)
 
-      val measuredHeight = layout?.height?.toFloat()
+      val measuredHeight = layout?.let { visibleHeight(it, measuredMaxLines) }
 
       // A text node holding only collapsible whitespace (e.g. a JSX/HTML
       // newline+indent between sibling elements) must collapse to 0x0 rather
@@ -1118,6 +1220,13 @@ class TextEngine(val container: TextContainer) {
 
     val heuristic = getTextDirectionHeuristic()
 
+    // text-indent shifts the first line from the start edge on top of any float.
+    val textIndent = textIndentPx(contentWidth.toFloat())
+    if (textIndent != 0) {
+      if (startsRtl(text, heuristic)) rightIndents[0] += textIndent else leftIndents[0] += textIndent
+    }
+    val maxLinesClamp = lineClamp
+
     var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), contentWidth)
       .setAlignment(alignment)
       .setHyphenationFrequency(hyphenationFrequency(text))
@@ -1125,6 +1234,9 @@ class TextEngine(val container: TextContainer) {
       .setIncludePad(includePadding)
       .setTextDirection(heuristic)
       .setIndents(leftIndents, rightIndents)
+    if (maxLinesClamp > 0) {
+      builder = builder.setMaxLines(maxLinesClamp).setEllipsize(TextUtils.TruncateAt.END)
+    }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
       builder = builder.setUseLineSpacingFromFallbacks(true)
@@ -1171,33 +1283,26 @@ class TextEngine(val container: TextContainer) {
     val heuristic = getTextDirectionHeuristic()
     val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
       style.resolvedTextAlign == TextAlign.Justify
-    findCachedStaticLayout(
+    val indent = textIndentPx(contentWidth.toFloat())
+    val maxLines = lineClamp
+    val cached = findCachedStaticLayout(
       text.length, if (allowWrap) contentWidth else Int.MAX_VALUE, alignment, heuristic, justified,
-      DRAW_WIDTH_SLACK
-    )?.let {
+      indent, maxLines, DRAW_WIDTH_SLACK
+    )
+    // text-overflow: ellipsis cuts an unwrapped line that overflows the box.
+    val ellipsize = !allowWrap && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+      style.textOverflowEllipsis && (cached == null || cached.maxLineWidth > contentWidth)
+    if (cached != null && !ellipsize) {
       if (container is TextView) {
-        container.setCachedStaticLayout(it.layout, contentWidth)
+        container.setCachedStaticLayout(cached.layout, contentWidth)
       }
-      return it.layout
+      return cached.layout
     }
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), safeContentWidth)
-        .setAlignment(alignment)
-        .setHyphenationFrequency(hyphenationFrequency(text))
-        .setLineSpacing(0f, 1f)
-        .setIncludePad(includePadding)
-        .setTextDirection(heuristic as android.text.TextDirectionHeuristic)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        builder = builder.setUseLineSpacingFromFallbacks(true)
-      }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        builder = if (justified) {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-        } else {
-          builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-        }
-      }
-      builder.build()
+      newStaticLayout(
+        text, paint, safeContentWidth, alignment, heuristic, justified, indent, maxLines,
+        if (ellipsize) contentWidth else 0
+      )
     } else {
       StaticLayout(text, paint, safeContentWidth, alignment, 1f, 0f, includePadding)
     }
@@ -1825,7 +1930,9 @@ class TextEngine(val container: TextContainer) {
     val heuristic: TextDirectionHeuristic,
     val layout: android.text.Layout,
     keepsTrailingSpaces: Boolean,
-    advances: FloatArray?
+    advances: FloatArray?,
+    val indent: Int,
+    val maxLines: Int
   ) {
     val maxLineWidth: Float
     val widthIndependent: Boolean
@@ -1834,21 +1941,39 @@ class TextEngine(val container: TextContainer) {
       var max = 0f
       var left = true
       for (i in 0 until layout.lineCount) {
-        val w = ceil(
+        var w = ceil(
           when {
             keepsTrailingSpaces -> layout.getLineWidth(i)
             advances != null -> advanceSum(advances, layout.getLineStart(i), layout.getLineVisibleEnd(i))
             else -> layout.getLineMax(i)
           }
         )
+        // Line widths leave out setIndents' first-line indent.
+        if (i == 0 && indent != 0) w = maxOf(0f, w + indent)
         if (w > max) max = w
         if (layout.getLineLeft(i) != 0f) left = false
       }
       val text = layout.text
       maxLineWidth = max
-      widthIndependent = left && (text !is Spanned ||
-        text.nextSpanTransition(0, text.length, LineBackgroundSpan::class.java) >= text.length)
+      // Indented or truncated lines depend on the exact width.
+      widthIndependent = left && indent == 0 && (maxLines <= 0 || layout.lineCount < maxLines) &&
+        (text !is Spanned || text.nextSpanTransition(0, text.length, LineBackgroundSpan::class.java) >= text.length)
     }
+  }
+
+  // Line-clamp truncation caps lineCount, but stay safe if a platform kept the hidden lines.
+  private fun visibleHeight(layout: android.text.Layout, maxLines: Int): Float =
+    if (maxLines > 0 && layout.lineCount > maxLines) layout.getLineTop(maxLines).toFloat()
+    else layout.height.toFloat()
+
+  // Max lines the last measured layout was clamped to.
+  private var measuredMaxLines = 0
+
+  private fun firstWordWidth(text: CharSequence, paint: TextPaint, advances: FloatArray?): Float {
+    var end = 0
+    while (end < text.length && !text[end].isSoftWrapOpportunity()) end++
+    if (end == 0) return 0f
+    return ceil(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
   }
 
   private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
@@ -2701,6 +2826,8 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
           StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
           StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_INDENT) ||
+          StateKeys.hasFlag(low, high, StateKeys.LINE_CLAMP) ||
           StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_POSITION) ||
           StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_TYPE)
         )

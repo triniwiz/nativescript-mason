@@ -1,0 +1,351 @@
+# Mason style buffer layout.
+#
+# The single source for StyleKeys (byte offsets into the shared style buffer)
+# and StateKeys (bits of the 128-bit dirty mask) in Rust, Kotlin, Swift,
+# TypeScript and the Windows C++ shell. After editing run:
+#
+#   npm run gen:style-keys       regenerate every language
+#   npm run test:keys           fail when a generated block is stale
+#
+# [style] fields are packed in the order listed. `@N` pins a field to byte N and
+# leaves the bytes before it unused. Types: u8 i8 i32 u32 f32 i64 bytes(N).
+# The buffer size is the end of the last field rounded up to 4.
+#
+# Offsets are shared between the Rust core and the platform layers: append new
+# fields at the end (or into a free gap) and never move or resize an existing one.
+#
+# [state] bits are numbered in the order listed; `@N` pins a bit. A `lang=Name`
+# option renames the constant in one language, `lang=-` leaves it out there.
+# Swift names default to camelCase, C++ names to kPascalCase.
+
+[style]
+DISPLAY                              u8
+POSITION                             u8
+DIRECTION                            u8
+FLEX_DIRECTION                       u8
+FLEX_WRAP                            u8
+OVERFLOW_X                           u8
+OVERFLOW_Y                           u8
+
+ALIGN_ITEMS                          u8
+ALIGN_SELF                           u8
+ALIGN_CONTENT                        u8
+
+JUSTIFY_ITEMS                        u8
+JUSTIFY_SELF                         u8
+JUSTIFY_CONTENT                      u8
+
+# Each box side group: four types, then four values.
+INSET_LEFT_TYPE                      u8
+INSET_RIGHT_TYPE                     u8
+INSET_TOP_TYPE                       u8
+INSET_BOTTOM_TYPE                    u8
+INSET_LEFT_VALUE                     f32
+INSET_RIGHT_VALUE                    f32
+INSET_TOP_VALUE                      f32
+INSET_BOTTOM_VALUE                   f32
+
+MARGIN_LEFT_TYPE                     u8
+MARGIN_RIGHT_TYPE                    u8
+MARGIN_TOP_TYPE                      u8
+MARGIN_BOTTOM_TYPE                   u8
+MARGIN_LEFT_VALUE                    f32
+MARGIN_RIGHT_VALUE                   f32
+MARGIN_TOP_VALUE                     f32
+MARGIN_BOTTOM_VALUE                  f32
+
+PADDING_LEFT_TYPE                    u8
+PADDING_RIGHT_TYPE                   u8
+PADDING_TOP_TYPE                     u8
+PADDING_BOTTOM_TYPE                  u8
+PADDING_LEFT_VALUE                   f32
+PADDING_RIGHT_VALUE                  f32
+PADDING_TOP_VALUE                    f32
+PADDING_BOTTOM_VALUE                 f32
+
+BORDER_LEFT_TYPE                     u8
+BORDER_RIGHT_TYPE                    u8
+BORDER_TOP_TYPE                      u8
+BORDER_BOTTOM_TYPE                   u8
+BORDER_LEFT_VALUE                    f32
+BORDER_RIGHT_VALUE                   f32
+BORDER_TOP_VALUE                     f32
+BORDER_BOTTOM_VALUE                  f32
+
+FLEX_GROW                            f32
+FLEX_SHRINK                          f32
+
+FLEX_BASIS_TYPE                      u8
+FLEX_BASIS_VALUE                     f32
+
+WIDTH_TYPE                           u8
+HEIGHT_TYPE                          u8
+WIDTH_VALUE                          f32
+HEIGHT_VALUE                         f32
+
+MIN_WIDTH_TYPE                       u8
+MIN_HEIGHT_TYPE                      u8
+MIN_WIDTH_VALUE                      f32
+MIN_HEIGHT_VALUE                     f32
+
+MAX_WIDTH_TYPE                       u8
+MAX_HEIGHT_TYPE                      u8
+MAX_WIDTH_VALUE                      f32
+MAX_HEIGHT_VALUE                     f32
+
+GAP_ROW_TYPE                         u8
+GAP_COLUMN_TYPE                      u8
+GAP_ROW_VALUE                        f32
+GAP_COLUMN_VALUE                     f32
+
+ASPECT_RATIO                         f32
+GRID_AUTO_FLOW                       u8
+GRID_COLUMN_START_TYPE               u8
+GRID_COLUMN_END_TYPE                 u8
+GRID_ROW_START_TYPE                  u8
+GRID_ROW_END_TYPE                    u8
+GRID_COLUMN_START_VALUE              f32
+GRID_COLUMN_END_VALUE                f32
+GRID_ROW_START_VALUE                 f32
+GRID_ROW_END_VALUE                   f32
+SCROLLBAR_WIDTH                      f32
+ALIGN                                u8
+BOX_SIZING                           u8
+OVERFLOW                             u8
+ITEM_IS_TABLE                        u8
+ITEM_IS_REPLACED                     u8
+DISPLAY_MODE                         u8
+FORCE_INLINE                         u8
+MIN_CONTENT_WIDTH                    f32
+MIN_CONTENT_HEIGHT                   f32
+MAX_CONTENT_WIDTH                    f32
+MAX_CONTENT_HEIGHT                   f32
+
+BORDER_LEFT_STYLE                    u8
+BORDER_RIGHT_STYLE                   u8
+BORDER_TOP_STYLE                     u8
+BORDER_BOTTOM_STYLE                  u8
+
+BORDER_LEFT_COLOR                    u32
+BORDER_RIGHT_COLOR                   u32
+BORDER_TOP_COLOR                     u32
+BORDER_BOTTOM_COLOR                  u32
+
+# Elliptical radii: eight types, eight values, then four squircle exponents.
+BORDER_RADIUS_TOP_LEFT_X_TYPE        u8
+BORDER_RADIUS_TOP_LEFT_Y_TYPE        u8
+BORDER_RADIUS_TOP_RIGHT_X_TYPE       u8
+BORDER_RADIUS_TOP_RIGHT_Y_TYPE       u8
+BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE    u8
+BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE    u8
+BORDER_RADIUS_BOTTOM_LEFT_X_TYPE     u8
+BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE     u8
+BORDER_RADIUS_TOP_LEFT_X_VALUE       f32
+BORDER_RADIUS_TOP_LEFT_Y_VALUE       f32
+BORDER_RADIUS_TOP_RIGHT_X_VALUE      f32
+BORDER_RADIUS_TOP_RIGHT_Y_VALUE      f32
+BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE   f32
+BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE   f32
+BORDER_RADIUS_BOTTOM_LEFT_X_VALUE    f32
+BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE    f32
+BORDER_RADIUS_TOP_LEFT_EXPONENT      f32
+BORDER_RADIUS_TOP_RIGHT_EXPONENT     f32
+BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT  f32
+BORDER_RADIUS_BOTTOM_LEFT_EXPONENT   f32
+
+FLOAT                                u8
+CLEAR                                u8
+OBJECT_FIT                           u8
+
+FONT_METRICS_ASCENT_OFFSET           f32
+FONT_METRICS_DESCENT_OFFSET          f32
+FONT_METRICS_X_HEIGHT_OFFSET         f32
+FONT_METRICS_LEADING_OFFSET          f32
+FONT_METRICS_CAP_HEIGHT_OFFSET       f32
+VERTICAL_ALIGN_OFFSET_OFFSET         f32
+VERTICAL_ALIGN_IS_PERCENT_OFFSET     u8
+VERTICAL_ALIGN_ENUM_OFFSET           f32
+FIRST_BASELINE_OFFSET                f32
+Z_INDEX                              i32
+ITEM_IS_LIST                         u8
+ITEM_IS_LIST_ITEM                    u8
+LIST_STYLE_POSITION                  u8
+LIST_STYLE_TYPE                      u8
+LIST_STYLE_POSITION_STATE            u8
+LIST_STYLE_TYPE_STATE                u8
+REF_COUNT                            u32    # copy-on-write share count
+
+# Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
+FONT_COLOR                           u32
+FONT_COLOR_STATE                     u8
+FONT_SIZE                            i32
+FONT_SIZE_TYPE                       u8
+FONT_SIZE_STATE                      u8
+FONT_WEIGHT                          i32
+FONT_WEIGHT_STATE                    u8
+FONT_STYLE_SLANT                     i32
+FONT_STYLE_TYPE                      u8
+FONT_STYLE_STATE                     u8
+FONT_FAMILY_STATE                    u8
+FONT_RESOLVED_DIRTY                  u8
+BACKGROUND_COLOR                     u32
+BACKGROUND_COLOR_STATE               u8
+BACKGROUND_COLOR_TYPE                u8
+DECORATION_LINE                      u8
+DECORATION_LINE_STATE                u8
+DECORATION_COLOR                     u32
+DECORATION_COLOR_STATE               u8
+DECORATION_STYLE                     u8
+DECORATION_STYLE_STATE               u8
+LETTER_SPACING                       f32
+LETTER_SPACING_STATE                 u8
+TEXT_WRAP                            u8
+TEXT_WRAP_STATE                      u8
+WHITE_SPACE                          u8
+WHITE_SPACE_STATE                    u8
+TEXT_TRANSFORM                       u8
+TEXT_TRANSFORM_STATE                 u8
+TEXT_ALIGN                           u8
+TEXT_ALIGN_STATE                     u8
+TEXT_JUSTIFY                         u8
+TEXT_JUSTIFY_STATE                   u8
+TEXT_INDENT                          f32
+TEXT_INDENT_TYPE                     u8           # 0 px, 1 %
+TEXT_INDENT_STATE                    u8
+LINE_HEIGHT                          f32
+LINE_HEIGHT_STATE                    u8
+LINE_HEIGHT_TYPE                     u8
+DECORATION_THICKNESS                 f32
+DECORATION_THICKNESS_STATE           u8
+TEXT_SHADOW_STATE                    u8
+TEXT_OVERFLOW                        u8
+TEXT_OVERFLOW_STATE                  u8
+
+# Which StateKeys a pseudo-class buffer sets explicitly (same bit layout).
+PSEUDO_SET_MASK_LOW                  i64
+PSEUDO_SET_MASK_HIGH                 i64
+
+# 414-418 free.
+FONT_VARIANT_NUMERIC                 u8     @419  # bitmask
+FONT_VARIANT_NUMERIC_STATE           u8
+
+# Up to six inline transform ops, or a full matrix.
+TRANSFORM_COUNT                      u8     @422  # number of inline ops (0-6)
+TRANSFORM_FLAGS                      u8           # bit 0 HAS_MATRIX, bit 1 IS_3D
+TRANSFORM_OP_0                       bytes(12)    # type(u8) + pad(3) + a(f32) + b(f32)
+TRANSFORM_OP_1                       bytes(12)
+TRANSFORM_OP_2                       bytes(12)
+TRANSFORM_OP_3                       bytes(12)
+TRANSFORM_OP_4                       bytes(12)
+TRANSFORM_OP_5                       bytes(12)
+TRANSFORM_MATRIX                     bytes(64)    # 16 x f32, 4x4 column-major
+
+OBJECT_POSITION_X_TYPE               u8           # 0 px, 1 %, 2 keyword
+OBJECT_POSITION_Y_TYPE               u8
+OBJECT_POSITION_X_VALUE              f32
+OBJECT_POSITION_Y_VALUE              f32
+OBJECT_POSITION_STATE                u8
+WRITING_MODE                         u8
+WRITING_MODE_STATE                   u8
+UNICODE_BIDI                         u8
+UNICODE_BIDI_STATE                   u8
+HYPHENS                              u8
+HYPHENS_STATE                        u8
+CARET_COLOR                          u32
+CARET_COLOR_STATE                    u8
+WORD_SPACING                         f32
+WORD_SPACING_TYPE                    u8           # 0 px, 1 %, 2 normal
+WORD_SPACING_STATE                   u8
+FONT_STRETCH                         i32          # percentage x 100
+FONT_STRETCH_STATE                   u8
+LINE_CLAMP                           i32          # max lines, 0 none
+LINE_CLAMP_STATE                     u8
+TRANSFORM_ORIGIN_X_TYPE              u8           # 0 px, 1 %
+TRANSFORM_ORIGIN_Y_TYPE              u8
+TRANSFORM_ORIGIN_X_VALUE             f32
+TRANSFORM_ORIGIN_Y_VALUE             f32
+TRANSFORM_ORIGIN_STATE               u8
+
+[state]
+DISPLAY
+POSITION
+DIRECTION
+FLEX_DIRECTION
+FLEX_WRAP
+OVERFLOW_X
+OVERFLOW_Y
+ALIGN_ITEMS
+ALIGN_SELF
+ALIGN_CONTENT
+JUSTIFY_ITEMS
+JUSTIFY_SELF
+JUSTIFY_CONTENT
+INSET
+MARGIN
+PADDING
+BORDER
+FLEX_GROW
+FLEX_SHRINK
+FLEX_BASIS
+SIZE
+MIN_SIZE
+MAX_SIZE
+GAP
+ASPECT_RATIO
+GRID_AUTO_FLOW
+GRID_COLUMN
+GRID_ROW
+SCROLLBAR_WIDTH
+ALIGN
+BOX_SIZING
+OVERFLOW
+ITEM_IS_TABLE
+ITEM_IS_REPLACED
+DISPLAY_MODE
+FORCE_INLINE
+MIN_CONTENT_WIDTH
+MIN_CONTENT_HEIGHT
+MAX_CONTENT_WIDTH
+MAX_CONTENT_HEIGHT
+BORDER_STYLE
+BORDER_RADIUS
+BORDER_COLOR
+FLOAT
+CLEAR
+OBJECT_FIT
+Z_INDEX
+LIST_STYLE_POSITION
+LIST_STYLE_TYPE
+INVALIDATE_TEXT                      kotlin=-     # Kotlin's INVALIDATE_TEXT is every bit
+FONT_COLOR                           swift=color
+DECORATION_LINE
+DECORATION_COLOR
+TEXT_ALIGN
+TEXT_JUSTIFY
+BACKGROUND_COLOR
+FONT_SIZE
+TEXT_TRANSFORM
+FONT_STYLE
+FONT_STYLE_SLANT
+TEXT_WRAP
+TEXT_OVERFLOW
+DECORATION_STYLE
+WHITE_SPACE
+FONT_WEIGHT
+LINE_HEIGHT
+VERTICAL_ALIGN
+DECORATION_THICKNESS                 swift=decorationThinkness
+TEXT_SHADOWS                         swift=textShadow
+FONT_FAMILY
+LETTER_SPACING
+FONT_VARIANT_NUMERIC
+OBJECT_POSITION
+WRITING_MODE
+UNICODE_BIDI
+HYPHENS
+CARET_COLOR
+WORD_SPACING
+FONT_STRETCH
+TEXT_INDENT
+LINE_CLAMP
+TRANSFORM_ORIGIN

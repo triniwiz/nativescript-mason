@@ -78,7 +78,8 @@ class Input @JvmOverloads constructor(
       it.shaderWidth = -1
       it.shaderHeight = -1
     } // force rebuild on next draw
-    style.invalidateBorderRenderer()
+    style.invalidateBorderRendererSize()
+    style.onViewSizeChanged(this)
     super.onSizeChanged(w, h, oldw, oldh)
   }
 

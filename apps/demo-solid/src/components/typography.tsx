@@ -115,6 +115,15 @@ export default function Typography() {
         </Card>
 
         {/* ── Type Scale reference ── */}
+        <Card title="LINE-CLAMP & TEXT-INDENT">
+          <p style={{ fontSize: 14, color: TEXT, lineClamp: 2 }}>
+            line-clamp: 2. This paragraph is long enough to wrap past two lines on any phone, so the second line should end in an ellipsis and the box should be exactly two lines tall.
+          </p>
+          <p style={{ fontSize: 14, color: TEXT, textIndent: '2em', marginTop: 12 }}>
+            text-indent: 2em. Only the first line of this paragraph starts two ems in from the left edge; the lines after it start flush.
+          </p>
+        </Card>
+
         <Card title="TYPE SCALE">
           {[
             { label: 'Display', size: 34, w: 'bold' },

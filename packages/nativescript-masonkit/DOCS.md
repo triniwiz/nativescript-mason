@@ -386,6 +386,8 @@ All components that extend `View` support the following layout properties, setta
 
 Length values support `px`, `%`, `dip`, and `auto` (for margins).
 
+The logical forms `margin-inline`, `margin-block`, `padding-inline`, `padding-block` and their `-start` / `-end` longhands are supported and map to the physical sides for left-to-right, horizontal text (inline-start is left, block-start is top).
+
 ---
 
 ### Sizing
@@ -399,6 +401,8 @@ Length values support `px`, `%`, `dip`, and `auto` (for margins).
 | `maxWidth` | `LengthAuto` | Maximum width |
 | `maxHeight` | `LengthAuto` | Maximum height |
 
+`inline-size`, `block-size` and their `min-` / `max-` forms map to width and height.
+
 ## Transforms
 
 MasonKit supports a subset of CSS `transform` functions on native views. The following functions are supported on Android via the `transform` style property:
@@ -406,6 +410,8 @@ MasonKit supports a subset of CSS `transform` functions on native views. The fol
 - `translate(x, y)` — translation in pixels (also `translateX`, `translateY`)
 - `scale(sx, sy)` — scaling (also `scaleX`, `scaleY`)
 - `rotate(angle)` — rotation in degrees (supports `deg` and `rad`)
+
+`transform-origin` sets the point transforms pivot about: keywords (`top left`), lengths or percentages of the element's box. The default is `50% 50%`.
 
 Notes:
 - Lengths in pixels can be specified with `px` (e.g. `translate(10px, 20px)`). Numeric values without units are interpreted as raw numbers (for scale/angle parsing try to use unit suffixes for clarity).
@@ -462,6 +468,7 @@ If you want transforms to be driven from the native style buffer (Rust) and casc
 | `top` | `LengthAuto` | Top offset |
 | `bottom` | `LengthAuto` | Bottom offset |
 | `inset` | `LengthAuto` | Shorthand for all four offsets |
+| `insetInline` / `insetBlock` | `string` | Logical offsets: left then right, top then bottom |
 | `zIndex` | `number` | Stacking order |
 
 ```xml
@@ -489,6 +496,9 @@ If you want transforms to be driven from the native style buffer (Rust) and casc
 | `justifyContent` | `JustifyContent` | Main-axis alignment |
 | `justifyItems` | `JustifyItems` | Default justify for children |
 | `justifySelf` | `JustifySelf` | Justify alignment for this element |
+| `placeItems` | `string` | `align-items` then `justify-items` |
+| `placeContent` | `string` | `align-content` then `justify-content` |
+| `placeSelf` | `string` | `align-self` then `justify-self` |
 
 **FlexDirection values:** `'row'` | `'column'` | `'row-reverse'` | `'column-reverse'`
 
@@ -655,6 +665,9 @@ If you want transforms to be driven from the native style buffer (Rust) and casc
 | `textWrap` | `TextWrap` | Text wrapping behavior |
 | `textOverFlow` | `TextOverflow` | Text overflow behavior |
 | `verticalAlign` | `VerticalAlign` | Vertical alignment |
+| `textIndent` | `string` | Indent of the first line (length or `%` of the width) |
+| `lineClamp` | `number \| 'none'` | Show at most this many lines, ending the last in an ellipsis. `-webkit-line-clamp` is an alias |
+| `listStyle` | `string` | Shorthand for `list-style-type` and `list-style-position` |
 
 **TextWrap values:** `'nowrap'` | `'wrap'` | `'balance'`
 

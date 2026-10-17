@@ -384,16 +384,22 @@ interface Element : EventTarget {
     var applied = true
     mason.inCompute = true
     try {
-      val layout = NativeHelpers.nativeNodeComputeWithSizeAndLayout(
+      val tree = node.layoutTree
+      var size = NativeHelpers.nativeNodeComputeWithSizeAndLayoutInto(
         mason.nativePtr,
         node.nativePtr,
         width,
-        height
+        height,
+        tree.exportBuffer
       )
-      if (layout.isEmpty()) {
+      if (size > tree.exportBuffer.size) {
+        tree.ensureExportCapacity(size + size / 4)
+        size = NativeHelpers.nativeNodeLayoutInto(mason.nativePtr, node.nativePtr, tree.exportBuffer)
+      }
+      if (size <= 0 || size > tree.exportBuffer.size) {
         return MasonLayoutTree.empty
       }
-      applied = node.layoutTree.fromFloatArray(layout)
+      applied = tree.fromFloatArray(tree.exportBuffer, size)
     } finally {
       mason.endCompute()
       node.computeCache = SizeF(width, height)
@@ -1066,14 +1072,9 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           if (view.isGone) return@let
           if (node.detailsHidden || node.layoutParent?.detailsRole == Details.DETAILS) Details.syncVisibility(node, view)
 
-          var overflowX = Overflow.Visible.value
-          var overflowY = Overflow.Visible.value
-          var boxing = BoxSizing.BorderBox.value
-          if (node.style.isValueInitialized) {
-            boxing = node.style.values.get(StyleKeys.BOX_SIZING)
-            overflowX = node.style.values.get(StyleKeys.OVERFLOW_X)
-            overflowY = node.style.values.get(StyleKeys.OVERFLOW_Y)
-          }
+          val nodeStyle = node.style
+          val styleReady = nodeStyle.isValueInitialized
+          val boxing = if (styleReady) nodeStyle.values.get(StyleKeys.BOX_SIZING) else BoxSizing.BorderBox.value
 
           // Text snaps outward so its view is never narrower than the width it was
           // measured at (a lost pixel re-wraps the last word). Other boxes round
@@ -1210,6 +1211,8 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             // Scroll is a single-view container: position it at the box
             // dimensions (viewport) and update its content dimensions for
             // scroll-range calculations.
+            val overflowX = if (styleReady) nodeStyle.values.get(StyleKeys.OVERFLOW_X) else Overflow.Visible.value
+            val overflowY = if (styleReady) nodeStyle.values.get(StyleKeys.OVERFLOW_Y) else Overflow.Visible.value
             val scrollCW = when (overflowX) {
               Overflow.Clip.value, Overflow.Hidden.value -> nv.width.toInt()
               Overflow.Auto.value -> if (nv.contentWidth > nv.width) nv.contentWidth.toInt() else nv.width.toInt()
@@ -1266,14 +1269,21 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
             )
           } else {
             if (!skipMeasureAndLayout) {
-              view.measure(
-                MeasureSpec.makeMeasureSpec(
-                  layoutWidth, MeasureSpec.EXACTLY
-                ),
-                MeasureSpec.makeMeasureSpec(
-                  layoutHeight, MeasureSpec.EXACTLY
+              // A plain box's onMeasure only echoes the exact spec back.
+              if (view.javaClass === org.nativescript.mason.masonkit.View::class.java &&
+                view.isLaidOut && !view.isLayoutRequested && view.parent is Element
+              ) {
+                (view as org.nativescript.mason.masonkit.View).setMeasuredSize(layoutWidth, layoutHeight)
+              } else {
+                view.measure(
+                  MeasureSpec.makeMeasureSpec(
+                    layoutWidth, MeasureSpec.EXACTLY
+                  ),
+                  MeasureSpec.makeMeasureSpec(
+                    layoutHeight, MeasureSpec.EXACTLY
+                  )
                 )
-              )
+              }
               view.layout(x, y, right, bottom)
             }
           }

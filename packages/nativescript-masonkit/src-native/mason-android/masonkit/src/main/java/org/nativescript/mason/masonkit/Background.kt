@@ -204,12 +204,10 @@ class Background(
   val style: Style
 ) {
 
-  internal val bgPaint by lazy {
-    Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      this.style = Paint.Style.FILL
-      isDither = true
-    }
-  }
+  // Solid fills set the colour right before each draw and the canvas copies the paint when
+  // recording, so every background shares one (draws run on the UI thread).
+  internal val bgPaint: Paint
+    get() = sharedFillPaint
 
   var color: Int?
     set(value) {
@@ -306,6 +304,11 @@ class Background(
   fun hasLocalLayer(): Boolean = layers.any { it.attachment == BackgroundAttachment.LOCAL }
 
   companion object {
+    private val sharedFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      this.style = Paint.Style.FILL
+      isDither = true
+    }
+
     /** Views that drew a `fixed` layer; a scroll repaints only these. Main thread only. */
     private val fixedViews = java.util.Collections.newSetFromMap(java.util.WeakHashMap<android.view.View, Boolean>())
 

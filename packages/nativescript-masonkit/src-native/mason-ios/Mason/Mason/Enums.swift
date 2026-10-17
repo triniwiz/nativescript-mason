@@ -608,6 +608,11 @@ public enum MasonLengthPercentage: Codable, Equatable {
   case Points(Float)
   case Percent(Float)
   case Zero
+
+  var isPercent: Bool {
+    if case .Percent = self { return true }
+    return false
+  }
   
   
   func resolve(relativeTo: Float) -> Float {

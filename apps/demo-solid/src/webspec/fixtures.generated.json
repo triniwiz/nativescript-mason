@@ -661,6 +661,104 @@
     ]
   },
   {
+    "name": "css_line_clamp_not_reached",
+    "tree": { "seq": 0, "tag": "div", "style": { "width": "50px", "flex-direction": "column", "align-items": "flex-start" }, "children": [{ "seq": 1, "tag": "div", "style": { "width": "50px", "display": "-webkit-box", "-webkit-box-orient": "vertical", "-webkit-line-clamp": "5", "overflow": "hidden" }, "children": [], "text": "XXX XXX" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 50, "height": 20 },
+      { "seq": 1, "x": 0, "y": 0, "width": 50, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_line_clamp_two_lines",
+    "tree": { "seq": 0, "tag": "div", "style": { "width": "50px", "flex-direction": "column", "align-items": "flex-start" }, "children": [{ "seq": 1, "tag": "div", "style": { "width": "50px", "display": "-webkit-box", "-webkit-box-orient": "vertical", "-webkit-line-clamp": "2", "overflow": "hidden" }, "children": [], "text": "XXX XXX XXX XXX" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 50, "height": 20 },
+      { "seq": 1, "x": 0, "y": 0, "width": 50, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_logical_inset",
+    "tree": { "seq": 0, "tag": "div", "style": { "width": "200px", "height": "200px" }, "children": [{ "seq": 1, "tag": "div", "style": { "position": "absolute", "inset-inline": "10px 30px", "inset-block": "20px 40px" }, "children": [] }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 200 },
+      { "seq": 1, "x": 10, "y": 20, "width": 160, "height": 140 }
+    ]
+  },
+  {
+    "name": "css_logical_margin_padding_size",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "200px", "height": "100px", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "margin-inline": "10px 20px", "margin-block": "5px", "padding-inline": "4px", "inline-size": "50px", "block-size": "30px" }, "children": [] },
+        { "seq": 2, "tag": "div", "style": { "margin-inline-start": "7px", "margin-block-start": "3px", "inline-size": "10px", "block-size": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 100 },
+      { "seq": 1, "x": 10, "y": 5, "width": 50, "height": 30 },
+      { "seq": 2, "x": 87, "y": 3, "width": 10, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_place_content_grid",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "grid", "width": "200px", "height": "200px", "grid-template-columns": "50px 50px", "grid-template-rows": "50px", "place-content": "end center" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": {}, "children": [] },
+        { "seq": 2, "tag": "div", "style": {}, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 200 },
+      { "seq": 1, "x": 50, "y": 150, "width": 50, "height": 50 },
+      { "seq": 2, "x": 100, "y": 150, "width": 50, "height": 50 }
+    ]
+  },
+  {
+    "name": "css_place_items_grid",
+    "tree": { "seq": 0, "tag": "div", "style": { "display": "grid", "grid-template-columns": "100px", "grid-template-rows": "100px", "place-items": "end center" }, "children": [{ "seq": 1, "tag": "div", "style": { "width": "20px", "height": "20px" }, "children": [] }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 100, "height": 100 },
+      { "seq": 1, "x": 40, "y": 80, "width": 20, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_place_self_grid",
+    "tree": { "seq": 0, "tag": "div", "style": { "display": "grid", "grid-template-columns": "100px", "grid-template-rows": "100px" }, "children": [{ "seq": 1, "tag": "div", "style": { "width": "20px", "height": "20px", "place-self": "center end" }, "children": [] }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 100, "height": 100 },
+      { "seq": 1, "x": 80, "y": 40, "width": 20, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_text_indent_max_content",
+    "tree": { "seq": 0, "tag": "div", "style": {}, "children": [{ "seq": 1, "tag": "div", "style": { "display": "block", "text-indent": "20px" }, "children": [], "text": "XXX" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 50, "height": 10 },
+      { "seq": 1, "x": 0, "y": 0, "width": 50, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_text_indent_percent",
+    "tree": { "seq": 0, "tag": "div", "style": { "flex-direction": "column", "align-items": "flex-start" }, "children": [{ "seq": 1, "tag": "div", "style": { "display": "block", "width": "80px", "text-indent": "50%" }, "children": [], "text": "XXX XXX" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 80, "height": 20 },
+      { "seq": 1, "x": 0, "y": 0, "width": 80, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_text_indent_wraps_first_line",
+    "tree": { "seq": 0, "tag": "div", "style": { "flex-direction": "column", "align-items": "flex-start" }, "children": [{ "seq": 1, "tag": "div", "style": { "display": "block", "width": "80px", "text-indent": "20px" }, "children": [], "text": "XXX XXX" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 80, "height": 20 },
+      { "seq": 1, "x": 0, "y": 0, "width": 80, "height": 20 }
+    ]
+  },
+  {
     "name": "display_none_fixed_size",
     "tree": {
       "seq": 0,
