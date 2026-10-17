@@ -72,10 +72,9 @@ describe('CSS diagnostics', () => {
       (t.style as any)[prop] = value;
     }
     expect(formatCssDiagnostics()).toMatchInlineSnapshot(`
-      "not-implemented length: calc(100% - 20px) — calc() is not evaluated here; it resolves only in a stylesheet, where core expands it first
+      "not-implemented length: calc(100% - 20px) — calc() mixes % with a length, or doesn't parse, so it can't be evaluated before layout
       unsupported-unit length: 80ch — unknown unit "ch", treated as CSS px
-      unsupported-unit length: 2ex — unknown unit "ex", treated as CSS px
-      not-implemented length: clamp(1rem, 5vw, 3rem) — clamp() is not evaluated here; it resolves only in a stylesheet, where core expands it first"
+      unsupported-unit length: 2ex — unknown unit "ex", treated as CSS px"
     `);
   });
 });

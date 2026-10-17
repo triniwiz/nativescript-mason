@@ -454,6 +454,16 @@ as `emBasis`); `em` on **`font-size` itself** becomes a *percentage*, because
 that is exactly what the buffer's percent type already means — `1.5em` is stored
 as `150%` and native inheritance resolves it against the parent.
 
+`calc()`, `min()`, `max()` and `clamp()` are evaluated by Mason itself
+(`css-math.ts`), with the same units: core only evaluates `calc(`, with
+`@csstools/css-calc`, which can't mix `rem` with `px` and knows no viewport. The
+length parsers in `style.ts` evaluate a whole-value function; string values the
+natives parse (`border-radius`, `box-shadow`, `transform`, ...) have every
+function that resolves substituted first (`resolveCssMathIn`). A percentage's
+basis is only known at layout, so `calc(100% - 20px)` stays unresolved (0, with
+a diagnostic); a pure-`%` result stays a percentage. On `font-size`, `em` is
+parent-relative like `%`, so an em-only expression becomes a percentage.
+
 `rem` was the sharpest edge after `px`: core falls through to
 `parseFloat('1rem')` → `1`, so `padding: 1rem` became **1 dip instead of 16**.
 `@nativescript/tailwind` pre-multiplies rem by 16 before mason ever sees it,
@@ -472,8 +482,9 @@ console.log(formatCssDiagnostics());
 ```
 
 Reports unknown units, unresolvable viewport units, unparsable values, and
-function values (`calc()`, `clamp()`, `var()`) that only resolve in a stylesheet
-where core expands them first.
+function values Mason can't evaluate: `var()` (core substitutes it in a
+stylesheet) and a `calc()`/`min()`/`max()`/`clamp()` that mixes `%` with a
+length.
 
 It is also a **test oracle**: `diagnostics.spec.ts` feeds a stylesheet's worth of
 declarations through and snapshots the drop list, so a regression that starts
