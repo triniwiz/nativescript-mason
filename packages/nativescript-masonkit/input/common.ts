@@ -102,10 +102,7 @@ export class InputBase extends ViewBase {
   }
 }
 
-/**
- * Radios sharing a `name`, by name: checking one unchecks the others, as in a
- * document. Only loaded inputs belong, as for `<details name>`.
- */
+/** Loaded radios by `name`: checking one unchecks the others. */
 const radioGroups = new Map<string, Set<InputElementBase>>();
 
 function radioGroup(name: string): Set<InputElementBase> {
@@ -167,7 +164,7 @@ export class InputElementBase extends InputBase {
     }
   }
 
-  /** As in a document, silently: the others fire no `change`. */
+  /** Unchecks the other radios with this name, without firing `change` on them. */
   _uncheckOtherRadios() {
     if (!this.name) return;
     for (const other of radioGroup(this.name)) {
@@ -186,7 +183,7 @@ export class InputElementBase extends InputBase {
     super.onLoaded();
     if (!this.name) return;
     radioGroup(this.name).add(this);
-    // A checked radio that joins a group wins, as one inserted into a document does.
+    // A checked radio that joins a group wins.
     if (this.type === 'radio' && this.checked) this._uncheckOtherRadios();
   }
 
