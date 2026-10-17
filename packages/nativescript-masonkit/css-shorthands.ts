@@ -137,18 +137,38 @@ export const splitBorderWidth = sides((token) => BORDER_WIDTH_KEYWORDS.has(token
 
 export const splitBorderColor = sides((token) => token !== '/');
 
+/** A logical axis shorthand (`margin-inline: <start> [<end>]`): start and end. */
+function startEnd(accepts: (token: string) => boolean) {
+  return (value: string): string[] => {
+    const parts = values(value, accepts);
+    if (parts.length < 1 || parts.length > 2) {
+      throw new Error(`Expected 1 or 2 values in "${value}"`);
+    }
+    return [parts[0], parts[1] ?? parts[0]];
+  };
+}
+
+export const splitMarginStartEnd = startEnd((token) => token === 'auto' || isLength(token));
+export const splitPaddingStartEnd = startEnd(isLength);
+export const splitInsetStartEnd = startEnd((token) => token === 'auto' || isLength(token));
+export const splitBorderWidthStartEnd = startEnd((token) => BORDER_WIDTH_KEYWORDS.has(token) || isLength(token));
+export const splitBorderColorStartEnd = startEnd((token) => token !== '/');
+
+/** A logical property that maps onto one physical longhand: the value as is. */
+export function passThrough(value: string): string[] {
+  return [value];
+}
+
 export const BORDER_STYLES: ReadonlySet<string> = new Set(['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset']);
 
 export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLowerCase()));
+export const splitBorderStyleStartEnd = startEnd((token) => BORDER_STYLES.has(token.toLowerCase()));
 
 const LENGTH_FUNCTION = /^(calc|min|max|clamp)\(/i;
 
 /**
- * What an omitted part of `border`/`border-<side>` becomes. These are what
- * MasonKit's native border parsers have always used (Android `Border.kt`,
- * iOS `BorderParser.swift`), so the shorthand reads as it did before it was
- * split: `medium`, `solid` (Mason's initial border style, where CSS has
- * `none`) and black (where CSS has `currentcolor`, which borders can't use).
+ * Values for omitted `border` parts, matching the native border parsers:
+ * `medium`, `solid` (CSS: `none`) and black (CSS: `currentcolor`).
  */
 const BORDER_OMITTED = { width: '3', style: 'solid', color: 'black' };
 
@@ -193,19 +213,15 @@ function parseBorderParts(value: string, maxWidths: number): BorderParts {
   };
 }
 
-/**
- * `border-<side>` as its width, style and color. Omitted parts take MasonKit's
- * long-standing defaults; see BORDER_OMITTED.
- */
+/** `border-<side>` as its width, style and color; omitted parts take BORDER_OMITTED. */
 export function splitBorderSide(value: string): string[] {
   const { widths, style, color } = parseBorderParts(value, 1);
   return [widths[0], style, color];
 }
 
 /**
- * `border` as four widths, four styles and four colors (top, right, bottom,
- * left). MasonKit's native parsers also took up to four widths here, as
- * `border-width` does, so that still works.
+ * `border` as four widths, four styles and four colors (top, right, bottom, left).
+ * Accepts up to four widths, as `border-width` does.
  */
 export function splitBorder(value: string): string[] {
   const { widths, style, color } = parseBorderParts(value, 4);
