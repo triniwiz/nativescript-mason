@@ -130,7 +130,10 @@ final public class CSSBorderRenderer {
   final public var right: Mason.CSSBorderRenderer.BorderSide
   final public var bottom: Mason.CSSBorderRenderer.BorderSide
   final public var left: Mason.CSSBorderRenderer.BorderSide
-  final public var radius: Mason.CSSBorderRenderer.BorderRadius
+  final public var radius: Mason.CSSBorderRenderer.BorderRadius {
+    get
+    set
+  }
   final public var hasVisibleBorder: Swift.Bool {
     get
   }
@@ -1177,6 +1180,7 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 public struct StyleKeys {
+  public static let STYLE_BUFFER_SIZE: Swift.Int
   public static let DISPLAY: Swift.Int
   public static let POSITION: Swift.Int
   public static let DIRECTION: Swift.Int
@@ -1358,8 +1362,6 @@ public struct StyleKeys {
   public static let TEXT_OVERFLOW_STATE: Swift.Int
   public static let PSEUDO_SET_MASK_LOW: Swift.Int
   public static let PSEUDO_SET_MASK_HIGH: Swift.Int
-  public static let FILTER_BRIGHTNESS: Swift.Int
-  public static let FILTER_BRIGHTNESS_STATE: Swift.Int
   public static let FONT_VARIANT_NUMERIC: Swift.Int
   public static let FONT_VARIANT_NUMERIC_STATE: Swift.Int
   public static let TRANSFORM_COUNT: Swift.Int
@@ -1371,10 +1373,6 @@ public struct StyleKeys {
   public static let TRANSFORM_OP_4: Swift.Int
   public static let TRANSFORM_OP_5: Swift.Int
   public static let TRANSFORM_MATRIX: Swift.Int
-  public static let TRANSFORM_OP_SIZE: Swift.Int
-  public static let MAX_INLINE_TRANSFORM_OPS: Swift.Int
-  public static let TRANSFORM_FLAG_HAS_MATRIX: Swift.UInt8
-  public static let TRANSFORM_FLAG_IS_3D: Swift.UInt8
   public static let OBJECT_POSITION_X_TYPE: Swift.Int
   public static let OBJECT_POSITION_Y_TYPE: Swift.Int
   public static let OBJECT_POSITION_X_VALUE: Swift.Int
@@ -1393,6 +1391,17 @@ public struct StyleKeys {
   public static let WORD_SPACING_STATE: Swift.Int
   public static let FONT_STRETCH: Swift.Int
   public static let FONT_STRETCH_STATE: Swift.Int
+  public static let LINE_CLAMP: Swift.Int
+  public static let LINE_CLAMP_STATE: Swift.Int
+  public static let TRANSFORM_ORIGIN_X_TYPE: Swift.Int
+  public static let TRANSFORM_ORIGIN_Y_TYPE: Swift.Int
+  public static let TRANSFORM_ORIGIN_X_VALUE: Swift.Int
+  public static let TRANSFORM_ORIGIN_Y_VALUE: Swift.Int
+  public static let TRANSFORM_ORIGIN_STATE: Swift.Int
+  public static let TRANSFORM_OP_SIZE: Swift.Int
+  public static let MAX_INLINE_TRANSFORM_OPS: Swift.Int
+  public static let TRANSFORM_FLAG_HAS_MATRIX: Swift.UInt8
+  public static let TRANSFORM_FLAG_IS_3D: Swift.UInt8
 }
 @objc public enum TransformOpType : Swift.UInt8 {
   case none = 0
@@ -1498,6 +1507,9 @@ public struct StateKeys : Swift.Equatable {
   public static let caretColor: Mason.StateKeys
   public static let wordSpacing: Mason.StateKeys
   public static let fontStretch: Mason.StateKeys
+  public static let textIndent: Mason.StateKeys
+  public static let lineClamp: Mason.StateKeys
+  public static let transformOrigin: Mason.StateKeys
   public static let pseudoText: Mason.StateKeys
   public static func == (a: Mason.StateKeys, b: Mason.StateKeys) -> Swift.Bool
 }
@@ -1605,6 +1617,14 @@ public struct StateKeys : Swift.Equatable {
     @objc set
   }
   @objc public var letterSpacing: Swift.Float {
+    @objc get
+    @objc set
+  }
+  public var textIndent: Mason.MasonLengthPercentage {
+    get
+    set
+  }
+  @objc public var lineClamp: Swift.Int32 {
     @objc get
     @objc set
   }
@@ -2037,6 +2057,10 @@ public struct StateKeys : Swift.Equatable {
   @objc public var gridTemplateAreas: Swift.String {
     @objc get
     @objc set
+  }
+  public var transformOrigin: (x: Mason.MasonLengthPercentage, y: Mason.MasonLengthPercentage) {
+    get
+    set
   }
   @objc public var transform: Swift.String {
     @objc get

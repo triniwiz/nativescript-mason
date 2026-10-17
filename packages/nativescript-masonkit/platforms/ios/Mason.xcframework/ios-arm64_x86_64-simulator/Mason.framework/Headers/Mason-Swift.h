@@ -1322,6 +1322,8 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setLineHeight:(float)value :(BOOL)isRelative;
 @property (nonatomic) float lineHeight;
 @property (nonatomic) float letterSpacing;
+/// line-clamp: the most lines a text shows, 0 for none.
+@property (nonatomic) int32_t lineClamp;
 @property (nonatomic, copy) NSString * _Nonnull fontVariantNumericString;
 @property (nonatomic) uint32_t decorationColor;
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
@@ -3483,6 +3485,8 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setLineHeight:(float)value :(BOOL)isRelative;
 @property (nonatomic) float lineHeight;
 @property (nonatomic) float letterSpacing;
+/// line-clamp: the most lines a text shows, 0 for none.
+@property (nonatomic) int32_t lineClamp;
 @property (nonatomic, copy) NSString * _Nonnull fontVariantNumericString;
 @property (nonatomic) uint32_t decorationColor;
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
