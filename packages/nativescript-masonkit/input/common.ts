@@ -28,10 +28,7 @@ function isCheckable(type: InputType): boolean {
   return type === 'checkbox' || type === 'radio';
 }
 
-/**
- * An `input` event with core's `textChange` fields added. A Mason event already
- * has `object` (the input) and `eventName`, as read-only getters.
- */
+/** An `input` event with core's `textChange` fields added; `object` and `eventName` are read-only getters. */
 function asTextChange(event: any, owner: InputBase) {
   if (!event || typeof event !== 'object') {
     return { eventName: 'textChange', object: owner, propertyName: 'text', value: owner.value };
@@ -47,11 +44,7 @@ export class InputBase extends ViewBase {
   /** The `input` listener standing in for each `textChange` listener. */
   private _textChangeListeners: Map<any, (event: any) => void> | undefined;
 
-  /**
-   * `textChange` is core's TextField event, which renderers bind `onChange`
-   * to (React NativeScript does). It fires with every `input`, carrying what
-   * core's event does (`eventName`, `object`, `value`) on top of the DOM event.
-   */
+  /** `textChange`, core's TextField event, fires with every `input`, carrying its `value`. */
   public addEventListener(arg: string, callback: any, thisArg?: any) {
     if (arg !== 'textChange' || typeof callback !== 'function') {
       super.addEventListener(arg, callback, thisArg);
@@ -74,7 +67,7 @@ export class InputBase extends ViewBase {
     }
     const listeners = this._textChangeListeners;
     if (!listeners) return;
-    // Without a callback, as core's `off(name)`, every one goes.
+    // With no callback, as core's `off(name)`, all are removed.
     for (const [key, listener] of [...listeners]) {
       if (callback !== undefined && key !== callback) continue;
       listeners.delete(key);
