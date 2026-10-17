@@ -480,6 +480,15 @@ namespace mason_dwrite
         }
     }
 
+    // First-line text-indent (DIPs) and line-clamp (0 none).
+    struct Flow
+    {
+        bool indents{ false };
+        float indent{ 0.0f };
+        uint32_t lineClamp{ 0 };
+        bool operator==(Flow const&) const = default;
+    };
+
     struct Paragraph
     {
         std::wstring text;
@@ -498,7 +507,18 @@ namespace mason_dwrite
         // An unwrapped line wider than its box ends in an ellipsis.
         bool ellipsis{ false };
         std::vector<Shadow> shadows;
+        // With indentPercent, a % of the line width (0 when intrinsic).
+        float indent{ 0.0f };
+        bool indentPercent{ false };
+        uint32_t lineClamp{ 0 };
         bool operator==(Paragraph const&) const = default;
+
+        Flow FlowAt(float lineWidth) const
+        {
+            Flow flow{ indent != 0.0f, indent, lineClamp };
+            if (indentPercent) flow.indent = std::isfinite(lineWidth) ? lineWidth * indent / 100.0f : 0.0f;
+            return flow;
+        }
     };
 
     inline DWRITE_FONT_STRETCH StretchOf(int32_t value)
@@ -568,7 +588,7 @@ namespace mason_dwrite
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         format->SetTextAlignment(p.alignment);
         if (p.rtl) format->SetReadingDirection(DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
-        if (p.ellipsis)
+        if (p.ellipsis || p.lineClamp > 0)
         {
             winrt::com_ptr<IDWriteInlineObject> sign;
             if (SUCCEEDED(factory->CreateEllipsisTrimmingSign(format.get(), sign.put())))
@@ -769,22 +789,53 @@ namespace mason_dwrite
         return static_cast<int32_t>(hit.textPosition);
     }
 
+    // Leading space on the first character; a negative one hangs the first line.
+    inline void SetIndent(IDWriteTextLayout* layout, float indent)
+    {
+        winrt::com_ptr<IDWriteTextLayout1> spacing;
+        FLOAT leading = 0.0f, trailing = 0.0f, minimum = 0.0f;
+        if (FAILED(layout->QueryInterface(IID_PPV_ARGS(spacing.put())))
+            || FAILED(spacing->GetCharacterSpacing(0, &leading, &trailing, &minimum)) || leading == indent) return;
+        spacing->SetCharacterSpacing(indent, trailing, minimum, DWRITE_TEXT_RANGE{ 0, 1 });
+    }
+
+    // Ends the box after `lines`; the trimming sign ellipsizes the last one.
+    inline void Clamp(IDWriteTextLayout* layout, uint32_t lines)
+    {
+        thread_local std::vector<DWRITE_LINE_METRICS> metrics;
+        UINT32 count = 0;
+        layout->GetLineMetrics(nullptr, 0, &count);
+        float height = kUnbounded;
+        if (count > lines)
+        {
+            metrics.resize(count);
+            if (FAILED(layout->GetLineMetrics(metrics.data(), count, &count))) return;
+            height = 0.01f;
+            for (uint32_t i = 0; i < lines; ++i) height += metrics[i].height;
+        }
+        if (layout->GetMaxHeight() != height) layout->SetMaxHeight(height);
+    }
+
     // Measuring, arranging and drawing share one layout, and each change of wrapping or width
     // makes it flow its lines again, so only real changes are applied.
-    inline void Configure(IDWriteTextLayout* layout, DWRITE_WORD_WRAPPING wrapping, float maxWidth)
+    inline void Configure(IDWriteTextLayout* layout, DWRITE_WORD_WRAPPING wrapping, float maxWidth, Flow const& flow = {})
     {
+        if (flow.indents) SetIndent(layout, flow.indent);
         if (layout->GetWordWrapping() != wrapping) layout->SetWordWrapping(wrapping);
         if (layout->GetMaxWidth() != maxWidth) layout->SetMaxWidth(maxWidth);
-        if (wrapping == DWRITE_WORD_WRAPPING_NO_WRAP) return;
-        if (auto hyphens = HyphensOf(layout)) FitHyphens(layout, *hyphens, maxWidth);
+        if (wrapping != DWRITE_WORD_WRAPPING_NO_WRAP)
+        {
+            if (auto hyphens = HyphensOf(layout)) FitHyphens(layout, *hyphens, maxWidth);
+        }
+        if (flow.lineClamp > 0) Clamp(layout, flow.lineClamp);
     }
 
     // Unwrapped for an infinite width; otherwise broken only between words, a longer word
     // overflowing, as CSS does.
-    inline DWRITE_TEXT_METRICS LayOut(IDWriteTextLayout* layout, float width)
+    inline DWRITE_TEXT_METRICS LayOut(IDWriteTextLayout* layout, float width, Flow const& flow = {})
     {
         const bool wrap = std::isfinite(width);
-        Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, wrap ? (std::max)(width, 0.0f) : kUnbounded);
+        Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, wrap ? (std::max)(width, 0.0f) : kUnbounded, flow);
         DWRITE_TEXT_METRICS m{};
         layout->GetMetrics(&m);
         if (wrap)
@@ -795,8 +846,9 @@ namespace mason_dwrite
     }
 
     // CSS min-content: the widest piece between break opportunities.
-    inline float MinContentWidth(IDWriteTextLayout* layout)
+    inline float MinContentWidth(IDWriteTextLayout* layout, Flow const& flow = {})
     {
+        if (flow.indents) SetIndent(layout, flow.indent);
         FLOAT width = 0.0f;
         return SUCCEEDED(layout->DetermineMinWidth(&width)) ? width : 0.0f;
     }

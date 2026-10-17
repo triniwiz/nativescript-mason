@@ -270,6 +270,7 @@ namespace winrt::NativeScript::Mason::implementation
         {
             uint64_t version{ 0 };
             float maxWidth{ 0.0f };
+            mason_dwrite::Flow flow;
             bool wrap{ false };
             float scale{ 0.0f };
             float originX{ 0.0f };
@@ -340,6 +341,9 @@ namespace winrt::NativeScript::Mason::implementation
         uint8_t m_textAlign{ 0 };
         // text-overflow: ellipsis, which applies to unwrapped text.
         bool m_ellipsis{ false };
+        float m_textIndent{ 0.0f };
+        bool m_textIndentPercent{ false };
+        uint32_t m_lineClamp{ 0 };
         double m_letterSpacingPx{ 0.0 };
         winrt::Windows::UI::Text::TextDecorations m_decorations{ winrt::Windows::UI::Text::TextDecorations::None };
         bool m_hasTransform{ false };

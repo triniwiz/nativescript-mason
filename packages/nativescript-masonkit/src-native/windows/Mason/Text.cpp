@@ -154,7 +154,7 @@ namespace
             // known if the text is placed at it, so whatever height is known stands in.
             d = { width, c.maxValid ? c.max.Height : (c.count ? c.entries[0].size.Height : 0.0f) };
         }
-        else if (!std::isfinite(width) || (c.maxValid && width >= c.max.Width))
+        else if (!std::isfinite(width) || (c.maxValid && width >= c.max.Width && !c.paragraph.indentPercent))
         {
             // Lines break greedily, so any width the single max-content line fits gives that line.
             d = maxContent();
@@ -694,10 +694,13 @@ namespace winrt::NativeScript::Mason::implementation
                 {
                     // At the width it's drawn at, with the slack ArrangeDirect gives it.
                     const bool wrap = std::isfinite(width) && !c.noWrap;
-                    const auto m = mason_dwrite::LayOut(layout, wrap ? width + slack : std::numeric_limits<float>::infinity());
+                    const auto m = mason_dwrite::LayOut(layout, wrap ? width + slack : std::numeric_limits<float>::infinity(), c.paragraph.FlowAt(width));
                     return { m.width, m.height };
                 },
-                [layout, &c](auto const& maxContent) { return c.noWrap ? maxContent().Width : mason_dwrite::MinContentWidth(layout); });
+                [layout, &c](auto const& maxContent)
+                {
+                    return c.noWrap ? maxContent().Width : mason_dwrite::MinContentWidth(layout, c.paragraph.FlowAt(std::numeric_limits<float>::infinity()));
+                });
             return mason_leaf::PackMeasure(d.Width, d.Height);
         };
         m_node.SetMeasure(cb);
@@ -1088,6 +1091,9 @@ namespace winrt::NativeScript::Mason::implementation
         m_measureCache->noWrap = (u8(sk::kWhiteSpaceState) && (u8(sk::kWhiteSpace) == 1 || u8(sk::kWhiteSpace) == 4)) || (u8(sk::kTextWrapState) && u8(sk::kTextWrap) == 1);
         m_whiteSpace = u8(sk::kWhiteSpaceState) ? u8(sk::kWhiteSpace) : 0;
         m_ellipsis = u8(sk::kTextOverflowState) && u8(sk::kTextOverflow) == 1;
+        m_textIndent = u8(sk::kTextIndentState) ? f32(sk::kTextIndent) : 0.0f;
+        m_textIndentPercent = m_textIndent != 0.0f && u8(sk::kTextIndentType) == 1;
+        m_lineClamp = u8(sk::kLineClampState) ? static_cast<uint32_t>((std::max)(i32(sk::kLineClamp), 0)) : 0;
 
         if (m_direct)
         {
@@ -1108,7 +1114,8 @@ namespace winrt::NativeScript::Mason::implementation
             m_text.FontStyle(m_fontStyle == 1 ? FontStyle::Italic : m_fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
         }
         m_text.TextDecorations(m_decorations);
-        m_text.TextTrimming(m_ellipsis && m_measureCache->noWrap ? mux::TextTrimming::CharacterEllipsis : mux::TextTrimming::None);
+        m_text.TextTrimming((m_ellipsis && m_measureCache->noWrap) || m_lineClamp ? mux::TextTrimming::CharacterEllipsis : mux::TextTrimming::None);
+        m_text.MaxLines(static_cast<int32_t>(m_lineClamp));
         if (m_lineHeightMultiplier > 0.0)
         {
             m_text.LineHeight(m_lineHeightMultiplier * m_text.FontSize());
@@ -1387,6 +1394,9 @@ namespace winrt::NativeScript::Mason::implementation
         p.lineHeight = static_cast<float>(m_lineHeightPx > 0.0 ? m_lineHeightPx : m_lineHeightMultiplier * p.fontSize);
         p.ellipsis = m_ellipsis && m_measureCache->noWrap;
         p.shadows = m_shadows;
+        p.indent = m_textIndent;
+        p.indentPercent = m_textIndentPercent;
+        p.lineClamp = m_lineClamp;
 
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;
@@ -1563,7 +1573,8 @@ namespace winrt::NativeScript::Mason::implementation
         {
             IDWriteTextLayout* layout = m_measureCache->Layout();
             if (!layout) return Size{ 0, 0 };
-            const auto m = mason_dwrite::LayOut(layout, m_measureCache->noWrap ? std::numeric_limits<float>::infinity() : available.Width);
+            const auto m = mason_dwrite::LayOut(layout, m_measureCache->noWrap ? std::numeric_limits<float>::infinity() : available.Width,
+                m_measureCache->paragraph.FlowAt(available.Width));
             return Size{ m.width, m.height };
         }
         SetWrap(m_text, *m_measureCache, std::isfinite(available.Width) && !m_measureCache->noWrap);
@@ -1602,7 +1613,7 @@ namespace winrt::NativeScript::Mason::implementation
         const float inf = std::numeric_limits<float>::infinity();
         if (!c.maxValid)
         {
-            const auto m = mason_dwrite::LayOut(layout, inf);
+            const auto m = mason_dwrite::LayOut(layout, inf, c.paragraph.FlowAt(inf));
             c.max = { m.width, m.height };
             c.maxValid = true;
         }
@@ -1610,11 +1621,13 @@ namespace winrt::NativeScript::Mason::implementation
         // An unwrapped line that fits needs no breaking, and a start-aligned one no box either, so it
         // keeps the unbounded width it was measured at. A line that can't wrap overflows, or is
         // trimmed at the box.
-        const bool overflows = width + slack < c.max.Width;
+        const auto flow = c.paragraph.FlowAt(width);
+        const float lineWidth = c.max.Width + (c.paragraph.indentPercent ? flow.indent : 0.0f);
+        const bool overflows = width + slack < lineWidth;
         const bool wrap = overflows && !c.noWrap;
         const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING && !c.paragraph.rtl;
         const float maxWidth = wrap || (overflows && c.paragraph.ellipsis) ? width + slack : leading ? mason_dwrite::kUnbounded : width;
-        mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth);
+        mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth, flow);
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS overhang{};
         layout->GetMetrics(&metrics);
@@ -1633,7 +1646,7 @@ namespace winrt::NativeScript::Mason::implementation
         // element sits on whole pixels, so the slot does, and the layout keeps its fraction.
         // Along the lines (u) and across them (v), in the layout's frame:
         const float u0 = -overhang.left, u1 = maxWidth + overhang.right;
-        const float v0 = -overhang.top, v1 = mason_dwrite::kUnbounded + overhang.bottom;
+        const float v0 = -overhang.top, v1 = layout->GetMaxHeight() + overhang.bottom;
         float inkLeft = left + u0, inkTop = top + v0, inkRight = left + u1, inkBottom = top + v1;
         float layoutX = left;
         if (vertical == 1)
@@ -1691,6 +1704,7 @@ namespace winrt::NativeScript::Mason::implementation
         Drawn next;
         next.version = c.version;
         next.maxWidth = maxWidth;
+        next.flow = flow;
         next.wrap = wrap;
         next.scale = scale;
         next.originX = layoutX - pxLeft / scale;
@@ -1731,6 +1745,7 @@ namespace winrt::NativeScript::Mason::implementation
         sprite.layout = c.layout;
         sprite.wrapping = wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP;
         sprite.maxWidth = maxWidth;
+        sprite.flow = flow;
         sprite.color = c.paragraph.color;
         sprite.colors.clear();
         for (auto const& span : c.paragraph.spans) sprite.colors.push_back({ DWRITE_TEXT_RANGE{ span.start, span.length }, span.color });
@@ -2110,7 +2125,7 @@ namespace winrt::NativeScript::Mason::implementation
         auto* self = winrt::get_self<implementation::Node>(m_node);
         if (m_direct && c.layout && m_drawnValid && !boxes.empty())
         {
-            mason_dwrite::Configure(c.layout.get(), m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
+            mason_dwrite::Configure(c.layout.get(), m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
             mason_dwrite::BoxRects(c.layout.get(), c.paragraph.boxes, rects);
         }
         const float scale = mason_visual::RasterScale(get_strong().as<mux::UIElement>());
@@ -2149,7 +2164,7 @@ namespace winrt::NativeScript::Mason::implementation
         auto& c = *m_measureCache;
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return nullptr;
-        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
+        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
         float x = 0.0f, y = 0.0f;
         if (!ToLayout(point, x, y)) return nullptr;
         std::vector<mason_dwrite::BoxRect> rects;
@@ -2181,7 +2196,7 @@ namespace winrt::NativeScript::Mason::implementation
         auto& c = *m_measureCache;
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return items;
-        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth);
+        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
         std::vector<mason_dwrite::BoxRect> rects;
         mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
         std::wstring_view chars{ c.paragraph.text };
