@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Generates StyleKeys (style buffer byte offsets) and StateKeys (dirty-mask bits)
 // for every language from style-keys.schema.
 //
@@ -14,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../..');
 const SCHEMA = resolve(here, 'style-keys.schema');
-const SCHEMA_REL = relative(root, SCHEMA);
+const SCHEMA_REL = relative(root, SCHEMA).replaceAll('\\', '/');
 
 const SIZES = { u8: 1, i8: 1, i32: 4, u32: 4, f32: 4, i64: 8 };
 const LANGS = ['rust', 'kotlin', 'swift', 'ts', 'cpp'];
@@ -227,16 +226,17 @@ function fillRegions(source, file, blocks, schema) {
 
 function main() {
   const check = process.argv.includes('--check');
-  const schema = parseSchema(readFileSync(SCHEMA, 'utf8'));
+  const read = (path) => readFileSync(path, 'utf8').replaceAll('\r\n', '\n');
+  const schema = parseSchema(read(SCHEMA));
   const outputs = [];
   for (const { file, blocks } of REGIONS) {
     const path = resolve(root, file);
-    const before = readFileSync(path, 'utf8');
+    const before = read(path);
     outputs.push({ file, path, before, after: fillRegions(before, file, blocks, schema) });
   }
   for (const { file, render } of FILES) {
     const path = resolve(root, file);
-    const before = existsSync(path) ? readFileSync(path, 'utf8') : '';
+    const before = existsSync(path) ? read(path) : '';
     outputs.push({ file, path, before, after: render(schema) });
   }
 
