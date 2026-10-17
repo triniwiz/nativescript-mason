@@ -61,11 +61,6 @@ import {
   alignContentProperty,
   aspectRatioProperty,
   backgroundProperty,
-  borderProperty,
-  borderLeftProperty,
-  borderTopProperty,
-  borderRightProperty,
-  borderBottomProperty,
   borderRadiusProperty,
   bottomProperty,
   boxSizingProperty,
@@ -110,7 +105,10 @@ import {
   boxShadowProperty,
   transformProperty,
   borderColorProperty,
-  borderStyleProperty,
+  borderTopStyleProperty,
+  borderRightStyleProperty,
+  borderBottomStyleProperty,
+  borderLeftStyleProperty,
   backgroundImageProperty,
   listStyleTypeProperty,
   listStylePositionProperty,
@@ -2487,51 +2485,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return this.style.border;
   }
 
-  [borderProperty.setNative](value) {
-    // @ts-ignore
-    const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.border = value;
-    }
-  }
-
-  [borderLeftProperty.setNative](value) {
-    // @ts-ignore
-    const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.borderLeft = value;
-    }
-  }
-
-  [borderTopProperty.setNative](value) {
-    // @ts-ignore
-    const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.borderTop = value;
-    }
-  }
-
-  [borderRightProperty.setNative](value) {
-    // @ts-ignore
-    const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.borderRight = value;
-    }
-  }
-
-  [borderBottomProperty.setNative](value) {
-    // @ts-ignore
-    const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.borderBottom = value;
-    }
-  }
-
   // @ts-ignore
   set background(value) {
     this.style.background = value;
@@ -2678,14 +2631,29 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  // @ts-ignore
-  [borderStyleProperty.setNative](value: any) {
+  // `border-style`, `border` and `border-<side>` are shorthands over these.
+  [borderTopStyleProperty.setNative](value: any) {
     // @ts-ignore
     const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.borderStyle = String(value ?? '');
-    }
+    if (style) style.borderTopStyle = String(value ?? 'none');
+  }
+
+  [borderRightStyleProperty.setNative](value: any) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) style.borderRightStyle = String(value ?? 'none');
+  }
+
+  [borderBottomStyleProperty.setNative](value: any) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) style.borderBottomStyle = String(value ?? 'none');
+  }
+
+  [borderLeftStyleProperty.setNative](value: any) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) style.borderLeftStyle = String(value ?? 'none');
   }
 
   // @ts-ignore

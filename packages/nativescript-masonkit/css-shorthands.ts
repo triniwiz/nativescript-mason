@@ -137,6 +137,81 @@ export const splitBorderWidth = sides((token) => BORDER_WIDTH_KEYWORDS.has(token
 
 export const splitBorderColor = sides((token) => token !== '/');
 
+export const BORDER_STYLES: ReadonlySet<string> = new Set(['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset']);
+
+export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLowerCase()));
+
+const LENGTH_FUNCTION = /^(calc|min|max|clamp)\(/i;
+
+/**
+ * What an omitted part of `border`/`border-<side>` becomes. These are what
+ * MasonKit's native border parsers have always used (Android `Border.kt`,
+ * iOS `BorderParser.swift`), so the shorthand reads as it did before it was
+ * split: `medium`, `solid` (Mason's initial border style, where CSS has
+ * `none`) and black (where CSS has `currentcolor`, which borders can't use).
+ */
+const BORDER_OMITTED = { width: '3', style: 'solid', color: 'black' };
+
+interface BorderParts {
+  widths: string[];
+  style: string;
+  color: string;
+}
+
+/** `<width> || <style> || <color>`, in any order, each at most once. */
+function parseBorderParts(value: string, maxWidths: number): BorderParts {
+  const widths: string[] = [];
+  let style: string | undefined;
+  let color: string | undefined;
+  for (const token of tokenizeCss(value)) {
+    const lower = token.toLowerCase();
+    if (BORDER_STYLES.has(lower)) {
+      if (style !== undefined) {
+        throw new Error(`Two border styles in "${value}"`);
+      }
+      style = lower;
+    } else if (BORDER_WIDTH_KEYWORDS.has(lower) || LENGTH.test(token) || LENGTH_FUNCTION.test(token)) {
+      if (widths.length === maxWidths) {
+        throw new Error(`Too many border widths in "${value}"`);
+      }
+      widths.push(BORDER_WIDTH_KEYWORDS.get(lower) ?? token);
+    } else if (token === ',' || token === '/' || color !== undefined) {
+      throw new Error(`Unexpected "${token}" in border "${value}"`);
+    } else {
+      color = token;
+    }
+  }
+  if (!widths.length && style === undefined && color === undefined) {
+    throw new Error(`Empty border "${value}"`);
+  }
+  // A border with no style has a computed width of 0, so it takes no room.
+  const hidden = style === 'none' || style === 'hidden';
+  return {
+    widths: hidden ? ['0'] : widths.length ? widths : [BORDER_OMITTED.width],
+    style: style ?? BORDER_OMITTED.style,
+    color: color === undefined || color.toLowerCase() === 'currentcolor' ? BORDER_OMITTED.color : color,
+  };
+}
+
+/**
+ * `border-<side>` as its width, style and color. Omitted parts take MasonKit's
+ * long-standing defaults; see BORDER_OMITTED.
+ */
+export function splitBorderSide(value: string): string[] {
+  const { widths, style, color } = parseBorderParts(value, 1);
+  return [widths[0], style, color];
+}
+
+/**
+ * `border` as four widths, four styles and four colors (top, right, bottom,
+ * left). MasonKit's native parsers also took up to four widths here, as
+ * `border-width` does, so that still works.
+ */
+export function splitBorder(value: string): string[] {
+  const { widths, style, color } = parseBorderParts(value, 4);
+  return [...expandSides(widths, value), style, style, style, style, color, color, color, color];
+}
+
 export function splitBorderRadius(value: string): string[] {
   const tokens = values(value, (token) => token === '/' || isLength(token));
   const slash = tokens.indexOf('/');
