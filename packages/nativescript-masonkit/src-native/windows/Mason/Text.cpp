@@ -1805,8 +1805,9 @@ namespace winrt::NativeScript::Mason::implementation
         auto list = parent.try_as<nsm::IMasonElement>();
         auto listNode = list ? list.Node() : nullptr;
         bool set = false;
-        type = byteOf(listNode, 317, 319, set);
-        if (!set) type = byteOf(m_node, 317, 319, set);
+        // The item's own list-style-type wins over the list's.
+        type = byteOf(m_node, 317, 319, set);
+        if (!set) type = byteOf(listNode, 317, 319, set);
         if (!set) type = mason_get_preflight() ? 0 : 2;
         uint8_t position = byteOf(m_node, 316, 318, set);
         if (!set) position = byteOf(listNode, 316, 318, set);

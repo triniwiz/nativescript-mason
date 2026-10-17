@@ -635,3 +635,48 @@ export function splitGap(value: string): string[] {
   const [row, column = row] = tokens;
   return [row, column];
 }
+
+const LIST_STYLE_POSITIONS = new Set(['inside', 'outside']);
+
+/**
+ * Splits `list-style` into type and position, in any order. An image is accepted
+ * and dropped; omitted parts reset to `disc` and `outside`.
+ */
+export function splitListStyle(value: string): string[] {
+  let type: string | undefined;
+  let position: string | undefined;
+  let image = false;
+  let nones = 0;
+  for (const token of tokenizeCss(value)) {
+    const lower = token.toLowerCase();
+    if (lower === 'none') {
+      nones++;
+    } else if (LIST_STYLE_POSITIONS.has(lower)) {
+      if (position !== undefined) {
+        throw new Error(`Two list-style positions in "${value}"`);
+      }
+      position = lower;
+    } else if (IMAGE_FUNCTION.test(token)) {
+      if (image) {
+        throw new Error(`Two list-style images in "${value}"`);
+      }
+      image = true;
+    } else if (token === ',' || token === '/' || type !== undefined) {
+      throw new Error(`Unexpected "${token}" in list-style "${value}"`);
+    } else {
+      type = lower;
+    }
+  }
+  // `none` fills whichever of type and image is still open, type first.
+  const open = (type === undefined ? 1 : 0) + (image ? 0 : 1);
+  if (nones > open) {
+    throw new Error(`Too many "none" in list-style "${value}"`);
+  }
+  if (nones > 0 && type === undefined) {
+    type = 'none';
+  }
+  if (type === undefined && position === undefined && !image && nones === 0) {
+    throw new Error(`Empty list-style "${value}"`);
+  }
+  return [type ?? 'disc', position ?? 'outside'];
+}

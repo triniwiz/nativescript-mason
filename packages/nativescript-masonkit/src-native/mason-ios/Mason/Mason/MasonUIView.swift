@@ -307,8 +307,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
 
+  // The item's own list-style-type wins over the list's.
   private static func listStyleType(list: MasonStyle, item: MasonText, preflight: Bool) -> ListStyleType {
-    for style in [list, item.style] where style.isValueInitialized {
+    for style in [item.style, list] where style.isValueInitialized {
       let isSet = style.getUInt8(StyleKeys.LIST_STYLE_TYPE_STATE) != 0
       if isSet, let type = ListStyleType(rawValue: Int8(style.getUInt8(StyleKeys.LIST_STYLE_TYPE))) {
         return type

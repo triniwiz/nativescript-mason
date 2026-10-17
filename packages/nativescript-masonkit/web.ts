@@ -186,6 +186,8 @@ export class Ul extends BlockElement {
   constructor() {
     super();
     applyListUaDefaults(this);
+    // list-style-type inherits, so a list sets its own: a `<ul>` in an `<ol>` keeps its discs.
+    applyUaCss(this, { 'list-style-type': View.preflight ? 'none' : 'disc' });
   }
 }
 
