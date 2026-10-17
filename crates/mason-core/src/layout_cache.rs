@@ -12,6 +12,10 @@ use taffy::{
 /// Maximum distinct measure results held per node. Entries beyond this limit
 /// replace the oldest slot in round-robin order.
 const MEASURE_CAPACITY: usize = 32;
+const _: () = assert!(
+    MEASURE_CAPACITY <= 32,
+    "tag_matches packs one bit per entry into a u32"
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AvailableSpaceKey {
@@ -52,7 +56,29 @@ struct CacheKey {
     axis: RequestedAxis,
 }
 
+impl DimensionKey {
+    fn bits(self) -> u32 {
+        match self {
+            Self::Known(v) => v,
+            Self::Available(AvailableSpaceKey::Definite(v)) => v ^ 0x9e37_79b9,
+            Self::Available(AvailableSpaceKey::MinContent) => 0x85eb_ca6b,
+            Self::Available(AvailableSpaceKey::MaxContent) => 0xc2b2_ae35,
+        }
+    }
+}
+
 impl CacheKey {
+    /// Hash of the fields `matches_measure` compares exactly; equal keys share a tag.
+    fn tag(self) -> u32 {
+        let mut h = self.dimensions.width.bits();
+        h = h.rotate_left(5) ^ self.dimensions.height.bits();
+        h = h.rotate_left(5) ^ self.parent_size.width.unwrap_or(0x27d4_eb2f);
+        h = h.rotate_left(5)
+            ^ (self.known_dimensions_are_definite.width as u32)
+            ^ ((self.known_dimensions_are_definite.height as u32) << 1);
+        h.wrapping_mul(0x9e37_79b9)
+    }
+
     fn matches_measure(self, requested: Self) -> bool {
         self.dimensions == requested.dimensions
             && self.parent_size.width == requested.parent_size.width
@@ -93,10 +119,22 @@ struct CacheEntry<T> {
 pub struct LayoutCache {
     final_layout_entry: Option<CacheEntry<LayoutOutput>>,
     measure_entries: Vec<CacheEntry<Size<f32>>>,
+    // Tag of each measure entry, scanned before the much larger entries.
+    measure_tags: Vec<u32>,
     next_evict: usize,
 }
 
 impl LayoutCache {
+    /// Bit `i` is set when measure entry `i` has `tag`; a loop with no early exit so it vectorizes.
+    #[inline]
+    fn tag_matches(&self, tag: u32) -> u32 {
+        let mut mask = 0u32;
+        for (i, &t) in self.measure_tags.iter().enumerate() {
+            mask |= ((t == tag) as u32) << i;
+        }
+        mask
+    }
+
     pub fn get(&self, input: &LayoutInput) -> Option<LayoutOutput> {
         let key = CacheKey::from(input);
         match input.run_mode {
@@ -105,11 +143,17 @@ impl LayoutCache {
                 .as_ref()
                 .filter(|entry| entry.key == key)
                 .map(|entry| entry.content.clone()),
-            RunMode::ComputeSize => self
-                .measure_entries
-                .iter()
-                .find(|entry| entry.key.matches_measure(key))
-                .map(|entry| LayoutOutput::from_outer_size(entry.content)),
+            RunMode::ComputeSize => {
+                let mut matches = self.tag_matches(key.tag());
+                while matches != 0 {
+                    let entry = &self.measure_entries[matches.trailing_zeros() as usize];
+                    if entry.key.matches_measure(key) {
+                        return Some(LayoutOutput::from_outer_size(entry.content));
+                    }
+                    matches &= matches - 1;
+                }
+                None
+            }
             RunMode::PerformHiddenLayout => None,
         }
     }
@@ -133,13 +177,15 @@ impl LayoutCache {
                     return;
                 }
 
-                if let Some(existing) = self
-                    .measure_entries
-                    .iter_mut()
-                    .find(|entry| entry.key == key)
-                {
-                    existing.content = layout_output.size;
-                    return;
+                let tag = key.tag();
+                let mut matches = self.tag_matches(tag);
+                while matches != 0 {
+                    let entry = &mut self.measure_entries[matches.trailing_zeros() as usize];
+                    if entry.key == key {
+                        entry.content = layout_output.size;
+                        return;
+                    }
+                    matches &= matches - 1;
                 }
 
                 let entry = CacheEntry {
@@ -148,8 +194,10 @@ impl LayoutCache {
                 };
                 if self.measure_entries.len() < MEASURE_CAPACITY {
                     self.measure_entries.push(entry);
+                    self.measure_tags.push(tag);
                 } else {
                     self.measure_entries[self.next_evict] = entry;
+                    self.measure_tags[self.next_evict] = tag;
                     self.next_evict = (self.next_evict + 1) % MEASURE_CAPACITY;
                 }
             }
@@ -163,6 +211,7 @@ impl LayoutCache {
         }
         self.final_layout_entry = None;
         self.measure_entries.clear();
+        self.measure_tags.clear();
         self.next_evict = 0;
         ClearState::Cleared
     }

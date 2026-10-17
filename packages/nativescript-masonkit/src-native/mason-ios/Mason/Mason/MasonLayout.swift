@@ -376,6 +376,14 @@ public class MasonLayout: NSObject {
   // MARK: - Children
   public var hasChildren: Bool { tree.childCount[index] > 0 }
   
+  /// Whether `other` places the box identically: position, size, border, padding, content size.
+  internal func sameBox(as other: MasonLayout) -> Bool {
+    let a = tree, b = other.tree, i = index, j = other.index
+    guard i < a.frames.count, j < b.frames.count, i < a.contentSizes.count, j < b.contentSizes.count else { return false }
+    return a.frames[i] == b.frames[j] && a.borders[i] == b.borders[j]
+      && a.paddings[i] == b.paddings[j] && a.contentSizes[i] == b.contentSizes[j]
+  }
+
   public var children: [MasonLayout] {
     let start = tree.childStart[index]
     let count = tree.childCount[index]

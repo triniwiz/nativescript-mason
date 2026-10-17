@@ -276,11 +276,15 @@ public final class CSSBorderRenderer {
       owner.setUInt32(keys.color, color)
     }
     
+    /// The resolved color as packed ARGB.
+    internal var argb: UInt32 {
+      let base = owner.getUInt32(keys.color)
+      return owner.resolvePseudoUInt32(keys.color, keys.color, base, .borderColor)
+    }
+
     public var color: UIColor{
       get {
-        let base = owner.getUInt32(keys.color)
-        let resolved = owner.resolvePseudoUInt32(keys.color, keys.color, base, .borderColor)
-        return UIColor.colorFromARGB(resolved)
+        return UIColor.colorFromARGB(argb)
       }
       
       set {
@@ -371,13 +375,16 @@ public final class CSSBorderRenderer {
   public var bottom: BorderSide
   public var left: BorderSide
   
-  public var radius: BorderRadius
+  public var radius: BorderRadius { didSet { _hasRadii = nil } }
+  private var _hasRadii: Bool?
   
   unowned var style: MasonStyle
   
   // Cache
   private var lastHash: Int = 0
   private var cachedResolvedRect: CGRect = .zero
+  // No percentage widths, so a resize leaves the resolved values unchanged.
+  internal private(set) var widthsIgnoreRect = false
   private var cachedRadius: BorderRadius = .zero
   internal var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
   internal var css: String = ""
@@ -413,8 +420,11 @@ public final class CSSBorderRenderer {
   }
   
   public func hasRadii() -> Bool {
-    return radius.topLeft != .zero || radius.topRight != .zero ||
+    if let cached = _hasRadii { return cached }
+    let has = radius.topLeft != .zero || radius.topRight != .zero ||
            radius.bottomRight != .zero || radius.bottomLeft != .zero
+    _hasRadii = has
+    return has
   }
 
   /// Returns a cached clip path for the given rect and inner radius, avoiding UIBezierPath allocation every frame.
@@ -468,16 +478,26 @@ public final class CSSBorderRenderer {
     if hash == lastHash && cachedResolvedRect == rect {
       return
     }
+    // invalidateCache() zeroes lastHash, so a style change always takes the full path.
+    if widthsIgnoreRect && lastHash != 0 {
+      cachedResolvedRect = rect
+      lastHash = hash
+      clipPathDirty = true
+      return
+    }
 
     cachedResolvedRect = rect
     lastHash = hash
     clipPathDirty = true
+
+    let widths = (top.width, right.width, bottom.width, left.width)
+    widthsIgnoreRect = !widths.0.isPercent && !widths.1.isPercent && !widths.2.isPercent && !widths.3.isPercent
     
     cachedWidths = (
-      top: CGFloat(top.width.resolve(relativeTo: Float(rect.width))),
-      right: CGFloat(right.width.resolve(relativeTo: Float(rect.width))),
-      bottom: CGFloat(bottom.width.resolve(relativeTo: Float(rect.width))),
-      left: CGFloat(left.width.resolve(relativeTo: Float(rect.width)))
+      top: CGFloat(widths.0.resolve(relativeTo: Float(rect.width))),
+      right: CGFloat(widths.1.resolve(relativeTo: Float(rect.width))),
+      bottom: CGFloat(widths.2.resolve(relativeTo: Float(rect.width))),
+      left: CGFloat(widths.3.resolve(relativeTo: Float(rect.width)))
     )
     
     cachedRadius = resolveRadius(rect: rect)
@@ -532,10 +552,10 @@ public final class CSSBorderRenderer {
     resolve(for: rect)
 
     // Early bail — skip if all sides are invisible
-    let topVisible = cachedWidths.top > 0 && top.style != .none && top.color.cgColor.alpha > 0
-    let rightVisible = cachedWidths.right > 0 && right.style != .none && right.color.cgColor.alpha > 0
-    let bottomVisible = cachedWidths.bottom > 0 && bottom.style != .none && bottom.color.cgColor.alpha > 0
-    let leftVisible = cachedWidths.left > 0 && left.style != .none && left.color.cgColor.alpha > 0
+    let topVisible = cachedWidths.top > 0 && top.style != .none && top.argb >> 24 > 0
+    let rightVisible = cachedWidths.right > 0 && right.style != .none && right.argb >> 24 > 0
+    let bottomVisible = cachedWidths.bottom > 0 && bottom.style != .none && bottom.argb >> 24 > 0
+    let leftVisible = cachedWidths.left > 0 && left.style != .none && left.argb >> 24 > 0
     
     guard topVisible || rightVisible || bottomVisible || leftVisible else { return }
 

@@ -670,6 +670,42 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
     ret
 }
 
+// Computes, writes the layout into `output` and returns the length it needs. When that
+// is longer than `output`, the caller retries with nativeLayoutInto on a bigger buffer.
+#[no_mangle]
+pub extern "system" fn nativeComputeWithSizeAndLayoutInto(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    width: jfloat,
+    height: jfloat,
+    output: JFloatArray,
+) -> jint {
+    if taffy == 0 || node == 0 {
+        return 0;
+    }
+
+    let call = call_enter("nativeComputeWithSizeAndLayoutInto", taffy, node);
+    let ret = unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+
+        mason.compute_wh(node.id(), width, height);
+
+        if env.get_array_length(&output).unwrap_or(0) == 0 {
+            mason.layout_into(node.id(), &mut []) as jint
+        } else {
+            match env.get_array_elements_critical(&output, ReleaseMode::CopyBack) {
+                Ok(mut elements) => mason.layout_into(node.id(), &mut elements) as jint,
+                Err(_) => 0,
+            }
+        }
+    };
+    call_exit("nativeComputeWithSizeAndLayoutInto", call);
+    ret
+}
+
 fn native_get_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     if taffy == 0 || node == 0 {
         return 0;

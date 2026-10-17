@@ -56,12 +56,12 @@ class ViewUtils {
       style.mMask?.isActive() == true || style.mClipPath?.isActive() == true
 
     // Plain layout containers: nothing of their own to draw, and no clip to apply.
-    private fun paintsNothing(style: Style): Boolean {
+    private fun paintsNothing(style: Style, borderless: Boolean): Boolean {
       if (style.mBackdropHelper != null || style.mFilter != null) return false
       if (style.boxShadows.isNotEmpty()) return false
       val bg = style.mBackground
       if (bg != null && (bg.color != null || bg.layers.isNotEmpty())) return false
-      if (style.mBorderRenderer.hasVisibleBorder() || style.mBorderImage != null) return false
+      if ((!borderless && style.mBorderRenderer.hasVisibleBorder()) || style.mBorderImage != null) return false
       if (style.isValueInitialized &&
         (style.values.get(StyleKeys.OVERFLOW_X) != Overflow.Visible.value ||
           style.values.get(StyleKeys.OVERFLOW_Y) != Overflow.Visible.value)
@@ -114,13 +114,16 @@ class ViewUtils {
       val width = view.width.toFloat()
       val height = view.height.toFloat()
 
-      style.mBorderRenderer.updateCache(width, height)
+      // A view with no border or radius skips creating a renderer unless it paints something.
+      val borderless = !style.mBorderRendererExists && !style.mayHaveBorderOrRadius()
+      if (!borderless) style.mBorderRenderer.updateCache(width, height)
 
-      if (paintsNothing(style)) {
+      if (paintsNothing(style, borderless)) {
         beforeChildren?.invoke(canvas)
         superDraw(canvas)
         return
       }
+      if (borderless) style.mBorderRenderer.updateCache(width, height)
 
       // A scrolled container draws in content coordinates; its own box (backdrop,
       // background, inset shadow, border) stays with the viewport. TextArea

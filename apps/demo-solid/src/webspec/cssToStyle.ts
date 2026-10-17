@@ -7,7 +7,8 @@
 // every `px` token to `dip` before handing it over, which meant the suite could
 // be green while the px path was broken.)
 function toCamelCase(prop: string): string {
-  return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  // `-webkit-line-clamp` is registered as `webkitLineClamp`.
+  return prop.replace(/^-/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 // test_base_style.css defaults applied to every div in the fixture suite:

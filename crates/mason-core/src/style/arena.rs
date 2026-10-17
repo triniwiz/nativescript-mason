@@ -11,7 +11,9 @@ use std::sync::atomic::Ordering;
 use taffy::Display;
 
 // always keep aligned 4
-pub const STYLE_BUFFER_SIZE: usize = 596;
+// <style-keys:size> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+pub const STYLE_BUFFER_SIZE: usize = 612;
+// </style-keys:size>
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]

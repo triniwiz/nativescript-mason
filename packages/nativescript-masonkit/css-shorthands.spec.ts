@@ -4,11 +4,11 @@ import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottom
 import { PercentLength as CorePercentLength } from '@nativescript/core/ui/styling/length-shared';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
-import { toCamelCase, borderRadiusCorners, composeBorderRadius, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss } from './css-shorthands';
-import { backgroundAttachmentProperty, backgroundClipProperty, backgroundOriginProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, shorthandConverter } from './properties';
+import { toCamelCase, borderRadiusCorners, composeBorderRadius, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss, splitPlace, splitMarginPair, splitPaddingPair, splitSize, splitListStyle } from './css-shorthands';
+import { backgroundAttachmentProperty, backgroundClipProperty, backgroundOriginProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, placeShorthands, shorthandConverter } from './properties';
 
 function entry(cssName: string) {
-  const found = masonShorthands.find((shorthand) => shorthand.cssName === cssName);
+  const found = [...masonShorthands, ...placeShorthands].find((shorthand) => shorthand.cssName === cssName);
   if (!found) {
     throw new Error(`no MasonKit shorthand for ${cssName}`);
   }
@@ -46,7 +46,7 @@ describe('tokenizeCss', () => {
 });
 
 describe('every shorthand converter lists all its longhands for the unsetValue probe', () => {
-  it.each(masonShorthands.map((shorthand) => [shorthand.cssName, shorthand] as const))('%s', (_cssName, shorthand) => {
+  it.each([...masonShorthands, ...placeShorthands].map((shorthand) => [shorthand.cssName, shorthand] as const))('%s', (_cssName, shorthand) => {
     const probed = shorthandConverter(shorthand)(unsetValue);
     expect(probed.map(([property]) => property.cssLocalName)).toEqual(shorthand.longhands.map((property) => property.cssLocalName));
     expect(probed.every(([, value]) => value === unsetValue)).toBe(true);
@@ -466,5 +466,47 @@ describe('MasonKit-owned shorthands', () => {
       ['row-gap', '4px'],
       ['column-gap', '8px'],
     ]);
+  });
+});
+
+describe('place-*', () => {
+  it.each([
+    ['center', ['center', 'center']],
+    ['start end', ['start', 'end']],
+    ['safe center stretch', ['safe center', 'stretch']],
+    ['last baseline', ['last baseline', 'last baseline']],
+  ])('%s', (value, parts) => {
+    expect(splitPlace(value)).toEqual(parts);
+  });
+
+  it.each(['', 'a b c'])('rejects "%s"', (value) => {
+    expect(() => splitPlace(value)).toThrow();
+  });
+
+  it('place-items sets align-items then justify-items', () => {
+    const pairs = shorthandConverter(entry('place-items'))('center start');
+    expect(pairs.map(([property, part]) => [property.cssLocalName, part])).toEqual([
+      ['align-items', 'center'],
+      ['justify-items', 'start'],
+    ]);
+  });
+});
+
+describe('list-style', () => {
+  it.each([
+    ['square', ['square', 'outside']],
+    ['inside', ['disc', 'inside']],
+    ['decimal inside', ['decimal', 'inside']],
+    ['inside lower-roman', ['lower-roman', 'inside']],
+    ['none', ['none', 'outside']],
+    ['none none', ['none', 'outside']],
+    ['square none', ['square', 'outside']],
+    ['url(a.png) circle', ['circle', 'outside']],
+  ])('%s', (value, parts) => {
+    expect(splitListStyle(value)).toEqual(parts);
+  });
+
+  it.each(['square circle', 'none none none'])('rejects "%s"', (value) => {
+    expect(() => splitListStyle(value)).toThrow();
   });
 });

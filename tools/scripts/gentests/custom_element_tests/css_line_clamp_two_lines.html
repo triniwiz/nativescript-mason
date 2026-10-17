@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    line-clamp cuts four lines to two
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="width: 50px; flex-direction: column; align-items: flex-start;">
+  <div style="width: 50px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;">XXX XXX XXX XXX</div>
+</div>
+
+</body>
+</html>

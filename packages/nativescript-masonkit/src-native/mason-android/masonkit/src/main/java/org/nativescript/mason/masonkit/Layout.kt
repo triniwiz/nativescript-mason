@@ -49,6 +49,9 @@ class MasonLayoutTree {
   internal var exportBuffer = EMPTY_FLOATS
     private set
 
+  private var parseStackNode = IntArray(32)
+  private var parseStackRemaining = IntArray(32)
+
   internal fun ensureExportCapacity(required: Int) {
     if (required > exportBuffer.size) {
       exportBuffer = FloatArray(required)
@@ -79,8 +82,8 @@ class MasonLayoutTree {
 
     var arrayIndex = 0
 
-    // DFS stack: (nodeIndex, remainingChildren)
-    val stack = ArrayList<IntArray>(32) // [nodeIndex, remaining]
+    // DFS stack of parents still taking children: index and children remaining.
+    var stackTop = -1
 
     while (arrayIndex < length) {
       // Ensure there are enough floats remaining for one node
@@ -144,29 +147,25 @@ class MasonLayoutTree {
       }
       childIndicesCount += childrenCountNode
 
-      // Register this node as the next child of the parent on the stack
-      if (stack.isNotEmpty()) {
-        val last = stack[stack.size - 1]
-        val parentIndex = last[0]
-        val parentStart = childStart[parentIndex]
-        val parentTotal = childCount[parentIndex]
-        val parentRemaining = last[1]
-        val slot = parentStart + (parentTotal - parentRemaining)
+      // Register this node as the next child of the parent on the stack, then pop completed parents
+      if (stackTop >= 0) {
+        val parentIndex = parseStackNode[stackTop]
+        val slot = childStart[parentIndex] + (childCount[parentIndex] - parseStackRemaining[stackTop])
         childIndices[slot] = nodeIndex
-      }
-
-      // Pop completed parents
-      if (stack.isNotEmpty()) {
-        val last = stack[stack.size - 1]
-        last[1]--
-        while (stack.isNotEmpty() && stack[stack.size - 1][1] == 0) {
-          stack.removeAt(stack.size - 1)
+        parseStackRemaining[stackTop]--
+        while (stackTop >= 0 && parseStackRemaining[stackTop] == 0) {
+          stackTop--
         }
       }
 
-      // Push this node if it has children
       if (childrenCountNode > 0) {
-        stack.add(intArrayOf(nodeIndex, childrenCountNode))
+        stackTop++
+        if (stackTop == parseStackNode.size) {
+          parseStackNode = parseStackNode.copyOf(stackTop * 2)
+          parseStackRemaining = parseStackRemaining.copyOf(stackTop * 2)
+        }
+        parseStackNode[stackTop] = nodeIndex
+        parseStackRemaining[stackTop] = childrenCountNode
       }
 
       nodeCount++

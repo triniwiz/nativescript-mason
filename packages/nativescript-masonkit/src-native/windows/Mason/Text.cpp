@@ -2,6 +2,7 @@
 #include "Text.h"
 #include "Text.g.cpp"
 #include "TextNode.h"
+#include "StyleKeys.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -1030,40 +1031,41 @@ namespace winrt::NativeScript::Mason::implementation
         auto u32 = [&](uint32_t o) -> uint32_t { uint32_t v = 0; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };
         auto f32 = [&](uint32_t o) -> float { float v = 0.0f; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };
 
-        // Each prop: value at its offset, applied only if its *_STATE byte is set. Offsets per style.ts.
-        m_hasColor = u8(328) != 0;                                           // FONT_COLOR / state 328
-        if (m_hasColor) m_color = u32(324);
-        // FONT_SIZE (dip) / type 333 (1: % of the parent's, as em is stored too) / state 334
+        // Each prop: value at its offset, applied only if its *_STATE byte is set.
+        namespace sk = mason_style_keys;
+        m_hasColor = u8(sk::kFontColorState) != 0;
+        if (m_hasColor) m_color = u32(sk::kFontColor);
+        // Font size in dip, or with type 1 a % of the parent's (em is stored that way too).
         m_fontSizePercent = 0;
-        if (u8(334))
+        if (u8(sk::kFontSizeState))
         {
-            const int32_t fs = i32(329);
-            if (u8(333) == 1) m_fontSizePercent = (std::max)(fs, 0);
+            const int32_t fs = i32(sk::kFontSize);
+            if (u8(sk::kFontSizeType) == 1) m_fontSizePercent = (std::max)(fs, 0);
             else if (fs > 0) m_fontSize = static_cast<double>(fs);
         }
-        if (u8(339)) { int32_t fw = i32(335); if (fw > 0) m_fontWeight = fw; } // FONT_WEIGHT / 339
-        if (u8(345)) { m_fontStyle = u8(344); m_hasFontStyle = true; }        // FONT_STYLE_TYPE (0 normal, 1 italic, 2 oblique) / 345
-        if (u8(367)) { m_letterSpacingPx = static_cast<double>(f32(363)); }  // LETTER_SPACING (px) / 367
-        m_fontStretch = u8(592) ? i32(588) : 0;                              // FONT_STRETCH (% x 100) / 592
-        m_hasWordSpacing = u8(587) && u8(586) != 1;                           // WORD_SPACING 582, type 586 (0 px, 2 normal) / 587
-        m_wordSpacing = m_hasWordSpacing && u8(586) == 0 ? f32(582) : 0.0f;
-        m_hasHyphens = u8(576) != 0;
-        m_hyphens = m_hasHyphens ? u8(575) : 0;
+        if (u8(sk::kFontWeightState)) { int32_t fw = i32(sk::kFontWeight); if (fw > 0) m_fontWeight = fw; }
+        if (u8(sk::kFontStyleState)) { m_fontStyle = u8(sk::kFontStyleType); m_hasFontStyle = true; } // 0 normal, 1 italic, 2 oblique
+        if (u8(sk::kLetterSpacingState)) { m_letterSpacingPx = static_cast<double>(f32(sk::kLetterSpacing)); } // px
+        m_fontStretch = u8(sk::kFontStretchState) ? i32(sk::kFontStretch) : 0; // % x 100
+        m_hasWordSpacing = u8(sk::kWordSpacingState) && u8(sk::kWordSpacingType) != 1; // type 0 px, 2 normal
+        m_wordSpacing = m_hasWordSpacing && u8(sk::kWordSpacingType) == 0 ? f32(sk::kWordSpacing) : 0.0f;
+        m_hasHyphens = u8(sk::kHyphensState) != 0;
+        m_hyphens = m_hasHyphens ? u8(sk::kHyphens) : 0;
         {
             auto* node = winrt::get_self<implementation::Node>(m_node);
             m_rtl = mason_node_get_direction(node->MasonPtr(), node->NodePtr()) != 0;
         }
-        if (u8(388))                                                         // LINE_HEIGHT / state 388, type 389
+        if (u8(sk::kLineHeightState))
         {
-            const float lh = f32(384);
-            m_lineHeightMultiplier = (u8(389) == 0) ? static_cast<double>(lh) : 0.0; // 0 = unitless multiplier, 1 = px
-            m_lineHeightPx = (u8(389) != 0) ? static_cast<double>(lh) : 0.0;
+            const float lh = f32(sk::kLineHeight);
+            m_lineHeightMultiplier = (u8(sk::kLineHeightType) == 0) ? static_cast<double>(lh) : 0.0; // 0 = unitless multiplier, 1 = px
+            m_lineHeightPx = (u8(sk::kLineHeightType) != 0) ? static_cast<double>(lh) : 0.0;
         }
         {
-            // DECORATION_LINE bit set at 354 (1 underline, 2 overline, 4 line-through) / state 355.
+            // Decoration line bits: 1 underline, 2 overline, 4 line-through.
             // WinUI has no overline, and draws every line solid in the text color.
             using winrt::Windows::UI::Text::TextDecorations;
-            const uint8_t line = u8(355) ? u8(354) : 0;
+            const uint8_t line = u8(sk::kDecorationLineState) ? u8(sk::kDecorationLine) : 0;
             m_decorations = TextDecorations::None;
             if (line < 8)
             {
@@ -1071,23 +1073,21 @@ namespace winrt::NativeScript::Mason::implementation
                 if (line & 4) m_decorations = m_decorations | TextDecorations::Strikethrough;
             }
             m_decoration = line < 8 ? line : 0;
-            m_decorationStyle = u8(362) ? u8(361) : 0;
-            m_hasDecorationColor = u8(360) != 0;
-            m_decorationColor = m_hasDecorationColor ? u32(356) : 0;
-            m_decorationThickness = u8(394) ? f32(390) : 0.0f;
-            m_hasTransform = u8(373) != 0;
-            m_transform = m_hasTransform ? u8(372) : 0;
-            m_background = u32(348);
+            m_decorationStyle = u8(sk::kDecorationStyleState) ? u8(sk::kDecorationStyle) : 0;
+            m_hasDecorationColor = u8(sk::kDecorationColorState) != 0;
+            m_decorationColor = m_hasDecorationColor ? u32(sk::kDecorationColor) : 0;
+            m_decorationThickness = u8(sk::kDecorationThicknessState) ? f32(sk::kDecorationThickness) : 0.0f;
+            m_hasTransform = u8(sk::kTextTransformState) != 0;
+            m_transform = m_hasTransform ? u8(sk::kTextTransform) : 0;
+            m_background = u32(sk::kBackgroundColor);
         }
-        // TEXT_ALIGN value byte at 374. (The JS TEXT_ALIGN_STATE offset overlaps this int32, so the
-        // value byte alone is the reliable source.)
-        m_textAlign = u8(374);
+        // Read only the TEXT_ALIGN byte: JS writes it as an int32 that overlaps TEXT_ALIGN_STATE.
+        m_textAlign = u8(sk::kTextAlign);
         m_measureCache->startAligned = !m_rtl && m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
-        // WHITE_SPACE byte at 370 (1 pre, 4 nowrap) / 371, TEXT_WRAP at 368 (1 nowrap) / 369,
-        // TEXT_OVERFLOW at 396 (1 ellipsis) / 397.
-        m_measureCache->noWrap = (u8(371) && (u8(370) == 1 || u8(370) == 4)) || (u8(369) && u8(368) == 1);
-        m_whiteSpace = u8(371) ? u8(370) : 0;
-        m_ellipsis = u8(397) && u8(396) == 1;
+        // white-space 1 pre, 4 nowrap; text-wrap 1 nowrap; text-overflow 1 ellipsis.
+        m_measureCache->noWrap = (u8(sk::kWhiteSpaceState) && (u8(sk::kWhiteSpace) == 1 || u8(sk::kWhiteSpace) == 4)) || (u8(sk::kTextWrapState) && u8(sk::kTextWrap) == 1);
+        m_whiteSpace = u8(sk::kWhiteSpaceState) ? u8(sk::kWhiteSpace) : 0;
+        m_ellipsis = u8(sk::kTextOverflowState) && u8(sk::kTextOverflow) == 1;
 
         if (m_direct)
         {

@@ -209,6 +209,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeGetPseudoStyleBuffer",
                 "nativePreparePseudoMut",
                 "nativeNodeSetSegmentsPacked",
+                "nativeNodeComputeWithSizeAndLayoutInto",
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
@@ -258,6 +259,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJI)I",
                     "(JJI)I",
                     "(JJ[F[J[I)V",
+                    "(JJFF[F)I",
                 ]
             } else {
                 [
@@ -306,6 +308,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJI)I",
                     "!(JJI)I",
                     "!(JJ[F[J[I)V",
+                    "!(JJFF[F)I",
                 ]
             };
 
@@ -359,6 +362,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
                     node::NodeNativeSetSegmentsPacked as *mut c_void,
+                    node::nativeComputeWithSizeAndLayoutInto as *mut c_void,
                 ]
             } else {
                 [
@@ -407,6 +411,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
                     node::NodeNativePreparePseudoMut as *mut c_void,
                     node::NodeNativeSetSegmentsPacked as *mut c_void,
+                    node::nativeComputeWithSizeAndLayoutInto as *mut c_void,
                 ]
             };
 

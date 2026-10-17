@@ -853,10 +853,11 @@ impl Node {
                 };
             }
 
-            // Helper: copy a raw byte range from src to dst
-            macro_rules! copy_range {
-                ($start:expr, $end:expr) => {
-                    dst.data_mut()[$start..$end].copy_from_slice(&src.data()[$start..$end]);
+            // Copies the fields from `$first` up to, not including, `$end`.
+            macro_rules! copy_keys {
+                ($first:ident, $end:ident) => {
+                    let (start, end) = (StyleKeys::$first as usize, StyleKeys::$end as usize);
+                    dst.data_mut()[start..end].copy_from_slice(&src.data()[start..end]);
                 };
             }
 
@@ -972,6 +973,15 @@ impl Node {
                 set_style_data_i8_raw(dst.data_mut(), StyleKeys::TEXT_INDENT_TYPE as usize, t);
             }
 
+            // Line clamp (i32)
+            merge_i32!(StyleKeys::LINE_CLAMP, StyleKeys::LINE_CLAMP_STATE);
+
+            // Transform origin (two types + two f32 values)
+            if get_style_data_u8(src.data(), StyleKeys::TRANSFORM_ORIGIN_STATE) != 0 {
+                copy_keys!(TRANSFORM_ORIGIN_X_TYPE, TRANSFORM_ORIGIN_STATE);
+                set_style_data_u8(dst.data_mut(), StyleKeys::TRANSFORM_ORIGIN_STATE, 1);
+            }
+
             // Line height (i32 + type byte)
             if get_style_data_u8(src.data(), StyleKeys::LINE_HEIGHT_STATE) != 0 {
                 let v = get_style_data_i32(src.data(), StyleKeys::LINE_HEIGHT);
@@ -1001,165 +1011,168 @@ impl Node {
 
             // Border colors (4 x u32, no STATE bytes)
             if is_pseudo_set!(SK::BORDER_COLOR) {
-                copy_range!(202, 218); // BORDER_LEFT_COLOR..BORDER_BOTTOM_COLOR (16 bytes)
+                copy_keys!(BORDER_LEFT_COLOR, BORDER_RADIUS_TOP_LEFT_X_TYPE);
             }
 
-            // Border radius (4 corners, each 14 bytes = 56 bytes total)
+            // Border radius: types, values and exponents
             if is_pseudo_set!(SK::BORDER_RADIUS) {
-                copy_range!(218, 274); // All border radius fields
+                copy_keys!(BORDER_RADIUS_TOP_LEFT_X_TYPE, FLOAT);
             }
 
             // Border styles (4 x u8)
             if is_pseudo_set!(SK::BORDER_STYLE) {
-                copy_range!(198, 202); // BORDER_LEFT_STYLE..BORDER_BOTTOM_STYLE
+                copy_keys!(BORDER_LEFT_STYLE, BORDER_LEFT_COLOR);
             }
 
             // Single-byte enum properties
             if is_pseudo_set!(SK::DISPLAY) {
-                copy_range!(0, 1); // DISPLAY
+                copy_keys!(DISPLAY, POSITION);
             }
             if is_pseudo_set!(SK::POSITION) {
-                copy_range!(1, 2); // POSITION
+                copy_keys!(POSITION, DIRECTION);
             }
             if is_pseudo_set!(SK::DIRECTION) {
-                copy_range!(2, 3); // DIRECTION
+                copy_keys!(DIRECTION, FLEX_DIRECTION);
             }
             if is_pseudo_set!(SK::FLEX_DIRECTION) {
-                copy_range!(3, 4); // FLEX_DIRECTION
+                copy_keys!(FLEX_DIRECTION, FLEX_WRAP);
             }
             if is_pseudo_set!(SK::FLEX_WRAP) {
-                copy_range!(4, 5); // FLEX_WRAP
+                copy_keys!(FLEX_WRAP, OVERFLOW_X);
             }
             if is_pseudo_set!(SK::OVERFLOW_X) {
-                copy_range!(5, 6); // OVERFLOW_X
+                copy_keys!(OVERFLOW_X, OVERFLOW_Y);
             }
             if is_pseudo_set!(SK::OVERFLOW_Y) {
-                copy_range!(6, 7); // OVERFLOW_Y
+                copy_keys!(OVERFLOW_Y, ALIGN_ITEMS);
             }
             if is_pseudo_set!(SK::ALIGN_ITEMS) {
-                copy_range!(7, 8); // ALIGN_ITEMS
+                copy_keys!(ALIGN_ITEMS, ALIGN_SELF);
             }
             if is_pseudo_set!(SK::ALIGN_SELF) {
-                copy_range!(8, 9); // ALIGN_SELF
+                copy_keys!(ALIGN_SELF, ALIGN_CONTENT);
             }
             if is_pseudo_set!(SK::ALIGN_CONTENT) {
-                copy_range!(9, 10); // ALIGN_CONTENT
+                copy_keys!(ALIGN_CONTENT, JUSTIFY_ITEMS);
             }
             if is_pseudo_set!(SK::JUSTIFY_ITEMS) {
-                copy_range!(10, 11); // JUSTIFY_ITEMS
+                copy_keys!(JUSTIFY_ITEMS, JUSTIFY_SELF);
             }
             if is_pseudo_set!(SK::JUSTIFY_SELF) {
-                copy_range!(11, 12); // JUSTIFY_SELF
+                copy_keys!(JUSTIFY_SELF, JUSTIFY_CONTENT);
             }
             if is_pseudo_set!(SK::JUSTIFY_CONTENT) {
-                copy_range!(12, 13); // JUSTIFY_CONTENT
+                copy_keys!(JUSTIFY_CONTENT, INSET_LEFT_TYPE);
             }
 
             // Type+value pair properties
             if is_pseudo_set!(SK::INSET) {
-                copy_range!(13, 33); // INSET_LEFT through INSET_BOTTOM (4 sides x 5 bytes)
+                copy_keys!(INSET_LEFT_TYPE, MARGIN_LEFT_TYPE);
             }
             if is_pseudo_set!(SK::MARGIN) {
-                copy_range!(33, 53); // MARGIN_LEFT through MARGIN_BOTTOM
+                copy_keys!(MARGIN_LEFT_TYPE, PADDING_LEFT_TYPE);
             }
             if is_pseudo_set!(SK::PADDING) {
-                copy_range!(53, 73); // PADDING_LEFT through PADDING_BOTTOM
+                copy_keys!(PADDING_LEFT_TYPE, BORDER_LEFT_TYPE);
             }
             if is_pseudo_set!(SK::BORDER) {
-                copy_range!(73, 93); // BORDER_LEFT through BORDER_BOTTOM (widths)
+                copy_keys!(BORDER_LEFT_TYPE, FLEX_GROW);
             }
             if is_pseudo_set!(SK::FLEX_GROW) {
-                copy_range!(93, 97); // FLEX_GROW (f32)
+                copy_keys!(FLEX_GROW, FLEX_SHRINK);
             }
             if is_pseudo_set!(SK::FLEX_SHRINK) {
-                copy_range!(97, 101); // FLEX_SHRINK (f32)
+                copy_keys!(FLEX_SHRINK, FLEX_BASIS_TYPE);
             }
             if is_pseudo_set!(SK::FLEX_BASIS) {
-                copy_range!(101, 106); // FLEX_BASIS_TYPE + FLEX_BASIS_VALUE
+                copy_keys!(FLEX_BASIS_TYPE, WIDTH_TYPE);
             }
             if is_pseudo_set!(SK::SIZE) {
-                copy_range!(106, 116); // WIDTH + HEIGHT (type+value each)
+                copy_keys!(WIDTH_TYPE, MIN_WIDTH_TYPE);
             }
             if is_pseudo_set!(SK::MIN_SIZE) {
-                copy_range!(116, 126); // MIN_WIDTH + MIN_HEIGHT
+                copy_keys!(MIN_WIDTH_TYPE, MAX_WIDTH_TYPE);
             }
             if is_pseudo_set!(SK::MAX_SIZE) {
-                copy_range!(126, 136); // MAX_WIDTH + MAX_HEIGHT
+                copy_keys!(MAX_WIDTH_TYPE, GAP_ROW_TYPE);
             }
             if is_pseudo_set!(SK::GAP) {
-                copy_range!(136, 146); // GAP_ROW + GAP_COLUMN
+                copy_keys!(GAP_ROW_TYPE, ASPECT_RATIO);
             }
             if is_pseudo_set!(SK::ASPECT_RATIO) {
-                copy_range!(146, 150); // ASPECT_RATIO (f32)
+                copy_keys!(ASPECT_RATIO, GRID_AUTO_FLOW);
             }
             if is_pseudo_set!(SK::GRID_AUTO_FLOW) {
-                copy_range!(150, 151); // GRID_AUTO_FLOW
+                copy_keys!(GRID_AUTO_FLOW, GRID_COLUMN_START_TYPE);
             }
+            // Placements store their four types, then their four values.
             if is_pseudo_set!(SK::GRID_COLUMN) {
-                copy_range!(151, 161); // GRID_COLUMN_START + GRID_COLUMN_END
+                copy_keys!(GRID_COLUMN_START_TYPE, GRID_ROW_START_TYPE);
+                copy_keys!(GRID_COLUMN_START_VALUE, GRID_ROW_START_VALUE);
             }
             if is_pseudo_set!(SK::GRID_ROW) {
-                copy_range!(161, 171); // GRID_ROW_START + GRID_ROW_END
+                copy_keys!(GRID_ROW_START_TYPE, GRID_COLUMN_START_VALUE);
+                copy_keys!(GRID_ROW_START_VALUE, SCROLLBAR_WIDTH);
             }
             if is_pseudo_set!(SK::SCROLLBAR_WIDTH) {
-                copy_range!(171, 175); // SCROLLBAR_WIDTH (f32)
+                copy_keys!(SCROLLBAR_WIDTH, ALIGN);
             }
             if is_pseudo_set!(SK::ALIGN) {
-                copy_range!(175, 176); // ALIGN
+                copy_keys!(ALIGN, BOX_SIZING);
             }
             if is_pseudo_set!(SK::BOX_SIZING) {
-                copy_range!(176, 177); // BOX_SIZING
+                copy_keys!(BOX_SIZING, OVERFLOW);
             }
             if is_pseudo_set!(SK::OVERFLOW) {
-                copy_range!(177, 178); // OVERFLOW
+                copy_keys!(OVERFLOW, ITEM_IS_TABLE);
             }
             if is_pseudo_set!(SK::ITEM_IS_TABLE) {
-                copy_range!(178, 179);
+                copy_keys!(ITEM_IS_TABLE, ITEM_IS_REPLACED);
             }
             if is_pseudo_set!(SK::ITEM_IS_REPLACED) {
-                copy_range!(179, 180);
+                copy_keys!(ITEM_IS_REPLACED, DISPLAY_MODE);
             }
             if is_pseudo_set!(SK::DISPLAY_MODE) {
-                copy_range!(180, 181);
+                copy_keys!(DISPLAY_MODE, FORCE_INLINE);
             }
             if is_pseudo_set!(SK::FORCE_INLINE) {
-                copy_range!(181, 182);
+                copy_keys!(FORCE_INLINE, MIN_CONTENT_WIDTH);
             }
             if is_pseudo_set!(SK::MIN_CONTENT_WIDTH) {
-                copy_range!(182, 186); // f32
+                copy_keys!(MIN_CONTENT_WIDTH, MIN_CONTENT_HEIGHT);
             }
             if is_pseudo_set!(SK::MIN_CONTENT_HEIGHT) {
-                copy_range!(186, 190); // f32
+                copy_keys!(MIN_CONTENT_HEIGHT, MAX_CONTENT_WIDTH);
             }
             if is_pseudo_set!(SK::MAX_CONTENT_WIDTH) {
-                copy_range!(190, 194); // f32
+                copy_keys!(MAX_CONTENT_WIDTH, MAX_CONTENT_HEIGHT);
             }
             if is_pseudo_set!(SK::MAX_CONTENT_HEIGHT) {
-                copy_range!(194, 198); // f32
+                copy_keys!(MAX_CONTENT_HEIGHT, BORDER_LEFT_STYLE);
             }
 
             // Float, Clear, Object Fit
             if is_pseudo_set!(SK::FLOAT) {
-                copy_range!(274, 275);
+                copy_keys!(FLOAT, CLEAR);
             }
             if is_pseudo_set!(SK::CLEAR) {
-                copy_range!(275, 276);
+                copy_keys!(CLEAR, OBJECT_FIT);
             }
             if is_pseudo_set!(SK::OBJECT_FIT) {
-                copy_range!(276, 277);
+                copy_keys!(OBJECT_FIT, FONT_METRICS_ASCENT_OFFSET);
             }
 
             // Z-Index
             if is_pseudo_set!(SK::Z_INDEX) {
-                copy_range!(310, 314); // f32
+                copy_keys!(Z_INDEX, ITEM_IS_LIST);
             }
 
             // List style
             if is_pseudo_set!(SK::LIST_STYLE_POSITION) {
-                copy_range!(316, 317);
+                copy_keys!(LIST_STYLE_POSITION, LIST_STYLE_TYPE);
             }
             if is_pseudo_set!(SK::LIST_STYLE_TYPE) {
-                copy_range!(317, 318);
+                copy_keys!(LIST_STYLE_TYPE, LIST_STYLE_POSITION_STATE);
             }
         };
 

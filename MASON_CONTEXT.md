@@ -286,7 +286,7 @@ core's CSS apply ~31%, its native replay through masonkit setters ~27%, UIKit
 
 ```bash
 npm test           # the CSS value layer, in Node, no device, no native build
-npm run test:keys  # StyleKeys byte offsets agree across ts/rust/kotlin/swift
+npm run test:keys  # generated StyleKeys/StateKeys match tools/scripts/style-keys/style-keys.schema
 npm run test:rust  # cargo test -p mason-core --all-targets  (65 binaries, green)
 ```
 
@@ -304,8 +304,8 @@ Three things make it work, and all three are worth knowing before you extend it:
 1. **The `Style` seam needs no production change.** `Style` has no constructor of
    its own, `prepareMut()` is a no-op while `REF_COUNT === 1`, and `commitState()`
    only ORs bits into `isDirty` while `inBatch` is true. So
-   `style-under-test.ts` hands a `new Style()` a plain 596-byte `ArrayBuffer` and
-   no platform branch is ever taken.
+   `style-under-test.ts` hands a `new Style()` a plain `ArrayBuffer`, sized from
+   the style keys schema, and no platform branch is ever taken.
 2. **Offsets are parsed out of the source, not copied.** `style-keys.ts` reads
    `enum StyleKeys` from `style.ts`; `utils-stub.ts` reads the enums from
    `utils/index.d.ts`. A copied table would be one more place to drift — it
@@ -551,6 +551,24 @@ Both platforms implement CSS user-agent default margins for block elements. They
 
 ---
 
+## Adding a style buffer field
+
+Byte offsets (`StyleKeys`) and dirty bits (`StateKeys`) for Rust, Kotlin, Swift,
+TypeScript and the Windows shell are generated from one file,
+`tools/scripts/style-keys/style-keys.schema`. To add a field:
+
+1. Append it to `[style]` (and a bit to `[state]` if it needs its own dirty flag).
+   Never move or resize an existing field.
+2. `npm run gen:style-keys` rewrites the blocks between the `<style-keys:...>`
+   markers in `mod.rs`, `arena.rs`, `Style.kt`, `MasonStyle.swift` and `style.ts`,
+   and the whole of `windows/Mason/StyleKeys.h`.
+3. Write the setter in `style.ts` (straight into the buffer, then `commitState`),
+   register the CSS property in `properties.ts`, and read the bytes natively.
+
+`npm run test:keys` (and CI) fail when a generated block is stale or was edited
+by hand. C++ names are `kPascalCase` because Win32 headers define macros such as
+`OVERFLOW`.
+
 ## CSS property coverage
 
 NativeScript's own CSS engine does the stylesheet work — selectors, classes,
@@ -571,9 +589,9 @@ property looks supported and silently does nothing. `list-style-type` was one
 | `text-justify` | Read by `TextView`. |
 | `text-decoration-thickness` | Read by `TextNode`. |
 
-Left alone on purpose: **`text-indent` and `font-variant-numeric`**. Their offsets
-exist but *nothing reads them* in Kotlin, Swift or Rust, so exposing them would
-write bytes into the void. They need text-engine work first.
+Left alone on purpose: **`font-variant-numeric`**. Its offset exists but nothing
+reads it in Rust, so exposing it from CSS would write bytes into the void.
+(`text-indent` was in the same state until the text engines learned to read it.)
 
 **18 registrations were dead** — declared, `register(Style)`ed, and then dropped,
 because they had no `valueChanged` and no `setNative` hook even though `style.ts`
@@ -1138,7 +1156,7 @@ During snapshot capture, `ViewUtils.render()` short-circuits to nothing for the 
 
 | Job | What it guards |
 |---|---|
-| `style-keys` | The `StyleKeys` byte offsets agree across ts/rust/kotlin/swift |
+| `style-keys` | The generated `StyleKeys`/`StateKeys` blocks match the schema |
 | `ts-unit` | `npm test`, the JSX-intrinsics check, and the plugin typecheck |
 | `rust` | `cargo fmt --check` and `cargo test -p mason-core --all-targets` |
 

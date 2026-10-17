@@ -39,7 +39,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   private func updateOpacity() {
     style.mBorderRender.resolve(for: bounds)
     let opaqueBackground = style.mBackground.map { bg in
-      bg.color != nil && bg.color!.cgColor.alpha >= 1.0 && bg.layers.isEmpty
+      (style.resolvedBackgroundColor >> 24) == 0xFF && bg.layers.isEmpty
     } ?? false
     isOpaque = opaqueBackground && !style.mBorderRender.hasRadii() && style.boxShadows.isEmpty
   }
@@ -48,7 +48,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     guard _drawFlagsDirty else { return }
     _drawFlagsDirty = false
     let bgString = style.background.trimmingCharacters(in: .whitespacesAndNewlines)
-    _cachedHasBackground = !bgString.isEmpty || !style.mBackground.layers.isEmpty || style.mBackground.color != nil
+    _cachedHasBackground = !bgString.isEmpty || !style.mBackground.layers.isEmpty || style.resolvedBackgroundColor != 0
     _cachedHasBoxShadow = !style.boxShadows.isEmpty
     _cachedHasBorder = style.hasBorderImage || style.mBorderRender.hasVisibleBorder
     _cachedHasFilter = !style.resolvedFilterString.isEmpty
@@ -80,6 +80,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // Nothing to paint is the degenerate case: every property cleared.
     let wanted: LayerPaint? = paintsContent ? layerPaint() : LayerPaint(background: nil, borderWidth: 0, borderColor: nil, radius: 0)
     guard let paint = wanted else {
+      if contentMode != .redraw { contentMode = .redraw }
       if _usesLayerPaint {
         _usesLayerPaint = false
         layer.backgroundColor = nil
@@ -122,7 +123,16 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     } else {
       removeBorderLayer()
     }
+    // Layer properties scale with the box; only size-dependent paint needs a redraw.
+    let mode: UIView.ContentMode = paintDependsOnSize ? .redraw : .scaleToFill
+    if contentMode != mode { contentMode = mode }
     return true
+  }
+
+  // Whether a resize changes what the layer paint sets.
+  private var paintDependsOnSize: Bool {
+    let border = style.mBorderRender
+    return border.hasRadii() || _borderLayer?.superlayer != nil || !border.widthsIgnoreRect
   }
 
   private var _borderLayer: CALayer?
@@ -162,19 +172,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     let widths = [w.top, w.right, w.bottom, w.left]
     var visible = 0
     for (side, width) in zip(sides, widths) where width > 0 && side.style != .none && side.style != .hidden {
-      if side.color.cgColor.alpha > 0 { visible += 1 }
+      if side.argb >> 24 > 0 { visible += 1 }
     }
     var borderWidth: CGFloat = 0
     var borderColor: CGColor? = nil
     if visible == 4 {
-      let color = border.top.color
+      let argb = border.top.argb
       guard widths.allSatisfy({ $0 == w.top }),
-            sides.allSatisfy({ $0.style == .solid && $0.color == color }) else { return nil }
+            sides.allSatisfy({ $0.style == .solid && $0.argb == argb }) else { return nil }
       // A scroll container's sublayers move with its content, so a border sublayer
       // would scroll away; with nothing layered above, its own border is fine.
       if isScrollContainer && sublayersBesidesBorder() { return nil }
       borderWidth = w.top
-      borderColor = color.cgColor
+      borderColor = UIColor.cgColorFromARGB(argb)
     } else if visible != 0 {
       return nil
     }
@@ -191,7 +201,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
 
     let resolvedColor = style.resolvedBackgroundColor
-    let background: CGColor? = resolvedColor == 0 ? nil : UIColor.colorFromARGB(resolvedColor).cgColor
+    let background: CGColor? = resolvedColor == 0 ? nil : UIColor.cgColorFromARGB(resolvedColor)
     return (background, borderWidth, borderColor, radius)
   }
 
@@ -463,7 +473,11 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   }
   // When true, default `visible` overflow on Y acts as `auto` (web-like scroll-on-overflow).
   @objc public var isScrollContainer: Bool = false {
-    didSet { if isScrollContainer { _ensureScrollGesture() } }
+    didSet {
+      if isScrollContainer { _ensureScrollGesture() }
+      // Clipping and content size depend on it; the next layout pass re-applies them.
+      if isScrollContainer != oldValue { node.appliedStyleVersion = .max }
+    }
   }
   private var _scrollPanStartOffset: CGPoint = .zero
   private var _scrollDecelerationLink: CADisplayLink?
@@ -563,19 +577,18 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // before layout, when bounds is still .zero).
     style.updateBackdropFrames(for: CGRect(origin: .zero, size: currentSize))
     guard !currentSize.equalTo(_lastBoundsSize) else { return }
+    let wasEmpty = _lastBoundsSize.width <= 0 || _lastBoundsSize.height <= 0
     _lastBoundsSize = currentSize
-    invalidateDrawFlags()
-    // Optimize compositing: set isOpaque for solid opaque backgrounds
-    guard style.mBackground != nil else { return }
-    updateOpacity()
+    // Draw flags and isOpaque depend on the style, so only the first size needs them.
+    if wasEmpty { invalidateDrawFlags() }
 
     // Never rasterize: it flattens the sublayer subtree into an offscreen bitmap
     // that gets resampled when composited, softening child text. draw(_:) already
     // clips the gradient background to the rounded border path, so corners stay
     // clean without it.
-    layer.shouldRasterize = false
-    // Re-apply transform after layout changes
-    style.applyTransformFromBuffer()
+    if layer.shouldRasterize { layer.shouldRasterize = false }
+    // Transforms pivot on the layer's centre anchor; only a transform-origin depends on the size.
+    if style.transformDependsOnOrigin { style.applyTransformFromBuffer() }
   }
 
   public override func willMove(toWindow newWindow: UIWindow?) {
@@ -624,6 +637,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     style.setStyleChangeListener(listener: self)
     // Redraw bg/border when bounds.origin shifts during scroll.
     contentMode = .redraw
+    // Mason positions children itself and doesn't use layout margins.
+    autoresizesSubviews = false
+    insetsLayoutMarginsFromSafeArea = false
   }
 
 

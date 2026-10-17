@@ -35,6 +35,9 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 
 
 public struct StyleKeys {
+  // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+  public static let STYLE_BUFFER_SIZE = 612
+
   public static let DISPLAY = 0
   public static let POSITION = 1
   public static let DIRECTION = 2
@@ -42,89 +45,89 @@ public struct StyleKeys {
   public static let FLEX_WRAP = 4
   public static let OVERFLOW_X = 5
   public static let OVERFLOW_Y = 6
-  
+
   public static let ALIGN_ITEMS = 7
   public static let ALIGN_SELF = 8
   public static let ALIGN_CONTENT = 9
-  
+
   public static let JUSTIFY_ITEMS = 10
   public static let JUSTIFY_SELF = 11
   public static let JUSTIFY_CONTENT = 12
-  
-  // Contiguous types, then contiguous values per group
+
+  // Each box side group: four types, then four values.
   public static let INSET_LEFT_TYPE = 13
   public static let INSET_RIGHT_TYPE = 14
   public static let INSET_TOP_TYPE = 15
   public static let INSET_BOTTOM_TYPE = 16
-  public static let INSET_LEFT_VALUE = 17   // f32 (4 bytes: 17-20)
-  public static let INSET_RIGHT_VALUE = 21  // f32 (4 bytes: 21-24)
-  public static let INSET_TOP_VALUE = 25    // f32 (4 bytes: 25-28)
-  public static let INSET_BOTTOM_VALUE = 29 // f32 (4 bytes: 29-32)
+  public static let INSET_LEFT_VALUE = 17 // f32 (17-20)
+  public static let INSET_RIGHT_VALUE = 21 // f32 (21-24)
+  public static let INSET_TOP_VALUE = 25 // f32 (25-28)
+  public static let INSET_BOTTOM_VALUE = 29 // f32 (29-32)
 
   public static let MARGIN_LEFT_TYPE = 33
   public static let MARGIN_RIGHT_TYPE = 34
   public static let MARGIN_TOP_TYPE = 35
   public static let MARGIN_BOTTOM_TYPE = 36
-  public static let MARGIN_LEFT_VALUE = 37   // f32 (4 bytes: 37-40)
-  public static let MARGIN_RIGHT_VALUE = 41  // f32 (4 bytes: 41-44)
-  public static let MARGIN_TOP_VALUE = 45    // f32 (4 bytes: 45-48)
-  public static let MARGIN_BOTTOM_VALUE = 49 // f32 (4 bytes: 49-52)
+  public static let MARGIN_LEFT_VALUE = 37 // f32 (37-40)
+  public static let MARGIN_RIGHT_VALUE = 41 // f32 (41-44)
+  public static let MARGIN_TOP_VALUE = 45 // f32 (45-48)
+  public static let MARGIN_BOTTOM_VALUE = 49 // f32 (49-52)
 
   public static let PADDING_LEFT_TYPE = 53
   public static let PADDING_RIGHT_TYPE = 54
   public static let PADDING_TOP_TYPE = 55
   public static let PADDING_BOTTOM_TYPE = 56
-  public static let PADDING_LEFT_VALUE = 57   // f32 (4 bytes: 57-60)
-  public static let PADDING_RIGHT_VALUE = 61  // f32 (4 bytes: 61-64)
-  public static let PADDING_TOP_VALUE = 65    // f32 (4 bytes: 65-68)
-  public static let PADDING_BOTTOM_VALUE = 69 // f32 (4 bytes: 69-72)
+  public static let PADDING_LEFT_VALUE = 57 // f32 (57-60)
+  public static let PADDING_RIGHT_VALUE = 61 // f32 (61-64)
+  public static let PADDING_TOP_VALUE = 65 // f32 (65-68)
+  public static let PADDING_BOTTOM_VALUE = 69 // f32 (69-72)
 
   public static let BORDER_LEFT_TYPE = 73
   public static let BORDER_RIGHT_TYPE = 74
   public static let BORDER_TOP_TYPE = 75
   public static let BORDER_BOTTOM_TYPE = 76
-  public static let BORDER_LEFT_VALUE = 77   // f32 (4 bytes: 77-80)
-  public static let BORDER_RIGHT_VALUE = 81  // f32 (4 bytes: 81-84)
-  public static let BORDER_TOP_VALUE = 85    // f32 (4 bytes: 85-88)
-  public static let BORDER_BOTTOM_VALUE = 89 // f32 (4 bytes: 89-92)
+  public static let BORDER_LEFT_VALUE = 77 // f32 (77-80)
+  public static let BORDER_RIGHT_VALUE = 81 // f32 (81-84)
+  public static let BORDER_TOP_VALUE = 85 // f32 (85-88)
+  public static let BORDER_BOTTOM_VALUE = 89 // f32 (89-92)
 
-  public static let FLEX_GROW = 93   // f32 (4 bytes: 93-96)
-  public static let FLEX_SHRINK = 97 // f32 (4 bytes: 97-100)
+  public static let FLEX_GROW = 93 // f32 (93-96)
+  public static let FLEX_SHRINK = 97 // f32 (97-100)
 
   public static let FLEX_BASIS_TYPE = 101
-  public static let FLEX_BASIS_VALUE = 102 // f32 (4 bytes: 102-105)
+  public static let FLEX_BASIS_VALUE = 102 // f32 (102-105)
 
   public static let WIDTH_TYPE = 106
   public static let HEIGHT_TYPE = 107
-  public static let WIDTH_VALUE = 108  // f32 (4 bytes: 108-111)
-  public static let HEIGHT_VALUE = 112 // f32 (4 bytes: 112-115)
+  public static let WIDTH_VALUE = 108 // f32 (108-111)
+  public static let HEIGHT_VALUE = 112 // f32 (112-115)
 
   public static let MIN_WIDTH_TYPE = 116
   public static let MIN_HEIGHT_TYPE = 117
-  public static let MIN_WIDTH_VALUE = 118  // f32 (4 bytes: 118-121)
-  public static let MIN_HEIGHT_VALUE = 122 // f32 (4 bytes: 122-125)
+  public static let MIN_WIDTH_VALUE = 118 // f32 (118-121)
+  public static let MIN_HEIGHT_VALUE = 122 // f32 (122-125)
 
   public static let MAX_WIDTH_TYPE = 126
   public static let MAX_HEIGHT_TYPE = 127
-  public static let MAX_WIDTH_VALUE = 128  // f32 (4 bytes: 128-131)
-  public static let MAX_HEIGHT_VALUE = 132 // f32 (4 bytes: 132-135)
+  public static let MAX_WIDTH_VALUE = 128 // f32 (128-131)
+  public static let MAX_HEIGHT_VALUE = 132 // f32 (132-135)
 
   public static let GAP_ROW_TYPE = 136
   public static let GAP_COLUMN_TYPE = 137
-  public static let GAP_ROW_VALUE = 138    // f32 (4 bytes: 138-141)
-  public static let GAP_COLUMN_VALUE = 142 // f32 (4 bytes: 142-145)
+  public static let GAP_ROW_VALUE = 138 // f32 (138-141)
+  public static let GAP_COLUMN_VALUE = 142 // f32 (142-145)
 
-  public static let ASPECT_RATIO = 146 // f32 (4 bytes: 146-149)
+  public static let ASPECT_RATIO = 146 // f32 (146-149)
   public static let GRID_AUTO_FLOW = 150
   public static let GRID_COLUMN_START_TYPE = 151
   public static let GRID_COLUMN_END_TYPE = 152
   public static let GRID_ROW_START_TYPE = 153
   public static let GRID_ROW_END_TYPE = 154
-  public static let GRID_COLUMN_START_VALUE = 155 // f32 (4 bytes: 155-158)
-  public static let GRID_COLUMN_END_VALUE = 159   // f32 (4 bytes: 159-162)
-  public static let GRID_ROW_START_VALUE = 163    // f32 (4 bytes: 163-166)
-  public static let GRID_ROW_END_VALUE = 167      // f32 (4 bytes: 167-170)
-  public static let SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
+  public static let GRID_COLUMN_START_VALUE = 155 // f32 (155-158)
+  public static let GRID_COLUMN_END_VALUE = 159 // f32 (159-162)
+  public static let GRID_ROW_START_VALUE = 163 // f32 (163-166)
+  public static let GRID_ROW_END_VALUE = 167 // f32 (167-170)
+  public static let SCROLLBAR_WIDTH = 171 // f32 (171-174)
   public static let ALIGN = 175
   public static let BOX_SIZING = 176
   public static let OVERFLOW = 177
@@ -132,27 +135,22 @@ public struct StyleKeys {
   public static let ITEM_IS_REPLACED = 179
   public static let DISPLAY_MODE = 180
   public static let FORCE_INLINE = 181
-  public static let MIN_CONTENT_WIDTH = 182 // float (4 bytes: 182-185)
-  public static let MIN_CONTENT_HEIGHT = 186 // float (4 bytes: 186-189)
-  public static let MAX_CONTENT_WIDTH = 190 // float (4 bytes: 190-193)
-  public static let MAX_CONTENT_HEIGHT = 194 // float (4 bytes: 194-197)
-  
-  // Border Style (per side)
+  public static let MIN_CONTENT_WIDTH = 182 // f32 (182-185)
+  public static let MIN_CONTENT_HEIGHT = 186 // f32 (186-189)
+  public static let MAX_CONTENT_WIDTH = 190 // f32 (190-193)
+  public static let MAX_CONTENT_HEIGHT = 194 // f32 (194-197)
+
   public static let BORDER_LEFT_STYLE = 198
   public static let BORDER_RIGHT_STYLE = 199
   public static let BORDER_TOP_STYLE = 200
   public static let BORDER_BOTTOM_STYLE = 201
-  
-  // Border Color (per side)
-  public static let BORDER_LEFT_COLOR = 202 // u32 (4 bytes: 202-205)
-  public static let BORDER_RIGHT_COLOR = 206 // u32 (4 bytes: 206-209)
-  public static let BORDER_TOP_COLOR = 210 // u32 (4 bytes: 210-213)
-  public static let BORDER_BOTTOM_COLOR = 214 // u32 (4 bytes: 214-217)
-  
-  // ============================================================
-  // Border Radius (elliptical + squircle exponent)
-  // 8 types (1 byte each), then 8 values (f32), then 4 exponents (f32)
-  // ============================================================
+
+  public static let BORDER_LEFT_COLOR = 202 // u32 (202-205)
+  public static let BORDER_RIGHT_COLOR = 206 // u32 (206-209)
+  public static let BORDER_TOP_COLOR = 210 // u32 (210-213)
+  public static let BORDER_BOTTOM_COLOR = 214 // u32 (214-217)
+
+  // Elliptical radii: eight types, eight values, then four squircle exponents.
   public static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
   public static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 219
   public static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 220
@@ -161,123 +159,110 @@ public struct StyleKeys {
   public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 223
   public static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 224
   public static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 225
+  public static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 226 // f32 (226-229)
+  public static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230 // f32 (230-233)
+  public static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234 // f32 (234-237)
+  public static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // f32 (238-241)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242 // f32 (242-245)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246 // f32 (246-249)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250 // f32 (250-253)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254 // f32 (254-257)
+  public static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 258 // f32 (258-261)
+  public static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262 // f32 (262-265)
+  public static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266 // f32 (266-269)
+  public static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // f32 (270-273)
 
-  public static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 226      // f32 (4 bytes: 226-229)
-  public static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 230      // f32 (4 bytes: 230-233)
-  public static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 234     // f32 (4 bytes: 234-237)
-  public static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238     // f32 (4 bytes: 238-241)
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 242  // f32 (4 bytes: 242-245)
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 246  // f32 (4 bytes: 246-249)
-  public static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 250   // f32 (4 bytes: 250-253)
-  public static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 254   // f32 (4 bytes: 254-257)
-
-  public static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 258     // f32 (4 bytes: 258-261)
-  public static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 262    // f32 (4 bytes: 262-265)
-  public static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 266 // f32 (4 bytes: 266-269)
-  public static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270  // f32 (4 bytes: 270-273)
-  
-  // Float
   public static let FLOAT = 274
   public static let CLEAR = 275
-  
   public static let OBJECT_FIT = 276
-  
-  public static let FONT_METRICS_ASCENT_OFFSET = 277 // float (4 bytes: 277-280)
-  public static let FONT_METRICS_DESCENT_OFFSET = 281 // float (4 bytes: 281-284)
-  public static let FONT_METRICS_X_HEIGHT_OFFSET = 285 // float (4 bytes: 285-288)
-  public static let FONT_METRICS_LEADING_OFFSET = 289 // float (4 bytes: 289-292)
-  public static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // float (4 bytes: 293-296)
-  public static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // float (4 bytes: 297-300)
+
+  public static let FONT_METRICS_ASCENT_OFFSET = 277 // f32 (277-280)
+  public static let FONT_METRICS_DESCENT_OFFSET = 281 // f32 (281-284)
+  public static let FONT_METRICS_X_HEIGHT_OFFSET = 285 // f32 (285-288)
+  public static let FONT_METRICS_LEADING_OFFSET = 289 // f32 (289-292)
+  public static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // f32 (293-296)
+  public static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // f32 (297-300)
   public static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
-  public static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // float (4 bytes: 302-305)
-  public static let FIRST_BASELINE_OFFSET = 306 // float (4 bytes: 306-309)
-  public static let Z_INDEX = 310 // float (4 bytes: 310-313)
+  public static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // f32 (302-305)
+  public static let FIRST_BASELINE_OFFSET = 306 // f32 (306-309)
+  public static let Z_INDEX = 310 // i32 (310-313)
   public static let ITEM_IS_LIST = 314
   public static let ITEM_IS_LIST_ITEM = 315
   public static let LIST_STYLE_POSITION = 316
   public static let LIST_STYLE_TYPE = 317
   public static let LIST_STYLE_POSITION_STATE = 318
   public static let LIST_STYLE_TYPE_STATE = 319
-  
-  public static let REF_COUNT = 320 // int
-  
-  // Text-related fields (added)
-  public static let FONT_COLOR = 324 // int
-  public static let FONT_COLOR_STATE = 328 // byte
-  public static let FONT_SIZE = 329 // int
-  public static let FONT_SIZE_TYPE = 333 // byte
-  public static let FONT_SIZE_STATE = 334 // byte
-  public static let FONT_WEIGHT = 335 // int
-  public static let FONT_WEIGHT_STATE = 339 // byte
-  public static let FONT_STYLE_SLANT = 340 // int
-  public static let FONT_STYLE_TYPE = 344 // byte
-  public static let FONT_STYLE_STATE = 345 // byte
-  public static let FONT_FAMILY_STATE = 346 // byte
-  public static let FONT_RESOLVED_DIRTY = 347 // byte
-  public static let BACKGROUND_COLOR = 348 // int
-  public static let BACKGROUND_COLOR_STATE = 352 // byte
-  public static let BACKGROUND_COLOR_TYPE = 353 // byte
-  public static let DECORATION_LINE = 354 // byte
-  public static let DECORATION_LINE_STATE = 355 // byte
-  public static let DECORATION_COLOR = 356 // int
-  public static let DECORATION_COLOR_STATE = 360 // byte
-  public static let DECORATION_STYLE = 361 // byte
-  public static let DECORATION_STYLE_STATE = 362 // byte
-  public static let LETTER_SPACING = 363 // int
-  public static let LETTER_SPACING_STATE = 367 // byte
-  public static let TEXT_WRAP = 368 // byte
-  public static let TEXT_WRAP_STATE = 369 // byte
-  public static let WHITE_SPACE = 370 // byte
-  public static let WHITE_SPACE_STATE = 371 // byte
-  public static let TEXT_TRANSFORM = 372 // byte
-  public static let TEXT_TRANSFORM_STATE = 373 // byte
-  public static let TEXT_ALIGN = 374 // byte
-  public static let TEXT_ALIGN_STATE = 375 // byte
-  public static let TEXT_JUSTIFY = 376 // byte
-  public static let TEXT_JUSTIFY_STATE = 377 // byte
-  public static let TEXT_INDENT = 378 // int
-  public static let TEXT_INDENT_TYPE = 382 // byte
-  public static let TEXT_INDENT_STATE = 383 // byte
-  public static let LINE_HEIGHT = 384 // int
-  public static let LINE_HEIGHT_STATE = 388 // byte
-  public static let LINE_HEIGHT_TYPE = 389 // byte
-  public static let DECORATION_THICKNESS = 390 // int
-  public static let DECORATION_THICKNESS_STATE = 394 // byte
-  public static let TEXT_SHADOW_STATE = 395 // byte
-  public static let TEXT_OVERFLOW = 396 // byte
-  public static let TEXT_OVERFLOW_STATE = 397 // byte
+  public static let REF_COUNT = 320 // u32 (320-323), copy-on-write share count
 
-  // Pseudo set bitmask — tracks which properties were explicitly set on a pseudo style buffer
-  public static let PSEUDO_SET_MASK_LOW = 398   // long (8 bytes: 398-405)
-  public static let PSEUDO_SET_MASK_HIGH = 406  // long (8 bytes: 406-413)
-  
-  // Filter: brightness (float) + state
-  public static let FILTER_BRIGHTNESS = 414 // float (4 bytes: 414-417)
-  public static let FILTER_BRIGHTNESS_STATE = 418 // byte
+  // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
+  public static let FONT_COLOR = 324 // u32 (324-327)
+  public static let FONT_COLOR_STATE = 328
+  public static let FONT_SIZE = 329 // i32 (329-332)
+  public static let FONT_SIZE_TYPE = 333
+  public static let FONT_SIZE_STATE = 334
+  public static let FONT_WEIGHT = 335 // i32 (335-338)
+  public static let FONT_WEIGHT_STATE = 339
+  public static let FONT_STYLE_SLANT = 340 // i32 (340-343)
+  public static let FONT_STYLE_TYPE = 344
+  public static let FONT_STYLE_STATE = 345
+  public static let FONT_FAMILY_STATE = 346
+  public static let FONT_RESOLVED_DIRTY = 347
+  public static let BACKGROUND_COLOR = 348 // u32 (348-351)
+  public static let BACKGROUND_COLOR_STATE = 352
+  public static let BACKGROUND_COLOR_TYPE = 353
+  public static let DECORATION_LINE = 354
+  public static let DECORATION_LINE_STATE = 355
+  public static let DECORATION_COLOR = 356 // u32 (356-359)
+  public static let DECORATION_COLOR_STATE = 360
+  public static let DECORATION_STYLE = 361
+  public static let DECORATION_STYLE_STATE = 362
+  public static let LETTER_SPACING = 363 // f32 (363-366)
+  public static let LETTER_SPACING_STATE = 367
+  public static let TEXT_WRAP = 368
+  public static let TEXT_WRAP_STATE = 369
+  public static let WHITE_SPACE = 370
+  public static let WHITE_SPACE_STATE = 371
+  public static let TEXT_TRANSFORM = 372
+  public static let TEXT_TRANSFORM_STATE = 373
+  public static let TEXT_ALIGN = 374
+  public static let TEXT_ALIGN_STATE = 375
+  public static let TEXT_JUSTIFY = 376
+  public static let TEXT_JUSTIFY_STATE = 377
+  public static let TEXT_INDENT = 378 // f32 (378-381)
+  public static let TEXT_INDENT_TYPE = 382 // 0 px, 1 %
+  public static let TEXT_INDENT_STATE = 383
+  public static let LINE_HEIGHT = 384 // f32 (384-387)
+  public static let LINE_HEIGHT_STATE = 388
+  public static let LINE_HEIGHT_TYPE = 389
+  public static let DECORATION_THICKNESS = 390 // f32 (390-393)
+  public static let DECORATION_THICKNESS_STATE = 394
+  public static let TEXT_SHADOW_STATE = 395
+  public static let TEXT_OVERFLOW = 396
+  public static let TEXT_OVERFLOW_STATE = 397
 
-  // font-variant-numeric bitmask (byte) + state
-  public static let FONT_VARIANT_NUMERIC = 419 // byte (bitmask)
-  public static let FONT_VARIANT_NUMERIC_STATE = 420 // byte
+  // Which StateKeys a pseudo-class buffer sets explicitly (same bit layout).
+  public static let PSEUDO_SET_MASK_LOW = 398 // i64 (398-405)
+  public static let PSEUDO_SET_MASK_HIGH = 406 // i64 (406-413)
 
-  // Transform buffer region (bytes 422-559)
-  public static let TRANSFORM_COUNT = 422     // u8: number of inline ops (0-6)
-  public static let TRANSFORM_FLAGS = 423     // u8: bit 0 = HAS_MATRIX, bit 1 = IS_3D
-  public static let TRANSFORM_OP_0 = 424      // 12 bytes: type(u8) + pad(3) + a(f32) + b(f32)
-  public static let TRANSFORM_OP_1 = 436
-  public static let TRANSFORM_OP_2 = 448
-  public static let TRANSFORM_OP_3 = 460
-  public static let TRANSFORM_OP_4 = 472
-  public static let TRANSFORM_OP_5 = 484
-  public static let TRANSFORM_MATRIX = 496    // 64 bytes: 16 x f32 (4x4 column-major)
-  public static let TRANSFORM_OP_SIZE = 12
-  public static let MAX_INLINE_TRANSFORM_OPS = 6
-  public static let TRANSFORM_FLAG_HAS_MATRIX: UInt8 = 0x01
-  public static let TRANSFORM_FLAG_IS_3D: UInt8 = 0x02
+  // 414-418 free.
+  public static let FONT_VARIANT_NUMERIC = 419 // bitmask
+  public static let FONT_VARIANT_NUMERIC_STATE = 420
 
-  public static let OBJECT_POSITION_X_TYPE = 560
+  // Up to six inline transform ops, or a full matrix.
+  public static let TRANSFORM_COUNT = 422 // number of inline ops (0-6)
+  public static let TRANSFORM_FLAGS = 423 // bit 0 HAS_MATRIX, bit 1 IS_3D
+  public static let TRANSFORM_OP_0 = 424 // bytes(12) (424-435), type(u8) + pad(3) + a(f32) + b(f32)
+  public static let TRANSFORM_OP_1 = 436 // bytes(12) (436-447)
+  public static let TRANSFORM_OP_2 = 448 // bytes(12) (448-459)
+  public static let TRANSFORM_OP_3 = 460 // bytes(12) (460-471)
+  public static let TRANSFORM_OP_4 = 472 // bytes(12) (472-483)
+  public static let TRANSFORM_OP_5 = 484 // bytes(12) (484-495)
+  public static let TRANSFORM_MATRIX = 496 // bytes(64) (496-559), 16 x f32, 4x4 column-major
+
+  public static let OBJECT_POSITION_X_TYPE = 560 // 0 px, 1 %, 2 keyword
   public static let OBJECT_POSITION_Y_TYPE = 561
-  public static let OBJECT_POSITION_X_VALUE = 562    // f32
-  public static let OBJECT_POSITION_Y_VALUE = 566    // f32
+  public static let OBJECT_POSITION_X_VALUE = 562 // f32 (562-565)
+  public static let OBJECT_POSITION_Y_VALUE = 566 // f32 (566-569)
   public static let OBJECT_POSITION_STATE = 570
   public static let WRITING_MODE = 571
   public static let WRITING_MODE_STATE = 572
@@ -285,13 +270,25 @@ public struct StyleKeys {
   public static let UNICODE_BIDI_STATE = 574
   public static let HYPHENS = 575
   public static let HYPHENS_STATE = 576
-  public static let CARET_COLOR = 577                // u32
+  public static let CARET_COLOR = 577 // u32 (577-580)
   public static let CARET_COLOR_STATE = 581
-  public static let WORD_SPACING = 582               // f32
-  public static let WORD_SPACING_TYPE = 586
+  public static let WORD_SPACING = 582 // f32 (582-585)
+  public static let WORD_SPACING_TYPE = 586 // 0 px, 1 %, 2 normal
   public static let WORD_SPACING_STATE = 587
-  public static let FONT_STRETCH = 588               // i32 (pct * 100)
+  public static let FONT_STRETCH = 588 // i32 (588-591), percentage x 100
   public static let FONT_STRETCH_STATE = 592
+  public static let LINE_CLAMP = 593 // i32 (593-596), max lines, 0 none
+  public static let LINE_CLAMP_STATE = 597
+  public static let TRANSFORM_ORIGIN_X_TYPE = 598 // 0 px, 1 %
+  public static let TRANSFORM_ORIGIN_Y_TYPE = 599
+  public static let TRANSFORM_ORIGIN_X_VALUE = 600 // f32 (600-603)
+  public static let TRANSFORM_ORIGIN_Y_VALUE = 604 // f32 (604-607)
+  public static let TRANSFORM_ORIGIN_STATE = 608
+  // </style-keys:offsets>
+  public static let TRANSFORM_OP_SIZE = 12
+  public static let MAX_INLINE_TRANSFORM_OPS = 6
+  public static let TRANSFORM_FLAG_HAS_MATRIX: UInt8 = 0x01
+  public static let TRANSFORM_FLAG_IS_3D: UInt8 = 0x02
 }
 
 @objc public enum TransformOpType: UInt8 {
@@ -337,45 +334,46 @@ public struct StateKeys: Equatable {
   }
   
   public static let none = StateKeys(low: 0, high: 0)
-  public static let display         = StateKeys(0)
-  public static let position        = StateKeys(1)
-  public static let direction       = StateKeys(2)
-  public static let flexDirection   = StateKeys(3)
-  public static let flexWrap        = StateKeys(4)
-  public static let overflowX       = StateKeys(5)
-  public static let overflowY       = StateKeys(6)
-  public static let alignItems      = StateKeys(7)
-  public static let alignSelf       = StateKeys(8)
-  public static let alignContent    = StateKeys(9)
-  public static let justifyItems    = StateKeys(10)
-  public static let justifySelf     = StateKeys(11)
-  public static let justifyContent  = StateKeys(12)
-  public static let inset           = StateKeys(13)
-  public static let margin          = StateKeys(14)
-  public static let padding         = StateKeys(15)
-  public static let border          = StateKeys(16)
-  public static let flexGrow        = StateKeys(17)
-  public static let flexShrink      = StateKeys(18)
-  public static let flexBasis       = StateKeys(19)
-  public static let size            = StateKeys(20)
-  public static let minSize         = StateKeys(21)
-  public static let maxSize         = StateKeys(22)
-  public static let gap             = StateKeys(23)
-  public static let aspectRatio     = StateKeys(24)
-  public static let gridAutoFlow    = StateKeys(25)
-  public static let gridColumn      = StateKeys(26)
-  public static let gridRow         = StateKeys(27)
-  public static let scrollbarWidth  = StateKeys(28)
-  public static let align           = StateKeys(29)
-  public static let boxSizing       = StateKeys(30)
-  public static let overflow        = StateKeys(31)
-  public static let itemIsTable     = StateKeys(32)
-  public static let itemIsReplaced  = StateKeys(33)
-  public static let displayMode     = StateKeys(34)
-  public static let forceInline     = StateKeys(35)
+  // <style-keys:state> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+  public static let display = StateKeys(0)
+  public static let position = StateKeys(1)
+  public static let direction = StateKeys(2)
+  public static let flexDirection = StateKeys(3)
+  public static let flexWrap = StateKeys(4)
+  public static let overflowX = StateKeys(5)
+  public static let overflowY = StateKeys(6)
+  public static let alignItems = StateKeys(7)
+  public static let alignSelf = StateKeys(8)
+  public static let alignContent = StateKeys(9)
+  public static let justifyItems = StateKeys(10)
+  public static let justifySelf = StateKeys(11)
+  public static let justifyContent = StateKeys(12)
+  public static let inset = StateKeys(13)
+  public static let margin = StateKeys(14)
+  public static let padding = StateKeys(15)
+  public static let border = StateKeys(16)
+  public static let flexGrow = StateKeys(17)
+  public static let flexShrink = StateKeys(18)
+  public static let flexBasis = StateKeys(19)
+  public static let size = StateKeys(20)
+  public static let minSize = StateKeys(21)
+  public static let maxSize = StateKeys(22)
+  public static let gap = StateKeys(23)
+  public static let aspectRatio = StateKeys(24)
+  public static let gridAutoFlow = StateKeys(25)
+  public static let gridColumn = StateKeys(26)
+  public static let gridRow = StateKeys(27)
+  public static let scrollbarWidth = StateKeys(28)
+  public static let align = StateKeys(29)
+  public static let boxSizing = StateKeys(30)
+  public static let overflow = StateKeys(31)
+  public static let itemIsTable = StateKeys(32)
+  public static let itemIsReplaced = StateKeys(33)
+  public static let displayMode = StateKeys(34)
+  public static let forceInline = StateKeys(35)
   public static let minContentWidth = StateKeys(36)
   public static let minContentHeight = StateKeys(37)
-  public static let maxContentWidth  = StateKeys(38)
+  public static let maxContentWidth = StateKeys(38)
   public static let maxContentHeight = StateKeys(39)
   public static let borderStyle = StateKeys(40)
   public static let borderRadius = StateKeys(41)
@@ -386,11 +384,11 @@ public struct StateKeys: Equatable {
   public static let zIndex = StateKeys(46)
   public static let listStylePosition = StateKeys(47)
   public static let listStyleType = StateKeys(48)
-  public static let invalidateText = StateKeys(49)
+  public static let invalidateText = StateKeys(49) // Kotlin's INVALIDATE_TEXT is every bit
   public static let color = StateKeys(50)
   public static let decorationLine = StateKeys(51)
   public static let decorationColor = StateKeys(52)
-  public static let textAlign   = StateKeys(53)
+  public static let textAlign = StateKeys(53)
   public static let textJustify = StateKeys(54)
   public static let backgroundColor = StateKeys(55)
   public static let fontSize = StateKeys(56)
@@ -416,6 +414,10 @@ public struct StateKeys: Equatable {
   public static let caretColor = StateKeys(76)
   public static let wordSpacing = StateKeys(77)
   public static let fontStretch = StateKeys(78)
+  public static let textIndent = StateKeys(79)
+  public static let lineClamp = StateKeys(80)
+  public static let transformOrigin = StateKeys(81)
+  // </style-keys:state>
 
   /// Union of all text-relevant keys that may differ in a pseudo buffer.
   public static let pseudoText = StateKeys(
@@ -660,6 +662,8 @@ public class MasonStyle: NSObject {
   }
   
   public func prepareMut() {
+    // Every native style write passes here: the next layout pass re-applies this view.
+    node.appliedStyleVersion = .max
     if (node.isPlaceholder) {
       return
     }
@@ -685,8 +689,8 @@ public class MasonStyle: NSObject {
   }
   
   private lazy var placeHolderValue: NSMutableData = {
-    // use the same capacity set in rust
-    let buffer = NSMutableData(length: 400)
+    // Rust's STYLE_BUFFER_SIZE: every StyleKeys offset must be readable.
+    let buffer = NSMutableData(length: StyleKeys.STYLE_BUFFER_SIZE)
     
     
     setFloat(StyleKeys.ASPECT_RATIO, Float.nan, buffer: buffer)
@@ -741,8 +745,18 @@ public class MasonStyle: NSObject {
     return buffer
   }()
   
-  private var writableValue: NSMutableData? = nil
-  private var readableValue: NSMutableData? = nil
+  private var writableValue: NSMutableData? = nil { didSet { refreshBytes() } }
+  private var readableValue: NSMutableData? = nil { didSet { refreshBytes() } }
+  private var cachedBytes: UnsafeRawPointer? = nil
+
+  private func refreshBytes() {
+    cachedBytes = (writableValue ?? readableValue).map { UnsafeRawPointer($0.bytes) }
+  }
+
+  @inline(__always) private var readBytes: UnsafeRawPointer {
+    if let bytes = cachedBytes { return bytes }
+    return values.bytes
+  }
   
   
   public var values: NSMutableData {
@@ -849,7 +863,8 @@ public class MasonStyle: NSObject {
     .letterSpacing, .lineHeight, .textAlign, .textJustify,
     .verticalAlign, .textShadow, .fontVariantNumeric,
     .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
-    .decorationThinkness, .listStylePosition, .listStyleType
+    .decorationThinkness, .listStylePosition, .listStyleType,
+    .textIndent, .lineClamp
   ].reduce(StateKeys.none) { $0.union($1) }
 
   private func updateTextStyle() {
@@ -1065,9 +1080,9 @@ public class MasonStyle: NSObject {
         t.m33 = CGFloat(getFloat(base + 40)); t.m34 = CGFloat(getFloat(base + 44))
         t.m41 = CGFloat(getFloat(base + 48)); t.m42 = CGFloat(getFloat(base + 52))
         t.m43 = CGFloat(getFloat(base + 56)); t.m44 = CGFloat(getFloat(base + 60))
-        let turned = turn == 0 ? t : CATransform3DConcat(CATransform3DMakeRotation(turn, 0, 0, 1), t)
         DispatchQueue.main.async { [weak self] in
-          view.layer.transform = turned
+          let about = self?.layerTransformAboutOrigin(t, view.bounds.size) ?? t
+          view.layer.transform = turn == 0 ? about : CATransform3DConcat(CATransform3DMakeRotation(turn, 0, 0, 1), about)
           self?.updateShadowLayer(for: view.bounds)
         }
       } else {
@@ -1075,9 +1090,9 @@ public class MasonStyle: NSObject {
         let a = CGFloat(getFloat(base)); let b = CGFloat(getFloat(base + 4))
         let c = CGFloat(getFloat(base + 16)); let d = CGFloat(getFloat(base + 20))
         let tx = CGFloat(getFloat(base + 48)); let ty = CGFloat(getFloat(base + 52))
-        let affine = CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty).rotated(by: turn)
+        let affine = CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty)
         DispatchQueue.main.async { [weak self] in
-          view.transform = affine
+          view.transform = (self?.aboutTransformOrigin(affine, view.bounds.size) ?? affine).rotated(by: turn)
           self?.updateShadowLayer(for: view.bounds)
         }
       }
@@ -1106,12 +1121,36 @@ public class MasonStyle: NSObject {
         case .none: break
         }
       }
-      affine = affine.rotated(by: turn)
+      let composed = affine
       DispatchQueue.main.async { [weak self] in
-        view.transform = affine
+        view.transform = (self?.aboutTransformOrigin(composed, view.bounds.size) ?? composed).rotated(by: turn)
         self?.updateShadowLayer(for: view.bounds)
       }
     }
+  }
+
+  // UIKit transforms about the centre (the layer's anchor, which Mason's frames rely on),
+  // so a transform-origin elsewhere is applied by moving it to the centre and back.
+  private func transformOriginOffset(_ size: CGSize) -> CGPoint {
+    guard hasTransformOrigin else { return .zero }
+    func side(_ type: Int, _ value: Int, _ length: CGFloat) -> CGFloat {
+      let v = CGFloat(getFloat(value))
+      return (getUInt8(type) == 1 ? length * v / 100 : v / CGFloat(NSCMason.scale)) - length / 2
+    }
+    return CGPoint(x: side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, size.width),
+                   y: side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, size.height))
+  }
+
+  internal func aboutTransformOrigin(_ t: CGAffineTransform, _ size: CGSize) -> CGAffineTransform {
+    let d = transformOriginOffset(size)
+    if d == .zero { return t }
+    return CGAffineTransform(translationX: -d.x, y: -d.y).concatenating(t).concatenating(CGAffineTransform(translationX: d.x, y: d.y))
+  }
+
+  internal func layerTransformAboutOrigin(_ t: CATransform3D, _ size: CGSize) -> CATransform3D {
+    let d = transformOriginOffset(size)
+    if d == .zero { return t }
+    return CATransform3DConcat(CATransform3DConcat(CATransform3DMakeTranslation(-d.x, -d.y, 0), t), CATransform3DMakeTranslation(d.x, d.y, 0))
   }
 
   private func parseTransformLength(_ args: [String], _ index: Int) -> Float {
@@ -1138,7 +1177,7 @@ public class MasonStyle: NSObject {
   
   
   internal func getUInt8(_ index: Int) -> UInt8 {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
   }
   
   internal func setUInt8(_ index: Int, _ value: UInt8, buffer: NSMutableData? = nil) {
@@ -1151,7 +1190,7 @@ public class MasonStyle: NSObject {
   
   
   internal func getInt8(_ index: Int) -> Int8 {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee
   }
   
   internal func setInt8(_ index: Int, _ value: Int8, buffer: NSMutableData? = nil) {
@@ -1164,7 +1203,7 @@ public class MasonStyle: NSObject {
   
   
   internal func getInt16(_ index: Int) -> Int16 {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
   }
   
   private func setInt16(_ index: Int, _ value: Int16) {
@@ -1173,7 +1212,7 @@ public class MasonStyle: NSObject {
   
   
   internal func getUInt32(_ index: Int) -> UInt32 {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
   }
   
   internal func setUInt32(_ index: Int, _ value: UInt32, buffer: NSMutableData? = nil) {
@@ -1185,7 +1224,7 @@ public class MasonStyle: NSObject {
   }
   
   internal func getInt32(_ index: Int) -> Int32 {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
   
   internal func setInt32(_ index: Int, _ value: Int32, buffer: NSMutableData? = nil) {
@@ -1197,7 +1236,7 @@ public class MasonStyle: NSObject {
   }
   
   internal func getFloat(_ index: Int) -> Float {
-    return values.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
+    return readBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
   internal func setFloat(_ index: Int, _ value: Float, buffer: NSMutableData? = nil) {
@@ -1699,6 +1738,53 @@ public class MasonStyle: NSObject {
         setOrAppendState(StateKeys.letterSpacing)
       }else {
         notifyTextStyleChanged(StateKeys.letterSpacing)
+      }
+    }
+  }
+
+  /// text-indent: `.Points` in device px, `.Percent` as a fraction of the line's width.
+  public var textIndent: MasonLengthPercentage {
+    get {
+      let value = getFloat(StyleKeys.TEXT_INDENT)
+      return getUInt8(StyleKeys.TEXT_INDENT_TYPE) == 1 ? .Percent(value / 100) : .Points(value)
+    }
+    set {
+      prepareMut()
+      switch newValue {
+      case .Points(let value):
+        setFloat(StyleKeys.TEXT_INDENT, value)
+        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 0)
+      case .Percent(let value):
+        setFloat(StyleKeys.TEXT_INDENT, value * 100)
+        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 1)
+      case .Zero:
+        setFloat(StyleKeys.TEXT_INDENT, 0)
+        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 0)
+      }
+      setUInt8(StyleKeys.TEXT_INDENT_STATE, StyleState.SET)
+
+      if(inBatch){
+        setOrAppendState(StateKeys.textIndent)
+      }else {
+        notifyTextStyleChanged(StateKeys.textIndent)
+      }
+    }
+  }
+
+  /// line-clamp: the most lines a text shows, 0 for none.
+  public var lineClamp: Int32 {
+    get {
+      return getInt32(StyleKeys.LINE_CLAMP)
+    }
+    set {
+      prepareMut()
+      setInt32(StyleKeys.LINE_CLAMP, max(0, newValue))
+      setUInt8(StyleKeys.LINE_CLAMP_STATE, StyleState.SET)
+
+      if(inBatch){
+        setOrAppendState(StateKeys.lineClamp)
+      }else {
+        notifyTextStyleChanged(StateKeys.lineClamp)
       }
     }
   }
@@ -2257,10 +2343,26 @@ public class MasonStyle: NSObject {
   
   
   // Text overflow
-  public var textOverflow: TextOverflow = .Clip {
-    didSet {
+  // The kind lives in the buffer, where TS writes it; only a custom token is kept here.
+  private var textOverflowToken: String? = nil
+
+  public var textOverflow: TextOverflow {
+    get {
+      switch getUInt8(StyleKeys.TEXT_OVERFLOW) {
+      case 1: return .Ellipse(nil)
+      case 2: return .Ellipse(textOverflowToken)
+      case 3: return .Custom(textOverflowToken ?? "")
+      default: return .Clip
+      }
+    }
+    set {
+      switch newValue {
+      case .Ellipse(let token): textOverflowToken = token
+      case .Custom(let token): textOverflowToken = token
+      case .Clip: textOverflowToken = nil
+      }
       prepareMut()
-      setInt32(StyleKeys.TEXT_OVERFLOW, textOverflow.rawValue)
+      setUInt8(StyleKeys.TEXT_OVERFLOW, UInt8(newValue.rawValue))
       setUInt8(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
       // Text overflow only affects rendering, not measurement
       if(inBatch){
@@ -3923,6 +4025,49 @@ public class MasonStyle: NSObject {
     }
   }
 
+  /// transform-origin: `.Points` are device px from the box's left/top edge, `.Percent`
+  /// a fraction of its size. Unset is the centre.
+  public var transformOrigin: (x: MasonLengthPercentage, y: MasonLengthPercentage) {
+    get {
+      guard hasTransformOrigin else { return (.Percent(0.5), .Percent(0.5)) }
+      func side(_ type: Int, _ value: Int) -> MasonLengthPercentage {
+        let v = getFloat(value)
+        return getUInt8(type) == 1 ? .Percent(v / 100) : .Points(v)
+      }
+      return (side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE),
+              side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE))
+    }
+    set {
+      prepareMut()
+      func side(_ length: MasonLengthPercentage, _ type: Int, _ value: Int) {
+        switch length {
+        case .Points(let v): setUInt8(type, 0); setFloat(value, v)
+        case .Percent(let v): setUInt8(type, 1); setFloat(value, v * 100)
+        case .Zero: setUInt8(type, 0); setFloat(value, 0)
+        }
+      }
+      side(newValue.x, StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)
+      side(newValue.y, StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)
+      setUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE, StyleState.SET)
+
+      if(inBatch){
+        setOrAppendState(StateKeys.transformOrigin)
+      }else if transformDependsOnOrigin {
+        applyTransformFromBuffer()
+      }
+    }
+  }
+
+  internal var hasTransformOrigin: Bool {
+    return getUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE) != 0
+  }
+
+  /// Whether a buffer transform pivots on a set transform-origin, so it must be reapplied on resize.
+  internal var transformDependsOnOrigin: Bool {
+    return hasTransformOrigin && (getUInt8(StyleKeys.TRANSFORM_COUNT) != 0
+      || (getUInt8(StyleKeys.TRANSFORM_FLAGS) & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0)
+  }
+
   private var _transformRaw: String?
   public var transform: String {
     set {
@@ -4194,6 +4339,8 @@ public class MasonStyle: NSObject {
   internal var mMaskStorage: Mask?
   /// Set once a pseudo state carries a mask longhand; until then masks skip the pseudo lookup.
   internal var hasPseudoMask = false
+  // Set once any mask property changes; until then there is nothing to sync.
+  internal var maskEverSet = false
 
   // Each holds the CSS string as last set; the `mask` shorthand is split before it gets here.
   @objc public var maskImage: String = "" {
@@ -4424,6 +4571,9 @@ public class MasonStyle: NSObject {
         if state.contains(.objectPosition) {
           (node.view as? Img)?.masonLayer.setNeedsLayout()
         }
+        if state.contains(.transformOrigin) && transformDependsOnOrigin {
+          applyTransformFromBuffer()
+        }
       }
       
       isSlowDirty = false
@@ -4459,9 +4609,18 @@ public class MasonStyle: NSObject {
       if state.contains(.objectPosition) {
         (node.view as? Img)?.masonLayer.setNeedsLayout()
       }
+
+      if state.contains(.transformOrigin) && transformDependsOnOrigin {
+        applyTransformFromBuffer()
+      }
       
       isDirty = 0
       isDirtyHigh = 0
+      // transform-origin alone moves no box.
+      if state == .transformOrigin {
+        pendingInvalidation = .none
+        return
+      }
       pendingInvalidation = pendingInvalidation.union(.invalidating)
       element?.requestLayout()
       pendingInvalidation = .none
@@ -5009,6 +5168,22 @@ extension MasonStyle {
       return parentStyleWithTextValues?.resolvedHyphens ?? getUInt8(StyleKeys.HYPHENS)
     }
     return getUInt8(StyleKeys.HYPHENS)
+  }
+
+  /// text-indent here or inherited: device px, or a percentage when `isPercent`.
+  internal var resolvedTextIndent: (value: Float, isPercent: Bool) {
+    if getUInt8(StyleKeys.TEXT_INDENT_STATE) == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedTextIndent ?? (0, false)
+    }
+    return (getFloat(StyleKeys.TEXT_INDENT), getUInt8(StyleKeys.TEXT_INDENT_TYPE) == 1)
+  }
+
+  /// line-clamp here or inherited: the most lines shown, 0 for none.
+  internal var resolvedLineClamp: Int32 {
+    if getUInt8(StyleKeys.LINE_CLAMP_STATE) == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedLineClamp ?? 0
+    }
+    return max(0, getInt32(StyleKeys.LINE_CLAMP))
   }
 
   internal var resolvedFontStretch: Int32 {

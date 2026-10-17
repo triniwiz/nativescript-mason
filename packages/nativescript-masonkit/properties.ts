@@ -15,7 +15,7 @@ import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottom
 import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
-import { splitListStyle } from './css-shorthands';
+import { splitListStyle, splitPlace } from './css-shorthands';
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle | undefined {
   const ret: (NSViewBase & { _styleHelper: MasonStyle }) | undefined = (__ANDROID__ ? view?.get() : view?.deref()) as never;
@@ -138,6 +138,11 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'inline-flex':
       case 'inline-grid':
         return value;
+      // The legacy boxes `line-clamp` utilities ask for.
+      case '-webkit-box':
+        return 'block';
+      case '-webkit-inline-box':
+        return 'inline-block';
       default:
         return undefined;
     }
@@ -1310,6 +1315,16 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   },
 });
 
+export const placeShorthands: MasonShorthand[] = [
+  { cssName: 'place-items', longhands: [alignItemsProperty, justifyItemsProperty], split: splitPlace },
+  { cssName: 'place-content', longhands: [alignContentProperty, justifyContentProperty], split: splitPlace },
+  { cssName: 'place-self', longhands: [alignSelfProperty, justifySelfProperty], split: splitPlace },
+];
+
+for (const entry of placeShorthands) {
+  masonShorthandProperty(entry).register(Style);
+}
+
 export const JustifyContentIsValid = makeValidator('flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly', 'stretch', 'normal', 'start', 'end');
 export const JustifyContentParse = makeParser(JustifyContentIsValid);
 
@@ -1901,6 +1916,52 @@ export const hyphensProperty = new CssProperty<Style, string>({
   },
 });
 
+export const textIndentProperty = new CssProperty<Style, string>({
+  name: 'textIndent',
+  cssName: 'text-indent',
+  defaultValue: '0px',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textIndent = newValue as never;
+    }
+  },
+});
+
+function setLineClamp(target: Style, value: unknown) {
+  const view = getViewStyle(target.viewRef);
+  if (view) {
+    view.lineClamp = (value ?? 'none') as never;
+  }
+}
+
+export const lineClampProperty = new CssProperty<Style, string>({
+  name: 'lineClamp',
+  cssName: 'line-clamp',
+  defaultValue: 'none',
+  valueChanged: (target, oldValue, newValue) => setLineClamp(target, newValue),
+});
+
+// Tailwind's `line-clamp-*` pairs this with `display: -webkit-box`, read as block.
+export const webkitLineClampProperty = new CssProperty<Style, string>({
+  name: 'webkitLineClamp',
+  cssName: '-webkit-line-clamp',
+  defaultValue: 'none',
+  valueChanged: (target, oldValue, newValue) => setLineClamp(target, newValue),
+});
+
+export const transformOriginProperty = new CssProperty<Style, string>({
+  name: 'transformOrigin',
+  cssName: 'transform-origin',
+  defaultValue: '50% 50%',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.transformOrigin = newValue as never;
+    }
+  },
+});
+
 export const backdropFilterProperty = new CssProperty<Style, string>({
   name: 'backdropFilter',
   cssName: 'backdrop-filter',
@@ -2248,6 +2309,10 @@ fontStretchProperty.register(Style);
 fontFeatureSettingsProperty.register(Style);
 wordSpacingProperty.register(Style);
 hyphensProperty.register(Style);
+textIndentProperty.register(Style);
+lineClampProperty.register(Style);
+webkitLineClampProperty.register(Style);
+transformOriginProperty.register(Style);
 backdropFilterProperty.register(Style);
 maskImageProperty.register(Style);
 maskProperty.register(Style);

@@ -4,7 +4,7 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -459,6 +459,83 @@ describe('parseLinearGradientCss', () => {
 
   it('leaves gradients without a method interpolating in sRGB', () => {
     expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: '' });
+  });
+});
+
+describe('text-indent', () => {
+  it.each(SCALES)('a length is stored in device pixels at scale %i', (scale) => {
+    setScreenScale(scale);
+    const t = styleUnderTest();
+    assign(t, 'textIndent', '10px');
+    expect(t.getFloat32(K.TEXT_INDENT)).toBeCloseTo(10 * scale, 4);
+    expect(t.getUint8(K.TEXT_INDENT_TYPE)).toBe(0);
+    expect(t.getUint8(K.TEXT_INDENT_STATE)).toBe(1);
+    expect((t.style as any).textIndent).toBe('10px');
+  });
+
+  it('a percentage keeps its number and the percent type', () => {
+    setScreenScale(2);
+    const t = styleUnderTest();
+    assign(t, 'text-indent', '5% hanging');
+    expect(t.getFloat32(K.TEXT_INDENT)).toBe(5);
+    expect(t.getUint8(K.TEXT_INDENT_TYPE)).toBe(1);
+    expect((t.style as any).textIndent).toBe('5%');
+  });
+
+  it('ignores a value with no length', () => {
+    const t = styleUnderTest();
+    assign(t, 'textIndent', 'each-line');
+    expect(t.getUint8(K.TEXT_INDENT_STATE)).toBe(0);
+  });
+});
+
+describe('line-clamp', () => {
+  it.each([
+    ['lineClamp', 3, 3],
+    ['lineClamp', '2', 2],
+    ['line-clamp', 'none', 0],
+    ['-webkit-line-clamp', '4', 4],
+  ])('%s = %j', (prop, input, lines) => {
+    const t = styleUnderTest();
+    assign(t, prop, input);
+    expect(t.getInt32(K.LINE_CLAMP)).toBe(lines);
+    expect(t.getUint8(K.LINE_CLAMP_STATE)).toBe(1);
+    expect((t.style as any).lineClamp).toBe(lines || 'none');
+  });
+
+  it.each(['-1', 'bananas'])('ignores %s', (input) => {
+    const t = styleUnderTest();
+    assign(t, 'lineClamp', input);
+    expect(t.getUint8(K.LINE_CLAMP_STATE)).toBe(0);
+  });
+});
+
+describe('transform-origin', () => {
+  beforeEach(() => setScreenScale(2));
+
+  it.each([
+    ['center', [1, 50, 1, 50]],
+    ['top left', [1, 0, 1, 0]],
+    ['left top', [1, 0, 1, 0]],
+    ['top', [1, 50, 1, 0]],
+    ['right', [1, 100, 1, 50]],
+    ['bottom center', [1, 50, 1, 100]],
+    ['10px 20%', [0, 20, 1, 20]],
+    ['25% 75% 10px', [1, 25, 1, 75]],
+  ])('%s', (value, [xType, x, yType, y]) => {
+    expect(parseTransformOrigin(value)).toEqual({ xType, x, yType, y });
+  });
+
+  it.each(['', 'left right', 'bottom 10px', 'a b c d'])('rejects "%s"', (value) => {
+    expect(parseTransformOrigin(value)).toBeNull();
+  });
+
+  it('round-trips through the buffer in CSS pixels', () => {
+    const t = styleUnderTest();
+    assign(t, 'transformOrigin', '10px 20%');
+    expect(t.getUint8(K.TRANSFORM_ORIGIN_STATE)).toBe(1);
+    expect(t.getFloat32(K.TRANSFORM_ORIGIN_X_VALUE)).toBe(20);
+    expect((t.style as any).transformOrigin).toBe('10px 20%');
   });
 });
 

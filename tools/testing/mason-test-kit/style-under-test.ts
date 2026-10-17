@@ -9,10 +9,16 @@
 //   - `commitState()` only ORs bits into `isDirty`; with `inBatch = true` the
 //     native syncStyle() is never scheduled
 import { Style } from '../../../packages/nativescript-masonkit/style';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { styleKey } from './style-keys';
+import { parseSchema } from '../../scripts/style-keys/generate.mjs';
 
-/** Must match crates/mason-core/src/style/arena.rs STYLE_BUFFER_SIZE. */
-export const STYLE_BUFFER_SIZE = 596;
+const SCHEMA = resolve(dirname(fileURLToPath(import.meta.url)), '../../scripts/style-keys/style-keys.schema');
+
+/** The buffer size every platform allocates, from the style keys schema. */
+export const STYLE_BUFFER_SIZE: number = parseSchema(readFileSync(SCHEMA, 'utf8')).bufferSize;
 
 const REF_COUNT_OFFSET = styleKey('REF_COUNT');
 

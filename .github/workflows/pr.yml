@@ -14,15 +14,15 @@ concurrency:
 
 jobs:
   style-keys:
-    name: StyleKeys offsets agree (4 languages)
+    name: Generated StyleKeys are up to date
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # No dependencies needed: the drift check is plain Node over the sources.
-      - run: node tools/scripts/style-keys/check-drift.mjs
+      # No dependencies needed: the generator is plain Node.
+      - run: node tools/scripts/style-keys/generate.mjs --check
 
   ts-unit:
     name: TypeScript CSS value layer

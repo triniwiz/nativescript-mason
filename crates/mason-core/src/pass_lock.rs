@@ -20,8 +20,20 @@ pub struct PassRawRwLock {
     depth: AtomicU32,
 }
 
+// The thread pointer register is unique per live thread and non-zero.
+#[cfg(all(target_os = "android", target_arch = "aarch64"))]
+#[inline(always)]
+fn current_thread() -> usize {
+    let tp: usize;
+    // SAFETY: reading TPIDR_EL0 has no side effects.
+    unsafe {
+        core::arch::asm!("mrs {}, tpidr_el0", out(reg) tp, options(nomem, nostack, preserves_flags));
+    }
+    tp
+}
+
 // Android's Rust targets use emulated TLS, so ask bionic, which reads the thread register.
-#[cfg(target_os = "android")]
+#[cfg(all(target_os = "android", not(target_arch = "aarch64")))]
 #[inline(always)]
 fn current_thread() -> usize {
     extern "C" {

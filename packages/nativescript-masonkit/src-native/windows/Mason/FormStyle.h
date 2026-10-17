@@ -6,6 +6,7 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Windows.UI.Text.h>
 #include "Node.h"
+#include "StyleKeys.h"
 #include "VisualApply.h"
 
 namespace mason_form
@@ -34,19 +35,20 @@ namespace mason_form
         uint32_t len = 0;
         const uint8_t* d = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(len);
         if (!d) return;
+        namespace sk = mason_style_keys;
         auto u8 = [&](uint32_t o) -> uint8_t { return o < len ? d[o] : 0; };
         auto i32 = [&](uint32_t o) -> int32_t { int32_t v = 0; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };
         auto f32 = [&](uint32_t o) -> float { float v = 0.0f; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };
-        s.hasColor = u8(328) != 0;
-        s.color = s.hasColor ? static_cast<uint32_t>(i32(324)) : 0;
-        s.fontSize = u8(334) && i32(329) > 0 ? static_cast<double>(i32(329)) : 0.0;
-        s.fontWeight = u8(339) && i32(335) > 0 ? i32(335) : 0;
-        s.hasFontStyle = u8(345) != 0;
-        s.fontStyle = s.hasFontStyle ? u8(344) : 0;
-        s.letterSpacing = u8(367) ? static_cast<double>(f32(363)) : 0.0;
-        s.textAlign = u8(374);
+        s.hasColor = u8(sk::kFontColorState) != 0;
+        s.color = s.hasColor ? static_cast<uint32_t>(i32(sk::kFontColor)) : 0;
+        s.fontSize = u8(sk::kFontSizeState) && i32(sk::kFontSize) > 0 ? static_cast<double>(i32(sk::kFontSize)) : 0.0;
+        s.fontWeight = u8(sk::kFontWeightState) && i32(sk::kFontWeight) > 0 ? i32(sk::kFontWeight) : 0;
+        s.hasFontStyle = u8(sk::kFontStyleState) != 0;
+        s.fontStyle = s.hasFontStyle ? u8(sk::kFontStyleType) : 0;
+        s.letterSpacing = u8(sk::kLetterSpacingState) ? static_cast<double>(f32(sk::kLetterSpacing)) : 0.0;
+        s.textAlign = u8(sk::kTextAlign);
         uint32_t bg = 0;
-        if (352 <= len) std::memcpy(&bg, d + 348, 4);
+        if (sk::kBackgroundColor + 4 <= len) std::memcpy(&bg, d + sk::kBackgroundColor, 4);
         s.hasBackground = (bg >> 24) != 0;
     }
 

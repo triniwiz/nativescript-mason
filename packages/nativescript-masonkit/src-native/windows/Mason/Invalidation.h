@@ -9,6 +9,7 @@
 #include <winrt/NativeScript.Mason.h>
 #include "LeafCommon.h"
 #include "Node.h"
+#include "StyleKeys.h"
 #include <unordered_map>
 
 namespace mason_leaf
@@ -54,10 +55,11 @@ namespace mason_leaf
         return mask;
     }
 
-    // StateKeys flag numbers from style.ts, as Android's StateKeys.LAYOUT_MASK and TEXT_LAYOUT.
-    inline constexpr StyleDirty kLayoutKeys = StateFlags({ { 0, 39 }, { 43, 44 }, { 47, 49 }, { 53, 54 }, { 56, 61 }, { 63, 66 }, { 69, 71 }, { 73, 75 }, { 77, 78 } });
-    inline constexpr StyleDirty kTextKeys = StateFlags({ { 2, 2 }, { 49, 54 }, { 56, 71 }, { 73, 75 }, { 77, 78 } });
-    inline constexpr StyleDirty kControlKeys = StateFlags({ { 49, 71 }, { 73, 75 }, { 77, 78 } });
+    // Inclusive StateKeys bit ranges, as Android's StateKeys.LAYOUT_MASK and TEXT_LAYOUT.
+    namespace st = mason_state_keys;
+    inline constexpr StyleDirty kLayoutKeys = StateFlags({ { st::kDisplay, st::kMaxContentHeight }, { st::kFloat, st::kClear }, { st::kListStylePosition, st::kInvalidateText }, { st::kTextAlign, st::kTextJustify }, { st::kFontSize, st::kTextOverflow }, { st::kWhiteSpace, st::kVerticalAlign }, { st::kFontFamily, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp } });
+    inline constexpr StyleDirty kTextKeys = StateFlags({ { st::kDirection, st::kDirection }, { st::kInvalidateText, st::kTextJustify }, { st::kFontSize, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp } });
+    inline constexpr StyleDirty kControlKeys = StateFlags({ { st::kInvalidateText, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch } });
 
     inline bool AnyDirty(StyleDirty const& dirty, StyleDirty const& mask)
     {

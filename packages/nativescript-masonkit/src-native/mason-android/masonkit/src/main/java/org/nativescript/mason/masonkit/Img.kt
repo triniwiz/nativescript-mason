@@ -168,6 +168,11 @@ class Img @JvmOverloads constructor(
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
     !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
 
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    if (::node.isInitialized) style.onViewSizeChanged(this)
+    super.onSizeChanged(w, h, oldw, oldh)
+  }
+
   override fun onDraw(canvas: Canvas) {
 
     // map the drawable's intrinsic rect -> destination region with a Matrix so positioning

@@ -224,6 +224,10 @@ public class MasonNode: NSObject {
   
   public internal(set) var computedLayout = MasonLayout.empty
 
+  // The view and style version the last applyToView applied.
+  internal weak var appliedView: UIView? = nil
+  internal var appliedStyleVersion: UInt64 = .max
+
   // position: fixed / sticky state — see MasonPositioning.swift.
   internal weak var fixedOriginalSuperview: UIView? = nil
   // Root-relative origin of a fixed box, re-applied when the root view moves.

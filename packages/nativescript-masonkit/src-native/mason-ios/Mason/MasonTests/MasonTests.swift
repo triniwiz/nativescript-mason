@@ -848,3 +848,48 @@ final class MasonTests: XCTestCase {
     }
   }
 }
+
+/// applyToView skips a node whose box, style and view are unchanged; style-only changes must still land.
+final class ReapplyTests: XCTestCase {
+  private let mason = NSCMason.shared
+
+  private func tree() -> (MasonUIView, MasonUIView) {
+    let root = MasonUIView(mason: mason)
+    let child = MasonUIView(mason: mason)
+    child.setSize(50, 50)
+    root.addView(child)
+    root.computeWithSize(100, 100)
+    return (root, child)
+  }
+
+  func test_overflowChangeWithoutResizeIsApplied() {
+    let (root, child) = tree()
+    XCTAssertFalse(child.clipsToBounds)
+    child.configure { $0.overflow = MasonPoint(.Hidden, .Hidden) }
+    root.computeWithSize(100, 100)
+    XCTAssertTrue(child.clipsToBounds)
+    child.configure { $0.overflow = MasonPoint(.Visible, .Visible) }
+    root.computeWithSize(100, 100)
+    XCTAssertFalse(child.clipsToBounds)
+  }
+
+  func test_borderRadiusOnClippedBoxWithoutResizeInstallsMask() {
+    let (root, child) = tree()
+    child.configure { $0.overflow = MasonPoint(.Hidden, .Hidden) }
+    root.computeWithSize(100, 100)
+    XCTAssertNil(child.layer.mask)
+    child.style.borderRadius = "10px"
+    root.computeWithSize(100, 100)
+    XCTAssertNotNil(child.layer.mask as? CAShapeLayer, "the rounded clip must follow a radius change")
+  }
+
+  func test_unchangedPassKeepsFramesAndResizeStillApplies() {
+    let (root, child) = tree()
+    let first = child.frame
+    root.computeWithSize(100, 100)
+    XCTAssertEqual(child.frame, first)
+    child.setSize(70, 30)
+    root.computeWithSize(100, 100)
+    XCTAssertEqual(child.frame.size.width, first.size.width * 70 / 50, accuracy: 0.5)
+  }
+}

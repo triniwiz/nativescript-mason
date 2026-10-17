@@ -379,19 +379,43 @@ private fun LengthPercentage.toPx(viewSize: Float): Float {
 class BorderRenderer(private val style: Style) {
 
   companion object {
+    private val PERCENT_TYPE_KEYS = intArrayOf(
+      StyleKeys.BORDER_LEFT_TYPE, StyleKeys.BORDER_RIGHT_TYPE, StyleKeys.BORDER_TOP_TYPE, StyleKeys.BORDER_BOTTOM_TYPE,
+      StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE,
+      StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE,
+      StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE,
+      StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE,
+    )
+
     // Static DashPathEffect instances — avoid allocation per draw
   }
 
-  private val paint by lazy(LazyThreadSafetyMode.NONE) { Paint(Paint.ANTI_ALIAS_FLAG) }
-  private val path by lazy(LazyThreadSafetyMode.NONE) { Path() }
-  private val ringPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private var paintOrNull: Paint? = null
+  private val paint: Paint
+    get() = paintOrNull ?: Paint(Paint.ANTI_ALIAS_FLAG).also { paintOrNull = it }
+  private var pathOrNull: Path? = null
+  private val path: Path
+    get() = pathOrNull ?: Path().also { pathOrNull = it }
+  private var ringPathOrNull: Path? = null
+  private val ringPath: Path
+    get() = ringPathOrNull ?: Path().also { ringPathOrNull = it }
 
   // Reused across draws: Path and Paint are native-backed, so allocating them per frame churns the GC.
-  private val insetPathA by lazy(LazyThreadSafetyMode.NONE) { Path() }
-  private val insetPathB by lazy(LazyThreadSafetyMode.NONE) { Path() }
-  private val ringFillPaint by lazy(LazyThreadSafetyMode.NONE) { Paint() }
-  private val clipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
-  private val outerClipPath by lazy(LazyThreadSafetyMode.NONE) { Path() }
+  private var insetPathAOrNull: Path? = null
+  private val insetPathA: Path
+    get() = insetPathAOrNull ?: Path().also { insetPathAOrNull = it }
+  private var insetPathBOrNull: Path? = null
+  private val insetPathB: Path
+    get() = insetPathBOrNull ?: Path().also { insetPathBOrNull = it }
+  private var ringFillPaintOrNull: Paint? = null
+  private val ringFillPaint: Paint
+    get() = ringFillPaintOrNull ?: Paint().also { ringFillPaintOrNull = it }
+  private var clipPathOrNull: Path? = null
+  private val clipPath: Path
+    get() = clipPathOrNull ?: Path().also { clipPathOrNull = it }
+  private var outerClipPathOrNull: Path? = null
+  private val outerClipPath: Path
+    get() = outerClipPathOrNull ?: Path().also { outerClipPathOrNull = it }
 
   // Reusable RectF for arc corner calculations — avoids allocation per corner
   private val cornerRect = RectF()
@@ -455,6 +479,10 @@ class BorderRenderer(private val style: Style) {
   private var bottomLeftExponent = 0f
 
   private var lastHash = 0
+
+  // Raw bytes of the border keys, compared directly when no pseudo state is active.
+  private val rawSnapshot = LongArray(32)
+  private var rawValid = false
 
   private var cacheInvalidated = true
   private var clipPathDirty = true
@@ -526,6 +554,55 @@ class BorderRenderer(private val style: Style) {
     result = 31 * result + java.lang.Float.floatToIntBits(style.mBorderRight.corner2Exponent)
 
     return result
+  }
+
+  private fun snapshotRange(values: java.nio.ByteBuffer, start: Int, end: Int, slot: Int): Int {
+    var off = start
+    var i = slot
+    while (off < end) {
+      val word = when {
+        off + 8 <= end -> values.getLong(off).also { off += 8 }
+        off + 4 <= end -> values.getInt(off).toLong().also { off += 4 }
+        else -> values.get(off).toLong().also { off += 1 }
+      }
+      if (rawSnapshot[i] != word) {
+        rawSnapshot[i] = word
+        rawValid = false
+      }
+      i++
+    }
+    return i
+  }
+
+  private fun borderKeysChanged(): Boolean {
+    if (style.node.pseudoMask != 0) {
+      rawValid = false
+      val hash = computeHash()
+      if (hash == lastHash) return false
+      lastHash = hash
+      return true
+    }
+    val wasValid = rawValid
+    rawValid = true
+    val values = style.values
+    val next = snapshotRange(values, StyleKeys.BORDER_LEFT_TYPE, StyleKeys.BORDER_BOTTOM_VALUE + 4, 0)
+    snapshotRange(values, StyleKeys.BORDER_LEFT_STYLE, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT + 4, next)
+    if (!wasValid || !rawValid) {
+      rawValid = true
+      lastHash = 0
+      return true
+    }
+    return false
+  }
+
+  // Set by a resize: only percentage widths and radii need recomputing.
+  private var sizeDirty = false
+  private var dependsOnSize = true
+
+  fun invalidateSize() {
+    sizeDirty = true
+    clipPathDirty = true
+    outerClipPathDirty = true
   }
 
   fun invalidate() {
@@ -847,44 +924,135 @@ class BorderRenderer(private val style: Style) {
     }
   }
 
-  fun updateCache(viewWidth: Float, viewHeight: Float) {
-    val newHash = computeHash()
-    if (!cacheInvalidated && newHash == lastHash) return
+  private var seenStyleVersion = -1
+  private var seenSharedEpoch = -1
 
-    lastHash = newHash
+  // Nothing wrote this style (or a shared buffer) since the last check, so the bytes can't differ.
+  private fun styleUntouched(): Boolean {
+    if (style.node.pseudoMask != 0) return false
+    val version = style.styleVersion
+    val epoch = Style.sharedBufferEpoch
+    if (version == seenStyleVersion && epoch == seenSharedEpoch) return true
+    seenStyleVersion = version
+    seenSharedEpoch = epoch
+    return false
+  }
+
+  fun updateCache(viewWidth: Float, viewHeight: Float) {
+    // Always called so an invalidated pass also records what it read.
+    val untouched = styleUntouched()
+    if (!cacheInvalidated && untouched) {
+      if (!sizeDirty) return
+      sizeDirty = false
+      if (dependsOnSize) refreshSizeDependent(viewWidth, viewHeight)
+      return
+    }
+    if (!borderKeysChanged() && !cacheInvalidated) {
+      if (!sizeDirty) return
+      sizeDirty = false
+      if (dependsOnSize) refreshSizeDependent(viewWidth, viewHeight)
+      return
+    }
+
     cacheInvalidated = false
+    sizeDirty = false
     clipPathDirty = true  // border properties changed, clip path needs rebuild
     outerClipPathDirty = true
 
-    // Widths
-    leftWidth = style.mBorderLeft.width.toPx(viewWidth)
-    topWidth = style.mBorderTop.width.toPx(viewWidth)
-    rightWidth = style.mBorderRight.width.toPx(viewWidth)
-    bottomWidth = style.mBorderBottom.width.toPx(viewWidth)
+    if (style.node.pseudoMask != 0) {
+      // Pseudo states overlay the base values, so go through the resolving getters.
+      leftWidth = style.mBorderLeft.width.toPx(viewWidth)
+      topWidth = style.mBorderTop.width.toPx(viewWidth)
+      rightWidth = style.mBorderRight.width.toPx(viewWidth)
+      bottomWidth = style.mBorderBottom.width.toPx(viewWidth)
 
-    // Colors
-    leftColor = style.mBorderLeft.color
-    topColor = style.mBorderTop.color
-    rightColor = style.mBorderRight.color
-    bottomColor = style.mBorderBottom.color
+      leftColor = style.mBorderLeft.color
+      topColor = style.mBorderTop.color
+      rightColor = style.mBorderRight.color
+      bottomColor = style.mBorderBottom.color
 
-    // Styles
-    leftStyle = style.mBorderLeft.style
-    topStyle = style.mBorderTop.style
-    rightStyle = style.mBorderRight.style
-    bottomStyle = style.mBorderBottom.style
+      leftStyle = style.mBorderLeft.style
+      topStyle = style.mBorderTop.style
+      rightStyle = style.mBorderRight.style
+      bottomStyle = style.mBorderBottom.style
 
-    setCorner(topLeftCorner, Border.cornerTopLeftKeys, viewWidth, viewHeight)
-    setCorner(topRightCorner, Border.cornerTopRightKeys, viewWidth, viewHeight)
-    setCorner(bottomRightCorner, Border.cornerBottomRightKeys, viewWidth, viewHeight)
-    setCorner(bottomLeftCorner, Border.cornerBottomLeftKeys, viewWidth, viewHeight)
+      topLeftExponent = style.mBorderTop.corner1Exponent
+      topRightExponent = style.mBorderTop.corner2Exponent
+      bottomRightExponent = style.mBorderBottom.corner2Exponent
+      bottomLeftExponent = style.mBorderBottom.corner1Exponent
 
-    // Exponents
-    topLeftExponent = style.mBorderTop.corner1Exponent       // Top-Left
-    topRightExponent = style.mBorderTop.corner2Exponent       // Top-Right
-    bottomRightExponent = style.mBorderBottom.corner2Exponent    // Bottom-Right
-    bottomLeftExponent = style.mBorderBottom.corner1Exponent    // Bottom-Left
+      setCorners(viewWidth, viewHeight)
+      dependsOnSize = true
+      return
+    }
 
+    val values = style.values
+    setSideWidths(values, viewWidth)
+
+    leftColor = values.getInt(StyleKeys.BORDER_LEFT_COLOR)
+    topColor = values.getInt(StyleKeys.BORDER_TOP_COLOR)
+    rightColor = values.getInt(StyleKeys.BORDER_RIGHT_COLOR)
+    bottomColor = values.getInt(StyleKeys.BORDER_BOTTOM_COLOR)
+
+    leftStyle = BorderStyle.from(values.get(StyleKeys.BORDER_LEFT_STYLE))
+    topStyle = BorderStyle.from(values.get(StyleKeys.BORDER_TOP_STYLE))
+    rightStyle = BorderStyle.from(values.get(StyleKeys.BORDER_RIGHT_STYLE))
+    bottomStyle = BorderStyle.from(values.get(StyleKeys.BORDER_BOTTOM_STYLE))
+
+    topLeftExponent = values.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT)
+    topRightExponent = values.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT)
+    bottomRightExponent = values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT)
+    bottomLeftExponent = values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT)
+
+    setCorners(viewWidth, viewHeight)
+    dependsOnSize = anyPercent(values)
+  }
+
+  private fun refreshSizeDependent(viewWidth: Float, viewHeight: Float) {
+    setSideWidths(style.values, viewWidth)
+    setCorners(viewWidth, viewHeight)
+  }
+
+  // Percentages resolve against the width on every side, as in CSS.
+  private fun setSideWidths(values: java.nio.ByteBuffer, viewWidth: Float) {
+    leftWidth = lengthPx(values.get(StyleKeys.BORDER_LEFT_TYPE), values.getFloat(StyleKeys.BORDER_LEFT_VALUE), viewWidth)
+    topWidth = lengthPx(values.get(StyleKeys.BORDER_TOP_TYPE), values.getFloat(StyleKeys.BORDER_TOP_VALUE), viewWidth)
+    rightWidth = lengthPx(values.get(StyleKeys.BORDER_RIGHT_TYPE), values.getFloat(StyleKeys.BORDER_RIGHT_VALUE), viewWidth)
+    bottomWidth = lengthPx(values.get(StyleKeys.BORDER_BOTTOM_TYPE), values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE), viewWidth)
+  }
+
+  // The eight radius types and eight values are contiguous (TL, TR, BR, BL; x then y),
+  // so they are read as one word of types and four words of value pairs.
+  private fun setCorners(viewWidth: Float, viewHeight: Float) {
+    val values = style.values
+    val little = values.order() == java.nio.ByteOrder.LITTLE_ENDIAN
+    val types = values.getLong(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE)
+    setCornerFromWords(topLeftCorner, values, types, 0, little, viewWidth, viewHeight)
+    setCornerFromWords(topRightCorner, values, types, 1, little, viewWidth, viewHeight)
+    setCornerFromWords(bottomRightCorner, values, types, 2, little, viewWidth, viewHeight)
+    setCornerFromWords(bottomLeftCorner, values, types, 3, little, viewWidth, viewHeight)
+  }
+
+  private fun setCornerFromWords(
+    corner: PointF, values: java.nio.ByteBuffer, types: Long, index: Int, little: Boolean,
+    viewWidth: Float, viewHeight: Float
+  ) {
+    val pair = values.getLong(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE + index * 8)
+    val low = java.lang.Float.intBitsToFloat(pair.toInt())
+    val high = java.lang.Float.intBitsToFloat((pair ushr 32).toInt())
+    corner.x = lengthPx(typeByte(types, index * 2, little), if (little) low else high, viewWidth)
+    corner.y = lengthPx(typeByte(types, index * 2 + 1, little), if (little) high else low, viewHeight)
+  }
+
+  private fun typeByte(types: Long, i: Int, little: Boolean): Byte =
+    (types ushr (8 * (if (little) i else 7 - i))).toByte()
+
+  private fun anyPercent(values: java.nio.ByteBuffer): Boolean {
+    val percent = LengthPercentage.Kind.Percent.value
+    for (key in PERCENT_TYPE_KEYS) {
+      if (values.get(key) == percent) return true
+    }
+    return false
   }
 
   private fun setCorner(corner: PointF, keys: Border.IKeyCorner, viewWidth: Float, viewHeight: Float) {
@@ -950,11 +1118,16 @@ class BorderRenderer(private val style: Style) {
     return into
   }
 
-  private val ringFill by lazy(LazyThreadSafetyMode.NONE) {
-    Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; isDither = true }
-  }
-  private val ringPart = Path()
-  private val sidePath = Path()
+  private var ringFillOrNull: Paint? = null
+  private val ringFill: Paint
+    get() = ringFillOrNull ?: Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; isDither = true }
+      .also { ringFillOrNull = it }
+  private var ringPartOrNull: Path? = null
+  private val ringPart: Path
+    get() = ringPartOrNull ?: Path().also { ringPartOrNull = it }
+  private var sidePathOrNull: Path? = null
+  private val sidePath: Path
+    get() = sidePathOrNull ?: Path().also { sidePathOrNull = it }
   private val splitTL = PointF()
   private val splitTR = PointF()
   private val splitBR = PointF()
@@ -1057,12 +1230,12 @@ class BorderRenderer(private val style: Style) {
     }
   }
 
-  private val strokePaint by lazy(LazyThreadSafetyMode.NONE) {
-    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+  private var strokePaintOrNull: Paint? = null
+  private val strokePaint: Paint
+    get() = strokePaintOrNull ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
       style = Paint.Style.STROKE
       isDither = true
-    }
-  }
+    }.also { strokePaintOrNull = it }
 
   private fun drawUniformSolid(canvas: Canvas, width: Float, height: Float): Boolean {
     if (topStyle != BorderStyle.Solid || rightStyle != BorderStyle.Solid ||
