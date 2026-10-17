@@ -2385,7 +2385,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!corners) {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
-    // calc() and friends resolve here, so the corner takes the buffer fast path.
+    // Resolve math functions first: the corner parser can't read them.
     const css = resolveCssMathIn(lengthToCssString(masonLength(value)), (style as MasonStyle).emBasis());
     const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
     const shorthand = composeBorderRadius(corners);

@@ -1,24 +1,9 @@
 /**
- * CSS math functions: `calc()`, `min()`, `max()` and `clamp()`.
- *
- * Core only evaluates values containing `calc(`, with `@csstools/css-calc`,
- * which knows neither the root font size nor the viewport: `calc(0.75rem -
- * 1px)` comes back unevaluated, and `clamp(2rem, 1.5rem + 1.875vw, 2.5rem)` is
- * never evaluated at all. MasonKit knows both, so it evaluates them itself.
- *
- * Every length is resolved to CSS px as it is read, through the caller's
- * `resolveUnit`, so the expression only ever adds px to px. A percentage can't
- * be resolved here (its basis is only known at layout), so it is carried
- * along on its own: an expression that ends up purely in `%` is still a
- * percentage, but one that mixes `%` with a length (`calc(100% - 20px)`) is
- * left unresolved.
+ * `calc()`, `min()`, `max()` and `clamp()` evaluated with Mason's units. Lengths resolve to CSS px
+ * as read; a pure `%` result stays a percentage, `%` mixed with a length is left unresolved.
  */
 
-/**
- * Resolves `n<unit>` to CSS px, or to a percentage where a unit means one in
- * this context (`em` on `font-size`), or undefined for a unit it can't
- * resolve. A `%` it leaves undefined stays a percentage.
- */
+/** `n<unit>` in CSS px, a percentage (e.g. `em` on `font-size`), or undefined if unresolvable. */
 export type CssUnitResolver = (n: number, unit: string) => number | { percent: number } | undefined;
 
 export type CssMathResult = { kind: 'length'; px: number } | { kind: 'percent'; percent: number } | { kind: 'number'; value: number };
@@ -301,9 +286,8 @@ export function cssMathText(result: CssMathResult): string {
 }
 
 /**
- * Replace every math function in `value` that resolves with its result,
- * leaving the rest of the value (and any function that doesn't resolve) as it
- * was: `0 0 calc(0.5rem + 1px) red` becomes `0 0 9px red`.
+ * Replace every math function in `value` that resolves with its result, leaving the rest as is:
+ * `0 0 calc(0.5rem + 1px) red` becomes `0 0 9px red`.
  */
 export function substituteCssMath(value: string, resolveUnit: CssUnitResolver): string {
   if (!hasCssMathFunction(value)) {

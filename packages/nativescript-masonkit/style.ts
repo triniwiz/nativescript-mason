@@ -353,11 +353,7 @@ function finite(n: number): number {
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 const PX_PER_PT = 96 / 72;
 
-/**
- * `n<unit>` in CSS px, for the units `tokenToDevicePx` knows, or undefined for
- * any other unit. Used inside calc()/min()/max()/clamp(), where an unknown unit
- * makes the whole expression unresolvable rather than a CSS px.
- */
+/** `n<unit>` in CSS px inside a math function, or undefined for an unknown unit. */
 function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefined {
   switch (unit) {
     case 'px':
@@ -389,11 +385,8 @@ function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefi
 }
 
 /**
- * A calc()/min()/max()/clamp() `font-size`. There `em` is relative to the
- * parent's font size, as `%` is, so `calc(1.5em)` is `150%` and inheritance
- * resolves it natively. One mixing those with absolute lengths
- * (`clamp(12px, 0.75em, 0.75em)`) can't be stored either way and resolves
- * them against the root font size instead.
+ * A math function `font-size`: `em` is parent-relative like `%`, so `calc(1.5em)` is `150%`.
+ * Mixed with absolute lengths, `em` and `%` resolve against the root font size instead.
  */
 function fontSizeMath(value: string) {
   const parentRelative = evaluateCssMath(value, (n, unit) => (unit === 'em' ? { percent: n * 100 } : unitToCssPx(n, unit)));
@@ -405,11 +398,7 @@ function evaluateLengthMath(value: string, emBasis?: number) {
   return evaluateCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
 }
 
-/**
- * Every calc()/min()/max()/clamp() in a string value that resolves, replaced
- * by its result, for the values the native parsers read (`border-radius`,
- * `box-shadow`, ...), which know no math functions.
- */
+/** `value` with every resolvable math function replaced by its result, for the native parsers. */
 export function resolveCssMathIn(value: string, emBasis?: number): string {
   return substituteCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
 }
@@ -470,10 +459,8 @@ function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
     return layout.toDevicePixels((n / 100) * cssUnits.viewportHeight);
   }
 
-  // A function value Mason can't evaluate leaves parseFloat with nothing, so
-  // the declaration collapses to 0: var() (which core substitutes in a
-  // stylesheet), or a calc()/min()/max()/clamp() mixing % with a length, whose
-  // basis is only known at layout.
+  // A function value Mason can't evaluate (var(), or math mixing % with a length)
+  // collapses to 0.
   const fn = /^([a-z-]+)\(/.exec(t);
   if (fn) {
     const detail = isCssMathFunction(t) ? `${fn[1]}() mixes % with a length, or doesn't parse, so it can't be evaluated before layout` : `${fn[1]}() is not evaluated here; it resolves only in a stylesheet, where core expands it first`;
