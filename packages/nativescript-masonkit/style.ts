@@ -1993,9 +1993,7 @@ export class Style {
     this.commitState(StateKeys.BORDER_COLOR);
   }
 
-  // Per-side colors by name: pseudo-class styles assign each declaration of a
-  // rule this way, and `border`, `border-<side>` and `border-color` reach them
-  // as these longhands.
+  // Per-side colors by name, as pseudo-class styles and the border shorthands assign them.
   private borderSideColor(key: StyleKeys): string {
     return new Color(getUint32(this.style_view, key)).hex;
   }

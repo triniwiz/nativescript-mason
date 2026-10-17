@@ -1816,8 +1816,7 @@ export const objectPositionProperty = new CssProperty<Style, string>({
   },
 });
 
-// One style per side, as CSS has; `border-style`, `border` and `border-<side>`
-// are shorthands over them (below), so a later longhand overrides a shorthand.
+// Per-side style longhands; `border-style`, `border` and `border-<side>` expand into them.
 export const borderTopStyleProperty = new CssProperty<Style, string>({
   name: 'borderTopStyle',
   cssName: 'border-top-style',
@@ -2396,11 +2395,7 @@ for (const entry of coreShorthands) {
 }
 
 // `border`, `border-<side>` and `border-style` expand into the width, style and
-// color longhands, as `border-width` and `border-color` do, so the cascade
-// decides each longhand on its own: `border: 1px solid` followed by
-// `border-width: 0 0 1px` keeps only the bottom border, as on the web. They
-// used to be properties of their own, parsed natively, which overwrote or lost
-// to the longhands depending on which one happened to be applied last.
+// color longhands, so the cascade resolves each longhand on its own.
 const SIDES = ['top', 'right', 'bottom', 'left'];
 
 /** A longhand's value as CSS text, for the shorthand getters. */
@@ -2441,7 +2436,7 @@ function sideValues(style: Style, longhands: { name: string }[]): string[] {
   return longhands.map(({ name }) => cssText((style as never)[name]));
 }
 
-/** The shorthand's text when every side agrees, as `getComputedStyle` gives it; else ''. */
+/** The shared value when every side agrees, else undefined. */
 function uniformSides(values: string[]): string | undefined {
   return values.every((value) => value === values[0]) ? values[0] : undefined;
 }
