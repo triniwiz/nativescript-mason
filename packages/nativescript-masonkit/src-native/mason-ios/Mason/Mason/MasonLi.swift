@@ -333,7 +333,7 @@ public class MasonLi: UIView, MasonEventTarget, MasonElement, MasonElementObjc, 
     }
 
     // Check if this is a MasonText (custom text container)
-    if view is TextContainer {
+    if MasonViewKind.isTextContainer(view) {
       let textFrame = view.convert(view.bounds, to: self)
       if let element = view as? MasonElement,
          let font = element.style.font?.uiFont {

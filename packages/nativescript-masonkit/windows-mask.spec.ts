@@ -55,6 +55,12 @@ describe('encodeWindowsMask', () => {
     expect(spec.l[1].i).toEqual({ t: 'lin', a: 180, s: [0.4, 0xff000000, 1, 0] });
   });
 
+  it('passes a corner keyword with the linear gradient', () => {
+    const corner: WindowsMaskContext = { ...ctx, linear: () => ({ angle: 135, corner: [1, 1], offsets: [0, 1], colors: [0xff000000, 0] }) };
+    const spec = JSON.parse(encodeWindowsMask(new Map([['mask-image', 'linear-gradient(to bottom right, black, transparent)']]), corner));
+    expect(spec.l[0].i).toEqual({ t: 'lin', a: 135, k: [1, 1], s: [0, 0xff000000, 1, 0] });
+  });
+
   it('carries clip-path and mask-border', () => {
     const spec = mask({ 'clip-path': 'circle(50%)', 'mask-border-source': 'url(a.svg)', 'mask-border-slice': '6 fill', 'mask-border-width': '12px', 'mask-border-repeat': 'round' });
     expect(spec.l).toBeUndefined();

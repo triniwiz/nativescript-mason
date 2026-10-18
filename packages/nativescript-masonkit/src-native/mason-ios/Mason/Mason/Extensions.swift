@@ -52,7 +52,11 @@ private final class ARGBColorCache {
     defer { os_unfair_lock_unlock(lock) }
     if let color = colors[argb] { return color }
     if colors.count >= 256 { colors.removeAll(keepingCapacity: true) }
-    let color = UIColor.colorFromARGB(argb).cgColor
+    let a = CGFloat((argb >> 24) & 0xFF) / 255.0
+    let r = CGFloat((argb >> 16) & 0xFF) / 255.0
+    let g = CGFloat((argb >> 8) & 0xFF) / 255.0
+    let b = CGFloat(argb & 0xFF) / 255.0
+    let color = CGColor(srgbRed: r, green: g, blue: b, alpha: a)
     colors[argb] = color
     return color
   }
@@ -76,12 +80,7 @@ extension UIColor {
     case 0:
       return .clear
     default:
-      let a = CGFloat((argb >> 24) & 0xFF) / 255.0
-      let r = CGFloat((argb >> 16) & 0xFF) / 255.0
-      let g = CGFloat((argb >> 8) & 0xFF) / 255.0
-      let b = CGFloat(argb & 0xFF) / 255.0
-      
-      return UIColor(cgColor: CGColor(srgbRed: r, green: g, blue: b, alpha: a))
+      return UIColor(cgColor: cgColorFromARGB(argb))
     }
     
   }

@@ -653,18 +653,17 @@ namespace winrt::NativeScript::Mason::implementation
         }
     }
 
-    void Css::ApplyLinearGradient(mux::UIElement const& element, double angleDegrees, winrt::hstring const& stops, winrt::hstring const& interpolation)
+    void Css::ApplyLinearGradient(mux::UIElement const& element, double angleDegrees, int32_t cornerX, int32_t cornerY, winrt::hstring const& stops, winrt::hstring const& interpolation)
     {
         auto panel = element ? element.try_as<muxc::Panel>() : nullptr;
         if (!panel) return;
 
         muxm::LinearGradientBrush brush{};
-        // CSS angle: 0deg -> to top, 90deg -> to right. Map to a relative start/end across the box.
-        const double rad = angleDegrees * 3.14159265358979323846 / 180.0;
-        const double dx = std::sin(rad);
-        const double dy = -std::cos(rad);
-        brush.StartPoint({ static_cast<float>(0.5 - dx * 0.5), static_cast<float>(0.5 - dy * 0.5) });
-        brush.EndPoint({ static_cast<float>(0.5 + dx * 0.5), static_cast<float>(0.5 + dy * 0.5) });
+        const bool toCorner = cornerX != 0 && cornerY != 0;
+        const double angle = toCorner ? std::atan2(cornerX, -cornerY) * 180.0 / 3.14159265358979323846 : angleDegrees;
+        brush.SetValue(mason_visual::GradientAngleProperty(), winrt::box_value(angle));
+        brush.SetValue(mason_visual::GradientToCornerProperty(), winrt::box_value(toCorner));
+        mason_visual::PlaceLinearGradient(brush, angle, toCorner, static_cast<float>(panel.ActualWidth()), static_cast<float>(panel.ActualHeight()));
         AppendGradientStops(brush.GradientStops(), std::wstring_view(stops), std::wstring_view(interpolation));
         panel.Background(brush);
         if (auto invalidated = element.try_as<mux::UIElement>()) invalidated.InvalidateArrange();

@@ -216,7 +216,7 @@ declare namespace NativeScript.Mason {
     static ClearClip(element: any): void;
     static CreateShadow(width: number, height: number, blurRadius: number, spread: number, cornerRadius: number, offsetX: number, offsetY: number, argb: number): CssImageResult;
     static CreateBorder(width: number, height: number, topWidth: number, rightWidth: number, bottomWidth: number, leftWidth: number, topArgb: number, rightArgb: number, bottomArgb: number, leftArgb: number, cornerRadius: number): CssImageResult;
-    static ApplyLinearGradient(element: any, angleDegrees: number, stops: string, interpolation: string): void;
+    static ApplyLinearGradient(element: any, angleDegrees: number, cornerX: number, cornerY: number, stops: string, interpolation: string): void;
     static ApplyRadialGradient(element: any, stops: string, interpolation: string): void;
     static ReparentChild(parent: any, child: any, index: number): void;
     static RemoveChild(parent: any, child: any): void;

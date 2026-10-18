@@ -340,7 +340,7 @@ extension MasonElement {
       return
     }
     
-    if(!(self is TextContainer)){
+    if(!MasonViewKind.isTextContainer(self)){
       uiView.addSubview(view)
     }
     
@@ -365,7 +365,7 @@ extension MasonElement {
     if(view.superview == uiView){
       return
     }
-    if(!(self is TextContainer)){
+    if(!MasonViewKind.isTextContainer(self)){
       if(at <= -1){
         uiView.addSubview(view)
       }else {
@@ -556,7 +556,7 @@ extension MasonElement {
   }
   
   public func append(text: String){
-    if(uiView is TextContainer){
+    if(MasonViewKind.isTextContainer(uiView)){
       node.appendChild(MasonTextNode(mason: node.mason, data: text, attributes: (uiView as! TextContainer).defaultAttributes))
     }else {
       node.appendChild(MasonTextNode(mason: node.mason, data: text))
@@ -851,7 +851,7 @@ extension MasonElement {
     for childNode in nodes {
       childNode.parent = node
       if let childView = childNode.view {
-        if(!(self.uiView is TextContainer)){
+        if(!MasonViewKind.isTextContainer(self.uiView)){
           node.view?.addSubview(childView)
         }
       }
@@ -1391,6 +1391,11 @@ internal enum MasonViewKind {
   static func element(_ obj: AnyObject?) -> MasonElement? {
     guard let obj = obj, bits(obj) & elementBit != 0 else { return nil }
     return obj as? MasonElement
+  }
+
+  static func isTextContainer(_ obj: AnyObject?) -> Bool {
+    guard let obj = obj else { return false }
+    return bits(obj) & textBit != 0
   }
 
   static func textContainer(_ obj: AnyObject?) -> TextContainer? {

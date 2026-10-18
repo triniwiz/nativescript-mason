@@ -59,7 +59,7 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   public func requestLayout() {
     engine.invalidateInlineSegments()
     // handle text nesting
-    if(node.parent?.view is TextContainer){
+    if(MasonViewKind.isTextContainer(node.parent?.view)){
       if(!engine.shouldFlattenTextContainer(self)){
         setNeedsDisplay()
       }
@@ -68,9 +68,7 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
       }
       return
     }
-    // Schedule a layout pass from the layout root, as MasonText does. Only
-    // recomputing when the root's compute cache was dirty meant a label change
-    // (e.g. "Tap me" -> "Tapped 1x") never re-measured the button.
+    // Schedule a layout pass from the layout root, as MasonText does, so a label change re-measures.
     rootLayoutElement()?.setNeedsLayoutPass()
     setNeedsDisplay()
   }

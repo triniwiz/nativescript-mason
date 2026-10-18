@@ -4564,6 +4564,7 @@ public class MasonStyle: NSObject {
         let state = StateKeys(low: isDirty, high: isDirtyHigh)
         if(state.contains(.zIndex)){
           element?.uiView.layer.zPosition = CGFloat(zIndex)
+          if zIndex < 0 { element?.uiView.superview?.layer.setNeedsDisplay() }
         }
         if state.contains(.caretColor) {
           notifyTextStyleChanged(.caretColor)
@@ -4597,6 +4598,7 @@ public class MasonStyle: NSObject {
       if(isDirty > 0){
         if(state.contains(.zIndex)){
           element?.uiView.layer.zPosition = CGFloat(zIndex)
+          if zIndex < 0 { element?.uiView.superview?.layer.setNeedsDisplay() }
         }
       }
 

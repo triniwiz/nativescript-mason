@@ -11,11 +11,12 @@ import CoreText
 
 // MARK: - Helper Functions (top-level)
 func normalizeNewlines(_ s: String) -> String {
-  s.replacingOccurrences(of: #"\r?\n|\r"#, with: "\n", options: .regularExpression)
+  guard s.utf8.contains(13) else { return s }
+  return s.replacingOccurrences(of: "\r\n", with: "\n", options: .literal).replacingOccurrences(of: "\r", with: "\n", options: .literal)
 }
 
 let collapsible = #"[ \t\u{000B}\u{000C}]"#
-let collapsiblePlusLF = #"[ \t\u{000B}\u{000C}\n]+"#
+
 
 func processPreLine(_ s: String, treatNBSPAsSpace: Bool = false) -> String {
   var t = normalizeNewlines(s)
@@ -497,7 +498,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   public func requestLayout() {
     engine.invalidateInlineSegments()
     // handle text nesting
-    if(node.layoutParent?.view is TextContainer){
+    if(MasonViewKind.isTextContainer(node.layoutParent?.view)){
       if(!engine.shouldFlattenTextContainer(self)){
         setNeedsDisplay()
       }
@@ -852,7 +853,6 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
 
   private func initText(){
     isOpaque = false
-    backgroundColor = .clear
     textLayer.textView = self
     textLayer.contentsScale = CGFloat(NSCMason.scale)
     style.setStyleChangeListener(listener: self)

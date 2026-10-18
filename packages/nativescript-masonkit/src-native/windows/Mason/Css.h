@@ -33,7 +33,7 @@ namespace winrt::NativeScript::Mason::implementation
             double cornerRadius);
 
         static void ApplyLinearGradient(winrt::Microsoft::UI::Xaml::UIElement const& element,
-            double angleDegrees, winrt::hstring const& stops, winrt::hstring const& interpolation);
+            double angleDegrees, int32_t cornerX, int32_t cornerY, winrt::hstring const& stops, winrt::hstring const& interpolation);
         static void ApplyRadialGradientAt(winrt::Microsoft::UI::Xaml::UIElement const& element, double centerX, double centerY, double radiusX,
             double radiusY, hstring const& stops, hstring const& interpolation);
         static void ApplyBackgroundImage(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& source, int32_t fit, int32_t alignX,

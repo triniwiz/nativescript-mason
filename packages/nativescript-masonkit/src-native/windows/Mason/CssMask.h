@@ -56,6 +56,8 @@ namespace mason_cssmask
         // Linear: CSS angle. Conic: start angle. Radial/conic centre and radial radii are fractions
         // of the box the gradient fills.
         float angle{ 180.0f };
+        // Linear: a `to <corner>` keyword as -1/1 per axis, or 0 for an angle.
+        float cornerX{ 0.0f }, cornerY{ 0.0f };
         float cx{ 0.5f }, cy{ 0.5f }, rx{ 0.5f }, ry{ 0.5f };
         std::vector<std::pair<float, uint32_t>> stops;
         // The SVG uses currentColor, kept as kCurrentColor until it's drawn.
@@ -260,6 +262,7 @@ namespace mason_cssmask
         if (auto c = Arr(o, L"c")) { image.cx = Num(c, 0, 0.5f); image.cy = Num(c, 1, 0.5f); }
         if (auto r = Arr(o, L"r")) { image.rx = Num(r, 0, 0.5f); image.ry = Num(r, 1, 0.5f); }
         image.angle = static_cast<float>(o.GetNamedNumber(L"a", 180.0));
+        if (auto k = Arr(o, L"k")) { image.cornerX = Num(k, 0, 0.0f); image.cornerY = Num(k, 1, 0.0f); }
         if (type == L"lin") image.kind = Image::Kind::Linear;
         else if (type == L"rad") image.kind = Image::Kind::Radial;
         else if (type == L"con") image.kind = Image::Kind::Conic;
@@ -484,7 +487,10 @@ namespace mason_cssmask
             // CSS: 0deg points up, angles turn clockwise, and the line is just long enough for the
             // corners to get the end colours.
             const float a = image.angle * 3.14159265f / 180.0f;
-            const float dx = std::sin(a), dy = -std::cos(a);
+            const float diagonal = std::hypot(w, h);
+            const bool corner = image.cornerX != 0.0f && image.cornerY != 0.0f && diagonal > 0.0f;
+            const float dx = corner ? image.cornerX * h / diagonal : std::sin(a);
+            const float dy = corner ? image.cornerY * w / diagonal : -std::cos(a);
             const float half = (std::abs(w * dx) + std::abs(h * dy)) / 2.0f;
             const D2D1_POINT_2F c{ w / 2.0f, h / 2.0f };
             auto stops = Stops(ctx, image, D2D1_EXTEND_MODE_CLAMP);
