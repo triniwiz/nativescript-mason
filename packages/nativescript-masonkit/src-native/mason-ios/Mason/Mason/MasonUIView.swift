@@ -73,12 +73,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // True while the box is painted through CALayer properties instead of draw(_:).
   private var _usesLayerPaint = false
 
-  /// Paint a plain box (solid color, one uniform solid border, one circular
-  /// radius) with CALayer properties, composited on the GPU like core's views.
-  /// Returns false, and clears those properties, when draw(_:) is needed.
+  /// Paint the box with CALayer properties and sublayers. Returns false, and clears them, when draw(_:) is needed.
   internal func applyLayerPaintIfEligible() -> Bool {
     // Nothing to paint is the degenerate case: every property cleared.
-    let wanted: LayerPaint? = paintsContent ? layerPaint() : LayerPaint(background: nil, borderWidth: 0, borderColor: nil, radius: 0)
+    let wanted: LayerPaint? = paintsContent ? layerPaint() : LayerPaint()
     guard let paint = wanted else {
       if contentMode != .redraw { contentMode = .redraw }
       if _usesLayerPaint {
@@ -87,20 +85,27 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         layer.borderWidth = 0
         layer.borderColor = nil
         layer.cornerRadius = 0
+        layer.maskedCorners = MasonUIView.allCorners
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         removeBorderLayer()
+        setGradientLayer(nil, paint: nil)
+        setSideLayers([])
+        CATransaction.commit()
       }
       return false
     }
     _usesLayerPaint = true
     if layer.backgroundColor != paint.background { layer.backgroundColor = paint.background }
     if layer.cornerRadius != paint.radius { layer.cornerRadius = paint.radius }
-    // Core Animation paints a layer's own border above its sublayers, but CSS paints
-    // children (and their shadows) over the parent's border. With anything layered
-    // inside, the border moves to a sublayer at the bottom of the stack.
-    // A view that clips its children keeps the border on its own layer, above them:
-    // CSS clips children inside the border, so they never cover it.
+    if layer.maskedCorners != paint.corners { layer.maskedCorners = paint.corners }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    setGradientLayer(paint.gradient, paint: paint)
+    // A layer's own border draws above its sublayers, so with children it moves to a bottom
+    // sublayer; a clipping view keeps it, as CSS clips children inside the border.
     let clipsChildren = clipsToBounds || layer.mask != nil
-    let useSublayer = paint.borderWidth > 0 && sublayersBesidesBorder() && !clipsChildren
+    let useSublayer = paint.borderWidth > 0 && sublayersBesidesPaint() && !clipsChildren
     let ownWidth = useSublayer ? 0 : paint.borderWidth
     let ownColor = useSublayer ? nil : paint.borderColor
     if layer.borderWidth != ownWidth { layer.borderWidth = ownWidth }
@@ -112,17 +117,17 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         _borderLayer = l
         return l
       }()
-      CATransaction.begin()
-      CATransaction.setDisableActions(true)
-      if border.superlayer !== layer { layer.insertSublayer(border, at: 0) }
+      if border.superlayer !== layer { layer.insertSublayer(border, at: paintLayerIndex()) }
       border.frame = CGRect(origin: .zero, size: bounds.size)
       border.borderWidth = paint.borderWidth
       border.borderColor = paint.borderColor
       border.cornerRadius = paint.radius
-      CATransaction.commit()
+      border.maskedCorners = paint.corners
     } else {
       removeBorderLayer()
     }
+    setSideLayers(paint.sides)
+    CATransaction.commit()
     // Layer properties scale with the box; only size-dependent paint needs a redraw.
     let mode: UIView.ContentMode = paintDependsOnSize ? .redraw : .scaleToFill
     if contentMode != mode { contentMode = mode }
@@ -133,9 +138,14 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   private var paintDependsOnSize: Bool {
     let border = style.mBorderRender
     return border.hasRadii() || _borderLayer?.superlayer != nil || !border.widthsIgnoreRect
+      || _gradientLayer?.superlayer != nil || !_sideLayers.isEmpty
   }
 
+  private static let allCorners: CACornerMask = [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner, .layerMinXMaxYCorner]
+
   private var _borderLayer: CALayer?
+  internal private(set) var _gradientLayer: CAGradientLayer?
+  private var _sideLayers: [CAShapeLayer] = []
 
   private func removeBorderLayer() {
     if let border = _borderLayer, border.superlayer != nil {
@@ -146,24 +156,93 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
 
-  private func sublayersBesidesBorder() -> Bool {
+  private func isPaintLayer(_ l: CALayer) -> Bool {
+    l === _borderLayer || l === _gradientLayer || _sideLayers.contains { $0 === l }
+  }
+
+  private func sublayersBesidesPaint() -> Bool {
     guard let sublayers = layer.sublayers else { return false }
-    return sublayers.contains { $0 !== _borderLayer }
+    return sublayers.contains { !isPaintLayer($0) }
+  }
+
+  /// Index just above the gradient layer, where border layers go.
+  private func paintLayerIndex() -> UInt32 {
+    _gradientLayer?.superlayer === layer ? 1 : 0
+  }
+
+  private func setGradientLayer(_ gradient: LayerGradient?, paint: LayerPaint?) {
+    guard let gradient = gradient, let paint = paint else {
+      _gradientLayer?.removeFromSuperlayer()
+      return
+    }
+    let g = _gradientLayer ?? {
+      let l = CAGradientLayer()
+      l.name = "mason.background"
+      _gradientLayer = l
+      return l
+    }()
+    if g.superlayer !== layer { layer.insertSublayer(g, at: 0) }
+    g.frame = CGRect(origin: .zero, size: bounds.size)
+    g.colors = gradient.colors
+    g.locations = gradient.locations
+    g.startPoint = gradient.start
+    g.endPoint = gradient.end
+    g.cornerRadius = paint.radius
+    g.maskedCorners = paint.corners
+    g.masksToBounds = paint.radius > 0
+  }
+
+  private func setSideLayers(_ sides: [(color: CGColor, path: CGPath)]) {
+    while _sideLayers.count > sides.count { _sideLayers.removeLast().removeFromSuperlayer() }
+    let base = paintLayerIndex()
+    for (i, side) in sides.enumerated() {
+      let shape: CAShapeLayer
+      if i < _sideLayers.count {
+        shape = _sideLayers[i]
+      } else {
+        shape = CAShapeLayer()
+        shape.name = "mason.border"
+        _sideLayers.append(shape)
+      }
+      if shape.superlayer !== layer { layer.insertSublayer(shape, at: base + UInt32(i)) }
+      shape.frame = CGRect(origin: .zero, size: bounds.size)
+      shape.fillColor = side.color
+      shape.path = side.path
+    }
   }
 
   // A border on the view's own layer has to move to a sublayer once something sits on top of it.
   public override func didAddSubview(_ subview: UIView) {
     super.didAddSubview(subview)
-    if _usesLayerPaint && layer.borderWidth > 0 { layer.setNeedsDisplay() }
+    if _usesLayerPaint && (layer.borderWidth > 0 || subview.layer.zPosition < 0) { layer.setNeedsDisplay() }
   }
 
-  internal typealias LayerPaint = (background: CGColor?, borderWidth: CGFloat, borderColor: CGColor?, radius: CGFloat)
+  internal struct LayerGradient {
+    var colors: [CGColor]
+    var locations: [NSNumber]?
+    var start: CGPoint
+    var end: CGPoint
+  }
+
+  internal struct LayerPaint {
+    var background: CGColor? = nil
+    var borderWidth: CGFloat = 0
+    var borderColor: CGColor? = nil
+    var radius: CGFloat = 0
+    var corners: CACornerMask = MasonUIView.allCorners
+    var gradient: LayerGradient? = nil
+    var sides: [(color: CGColor, path: CGPath)] = []
+  }
 
   private func layerPaint() -> LayerPaint? {
     if _cachedHasFilter || hasListMarkers || style.hasBorderImage { return nil }
     if _cachedHasBoxShadow && style.boxShadows.contains(where: { $0.inset }) { return nil }
+    var paint = LayerPaint()
     let bg = style.mBackground!
-    if !bg.layers.isEmpty { return nil }
+    if !bg.layers.isEmpty {
+      guard let gradient = layerGradient(bg) else { return nil }
+      paint.gradient = gradient
+    }
 
     let border = style.mBorderRender
     border.resolve(for: bounds)
@@ -174,35 +253,126 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     for (side, width) in zip(sides, widths) where width > 0 && side.style != .none && side.style != .hidden {
       if side.argb >> 24 > 0 { visible += 1 }
     }
-    var borderWidth: CGFloat = 0
-    var borderColor: CGColor? = nil
-    if visible == 4 {
-      let argb = border.top.argb
-      guard widths.allSatisfy({ $0 == w.top }),
-            sides.allSatisfy({ $0.style == .solid && $0.argb == argb }) else { return nil }
-      // A scroll container's sublayers move with its content, so a border sublayer
-      // would scroll away; with nothing layered above, its own border is fine.
-      if isScrollContainer && sublayersBesidesBorder() { return nil }
-      borderWidth = w.top
-      borderColor = UIColor.cgColorFromARGB(argb)
+    if visible == 4, widths.allSatisfy({ $0 == w.top }),
+       sides.allSatisfy({ $0.style == .solid && $0.argb == border.top.argb }) {
+      // A scroll container's sublayers scroll with its content.
+      if isScrollContainer && sublayersBesidesPaint() { return nil }
+      paint.borderWidth = w.top
+      paint.borderColor = UIColor.cgColorFromARGB(border.top.argb)
     } else if visible != 0 {
-      return nil
+      guard !border.hasRadii(), let shapes = sideBorderShapes(border) else { return nil }
+      paint.sides = shapes
+    }
+    if isScrollContainer && (paint.gradient != nil || !paint.sides.isEmpty) { return nil }
+    // A backdrop or a negative z-index child would go under paint sublayers.
+    let borderSublayer = paint.borderWidth > 0 && sublayersBesidesPaint() && !(clipsToBounds || layer.mask != nil)
+    if paint.gradient != nil || !paint.sides.isEmpty || borderSublayer {
+      if !style.resolvedBackdropFilterString.isEmpty || subviews.contains(where: { $0.layer.zPosition < 0 }) { return nil }
     }
 
-    var radius: CGFloat = 0
     if border.hasRadii() {
-      let r = border.radius
-      let corners = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]
-      guard corners.allSatisfy({ $0 == r.topLeft && $0.exponent == 1 }) else { return nil }
-      let resolved = r.topLeft.resolved(rect: bounds)
-      guard resolved.x == resolved.y else { return nil }
-      // CSS scales overlapping radii down; with four equal radii that is a clamp.
-      radius = min(resolved.x, min(bounds.width, bounds.height) / 2)
+      guard let (radius, corners) = layerCornerRadius(border.radius) else { return nil }
+      paint.radius = radius
+      paint.corners = corners
     }
 
     let resolvedColor = style.resolvedBackgroundColor
-    let background: CGColor? = resolvedColor == 0 ? nil : UIColor.cgColorFromARGB(resolvedColor)
-    return (background, borderWidth, borderColor, radius)
+    paint.background = resolvedColor == 0 ? nil : UIColor.cgColorFromARGB(resolvedColor)
+    return paint
+  }
+
+  /// The one circular radius of the rounded corners, scaled as CSS scales overlapping radii.
+  private func layerCornerRadius(_ r: CSSBorderRenderer.BorderRadius) -> (CGFloat, CACornerMask)? {
+    let corners = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]
+    let masks: [CACornerMask] = [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner, .layerMinXMaxYCorner]
+    var value: CGFloat = 0
+    var mask: CACornerMask = []
+    var radii: [CGFloat] = [0, 0, 0, 0]
+    for i in 0..<4 where corners[i] != .zero {
+      let resolved = corners[i].resolved(rect: bounds)
+      guard resolved.x == resolved.y else { return nil }
+      if resolved.x <= 0 { continue }
+      guard corners[i].exponent == 1, value == 0 || value == resolved.x else { return nil }
+      value = resolved.x
+      mask.insert(masks[i])
+      radii[i] = resolved.x
+    }
+    if value == 0 { return (0, MasonUIView.allCorners) }
+    let w = bounds.width
+    let h = bounds.height
+    var f: CGFloat = 1
+    for (sum, side) in [(radii[0] + radii[1], w), (radii[3] + radii[2], w), (radii[0] + radii[3], h), (radii[1] + radii[2], h)] where sum > 0 {
+      f = min(f, side / sum)
+    }
+    let radius = value * f
+    guard radius <= min(w, h) / 2 + 0.001 else { return nil }
+    return (radius, mask)
+  }
+
+  /// Square-cornered solid sides as one fill per color, split at the corners like draw(_:).
+  private func sideBorderShapes(_ border: CSSBorderRenderer) -> [(color: CGColor, path: CGPath)]? {
+    let w = border.cachedWidths
+    let width = bounds.width
+    let height = bounds.height
+    guard w.left <= width / 2, w.right <= width / 2, w.top <= height / 2, w.bottom <= height / 2 else { return nil }
+    let sides = [border.top, border.right, border.bottom, border.left]
+    let widths = [w.top, w.right, w.bottom, w.left]
+    let quads: [[CGPoint]] = [
+      [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0), CGPoint(x: width - w.right, y: w.top), CGPoint(x: w.left, y: w.top)],
+      [CGPoint(x: width, y: 0), CGPoint(x: width, y: height), CGPoint(x: width - w.right, y: height - w.bottom), CGPoint(x: width - w.right, y: w.top)],
+      [CGPoint(x: 0, y: height), CGPoint(x: w.left, y: height - w.bottom), CGPoint(x: width - w.right, y: height - w.bottom), CGPoint(x: width, y: height)],
+      [CGPoint(x: 0, y: 0), CGPoint(x: w.left, y: w.top), CGPoint(x: w.left, y: height - w.bottom), CGPoint(x: 0, y: height)],
+    ]
+    var order: [UInt32] = []
+    var paths: [UInt32: CGMutablePath] = [:]
+    for i in 0..<4 where widths[i] > 0 && sides[i].style != .none && sides[i].argb >> 24 > 0 {
+      guard sides[i].style == .solid else { return nil }
+      let argb = sides[i].argb
+      let path = paths[argb] ?? {
+        order.append(argb)
+        let p = CGMutablePath()
+        paths[argb] = p
+        return p
+      }()
+      path.addLines(between: quads[i])
+      path.closeSubpath()
+    }
+    return order.map { (UIColor.cgColorFromARGB($0), paths[$0]!) }
+  }
+
+  /// The only layer, when it is a linear gradient covering the border box.
+  private func layerGradient(_ bg: Background) -> LayerGradient? {
+    guard bg.layers.count == 1, let bgLayer = bg.layers.first, let gradient = bgLayer.gradient,
+          bgLayer.image == nil, bgLayer.backgroundColor == nil, bgLayer.size == nil, bgLayer.position == nil,
+          bgLayer.clip == .borderBox, bgLayer.attachment == .scroll, bgLayer.blendMode == .normal,
+          !gradient.repeating, gradient.type.lowercased() == "linear",
+          bg.boxInsets(bgLayer.origin) == .zero,
+          bounds.width > 0, bounds.height > 0 else { return nil }
+    let parsed = parseGradientStops(gradient.stops)
+    guard !parsed.colors.isEmpty else { return nil }
+    let (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
+    guard colors.allSatisfy({ $0.alpha >= 1 }) else { return nil }
+    if !locations.isEmpty {
+      guard locations.count == colors.count,
+            zip(locations, locations.dropFirst()).allSatisfy({ $0 <= $1 }),
+            locations.allSatisfy({ $0 >= 0 && $0 <= 1 }) else { return nil }
+    }
+    let w = bounds.width
+    let h = bounds.height
+    let (start, end) = linearGradientPoints(direction: gradient.direction, width: w, height: h)
+    // Core Animation keeps the bands perpendicular to start->end in unit space.
+    let lengthSq = (end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y)
+    guard lengthSq > 0 else { return nil }
+    let gx = w * (end.x - start.x) / lengthSq
+    let gy = h * (end.y - start.y) / lengthSq
+    let gSq = gx * gx + gy * gy
+    let unitStart = CGPoint(x: start.x / w, y: start.y / h)
+    return LayerGradient(
+      colors: colors,
+      locations: locations.isEmpty ? nil : locations.map { NSNumber(value: Double($0)) },
+      start: unitStart,
+      end: CGPoint(x: unitStart.x + gx / gSq, y: unitStart.y + gy / gSq)
+    )
   }
 
   public override func draw(_ rect: CGRect) {

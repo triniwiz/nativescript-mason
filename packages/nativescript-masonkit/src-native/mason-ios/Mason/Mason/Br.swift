@@ -51,7 +51,7 @@ public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc 
 
       // Inside a TextContainer the text layout already emits a "\n" segment for
       // this Br — the node itself must not add height (matches Android).
-      if self.node.parent?.view is TextContainer {
+      if MasonViewKind.isTextContainer(self.node.parent?.view) {
         return ret
       }
 

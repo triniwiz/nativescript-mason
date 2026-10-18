@@ -337,6 +337,35 @@ class Background(
      * The positioning area for a layer, in the coordinates the caller draws in
      * (viewport-anchored for `scroll`/`fixed`, content for `local`).
      */
+    /** The only layer, when it is a gradient covering the border box in one tile. */
+    fun boxGradientLayer(background: Background, view: android.view.View, node: Node, width: Float, height: Float): BackgroundLayer? {
+      val layer = background.layers.singleOrNull() ?: return null
+      if (layer.gradient == null || layer.image != null || layer.size != null || layer.position != null ||
+        layer.clip != BackgroundClip.BORDER_BOX || layer.attachment != BackgroundAttachment.SCROLL ||
+        layer.blendMode != BackgroundBlendMode.NORMAL
+      ) return null
+      val area = positioningArea(layer, view, node, width, height)
+      return if (area.left == 0f && area.top == 0f && area.right == width && area.bottom == height) layer else null
+    }
+
+    internal fun fillBorderBox(canvas: Canvas, border: BorderRenderer, width: Float, height: Float, paint: Paint) {
+      val r = border.uniformRadius(width, height)
+      when {
+        r == 0f -> canvas.drawRect(0f, 0f, width, height, paint)
+        r > 0f -> canvas.drawRoundRect(0f, 0f, width, height, r, r, paint)
+        else -> {
+          val outerPath = border.getOuterClipPath(width, height)
+          if (!outerPath.isEmpty) canvas.drawPath(outerPath, paint) else canvas.drawRect(0f, 0f, width, height, paint)
+        }
+      }
+    }
+
+    internal fun fillBoxGradient(canvas: Canvas, layer: BackgroundLayer, border: BorderRenderer, width: Float, height: Float) {
+      val shader = gradientShader(layer, width.toInt(), height.toInt()) ?: return
+      gradientPaint.shader = shader
+      fillBorderBox(canvas, border, width, height, gradientPaint)
+    }
+
     fun positioningArea(layer: BackgroundLayer, view: android.view.View, node: Node, width: Float, height: Float): RectF {
       val area = when (layer.attachment) {
         BackgroundAttachment.FIXED -> {
@@ -596,16 +625,27 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
 }
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
-  val gradient = layer.gradient ?: return
   // A gradient is an image with no intrinsic size: `auto` is the positioning area.
   val (tileW, tileH) = resolveBitmapSize(layer.size, area.width(), area.height(), area.width(), area.height())
-  val width = tileW.toInt()
-  val height = tileH.toInt()
-  if (width <= 0 || height <= 0) return
+  // No shader means no fill: gradientPaint's fallback colour is opaque black.
+  val shader = gradientShader(layer, tileW.toInt(), tileH.toInt()) ?: return
+  gradientPaint.shader = shader
+  layer.blendMode.apply(gradientPaint)
+  forEachTile(layer, paintRect, area, tileW, tileH) { x, y ->
+    val save = canvas.save()
+    canvas.translate(x, y)
+    canvas.drawRect(0f, 0f, tileW, tileH, gradientPaint)
+    canvas.restoreToCount(save)
+  }
+  layer.blendMode.clear(gradientPaint)
+}
 
-  // invalidate cached shader if size has changed; without this the first draw
-  // (which often happens at 0x0) would create a degenerate shader that never
-  // updates when the view finally gets a proper size.
+/** The layer's gradient over a `width` x `height` tile, cached on the layer. */
+internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Shader? {
+  val gradient = layer.gradient ?: return null
+  if (width <= 0 || height <= 0) return null
+
+  // A resize (often from a first draw at 0x0) needs a new shader.
   if (layer.shader != null &&
     (layer.shaderWidth != width || layer.shaderHeight != height)
   ) {
@@ -617,8 +657,7 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     val w = width.toFloat()
     val h = height.toFloat()
 
-    // Geometry first: length stops ("10px") resolve against the gradient line
-    // (the ray, for radial), so its length must be known before the stops.
+    // Geometry first: length stops resolve against the gradient line.
     var x0 = 0f
     var y0 = 0f
     var x1 = 0f
@@ -662,13 +701,12 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
       val parts = splitTopLevelWhitespace(gradient.stops[index].trim())
       colorsArray[index] = parts.firstOrNull()?.let { parseColor(it) } ?: Color.TRANSPARENT
 
-      // "0", "50%", "100%", "10px", or an angle for conic gradients. A repeating
-      // gradient keeps out-of-range stops: they set the period.
+      // A repeating gradient keeps out-of-range stops: they set the period.
       val pos = parts.getOrNull(1)?.let { parseGradientStopPosition(it, type == "conic", lineLength) }
       positions.add(if (gradient.repeating) pos else pos?.coerceIn(0f, 1f))
     }
 
-    if (colorsArray.isEmpty()) return
+    if (colorsArray.isEmpty()) return null
     var (shaderColors, positionsArray) = expandInterpolatedStops(
       colorsArray, resolveStopPositions(positions), gradient.interpolation
     )
@@ -700,20 +738,7 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
     layer.shaderWidth = width
     layer.shaderHeight = height
   }
-
-  // Fail-safe: if no shader could be built (e.g. an unrecognised gradient type
-  // after a re-parse on rotation), do NOT fill — gradientPaint is shared and its
-  // fallback colour is opaque black, which would paint a solid black box.
-  if (layer.shader == null) return
-  gradientPaint.shader = layer.shader
-  layer.blendMode.apply(gradientPaint)
-  forEachTile(layer, paintRect, area, tileW, tileH) { x, y ->
-    val save = canvas.save()
-    canvas.translate(x, y)
-    canvas.drawRect(0f, 0f, tileW, tileH, gradientPaint)
-    canvas.restoreToCount(save)
-  }
-  layer.blendMode.clear(gradientPaint)
+  return layer.shader
 }
 
 /**
@@ -873,10 +898,10 @@ private fun resolveLinearGradientEndpoints(
     "to top"                           -> { ep[0] = 0f;    ep[1] = height; ep[2] = 0f;    ep[3] = 0f;     return ep }
     "to right"                         -> { ep[0] = 0f;    ep[1] = 0f;     ep[2] = width; ep[3] = 0f;     return ep }
     "to left"                          -> { ep[0] = width; ep[1] = 0f;     ep[2] = 0f;    ep[3] = 0f;     return ep }
-    "to bottom right", "to right bottom" -> { ep[0] = 0f;    ep[1] = 0f;     ep[2] = width; ep[3] = height; return ep }
-    "to bottom left", "to left bottom" -> { ep[0] = width; ep[1] = 0f;     ep[2] = 0f;    ep[3] = height; return ep }
-    "to top right", "to right top"     -> { ep[0] = 0f;    ep[1] = height; ep[2] = width; ep[3] = 0f;     return ep }
-    "to top left", "to left top"       -> { ep[0] = width; ep[1] = height; ep[2] = 0f;    ep[3] = 0f;     return ep }
+    "to bottom right", "to right bottom" -> return cornerGradientEndpoints(ep, 1f, 1f, width, height)
+    "to bottom left", "to left bottom" -> return cornerGradientEndpoints(ep, -1f, 1f, width, height)
+    "to top right", "to right top"     -> return cornerGradientEndpoints(ep, 1f, -1f, width, height)
+    "to top left", "to left top"       -> return cornerGradientEndpoints(ep, -1f, -1f, width, height)
   }
 
   // Try to parse as an angle
@@ -896,6 +921,19 @@ private fun resolveLinearGradientEndpoints(
 
   // Fallback: top-to-bottom (CSS default)
   ep[0] = 0f; ep[1] = 0f; ep[2] = 0f; ep[3] = height
+  return ep
+}
+
+/** A corner keyword: perpendicular to the diagonal through the other two corners. */
+private fun cornerGradientEndpoints(ep: FloatArray, x: Float, y: Float, width: Float, height: Float): FloatArray {
+  val n = hypot(width, height)
+  val dx = if (n > 0f) x * height / n else 0f
+  val dy = if (n > 0f) y * width / n else 1f
+  val half = (kotlin.math.abs(width * dx) + kotlin.math.abs(height * dy)) / 2f
+  ep[0] = width / 2f - half * dx
+  ep[1] = height / 2f - half * dy
+  ep[2] = width / 2f + half * dx
+  ep[3] = height / 2f + half * dy
   return ep
 }
 

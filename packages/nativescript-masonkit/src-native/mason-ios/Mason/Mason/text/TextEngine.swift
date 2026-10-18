@@ -1006,10 +1006,8 @@ public class TextEngine: NSObject {
     if markDirty {
       node.markDirty()
     }
-    // Propagate to parent TextContainer: when this node is flattened into its
-    // parent's attributed string the parent's cache embeds our old content.
-    // Bump the parent version so its next buildAttributedString() rebuilds.
-    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer {
+    // A flattened parent's attributed string embeds this content: invalidate it too.
+    if let parentNode = node.layoutParent, let parentContainer = MasonViewKind.textContainer(parentNode.view) {
       parentContainer.engine.invalidateInlineSegments(markDirty)
     }
   }
@@ -1925,7 +1923,7 @@ public class TextEngine: NSObject {
   func drawText(context: CGContext, rect: CGRect){
     // When this TextContainer is flattened into a parent TextContainer, the parent's
     // text layer renders our content. Drawing here would produce duplicate text.
-    if let parentNode = node.layoutParent, let parentContainer = parentNode.view as? TextContainer,
+    if let parentNode = node.layoutParent, let parentContainer = MasonViewKind.textContainer(parentNode.view),
        parentContainer.engine.shouldFlattenTextContainer(container) {
       drawState = .idle
       return
@@ -2002,7 +2000,7 @@ public class TextEngine: NSObject {
         return TextEngine.collapsibleWhitespace.contains(scalar)
       }
       if child.style.isValueInitialized && child.style.display == .None { continue }
-      if let textView = child.view as? TextContainer, shouldFlattenTextContainer(textView) {
+      if let textView = MasonViewKind.textContainer(child.view), shouldFlattenTextContainer(textView) {
         if let edge = textView.engine.edgeWhitespace(atStart: atStart) { return edge }
         continue
       }
@@ -2063,7 +2061,7 @@ public class TextEngine: NSObject {
         fragment = textNode.attributed()
       } else if child.style.isValueInitialized && child.style.display == .None {
         fragment = nil
-      } else if let textView = child.view as? TextContainer {
+      } else if let textView = MasonViewKind.textContainer(child.view) {
         if shouldFlattenTextContainer(textView) {
           let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor))
           if piece.length > 0 {

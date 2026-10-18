@@ -324,36 +324,39 @@ func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, ar
   }
 }
 
-func linearGradientPoints(direction: String?, width: CGFloat, height: CGFloat)
--> (CGPoint, CGPoint) {
-  switch direction?.lowercased() {
-  case "to bottom", "180deg": return (CGPoint(x: 0, y: 0), CGPoint(x: 0, y: height))
-  case "to top", "0deg": return (CGPoint(x: 0, y: height), CGPoint(x: 0, y: 0))
-  case "to right", "90deg": return (CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0))
-  case "to left", "270deg": return (CGPoint(x: width, y: 0), CGPoint(x: 0, y: 0))
-  default:
-    // handle angle in degrees
-    
-    if let dir = direction, dir.hasSuffix("deg"), let angle = Double(dir.dropLast(3)) {
-      // CSS: 0deg = up, clockwise; UIKit y-axis is downward
-                 let rad = (angle - 90) * Double.pi / 180.0 // flip the rotation
-                 
-                 // unit vector
-                 let dx = CGFloat(cos(rad))
-                 let dy = CGFloat(sin(rad))
-                 
-                 // scale vector to cover the rectangle fully
-                 let halfDiag = sqrt(pow(width, 2) + pow(height, 2)) / 2
-                 let cx = width / 2
-                 let cy = height / 2
-                 
-                 let start = CGPoint(x: cx - dx * halfDiag, y: cy - dy * halfDiag)
-                 let end   = CGPoint(x: cx + dx * halfDiag, y: cy + dy * halfDiag)
-                 return (start, end)
+/// The CSS gradient line for a `width` x `height` box.
+func linearGradientPoints(direction: String?, width: CGFloat, height: CGFloat) -> (CGPoint, CGPoint) {
+  let (dx, dy) = linearGradientDirection(direction, width: width, height: height)
+  let half = (abs(width * dx) + abs(height * dy)) / 2
+  let cx = width / 2
+  let cy = height / 2
+  return (CGPoint(x: cx - dx * half, y: cy - dy * half), CGPoint(x: cx + dx * half, y: cy + dy * half))
+}
+
+/// Unit vector of the gradient line (y down); `to bottom` when unset or unreadable.
+private func linearGradientDirection(_ direction: String?, width: CGFloat, height: CGFloat) -> (CGFloat, CGFloat) {
+  let dir = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+  if dir.hasPrefix("to ") {
+    var x: CGFloat = 0
+    var y: CGFloat = 0
+    for word in dir.dropFirst(3).split(separator: " ") {
+      switch word {
+      case "top": y = -1
+      case "bottom": y = 1
+      case "left": x = -1
+      case "right": x = 1
+      default: return (0, 1)
+      }
     }
-    // fallback
-    return (CGPoint(x: 0, y: 0), CGPoint(x: 0, y: height))
+    if x != 0 && y != 0 {
+      let n = hypot(width, height)
+      return n > 0 ? (x * height / n, y * width / n) : (0, 1)
+    }
+    return x == 0 && y == 0 ? (0, 1) : (x, y)
   }
+  guard let turns = cssAngleInTurns(dir) else { return (0, 1) }
+  let rad = CGFloat(turns) * 2 * .pi
+  return (sin(rad), -cos(rad))
 }
 
 /// A repeating gradient's stops tiled across 0...1: the first-to-last stop span repeats both

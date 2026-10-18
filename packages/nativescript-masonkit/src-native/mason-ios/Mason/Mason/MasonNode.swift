@@ -1063,7 +1063,7 @@ extension MasonNode {
 
   /// Whether this node groups its inline-level children into shared runs.
   internal func establishesInlineRuns() -> Bool {
-    guard let view = view, !(view is TextContainer) else { return false }
+    guard let view = view, !MasonViewKind.isTextContainer(view) else { return false }
     switch style.display {
     case .Block, .InlineBlock: return true
     default: return false
@@ -1085,7 +1085,7 @@ extension MasonNode {
   }
 
   private func isRunContainer(_ node: MasonNode) -> Bool {
-    node.isAnonymous && node.view is TextContainer
+    node.isAnonymous && MasonViewKind.isTextContainer(node.view)
   }
 
   /// Takes `view` out of its superview without touching the Mason tree.
@@ -1105,7 +1105,7 @@ extension MasonNode {
 
   /// Re-groups this node's children, in `author` order, into runs and direct children.
   internal func normalizeInlineRuns(_ author: [MasonNode]? = nil) {
-    if normalizingRuns || view is TextContainer { return }
+    if normalizingRuns || MasonViewKind.isTextContainer(view) { return }
     let author = author ?? getChildren()
     let inlineRuns = establishesInlineRuns()
     var plan: [RunItem] = []
@@ -1274,7 +1274,7 @@ extension MasonNode {
   internal func onFlowTypeChanged() {
     if isAnonymous || normalizingRuns { return }
     if runsEstablished != establishesInlineRuns() { normalizeInlineRuns() }
-    guard let owner = parent, !(owner.view is TextContainer), !owner.normalizingRuns else { return }
+    guard let owner = parent, !MasonViewKind.isTextContainer(owner.view), !owner.normalizingRuns else { return }
     let inRun = layoutParent?.isAnonymous == true
     let shouldJoin = owner.establishesInlineRuns() && owner.joinsInlineRun(self, runOpen: inRun)
     if inRun != shouldJoin { owner.normalizeInlineRuns() }
@@ -1285,7 +1285,7 @@ extension MasonNode {
     if checkLast,
        let lastChild = children.last,
        lastChild.isAnonymous,
-       lastChild.view is TextContainer {
+       MasonViewKind.isTextContainer(lastChild.view) {
       return lastChild
     }
     
@@ -1293,11 +1293,9 @@ extension MasonNode {
     let textView = MasonText(mason: mason, isAnonymous: true)
     textView.style.display = .Inline
 
-    // MasonNode.view is WEAK: the view hierarchy is what keeps the anonymous
-    // MasonText alive, so attach it here even when `append` is false, or it
-    // deallocates the moment this function returns. Callers with append=false
-    // position the node themselves and only need the bookkeeping below.
-    if !(view is TextContainer) {
+    // `view` is weak: only the view hierarchy keeps the anonymous MasonText alive, so attach it
+    // even when `append` is false.
+    if !MasonViewKind.isTextContainer(view) {
       suppressChildOperations {
         view?.addSubview(textView)
       }
@@ -1397,7 +1395,7 @@ extension MasonNode {
         // must be linked before getDefaultAttributes() below (inherits via node.parent)
         container.parent = self
 
-        if let textView = container.view as? TextContainer {
+        if let textView = MasonViewKind.textContainer(container.view) {
           textChild.attributes.removeAll()
           textChild.attributes.merge(textView.defaultAttributes) { _, new in new }
           textChild.container = textView
@@ -1455,7 +1453,7 @@ extension MasonNode {
               m.parent = afterContainer
               afterContainer?.children.append(m)
 
-              if let tv = afterContainer?.view as? TextContainer, let mText = m as? MasonTextNode {
+              if let tv = MasonViewKind.textContainer(afterContainer?.view), let mText = m as? MasonTextNode {
                 mText.attributes = tv.defaultAttributes
                 mText.container = tv
               }
@@ -1585,7 +1583,7 @@ extension MasonNode {
 
     // Swapping a non-text child changes the parent's composed text —
     // rebuild the inline segment cache when the parent renders text.
-    if let tc = view as? TextContainer {
+    if let tc = MasonViewKind.textContainer(view) {
       tc.engine.invalidateInlineSegments()
     }
 
@@ -1596,7 +1594,7 @@ extension MasonNode {
     NodeUtils.syncNode(self, children)
     
     if !style.inBatch {
-      if child.view is TextContainer {
+      if MasonViewKind.isTextContainer(child.view) {
         (child.view as? MasonText)?.invalidate()
       }
       (view as? MasonElement)?.invalidateLayout()
@@ -1631,7 +1629,7 @@ extension MasonNode {
       // A text container hosts its runs directly, as appendChild does. An
       // anonymous wrapper here would be a separate inline box, and its
       // trailing space would collapse as block-end whitespace ("a <b>" lost it).
-      if let tv = view as? TextContainer {
+      if let tv = MasonViewKind.textContainer(view) {
         let pos = children.firstIndex(of: reference) ?? max(0, min(index, children.count))
         children.insert(textChild, at: pos)
         textChild.attributes = getDefaultAttributes()
@@ -1641,15 +1639,13 @@ extension MasonNode {
         return
       }
       if let referenceText = reference as? MasonTextNode {
-        // `containerNode` is `self` when self itself is the TextContainer
-        // (e.g. a <p> hosting its text runs directly), not just when it's an
-        // anonymous wrapper child of self — both need the fast in-place path.
+        // `containerNode` may be `self` (a <p> hosting its runs) or an anonymous wrapper.
         if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode === self || containerNode.parent === self {
           if let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
             containerNode.children.insert(textChild, at: idxInContainer)
             textChild.parent = containerNode
 
-            if let tv = containerNode.view as? TextContainer {
+            if let tv = MasonViewKind.textContainer(containerNode.view) {
               textChild.attributes.removeAll()
               textChild.attributes.merge(tv.defaultAttributes) { _, new in new }
               textChild.container = tv
@@ -1673,7 +1669,7 @@ extension MasonNode {
       // must be linked before getDefaultAttributes() below (inherits via node.parent)
       container.parent = self
 
-      if let tv = container.view as? TextContainer {
+      if let tv = MasonViewKind.textContainer(container.view) {
         textChild.attributes.removeAll()
         textChild.attributes.merge(tv.defaultAttributes) { _, new in new }
         textChild.container = tv
@@ -1718,7 +1714,7 @@ extension MasonNode {
           n.parent = containerNode
         }
         
-        if let tv = containerNode.view as? TextContainer {
+        if let tv = MasonViewKind.textContainer(containerNode.view) {
           for tn in containerNode.children {
             if let tnText = tn as? MasonTextNode {
               tnText.attributes.removeAll()
@@ -1742,7 +1738,7 @@ extension MasonNode {
           for n in rightSlice {
             afterContainer?.children.append(n)
             n.parent = afterContainer
-            if let tv = afterContainer?.view as? TextContainer, let tnText = n as? MasonTextNode {
+            if let tv = MasonViewKind.textContainer(afterContainer?.view), let tnText = n as? MasonTextNode {
               tnText.attributes.removeAll()
               tnText.attributes.merge(tv.defaultAttributes) { _, new in new }
               tnText.container = tv
@@ -1815,7 +1811,7 @@ extension MasonNode {
 
     // A non-text child (e.g. a Br) changes the parent's composed text —
     // rebuild the inline segment cache when the parent renders text.
-    if let tc = view as? TextContainer {
+    if let tc = MasonViewKind.textContainer(view) {
       tc.engine.invalidateInlineSegments()
     }
 

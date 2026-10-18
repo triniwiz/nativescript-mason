@@ -4,6 +4,17 @@ import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
 
+/** Views with queued native inserts (see `View._addViewToNativeVisualTree`). */
+let pendingAddHosts = 0;
+
+function flushNativeAddsDeep(view: any) {
+  view._masonFlushNativeAdds?.();
+  view.eachChildView?.((child: any) => {
+    if (child[isMasonView_]) flushNativeAddsDeep(child);
+    return true;
+  });
+}
+
 @CSSType('View')
 export class View extends ViewBase {
   [style_];
@@ -59,15 +70,10 @@ export class View extends ViewBase {
 
       const parentIsMason = this.parent && this.parent[isMasonView_];
       if (!parentIsMason) {
+        if (pendingAddHosts > 0) flushNativeAddsDeep(this);
         const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
 
-        // Compute against the parent's bounds whenever the spec gives any, and
-        // fall back to max-content only when it doesn't. This view's own
-        // `auto`/`auto` style is not a reason to skip it: taffy honours that
-        // size either way, while a percentage, viewport unit, or an abspos
-        // child with `top: 0; bottom: 0` has nothing to resolve against
-        // without it. Android's View.kt has always passed the mapped spec
-        // through unconditionally.
+        // Compute against the spec's bounds whenever it gives any; max-content only when it doesn't.
         if (!unconstrained) {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
@@ -132,30 +138,74 @@ export class View extends ViewBase {
     const nativeView = this._view;
     if (nativeView && (child.nativeViewProtected || child.ios)) {
       child._hasNativeView = true;
-      // Map the JS index onto the native children list (views attach lazily,
-      // so the raw index can run ahead of native state).
+      // Views attach lazily, so the JS index can run ahead of the native children.
       const { nativeIndex: index } = (this as any)._nativeAttachIndex(child, atIndex);
       child._isMasonChild = true;
-      if (child[isPlaceholder_]) {
-        // @ts-ignore
-        nativeView.mason_addChildAtElement(child.ios, index);
-      } else {
-        nativeView.addViewAt(child.nativeViewProtected, index);
-        this._masonMeasureForeign(child);
+      // Inserted once loaded (see loadView), with its CSS and subtree in place.
+      if (!child.isLoaded) {
+        if (!this._masonPendingAdds) {
+          this._masonPendingAdds = [];
+          pendingAddHosts++;
+        }
+        this._masonPendingAdds.push(child, index);
+        return true;
       }
+      this._masonInsertNative(child, index);
       return true;
     }
 
     return false;
   }
 
+  private _masonInsertNative(child: any, index: number) {
+    const nativeView = this._view;
+    if (child[isPlaceholder_]) {
+      // @ts-ignore
+      nativeView.mason_addChildAtElement(child.ios, index);
+    } else {
+      nativeView.addViewAt(child.nativeViewProtected, index);
+      this._masonMeasureForeign(child);
+    }
+  }
+
+  /** Child/index pairs queued by `_addViewToNativeVisualTree`, from `_masonPendingHead`. */
+  private _masonPendingAdds: any[] | undefined;
+  private _masonPendingHead = 0;
+
+  /** Run the queued inserts in order, through `upTo` (every one when omitted). */
+  _masonFlushNativeAdds(upTo?: any): void {
+    const pending = this._masonPendingAdds;
+    if (!pending) return;
+    let end = pending.length;
+    if (upTo !== undefined) {
+      let i = this._masonPendingHead;
+      while (i < end && pending[i] !== upTo) i += 2;
+      if (i === end) return;
+      end = i + 2;
+    }
+    let i = this._masonPendingHead;
+    // Advance first: an insert can re-enter (a measure) and flush again.
+    this._masonPendingHead = end;
+    if (end === pending.length) {
+      this._masonPendingAdds = undefined;
+      this._masonPendingHead = 0;
+      pendingAddHosts--;
+    }
+    for (; i < end; i += 2) this._masonInsertNative(pending[i], pending[i + 1]);
+  }
+
+  public loadView(view: any): void {
+    super.loadView(view);
+    if (this._masonPendingAdds) this._masonFlushNativeAdds(view);
+  }
+
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
+    if (this._masonPendingAdds) this._masonFlushNativeAdds();
     (this as any)._invalidateAttachCursor();
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
-    // Unlink the mason node so removal detaches
-    // the Rust node + native view instead of orphaning it (super only does removeFromSuperview).
+    // Detach the Rust node too; super only removes the native view.
     const nativeView = this._view as any;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {
       nativeView.removeView(view.nativeViewProtected);

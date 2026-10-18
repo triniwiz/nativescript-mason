@@ -1245,6 +1245,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   addChild(child: any) {
+    if (!(child instanceof NSView)) this._masonSettleNativeAdds();
     if (child && child[isPlaceholder_] && child._view) {
       if (__ANDROID__) {
         //@ts-ignore
@@ -1384,6 +1385,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._attachCursor = undefined;
   }
 
+  /** Runs an iOS View's queued inserts before a native child edit. */
+  private _masonSettleNativeAdds() {
+    if ((this as any)._masonPendingAdds) (this as any)._masonFlushNativeAdds();
+  }
+
   // Windows attaches element children on load with no index, after text runs that attached
   // straight away, so an append would land them after text that comes later.
   _windowsNativeIndexOf(child: any, atIndex: number): number {
@@ -1400,6 +1406,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   insertChild(child: any, atIndex: number) {
+    this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
       const nativeIndex = this._nativeIndexFor(atIndex);
@@ -1431,6 +1438,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   replaceChild(child: any, atIndex: number) {
+    this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
       this._children[atIndex] = child;
@@ -1481,10 +1489,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChild(child: any) {
+    this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
-    // Placeholder (e.g. Br): it was attached straight to the mason tree via the
-    // native element APIs (never `_addView`-ed), so `_removeView` would throw.
-    // Remove the native node directly instead.
+    // A placeholder (e.g. Br) was never `_addView`-ed, so remove its native node directly.
     if (child && child[isPlaceholder_] && child._view) {
       const index = this._children.indexOf(child);
       if (index > -1) {
@@ -1535,9 +1542,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  // Remove the native node directly when supported (no index drift), falling
-  // back to index-based removal on native builds that predate the by-node API.
+  // By node when the native build supports it, else by index.
   private _nativeRemoveChildNode(node: any, index: number) {
+    this._masonSettleNativeAdds();
     //@ts-ignore
     const view = this._view;
     if (!view) return;
@@ -1589,6 +1596,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (this._viewChildren.length === 0) {
       return;
     }
+    this._masonSettleNativeAdds();
     for (const child of this._viewChildren) {
       // @ts-ignore
       child._isMasonChild = false;
@@ -1778,6 +1786,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _nativeAddChild(textNode: any, index: number) {
+    this._masonSettleNativeAdds();
     //@ts-ignore
     if (__ANDROID__) this._view.addChildAt(textNode, index);
     //@ts-ignore
@@ -1791,6 +1800,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   private _nativeReplaceChild(textNode: any, index: number) {
+    this._masonSettleNativeAdds();
     //@ts-ignore
     if (__ANDROID__) this._view.replaceChildAt(textNode, index);
     //@ts-ignore
@@ -2384,7 +2394,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
     }
     // Resolve math functions first: the corner parser can't read them.
-    const css = resolveCssMathIn(lengthToCssString(masonLength(value)), (style as MasonStyle).emBasis());
+    const text = lengthToCssString(masonLength(value));
+    const css = resolveCssMathIn(text, (style as MasonStyle).emBasisFor(text));
     const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
     const shorthand = composeBorderRadius(corners);
     if ((__ANDROID__ || __APPLE__) && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
@@ -3527,7 +3538,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (__WINDOWS__) {
         const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
         try {
-          const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasis()));
+          const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)));
           const current = (style as any).color >>> 0 || 0xff000000;
           const spec = encodeBoxShadows(shadows, (color) => {
             if (!color || color.toLowerCase() === 'currentcolor') return current;
@@ -3602,7 +3613,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
         try {
           const size = { width: nv?.ActualWidth ?? 0, height: nv?.ActualHeight ?? 0 };
-          const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasis()), size);
+          const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)), size);
           if (!m) NativeScript.Mason.Css.ClearTransform(nv);
           else {
             NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);

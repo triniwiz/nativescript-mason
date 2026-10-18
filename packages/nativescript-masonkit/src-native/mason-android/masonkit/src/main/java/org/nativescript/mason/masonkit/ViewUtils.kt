@@ -148,22 +148,15 @@ class ViewUtils {
       // Block 1: Background clipped to outer border-radius (CSS background-clip: border-box)
       if (hasBackground) {
         style.mBackground?.let { background ->
-          if (background.color != null && background.layers.isEmpty()) {
-            background.bgPaint.color = background.color!!
-            background.bgPaint.style = android.graphics.Paint.Style.FILL
-            val r = style.mBorderRenderer.uniformRadius(width, height)
-            when {
-              r == 0f -> canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-              r > 0f -> canvas.drawRoundRect(0f, 0f, width, height, r, r, background.bgPaint)
-              else -> {
-                val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
-                if (!outerPath.isEmpty) {
-                  canvas.drawPath(outerPath, background.bgPaint)
-                } else {
-                  canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-                }
-              }
+          val boxGradient = if (background.layers.isEmpty()) null
+            else Background.boxGradientLayer(background, view, style.node, width, height)
+          if (background.layers.isEmpty() || boxGradient != null) {
+            background.color?.let { color ->
+              background.bgPaint.color = color
+              background.bgPaint.style = android.graphics.Paint.Style.FILL
+              Background.fillBorderBox(canvas, style.mBorderRenderer, width, height, background.bgPaint)
             }
+            boxGradient?.let { Background.fillBoxGradient(canvas, it, style.mBorderRenderer, width, height) }
           } else canvas.withSave {
             // Blend modes composite within the element's own background group.
             val blends = background.layers.any { it.blendMode != BackgroundBlendMode.NORMAL }

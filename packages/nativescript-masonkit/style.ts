@@ -364,6 +364,8 @@ function finite(n: number): number {
   return 0;
 }
 
+const EM_UNIT = /em/i;
+
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 const PX_PER_PT = 96 / 72;
 
@@ -1708,7 +1710,7 @@ export class Style {
   private coerceCssStringValue(value: any): string {
     if (typeof value === 'string') {
       // Nor do they evaluate calc()/min()/max()/clamp(); see css-math.ts.
-      const resolved = hasCssMathFunction(value) ? resolveCssMathIn(value, this.emBasis()) : value;
+      const resolved = hasCssMathFunction(value) ? resolveCssMathIn(value, this.emBasisFor(value)) : value;
       return resolveCssColors(resolved, cssColorToRgba);
     }
     if (value == null) {
@@ -1805,7 +1807,7 @@ export class Style {
 
   private windowsMaskContext(): WindowsMaskContext {
     return {
-      length: (token) => cssLengthToDip(token, this.emBasis()),
+      length: (token) => cssLengthToDip(token, this.emBasisFor(token)),
       color: (color) => normalizeColorValue(color),
       linear: parseLinearGradientCss,
       radial: parseRadialGradientCss,
@@ -1875,7 +1877,7 @@ export class Style {
       if (!view) return;
       const current = (this.color as unknown as number) >>> 0 || 0xff000000;
       const spec = encodeCssFilter(
-        parseCssFilter(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasis())),
+        parseCssFilter(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasisFor(token))),
         (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current),
       );
       if (name === 'filter') NativeScript.Mason.Css.SetFilter(view, spec);
@@ -1893,7 +1895,7 @@ export class Style {
       const view: any = this.nativeView;
       if (view && typeof view.SetTextShadow === 'function') {
         const current = (this.color as unknown as number) >>> 0 || 0xff000000;
-        const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasis()));
+        const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasisFor(token)));
         view.SetTextShadow(encodeBoxShadows(shadows, (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current)));
       }
       return;
@@ -1915,7 +1917,7 @@ export class Style {
       return;
     }
     if (name === 'border-radius') {
-      const r = parseBorderRadiusShorthand(value, this.emBasis());
+      const r = parseBorderRadiusShorthand(value, this.emBasisFor(value));
       this.prepareMut();
       for (const [corner, keys] of RADIUS_KEYS) {
         const { type, value: v } = r[corner];
@@ -1929,7 +1931,7 @@ export class Style {
     }
 
     if (name === 'border' || name === 'border-top' || name === 'border-right' || name === 'border-bottom' || name === 'border-left') {
-      const p = parseBorderShorthand(value, this.emBasis());
+      const p = parseBorderShorthand(value, this.emBasisFor(value));
       let style = p.style;
       if (style == null && (p.width != null || p.color != null)) style = 4; // solid
       const sides: ('left' | 'right' | 'top' | 'bottom')[] = name === 'border' ? ['left', 'right', 'top', 'bottom'] : name === 'border-left' ? ['left'] : name === 'border-right' ? ['right'] : name === 'border-top' ? ['top'] : ['bottom'];
@@ -1974,7 +1976,7 @@ export class Style {
     let thickness: number | null = null;
     switch (name) {
       case 'text-decoration': {
-        const d = parseTextDecoration(value, (token) => cssLengthToDip(token, this.emBasis()));
+        const d = parseTextDecoration(value, (token) => cssLengthToDip(token, this.emBasisFor(token)));
         if (!d) return;
         ({ line, style, color, thickness } = d);
         break;
@@ -1989,7 +1991,7 @@ export class Style {
         color = parseTextDecorationColor(value);
         break;
       case 'text-decoration-thickness':
-        thickness = cssLengthToDip(value, this.emBasis()) ?? null;
+        thickness = cssLengthToDip(value, this.emBasisFor(value)) ?? null;
         break;
     }
     if (line == null && style == null && color == null && thickness == null) return;
@@ -2189,10 +2191,11 @@ export class Style {
     return getInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE) === 1 ? (own / 100) * this.parentEmBasis() : own;
   }
 
-  /**
-   * The nearest Mason ancestor's font size (the element's own for a pseudo-class
-   * style). Reads only existing styles, since building one creates the native view.
-   */
+  emBasisFor(value: unknown): number | undefined {
+    return typeof value === 'string' && EM_UNIT.test(value) ? this.emBasis() : undefined;
+  }
+
+  /** The nearest existing Mason ancestor style's font size (its own for a pseudo-class style). */
   private parentEmBasis(): number {
     const view = this.view_ as unknown as { parent?: unknown } | undefined;
     let ancestor = (this._pseudo ? view : view?.parent) as { parent?: unknown; [style_]?: Style } | undefined;
@@ -2830,7 +2833,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, dim.value);
         break;
@@ -2878,7 +2881,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, dim.value);
         break;
@@ -2924,7 +2927,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasis());
+        const dim = dimensionFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
         break;
@@ -2970,7 +2973,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasis());
+        const dim = dimensionFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
         break;
@@ -3016,7 +3019,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, dim.value);
         break;
@@ -3062,7 +3065,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, dim.value);
         break;
@@ -3109,7 +3112,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, dim.value);
         break;
@@ -3152,7 +3155,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, dim.value);
         break;
@@ -3195,7 +3198,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, dim.value);
         break;
@@ -3238,7 +3241,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, dim.value);
         break;
@@ -3292,7 +3295,7 @@ export class Style {
 
     switch (typeof value) {
       case 'string': {
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         type = dim.type;
         insetValue = dim.value;
         break;
@@ -3343,7 +3346,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, dim.value);
         break;
@@ -3386,7 +3389,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, dim.value);
         break;
@@ -3429,7 +3432,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, dim.value);
         break;
@@ -3472,7 +3475,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, dim.value);
         break;
@@ -3526,7 +3529,7 @@ export class Style {
 
     switch (typeof value) {
       case 'string': {
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         type = dim.type;
         marginValue = dim.value;
         break;
@@ -3577,7 +3580,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, dim.value);
         break;
@@ -3620,7 +3623,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, dim.value);
         break;
@@ -3663,7 +3666,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, dim.value);
         break;
@@ -3705,7 +3708,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasis());
+        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, dim.value);
         break;
@@ -3771,7 +3774,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, dim.value);
         break;
@@ -3813,7 +3816,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, dim.value);
         break;
@@ -3856,7 +3859,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, dim.value);
         break;
@@ -3898,7 +3901,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, dim.value);
         break;
@@ -3980,7 +3983,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, dim.value);
         break;
@@ -4024,7 +4027,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasis());
+        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, dim.value);
         break;
@@ -4084,7 +4087,7 @@ export class Style {
     switch (typeof value) {
       case 'string': {
         this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasis());
+        const dim = dimensionFromString(value, this.emBasisFor(value));
         setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, dim.type);
         setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, dim.value);
         break;
@@ -5690,7 +5693,7 @@ export class Style {
   /** Read by TextNode when stroking the decoration line. */
   set textDecorationThickness(value: string | number) {
     this.prepareMut();
-    const devicePx = typeof value === 'number' ? layout.toDevicePixels(finite(value)) : tokenToDevicePx(value, parseFloat(value) || 0, this.emBasis());
+    const devicePx = typeof value === 'number' ? layout.toDevicePixels(finite(value)) : tokenToDevicePx(value, parseFloat(value) || 0, this.emBasisFor(value));
     setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, devicePx);
     setInt8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, 1);
     this.commitState(StateKeys.DECORATION_THICKNESS);
@@ -6734,7 +6737,7 @@ export class Style {
         type = 1;
         indent = n;
       } else {
-        indent = tokenToDevicePx(token, n, this.emBasis());
+        indent = tokenToDevicePx(token, n, this.emBasisFor(token));
       }
     }
     this.prepareMut();
@@ -6795,7 +6798,7 @@ export class Style {
 
   set transformOrigin(value: string) {
     if (!this.style_view) return;
-    const parsed = parseTransformOrigin(String(value ?? ''), this.emBasis());
+    const parsed = parseTransformOrigin(String(value ?? ''), this.emBasisFor(value));
     if (!parsed) return;
     this.prepareMut();
     setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_X_TYPE, parsed.xType);

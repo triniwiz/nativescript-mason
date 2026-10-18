@@ -192,7 +192,6 @@ extension MasonTextNode {
         switch whiteSpace {
         case .Normal:
             processed = normalizeNewlines(processed)
-                .replacingOccurrences(of: collapsiblePlusLF, with: " ", options: .regularExpression)
         case .Pre:
             processed = normalizeNewlines(processed)
         case .PreWrap:
@@ -201,7 +200,6 @@ extension MasonTextNode {
             processed = processPreLine(processed, treatNBSPAsSpace: false)
         case .NoWrap:
             processed = normalizeNewlines(processed)
-                .replacingOccurrences(of: collapsiblePlusLF, with: " ", options: .regularExpression)
         case .BreakSpaces:
             // Spaces are preserved as in pre-wrap; break-spaces only differs in where lines may wrap.
             processed = normalizeNewlines(processed)

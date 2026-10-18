@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */; };
+		F1A7C0DE0000000000000A01 /* LayerPaintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */; };
 		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
 		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
 		5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */; };
@@ -155,6 +156,7 @@
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthScanTests.swift; sourceTree = "<group>"; };
+		F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPaintTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
 		5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParser.swift; sourceTree = "<group>"; };
@@ -418,6 +420,7 @@
 				F184839B293534D800EC35F4 /* MasonTests.swift */,
 				A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */,
 				A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */,
+				F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */,
 				A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */,
 				A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */,
 				5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */,
@@ -769,6 +772,7 @@
 				F184839C293534D800EC35F4 /* MasonTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */,
+				F1A7C0DE0000000000000A01 /* LayerPaintTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */,
 				A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */,
 				5A7E0C1DB0A15F6E00C0FE03 /* SvgParserTests.swift in Sources */,
