@@ -38,9 +38,10 @@ namespace NativeScript.Mason
         // CSS gradients as the element's Panel background. `stops` is a comma-separated list of
         // `offset:argb` pairs (offset 0..1, argb decimal 0xAARRGGBB), e.g. "0:4278190080,1:4294967295".
         // A string is used instead of WinRT arrays because array_view params don't marshal reliably
-        // from the NS-Windows JS runtime. angleDegrees follows CSS (0 = to top, 90 = to right).
+        // from the NS-Windows JS runtime. angleDegrees follows CSS (0 = to top, 90 = to right);
+        // non-zero cornerX/cornerY (-1 left/top, 1 right/bottom) are a `to <corner>` keyword instead.
         // `interpolation` is the text after the gradient's `in` ("oklch longer hue"), or empty.
-        static void ApplyLinearGradient(Microsoft.UI.Xaml.UIElement element, Double angleDegrees, String stops, String interpolation);
+        static void ApplyLinearGradient(Microsoft.UI.Xaml.UIElement element, Double angleDegrees, Int32 cornerX, Int32 cornerY, String stops, String interpolation);
         static void ApplyRadialGradient(Microsoft.UI.Xaml.UIElement element, String stops, String interpolation);
         static void ApplyRadialGradientAt(Microsoft.UI.Xaml.UIElement element, Double centerX, Double centerY, Double radiusX, Double radiusY, String stops, String interpolation);
         static void ApplyBackgroundImage(Microsoft.UI.Xaml.UIElement element, String source, Int32 fit, Int32 alignX, Int32 alignY);

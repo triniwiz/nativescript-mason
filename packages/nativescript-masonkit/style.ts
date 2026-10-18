@@ -881,6 +881,18 @@ function parseGradientAngle(token: string): number {
   return 180; // CSS default is 'to bottom'
 }
 
+function parseGradientCorner(token: string): [number, number] | undefined {
+  const words = token.trim().toLowerCase().split(/\s+/);
+  if (words.length !== 3 || words[0] !== 'to') return undefined;
+  let x = 0;
+  let y = 0;
+  for (const word of words.slice(1)) {
+    if (word === 'left' || word === 'right') x = word === 'left' ? -1 : 1;
+    else if (word === 'top' || word === 'bottom') y = word === 'top' ? -1 : 1;
+  }
+  return x && y ? [x, y] : undefined;
+}
+
 const LINEAR_GRADIENT = /linear-gradient/i;
 const ANY_GRADIENT = /gradient/i;
 const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
@@ -888,7 +900,7 @@ const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
 
 // Parse `linear-gradient(<dir>? <in colorspace>?, <color> <stop>?, ...)` into a CSS angle, per-stop argb + offsets and the interpolation.
-export function parseLinearGradientCss(value: string): { angle: number; offsets: number[]; colors: number[]; interpolation: string } | null {
+export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string } | null {
   const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -896,6 +908,7 @@ export function parseLinearGradientCss(value: string): { angle: number; offsets:
     .filter(Boolean);
   if (parts.length < 2) return null;
   let angle = 180;
+  let corner: [number, number] | undefined;
   let start = 0;
   let head = parts[0];
   let interpolation = '';
@@ -907,6 +920,7 @@ export function parseLinearGradientCss(value: string): { angle: number; offsets:
   }
   if (/^(to\s|-?[\d.]+(deg|rad|turn))/i.test(head)) {
     angle = parseGradientAngle(head);
+    corner = parseGradientCorner(head);
     start = 1;
   }
   const colors: number[] = [];
@@ -922,7 +936,7 @@ export function parseLinearGradientCss(value: string): { angle: number; offsets:
     positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
   }
   if (colors.length < 1) return null;
-  return { angle, offsets: resolveStopPositions(positions), colors, interpolation };
+  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation };
 }
 
 const RADIAL_GRADIENT_ARGS = /radial-gradient\s*\(([\s\S]*)\)\s*$/i;
@@ -1770,7 +1784,7 @@ export class Style {
       }
       if (/^linear-gradient/i.test(layer)) {
         const g = parseLinearGradientCss(layer);
-        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, stopsOf(g), g.interpolation);
+        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(g), g.interpolation);
         return;
       }
       if (url) {

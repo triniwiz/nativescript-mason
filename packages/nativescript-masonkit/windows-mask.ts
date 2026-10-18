@@ -11,7 +11,7 @@ export interface WindowsMaskContext {
   length(token: string): number | undefined;
   /** A CSS colour as 0xAARRGGBB, or null. */
   color(value: string): number | null;
-  linear(value: string): { angle: number; offsets: number[]; colors: number[] } | null;
+  linear(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[] } | null;
   radial(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[] } | null;
   /** A url() target as a path or data URI the native side can load. */
   source(url: string): string;
@@ -20,7 +20,7 @@ export interface WindowsMaskContext {
 /** px plus a percentage of whatever the value resolves against. */
 type Len = [px: number, pct: number];
 
-type WindowsImage = { t: 'img'; src: string } | { t: 'lin'; a: number; s: number[] } | { t: 'rad'; c: [number, number]; r: [number, number]; s: number[] } | { t: 'con'; a: number; c: [number, number]; s: number[] };
+type WindowsImage = { t: 'img'; src: string } | { t: 'lin'; a: number; k?: [number, number]; s: number[] } | { t: 'rad'; c: [number, number]; r: [number, number]; s: number[] } | { t: 'con'; a: number; c: [number, number]; s: number[] };
 
 const BOX: Record<string, number> = { 'border-box': 0, 'padding-box': 1, 'content-box': 2, 'margin-box': 3, 'fill-box': 0, 'stroke-box': 0, 'view-box': 0, 'no-clip': 3 };
 const REPEAT: Record<string, number> = { repeat: 0, 'no-repeat': 1, space: 2, round: 3, stretch: 4 };
@@ -152,7 +152,7 @@ export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImag
   }
   if (/^(repeating-)?linear-gradient\(/i.test(t)) {
     const g = ctx.linear(t);
-    return g && g.colors.length ? { t: 'lin', a: g.angle, s: flatStops(g.offsets, g.colors) } : null;
+    return g && g.colors.length ? { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), s: flatStops(g.offsets, g.colors) } : null;
   }
   return null;
 }
@@ -336,11 +336,7 @@ export function encodeClipPath(value: string, ctx: WindowsMaskContext): Record<s
 }
 
 /** The 9-slice part of mask-border or border-image, or null when it has no image. */
-export function encodeNineSlice(
-  parts: { source: string; slice: string; width: string; outset: string; repeat: string; mode?: string },
-  ctx: WindowsMaskContext,
-  defaults: { width: 'auto' | 'border' },
-): Record<string, unknown> | null {
+export function encodeNineSlice(parts: { source: string; slice: string; width: string; outset: string; repeat: string; mode?: string }, ctx: WindowsMaskContext, defaults: { width: 'auto' | 'border' }): Record<string, unknown> | null {
   const image = encodeImage(parts.source, ctx);
   if (!image) return null;
   const sliceTokens = parts.slice.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -452,29 +448,9 @@ export function encodeWindowsBorderImage(value: string, ctx: WindowsMaskContext)
   }
   if (!source) return '';
   const [slice, width, outset] = groups.map((g) => g.join(' '));
-  const nine = encodeNineSlice(
-    { source, slice: slice || '100%', width: width || '', outset: outset || '0', repeat: repeat.join(' ') || 'stretch' },
-    ctx,
-    { width: 'border' },
-  );
+  const nine = encodeNineSlice({ source, slice: slice || '100%', width: width || '', outset: outset || '0', repeat: repeat.join(' ') || 'stretch' }, ctx, { width: 'border' });
   return nine ? JSON.stringify({ mb: nine }) : '';
 }
 
 /** Longhands that feed Css.SetMask. */
-export const WINDOWS_MASK_PROPERTIES = new Set([
-  'mask-image',
-  'mask-size',
-  'mask-position',
-  'mask-repeat',
-  'mask-origin',
-  'mask-clip',
-  'mask-mode',
-  'mask-composite',
-  'clip-path',
-  'mask-border-source',
-  'mask-border-slice',
-  'mask-border-width',
-  'mask-border-outset',
-  'mask-border-repeat',
-  'mask-border-mode',
-]);
+export const WINDOWS_MASK_PROPERTIES = new Set(['mask-image', 'mask-size', 'mask-position', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-mode', 'mask-composite', 'clip-path', 'mask-border-source', 'mask-border-slice', 'mask-border-width', 'mask-border-outset', 'mask-border-repeat', 'mask-border-mode']);

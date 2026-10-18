@@ -1,8 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <cstring>
 #include <unordered_map>
+#include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
@@ -148,6 +151,44 @@ namespace mason_visual
         rcb.SetCompositionBrush(mask);
         if (brushes->size() > 512) brushes->clear();
         return brushes->emplace(key, rcb).first->second;
+    }
+
+    inline mux::DependencyProperty const& GradientAngleProperty()
+    {
+        static const auto property = mux::DependencyProperty::RegisterAttached(L"MasonGradientAngle", winrt::xaml_typename<double>(),
+            winrt::xaml_typename<nsm::Css>(), mux::PropertyMetadata{ winrt::box_value(std::numeric_limits<double>::quiet_NaN()) });
+        return property;
+    }
+
+    inline mux::DependencyProperty const& GradientToCornerProperty()
+    {
+        static const auto property = mux::DependencyProperty::RegisterAttached(L"MasonGradientToCorner", winrt::xaml_typename<bool>(),
+            winrt::xaml_typename<nsm::Css>(), mux::PropertyMetadata{ winrt::box_value(false) });
+        return property;
+    }
+
+    // Relative points stretch with the box, but the bands stay perpendicular in DIPs.
+    inline void PlaceLinearGradient(muxm::LinearGradientBrush const& brush, double angleDegrees, bool toCorner, float width, float height)
+    {
+        const double w = width > 0.0f ? width : 1.0, h = height > 0.0f ? height : 1.0;
+        const double rad = angleDegrees * 3.14159265358979323846 / 180.0;
+        double dx = std::sin(rad), dy = -std::cos(rad);
+        if (toCorner)
+        {
+            const double diagonal = std::hypot(w, h);
+            dx = (dx < 0.0 ? -h : h) / diagonal;
+            dy = (dy < 0.0 ? -w : w) / diagonal;
+        }
+        const double half = (std::abs(w * dx) + std::abs(h * dy)) / 2.0;
+        const double rx = dx * half / w, ry = dy * half / h;
+        brush.StartPoint({ static_cast<float>(0.5 - rx), static_cast<float>(0.5 - ry) });
+        brush.EndPoint({ static_cast<float>(0.5 + rx), static_cast<float>(0.5 + ry) });
+    }
+
+    inline void PlaceLinearGradient(muxm::LinearGradientBrush const& brush, float width, float height)
+    {
+        const double angle = winrt::unbox_value<double>(brush.GetValue(GradientAngleProperty()));
+        if (!std::isnan(angle)) PlaceLinearGradient(brush, angle, winrt::unbox_value<bool>(brush.GetValue(GradientToCornerProperty())), width, height);
     }
 
     inline mucomp::CompositionBrush ToCompositionBrush(mucomp::Compositor const& comp, muxm::LinearGradientBrush const& xaml)
@@ -483,6 +524,7 @@ namespace mason_visual
             return;
         }
 
+        if (gradient && state.gradient && sized) PlaceLinearGradient(state.gradient, width, height);
         auto* filters = mason_filter::Find(element);
         const bool backdrop = panel && comp && sized && filters && !filters->backdrop.empty();
         if (imageBackground && !backdrop)

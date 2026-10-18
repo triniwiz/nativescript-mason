@@ -460,6 +460,14 @@ describe('parseLinearGradientCss', () => {
   it('leaves gradients without a method interpolating in sRGB', () => {
     expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: '' });
   });
+
+  it('reports corner keywords, whose line depends on the box', () => {
+    expect(parseLinearGradientCss('linear-gradient(to bottom right, #f00, #00f)')?.corner).toEqual([1, 1]);
+    expect(parseLinearGradientCss('linear-gradient(to left top in oklab, #f00, #00f)')?.corner).toEqual([-1, -1]);
+    expect(parseLinearGradientCss('linear-gradient(to top right, #f00, #00f)')?.corner).toEqual([1, -1]);
+    expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')?.corner).toBeUndefined();
+    expect(parseLinearGradientCss('linear-gradient(135deg, #f00, #00f)')?.corner).toBeUndefined();
+  });
 });
 
 describe('text-indent', () => {

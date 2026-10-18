@@ -310,6 +310,23 @@ describe('Windows inline runs', () => {
     expect(layout(host)).toEqual(['[a]', 'span']);
   });
 
+  it('waits for load to group runs when the container has not loaded by the end of the turn', async () => {
+    const host = container('flex', false);
+    text(host, 'a');
+    const span = add(host, element('span', 'inline', true));
+    await Promise.resolve();
+    expect(host[runsSettled_]).toBe('load');
+    expect(span._styleHelper.display).toBe('inline');
+
+    const loaded = container('flex', false);
+    loaded._isLoaded = true;
+    text(loaded, 'a');
+    const child = add(loaded, element('span', 'inline', true));
+    await Promise.resolve();
+    expect(loaded[runsSettled_]).toBe(true);
+    expect(child._styleHelper.display).toBe('block');
+  });
+
   it('removes an anonymous Text left empty', () => {
     const host = container();
     text(host, 'a');

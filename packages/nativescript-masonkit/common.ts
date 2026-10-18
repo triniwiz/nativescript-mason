@@ -1929,11 +1929,21 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return display === 'block' || display === 'inline-block';
   }
 
-  // A container's display arrives with its CSS, after its children attach, so runs are grouped once the turn ends.
+  // A container's display arrives with its CSS, after its children attach, so runs are grouped once
+  // the turn ends, or once it loads if it hasn't by then.
   private _windowsScheduleSettle() {
     if ((this as any)[runsSettled_] !== undefined) return;
     (this as any)[runsSettled_] = false;
-    queueMicrotask(() => this._windowsSettleRuns());
+    queueMicrotask(() => {
+      if ((this as any)[runsSettled_] !== false) return;
+      if (this.isLoaded) this._windowsSettleRuns();
+      else (this as any)[runsSettled_] = 'load';
+    });
+  }
+
+  onLoaded() {
+    super.onLoaded();
+    if (__WINDOWS__ && (this as any)[runsSettled_] === 'load') this._windowsSettleRuns();
   }
 
   _windowsSettleRuns() {
