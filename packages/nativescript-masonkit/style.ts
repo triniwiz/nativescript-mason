@@ -2108,8 +2108,8 @@ export class Style {
     if (__ANDROID__) {
       //@ts-ignore
       const view = this.view?.android ?? (this.view._view as never as org.nativescript.mason.masonkit.Element);
-      // @ts-ignore - syncStyleParts is a newer native method; typings regenerate from the AAR separately.
-      view.syncStyleParts(this._d0, this._d1, this._d2, this._d3);
+      // Dispatch natively: ordinary Android views do not implement Element.
+      org.nativescript.mason.masonkit.Mason.getShared().syncStyleParts(view, this._d0, this._d1, this._d2, this._d3);
     } else if (__APPLE__) {
       //@ts-ignore
       const view = this.view?.ios ?? (this.view._view as never as MasonText);

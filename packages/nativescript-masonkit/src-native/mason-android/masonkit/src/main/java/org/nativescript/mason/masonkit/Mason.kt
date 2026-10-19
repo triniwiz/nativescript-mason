@@ -506,6 +506,22 @@ class Mason {
     }
   }
 
+  /** Commits a JS-written style buffer using four signed 32-bit dirty words, low to high. */
+  fun syncStyleParts(view: android.view.View, lowLow: Int, lowHigh: Int, highLow: Int, highHigh: Int) {
+    if (view is Element) {
+      view.syncStyleParts(lowLow, lowHigh, highLow, highHigh)
+      return
+    }
+    val low = (lowHigh.toLong() shl 32) or (lowLow.toLong() and 0xFFFFFFFFL)
+    val high = (highHigh.toLong() shl 32) or (highLow.toLong() and 0xFFFFFFFFL)
+    val node = nodeForView(view)
+    node.style.setStateFromHalves(low, high)
+    // Foreign views have no Element.invalidateLayout() to invalidate the leaf cache.
+    node.dirty()
+    node.getRootNode()?.computeCacheDirty = true
+    view.requestLayout()
+  }
+
   fun styleForView(view: android.view.View): Style {
     val node = nodeForView(view)
     return node.style
