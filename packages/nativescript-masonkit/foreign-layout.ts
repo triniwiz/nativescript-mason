@@ -38,14 +38,14 @@ function gridArea(entries: ReadonlyArray<readonly [string, any]>): string {
 }
 
 interface Binding {
-  sync(): void;
+  attached(): void;
   dispose(): void;
 }
 const bindings = new WeakMap<View, Binding>();
 
 /** Replay after native insertion too: on iOS insertion may follow `loaded`. */
 export function syncForeignLayout(view: View): void {
-  bindings.get(view)?.sync();
+  bindings.get(view)?.attached();
 }
 
 /** Own the listeners for one attachment of a plain NativeScript child. */
@@ -118,7 +118,7 @@ export function bindForeignLayout(view: View, parent: View): () => void {
     previous.clear();
     bindings.delete(view);
   };
-  bindings.set(view, { sync, dispose });
+  bindings.set(view, { attached: loaded, dispose });
   listen();
   view.on(View.loadedEvent, loaded);
   view.on(View.unloadedEvent, unloaded);

@@ -202,7 +202,7 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(parent.requestLayout).toHaveBeenCalledTimes(1);
   });
 
-  it('drops disposed native transport and resumes with a newly created native view', () => {
+  it.each(['loaded', 'attachment'])('drops disposed transport and resumes on %s without relying on unload', (resume) => {
     const native = nativeTransport();
     const { view, style, parent } = foreign();
     style.width = 31;
@@ -213,8 +213,10 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     style.width = 54;
     expect(original.width).toBe(31);
     view.nativeViewProtected = {};
-    view.notify({ eventName: 'loaded', object: view });
+    if (resume === 'loaded') view.notify({ eventName: 'loaded', object: view });
+    else syncForeignLayout(view);
     expect(native.leaf(view).width).toBe(54);
+    expect(style.hasListeners('widthChange')).toBe(true);
     release();
     expect(style.hasListeners('widthChange')).toBe(false);
     expect(view.hasListeners('loaded')).toBe(false);
