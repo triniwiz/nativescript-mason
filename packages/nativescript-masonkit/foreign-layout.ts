@@ -1,40 +1,19 @@
 import { Utils, View } from '@nativescript/core';
+import { isResetValue } from '@nativescript/core/ui/core/properties/property-shared';
 import { Style } from './style';
 import { isMasonView_ } from './symbols';
-import { gridAreaProperty, gridRowProperty, gridColumnProperty, gridRowStartProperty, gridRowEndProperty, gridColumnStartProperty, gridColumnEndProperty } from './properties';
 
 // Read core's effective longhands, after its CSS/local-value priority and unit
 // parsing. A foreign widget must keep its normal NativeScript Style accessors.
 const lengths = ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'flexBasis'] as const;
 const values = ['flexGrow', 'flexShrink', 'alignSelf', 'justifySelf', 'aspectRatio', 'position', 'left', 'right', 'top', 'bottom'] as const;
-const placementProperties = [gridAreaProperty, gridRowProperty, gridColumnProperty, gridRowStartProperty, gridRowEndProperty, gridColumnStartProperty, gridColumnEndProperty];
-const placements = placementProperties.map((property) => property.name);
+const placements = ['gridRowStart', 'gridColumnStart', 'gridRowEnd', 'gridColumnEnd'] as const;
 const properties = [...lengths, ...values, ...placements];
 
 function length(value: any): any {
   // Core px objects contain physical pixels. Mason's number/dip/px setters
   // all scale by the display density, while percentage objects hold fractions.
   return value?.unit === 'px' ? { value: Utils.layout.toDeviceIndependentPixels(value.value), unit: 'dip' } : value;
-}
-
-// Send one complete grid-area declaration. Native grid setters retain staged
-// shorthand fields and apply grid-area last, so replaying reset shorthands and
-// longhands together can otherwise erase an active row/column placement.
-function gridArea(entries: ReadonlyArray<readonly [string, any]>): string {
-  const authored = Object.fromEntries(entries);
-  const area = String(authored.gridArea || '').trim();
-  let [rowStart = 'auto', columnStart = 'auto', rowEnd = 'auto', columnEnd = 'auto'] = area ? area.split('/').map((part) => part.trim()) : [];
-  // Mason treats a single grid-area token as a named area on all four edges.
-  if (area && !area.includes('/')) rowStart = columnStart = rowEnd = columnEnd = area;
-  if (authored.gridRow)
-    [rowStart, rowEnd = 'auto'] = String(authored.gridRow)
-      .split('/')
-      .map((part) => part.trim());
-  if (authored.gridColumn)
-    [columnStart, columnEnd = 'auto'] = String(authored.gridColumn)
-      .split('/')
-      .map((part) => part.trim());
-  return [authored.gridRowStart ?? rowStart, authored.gridColumnStart ?? columnStart, authored.gridRowEnd ?? rowEnd, authored.gridColumnEnd ?? columnEnd].join(' / ');
 }
 
 interface Binding {
@@ -58,8 +37,10 @@ export function bindForeignLayout(view: View, parent: View): () => void {
   let disposed = false;
   let listening = false;
   let suspended = false;
+  let writing = 0;
+  const restorers: Array<() => void> = [];
   const sync = () => {
-    if (disposed || suspended || !view.nativeViewProtected) return;
+    if (disposed || suspended || writing || !view.nativeViewProtected) return;
     if (native !== view.nativeViewProtected) {
       native = view.nativeViewProtected;
       helper = Style.fromView(view as never, native);
@@ -71,13 +52,14 @@ export function bindForeignLayout(view: View, parent: View): () => void {
     for (const key of ['width', 'height', 'maxWidth', 'maxHeight', 'flexBasis', 'left', 'right', 'top', 'bottom']) resolved[key] ??= 'auto';
     for (const key of ['alignSelf', 'justifySelf']) if (resolved[key] == null || resolved[key] === 'auto') resolved[key] = 'normal';
     const changed = Object.keys(resolved).filter((key) => previous.get(key) !== JSON.stringify(resolved[key]));
-    const grid = placementProperties.filter((property) => property.isSet(view.style)).map((property) => [property.name, view.style[property.name]] as const);
+    const grid = placements.map((key) => view.style[key] ?? 'auto');
     const gridChanged = previous.get('grid') !== JSON.stringify(grid);
     if (!changed.length && !gridChanged) return;
     helper!.batch((style) => {
       for (const key of changed) style[key] = resolved[key];
       if (gridChanged) {
-        style.gridArea = gridArea(grid);
+        // One complete declaration avoids retained native shorthand fields.
+        style.gridArea = grid.join(' / ');
       }
     });
     for (const key of Object.keys(resolved)) previous.set(key, JSON.stringify(resolved[key]));
@@ -88,11 +70,47 @@ export function bindForeignLayout(view: View, parent: View): () => void {
     if (listening) return;
     listening = true;
     for (const key of properties) view.style.on(`${key}Change`, sync);
+    // CssProperty does not restore its CSS value on local unset, and an
+    // equal-default unset emits no change event. Delegate every conversion to
+    // core, then let its cascade resolve resets, including these silent ones.
+    for (const key of new Set(properties.flatMap((name) => [name, name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)]))) {
+      const own = Object.getOwnPropertyDescriptor(view.style, key);
+      if (own?.configurable === false) continue;
+      let prototype: object = view.style;
+      let descriptor = own;
+      while (!descriptor && (prototype = Object.getPrototypeOf(prototype))) descriptor = Object.getOwnPropertyDescriptor(prototype, key);
+      if (!descriptor?.set) continue;
+      const original = descriptor;
+      const set = function (value: unknown) {
+        writing++;
+        try {
+          original.set.call(this, value);
+        } finally {
+          writing--;
+        }
+        if (!writing && (isResetValue(value) || value === '')) {
+          writing++;
+          try {
+            view._onCssStateChange();
+          } finally {
+            writing--;
+          }
+        }
+        sync();
+      };
+      Object.defineProperty(view.style, key, { configurable: true, enumerable: descriptor.enumerable, get: descriptor.get, set });
+      restorers.push(() => {
+        if (Object.getOwnPropertyDescriptor(view.style, key)?.set !== set) return;
+        if (own) Object.defineProperty(view.style, key, own);
+        else delete view.style[key];
+      });
+    }
   };
   const unlisten = () => {
     if (!listening) return;
     listening = false;
     for (const key of properties) view.style.off(`${key}Change`, sync);
+    for (const restore of restorers.splice(0)) restore();
   };
   const loaded = () => {
     suspended = false;

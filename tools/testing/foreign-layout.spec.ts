@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CssState, StyleScope } from '@nativescript/core/ui/styling/style-scope';
 import { Observable } from '@nativescript/core/data/observable';
 import { Style as CoreStyle } from '@nativescript/core/ui/styling/style';
 import { unsetValue } from '@nativescript/core/ui/core/properties';
@@ -15,6 +16,7 @@ function foreign() {
   const view = new Observable() as any;
   Object.assign(view, {
     nativeViewProtected: {},
+    _onCssStateChange() {},
     eachChild() {},
     _batchUpdate: (update: () => void) => update(),
     getEffectivePaddingShorthand: () => 0,
@@ -24,6 +26,18 @@ function foreign() {
   const parent = { requestLayout: vi.fn() };
   view.parent = parent;
   return { view, style: view.style as any, parent };
+}
+
+function cssClass(view: any, css: string, name: string) {
+  const scope = new StyleScope();
+  scope.css = css;
+  view._styleScope = scope;
+  view.cssClasses = new Set(name.split(' '));
+  view.cssPseudoClasses = new Set();
+  view.isLoaded = true;
+  const state = new CssState({ get: () => view, deref: () => view } as any);
+  view._onCssStateChange = () => state.onChange();
+  state.onChange();
 }
 
 const releases: Array<() => void> = [];
@@ -159,6 +173,45 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(native.leaf(view).width).toBe(54);
   });
 
+  it('keeps grid shorthand and longhand CSS/local priority on the same effective edges', () => {
+    const native = nativeTransport();
+    const { view, style, parent } = foreign();
+    cssClass(view, '.placement { grid-row-start: 3; grid-row-end: 5; }', 'placement');
+    bind(view, parent);
+    style.gridRow = '2 / 4';
+    expect(native.leaf(view).gridArea).toBe('2 / auto / 4 / auto');
+    style.gridRow = unsetValue;
+    expect(native.leaf(view).gridArea).toBe('3 / auto / 5 / auto');
+    style.gridRowStart = 'auto';
+    expect(native.leaf(view).gridArea).toBe('auto / auto / 5 / auto');
+    style.gridRowStart = unsetValue;
+    expect(native.leaf(view).gridArea).toBe('3 / auto / 5 / auto');
+  });
+
+  it('restores current class constraints, margins and flex after silent default-valued unsets', () => {
+    const native = nativeTransport();
+    const { view, style, parent } = foreign();
+    cssClass(view, '.first { min-width: 12; margin-left: 7; flex-grow: 2; } .next { min-width: 18; margin-left: 9; flex-grow: 3; }', 'first');
+    bind(view, parent);
+    Object.assign(style, { minWidth: 0, marginLeft: 0, flexGrow: 0 });
+    view.cssClasses = new Set(['next']);
+    view._onCssStateChange();
+    expect(native.leaf(view)).toMatchObject({ minWidth: 0, marginLeft: 0, flexGrow: 0 });
+    Object.assign(style, { minWidth: unsetValue, marginLeft: unsetValue, flexGrow: unsetValue });
+    expect(native.leaf(view)).toMatchObject({ minWidth: 18, marginLeft: 9, flexGrow: 3 });
+  });
+
+  it('keeps Mason direct grid setters and stylesheet expansion working', () => {
+    nativeTransport();
+    const { view, style } = foreign();
+    view[isMasonView_] = true;
+    view._styleHelper = {};
+    style.gridRow = '2 / 4';
+    expect(view._styleHelper.gridRow).toBe('2 / 4');
+    cssClass(view, '.placement { grid-row: 3 / 5; grid-column: 2 / 4; }', 'placement');
+    expect(view._styleHelper).toMatchObject({ gridRowStart: '3', gridRowEnd: '5', gridColumnStart: '2', gridColumnEnd: '4' });
+  });
+
   it('finishes synchronous style commits before requesting parent layout', () => {
     const native = nativeTransport();
     const { view, style, parent } = foreign();
@@ -227,7 +280,7 @@ describe('effective CSS layout on foreign NativeScript children', () => {
   it('does not overwrite authored grid shorthands with default auto longhands', () => {
     const native = nativeTransport();
     const { view, style, parent } = foreign();
-    style.gridRow = '2 / 4';
+    cssClass(view, '.placement { grid-row: 2 / 4; }', 'placement');
     bind(view, parent);
     expect(native.writes.filter(([key]) => key.startsWith('grid'))).toEqual([['gridArea', '2 / auto / 4 / auto']]);
     native.writes.length = 0;
@@ -237,8 +290,9 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     style.gridRowStart = unsetValue;
     expect(native.writes.filter(([key]) => key.startsWith('grid'))).toEqual([['gridArea', '2 / auto / 4 / auto']]);
     native.writes.length = 0;
-    style.gridRow = unsetValue;
-    expect(native.writes.filter(([key]) => key.startsWith('grid'))).toEqual([['gridArea', 'auto / auto / auto / auto']]);
+    view.cssClasses.clear();
+    view._onCssStateChange();
+    expect(native.leaf(view).gridArea).toBe('auto / auto / auto / auto');
   });
 
   it('leaves Mason-owned views on their existing forwarding path', () => {

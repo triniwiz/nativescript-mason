@@ -415,7 +415,12 @@ label.style.width = unsetValue;
 The bridge listens to resolved longhands, replays after native insertion and
 `loaded`, and replaces its Style helper when the native identity changes. It
 pauses on `unloaded`/`disposeNativeView`; removal or container disposal releases
-all listeners. Core's physical-pixel objects are converted to DIP before the
+all listeners and restores delegated Style accessors. Core's non-animated
+`CssProperty` does not reapply CSS on local removal, including silent resets to
+its default; the bridge delegates local setters unchanged and asks core to
+reapply the current cascade after resets. Foreign grid shorthands expand into
+the same core longhands so CSS/local priority applies to each edge.
+Core's physical-pixel objects are converted to DIP before the
 Mason setter scales them; percentage fractions are unchanged. Grid placement is
 sent as one complete four-edge `gridArea` value so retained native shorthand
 state cannot erase a row/column override. These are internal transport helpers,

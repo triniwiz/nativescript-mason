@@ -496,7 +496,9 @@ export const fontFamilyProperty = new CssProperty<Style, string>({
 //
 // So instead of replacing core's accessor, keep both and pick at assignment
 // time: a mason view gets mason's, anything else keeps core's untouched.
-function registerAlongsideCore(property: { name: string; cssName?: string; cssLocalName?: string; register(cls: unknown): void }): void {
+// Foreign-only grid shorthands invert the selection to preserve existing Mason
+// direct setters while foreign views use core's longhand priority machinery.
+function registerAlongsideCore(property: { name: string; cssName?: string; cssLocalName?: string; register(cls: unknown): void }, target: 'mason' | 'foreign' = 'mason'): void {
   const proto = (Style as unknown as { prototype: object }).prototype;
   const keys = [property.name, property.cssName, property.cssLocalName].filter((key): key is string => typeof key === 'string' && key.length > 0);
 
@@ -516,11 +518,11 @@ function registerAlongsideCore(property: { name: string; cssName?: string; cssLo
       enumerable: masonDescriptor.enumerable ?? true,
       configurable: true,
       get(this: Style) {
-        const descriptor = isMasonView(this) ? masonDescriptor : coreDescriptor;
+        const descriptor = isMasonView(this) === (target === 'mason') ? masonDescriptor : coreDescriptor;
         return descriptor.get?.call(this);
       },
       set(this: Style, value: unknown) {
-        const descriptor = isMasonView(this) ? masonDescriptor : coreDescriptor;
+        const descriptor = isMasonView(this) === (target === 'mason') ? masonDescriptor : coreDescriptor;
         descriptor.set?.call(this, value);
       },
     });
@@ -1762,6 +1764,33 @@ gridColumnStartProperty.register(Style);
 
 gridAreaProperty.register(Style);
 
+// Foreign grid shorthands must share core's effective longhands: independent
+// scalar properties lose CSS/local priority (including an explicit `auto`).
+// Preserve Mason's direct accessors; core 9.1 stylesheet expansion uses these
+// same longhands for both kinds of view.
+function gridParts(value: string, count: number): string[] {
+  const parts = value.split('/').map((part) => part.trim());
+  if (parts.length > count || parts.some((part) => !part)) throw new Error(`Invalid grid placement: ${value}`);
+  while (parts.length < count) parts.push('auto');
+  return parts;
+}
+
+const gridPlacementShorthands: MasonShorthand[] = [
+  { cssName: 'grid-row', longhands: [gridRowStartProperty, gridRowEndProperty], split: (value) => gridParts(value, 2) },
+  { cssName: 'grid-column', longhands: [gridColumnStartProperty, gridColumnEndProperty], split: (value) => gridParts(value, 2) },
+  {
+    cssName: 'grid-area',
+    longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty],
+    split: (value) => (value.includes('/') ? gridParts(value, 4) : [value, value, value, value]),
+  },
+];
+for (const entry of gridPlacementShorthands) {
+  const shorthand = masonShorthandProperty(entry, function (this: Style) {
+    return entry.longhands.map((property) => this[property.name]).join(' / ');
+  });
+  registerAlongsideCore(shorthand, 'foreign');
+}
+
 gridAutoFlowProperty.register(Style);
 
 gridAutoRowsProperty.register(Style);
@@ -2595,4 +2624,4 @@ for (const entry of logicalShorthands) {
   }).register(Style);
 }
 
-export const masonShorthands: MasonShorthand[] = [...coreShorthands, borderStyleShorthand, borderShorthand, ...borderSideShorthands, ...logicalShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
+export const masonShorthands: MasonShorthand[] = [...coreShorthands, ...gridPlacementShorthands, borderStyleShorthand, borderShorthand, ...borderSideShorthands, ...logicalShorthands, overflowShorthand, maskShorthand, webkitMaskShorthand, maskBorderShorthand, webkitMaskBoxImageShorthand, gapShorthand, gridGapShorthand, flexFlowShorthand, flexShorthand];
