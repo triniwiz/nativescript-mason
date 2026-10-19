@@ -1534,7 +1534,8 @@ export class Style {
   private nativeView: any;
   private nativeNode: any;
   private _pseudo: number;
-  private _borderRadiusCss: string | undefined;
+  // The last border-radius CSS; null when corners were written as numbers (built on read).
+  private _borderRadiusCss: string | null | undefined;
   private _appleStyle: MasonStyle | undefined;
 
   static fromView(view: View, nativeView): Style {
@@ -1545,7 +1546,7 @@ export class Style {
   }
 
   private get style_view(): DataView {
-    if (!this._bufferRequested) this.loadBuffer(false);
+    if (!this._bufferRequested) this.loadBuffer();
     return this._sv;
   }
 
@@ -1555,7 +1556,7 @@ export class Style {
   }
 
   private get i8View(): Int8Array {
-    if (!this._bufferRequested) this.loadBuffer(false);
+    if (!this._bufferRequested) this.loadBuffer();
     if (this._i8 === undefined && this._sv) this._i8 = new Int8Array(this._sv.buffer, this._sv.byteOffset, this._sv.byteLength);
     return this._i8;
   }
@@ -1565,7 +1566,7 @@ export class Style {
   }
 
   private get u8View(): Uint8Array {
-    if (!this._bufferRequested) this.loadBuffer(false);
+    if (!this._bufferRequested) this.loadBuffer();
     if (this._u8 === undefined && this._sv) this._u8 = new Uint8Array(this._sv.buffer, this._sv.byteOffset, this._sv.byteLength);
     return this._u8;
   }
@@ -1590,21 +1591,22 @@ export class Style {
     this._u8 = undefined;
   }
 
-  // A new node shares the arena's default buffer, so a style whose first use
-  // is a write asks for its own copy up front instead of fetching twice.
-  private loadBuffer(writable: boolean) {
+  // A new node shares the arena's default buffer. Every style here gets written
+  // (core reads defaults right before its setters), so the first access takes
+  // the node's own copy: one native fetch instead of a shared read plus a copy.
+  private loadBuffer() {
     this._bufferRequested = true;
     if (__ANDROID__) {
       this.setBuffer((<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView)));
     } else if (__APPLE__) {
       const nativeView = this.nativeView;
       let data: NSMutableData | null = null;
-      if (writable && appleHasWritableStyleValues(nativeView)) {
+      if (appleHasWritableStyleValues(nativeView)) {
         data = nativeView.mason_writableStyleValues();
       }
       if (!data) {
         const style = this.appleStyle;
-        if (writable) style.prepareMut();
+        style.prepareMut();
         data = style.values;
       }
       this.setBuffer(interop.bufferFromData(data));
@@ -2232,14 +2234,14 @@ export class Style {
       return;
     }
     if (!this._bufferRequested) {
-      this.loadBuffer(true);
+      this.loadBuffer();
     }
     if (this._turnSnapshot === undefined && !this._hasDirty && this._sv) {
       this._turnSnapshot = this._synced ? this.u8View.slice() : false;
     }
     if (getUint32(this._sv, StyleKeys.REF_COUNT) !== 1) {
-      // Still the shared buffer (read before the first write): take a copy.
-      this.loadBuffer(true);
+      // Still shared (a native without the writable fetch): take a copy.
+      this.loadBuffer();
     }
   }
 
@@ -5578,6 +5580,7 @@ export class Style {
     if (!this.nativeView) {
       return '';
     }
+    if (this._borderRadiusCss === null) this._borderRadiusCss = this._radiusCssFromBuffer();
     if (__ANDROID__) {
       return this._borderRadiusCss ?? nodeHelper().getBorderRadius(this.nativeView);
     }
@@ -5609,6 +5612,60 @@ export class Style {
       () => nodeHelper().setBorderRadius(this.nativeView, value),
       () => (this.appleStyle.borderRadius = value),
     );
+  }
+
+  /** One corner from a core length (dip number or `{ value, unit }`) without the string round trip; false when it needs one. */
+  _writeCornerLength(corner: number, value: unknown, scale = deviceScale()): boolean {
+    let type = 0;
+    let amount: number;
+    if (typeof value === 'number') {
+      amount = Math.min(9999, Math.max(-9999, value)) * scale;
+    } else if (value && typeof value === 'object' && typeof (value as { value?: unknown }).value === 'number') {
+      const { unit, value: v } = value as { unit?: string; value: number };
+      if (unit === '%') {
+        type = 1;
+        amount = v;
+      } else if (unit === 'px' || unit === 'dip') {
+        amount = Math.min(9999, Math.max(-9999, v)) * scale;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+    if (!Number.isFinite(amount) || !this.nativeView || this._pseudo || !this.style_view) return false;
+    this._borderRadiusCss = null;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    setUint8(this.style_view, keys.xType, type);
+    setFloat32(this.style_view, keys.xValue, amount);
+    setUint8(this.style_view, keys.yType, type);
+    setFloat32(this.style_view, keys.yValue, amount);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
+  // The four corners as border-radius CSS, from the buffer.
+  private _radiusCssFromBuffer(scale = deviceScale()): string {
+    const view = this.style_view;
+    const token = (type: number, v: number) => (type === 1 ? `${Math.round(v * 1e5) / 1e3}%` : `${Math.round((v / scale) * 1e3) / 1e3}px`);
+    const h: string[] = [];
+    const v: string[] = [];
+    for (const [, keys] of RADIUS_KEYS) {
+      h.push(token(getUint8(view, keys.xType), getFloat32(view, keys.xValue)));
+      v.push(token(getUint8(view, keys.yType), getFloat32(view, keys.yValue)));
+    }
+    const hs = h.every((t) => t === h[0]) ? h[0] : h.join(' ');
+    const vs = v.every((t) => t === v[0]) ? v[0] : v.join(' ');
+    return hs === vs ? hs : `${hs} / ${vs}`;
+  }
+
+  /** Whether one corner has no radius, read straight from the buffer. */
+  _cornerRadiusIsZero(corner: number): boolean {
+    const view = this.style_view;
+    if (!view) return false;
+    const keys = RADIUS_KEYS[corner][1];
+    return getFloat32(view, keys.xValue) === 0 && getFloat32(view, keys.yValue) === 0;
   }
 
   _writeCornerRadius(corner: number, radius: readonly [string, string], shorthand: string, scale = deviceScale()): boolean {
