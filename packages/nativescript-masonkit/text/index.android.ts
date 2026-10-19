@@ -156,10 +156,12 @@ export class Text extends TextBase {
       if (jsIndex <= -1) {
         child._isMasonChild = true;
         nativeView.addView(child.nativeViewProtected as never);
+        this._masonSyncForeignChild(child);
         return true;
       }
       child._isMasonChild = true;
       nativeView.addChildAt(child.nativeViewProtected, nativeIndex as never);
+      this._masonSyncForeignChild(child);
       return true;
     }
 
@@ -216,6 +218,7 @@ export class Br extends TextBase {
       child[isTextChild_] = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       nativeView.addChildAt(child.nativeViewProtected, index as never);
+      this._masonSyncForeignChild(child);
     }
 
     return false;

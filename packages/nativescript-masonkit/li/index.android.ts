@@ -44,6 +44,7 @@ export class Li extends ViewBase {
         nativeView.addChildAt(child.android, index as never);
       } else {
         nativeView.addChildAt(child.nativeViewProtected, index as never);
+        this._masonSyncForeignChild(child);
       }
       return true;
     }

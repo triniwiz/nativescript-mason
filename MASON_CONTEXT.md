@@ -386,10 +386,59 @@ collides with a core CSS name must go through `registerAlongsideCore`** —
 `properties.spec.ts` fails on an unrouted collision.
 
 `isMasonView()` deliberately asks whether the view *is* a mason element, not
-whether it sits inside one: a plain view parented into a mason tree has no mason
-style buffer, so its value still has to be converted for core. (There was a
+whether it sits inside one: a plain view keeps core's Style and converters.
+`foreign-layout.ts` separately copies its effective layout values into its native
+Mason leaf after attachment; it never marks the widget as a Mason element.
+(There was a
 `isMasonChild_` Symbol read here that nothing ever assigned — the 17 write sites
 set a string `_isMasonChild` instead. Removed; the guard now says what it does.)
+
+### Effective layout on ordinary children (iOS and Android)
+
+An ordinary child keeps NativeScript's CSS/local-value priority. Width, height,
+constraints, margins, self-alignment, flex sizing, grid placement and positioning
+reach its Mason leaf through `foreign-layout.ts`. For example, removing a local
+width reveals the current class width again:
+
+```ts
+import { Label, unsetValue } from '@nativescript/core';
+import { View as MasonView } from '@triniwiz/nativescript-masonkit';
+
+const container = new MasonView();
+const label = new Label();
+label.className = 'badge'; // page CSS: .badge { width: 43; height: 43; }
+container.addChild(label);
+label.style.width = 30;
+label.style.width = unsetValue;
+```
+
+The bridge listens to resolved longhands, replays after native insertion and
+`loaded`, and replaces its Style helper when the native identity changes. It
+pauses on `unloaded`/`disposeNativeView`; removal or container disposal releases
+all listeners. Core's physical-pixel objects are converted to DIP before the
+Mason setter scales them; percentage fractions are unchanged. Grid placement is
+sent as one complete four-edge `gridArea` value so retained native shorthand
+state cannot erase a row/column override. These are internal transport helpers,
+not renderer APIs. Windows keeps its existing bridge.
+
+Run the host regression with the existing test harness:
+
+```sh
+pnpm exec vitest run --config tools/testing/vitest.config.ts tools/testing/foreign-layout.spec.ts
+```
+
+For native frame checks, use `apps/demo/src/foreign-layout-probe.ts` as the demo's
+entry instead of `src/app.ts`, then run `ns run ios` or `ns run android` from
+`apps/demo`. Restore the entry afterwards. The probe prints `FOREIGN_LAYOUT`
+assertions and `FOREIGN_LAYOUT_PASS`; a failure throws or times out. It checks a
+non-square ordinary ContentView and a Label, both centering axes, class changes,
+local override/removal, reattachment, native recreation and listener cleanup.
+Use native artifacts containing the foreign-view style-sync prerequisite;
+passing host tests or a native build does not qualify these frame assertions.
+
+The probe retains 100 DIP top padding. It does not qualify top-safe-area
+clipping, OS input/hit testing, or SVG intrinsic arithmetic. Record iOS and
+Android runs separately; one platform's result does not qualify the other.
 
 **Known gap:** font inheritance does not cross into mason.
 `common.ts`'s `[fontInternalProperty.setNative]` is `if (!__WINDOWS__) return;`,

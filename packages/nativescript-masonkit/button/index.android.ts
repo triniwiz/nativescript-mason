@@ -54,6 +54,7 @@ export class Button extends ButtonBase {
       child[isTextChild_] = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       nativeView.addChildAt(child.nativeViewProtected, index as never);
+      this._masonSyncForeignChild(child);
     }
 
     return false;
