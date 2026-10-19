@@ -441,6 +441,22 @@ local override/removal, reattachment, native recreation and listener cleanup.
 Use native artifacts containing the foreign-view style-sync prerequisite;
 passing host tests or a native build does not qualify these frame assertions.
 
+For the iOS 27 probe, the demo also needs a deployment target accepted by Xcode
+27 and a scene manifest. The local qualification used target 15 and this entry
+in the demo's iOS `Info.plist` (NativeScript installs its scene delegates):
+
+```xml
+<key>UIApplicationSceneManifest</key>
+<dict>
+  <key>UIApplicationSupportsMultipleScenes</key>
+  <true/>
+</dict>
+```
+
+The mobile probe's webpack configuration must define `__WINDOWS__` as `false`,
+matching the mobile platform flags expected by Mason's shared sources. Keep
+these harness settings separate from the frame assertion results.
+
 The probe retains 100 DIP top padding. It does not qualify top-safe-area
 clipping, OS input/hit testing, or SVG intrinsic arithmetic. Record iOS and
 Android runs separately; one platform's result does not qualify the other.
