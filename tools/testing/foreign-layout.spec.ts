@@ -275,6 +275,8 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(view.hasListeners('loaded')).toBe(false);
     expect(view.hasListeners('unloaded')).toBe(false);
     expect(view.hasListeners('disposeNativeView')).toBe(false);
+    expect(Object.hasOwn(style, 'width')).toBe(false);
+    expect(Object.hasOwn(style, 'margin-left')).toBe(false);
   });
 
   it('does not overwrite authored grid shorthands with default auto longhands', () => {
