@@ -1,6 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
-import { style_ } from './symbols';
+import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
@@ -2108,8 +2108,12 @@ export class Style {
     if (__ANDROID__) {
       //@ts-ignore
       const view = this.view?.android ?? (this.view._view as never as org.nativescript.mason.masonkit.Element);
-      // Dispatch natively: ordinary Android views do not implement Element.
-      org.nativescript.mason.masonkit.Mason.getShared().syncStyleParts(view, this._d0, this._d1, this._d2, this._d3);
+      if (this.view[isMasonView_]) {
+        // @ts-ignore - syncStyleParts typings regenerate from the AAR separately.
+        view.syncStyleParts(this._d0, this._d1, this._d2, this._d3);
+      } else {
+        org.nativescript.mason.masonkit.Mason.getShared().syncStyleParts(view, this._d0, this._d1, this._d2, this._d3);
+      }
     } else if (__APPLE__) {
       //@ts-ignore
       const view = this.view?.ios ?? (this.view._view as never as MasonText);
