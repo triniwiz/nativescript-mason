@@ -545,8 +545,18 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
   }
 
   @objc public func mason_syncStyleParts(_ lowLow: Int32, _ lowHigh: Int32, _ highLow: Int32, _ highHigh: Int32){
-    guard let element = self as? MasonElement else { return }
-    element.syncStyleParts(lowLow, lowHigh, highLow, highHigh)
+    if let element = self as? MasonElement {
+      element.syncStyleParts(lowLow, lowHigh, highLow, highHigh)
+      return
+    }
+    let low = UInt64(UInt32(bitPattern: lowHigh)) << 32 | UInt64(UInt32(bitPattern: lowLow))
+    let high = UInt64(UInt32(bitPattern: highHigh)) << 32 | UInt64(UInt32(bitPattern: highLow))
+    guard let view = self as? UIView else { return }
+    let node = NSCMason.shared.nodeForView(view)
+    node.style.setStateFromHalves(low, high)
+    // Foreign views do not have a MasonElement requestLayout path to clear cached geometry.
+    node.markDirty()
+    (node.getRoot() ?? view).setNeedsLayout()
   }
   
   @objc public func mason_addView(_ view: UIView){

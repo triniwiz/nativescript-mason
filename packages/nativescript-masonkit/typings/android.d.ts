@@ -2862,6 +2862,7 @@ declare module org {
 					public createTextNode(children: androidNative.Array<org.nativescript.mason.masonkit.Node>): org.nativescript.mason.masonkit.Node;
 					public constructor();
 					public styleForViewOrNode(view: any): org.nativescript.mason.masonkit.Style;
+					public syncStyleParts(view: globalAndroid.view.View, lowLow: number, lowHigh: number, highLow: number, highHigh: number): void;
 					public clear(): void;
 					public getFloatRectAndroidIds(node: org.nativescript.mason.masonkit.Node): androidNative.Array<number>;
 					public createScrollView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Scroll;
