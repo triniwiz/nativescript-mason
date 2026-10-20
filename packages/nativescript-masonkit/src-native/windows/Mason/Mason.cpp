@@ -151,3 +151,19 @@ namespace winrt::NativeScript::Mason::implementation
         mason_events::Remove(element, type, id);
     }
 }
+
+namespace winrt::NativeScript::Mason::implementation
+{
+    int64_t Mason::AddScrollListener(winrt::Microsoft::UI::Xaml::Controls::ScrollViewer const& view,
+        winrt::NativeScript::Mason::ScrollListener const& listener, bool layout)
+    {
+        if (layout) return view.LayoutUpdated([listener](auto const&, auto const&) { listener(); }).value;
+        return view.ViewChanged([listener](auto const&, auto const&) { listener(); }).value;
+    }
+
+    void Mason::RemoveScrollListener(winrt::Microsoft::UI::Xaml::Controls::ScrollViewer const& view, int64_t token, bool layout)
+    {
+        if (layout) view.LayoutUpdated(winrt::event_token{ token });
+        else view.ViewChanged(winrt::event_token{ token });
+    }
+}

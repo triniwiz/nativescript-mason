@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B4D8E1F2A3C60011AABBCD21 /* ScrollContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8E1F2A3C60011AABBCD20 /* ScrollContractTests.swift */; };
 		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
 		A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */; };
 		F1A7C0DE0000000000000A01 /* LayerPaintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */; };
@@ -154,6 +155,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B4D8E1F2A3C60011AABBCD20 /* ScrollContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollContractTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthScanTests.swift; sourceTree = "<group>"; };
 		F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPaintTests.swift; sourceTree = "<group>"; };
@@ -433,6 +435,7 @@
 				1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */,
 				AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */,
 				B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */,
+				B4D8E1F2A3C60011AABBCD20 /* ScrollContractTests.swift */,
 			);
 			path = MasonTests;
 			sourceTree = "<group>";
@@ -785,6 +788,7 @@
 				1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */,
 				1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */,
 				B4D8E1F2A3C60011AABBCD11 /* CoreLayoutInteropTests.swift in Sources */,
+				B4D8E1F2A3C60011AABBCD21 /* ScrollContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

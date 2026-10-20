@@ -5,6 +5,8 @@ import "Event.idl";
 namespace NativeScript.Mason
 {
     
+    delegate void ScrollListener();
+
     runtimeclass Mason
     {
         Mason();
@@ -50,6 +52,10 @@ namespace NativeScript.Mason
         // draws included.
         Int64 AddEventListener(Microsoft.UI.Xaml.UIElement element, String type, EventListener listener);
         void RemoveEventListener(Microsoft.UI.Xaml.UIElement element, String type, Int64 id);
+
+        // Native WinUI subscriptions exposed through a non-generic delegate.
+        Int64 AddScrollListener(Microsoft.UI.Xaml.Controls.ScrollViewer view, ScrollListener listener, Boolean layout);
+        void RemoveScrollListener(Microsoft.UI.Xaml.Controls.ScrollViewer view, Int64 token, Boolean layout);
 
         Object ElementFromPoint(Microsoft.UI.Xaml.UIElement element, Single x, Single y);
     }

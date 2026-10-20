@@ -276,7 +276,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
 
     when (action) {
       MotionEvent.ACTION_DOWN -> {
-        if (!scroller!!.isFinished) scroller!!.abortAnimation()
+        stopScrolling()
         touchAxes = touchActionAt(x, y)
         lastMotionY = y
         lastMotionX = x
@@ -688,6 +688,34 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     if (deltaX != 0 || deltaY != 0) smoothScrollBy(deltaX, deltaY)
   }
 
+  private var offsetAnimator: android.animation.ValueAnimator? = null
+
+  /** Stop programmatic animation and fling without jumping to their destinations. */
+  open fun stopScrolling() {
+    offsetAnimator?.cancel()
+    offsetAnimator = null
+    scroller?.abortAnimation()
+    stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+  }
+
+  protected fun animateToOffset(x: Int, y: Int) {
+    val startX = scrollX
+    val startY = scrollY
+    val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+    offsetAnimator = animator
+    animator.duration = 250
+    animator.addUpdateListener {
+      val fraction = it.animatedValue as Float
+      scrollTo((startX + (x - startX) * fraction).toInt(), (startY + (y - startY) * fraction).toInt())
+    }
+    animator.start()
+  }
+
+  override fun onDetachedFromWindow() {
+    stopScrolling()
+    super.onDetachedFromWindow()
+  }
+
   fun smoothScrollBy(dx: Int, dy: Int) {
 
     val duration = AnimationUtils.currentAnimationTimeMillis() - lastScroll
@@ -840,7 +868,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         // A down during a fling, or while an edge is still stretched from one
         // (Android 12+), catches the scroll instead of tapping through to a
         // child, as the platform ScrollView does.
-        isBeingDragged = !scroller!!.isFinished || isEdgeStretched()
+        isBeingDragged = offsetAnimator?.isRunning == true || !scroller!!.isFinished || isEdgeStretched()
+        offsetAnimator?.cancel()
         startNestedScroll(nestedScrollAxes(), ViewCompat.TYPE_TOUCH)
       }
       MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {

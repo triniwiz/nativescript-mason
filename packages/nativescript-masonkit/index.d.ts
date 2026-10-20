@@ -430,7 +430,31 @@ export class Img extends VBase {
   src: string;
 }
 
-export class Scroll extends VBase {}
+export { ScrollEventData } from './scroll';
+
+/** Native overflow scrolling with offsets and extents in device-independent layout units. */
+export class Scroll extends VBase {
+  static readonly scrollEvent: 'scroll';
+  /** Current horizontal offset in DIPs; iOS bounce can temporarily overshoot. */
+  readonly scrollX: number;
+  /** Current vertical offset in DIPs; iOS bounce can temporarily overshoot. */
+  readonly scrollY: number;
+  /** Maximum horizontal seek offset in DIPs; zero for a disabled axis or before layout. */
+  readonly scrollableWidth: number;
+  /** Maximum vertical seek offset in DIPs; zero for a disabled axis or before layout. */
+  readonly scrollableHeight: number;
+  /**
+   * Seek both axes, clamped to their current ranges. Android rounds DIPs to native pixels.
+   * Only the latest pre-load/layout seek is retained; a new seek stops animation/momentum.
+   * Native touch can interrupt animation. Unload/disposal cancels pending work.
+   * @throws RangeError for nonfinite coordinates.
+   */
+  scrollTo(x: number, y: number, animated?: boolean): void;
+  /** Cancel a pending seek, animation or native momentum without jumping to its target. */
+  stopScrolling(): void;
+  on(eventName: 'scroll', callback: (event: import('./scroll').ScrollEventData) => void, thisArg?: any): void;
+  on(eventName: string, callback: (event: any) => void, thisArg?: any): void;
+}
 
 export class Button extends TextBase {}
 

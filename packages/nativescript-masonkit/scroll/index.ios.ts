@@ -1,12 +1,35 @@
+import { ScrollBase } from './common';
+export type { ScrollEventData } from './common';
 import { CSSType, Utils, View } from '@nativescript/core';
-import { ViewBase, setRootNativeViewFrame } from '../common';
+import { setRootNativeViewFrame } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isMasonView_, native_, isPlaceholder_, isText_ } from '../symbols';
 
 @CSSType('Scroll')
-export class Scroll extends ViewBase {
+export class Scroll extends ScrollBase {
   [style_];
+
+  protected _scrollMetrics(): [number, number, number, number] {
+    const view = this[native_] as unknown as MasonUIView;
+    return view ? [view.contentOffset.x, view.contentOffset.y, view.scrollableWidth, view.scrollableHeight] : [0, 0, 0, 0];
+  }
+
+  protected _seek(x: number, y: number, animated: boolean): void {
+    this._view.scrollToOffsetAnimated(CGPointMake(x, y), animated);
+  }
+
+  protected _stopScrolling(): void {
+    (this[native_] as unknown as MasonUIView)?.stopScrolling();
+  }
+
+  protected _observeScroll(observe: boolean): void {
+    const view = this[native_] as unknown as MasonUIView;
+    if (!view) return;
+    const ref = new WeakRef(this);
+    view.scrollChangeListener = observe ? () => ref.deref()?._notifyScroll() : null;
+  }
+
   constructor() {
     super();
     this[isMasonView_] = true;

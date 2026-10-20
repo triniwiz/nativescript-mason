@@ -1,13 +1,47 @@
+import { ScrollBase } from './common';
+export type { ScrollEventData } from './common';
 import { CSSType, Utils } from '@nativescript/core';
-import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isMasonView_, native_, isPlaceholder_ } from '../symbols';
 
 @CSSType('Scroll')
-export class Scroll extends ViewBase {
+export class Scroll extends ScrollBase {
   [style_];
   _inBatch = false;
+
+  protected _scrollMetrics(): [number, number, number, number] {
+    const view = this[native_] as unknown as org.nativescript.mason.masonkit.Scroll;
+    const dip = Utils.layout.toDeviceIndependentPixels;
+    return view ? [dip(view.getScrollX()), dip(view.getScrollY()), dip(view.getScrollableWidth()), dip(view.getScrollableHeight())] : [0, 0, 0, 0];
+  }
+
+  protected _seek(x: number, y: number, animated: boolean): void {
+    const px = Utils.layout.toDevicePixels;
+    // The native bridge takes signed 32-bit pixel coordinates.
+    const coordinate = (value: number) => Math.max(0, Math.min(2147483647, Math.round(px(value))));
+    this._view.scrollToOffset(coordinate(x), coordinate(y), animated);
+  }
+
+  protected _stopScrolling(): void {
+    (this[native_] as unknown as org.nativescript.mason.masonkit.Scroll)?.stopScrolling();
+  }
+
+  protected _observeScroll(observe: boolean): void {
+    const view = this[native_] as unknown as org.nativescript.mason.masonkit.Scroll;
+    if (!view) return;
+    const ref = new WeakRef(this);
+    view.setScrollListener(
+      observe
+        ? new org.nativescript.mason.masonkit.TwoDScrollView.ScrollChangeListener({
+            onScrollChanged() {
+              ref.deref()?._notifyScroll();
+            },
+          })
+        : null,
+    );
+  }
+
   constructor() {
     super();
     this[isMasonView_] = true;

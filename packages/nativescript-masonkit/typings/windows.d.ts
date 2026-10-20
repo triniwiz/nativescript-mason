@@ -161,7 +161,11 @@ declare namespace NativeScript.Mason {
     Destroy(): void;
   }
 
+  type ScrollListener = () => void;
+
   class Mason {
+    AddScrollListener(view: any, listener: any, layout: boolean): number;
+    RemoveScrollListener(view: any, token: number, layout: boolean): void;
     constructor();
     static Instance(): Mason;
     Clear(): void;

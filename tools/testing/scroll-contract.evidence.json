@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-19",
+  "upstreamIssue": 132,
+  "baseCommit": "7acf7b4174ab8b10a3d74f1a76e0292197562e08",
+  "coreVersion": "9.1.3",
+  "units": "DIPs; UIKit points on iOS",
+  "fixture": {
+    "entry": "tools/testing/scroll-smoke.ts",
+    "viewport": {
+      "width": 320,
+      "height": 240
+    },
+    "content": {
+      "width": 1280,
+      "height": 2400
+    }
+  },
+  "javascript": {
+    "command": "npm test",
+    "filesPassed": 42,
+    "testsPassed": 1093,
+    "testsSkipped": 1,
+    "packageTypecheckAndTransformedBuild": "passed with tspc",
+    "consumerSmokeTypecheck": "passed"
+  },
+  "targets": [
+    {
+      "platform": "ios",
+      "device": "iPad Air 13-inch (M4) simulator",
+      "os": "27.0",
+      "runtime": "9.1.0",
+      "nativeTestsPassed": 3,
+      "publicSmoke": {
+        "passed": true,
+        "density": 2,
+        "events": 23,
+        "stopped": [205.30134069773354, 1231.8080441864013],
+        "positions": [
+          {
+            "x": 100,
+            "y": 900,
+            "nativeX": 100,
+            "nativeY": 900,
+            "events": 1,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 200,
+            "y": 1400,
+            "nativeX": 200,
+            "nativeY": 1400,
+            "events": 15,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "nativeX": 0,
+            "nativeY": 0,
+            "events": 16,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 205.30134069773354,
+            "y": 1231.8080441864013,
+            "nativeX": 205.30134069773354,
+            "nativeY": 1231.8080441864013,
+            "events": 21,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 960,
+            "y": 2160,
+            "nativeX": 960,
+            "nativeY": 2160,
+            "events": 22,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "nativeX": 0,
+            "nativeY": 0,
+            "events": 23,
+            "maxX": 960,
+            "maxY": 2160
+          }
+        ],
+        "nativeCoordinatesInPositions": "read from native bounds.origin (iOS) or getScrollX/getScrollY converted from pixels (Android)",
+        "cleanup": "Unloaded during an animation; listener was null and subsequent native movement produced no JS event."
+      }
+    },
+    {
+      "platform": "android",
+      "device": "CPH2551 physical device",
+      "os": "16",
+      "runtime": "9.1.1",
+      "nativeTestsPassed": 2,
+      "publicSmoke": {
+        "passed": true,
+        "density": 3.25,
+        "events": 22,
+        "stopped": [28.615384615384617, 171.69230769230768],
+        "positions": [
+          {
+            "x": 100,
+            "y": 900,
+            "nativeX": 100,
+            "nativeY": 900,
+            "events": 1,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 200,
+            "y": 1400,
+            "nativeX": 200,
+            "nativeY": 1400,
+            "events": 16,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "nativeX": 0,
+            "nativeY": 0,
+            "events": 17,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 28.615384615384617,
+            "y": 171.69230769230768,
+            "nativeX": 28.615384615384617,
+            "nativeY": 171.69230769230768,
+            "events": 20,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 960,
+            "y": 2160,
+            "nativeX": 960,
+            "nativeY": 2160,
+            "events": 21,
+            "maxX": 960,
+            "maxY": 2160
+          },
+          {
+            "x": 0,
+            "y": 0,
+            "nativeX": 0,
+            "nativeY": 0,
+            "events": 22,
+            "maxX": 960,
+            "maxY": 2160
+          }
+        ],
+        "nativeCoordinatesInPositions": "read from native bounds.origin (iOS) or getScrollX/getScrollY converted from pixels (Android)",
+        "cleanup": "Unloaded during an animation; listener was null and subsequent native movement produced no JS event."
+      }
+    }
+  ],
+  "windows": {
+    "nativeBuild": false,
+    "runtimeTest": false,
+    "coverage": "TypeScript and mocked WinUI bridge tests only; no Windows toolchain/runtime on the macOS host.",
+    "horizontalScrolling": "Existing disabled mode preserved: offset and maximum X offset remain zero."
+  },
+  "limits": ["Host smokes are Debug; these are correctness checks, not release performance measurements.", "Native touch/pan regression inputs are synthetic; no visual analysis was used.", "iOS physical devices and visionOS were not run.", "Xplat was not changed and its VirtualList/recycling comparisons were not rerun."]
+}

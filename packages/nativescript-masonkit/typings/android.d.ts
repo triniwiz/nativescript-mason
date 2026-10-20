@@ -4069,6 +4069,14 @@ declare module org {
 		export module mason {
 			export module masonkit {
 				export class Scroll extends org.nativescript.mason.masonkit.TwoDScrollView implements org.nativescript.mason.masonkit.Element {
+					public getScrollX(): number;
+					public getScrollY(): number;
+					public getScrollableWidth(): number;
+					public getScrollableHeight(): number;
+					public scrollToOffset(x: number, y: number, animated: boolean): void;
+					public stopScrolling(): void;
+					public setScrollListener(listener: org.nativescript.mason.masonkit.TwoDScrollView.ScrollChangeListener | null): void;
+
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Scroll>;
 					public scrollRoot: org.nativescript.mason.masonkit.View;
 					public getVisibleOverflowScrolls(): boolean;

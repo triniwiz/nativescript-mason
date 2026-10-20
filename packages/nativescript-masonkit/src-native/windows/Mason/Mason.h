@@ -33,6 +33,9 @@ namespace winrt::NativeScript::Mason::implementation
         void RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id);
         winrt::Windows::Foundation::IInspectable ElementFromPoint(winrt::Microsoft::UI::Xaml::UIElement const& element, float x, float y);
 
+        int64_t AddScrollListener(winrt::Microsoft::UI::Xaml::Controls::ScrollViewer const& view, winrt::NativeScript::Mason::ScrollListener const& listener, bool layout);
+        void RemoveScrollListener(winrt::Microsoft::UI::Xaml::Controls::ScrollViewer const& view, int64_t token, bool layout);
+
         // Not projected; used internally by the factory.
         ::CMason* Ptr() const noexcept { return m_ptr; }
 

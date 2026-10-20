@@ -662,6 +662,45 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   private var _isScrolling = false
   internal var isScrollingNow: Bool { _isScrolling }
 
+  /// Called after every native offset change, including pan, momentum and seeks.
+  public var scrollChangeListener: (() -> Void)?
+  private var _pendingScroll: (CGPoint, Bool)?
+  private var _hasScrollLayout = false
+  private var _scrollAnimation: (start: CGPoint, target: CGPoint, time: CFTimeInterval)?
+
+  public var scrollableWidth: CGFloat { _hasScrollLayout && bounds.width > 0 && _canScrollH ? max(0, contentSize.width - bounds.width) : 0 }
+  public var scrollableHeight: CGFloat { _hasScrollLayout && bounds.height > 0 && _canScrollV ? max(0, contentSize.height - bounds.height) : 0 }
+
+  public func stopScrolling() {
+    _pendingScroll = nil
+    _scrollAnimation = nil
+    _stopScrollDeceleration()
+  }
+
+  public func scrollToOffset(_ offset: CGPoint, animated: Bool) {
+    // Cancelling an active pan may start deceleration; stop it afterwards.
+    if _scrollPanGesture.state == .began || _scrollPanGesture.state == .changed {
+      _scrollPanGesture.isEnabled = false
+      _scrollPanGesture.isEnabled = true
+    }
+    stopScrolling()
+    guard _hasScrollLayout, bounds.width > 0, bounds.height > 0 else {
+      _pendingScroll = (offset, animated)
+      setNeedsLayout()
+      return
+    }
+    let target = _clampScrollOffset(offset)
+    guard animated, target != contentOffset else {
+      _setScrollOrigin(target)
+      return
+    }
+    _scrollAnimation = (contentOffset, target, CACurrentMediaTime())
+    _isScrolling = true
+    let link = CADisplayLink(target: self, selector: #selector(_scrollDecelerationStep))
+    link.add(to: .main, forMode: .common)
+    _scrollDecelerationLink = link
+  }
+
   public var contentOffset: CGPoint {
     get { bounds.origin }
     set { _setScrollOrigin(_clampScrollOffset(newValue)) }
@@ -689,6 +728,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     if isScrollContainer {
       MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
     }
+    scrollChangeListener?()
   }
 
   // Attached lazily: most views never scroll, and a recognizer per view is not free.
@@ -736,6 +776,13 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // the node dirty without resizing, and gating on size would leave contentSize
     // at zero so scroll clamps to (0,0).
     autoComputeIfRoot()
+    _hasScrollLayout = true
+    if let (offset, animated) = _pendingScroll {
+      _pendingScroll = nil
+      scrollToOffset(offset, animated: animated)
+    } else {
+      _setScrollOrigin(_clampScrollOffset(contentOffset))
+    }
     // Safety-net sweep for orphaned outset-shadow layers on UIKit-driven
     // relayouts that bypass applyToView's reconcile.
     MasonElementHelpers.reconcileShadowLayers(self)
@@ -763,7 +810,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
 
   public override func willMove(toWindow newWindow: UIWindow?) {
     super.willMove(toWindow: newWindow)
-    if newWindow == nil { _stopScrollDeceleration() }
+    if newWindow == nil { stopScrolling() }
   }
 
   public override func willMove(toSuperview newSuperview: UIView?) {
@@ -1707,8 +1754,8 @@ extension MasonUIView {
   @objc func _handleScrollPan(_ gesture: UIPanGestureRecognizer) {
     switch gesture.state {
     case .began:
+      stopScrolling()
       _isScrolling = true
-      _stopScrollDeceleration()
       _scrollPanStartOffset = contentOffset
 
     case .changed:
@@ -1748,10 +1795,12 @@ extension MasonUIView {
   }
 
   private func _stopScrollDeceleration() {
+    let needsLayout = _isScrolling
     _scrollDecelerationLink?.invalidate()
     _scrollDecelerationLink = nil
     _scrollDecelerationVelocity = .zero
     _isScrolling = false
+    if needsLayout { setNeedsLayout() }
   }
 
   // Advance one axis: momentum decay in-bounds, spring-back when overscrolled.
@@ -1776,6 +1825,17 @@ extension MasonUIView {
   }
 
   @objc func _scrollDecelerationStep() {
+    if let animation = _scrollAnimation {
+      let progress = min(1, (CACurrentMediaTime() - animation.time) / 0.25)
+      let eased = CGFloat(1 - pow(1 - progress, 3))
+      let target = _clampScrollOffset(animation.target)
+      let offset = CGPoint(x: animation.start.x + (target.x - animation.start.x) * eased,
+                           y: animation.start.y + (target.y - animation.start.y) * eased)
+      // Clear the old animation before notifying: a listener may start a new seek.
+      if progress >= 1 { stopScrolling() }
+      _setScrollOrigin(_clampScrollOffset(offset))
+      return
+    }
     let dt: CGFloat = 1.0 / 60.0
     let hiX = max(0, contentSize.width - bounds.width)
     let hiY = max(0, contentSize.height - bounds.height)
@@ -1798,8 +1858,8 @@ extension MasonUIView {
       v.y = 0
     }
     _scrollDecelerationVelocity = v
-    _setScrollOrigin(o)
     if doneX && doneY { _stopScrollDeceleration() }
+    _setScrollOrigin(o)
   }
 }
 

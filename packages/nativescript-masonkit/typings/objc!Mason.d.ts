@@ -3146,6 +3146,12 @@ declare const enum MasonTextWrap {
 }
 
 declare class MasonUIView extends UIView implements MasonElementObjc {
+	readonly scrollableWidth: number;
+	readonly scrollableHeight: number;
+	scrollChangeListener: (() => void) | null;
+	scrollToOffsetAnimated(offset: CGPoint, animated: boolean): void;
+	stopScrolling(): void;
+
 
 	static alloc(): MasonUIView; // inherited from NSObject
 

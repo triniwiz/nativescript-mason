@@ -78,6 +78,33 @@ class Scroll @JvmOverloads constructor(
     stickyDescendants.add(view)
   }
 
+  // Separate from TwoDScrollView's listener: consumers must not replace sticky/background work.
+  var scrollListener: TwoDScrollView.ScrollChangeListener? = null
+  private var pendingOffset: Triple<Int, Int, Boolean>? = null
+  private var hasScrollLayout = false
+
+  val scrollableWidth: Int
+    get() = if (hasScrollLayout && width > 0 && enableScrollX) maxOf(0, scrollContentWidth - (width - paddingLeft - paddingRight)) else 0
+  val scrollableHeight: Int
+    get() = if (hasScrollLayout && height > 0 && enableScrollY) maxOf(0, scrollContentHeight - (height - paddingTop - paddingBottom)) else 0
+
+  override fun stopScrolling() {
+    pendingOffset = null
+    super.stopScrolling()
+  }
+
+  fun scrollToOffset(x: Int, y: Int, animated: Boolean) {
+    stopScrolling()
+    if (!hasScrollLayout || width <= 0 || height <= 0) {
+      pendingOffset = Triple(x, y, animated)
+      requestLayout()
+      return
+    }
+    val targetX = x.coerceIn(0, scrollableWidth)
+    val targetY = y.coerceIn(0, scrollableHeight)
+    if (animated) animateToOffset(targetX, targetY) else scrollTo(targetX, targetY)
+  }
+
   init {
     if (!override) {
       if (!::node.isInitialized) {
@@ -93,6 +120,7 @@ class Scroll @JvmOverloads constructor(
       override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
         MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
         Background.invalidateFixedDescendants(this@Scroll)
+        scrollListener?.onScrollChanged(view, x, y, oldx, oldy)
       }
     })
   }
@@ -353,6 +381,14 @@ class Scroll @JvmOverloads constructor(
     }
 
     scrollTo(scrollX, scrollY)
+    hasScrollLayout = true
+    pendingOffset?.let { (x, y, animated) ->
+      pendingOffset = null
+      // Apply after this layout has established viewport dimensions and extents.
+      val targetX = x.coerceIn(0, scrollableWidth)
+      val targetY = y.coerceIn(0, scrollableHeight)
+      if (animated) animateToOffset(targetX, targetY) else scrollTo(targetX, targetY)
+    }
   }
 
   override fun generateDefaultLayoutParams(): LayoutParams {
