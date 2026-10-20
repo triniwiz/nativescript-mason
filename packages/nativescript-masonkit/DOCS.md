@@ -722,6 +722,8 @@ MasonKit components support DOM-like event handling.
 |-------|----------|-------------|
 | `input` | `Input` | When the input value changes |
 | `change` | `Input` | When the input value is committed |
+| `scroll` | Any scrolling element | When its scroll offset changed, at most once per frame. Doesn't bubble |
+| `scrollend` | Any scrolling element | When a drag, momentum or smooth scroll that moved it has stopped. Doesn't bubble |
 
 ### Event Class
 
@@ -770,6 +772,47 @@ input.addEventListener('input', (event) => {
   console.log('Value changed:', event.data);
 });
 ```
+
+### Scrolling
+
+Every element has the browser's scroll properties and methods, in CSS pixels. Nothing native
+runs until a property is read or a method is called, and `scroll` / `scrollend` are only raised
+for an element that has a listener for them, so elements that don't use them cost nothing extra.
+
+| Member | Description |
+|--------|-------------|
+| `scrollTop`, `scrollLeft` | Scroll offset. Setting it scrolls, clamped to the scroll range |
+| `scrollWidth`, `scrollHeight` | Size of the content, at least the client size. At the end, `scrollTop + clientHeight === scrollHeight` |
+| `clientWidth`, `clientHeight` | Padding box size (scrollbars overlay, so take no room) |
+| `scrollTo(x, y)` / `scrollTo({ left, top, behavior })` | Scroll to a position; `behavior: 'smooth'` animates. `scroll()` is the same |
+| `scrollBy(dx, dy)` / `scrollBy({ left, top, behavior })` | Scroll by a delta |
+| `scrollIntoView(alignToTop?)` / `scrollIntoView({ block, inline, behavior })` | Scroll the containers above this element so it shows |
+
+Reading a size, or scrolling, runs a pending layout pass first, as a browser does, so this works
+right after adding children:
+
+```typescript
+list.addChild(row);
+list.scrollTop = list.scrollHeight;
+
+list.addEventListener('scroll', () => {
+  const atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+  if (atEnd) loadMore();
+});
+```
+
+Only elements that scroll (`overflow: scroll | auto`, and `<scroll>`) move; `overflow: hidden`
+can't be scrolled from code.
+
+Before an element's first layout:
+
+- `scrollTo`, `scrollTop = …` and friends are kept and applied, clamped, right after its first
+  layout (a later call replaces an earlier one, per axis). The move raises `scroll` as usual.
+- Offsets read the current position (0) and sizes read 0 until that layout has run.
+
+A new `scrollTo` cancels a running smooth scroll and starts from the current position; a touch
+cancels it too. A `scroll` handler reads the position from the element, e.g.
+`event.target.scrollTop`.
 
 ---
 

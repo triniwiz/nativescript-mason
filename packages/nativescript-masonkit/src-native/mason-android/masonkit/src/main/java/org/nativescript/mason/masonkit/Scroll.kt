@@ -93,8 +93,49 @@ class Scroll @JvmOverloads constructor(
       override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
         MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
         Background.invalidateFixedDescendants(this@Scroll)
+        if (node.listensForScroll) {
+          scrolledSinceEvent = true
+          scrolledSinceEnd = true
+          queueScrollEvents()
+        }
       }
     })
+  }
+
+  // Scroll event state, used once the node has a scroll listener.
+  private var scrollEventQueued = false
+  private var scrolledSinceEvent = false
+  private var scrolledSinceEnd = false
+
+  private val fireScrollEvents = Runnable {
+    scrollEventQueued = false
+    val mason = node.mason
+    if (!mason.hasListener(node, "scroll") && !mason.hasListener(node, "scrollend")) {
+      // All listeners were removed.
+      node.listensForScroll = false
+      scrolledSinceEvent = false
+      scrolledSinceEnd = false
+      return@Runnable
+    }
+    if (scrolledSinceEvent) {
+      scrolledSinceEvent = false
+      mason.dispatchAtTarget(org.nativescript.mason.masonkit.events.Event("scroll").apply { target = this@Scroll })
+    }
+    if (scrolledSinceEnd && !isScrollInMotion) {
+      scrolledSinceEnd = false
+      mason.dispatchAtTarget(org.nativescript.mason.masonkit.events.Event("scrollend").apply { target = this@Scroll })
+    }
+  }
+
+  // Coalesces this message loop turn's offset changes into one "scroll".
+  private fun queueScrollEvents() {
+    if (scrollEventQueued) return
+    scrollEventQueued = true
+    post(fireScrollEvents)
+  }
+
+  override fun onScrollMotionEnded() {
+    if (node.listensForScroll && scrolledSinceEnd) queueScrollEvents()
   }
 
   override fun onChange(low: Long, high: Long) {
@@ -291,7 +332,7 @@ class Scroll @JvmOverloads constructor(
    * [scrollContentHeight] from the current layout-tree data.  Called after
    * the layout engine has computed this node.
    */
-  private fun updateScrollState(viewportW: Int = -1, viewportH: Int = -1) {
+  internal fun updateScrollState(viewportW: Int = -1, viewportH: Int = -1) {
     val computedW = node.computedWidth.toInt()
     val computedH = node.computedHeight.toInt()
 
@@ -352,7 +393,7 @@ class Scroll @JvmOverloads constructor(
       }
     }
 
-    scrollTo(scrollX, scrollY)
+    if (hasPendingScroll) applyPendingScroll() else scrollTo(scrollX, scrollY)
   }
 
   override fun generateDefaultLayoutParams(): LayoutParams {

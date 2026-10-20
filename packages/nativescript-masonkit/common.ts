@@ -165,10 +165,88 @@ function masonNativeEventName(eventName: string): string | null {
     case 'focus':
     case 'blur':
     case 'keydown':
+    case 'scroll':
+    case 'scrollend':
       return eventName;
     default:
       return null;
   }
+}
+
+export type ScrollBehavior = 'auto' | 'instant' | 'smooth';
+export type ScrollLogicalPosition = 'start' | 'center' | 'end' | 'nearest';
+
+export interface ScrollToOptions {
+  left?: number;
+  top?: number;
+  behavior?: ScrollBehavior;
+}
+
+export interface ScrollIntoViewOptions {
+  block?: ScrollLogicalPosition;
+  inline?: ScrollLogicalPosition;
+  behavior?: ScrollBehavior;
+}
+
+type ScrollMetric = 'scrollWidth' | 'scrollHeight' | 'clientWidth' | 'clientHeight';
+
+const SCROLL_POSITIONS: Record<ScrollLogicalPosition, number> = { start: 0, center: 1, end: 2, nearest: 3 };
+
+// Scroll offsets and sizes are read from the native view on demand, in CSS pixels.
+function nativeScrollOffset(view: any, vertical: boolean): number {
+  const native = view[native_];
+  if (!native) return 0;
+  if (__ANDROID__) {
+    const scroll = org.nativescript.mason.masonkit.WebScroll;
+    return Utils.layout.toDeviceIndependentPixels(vertical ? scroll.scrollTop(native) : scroll.scrollLeft(native));
+  }
+  if (__APPLE__) {
+    return (vertical ? native.mason_scrollTop : native.mason_scrollLeft) ?? 0;
+  }
+  if (__WINDOWS__) {
+    return (vertical ? masonEngine().ScrollTop(native) : masonEngine().ScrollLeft(native)) ?? 0;
+  }
+  return 0;
+}
+
+function nativeScrollMetric(view: any, metric: ScrollMetric): number {
+  const native = view[native_];
+  if (!native) return 0;
+  let value = 0;
+  if (__ANDROID__) {
+    value = Utils.layout.toDeviceIndependentPixels(org.nativescript.mason.masonkit.WebScroll[metric](native));
+  } else if (__APPLE__) {
+    value = native[`mason_${metric}`];
+  } else if (__WINDOWS__) {
+    value = masonEngine()[metric.charAt(0).toUpperCase() + metric.slice(1)](native);
+  }
+  // Whole pixels, as on the web.
+  return Math.round(value || 0);
+}
+
+/** NaN keeps an axis. Before the native view exists, the request is kept for `initNativeView`. */
+function nativeScrollTo(view: any, left: number, top: number, smooth: boolean) {
+  const native = view[native_];
+  if (!native) {
+    const pending = (view._masonPendingScroll ??= { left: NaN, top: NaN, smooth });
+    if (!isNaN(left)) pending.left = left;
+    if (!isNaN(top)) pending.top = top;
+    pending.smooth = smooth;
+    return;
+  }
+  if (__ANDROID__) {
+    org.nativescript.mason.masonkit.WebScroll.scrollTo(native, isNaN(left) ? NaN : Utils.layout.toDevicePixels(left), isNaN(top) ? NaN : Utils.layout.toDevicePixels(top), smooth);
+  } else if (__APPLE__) {
+    native.mason_scrollTo(left, top, smooth);
+  } else if (__WINDOWS__) {
+    masonEngine().ScrollTo(native, left, top, smooth);
+  }
+}
+
+/** Non-finite scroll coordinates become 0, as on the web. */
+function scrollCoordinate(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function findOwnerForNativeView(owner: any, nativeView: any): ViewBase | NSViewBase | null {
@@ -640,6 +718,102 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return found;
   }
 
+  // Scrolling. Size reads run a pending layout first; "scroll"/"scrollend" are only raised for
+  // an element with a listener.
+
+  /** Vertical scroll offset; setting it scrolls, clamped to the scroll range. */
+  get scrollTop(): number {
+    return nativeScrollOffset(this, true);
+  }
+
+  set scrollTop(value: number) {
+    nativeScrollTo(this, NaN, scrollCoordinate(value), false);
+  }
+
+  /** Horizontal scroll offset; setting it scrolls, clamped to the scroll range. */
+  get scrollLeft(): number {
+    return nativeScrollOffset(this, false);
+  }
+
+  set scrollLeft(value: number) {
+    nativeScrollTo(this, scrollCoordinate(value), NaN, false);
+  }
+
+  /** Content width, at least `clientWidth`. */
+  get scrollWidth(): number {
+    return nativeScrollMetric(this, 'scrollWidth');
+  }
+
+  /** Content height, at least `clientHeight`. */
+  get scrollHeight(): number {
+    return nativeScrollMetric(this, 'scrollHeight');
+  }
+
+  /** Padding box width. */
+  get clientWidth(): number {
+    return nativeScrollMetric(this, 'clientWidth');
+  }
+
+  /** Padding box height. */
+  get clientHeight(): number {
+    return nativeScrollMetric(this, 'clientHeight');
+  }
+
+  scrollTo(options?: ScrollToOptions): void;
+  scrollTo(x: number, y: number): void;
+  scrollTo(xOrOptions?: number | ScrollToOptions, y?: number): void {
+    if (xOrOptions !== null && typeof xOrOptions === 'object') {
+      const { left, top, behavior } = xOrOptions;
+      nativeScrollTo(this, left === undefined ? NaN : scrollCoordinate(left), top === undefined ? NaN : scrollCoordinate(top), behavior === 'smooth');
+    } else {
+      nativeScrollTo(this, scrollCoordinate(xOrOptions), scrollCoordinate(y), false);
+    }
+  }
+
+  scroll(options?: ScrollToOptions): void;
+  scroll(x: number, y: number): void;
+  scroll(xOrOptions?: number | ScrollToOptions, y?: number): void {
+    this.scrollTo(xOrOptions as any, y as any);
+  }
+
+  scrollBy(options?: ScrollToOptions): void;
+  scrollBy(x: number, y: number): void;
+  scrollBy(xOrOptions?: number | ScrollToOptions, y?: number): void {
+    let dx: number;
+    let dy: number;
+    let smooth = false;
+    if (xOrOptions !== null && typeof xOrOptions === 'object') {
+      dx = scrollCoordinate(xOrOptions.left);
+      dy = scrollCoordinate(xOrOptions.top);
+      smooth = xOrOptions.behavior === 'smooth';
+    } else {
+      dx = scrollCoordinate(xOrOptions);
+      dy = scrollCoordinate(y);
+    }
+    // Relative to a request still waiting for the native view, if any.
+    const pending = this._masonPendingScroll;
+    const left = !dx ? NaN : (pending && !isNaN(pending.left) ? pending.left : this.scrollLeft) + dx;
+    const top = !dy ? NaN : (pending && !isNaN(pending.top) ? pending.top : this.scrollTop) + dy;
+    nativeScrollTo(this, left, top, smooth);
+  }
+
+  /** Scrolls the scroll containers above this element so it's visible. */
+  scrollIntoView(arg?: boolean | ScrollIntoViewOptions): void {
+    const native = (this as any)[native_];
+    if (!native) return;
+    const options: ScrollIntoViewOptions = arg !== null && typeof arg === 'object' ? arg : { block: arg === false ? 'end' : 'start' };
+    const block = SCROLL_POSITIONS[options.block ?? 'start'] ?? 0;
+    const inline = SCROLL_POSITIONS[options.inline ?? 'nearest'] ?? 3;
+    const smooth = options.behavior === 'smooth';
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.WebScroll.scrollIntoView(native, block, inline, smooth);
+    } else if (__APPLE__) {
+      native.mason_scrollIntoView(block, inline, smooth);
+    } else if (__WINDOWS__) {
+      masonEngine().ScrollIntoView(native, block, inline, smooth);
+    }
+  }
+
   _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
 
   _registerNativeEvent(arg: string, callback: any, thisArg?: any) {
@@ -803,9 +977,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (node) node.touchAction = flags;
   }
 
+  _masonPendingScroll: { left: number; top: number; smooth: boolean } | undefined;
+
   initNativeView(): void {
     super.initNativeView();
     this._applyTouchAction();
+    const scroll = this._masonPendingScroll;
+    if (scroll) {
+      this._masonPendingScroll = undefined;
+      nativeScrollTo(this, scroll.left, scroll.top, scroll.smooth);
+    }
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {

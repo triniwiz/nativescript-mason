@@ -212,6 +212,16 @@ class Mason {
       ?.remove(id)
   }
 
+  /** Calls only the target's own listeners, for events that don't bubble (scroll, scrollend). */
+  internal fun dispatchAtTarget(event: Event) {
+    val node = event.target?.node ?: return
+    val listeners = nodeEventListeners[node]?.get(event.type)?.values?.toList() ?: return
+    for (listener in listeners) {
+      if (event.immediatePropagationStopped) break
+      listener(event)
+    }
+  }
+
   internal fun hasListener(node: Node, type: String): Boolean =
     nodeEventListeners[node]?.get(type)?.isNotEmpty() == true
 

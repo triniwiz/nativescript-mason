@@ -2310,6 +2310,26 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_removeEventListener(_ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
   @discardableResult
   @objc dynamic public func mason_removeEventListener(_ event: Swift.String) -> Swift.Bool
+  @objc dynamic public var mason_scrollLeft: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public var mason_scrollTop: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public var mason_scrollWidth: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public var mason_scrollHeight: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public var mason_clientWidth: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public var mason_clientHeight: Swift.Double {
+    @objc get
+  }
+  @objc dynamic public func mason_scrollTo(_ x: Swift.Double, _ y: Swift.Double, _ smooth: Swift.Bool)
+  @objc dynamic public func mason_scrollIntoView(_ block: Swift.Int, _ inline: Swift.Int, _ smooth: Swift.Bool)
   @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent)
   @objc dynamic public func mason_syncStyle(_ low: Swift.String, _ high: Swift.String)
   @objc dynamic public func mason_writableStyleValues() -> Foundation.NSMutableData?

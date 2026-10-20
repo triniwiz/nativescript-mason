@@ -661,6 +661,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // autoComputeIfRoot so scroll-step bounds changes don't retrigger layout.
   private var _isScrolling = false
   internal var isScrollingNow: Bool { _isScrolling }
+  // Scroll event state, used once the node has a scroll listener.
+  private var _panActive = false
+  private var _scrollEventQueued = false
+  private var _scrolledSinceEvent = false
+  private var _scrolledSinceEnd = false
+  // Smooth programmatic scroll.
+  private var _scrollAnimationLink: CADisplayLink?
+  private var _scrollAnimationFrom: CGPoint = .zero
+  private var _scrollAnimationTo: CGPoint = .zero
+  private var _scrollAnimationStart: CFTimeInterval = 0
+  // scrollTo made before layout; NaN keeps an axis.
+  private var _pendingScroll = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
+  private var _pendingScrollSmooth = false
 
   public var contentOffset: CGPoint {
     get { bounds.origin }
@@ -689,6 +702,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     if isScrollContainer {
       MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
     }
+    if node.listensForScroll { _noteScrolled() }
   }
 
   // Attached lazily: most views never scroll, and a recognizer per view is not free.
@@ -763,7 +777,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
 
   public override func willMove(toWindow newWindow: UIWindow?) {
     super.willMove(toWindow: newWindow)
-    if newWindow == nil { _stopScrollDeceleration() }
+    if newWindow == nil {
+      _stopScrollDeceleration()
+      _stopScrollAnimation()
+    }
   }
 
   public override func willMove(toSuperview newSuperview: UIView?) {
@@ -1707,6 +1724,8 @@ extension MasonUIView {
   @objc func _handleScrollPan(_ gesture: UIPanGestureRecognizer) {
     switch gesture.state {
     case .began:
+      _panActive = true
+      _stopScrollAnimation()
       _isScrolling = true
       _stopScrollDeceleration()
       _scrollPanStartOffset = contentOffset
@@ -1720,6 +1739,7 @@ extension MasonUIView {
       _setScrollOrigin(_rubberBanded(raw))
 
     case .ended, .cancelled:
+      _panActive = false
       let v = gesture.velocity(in: self)
       _startScrollDeceleration(CGPoint(
         x: _canScrollH ? -v.x : 0,
@@ -1737,6 +1757,7 @@ extension MasonUIView {
     let overscrolled = contentOffset != _clampScrollOffset(contentOffset)
     guard hypot(velocity.x, velocity.y) > 1 || overscrolled else {
       _isScrolling = false
+      _scrollMotionEnded()
       return
     }
     _scrollDecelerationLink?.invalidate()
@@ -1752,6 +1773,7 @@ extension MasonUIView {
     _scrollDecelerationLink = nil
     _scrollDecelerationVelocity = .zero
     _isScrolling = false
+    _scrollMotionEnded()
   }
 
   // Advance one axis: momentum decay in-bounds, spring-back when overscrolled.
@@ -1800,6 +1822,246 @@ extension MasonUIView {
     _scrollDecelerationVelocity = v
     _setScrollOrigin(o)
     if doneX && doneY { _stopScrollDeceleration() }
+  }
+}
+
+// MARK: - Scroll offsets, events and programmatic scrolling
+extension MasonUIView {
+  private static let smoothScrollDuration: CFTimeInterval = 0.3
+
+  private var _scrollInMotion: Bool {
+    _panActive || _scrollDecelerationLink != nil || _scrollAnimationLink != nil
+  }
+
+  private func _noteScrolled() {
+    _scrolledSinceEvent = true
+    _scrolledSinceEnd = true
+    _queueScrollEvents()
+  }
+
+  // A drag, momentum or smooth scroll stopped; "scrollend" follows if it moved.
+  private func _scrollMotionEnded() {
+    if node.listensForScroll && _scrolledSinceEnd { _queueScrollEvents() }
+  }
+
+  // Coalesces this run loop turn's offset changes into one "scroll".
+  private func _queueScrollEvents() {
+    guard !_scrollEventQueued else { return }
+    _scrollEventQueued = true
+    DispatchQueue.main.async { [weak self] in self?._fireScrollEvents() }
+  }
+
+  private func _fireScrollEvents() {
+    _scrollEventQueued = false
+    let mason = node.mason
+    guard mason.hasListener(node, "scroll") || mason.hasListener(node, "scrollend") else {
+      // All listeners were removed.
+      node.listensForScroll = false
+      _scrolledSinceEvent = false
+      _scrolledSinceEnd = false
+      return
+    }
+    if _scrolledSinceEvent {
+      _scrolledSinceEvent = false
+      let event = MasonEvent(type: "scroll")
+      event.target = self
+      mason.dispatchAtTarget(event, node)
+    }
+    if _scrolledSinceEnd && !_scrollInMotion {
+      _scrolledSinceEnd = false
+      let event = MasonEvent(type: "scrollend")
+      event.target = self
+      mason.dispatchAtTarget(event, node)
+    }
+  }
+
+  /// Scrolls to `x`/`y` (points, NaN keeps that axis), clamped to the scroll range.
+  func webScrollTo(_ x: CGFloat, _ y: CGFloat, smooth: Bool) {
+    let current = contentOffset
+    let target = _clampScrollOffset(CGPoint(x: x.isNaN ? current.x : x, y: y.isNaN ? current.y : y))
+    _stopScrollAnimation()
+    if _scrollDecelerationLink != nil { _stopScrollDeceleration() }
+    guard target != current else { return }
+    guard smooth, window != nil else {
+      _setScrollOrigin(target)
+      return
+    }
+    _scrollAnimationFrom = current
+    _scrollAnimationTo = target
+    _scrollAnimationStart = CACurrentMediaTime()
+    _isScrolling = true
+    let link = CADisplayLink(target: self, selector: #selector(_scrollAnimationStep))
+    link.add(to: .main, forMode: .common)
+    _scrollAnimationLink = link
+  }
+
+  /// Keeps a scrollTo made before layout for the next layout pass; a later one replaces it per axis.
+  func setPendingScroll(_ x: CGFloat, _ y: CGFloat, smooth: Bool) {
+    if !x.isNaN { _pendingScroll.x = x }
+    if !y.isNaN { _pendingScroll.y = y }
+    _pendingScrollSmooth = smooth
+    guard !node.hasPendingScroll else { return }
+    node.hasPendingScroll = true
+    // In case no layout pass comes: retry once layout is current.
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.node.hasPendingScroll, self.node.isLayoutValid, self.flushPendingLayout() else { return }
+      self.applyPendingScroll()
+    }
+  }
+
+  func clearPendingScroll() {
+    node.hasPendingScroll = false
+    _pendingScroll = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
+  }
+
+  func applyPendingScroll() {
+    let target = _pendingScroll
+    clearPendingScroll()
+    webScrollTo(target.x, target.y, smooth: _pendingScrollSmooth)
+  }
+
+  @objc func _scrollAnimationStep() {
+    let t = min(1, (CACurrentMediaTime() - _scrollAnimationStart) / MasonUIView.smoothScrollDuration)
+    let e = CGFloat(1 - pow(1 - t, 3))
+    let from = _scrollAnimationFrom
+    let to = _scrollAnimationTo
+    // Clamped each step: a relayout mid-animation can shrink the range.
+    _setScrollOrigin(_clampScrollOffset(CGPoint(x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e)))
+    if t >= 1 { _stopScrollAnimation() }
+  }
+
+  private func _stopScrollAnimation() {
+    guard let link = _scrollAnimationLink else { return }
+    link.invalidate()
+    _scrollAnimationLink = nil
+    _isScrolling = false
+    _scrollMotionEnded()
+  }
+
+  /// The furthest `contentOffset` can go on each axis (0 for an axis that doesn't scroll).
+  var webScrollRange: CGPoint {
+    CGPoint(
+      x: _canScrollH ? max(0, contentSize.width - bounds.width) : 0,
+      y: _canScrollV ? max(0, contentSize.height - bounds.height) : 0
+    )
+  }
+}
+
+/// Element scroll offsets, sizes and scrolling, in points.
+enum MasonWebScroll {
+  private static func px(_ v: Float) -> CGFloat {
+    v.isNaN ? 0 : CGFloat(v) / CGFloat(NSCMason.scale)
+  }
+
+  static func offset(_ element: MasonElement) -> CGPoint {
+    (element.uiView as? MasonUIView)?.contentOffset ?? .zero
+  }
+
+  /// The padding box (scrollbars overlay, so they take no room).
+  static func clientSize(_ element: MasonElement) -> CGSize {
+    element.flushPendingLayout()
+    return _clientSize(element)
+  }
+
+  private static func _clientSize(_ element: MasonElement) -> CGSize {
+    let l = element.node.computedLayout
+    let size = element.uiView.bounds.size
+    return CGSize(
+      width: max(0, size.width - px(l.borderLeft) - px(l.borderRight)),
+      height: max(0, size.height - px(l.borderTop) - px(l.borderBottom))
+    )
+  }
+
+  static func scrollSize(_ element: MasonElement) -> CGSize {
+    element.flushPendingLayout()
+    let client = _clientSize(element)
+    let l = element.node.computedLayout
+    var size = CGSize(width: max(client.width, px(l.contentWidth)), height: max(client.height, px(l.contentHeight)))
+    // On a scrolling axis, scrollTop + clientHeight == scrollHeight at the end.
+    if let view = element.uiView as? MasonUIView {
+      let range = view.webScrollRange
+      if view._canScrollH { size.width = client.width + range.x }
+      if view._canScrollV { size.height = client.height + range.y }
+    }
+    return size
+  }
+
+  /// Before the element is laid out, the request waits for its next layout pass.
+  static func scrollTo(_ element: MasonElement, _ x: CGFloat, _ y: CGFloat, smooth: Bool) {
+    guard let view = element.uiView as? MasonUIView else { return }
+    guard element.flushPendingLayout(), element.node.isLayoutValid else {
+      view.setPendingScroll(x, y, smooth: smooth)
+      return
+    }
+    if view.node.hasPendingScroll {
+      view.setPendingScroll(x, y, smooth: smooth)
+      view.applyPendingScroll()
+    } else {
+      view.webScrollTo(x, y, smooth: smooth)
+    }
+  }
+
+  /// Scrolls each Mason scroll container above `element` so it shows.
+  /// `block`/`inline`: 0 start, 1 center, 2 end, 3 nearest.
+  static func scrollIntoView(_ element: MasonElement, block: Int, inline: Int, smooth: Bool) {
+    element.flushPendingLayout()
+    let target = element.uiView
+    // How far the planned inner scrolls move the target in outer containers.
+    var shift = CGPoint.zero
+    var plan: [(MasonUIView, CGPoint)] = []
+    var outermost: UIView = target
+    var current = target.superview
+    while let host = current, MasonViewKind.isElement(host) {
+      outermost = host
+      if let scroller = host as? MasonUIView, scroller._canScrollH || scroller._canScrollV {
+        let rect = target.convert(target.bounds, to: scroller).offsetBy(dx: -shift.x, dy: -shift.y)
+        let l = scroller.node.computedLayout
+        let offset = scroller.contentOffset
+        let b = scroller.bounds
+        let portX = offset.x + px(l.borderLeft)
+        let portY = offset.y + px(l.borderTop)
+        let portW = b.width - px(l.borderLeft) - px(l.borderRight)
+        let portH = b.height - px(l.borderTop) - px(l.borderBottom)
+        let range = scroller.webScrollRange
+        let to = CGPoint(
+          x: min(max(0, align(rect.minX, rect.width, portX, portW, offset.x, inline)), range.x),
+          y: min(max(0, align(rect.minY, rect.height, portY, portH, offset.y, block)), range.y)
+        )
+        if to != offset {
+          plan.append((scroller, to))
+          shift.x += to.x - offset.x
+          shift.y += to.y - offset.y
+        }
+      }
+      current = host.superview
+    }
+    for (scroller, to) in plan { scroller.webScrollTo(to.x, to.y, smooth: smooth) }
+    // A host UIScrollView outside the Mason tree scrolls to it too.
+    var ancestor = outermost.superview
+    while let host = ancestor, !(host is UIScrollView) { ancestor = host.superview }
+    if let scrollView = ancestor as? UIScrollView {
+      // Instant scrolls already moved the target; smooth ones haven't yet.
+      let pending = smooth ? shift : .zero
+      let rect = target.convert(target.bounds, to: scrollView).offsetBy(dx: -pending.x, dy: -pending.y)
+      scrollView.scrollRectToVisible(rect, animated: smooth)
+    }
+  }
+
+  /// The offset that aligns [start, start + size) in the scrollport per `mode`.
+  private static func align(_ start: CGFloat, _ size: CGFloat, _ portStart: CGFloat, _ portSize: CGFloat, _ offset: CGFloat, _ mode: Int) -> CGFloat {
+    let end = start + size
+    let portEnd = portStart + portSize
+    switch mode {
+    case 0: return offset + start - portStart
+    case 1: return offset + (start + size / 2) - (portStart + portSize / 2)
+    case 2: return offset + end - portEnd
+    default:
+      // CSSOM "nearest".
+      if start < portStart && end > portEnd { return offset }
+      if (start < portStart && size <= portSize) || (end > portEnd && size > portSize) { return offset + start - portStart }
+      if (start < portStart && size > portSize) || (end > portEnd && size <= portSize) { return offset + end - portEnd }
+      return offset
+    }
   }
 }
 

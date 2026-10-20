@@ -32,6 +32,14 @@ namespace winrt::NativeScript::Mason::implementation
         int64_t AddEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
         void RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id);
         winrt::Windows::Foundation::IInspectable ElementFromPoint(winrt::Microsoft::UI::Xaml::UIElement const& element, float x, float y);
+        double ScrollLeft(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        double ScrollTop(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        double ScrollWidth(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        double ScrollHeight(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        double ClientWidth(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        double ClientHeight(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        void ScrollTo(winrt::Microsoft::UI::Xaml::UIElement const& element, double left, double top, bool smooth);
+        void ScrollIntoView(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t block, int32_t inlineMode, bool smooth);
 
         // Not projected; used internally by the factory.
         ::CMason* Ptr() const noexcept { return m_ptr; }

@@ -7387,6 +7387,27 @@ declare module org {
 	}
 }
 
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export class WebScroll {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.WebScroll>;
+					public static INSTANCE: org.nativescript.mason.masonkit.WebScroll;
+					public static scrollLeft(view: globalAndroid.view.View): number;
+					public static scrollTop(view: globalAndroid.view.View): number;
+					public static scrollWidth(view: globalAndroid.view.View): number;
+					public static scrollHeight(view: globalAndroid.view.View): number;
+					public static clientWidth(view: globalAndroid.view.View): number;
+					public static clientHeight(view: globalAndroid.view.View): number;
+					public static scrollTo(view: globalAndroid.view.View, x: number, y: number, smooth: boolean): void;
+					public static scrollIntoView(view: globalAndroid.view.View, block: number, inline: number, smooth: boolean): void;
+				}
+			}
+		}
+	}
+}
+
 //Generics information:
 //org.nativescript.mason.masonkit.Line:1
 //org.nativescript.mason.masonkit.Point:1

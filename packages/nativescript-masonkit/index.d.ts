@@ -416,6 +416,40 @@ class VBase extends ViewBase implements IViewBase {
    * platform, the unit touch events report.
    */
   elementFromPoint(x: number, y: number): ViewBase | null;
+
+  /**
+   * Scroll offsets and sizes, in CSS pixels. `scroll` and `scrollend` events don't bubble and are
+   * only raised for an element with a listener.
+   */
+  scrollTop: number;
+  scrollLeft: number;
+  /** Size reads run a pending layout first, as on the web. */
+  readonly scrollWidth: number;
+  readonly scrollHeight: number;
+  readonly clientWidth: number;
+  readonly clientHeight: number;
+  scrollTo(options?: ScrollToOptions): void;
+  scrollTo(x: number, y: number): void;
+  scroll(options?: ScrollToOptions): void;
+  scroll(x: number, y: number): void;
+  scrollBy(options?: ScrollToOptions): void;
+  scrollBy(x: number, y: number): void;
+  scrollIntoView(arg?: boolean | ScrollIntoViewOptions): void;
+}
+
+export type ScrollBehavior = 'auto' | 'instant' | 'smooth';
+export type ScrollLogicalPosition = 'start' | 'center' | 'end' | 'nearest';
+
+export interface ScrollToOptions {
+  left?: number;
+  top?: number;
+  behavior?: ScrollBehavior;
+}
+
+export interface ScrollIntoViewOptions {
+  block?: ScrollLogicalPosition;
+  inline?: ScrollLogicalPosition;
+  behavior?: ScrollBehavior;
 }
 
 export class View extends VBase {}

@@ -69,6 +69,8 @@ open class Node internal constructor(
   internal var lastRootWidthArg = Float.MIN_VALUE
   internal var lastRootHeightArg = Float.MIN_VALUE
   internal var hasNativeClickDispatch = false
+  // Set when a "scroll"/"scrollend" listener is added; until then scrolling queues no events.
+  internal var listensForScroll = false
   // <details>/<summary> (see Details): 0 none, 1 details, 2 summary.
   internal var detailsRole = 0
   internal var detailsOpen = false

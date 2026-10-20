@@ -322,6 +322,17 @@ extension MasonElement {
     node.markDirty()
     rootLayoutElement()?.setNeedsLayoutPass()
   }
+
+  /// Runs a pending layout pass now, as geometry reads do on the web.
+  /// Returns false when layout is still out of date (detached, or mid-layout).
+  @discardableResult
+  internal func flushPendingLayout() -> Bool {
+    guard let root = rootLayoutElement() else { return false }
+    guard root.computeCacheDirty || root.node.isDirty else { return true }
+    guard !node.mason.inCompute, !root.isInLayout else { return false }
+    root.autoComputeIfRoot()
+    return !(root.computeCacheDirty || root.node.isDirty)
+  }
   
   public func invalidate(markDirty: Bool = false) {
     //    if(markDirty){
@@ -1011,7 +1022,8 @@ class MasonElementHelpers: NSObject {
         applyToView(child, MasonLayout(tree: tree, index: childIndex))
       }
     }
-    
+
+    if node.hasPendingScroll { (node.view as? MasonUIView)?.applyPendingScroll() }
   }
   
   

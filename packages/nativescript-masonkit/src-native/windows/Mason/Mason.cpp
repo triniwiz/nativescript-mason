@@ -150,4 +150,44 @@ namespace winrt::NativeScript::Mason::implementation
     {
         mason_events::Remove(element, type, id);
     }
+
+    double Mason::ScrollLeft(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::Offset(element, false);
+    }
+
+    double Mason::ScrollTop(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::Offset(element, true);
+    }
+
+    double Mason::ScrollWidth(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::ScrollSize(element, false);
+    }
+
+    double Mason::ScrollHeight(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::ScrollSize(element, true);
+    }
+
+    double Mason::ClientWidth(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::ClientSize(element, false);
+    }
+
+    double Mason::ClientHeight(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        return mason_scroll::ClientSize(element, true);
+    }
+
+    void Mason::ScrollTo(winrt::Microsoft::UI::Xaml::UIElement const& element, double left, double top, bool smooth)
+    {
+        mason_scroll::ScrollTo(element, left, top, smooth);
+    }
+
+    void Mason::ScrollIntoView(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t block, int32_t inlineMode, bool smooth)
+    {
+        mason_scroll::ScrollIntoView(element, block, inlineMode, smooth);
+    }
 }

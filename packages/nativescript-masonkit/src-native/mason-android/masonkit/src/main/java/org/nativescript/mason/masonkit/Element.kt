@@ -43,6 +43,7 @@ interface Element : EventTarget {
   override fun addEventListener(type: String, listener: (Event) -> Unit): UUID {
     val id = node.mason.addEventListener(node, type, listener)
     if (type == "click") ensureNativeClickDispatch()
+    else if (type == "scroll" || type == "scrollend") node.listensForScroll = true
     return id
   }
 

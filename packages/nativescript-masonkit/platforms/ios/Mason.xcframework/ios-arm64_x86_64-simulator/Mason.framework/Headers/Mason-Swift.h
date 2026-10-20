@@ -1916,6 +1916,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
+@property (nonatomic, readonly) double mason_scrollLeft;
+@property (nonatomic, readonly) double mason_scrollTop;
+@property (nonatomic, readonly) double mason_scrollWidth;
+@property (nonatomic, readonly) double mason_scrollHeight;
+@property (nonatomic, readonly) double mason_clientWidth;
+@property (nonatomic, readonly) double mason_clientHeight;
+- (void)mason_scrollTo:(double)x :(double)y :(BOOL)smooth;
+/// <code>block</code>/<code>inline</code>: 0 start, 1 center, 2 end, 3 nearest.
+- (void)mason_scrollIntoView:(NSInteger)block :(NSInteger)inline_ :(BOOL)smooth;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
 /// The node’s own style buffer (copied off the shared default if needed), in one call.
@@ -4079,6 +4088,15 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
+@property (nonatomic, readonly) double mason_scrollLeft;
+@property (nonatomic, readonly) double mason_scrollTop;
+@property (nonatomic, readonly) double mason_scrollWidth;
+@property (nonatomic, readonly) double mason_scrollHeight;
+@property (nonatomic, readonly) double mason_clientWidth;
+@property (nonatomic, readonly) double mason_clientHeight;
+- (void)mason_scrollTo:(double)x :(double)y :(BOOL)smooth;
+/// <code>block</code>/<code>inline</code>: 0 start, 1 center, 2 end, 3 nearest.
+- (void)mason_scrollIntoView:(NSInteger)block :(NSInteger)inline_ :(BOOL)smooth;
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
 /// The node’s own style buffer (copied off the shared default if needed), in one call.
