@@ -20,7 +20,8 @@ export class Scroll extends ScrollBase {
 
   protected _scrollMetrics(): [number, number, number, number] {
     const view = this._scroller;
-    return view ? [view.HorizontalOffset, view.VerticalOffset, view.ScrollableWidth, view.ScrollableHeight] : [0, 0, 0, 0];
+    // Keep the public contract vertical-only even if WinUI reports a wider content extent.
+    return view ? [0, view.VerticalOffset, 0, view.ScrollableHeight] : [0, 0, 0, 0];
   }
 
   protected _seek(x: number, y: number, animated: boolean): void {
@@ -31,13 +32,13 @@ export class Scroll extends ScrollBase {
       this._pendingOffset = [x, y, animated];
       return;
     }
-    view.ChangeView(Math.max(0, Math.min(x, view.ScrollableWidth)), Math.max(0, Math.min(y, view.ScrollableHeight)), null, !animated);
+    view.ChangeView(0, Math.max(0, Math.min(y, view.ScrollableHeight)), null, !animated);
   }
 
   protected _stopScrolling(): void {
     this._pendingOffset = undefined;
     const view = this._scroller;
-    if (view) view.ChangeView(view.HorizontalOffset, view.VerticalOffset, null, true);
+    if (view) view.ChangeView(0, view.VerticalOffset, null, true);
   }
 
   protected _observeScroll(observe: boolean): void {

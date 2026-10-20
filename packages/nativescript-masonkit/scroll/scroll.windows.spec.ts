@@ -23,6 +23,8 @@ afterEach(() => vi.unstubAllGlobals());
 describe('Windows scroll source bridge (mocked WinUI)', () => {
   it('reports logical metrics and preserves disabled horizontal scrolling', () => {
     const { view, scroller } = fixture();
+    scroller.HorizontalOffset = 50;
+    scroller.ScrollableWidth = 200;
     expect([view.scrollX, view.scrollY, view.scrollableWidth, view.scrollableHeight]).toEqual([0, 60, 0, 900]);
     (view as any)._seek(200, 1000, true);
     expect(scroller.ChangeView).toHaveBeenLastCalledWith(0, 900, null, false);
