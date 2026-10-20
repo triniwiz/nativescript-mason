@@ -5,6 +5,9 @@
 #include <limits>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/NativeScript.Mason.h>
@@ -79,6 +82,17 @@ namespace mason_scroll
     inline void HookEvents(muxc::ScrollViewer const& sv);
     inline void ApplyPendingSeek(mux::UIElement const& element);
 
+    inline void* IdentityOf(winrt::Windows::Foundation::IInspectable const& object)
+    {
+        return object ? winrt::get_abi(object.as<winrt::Windows::Foundation::IUnknown>()) : nullptr;
+    }
+
+    inline std::unordered_map<void*, winrt::weak_ref<muxc::ScrollViewer>>& Hosts()
+    {
+        thread_local std::unordered_map<void*, winrt::weak_ref<muxc::ScrollViewer>> hosts;
+        return hosts;
+    }
+
     inline void Host(muxc::Panel const& owner, mux::UIElement const& child)
     {
         auto el = child.try_as<nsm::IMasonElement>();
@@ -95,6 +109,8 @@ namespace mason_scroll
         Configure(sv, axes, false);
         children.SetAt(index, sv);
         sv.Content(child);
+        std::erase_if(Hosts(), [](auto const& entry) { return !entry.second.get(); });
+        Hosts()[IdentityOf(child)] = winrt::make_weak(sv);
         if (mason_events::HasListener(child, L"scroll") || mason_events::HasListener(child, L"scrollend")) HookEvents(sv);
         ApplyPendingSeek(child);
         owner.InvalidateMeasure();
@@ -104,6 +120,7 @@ namespace mason_scroll
     {
         auto owner = sv.Parent().try_as<muxc::Panel>();
         auto content = sv.Content().try_as<mux::UIElement>();
+        if (content) Hosts().erase(IdentityOf(content));
         sv.Content(nullptr);
         if (!owner) return;
         auto children = owner.Children();
@@ -118,6 +135,7 @@ namespace mason_scroll
     {
         auto sv = HostOf(element);
         if (!sv) return;
+        Hosts().erase(IdentityOf(element));
         sv.Content(nullptr);
         if (auto owner = sv.Parent().try_as<muxc::Panel>())
         {
@@ -168,12 +186,11 @@ namespace mason_scroll
     {
         auto fe = element ? element.try_as<mux::FrameworkElement>() : nullptr;
         auto sv = fe ? fe.Parent().try_as<muxc::ScrollViewer>() : nullptr;
+        if (!sv)
+        {
+            if (auto it = Hosts().find(IdentityOf(element)); it != Hosts().end()) sv = it->second.get();
+        }
         return sv && sv.Content() == element ? sv : nullptr;
-    }
-
-    inline void* IdentityOf(winrt::Windows::Foundation::IInspectable const& object)
-    {
-        return object ? winrt::get_abi(object.as<winrt::Windows::Foundation::IUnknown>()) : nullptr;
     }
 
     // The target of an instant scrollTo, reported until the ScrollViewer has applied it.
@@ -181,6 +198,12 @@ namespace mason_scroll
     {
         thread_local std::unordered_map<void*, std::pair<double, double>> requested;
         return requested;
+    }
+
+    inline std::unordered_set<void*>& QueuedOffsets()
+    {
+        thread_local std::unordered_set<void*> queued;
+        return queued;
     }
 
     // Raises "scroll"/"scrollend" on the content; hooked once it has such a listener or is scrolled from code.
@@ -191,13 +214,33 @@ namespace mason_scroll
         if (auto it = hooked.find(key); it != hooked.end() && it->second.get()) return;
         std::erase_if(hooked, [](auto const& entry) { return !entry.second.get(); });
         hooked[key] = winrt::make_weak(sv);
-        sv.ViewChanged([](winrt::Windows::Foundation::IInspectable const& sender, muxc::ScrollViewerViewChangedEventArgs const& args)
+        struct Queued
         {
-            if (!args.IsIntermediate()) RequestedOffsets().erase(IdentityOf(sender));
-            auto content = sender.as<muxc::ScrollViewer>().Content();
-            if (!content) return;
-            if (mason_events::HasListener(content, L"scroll")) mason_events::Dispatch(content, L"scroll", false);
-            if (!args.IsIntermediate() && mason_events::HasListener(content, L"scrollend")) mason_events::Dispatch(content, L"scrollend", false);
+            bool queued{ false };
+            bool ended{ false };
+        };
+        auto state = std::make_shared<Queued>();
+        sv.ViewChanged([state](winrt::Windows::Foundation::IInspectable const& sender, muxc::ScrollViewerViewChangedEventArgs const& args)
+        {
+            if (!args.IsIntermediate())
+            {
+                if (!QueuedOffsets().contains(IdentityOf(sender))) RequestedOffsets().erase(IdentityOf(sender));
+                state->ended = true;
+            }
+            if (state->queued) return;
+            auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+            if (!queue) return;
+            state->queued = true;
+            queue.TryEnqueue([state, weak = winrt::make_weak(sender.as<muxc::ScrollViewer>())]
+            {
+                state->queued = false;
+                const bool ended = std::exchange(state->ended, false);
+                auto sv = weak.get();
+                auto content = sv ? sv.Content() : nullptr;
+                if (!content) return;
+                if (mason_events::HasListener(content, L"scroll")) mason_events::Dispatch(content, L"scroll", false);
+                if (ended && mason_events::HasListener(content, L"scrollend")) mason_events::Dispatch(content, L"scrollend", false);
+            });
         });
     }
 
@@ -273,19 +316,45 @@ namespace mason_scroll
     // NaN keeps an axis. Called once `sv` is loaded.
     inline void ChangeTo(muxc::ScrollViewer const& sv, double left, double top, bool smooth)
     {
-        winrt::Windows::Foundation::IReference<double> h{ nullptr };
-        winrt::Windows::Foundation::IReference<double> v{ nullptr };
-        if (!std::isnan(left)) h = winrt::Windows::Foundation::IReference<double>{ left };
-        if (!std::isnan(top)) v = winrt::Windows::Foundation::IReference<double>{ top };
-        if (!sv.ChangeView(h, v, nullptr, !smooth) || smooth) return;
+        auto& requested = RequestedOffsets();
+        void* key = IdentityOf(sv);
+        auto it = requested.find(key);
+        if (smooth)
+        {
+            if (it != requested.end())
+            {
+                if (std::isnan(left)) left = it->second.first;
+                if (std::isnan(top)) top = it->second.second;
+                requested.erase(it);
+            }
+            QueuedOffsets().erase(key);
+            winrt::Windows::Foundation::IReference<double> h{ nullptr };
+            winrt::Windows::Foundation::IReference<double> v{ nullptr };
+            if (!std::isnan(left)) h = winrt::Windows::Foundation::IReference<double>{ left };
+            if (!std::isnan(top)) v = winrt::Windows::Foundation::IReference<double>{ top };
+            sv.ChangeView(h, v, nullptr, false);
+            return;
+        }
         // An instant change lands on a later layout tick; report the clamped target until then.
         HookEvents(sv);
         auto clamp = [](double value, double max) { return (std::min)((std::max)(value, 0.0), (std::max)(max, 0.0)); };
-        auto& requested = RequestedOffsets();
-        auto it = requested.find(IdentityOf(sv));
         const double x = it != requested.end() ? it->second.first : sv.HorizontalOffset();
         const double y = it != requested.end() ? it->second.second : sv.VerticalOffset();
-        requested[IdentityOf(sv)] = { std::isnan(left) ? x : clamp(left, sv.ScrollableWidth()), std::isnan(top) ? y : clamp(top, sv.ScrollableHeight()) };
+        requested[key] = { std::isnan(left) ? x : clamp(left, sv.ScrollableWidth()), std::isnan(top) ? y : clamp(top, sv.ScrollableHeight()) };
+        if (!QueuedOffsets().insert(key).second) return;
+        auto apply = [key, weak = winrt::make_weak(sv)]
+        {
+            if (!QueuedOffsets().erase(key)) return;
+            auto sv = weak.get();
+            auto& requested = RequestedOffsets();
+            auto it = requested.find(key);
+            if (!sv || it == requested.end()) return;
+            const winrt::Windows::Foundation::IReference<double> h{ it->second.first };
+            const winrt::Windows::Foundation::IReference<double> v{ it->second.second };
+            if (!sv.ChangeView(h, v, nullptr, true)) requested.erase(it);
+        };
+        auto queue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+        if (!queue || !queue.TryEnqueue(apply)) apply();
     }
 
     struct Seek
