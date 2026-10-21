@@ -646,12 +646,21 @@ class Mask internal constructor(private val style: Style) {
 internal fun beginMask(view: android.view.View, style: Style, canvas: Canvas): Int {
   val clip = style.mClipPath
   val mask = style.mMask
-  if (clip == null && mask == null) return -1
+  val shear = style.transformShear
+  if (clip == null && mask == null && shear == 0f) return -1
   val outer = canvas.save()
+  if (shear != 0f) {
+    // The view's own properties hold the rest of the transform, about the same pivot.
+    val px = view.scrollX + view.pivotX
+    val py = view.scrollY + view.pivotY
+    canvas.translate(px, py)
+    canvas.skew(shear, 0f)
+    canvas.translate(-px, -py)
+  }
   val clipped = clip?.begin(view, canvas, masked = mask?.isActive() == true) == true
   val maskSave = mask?.beginDraw(view, canvas) ?: -1
   mask?.pendingSave = maskSave
-  if (!clipped && maskSave < 0) {
+  if (!clipped && maskSave < 0 && shear == 0f) {
     canvas.restoreToCount(outer)
     return -1
   }

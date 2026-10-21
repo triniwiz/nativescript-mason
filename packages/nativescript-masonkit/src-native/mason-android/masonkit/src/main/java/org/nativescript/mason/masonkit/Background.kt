@@ -1043,7 +1043,7 @@ private fun cornerGradientEndpoints(ep: FloatArray, x: Float, y: Float, width: F
  * Parse a CSS angle string (e.g. "135deg", "0.75turn", "1.5rad", "200grad")
  * to radians. Returns null if the string cannot be parsed.
  */
-private fun parseCssAngleToRadians(value: String): Double? {
+internal fun parseCssAngleToRadians(value: String): Double? {
   val v = value.trim().lowercase()
   return when {
     v.endsWith("deg") -> v.removeSuffix("deg").toDoubleOrNull()
