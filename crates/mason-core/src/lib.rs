@@ -939,64 +939,7 @@ impl Mason {
     }
 
     pub fn set_children(&mut self, parent: Id, children: &[Id]) {
-        {
-            let mut tree = self.0.inner_mut();
-            let mut has_children = false;
-            {
-                if let Some(current_children) = tree.children.get_mut(parent) {
-                    if children.is_empty() && current_children.is_empty() {
-                        return;
-                    }
-                    if current_children == children {
-                        return;
-                    }
-
-                    current_children.clear();
-                    current_children.extend_from_slice(children);
-
-                    has_children = true;
-                }
-            }
-
-            if has_children {
-                for child in children.iter() {
-                    if let Some(Some(removed)) = tree.parents.insert(*child, Some(parent)) {
-                        if removed == parent {
-                            continue;
-                        }
-
-                        if let Some(previous_children) = tree.children.get_mut(removed) {
-                            previous_children.retain(|&id| id != *child);
-                        }
-
-                        if let Some(node) = tree.nodes.get_mut(removed) {
-                            node.mark_dirty();
-                        }
-                    }
-                }
-            } else {
-                tree.children.insert(parent, children.to_vec());
-                for child in children.iter() {
-                    if let Some(Some(removed)) = tree.parents.insert(*child, Some(parent)) {
-                        if let Some(previous_children) = tree.children.get_mut(removed) {
-                            previous_children.retain(|&id| id != *child);
-                        }
-
-                        if let Some(node) = tree.nodes.get_mut(removed) {
-                            node.mark_dirty();
-                        }
-                    }
-                }
-            }
-        }
-
-        // The parent's child set changed (we returned early above when it didn't), so the parent's
-        // cached layout — and its ancestors' — is now stale. Taffy's own `set_children` marks the
-        // parent dirty for exactly this reason. Without it, a freshly-appended child inherits the
-        // parent's cached layout and lands at a default 0x0 rect: a brand-new node's own mark_dirty
-        // stops propagating immediately (its cache is already empty -> AlreadyEmpty), so the parent
-        // is never invalidated and the root recompute reuses the stale layout.
-        self.mark_dirty(parent);
+        self.0.set_children(parent, children);
     }
 
     pub fn add_children(&mut self, node: Id, children: &[Id]) {
