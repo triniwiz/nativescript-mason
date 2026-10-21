@@ -803,8 +803,9 @@ class CSSFilters {
     /**
      * Blur radius (px) from the first Filter.Blur in the chain, or 0 if none.
      */
+    /** Chained Gaussian blurs add up as one whose variance is the sum. */
     internal fun backdropBlurRadiusPx(): Float =
-      (filters.firstOrNull { it is Filter.Blur } as? Filter.Blur)?.radiusPx ?: 0f
+      kotlin.math.sqrt(filters.sumOf { f -> (f as? Filter.Blur)?.radiusPx?.let { (it * it).toDouble() } ?: 0.0 }).toFloat()
 
     /**
      * Combined ColorMatrix for every non-blur filter in the chain; null if the

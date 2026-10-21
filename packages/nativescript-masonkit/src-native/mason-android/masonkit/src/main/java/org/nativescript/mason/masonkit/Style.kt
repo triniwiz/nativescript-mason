@@ -3450,7 +3450,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   // ============================================================
   internal var mBackdropFilter: CSSFilters.CSSFilter? = null
 
-  // Filters content BEHIND the view; unlike setRenderEffect, children stay sharp (API 31+).
+  // Filters content BEHIND the view; unlike setRenderEffect, children stay sharp.
   internal var mBackdropHelper: BackdropHelper? = null
 
   var backdropFilter: String = ""
@@ -3464,17 +3464,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       applyBackdropFilter()
     }
 
-  @android.annotation.SuppressLint("NewApi")
   private fun applyBackdropFilter() {
     val view = node.view as? android.view.View ?: return
 
-    if (android.os.Build.VERSION.SDK_INT < 31) {
-      view.invalidate()
-      return
-    }
-
-    // Never apply the filter to the view's OWN output — that blurs children.
-    view.setRenderEffect(null)
+    // Never apply the filter to the view's OWN output: that blurs children.
+    if (android.os.Build.VERSION.SDK_INT >= 31) view.setRenderEffect(null)
 
     val filter = mBackdropFilter
     if (filter == null || filter.filters.isEmpty()) {
