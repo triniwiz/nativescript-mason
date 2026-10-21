@@ -271,10 +271,10 @@ pub fn parse_grid_template<S: CheapCloneStr>(
     let mut components: Vec<GridTemplateComponent<S>> = Vec::new();
     let mut all_line_names: Vec<Vec<S>> = Vec::new(); // NEW: Track all line names
 
-    while !parser.is_exhausted() {
+    // One line name set per line between components, plus the final line; the repeat()
+    // and single-track components carry no names of their own outside repeat().
+    loop {
         parser.skip_whitespace();
-
-        // Parse line names
         let mut names = Vec::<S>::new();
         while parser
             .try_parse(|p| p.expect_square_bracket_block())
@@ -288,39 +288,32 @@ pub fn parse_grid_template<S: CheapCloneStr>(
                 Ok(inner)
             })?;
             names.extend(parsed_names);
+            parser.skip_whitespace();
         }
 
-        parser.skip_whitespace();
+        if parser.is_exhausted() {
+            all_line_names.push(names);
+            break;
+        }
 
-        // Parse repeat() function
         if parser
             .try_parse(|p| p.expect_function_matching("repeat"))
             .is_ok()
         {
             let repetition = parser.parse_nested_block(|p| parse_repeat_inner(p, device_scale))?;
-
-            // Extract line names from the repetition and add to all_line_names
-            for line_name_set in &repetition.line_names {
-                all_line_names.push(line_name_set.clone());
-            }
-
+            all_line_names.push(names);
             components.push(GridTemplateComponent::Repeat(repetition));
             continue;
         }
 
-        // Parse single track
         let track = parse_track_size(&mut parser, device_scale)?;
-
-        // Add line names before this track
-        all_line_names.push(names.clone());
-
-        // Create Repeat(count=1) to preserve line names
-        let single_repeat = GridTemplateComponent::Repeat(GridTemplateRepetition {
+        all_line_names.push(names);
+        // A repeat of one keeps every component the same shape.
+        components.push(GridTemplateComponent::Repeat(GridTemplateRepetition {
             count: RepetitionCount::Count(1),
             tracks: vec![track],
-            line_names: vec![names, Vec::new()],
-        });
-        components.push(single_repeat);
+            line_names: Vec::new(),
+        }));
     }
 
     Ok((components, all_line_names))
@@ -419,8 +412,8 @@ where
     })
 }
 
-/// Parses `grid-auto-columns` or `grid-auto-rows`
-/// Example: "100px", "1fr", "minmax(50px, 200px)", "100px, 1fr"
+/// Parses `grid-auto-columns` or `grid-auto-rows`: a whitespace-separated track list,
+/// e.g. "100px 1fr minmax(50px, 200px)". Commas between tracks are accepted too.
 pub fn parse_grid_auto_tracks(
     input: &str,
     device_scale: f32,
@@ -429,44 +422,27 @@ pub fn parse_grid_auto_tracks(
     let mut parser = Parser::new(&mut input);
     let mut tracks = Vec::new();
 
-    while !parser.is_exhausted() {
+    loop {
         parser.skip_whitespace();
-
-        // Parse a single track size
-        let track = parse_track_size(&mut parser, device_scale)?;
-        tracks.push(track);
-
-        parser.skip_whitespace();
-
-        // If a comma is present, consume it and continue
-        if parser.try_parse(|p| p.expect_delim(',')).is_err() {
-            break; // no more tracks
+        if parser.is_exhausted() {
+            break;
         }
+        tracks.push(parse_track_size(&mut parser, device_scale)?);
+        parser.skip_whitespace();
+        let _ = parser.try_parse(|p| p.expect_comma());
     }
 
+    if tracks.is_empty() {
+        return Err(parser.new_custom_error(()));
+    }
     Ok(tracks)
 }
 
-pub enum StartOrEnd {
-    Start,
-    End,
-    None,
-}
-
-impl StartOrEnd {
-    pub fn value(&self) -> &'static str {
-        match self {
-            StartOrEnd::Start => "-start",
-            StartOrEnd::End => "-end",
-            StartOrEnd::None => "",
-        }
-    }
-}
-
 // Parse a single `grid-placement` value (used for grid-column-start, etc.)
+// Names are kept as written: taffy matches the exact line name first, then the
+// implicit `<name>-start` / `<name>-end` lines of a grid area.
 fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
     parser: &mut Parser<'i, 't>,
-    start_or_end: StartOrEnd,
 ) -> Result<GridPlacement<S>, ParseError<'i, ()>> {
     parser.skip_whitespace();
 
@@ -492,7 +468,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
         // span <name> [<integer>]?
         if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-            let name = format!("{}{}", ident.as_ref(), start_or_end.value()).into();
+            let name = ident.as_ref().into();
 
             if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
                 return Ok(GridPlacement::NamedSpan(name, num as u16));
@@ -504,7 +480,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
         // span "string" [<integer>]?
         if let Ok(string) = parser.try_parse(|p| p.expect_string_cloned()) {
-            let name = format!("{}{}", string.as_ref(), start_or_end.value()).into();
+            let name = string.as_ref().into();
 
             if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
                 return Ok(GridPlacement::NamedSpan(name, num as u16));
@@ -523,7 +499,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
     // <ident> [<integer>]?
     if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        let name = format!("{}{}", ident.as_ref(), start_or_end.value()).into();
+        let name = ident.as_ref().into();
 
         if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
             return Ok(GridPlacement::NamedLine(name, num as i16));
@@ -535,7 +511,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
     // "string" [<integer>]?
     if let Ok(string) = parser.try_parse(|p| p.expect_string_cloned()) {
-        let name = format!("{}{}", string.as_ref(), start_or_end.value()).into();
+        let name = string.as_ref().into();
 
         if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
             return Ok(GridPlacement::NamedLine(name, num as i16));
@@ -550,11 +526,18 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
 pub fn parse_grid_placement<S: CheapCloneStr>(
     input: &str,
-    start_or_end: StartOrEnd,
 ) -> Result<GridPlacement<S>, ParseError<'_, ()>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    parse_grid_placement_with_parser(&mut parser, start_or_end)
+    parse_grid_placement_with_parser(&mut parser)
+}
+
+/// The value an omitted end takes: a lone `<custom-ident>` start repeats, anything else is `auto`.
+fn omitted_end<S: CheapCloneStr>(start: &GridPlacement<S>) -> GridPlacement<S> {
+    match start {
+        GridPlacement::NamedLine(_, 0) => start.clone(),
+        _ => GridPlacement::Auto,
+    }
 }
 
 /// Parse `grid-column` or `grid-row` shorthand
@@ -563,13 +546,13 @@ pub fn parse_grid_placement_shorthand<S: CheapCloneStr>(
 ) -> Result<(GridPlacement<S>, GridPlacement<S>), ParseError<'_, ()>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    let start = parse_grid_placement_with_parser(&mut parser, StartOrEnd::Start)?;
+    let start = parse_grid_placement_with_parser(&mut parser)?;
     parser.skip_whitespace();
     let end = if parser.try_parse(|p| p.expect_delim('/')).is_ok() {
         parser.skip_whitespace();
-        parse_grid_placement_with_parser(&mut parser, StartOrEnd::End)?
+        parse_grid_placement_with_parser(&mut parser)?
     } else {
-        GridPlacement::Auto
+        omitted_end(&start)
     };
     Ok((start, end))
 }
@@ -594,10 +577,7 @@ pub fn parse_grid_area(input: &str) -> Result<GridAreaPosition, ParseError<'_, (
             break;
         }
 
-        parts.push(parse_grid_placement_with_parser(
-            &mut parser,
-            StartOrEnd::None,
-        )?);
+        parts.push(parse_grid_placement_with_parser(&mut parser)?);
         parser.skip_whitespace();
 
         // placements are separated by '/', stop if there's no more separator
@@ -608,36 +588,32 @@ pub fn parse_grid_area(input: &str) -> Result<GridAreaPosition, ParseError<'_, (
         }
     }
 
-    Ok(match parts.len() {
-        1 => GridAreaPosition {
-            row_start: parts[0].clone(),
-            column_start: GridPlacement::Auto,
-            row_end: GridPlacement::Auto,
-            column_end: GridPlacement::Auto,
-        },
-        2 => GridAreaPosition {
-            row_start: parts[0].clone(),
-            column_start: parts[1].clone(),
-            row_end: GridPlacement::Auto,
-            column_end: GridPlacement::Auto,
-        },
-        3 => GridAreaPosition {
-            row_start: parts[0].clone(),
-            column_start: parts[1].clone(),
-            row_end: parts[2].clone(),
-            column_end: GridPlacement::Auto,
-        },
-        4 => GridAreaPosition {
-            row_start: parts[0].clone(),
-            column_start: parts[1].clone(),
-            row_end: parts[2].clone(),
-            column_end: parts[3].clone(),
-        },
-        _ => GridAreaPosition {
+    if parts.is_empty() || parts.len() > 4 {
+        return Ok(GridAreaPosition {
             row_start: GridPlacement::Auto,
             column_start: GridPlacement::Auto,
             row_end: GridPlacement::Auto,
             column_end: GridPlacement::Auto,
-        },
+        });
+    }
+    // Omitted values copy their start counterpart (row-end from row-start, ...).
+    let row_start = parts[0].clone();
+    let column_start = parts
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| omitted_end(&row_start));
+    let row_end = parts
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| omitted_end(&row_start));
+    let column_end = parts
+        .get(3)
+        .cloned()
+        .unwrap_or_else(|| omitted_end(&column_start));
+    Ok(GridAreaPosition {
+        row_start,
+        column_start,
+        row_end,
+        column_end,
     })
 }
