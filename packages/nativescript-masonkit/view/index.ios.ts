@@ -71,19 +71,21 @@ export class View extends ViewBase {
       const parentIsMason = this.parent && this.parent[isMasonView_];
       if (!parentIsMason) {
         if (pendingAddHosts > 0) flushNativeAddsDeep(this);
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED && heightMode === Utils.layout.UNSPECIFIED;
+        const availableWidth = widthMode === Utils.layout.UNSPECIFIED ? -2 : specWidth;
+        const availableHeight = heightMode === Utils.layout.UNSPECIFIED ? -2 : specHeight;
 
         // Compute against the spec's bounds whenever it gives any; max-content only when it doesn't.
         if (!unconstrained) {
           // we have explicit constraints from the spec, use them
           // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
+          this.ios.mason_computeWithSize(availableWidth, availableHeight);
           // Tell autoComputeIfRoot this parent size is already handled (so
           // setting our frame below doesn't trigger a redundant native
           // compute+apply pass), and hand it the spec — not always the
           // superview's bounds, e.g. a Page measures against the safe area.
           // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          this.ios.mason_markRootComputeAppliedWithSize(availableWidth, availableHeight);
 
           // computeWithSize already applied the layout natively and cached it
           // on the node — read it back instead of paying for another native

@@ -64,19 +64,19 @@ export class Scroll extends ViewBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
       if (this.parent && !this.parent[isMasonView_]) {
-        // same reasoning as other views – if the scroll view is the root it may
-        // receive an UNSPECIFIED spec, or sometimes an AT_MOST/0 spec, which we
-        // must treat as unconstrained.
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+        // Preserve each axis independently; only UNSPECIFIED is unbounded.
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED && heightMode === Utils.layout.UNSPECIFIED;
+        const availableWidth = widthMode === Utils.layout.UNSPECIFIED ? -2 : specWidth;
+        const availableHeight = heightMode === Utils.layout.UNSPECIFIED ? -2 : specHeight;
 
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
           // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
+          this.ios.mason_computeWithSize(availableWidth, availableHeight);
           // Claim this root for the host's spec; see view/index.ios.ts.
           // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          this.ios.mason_markRootComputeAppliedWithSize(availableWidth, availableHeight);
           // this.ios.computeWithSize(specWidth, specHeight);
           // _setNativeViewFrame
 
@@ -89,8 +89,8 @@ export class Scroll extends ViewBase {
           // the default overflow is `visible`; clamp the measured box back to
           // the spec so the native view is the viewport and `contentSize`
           // (the natural content extent) overflows it → the pan scroll engages.
-          const viewportW = widthMode === Utils.layout.EXACTLY ? specWidth : Math.min(layout.width, specWidth);
-          const viewportH = heightMode === Utils.layout.EXACTLY ? specHeight : Math.min(layout.height, specHeight);
+          const viewportW = widthMode === Utils.layout.UNSPECIFIED ? layout.width : widthMode === Utils.layout.EXACTLY ? specWidth : Math.min(layout.width, specWidth);
+          const viewportH = heightMode === Utils.layout.UNSPECIFIED ? layout.height : heightMode === Utils.layout.EXACTLY ? specHeight : Math.min(layout.height, specHeight);
           const w = Utils.layout.makeMeasureSpec(viewportW, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(viewportH, Utils.layout.EXACTLY);
 
