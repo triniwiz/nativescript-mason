@@ -940,6 +940,78 @@ final class CSSFilterFunctionTests: XCTestCase {
   }
 }
 
+final class ElementFilterTests: XCTestCase {
+  private let box = CGRect(x: 0, y: 0, width: 20, height: 20)
+
+  /// An opaque `color` square the size of `box`, at 1 pixel per point.
+  private func square(_ color: CIColor) -> CIImage {
+    CIImage(color: color).cropped(to: box)
+  }
+
+  /// RGBA at Core Image pixel (x, y), y up from the box's bottom edge.
+  private func rgba(_ image: CIImage, _ x: CGFloat, _ y: CGFloat) throws -> [Int] {
+    let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+    var px = [UInt8](repeating: 0, count: 4)
+    CSSFilters.makeContext(device).render(image, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: x, y: y, width: 1, height: 1),
+                                          format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return px.map { Int($0) }
+  }
+
+  func testPaintRegionGrowsByThreeDeviationsPerBlurAndFollowsShadows() {
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("blur(4px)"), box: CGRect(x: 0, y: 0, width: 100, height: 50)),
+                   CGRect(x: -12, y: -12, width: 124, height: 74))
+    // The third length is the standard deviation, so 12pt around the offset box.
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("drop-shadow(10px 5px 4px black)"), box: CGRect(x: 0, y: 0, width: 100, height: 50)),
+                   CGRect(x: -2, y: -7, width: 124, height: 74))
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("grayscale(1)"), box: box), box)
+    XCTAssertEqual(CSSFilters.paintRegionPixels(CSSFilters.parse("blur(1px)"), box: box, scale: 3),
+                   CGRect(x: -9, y: -9, width: 78, height: 78))
+  }
+
+  func testChainKinds() {
+    XCTAssertTrue(CSSFilters.isShadowOnly(CSSFilters.parse("drop-shadow(1px 1px red) drop-shadow(2px 2px blue)")))
+    XCTAssertFalse(CSSFilters.isShadowOnly(CSSFilters.parse("drop-shadow(1px 1px red) brightness(0.5)")))
+    XCTAssertTrue(CSSFilters.needsBackdropCover(CSSFilters.parse("blur(2px)")))
+    XCTAssertTrue(CSSFilters.needsBackdropCover(CSSFilters.parse("grayscale(1) opacity(0.5)")))
+    XCTAssertFalse(CSSFilters.needsBackdropCover(CSSFilters.parse("drop-shadow(1px 1px 2px red) sepia(1)")))
+  }
+
+  func testBlurSpreadsPastTheBoxAndFadesAtItsEdges() throws {
+    let out = CSSFilters.applyElementChain(CSSFilters.parse("blur(4px)"), to: square(CIColor(red: 1, green: 0, blue: 0)), scale: 1)
+    XCTAssertGreaterThan(try rgba(out, -3, 10)[3], 20, "paints outside the box")
+    XCTAssertEqual(Double(try rgba(out, 0, 10)[3]), 128, accuracy: 20, "half covered at the edge")
+    // A 2.5 sd margin on both axes: erf(2.5 / sqrt(2)) squared.
+    XCTAssertEqual(try rgba(out, 10, 10)[3], 249, accuracy: 3)
+    XCTAssertLessThan(try rgba(out, -13, 10)[3], 2)
+  }
+
+  func testDropShadowIsTheBlurredAlphaInItsColourUnderTheImage() throws {
+    let white = square(CIColor(red: 1, green: 1, blue: 1))
+    let out = CSSFilters.applyElementChain(CSSFilters.parse("drop-shadow(40px 0 4px blue)"), to: white, scale: 1)
+    XCTAssertEqual(Array(try rgba(out, 10, 10).prefix(3)), [255, 255, 255], "the element stays on top")
+    let centre = try rgba(out, 50, 10)
+    XCTAssertEqual(centre[2], centre[3], accuracy: 3)
+    XCTAssertLessThan(centre[0], 10, "the shadow is its colour, not a copy of the element")
+    XCTAssertGreaterThan(centre[3], 230)
+    XCTAssertEqual(Double(try rgba(out, 60, 10)[3]), 128, accuracy: 25, "blurred, not a hard edge")
+
+    let shadows = CSSFilters.applyShadowsOnly(CSSFilters.parse("drop-shadow(40px 0 4px blue)"), to: white, scale: 1)
+    XCTAssertLessThan(try rgba(shadows, 10, 10)[3], 10, "the shadow-only output leaves the element out")
+    XCTAssertGreaterThan(try rgba(shadows, 50, 10)[3], 230)
+  }
+
+  func testShadowColoursParseWithoutCrashing() {
+    for css in ["drop-shadow(1px 1px rgb(0 0 0 / 50%))", "drop-shadow(1px 1px #zzz)", "drop-shadow(1px 1px hsl(120 100% 50%))", "drop-shadow(#ff000080 1px 1px)"] {
+      XCTAssertEqual(CSSFilters.parse(css).count, 1, css)
+    }
+    guard case .dropShadow(_, _, _, let color) = CSSFilters.parse("drop-shadow(#ff000080 1px 1px)").first else { return XCTFail("parse") }
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    color.getRed(&r, green: &g, blue: &b, alpha: &a)
+    XCTAssertEqual(r, 1, accuracy: 0.01)
+    XCTAssertEqual(a, 0.5, accuracy: 0.01)
+  }
+}
+
 final class BackdropCaptureTests: XCTestCase {
   /// The sRGB pixel at (x, 5) of `layer` rendered with `render(in:)`.
   private func pixel(_ layer: CALayer, _ x: CGFloat) -> [UInt8] {

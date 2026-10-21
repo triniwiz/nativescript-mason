@@ -1475,8 +1475,7 @@ public class MasonStyle: NSObject {
   }
   
   
-  // Created on first parse: CSSFilter owns a CAMetalLayer, and every draw
-  // checks for a filter, so views without one shouldn't pay for it.
+  // Created on first parse: views without a filter shouldn't pay for one.
   private var mFilterStorage: CSSFilters.CSSFilter?
   var mFilter: CSSFilters.CSSFilter {
     if let filter = mFilterStorage { return filter }
@@ -3198,6 +3197,7 @@ public class MasonStyle: NSObject {
       shadowLayerAdded = false
       shadowLayerParent = nil
     }
+    mFilterStorage?.layer.removeFromSuperlayer()
   }
 
   /// Reset shadow-layer bookkeeping when the layer was pulled externally.
@@ -3211,6 +3211,7 @@ public class MasonStyle: NSObject {
   internal func updateShadowLayer(for bounds: CGRect) {
     guard let view = node.view else { return }
     syncShadowLayer(view, viewBounds: bounds)
+    mFilterStorage?.syncOutputGeometry()
   }
   
   internal lazy var mBorderRender: CSSBorderRenderer  = {
