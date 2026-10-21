@@ -77,6 +77,73 @@ final class ScrollTests: XCTestCase {
     XCTAssertEqual(view.webScrollRange, .zero)
   }
 
+  func testShrinkingContentClampsTheCurrentOffsetOnBothAxes() throws {
+    let view = fixture()
+    let child = try XCTUnwrap(view.subviews.first as? MasonUIView)
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+
+    child.setSize(300 * NSCMason.scale, 400 * NSCMason.scale)
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, CGPoint(x: 100, y: 250))
+    XCTAssertEqual(view.contentOffset, CGPoint(x: 100, y: 250))
+
+    child.setSize(50 * NSCMason.scale, 40 * NSCMason.scale)
+    layout(view)
+    XCTAssertEqual(view.contentSize, CGSize(width: 200, height: 150))
+    XCTAssertEqual(view.contentOffset, .zero)
+  }
+
+  func testHidingAndRestoringContentRecomputesTheScrollRange() throws {
+    let view = fixture()
+    let child = try XCTUnwrap(view.subviews.first as? MasonUIView)
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+
+    child.configure { $0.display = .None }
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, .zero)
+    XCTAssertEqual(view.contentOffset, .zero)
+
+    child.configure { $0.display = .Flex }
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, CGPoint(x: 800, y: 1850))
+    XCTAssertEqual(view.contentOffset, .zero)
+  }
+
+  func testRemovingAndReattachingContentRecomputesTheScrollRange() throws {
+    let view = fixture()
+    let child = try XCTUnwrap(view.subviews.first as? MasonUIView)
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+
+    view.removeView(child)
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, .zero)
+    XCTAssertEqual(view.contentOffset, .zero)
+    XCTAssertNil(child.superview)
+
+    view.addView(child)
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, CGPoint(x: 800, y: 1850))
+    XCTAssertEqual(view.contentOffset, .zero)
+  }
+
+  func testDisablingScrollOverflowResetsAnExistingOffset() {
+    let view = fixture()
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+    view.configure { $0.overflow = MasonPoint(.Hidden, .Hidden) }
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, .zero)
+    XCTAssertEqual(view.contentOffset, .zero)
+
+    view.configure { $0.overflow = MasonPoint(.Scroll, .Scroll) }
+    layout(view)
+    XCTAssertEqual(view.webScrollRange, CGPoint(x: 800, y: 1850))
+    XCTAssertEqual(view.contentOffset, .zero)
+  }
+
   func testEventsCoalescePerTurnAndStopWithoutListeners() {
     let view = fixture()
     layout(view)

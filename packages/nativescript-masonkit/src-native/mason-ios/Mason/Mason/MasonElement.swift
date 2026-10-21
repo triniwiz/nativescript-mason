@@ -1313,9 +1313,12 @@ class MasonElementHelpers: NSObject {
         if clamped != off { scroll.setContentOffset(clamped, animated: false) }
       } else if let masonView = node.view as? MasonUIView {
         if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
-        // Reassigning through the setter re-clamps after the size change.
-        masonView.contentOffset = masonView.contentOffset
       }
+    }
+    // Re-clamp after content size or overflow changes, including when both
+    // axes stop scrolling and the content-size branch above no longer runs.
+    if let masonView = node.view as? MasonUIView, masonView.contentOffset != .zero {
+      masonView.contentOffset = masonView.contentOffset
     }
   }
 
