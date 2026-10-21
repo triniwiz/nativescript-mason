@@ -107,6 +107,7 @@ class Mason {
     if (width == viewportWidth && height == viewportHeight) return
     viewportWidth = width
     viewportHeight = height
+    HTMLParser.refreshViewportStyles(this)
     viewportListener?.onViewportChanged(width, height)
   }
 

@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -327,5 +328,21 @@ class InputInstrumentedTest {
       it.type = Input.Type.Checkbox
     }
     assertEquals("a checkbox keeps its own value", "on", checkbox.value)
+  }
+
+  @Test
+  fun disabledReachesTheHostedControl() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      val nodes = HTMLParser(Mason(), context).parse("<input disabled><input type=\"checkbox\" disabled>")
+      val (text, checkbox) = nodes.map { it.view as Input }
+      assertFalse(text.textInput.isEnabled)
+      assertFalse(checkbox.checkBoxInput.isEnabled)
+
+      text.type = Input.Type.Range
+      assertFalse("kept across a type change", text.rangeInput.isEnabled)
+      text.isEnabled = true
+      assertTrue(text.rangeInput.isEnabled)
+    }
   }
 }

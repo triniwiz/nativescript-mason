@@ -754,7 +754,18 @@ class Input @JvmOverloads constructor(
         addView(fileInput)
       }
     }
+    syncChildrenEnabled()
     style.inBatch = false
+  }
+
+  // A disabled FrameLayout still lets its hosted control take input.
+  override fun setEnabled(enabled: Boolean) {
+    super.setEnabled(enabled)
+    syncChildrenEnabled()
+  }
+
+  private fun syncChildrenEnabled() {
+    for (i in 0 until childCount) getChildAt(i).isEnabled = isEnabled
   }
 
   @JvmOverloads

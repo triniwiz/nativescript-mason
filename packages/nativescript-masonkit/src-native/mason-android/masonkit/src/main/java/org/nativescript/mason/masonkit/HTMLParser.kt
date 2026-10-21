@@ -79,6 +79,27 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
     /** Document metadata and scripts: no box, and their text never renders. */
     private val DROPPED_ELEMENTS = setOf("style", "script", "title", "head", "meta", "link", "base")
 
+    private val VIEWPORT_UNIT = Regex("[0-9.](vw|vh|vmin|vmax)\\b", RegexOption.IGNORE_CASE)
+
+    // Inline declarations that used vw/vh/vmin/vmax, applied again when the window resizes.
+    private val viewportStyles = java.util.WeakHashMap<Element, List<Pair<String, String>>>()
+
+    /** True when CSS text holds a vw/vh/vmin/vmax length. */
+    @JvmStatic
+    fun hasViewportUnit(value: String): Boolean =
+      value.contains('v', ignoreCase = true) && VIEWPORT_UNIT.containsMatchIn(value)
+
+    /** Resolves parsed inline viewport units again against the current window. */
+    internal fun refreshViewportStyles(mason: Mason) {
+      if (viewportStyles.isEmpty()) return
+      for ((element, declarations) in viewportStyles.entries.toList()) {
+        val parser = HTMLParser(mason, element.view.context)
+        element.configure { style ->
+          for ((property, value) in declarations) parser.applyStyleProperty(property, value, style)
+        }
+      }
+    }
+
     /** Elements whose text keeps its whitespace. */
     private val PREFORMATTED_ELEMENTS = setOf("pre", "textarea")
 
@@ -619,6 +640,8 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         applyStyleProperty(property, value, style)
       }
     }
+    val viewport = declarations.filter { hasViewportUnit(it.second) }
+    if (viewport.isNotEmpty()) viewportStyles[element] = viewport
   }
 
   private fun applyStyleProperty(property: String, value: String, style: Style) {
