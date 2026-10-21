@@ -76,6 +76,12 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
      */
     private val RAW_TEXT_ELEMENTS = setOf("style", "script", "textarea", "title")
 
+    /** Document metadata and scripts: no box, and their text never renders. */
+    private val DROPPED_ELEMENTS = setOf("style", "script", "title", "head", "meta", "link", "base")
+
+    /** Elements whose text keeps its whitespace. */
+    private val PREFORMATTED_ELEMENTS = setOf("pre", "textarea")
+
     private val VOID_ELEMENTS = setOf(
       "br",
       "hr",
@@ -261,10 +267,25 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   private fun buildTree(tokens: List<Token>): List<Node> {
     val roots = mutableListOf<Node>()
     val stack = mutableListOf<Pair<String, Node>>()
+    // Open dropped elements (`<style>`, `<script>`, ...): everything inside is skipped.
+    var dropped = 0
+    var lastToken: Token? = null
 
     for (token in tokens) {
+      val previous = lastToken
+      lastToken = token
+      if (dropped > 0) {
+        if (token is Token.CloseTag && token.name in DROPPED_ELEMENTS) dropped--
+        else if (token is Token.OpenTag && token.name in DROPPED_ELEMENTS && !token.selfClosing) dropped++
+        continue
+      }
       when (token) {
         is Token.OpenTag -> {
+          if (token.name in DROPPED_ELEMENTS) {
+            // `<head>` only wraps other metadata; its children are handled one by one.
+            if (!token.selfClosing && token.name in RAW_TEXT_ELEMENTS) dropped++
+            continue
+          }
           val node = createElement(token.name, token.attributes)
 
           val parent = stack.lastOrNull()
@@ -280,6 +301,8 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         }
 
         is Token.CloseTag -> {
+          // A stray end tag is ignored, as in browsers.
+          if (stack.none { it.first == token.name }) continue
           while (stack.isNotEmpty()) {
             if (stack.last().first == token.name) {
               stack.removeAt(stack.lastIndex)
@@ -290,12 +313,17 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
         }
 
         is Token.Text -> {
-          val parentIsRawText = stack.lastOrNull()?.first in RAW_TEXT_ELEMENTS
-          // Outside a raw-text element, HTML collapses whitespace runs to a
-          // single space. Whitespace-only text stays a space inside an inline
+          val preformatted = stack.lastOrNull()?.first in RAW_TEXT_ELEMENTS ||
+            stack.any { it.first in PREFORMATTED_ELEMENTS }
+          // Outside `<pre>` and raw-text elements, HTML collapses whitespace runs
+          // to a single space. Whitespace-only text stays a space inside an inline
           // flow (`<b>b</b> <i>c</i>`); flex and grid containers ignore it.
           val parent = stack.lastOrNull()
-          var text = if (parentIsRawText) token.content else collapseWhitespace(token.content)
+          var text = if (preformatted) token.content else collapseWhitespace(token.content)
+          // A newline right after `<pre>` is not content.
+          if (previous is Token.OpenTag && previous.name == "pre") {
+            text = text.removePrefix("\r\n").removePrefix("\n")
+          }
           if (text.isEmpty() && token.content.isNotEmpty() && parent != null &&
             parent.second.style.display.let { it == Display.Block || it == Display.Inline || it == Display.InlineBlock }
           ) {
