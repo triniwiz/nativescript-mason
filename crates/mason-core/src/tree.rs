@@ -1686,6 +1686,57 @@ impl Tree {
         }
     }
 
+    pub fn set_children(&mut self, parent: Id, children: &[Id]) {
+        let mut guard = self.0.write();
+        let tree = &mut *guard;
+        let Some(current) = tree.children.get(parent) else {
+            tree.children.insert(parent, children.to_vec());
+            for &child in children {
+                Self::detach_inner(tree, child);
+                tree.parents.insert(child, Some(parent));
+            }
+            Self::mark_dirty_inner(tree, parent);
+            return;
+        };
+        if current.as_slice() == children {
+            return;
+        }
+
+        // Detach every previous child; the ones listed again are re-attached below.
+        for &child in current {
+            tree.parents.remove(child);
+        }
+        for &child in children {
+            if let Some(Some(old_parent)) = tree.parents.insert(child, Some(parent)) {
+                if old_parent != parent {
+                    if let Some(siblings) = tree.children.get_mut(old_parent) {
+                        siblings.retain(|&id| id != child);
+                    }
+                    Self::mark_dirty_inner(tree, old_parent);
+                }
+            }
+        }
+
+        // Like remove_all, release dropped subtrees nothing else references.
+        let collectable: Vec<Id> = tree.children[parent]
+            .iter()
+            .copied()
+            .filter(|&child| crate::node::is_collectable_root(tree, child))
+            .collect();
+
+        let current = &mut tree.children[parent];
+        current.clear();
+        current.extend_from_slice(children);
+        Self::mark_dirty_inner(tree, parent);
+
+        if !collectable.is_empty() {
+            let mut data = self.2.write();
+            for child in collectable {
+                crate::node::remove_unreferenced_subtree(tree, &mut data, child);
+            }
+        }
+    }
+
     pub fn append_children(&mut self, parent: Id, children: &[Id]) {
         for child in children.iter() {
             self.detach(*child);
@@ -1999,50 +2050,27 @@ impl Tree {
     }
 
     pub fn replace_child_at_index(&mut self, node: Id, child: Id, index: usize) -> Option<NodeRef> {
-        let replaced = self.inner().children.get(node).and_then(|children| {
-            if index < children.len() {
-                Some(children[index])
-            } else {
-                None
-            }
-        })?;
+        let mut tree = self.0.write();
+        let replaced = *tree.children.get(node)?.get(index)?;
 
-        if replaced == child {
-            let tree = Arc::clone(&self.inner_ptr());
-            let deferred = Arc::clone(self.deferred_cleanup_queue());
-            let nd = Arc::clone(&self.2);
-            return self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
-                id: replaced,
-                guard: node.guard.clone(),
-                tree,
-                deferred_cleanup: deferred,
-                node_data: nd,
-            });
-        }
-
-        self.detach(child);
-
-        if let Some(children) = self.children_mut().get_mut(node) {
+        if replaced != child {
+            Self::detach_inner(&mut tree, child);
+            let children = tree.children.get_mut(node)?;
+            // Detaching an earlier sibling shifts the original index. Locate
+            // the target again so the intended child is still replaced.
+            let index = children.iter().position(|&id| id == replaced)?;
             children[index] = child;
+            tree.parents.remove(replaced);
+            tree.parents.insert(child, Some(node));
+            Self::mark_dirty_inner(&mut tree, node);
         }
 
-        self.parents_mut().remove(replaced);
-
-        self.parents_mut().insert(child, Some(node));
-
-        if let Some(node_data) = self.nodes_mut().get_mut(node) {
-            node_data.mark_dirty();
-        }
-
-        let tree = Arc::clone(&self.inner_ptr());
-        let deferred = Arc::clone(self.deferred_cleanup_queue());
-        let nd = Arc::clone(&self.2);
-        self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
+        Some(NodeRef {
             id: replaced,
-            guard: node.guard.clone(),
-            tree,
-            deferred_cleanup: deferred,
-            node_data: nd,
+            guard: Arc::clone(&tree.nodes.get(replaced)?.guard),
+            tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         })
     }
 
