@@ -1972,7 +1972,17 @@ public class TextEngine: NSObject {
   /// run's first character, so inner ranges (bold, links, inline boxes) survive.
   static func collapsingWhitespace(_ text: NSAttributedString) -> NSMutableAttributedString {
     let result = NSMutableAttributedString(attributedString: text)
-    guard let rx = horizontalWsRegex else { return result }
+    // Only a tab or two spaces in a row change anything; most text has neither.
+    var prevSpace = false
+    var collapsible = false
+    for unit in text.string.utf16 {
+      if unit == 0x09 || (unit == 0x20 && prevSpace) {
+        collapsible = true
+        break
+      }
+      prevSpace = unit == 0x20
+    }
+    guard collapsible, let rx = horizontalWsRegex else { return result }
     let matches = rx.matches(in: text.string, options: [], range: NSRange(location: 0, length: result.length))
     let ns = text.string as NSString
     for match in matches.reversed() where !(match.range.length == 1 && ns.character(at: match.range.location) == 0x20) {

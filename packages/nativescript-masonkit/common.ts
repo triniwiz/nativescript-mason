@@ -2399,6 +2399,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!style) {
       return;
     }
+    if ((__ANDROID__ || __APPLE__) && !isCssLength(value) && (style as MasonStyle)._writeCornerLength(corner, value)) {
+      (this as any)[borderRadiusCorners_] = undefined;
+      return;
+    }
     let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
     if (!corners) {
       corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
@@ -2418,7 +2422,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private _nativeCornerRadius(corner: CornerIndex): string {
     // @ts-ignore
     const style = this._styleHelper as MasonStyle | undefined;
-    if ((__ANDROID__ || __APPLE__) && style && !style.hasBorderRadius()) {
+    if ((__ANDROID__ || __APPLE__) && style && style._cornerRadiusIsZero(corner)) {
       return '0';
     }
     const [h, v] = this._nativeBorderRadiusCorners()[corner];

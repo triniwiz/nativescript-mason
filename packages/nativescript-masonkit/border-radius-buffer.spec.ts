@@ -100,3 +100,64 @@ describe('_writeCornerRadius', () => {
     expect(t.dirty()).toBe(-1n);
   });
 });
+
+describe('_writeCornerLength', () => {
+  function withNativeView() {
+    const t = styleUnderTest();
+    (t.style as any).nativeView = {};
+    return t;
+  }
+
+  it('writes dip numbers and px/dip lengths scaled, percent as a fraction', () => {
+    const t = withNativeView();
+    expect(t.style._writeCornerLength(0, 8, 2)).toBe(true);
+    expect(t.style._writeCornerLength(1, { unit: 'px', value: 4 }, 2)).toBe(true);
+    expect(t.style._writeCornerLength(2, { unit: 'dip', value: 1.5 }, 2)).toBe(true);
+    expect(t.style._writeCornerLength(3, { unit: '%', value: 0.25 }, 2)).toBe(true);
+    expect(corners(t)).toEqual([
+      [0, 16, 0, 16],
+      [0, 8, 0, 8],
+      [0, 3, 0, 3],
+      [1, 0.25, 1, 0.25],
+    ]);
+    expect(t.dirty() & BORDER_RADIUS_BIT).toBe(BORDER_RADIUS_BIT);
+  });
+
+  it('builds the shorthand from the buffer only when read', () => {
+    const t = withNativeView();
+    t.style._writeBorderRadius('1 2 3 4', 2);
+    t.style._writeCornerLength(2, 8, 2);
+    expect((t.style as any)._borderRadiusCss).toBeNull();
+    expect((t.style as any)._radiusCssFromBuffer(2)).toBe('1px 2px 8px 4px');
+    t.style._writeCornerLength(0, { unit: '%', value: 0.5 }, 2);
+    expect((t.style as any)._radiusCssFromBuffer(2)).toBe('50% 2px 8px 4px');
+  });
+
+  it('collapses equal corners and keeps elliptical ones after a slash', () => {
+    const t = withNativeView();
+    for (let c = 0; c < 4; c++) t.style._writeCornerLength(c, 6, 3);
+    expect((t.style as any)._radiusCssFromBuffer(3)).toBe('6px');
+    t.style._writeCornerRadius(0, ['6px', '2px'], '6px / 2px 6px 6px 6px', 3);
+    expect((t.style as any)._radiusCssFromBuffer(3)).toBe('6px / 2px 6px 6px 6px');
+  });
+
+  it('leaves strings, other units and missing native views to the string path', () => {
+    for (const value of ['8px', { unit: 'rem', value: 1 }, null, undefined, NaN]) {
+      const t = withNativeView();
+      expect(t.style._writeCornerLength(0, value, 2)).toBe(false);
+      expect(t.dirty()).toBe(-1n);
+    }
+    const t = styleUnderTest();
+    expect(t.style._writeCornerLength(0, 4, 2)).toBe(false);
+  });
+});
+
+describe('_cornerRadiusIsZero', () => {
+  it('reads one corner from the buffer', () => {
+    const t = styleUnderTest();
+    (t.style as any).nativeView = {};
+    expect([0, 1, 2, 3].map((c) => t.style._cornerRadiusIsZero(c))).toEqual([true, true, true, true]);
+    t.style._writeCornerLength(1, 4, 2);
+    expect([0, 1, 2, 3].map((c) => t.style._cornerRadiusIsZero(c))).toEqual([true, false, true, true]);
+  });
+});
