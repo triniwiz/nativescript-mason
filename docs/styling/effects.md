@@ -63,7 +63,7 @@ Functions: `blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()
 
 | Platform | Notes |
 | --- | --- |
-| iOS | All functions. `blur()` is cropped at the element's box instead of spreading past it, and `drop-shadow()` draws a hard offset copy rather than a blurred shadow. |
+| iOS | All functions, on containers (`div` and friends). Text elements (`p`, `span`, headings) don't take `filter` yet. |
 | Android | All functions. Fastest on Android 12 (API 31) and later, which use `RenderEffect`; earlier versions take a slower offscreen path. |
 | Windows | All functions. |
 
