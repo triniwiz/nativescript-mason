@@ -713,6 +713,14 @@ public class MasonNode: NSObject {
     return UIColor.colorFromARGB(decColor)
   }
   
+  /// The advance of a space in `font`, in points.
+  private func spaceAdvance(_ font: CTFont) -> CGFloat {
+    var char: UniChar = 0x20
+    var glyph: CGGlyph = 0
+    guard CTFontGetGlyphsForCharacters(font, &char, &glyph, 1) else { return CTFontGetSize(font) / 4 }
+    return CGFloat(CTFontGetAdvancesForGlyphs(font, .horizontal, &glyph, nil, 1))
+  }
+
   /// Helper to get default text attributes for new text nodes
   public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
     // Return cached result if style hasn't changed
@@ -784,18 +792,36 @@ public class MasonNode: NSObject {
       let fontStyle = style.resolvedInternalFontStyle
       var font = ctFont(from: font, fontSize: CGFloat(fontSize), weight: NSCUIFontWeight(weight), style: fontStyle)
 
-      // font-variant-numeric: apply AAT feature settings
+      // font-variant-numeric (AAT selectors) and font-feature-settings (OpenType tags).
+      var features: [CFDictionary] = []
       let variantNumeric = style.resolvedFontVariantNumeric
       if variantNumeric.rawValue != 0 {
-        let features = variantNumeric.fontFeatureSettings.map { (type, selector) in
+        features += variantNumeric.fontFeatureSettings.map { (type, selector) in
           [
             kCTFontFeatureTypeIdentifierKey: type,
             kCTFontFeatureSelectorIdentifierKey: selector
           ] as CFDictionary
-        } as CFArray
-        let attrs = [kCTFontFeatureSettingsAttribute: features] as CFDictionary
+        }
+      }
+      for (tag, value) in parseFontFeatureSettings(style.resolvedFontFeatureSettings) {
+        features.append([kCTFontOpenTypeFeatureTag: tag, kCTFontOpenTypeFeatureValue: value] as CFDictionary)
+      }
+      if !features.isEmpty {
+        let attrs = [kCTFontFeatureSettingsAttribute: features as CFArray] as CFDictionary
         let desc = CTFontDescriptorCreateWithAttributes(attrs)
         font = CTFontCreateCopyWithAttributes(font, 0, nil, desc)
+      }
+
+      let stretch = style.resolvedFontStretch
+      if stretch > 0 && stretch != 10000 {
+        font = applyingFontStretch(font, percent: CGFloat(stretch) / 100)
+      }
+
+      if let spacing = style.resolvedWordSpacingValue {
+        let points = spacing.isPercent
+          ? spaceAdvance(font) * CGFloat(spacing.value) / 100
+          : CGFloat(spacing.value) / CGFloat(NSCMason.scale)
+        if points != 0 { attrs[Constants.WORD_SPACING_KEY] = points }
       }
 
       attrs[.font] = font
@@ -865,7 +891,7 @@ public class MasonNode: NSObject {
     
     // letter spacing
     let letterSpacing = style.resolvedLetterSpacing
-    if(letterSpacing > 0){
+    if(letterSpacing != 0){
       let scaleF = CGFloat(NSCMason.scale)
       attrs[.kern] = CGFloat(letterSpacing) / scaleF
     }
@@ -909,7 +935,8 @@ public class MasonNode: NSObject {
     case .Center:
       paragraphStyle.alignment = .center
     case .Justify:
-      paragraphStyle.alignment = .justified
+      // TextEngine spreads each line's slack itself: CoreText also widens letters.
+      paragraphStyle.alignment = .natural
     case .Start:
       let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
       if(isLTR){
@@ -1996,4 +2023,58 @@ extension MasonNode {
   }
 
 
+}
+
+/// `font-feature-settings` as OpenType tag/value pairs (`"liga" 0, "tnum", "ss01" on`); empty for
+/// `normal` or an invalid list.
+func parseFontFeatureSettings(_ value: String) -> [(tag: String, value: Int)] {
+  let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  if v.isEmpty || v.lowercased() == "normal" { return [] }
+  var out: [(tag: String, value: Int)] = []
+  for part in v.split(separator: ",") {
+    let tokens = part.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" }).map(String.init)
+    guard let first = tokens.first, tokens.count <= 2 else { return [] }
+    var tag = first
+    if let q = tag.first, q == "\"" || q == "'" {
+      guard tag.count >= 2, tag.last == q else { return [] }
+      tag = String(tag.dropFirst().dropLast())
+    }
+    guard tag.unicodeScalars.count == 4, tag.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value <= 0x7E }) else { return [] }
+    var setting = 1
+    if tokens.count == 2 {
+      switch tokens[1].lowercased() {
+      case "on": setting = 1
+      case "off": setting = 0
+      default:
+        guard let n = Int(tokens[1]), n >= 0 else { return [] }
+        setting = n
+      }
+    }
+    out.append((tag, setting))
+  }
+  return out
+}
+
+/// `font-stretch` as a percentage of normal width. A variable font's `wdth` axis takes it
+/// directly; otherwise the family's face with the nearest width trait is used, if it has one.
+func applyingFontStretch(_ font: CTFont, percent: CGFloat) -> CTFont {
+  let wdth = 0x7764_7468 // 'wdth'
+  if let axes = CTFontCopyVariationAxes(font) as? [[CFString: Any]],
+     let axis = axes.first(where: { ($0[kCTFontVariationAxisIdentifierKey] as? NSNumber)?.intValue == wdth }) {
+    let lo = (axis[kCTFontVariationAxisMinimumValueKey] as? NSNumber)?.doubleValue ?? 100
+    let hi = (axis[kCTFontVariationAxisMaximumValueKey] as? NSNumber)?.doubleValue ?? 100
+    var variation = (CTFontCopyVariation(font) as? [NSNumber: NSNumber]) ?? [:]
+    variation[NSNumber(value: wdth)] = NSNumber(value: min(max(Double(percent), lo), hi))
+    let desc = CTFontDescriptorCreateWithAttributes([kCTFontVariationAttribute: variation] as CFDictionary)
+    return CTFontCreateCopyWithAttributes(font, 0, nil, desc)
+  }
+  // Width traits run from -1 (50%) through 0 (100%) to 1 (200%).
+  let trait = percent < 100 ? (percent - 100) / 50 : (percent - 100) / 100
+  var traits = (CTFontCopyTraits(font) as? [CFString: Any]) ?? [:]
+  traits[kCTFontWidthTrait] = max(-1, min(1, trait))
+  let family = CTFontCopyFamilyName(font)
+  let desc = CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family, kCTFontTraitsAttribute: traits] as CFDictionary)
+  let mandatory: Set<String> = [kCTFontFamilyNameAttribute as String]
+  guard let match = CTFontDescriptorCreateMatchingFontDescriptor(desc, mandatory as CFSet) else { return font }
+  return CTFontCreateWithFontDescriptor(match, CTFontGetSize(font), nil)
 }

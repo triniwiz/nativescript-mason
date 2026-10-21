@@ -28,6 +28,8 @@ internal struct Constants {
 
   /// Attributed-string key carrying a `MasonTextDecoration`; TextEngine draws it.
   static let DECORATION_KEY = NSAttributedString.Key("[[mason_decoration]]")
+  /// word-spacing in points, added to each word separator's advance.
+  static let WORD_SPACING_KEY = NSAttributedString.Key("[[mason_word_spacing]]")
   static let INLINE_BACKGROUND_KEY = NSAttributedString.Key("[[mason_inline_background]]")
 }
 

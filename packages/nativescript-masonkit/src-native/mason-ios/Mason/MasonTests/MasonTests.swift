@@ -5,7 +5,9 @@
 //  Created by Osei Fortune on 28/11/2022.
 //
 
+import CoreImage
 import CoreText
+import Metal
 import XCTest
 @testable import Mason
 
@@ -891,6 +893,190 @@ final class ReapplyTests: XCTestCase {
     child.setSize(70, 30)
     root.computeWithSize(100, 100)
     XCTAssertEqual(child.frame.size.width, first.size.width * 70 / 50, accuracy: 0.5)
+  }
+}
+
+final class CSSFilterFunctionTests: XCTestCase {
+
+  /// One opaque sRGB pixel through a filter chain, as 0...255 channels.
+  private func run(_ css: String, _ r: CGFloat, _ g: CGFloat, _ b: CGFloat) throws -> [Int] {
+    let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+    let context = CSSFilters.makeContext(device)
+    let input = CIImage(color: CIColor(red: r, green: g, blue: b, alpha: 1, colorSpace: CSSFilters.sRGB)!)
+      .cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+    let output = CSSFilters.applyBackdropChain(CSSFilters.parse(css), to: input, scale: 1)
+    var px = [UInt8](repeating: 0, count: 4)
+    context.render(output, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                   format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return px.prefix(3).map { Int($0) }
+  }
+
+  private func assertPixel(_ css: String, _ input: (CGFloat, CGFloat, CGFloat), _ expected: [Int], line: UInt = #line) throws {
+    let actual = try run(css, input.0, input.1, input.2)
+    for (a, e) in zip(actual, expected) {
+      XCTAssertEqual(a, e, accuracy: 2, "\(css): \(actual) vs \(expected)", line: line)
+    }
+  }
+
+  func testColorFunctionsMatchTheSpecInSRGB() throws {
+    // Expected values: the Filter Effects 1 matrices applied to gamma-encoded sRGB, as browsers do.
+    try assertPixel("brightness(0.5)", (1, 1, 1), [128, 128, 128])
+    try assertPixel("brightness(1.5)", (0.4, 0.2, 0), [153, 77, 0])
+    try assertPixel("contrast(2)", (0.75, 0.25, 0.5), [255, 0, 128])
+    try assertPixel("grayscale(1)", (1, 0, 0), [54, 54, 54])
+    try assertPixel("sepia(1)", (1, 1, 1), [255, 255, 239])
+    try assertPixel("saturate(0)", (0, 0, 1), [18, 18, 18])
+    try assertPixel("hue-rotate(90deg)", (1, 0, 0), [0, 91, 0])
+    try assertPixel("invert(1)", (1, 0.25, 0), [0, 191, 255])
+    try assertPixel("invert(0.5)", (1, 0, 0), [128, 128, 128])
+    try assertPixel("brightness(2) contrast(0.5)", (0.25, 0.25, 0.25), [128, 128, 128])
+  }
+
+  func testLengthsAreCSSPixels() {
+    guard case .blur(let radius) = CSSFilters.parse("blur(6px)").first else { return XCTFail("blur") }
+    XCTAssertEqual(radius, 6)
+    guard case .dropShadow(let x, let y, let blur, _) = CSSFilters.parse("drop-shadow(2px 3px 4px black)").first else { return XCTFail("drop-shadow") }
+    XCTAssertEqual([x, y, blur], [2, 3, 4])
+  }
+}
+
+final class BackdropCaptureTests: XCTestCase {
+  /// The sRGB pixel at (x, 5) of `layer` rendered with `render(in:)`.
+  private func pixel(_ layer: CALayer, _ x: CGFloat) -> [UInt8] {
+    let fmt = UIGraphicsImageRendererFormat()
+    fmt.scale = 1
+    fmt.preferredRange = .standard
+    let img = UIGraphicsImageRenderer(size: layer.bounds.size, format: fmt).image { ctx in layer.render(in: ctx.cgContext) }
+    var px = [UInt8](repeating: 0, count: 4)
+    CIContext().render(CIImage(cgImage: img.cgImage!), toBitmap: &px, rowBytes: 4, bounds: CGRect(x: x, y: 5, width: 1, height: 1),
+                       format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return Array(px.prefix(3))
+  }
+
+  func testGradientLayersAreCapturedAsTheScreenShowsThem() {
+    let root = CALayer()
+    root.frame = CGRect(x: 0, y: 0, width: 100, height: 10)
+    let g = CAGradientLayer()
+    g.frame = root.bounds
+    g.colors = [UIColor.blue.cgColor, UIColor.magenta.cgColor]
+    g.startPoint = CGPoint(x: 0, y: 0.5)
+    g.endPoint = CGPoint(x: 1, y: 0.5)
+    root.addSublayer(g)
+
+    // render(in:) alone blends blue to magenta through green.
+    XCTAssertGreaterThan(pixel(root, 50)[1], 30)
+
+    let swapped = CSSFilters.substituteGradients(in: root, rect: root.bounds, scale: 1)
+    XCTAssertEqual(swapped.count, 1)
+    let mid = pixel(root, 50)
+    XCTAssertEqual(Double(mid[0]), 128, accuracy: 3)
+    XCTAssertEqual(mid[1], 0)
+    XCTAssertEqual(mid[2], 255)
+    XCTAssertEqual(pixel(root, 2)[0], 3, accuracy: 4, "start at the left")
+    for (layer, colors, contents) in swapped {
+      layer.colors = colors
+      layer.contents = contents
+    }
+    XCTAssertEqual(g.colors?.count, 2)
+    XCTAssertNil(g.contents)
+    XCTAssertTrue(CSSFilters.substituteGradients(in: root, rect: CGRect(x: 200, y: 0, width: 10, height: 10), scale: 1).isEmpty,
+                  "a gradient outside the region is left alone")
+  }
+}
+
+final class TextFeatureTests: XCTestCase {
+
+  private func width(_ s: NSAttributedString) -> CGFloat {
+    CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(s), nil, nil, nil))
+  }
+
+  func testUnsetTextJustifyReadsAsAuto() {
+    let text = NSCMason.shared.createTextView(type: .P)
+    XCTAssertEqual(text.node.style.resolvedTextJustify, .Auto)
+  }
+
+  func testFontFeatureSettingsParse() {
+    XCTAssertTrue(parseFontFeatureSettings("normal").isEmpty)
+    let parsed = parseFontFeatureSettings("\"liga\" 0, 'tnum', \"ss01\" on, \"kern\" off, \"cv01\" 3")
+    XCTAssertEqual(parsed.map { $0.tag }, ["liga", "tnum", "ss01", "kern", "cv01"])
+    XCTAssertEqual(parsed.map { $0.value }, [0, 1, 1, 0, 3])
+    XCTAssertTrue(parseFontFeatureSettings("\"toolong\"").isEmpty, "a tag is four characters")
+    XCTAssertTrue(parseFontFeatureSettings("\"liga\" -1").isEmpty)
+  }
+
+  func testTabularNumbersChangeDigitWidths() {
+    let font = CTFontCreateUIFontForLanguage(.system, 16, nil)!
+    let attrs = [kCTFontFeatureSettingsAttribute: [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]] as CFArray] as CFDictionary
+    let tabular = CTFontCreateCopyWithAttributes(font, 0, nil, CTFontDescriptorCreateWithAttributes(attrs))
+    let ones = width(NSAttributedString(string: "1111", attributes: [.font: font]))
+    let tabularOnes = width(NSAttributedString(string: "1111", attributes: [.font: tabular]))
+    let zeros = width(NSAttributedString(string: "0000", attributes: [.font: tabular]))
+    XCTAssertNotEqual(ones, tabularOnes, accuracy: 0.1)
+    XCTAssertEqual(tabularOnes, zeros, accuracy: 0.1)
+  }
+
+  func testFontStretchNarrowsAndWidens() {
+    let font = CTFontCreateUIFontForLanguage(.system, 16, nil)!
+    let normal = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: font]))
+    let condensed = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: applyingFontStretch(font, percent: 75)]))
+    let expanded = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: applyingFontStretch(font, percent: 125)]))
+    XCTAssertLessThan(condensed, normal - 5)
+    XCTAssertGreaterThan(expanded, normal + 5)
+  }
+
+  func testWordSpacingKernsSpacesOnly() {
+    let s = NSMutableAttributedString(string: "a b\u{00A0}c", attributes: [.kern: CGFloat(1), Constants.WORD_SPACING_KEY: CGFloat(5)])
+    TextEngine.applyWordSpacing(s)
+    XCTAssertEqual(s.attribute(.kern, at: 0, effectiveRange: nil) as? CGFloat, 1)
+    XCTAssertEqual(s.attribute(.kern, at: 1, effectiveRange: nil) as? CGFloat, 6)
+    XCTAssertEqual(s.attribute(.kern, at: 3, effectiveRange: nil) as? CGFloat, 6)
+    // A container flattening this string applies nothing more.
+    TextEngine.applyWordSpacing(s)
+    XCTAssertEqual(s.attribute(.kern, at: 1, effectiveRange: nil) as? CGFloat, 6)
+  }
+
+  func testInterCharacterJustificationFillsEachLineButTheLast() {
+    let font = CTFontCreateWithName("Helvetica" as CFString, 16, nil)
+    let text = NSAttributedString(string: "aaaa bbbb cccc dddd eeee ffff", attributes: [.font: font])
+    let justified = TextEngine.justifying(text, 100, .characters)
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: 100, height: 1000), transform: nil)
+    let before = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(text), CFRange(), path, nil)
+    let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(justified), CFRange(), path, nil)
+    let lines = CTFrameGetLines(frame) as! [CTLine]
+    XCTAssertEqual(lines.count, (CTFrameGetLines(before) as! [CTLine]).count, "same breaks")
+    XCTAssertGreaterThan(lines.count, 1)
+    for line in lines.dropLast() {
+      let used = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      XCTAssertEqual(used, 100, accuracy: 0.1)
+    }
+    let last = lines.last!
+    XCTAssertLessThan(CGFloat(CTLineGetTypographicBounds(last, nil, nil, nil)), 99)
+  }
+
+  func testInterWordJustificationWidensOnlySpaces() {
+    let font = CTFontCreateWithName("Helvetica" as CFString, 16, nil)
+    let text = NSAttributedString(string: "aaaa bbbb cccc dddd eeee ffff", attributes: [.font: font])
+    let justified = TextEngine.justifying(text, 100, .words)
+    for i in 0..<justified.length {
+      let kern = justified.attribute(.kern, at: i, effectiveRange: nil) as? CGFloat
+      if (text.string as NSString).character(at: i) != 0x20 { XCTAssertNil(kern, "letters keep their spacing") }
+    }
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: 100, height: 1000), transform: nil)
+    let lines = CTFrameGetLines(CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(justified), CFRange(), path, nil)) as! [CTLine]
+    for line in lines.dropLast() where CTLineGetStringRange(line).length > 5 {
+      let used = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      XCTAssertEqual(used, 100, accuracy: 0.1)
+    }
+  }
+
+  func testPercentTranslateResolvesAgainstTheBox() {
+    let ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)] = [
+      (.translate, StyleKeys.TRANSFORM_OP_A_PERCENT | StyleKeys.TRANSFORM_OP_B_PERCENT, -50, -50),
+      (.translateX, 0, 10, 0),
+    ]
+    let t = MasonStyle.composeTransformOps(ops, size: CGSize(width: 60, height: 30))
+    XCTAssertEqual(t.tx, -20, accuracy: 1e-6)
+    XCTAssertEqual(t.ty, -15, accuracy: 1e-6)
   }
 }
 

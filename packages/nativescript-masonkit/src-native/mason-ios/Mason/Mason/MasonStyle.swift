@@ -2075,7 +2075,7 @@ public class MasonStyle: NSObject {
   
   public var textJustify: TextJustify {
     get {
-      return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY))!
+      return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto
     }
     set {
       prepareMut()
@@ -4417,8 +4417,15 @@ public class MasonStyle: NSObject {
 
   @objc public var fontFeatureSettings: String = "normal" {
     didSet {
+      hasFontFeatureSettings = true
       notifyTextStyleChanged(StateKeys.fontFamily)
     }
+  }
+  private var hasFontFeatureSettings = false
+
+  /// font-feature-settings here or inherited.
+  internal var resolvedFontFeatureSettings: String {
+    hasFontFeatureSettings ? fontFeatureSettings : (parentStyleWithTextValues?.resolvedFontFeatureSettings ?? "normal")
   }
   
   public func updateNativeStyle() {
@@ -5037,16 +5044,11 @@ extension MasonStyle {
   }
   
   internal var resolvedTextJustify: TextJustify {
-    let state = getUInt8(StyleKeys.TEXT_JUSTIFY_STATE)
-    return if (state == StyleState.INHERIT) {
-      parentStyleWithTextValues?.resolvedTextJustify ?? TextJustify(
-        rawValue: getInt8(
-          StyleKeys.TEXT_JUSTIFY
-        )
-      )!
-    } else {
-      TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY))!
+    if getUInt8(StyleKeys.TEXT_JUSTIFY_STATE) == StyleState.INHERIT, let parent = parentStyleWithTextValues {
+      return parent.resolvedTextJustify
     }
+    // An unset buffer holds no valid value.
+    return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto
   }
   
   internal var resolvedLineHeight: Float {
@@ -5142,6 +5144,20 @@ extension MasonStyle {
       return color != 0 ? color : nil
     }
     return parentStyleWithTextValues?.explicitCaretColor
+  }
+
+  /// word-spacing here or inherited: device px, a percentage of the space advance, or none.
+  internal var resolvedWordSpacingValue: (value: Float, isPercent: Bool)? {
+    let state = getUInt8(StyleKeys.WORD_SPACING_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedWordSpacingValue
+    }
+    if state != StyleState.SET { return nil }
+    switch getUInt8(StyleKeys.WORD_SPACING_TYPE) {
+    case 0: return (getFloat(StyleKeys.WORD_SPACING), false)
+    case 1: return (getFloat(StyleKeys.WORD_SPACING), true)
+    default: return nil
+    }
   }
 
   internal var resolvedWordSpacing: Float {
