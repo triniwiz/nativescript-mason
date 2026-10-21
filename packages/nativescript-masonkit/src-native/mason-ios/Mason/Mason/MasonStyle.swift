@@ -289,6 +289,11 @@ public struct StyleKeys {
   public static let MAX_INLINE_TRANSFORM_OPS = 6
   public static let TRANSFORM_FLAG_HAS_MATRIX: UInt8 = 0x01
   public static let TRANSFORM_FLAG_IS_3D: UInt8 = 0x02
+  /// An inline op holds a percentage, resolved against the border box when applied.
+  public static let TRANSFORM_FLAG_HAS_PERCENT: UInt8 = 0x04
+  /// Per-op byte 1: which of `a` / `b` are percentages.
+  public static let TRANSFORM_OP_A_PERCENT: UInt8 = 0x01
+  public static let TRANSFORM_OP_B_PERCENT: UInt8 = 0x02
 }
 
 @objc public enum TransformOpType: UInt8 {
@@ -893,10 +898,11 @@ public class MasonStyle: NSObject {
     let type: UInt8
     let a: Float
     let b: Float
+    var percent: UInt8 = 0
   }
 
   private func writeTransformToBuffer(_ input: String) {
-    let ops = parseTransformOps(input)
+    var ops = parseTransformOps(input)
     prepareMut()
 
     if ops.isEmpty {
@@ -908,18 +914,21 @@ public class MasonStyle: NSObject {
     // Sentinel check: matrix/matrix3d already written by parser
     if ops.count == 1 && ops[0].type == 255 { return }
 
-    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS {
+    // Percentages need the box size, so a long list keeps only its first inline ops.
+    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS && !ops.contains(where: { $0.percent != 0 }) {
       flattenOpsToMatrix(ops)
       return
     }
+    ops = Array(ops.prefix(StyleKeys.MAX_INLINE_TRANSFORM_OPS))
 
     // Write inline ops
+    let hasPercent = ops.contains { $0.percent != 0 }
     setUInt8(StyleKeys.TRANSFORM_COUNT, UInt8(ops.count))
-    setUInt8(StyleKeys.TRANSFORM_FLAGS, 0)
+    setUInt8(StyleKeys.TRANSFORM_FLAGS, hasPercent ? StyleKeys.TRANSFORM_FLAG_HAS_PERCENT : 0)
     for i in 0..<ops.count {
       let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
       setUInt8(base, ops[i].type)
-      setUInt8(base + 1, 0) // padding
+      setUInt8(base + 1, ops[i].percent)
       setUInt8(base + 2, 0)
       setUInt8(base + 3, 0)
       setFloat(base + 4, ops[i].a)
@@ -949,12 +958,16 @@ public class MasonStyle: NSObject {
       let rawArgs = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
       let args = rawArgs.replacingOccurrences(of: ",", with: " ").split(separator: " ").map { String($0) }
       switch name {
-      case "translate":
-        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: parseTransformLength(args, 0), b: parseTransformLength(args, 1)))
+      case "translate", "translate3d":
+        let x = parseTransformLength(args, 0), y = parseTransformLength(args, 1)
+        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: x.value, b: y.value,
+                               percent: (x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0) | (y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0)))
       case "translatex":
-        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: parseTransformLength(args, 0), b: 0))
+        let x = parseTransformLength(args, 0)
+        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: x.value, b: 0, percent: x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0))
       case "translatey":
-        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: parseTransformLength(args, 0)))
+        let y = parseTransformLength(args, 0)
+        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: y.value, percent: y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0))
       case "scale":
         let sx = parseTransformNumber(args, 0, 1.0)
         let sy = parseTransformNumber(args, 1, Double(sx))
@@ -1097,13 +1110,29 @@ public class MasonStyle: NSObject {
         }
       }
     } else {
-      // Compose inline ops
-      var affine = CGAffineTransform.identity
-      for i in 0..<count {
+      // Compose inline ops; percentages resolve against the size on the main thread.
+      let ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)] = (0..<count).map { i in
         let opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-        let type = TransformOpType(rawValue: getUInt8(opBase)) ?? .none
-        let a = CGFloat(getFloat(opBase + 4))
-        let b = CGFloat(getFloat(opBase + 8))
+        return (TransformOpType(rawValue: getUInt8(opBase)) ?? .none, getUInt8(opBase + 1),
+                CGFloat(getFloat(opBase + 4)), CGFloat(getFloat(opBase + 8)))
+      }
+      DispatchQueue.main.async { [weak self] in
+        let size = view.bounds.size
+        let composed = MasonStyle.composeTransformOps(ops, size: size)
+        view.transform = (self?.aboutTransformOrigin(composed, size) ?? composed).rotated(by: turn)
+        self?.updateShadowLayer(for: view.bounds)
+      }
+    }
+  }
+
+  static func composeTransformOps(_ ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)], size: CGSize) -> CGAffineTransform {
+      var affine = CGAffineTransform.identity
+      for op in ops {
+        let type = op.type
+        var a = op.a
+        var b = op.b
+        if op.percent & StyleKeys.TRANSFORM_OP_A_PERCENT != 0 { a = a / 100 * size.width }
+        if op.percent & StyleKeys.TRANSFORM_OP_B_PERCENT != 0 { b = b / 100 * size.height }
         switch type {
         case .translate: affine = affine.translatedBy(x: a, y: b)
         case .translateX: affine = affine.translatedBy(x: a, y: 0)
@@ -1121,12 +1150,7 @@ public class MasonStyle: NSObject {
         case .none: break
         }
       }
-      let composed = affine
-      DispatchQueue.main.async { [weak self] in
-        view.transform = (self?.aboutTransformOrigin(composed, view.bounds.size) ?? composed).rotated(by: turn)
-        self?.updateShadowLayer(for: view.bounds)
-      }
-    }
+      return affine
   }
 
   // UIKit transforms about the centre (the layer's anchor, which Mason's frames rely on),
@@ -1153,12 +1177,13 @@ public class MasonStyle: NSObject {
     return CATransform3DConcat(CATransform3DConcat(CATransform3DMakeTranslation(-d.x, -d.y, 0), t), CATransform3DMakeTranslation(d.x, d.y, 0))
   }
 
-  private func parseTransformLength(_ args: [String], _ index: Int) -> Float {
-    guard index < args.count else { return 0 }
+  /// A translate length in CSS px, or a percentage of the border box (`percent`).
+  private func parseTransformLength(_ args: [String], _ index: Int) -> (value: Float, percent: Bool) {
+    guard index < args.count else { return (0, false) }
     let s = args[index].trimmingCharacters(in: .whitespaces)
-    if s.hasSuffix("px") { return Float(s.dropLast(2)) ?? 0 }
-    if s.hasSuffix("%") { return Float(s.dropLast(1)) ?? 0 }
-    return Float(s) ?? 0
+    if s.hasSuffix("px") { return (Float(s.dropLast(2)) ?? 0, false) }
+    if s.hasSuffix("%") { return (Float(s.dropLast(1)) ?? 0, true) }
+    return (Float(s) ?? 0, false)
   }
 
   private func parseTransformAngleDeg(_ s: String) -> Float {
@@ -4062,10 +4087,13 @@ public class MasonStyle: NSObject {
     return getUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE) != 0
   }
 
-  /// Whether a buffer transform pivots on a set transform-origin, so it must be reapplied on resize.
+  /// Whether a buffer transform pivots on a set transform-origin or holds a percentage, so it
+  /// must be reapplied on resize.
   internal var transformDependsOnOrigin: Bool {
+    let flags = getUInt8(StyleKeys.TRANSFORM_FLAGS)
+    if flags & StyleKeys.TRANSFORM_FLAG_HAS_PERCENT != 0 { return true }
     return hasTransformOrigin && (getUInt8(StyleKeys.TRANSFORM_COUNT) != 0
-      || (getUInt8(StyleKeys.TRANSFORM_FLAGS) & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0)
+      || (flags & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0)
   }
 
   private var _transformRaw: String?

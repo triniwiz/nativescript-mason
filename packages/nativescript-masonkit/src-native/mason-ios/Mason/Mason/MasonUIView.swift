@@ -772,7 +772,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // clips the gradient background to the rounded border path, so corners stay
     // clean without it.
     if layer.shouldRasterize { layer.shouldRasterize = false }
-    // Transforms pivot on the layer's centre anchor; only a transform-origin depends on the size.
+    // Transforms pivot on the layer's centre anchor; a transform-origin or a percentage depends on the size.
     if style.transformDependsOnOrigin { style.applyTransformFromBuffer() }
   }
 
