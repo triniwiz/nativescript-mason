@@ -118,4 +118,33 @@ class GradientInstrumentedTest {
       assertEquals("middle", Color.rgb(0, 255, 0), bitmap.getPixel(w / 2, h / 2))
     }
   }
+
+  @Test
+  fun radialDefaultsToAnEllipse() {
+    val w = 400
+    val h = 100
+    // closest-side from the centre: rx 200, ry 50.
+    val v = view(w, h) { it.background = "radial-gradient(closest-side, rgb(255, 0, 0), rgb(0, 0, 255))" }
+    for (bitmap in renders(v, w, h)) {
+      assertRedToBlue(bitmap, 300, 50, 0.5, "half rx")
+      assertRedToBlue(bitmap, 200, 75, 0.5, "half ry")
+    }
+  }
+
+  @Test
+  fun radialCircleAndExplicitRadii() {
+    val w = 400
+    val h = 100
+    val circle = view(w, h) { it.background = "radial-gradient(circle closest-side, rgb(255, 0, 0), rgb(0, 0, 255))" }
+    for (bitmap in renders(circle, w, h)) {
+      assertRedToBlue(bitmap, 225, 50, 0.5, "circle x")
+      assertRedToBlue(bitmap, 200, 75, 0.5, "circle y")
+    }
+    // Percent radii resolve against the box: 25% 40% is rx 100, ry 40, centred at the top left.
+    val explicit = view(w, h) { it.background = "radial-gradient(25% 40% at 0 0, rgb(255, 0, 0), rgb(0, 0, 255))" }
+    for (bitmap in renders(explicit, w, h)) {
+      assertRedToBlue(bitmap, 50, 0, 0.5, "explicit rx")
+      assertRedToBlue(bitmap, 0, 20, 0.5, "explicit ry")
+    }
+  }
 }

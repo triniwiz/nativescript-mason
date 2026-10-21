@@ -595,11 +595,10 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      builder = if (justified) {
-        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-      } else {
-        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-      }
+      builder = builder.setJustificationMode(
+        if (justified) justificationMode(style.resolvedTextAlign, style.resolvedTextJustify)
+        else Layout.JUSTIFICATION_MODE_NONE
+      )
     }
 
     if (indent != 0) {
@@ -625,8 +624,8 @@ class TextEngine(val container: TextContainer) {
     indent: Int,
     maxLines: Int
   ): StaticLayoutCacheEntry {
-    val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-      style.resolvedTextAlign == TextAlign.Justify
+    val justified = justificationMode(style.resolvedTextAlign, style.resolvedTextJustify) !=
+      Layout.JUSTIFICATION_MODE_NONE
 
     // StaticLayout's internal Int arithmetic overflows on Int.MAX_VALUE ("unconstrained"),
     // producing garbage line breaks. Match iOS's finite fallback instead.
@@ -1248,11 +1247,7 @@ class TextEngine(val container: TextContainer) {
       builder = builder.setUseLineSpacingFromFallbacks(true)
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      builder = if (style.resolvedTextAlign == TextAlign.Justify) {
-        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
-      } else {
-        builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
-      }
+      builder = builder.setJustificationMode(justificationMode(style.resolvedTextAlign, style.resolvedTextJustify))
     }
 
     return builder.build()
@@ -1287,8 +1282,8 @@ class TextEngine(val container: TextContainer) {
 
     val alignment = getLayoutAlignment()
     val heuristic = getTextDirectionHeuristic()
-    val justified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-      style.resolvedTextAlign == TextAlign.Justify
+    val justified = justificationMode(style.resolvedTextAlign, style.resolvedTextJustify) !=
+      Layout.JUSTIFICATION_MODE_NONE
     val indent = textIndentPx(contentWidth.toFloat())
     val maxLines = lineClamp
     val cached = findCachedStaticLayout(
@@ -2770,6 +2765,23 @@ class TextEngine(val container: TextContainer) {
   }
 
   companion object {
+    // text-justify: none keeps justified text ragged; inter-character needs API 35.
+    @JvmStatic
+    internal fun justificationMode(
+      align: TextAlign,
+      justify: Styles.TextJustify,
+      sdk: Int = Build.VERSION.SDK_INT
+    ): Int {
+      if (sdk < Build.VERSION_CODES.O || align != TextAlign.Justify) return Layout.JUSTIFICATION_MODE_NONE
+      return when (justify) {
+        Styles.TextJustify.None -> Layout.JUSTIFICATION_MODE_NONE
+        Styles.TextJustify.InterCharacter, Styles.TextJustify.Distribute ->
+          if (sdk >= Build.VERSION_CODES.VANILLA_ICE_CREAM) Layout.JUSTIFICATION_MODE_INTER_CHARACTER
+          else Layout.JUSTIFICATION_MODE_INTER_WORD
+        else -> Layout.JUSTIFICATION_MODE_INTER_WORD
+      }
+    }
+
     // Every entry is keyed by text version, so a text view only ever needs a few live constraints.
     private const val MEASURE_CACHE_SIZE = 8
 

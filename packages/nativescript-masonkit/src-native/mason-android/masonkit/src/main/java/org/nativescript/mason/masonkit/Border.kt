@@ -813,6 +813,53 @@ class BorderRenderer(private val style: Style) {
     return r * cssRadiusScale(width, height)
   }
 
+  /** True when a corner uses a corner-shape other than round. */
+  fun hasCornerShape(): Boolean =
+    topLeftExponent != 1f || topRightExponent != 1f ||
+      bottomRightExponent != 1f || bottomLeftExponent != 1f
+
+  /** Hash of the corner-shape exponents, for caches keyed on the box shape. */
+  fun cornerShapeHash(): Int {
+    var h = topLeftExponent.toBits()
+    h = 31 * h + topRightExponent.toBits()
+    h = 31 * h + bottomRightExponent.toBits()
+    return 31 * h + bottomLeftExponent.toBits()
+  }
+
+  /**
+   * Adds [rect] with [radii] (the 8-float [getRadii] layout) and this box's corner-shape
+   * to [path], so box shadows follow the same shape as the border and background.
+   */
+  fun addShapePath(path: Path, rect: RectF, radii: FloatArray) {
+    if (!hasCornerShape()) {
+      path.addRoundRect(rect, radii, Path.Direction.CW)
+      return
+    }
+    val w = rect.width()
+    val h = rect.height()
+    var f = 1f
+    if (radii[0] + radii[2] > 0f) f = f.coerceAtMost(w / (radii[0] + radii[2]))
+    if (radii[3] + radii[5] > 0f) f = f.coerceAtMost(h / (radii[3] + radii[5]))
+    if (radii[6] + radii[4] > 0f) f = f.coerceAtMost(w / (radii[6] + radii[4]))
+    if (radii[1] + radii[7] > 0f) f = f.coerceAtMost(h / (radii[1] + radii[7]))
+    val x = rect.left
+    val y = rect.top
+    path.moveTo(x + radii[0] * f, y)
+    path.lineTo(x + w - radii[2] * f, y)
+    tempRadius.set(radii[2] * f, radii[3] * f)
+    addCornerToPath(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, x, y)
+    path.lineTo(x + w, y + h - radii[5] * f)
+    tempRadius.set(radii[4] * f, radii[5] * f)
+    addCornerToPath(path, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, x, y)
+    path.lineTo(x + radii[6] * f, y + h)
+    tempRadius.set(radii[6] * f, radii[7] * f)
+    addCornerToPath(path, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, x, y)
+    path.lineTo(x, y + radii[1] * f)
+    tempRadius.set(radii[0] * f, radii[1] * f)
+    addCornerToPath(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, x, y)
+    path.close()
+  }
+
   /** Check if there are any border radii set */
   fun hasRadii(): Boolean {
     return topLeftCorner.x > 0f || topLeftCorner.y > 0f ||
@@ -849,33 +896,34 @@ class BorderRenderer(private val style: Style) {
     exponent: Float,
     width: Float,
     height: Float,
-    ofs: Float = 0f
+    ofs: Float = 0f,
+    ofsY: Float = ofs
   ) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
     if (exponent == 1f) {
       // Use Android's analytic arc with reusable RectF
       when (corner) {
-        Corner.TOP_LEFT -> cornerRect.set(ofs, ofs, ofs + radius.x * 2, ofs + radius.y * 2)
+        Corner.TOP_LEFT -> cornerRect.set(ofs, ofsY, ofs + radius.x * 2, ofsY + radius.y * 2)
         Corner.TOP_RIGHT -> cornerRect.set(
           ofs + width - radius.x * 2,
-          ofs,
+          ofsY,
           ofs + width,
-          ofs + radius.y * 2
+          ofsY + radius.y * 2
         )
 
         Corner.BOTTOM_RIGHT -> cornerRect.set(
           ofs + width - radius.x * 2,
-          ofs + height - radius.y * 2,
+          ofsY + height - radius.y * 2,
           ofs + width,
-          ofs + height
+          ofsY + height
         )
 
         Corner.BOTTOM_LEFT -> cornerRect.set(
           ofs,
-          ofs + height - radius.y * 2,
+          ofsY + height - radius.y * 2,
           ofs + radius.x * 2,
-          ofs + height
+          ofsY + height
         )
       }
 
@@ -930,7 +978,7 @@ class BorderRenderer(private val style: Style) {
 
       // offset by ofs to convert from local (0..width/height) coords to absolute
       px += ofs
-      py += ofs
+      py += ofsY
       path.lineTo(px, py)
     }
   }

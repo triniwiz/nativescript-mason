@@ -44,6 +44,8 @@ private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat", 
 private val WHITESPACE_REGEX = Regex("""\s+""")
 private val COMMA_WHITESPACE_REGEX = Regex("""[\s,]+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
+private val RADIAL_SHAPE_WORDS =
+  setOf("circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner")
 private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
 private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})")
 private val RGBA_REGEX =
@@ -817,6 +819,7 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     var x1 = 0f
     var y1 = 0f
     var radius = 0f
+    var radiusY = 0f
     var fromDeg = 0f
     val lineLength = when (type) {
       "linear" -> {
@@ -828,13 +831,10 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
       "radial" -> {
         val (cx, cy) = resolveRadialGradientCenter(gradient.direction, w, h)
         x0 = cx; y0 = cy
-        // Radius must reach the farthest corner from the resolved centre.
-        radius = maxOf(
-          hypot((cx).toDouble(), (cy).toDouble()),
-          hypot((width - cx).toDouble(), (cy).toDouble()),
-          hypot((cx).toDouble(), (height - cy).toDouble()),
-          hypot((width - cx).toDouble(), (height - cy).toDouble())
-        ).toFloat().coerceAtLeast(1f)
+        val radii = radialGradientRadii(radialShapePart(gradient.direction), cx, cy, w, h)
+        radius = radii[0]
+        radiusY = radii[1]
+        // Stops sit on the horizontal ray, so lengths resolve against rx.
         radius
       }
 
@@ -878,7 +878,10 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     layer.shader = when (type) {
       "linear" -> LinearGradient(x0, y0, x1, y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
 
-      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP)
+      // An ellipse is the circle of radius rx scaled vertically about the centre.
+      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP).apply {
+        if (radiusY != radius) setLocalMatrix(Matrix().apply { setScale(1f, radiusY / radius, x0, y0) })
+      }
 
       // SweepGradient starts at 3 o'clock; CSS conic starts at 12 o'clock, both clockwise.
       "conic" -> SweepGradient(x0, y0, shaderColors, positionsArray).apply {
@@ -1159,13 +1162,75 @@ private fun resolveRadialGradientCenter(
   val defaultCenter = Pair(width / 2f, height / 2f)
   val dir = direction?.trim()?.lowercase() ?: return defaultCenter
 
-  // Extract the position portion after "at "
-  val atIndex = dir.indexOf(" at ")
-  val positionStr = if (atIndex >= 0) dir.substring(atIndex + 4).trim() else return defaultCenter
+  val atIndex = radialAtIndex(dir)
+  val positionStr = if (atIndex >= 0) dir.substring(atIndex + 2).trim() else return defaultCenter
   if (positionStr.isEmpty()) return defaultCenter
 
   return resolvePositionKeywords(positionStr, width, height)
 }
+
+/** Index of the `at` that starts a radial prelude's position, or -1. */
+private fun radialAtIndex(dir: String): Int = when {
+  dir == "at" || dir.startsWith("at ") -> 0
+  else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
+}
+
+/** The `<shape> <size>` part of a radial prelude, without its `at <position>`. */
+internal fun radialShapePart(direction: String?): String? {
+  val dir = direction?.trim()?.lowercase() ?: return null
+  val at = radialAtIndex(dir)
+  return (if (at >= 0) dir.substring(0, at) else dir).trim().ifEmpty { null }
+}
+
+/** True when [token] is a radial prelude (`circle 20px at top`), not a colour stop. */
+internal fun isRadialPrelude(token: String): Boolean {
+  val v = token.trim().lowercase()
+  if (v.isEmpty()) return false
+  val shape = radialShapePart(v) ?: return radialAtIndex(v) == 0
+  val parts = shape.split(WHITESPACE_REGEX)
+  return parts.all { it in RADIAL_SHAPE_WORDS || parseBackgroundLength(it) != null }
+}
+
+/**
+ * The ending shape's radii [rx, ry] in px for a radial [shape] (`circle`, `ellipse`, a size
+ * keyword or explicit radii) centred at [cx], [cy] in a [width] x [height] box, per CSS Images 3.
+ * The default is an ellipse to the farthest corner; a single length is a circle.
+ */
+internal fun radialGradientRadii(
+  shape: String?,
+  cx: Float,
+  cy: Float,
+  width: Float,
+  height: Float,
+  length: (String) -> BackgroundOffset? = ::parseBackgroundLength,
+): FloatArray {
+  val parts = shape?.trim()?.lowercase()?.split(WHITESPACE_REGEX)?.filter { it.isNotEmpty() } ?: emptyList()
+  val lengths = parts.filter { it !in RADIAL_SHAPE_WORDS }.mapNotNull(length)
+  val circle = "circle" in parts || ("ellipse" !in parts && lengths.size == 1)
+  if (lengths.isNotEmpty()) {
+    val rx = lengths[0].fraction * width + lengths[0].px
+    val ry = if (circle || lengths.size < 2) rx else lengths[1].fraction * height + lengths[1].px
+    return floatArrayOf(rx.coerceAtLeast(MIN_RADIAL_RADIUS), ry.coerceAtLeast(MIN_RADIAL_RADIUS))
+  }
+  val size = parts.firstOrNull { it in RADIAL_SHAPE_WORDS && it != "circle" && it != "ellipse" } ?: "farthest-corner"
+  val closest = size.startsWith("closest")
+  val sideX = if (closest) minOf(cx, width - cx) else maxOf(cx, width - cx)
+  val sideY = if (closest) minOf(cy, height - cy) else maxOf(cy, height - cy)
+  val corner = size.endsWith("corner")
+  val out = when {
+    circle && corner -> hypot(sideX, sideY).let { floatArrayOf(it, it) }
+    circle -> (if (closest) minOf(sideX, sideY) else maxOf(sideX, sideY)).let { floatArrayOf(it, it) }
+    // A corner ellipse keeps the side ellipse's aspect ratio and passes through that corner.
+    corner -> floatArrayOf(sideX * SQRT_2, sideY * SQRT_2)
+    else -> floatArrayOf(sideX, sideY)
+  }
+  out[0] = out[0].coerceAtLeast(MIN_RADIAL_RADIUS)
+  out[1] = out[1].coerceAtLeast(MIN_RADIAL_RADIUS)
+  return out
+}
+
+private const val MIN_RADIAL_RADIUS = 1f
+private const val SQRT_2 = 1.4142135f
 
 /**
  * Convert a CSS background-position value (keyword or percentage based) to
@@ -1626,7 +1691,8 @@ fun parseGradient(part: String): Gradient? {
   // `to right in oklab`: the method shares the first argument with the direction.
   val extracted = ColorInterpolation.extract(items.first())
   val first = extracted?.first ?: items.first()
-  val direction = if (first.isNotBlank() && isAngleOrDirection(first)) first.trim() else null
+  val prelude = if (type.equals("radial", ignoreCase = true)) isRadialPrelude(first) else isAngleOrDirection(first)
+  val direction = if (first.isNotBlank() && prelude) first.trim() else null
   val stops = if (direction != null || extracted != null) items.drop(1) else items
 
   return Gradient(type, direction, expandColorStops(stops.map { it.trim() }), extracted?.second)
