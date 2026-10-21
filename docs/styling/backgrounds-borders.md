@@ -89,7 +89,7 @@ The data URL does not need to be percent encoded: quotes, parentheses and commas
 .d { background: linear-gradient(to right in oklab, red, blue); }
 ```
 
-Color stops follow CSS Images: missing positions are spread evenly, the first and last default to 0% and 100%, and a stop with two positions (`red 10% 30%`) is two stops of the same color. An interpolation color space (`in oklab`, `in oklch`, `in srgb-linear`, ...) can follow the direction.
+Color stops follow CSS Images: missing positions are spread evenly, the first and last default to 0% and 100%, a stop placed before an earlier one moves up to it, and a stop with two positions (`red 10% 30%`) is two stops of the same color. Positions can be lengths (`red 0 20px`), so `repeating-` gradients repeat every few pixels. A radial gradient takes a shape (`circle` or the default `ellipse`) and a size: `closest-side`, `closest-corner`, `farthest-side`, `farthest-corner` (the default) or explicit radii (`circle 40px`, `ellipse 60px 30%`). An interpolation color space (`in oklab`, `in oklch`, `in srgb-linear`, ...) can follow the direction.
 
 | Gradient | iOS | Android | Windows |
 | --- | --- | --- | --- |

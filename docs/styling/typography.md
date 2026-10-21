@@ -151,7 +151,7 @@ A bare number assigned from code (`view.style.lineHeight = 24`) has no unit to g
 
 ### text-justify
 
-`auto`, `none`, `inter-word`, `inter-character`, `distribute`. Controls how `text-align: justify` spaces a line. Applied on iOS and Android. Windows honours `none` (no justification) and justifies between words otherwise.
+`auto`, `none`, `inter-word`, `inter-character`, `distribute`. Controls how `text-align: justify` spaces a line. Applied on iOS and Android; `inter-character` and `distribute` need Android 15 (API 35) and justify between words below it. Windows honours `none` (no justification) and justifies between words otherwise.
 
 ### vertical-align
 

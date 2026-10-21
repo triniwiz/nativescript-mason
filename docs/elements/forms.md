@@ -48,7 +48,7 @@ Text-like inputs and buttons are `inline-block` and draw default field or button
 | `accept`, `multiple` | File inputs. |
 
 ::: warning
-There is no `disabled` property on `<input>`, `<textarea>` or `<button>` yet, and no `readonly`, `min`, `max` or `step`.
+There is no `disabled` property yet, and no `readonly`, `min`, `max` or `step`. The `disabled` attribute in `innerHTML` disables `<input>`, `<textarea>` and `<button>` on every platform. On iOS and Android, setting core's `isEnabled` to `false` does the same.
 :::
 
 ## Styling checkboxes and radios
