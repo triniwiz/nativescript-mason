@@ -1051,6 +1051,8 @@ public class CSSFilters {
     } else if trimmed.hasSuffix("grad") {
       return CGFloat(Double(trimmed.dropLast(4)) ?? 0) * 0.9
     } else if trimmed.hasSuffix("rad") {
+      } else {
+        colorParts.append(part)
       return CGFloat(Double(trimmed.dropLast(3)) ?? 0) * 180 / .pi
     } else if trimmed.hasSuffix("turn") {
       return CGFloat(Double(trimmed.dropLast(4)) ?? 0) * 360
@@ -1075,12 +1077,8 @@ public class CSSFilters {
     for part in parts {
       let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
       
-      if trimmed.hasPrefix("#")
-          || trimmed.hasPrefix("rgb(")
-          || trimmed.hasPrefix("rgba(")
-          || colorMap[trimmed] != nil {
-        colorParts.append(part)
-      } else {
+      let number = trimmed.hasSuffix("px") ? String(trimmed.dropLast(2)) : trimmed
+      if Double(number) != nil {
         lengthValues.append(parseCssFloat(part))
       }
     }
@@ -1103,45 +1101,7 @@ public class CSSFilters {
   
   static func parseCssColor(_ value: String) -> UIColor {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if let color = colorMap[value] {
-      return color
-    }
-    if trimmed.hasPrefix("#") {
-      let hex = String(trimmed.dropFirst())
-      switch hex.count {
-      case 3:
-        let r = CGFloat(Int(String(repeating: hex[hex.startIndex], count: 2), radix: 16)!) / 255
-        let g = CGFloat(Int(String(repeating: hex[hex.index(hex.startIndex, offsetBy: 1)], count: 2), radix: 16)!) / 255
-        let b = CGFloat(Int(String(repeating: hex[hex.index(hex.startIndex, offsetBy: 2)], count: 2), radix: 16)!) / 255
-        return UIColor(red: r, green: g, blue: b, alpha: 1)
-      case 6:
-        let intVal = Int(hex, radix: 16)!
-        let r = CGFloat((intVal >> 16) & 0xFF)/255
-        let g = CGFloat((intVal >> 8) & 0xFF)/255
-        let b = CGFloat(intVal & 0xFF)/255
-        return UIColor(red: r, green: g, blue: b, alpha: 1)
-      case 8:
-        let intVal = Int(hex, radix: 16)!
-        let a = CGFloat((intVal >> 24) & 0xFF)/255
-        let r = CGFloat((intVal >> 16) & 0xFF)/255
-        let g = CGFloat((intVal >> 8) & 0xFF)/255
-        let b = CGFloat(intVal & 0xFF)/255
-        return UIColor(red: r, green: g, blue: b, alpha: a)
-      default:
-        return .black
-      }
-    } else if trimmed.hasPrefix("rgb(") {
-      let nums = trimmed.dropFirst(4).dropLast().split(separator: ",").map { CGFloat(Double($0.trimmingCharacters(in: .whitespaces)) ?? 0) }
-      return UIColor(red: nums[0]/255, green: nums[1]/255, blue: nums[2]/255, alpha: 1)
-    } else if trimmed.hasPrefix("rgba(") {
-      let nums = trimmed.dropFirst(5).dropLast().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-      let r = CGFloat(Double(nums[0]) ?? 0)/255
-      let g = CGFloat(Double(nums[1]) ?? 0)/255
-      let b = CGFloat(Double(nums[2]) ?? 0)/255
-      let a = CGFloat(Double(nums[3]) ?? 1)
-      return UIColor(red: r, green: g, blue: b, alpha: a)
-    }
-    return .black
+    return colorMap[trimmed] ?? UIColor(css: trimmed) ?? .black
   }
   
 }
