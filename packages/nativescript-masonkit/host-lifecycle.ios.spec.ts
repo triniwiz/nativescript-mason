@@ -17,6 +17,7 @@ afterEach(() => vi.restoreAllMocks());
 function host() {
   const children: object[] = [];
   const native = {
+    requestLayout: vi.fn(),
     addViewAt(child: object, index: number) {
       expect(children).not.toContain(child);
       children.splice(Math.max(0, Math.min(index, children.length)), 0, child);
