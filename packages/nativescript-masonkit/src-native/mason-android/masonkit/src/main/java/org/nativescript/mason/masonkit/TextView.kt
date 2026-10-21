@@ -49,7 +49,8 @@ internal class ThemelessContext private constructor(base: Context, template: and
   ContextThemeWrapper(base, base.resources.newTheme()) {
   // The paint a themed platform TextView starts with (flags, typeface, density, locale).
   // TextPaint.set, unlike the copy constructor, also copies density, which dip sizes use.
-  private val templatePaint = TextPaint().apply { set(template.paint) }
+  // Unhinted advances: whole-pixel glyphs drift at fractional densities (2.625, 2.75).
+  private val templatePaint = TextPaint().apply { set(template.paint); isSubpixelText = true; isLinearText = true }
 
   fun newTextPaint(): TextPaint = TextPaint().apply { set(templatePaint) }
 
@@ -61,7 +62,7 @@ internal class ThemelessContext private constructor(base: Context, template: and
     fun textPaint(context: Context): TextPaint {
       val wrapped = wrap(context)
       return (wrapped as? ThemelessContext)?.newTextPaint()
-        ?: TextPaint().apply { set(android.widget.TextView(context).paint) }
+        ?: TextPaint().apply { set(android.widget.TextView(context).paint); isSubpixelText = true; isLinearText = true }
     }
 
     fun wrap(context: Context): Context {

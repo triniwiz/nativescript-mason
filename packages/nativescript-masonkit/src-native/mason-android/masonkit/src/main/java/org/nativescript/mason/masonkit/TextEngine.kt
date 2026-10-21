@@ -101,6 +101,12 @@ private fun hasSoftWrapOpportunity(text: CharSequence, softHyphens: Boolean = fa
   return false
 }
 
+// Text widths round up to 1/64 px, not a whole pixel, so fractional densities don't drift.
+private fun ceilFine(v: Float): Float = ceil(v * 64f - 0.01f) / 64f
+
+// A wrap width that a fractional box width fits in; flooring it re-wraps the last word.
+private fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
+
 /**
  * Compute the widest segment between soft wrap opportunities in [text] without
  * allocating a split array.
@@ -139,7 +145,7 @@ private fun maxWordWidth(
     }
     i++
   }
-  return ceil(maxW)
+  return ceilFine(maxW)
 }
 
 class TextEngine(val container: TextContainer) {
@@ -726,7 +732,7 @@ class TextEngine(val container: TextContainer) {
     // `knownWidth` is Taffy's resolved box width, which may be narrower than nowrap
     // content's intrinsic width (e.g. under overflow:hidden); don't wrap to it in that case.
     if (allowWrap && knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
-      widthConstraint = knownWidth.toInt()
+      widthConstraint = ceilConstraint(knownWidth)
     }
 
     if (isInline) {
@@ -738,7 +744,7 @@ class TextEngine(val container: TextContainer) {
     // padding again here — that would double-count it. Skip entirely when
     // wrapping is disabled so nowrap text stays unconstrained.
     if (allowWrap && widthConstraint == Int.MAX_VALUE && availableWidth.isFinite() && availableWidth > 0f) {
-      widthConstraint = availableWidth.toInt()
+      widthConstraint = ceilConstraint(availableWidth)
     }
 
     // Respect style `max-width` when present (Points only), clamping so
@@ -1941,7 +1947,7 @@ class TextEngine(val container: TextContainer) {
       var max = 0f
       var left = true
       for (i in 0 until layout.lineCount) {
-        var w = ceil(
+        var w = ceilFine(
           when {
             keepsTrailingSpaces -> layout.getLineWidth(i)
             advances != null -> advanceSum(advances, layout.getLineStart(i), layout.getLineVisibleEnd(i))
@@ -1973,7 +1979,7 @@ class TextEngine(val container: TextContainer) {
     var end = 0
     while (end < text.length && !text[end].isSoftWrapOpportunity()) end++
     if (end == 0) return 0f
-    return ceil(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
+    return ceilFine(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
   }
 
   private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
@@ -2001,7 +2007,7 @@ class TextEngine(val container: TextContainer) {
     var run: Spans.RunStyleSpan? = null
     for (span in text.getSpans(0, text.length, Any::class.java)) {
       when (span) {
-        is AlignmentSpan -> {}
+        is AlignmentSpan, is LineHeightSpan -> {}
         is Spans.RunStyleSpan -> {
           if (run != null || text.getSpanStart(span) != 0 || text.getSpanEnd(span) != text.length) return null
           run = span
@@ -2060,8 +2066,8 @@ class TextEngine(val container: TextContainer) {
     // BoringLayout ignores paragraph spans, so apply line-height to the one line as StaticLayout does.
     for (span in paragraphSpans) {
       when (span) {
-        is LineHeightSpan.WithDensity -> span.chooseHeight(text, 0, len, 0, m.descent - m.ascent, m, paint)
-        is LineHeightSpan -> span.chooseHeight(text, 0, len, 0, m.descent - m.ascent, m)
+        is LineHeightSpan.WithDensity -> span.chooseHeight(text, 0, len, 0, 0, m, paint)
+        is LineHeightSpan -> span.chooseHeight(text, 0, len, 0, 0, m)
       }
     }
     m.width = ceil(visibleWidth).toInt()
@@ -2237,8 +2243,8 @@ class TextEngine(val container: TextContainer) {
           android.util.TypedValue.COMPLEX_UNIT_SP,
           fontSize.toFloat(),
           dm
-        ).toInt()
-        spannable.setSpan(AbsoluteSizeSpan(px, false), start, end, flags)
+        )
+        spannable.setSpan(Spans.PxSizeSpan(px), start, end, flags)
       } catch (_: Throwable) {
         spannable.setSpan(AbsoluteSizeSpan(fontSize, true), start, end, flags)
       }
@@ -2324,17 +2330,20 @@ class TextEngine(val container: TextContainer) {
     // Resolve line-height to an absolute dip value (multiplier * font-size) and use
     // the idempotent FixedLineHeightSpan. RelativeLineHeightSpan multiplies the
     // already-modified metrics on each repeated chooseHeight() call -> exponential blowup.
-    lineHeight.takeIf { it > 0 }?.let {
+    if (lineHeight > 0) {
       if (lineType == StyleState.SET) {
-        spannable.setSpan(FixedLineHeightSpan(it.toInt()), start, end, flags)
+        spannable.setSpan(FixedLineHeightSpan(lineHeight), start, end, flags)
       } else {
         val fontSizeDip = container.style.resolvedFontSize.takeIf { fs -> fs > 0 }
           ?: Constants.DEFAULT_FONT_SIZE
-        val absolute = (it * fontSizeDip).toInt()
-        if (absolute > 0) {
+        val absolute = lineHeight * fontSizeDip
+        if (absolute > 0f) {
           spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
         }
       }
+    } else {
+      val fontSizeDip = (fontSize.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
+      spannable.setSpan(TextNode.NormalLineHeightSpan(fontSizeDip, fontFace.resolvedTypeface), start, end, flags)
     }
 
     val align = when (style.resolvedTextAlign) {

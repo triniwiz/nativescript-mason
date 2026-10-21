@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
 import android.graphics.Paint
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.TextUtils
@@ -86,22 +88,84 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     return this
   }
 
-  class FixedLineHeightSpan(private val heightDip: Int) : LineHeightSpan.WithDensity {
+  /** Rounds each line's bottom rather than its height, so fractions don't add up across lines. */
+  internal class LineBoxes {
+    private var lastTop = -1
+    private var lastBase = 0f
+    private var lastBottom = 0f
 
-    private fun choose(
-      fm: Paint.FontMetricsInt, scale: Float = 1f
-    ) {
-      val originalHeight = fm.descent - fm.ascent
-      if (originalHeight <= 0) return
-
-      val diff = (heightDip * scale).toInt() - originalHeight
+    fun apply(fm: Paint.FontMetricsInt, spanstartv: Int, v: Int, height: Float) {
+      val top = v - spanstartv
+      val base = when {
+        top <= 0 -> 0f
+        // chooseHeight can run twice for one line.
+        top == lastTop -> lastBase
+        abs(lastBottom - top) < 1f -> lastBottom
+        else -> top.toFloat()
+      }
+      val bottom = base + height
+      lastTop = top
+      lastBase = base
+      lastBottom = bottom
+      val diff = (bottom.roundToInt() - top) - (fm.descent - fm.ascent)
       if (diff == 0) return
-
       val half = diff / 2
       fm.ascent -= half
       fm.descent += (diff - half)
       fm.top = fm.ascent
       fm.bottom = fm.descent
+    }
+  }
+
+  class FixedLineHeightSpan(private val heightDip: Float) : LineHeightSpan.WithDensity {
+    private val boxes = LineBoxes()
+
+    override fun chooseHeight(
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      spanstartv: Int,
+      lineHeight: Int,
+      fm: Paint.FontMetricsInt?,
+      paint: TextPaint?
+    ) {
+      fm?.let { if (it.descent - it.ascent > 0) boxes.apply(it, spanstartv, lineHeight, heightDip * (paint?.density ?: 1f)) }
+    }
+
+    override fun chooseHeight(
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      spanstartv: Int,
+      lineHeight: Int,
+      fm: Paint.FontMetricsInt?
+    ) {
+      fm?.let { if (it.descent - it.ascent > 0) boxes.apply(it, spanstartv, lineHeight, heightDip) }
+    }
+  }
+
+  /** line-height: normal: a single-font line gets its exact ascent + descent; mixed fonts keep StaticLayout's height. */
+  class NormalLineHeightSpan(private val fontSizeDip: Float, private val typeface: android.graphics.Typeface?) :
+    LineHeightSpan.WithDensity {
+    private val boxes = LineBoxes()
+    private var density = 0f
+    private var exact = 0f
+    private var intAscent = 0
+    private var intDescent = 0
+
+    private fun resolve(paint: TextPaint) {
+      if (paint.density == density && exact > 0f) return
+      val p = TextPaint().apply {
+        set(paint)
+        textSize = fontSizeDip * paint.density
+        this@NormalLineHeightSpan.typeface?.let { typeface = it }
+      }
+      val f = p.fontMetrics
+      val i = p.fontMetricsInt
+      density = paint.density
+      exact = f.descent - f.ascent
+      intAscent = i.ascent
+      intDescent = i.descent
     }
 
     override fun chooseHeight(
@@ -113,11 +177,13 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       fm: Paint.FontMetricsInt?,
       paint: TextPaint?
     ) {
-      fm?.let {
-        choose(it, paint?.density ?: 1f)
-      }
+      val m = fm ?: return
+      val own = m.descent - m.ascent
+      if (own <= 0 || fontSizeDip <= 0f || paint == null) return
+      resolve(paint)
+      val height = if (m.ascent == intAscent && m.descent == intDescent) exact else own.toFloat()
+      boxes.apply(m, spanstartv, lineHeight, height)
     }
-
 
     override fun chooseHeight(
       text: CharSequence?,
@@ -126,11 +192,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       spanstartv: Int,
       lineHeight: Int,
       fm: Paint.FontMetricsInt?
-    ) {
-      fm?.let {
-        choose(it)
-      }
-    }
+    ) {}
   }
 
   class RelativeLineHeightSpan(private val multiplier: Float) : LineHeightSpan {
@@ -246,16 +308,20 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       // Resolve line-height to absolute (multiplier * font-size) + idempotent
       // FixedLineHeightSpan; RelativeLineHeightSpan compounds on repeated
       // chooseHeight() calls into an exponential blowup.
-      attributes.lineHeight?.let { lineHeight ->
+      val lineHeight = attributes.lineHeight?.takeIf { it > 0 }
+      if (lineHeight == null) {
+        val fontSizeDip = (attributes.fontSize?.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
+        spannable.setSpan(NormalLineHeightSpan(fontSizeDip, typeface), start, end, flags)
+      } else {
         val type = attributes.lineHeightType ?: 0
-        lineHeight.takeIf { it > 0 }?.let {
+        lineHeight.let {
           if (type == StyleState.SET) {
-            spannable.setSpan(FixedLineHeightSpan(it.toInt()), start, end, flags)
+            spannable.setSpan(FixedLineHeightSpan(it), start, end, flags)
           } else {
             val fontSizeDip = (attributes.fontSize?.takeIf { fs -> fs > 0 }
               ?: Constants.DEFAULT_FONT_SIZE).toFloat()
-            val absolute = (it * fontSizeDip).toInt()
-            if (absolute > 0) {
+            val absolute = it * fontSizeDip
+            if (absolute > 0f) {
               spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
             }
           }

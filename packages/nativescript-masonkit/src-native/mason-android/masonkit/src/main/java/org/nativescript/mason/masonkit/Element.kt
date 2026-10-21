@@ -1077,19 +1077,19 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val styleReady = nodeStyle.isValueInitialized
           val boxing = if (styleReady) nodeStyle.values.get(StyleKeys.BOX_SIZING) else BoxSizing.BorderBox.value
 
-          // Text snaps outward so its view is never narrower than the width it was
-          // measured at (a lost pixel re-wraps the last word). Other boxes round
-          // both edges, as taffy and browsers do, so siblings share edges exactly.
+          // Content-sized text snaps outward so it keeps the width it was measured at; other boxes round both edges.
           val fx = nv.x.orZero()
           val fy = nv.y.orZero()
           val fw = nv.width.orZero()
           val fh = nv.height.orZero()
-          val snapOutward = view is TextContainer
-          var x = if (snapOutward) floor(fx).toInt() else round(fx).toInt()
-          var y = if (snapOutward) floor(fy).toInt() else round(fy).toInt()
+          val isText = view is TextContainer
+          val outX = isText && !(styleReady && isDefiniteSizeType(nodeStyle.values.get(StyleKeys.WIDTH_TYPE)))
+          val outY = isText && !(styleReady && isDefiniteSizeType(nodeStyle.values.get(StyleKeys.HEIGHT_TYPE)))
+          var x = if (outX) floor(fx).toInt() else round(fx).toInt()
+          var y = if (outY) floor(fy).toInt() else round(fy).toInt()
 
-          var width = (if (snapOutward) ceil(fx + fw) else round(fx + fw)).toInt() - x
-          var height = (if (snapOutward) ceil(fy + fh) else round(fy + fh)).toInt() - y
+          var width = (if (outX) ceil(fx + fw) else round(fx + fw)).toInt() - x
+          var height = (if (outY) ceil(fy + fh) else round(fy + fh)).toInt() - y
 
           // Foreign views are leaf nodes. If the first pass produced an empty
           // axis, remeasure outside Rust's lock so nested Mason children can
@@ -1334,3 +1334,6 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
     releaseDfsState()
   }
 }
+
+// Dimension types 1 (points) and 2 (percent) are definite; 0 is auto, the rest are keywords.
+private fun isDefiniteSizeType(type: Byte): Boolean = type == 1.toByte() || type == 2.toByte()
