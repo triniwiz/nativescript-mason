@@ -1738,13 +1738,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!view) return;
     if (__ANDROID__) {
       //@ts-ignore
-      if (typeof view.removeChild === 'function') view.removeChild(node);
+      if (node && typeof view.removeChild === 'function') view.removeChild(node);
       //@ts-ignore
       else view.removeChildAt(index);
     }
     if (__APPLE__) {
       //@ts-ignore
-      if (view.mason_removeChildNode) view.mason_removeChildNode(node);
+      if (node && view.mason_removeChildNode) view.mason_removeChildNode(node);
       //@ts-ignore
       else view.mason_removeChildAt?.(index);
     }
@@ -1781,27 +1781,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChildren() {
-    if (this._viewChildren.length === 0) {
+    if (this._children.length === 0) {
       return;
     }
     this._masonSettleNativeAdds();
-    for (const child of this._viewChildren) {
-      // @ts-ignore
-      child._isMasonChild = false;
-      if (child instanceof NSView) {
-        this._removeView(child);
+    // Snapshot because each removal updates the raw list. It includes text
+    // runs and placeholders, which are absent from _viewChildren.
+    for (const child of [...this._children] as any[]) {
+      if (child?.[textNode_]) {
+        // Clear the framework node's binding too, so it can be adopted again.
+        this.removeChild(child[textNode_].__raw__ ?? child);
+      } else if (child && text_ in child && !(child instanceof NSView) && !child[isPlaceholder_]) {
+        // Legacy string children have a native slot but no saved node handle.
+        const index = this._children.indexOf(child);
+        this._nativeRemoveChildNode(undefined, index);
+        this._children.splice(index, 1);
+      } else {
+        this.removeChild(child);
       }
     }
-    if (__WINDOWS__) {
-      this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
-      for (const c of this._children as any[]) {
-        if (!c) continue;
-        c[anonymousText_] = undefined;
-        c[runMember_] = undefined;
-      }
-    }
-    this._children.splice(0);
     this._invalidateAttachCursor();
+    this.requestLayout();
   }
 
   [zIndexProperty.setNative](value: number) {
