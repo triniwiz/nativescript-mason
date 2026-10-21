@@ -19,11 +19,46 @@ export interface CssUnitContext {
   viewportHeight: number;
 }
 
+type ViewportSize = { width: number; height: number };
+
+let viewportProvider: (() => ViewportSize) | null = null;
+let liveViewport: ViewportSize | null = null;
+const viewportOverride: { width?: number; height?: number } = {};
+
+/** The live viewport, read at most once per JS turn. */
+function currentViewport(): ViewportSize | null {
+  if (!viewportProvider) return null;
+  if (!liveViewport) {
+    liveViewport = viewportProvider();
+    Promise.resolve().then(() => (liveViewport = null));
+  }
+  return liveViewport;
+}
+
 export const cssUnits: CssUnitContext = {
   rootFontSize: 16,
-  viewportWidth: 0,
-  viewportHeight: 0,
+  get viewportWidth() {
+    return viewportOverride.width ?? currentViewport()?.width ?? 0;
+  },
+  set viewportWidth(value: number) {
+    viewportOverride.width = value;
+  },
+  get viewportHeight() {
+    return viewportOverride.height ?? currentViewport()?.height ?? 0;
+  },
+  set viewportHeight(value: number) {
+    viewportOverride.height = value;
+  },
 };
+
+/**
+ * Resolve `vw`/`vh` against `provider` (the window size in CSS px) at the time each style is
+ * written, so a rotation or resize is picked up. A value set through `setCssUnitContext` wins.
+ */
+export function setViewportProvider(provider: (() => ViewportSize) | null): void {
+  viewportProvider = provider;
+  liveViewport = null;
+}
 
 export function setCssUnitContext(context: Partial<CssUnitContext>): void {
   if (typeof context.rootFontSize === 'number' && context.rootFontSize > 0) {
