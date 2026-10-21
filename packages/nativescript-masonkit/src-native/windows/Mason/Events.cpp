@@ -3,6 +3,7 @@
 #include "Event.h"
 #include "Text.h"
 #include "CssMask.h"
+#include "ScrollHost.h"
 #include <unordered_map>
 #include <vector>
 #include <winrt/Microsoft.UI.Dispatching.h>
@@ -225,6 +226,7 @@ namespace mason_events
         const int64_t id = g_nextId++;
         entry.listeners.push_back({ id, type, listener });
         if (type == L"click") HookTaps(element);
+        else if (type == L"scroll" || type == L"scrollend") mason_scroll::Listen(element);
         return id;
     }
 

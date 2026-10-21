@@ -526,6 +526,48 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
   }
   
 
+  // Scroll offsets and sizes, in points. NaN keeps an axis in mason_scrollTo.
+  @objc public var mason_scrollLeft: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.offset(element).x)
+  }
+
+  @objc public var mason_scrollTop: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.offset(element).y)
+  }
+
+  @objc public var mason_scrollWidth: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.scrollSize(element).width)
+  }
+
+  @objc public var mason_scrollHeight: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.scrollSize(element).height)
+  }
+
+  @objc public var mason_clientWidth: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.clientSize(element).width)
+  }
+
+  @objc public var mason_clientHeight: Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return Double(MasonWebScroll.clientSize(element).height)
+  }
+
+  @objc public func mason_scrollTo(_ x: Double, _ y: Double, _ smooth: Bool) {
+    guard let element = self as? MasonElement else { return }
+    MasonWebScroll.scrollTo(element, CGFloat(x), CGFloat(y), smooth: smooth)
+  }
+
+  /// `block`/`inline`: 0 start, 1 center, 2 end, 3 nearest.
+  @objc public func mason_scrollIntoView(_ block: Int, _ inline: Int, _ smooth: Bool) {
+    guard let element = self as? MasonElement else { return }
+    MasonWebScroll.scrollIntoView(element, block: block, inline: inline, smooth: smooth)
+  }
+
   @objc public func mason_dispatch(_ event: MasonEvent) {
     guard let element = self as? MasonEventTarget else { return}
     element.dispatch(event)

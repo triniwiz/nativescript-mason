@@ -647,6 +647,22 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_addEventListener(event: string, listener: (p1: MasonEvent) => void): NSUUID;
 
+	readonly mason_clientHeight: number;
+
+	readonly mason_clientWidth: number;
+
+	readonly mason_scrollHeight: number;
+
+	mason_scrollIntoView(block: number, inline: number, smooth: boolean): void;
+
+	readonly mason_scrollLeft: number;
+
+	mason_scrollTo(x: number, y: number, smooth: boolean): void;
+
+	readonly mason_scrollTop: number;
+
+	readonly mason_scrollWidth: number;
+
 	mason_addView(view: UIView): void;
 
 	mason_addViewAt(view: UIView, at: number): void;

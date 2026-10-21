@@ -52,5 +52,17 @@ namespace NativeScript.Mason
         void RemoveEventListener(Microsoft.UI.Xaml.UIElement element, String type, Int64 id);
 
         Object ElementFromPoint(Microsoft.UI.Xaml.UIElement element, Single x, Single y);
+
+        // Scroll offsets and sizes, in DIPs. Size reads run a pending layout pass first.
+        Double ScrollLeft(Microsoft.UI.Xaml.UIElement element);
+        Double ScrollTop(Microsoft.UI.Xaml.UIElement element);
+        Double ScrollWidth(Microsoft.UI.Xaml.UIElement element);
+        Double ScrollHeight(Microsoft.UI.Xaml.UIElement element);
+        Double ClientWidth(Microsoft.UI.Xaml.UIElement element);
+        Double ClientHeight(Microsoft.UI.Xaml.UIElement element);
+        // NaN keeps an axis.
+        void ScrollTo(Microsoft.UI.Xaml.UIElement element, Double left, Double top, Boolean smooth);
+        // block/inlineMode: 0 start, 1 center, 2 end, 3 nearest.
+        void ScrollIntoView(Microsoft.UI.Xaml.UIElement element, Int32 block, Int32 inlineMode, Boolean smooth);
     }
 }

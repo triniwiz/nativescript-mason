@@ -30,6 +30,8 @@ extension MasonEventTarget {
       let id = node.mason.addEventListener(node, event, listener)
       if event == "click" {
         ensureClickGesture()
+      } else if event == "scroll" || event == "scrollend" {
+        node.listensForScroll = true
       }
       return id
     }

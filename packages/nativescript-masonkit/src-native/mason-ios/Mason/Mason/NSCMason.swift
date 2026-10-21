@@ -208,6 +208,15 @@ public class NSCMason: NSObject {
       }
   }
 
+  /// Calls only `node`'s own listeners, for events that don't bubble (scroll, scrollend).
+  internal func dispatchAtTarget(_ event: MasonEvent, _ node: MasonNode) {
+      guard let listeners = nodeEventListeners[node]?[event.type] else { return }
+      for listener in Array(listeners.values) {
+          if event.immediatePropagationStopped { break }
+          listener(event)
+      }
+  }
+
   internal func hasListener(_ node: MasonNode, _ type: String) -> Bool {
       return nodeEventListeners[node]?[type]?.isEmpty == false
   }

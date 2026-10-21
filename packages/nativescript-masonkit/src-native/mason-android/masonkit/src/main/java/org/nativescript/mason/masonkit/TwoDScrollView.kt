@@ -27,6 +27,7 @@ import androidx.core.view.isNotEmpty
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 
 /**
@@ -212,6 +213,87 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     scrollBy(ldx, ldy) // scrollTo override clamps to [0, range]
     out[0] = scrollX - oldX
     out[1] = scrollY - oldY
+  }
+
+  /** The furthest scrollX/scrollY can go (0 on an axis that doesn't scroll). */
+  internal val maxScrollX: Int get() = if (enableScrollX) getScrollRangeX() else 0
+  internal val maxScrollY: Int get() = if (enableScrollY) getScrollRangeY() else 0
+
+  // A finger is down on this view or a fling/smooth scroll is running.
+  private var touchActive = false
+  internal val isScrollInMotion: Boolean get() = touchActive || scroller?.isFinished == false
+
+  /** A drag, fling or smooth scroll stopped. */
+  protected open fun onScrollMotionEnded() {}
+
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_DOWN -> touchActive = true
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+        val handled = super.dispatchTouchEvent(ev)
+        touchActive = false
+        onScrollMotionEnded()
+        return handled
+      }
+    }
+    return super.dispatchTouchEvent(ev)
+  }
+
+  // A detached view doesn't draw, so computeScroll would never finish a fling or smooth scroll.
+  override fun onDetachedFromWindow() {
+    val moving = isScrollInMotion
+    scroller?.abortAnimation()
+    stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+    touchActive = false
+    // Still attached here, so a posted "scrollend" runs.
+    if (moving) onScrollMotionEnded()
+    super.onDetachedFromWindow()
+  }
+
+  // scrollTo made before layout; NaN keeps an axis.
+  private var pendingScrollX = Float.NaN
+  private var pendingScrollY = Float.NaN
+  private var pendingScrollSmooth = false
+  internal var hasPendingScroll = false
+    private set
+
+  /** Keeps a scrollTo made before layout for the next layout pass; a later one replaces it per axis. */
+  internal fun setPendingScroll(x: Float, y: Float, smooth: Boolean) {
+    if (!x.isNaN()) pendingScrollX = x
+    if (!y.isNaN()) pendingScrollY = y
+    pendingScrollSmooth = smooth
+    hasPendingScroll = true
+  }
+
+  /** Applies a pending scrollTo, clamped to the scroll range now known. */
+  internal fun applyPendingScroll() {
+    if (!hasPendingScroll) return
+    hasPendingScroll = false
+    val x = if (pendingScrollX.isNaN()) scrollX else pendingScrollX.roundToInt()
+    val y = if (pendingScrollY.isNaN()) scrollY else pendingScrollY.roundToInt()
+    pendingScrollX = Float.NaN
+    pendingScrollY = Float.NaN
+    webScrollTo(x, y, pendingScrollSmooth)
+  }
+
+  /** Scrolls to (x, y), clamped to the scroll range; [smooth] animates it. */
+  internal fun webScrollTo(x: Int, y: Int, smooth: Boolean) {
+    val wasAnimating = !scroller!!.isFinished
+    if (wasAnimating) scroller!!.abortAnimation()
+    val dx = x.coerceIn(0, maxScrollX) - scrollX
+    val dy = y.coerceIn(0, maxScrollY) - scrollY
+    if (dx == 0 && dy == 0) {
+      if (wasAnimating) onScrollMotionEnded()
+      return
+    }
+    if (smooth && isAttachedToWindow) {
+      lastScrollerX = scrollX
+      lastScrollerY = scrollY
+      scroller!!.startScroll(scrollX, scrollY, dx, dy)
+      postInvalidateOnAnimation()
+    } else {
+      scrollTo(scrollX + dx, scrollY + dy)
+    }
   }
 
   private fun getScrollRangeX(): Int =
@@ -475,6 +557,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       postInvalidateOnAnimation()
     } else {
       stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+      onScrollMotionEnded()
     }
   }
 

@@ -185,6 +185,16 @@ declare namespace NativeScript.Mason {
     AddEventListener(element: any, type: string, listener: any): number;
     ElementFromPoint(element: any, x: number, y: number): any;
     RemoveEventListener(element: any, type: string, id: number): void;
+    // Scroll offsets and sizes in DIPs; NaN keeps an axis in ScrollTo.
+    ScrollLeft(element: any): number;
+    ScrollTop(element: any): number;
+    ScrollWidth(element: any): number;
+    ScrollHeight(element: any): number;
+    ClientWidth(element: any): number;
+    ClientHeight(element: any): number;
+    ScrollTo(element: any, left: number, top: number, smooth: boolean): void;
+    // block/inlineMode: 0 start, 1 center, 2 end, 3 nearest.
+    ScrollIntoView(element: any, block: number, inlineMode: number, smooth: boolean): void;
   }
 
   // Implemented by every Mason element (View + the leaf controls). A parent View pulls any child's

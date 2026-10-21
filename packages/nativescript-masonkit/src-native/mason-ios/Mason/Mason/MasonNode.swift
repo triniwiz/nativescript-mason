@@ -258,6 +258,10 @@ public class MasonNode: NSObject {
   /// the touched one up to it allows.
   @objc public var touchAction: Int = 7
   internal var hasClickGesture: Bool = false
+  // Set when a "scroll"/"scrollend" listener is added; until then scrolling queues no events.
+  internal var listensForScroll: Bool = false
+  // A scrollTo made before this node was laid out, applied by the next layout pass.
+  internal var hasPendingScroll: Bool = false
   // <details>/<summary> (see MasonDetails): 0 none, 1 details, 2 summary.
   internal var detailsRole = 0
   internal var detailsOpen = false
