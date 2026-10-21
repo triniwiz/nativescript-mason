@@ -9,8 +9,7 @@ import CoreText
 import FontManager
 import Foundation
 @_exported import Mason
-import MetalKit
-import MetalPerformanceShaders
+import Metal
 import QuartzCore
 import Swift
 import UIKit
@@ -894,7 +893,6 @@ public struct MasonNodeView {
     public func reset()
     public func parse(css: Swift.String)
     public func invalidate()
-    public func applyFast(in context: CoreGraphics.CGContext, rect: CoreFoundation.CGRect) -> Swift.Bool
     public func apply(to view: UIKit.UIView)
     public func applyAsBackdrop(to view: UIKit.UIView, clipPathProvider: (() -> UIKit.UIBezierPath?)? = nil)
     @objc deinit
@@ -1402,6 +1400,9 @@ public struct StyleKeys {
   public static let MAX_INLINE_TRANSFORM_OPS: Swift.Int
   public static let TRANSFORM_FLAG_HAS_MATRIX: Swift.UInt8
   public static let TRANSFORM_FLAG_IS_3D: Swift.UInt8
+  public static let TRANSFORM_FLAG_HAS_PERCENT: Swift.UInt8
+  public static let TRANSFORM_OP_A_PERCENT: Swift.UInt8
+  public static let TRANSFORM_OP_B_PERCENT: Swift.UInt8
 }
 @objc public enum TransformOpType : Swift.UInt8 {
   case none = 0
