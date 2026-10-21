@@ -20,6 +20,47 @@ interface LayoutProperty {
 
 const foreignStyle_ = Symbol('mason:foreignStyle');
 const foreignProto_ = Symbol('mason:foreignProto');
+const foreignMeasure_ = Symbol('mason:foreignMeasure');
+
+interface ForeignMeasure {
+  invalidate: () => void;
+  isMeasuring: () => boolean;
+  requestLayout: (...args: any[]) => any;
+  own?: PropertyDescriptor;
+  pending?: ReturnType<typeof setTimeout>;
+}
+
+/** Invalidate native measurement before core forwards a content change to its parent. */
+export function observeForeignMeasurement(view: any, invalidate: () => void, isMeasuring: () => boolean): void {
+  const existing = view[foreignMeasure_] as ForeignMeasure | undefined;
+  if (existing) {
+    existing.invalidate = invalidate;
+    existing.isMeasuring = isMeasuring;
+    return;
+  }
+  const original = view.requestLayout;
+  if (typeof original !== 'function') return;
+  const state: ForeignMeasure = {
+    invalidate,
+    isMeasuring,
+    own: Object.getOwnPropertyDescriptor(view, 'requestLayout'),
+    requestLayout(this: any, ...args: any[]) {
+      // Rust holds the engine lock while calling core's measure. Retry on
+      // the next turn, coalesced, and request layout again after invalidating.
+      if (state.isMeasuring()) {
+        state.pending ??= setTimeout(() => {
+          state.pending = undefined;
+          state.requestLayout.apply(this, args);
+        }, 0);
+      } else {
+        state.invalidate();
+      }
+      return original.apply(this, args);
+    },
+  };
+  Object.defineProperty(view, 'requestLayout', { value: state.requestLayout, configurable: true, writable: true, enumerable: state.own?.enumerable ?? false });
+  view[foreignMeasure_] = state;
+}
 
 // Core px objects are device pixels; Mason reads px as CSS pixels, and numbers as dip.
 function toMason(value: any): any {
@@ -120,8 +161,17 @@ export function adoptForeignLayout(view: any): void {
   if (grid) writeGrid(helper, style);
 }
 
-/** Stop mirroring and give the child its own Style prototype back. */
+/** Stop observing the child and restore its requestLayout method and Style prototype. */
 export function releaseForeignLayout(view: any): void {
+  const measure = view?.[foreignMeasure_] as ForeignMeasure | undefined;
+  if (measure) {
+    if (measure.pending !== undefined) clearTimeout(measure.pending);
+    if (view.requestLayout === measure.requestLayout) {
+      if (measure.own) Object.defineProperty(view, 'requestLayout', measure.own);
+      else delete view.requestLayout;
+    }
+    delete view[foreignMeasure_];
+  }
   if (!view?.[foreignStyle_]) return;
   view[foreignStyle_] = undefined;
   const style = view.style;

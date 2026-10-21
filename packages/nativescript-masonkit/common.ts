@@ -54,7 +54,7 @@ import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
-import { adoptForeignLayout, releaseForeignLayout } from './foreign-layout';
+import { adoptForeignLayout, observeForeignMeasurement, releaseForeignLayout } from './foreign-layout';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -501,6 +501,8 @@ let windowsInnerHTML: ((view: any, html: string) => void) | undefined;
 export function setWindowsInnerHTML(build: (view: any, html: string) => void) {
   windowsInnerHTML = build;
 }
+
+const measuringForeignEngines = new WeakSet<object>();
 
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _children: (NSView | { text?: string } | TextNode)[] = [];
@@ -1275,6 +1277,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (typeof mason?.setMeasureForViewBlock !== 'function') return;
     const parentRef = new WeakRef(this);
     const childRef = new WeakRef(child);
+    observeForeignMeasurement(
+      child,
+      () => {
+        const native = childRef.deref()?.nativeViewProtected;
+        if (native) mason.nodeForView(native).markDirty();
+      },
+      () => measuringForeignEngines.has(mason),
+    );
     const spec = (known: number, available: number) => {
       if (!isNaN(known)) return Utils.layout.makeMeasureSpec(known, Utils.layout.EXACTLY);
       if (available > 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
@@ -1284,8 +1294,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const parent = parentRef.deref();
       const view = childRef.deref();
       if (!parent || !view) return CGSizeMake(0, 0);
-      NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
-      return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
+      const alreadyMeasuring = measuringForeignEngines.has(mason);
+      measuringForeignEngines.add(mason);
+      try {
+        NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+        return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
+      } finally {
+        if (!alreadyMeasuring) measuringForeignEngines.delete(mason);
+      }
     });
   }
 
