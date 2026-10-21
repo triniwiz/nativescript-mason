@@ -97,4 +97,31 @@ final class CoreLayoutInteropTests: XCTestCase {
     XCTAssertGreaterThan(paragraph.frame.width, 0, "Mason child inside a foreign container should be visible")
     XCTAssertGreaterThan(paragraph.frame.height, 0, "Mason child inside a foreign container should be visible")
   }
+
+  func test_removingTheLastListenerByIDReleasesItsNode() {
+    weak var released: MasonNode?
+    autoreleasepool {
+      let node = mason.createNode()
+      released = node
+      let id = mason.addEventListener(node, "alpha") { _ in }
+      XCTAssertTrue(mason.removeEventListener(node, "alpha", id: id))
+    }
+    XCTAssertNil(released, "an empty listener entry must not retain its target")
+  }
+
+  func test_removingTheLastListenerTypeReleasesItsNode() {
+    weak var released: MasonNode?
+    autoreleasepool {
+      let node = mason.createNode()
+      released = node
+      var calls = 0
+      mason.addEventListener(node, "alpha") { _ in }
+      mason.addEventListener(node, "beta") { _ in calls += 1 }
+      XCTAssertTrue(mason.removeEventListener(node, "alpha"))
+      mason.dispatch(MasonEvent(type: "beta"), node)
+      XCTAssertEqual(calls, 1, "removing one type must keep the others")
+      XCTAssertTrue(mason.removeEventListener(node, "beta"))
+    }
+    XCTAssertNil(released)
+  }
 }
