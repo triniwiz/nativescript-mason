@@ -118,6 +118,9 @@ function applyAttributes(view: any, el: HtmlElement) {
   if (a.width && /^\d+(\.\d+)?$/.test(a.width)) view.style.width = Number(a.width);
   if (a.height && /^\d+(\.\d+)?$/.test(a.height)) view.style.height = Number(a.height);
   if (a.style) view.setInlineStyle(a.style);
+  // Boolean attributes are on whenever present, whatever their value.
+  if ('disabled' in a) view.isEnabled = false;
+  if ('open' in a && el.tag === 'details') view.open = true;
 }
 
 function append(parent: any, nodes: HtmlNode[]) {

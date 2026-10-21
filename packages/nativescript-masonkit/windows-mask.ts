@@ -425,22 +425,42 @@ export function encodeWindowsMask(css: ReadonlyMap<string, string>, ctx: Windows
   return Object.keys(spec).length ? JSON.stringify(spec) : '';
 }
 
-/** One url() background layer as the JSON Css.SetBackgroundLayers takes, or '' if it can't be drawn. */
-export function encodeWindowsBackground(url: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext): string {
-  if (!url) return '';
+/** background-origin / background-clip keywords; the CSS defaults are padding-box and border-box. */
+export interface WindowsBackgroundBoxes {
+  origin?: string;
+  clip?: string;
+}
+
+const originOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.origin ?? '').trim().toLowerCase()] ?? 1;
+const clipOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.clip ?? '').trim().toLowerCase()] ?? 0;
+
+function backgroundLayer(image: WindowsImage, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes): string {
   const [x, y] = encodePosition(position || '0% 0%', ctx);
-  // Backgrounds are positioned in the padding box and painted to the border box's edge.
-  const layer = { i: { t: 'img', src: ctx.source(url) }, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: 1, c: 0, m: 0, k: 0 };
+  const layer = { i: image, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: originOf(boxes), c: clipOf(boxes), m: 0, k: 0 };
   return JSON.stringify({ l: [layer] });
 }
 
-/** A gradient background layer (conic, which no XAML brush draws) as the JSON Css.SetBackgroundLayers takes, or ''. */
-export function encodeWindowsGradientBackground(gradient: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext): string {
+/** One url() background layer as the JSON Css.SetBackgroundLayers takes, or '' if it can't be drawn. */
+export function encodeWindowsBackground(url: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes = {}): string {
+  if (!url) return '';
+  return backgroundLayer({ t: 'img', src: ctx.source(url) }, size, position, repeat, ctx, boxes);
+}
+
+/** A gradient background layer as the JSON Css.SetBackgroundLayers takes, or ''. */
+export function encodeWindowsGradientBackground(gradient: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes = {}): string {
   const image = encodeImage(gradient, ctx);
   if (!image || image.t === 'img') return '';
-  const [x, y] = encodePosition(position || '0% 0%', ctx);
-  const layer = { i: image, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: 1, c: 0, m: 0, k: 0 };
-  return JSON.stringify({ l: [layer] });
+  return backgroundLayer(image, size, position, repeat, ctx, boxes);
+}
+
+/** background-color clipped to `clip`: one transparent layer, since the painter clips the colour to the bottom layer's box. */
+export function encodeWindowsColorClip(clip: string, ctx: WindowsMaskContext): string {
+  return backgroundLayer({ t: 'lin', a: 180, s: [0, 0] }, '', '', 'no-repeat', ctx, { clip });
+}
+
+/** Whether the boxes differ from the CSS defaults, which the plain brush paths assume. */
+export function hasCustomBackgroundBoxes(boxes: WindowsBackgroundBoxes): boolean {
+  return originOf(boxes) !== 1 || clipOf(boxes) !== 0;
 }
 
 const BORDER_IMAGE_REPEAT = new Set(['stretch', 'repeat', 'round', 'space']);

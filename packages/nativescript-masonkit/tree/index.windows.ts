@@ -1,4 +1,13 @@
+import { Application, Screen } from '@nativescript/core';
 import { InputType } from '..';
+import { setCssUnitContext } from '../units';
+
+// `vw`/`vh` resolve against the window, which resizes on desktop.
+function updateViewport() {
+  try {
+    setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
+  } catch (_) {}
+}
 
 enum TextType {
   None = 0,
@@ -31,6 +40,10 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree();
+      updateViewport();
+      // Core raises orientationChanged on every window resize on Windows.
+      Application.on(Application.orientationChangedEvent, updateViewport);
+      Application.on(Application.displayedEvent, updateViewport);
     }
     return Tree._tree;
   }

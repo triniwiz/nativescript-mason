@@ -9,7 +9,7 @@ import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
 import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
-import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsGradientBackground, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
+import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, hasCustomBackgroundBoxes, type WindowsBackgroundBoxes, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1780,7 +1780,20 @@ export class Style {
         this._windowsImageBackground = false;
         NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
       }
+      const boxes = this.windowsBackgroundBoxes(shorthand ? layer : '');
+      const setLayers = (spec: string) => {
+        if (!spec) return false;
+        this._windowsImageBackground = true;
+        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+        return true;
+      };
       const repeating = /^repeating-/i.test(layer);
+      // Only the layer painter places a background in a box other than the CSS defaults.
+      if (ANY_GRADIENT.test(layer) && (hasCustomBackgroundBoxes(boxes) || /^(repeating-)?conic-gradient/i.test(layer))) {
+        const ctx = this.windowsMaskContext();
+        setLayers(encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', ctx, boxes));
+        return;
+      }
       if (/^(repeating-)?radial-gradient/i.test(layer)) {
         let g = parseRadialGradientCss(layer);
         if (g && repeating) g = repeatRadial(g);
@@ -1792,14 +1805,6 @@ export class Style {
         if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(repeating ? repeatStops(g.offsets, g.colors) : g), g.interpolation);
         return;
       }
-      if (/^(repeating-)?conic-gradient/i.test(layer)) {
-        const spec = encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', this.windowsMaskContext());
-        if (spec) {
-          this._windowsImageBackground = true;
-          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
-        }
-        return;
-      }
       if (url) {
         const rest = layer.slice(url.index + url[0].length).trim();
         const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box)\b/gi;
@@ -1809,12 +1814,7 @@ export class Style {
         const repeatKeywords = shorthand ? (rest.match(/\b(no-repeat|repeat-x|repeat-y|repeat|space|round)\b/gi) ?? []).join(' ') : '';
         const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
         // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
-        const spec = encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext());
-        if (spec) {
-          this._windowsImageBackground = true;
-          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
-          return;
-        }
+        if (setLayers(encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext(), boxes))) return;
         let source = url[2];
         if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
         const box = parseBoxPosition(position || '0% 0%', 0);
@@ -1824,9 +1824,18 @@ export class Style {
       }
       if (!ANY_GRADIENT.test(layer)) {
         NativeScript.Mason.Css.ClearBackground(this.nativeView);
-        if (shorthand && v.length && v.toLowerCase() !== 'none') this.backgroundColor = v as never;
+        const color = v.replace(/\b(border-box|padding-box|content-box)\b/gi, '').trim();
+        if (shorthand && color.length && color.toLowerCase() !== 'none') this.backgroundColor = color as never;
+        if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
       }
     } catch (_) {}
+  }
+
+  // background-origin and background-clip: the shorthand's box keywords (origin, then clip), else the longhands.
+  private windowsBackgroundBoxes(shorthandLayer: string): WindowsBackgroundBoxes {
+    const keywords = shorthandLayer.match(/\b(border-box|padding-box|content-box)\b/gi) ?? [];
+    if (keywords.length) return { origin: keywords[0], clip: keywords[1] ?? keywords[0] };
+    return { origin: this._windowsCss.get('background-origin'), clip: this._windowsCss.get('background-clip') };
   }
 
   private _windowsMaskSpec = '';
@@ -1888,14 +1897,18 @@ export class Style {
       this.applyWindowsBackground(name === 'background');
       return;
     }
+    if (name === 'background-clip' || name === 'background-origin') {
+      this.applyWindowsBackground(false);
+      return;
+    }
     if (name === 'background-repeat') {
-      if (/url\(|conic-gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
     if (name === 'background-size' || name === 'background-position') {
       if (name === 'background-size') this._windowsBackgroundSize = String(value ?? '');
       else this._windowsBackgroundPosition = String(value ?? '');
-      if (/url\(|conic-gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
 
@@ -6897,6 +6910,19 @@ export class Style {
     setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, parsed.y);
     setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE, 1);
     this.commitState(StateKeys.TRANSFORM_ORIGIN);
+    // Windows applies the origin with the transform, natively it isn't read from the buffer.
+    if (__WINDOWS__) (this.view as any)?._applyWindowsTransform?.();
+  }
+
+  /** transform-origin as fractions of a `width` x `height` box, or null when it isn't set. */
+  transformOriginFraction(width: number, height: number): { x: number; y: number } | null {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE)) return null;
+    const side = (typeKey: StyleKeys, valueKey: StyleKeys, size: number) => {
+      const value = getFloat32(this.style_view, valueKey);
+      if (getUint8(this.style_view, typeKey) === 1) return value / 100;
+      return size > 0 ? layout.toDeviceIndependentPixels(value) / size : 0;
+    };
+    return { x: side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, width), y: side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, height) };
   }
 
   set 'transform-origin'(value: string) {

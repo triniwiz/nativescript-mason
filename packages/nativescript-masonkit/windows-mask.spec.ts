@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsGradientBackground, encodeWindowsMask, urlOf, type WindowsMaskContext } from './windows-mask';
+import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, encodeWindowsMask, hasCustomBackgroundBoxes, urlOf, type WindowsMaskContext } from './windows-mask';
 
 const ctx: WindowsMaskContext = {
   length: (token) => (token.endsWith('px') ? parseFloat(token) : token.endsWith('rem') ? parseFloat(token) * 16 : undefined),
@@ -149,5 +149,27 @@ describe('repeating gradients', () => {
     expect(spec.l[0].i.t).toBe('con');
     expect(spec.l[0].r).toEqual([0, 0]);
     expect(encodeWindowsGradientBackground('url(a.png)', '', '', '', ctx)).toBe('');
+  });
+});
+
+describe('background boxes', () => {
+  it('places a layer in background-origin and clips it to background-clip', () => {
+    const spec = JSON.parse(encodeWindowsBackground('~/a.png', '', '', '', ctx, { origin: 'content-box', clip: 'padding-box' }));
+    expect(spec.l[0]).toMatchObject({ o: 2, c: 1 });
+    expect(JSON.parse(encodeWindowsBackground('~/a.png', '', '', '', ctx)).l[0]).toMatchObject({ o: 1, c: 0 });
+  });
+
+  it('clips a plain colour with one transparent layer', () => {
+    const spec = JSON.parse(encodeWindowsColorClip('content-box', ctx));
+    expect(spec.l[0]).toMatchObject({ i: { t: 'lin', s: [0, 0] }, c: 2 });
+  });
+
+  it('knows when the boxes are the CSS defaults', () => {
+    expect(hasCustomBackgroundBoxes({})).toBe(false);
+    expect(hasCustomBackgroundBoxes({ origin: 'padding-box', clip: 'border-box' })).toBe(false);
+    expect(hasCustomBackgroundBoxes({ clip: 'content-box' })).toBe(true);
+    expect(hasCustomBackgroundBoxes({ origin: 'border-box' })).toBe(true);
+    // background-clip: text isn't drawn on Windows, so it keeps the default.
+    expect(hasCustomBackgroundBoxes({ clip: 'text' })).toBe(false);
   });
 });
