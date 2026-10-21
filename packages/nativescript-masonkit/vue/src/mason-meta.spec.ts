@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { masonMeta } from './mason-meta';
+import { textNode_ } from '../../symbols';
 
 type Node = { nodeType: 'element' | 'text' | 'comment'; text?: string; nativeView?: unknown };
 
@@ -43,7 +44,7 @@ describe('masonMeta.insert', () => {
     const label: Node = { nodeType: 'text', text: 'Hello ' };
     const b: Node = { nodeType: 'element', nativeView: { id: 'b' } };
     const { parent, calls } = parentWith([label, b]);
-    parent.nativeView._children = [{ id: 'label-run' }, { id: 'existing' }];
+    parent.nativeView._children = [{ [textNode_]: { __raw__: label } }, { id: 'existing' }];
 
     insert(b as any, parent, 0);
 

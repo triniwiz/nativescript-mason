@@ -52,10 +52,9 @@ export default defineConfig({
     environment: 'node',
     setupFiles: [resolve(root, 'tools/testing/mason-test-kit/setup.ts')],
     server: {
-      // @nativescript/core is ESM with directory imports ("./globals"), which
-      // Node's own resolver rejects. Inlining routes it through Vite's resolver
-      // instead, which understands them.
-      deps: { inline: [/@nativescript[\\/]core/] },
+      // Core and Vue's DOM use ESM directory imports that Node rejects.
+      // Inline them so Vite resolves those imports for renderer integration tests.
+      deps: { inline: [/@nativescript[\\/]core/, /nativescript-vue/] },
     },
     projects: [
       {
