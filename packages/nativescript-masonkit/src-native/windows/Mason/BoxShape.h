@@ -119,14 +119,19 @@ namespace mason_shape
                 return;
             }
             const float power = std::pow(2.0f, 1.0f - std::abs(k));
+            const bool shallow = k > -1.0f && k < 0.0f;
+            const float half = 1.0f - std::pow(0.5f, 1.0f / std::pow(2.0f, std::abs(k)));
+            const float c = std::clamp(2.41421356f * half - 0.70710678f, 0.0f, 1.0f);
             constexpr int kSteps = 32;
             for (int i = 1; i <= kSteps; ++i)
             {
-                const float angle = static_cast<float>(i) / kSteps * 1.57079633f;
+                const float T = static_cast<float>(i) / kSteps;
+                const float angle = T * 1.57079633f;
                 const float u = std::pow((std::max)(0.0f, std::cos(angle)), power);
                 const float v = std::pow((std::max)(0.0f, std::sin(angle)), power);
-                const float cx = k < 0.0f ? 1.0f - v : u;
-                const float cy = k < 0.0f ? 1.0f - u : v;
+                const float sx = 1.0f - std::sqrt(1.0f - T), sy = 1.0f - std::sqrt(T);
+                const float cx = shallow ? c - c * sx + (1.0f - c) * sy : k < 0.0f ? 1.0f - v : u;
+                const float cy = shallow ? c + (1.0f - c) * sx - c * sy : k < 0.0f ? 1.0f - u : v;
                 float px = x, py = y;
                 switch (corner)
                 {

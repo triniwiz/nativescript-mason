@@ -17,6 +17,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 class Border(val owner: Style, side: Side) {
   val keys: IKey = when (side) {
@@ -892,14 +893,19 @@ class BorderRenderer(private val style: Style) {
     // Superellipse fallback
     val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
     val concave = exponent < 0f
+    val shallow = exponent > -1f && exponent < 0f
+    val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
+    val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
       val a = cos(angle).pow(power).toFloat()
       val b = sin(angle).pow(power).toFloat()
-      val cx = if (concave) 1 - b else a
-      val cy = if (concave) 1 - a else b
+      val sx = 1 - sqrt(1 - t)
+      val sy = 1 - sqrt(t)
+      val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
+      val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
 
       var px: Float
       var py: Float
@@ -1318,14 +1324,19 @@ class BorderRenderer(private val style: Style) {
     // Superellipse fallback
     val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
     val concave = exponent < 0f
+    val shallow = exponent > -1f && exponent < 0f
+    val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
+    val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
       val a = cos(angle).pow(power).toFloat()
       val b = sin(angle).pow(power).toFloat()
-      val cx = if (concave) 1 - b else a
-      val cy = if (concave) 1 - a else b
+      val sx = 1 - sqrt(1 - t)
+      val sy = 1 - sqrt(t)
+      val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
+      val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
 
       var px: Float
       var py: Float
