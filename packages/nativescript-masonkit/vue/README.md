@@ -29,9 +29,10 @@ The call registers MasonKit's native elements and all HTML-shaped elements from
 ```
 
 Available native elements are `View`, `Text`, `Scroll`, `Img`, `Button`,
-`Input`, `TextArea`, `Br`, `Ul`, `Ol` and `Li`. Web-shaped elements include
-`div`, `section`, `header`, `footer`, `article`, `main`, `nav`, `aside`, `span`,
-`code`, `h1`-`h6`, `p`, `ul`, `li`, `blockquote`, `b`, `strong` and `a`.
+`Input`, `TextArea`, `Br`, `Ul`, `Ol` and `Li`. Every HTML-shaped element from
+`/web` is registered too: `div`, `section`, `p`, `span`, `h1`-`h6`, `ul`, `ol`,
+`li`, `a`, `details`, `label` and
+[more](https://triniwiz.github.io/nativescript-mason/elements/html).
 
 Names are case-insensitive and ignore hyphens, following NativeScript-Vue's
 normalization rules.
@@ -43,10 +44,14 @@ installMasonKit({ web: false }); // native MasonKit elements only
 installMasonKit({ mason: false }); // HTML-shaped elements only
 ```
 
-Tags that NativeScript-Vue already registers (core's `Button` and `Span`) are
-replaced by MasonKit's Taffy-backed implementations. The core elements stay
-available under an `n` prefix: `<nbutton>` and `<nspan>`. Use `<nspan>` inside
-`<Label><FormattedString>`, which needs core's `Span`.
+Tags that NativeScript-Vue already registers (core's `Button`, `Label` and
+`Span`) are replaced by MasonKit's taffy-backed implementations. The core
+elements stay available under an `n` prefix: `<nbutton>`, `<nlabel>` and
+`<nspan>`. Use `<nspan>` inside `<nlabel><FormattedString>`, which needs core's
+`Span`.
+
+`v-model` works on `<input>` (its `value`, a checkbox's checked state, or the picked
+radio's value, as in web Vue) and `<textarea>`.
 
 Vue components do not create native host elements: their root view (or fragment)
 is rendered directly. Attributes and classes on a component are therefore

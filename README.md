@@ -1,118 +1,67 @@
-# @triniwiz/\* plugins
+<p align="center">
+  <img src="docs/public/logo.svg" width="72" alt="MasonKit" />
+</p>
 
-```
-npm run setup
-npm start
-```
+<h1 align="center">Mason</h1>
 
-- [@triniwiz/nativescript-masonkit](packages/nativescript-masonkit/README.md)
+<p align="center">
+  Web layout and HTML-shaped elements for NativeScript, powered by Rust and <a href="https://github.com/DioxusLabs/taffy">taffy</a>.
+  <br />
+  <a href="https://triniwiz.github.io/nativescript-mason/"><strong>Documentation</strong></a>
+  ·
+  <a href="https://www.npmjs.com/package/@triniwiz/nativescript-masonkit">npm</a>
+  ·
+  <a href="https://github.com/triniwiz/nativescript-mason/issues">Issues</a>
+</p>
 
-# How to use?
+---
 
-This workspace manages the suite of plugins listed above.
-
-In general, when in doubt with what to do, just `npm start`.
-
-## Contributing
-
-1. Ensure using latest rust tooling
-   
-```bash
-rustup update
-```
-
-2. Build iOS and Android
-
-First setup the targets:
+Mason brings flexbox, grid, block and inline flow, positioning and browser-like elements (`div`, `p`, `span`, `h1`, `ul`, `img`, `input`, `details`, ...) to NativeScript apps on iOS, Android and Windows. Every element is a native view. Layout runs in `mason-core`, a Rust crate built on [taffy](https://github.com/DioxusLabs/taffy).
 
 ```bash
-rustup target add i686-linux-android x86_64-linux-android armv7-linux-androideabi aarch64-linux-android
+ns plugin add @triniwiz/nativescript-masonkit
 ```
 
-Now compile.
+```html
+<div class="card">
+  <h2>Hello Mason</h2>
+  <p>Styled with <strong>real</strong> CSS.</p>
+</div>
+```
+
+Setup for plain NativeScript, Angular, Vue 3, Svelte Native, React and Solid is in the [framework guide](https://triniwiz.github.io/nativescript-mason/frameworks/). The package README is [packages/nativescript-masonkit/README.md](packages/nativescript-masonkit/README.md).
+
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| [`packages/nativescript-masonkit`](packages/nativescript-masonkit) | The NativeScript plugin (TypeScript), framework entry points and prebuilt native libraries |
+| `packages/nativescript-masonkit/src-native` | Kotlin (Android), Swift (iOS) and C++ (Windows) sources for the native side |
+| [`crates/mason-core`](crates/mason-core) | Rust layout engine built on taffy |
+| `crates/mason-android`, `mason-ios`, `mason-c`, `mason-windows` | Rust bindings per platform |
+| [`apps`](apps) | Demo apps per flavour; `demo-solid` hosts the WebSpec layout suite |
+| [`docs`](docs) | This project's documentation site (VitePress, deployed to GitHub Pages) |
+| [`tools`](tools) | Build scripts, code generators and the Node test harness |
+
+## Development
 
 ```bash
-make ios
-make android
+npm run setup          # clean install
+npm start              # interactive task menu
+npm test               # TypeScript unit tests (no device needed)
+npm run test:rust      # mason-core tests
 ```
 
-If you get `error: linking with `cc` failed: exit status: 1`, there's couple things to check.
+Building the native libraries needs Rust with the mobile targets and, for Android, the NDK. The full steps, environment variables and common build failures are in [Building from source](https://triniwiz.github.io/nativescript-mason/contributing/building), and the test suites are described in [Testing](https://triniwiz.github.io/nativescript-mason/contributing/testing).
 
-Make sure you have recent version of the NDK with environment set, for example:
+To work on the docs site:
 
 ```bash
-export ANDROID_NDK=$ANDROID_HOME/ndk/27.2.12479018
+cd docs
+npm install
+npm run dev
 ```
 
-You can run `cargo build --target aarch64-linux-android` to get more verbase detail.
+## License
 
-You may want these environment variables set within the terminal window:
-
-```bash
-export PATH=$PATH:$ANDROID_NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin
-export CC_armv7_linux_androideabi=armv7a-linux-androideabi21-clang
-export CXX_armv7_linux_androideabi=armv7a-linux-androideabi21-clang++
-export AR_armv7_linux_androideabi=llvm-ar
-export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=armv7a-linux-androideabi21-clang
-
-export CC_aarch64_linux_android=aarch64-linux-android21-clang
-export CXX_aarch64_linux_android=aarch64-linux-android21-clang++
-export AR_aarch64_linux_android=llvm-ar
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android21-clang
-
-export CC_i686_linux_android=i686-linux-android21-clang
-export CXX_i686_linux_android=i686-linux-android21-clang++
-export AR_i686_linux_android=llvm-ar
-export CARGO_TARGET_I686_LINUX_ANDROID_LINKER=i686-linux-android21-clang
-
-export CC_x86_64_linux_android=x86_64-linux-android21-clang
-export CXX_x86_64_linux_android=x86_64-linux-android21-clang++
-export AR_x86_64_linux_android=llvm-ar
-export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=x86_64-linux-android21-clang
-```
-
-## How to add a new package to workspace?
-
-```
-npm run add
-```
-
-At the prompt, enter the name of the new package.
-
-- This adds a plugin harness in `packages` with the necessary boilerplate to just start developing
-- Updates all demo app flavors to support demoing the new package
-- Adds shared code in `tools/demo` where you can write demo code **once** and share across all demo flavors
-- Updates build tooling to support the new package
-- Updates the `npm start` interactive display
-- Updates the README here to list the new package
-
-## How to add Angular compatibility to a package
-
-```
-npm run add-angular
-```
-
-At the prompt, enter the name of the package to add an `angular` folder to it with the necessary boilerplate to provide Angular support to the package.
-
-## How to focus on just 1 package to develop in isolation
-
-```
-npm start
-```
-
-- Choose the focus commands for the package you wish to focus on and hit enter.
-- All the demo app's will be updated to isolate that 1 package and for supported IDE's (currently VS Code), the source code will also become isolated in the workspace.
-
-Note: _good to always clean the demo you plan to run after focusing. (You can clean any demo from `npm start` as well)_
-
-## How to publish packages?
-
-```
-npm run publish-packages
-```
-
-- You will be prompted for the package names to publish. Leaving blank and hitting enter will publish them all.
-- You will then be prompted for the version to use. Leaving blank will auto bump the patch version (it also handles prerelease types like alpha, beta, rc, etc. - It even auto tags the corresponding prelease type on npm).
-- You will then be given a brief sanity check 🧠😊
-
-<h3 align="center">Made with ❤️</h3>
+Apache License Version 2.0
