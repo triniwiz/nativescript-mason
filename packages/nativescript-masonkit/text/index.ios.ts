@@ -258,6 +258,7 @@ export class Text extends TextBase {
       const { nativeIndex: index } = (this as any)._nativeAttachIndex(child, atIndex);
       child._isMasonChild = true;
       nativeView.addViewAt(child.nativeViewProtected, index);
+      this._masonAdoptForeign(child);
       this._masonMeasureForeign(child);
       return true;
     }

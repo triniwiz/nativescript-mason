@@ -391,6 +391,17 @@ style buffer, so its value still has to be converted for core. (There was a
 `isMasonChild_` Symbol read here that nothing ever assigned — the 17 write sites
 set a string `_isMasonChild` instead. Removed; the guard now says what it does.)
 
+### Layout styles on plain children (iOS and Android)
+
+A plain view inside a Mason container keeps core's Style, parsing and cascade.
+`foreign-layout.ts` mirrors its layout longhands (size, min/max, margins, flex,
+self-alignment, position and insets, grid placement) into its Mason leaf. While
+attached, its Style sits on a shared prototype whose setters call core's and then
+copy the effective value; release on native removal restores the prototype. Core
+`px` objects (device pixels) are converted to dip first. Unsetting a local
+`CssProperty` falls back to its default, not the class value, as it does on any
+core view. Windows keeps its existing bridge.
+
 **Known gap:** font inheritance does not cross into mason.
 `common.ts`'s `[fontInternalProperty.setNative]` is `if (!__WINDOWS__) return;`,
 and `fontInternal` is core's *inheritable* aggregate font property — so a

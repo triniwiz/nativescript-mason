@@ -156,10 +156,12 @@ export class Text extends TextBase {
       if (jsIndex <= -1) {
         child._isMasonChild = true;
         nativeView.addView(child.nativeViewProtected as never);
+        this._masonAdoptForeign(child);
         return true;
       }
       child._isMasonChild = true;
       nativeView.addChildAt(child.nativeViewProtected, nativeIndex as never);
+      this._masonAdoptForeign(child);
       return true;
     }
 

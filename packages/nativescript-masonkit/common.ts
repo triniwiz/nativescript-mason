@@ -54,6 +54,7 @@ import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
+import { adoptForeignLayout, releaseForeignLayout } from './foreign-layout';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -472,7 +473,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       child._isAddedToNativeVisualTree = false;
       return;
     }
+    releaseForeignLayout(child);
     super._removeViewFromNativeVisualTree(child);
+  }
+
+  /** Mirror a plain child's CSS layout into its Mason leaf; containers call this after the native insert. */
+  _masonAdoptForeign(child: any): void {
+    if (__ANDROID__ || __APPLE__) adoptForeignLayout(child);
   }
 
   private _masonFinishTeardown() {

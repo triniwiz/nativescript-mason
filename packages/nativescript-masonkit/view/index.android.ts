@@ -54,6 +54,7 @@ export class View extends ViewBase {
         nativeView.addChildAt(child.android, index as never);
       } else {
         nativeView.addView(child.nativeViewProtected, index as never);
+        this._masonAdoptForeign(child);
       }
       return true;
     }

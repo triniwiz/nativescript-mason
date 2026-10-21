@@ -41,6 +41,7 @@ export class Li extends ViewBase {
         nativeView.mason_addChildAtElement(child.ios, index);
       } else {
         nativeView.mason_addChildAtElement(child.nativeViewProtected, index);
+        this._masonAdoptForeign(child);
       }
       return true;
     }
