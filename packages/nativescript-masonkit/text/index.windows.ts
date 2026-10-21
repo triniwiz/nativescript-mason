@@ -86,11 +86,12 @@ export class Text extends TextBase {
   }
 
   // Text lays out runs, not child panels: a nested inline text element renders inside this one's
-  // runs, and any other Mason element is an inline box placed in the text.
+  // runs, and any other element is an inline box placed in the text.
   // @ts-ignore
   public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
-    if (child?.[isMasonView_] && child._view) {
+    if (child?.[isMasonView_] ? child._view : child?.nativeViewProtected) {
       this._windowsHost(child, this._windowsNativeIndexOf(child, atIndex));
+      this._masonAdoptForeign(child);
       return true;
     }
     return super._addViewToNativeVisualTree(child, atIndex);

@@ -28,6 +28,7 @@
 #include "VisualApply.h"
 #include "BufferUtil.h"
 #include "TextAtlas.h"
+#include "PanelCore.h"
 #include "TextAutomationPeer.h"
 #include "Hyphenation.h"
 #include "Css.h"
@@ -92,7 +93,21 @@ namespace
         {
             if (auto content = scroller.Content().try_as<winrt::NativeScript::Mason::IMasonElement>()) return content.Node();
         }
-        return nullptr;
+        return mason_panel::ForeignLeaf(winrt::NativeScript::Mason::Mason::Instance(), box);
+    }
+
+    // Never from a compute: the style write takes the engine's lock.
+    void InlineForeignBox(mux::UIElement const& box)
+    {
+        if (box.try_as<winrt::NativeScript::Mason::IMasonElement>() || mason_panel::ScrollContentOf(box)) return;
+        auto leaf = NodeOfBox(box);
+        uint32_t size = 0;
+        const uint8_t* data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(leaf)->StyleData(size);
+        if (!data || size <= mason_style_keys::kDisplayMode || data[mason_style_keys::kDisplay] != 3 || data[mason_style_keys::kDisplayMode] != 0) return;
+        uint8_t* bytes = nullptr;
+        leaf.Style().Values().as<mason_buf::IBufferByteAccess>()->Buffer(&bytes);
+        bytes[mason_style_keys::kDisplayMode] = 2;
+        leaf.MarkDirty();
     }
 
     bool DisplayNone(winrt::NativeScript::Mason::Node const& node)
@@ -940,6 +955,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Text::SetInlineBox(mux::UIElement const& child, int32_t index)
     {
         if (!child) return;
+        InlineForeignBox(child);
         std::erase_if(m_runs, [&](Entry const& e) { return e.box == child; });
         m_runs.insert(m_runs.begin() + ClampIndex(index), Entry{ nullptr, nullptr, child });
         auto* host = TopHost();
@@ -1557,7 +1573,12 @@ namespace winrt::NativeScript::Mason::implementation
         {
             for (auto const& child : Children())
             {
-                if (!m_text || child != m_text) child.Measure(available);
+                if (m_text && child == m_text) continue;
+                if (!child.try_as<nsm::IMasonElement>() && !mason_panel::ScrollContentOf(child))
+                {
+                    if (auto fe = child.try_as<mux::FrameworkElement>()) mason_panel::SyncForeignBox(NodeOfBox(child), fe);
+                }
+                child.Measure(available);
             }
         }
         if (!m_text && !m_direct) return Size{ 0, 0 };
