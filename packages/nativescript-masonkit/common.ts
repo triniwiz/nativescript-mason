@@ -1277,7 +1277,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const childRef = new WeakRef(child);
     const spec = (known: number, available: number) => {
       if (!isNaN(known)) return Utils.layout.makeMeasureSpec(known, Utils.layout.EXACTLY);
-      if (available > 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
+      if (available >= 0) return Utils.layout.makeMeasureSpec(available, Utils.layout.AT_MOST);
       return Utils.layout.makeMeasureSpec(0, Utils.layout.UNSPECIFIED);
     };
     mason.setMeasureForViewBlock(child.nativeViewProtected, (knownW: number, knownH: number, availW: number, availH: number) => {
