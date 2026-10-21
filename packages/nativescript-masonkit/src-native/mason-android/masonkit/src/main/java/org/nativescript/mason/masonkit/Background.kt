@@ -8,6 +8,7 @@ import android.graphics.PorterDuffXfermode
 import android.os.Build
 import androidx.annotation.RequiresApi
 import kotlin.math.ceil
+import kotlin.math.floor
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -37,8 +38,9 @@ private val bitmapDstRect = RectF()
 
 private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
 private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
+private val ANY_GRADIENT_REGEX = Regex("""(repeating-)?(linear|radial|conic)-gradient\(""", RegexOption.IGNORE_CASE)
 private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
-private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
+private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round")
 private val WHITESPACE_REGEX = Regex("""\s+""")
 private val COMMA_WHITESPACE_REGEX = Regex("""[\s,]+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
@@ -274,7 +276,7 @@ class Background(
     layers.forEachIndexed { idx, layer ->
       val v = parts[idx % parts.size]
       when (name) {
-        "repeat" -> layer.repeat = parseRepeat(v)
+        "repeat" -> parseRepeat(v)?.let { layer.repeat = it }
         "position" -> parsePosition(splitTopLevelWhitespace(v))?.let { layer.position = it }
         "position-x" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = true)?.let {
           layer.position = (layer.position ?: BackgroundPosition()).copy(x = it)
@@ -415,8 +417,51 @@ class Background(
   }
 }
 
-enum class BackgroundRepeat(val value: String) {
-  REPEAT("repeat"), REPEAT_X("repeat-x"), REPEAT_Y("repeat-y"), NO_REPEAT("no-repeat")
+/** One axis of `background-repeat` / `mask-repeat`. */
+enum class RepeatStyle(val value: String) {
+  REPEAT("repeat"), SPACE("space"), ROUND("round"), NO_REPEAT("no-repeat");
+
+  companion object {
+    fun parse(value: String): RepeatStyle? = entries.firstOrNull { it.value == value }
+  }
+}
+
+/** `background-repeat` / `mask-repeat`, per axis. */
+data class BackgroundRepeat(val x: RepeatStyle, val y: RepeatStyle) {
+  val value: String
+    get() = when {
+      x == y -> x.value
+      x == RepeatStyle.REPEAT && y == RepeatStyle.NO_REPEAT -> "repeat-x"
+      x == RepeatStyle.NO_REPEAT && y == RepeatStyle.REPEAT -> "repeat-y"
+      else -> "${x.value} ${y.value}"
+    }
+
+  companion object {
+    @JvmField val REPEAT = BackgroundRepeat(RepeatStyle.REPEAT, RepeatStyle.REPEAT)
+    @JvmField val REPEAT_X = BackgroundRepeat(RepeatStyle.REPEAT, RepeatStyle.NO_REPEAT)
+    @JvmField val REPEAT_Y = BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.REPEAT)
+    @JvmField val NO_REPEAT = BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.NO_REPEAT)
+
+    /** `repeat-x`, `repeat-y`, or one or two axis keywords; null when invalid. */
+    fun parse(value: String): BackgroundRepeat? {
+      val tokens = value.trim().lowercase().split(WHITESPACE_REGEX).filter { it.isNotEmpty() }
+      return when (tokens.size) {
+        1 -> when (tokens[0]) {
+          "repeat-x" -> REPEAT_X
+          "repeat-y" -> REPEAT_Y
+          else -> RepeatStyle.parse(tokens[0])?.let { BackgroundRepeat(it, it) }
+        }
+
+        2 -> {
+          val x = RepeatStyle.parse(tokens[0]) ?: return null
+          val y = RepeatStyle.parse(tokens[1]) ?: return null
+          BackgroundRepeat(x, y)
+        }
+
+        else -> null
+      }
+    }
+  }
 }
 
 data class Gradient(
@@ -493,7 +538,7 @@ private fun drawSvgLayer(
   }
   val density = context.resources.displayMetrics.density
   // Intrinsic size in device px: 1 SVG px is 1 CSS px.
-  val (drawW, drawH) = resolveBitmapSize(layer.size, doc.width * density, doc.height * density, area.width(), area.height())
+  val (drawW, drawH) = resolveTileSize(layer, doc.width * density, doc.height * density, area.width(), area.height())
   if (drawW <= 0f || drawH <= 0f) return
   val fit = minOf(1f, MAX_SVG_RASTER_PX / maxOf(drawW, drawH))
   val pxW = ceil(drawW * fit).toInt().coerceAtLeast(1)
@@ -735,7 +780,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
   // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-  val (tileW, tileH) = resolveBitmapSize(layer.size, area.width(), area.height(), area.width(), area.height())
+  val (tileW, tileH) = resolveTileSize(layer, area.width(), area.height(), area.width(), area.height())
   // No shader means no fill: gradientPaint's fallback colour is opaque black.
   val shader = gradientShader(layer, tileW.toInt(), tileH.toInt()) ?: return
   gradientPaint.shader = shader
@@ -961,26 +1006,61 @@ private fun lerpArgb(a: Int, b: Int, f: Float): Int {
   return (ch(24) shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
 }
 
+/** Most tiles drawn per axis; finer tilings are cut off. */
+private const val MAX_TILES_PER_AXIS = 4096
+
+/** Per-axis tiling scratch: first origin, step, count. Draws run on the UI thread. */
+private val tileAxisX = FloatArray(3)
+private val tileAxisY = FloatArray(3)
+
+/**
+ * Where the tiles of one axis go, written to [out] as first origin, step and count. `space`
+ * spreads whole tiles so the outer ones touch the area's edges (one tile at the position when
+ * fewer than two fit); the pattern then continues across the paint range.
+ */
+internal fun tileAxis(
+  style: RepeatStyle, areaStart: Float, areaLength: Float, paintStart: Float, paintEnd: Float,
+  tile: Float, offset: Float, out: FloatArray
+) {
+  out[0] = areaStart + offset
+  out[1] = tile
+  out[2] = 1f
+  if (tile <= 0f) {
+    out[2] = 0f
+    return
+  }
+  val start = when (style) {
+    RepeatStyle.NO_REPEAT -> return
+    RepeatStyle.SPACE -> {
+      val n = floor(areaLength / tile + 1e-4f).toInt()
+      if (n <= 1) return
+      out[1] = tile + (areaLength - n * tile) / (n - 1)
+      areaStart
+    }
+    RepeatStyle.REPEAT, RepeatStyle.ROUND -> areaStart + offset
+  }
+  val step = out[1]
+  val first = start - ceil((start - paintStart) / step) * step
+  out[0] = first
+  out[2] = ceil((paintEnd - first) / step).coerceIn(0f, MAX_TILES_PER_AXIS.toFloat())
+}
+
 /** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */
 private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: RectF, drawW: Float, drawH: Float, draw: (Float, Float) -> Unit) {
   val pos = layer.position
-  val x = area.left + (pos?.x?.resolve(area.width(), drawW) ?: 0f)
-  val y = area.top + (pos?.y?.resolve(area.height(), drawH) ?: 0f)
-  val repeatX = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_X
-  val repeatY = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_Y
-  // Tiles start at the resolved position and extend both ways across the paint rect.
-  val startX = if (repeatX) x - ceil((x - paintRect.left) / drawW) * drawW else x
-  val startY = if (repeatY) y - ceil((y - paintRect.top) / drawH) * drawH else y
-  val endX = if (repeatX) paintRect.right else x + 1f
-  val endY = if (repeatY) paintRect.bottom else y + 1f
-  var py = startY
-  while (py < endY) {
-    var px = startX
-    while (px < endX) {
-      draw(px, py)
-      px += drawW
-    }
-    py += drawH
+  val offsetX = pos?.x?.resolve(area.width(), drawW) ?: 0f
+  val offsetY = pos?.y?.resolve(area.height(), drawH) ?: 0f
+  tileAxis(layer.repeat.x, area.left, area.width(), paintRect.left, paintRect.right, drawW, offsetX, tileAxisX)
+  tileAxis(layer.repeat.y, area.top, area.height(), paintRect.top, paintRect.bottom, drawH, offsetY, tileAxisY)
+  val x0 = tileAxisX[0]
+  val stepX = tileAxisX[1]
+  val countX = tileAxisX[2].toInt()
+  val y0 = tileAxisY[0]
+  val stepY = tileAxisY[1]
+  val countY = tileAxisY[2].toInt()
+  for (j in 0 until countY) {
+    val py = y0 + j * stepY
+    for (i in 0 until countX) draw(x0 + i * stepX, py)
   }
 }
 
@@ -1157,7 +1237,7 @@ private fun drawBitmapLayer(
   val areaH = area.height()
   val imgScale = if (layer.bitmapIsDevicePx) 1f else Mason.shared.scale
   val (drawWidth, drawHeight) = if (drawW != null && drawH != null) drawW to drawH
-  else resolveBitmapSize(layer.size, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
+  else resolveTileSize(layer, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
   if (drawWidth <= 0f || drawHeight <= 0f) return
 
   // Reuse cached RectF and Paint to avoid per-tile allocations
@@ -1169,6 +1249,30 @@ private fun drawBitmapLayer(
     canvas.drawBitmap(bitmap, null, dst, paint)
   }
   layer.blendMode.clear(paint)
+}
+
+/**
+ * The layer's tile size: `background-size`, then `round` rescales an axis to fit a whole number
+ * of tiles (the other axis keeps the ratio when its size is `auto`).
+ */
+internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
+  var (w, h) = resolveBitmapSize(layer.size, imgW, imgH, areaW, areaH)
+  val size = layer.size
+  val autoW = size == null || (size.keyword == null && size.width == null)
+  val autoH = size == null || (size.keyword == null && size.height == null)
+  val roundX = layer.repeat.x == RepeatStyle.ROUND
+  val roundY = layer.repeat.y == RepeatStyle.ROUND
+  if (roundX && w > 0f && areaW > 0f) {
+    val old = w
+    w = areaW / maxOf(1f, Math.round(areaW / w).toFloat())
+    if (autoH && !roundY) h *= w / old
+  }
+  if (roundY && h > 0f && areaH > 0f) {
+    val old = h
+    h = areaH / maxOf(1f, Math.round(areaH / h).toFloat())
+    if (autoW && !roundX) w *= h / old
+  }
+  return w to h
 }
 
 /** Resolve `background-size` against the positioning area, keeping the image ratio for `auto`. */
@@ -1340,12 +1444,7 @@ fun parseColor(value: String): Int? {
   }
 }
 
-fun parseRepeat(value: String): BackgroundRepeat = when (value.lowercase()) {
-  "repeat" -> BackgroundRepeat.REPEAT
-  "repeat-x" -> BackgroundRepeat.REPEAT_X
-  "repeat-y" -> BackgroundRepeat.REPEAT_Y
-  else -> BackgroundRepeat.NO_REPEAT
-}
+fun parseRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
 /** One `<length>` or `<percentage>` of a background position/size, or null. */
 private fun parseBackgroundLength(token: String): BackgroundOffset? {
@@ -1584,7 +1683,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
   }
 
   // Gradient: the function consumes its own parentheses, the rest are tokens.
-  GRADIENT_REGEX.find(value)?.let { match ->
+  ANY_GRADIENT_REGEX.find(value)?.let { match ->
     val paren = value.indexOf('(', match.range.first)
     var depth = 0
     var end = paren
@@ -1596,14 +1695,15 @@ fun parseLayer(layerValue: String): BackgroundLayer {
       end++
     }
     val gradientText = value.substring(match.range.first, minOf(end + 1, value.length))
-    layer.gradient = parseGradient(gradientText)
-    value = (value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
+    layer.gradient = parseMaskGradient(gradientText)
+    value =(value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
   }
 
   val tokens = splitTopLevelWhitespace(value).filter { it.isNotBlank() }
   val boxes = mutableListOf<BackgroundClip>()
   val positionTokens = mutableListOf<String>()
   val sizeTokens = mutableListOf<String>()
+  val repeatTokens = mutableListOf<String>()
   var afterSlash = false
   for (raw in tokens) {
     val t = raw.lowercase()
@@ -1619,7 +1719,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
         positionTokens.add(p); sizeTokens.add(sz); afterSlash = true
       }
       afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != null) -> sizeTokens.add(t)
-      t in REPEAT_KEYS -> layer.repeat = parseRepeat(t)
+      t in REPEAT_KEYS -> repeatTokens.add(t)
       t in ATTACHMENT_KEYWORDS -> BackgroundAttachment.parse(t)?.let {
         layer.attachment = it
       }
@@ -1628,6 +1728,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
       else -> parseColor(raw)?.let { layer.layerColor = it }
     }
   }
+  if (repeatTokens.isNotEmpty()) parseRepeat(repeatTokens.joinToString(" "))?.let { layer.repeat = it }
   if (positionTokens.isNotEmpty()) layer.position = parsePosition(positionTokens)
   if (sizeTokens.isNotEmpty()) layer.size = parseSize(sizeTokens.joinToString(" "))
   if (boxes.size == 1) {

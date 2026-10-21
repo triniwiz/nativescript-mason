@@ -197,38 +197,8 @@ internal fun parseMaskImageSource(token: String): BackgroundLayer? {
   return layer
 }
 
-/**
- * `mask-repeat`: one or two keywords. `space` and `round` tile like `repeat` (the background
- * painter has no spacing/rounding). Null when invalid.
- */
-internal fun parseMaskRepeat(value: String): BackgroundRepeat? {
-  val tokens = value.trim().lowercase().split(Regex("""\s+""")).filter { it.isNotEmpty() }
-  fun tiles(t: String): Boolean? = when (t) {
-    "repeat", "space", "round" -> true
-    "no-repeat" -> false
-    else -> null
-  }
-  return when (tokens.size) {
-    1 -> when (tokens[0]) {
-      "repeat-x" -> BackgroundRepeat.REPEAT_X
-      "repeat-y" -> BackgroundRepeat.REPEAT_Y
-      else -> tiles(tokens[0])?.let { if (it) BackgroundRepeat.REPEAT else BackgroundRepeat.NO_REPEAT }
-    }
-
-    2 -> {
-      val x = tiles(tokens[0]) ?: return null
-      val y = tiles(tokens[1]) ?: return null
-      when {
-        x && y -> BackgroundRepeat.REPEAT
-        x -> BackgroundRepeat.REPEAT_X
-        y -> BackgroundRepeat.REPEAT_Y
-        else -> BackgroundRepeat.NO_REPEAT
-      }
-    }
-
-    else -> null
-  }
-}
+/** `mask-repeat`: one or two keywords. Null when invalid. */
+internal fun parseMaskRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
 /**
  * The mask layers for a set of longhands (empty strings are initial values). The image list
