@@ -650,6 +650,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   private var _scrollPanStartOffset: CGPoint = .zero
+  private var _scrollPanTranslation: CGPoint = .zero
   private var _scrollDecelerationLink: CADisplayLink?
   private var _scrollDecelerationVelocity: CGPoint = .zero
   // DecelerationRate.normal (0.998) is per-millisecond; raise to 1000/60 to get
@@ -1729,9 +1730,11 @@ extension MasonUIView {
       _isScrolling = true
       _stopScrollDeceleration()
       _scrollPanStartOffset = contentOffset
+      _scrollPanTranslation = .zero
 
     case .changed:
       let t = gesture.translation(in: self)
+      _scrollPanTranslation = t
       let raw = CGPoint(
         x: _scrollPanStartOffset.x - (_canScrollH ? t.x : 0),
         y: _scrollPanStartOffset.y - (_canScrollV ? t.y : 0)
@@ -1882,6 +1885,14 @@ extension MasonUIView {
     _stopScrollAnimation()
     if _scrollDecelerationLink != nil { _stopScrollDeceleration() }
     guard target != current else { return }
+    if _panActive {
+      // Mid-drag the seek is instant and the drag carries on from it, rather than the next
+      // pan step putting the offset back.
+      let t = _scrollPanTranslation
+      _scrollPanStartOffset = CGPoint(x: target.x + (_canScrollH ? t.x : 0), y: target.y + (_canScrollV ? t.y : 0))
+      _setScrollOrigin(target)
+      return
+    }
     guard smooth, window != nil else {
       _setScrollOrigin(target)
       return

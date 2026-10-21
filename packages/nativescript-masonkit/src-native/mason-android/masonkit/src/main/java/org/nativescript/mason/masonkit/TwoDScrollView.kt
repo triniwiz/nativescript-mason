@@ -239,6 +239,17 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     return super.dispatchTouchEvent(ev)
   }
 
+  // A detached view doesn't draw, so computeScroll would never finish a fling or smooth scroll.
+  override fun onDetachedFromWindow() {
+    val moving = isScrollInMotion
+    scroller?.abortAnimation()
+    stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+    touchActive = false
+    // Still attached here, so a posted "scrollend" runs.
+    if (moving) onScrollMotionEnded()
+    super.onDetachedFromWindow()
+  }
+
   // scrollTo made before layout; NaN keeps an axis.
   private var pendingScrollX = Float.NaN
   private var pendingScrollY = Float.NaN
