@@ -1192,7 +1192,8 @@ class MasonElementHelpers: NSObject {
     let overflow = nodeOverflow
     // Scroll container: default `visible` acts as `auto` on the Y axis only;
     // horizontal stays visible to avoid surprise sideways scrolling.
-    let _isScrollContainer = (node.view as? MasonUIView)?.isScrollContainer ?? false
+    let masonView = node.view as? MasonUIView
+    let _isScrollContainer = masonView?.isScrollContainer ?? false
     let clipX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Clip
       || (overflow.x == .Auto && realLayout.contentWidth > realLayout.width)
     let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
@@ -1316,11 +1317,14 @@ class MasonElementHelpers: NSObject {
         let off = scroll.contentOffset
         let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
         if clamped != off { scroll.setContentOffset(clamped, animated: false) }
-      } else if let masonView = node.view as? MasonUIView {
+      } else if let masonView = masonView {
         if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
-        // Reassigning through the setter re-clamps after the size change.
-        masonView.contentOffset = masonView.contentOffset
       }
+    }
+    // Reassigning through the setter re-clamps a scrolled view after a content size
+    // or overflow change, including overflow that no longer scrolls on either axis.
+    if let masonView = masonView, masonView.bounds.origin != .zero {
+      masonView.contentOffset = masonView.bounds.origin
     }
   }
 

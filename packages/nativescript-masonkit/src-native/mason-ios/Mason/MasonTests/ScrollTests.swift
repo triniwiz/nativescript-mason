@@ -77,6 +77,28 @@ final class ScrollTests: XCTestCase {
     XCTAssertEqual(view.webScrollRange, .zero)
   }
 
+  func testShrinkingContentClampsTheCurrentOffset() throws {
+    let view = fixture()
+    let child = try XCTUnwrap(view.subviews.first as? MasonUIView)
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+    child.setSize(300 * NSCMason.scale, 400 * NSCMason.scale)
+    layout(view)
+    XCTAssertEqual(view.contentOffset, CGPoint(x: 100, y: 250))
+  }
+
+  func testDisablingScrollOverflowResetsAnExistingOffset() {
+    let view = fixture()
+    layout(view)
+    view.webScrollTo(800, 1850, smooth: false)
+    view.configure { $0.overflow = MasonPoint(.Hidden, .Hidden) }
+    layout(view)
+    XCTAssertEqual(view.contentOffset, .zero)
+    view.configure { $0.overflow = MasonPoint(.Scroll, .Scroll) }
+    layout(view)
+    XCTAssertEqual(view.contentOffset, .zero, "re-enabling must not restore the stale offset")
+  }
+
   func testEventsCoalescePerTurnAndStopWithoutListeners() {
     let view = fixture()
     layout(view)
