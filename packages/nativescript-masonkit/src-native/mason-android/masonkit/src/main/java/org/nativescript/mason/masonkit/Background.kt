@@ -428,6 +428,13 @@ data class Gradient(
   val repeating: Boolean = false,
 )
 
+/** Glide model for a CSS image URL: `~/` is the app folder and an absolute path is a file. */
+internal fun imageSource(context: Context, url: String): Any = when {
+  url.startsWith("~/") -> java.io.File(java.io.File(context.filesDir, "app"), url.substring(2))
+  url.startsWith("/") -> java.io.File(url)
+  else -> url
+}
+
 /** [currentColor] is the element's resolved CSS `color`, for SVG `currentColor` paints. */
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
@@ -455,7 +462,7 @@ fun drawBackground(
     }
 
     // Load bitmap asynchronously
-    Glide.with(context).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
+    Glide.with(context).asBitmap().load(imageSource(context, imageUrl)).into(object : CustomTarget<Bitmap>() {
       override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
         layer.bitmap = resource
         layer.bitmapIsDevicePx = false

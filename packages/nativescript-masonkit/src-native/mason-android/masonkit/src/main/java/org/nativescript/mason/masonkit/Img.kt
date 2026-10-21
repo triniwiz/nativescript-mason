@@ -14,7 +14,6 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import org.nativescript.mason.masonkit.enums.ObjectFit
-import java.io.File
 import kotlin.math.max
 
 @SuppressLint("AppCompatCustomView")
@@ -140,17 +139,10 @@ class Img @JvmOverloads constructor(
       onStateChange?.let {
         it(LoadingState.Loading)
       }
-      if (value.startsWith("/")) {
-        Glide.with(this)
-          .asBitmap()
-          .load(File(value))
-          .into(target)
-      } else {
-        Glide.with(this)
-          .asBitmap()
-          .load(value)
-          .into(target)
-      }
+      Glide.with(this)
+        .asBitmap()
+        .load(imageSource(context, value))
+        .into(target)
 
     }
 
