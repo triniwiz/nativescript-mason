@@ -76,6 +76,8 @@ pub(crate) struct TreeInner {
     // instead of unconditionally re-scanning every node on every layout pass.
     pub(crate) has_floats: bool,
     pub(crate) has_scroll_containers: bool,
+    // Skip ancestor lookups in cache_get until a writing mode is explicitly set.
+    pub(crate) has_writing_modes: bool,
     // Set when a node is removed from `nodes`; tells compute_layout's
     // sanitize pass it needs to scrub stale ids from `children`.
     pub(crate) structure_dirty: bool,
@@ -103,6 +105,7 @@ impl TreeInner {
             float_context: Default::default(),
             has_floats: false,
             has_scroll_containers: false,
+            has_writing_modes: false,
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
@@ -125,6 +128,7 @@ impl TreeInner {
             style_arena: Box::new(StyleArena::with_capacity(&[0u8; STYLE_BUFFER_SIZE], value)),
             has_floats: false,
             has_scroll_containers: false,
+            has_writing_modes: false,
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
@@ -1874,6 +1878,7 @@ impl Tree {
         if let Some(n) = tree.nodes.get(node) {
             let style = n.style();
             let floats = style.get_float() != Float::None;
+            let writing_mode = style.get_writing_mode().is_some();
             let overflow = style.get_overflow();
             let scrolls = matches!(
                 overflow.x,
@@ -1887,6 +1892,9 @@ impl Tree {
             }
             if scrolls {
                 tree.has_scroll_containers = true;
+            }
+            if writing_mode {
+                tree.has_writing_modes = true;
             }
         }
         Self::mark_dirty_inner(&mut tree, node);
@@ -2093,6 +2101,7 @@ impl Tree {
         // as disjoint through it.
         let mut sets_float = false;
         let mut sets_scroll_container = false;
+        let mut sets_writing_mode = false;
         let mut changed = true;
         if let Some(node) = tree.nodes.get_mut(node_id) {
             let style = node.style_mut();
@@ -2111,6 +2120,7 @@ impl Tree {
                 || style.non_buffer_snapshot() != non_buffer_before;
 
             sets_float = style.get_float() != Float::None;
+            sets_writing_mode = style.get_writing_mode().is_some();
             let overflow = style.get_overflow();
             sets_scroll_container = matches!(
                 overflow.x,
@@ -2125,6 +2135,9 @@ impl Tree {
         }
         if sets_scroll_container {
             tree.has_scroll_containers = true;
+        }
+        if sets_writing_mode {
+            tree.has_writing_modes = true;
         }
         if changed {
             // A style change can affect this node's contribution to its
@@ -2378,7 +2391,21 @@ fn measure_cache_key(ignores_offered_height: bool, inputs: &LayoutInput) -> Layo
 impl CacheTree for Tree {
     #[inline]
     fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
-        let node = self.node_from_id_mut(node_id);
+        let id = Id::from(node_id);
+        let mut tree = self.inner_mut();
+        if tree.has_writing_modes {
+            let mode = resolved_writing_mode(&tree, id);
+            let node = &mut tree.nodes[id];
+            // LayoutInput doesn't contain inherited writing-mode. Equal
+            // constraints can otherwise reuse horizontal geometry after an
+            // ancestor changes mode or this subtree is reparented.
+            if node.cached_writing_mode != mode {
+                node.mark_dirty();
+                node.cached_writing_mode = mode;
+                block_measure_cache().remove(&block_key(tree.uid, id));
+            }
+        }
+        let node = &tree.nodes[id];
         node.cache
             .get(&measure_cache_key(node.ignores_offered_height, inputs))
     }

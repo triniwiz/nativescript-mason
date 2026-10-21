@@ -1,5 +1,5 @@
 use crate::layout_cache::LayoutCache;
-use crate::style::Style;
+use crate::style::{Style, WritingMode};
 use crate::tree::{forget_block_measure, Id, TreeInner};
 use crate::MeasureOutput;
 use std::fmt::Debug;
@@ -583,6 +583,7 @@ pub struct Node {
     /// Per-node cache that lets distinct measure constraints coexist instead of
     /// evicting each other through taffy's fixed 9-slot cache.
     pub(crate) cache: LayoutCache,
+    pub(crate) cached_writing_mode: WritingMode,
     pub(crate) inline_measure_cache: InlineMeasureCache,
     pub(crate) subtree_analysis: Option<SubtreeAnalysis>,
     pub(crate) unrounded_layout: Layout,
@@ -608,6 +609,7 @@ impl Node {
         Self {
             style: Style::new(arena),
             cache: Default::default(),
+            cached_writing_mode: WritingMode::HorizontalTb,
             inline_measure_cache: InlineMeasureCache::new(),
             subtree_analysis: None,
             unrounded_layout: Default::default(),
@@ -630,6 +632,7 @@ impl Node {
         Self {
             style: Style::new_with_handle(arena, handle),
             cache: Default::default(),
+            cached_writing_mode: WritingMode::HorizontalTb,
             inline_measure_cache: InlineMeasureCache::new(),
             subtree_analysis: None,
             unrounded_layout: Default::default(),
