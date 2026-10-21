@@ -51,13 +51,21 @@ const writeGrid: Write = (helper, style) => {
   helper.gridArea = `${style.gridRowStart ?? 'auto'} / ${style.gridColumnStart ?? 'auto'} / ${style.gridRowEnd ?? 'auto'} / ${style.gridColumnEnd ?? 'auto'}`;
 };
 
-const entries: Array<[LayoutProperty, Write]> = [
-  ...([widthProperty, heightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, flexGrowProperty, flexShrinkProperty, flexBasisProperty, aspectRatioProperty, positionProperty, leftProperty, rightProperty, topProperty, bottomProperty] as unknown as LayoutProperty[]).map((p): [LayoutProperty, Write] => [p, scalar(p)]),
+// Windows panels copy these from the XAML element on every measure.
+const entries: Array<[LayoutProperty, Write]> = [];
+function add(properties: unknown[], write: (property: LayoutProperty) => Write): void {
+  for (const property of properties as LayoutProperty[]) entries.push([property, write(property)]);
+}
+
+// Windows panels copy these from the XAML element on every measure.
+if (!__WINDOWS__) {
+  add([widthProperty, heightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty], scalar);
   // Core's 0 default would disable Mason's automatic minimum size.
-  ...([minWidthProperty, minHeightProperty] as unknown as LayoutProperty[]).map((p): [LayoutProperty, Write] => [p, scalar(p, 'auto')]),
-  ...([alignSelfProperty, justifySelfProperty] as unknown as LayoutProperty[]).map((p): [LayoutProperty, Write] => [p, selfAlign(p)]),
-  ...gridEdges.map((p): [LayoutProperty, Write] => [p, writeGrid]),
-];
+  add([minWidthProperty, minHeightProperty], (p) => scalar(p, 'auto'));
+}
+add([flexGrowProperty, flexShrinkProperty, flexBasisProperty, aspectRatioProperty, positionProperty, leftProperty, rightProperty, topProperty, bottomProperty], scalar);
+add([alignSelfProperty, justifySelfProperty], selfAlign);
+add(gridEdges, () => writeGrid);
 
 const foreignProtos = new WeakMap<object, object>();
 // Native views whose leaf this bridge has written; a leaf outlives a detach.

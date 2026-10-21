@@ -62,7 +62,9 @@ class ListView extends ListBase {
     if (this._windowsAttach(child)) return true;
     const index = this._windowsNativeIndexOf(child, atIndex);
     super._addViewToNativeVisualTree(child, index);
-    return appendNativeChild(this._view, child, index);
+    if (!appendNativeChild(this._view, child, index)) return false;
+    this._masonAdoptForeign(child);
+    return true;
   }
 
   // @ts-ignore

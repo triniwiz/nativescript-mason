@@ -2,7 +2,6 @@
 #include "Li.g.h"
 #include "Invalidation.h"
 #include "VisualState.h"
-#include <unordered_map>
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -28,7 +27,6 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Mason m_engine{ nullptr };
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
-        std::unordered_map<void*, winrt::NativeScript::Mason::Node> m_leaves;
     };
 }
 

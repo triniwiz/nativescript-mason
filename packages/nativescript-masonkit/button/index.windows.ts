@@ -2,7 +2,7 @@ import { CSSType, GestureTypes } from '@nativescript/core';
 import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isText_, isMasonView_, native_ } from '../symbols';
+import { style_, isText_, isMasonView_, native_, runMember_ } from '../symbols';
 import { removeNativeChild } from '../windows-panel-helpers';
 
 @CSSType('Button')
@@ -83,13 +83,22 @@ export class Button extends ButtonBase {
       child._isMasonChild = true;
       return true;
     }
-    return super._addViewToNativeVisualTree(child, atIndex);
+    if (!(child?.[isMasonView_] ? child._view : child?.nativeViewProtected)) return super._addViewToNativeVisualTree(child, atIndex);
+    this._view.SetInlineBox(child.nativeViewProtected ?? child._view, this._windowsNativeIndexOf(child, atIndex));
+    child[runMember_] = 'box';
+    child._isMasonChild = true;
+    this._masonAdoptForeign(child);
+    return true;
   }
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(child: any): void {
     if (child?.[isText_] && child._view && !child._view.IsButton) {
       this._view.RemoveInlineText(child._view);
+      child._isMasonChild = false;
+    } else if (child?.[runMember_] === 'box') {
+      this._view.RemoveInlineBox(child.nativeViewProtected ?? child._view);
+      child[runMember_] = undefined;
       child._isMasonChild = false;
     } else {
       removeNativeChild(this._view, child);

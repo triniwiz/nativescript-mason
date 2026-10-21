@@ -30,7 +30,7 @@ namespace winrt::NativeScript::Mason::implementation
     Size Li::MeasureOverride(Size const& availableSize)
     {
         if (!m_node) return Size{ 0, 0 };
-        return mason_panel::Measure(m_engine, m_node, get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), Children(), m_leaves, availableSize);
+        return mason_panel::Measure(m_engine, m_node, get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), Children(), availableSize);
     }
 
     Size Li::ArrangeOverride(Size const& finalSize)

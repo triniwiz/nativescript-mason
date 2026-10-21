@@ -1478,7 +1478,8 @@ function appleHasWritableStyleValues(nativeView: any): boolean {
   return !!appleWritableStyleValues;
 }
 
-function windowsStyleValues(nativeView: any) {
+function windowsStyleValues(nativeView: any, foreign: boolean) {
+  if (foreign && nativeView) return masonEngine().ForeignStyleValues(nativeView);
   if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
   return NativeScript.Mason.Mason.Instance().CreateNode(false).Style.Values;
 }
@@ -1615,7 +1616,7 @@ export class Style {
       // projects it as a writable ArrayBuffer, so the same StyleKeys-offset writes used on
       // iOS/Android land straight in the node's style.
       //@ts-ignore
-      this.setBuffer(NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(this.nativeView)) as ArrayBuffer);
+      this.setBuffer(NSWinRT.interop.arrayBufferFromBuffer(windowsStyleValues(this.nativeView, !!this.view_ && !this.view_[isMasonView_])) as ArrayBuffer);
     }
   }
 
@@ -2122,13 +2123,17 @@ export class Style {
       // @ts-ignore
       view.mason_syncStyleParts(this._d0, this._d1, this._d2, this._d3);
     } else if (__WINDOWS__) {
-      // @ts-ignore
-      const view = (this.view as any)?.windows ?? this.view._view;
       const all = !this._hasDirty;
       const d0 = all ? -1 : this._d0;
       const d1 = all ? -1 : this._d1;
       const d2 = all ? -1 : this._d2;
       const d3 = all ? -1 : this._d3;
+      if (!this.view[isMasonView_]) {
+        masonEngine().SyncForeignStyle(this.nativeView, d0, d1, d2, d3);
+        return;
+      }
+      // @ts-ignore
+      const view = (this.view as any)?.windows ?? this.view._view;
       (view as NativeScript.Mason.IMasonElement).SyncStyle(d0, d1, d2, d3);
       const text = StateKeys.WINDOWS_TEXT;
       if ((d0 & text.w0) | (d1 & text.w1) | (d2 & text.w2) | (d3 & text.w3)) {

@@ -106,6 +106,19 @@ namespace winrt::NativeScript::Mason::implementation
         return node ? node.Style().Values() : nullptr;
     }
 
+    winrt::Windows::Storage::Streams::IBuffer Mason::ForeignStyleValues(winrt::Microsoft::UI::Xaml::UIElement const& element)
+    {
+        if (!element) return nullptr;
+        return mason_panel::ForeignLeaf(*this, element).Style().Values();
+    }
+
+    void Mason::SyncForeignStyle(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t d0, int32_t d1, int32_t d2, int32_t d3)
+    {
+        if (!element) return;
+        if (!mason_leaf::AnyDirty(mason_leaf::DirtyWords(d0, d1, d2, d3), mason_leaf::kLayoutKeys)) return;
+        mason_leaf::StyleChanged(element, mason_panel::ForeignLeaf(*this, element));
+    }
+
     void Mason::ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index)
     {
         Css::ReparentChild(parent, child, index);

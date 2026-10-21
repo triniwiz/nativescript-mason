@@ -7,9 +7,15 @@ import { isMasonView_ } from './symbols';
 
 // Exercise the real platform dispatch with a live JS buffer; native geometry
 // and cache invalidation are covered by the Swift/Kotlin tests.
+let windowsSync: (...args: unknown[]) => void = () => {};
+if (__WINDOWS__) {
+  (globalThis as any).NativeScript = { Mason: { Mason: { Instance: () => ({ SyncForeignStyle: (...a: unknown[]) => windowsSync(...a) }) } } };
+}
+
 function foreignStyle() {
   const sync = vi.fn();
-  const native = __ANDROID__ ? {} : { mason_syncStyleParts: sync };
+  const native = __ANDROID__ || __WINDOWS__ ? {} : { mason_syncStyleParts: sync };
+  if (__WINDOWS__) windowsSync = sync;
   if (__ANDROID__) {
     vi.stubGlobal('org', {
       nativescript: {
@@ -24,12 +30,12 @@ function foreignStyle() {
   const { style: value } = styleUnderTest();
   const style = value as any;
   style.nativeView = native;
-  style.view_ = { android: native, ios: native };
+  style.view_ = { android: native, ios: native, windows: native };
   return { style, sync, native };
 }
 
 function args(native: object, words: number[]) {
-  return __ANDROID__ ? [native, ...words] : words;
+  return __ANDROID__ || __WINDOWS__ ? [native, ...words] : words;
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -70,6 +76,19 @@ describe('native style dispatch for ordinary views', () => {
     style._sendSync();
     expect(directSync).toHaveBeenCalledExactlyOnceWith(...words);
     expect(getShared).not.toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it.runIf(__WINDOWS__)('syncs Mason views through their own element, not the engine', () => {
+    const { style, sync, native } = foreignStyle();
+    const directSync = vi.fn();
+    (native as any).SyncStyle = directSync;
+    style.view_[isMasonView_] = true;
+    const words = [-2147483648, -2147483647, -1, -2147483646];
+    [style._d0, style._d1, style._d2, style._d3] = words;
+    style._hasDirty = true;
+    style._sendSync();
+    expect(directSync).toHaveBeenCalledExactlyOnceWith(...words);
     expect(sync).not.toHaveBeenCalled();
   });
 
