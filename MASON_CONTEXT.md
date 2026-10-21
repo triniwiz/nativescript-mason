@@ -386,80 +386,21 @@ collides with a core CSS name must go through `registerAlongsideCore`** —
 `properties.spec.ts` fails on an unrouted collision.
 
 `isMasonView()` deliberately asks whether the view *is* a mason element, not
-whether it sits inside one: a plain view keeps core's Style and converters.
-`foreign-layout.ts` separately copies its effective layout values into its native
-Mason leaf after attachment; it never marks the widget as a Mason element.
-(There was a
+whether it sits inside one: a plain view parented into a mason tree has no mason
+style buffer, so its value still has to be converted for core. (There was a
 `isMasonChild_` Symbol read here that nothing ever assigned — the 17 write sites
 set a string `_isMasonChild` instead. Removed; the guard now says what it does.)
 
-### Effective layout on ordinary children (iOS and Android)
+### Layout styles on plain children (iOS and Android)
 
-An ordinary child keeps NativeScript's CSS/local-value priority. Width, height,
-constraints, margins, self-alignment, flex sizing, grid placement and positioning
-reach its Mason leaf through `foreign-layout.ts`. For example, removing a local
-width reveals the current class width again:
-
-```ts
-import { Label, unsetValue } from '@nativescript/core';
-import { View as MasonView } from '@triniwiz/nativescript-masonkit';
-
-const container = new MasonView();
-const label = new Label();
-label.className = 'badge'; // page CSS: .badge { width: 43; height: 43; }
-container.addChild(label);
-label.style.width = 30;
-label.style.width = unsetValue;
-```
-
-The bridge listens to resolved longhands, replays after native insertion and
-`loaded`, and replaces its Style helper when the native identity changes. It
-pauses on `unloaded`/`disposeNativeView`; removal or container disposal releases
-all listeners and restores delegated Style accessors. Core's non-animated
-`CssProperty` does not reapply CSS on local removal, including silent resets to
-its default; the bridge delegates local setters unchanged and asks core to
-reapply the current cascade after resets. Foreign grid shorthands expand into
-the same core longhands so CSS/local priority applies to each edge.
-Core's physical-pixel objects are converted to DIP before the
-Mason setter scales them; percentage fractions are unchanged. Grid placement is
-sent as one complete four-edge `gridArea` value so retained native shorthand
-state cannot erase a row/column override. These are internal transport helpers,
-not renderer APIs. Windows keeps its existing bridge.
-
-Run the host regression with the existing test harness:
-
-```sh
-pnpm exec vitest run --config tools/testing/vitest.config.ts tools/testing/foreign-layout.spec.ts
-```
-
-For native frame checks, use `apps/demo/src/foreign-layout-probe.ts` as the demo's
-entry instead of `src/app.ts`, then run `ns run ios` or `ns run android` from
-`apps/demo`. Restore the entry afterwards. The probe prints `FOREIGN_LAYOUT`
-assertions and `FOREIGN_LAYOUT_PASS`; a failure throws or times out. It checks a
-non-square ordinary ContentView and a Label, both centering axes, class changes,
-local override/removal, reattachment, native recreation and listener cleanup.
-Use native artifacts containing the foreign-view style-sync prerequisite;
-passing host tests or a native build does not qualify these frame assertions.
-
-For the iOS 27 probe, the demo also needs a deployment target accepted by Xcode
-27 and a scene manifest. The local qualification used target 15 and this entry
-in the demo's iOS `Info.plist` (NativeScript installs its scene delegates):
-
-```xml
-<key>UIApplicationSceneManifest</key>
-<dict>
-  <key>UIApplicationSupportsMultipleScenes</key>
-  <true/>
-</dict>
-```
-
-The mobile probe's webpack configuration must define `__WINDOWS__` as `false`,
-matching the mobile platform flags expected by Mason's shared sources. Keep
-these harness settings separate from the frame assertion results.
-
-The probe retains 100 DIP top padding. It does not qualify top-safe-area
-clipping, OS input/hit testing, or SVG intrinsic arithmetic. Record iOS and
-Android runs separately; one platform's result does not qualify the other.
+A plain view inside a Mason container keeps core's Style, parsing and cascade.
+`foreign-layout.ts` mirrors its layout longhands (size, min/max, margins, flex,
+self-alignment, position and insets, grid placement) into its Mason leaf. While
+attached, its Style sits on a shared prototype whose setters call core's and then
+copy the effective value; release on native removal restores the prototype. Core
+`px` objects (device pixels) are converted to dip first. Unsetting a local
+`CssProperty` falls back to its default, not the class value, as it does on any
+core view. Windows keeps its existing bridge.
 
 **Known gap:** font inheritance does not cross into mason.
 `common.ts`'s `[fontInternalProperty.setNative]` is `if (!__WINDOWS__) return;`,

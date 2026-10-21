@@ -54,8 +54,8 @@ import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
+import { adoptForeignLayout, releaseForeignLayout } from './foreign-layout';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
-import { bindForeignLayout, syncForeignLayout } from './foreign-layout';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
 import {
@@ -473,7 +473,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       child._isAddedToNativeVisualTree = false;
       return;
     }
+    releaseForeignLayout(child);
     super._removeViewFromNativeVisualTree(child);
+  }
+
+  /** Mirror a plain child's CSS layout into its Mason leaf; containers call this after the native insert. */
+  _masonAdoptForeign(child: any): void {
+    if (__ANDROID__ || __APPLE__) adoptForeignLayout(child);
   }
 
   private _masonFinishTeardown() {
@@ -807,7 +813,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   initNativeView(): void {
     super.initNativeView();
     this._applyTouchAction();
-    for (const child of this._children ?? []) this._masonBindForeignChild(child);
     if (this._pendingEventsRegistration.length > 0) {
       const pending = this._pendingEventsRegistration.splice(0);
       for (const registration of pending) {
@@ -839,27 +844,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return this.hasListeners(NSView.layoutChangedEvent);
   }
 
-  private _foreignLayouts = new Map<NSView, () => void>();
-
-  private _masonBindForeignChild(child: any): void {
-    if ((!__ANDROID__ && !__APPLE__) || !child?.style || child[isMasonView_] || this._foreignLayouts.has(child)) return;
-    this._foreignLayouts.set(child, bindForeignLayout(child, this));
-  }
-
-  /** Called by each container after it has inserted the native leaf. */
-  _masonSyncForeignChild(child: any): void {
-    this._masonBindForeignChild(child);
-    syncForeignLayout(child);
-  }
-
-  disposeNativeView(): void {
-    for (const dispose of this._foreignLayouts.values()) dispose();
-    this._foreignLayouts.clear();
-    super.disposeNativeView();
-  }
-
   public _addViewCore(view: any, atIndex?: number) {
-    this._masonBindForeignChild(view);
     // Before setup: listeners the child gains while loading add themselves through `parent`.
     if (__APPLE__) {
       const work = view?.[isMasonView_] ? view._masonLayoutWork : 1;
@@ -867,12 +852,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
     // @ts-ignore
     super._addViewCore(view, atIndex);
-    syncForeignLayout(view);
   }
 
   public _removeViewCore(view: any) {
-    this._foreignLayouts.get(view)?.();
-    this._foreignLayouts.delete(view);
     // @ts-ignore
     super._removeViewCore(view);
     // After teardown: listeners removed while unloading already subtracted themselves.

@@ -22,7 +22,6 @@ export { getViewById } from '@nativescript/core/ui/core/view-base';
 export { CustomLayoutView, View } from '@nativescript/core/ui/core/view';
 export { PseudoClassHandler, CSSType } from '@nativescript/core/ui/core/view/view-common';
 export { Screen } from '@nativescript/core/platform';
-export * as Utils from './ns-layout';
 
 // AddChildFromBuilder is an interface, so it has no runtime export; a value
 // import of the name still has to resolve.

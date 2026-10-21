@@ -142,7 +142,7 @@ export class Scroll extends ViewBase {
         nativeView.mason_addChildAtElement(child.ios, index);
       } else {
         nativeView.addViewAt(child.nativeViewProtected, index);
-        this._masonSyncForeignChild(child);
+        this._masonAdoptForeign(child);
         this._masonMeasureForeign(child);
       }
       return true;
