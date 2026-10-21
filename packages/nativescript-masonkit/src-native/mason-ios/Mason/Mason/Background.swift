@@ -662,11 +662,20 @@ private func svgCGColor(_ paint: SvgPaint, opacity: CGFloat, currentColor: UInt3
   switch paint {
   case let .color(c): argb = c
   case .currentColor: argb = currentColor
-  case .none: argb = 0
+  default: argb = 0
   }
+  return svgCGColor(argb: argb, opacity: opacity)
+}
+
+private func svgCGColor(argb: UInt32, opacity: CGFloat) -> CGColor {
   let a = CGFloat((argb >> 24) & 0xFF) / 255 * min(max(opacity, 0), 1)
   return CGColor(srgbRed: CGFloat((argb >> 16) & 0xFF) / 255, green: CGFloat((argb >> 8) & 0xFF) / 255,
                  blue: CGFloat(argb & 0xFF) / 255, alpha: a)
+}
+
+private func svgStopColor(_ stop: SvgGradientStop, currentColor: UInt32) -> CGColor {
+  guard stop.currentColor else { return svgCGColor(argb: stop.argb, opacity: 1) }
+  return svgCGColor(argb: currentColor, opacity: CGFloat((stop.argb >> 24) & 0xFF) / 255)
 }
 
 func svgCGPath(_ commands: [SvgPathCommand]) -> CGPath {
@@ -690,6 +699,132 @@ func svgCGPath(_ commands: [SvgPathCommand]) -> CGPath {
   return path
 }
 
+/// Stops over periods `lo..<hi` of a reflected or repeated gradient, in 0...1.
+private func svgPeriodicStops(_ stops: [SvgGradientStop], _ spread: SvgSpread, _ lo: Int, _ hi: Int) -> [SvgGradientStop] {
+  let span = CGFloat(hi - lo)
+  var out: [SvgGradientStop] = []
+  for k in lo..<hi {
+    let reversed = spread == .reflect && ((k % 2) + 2) % 2 == 1
+    let period = reversed ? stops.reversed().map { s -> SvgGradientStop in var r = s; r.offset = 1 - s.offset; return r } : stops
+    for s in period {
+      var e = s
+      e.offset = (CGFloat(k - lo) + s.offset) / span
+      out.append(e)
+    }
+  }
+  return out
+}
+
+/// Draws `g` over the current clip; reflect and repeat are unrolled over the clipped area.
+private func drawSvgGradient(_ cg: CGContext, _ g: SvgGradient, opacity: CGFloat, currentColor: UInt32) {
+  cg.saveGState()
+  defer { cg.restoreGState() }
+  cg.concatenate(g.transform)
+  cg.setAlpha(min(max(opacity, 0), 1))
+  let box = cg.boundingBoxOfClipPath
+  guard !box.isNull, !box.isInfinite else { return }
+  let corners = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                 CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.maxX, y: box.maxY)]
+  let maxPeriods = 256
+  var stops = g.stops
+  let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+  func gradient() -> CGGradient? {
+    CGGradient(colorsSpace: space, colors: stops.map { svgStopColor($0, currentColor: currentColor) } as CFArray,
+               locations: stops.map { $0.offset })
+  }
+
+  if !g.radial {
+    var start = CGPoint(x: g.x1, y: g.y1), end = CGPoint(x: g.x2, y: g.y2)
+    if g.spread != .pad {
+      let dx = g.x2 - g.x1, dy = g.y2 - g.y1, len2 = dx * dx + dy * dy
+      let ts = corners.map { (($0.x - g.x1) * dx + ($0.y - g.y1) * dy) / len2 }
+      var lo = Int(floor(ts.min() ?? 0)), hi = Int(ceil(ts.max() ?? 1))
+      if hi <= lo { hi = lo + 1 }
+      if hi - lo > maxPeriods { lo = max(lo, -maxPeriods / 2); hi = min(hi, lo + maxPeriods) }
+      stops = svgPeriodicStops(g.stops, g.spread, lo, hi)
+      start = CGPoint(x: g.x1 + CGFloat(lo) * dx, y: g.y1 + CGFloat(lo) * dy)
+      end = CGPoint(x: g.x1 + CGFloat(hi) * dx, y: g.y1 + CGFloat(hi) * dy)
+    }
+    guard let gr = gradient() else { return }
+    cg.drawLinearGradient(gr, start: start, end: end, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    return
+  }
+
+  let f = CGPoint(x: g.fx, y: g.fy)
+  var endCenter = CGPoint(x: g.cx, y: g.cy), endRadius = g.r
+  if g.spread != .pad {
+    // The circle for t has centre f + t (c - f) and radius t r; find the largest t at a corner.
+    let ex = g.cx - g.fx, ey = g.cy - g.fy
+    let a = ex * ex + ey * ey - g.r * g.r
+    var tMax: CGFloat = 1
+    if a < 0 {
+      for p in corners {
+        let qx = p.x - g.fx, qy = p.y - g.fy
+        let qe = qx * ex + qy * ey
+        let t = (qe - (qe * qe - a * (qx * qx + qy * qy)).squareRoot()) / a
+        tMax = max(tMax, t)
+      }
+    }
+    let hi = min(maxPeriods, Int(ceil(tMax)))
+    stops = svgPeriodicStops(g.stops, g.spread, 0, hi)
+    endCenter = CGPoint(x: g.fx + CGFloat(hi) * ex, y: g.fy + CGFloat(hi) * ey)
+    endRadius = CGFloat(hi) * g.r
+  }
+  guard let gr = gradient() else { return }
+  cg.drawRadialGradient(gr, startCenter: f, startRadius: 0, endCenter: endCenter, endRadius: endRadius,
+                        options: [.drawsAfterEndLocation])
+}
+
+/// The union of `clip`'s paths, and the rule to fill it with.
+private func svgClipPath(_ clip: SvgClip) -> (CGPath, CGPathFillRule) {
+  let first = clip.paths.first?.evenOdd ?? false
+  let mixed = clip.paths.contains { $0.evenOdd != first }
+  if mixed, #available(iOS 16.0, *) {
+    var acc: CGPath = CGMutablePath()
+    for c in clip.paths {
+      let path = CGMutablePath()
+      path.addPath(svgCGPath(c.commands), transform: c.transform)
+      let region = path.union(path, using: c.evenOdd ? .evenOdd : .winding)
+      acc = acc.union(region, using: .winding)
+    }
+    return (acc, .winding)
+  }
+  let out = CGMutablePath()
+  for c in clip.paths { out.addPath(svgCGPath(c.commands), transform: c.transform) }
+  return (out, first ? .evenOdd : .winding)
+}
+
+private func drawSvgImage(_ cg: CGContext, _ image: SvgImage) {
+  guard let ui = decodeDataUrlImage(url: image.href), ui.size.width > 0, ui.size.height > 0 else { return }
+  let iw = ui.size.width, ih = ui.size.height
+  // An auto side keeps the image's aspect ratio.
+  let w = image.width ?? image.height.map { $0 * iw / ih } ?? iw
+  let h = image.height ?? image.width.map { $0 * ih / iw } ?? ih
+  cg.saveGState()
+  defer { cg.restoreGState() }
+  cg.concatenate(image.transform)
+  cg.translateBy(x: image.x, y: image.y)
+  if image.slice { cg.clip(to: CGRect(x: 0, y: 0, width: w, height: h)) }
+  cg.concatenate(svgViewBoxTransform(CGRect(x: 0, y: 0, width: iw, height: ih), image.alignX, image.alignY, image.slice, w, h))
+  ui.draw(in: CGRect(x: 0, y: 0, width: iw, height: ih), blendMode: .normal, alpha: min(max(image.opacity, 0), 1))
+}
+
+private func setSvgStrokeStyle(_ cg: CGContext, _ shape: SvgShape) {
+  cg.setLineWidth(shape.strokeWidth)
+  switch shape.lineCap {
+  case .butt: cg.setLineCap(.butt)
+  case .round: cg.setLineCap(.round)
+  case .square: cg.setLineCap(.square)
+  }
+  switch shape.lineJoin {
+  case .miter: cg.setLineJoin(.miter)
+  case .round: cg.setLineJoin(.round)
+  case .bevel: cg.setLineJoin(.bevel)
+  }
+  cg.setMiterLimit(shape.miterLimit)
+  if let dashes = shape.dashArray { cg.setLineDash(phase: shape.dashOffset, lengths: dashes) }
+}
+
 /// Rasterize `doc` at `size` points and `scale`; `currentColor` paints use `currentColor` (ARGB).
 func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, currentColor: UInt32) -> UIImage? {
   guard size.width > 0, size.height > 0, !doc.ops.isEmpty else { return nil }
@@ -708,32 +843,44 @@ func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, current
       case .endGroup:
         cg.endTransparencyLayer()
         cg.restoreGState()
+      case let .beginClip(clip):
+        cg.saveGState()
+        let (path, rule) = svgClipPath(clip)
+        cg.addPath(path)
+        cg.clip(using: rule)
+      case .endClip:
+        cg.restoreGState()
+      case let .image(image):
+        drawSvgImage(cg, image)
       case let .shape(shape):
         let path = svgCGPath(shape.commands)
         cg.saveGState()
         cg.concatenate(shape.transform)
         if shape.hasFill {
           cg.addPath(path)
-          cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
-          cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
+          if case let .gradient(g) = shape.fill {
+            cg.saveGState()
+            cg.clip(using: shape.evenOdd ? .evenOdd : .winding)
+            drawSvgGradient(cg, g, opacity: shape.fillOpacity, currentColor: currentColor)
+            cg.restoreGState()
+          } else {
+            cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
+            cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
+          }
         }
         if shape.hasStroke {
           cg.addPath(path)
-          cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
-          cg.setLineWidth(shape.strokeWidth)
-          switch shape.lineCap {
-          case .butt: cg.setLineCap(.butt)
-          case .round: cg.setLineCap(.round)
-          case .square: cg.setLineCap(.square)
+          setSvgStrokeStyle(cg, shape)
+          if case let .gradient(g) = shape.stroke {
+            cg.saveGState()
+            cg.replacePathWithStrokedPath()
+            cg.clip()
+            drawSvgGradient(cg, g, opacity: shape.strokeOpacity, currentColor: currentColor)
+            cg.restoreGState()
+          } else {
+            cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
+            cg.strokePath()
           }
-          switch shape.lineJoin {
-          case .miter: cg.setLineJoin(.miter)
-          case .round: cg.setLineJoin(.round)
-          case .bevel: cg.setLineJoin(.bevel)
-          }
-          cg.setMiterLimit(shape.miterLimit)
-          if let dashes = shape.dashArray { cg.setLineDash(phase: shape.dashOffset, lengths: dashes) }
-          cg.strokePath()
         }
         cg.restoreGState()
       }

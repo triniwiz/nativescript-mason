@@ -332,8 +332,8 @@ final class SvgParserTests: XCTestCase {
 
   func testUrlPaintUsesItsFallback() throws {
     let d = try doc("""
-      <svg viewBox="0 0 1 1"><defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs>
-        <path fill="url(#g) blue" d="M0 0h1v1z"/><path fill="url(#g)" stroke="red" d="M0 0h1v1z"/></svg>
+      <svg viewBox="0 0 1 1"><defs><pattern id="p"/></defs>
+        <path fill="url(#p) blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>
       """)
     XCTAssertEqual(d.shapes.count, 2)
     XCTAssertEqual(d.shapes[0].fill, .color(0xFF00_00FF))
@@ -524,5 +524,325 @@ final class SvgParserTests: XCTestCase {
     // Fill and stroke overlap at the edge; as one group they stay at 50%.
     XCTAssertEqual(Double(pixel(img, 0, 5).a), 128, accuracy: 2)
     XCTAssertEqual(Double(pixel(img, 5, 5).a), 128, accuracy: 2)
+  }
+
+  // MARK: gradients
+
+  private func gradientOf(_ paint: SvgPaint, file: StaticString = #filePath, line: UInt = #line) throws -> SvgGradient {
+    guard case let .gradient(g) = paint else {
+      XCTFail("not a gradient: \(paint)", file: file, line: line)
+      throw NSError(domain: "svg", code: 0)
+    }
+    return g
+  }
+
+  private func flat(_ t: CGAffineTransform) -> [CGFloat] { [t.a, t.b, t.c, t.d, t.tx, t.ty] }
+
+  func testLinearGradientInBoundingBoxUnits() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 20 30"><defs><linearGradient id="g"><stop offset="0" stop-color="red"/>
+        <stop offset="100%" stop-color="blue" stop-opacity=".5"/></linearGradient></defs>
+        <rect x="2" y="4" width="10" height="20" fill="url(#g)"/></svg>
+      """)
+    let g = try gradientOf(d.shapes[0].fill)
+    XCTAssertFalse(g.radial)
+    XCTAssertEqual([g.x1, g.y1, g.x2, g.y2], [0, 0, 1, 0])
+    XCTAssertEqual(flat(g.transform), [10, 0, 0, 20, 2, 4])
+    XCTAssertEqual(g.spread, .pad)
+    XCTAssertEqual(g.stops, [SvgGradientStop(offset: 0, argb: 0xFFFF_0000), SvgGradientStop(offset: 1, argb: 0x7F00_00FF)])
+  }
+
+  func testGradientUserSpaceAndTransform() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 200 100"><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="10%" y1="0" x2="50"
+        y2="50%" gradientTransform="translate(1 2)" spreadMethod="repeat"><stop offset="0"/><stop offset="1" stop-color="white"/>
+        </linearGradient><rect width="10" height="10" stroke="url(#g)" fill="none"/></svg>
+      """)
+    let g = try gradientOf(d.shapes[0].stroke)
+    XCTAssertEqual([g.x1, g.y1, g.x2, g.y2], [20, 0, 50, 50])
+    XCTAssertEqual(flat(g.transform), [1, 0, 0, 1, 1, 2])
+    XCTAssertEqual(g.spread, .repeat)
+  }
+
+  func testGradientHrefInheritsStopsAndAttributes() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10">
+        <linearGradient id="a" gradientUnits="userSpaceOnUse" spreadMethod="reflect" x1="3"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+        <linearGradient id="b" href="#a" x2="1"/>
+        <radialGradient id="c" xlink:href="#a" r="5"/>
+        <rect width="1" height="1" fill="url(#b)"/><rect width="1" height="1" fill="url(#c)"/></svg>
+      """)
+    let b = try gradientOf(d.shapes[0].fill)
+    XCTAssertEqual(b.stops.count, 2)
+    XCTAssertEqual(b.spread, .reflect)
+    XCTAssertEqual([b.x1, b.y1, b.x2, b.y2], [3, 0, 1, 0])
+    let c = try gradientOf(d.shapes[1].fill)
+    XCTAssertTrue(c.radial)
+    XCTAssertEqual(c.stops.count, 2)
+    XCTAssertEqual(c.spread, .reflect)
+    // User space: cx/cy default to 50% of the viewBox.
+    XCTAssertEqual([c.cx, c.cy, c.r, c.fx, c.fy], [5, 5, 5, 5, 5])
+  }
+
+  func testRadialGradientFocalPoint() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><radialGradient id="g" fx=".25"><stop offset="0"/><stop offset="1"/></radialGradient>
+        <radialGradient id="o" fx="2"><stop offset="0"/><stop offset="1"/></radialGradient>
+        <rect width="10" height="10" fill="url(#g)"/><rect width="10" height="10" fill="url(#o)"/></svg>
+      """)
+    let g = try gradientOf(d.shapes[0].fill)
+    XCTAssertEqual([g.cx, g.cy, g.r, g.fx, g.fy], [0.5, 0.5, 0.5, 0.25, 0.5])
+    // Outside the end circle: moved onto it.
+    XCTAssertEqual(try gradientOf(d.shapes[1].fill).fx, 0.9995, accuracy: 1e-5)
+  }
+
+  func testStopOffsetsClampAndStayOrdered() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 1 1"><linearGradient id="g"><stop offset="50%"/><stop offset="0.2"/><stop offset="1.5"/></linearGradient>
+        <rect width="1" height="1" fill="url(#g)"/></svg>
+      """)
+    XCTAssertEqual(try gradientOf(d.shapes[0].fill).stops.map { $0.offset }, [0.5, 0.5, 1])
+  }
+
+  func testGradientEdgeCases() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10">
+        <linearGradient id="none"/>
+        <linearGradient id="one"><stop offset="0" stop-color="red"/></linearGradient>
+        <linearGradient id="flat" x2="0"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+        <pattern id="p"/>
+        <rect width="1" height="1" fill="url(#none) red" stroke="black"/>
+        <rect width="1" height="1" fill="url(#one)"/>
+        <rect width="1" height="1" fill="url(#flat)"/>
+        <rect width="1" height="1" fill="url(#missing) green"/>
+        <rect width="1" height="1" fill="url('#p') blue"/>
+        <line x2="5" stroke="url(#flat)"/>
+      </svg>
+      """)
+    let s = d.shapes
+    XCTAssertEqual(s.count, 5)
+    // A valid reference ignores the fallback; no stops paints nothing.
+    XCTAssertEqual(s[0].fill, SvgPaint.none)
+    XCTAssertEqual(s[1].fill, .color(0xFFFF_0000))
+    // A zero-length vector paints the last stop.
+    XCTAssertEqual(s[2].fill, .color(0xFF00_00FF))
+    XCTAssertEqual(s[3].fill, .color(0xFF00_8000))
+    XCTAssertEqual(s[4].fill, .color(0xFF00_00FF))
+  }
+
+  func testGradientCurrentColorStop() throws {
+    func svg(_ extra: String) -> String {
+      """
+      <svg viewBox="0 0 1 1" \(extra)><linearGradient id="g"><stop offset="0" stop-color="currentColor" stop-opacity=".5"/>
+        <stop offset="1" stop-color="red"/></linearGradient><rect width="1" height="1" fill="url(#g)"/></svg>
+      """
+    }
+    let open = try doc(svg(""))
+    XCTAssertTrue(open.usesCurrentColor)
+    let stop = try gradientOf(open.shapes[0].fill).stops[0]
+    XCTAssertTrue(stop.currentColor)
+    XCTAssertEqual((stop.argb >> 24) & 0xFF, 127)
+
+    let own = try doc(svg(##"color="#00ff00""##))
+    XCTAssertFalse(own.usesCurrentColor)
+    XCTAssertEqual(try gradientOf(own.shapes[0].fill).stops[0], SvgGradientStop(offset: 0, argb: 0x7F00_FF00))
+  }
+
+  // MARK: use and symbol
+
+  func testUseReferencesWithOffsetAndInheritance() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><defs><rect id="r" width="2" height="2"/></defs>
+        <use href="#r" x="3" y="4" fill="red"/><use xlink:href="#r" transform="scale(2)"/></svg>
+      """)
+    let s = d.shapes
+    XCTAssertEqual(s.count, 2)
+    XCTAssertEqual(flat(s[0].transform), [1, 0, 0, 1, 3, 4])
+    XCTAssertEqual(s[0].fill, .color(0xFFFF_0000))
+    XCTAssertEqual(flat(s[1].transform), [2, 0, 0, 2, 0, 0])
+    XCTAssertEqual(s[1].fill, .color(0xFF00_0000))
+  }
+
+  func testUseIsCycleSafe() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><g id="a"><use href="#a"/><rect width="1" height="1"/></g>
+        <use href="#b"/><use id="b" href="#b"/><use id="c" href="#d"/><use id="d" href="#c"/></svg>
+      """)
+    XCTAssertEqual(d.shapes.count, 1)
+  }
+
+  func testSymbolViewBoxAndClip() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 40 40"><symbol id="s" viewBox="0 0 10 10"><rect width="10" height="10"/></symbol>
+        <use href="#s" x="5" y="5" width="20" height="20"/></svg>
+      """)
+    let ops = d.ops
+    XCTAssertEqual(ops.count, 3)
+    guard case let .beginClip(clip) = ops[0], case let .shape(shape) = ops[1], case .endClip = ops[2] else {
+      return XCTFail("\(ops)")
+    }
+    let path = try XCTUnwrap(clip.paths.first)
+    XCTAssertEqual(flat(path.transform), [1, 0, 0, 1, 5, 5])
+    assertBounds(Bounds(minX: 0, minY: 0, maxX: 20, maxY: 20), bounds(path.commands), accuracy: 1e-4)
+    XCTAssertEqual(flat(shape.transform), [2, 0, 0, 2, 5, 5])
+  }
+
+  // MARK: clip paths
+
+  func testClipPathUserSpaceAndRule() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><clipPath id="c" clip-rule="evenodd"><rect width="5" height="5"/><circle r="1" clip-rule="nonzero"/></clipPath>
+        <rect width="10" height="10" clip-path="url(#c)" transform="translate(1 1)"/></svg>
+      """)
+    let ops = d.ops
+    XCTAssertEqual(ops.count, 3)
+    guard case let .beginClip(clip) = ops[0], case .shape = ops[1], case .endClip = ops[2] else { return XCTFail("\(ops)") }
+    XCTAssertEqual(clip.paths.count, 2)
+    XCTAssertTrue(clip.paths[0].evenOdd)
+    XCTAssertFalse(clip.paths[1].evenOdd)
+    XCTAssertEqual(flat(clip.paths[0].transform), [1, 0, 0, 1, 1, 1])
+  }
+
+  func testClipPathObjectBoundingBox() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 20 20"><clipPath id="c" clipPathUnits="objectBoundingBox"><rect width=".5" height="1"/></clipPath>
+        <rect x="2" width="10" height="4" clip-path="url(#c)"/></svg>
+      """)
+    guard case let .beginClip(clip) = d.ops[0] else { return XCTFail("\(d.ops)") }
+    XCTAssertEqual(flat(clip.paths[0].transform), [10, 0, 0, 4, 2, 0])
+  }
+
+  func testClipPathEdgeCases() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><clipPath id="empty"/><clipPath id="c"><rect width="5" height="5"/></clipPath>
+        <rect width="1" height="1" clip-path="url(#missing)"/>
+        <rect width="1" height="1" clip-path="url(#empty)"/>
+        <g clip-path="url(#c)"><rect width="1" height="1"/><rect width="2" height="2"/></g></svg>
+      """)
+    let ops = d.ops
+    // A missing reference doesn't clip; an empty clip path hides the element.
+    XCTAssertEqual(ops.count, 5)
+    guard case .shape = ops[0], case .beginClip = ops[1], case .shape = ops[2], case .shape = ops[3], case .endClip = ops[4] else {
+      return XCTFail("\(ops)")
+    }
+  }
+
+  // MARK: style sheets
+
+  func testStyleSheetSelectorsAndPrecedence() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><style>
+        /* comment {} */ @media print { rect { fill: black } }
+        .a { fill: red } rect { fill: blue; stroke: green } #x { fill: #00ff00 } rect.b { stroke-width: 3 }
+        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .e { fill: white }
+        </style>
+        <rect class="a" width="1" height="1"/>
+        <rect width="1" height="1"/>
+        <rect id="x" class="a" width="1" height="1"/>
+        <rect class="b" fill="purple" width="1" height="1"/>
+        <rect class="a" style="fill: white" width="1" height="1"/>
+        <rect class="c" style="fill: white" width="1" height="1"/>
+        <rect class="e" width="1" height="1"/>
+      </svg>
+      """)
+    let s = d.shapes
+    XCTAssertEqual(s[0].fill, .color(0xFFFF_0000))
+    XCTAssertEqual(s[1].fill, .color(0xFF00_00FF))
+    XCTAssertEqual(s[1].stroke, .color(0xFF00_8000))
+    XCTAssertEqual(s[2].fill, .color(0xFF00_FF00))
+    // A style sheet beats a presentation attribute.
+    XCTAssertEqual(s[3].fill, .color(0xFF00_00FF))
+    XCTAssertEqual(s[3].strokeWidth, 3)
+    XCTAssertEqual(s[4].fill, .color(0xFFFF_FFFF))
+    XCTAssertEqual(s[5].fill, .color(0xFFFF_FF00))
+    XCTAssertEqual(s[6].fill, .color(0xFFFF_FFFF))
+  }
+
+  func testStyleSheetInCdataAndAppliesToStops() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><defs><style type="text/css"><![CDATA[
+        .st0{fill:url(#g);} .s1{stop-color:#ff0000} .s2{stop-color:#0000ff;stop-opacity:0}
+        ]]></style><linearGradient id="g"><stop class="s1" offset="0"/><stop class="s2" offset="1"/></linearGradient></defs>
+        <path class="st0" d="M0 0h10v10H0z"/></svg>
+      """)
+    let g = try gradientOf(d.shapes[0].fill)
+    XCTAssertEqual(g.stops, [SvgGradientStop(offset: 0, argb: 0xFFFF_0000), SvgGradientStop(offset: 1, argb: 0x0000_00FF)])
+  }
+
+  // MARK: images
+
+  private let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII="
+
+  func testImageDataUrl() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><image href="\(png)" x="1" y="2" width="3" height="4" preserveAspectRatio="xMinYMax slice" opacity=".5"/>
+        <image href="https://example.com/a.png" width="1" height="1"/><image href="data:image/svg+xml,&lt;svg/&gt;" width="1" height="1"/>
+        <image xlink:href="\(png)" transform="translate(5 0)"/></svg>
+      """)
+    let images = d.ops.compactMap { op -> SvgImage? in if case let .image(i) = op { return i } else { return nil } }
+    XCTAssertEqual(images.count, 2)
+    let a = images[0]
+    XCTAssertEqual(a.href, png)
+    XCTAssertEqual([a.x, a.y, a.width, a.height], [1, 2, 3, 4])
+    XCTAssertEqual(a.alignX, -1)
+    XCTAssertEqual(a.alignY, 1)
+    XCTAssertTrue(a.slice)
+    XCTAssertEqual(a.opacity, 0.5)
+    XCTAssertNil(images[1].width)
+    XCTAssertEqual(flat(images[1].transform), [1, 0, 0, 1, 5, 0])
+  }
+
+  func testExactPathBounds() throws {
+    let b = try XCTUnwrap(svgPathBounds(parseSvgPathData("M0 0C0 10 10 10 10 0")))
+    XCTAssertEqual([b.minX, b.minY, b.maxX, b.maxY], [0, 0, 10, 7.5])
+    let q = try XCTUnwrap(svgPathBounds(parseSvgPathData("M0 0Q5 10 10 0")))
+    XCTAssertEqual(q.maxY, 5, accuracy: 1e-5)
+    XCTAssertNil(svgPathBounds([]))
+  }
+
+  // MARK: rendering gradients, clips, use, style sheets and images
+
+  func testRenderLinearGradientPadAndRepeat() throws {
+    let stops = ##"<stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/>"##
+    let pad = try render(##"<svg viewBox="0 0 10 10"><linearGradient id="g">\##(stops)</linearGradient><rect width="10" height="10" fill="url(#g)"/></svg>"##, size: 10)
+    XCTAssertGreaterThan(pixel(pad, 0, 5).r, 220)
+    XCTAssertGreaterThan(pixel(pad, 9, 5).b, 220)
+    // x2 = 50%: the second half repeats the first.
+    let rep = try render(##"<svg viewBox="0 0 10 10"><linearGradient id="g" x2=".5" spreadMethod="repeat">\##(stops)</linearGradient><rect width="10" height="10" fill="url(#g)"/></svg>"##, size: 10)
+    XCTAssertGreaterThan(pixel(rep, 5, 5).r, 200)
+    XCTAssertGreaterThan(pixel(rep, 4, 5).b, 150)
+    let refl = try render(##"<svg viewBox="0 0 10 10"><linearGradient id="g" x2=".5" spreadMethod="reflect">\##(stops)</linearGradient><rect width="10" height="10" fill="url(#g)"/></svg>"##, size: 10)
+    XCTAssertGreaterThan(pixel(refl, 5, 5).b, 200)
+    XCTAssertGreaterThan(pixel(refl, 9, 5).r, 150)
+  }
+
+  func testRenderRadialGradient() throws {
+    let img = try render(##"<svg viewBox="0 0 20 20"><radialGradient id="g"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#000000"/></radialGradient><rect width="20" height="20" fill="url(#g)"/></svg>"##, size: 20)
+    XCTAssertGreaterThan(pixel(img, 10, 10).r, 230)
+    XCTAssertLessThan(pixel(img, 0, 0).r, 10)
+  }
+
+  func testRenderClipPath() throws {
+    let img = try render(##"<svg viewBox="0 0 20 20"><clipPath id="c"><circle cx="10" cy="10" r="8"/></clipPath><rect width="20" height="20" fill="#ff0000" clip-path="url(#c)"/></svg>"##, size: 20)
+    XCTAssertEqual(pixel(img, 10, 10).a, 255)
+    XCTAssertEqual(pixel(img, 1, 1).a, 0)
+  }
+
+  func testRenderUseSymbolAndStyleSheet() throws {
+    let img = try render(##"<svg viewBox="0 0 20 20"><style>.f{fill:#00ff00}</style><symbol id="s" viewBox="0 0 1 1"><rect class="f" width="1" height="1"/></symbol><use href="#s" x="10" width="10" height="10"/></svg>"##, size: 20)
+    let p = pixel(img, 15, 5)
+    XCTAssertEqual(p.a, 255)
+    XCTAssertEqual(p.g, 255)
+    XCTAssertEqual(pixel(img, 5, 5).a, 0)
+    XCTAssertEqual(pixel(img, 15, 15).a, 0)
+  }
+
+  func testRenderImage() throws {
+    // A 2x1 red | blue PNG stretched over the whole viewport.
+    let img = try render(##"<svg viewBox="0 0 20 20"><image href="\##(png)" width="20" height="20" preserveAspectRatio="none"/></svg>"##, size: 20)
+    let left = pixel(img, 3, 10), right = pixel(img, 16, 10)
+    XCTAssertEqual(left.a, 255)
+    XCTAssertGreaterThan(left.r, 200)
+    XCTAssertGreaterThan(right.b, 200)
   }
 }

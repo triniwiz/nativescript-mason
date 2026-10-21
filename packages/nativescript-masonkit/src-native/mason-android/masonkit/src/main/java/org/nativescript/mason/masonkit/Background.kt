@@ -546,7 +546,7 @@ private fun svgPaintColor(paint: SvgPaint, opacity: Float, currentColor: Int): I
   val argb = when (paint) {
     is SvgPaint.Color -> paint.argb
     SvgPaint.CurrentColor -> currentColor
-    SvgPaint.None -> 0
+    else -> 0
   }
   val alpha = (((argb ushr 24) and 0xFF) * opacity.coerceIn(0f, 1f)).toInt().coerceIn(0, 255)
   return (alpha shl 24) or (argb and 0x00FFFFFF)
@@ -565,6 +565,91 @@ private fun buildSvgPath(path: Path, commands: List<SvgPathCommand>) {
   }
 }
 
+private fun svgStopColor(stop: SvgGradientStop, currentColor: Int): Int {
+  if (!stop.currentColor) return stop.argb
+  val alpha = ((currentColor ushr 24) and 0xFF) * ((stop.argb ushr 24) and 0xFF) / 255
+  return (alpha shl 24) or (currentColor and 0xFFFFFF)
+}
+
+/** A shader for [g], in the shape's user space. */
+private fun svgGradientShader(g: SvgGradient, currentColor: Int): Shader {
+  val colors = IntArray(g.stops.size) { svgStopColor(g.stops[it], currentColor) }
+  val positions = FloatArray(g.stops.size) { g.stops[it].offset }
+  val tile = when (g.spread) {
+    SvgSpread.PAD -> Shader.TileMode.CLAMP
+    SvgSpread.REFLECT -> Shader.TileMode.MIRROR
+    SvgSpread.REPEAT -> Shader.TileMode.REPEAT
+  }
+  val shader = if (!g.radial) {
+    LinearGradient(g.x1, g.y1, g.x2, g.y2, colors, positions, tile)
+  } else if ((g.fx != g.cx || g.fy != g.cy) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    // Two-point conical: from the focal point (radius 0) out to the end circle.
+    val longs = LongArray(colors.size) { Color.pack(colors[it]) }
+    RadialGradient(g.fx, g.fy, 0f, g.cx, g.cy, g.r, longs, positions, tile)
+  } else {
+    RadialGradient(g.cx, g.cy, g.r, colors, positions, tile)
+  }
+  shader.setLocalMatrix(svgMatrix(g.transform))
+  return shader
+}
+
+/** Colour, or shader for a gradient, of [paint] at [opacity]. */
+private fun applySvgPaint(target: Paint, paint: SvgPaint, opacity: Float, currentColor: Int) {
+  if (paint is SvgPaint.Gradient) {
+    target.shader = svgGradientShader(paint.gradient, currentColor)
+    target.color = Color.BLACK
+    target.alpha = (opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+  } else {
+    target.color = svgPaintColor(paint, opacity, currentColor)
+  }
+}
+
+private fun svgClipPath(clip: SvgClip): Path {
+  val out = Path()
+  val evenOdd = clip.paths.first().evenOdd
+  if (clip.paths.all { it.evenOdd == evenOdd }) {
+    val p = Path()
+    for (c in clip.paths) {
+      buildSvgPath(p, c.commands)
+      p.transform(svgMatrix(c.transform))
+      out.addPath(p)
+    }
+    out.fillType = if (evenOdd) Path.FillType.EVEN_ODD else Path.FillType.WINDING
+    return out
+  }
+  // Mixed clip-rules: union paths that each keep their own rule.
+  for (c in clip.paths) {
+    val p = Path()
+    buildSvgPath(p, c.commands)
+    p.transform(svgMatrix(c.transform))
+    p.fillType = if (c.evenOdd) Path.FillType.EVEN_ODD else Path.FillType.WINDING
+    out.op(p, Path.Op.UNION)
+  }
+  return out
+}
+
+private fun drawSvgImage(canvas: Canvas, image: SvgImage, paint: Paint) {
+  val bitmap = decodeDataUrlBitmap(image.href) ?: return
+  val iw = bitmap.width.toFloat()
+  val ih = bitmap.height.toFloat()
+  if (iw <= 0f || ih <= 0f) return
+  // An auto side keeps the image's aspect ratio.
+  val w = image.width ?: image.height?.let { it * iw / ih } ?: iw
+  val h = image.height ?: image.width?.let { it * ih / iw } ?: ih
+  val m = svgViewBoxTransform(floatArrayOf(0f, 0f, iw, ih), image.alignX, image.alignY, image.slice, w, h)
+  canvas.save()
+  canvas.concat(svgMatrix(image.transform))
+  canvas.translate(image.x, image.y)
+  if (image.slice) canvas.clipRect(0f, 0f, w, h)
+  canvas.concat(svgMatrix(m))
+  paint.reset()
+  paint.isAntiAlias = true
+  paint.isFilterBitmap = true
+  paint.alpha = (image.opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+  canvas.drawBitmap(bitmap, 0f, 0f, paint)
+  canvas.restore()
+}
+
 /** Rasterize [doc] into a [w] x [h] px bitmap; `currentColor` paints use [currentColor]. */
 internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: Int): Bitmap? {
   if (w <= 0 || h <= 0 || doc.ops.isEmpty()) return null
@@ -576,6 +661,9 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
   canvas.concat(svgMatrix(doc.viewportTransform(w.toFloat(), h.toFloat())))
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   val path = Path()
+  // A clip draws its content into a layer, then erases outside it with the inverse path (AA).
+  val clips = ArrayList<SvgClip>()
+  val clipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
   for (op in doc.ops) {
     when (op) {
       is SvgOp.BeginGroup -> {
@@ -584,6 +672,20 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
       }
 
       SvgOp.EndGroup -> canvas.restore()
+      is SvgOp.BeginClip -> {
+        clips.add(op.clip)
+        canvas.saveLayer(null, null)
+      }
+
+      SvgOp.EndClip -> {
+        if (clips.isNotEmpty()) {
+          val outside = svgClipPath(clips.removeAt(clips.size - 1)).apply { toggleInverseFillType() }
+          canvas.drawPath(outside, clipPaint)
+          canvas.restore()
+        }
+      }
+
+      is SvgOp.Image -> drawSvgImage(canvas, op.image, paint)
       is SvgOp.Shape -> {
         val shape = op.shape
         buildSvgPath(path, shape.commands)
@@ -594,7 +696,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           paint.reset()
           paint.isAntiAlias = true
           paint.style = Paint.Style.FILL
-          paint.color = svgPaintColor(shape.fill, shape.fillOpacity, currentColor)
+          applySvgPaint(paint, shape.fill, shape.fillOpacity, currentColor)
           canvas.drawPath(path, paint)
         }
         if (shape.hasStroke) {
@@ -614,7 +716,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           }
           paint.strokeMiter = shape.miterLimit
           shape.dashArray?.let { paint.pathEffect = DashPathEffect(it, shape.dashOffset) }
-          paint.color = svgPaintColor(shape.stroke, shape.strokeOpacity, currentColor)
+          applySvgPaint(paint, shape.stroke, shape.strokeOpacity, currentColor)
           canvas.drawPath(path, paint)
         }
         canvas.restore()

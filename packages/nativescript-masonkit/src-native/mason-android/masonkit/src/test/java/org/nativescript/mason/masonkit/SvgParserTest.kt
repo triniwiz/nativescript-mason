@@ -413,8 +413,8 @@ class SvgParserTest {
   @Test
   fun urlPaintUsesItsFallback() {
     val d = doc(
-      """<svg viewBox="0 0 1 1"><defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs>
-        <path fill="url(#g) blue" d="M0 0h1v1z"/><path fill="url(#g)" stroke="red" d="M0 0h1v1z"/></svg>"""
+      """<svg viewBox="0 0 1 1"><defs><pattern id="p"/></defs>
+        <path fill="url(#p) blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>"""
     )
     assertEquals(2, d.shapes.size)
     assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), d.shapes[0].fill)
@@ -575,5 +575,284 @@ class SvgParserTest {
     assertEquals("<svg a='1+1'>", decodeSvgDataPayload("%3csvg a='1+1'%3E"))
     assertEquals("100% %zz", decodeSvgDataPayload("100% %zz"))
     assertEquals("#é", decodeSvgDataPayload("%23%C3%A9"))
+  }
+
+  // MARK: gradients
+
+  private fun gradientOf(paint: SvgPaint): SvgGradient = (paint as SvgPaint.Gradient).gradient
+
+  @Test
+  fun linearGradientInBoundingBoxUnits() {
+    val d = doc(
+      """<svg viewBox="0 0 20 30"><defs><linearGradient id="g"><stop offset="0" stop-color="red"/>
+        <stop offset="100%" stop-color="blue" stop-opacity=".5"/></linearGradient></defs>
+        <rect x="2" y="4" width="10" height="20" fill="url(#g)"/></svg>"""
+    )
+    val g = gradientOf(d.shapes.single().fill)
+    assertFalse(g.radial)
+    assertEquals(listOf(0f, 0f, 1f, 0f), listOf(g.x1, g.y1, g.x2, g.y2))
+    assertEquals(listOf(10f, 0f, 0f, 20f, 2f, 4f), g.transform.toList())
+    assertEquals(SvgSpread.PAD, g.spread)
+    assertEquals(listOf(SvgGradientStop(0f, 0xFFFF0000.toInt()), SvgGradientStop(1f, 0x7F0000FF)), g.stops)
+  }
+
+  @Test
+  fun gradientUserSpaceAndTransform() {
+    val d = doc(
+      """<svg viewBox="0 0 200 100"><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="10%" y1="0" x2="50"
+        y2="50%" gradientTransform="translate(1 2)" spreadMethod="repeat"><stop offset="0"/><stop offset="1" stop-color="white"/>
+        </linearGradient><rect width="10" height="10" stroke="url(#g)" fill="none"/></svg>"""
+    )
+    val g = gradientOf(d.shapes.single().stroke)
+    assertEquals(listOf(20f, 0f, 50f, 50f), listOf(g.x1, g.y1, g.x2, g.y2))
+    assertEquals(listOf(1f, 0f, 0f, 1f, 1f, 2f), g.transform.toList())
+    assertEquals(SvgSpread.REPEAT, g.spread)
+  }
+
+  @Test
+  fun gradientHrefInheritsStopsAndAttributes() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10">
+        <linearGradient id="a" gradientUnits="userSpaceOnUse" spreadMethod="reflect" x1="3"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+        <linearGradient id="b" href="#a" x2="1"/>
+        <radialGradient id="c" xlink:href="#a" r="5"/>
+        <rect width="1" height="1" fill="url(#b)"/><rect width="1" height="1" fill="url(#c)"/></svg>"""
+    )
+    val b = gradientOf(d.shapes[0].fill)
+    assertEquals(2, b.stops.size)
+    assertEquals(SvgSpread.REFLECT, b.spread)
+    assertEquals(listOf(3f, 0f, 1f, 0f), listOf(b.x1, b.y1, b.x2, b.y2))
+    val c = gradientOf(d.shapes[1].fill)
+    assertTrue(c.radial)
+    assertEquals(2, c.stops.size)
+    assertEquals(SvgSpread.REFLECT, c.spread)
+    // User space: cx/cy default to 50% of the viewBox.
+    assertEquals(listOf(5f, 5f, 5f, 5f, 5f), listOf(c.cx, c.cy, c.r, c.fx, c.fy))
+  }
+
+  @Test
+  fun radialGradientFocalPoint() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><radialGradient id="g" fx=".25"><stop offset="0"/><stop offset="1"/></radialGradient>
+        <radialGradient id="o" fx="2"><stop offset="0"/><stop offset="1"/></radialGradient>
+        <rect width="10" height="10" fill="url(#g)"/><rect width="10" height="10" fill="url(#o)"/></svg>"""
+    )
+    val g = gradientOf(d.shapes[0].fill)
+    assertEquals(listOf(0.5f, 0.5f, 0.5f, 0.25f, 0.5f), listOf(g.cx, g.cy, g.r, g.fx, g.fy))
+    // Outside the end circle: moved onto it.
+    assertEquals(0.9995f, gradientOf(d.shapes[1].fill).fx, 1e-5f)
+  }
+
+  @Test
+  fun stopOffsetsClampAndStayOrdered() {
+    val d = doc(
+      """<svg viewBox="0 0 1 1"><linearGradient id="g"><stop offset="50%"/><stop offset="0.2"/><stop offset="1.5"/></linearGradient>
+        <rect width="1" height="1" fill="url(#g)"/></svg>"""
+    )
+    assertEquals(listOf(0.5f, 0.5f, 1f), gradientOf(d.shapes.single().fill).stops.map { it.offset })
+  }
+
+  @Test
+  fun gradientEdgeCases() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10">
+        <linearGradient id="none"/>
+        <linearGradient id="one"><stop offset="0" stop-color="red"/></linearGradient>
+        <linearGradient id="flat" x2="0"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+        <pattern id="p"/>
+        <rect width="1" height="1" fill="url(#none) red" stroke="black"/>
+        <rect width="1" height="1" fill="url(#one)"/>
+        <rect width="1" height="1" fill="url(#flat)"/>
+        <rect width="1" height="1" fill="url(#missing) green"/>
+        <rect width="1" height="1" fill="url('#p') blue"/>
+        <line x2="5" stroke="url(#flat)"/>
+      </svg>"""
+    )
+    val s = d.shapes
+    assertEquals(5, s.size)
+    // A valid reference ignores the fallback; no stops paints nothing.
+    assertEquals(SvgPaint.None, s[0].fill)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[1].fill)
+    // A zero-length vector paints the last stop.
+    assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), s[2].fill)
+    assertEquals(SvgPaint.Color(0xFF008000.toInt()), s[3].fill)
+    assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), s[4].fill)
+  }
+
+  @Test
+  fun gradientCurrentColorStop() {
+    val svg = """<svg viewBox="0 0 1 1" %s><linearGradient id="g"><stop offset="0" stop-color="currentColor" stop-opacity=".5"/>
+      <stop offset="1" stop-color="red"/></linearGradient><rect width="1" height="1" fill="url(#g)"/></svg>"""
+    val open = doc(svg.format(""))
+    assertTrue(open.usesCurrentColor)
+    val stop = gradientOf(open.shapes.single().fill).stops[0]
+    assertTrue(stop.currentColor)
+    assertEquals(127, (stop.argb ushr 24) and 0xFF)
+
+    val own = doc(svg.format("""color="#00ff00""""))
+    assertFalse(own.usesCurrentColor)
+    assertEquals(SvgGradientStop(0f, 0x7F00FF00), gradientOf(own.shapes.single().fill).stops[0])
+  }
+
+  // MARK: use and symbol
+
+  @Test
+  fun useReferencesWithOffsetAndInheritance() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><defs><rect id="r" width="2" height="2"/></defs>
+        <use href="#r" x="3" y="4" fill="red"/><use xlink:href="#r" transform="scale(2)"/></svg>"""
+    )
+    val s = d.shapes
+    assertEquals(2, s.size)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 3f, 4f), s[0].transform.toList())
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[0].fill)
+    assertEquals(listOf(2f, 0f, 0f, 2f, 0f, 0f), s[1].transform.toList())
+    assertEquals(SvgPaint.Color(0xFF000000.toInt()), s[1].fill)
+  }
+
+  @Test
+  fun useIsCycleSafe() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><g id="a"><use href="#a"/><rect width="1" height="1"/></g>
+        <use href="#b"/><use id="b" href="#b"/><use id="c" href="#d"/><use id="d" href="#c"/></svg>"""
+    )
+    assertEquals(1, d.shapes.size)
+  }
+
+  @Test
+  fun symbolViewBoxAndClip() {
+    val d = doc(
+      """<svg viewBox="0 0 40 40"><symbol id="s" viewBox="0 0 10 10"><rect width="10" height="10"/></symbol>
+        <use href="#s" x="5" y="5" width="20" height="20"/></svg>"""
+    )
+    val ops = d.ops
+    assertEquals(3, ops.size)
+    val clip = (ops[0] as SvgOp.BeginClip).clip.paths.single()
+    assertEquals(listOf(1f, 0f, 0f, 1f, 5f, 5f), clip.transform.toList())
+    assertBounds(Bounds(0f, 0f, 20f, 20f), bounds(clip.commands), 1e-4f)
+    assertEquals(listOf(2f, 0f, 0f, 2f, 5f, 5f), (ops[1] as SvgOp.Shape).shape.transform.toList())
+    assertEquals(SvgOp.EndClip, ops[2])
+  }
+
+  // MARK: clip paths
+
+  @Test
+  fun clipPathUserSpaceAndRule() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><clipPath id="c" clip-rule="evenodd"><rect width="5" height="5"/><circle r="1" clip-rule="nonzero"/></clipPath>
+        <rect width="10" height="10" clip-path="url(#c)" transform="translate(1 1)"/></svg>"""
+    )
+    val ops = d.ops
+    assertEquals(3, ops.size)
+    val paths = (ops[0] as SvgOp.BeginClip).clip.paths
+    assertEquals(2, paths.size)
+    assertTrue(paths[0].evenOdd)
+    assertFalse(paths[1].evenOdd)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 1f, 1f), paths[0].transform.toList())
+    assertTrue(ops[1] is SvgOp.Shape)
+    assertEquals(SvgOp.EndClip, ops[2])
+  }
+
+  @Test
+  fun clipPathObjectBoundingBox() {
+    val d = doc(
+      """<svg viewBox="0 0 20 20"><clipPath id="c" clipPathUnits="objectBoundingBox"><rect width=".5" height="1"/></clipPath>
+        <rect x="2" width="10" height="4" clip-path="url(#c)"/></svg>"""
+    )
+    val path = (d.ops[0] as SvgOp.BeginClip).clip.paths.single()
+    assertEquals(listOf(10f, 0f, 0f, 4f, 2f, 0f), path.transform.toList())
+  }
+
+  @Test
+  fun clipPathEdgeCases() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><clipPath id="empty"/><clipPath id="c"><rect width="5" height="5"/></clipPath>
+        <rect width="1" height="1" clip-path="url(#missing)"/>
+        <rect width="1" height="1" clip-path="url(#empty)"/>
+        <g clip-path="url(#c)"><rect width="1" height="1"/><rect width="2" height="2"/></g></svg>"""
+    )
+    val ops = d.ops
+    // A missing reference doesn't clip; an empty clip path hides the element.
+    assertTrue(ops[0] is SvgOp.Shape)
+    assertTrue(ops[1] is SvgOp.BeginClip)
+    assertTrue(ops[2] is SvgOp.Shape && ops[3] is SvgOp.Shape)
+    assertEquals(SvgOp.EndClip, ops[4])
+    assertEquals(5, ops.size)
+  }
+
+  // MARK: style sheets
+
+  @Test
+  fun styleSheetSelectorsAndPrecedence() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><style>
+        /* comment {} */ @media print { rect { fill: black } }
+        .a { fill: red } rect { fill: blue; stroke: green } #x { fill: #00ff00 } rect.b { stroke-width: 3 }
+        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .e { fill: white }
+        </style>
+        <rect class="a" width="1" height="1"/>
+        <rect width="1" height="1"/>
+        <rect id="x" class="a" width="1" height="1"/>
+        <rect class="b" fill="purple" width="1" height="1"/>
+        <rect class="a" style="fill: white" width="1" height="1"/>
+        <rect class="c" style="fill: white" width="1" height="1"/>
+        <rect class="e" width="1" height="1"/>
+      </svg>"""
+    )
+    val s = d.shapes
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[0].fill)
+    assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), s[1].fill)
+    assertEquals(SvgPaint.Color(0xFF008000.toInt()), s[1].stroke)
+    assertEquals(SvgPaint.Color(0xFF00FF00.toInt()), s[2].fill)
+    // A style sheet beats a presentation attribute.
+    assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), s[3].fill)
+    assertEquals(3f, s[3].strokeWidth, 0f)
+    assertEquals(SvgPaint.Color(0xFFFFFFFF.toInt()), s[4].fill)
+    assertEquals(SvgPaint.Color(0xFFFFFF00.toInt()), s[5].fill)
+    assertEquals(SvgPaint.Color(0xFFFFFFFF.toInt()), s[6].fill)
+  }
+
+  @Test
+  fun styleSheetInCdataAndAppliesToStops() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><defs><style type="text/css"><![CDATA[
+        .st0{fill:url(#g);} .s1{stop-color:#ff0000} .s2{stop-color:#0000ff;stop-opacity:0}
+        ]]></style><linearGradient id="g"><stop class="s1" offset="0"/><stop class="s2" offset="1"/></linearGradient></defs>
+        <path class="st0" d="M0 0h10v10H0z"/></svg>"""
+    )
+    val g = gradientOf(d.shapes.single().fill)
+    assertEquals(listOf(SvgGradientStop(0f, 0xFFFF0000.toInt()), SvgGradientStop(1f, 0x000000FF)), g.stops)
+  }
+
+  // MARK: images
+
+  @Test
+  fun imageDataUrl() {
+    val png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII="
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><image href="$png" x="1" y="2" width="3" height="4" preserveAspectRatio="xMinYMax slice" opacity=".5"/>
+        <image href="https://example.com/a.png" width="1" height="1"/><image href="data:image/svg+xml,&lt;svg/&gt;" width="1" height="1"/>
+        <image xlink:href="$png" transform="translate(5 0)"/></svg>"""
+    )
+    val images = d.ops.mapNotNull { (it as? SvgOp.Image)?.image }
+    assertEquals(2, images.size)
+    val a = images[0]
+    assertEquals(png, a.href)
+    assertEquals(listOf(1f, 2f, 3f, 4f), listOf(a.x, a.y, a.width, a.height))
+    assertEquals(-1, a.alignX)
+    assertEquals(1, a.alignY)
+    assertTrue(a.slice)
+    assertEquals(0.5f, a.opacity, 0f)
+    assertNull(images[1].width)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 5f, 0f), images[1].transform.toList())
+  }
+
+  @Test
+  fun exactPathBounds() {
+    val b = svgPathBounds(parseSvgPathData("M0 0C0 10 10 10 10 0"))!!
+    assertEquals(listOf(0f, 0f, 10f, 7.5f), b.toList())
+    val q = svgPathBounds(parseSvgPathData("M0 0Q5 10 10 0"))!!
+    assertEquals(5f, q[3], 1e-5f)
+    assertNull(svgPathBounds(emptyList()))
   }
 }
