@@ -221,7 +221,7 @@ final class SuperellipseTests: XCTestCase {
     let view = MasonUIView(mason: mason)
     let renderer = view.style.mBorderRender
 
-    let exponents: [CGFloat] = [0.3, 0.5, 1.0, 2.0, 4.0]
+    let exponents: [CGFloat] = [-.infinity, -1.0, 0.0, 0.5, 1.0, 2.0, 4.0, .infinity]
     let rect = CGRect(x: 0, y: 0, width: 200, height: 150)
 
     for exp in exponents {
@@ -333,5 +333,23 @@ final class SuperellipseTests: XCTestCase {
     XCTAssertGreaterThan(arcPixel.r, arcPixel.g, "Arc pixel should be red-dominant")
     XCTAssertGreaterThan(arcPixel.r, arcPixel.b, "Arc pixel should be red-dominant")
     XCTAssertEqual(interiorPixel.a, 0, "Rounded corner should remain clipped inside the arc")
+  }
+
+  func test_cornerShape_keywordsAreTheCssSuperellipseParameter() {
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("round"), 1)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("squircle"), 2)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("bevel"), 0)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("scoop"), -1)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("notch"), -.infinity)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("square"), .infinity)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(1.5)"), 1.5)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(-2)"), -2)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(-infinity)"), -.infinity)
+    XCTAssertNil(CSSBorderRenderer.parseCornerShapeToken("superellipse"))
+    XCTAssertNil(CSSBorderRenderer.parseCornerShapeToken("wobbly"))
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(-1), "scoop")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(-.infinity), "notch")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(3), "superellipse(3)")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(0.5), "superellipse(0.5)")
   }
 }

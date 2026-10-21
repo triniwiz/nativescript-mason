@@ -2365,12 +2365,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     container.append(sectionLabel("EXPONENT SPECTRUM"))
 
     let samples: [(shape: String, label: String, bg: String, border: String)] = [
-      ("superellipse(0.3)", "superellipse(0.3) — Super Squircle", "#FFF7ED", "#FB923C"),
-      ("squircle",          "squircle — iOS-style (0.5)",          "#F0FDF4", "#22C55E"),
-      ("superellipse(0.7)", "superellipse(0.7) — Soft Round",     "#EFF6FF", "#3B82F6"),
+      ("superellipse(3)",   "superellipse(3) — Super Squircle",   "#FFF7ED", "#FB923C"),
+      ("squircle",          "squircle — superellipse(2)",         "#F0FDF4", "#22C55E"),
       ("round",             "round — Circular (default)",          "#F5F3FF", "#8B5CF6"),
-      ("notch",             "notch — Exponent 2",                  "#FDF2F8", "#EC4899"),
-      ("bevel",             "bevel — Exponent 4",                  "#FEF2F2", "#EF4444"),
+      ("superellipse(0.5)", "superellipse(0.5) — Flat Round",     "#EFF6FF", "#3B82F6"),
+      ("bevel",             "bevel — superellipse(0)",            "#FEF2F2", "#EF4444"),
+      ("scoop",             "scoop — superellipse(-1)",           "#FFFBEB", "#F59E0B"),
+      ("notch",             "notch — superellipse(-infinity)",    "#FDF2F8", "#EC4899"),
     ]
 
     for sample in samples {
@@ -2410,11 +2411,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       style.border = "2 solid #475569"
       style.borderRadius = "\(toPx(32))px"
       style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
-      // TL: super-squircle, TR: circular, BR: squircle, BL: notch
-      style.cornerShape = "superellipse(0.3) round squircle notch"
+      // TL: super-squircle, TR: circular, BR: squircle, BL: scoop
+      style.cornerShape = "superellipse(3) round squircle scoop"
     }
     let mixedLabel = mason.createTextView()
-    mixedLabel.textContent = "TL: superellipse(0.3)\nTR: round\nBR: squircle\nBL: notch"
+    mixedLabel.textContent = "TL: superellipse(3)\nTR: round\nBR: squircle\nBL: scoop"
     mixedLabel.configure { style in
       style.textAlign = .Center
       style.color = self.argb("#E2E8F0")

@@ -824,12 +824,15 @@ public final class CSSBorderRenderer {
 
     // Superellipse curve
     let steps = 16
-    let exp = Double(exponent)
+    let exp = pow(2.0, 1.0 - abs(Double(exponent)))
+    let concave = exponent < 0
     for i in 0...steps {
       let t = Double(i) / Double(steps)
       let angle = t * .pi / 2.0
-      let cx = CGFloat(pow(cos(angle), exp))
-      let cy = CGFloat(pow(sin(angle), exp))
+      let a = CGFloat(pow(cos(angle), exp))
+      let b = CGFloat(pow(sin(angle), exp))
+      let cx = concave ? 1 - b : a
+      let cy = concave ? 1 - a : b
 
       let px: CGFloat
       let py: CGFloat

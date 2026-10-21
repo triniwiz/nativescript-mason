@@ -135,12 +135,13 @@ class SuperellipseActivity : AppCompatActivity() {
     data class Sample(val shape: String, val label: String, val bg: String, val border: String)
 
     val samples = listOf(
-      Sample("superellipse(0.3)", "superellipse(0.3) — Super Squircle", "#FFF7ED", "#FB923C"),
-      Sample("squircle", "squircle — iOS-style (0.5)", "#F0FDF4", "#22C55E"),
-      Sample("superellipse(0.7)", "superellipse(0.7) — Soft Round", "#EFF6FF", "#3B82F6"),
+      Sample("superellipse(3)", "superellipse(3) — Super Squircle", "#FFF7ED", "#FB923C"),
+      Sample("squircle", "squircle — superellipse(2)", "#F0FDF4", "#22C55E"),
       Sample("round", "round — Circular (default)", "#F5F3FF", "#8B5CF6"),
-      Sample("notch", "notch — Exponent 2", "#FDF2F8", "#EC4899"),
-      Sample("bevel", "bevel — Exponent 4", "#FEF2F2", "#EF4444"),
+      Sample("superellipse(0.5)", "superellipse(0.5) — Flat Round", "#EFF6FF", "#3B82F6"),
+      Sample("bevel", "bevel — superellipse(0)", "#FEF2F2", "#EF4444"),
+      Sample("scoop", "scoop — superellipse(-1)", "#FFFBEB", "#F59E0B"),
+      Sample("notch", "notch — superellipse(-infinity)", "#FDF2F8", "#EC4899"),
     )
 
     for (sample in samples) {
@@ -184,11 +185,11 @@ class SuperellipseActivity : AppCompatActivity() {
       s.backgroundColor = "#1E293B".toColorInt()
       s.border = "2 solid #475569"
       s.borderRadius = "32"
-      s.cornerShape = "superellipse(0.3) round squircle notch"
+      s.cornerShape = "superellipse(3) round squircle scoop"
     }
 
     val mixedLabel = mason.createTextView(this)
-    mixedLabel.textContent = "TL: superellipse(0.3)\nTR: round\nBR: squircle\nBL: notch"
+    mixedLabel.textContent = "TL: superellipse(3)\nTR: round\nBR: squircle\nBL: scoop"
     mixedLabel.configure { s ->
       s.textAlign = TextAlign.Center
       s.color = "#E2E8F0".toColorInt()

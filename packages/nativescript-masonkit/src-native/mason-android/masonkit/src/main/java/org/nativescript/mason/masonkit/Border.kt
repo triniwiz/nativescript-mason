@@ -11,6 +11,7 @@ import org.nativescript.mason.masonkit.LengthPercentage.Points
 import org.nativescript.mason.masonkit.LengthPercentage.Zero
 import org.nativescript.mason.masonkit.enums.BorderStyle
 import java.nio.ByteBuffer
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -889,12 +890,16 @@ class BorderRenderer(private val style: Style) {
     }
 
     // Superellipse fallback
+    val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
+    val concave = exponent < 0f
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
-      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
-      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+      val a = cos(angle).pow(power).toFloat()
+      val b = sin(angle).pow(power).toFloat()
+      val cx = if (concave) 1 - b else a
+      val cy = if (concave) 1 - a else b
 
       var px: Float
       var py: Float
@@ -1311,12 +1316,16 @@ class BorderRenderer(private val style: Style) {
     }
 
     // Superellipse fallback
+    val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
+    val concave = exponent < 0f
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
-      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
-      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+      val a = cos(angle).pow(power).toFloat()
+      val b = sin(angle).pow(power).toFloat()
+      val cx = if (concave) 1 - b else a
+      val cy = if (concave) 1 - a else b
 
       var px: Float
       var py: Float
@@ -1727,48 +1736,46 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
   }
 }
 
-// corner-shape
-// CSS syntax:
-//   corner-shape: round                      → exponent 1 on all corners (default)
-//   corner-shape: superellipse               → exponent 0.5 on all corners
-//   corner-shape: superellipse(0.3)          → exponent 0.3 on all corners
-//   corner-shape: squircle                   → alias for superellipse (0.5)
-//   corner-shape: notch                      → exponent 2 on all corners
-//   corner-shape: bevel                      → exponent 4 on all corners
-//   1–4 value shorthand follows CSS corner order: TL TR BR BL
-//
+// corner-shape stores the CSS superellipse parameter K per corner: round 1, squircle 2, bevel 0,
+// scoop -1, notch -infinity, square infinity, or superellipse(K).
 
 private val cornerShapeTokenRegex =
-  Regex("""(round|superellipse(?:\((-?\d+(?:\.\d+)?)\))?|squircle|notch|bevel)""")
+  Regex("""superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)""")
 
 fun exponentToCornerShapeToken(exponent: Float): String {
   return when (exponent) {
     1.0f -> "round"
-    0.5f -> "squircle"
-    2.0f -> "notch"
-    4.0f -> "bevel"
-    else -> "superellipse($exponent)"
+    2.0f -> "squircle"
+    0.0f -> "bevel"
+    -1.0f -> "scoop"
+    Float.NEGATIVE_INFINITY -> "notch"
+    Float.POSITIVE_INFINITY -> "square"
+    else -> "superellipse(${if (abs(exponent) < 1e6f && exponent == exponent.toInt().toFloat()) exponent.toInt().toString() else exponent.toString()})"
   }
 }
 
 fun parseCornerShapeToken(token: String): Float? {
-  val match = cornerShapeTokenRegex.matchEntire(token.trim().lowercase()) ?: return null
-  val keyword = match.groupValues[1]
-  val explicitExp = match.groupValues.getOrNull(2)?.toFloatOrNull()
-  return when {
-    keyword.startsWith("superellipse") -> explicitExp ?: 0.5f
-    keyword == "squircle" -> 0.5f
-    keyword == "round" -> 1.0f
-    keyword == "notch" -> 2.0f
-    keyword == "bevel" -> 4.0f
-    else -> null
+  val t = token.trim().lowercase()
+  when (t) {
+    "round" -> return 1.0f
+    "squircle" -> return 2.0f
+    "bevel" -> return 0.0f
+    "scoop" -> return -1.0f
+    "notch" -> return Float.NEGATIVE_INFINITY
+    "square" -> return Float.POSITIVE_INFINITY
+  }
+  val k = cornerShapeTokenRegex.matchEntire(t)?.groupValues?.get(1) ?: return null
+  return when (k) {
+    "infinity" -> Float.POSITIVE_INFINITY
+    "-infinity" -> Float.NEGATIVE_INFINITY
+    else -> k.toFloatOrNull()?.takeUnless { it.isNaN() }
   }
 }
 
 fun parseCornerShape(style: Style, value: String) {
-  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";"))
-  val exponents = tokens.mapNotNull { parseCornerShapeToken(it) }
-  if (exponents.isEmpty()) return
+  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";")).filter { it.isNotEmpty() }
+  if (tokens.isEmpty() || tokens.size > 4) return
+  val exponents = tokens.map { parseCornerShapeToken(it) ?: return }
 
   // CSS 4-corner shorthand: 1→all, 2→(TL+BR, TR+BL), 3→(TL, TR+BL, BR), 4→per-corner
   val (tl, tr, br, bl) = when (exponents.size) {

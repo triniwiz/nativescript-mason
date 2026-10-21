@@ -102,7 +102,7 @@ class SuperellipseInstrumentedTest {
   fun outerClipPath_superellipse_boundsContainedInViewRect() {
     val w = 200f
     val h = 150f
-    val exponents = floatArrayOf(0.3f, 0.5f, 1f, 2f, 4f)
+    val exponents = floatArrayOf(Float.NEGATIVE_INFINITY, -1f, 0f, 0.5f, 1f, 2f, 4f, Float.POSITIVE_INFINITY)
 
     for (exp in exponents) {
       val view = createViewWithRadius(30f, exp, w, h)
@@ -124,7 +124,7 @@ class SuperellipseInstrumentedTest {
     val h = 200f
 
     val viewCircular = createViewWithRadius(40f, 1f, w, h)
-    val viewSquircle = createViewWithRadius(40f, 0.5f, w, h)
+    val viewSquircle = createViewWithRadius(40f, 2f, w, h)
 
     val circularPath = viewCircular.style.mBorderRenderer.getOuterClipPath(w, h)
     val squirclePath = viewSquircle.style.mBorderRenderer.getOuterClipPath(w, h)
@@ -187,9 +187,9 @@ class SuperellipseInstrumentedTest {
 
     // Mix of exponents: circular top-left, squircle top-right, etc.
     view.style.mBorderTop.corner1Exponent = 1f        // top-left
-    view.style.mBorderTop.corner2Exponent = 0.5f      // top-right
+    view.style.mBorderTop.corner2Exponent = 2f        // top-right
     view.style.mBorderBottom.corner2Exponent = 2f      // bottom-right
-    view.style.mBorderBottom.corner1Exponent = 0.3f    // bottom-left
+    view.style.mBorderBottom.corner1Exponent = -1f     // bottom-left
 
     val bw: LengthPercentage = LengthPercentage.Points(2f)
     view.style.mBorderTop.width = bw
