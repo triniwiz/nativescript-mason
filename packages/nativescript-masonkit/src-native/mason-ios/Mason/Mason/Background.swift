@@ -166,7 +166,7 @@ extension Background {
   private func drawGradient(layer: BackgroundLayer, context: CGContext, paintRect: CGRect, area: CGRect) {
     guard let gradient = layer.gradient else { return }
     // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-    let (width, height) = resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height)
+    let (width, height) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height))
     if width <= 0 || height <= 0 { return }
 
     // if size changed since last shader creation, clear cache
@@ -224,23 +224,14 @@ extension Background {
   /// Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer.
   private func forEachTile(_ layer: BackgroundLayer, paintRect: CGRect, area: CGRect, drawW: CGFloat, drawH: CGFloat, _ draw: (CGFloat, CGFloat) -> Void) {
     let pos = layer.position
-    let x = area.minX + (pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0)
-    let y = area.minY + (pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0)
-    let repeatX = layer.repeatType == .repeatXY || layer.repeatType == .repeatX
-    let repeatY = layer.repeatType == .repeatXY || layer.repeatType == .repeatY
-    // Tiles start at the resolved position and extend both ways across the paint rect.
-    let startX = repeatX ? x - ceil((x - paintRect.minX) / drawW) * drawW : x
-    let startY = repeatY ? y - ceil((y - paintRect.minY) / drawH) * drawH : y
-    let endX = repeatX ? paintRect.maxX : x + 1
-    let endY = repeatY ? paintRect.maxY : y + 1
-    var py = startY
-    while py < endY {
-      var px = startX
-      while px < endX {
-        draw(px, py)
-        px += drawW
-      }
-      py += drawH
+    let offsetX = pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0
+    let offsetY = pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0
+    let xs = backgroundTileStarts(layer.repeatType.x, areaStart: area.minX, areaLength: area.width,
+                                  clipStart: paintRect.minX, clipEnd: paintRect.maxX, tile: drawW, offset: offsetX)
+    let ys = backgroundTileStarts(layer.repeatType.y, areaStart: area.minY, areaLength: area.height,
+                                  clipStart: paintRect.minY, clipEnd: paintRect.maxY, tile: drawH, offset: offsetY)
+    for py in ys {
+      for px in xs { draw(px, py) }
     }
   }
 
@@ -261,7 +252,7 @@ extension Background {
       return
     }
     // Intrinsic size in points: 1 SVG px is 1 CSS px.
-    let (drawWidth, drawHeight) = resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height)
+    let (drawWidth, drawHeight) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height))
     if drawWidth <= 0 || drawHeight <= 0 { return }
     let scale = max(CGFloat(NSCMason.scale), 1)
     let fit = min(1, maxSvgRasterPx / (max(drawWidth, drawHeight) * scale))
@@ -284,7 +275,7 @@ extension Background {
   /// `drawSize`, when given, is the already-resolved tile size in points.
   private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect, drawSize: (CGFloat, CGFloat)? = nil) {
     // Intrinsic size in points: a 1x image is 1 CSS px per pixel.
-    let (drawWidth, drawHeight) = drawSize ?? resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height)
+    let (drawWidth, drawHeight) = drawSize ?? roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height))
     if drawWidth <= 0 || drawHeight <= 0 { return }
 
     // UIImage.draw keeps UIKit orientation in both UIView.draw and CALayer.draw(in:) contexts.
@@ -298,6 +289,54 @@ extension Background {
     UIGraphicsPopContext()
     context.restoreGState()
   }
+}
+
+/// `round` scales the tile so a whole number of tiles fills the area. When the other axis is
+/// not `round` and its size is `auto`, it scales too, keeping the tile's ratio.
+func roundedTileSize(_ layer: BackgroundLayer, area: CGRect, _ size: (CGFloat, CGFloat)) -> (CGFloat, CGFloat) {
+  var (w, h) = size
+  let rep = layer.repeatType
+  let autoW = layer.size == nil || (layer.size?.keyword == nil && layer.size?.width == nil)
+  let autoH = layer.size == nil || (layer.size?.keyword == nil && layer.size?.height == nil)
+  if rep.x == .round && w > 0 && area.width > 0 {
+    let old = w
+    w = area.width / max(1, (area.width / w).rounded())
+    if autoH && rep.y != .round { h *= w / old }
+  }
+  if rep.y == .round && h > 0 && area.height > 0 {
+    let old = h
+    h = area.height / max(1, (area.height / h).rounded())
+    if autoW && rep.x != .round { w *= h / old }
+  }
+  return (w, h)
+}
+
+/// Where a layer's tiles start along one axis. `space` spreads whole tiles so the first and
+/// last touch the area's edges (one tile at `offset` when two don't fit).
+func backgroundTileStarts(_ style: RepeatStyle, areaStart: CGFloat, areaLength: CGFloat, clipStart: CGFloat,
+                          clipEnd: CGFloat, tile: CGFloat, offset: CGFloat) -> [CGFloat] {
+  guard tile > 0 else { return [] }
+  if style == .noRepeat { return [areaStart + offset] }
+  // Past this many the tiles are sub-pixel anyway.
+  let maxTiles = 4096
+  var step = tile
+  var first: CGFloat
+  if style == .space {
+    let n = Int(floor(areaLength / tile + 1e-4))
+    if n <= 1 { return [areaStart + offset] }
+    step = tile + (areaLength - CGFloat(n) * tile) / CGFloat(n - 1)
+    first = areaStart - ceil(max(0, areaStart - clipStart) / step) * step
+  } else {
+    first = areaStart + offset
+    first -= ceil((first - clipStart) / tile) * tile
+  }
+  var starts: [CGFloat] = []
+  var s = first
+  while s < clipEnd && starts.count < maxTiles {
+    starts.append(s)
+    s += step
+  }
+  return starts
 }
 
 /// Resolve `background-size` against the positioning area (points), keeping the image ratio for `auto`.

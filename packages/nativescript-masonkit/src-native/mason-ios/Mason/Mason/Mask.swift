@@ -76,36 +76,9 @@ enum MaskBox: Equatable {
   }
 }
 
-/// `mask-repeat`, one or two keywords. `space` and `round` tile like `repeat`.
+/// `mask-repeat`, one or two keywords.
 func parseMaskRepeat(_ value: String) -> BackgroundRepeat? {
-  let tokens = splitTopLevelWhitespace(value.lowercased())
-  func tiles(_ t: String) -> Bool? {
-    switch t {
-    case "repeat", "space", "round": return true
-    case "no-repeat": return false
-    default: return nil
-    }
-  }
-  switch tokens.count {
-  case 1:
-    switch tokens[0] {
-    case "repeat-x": return .repeatX
-    case "repeat-y": return .repeatY
-    default:
-      guard let both = tiles(tokens[0]) else { return nil }
-      return both ? .repeatXY : .noRepeat
-    }
-  case 2:
-    guard let x = tiles(tokens[0]), let y = tiles(tokens[1]) else { return nil }
-    switch (x, y) {
-    case (true, true): return .repeatXY
-    case (true, false): return .repeatX
-    case (false, true): return .repeatY
-    case (false, false): return .noRepeat
-    }
-  default:
-    return nil
-  }
+  BackgroundRepeat.parse(value)
 }
 
 // MARK: - Mask layer

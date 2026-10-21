@@ -95,9 +95,58 @@ final class MaskTests: XCTestCase {
     XCTAssertEqual(parseMaskRepeat("repeat-x"), .repeatX)
     XCTAssertEqual(parseMaskRepeat("repeat-y"), .repeatY)
     XCTAssertEqual(parseMaskRepeat("repeat no-repeat"), .repeatX)
-    XCTAssertEqual(parseMaskRepeat("no-repeat round"), .repeatY)
-    XCTAssertEqual(parseMaskRepeat("space"), .repeatXY)
+    XCTAssertEqual(parseMaskRepeat("no-repeat round"), BackgroundRepeat(x: .noRepeat, y: .round))
+    XCTAssertEqual(parseMaskRepeat("space"), BackgroundRepeat(x: .space, y: .space))
+    XCTAssertEqual(parseMaskRepeat("round space"), BackgroundRepeat(x: .round, y: .space))
     XCTAssertNil(parseMaskRepeat("bogus"))
+    XCTAssertNil(parseMaskRepeat("repeat-x repeat"))
+  }
+
+  func testBackgroundRepeatShorthandAndSerialization() {
+    XCTAssertEqual(parseLayer("url(a.png) space round").repeatType, BackgroundRepeat(x: .space, y: .round))
+    XCTAssertEqual(parseLayer("url(a.png) repeat no-repeat").repeatType, .repeatX)
+    XCTAssertEqual(parseLayer("url(a.png) round").repeatType, BackgroundRepeat(x: .round, y: .round))
+    XCTAssertEqual(BackgroundRepeat.repeatX.rawValue, "repeat-x")
+    XCTAssertEqual(BackgroundRepeat(x: .space, y: .space).rawValue, "space")
+    XCTAssertEqual(BackgroundRepeat(x: .round, y: .space).rawValue, "round space")
+  }
+
+  func testSpaceTileStarts() {
+    // Three 30pt tiles in 100pt: 5pt gaps, the outer tiles touch the edges, position ignored.
+    XCTAssertEqual(backgroundTileStarts(.space, areaStart: 0, areaLength: 100, clipStart: 0, clipEnd: 100, tile: 30, offset: 12), [0, 35, 70])
+    // Fewer than two fit: one tile, at the position.
+    XCTAssertEqual(backgroundTileStarts(.space, areaStart: 0, areaLength: 50, clipStart: 0, clipEnd: 50, tile: 30, offset: 10), [10])
+    // A painting area past the positioning area keeps the spaced pattern going.
+    XCTAssertEqual(backgroundTileStarts(.space, areaStart: 10, areaLength: 100, clipStart: 0, clipEnd: 120, tile: 30, offset: 0), [-25, 10, 45, 80, 115])
+    XCTAssertEqual(backgroundTileStarts(.repeat, areaStart: 0, areaLength: 100, clipStart: 0, clipEnd: 100, tile: 30, offset: 10), [-20, 10, 40, 70])
+  }
+
+  func testRoundTileSize() {
+    let layer = parseLayer("url(a.png) round no-repeat")
+    let area = CGRect(x: 0, y: 0, width: 100, height: 40)
+    // round(100 / 30) = 3 tiles of 33.3; the auto height keeps the 3:1 ratio.
+    let (w, h) = roundedTileSize(layer, area: area, (30, 10))
+    XCTAssertEqual(w, 100.0 / 3, accuracy: 1e-6)
+    XCTAssertEqual(h, 100.0 / 9, accuracy: 1e-6)
+    let both = parseLayer("url(a.png) round")
+    let (bw, bh) = roundedTileSize(both, area: area, (30, 25))
+    XCTAssertEqual(bw, 100.0 / 3, accuracy: 1e-6)
+    XCTAssertEqual(bh, 20, accuracy: 1e-6, "round(40 / 25) = 2 tiles")
+  }
+
+  func testSpaceAndRoundMasksRender() throws {
+    let halves = "linear-gradient(to right, black 50%, transparent 50%)"
+    let space = try render(mask(halves, size: "30px 10px", repeat: "space no-repeat"), 100, 10)
+    XCTAssertGreaterThan(alpha(space, 5, 5), 200)
+    XCTAssertEqual(alpha(space, 32, 5), 0, "gap between spaced tiles")
+    XCTAssertGreaterThan(alpha(space, 37, 5), 200)
+    XCTAssertGreaterThan(alpha(space, 72, 5), 200)
+    let round = try render(mask(halves, size: "30px 10px", repeat: "round no-repeat"), 100, 10)
+    XCTAssertEqual(alpha(round, 31, 5), 0, "33.3pt tiles: transparent half")
+    XCTAssertGreaterThan(alpha(round, 48, 5), 200)
+    let tiled = try render(mask(halves, size: "30px 10px", repeat: "repeat no-repeat"), 100, 10)
+    XCTAssertGreaterThan(alpha(tiled, 32, 5), 200)
+    XCTAssertEqual(alpha(tiled, 48, 5), 0)
   }
 
   // MARK: - Data URLs
