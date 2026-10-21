@@ -177,7 +177,7 @@ public class NSCMason: NSObject {
       } else {
           dict[event] = listeners
       }
-      nodeEventListeners[node] = dict
+      nodeEventListeners[node] = dict.isEmpty ? nil : dict
       return true
   }
   
@@ -185,7 +185,7 @@ public class NSCMason: NSObject {
   public func removeEventListener(_ node: MasonNode, _ event: String) -> Bool {
       guard var dict = nodeEventListeners[node] else { return false }
       dict[event] = nil
-      nodeEventListeners[node] = dict
+      nodeEventListeners[node] = dict.isEmpty ? nil : dict
       return true
   }
   
