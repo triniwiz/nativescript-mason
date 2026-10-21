@@ -250,6 +250,7 @@ extension Mason.Button {
   @objc public static var viewportSize: CoreFoundation.CGSize {
     @objc get
   }
+  @objc public static func setViewportListener(_ listener: (() -> Swift.Void)?)
   @objc public static var scale: Swift.Float {
     @objc get
   }
@@ -565,6 +566,10 @@ extension Mason.MasonEventTarget {
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public var accept: Swift.String
+  @objc @_Concurrency.MainActor @preconcurrency public var disabled: Swift.Bool {
+    @objc get
+    @objc set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
     @objc get
   }
@@ -1005,6 +1010,10 @@ public struct MasonNodeView {
   }
   @objc @_Concurrency.MainActor @preconcurrency public var name: Swift.String
   @objc @_Concurrency.MainActor @preconcurrency public var maxLength: Swift.Int
+  @objc @_Concurrency.MainActor @preconcurrency public var disabled: Swift.Bool {
+    @objc get
+    @objc set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var value: Swift.String {
     @objc get
     @objc set
