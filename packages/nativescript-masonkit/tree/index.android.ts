@@ -1,4 +1,4 @@
-import { Screen } from '@nativescript/core';
+import { Screen, Utils } from '@nativescript/core';
 import { InputType } from '..';
 import { setCssUnitContext } from '../units';
 
@@ -46,9 +46,18 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree(org.nativescript.mason.masonkit.Mason.getShared());
-      Tree._tree._base.setDeviceScale(Screen.mainScreen.scale);
-      // `vw`/`vh` have nothing to resolve against until the viewport is known.
+      const base = Tree._tree._base;
+      base.setDeviceScale(Screen.mainScreen.scale);
+      // `vw`/`vh` have nothing to resolve against until the viewport is known, and follow rotation and resizes.
       setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
+      base.setViewportListener(
+        new org.nativescript.mason.masonkit.Mason.ViewportListener({
+          onViewportChanged(width: number, height: number) {
+            setCssUnitContext({ viewportWidth: width, viewportHeight: height });
+          },
+        }),
+      );
+      base.watchViewport(Utils.android.getApplicationContext());
     }
     return Tree._tree;
   }

@@ -69,6 +69,47 @@ class Mason {
 
   var viewportHeight: Float = Resources.getSystem().displayMetrics.heightPixels / scale
 
+  /** Told the new viewport (CSS px) when a configuration change resizes it. */
+  fun interface ViewportListener {
+    fun onViewportChanged(width: Float, height: Float)
+  }
+
+  var viewportListener: ViewportListener? = null
+
+  private var viewportCallbacks: android.content.ComponentCallbacks? = null
+
+  /** Follow rotation and resizes from now on, so viewport units resolve against the current size. */
+  fun watchViewport(context: Context) {
+    val app = context.applicationContext ?: context
+    updateViewport(app)
+    if (viewportCallbacks != null) return
+    val callbacks = object : android.content.ComponentCallbacks {
+      override fun onConfigurationChanged(newConfig: android.content.res.Configuration) = updateViewport(app)
+
+      @Deprecated("Deprecated in Java")
+      override fun onLowMemory() {}
+    }
+    app.registerComponentCallbacks(callbacks)
+    viewportCallbacks = callbacks
+  }
+
+  /** The display's real size, as `Screen.mainScreen` reports it. */
+  @Suppress("DEPRECATION")
+  fun updateViewport(context: Context) {
+    val wm = context.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager ?: return
+    val metrics = android.util.DisplayMetrics()
+    wm.defaultDisplay.getRealMetrics(metrics)
+    if (metrics.density <= 0f) return
+    setViewport(metrics.widthPixels / metrics.density, metrics.heightPixels / metrics.density)
+  }
+
+  fun setViewport(width: Float, height: Float) {
+    if (width == viewportWidth && height == viewportHeight) return
+    viewportWidth = width
+    viewportHeight = height
+    viewportListener?.onViewportChanged(width, height)
+  }
+
   init {
     nativeSetDeviceScale(nativePtr, scale)
 
