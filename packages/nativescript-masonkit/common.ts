@@ -114,6 +114,7 @@ import {
   listStyleTypeProperty,
   listStylePositionProperty,
   installMasonSizeUnits,
+  masonRawDeclaration,
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
@@ -293,6 +294,7 @@ declare module '@nativescript/core/ui/styling/style' {
     top: LengthAuto;
     bottom: LengthAuto;
     gridGap: Gap;
+    // @ts-ignore
     gap: Gap;
     // @ts-ignore
     rowGap: Length;
@@ -2791,14 +2793,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     // @ts-ignore
-    if (style) style.lineHeight = value;
+    if (style) style.lineHeight = masonRawDeclaration(this.style, 'lineHeight', value);
   }
 
   [letterSpacingProperty.setNative](value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
     // @ts-ignore
-    if (style) style.letterSpacing = value;
+    if (style) style.letterSpacing = masonRawDeclaration(this.style, 'letterSpacing', value);
   }
 
   [textAlignmentProperty.setNative](value) {
@@ -3387,7 +3389,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   get gridGap(): Length {
-    return this.style.gridGap;
+    return this.style.gridGap as Length;
   }
 
   set rowGap(value: Length) {

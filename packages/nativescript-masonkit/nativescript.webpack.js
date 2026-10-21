@@ -27,4 +27,17 @@ module.exports = (webpack) => {
     bundle.clear();
     entries.forEach((entry) => bundle.add(entry));
   });
+
+  // MasonKit branches on __WINDOWS__, which older @nativescript/webpack releases don't define.
+  webpack.chainWebpack((config) => {
+    if (!config.plugins.has('DefinePlugin')) {
+      return;
+    }
+    config.plugin('DefinePlugin').tap((args) => {
+      if (args[0] && !('__WINDOWS__' in args[0])) {
+        args[0] = { ...args[0], __WINDOWS__: webpack.Utils.platform.getPlatformName() === 'windows' };
+      }
+      return args;
+    });
+  });
 };

@@ -1100,7 +1100,6 @@ namespace winrt::NativeScript::Mason::implementation
             m_transform = m_hasTransform ? u8(sk::kTextTransform) : 0;
             m_background = u32(sk::kBackgroundColor);
         }
-        // Read only the TEXT_ALIGN byte: JS writes it as an int32 that overlaps TEXT_ALIGN_STATE.
         m_textAlign = u8(sk::kTextAlign);
         // text-justify: none (-1) turns justify off.
         if (m_textAlign == 4 && u8(sk::kTextJustifyState) && static_cast<int8_t>(u8(sk::kTextJustify)) == -1) m_textAlign = 0;

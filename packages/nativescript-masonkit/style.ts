@@ -589,6 +589,17 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
   return layout.toDeviceIndependentPixels(tokenToDevicePx(t, n, emBasis));
 }
 
+const SIZING_KEYWORD = /^(min-content|max-content|fit-content|stretch|content|fit-content\(.+\))$/;
+
+export function isSizingKeyword(value: unknown): value is string {
+  return typeof value === 'string' && SIZING_KEYWORD.test(value.trim());
+}
+
+/** The keyword carried as the unit of a core length object, if any. */
+function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
+  return isSizingKeyword(value?.unit) ? (value.unit as string) : undefined;
+}
+
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
   const t = value.trim();
   if (t === '' || t === 'auto') {
@@ -2650,7 +2661,7 @@ export class Style {
     return getUint8(this.style_view, StyleKeys.TEXT_WRAP);
   }
 
-  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
+  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance' | 'pretty' | 'stable') {
     if (!this.style_view) {
       return;
     }
@@ -2662,6 +2673,8 @@ export class Style {
         wrap = 1;
         break;
       case 'wrap':
+      case 'pretty':
+      case 'stable':
         wrap = 0;
         break;
       case 'balance':
@@ -2845,7 +2858,7 @@ export class Style {
   get flexWrap() {
     switch (getInt8(this.style_view, StyleKeys.FLEX_WRAP)) {
       case 0:
-        return 'no-wrap';
+        return 'nowrap';
       case 1:
         return 'wrap';
       case 2:
@@ -2857,9 +2870,10 @@ export class Style {
     }
   }
 
-  set flexWrap(value: 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
+  set flexWrap(value: 'nowrap' | 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
     let wrap = -1;
     switch (value) {
+      case 'nowrap':
       case 'no-wrap':
         wrap = 0;
         break;
@@ -3017,8 +3031,18 @@ export class Style {
             setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
             break;
-          default:
-            return;
+          default: {
+            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
+            const keyword = sizingKeywordOf(value);
+            if (!keyword) {
+              return;
+            }
+            this.prepareMut();
+            const dim = dimensionFromString(keyword);
+            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
+            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
+            break;
+          }
         }
         break;
       default:
@@ -3063,8 +3087,18 @@ export class Style {
             setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
             break;
-          default:
-            return;
+          default: {
+            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
+            const keyword = sizingKeywordOf(value);
+            if (!keyword) {
+              return;
+            }
+            this.prepareMut();
+            const dim = dimensionFromString(keyword);
+            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
+            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
+            break;
+          }
         }
         break;
       default:
@@ -5120,8 +5154,9 @@ export class Style {
 
   set letterSpacing(value: string | number | CoreTypes.LengthType) {
     if (typeof value === 'string') {
+      const t = value.trim();
       this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, tokenToDevicePx(value, parseFloat(value) || 0));
+      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, t === 'normal' ? 0 : finite(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t))));
       setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
       this.commitState(StateKeys.LETTER_SPACING);
     } else if (typeof value === 'number') {
@@ -5154,12 +5189,18 @@ export class Style {
   set lineHeight(value: string | number | CoreTypes.LengthType) {
     if (typeof value === 'string') {
       const t = value.trim();
+      if (t === 'normal') {
+        this.prepareMut();
+        setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 0);
+        this.commitState(StateKeys.LINE_HEIGHT);
+        return;
+      }
       // A unitless line-height is a multiplier (`line-height: 1.5`), not a
       // length — TYPE 0 means "multiply by the resolved font size".
       const unitless = /^-?[\d.]+$/.test(t);
       this.prepareMut();
       // An absolute line-height is stored in CSS px (iOS points, Android dip), as the number path.
-      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0)));
+      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : finite(layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t)))));
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, unitless ? 0 : 1);
       this.commitState(StateKeys.LINE_HEIGHT);
@@ -5240,7 +5281,7 @@ export class Style {
       // clip ?
       return 'start';
     }
-    const type = getInt32(this.style_view, StyleKeys.TEXT_ALIGN);
+    const type = getInt8(this.style_view, StyleKeys.TEXT_ALIGN);
     switch (type) {
       case 0:
         // auto
@@ -5294,7 +5335,7 @@ export class Style {
 
     if (align !== -1) {
       this.prepareMut();
-      setInt32(this.style_view, StyleKeys.TEXT_ALIGN, align);
+      setInt8(this.style_view, StyleKeys.TEXT_ALIGN, align);
       setInt8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, 1);
       this.commitState(StateKeys.TEXT_ALIGN);
     }

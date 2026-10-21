@@ -196,7 +196,7 @@ export class Ol extends BlockElement {
   constructor() {
     super();
     applyListUaDefaults(this);
-    applyUaCss(this, { 'list-style-type': 'decimal' });
+    applyUaCss(this, { 'list-style-type': View.preflight ? 'none' : 'decimal' });
   }
 }
 
@@ -621,7 +621,8 @@ export class Small extends PhrasingElement {
 export class Mark extends PhrasingElement {
   constructor() {
     super();
-    applyUaCss(this, { 'background-color': 'Mark', color: 'MarkText' });
+    // The system colours Mark / MarkText resolve to these in browsers.
+    applyUaCss(this, { 'background-color': '#ffff00', color: '#000000' });
   }
 }
 

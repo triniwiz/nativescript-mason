@@ -608,3 +608,38 @@ describe('em resolves against the font size CSS would compute', () => {
     expect(child.getFloat32(K.PADDING_LEFT_VALUE)).toBeCloseTo(20, 3);
   });
 });
+
+describe('flex-wrap', () => {
+  it('accepts the CSS spelling nowrap, so it can undo wrap', () => {
+    const t = styleUnderTest();
+    t.style.flexWrap = 'wrap';
+    expect(t.getInt8(K.FLEX_WRAP)).toBe(1);
+    t.style.flexWrap = 'nowrap';
+    expect(t.getInt8(K.FLEX_WRAP)).toBe(0);
+    expect(t.style.flexWrap).toBe('nowrap');
+  });
+});
+
+describe('text-align', () => {
+  it('writes one byte, leaving text-justify alone', () => {
+    const t = styleUnderTest();
+    (t.style as any).textJustify = 'inter-character';
+    const justify = t.getInt8(K.TEXT_JUSTIFY);
+    const justifyState = t.getInt8(K.TEXT_JUSTIFY_STATE);
+    (t.style as any).textAlignment = 'center';
+    expect(t.getInt8(K.TEXT_JUSTIFY)).toBe(justify);
+    expect(t.getInt8(K.TEXT_JUSTIFY_STATE)).toBe(justifyState);
+    expect(t.getInt8(K.TEXT_ALIGN_STATE)).toBe(1);
+    expect((t.style as any).textAlignment).toBe('center');
+  });
+});
+
+describe('a style object with text-justify then text-align', () => {
+  it('keeps text-justify, whichever lands first', () => {
+    const t = styleUnderTest();
+    (t.style as any).textJustify = 'inter-character';
+    (t.style as any).textAlignment = 'justify';
+    expect((t.style as any).textJustify).toBe('inter-character');
+    expect((t.style as any).textAlignment).toBe('justify');
+  });
+});
