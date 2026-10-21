@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string_view>
 #include <functional>
 #include <memory>
@@ -64,6 +65,12 @@ namespace mason_cssmask
         float cornerX{ 0.0f }, cornerY{ 0.0f };
         float cx{ 0.5f }, cy{ 0.5f }, rx{ 0.5f }, ry{ 0.5f };
         std::vector<std::pair<float, uint32_t>> stops;
+        bool repeating{ false };
+        // Radial circle: 0 closest-side, 1 farthest-side, 2 closest-corner, 3 farthest-corner, -1 ellipse.
+        int circle{ -1 };
+        float circleRadius{ -1.0f };
+        // Per stop: a 0-1 fraction or a length in DIPs (NaN when absent), sent when a length needs the line's size.
+        std::vector<float> stopPct, stopPx;
         // The SVG uses currentColor, kept as kCurrentColor until it's drawn.
         bool currentColor{ false };
         bool Drawable() const { return kind != Kind::None; }
@@ -283,6 +290,27 @@ namespace mason_cssmask
             }
         }
         if (image.stops.empty()) return image;
+        image.repeating = o.GetNamedNumber(L"rp", 0.0) != 0.0;
+        image.circle = static_cast<int>(o.GetNamedNumber(L"ci", -1.0));
+        image.circleRadius = static_cast<float>(o.GetNamedNumber(L"cr", -1.0));
+        auto numbers = [&](wchar_t const* key, std::vector<float>& out)
+        {
+            if (auto a = Arr(o, key))
+            {
+                for (uint32_t i = 0; i < a.Size(); ++i)
+                {
+                    auto v = a.GetAt(i);
+                    out.push_back(v.ValueType() == json::JsonValueType::Number ? static_cast<float>(v.GetNumber()) : std::numeric_limits<float>::quiet_NaN());
+                }
+            }
+        };
+        numbers(L"p", image.stopPct);
+        numbers(L"l", image.stopPx);
+        if (image.stopPct.size() != image.stops.size() || image.stopPx.size() != image.stops.size())
+        {
+            image.stopPct.clear();
+            image.stopPx.clear();
+        }
         if (auto c = Arr(o, L"c")) { image.cx = Num(c, 0, 0.5f); image.cy = Num(c, 1, 0.5f); }
         if (auto r = Arr(o, L"r")) { image.rx = Num(r, 0, 0.5f); image.ry = Num(r, 1, 0.5f); }
         image.angle = static_cast<float>(o.GetNamedNumber(L"a", 180.0));
@@ -457,13 +485,91 @@ namespace mason_cssmask
         return {};
     }
 
-    inline winrt::com_ptr<ID2D1GradientStopCollection> Stops(ID2D1DeviceContext* ctx, Image const& image, D2D1_EXTEND_MODE extend)
+    inline std::vector<float> StopPositions(Image const& image, float length)
+    {
+        const size_t n = image.stops.size();
+        std::vector<float> out(n, 0.0f);
+        if (image.stopPx.empty())
+        {
+            for (size_t i = 0; i < n; ++i) out[i] = image.stops[i].first;
+            return out;
+        }
+        size_t anchor = n;
+        for (size_t i = 0; i < n; ++i)
+        {
+            float given = !std::isnan(image.stopPx[i]) ? (length > 0.0f ? image.stopPx[i] / length : 0.0f) : image.stopPct[i];
+            if (std::isnan(given))
+            {
+                if (i == 0) given = 0.0f;
+                else if (i + 1 == n) given = 1.0f;
+                else continue;
+            }
+            const float position = anchor < n ? (std::max)(given, out[anchor]) : given;
+            out[i] = position;
+            if (anchor < n)
+            {
+                for (size_t k = anchor + 1; k < i; ++k) out[k] = out[anchor] + (position - out[anchor]) * static_cast<float>(k - anchor) / static_cast<float>(i - anchor);
+            }
+            anchor = i;
+        }
+        return out;
+    }
+
+    struct Ramp
     {
         std::vector<D2D1_GRADIENT_STOP> stops;
-        for (auto const& [offset, argb] : image.stops) stops.push_back({ offset, ColorOf(argb) });
-        if (stops.size() == 1) stops.push_back({ 1.0f, stops[0].color });
+        float from{ 0.0f }, to{ 1.0f };
+        bool wrap{ false };
+    };
+
+    inline Ramp RampOf(Image const& image, float length)
+    {
+        Ramp ramp;
+        const auto positions = StopPositions(image, length);
+        if (positions.empty()) return ramp;
+        ramp.wrap = image.repeating && positions.back() - positions.front() > 1e-4f;
+        ramp.from = ramp.wrap ? positions.front() : (std::min)(positions.front(), 0.0f);
+        ramp.to = ramp.wrap ? positions.back() : (std::max)(positions.back(), 1.0f);
+        const float span = ramp.to - ramp.from;
+        for (size_t i = 0; i < positions.size(); ++i) ramp.stops.push_back({ (positions[i] - ramp.from) / span, ColorOf(image.stops[i].second) });
+        if (ramp.stops.size() == 1) ramp.stops.push_back({ 1.0f, ramp.stops[0].color });
+        return ramp;
+    }
+
+    inline D2D1_COLOR_F RampColorAt(std::vector<D2D1_GRADIENT_STOP> const& s, float t)
+    {
+        if (t <= s.front().position) return s.front().color;
+        for (size_t i = 1; i < s.size(); ++i)
+        {
+            if (t <= s[i].position)
+            {
+                const float span = s[i].position - s[i - 1].position;
+                const float f = span > 0.0f ? (t - s[i - 1].position) / span : 1.0f;
+                const auto a = s[i - 1].color, b = s[i].color;
+                return D2D1::ColorF(a.r + (b.r - a.r) * f, a.g + (b.g - a.g) * f, a.b + (b.b - a.b) * f, a.a + (b.a - a.a) * f);
+            }
+        }
+        return s.back().color;
+    }
+
+    // Direct2D starts a wrapping radial period at the centre, so a period that starts later is rotated.
+    inline std::vector<D2D1_GRADIENT_STOP> Rotate(std::vector<D2D1_GRADIENT_STOP> const& s, float phase)
+    {
+        if (phase <= 1e-5f || phase >= 1.0f - 1e-5f) return s;
+        std::vector<D2D1_GRADIENT_STOP> out;
+        out.push_back({ 0.0f, RampColorAt(s, 1.0f - phase) });
+        for (auto const& stop : s) if (stop.position + phase >= 1.0f) out.push_back({ stop.position + phase - 1.0f, stop.color });
+        for (auto const& stop : s) if (stop.position + phase < 1.0f) out.push_back({ stop.position + phase, stop.color });
+        out.push_back({ 1.0f, RampColorAt(s, 1.0f - phase) });
+        return out;
+    }
+
+    inline winrt::com_ptr<ID2D1GradientStopCollection> Collection(ID2D1DeviceContext* ctx, std::vector<D2D1_GRADIENT_STOP> const& stops, bool wrap)
+    {
         winrt::com_ptr<ID2D1GradientStopCollection> collection;
-        ctx->CreateGradientStopCollection(stops.data(), static_cast<UINT32>(stops.size()), D2D1_GAMMA_2_2, extend, collection.put());
+        if (stops.empty()) return collection;
+        ctx->CreateGradientStopCollection(stops.data(), static_cast<UINT32>(stops.size()), D2D1_GAMMA_2_2,
+            wrap ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP, collection.put());
         return collection;
     }
 
@@ -485,7 +591,7 @@ namespace mason_cssmask
     }
 
     // Draws `image` to fill the rect (0, 0, w, h) in the current transform.
-    inline void DrawImage(ID2D1DeviceContext* ctx, Image const& image, float w, float h, uint32_t color = 0xFF000000)
+    inline void DrawImage(ID2D1DeviceContext* ctx, Image const& image, float w, float h, uint32_t color = 0xFF000000, float unit = 1.0f)
     {
         if (w <= 0.0f || h <= 0.0f) return;
         const auto rect = D2D1::RectF(0.0f, 0.0f, w, h);
@@ -520,10 +626,12 @@ namespace mason_cssmask
             const float dy = corner ? image.cornerY * w / diagonal : -std::cos(a);
             const float half = (std::abs(w * dx) + std::abs(h * dy)) / 2.0f;
             const D2D1_POINT_2F c{ w / 2.0f, h / 2.0f };
-            auto stops = Stops(ctx, image, D2D1_EXTEND_MODE_CLAMP);
+            const auto ramp = RampOf(image, 2.0f * half / unit);
+            auto stops = Collection(ctx, ramp.stops, ramp.wrap);
+            const D2D1_POINT_2F start{ c.x - dx * half, c.y - dy * half };
+            auto along = [&](float t) { return D2D1_POINT_2F{ start.x + 2.0f * dx * half * t, start.y + 2.0f * dy * half * t }; };
             winrt::com_ptr<ID2D1LinearGradientBrush> brush;
-            if (stops && SUCCEEDED(ctx->CreateLinearGradientBrush(
-                D2D1::LinearGradientBrushProperties({ c.x - dx * half, c.y - dy * half }, { c.x + dx * half, c.y + dy * half }), stops.get(), brush.put())))
+            if (stops && SUCCEEDED(ctx->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(along(ramp.from), along(ramp.to)), stops.get(), brush.put())))
             {
                 ctx->FillRectangle(rect, brush.get());
             }
@@ -531,10 +639,47 @@ namespace mason_cssmask
         }
         case Image::Kind::Radial:
         {
-            auto stops = Stops(ctx, image, D2D1_EXTEND_MODE_CLAMP);
+            float rx = image.rx * w, ry = image.ry * h;
+            if (image.circle >= 0 || image.circleRadius >= 0.0f)
+            {
+                const float sx = (std::min)(image.cx, 1.0f - image.cx) * w, sy = (std::min)(image.cy, 1.0f - image.cy) * h;
+                const float fx = (std::max)(image.cx, 1.0f - image.cx) * w, fy = (std::max)(image.cy, 1.0f - image.cy) * h;
+                float r = image.circleRadius * unit;
+                if (image.circleRadius < 0.0f)
+                {
+                    switch (image.circle)
+                    {
+                    case 0: r = (std::min)(sx, sy); break;
+                    case 1: r = (std::max)(fx, fy); break;
+                    case 2: r = std::hypot(sx, sy); break;
+                    default: r = std::hypot(fx, fy); break;
+                    }
+                }
+                rx = ry = (std::max)(r, 0.001f);
+            }
+            auto ramp = RampOf(image, rx / unit);
+            float scale = ramp.to;
+            if (ramp.wrap)
+            {
+                scale = ramp.to - ramp.from;
+                const float phase = ramp.from / scale - std::floor(ramp.from / scale);
+                ramp.stops = Rotate(ramp.stops, phase);
+            }
+            else if (ramp.from < 0.0f)
+            {
+                const auto atCentre = RampColorAt(ramp.stops, -ramp.from / (ramp.to - ramp.from));
+                std::vector<D2D1_GRADIENT_STOP> clipped{ { 0.0f, atCentre } };
+                for (auto const& stop : ramp.stops)
+                {
+                    const float t = stop.position * (ramp.to - ramp.from) + ramp.from;
+                    if (t > 0.0f) clipped.push_back({ t / ramp.to, stop.color });
+                }
+                ramp.stops = std::move(clipped);
+            }
+            auto stops = Collection(ctx, ramp.stops, ramp.wrap);
             winrt::com_ptr<ID2D1RadialGradientBrush> brush;
-            if (stops && SUCCEEDED(ctx->CreateRadialGradientBrush(
-                D2D1::RadialGradientBrushProperties({ image.cx * w, image.cy * h }, {}, image.rx * w, image.ry * h), stops.get(), brush.put())))
+            if (stops && scale > 0.0f && SUCCEEDED(ctx->CreateRadialGradientBrush(
+                D2D1::RadialGradientBrushProperties({ image.cx * w, image.cy * h }, {}, rx * scale, ry * scale), stops.get(), brush.put())))
             {
                 ctx->FillRectangle(rect, brush.get());
             }
@@ -680,7 +825,7 @@ namespace mason_cssmask
         ctx->SetTarget(tile.get());
         ctx->SetTransform(D2D1::Matrix3x2F::Identity());
         ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-        DrawImage(ctx, layer.image, static_cast<float>(pw), static_cast<float>(ph), color);
+        DrawImage(ctx, layer.image, static_cast<float>(pw), static_cast<float>(ph), color, scale);
         ctx->SetTarget(target.get());
         ctx->SetTransform(transform);
 
@@ -1021,7 +1166,7 @@ namespace mason_cssmask
         ctx->SetTarget(source.get());
         ctx->SetTransform(D2D1::Matrix3x2F::Identity());
         ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-        DrawImage(ctx, nine.image, static_cast<float>(sw), static_cast<float>(sh), color);
+        DrawImage(ctx, nine.image, static_cast<float>(sw), static_cast<float>(sh), color, k);
         // CopyFromBitmap below reads pixels directly, ahead of any drawing still batched.
         ctx->Flush();
         ctx->SetTarget(target.get());

@@ -6,8 +6,8 @@ export interface WindowsMaskContext {
   length(token: string): number | undefined;
   /** A CSS colour as 0xAARRGGBB, or null. */
   color(value: string): number | null;
-  linear(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[] } | null;
-  radial(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[] } | null;
+  linear(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; positions?: Array<number | null>; lengths?: Array<number | null> } | null;
+  radial(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; positions?: Array<number | null>; lengths?: Array<number | null>; circle?: number; circleRadius?: number } | null;
   /** A url() target as a path or data URI the native side can load. */
   source(url: string): string;
 }

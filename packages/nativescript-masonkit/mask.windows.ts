@@ -1,7 +1,7 @@
 import { tokenizeCss } from './css-shorthands';
 import type { WindowsBackgroundBoxes, WindowsBackgroundLonghands, WindowsMaskContext } from './mask';
 import { pathCommands } from './svg-path';
-import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
+import { expandColorStops, repeatStops, resolveStopPositions } from './gradient-stops';
 
 // Windows draws masks with Direct2D (CssMask.h) from a JSON spec built here: units, colours and
 // gradients are resolved in TS, as for the rest of Windows styling, and the native side only lays
@@ -10,7 +10,8 @@ import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } fro
 /** px plus a percentage of whatever the value resolves against. */
 type Len = [px: number, pct: number];
 
-type WindowsImage = { t: 'img'; src: string } | { t: 'lin'; a: number; k?: [number, number]; s: number[] } | { t: 'rad'; c: [number, number]; r: [number, number]; s: number[] } | { t: 'con'; a: number; c: [number, number]; s: number[] };
+type GradientStops = { s: number[]; rp?: 1; p?: Array<number | null>; l?: Array<number | null> };
+type WindowsImage = { t: 'img'; src: string } | ({ t: 'lin'; a: number; k?: [number, number] } & GradientStops) | ({ t: 'rad'; c: [number, number]; r: [number, number]; ci?: number; cr?: number } & GradientStops) | { t: 'con'; a: number; c: [number, number]; s: number[] };
 
 const BOX: Record<string, number> = { 'border-box': 0, 'padding-box': 1, 'content-box': 2, 'margin-box': 3, 'fill-box': 0, 'stroke-box': 0, 'view-box': 0, 'no-clip': 3 };
 const REPEAT: Record<string, number> = { repeat: 0, 'no-repeat': 1, space: 2, round: 3, stretch: 4 };
@@ -133,6 +134,16 @@ function angleDegrees(n: number, unit: string): number {
   }
 }
 
+function gradientStops(g: { offsets: number[]; colors: number[]; positions?: Array<number | null>; lengths?: Array<number | null> }, repeating: boolean): GradientStops {
+  const out: GradientStops = { s: flatStops(g.offsets, g.colors) };
+  if (repeating) out.rp = 1;
+  if (g.lengths && g.positions) {
+    out.p = g.positions;
+    out.l = g.lengths;
+  }
+  return out;
+}
+
 /** One mask/border image, or null for `none` and anything that can't be drawn. */
 export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImage | null {
   const t = token.trim();
@@ -142,16 +153,14 @@ export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImag
   if (/^(repeating-)?conic-gradient\(/i.test(t)) return parseConic(t, ctx);
   const repeating = /^repeating-/i.test(t);
   if (/^(repeating-)?radial-gradient\(/i.test(t)) {
-    let g = ctx.radial(t);
+    const g = ctx.radial(t);
     if (!g || !g.colors.length) return null;
-    if (repeating) g = repeatRadial(g);
-    return { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], s: flatStops(g.offsets, g.colors) };
+    return { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], ...(g.circle != null && { ci: g.circle }), ...(g.circleRadius != null && { cr: g.circleRadius }), ...gradientStops(g, repeating) };
   }
   if (/^(repeating-)?linear-gradient\(/i.test(t)) {
     const g = ctx.linear(t);
     if (!g || !g.colors.length) return null;
-    const stops = repeating ? repeatStops(g.offsets, g.colors) : g;
-    return { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), s: flatStops(stops.offsets, stops.colors) };
+    return { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), ...gradientStops(g, repeating) };
   }
   return null;
 }

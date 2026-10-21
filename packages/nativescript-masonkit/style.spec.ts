@@ -4,7 +4,7 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseRadialGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -475,6 +475,24 @@ describe('text-decoration parsing', () => {
     expect(textDecorationLineToCss(5)).toBe('underline line-through');
     expect(textDecorationLineToCss(0)).toBe('none');
     expect(parseTextDecorationLine('sideways')).toBeNull();
+  });
+});
+
+describe('gradient length stops', () => {
+  it('keeps a length position apart and places that stop as if it had none', () => {
+    const g = parseLinearGradientCss('repeating-linear-gradient(0deg, red 0px 20px, transparent 20px 40px)')!;
+    expect(g.lengths).toEqual([0, 20, 20, 40]);
+    expect(g.positions).toEqual([null, null, null, null]);
+    expect(g.offsets).toEqual([0, 1 / 3, 2 / 3, 1]);
+    expect(parseLinearGradientCss('linear-gradient(red 10%, blue)')!.lengths).toBeUndefined();
+  });
+
+  it('marks a radial circle with its size keyword or radius', () => {
+    expect(parseRadialGradientCss('radial-gradient(circle, red, blue)')!.circle).toBe(3);
+    expect(parseRadialGradientCss('radial-gradient(circle closest-side at 20% 30%, red, blue)')!.circle).toBe(0);
+    expect(parseRadialGradientCss('radial-gradient(circle 20px, red, blue)')!.circleRadius).toBe(20);
+    expect(parseRadialGradientCss('radial-gradient(red, blue)')!.circle).toBeUndefined();
+    expect(parseRadialGradientCss('radial-gradient(ellipse at top, red, blue)')!.circle).toBeUndefined();
   });
 });
 

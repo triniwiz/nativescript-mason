@@ -4,7 +4,7 @@ import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
-import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
+import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
@@ -927,7 +927,7 @@ const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
 
 // Parse `linear-gradient(<dir>? <in colorspace>?, <color> <stop>?, ...)` into a CSS angle, per-stop argb + offsets and the interpolation.
-export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string } | null {
+export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null> } | null {
   const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -950,20 +950,30 @@ export function parseLinearGradientCss(value: string): { angle: number; corner?:
     corner = parseGradientCorner(head);
     start = 1;
   }
+  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
+  if (colors.length < 1) return null;
+  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }) };
+}
+
+// A length stop needs the gradient line's length, which only the painter knows.
+function parseGradientStops(stops: string[]): { colors: number[]; positions: Array<number | null>; lengths?: Array<number | null> } {
   const colors: number[] = [];
   const positions: Array<number | null> = [];
-  for (const stop of expandColorStops(parts.slice(start))) {
-    // A length position needs the gradient line's length, unknown here, so that stop is placed as
-    // if it had none rather than dropped.
-    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
+  const lengths: Array<number | null> = [];
+  let anyLength = false;
+  for (const stop of expandColorStops(stops)) {
+    const pos = /\s+(-?[\d.]+)(%|[a-z]+)?\s*$/i.exec(stop);
     const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
     const argb = normalizeColorValue(colorStr);
     if (argb == null) continue;
     colors.push(argb >>> 0);
-    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
+    const percent = pos?.[2] === '%';
+    const length = pos && !percent ? cssLengthToDip(pos[1] + (pos[2] ?? 'px')) : undefined;
+    positions.push(percent ? parseFloat(pos[1]) / 100 : null);
+    lengths.push(length ?? null);
+    if (length != null) anyLength = true;
   }
-  if (colors.length < 1) return null;
-  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation };
+  return { colors, positions, ...(anyLength && { lengths }) };
 }
 
 const RADIAL_GRADIENT_ARGS = /radial-gradient\s*\(([\s\S]*)\)\s*$/i;
@@ -995,7 +1005,7 @@ export function parseBoxPosition(value: string, fallback = 0.5): { x: number; y:
   return { x: fallback, y: fallback };
 }
 
-export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string } | null {
+export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null>; circle?: number; circleRadius?: number } | null {
   const m = RADIAL_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -1025,21 +1035,16 @@ export function parseRadialGradientCss(value: string): { cx: number; cy: number;
     const sizeKeyword = /(closest-side|farthest-side|closest-corner|farthest-corner)/i.exec(head);
     if (sizeKeyword) size = sizeKeyword[1].toLowerCase();
   }
+  const shape = head.replace(/\bat\s+.+$/i, '');
+  const circleLength = /\bcircle\b/i.test(shape) || /^\s*-?[\d.]+[a-z]*\s*$/i.test(shape) ? /(-?[\d.]+(?:px|r?em|pt|vw|vh)?)(?=\s|$)/i.exec(shape) : null;
+  const circleRadius = circleLength ? cssLengthToDip(/[a-z]$/i.test(circleLength[1]) ? circleLength[1] : circleLength[1] + 'px') : undefined;
+  const circle = /\bcircle\b/i.test(shape) || circleRadius != null ? ['closest-side', 'farthest-side', 'closest-corner', 'farthest-corner'].indexOf(size) : undefined;
   const sideX = size.startsWith('closest') ? Math.min(cx, 1 - cx) : Math.max(cx, 1 - cx);
   const sideY = size.startsWith('closest') ? Math.min(cy, 1 - cy) : Math.max(cy, 1 - cy);
   const corner = size.endsWith('corner') ? Math.SQRT2 : 1;
-  const colors: number[] = [];
-  const positions: Array<number | null> = [];
-  for (const stop of expandColorStops(parts.slice(start))) {
-    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
-    const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
-    const argb = normalizeColorValue(colorStr);
-    if (argb == null) continue;
-    colors.push(argb >>> 0);
-    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
-  }
+  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
   if (colors.length < 1) return null;
-  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation };
+  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }), ...(circle != null && { circle }), ...(circleRadius != null && { circleRadius }) };
 }
 
 export function backgroundFit(size: string | null | undefined): number {
@@ -1858,22 +1863,20 @@ export class Style {
         NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
         return true;
       };
-      const repeating = /^repeating-/i.test(layer);
       // Only the layer painter places a background in a box other than the CSS defaults.
-      if (ANY_GRADIENT.test(layer) && (hasCustomBackgroundBoxes(boxes) || /^(repeating-)?conic-gradient/i.test(layer))) {
+      if (ANY_GRADIENT.test(layer) && (hasCustomBackgroundBoxes(boxes) || /^(repeating-|conic-gradient)/i.test(layer) || this.windowsColorUnder() || /\d(px|r?em|pt|vw|vh)\b|\bcircle\b/i.test(layer))) {
         const ctx = this.windowsMaskContext();
         setLayers(encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', ctx, boxes));
         return;
       }
-      if (/^(repeating-)?radial-gradient/i.test(layer)) {
-        let g = parseRadialGradientCss(layer);
-        if (g && repeating) g = repeatRadial(g);
+      if (/^radial-gradient/i.test(layer)) {
+        const g = parseRadialGradientCss(layer);
         if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
         return;
       }
-      if (/^(repeating-)?linear-gradient/i.test(layer)) {
+      if (/^linear-gradient/i.test(layer)) {
         const g = parseLinearGradientCss(layer);
-        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(repeating ? repeatStops(g.offsets, g.colors) : g), g.interpolation);
+        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(g), g.interpolation);
         return;
       }
       if (url) {
@@ -1909,7 +1912,11 @@ export class Style {
     return x === 2 || x === 4 || y === 2 || y === 4;
   }
 
-  private windowsOverflowChanged() {
+  private windowsColorUnder(): boolean {
+    return !!this.style_view && getUint32(this.style_view, StyleKeys.BACKGROUND_COLOR) >>> 24 > 0;
+  }
+
+  private windowsReapplyGradient() {
     if (ANY_GRADIENT.test(this._windowsBackground ?? '')) this.applyWindowsBackground(this._windowsBackgroundShorthand);
   }
 
@@ -2736,6 +2743,7 @@ export class Style {
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 1);
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
     this.commitState(StateKeys.BACKGROUND_COLOR);
+    if (__WINDOWS__ && !this._windowsImageBackground && normalized >>> 24 > 0) this.windowsReapplyGradient();
   }
 
   get textWrap() {
@@ -5140,7 +5148,7 @@ export class Style {
       }
     }
     this.commitState(StateKeys.OVERFLOW);
-    if (__WINDOWS__) this.windowsOverflowChanged();
+    if (__WINDOWS__) this.windowsReapplyGradient();
   }
   get overflowX() {
     switch (getInt8(this.style_view, StyleKeys.OVERFLOW_X)) {
@@ -5159,7 +5167,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
       this.commitState(StateKeys.OVERFLOW_X);
-      if (__WINDOWS__) this.windowsOverflowChanged();
+      if (__WINDOWS__) this.windowsReapplyGradient();
     }
   }
 
@@ -5184,7 +5192,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
       this.commitState(StateKeys.OVERFLOW_Y);
-      if (__WINDOWS__) this.windowsOverflowChanged();
+      if (__WINDOWS__) this.windowsReapplyGradient();
     }
   }
 

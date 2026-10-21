@@ -118,17 +118,26 @@ describe('repeating gradients', () => {
   };
   const offsetsOf = (s: number[]) => s.filter((_, i) => i % 2 === 0);
 
-  it('tiles a repeating linear gradient and leaves a plain one alone', () => {
-    const repeating = encodeImage('repeating-linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[] };
-    expect(offsetsOf(repeating.s)).toEqual([0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1]);
-    const plain = encodeImage('linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[] };
-    expect(offsetsOf(plain.s)).toEqual([0, 0.25]);
+  it('flags a repeating linear or radial gradient for the painter to wrap, with one period of stops', () => {
+    const repeating = encodeImage('repeating-linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[]; rp?: number };
+    expect(offsetsOf(repeating.s)).toEqual([0, 0.25]);
+    expect(repeating.rp).toBe(1);
+    const plain = encodeImage('linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[]; rp?: number };
+    expect(plain.rp).toBeUndefined();
+    const radial = encodeImage('repeating-radial-gradient(black, transparent 25%)', stripes) as { r: number[]; rp?: number };
+    expect(radial.r).toEqual([0.5, 0.5]);
+    expect(radial.rp).toBe(1);
   });
 
-  it('tiles a repeating radial gradient out to the corners', () => {
-    const g = encodeImage('repeating-radial-gradient(black, transparent 25%)', stripes) as { r: number[]; s: number[] };
-    expect(g.r[0]).toBeCloseTo(0.5 * Math.SQRT2);
-    expect(offsetsOf(g.s).at(-1)).toBe(1);
+  it('sends length stops for the painter to place on the gradient line', () => {
+    const lengths: WindowsMaskContext = {
+      ...ctx,
+      linear: () => ({ angle: 180, offsets: [0, 1 / 3, 2 / 3, 1], colors: [0xff000000, 0xff000000, 0, 0], positions: [null, null, null, null], lengths: [0, 20, 20, 40] }),
+    };
+    const g = encodeImage('repeating-linear-gradient(black 0 20px, transparent 20px 40px)', lengths) as { p?: unknown[]; l?: unknown[]; rp?: number };
+    expect(g.l).toEqual([0, 20, 20, 40]);
+    expect(g.p).toEqual([null, null, null, null]);
+    expect(g.rp).toBe(1);
   });
 
   it('tiles a repeating conic gradient around the turn', () => {
@@ -139,9 +148,9 @@ describe('repeating gradients', () => {
 
   it('repeats inside a mask layer and a border-image source', () => {
     const spec = JSON.parse(encodeWindowsMask(new Map([['mask-image', 'repeating-linear-gradient(90deg, black, transparent 25%)']]), stripes));
-    expect(offsetsOf(spec.l[0].i.s)).toHaveLength(8);
+    expect(spec.l[0].i.rp).toBe(1);
     const border = JSON.parse(encodeWindowsBorderImage('repeating-linear-gradient(90deg, black, transparent 25%) 1', stripes));
-    expect(offsetsOf(border.mb.i.s)).toHaveLength(8);
+    expect(border.mb.i.rp).toBe(1);
   });
 
   it('encodes a conic background as a layer', () => {
