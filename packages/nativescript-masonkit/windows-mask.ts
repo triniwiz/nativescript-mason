@@ -1,5 +1,6 @@
 import { tokenizeCss } from './css-shorthands';
-import { expandColorStops, resolveStopPositions } from './gradient-stops';
+import { pathCommands } from './windows-svg-path';
+import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
 
 // Windows draws masks with Direct2D (CssMask.h) from a JSON spec built here: units, colours and
 // gradients are resolved in TS, as for the rest of Windows styling, and the native side only lays
@@ -123,7 +124,9 @@ function parseConic(value: string, ctx: WindowsMaskContext): WindowsImage | null
     positions.push(pos ? (pos[2] === '%' ? parseFloat(pos[1]) / 100 : angleDegrees(parseFloat(pos[1]), pos[2]) / 360) : null);
   }
   if (!colors.length) return null;
-  return { t: 'con', a: from, c: [cx, cy], s: flatStops(resolveStopPositions(positions), colors) };
+  const offsets = resolveStopPositions(positions);
+  const stops = /^\s*repeating-/i.test(value) ? repeatStops(offsets, colors) : { offsets, colors };
+  return { t: 'con', a: from, c: [cx, cy], s: flatStops(stops.offsets, stops.colors) };
 }
 
 function angleDegrees(n: number, unit: string): number {
@@ -146,13 +149,18 @@ export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImag
   const url = urlOf(t);
   if (url != null) return url ? { t: 'img', src: ctx.source(url) } : null;
   if (/^(repeating-)?conic-gradient\(/i.test(t)) return parseConic(t, ctx);
+  const repeating = /^repeating-/i.test(t);
   if (/^(repeating-)?radial-gradient\(/i.test(t)) {
-    const g = ctx.radial(t);
-    return g && g.colors.length ? { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], s: flatStops(g.offsets, g.colors) } : null;
+    let g = ctx.radial(t);
+    if (!g || !g.colors.length) return null;
+    if (repeating) g = repeatRadial(g);
+    return { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], s: flatStops(g.offsets, g.colors) };
   }
   if (/^(repeating-)?linear-gradient\(/i.test(t)) {
     const g = ctx.linear(t);
-    return g && g.colors.length ? { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), s: flatStops(g.offsets, g.colors) } : null;
+    if (!g || !g.colors.length) return null;
+    const stops = repeating ? repeatStops(g.offsets, g.colors) : g;
+    return { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), s: flatStops(stops.offsets, stops.colors) };
   }
   return null;
 }
@@ -328,7 +336,7 @@ export function encodeClipPath(value: string, ctx: WindowsMaskContext): Record<s
       let evenOdd = false;
       if (/^(evenodd|nonzero)$/i.test(list[0] ?? '')) evenOdd = list.shift()!.toLowerCase() === 'evenodd';
       const d = (list[0] ?? '').replace(/^["']|["']$/g, '');
-      return d ? { b: box, s: 5, d, e: evenOdd } : null;
+      return d ? { b: box, s: 5, d, e: evenOdd, pc: pathCommands(d) } : null;
     }
     default:
       return null;
@@ -423,6 +431,15 @@ export function encodeWindowsBackground(url: string, size: string, position: str
   const [x, y] = encodePosition(position || '0% 0%', ctx);
   // Backgrounds are positioned in the padding box and painted to the border box's edge.
   const layer = { i: { t: 'img', src: ctx.source(url) }, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: 1, c: 0, m: 0, k: 0 };
+  return JSON.stringify({ l: [layer] });
+}
+
+/** A gradient background layer (conic, which no XAML brush draws) as the JSON Css.SetBackgroundLayers takes, or ''. */
+export function encodeWindowsGradientBackground(gradient: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext): string {
+  const image = encodeImage(gradient, ctx);
+  if (!image || image.t === 'img') return '';
+  const [x, y] = encodePosition(position || '0% 0%', ctx);
+  const layer = { i: image, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: 1, c: 0, m: 0, k: 0 };
   return JSON.stringify({ l: [layer] });
 }
 

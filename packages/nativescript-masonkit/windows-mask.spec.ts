@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeClipPath, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, urlOf, type WindowsMaskContext } from './windows-mask';
+import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsGradientBackground, encodeWindowsMask, urlOf, type WindowsMaskContext } from './windows-mask';
 
 const ctx: WindowsMaskContext = {
   length: (token) => (token.endsWith('px') ? parseFloat(token) : token.endsWith('rem') ? parseFloat(token) * 16 : undefined),
@@ -87,7 +87,7 @@ describe('encodeClipPath', () => {
 
   it('reads polygons, paths and a reference box', () => {
     expect(encodeClipPath('polygon(evenodd, 0 0, 100% 0, 50% 100%) content-box', ctx)).toEqual({ b: 2, s: 4, v: [0, 0, 0, 0, 0, 100, 0, 0, 0, 50, 0, 100], e: true });
-    expect(encodeClipPath('path("M0 0 L10 0 L5 10 Z")', ctx)).toEqual({ b: 0, s: 5, d: 'M0 0 L10 0 L5 10 Z', e: false });
+    expect(encodeClipPath('path("M0 0 L10 0 L5 10 Z")', ctx)).toEqual({ b: 0, s: 5, d: 'M0 0 L10 0 L5 10 Z', e: false, pc: [0, 0, 0, 1, 10, 0, 1, 5, 10, 4] });
     expect(encodeClipPath('none', ctx)).toBeNull();
   });
 });
@@ -107,5 +107,47 @@ describe('encodeWindowsBackground', () => {
     const spec = JSON.parse(encodeWindowsBackground('~/knob.svg', 'contain', 'right center', 'no-repeat', ctx));
     expect(spec.l[0]).toEqual({ i: { t: 'img', src: '/app/knob.svg' }, sz: [2], p: [0, 100, 0, 50], r: [1, 1], o: 1, c: 0, m: 0, k: 0 });
     expect(encodeWindowsBackground('', '', '', '', ctx)).toBe('');
+  });
+});
+
+describe('repeating gradients', () => {
+  const stripes: WindowsMaskContext = {
+    ...ctx,
+    linear: () => ({ angle: 90, offsets: [0, 0.25], colors: [0xff000000, 0] }),
+    radial: () => ({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5, offsets: [0, 0.25], colors: [0xff000000, 0] }),
+  };
+  const offsetsOf = (s: number[]) => s.filter((_, i) => i % 2 === 0);
+
+  it('tiles a repeating linear gradient and leaves a plain one alone', () => {
+    const repeating = encodeImage('repeating-linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[] };
+    expect(offsetsOf(repeating.s)).toEqual([0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1]);
+    const plain = encodeImage('linear-gradient(90deg, black, transparent 25%)', stripes) as { s: number[] };
+    expect(offsetsOf(plain.s)).toEqual([0, 0.25]);
+  });
+
+  it('tiles a repeating radial gradient out to the corners', () => {
+    const g = encodeImage('repeating-radial-gradient(black, transparent 25%)', stripes) as { r: number[]; s: number[] };
+    expect(g.r[0]).toBeCloseTo(0.5 * Math.SQRT2);
+    expect(offsetsOf(g.s).at(-1)).toBe(1);
+  });
+
+  it('tiles a repeating conic gradient around the turn', () => {
+    const g = encodeImage('repeating-conic-gradient(black 0deg, transparent 90deg)', ctx) as { s: number[] };
+    expect(offsetsOf(g.s)).toContain(0.5);
+    expect(offsetsOf(g.s).at(-1)).toBe(1);
+  });
+
+  it('repeats inside a mask layer and a border-image source', () => {
+    const spec = JSON.parse(encodeWindowsMask(new Map([['mask-image', 'repeating-linear-gradient(90deg, black, transparent 25%)']]), stripes));
+    expect(offsetsOf(spec.l[0].i.s)).toHaveLength(8);
+    const border = JSON.parse(encodeWindowsBorderImage('repeating-linear-gradient(90deg, black, transparent 25%) 1', stripes));
+    expect(offsetsOf(border.mb.i.s)).toHaveLength(8);
+  });
+
+  it('encodes a conic background as a layer', () => {
+    const spec = JSON.parse(encodeWindowsGradientBackground('conic-gradient(black, transparent)', '', '', '', ctx));
+    expect(spec.l[0].i.t).toBe('con');
+    expect(spec.l[0].r).toEqual([0, 0]);
+    expect(encodeWindowsGradientBackground('url(a.png)', '', '', '', ctx)).toBe('');
   });
 });

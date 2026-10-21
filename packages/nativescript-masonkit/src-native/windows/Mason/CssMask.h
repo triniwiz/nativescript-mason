@@ -88,6 +88,8 @@ namespace mason_cssmask
         std::vector<int> kinds; // circle/ellipse radii: 0 length, 1 closest-side, 2 farthest-side
         bool evenOdd{ false };
         std::string path;
+        // path() as absolute commands from windows-svg-path.ts: 0 M, 1 L, 2 C, 3 Q, 4 Z.
+        std::vector<float> commands;
     };
 
     struct NineSlice
@@ -311,6 +313,7 @@ namespace mason_cssmask
             if (auto k = Arr(o, L"k")) for (uint32_t i = 0; i < k.Size(); ++i) clip.kinds.push_back(static_cast<int>(Num(k, i)));
             clip.evenOdd = o.GetNamedBoolean(L"e", false);
             clip.path = winrt::to_string(o.GetNamedString(L"d", L""));
+            if (auto pc = Arr(o, L"pc")) for (uint32_t i = 0; i < pc.Size(); ++i) clip.commands.push_back(Num(pc, i));
             spec.clip = std::move(clip);
         }
         if (root.HasKey(L"mb") && root.GetNamedValue(L"mb").ValueType() == json::JsonValueType::Object)
@@ -706,8 +709,8 @@ namespace mason_cssmask
         return ref;
     }
 
-    // The clip-path shape as a geometry in DIPs, for every shape but path() (which only the SVG
-    // renderer parses). Null for an empty shape.
+    // The clip-path shape as a geometry in DIPs. Null for an empty shape. path() is drawn by the
+    // SVG renderer; this geometry, from its parsed commands, is for hit testing.
     inline winrt::com_ptr<ID2D1Geometry> ClipGeometry(ID2D1Factory* factory, ClipShape const& clip, Boxes const& boxes)
     {
         const D2D1_RECT_F ref = ClipReference(clip, boxes);
@@ -782,6 +785,64 @@ namespace mason_cssmask
             sink->EndFigure(D2D1_FIGURE_END_CLOSED);
             return close();
         }
+        case 5:
+        {
+            auto const& c = clip.commands;
+            if (c.empty() || !open()) return nullptr;
+            sink->SetFillMode(clip.evenOdd ? D2D1_FILL_MODE_ALTERNATE : D2D1_FILL_MODE_WINDING);
+            auto pt = [&](size_t i) { return D2D1_POINT_2F{ ref.left + c[i], ref.top + c[i + 1] }; };
+            bool inFigure = false;
+            D2D1_POINT_2F current{ ref.left, ref.top }, start = current;
+            auto begin = [&]()
+            {
+                if (inFigure) return;
+                sink->BeginFigure(current, D2D1_FIGURE_BEGIN_FILLED);
+                inFigure = true;
+            };
+            size_t i = 0;
+            while (i < c.size())
+            {
+                const int op = static_cast<int>(c[i++]);
+                if (op == 0 && i + 2 <= c.size())
+                {
+                    if (inFigure) sink->EndFigure(D2D1_FIGURE_END_OPEN);
+                    inFigure = false;
+                    current = start = pt(i);
+                    i += 2;
+                }
+                else if (op == 1 && i + 2 <= c.size())
+                {
+                    begin();
+                    current = pt(i);
+                    sink->AddLine(current);
+                    i += 2;
+                }
+                else if (op == 2 && i + 6 <= c.size())
+                {
+                    begin();
+                    sink->AddBezier(D2D1::BezierSegment(pt(i), pt(i + 2), pt(i + 4)));
+                    current = pt(i + 4);
+                    i += 6;
+                }
+                else if (op == 3 && i + 4 <= c.size())
+                {
+                    begin();
+                    sink->AddQuadraticBezier(D2D1::QuadraticBezierSegment(pt(i), pt(i + 2)));
+                    current = pt(i + 2);
+                    i += 4;
+                }
+                else if (op == 4)
+                {
+                    if (inFigure) sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+                    inFigure = false;
+                    current = start;
+                }
+                else break;
+            }
+            // Fills treat an open figure as closed.
+            if (inFigure) sink->EndFigure(D2D1_FIGURE_END_OPEN);
+            return close();
+        }
         default:
             return nullptr;
         }
@@ -816,11 +877,11 @@ namespace mason_cssmask
         if (auto geometry = ClipGeometry(factory.get(), clip, boxes)) ctx->FillGeometry(geometry.get(), white.get());
     }
 
-    // Whether a point (DIPs from the border box's top-left) is inside the clip-path; true for
-    // path(), whose shape only the SVG renderer knows.
+    // Whether a point (DIPs from the border box's top-left) is inside the clip-path; true for a
+    // path() spec without parsed commands.
     inline bool ClipContains(ClipShape const& clip, Boxes const& boxes, float x, float y)
     {
-        if (clip.shape == 5) return true;
+        if (clip.shape == 5 && clip.commands.empty()) return true;
         thread_local winrt::com_ptr<ID2D1Factory> factory;
         if (!factory && FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory), factory.put_void()))) return true;
         auto geometry = ClipGeometry(factory.get(), clip, boxes);

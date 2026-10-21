@@ -4,12 +4,12 @@ import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './windows-panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
-import { expandColorStops, resolveStopPositions } from './gradient-stops';
+import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
 import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
-import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
+import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsGradientBackground, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1780,14 +1780,24 @@ export class Style {
         this._windowsImageBackground = false;
         NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
       }
-      if (/^radial-gradient/i.test(layer)) {
-        const g = parseRadialGradientCss(layer);
+      const repeating = /^repeating-/i.test(layer);
+      if (/^(repeating-)?radial-gradient/i.test(layer)) {
+        let g = parseRadialGradientCss(layer);
+        if (g && repeating) g = repeatRadial(g);
         if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
         return;
       }
-      if (/^linear-gradient/i.test(layer)) {
+      if (/^(repeating-)?linear-gradient/i.test(layer)) {
         const g = parseLinearGradientCss(layer);
-        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(g), g.interpolation);
+        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(repeating ? repeatStops(g.offsets, g.colors) : g), g.interpolation);
+        return;
+      }
+      if (/^(repeating-)?conic-gradient/i.test(layer)) {
+        const spec = encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', this.windowsMaskContext());
+        if (spec) {
+          this._windowsImageBackground = true;
+          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+        }
         return;
       }
       if (url) {
@@ -1879,13 +1889,13 @@ export class Style {
       return;
     }
     if (name === 'background-repeat') {
-      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      if (/url\(|conic-gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
     if (name === 'background-size' || name === 'background-position') {
       if (name === 'background-size') this._windowsBackgroundSize = String(value ?? '');
       else this._windowsBackgroundPosition = String(value ?? '');
-      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      if (/url\(|conic-gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
 
