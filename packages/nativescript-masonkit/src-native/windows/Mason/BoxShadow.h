@@ -148,6 +148,7 @@ namespace mason_shadow
         auto grown = [&](float by)
         {
             mason_shape::Radii g;
+            g.k = r.k;
             for (int i = 0; i < 4; ++i)
             {
                 g.x[i] = r.x[i] > 0.0f ? (std::max)(0.0f, r.x[i] + by) : 0.0f;

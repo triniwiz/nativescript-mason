@@ -18,6 +18,18 @@ export interface WindowsBackgroundBoxes {
   clip?: string;
 }
 
+/** The background-* longhands, each a comma-separated per-layer list. */
+export interface WindowsBackgroundLonghands {
+  image: string;
+  size?: string;
+  position?: string;
+  repeat?: string;
+  origin?: string;
+  clip?: string;
+  attachment?: string;
+  blend?: string;
+}
+
 export const WINDOWS_MASK_PROPERTIES: ReadonlySet<string> = new Set();
 
 export function encodeWindowsMask(_css: ReadonlyMap<string, string>, _ctx: WindowsMaskContext): string {
@@ -33,6 +45,14 @@ export function encodeWindowsGradientBackground(_gradient: string, _size: string
 }
 
 export function encodeWindowsColorClip(_clip: string, _ctx: WindowsMaskContext): string {
+  return '';
+}
+
+export function needsWindowsBackgroundLayers(_css: WindowsBackgroundLonghands): boolean {
+  return false;
+}
+
+export function encodeWindowsBackgroundLayers(_css: WindowsBackgroundLonghands, _ctx: WindowsMaskContext): string {
   return '';
 }
 

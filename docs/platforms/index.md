@@ -36,8 +36,8 @@ Notes:
 - **`backdrop-filter` on Android** below API 31 (Android 12) draws from a downscaled software snapshot, with the same filter functions.
 - **Mask hit testing.** As in browsers, `clip-path` limits where an element can be tapped and masks do not.
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
-- **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>` and raster data-URL `<image>` work on every platform. `<style>` sheets work on iOS and Android; on Windows, Direct2D ignores them, as well as `<symbol>` and a plain SVG 2 `href` (use `xlink:href`). `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
-- **Windows** does not apply `corner-shape`, `background-attachment`, `background-blend-mode` or `background-clip: text`.
+- **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
+- **Windows** does not apply `background-clip: text`.
 - **Text around floats on Android.** Lines wrap around floats when the text is drawn, but the paragraph is measured without them, so its height can come out shorter than on iOS or the web.
 - **Vertical writing modes.** Upright CJK (`text-orientation: upright`) and vertical containers whose children flow vertically are not supported yet on any platform.
 

@@ -4,7 +4,7 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -316,6 +316,29 @@ describe('Windows border-radius parsing', () => {
   });
 });
 
+describe('Windows corner-shape parsing', () => {
+  it('maps keywords to their CSS superellipse parameter', () => {
+    expect(parseCornerShape('round')).toEqual([1, 1, 1, 1]);
+    expect(parseCornerShape('squircle')).toEqual([2, 2, 2, 2]);
+    expect(parseCornerShape('bevel scoop')).toEqual([0, -1, 0, -1]);
+    expect(parseCornerShape('notch square round')).toEqual([-Infinity, Infinity, 1, Infinity]);
+    expect(parseCornerShape('round bevel scoop squircle')).toEqual([1, 0, -1, 2]);
+  });
+
+  it('takes any number or infinity in superellipse()', () => {
+    expect(parseCornerShape('superellipse(1.5)')).toEqual([1.5, 1.5, 1.5, 1.5]);
+    expect(parseCornerShape('superellipse(-2) superellipse(infinity)')).toEqual([-2, Infinity, -2, Infinity]);
+    expect(parseCornerShape('superellipse(-infinity)')).toEqual([-Infinity, -Infinity, -Infinity, -Infinity]);
+  });
+
+  it('rejects unknown tokens', () => {
+    expect(parseCornerShape('superellipse')).toBeNull();
+    expect(parseCornerShape('superellipse(nan)')).toBeNull();
+    expect(parseCornerShape('round wobbly')).toBeNull();
+    expect(parseCornerShape('round round round round round')).toBeNull();
+  });
+});
+
 describe('Windows CSS-string shorthands', () => {
   // `__WINDOWS__` is compiled out here, so these call the handler setPseudoCssStringValue routes to.
   const apply = (t: StyleUnderTest, name: string, value: string) => (t.style as any).applyWindowsCssString(name, value);
@@ -384,6 +407,21 @@ describe('Windows CSS-string shorthands', () => {
     apply(t, 'text-decoration-line', 'none');
     expect(t.getUint8(K.DECORATION_LINE)).toBe(0);
     expect(t.getUint8(K.DECORATION_STYLE)).toBe(2);
+  });
+
+  it('writes corner-shape exponents in CSS corner order', () => {
+    const t = styleUnderTest();
+    const corners = () => ['TOP_LEFT', 'TOP_RIGHT', 'BOTTOM_RIGHT', 'BOTTOM_LEFT'].map((c) => t.getFloat32(K[`BORDER_RADIUS_${c}_EXPONENT`]));
+    apply(t, 'corner-shape', 'squircle scoop');
+    expect(corners()).toEqual([2, -1, 2, -1]);
+    apply(t, 'corner-shape-bottom-left', 'notch');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape-top-left', 'round bevel');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape', 'round wobbly');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape', '');
+    expect(corners()).toEqual([1, 1, 1, 1]);
   });
 
   it('ignores a declaration with an unknown token', () => {

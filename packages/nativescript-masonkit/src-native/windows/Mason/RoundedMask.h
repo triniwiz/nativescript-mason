@@ -309,6 +309,7 @@ namespace mason_mask
     inline mason_shape::Radii DevicePixels(mason_shape::Radii const& radii, float scale)
     {
         mason_shape::Radii q;
+        q.k = radii.k;
         for (int i = 0; i < 4; ++i)
         {
             q.x[i] = QuarterPixels(radii.x[i] * scale) / 4.0f;

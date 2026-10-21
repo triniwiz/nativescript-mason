@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, encodeWindowsMask, hasCustomBackgroundBoxes, urlOf, type WindowsMaskContext } from './mask';
+import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBackgroundLayers, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, encodeWindowsMask, hasCustomBackgroundBoxes, needsWindowsBackgroundLayers, urlOf, type WindowsMaskContext } from './mask';
 
 const ctx: WindowsMaskContext = {
   length: (token) => (token.endsWith('px') ? parseFloat(token) : token.endsWith('rem') ? parseFloat(token) * 16 : undefined),
@@ -171,5 +171,35 @@ describe('background boxes', () => {
     expect(hasCustomBackgroundBoxes({ origin: 'border-box' })).toBe(true);
     // background-clip: text isn't drawn on Windows, so it keeps the default.
     expect(hasCustomBackgroundBoxes({ clip: 'text' })).toBe(false);
+  });
+});
+
+describe('background layers', () => {
+  it('encodes every layer with its blend mode and attachment, repeating short lists', () => {
+    const spec = JSON.parse(
+      encodeWindowsBackgroundLayers({ image: 'url(~/a.png), linear-gradient(red, blue), none', repeat: 'no-repeat, repeat', attachment: 'fixed, local', blend: 'multiply, screen, luminosity', origin: 'content-box' }, ctx),
+    );
+    expect(spec.l).toHaveLength(3);
+    expect(spec.l[0]).toMatchObject({ i: { t: 'img', src: '/app/a.png' }, r: [1, 1], a: 1, b: 1, o: 2 });
+    expect(spec.l[1]).toMatchObject({ i: { t: 'lin' }, r: [0, 0], a: 2, b: 2 });
+    expect(spec.l[2]).toMatchObject({ r: [1, 1], a: 1, b: 15 });
+    expect(spec.l[2].i).toBeUndefined();
+  });
+
+  it('defaults to normal, scroll and the CSS boxes', () => {
+    expect(JSON.parse(encodeWindowsBackgroundLayers({ image: 'url(a.png)' }, ctx)).l[0]).toMatchObject({ b: 0, a: 0, o: 1, c: 0 });
+    expect(JSON.parse(encodeWindowsBackgroundLayers({ image: 'url(a.png)', blend: 'bogus', attachment: 'bogus' }, ctx)).l[0]).toMatchObject({ b: 0, a: 0 });
+  });
+
+  it('is empty when no layer can be drawn', () => {
+    expect(encodeWindowsBackgroundLayers({ image: 'none, none' }, ctx)).toBe('');
+  });
+
+  it('only takes over from the single-layer paths when it has to', () => {
+    expect(needsWindowsBackgroundLayers({ image: 'url(a.png)' })).toBe(false);
+    expect(needsWindowsBackgroundLayers({ image: 'url(a.png)', attachment: 'scroll', blend: 'normal' })).toBe(false);
+    expect(needsWindowsBackgroundLayers({ image: 'url(a.png), url(b.png)' })).toBe(true);
+    expect(needsWindowsBackgroundLayers({ image: 'linear-gradient(red, blue)', blend: 'multiply' })).toBe(true);
+    expect(needsWindowsBackgroundLayers({ image: 'linear-gradient(red, blue)', attachment: 'fixed' })).toBe(true);
   });
 });

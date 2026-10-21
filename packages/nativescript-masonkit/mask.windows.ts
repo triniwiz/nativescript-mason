@@ -1,5 +1,5 @@
 import { tokenizeCss } from './css-shorthands';
-import type { WindowsBackgroundBoxes, WindowsMaskContext } from './mask';
+import type { WindowsBackgroundBoxes, WindowsBackgroundLonghands, WindowsMaskContext } from './mask';
 import { pathCommands } from './svg-path';
 import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
 
@@ -16,6 +16,8 @@ const BOX: Record<string, number> = { 'border-box': 0, 'padding-box': 1, 'conten
 const REPEAT: Record<string, number> = { repeat: 0, 'no-repeat': 1, space: 2, round: 3, stretch: 4 };
 const MODE: Record<string, number> = { 'match-source': 0, alpha: 1, luminance: 2 };
 const COMPOSITE: Record<string, number> = { add: 0, subtract: 1, intersect: 2, exclude: 3 };
+const BLEND = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'];
+const ATTACHMENT: Record<string, number> = { scroll: 0, fixed: 1, local: 2 };
 
 function layerList(value: string | undefined): string[] {
   if (!value) return [];
@@ -441,6 +443,47 @@ export function encodeWindowsColorClip(clip: string, ctx: WindowsMaskContext): s
   return backgroundLayer({ t: 'lin', a: 180, s: [0, 0] }, '', '', 'no-repeat', ctx, { clip });
 }
 
+/** Whether only the layer painter draws these layers: several of them, a blend mode or a fixed or local attachment. */
+export function needsWindowsBackgroundLayers(css: WindowsBackgroundLonghands): boolean {
+  if (layerList(css.image).length > 1) return true;
+  for (const blend of layerList(css.blend)) if (blend.toLowerCase() !== 'normal') return true;
+  for (const attachment of layerList(css.attachment)) if (attachment.toLowerCase() !== 'scroll') return true;
+  return false;
+}
+
+/** Every background layer, the first on top, as the JSON Css.SetBackgroundLayers takes, or '' if none can be drawn. */
+export function encodeWindowsBackgroundLayers(css: WindowsBackgroundLonghands, ctx: WindowsMaskContext): string {
+  const images = layerList(css.image);
+  const sizes = layerList(css.size);
+  const positions = layerList(css.position);
+  const repeats = layerList(css.repeat);
+  const origins = layerList(css.origin);
+  const clips = layerList(css.clip);
+  const attachments = layerList(css.attachment);
+  const blends = layerList(css.blend);
+  const layers: Array<Record<string, unknown>> = [];
+  let drawable = false;
+  for (let i = 0; i < images.length; i++) {
+    const image = encodeImage(images[i], ctx);
+    if (image) drawable = true;
+    const [x, y] = encodePosition(at(positions, i, '0% 0%'), ctx);
+    const blend = BLEND.indexOf(at(blends, i, 'normal').toLowerCase());
+    layers.push({
+      i: image ?? undefined,
+      sz: encodeSize(at(sizes, i, 'auto'), ctx),
+      p: [...x, ...y],
+      r: encodeRepeat(at(repeats, i, 'repeat')),
+      o: BOX[at(origins, i, 'padding-box').toLowerCase()] ?? 1,
+      c: BOX[at(clips, i, 'border-box').toLowerCase()] ?? 0,
+      m: 0,
+      k: 0,
+      b: blend < 0 ? 0 : blend,
+      a: ATTACHMENT[at(attachments, i, 'scroll').toLowerCase()] ?? 0,
+    });
+  }
+  return drawable ? JSON.stringify({ l: layers }) : '';
+}
+
 /** Whether the boxes differ from the CSS defaults, which the plain brush paths assume. */
 export function hasCustomBackgroundBoxes(boxes: WindowsBackgroundBoxes): boolean {
   return originOf(boxes) !== 1 || clipOf(boxes) !== 0;
@@ -475,4 +518,4 @@ export function encodeWindowsBorderImage(value: string, ctx: WindowsMaskContext)
 /** Longhands that feed Css.SetMask. */
 export const WINDOWS_MASK_PROPERTIES = new Set(['mask-image', 'mask-size', 'mask-position', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-mode', 'mask-composite', 'clip-path', 'mask-border-source', 'mask-border-slice', 'mask-border-width', 'mask-border-outset', 'mask-border-repeat', 'mask-border-mode']);
 
-export type { WindowsBackgroundBoxes, WindowsMaskContext };
+export type { WindowsBackgroundBoxes, WindowsBackgroundLonghands, WindowsMaskContext };

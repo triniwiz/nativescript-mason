@@ -26,7 +26,10 @@
 #include <d2d1effects.h>
 #include <shlwapi.h>
 #include <winrt/Windows.Data.Json.h>
+#include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Composition.h>
 #include "RoundedMask.h"
 #include "Decoration.h"
@@ -34,6 +37,7 @@
 namespace mason_cssmask
 {
     namespace mux = winrt::Microsoft::UI::Xaml;
+    namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
     namespace mucomp = winrt::Microsoft::UI::Composition;
     namespace wf = winrt::Windows::Foundation;
     namespace json = winrt::Windows::Data::Json;
@@ -78,6 +82,8 @@ namespace mason_cssmask
         int origin{ PaddingBox }, clip{ BorderBox };
         int mode{ 0 };      // 0 match-source, 1 alpha, 2 luminance
         int composite{ 0 }; // 0 add, 1 subtract, 2 intersect, 3 exclude
+        int blend{ 0 };     // background-blend-mode, in mask.windows.ts BLEND order
+        int attachment{ 0 }; // 0 scroll, 1 fixed, 2 local
     };
 
     struct ClipShape
@@ -125,6 +131,22 @@ namespace mason_cssmask
         float border[4]{};  // top, right, bottom, left
         float padding[4]{};
         float margin[4]{};
+        // left, top, right, bottom; empty unless a fixed or scroll background layer needs them.
+        float viewport[4]{};
+        float scrollport[4]{};
+        bool HasViewport() const { return viewport[2] > viewport[0] && viewport[3] > viewport[1]; }
+        bool HasScrollport() const { return scrollport[2] > scrollport[0] && scrollport[3] > scrollport[1]; }
+        D2D1_RECT_F In(int box, int attachment) const
+        {
+            if (attachment == 2 || !HasScrollport()) return Get(box);
+            Boxes port = *this;
+            port.width = scrollport[2] - scrollport[0];
+            port.height = scrollport[3] - scrollport[1];
+            D2D1_RECT_F r = port.Get(box);
+            r.left += scrollport[0]; r.right += scrollport[0];
+            r.top += scrollport[1]; r.bottom += scrollport[1];
+            return r;
+        }
         D2D1_RECT_F Get(int box) const
         {
             D2D1_RECT_F r{ 0.0f, 0.0f, width, height };
@@ -300,6 +322,8 @@ namespace mason_cssmask
                 layer.clip = static_cast<int>(o.GetNamedNumber(L"c", BorderBox));
                 layer.mode = static_cast<int>(o.GetNamedNumber(L"m", 0));
                 layer.composite = static_cast<int>(o.GetNamedNumber(L"k", 0));
+                layer.blend = static_cast<int>(o.GetNamedNumber(L"b", 0));
+                layer.attachment = static_cast<int>(o.GetNamedNumber(L"a", 0));
                 spec.layers.push_back(std::move(layer));
             }
         }
@@ -586,8 +610,10 @@ namespace mason_cssmask
     // One mask layer, tiled over its origin box and clipped to its clip box. Coordinates in DIPs.
     inline void DrawLayer(ID2D1DeviceContext* ctx, Layer const& layer, Boxes const& boxes, float scale, uint32_t color = 0xFF000000)
     {
-        const D2D1_RECT_F area = boxes.Get(layer.origin);
-        D2D1_RECT_F clip = layer.clip == NoClip ? D2D1::RectF(-1e5f, -1e5f, 1e5f, 1e5f) : boxes.Get(layer.clip);
+        const bool fixed = layer.attachment == 1 && boxes.HasViewport();
+        const D2D1_RECT_F area = fixed ? D2D1::RectF(boxes.viewport[0], boxes.viewport[1], boxes.viewport[2], boxes.viewport[3])
+                                       : boxes.In(layer.origin, layer.attachment);
+        D2D1_RECT_F clip = layer.clip == NoClip ? D2D1::RectF(-1e5f, -1e5f, 1e5f, 1e5f) : boxes.In(layer.clip, fixed ? 0 : layer.attachment);
         const float aw = area.right - area.left, ah = area.bottom - area.top;
         const D2D1_SIZE_F natural = NaturalSize(ctx, layer.image);
         const bool hasRatio = natural.width > 0.0f && natural.height > 0.0f;
@@ -1167,11 +1193,49 @@ namespace mason_cssmask
 
     // An image background: background-color under the image layers, which a XAML Panel can't do
     // with its single Background brush. `layers` reuses the mask layer spec.
+    inline bool BlendModeOf(int blend, D2D1_BLEND_MODE& mode)
+    {
+        switch (blend)
+        {
+        case 1: mode = D2D1_BLEND_MODE_MULTIPLY; return true;
+        case 2: mode = D2D1_BLEND_MODE_SCREEN; return true;
+        case 3: mode = D2D1_BLEND_MODE_OVERLAY; return true;
+        case 4: mode = D2D1_BLEND_MODE_DARKEN; return true;
+        case 5: mode = D2D1_BLEND_MODE_LIGHTEN; return true;
+        case 6: mode = D2D1_BLEND_MODE_COLOR_DODGE; return true;
+        case 7: mode = D2D1_BLEND_MODE_COLOR_BURN; return true;
+        case 8: mode = D2D1_BLEND_MODE_HARD_LIGHT; return true;
+        case 9: mode = D2D1_BLEND_MODE_SOFT_LIGHT; return true;
+        case 10: mode = D2D1_BLEND_MODE_DIFFERENCE; return true;
+        case 11: mode = D2D1_BLEND_MODE_EXCLUSION; return true;
+        case 12: mode = D2D1_BLEND_MODE_HUE; return true;
+        case 13: mode = D2D1_BLEND_MODE_SATURATION; return true;
+        case 14: mode = D2D1_BLEND_MODE_COLOR; return true;
+        case 15: mode = D2D1_BLEND_MODE_LUMINOSITY; return true;
+        default: return false;
+        }
+    }
+
     inline void PaintBackground(ID2D1DeviceContext* ctx, Spec const& spec, uint32_t color, uint32_t textColor, Boxes const& boxes, float scale)
     {
+        winrt::com_ptr<ID2D1Image> surface;
+        ctx->GetTarget(surface.put());
         D2D1_MATRIX_3X2_F transform;
         ctx->GetTransform(&transform);
-        ctx->SetTransform(D2D1::Matrix3x2F::Scale(scale, scale) * transform);
+        const auto toPx = D2D1::Matrix3x2F::Scale(scale, scale);
+        const bool blends = std::any_of(spec.layers.begin(), spec.layers.end(), [](Layer const& l) { D2D1_BLEND_MODE m; return l.image.Drawable() && BlendModeOf(l.blend, m); });
+        const uint32_t pw = static_cast<uint32_t>(std::ceil(boxes.width * scale)), ph = static_cast<uint32_t>(std::ceil(boxes.height * scale));
+        winrt::com_ptr<ID2D1Bitmap1> group = blends ? TargetBitmap(ctx, pw, ph) : nullptr;
+        if (group)
+        {
+            ctx->SetTarget(group.get());
+            ctx->SetTransform(toPx);
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+        }
+        else
+        {
+            ctx->SetTransform(toPx * transform);
+        }
         if ((color >> 24) != 0)
         {
             winrt::com_ptr<ID2D1SolidColorBrush> brush;
@@ -1180,9 +1244,38 @@ namespace mason_cssmask
         }
         for (size_t n = spec.layers.size(); n-- > 0;)
         {
-            if (spec.layers[n].image.Drawable()) DrawLayer(ctx, spec.layers[n], boxes, scale, textColor);
+            Layer const& layer = spec.layers[n];
+            if (!layer.image.Drawable()) continue;
+            D2D1_BLEND_MODE mode;
+            if (!group || !BlendModeOf(layer.blend, mode))
+            {
+                DrawLayer(ctx, layer, boxes, scale, textColor);
+                continue;
+            }
+            auto source = TargetBitmap(ctx, pw, ph);
+            auto blended = TargetBitmap(ctx, pw, ph);
+            winrt::com_ptr<ID2D1Effect> effect;
+            if (!source || !blended || FAILED(ctx->CreateEffect(CLSID_D2D1Blend, effect.put())))
+            {
+                DrawLayer(ctx, layer, boxes, scale, textColor);
+                continue;
+            }
+            ctx->SetTarget(source.get());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            DrawLayer(ctx, layer, boxes, scale, textColor);
+            effect->SetInput(0, group.get());
+            effect->SetInput(1, source.get());
+            effect->SetValue(D2D1_BLEND_PROP_MODE, mode);
+            ctx->SetTarget(blended.get());
+            ctx->SetTransform(D2D1::Matrix3x2F::Identity());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            ctx->DrawImage(effect.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_COPY);
+            ctx->SetTransform(toPx);
+            group = blended;
         }
+        ctx->SetTarget(surface.get());
         ctx->SetTransform(transform);
+        if (group) ctx->DrawImage(group.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
     }
 
     struct Entry
@@ -1195,6 +1288,10 @@ namespace mason_cssmask
         uint32_t backgroundColor{ 0 };
         uint32_t backgroundTextColor{ 0 };
         float backgroundScale{ 0.0f };
+        std::vector<std::pair<winrt::weak_ref<muxc::ScrollViewer>, winrt::event_token>> scrollHooks;
+        winrt::weak_ref<mux::XamlRoot> rootHook;
+        winrt::event_token rootToken{};
+        bool watching{ false };
         std::shared_ptr<Spec> mask;
         std::shared_ptr<NineSlice> borderImage;
         // The mask surface, its brush and what it was last drawn for.
@@ -1444,6 +1541,110 @@ namespace mason_cssmask
         entry->borderTextColor = textColor;
     }
 
+    inline void Attach(mux::UIElement const& element, Spec const& spec, Boxes& boxes)
+    {
+        bool fixed = false, scroll = false;
+        for (auto const& layer : spec.layers)
+        {
+            if (!layer.image.Drawable()) continue;
+            if (layer.attachment == 1) fixed = true;
+            else if (layer.attachment == 0) scroll = true;
+        }
+        if (!fixed && !scroll) return;
+        try
+        {
+            auto fe = element.try_as<mux::FrameworkElement>();
+            if (auto sv = fe ? fe.Parent().try_as<muxc::ScrollViewer>() : nullptr)
+            {
+                const float zoom = sv.ZoomFactor() > 0.0f ? sv.ZoomFactor() : 1.0f;
+                const float x = static_cast<float>(sv.HorizontalOffset()) / zoom, y = static_cast<float>(sv.VerticalOffset()) / zoom;
+                const float w = (std::min)(static_cast<float>(sv.ViewportWidth()) / zoom, boxes.width);
+                const float h = (std::min)(static_cast<float>(sv.ViewportHeight()) / zoom, boxes.height);
+                if (w > 0.0f && h > 0.0f)
+                {
+                    boxes.scrollport[0] = x; boxes.scrollport[1] = y;
+                    boxes.scrollport[2] = x + w; boxes.scrollport[3] = y + h;
+                }
+            }
+            auto root = fixed ? element.XamlRoot() : nullptr;
+            if (root)
+            {
+                const auto at = element.TransformToVisual(nullptr).TransformPoint({ 0.0f, 0.0f });
+                const auto size = root.Size();
+                boxes.viewport[0] = -at.X; boxes.viewport[1] = -at.Y;
+                boxes.viewport[2] = static_cast<float>(size.Width) - at.X; boxes.viewport[3] = static_cast<float>(size.Height) - at.Y;
+            }
+        }
+        catch (...)
+        {
+        }
+    }
+
+    inline void Unwatch(Entry& entry)
+    {
+        for (auto& [weak, token] : entry.scrollHooks)
+        {
+            if (auto sv = weak.get()) sv.ViewChanged(token);
+        }
+        entry.scrollHooks.clear();
+        if (auto root = entry.rootHook.get()) root.Changed(entry.rootToken);
+        entry.rootHook = nullptr;
+        entry.watching = false;
+    }
+
+    inline void RepaintBackground(mux::UIElement const& element)
+    {
+        auto* entry = Find(element);
+        if (!entry || !entry->background || !entry->backgroundBrush) return;
+        Boxes boxes = entry->backgroundBoxes;
+        std::fill(std::begin(boxes.viewport), std::end(boxes.viewport), 0.0f);
+        std::fill(std::begin(boxes.scrollport), std::end(boxes.scrollport), 0.0f);
+        Attach(element, *entry->background, boxes);
+        if (boxes == entry->backgroundBoxes) return;
+        auto spec = entry->background;
+        const uint32_t color = entry->backgroundColor, textColor = entry->backgroundTextColor;
+        const float scale = entry->backgroundScale;
+        if (PaintSurface(entry->backgroundKey, std::ceil(boxes.width * scale), std::ceil(boxes.height * scale),
+            [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); }))
+        {
+            entry->backgroundBoxes = boxes;
+        }
+    }
+
+    inline void Watch(mux::UIElement const& element, Entry& entry)
+    {
+        const bool fixed = std::any_of(entry.background->layers.begin(), entry.background->layers.end(),
+            [](Layer const& l) { return l.image.Drawable() && l.attachment == 1; });
+        const bool scroll = std::any_of(entry.background->layers.begin(), entry.background->layers.end(),
+            [](Layer const& l) { return l.image.Drawable() && l.attachment == 0; });
+        auto fe = element.try_as<mux::FrameworkElement>();
+        const bool scroller = scroll && fe && fe.Parent().try_as<muxc::ScrollViewer>();
+        if (!fixed && !scroller)
+        {
+            if (entry.watching) Unwatch(entry);
+            return;
+        }
+        if (entry.watching || !element.XamlRoot()) return;
+        entry.watching = true;
+        const auto weak = winrt::make_weak(element);
+        auto repaint = [weak](auto&&, auto&&) { if (auto e = weak.get()) RepaintBackground(e); };
+        if (scroller && !fixed)
+        {
+            auto sv = fe.Parent().as<muxc::ScrollViewer>();
+            entry.scrollHooks.emplace_back(winrt::make_weak(sv), sv.ViewChanged(repaint));
+            return;
+        }
+        for (auto parent = mux::Media::VisualTreeHelper::GetParent(element); parent; parent = mux::Media::VisualTreeHelper::GetParent(parent))
+        {
+            if (auto sv = parent.try_as<muxc::ScrollViewer>()) entry.scrollHooks.emplace_back(winrt::make_weak(sv), sv.ViewChanged(repaint));
+        }
+        if (auto root = element.XamlRoot())
+        {
+            entry.rootHook = winrt::make_weak(root);
+            entry.rootToken = root.Changed(repaint);
+        }
+    }
+
     inline bool HasBackground(mux::UIElement const& element)
     {
         auto* entry = Find(element);
@@ -1458,6 +1659,7 @@ namespace mason_cssmask
             auto* entry = Find(element);
             if (!entry || !entry->background) return;
             entry->background = nullptr;
+            Unwatch(*entry);
             ReleaseSurface(entry->backgroundKey);
             entry->backgroundBrush = nullptr;
             entry->backgroundKey.clear();
@@ -1466,6 +1668,7 @@ namespace mason_cssmask
         auto& entry = Ensure(element);
         entry.background = std::move(spec);
         entry.backgroundBrush = nullptr;
+        Unwatch(entry);
     }
 
     // The painted background (colour under the image layers) for the element's current size.
@@ -1474,7 +1677,9 @@ namespace mason_cssmask
     {
         auto* entry = Find(element);
         if (!entry || !entry->background || width <= 0.0f || height <= 0.0f) return nullptr;
-        const Boxes boxes = BoxesOf(node, width, height);
+        Boxes boxes = BoxesOf(node, width, height);
+        Attach(element, *entry->background, boxes);
+        Watch(element, *entry);
         if (entry->backgroundBrush && entry->backgroundBoxes == boxes && entry->backgroundColor == color && entry->backgroundTextColor == textColor
             && entry->backgroundScale == scale)
         {
@@ -1491,6 +1696,14 @@ namespace mason_cssmask
         entry->backgroundColor = color;
         entry->backgroundTextColor = textColor;
         entry->backgroundScale = scale;
+        if (entry->watching)
+        {
+            if (auto queue = element.DispatcherQueue())
+            {
+                queue.TryEnqueue(winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority::Low,
+                    [weak = winrt::make_weak(element)] { if (auto e = weak.get()) RepaintBackground(e); });
+            }
+        }
         return brush;
     }
 

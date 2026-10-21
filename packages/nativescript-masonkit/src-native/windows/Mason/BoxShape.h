@@ -19,6 +19,7 @@ namespace mason_shape
     {
         std::array<float, 4> x{};
         std::array<float, 4> y{};
+        std::array<float, 4> k{ 1.0f, 1.0f, 1.0f, 1.0f };
 
         bool Any() const
         {
@@ -29,6 +30,12 @@ namespace mason_shape
         bool Same() const
         {
             for (int i = 1; i < 4; ++i) if (x[i] != x[0] || y[i] != y[0]) return false;
+            return Round();
+        }
+
+        bool Round() const
+        {
+            for (float v : k) if (v != 1.0f) return false;
             return true;
         }
 
@@ -44,6 +51,7 @@ namespace mason_shape
         Radii Inset(float left, float top, float right, float bottom) const
         {
             Radii r;
+            r.k = k;
             r.x[TopLeft] = (std::max)(0.0f, x[TopLeft] - left);
             r.y[TopLeft] = (std::max)(0.0f, y[TopLeft] - top);
             r.x[TopRight] = (std::max)(0.0f, x[TopRight] - right);
@@ -71,6 +79,12 @@ namespace mason_shape
             const bool py = data[219 + i * 2] == 1;
             r.x[i] = (std::max)(0.0f, px ? vx * width : vx);
             r.y[i] = (std::max)(0.0f, py ? vy * height : vy);
+            if (size >= 274)
+            {
+                float k = 1.0f;
+                std::memcpy(&k, data + 258 + i * 4, 4);
+                if (!std::isnan(k)) r.k[i] = k;
+            }
         }
         float f = 1.0f;
         auto limit = [&](float a, float b, float side)
@@ -91,15 +105,37 @@ namespace mason_shape
         winrt::com_ptr<ID2D1GeometrySink> sink;
         if (FAILED(path->Open(sink.put()))) return nullptr;
         const float l = rect.left, t = rect.top, rt = rect.right, b = rect.bottom;
-        auto arc = [&](float x, float y, float rx, float ry)
+        auto arc = [&](int corner, float x, float y, float rx, float ry)
         {
-            if (rx > 0.0f && ry > 0.0f)
-            {
-                sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(x, y), D2D1::SizeF(rx, ry), 0.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
-            }
-            else
+            if (rx <= 0.0f || ry <= 0.0f)
             {
                 sink->AddLine(D2D1::Point2F(x, y));
+                return;
+            }
+            const float k = r.k[corner];
+            if (k == 1.0f)
+            {
+                sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(x, y), D2D1::SizeF(rx, ry), 0.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
+                return;
+            }
+            const float power = std::pow(2.0f, 1.0f - std::abs(k));
+            constexpr int kSteps = 32;
+            for (int i = 1; i <= kSteps; ++i)
+            {
+                const float angle = static_cast<float>(i) / kSteps * 1.57079633f;
+                const float u = std::pow((std::max)(0.0f, std::cos(angle)), power);
+                const float v = std::pow((std::max)(0.0f, std::sin(angle)), power);
+                const float cx = k < 0.0f ? 1.0f - v : u;
+                const float cy = k < 0.0f ? 1.0f - u : v;
+                float px = x, py = y;
+                switch (corner)
+                {
+                case TopRight: px = rt - rx * (1.0f - cy); py = t + ry * (1.0f - cx); break;
+                case BottomRight: px = rt - rx * (1.0f - cx); py = b - ry * (1.0f - cy); break;
+                case BottomLeft: px = l + rx * (1.0f - cy); py = b - ry * (1.0f - cx); break;
+                case TopLeft: px = l + rx * (1.0f - cx); py = t + ry * (1.0f - cy); break;
+                }
+                sink->AddLine(D2D1::Point2F(i == kSteps ? x : px, i == kSteps ? y : py));
             }
         };
         const bool tl = r.x[TopLeft] > 0.0f && r.y[TopLeft] > 0.0f;
@@ -108,13 +144,13 @@ namespace mason_shape
         const bool bl = r.x[BottomLeft] > 0.0f && r.y[BottomLeft] > 0.0f;
         sink->BeginFigure(D2D1::Point2F(l + (tl ? r.x[TopLeft] : 0.0f), t), D2D1_FIGURE_BEGIN_FILLED);
         sink->AddLine(D2D1::Point2F(rt - (tr ? r.x[TopRight] : 0.0f), t));
-        if (tr) arc(rt, t + r.y[TopRight], r.x[TopRight], r.y[TopRight]);
+        if (tr) arc(TopRight, rt, t + r.y[TopRight], r.x[TopRight], r.y[TopRight]);
         sink->AddLine(D2D1::Point2F(rt, b - (br ? r.y[BottomRight] : 0.0f)));
-        if (br) arc(rt - r.x[BottomRight], b, r.x[BottomRight], r.y[BottomRight]);
+        if (br) arc(BottomRight, rt - r.x[BottomRight], b, r.x[BottomRight], r.y[BottomRight]);
         sink->AddLine(D2D1::Point2F(l + (bl ? r.x[BottomLeft] : 0.0f), b));
-        if (bl) arc(l, b - r.y[BottomLeft], r.x[BottomLeft], r.y[BottomLeft]);
+        if (bl) arc(BottomLeft, l, b - r.y[BottomLeft], r.x[BottomLeft], r.y[BottomLeft]);
         sink->AddLine(D2D1::Point2F(l, t + (tl ? r.y[TopLeft] : 0.0f)));
-        if (tl) arc(l + r.x[TopLeft], t, r.x[TopLeft], r.y[TopLeft]);
+        if (tl) arc(TopLeft, l + r.x[TopLeft], t, r.x[TopLeft], r.y[TopLeft]);
         sink->EndFigure(D2D1_FIGURE_END_CLOSED);
         if (FAILED(sink->Close())) return nullptr;
         return path;

@@ -9,7 +9,8 @@ import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
 import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
-import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, hasCustomBackgroundBoxes, type WindowsBackgroundBoxes, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './mask';
+import { encodeWindowsBackground, encodeWindowsBackgroundLayers, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, hasCustomBackgroundBoxes, needsWindowsBackgroundLayers, type WindowsBackgroundBoxes, type WindowsBackgroundLonghands, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './mask';
+import { splitBackground } from './css-shorthands';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -1153,6 +1154,39 @@ export function parseBorderRadiusShorthand(value: string, emBasis?: number): { t
   }
 }
 
+const CORNER_SHAPE_KEYWORDS: Record<string, number> = { round: 1, squircle: 2, bevel: 0, scoop: -1, notch: -Infinity, square: Infinity };
+const SUPERELLIPSE = /^superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)$/;
+
+/** corner-shape as each corner's superellipse parameter K (TL TR BR BL), or null if a token is invalid. An empty value resets to round. */
+export function parseCornerShape(value: string): [number, number, number, number] | null {
+  const tokens = splitTopLevelSpaces(String(value ?? '').trim().toLowerCase());
+  if (!tokens.length || (tokens.length === 1 && /^(initial|unset|revert|none)$/.test(tokens[0]))) return [1, 1, 1, 1];
+  if (tokens.length > 4) return null;
+  const e: number[] = [];
+  for (const token of tokens) {
+    if (token in CORNER_SHAPE_KEYWORDS) {
+      e.push(CORNER_SHAPE_KEYWORDS[token]);
+      continue;
+    }
+    const m = SUPERELLIPSE.exec(token);
+    if (!m) return null;
+    e.push(m[1] === 'infinity' ? Infinity : m[1] === '-infinity' ? -Infinity : Number(m[1]));
+  }
+  switch (e.length) {
+    case 1:
+      return [e[0], e[0], e[0], e[0]];
+    case 2:
+      return [e[0], e[1], e[0], e[1]];
+    case 3:
+      return [e[0], e[1], e[2], e[1]];
+    default:
+      return [e[0], e[1], e[2], e[3]];
+  }
+}
+
+const CORNER_SHAPE_KEYS = [StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT];
+const CORNER_SHAPE_LONGHANDS: Record<string, number> = { 'corner-shape-top-left': 0, 'corner-shape-top-right': 1, 'corner-shape-bottom-right': 2, 'corner-shape-bottom-left': 3 };
+
 // Split on top-level whitespace, keeping parenthesised groups (e.g. `rgba(0,0,0,.5)`) intact.
 function splitTopLevelSpaces(value: string): string[] {
   const out: string[] = [];
@@ -1801,6 +1835,16 @@ export class Style {
     const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
     const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
     try {
+      const longhands = this.windowsBackgroundLonghands(shorthand, v);
+      if (longhands && needsWindowsBackgroundLayers(longhands)) {
+        const spec = encodeWindowsBackgroundLayers(longhands, this.windowsMaskContext());
+        if (spec) {
+          this._windowsImageBackground = true;
+          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+          if (longhands.color) this.backgroundColor = longhands.color as never;
+          return;
+        }
+      }
       const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
       if (!url && this._windowsImageBackground) {
         this._windowsImageBackground = false;
@@ -1855,6 +1899,24 @@ export class Style {
         if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
       }
     } catch (_) {}
+  }
+
+  private windowsBackgroundLonghands(shorthand: boolean, value: string): (WindowsBackgroundLonghands & { color?: string }) | null {
+    const css = this._windowsCss;
+    const blend = css.get('background-blend-mode');
+    if (!shorthand) {
+      return { image: value, size: this._windowsBackgroundSize, position: this._windowsBackgroundPosition, repeat: css.get('background-repeat'), origin: css.get('background-origin'), clip: css.get('background-clip'), attachment: css.get('background-attachment'), blend };
+    }
+    let parts: unknown[];
+    try {
+      parts = splitBackground(value);
+    } catch (_) {
+      return null;
+    }
+    const text = (part: unknown) => (typeof part === 'string' ? part : undefined);
+    const [color, image, repeat, position, size, clip, origin, attachment] = parts.map(text);
+    if (!image) return null;
+    return { image, size, position, repeat, origin, clip, attachment, blend, color };
   }
 
   // background-origin and background-clip: the shorthand's box keywords (origin, then clip), else the longhands.
@@ -1927,7 +1989,7 @@ export class Style {
       this.applyWindowsBackground(false);
       return;
     }
-    if (name === 'background-repeat') {
+    if (name === 'background-repeat' || name === 'background-attachment' || name === 'background-blend-mode') {
       if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
@@ -1992,6 +2054,16 @@ export class Style {
         setUint8(this.style_view, keys.xType, type);
         setUint8(this.style_view, keys.yType, type);
       }
+      this.commitState(StateKeys.BORDER_RADIUS);
+      return;
+    }
+    if (name === 'corner-shape' || name in CORNER_SHAPE_LONGHANDS) {
+      const text = typeof value === 'string' ? value : '';
+      const e = parseCornerShape(text);
+      if (!e || (name !== 'corner-shape' && splitTopLevelSpaces(text.trim()).length > 1)) return;
+      this.prepareMut();
+      if (name === 'corner-shape') for (let i = 0; i < 4; i++) setFloat32(this.style_view, CORNER_SHAPE_KEYS[i], e[i]);
+      else setFloat32(this.style_view, CORNER_SHAPE_KEYS[CORNER_SHAPE_LONGHANDS[name]], e[0]);
       this.commitState(StateKeys.BORDER_RADIUS);
       return;
     }

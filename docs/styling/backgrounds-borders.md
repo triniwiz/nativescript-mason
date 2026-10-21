@@ -46,7 +46,7 @@ The shorthand expands into longhands, so a later longhand overrides one part, as
 Per-layer lists repeat cyclically when they are shorter than the layer list, as CSS specifies.
 
 ::: warning Windows
-Windows applies `background-origin` and `background-clip` (box keywords), but not yet `background-attachment`, `background-blend-mode` or `background-clip: text`.
+Windows does not apply `background-clip: text` yet.
 :::
 
 `background-blend-mode` needs Android 10 (API 29) or later.
@@ -75,7 +75,7 @@ Inline SVG is drawn as vectors, so it stays sharp at any size and is a convenien
 
 - `currentColor` inside the SVG is the element's CSS `color`, so the icon follows theme changes.
 - Supported: paths (including arcs), basic shapes, `<g>` with inherited attributes, `transform`, inline `style=""`, fill and stroke paint, `fill-rule`, opacity, line caps, joins, miter limit, dashes, `preserveAspectRatio`, linear and radial gradients (`gradientUnits`, `gradientTransform`, `spreadMethod`, `href` inheritance), `<use>` and `<symbol>`, `<clipPath>`, and `<image>` with a raster data URL.
-- `<style>` sheets with simple selectors (type, `.class`, `#id`) work on iOS and Android. Windows draws SVG with Direct2D, which ignores `<style>` sheets and `<symbol>`, and only follows `xlink:href`.
+- `<style>` sheets with simple selectors (type, `.class`, `#id`).
 - Not supported: `<text>`, patterns (a `url(#id)` paint uses its fallback color), masks, filters and markers.
 
 The data URL does not need to be percent encoded: quotes, parentheses and commas inside it are handled.
@@ -152,11 +152,7 @@ A radius rounds the element's own background and border. As in CSS, children are
 }
 ```
 
-Values: `round` (default), `squircle`, `notch`, `bevel`, `superellipse`, or `superellipse(<n>)`. Like `border-radius`, the shorthand takes 1 to 4 values in corner order (top-left, top-right, bottom-right, bottom-left), and each corner has a longhand: `corner-shape-top-left`, `corner-shape-top-right`, `corner-shape-bottom-right`, `corner-shape-bottom-left`.
-
-::: warning Differs from the draft spec
-MasonKit's `superellipse(<n>)` takes its own exponent: `round` is 1, `squircle` and plain `superellipse` are 0.5, `notch` is 2 and `bevel` is 4. Browsers that implement the draft use a different scale, so numeric values do not carry over. The keywords are the portable choice. `corner-shape` is drawn on iOS and Android; Windows ignores it.
-:::
+Values follow the [CSS Borders 4 draft](https://drafts.csswg.org/css-borders-4/#corner-shape-property): `round` (default), `squircle`, `square`, `bevel`, `scoop`, `notch`, or `superellipse(<number> | infinity | -infinity)`. Each keyword is a `superellipse()` value: `round` is 1, `squircle` 2, `square` infinity, `bevel` 0, `scoop` -1 and `notch` -infinity. Values above 1 are squarer than a circle, values between 0 and 1 are flatter, and negative values curve inwards. Like `border-radius`, the shorthand takes 1 to 4 values in corner order (top-left, top-right, bottom-right, bottom-left), and each corner has a longhand: `corner-shape-top-left`, `corner-shape-top-right`, `corner-shape-bottom-right`, `corner-shape-bottom-left`.
 
 ### border-image
 

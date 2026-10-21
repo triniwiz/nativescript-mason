@@ -14,7 +14,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `aspect-ratio` | a number or `<w> / <h>` | no | | [Box model](/styling/box-model) |
 | `backdrop-filter` | filter functions, as `filter` | no | `drop-shadow()` has no effect | [Effects](/styling/effects#backdrop-filter) |
 | `background`, `background-color`, `background-image`, `background-position` (`-x`, `-y`), `background-size`, `background-repeat` | CSS background syntax, multiple layers; `background-repeat` includes `space` and `round` | no | | [Backgrounds](/styling/backgrounds-borders#backgrounds) |
-| `background-origin`, `background-clip`, `background-attachment`, `background-blend-mode` | box keywords; `scroll`/`fixed`/`local`; blend modes | no | Windows applies `background-origin` and `background-clip` only; blend modes need Android 10 (API 29) | [Backgrounds](/styling/backgrounds-borders#background-shorthand-and-layers) |
+| `background-origin`, `background-clip`, `background-attachment`, `background-blend-mode` | box keywords; `scroll`/`fixed`/`local`; blend modes | no | Blend modes need Android 10 (API 29) | [Backgrounds](/styling/backgrounds-borders#background-shorthand-and-layers) |
 | `block-size`, `min-block-size`, `max-block-size` | as `height`, `min-height`, `max-height` | no | Logical, maps to the vertical axis | [Box model](/styling/box-model) |
 | `border`, `border-top`, `border-right`, `border-bottom`, `border-left` | `<width> <style> <color>` | no | | [Borders](/styling/backgrounds-borders#borders) |
 | `border-block`, `border-inline`, `border-block-start`, `border-block-end`, `border-inline-start`, `border-inline-end` (and `-width`, `-style`, `-color`) | as the physical forms | no | Logical, mapped for horizontal left-to-right text | [Borders](/styling/backgrounds-borders#borders) |
@@ -32,7 +32,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `clip-path` | basic shapes, reference boxes, `none` | no | | [Effects](/styling/effects#clip-path) |
 | `color` | a color | yes | | [Typography](/styling/typography#color) |
 | `column-gap`, `row-gap`, `gap` | lengths, percentages; `gap` takes 1 or 2 values | no | `grid-gap`, `grid-row-gap` and `grid-column-gap` are accepted as legacy aliases | [Flexbox](/styling/flexbox), [Grid](/styling/grid) |
-| `corner-shape`, `corner-shape-top-left`, `corner-shape-top-right`, `corner-shape-bottom-right`, `corner-shape-bottom-left` | `round`, `squircle`, `notch`, `bevel`, `superellipse`, `superellipse(<n>)` | no | Not drawn on Windows; numeric scale differs from the draft spec | [Borders](/styling/backgrounds-borders#corner-shape) |
+| `corner-shape`, `corner-shape-top-left`, `corner-shape-top-right`, `corner-shape-bottom-right`, `corner-shape-bottom-left` | `round`, `squircle`, `square`, `bevel`, `scoop`, `notch`, `superellipse(<number>)` | no | | [Borders](/styling/backgrounds-borders#corner-shape) |
 | `direction` | `ltr`, `rtl` | yes | | [Typography](/styling/typography#writing-direction) |
 | `display` | `none`, `block`, `inline`, `inline-block`, `flex`, `inline-flex`, `grid`, `inline-grid` | no | | [Flow](/styling/flow) |
 | `filter` | `blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()`, `hue-rotate()`, `invert()`, `opacity()`, `saturate()`, `sepia()` | no | | [Effects](/styling/effects#filter) |
