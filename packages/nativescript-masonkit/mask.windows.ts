@@ -1,22 +1,11 @@
 import { tokenizeCss } from './css-shorthands';
-import { pathCommands } from './windows-svg-path';
+import type { WindowsBackgroundBoxes, WindowsMaskContext } from './mask';
+import { pathCommands } from './svg-path';
 import { expandColorStops, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
 
 // Windows draws masks with Direct2D (CssMask.h) from a JSON spec built here: units, colours and
 // gradients are resolved in TS, as for the rest of Windows styling, and the native side only lays
 // out and paints. Android and iOS parse the same CSS natively (Mask.kt, Mask.swift).
-
-/** What the encoder needs from the element's style. */
-export interface WindowsMaskContext {
-  /** A CSS length (not a percentage) in DIPs, or undefined. */
-  length(token: string): number | undefined;
-  /** A CSS colour as 0xAARRGGBB, or null. */
-  color(value: string): number | null;
-  linear(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[] } | null;
-  radial(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[] } | null;
-  /** A url() target as a path or data URI the native side can load. */
-  source(url: string): string;
-}
 
 /** px plus a percentage of whatever the value resolves against. */
 type Len = [px: number, pct: number];
@@ -425,12 +414,6 @@ export function encodeWindowsMask(css: ReadonlyMap<string, string>, ctx: Windows
   return Object.keys(spec).length ? JSON.stringify(spec) : '';
 }
 
-/** background-origin / background-clip keywords; the CSS defaults are padding-box and border-box. */
-export interface WindowsBackgroundBoxes {
-  origin?: string;
-  clip?: string;
-}
-
 const originOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.origin ?? '').trim().toLowerCase()] ?? 1;
 const clipOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.clip ?? '').trim().toLowerCase()] ?? 0;
 
@@ -453,7 +436,7 @@ export function encodeWindowsGradientBackground(gradient: string, size: string, 
   return backgroundLayer(image, size, position, repeat, ctx, boxes);
 }
 
-/** background-color clipped to `clip`: one transparent layer, since the painter clips the colour to the bottom layer's box. */
+/** background-color clipped to `clip`, as one transparent layer (the colour is clipped to the bottom layer's box). */
 export function encodeWindowsColorClip(clip: string, ctx: WindowsMaskContext): string {
   return backgroundLayer({ t: 'lin', a: 180, s: [0, 0] }, '', '', 'no-repeat', ctx, { clip });
 }
@@ -491,3 +474,5 @@ export function encodeWindowsBorderImage(value: string, ctx: WindowsMaskContext)
 
 /** Longhands that feed Css.SetMask. */
 export const WINDOWS_MASK_PROPERTIES = new Set(['mask-image', 'mask-size', 'mask-position', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-mode', 'mask-composite', 'clip-path', 'mask-border-source', 'mask-border-slice', 'mask-border-width', 'mask-border-outset', 'mask-border-repeat', 'mask-border-mode']);
+
+export type { WindowsBackgroundBoxes, WindowsMaskContext };

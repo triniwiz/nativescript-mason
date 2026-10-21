@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pathCommands, PATH_CLOSE, PATH_CUBIC, PATH_LINE, PATH_MOVE, PATH_QUAD } from './windows-svg-path';
+import { pathCommands, PATH_CLOSE, PATH_CUBIC, PATH_LINE, PATH_MOVE, PATH_QUAD } from './svg-path';
 
 const round = (list: number[]) => list.map((n) => Math.round(n * 1000) / 1000);
 

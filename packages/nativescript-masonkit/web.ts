@@ -1,5 +1,5 @@
 import { CSSType, Property, Utils, ViewBase, unsetValue } from '@nativescript/core';
-import { masonEngine } from './windows-panel-helpers';
+import { masonEngine } from './panel-helpers';
 import { Scroll, View, Text } from '.';
 
 const enum TextType {

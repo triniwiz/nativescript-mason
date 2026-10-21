@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, encodeWindowsMask, hasCustomBackgroundBoxes, urlOf, type WindowsMaskContext } from './windows-mask';
+import { encodeClipPath, encodeImage, encodePosition, encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, encodeWindowsMask, hasCustomBackgroundBoxes, urlOf, type WindowsMaskContext } from './mask';
 
 const ctx: WindowsMaskContext = {
   length: (token) => (token.endsWith('px') ? parseFloat(token) : token.endsWith('rem') ? parseFloat(token) * 16 : undefined),

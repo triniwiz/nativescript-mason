@@ -117,7 +117,7 @@ import {
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
-import { masonEngine, removeNativeChild } from './windows-panel-helpers';
+import { masonEngine, removeNativeChild } from './panel-helpers';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
 import { frameworkRegistry } from './framework-registry';

@@ -1,7 +1,7 @@
 #pragma once
 // CSS masking on Windows: mask-* layers, clip-path, mask-border and border-image.
 //
-// The .windows.ts layer resolves units, colours and gradients into a JSON spec (see windows-mask.ts)
+// The .windows.ts layer resolves units, colours and gradients into a JSON spec (see mask.windows.ts)
 // and Css::SetMask / Css::SetBorderImage decode its images. Everything is drawn with Direct2D in
 // device pixels:
 //   - The mask (layers, then clip-path and mask-border intersected with them) is an alpha surface.
@@ -88,7 +88,7 @@ namespace mason_cssmask
         std::vector<int> kinds; // circle/ellipse radii: 0 length, 1 closest-side, 2 farthest-side
         bool evenOdd{ false };
         std::string path;
-        // path() as absolute commands from windows-svg-path.ts: 0 M, 1 L, 2 C, 3 Q, 4 Z.
+        // path() as absolute commands from svg-path.windows.ts: 0 M, 1 L, 2 C, 3 Q, 4 Z.
         std::vector<float> commands;
     };
 

@@ -57,10 +57,7 @@ function arcToCubics(out: number[], x1: number, y1: number, rx: number, ry: numb
   }
 }
 
-/**
- * Path data as a flat list of absolute commands. Like an SVG renderer, it keeps everything
- * before the first error, and is empty when the data doesn't start with a moveto.
- */
+/** Path data as flat absolute commands, up to the first error; empty without a leading moveto. */
 export function pathCommands(d: string): number[] {
   const out: number[] = [];
   let i = 0;
