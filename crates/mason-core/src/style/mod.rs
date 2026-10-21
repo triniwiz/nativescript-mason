@@ -2496,7 +2496,17 @@ impl Style {
             return;
         }
 
-        if !area.contains('/') {
+        // A lone area name; `2` or `span 2` go through the full parser.
+        let is_ident = name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '-')
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            && !name.eq_ignore_ascii_case("auto")
+            && !name.eq_ignore_ascii_case("span");
+        if is_ident {
             let name: Atom = name.into();
             let start = GridPlacement::NamedLine(name.clone(), 0);
             let end = GridPlacement::NamedLine(name, 0);
@@ -2560,9 +2570,7 @@ impl Style {
     pub fn set_grid_row_start_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_mut().grid_row_start = GridPlacement::Auto;
-        } else if let Ok(start) =
-            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start)
-        {
+        } else if let Ok(start) = crate::utils::parse_grid_placement(value) {
             self.grid_mut().grid_row_start = start;
         }
     }
@@ -2572,9 +2580,7 @@ impl Style {
     pub fn set_grid_row_end_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_mut().grid_row_end = GridPlacement::Auto;
-        } else if let Ok(start) =
-            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End)
-        {
+        } else if let Ok(start) = crate::utils::parse_grid_placement(value) {
             self.grid_mut().grid_row_end = start;
         }
     }
@@ -2622,9 +2628,7 @@ impl Style {
     pub fn set_grid_column_start_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_mut().grid_column_start = GridPlacement::Auto;
-        } else if let Ok(start) =
-            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start)
-        {
+        } else if let Ok(start) = crate::utils::parse_grid_placement(value) {
             self.grid_mut().grid_column_start = start;
         }
     }
@@ -2635,9 +2639,7 @@ impl Style {
     pub fn set_grid_column_end_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_mut().grid_column_end = GridPlacement::Auto;
-        } else if let Ok(start) =
-            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End)
-        {
+        } else if let Ok(start) = crate::utils::parse_grid_placement(value) {
             self.grid_mut().grid_column_end = start;
         }
     }

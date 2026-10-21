@@ -131,8 +131,8 @@ object AppFonts {
     for (file in files) {
       if (!file.isFile || file.extension.lowercase() !in EXTENSIONS) continue
       for (name in familyNames(file)) {
-        index.putIfAbsent(normalize(name), file.absolutePath)
-        index.putIfAbsent(squash(name), file.absolutePath)
+        index.getOrPut(normalize(name)) { file.absolutePath }
+        index.getOrPut(squash(name)) { file.absolutePath }
       }
     }
     return index

@@ -202,4 +202,23 @@ class SuperellipseTest {
 
     assertTrue("Squircle area ($squircleArea) should be > circle area ($circleArea)", squircleArea > circleArea)
   }
+
+  @Test
+  fun cornerShape_keywordsAreTheCssSuperellipseParameter() {
+    assertEquals(1f, parseCornerShapeToken("round"))
+    assertEquals(2f, parseCornerShapeToken("squircle"))
+    assertEquals(0f, parseCornerShapeToken("bevel"))
+    assertEquals(-1f, parseCornerShapeToken("scoop"))
+    assertEquals(Float.NEGATIVE_INFINITY, parseCornerShapeToken("notch"))
+    assertEquals(Float.POSITIVE_INFINITY, parseCornerShapeToken("square"))
+    assertEquals(1.5f, parseCornerShapeToken("superellipse(1.5)"))
+    assertEquals(-2f, parseCornerShapeToken("superellipse(-2)"))
+    assertEquals(Float.NEGATIVE_INFINITY, parseCornerShapeToken("superellipse(-infinity)"))
+    assertNull(parseCornerShapeToken("superellipse"))
+    assertNull(parseCornerShapeToken("wobbly"))
+    assertEquals("scoop", exponentToCornerShapeToken(-1f))
+    assertEquals("notch", exponentToCornerShapeToken(Float.NEGATIVE_INFINITY))
+    assertEquals("superellipse(3)", exponentToCornerShapeToken(3f))
+    assertEquals("superellipse(0.5)", exponentToCornerShapeToken(0.5f))
+  }
 }

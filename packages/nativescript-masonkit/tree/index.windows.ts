@@ -1,4 +1,20 @@
+import { Application, Screen } from '@nativescript/core';
 import { InputType } from '..';
+import { cssUnits, setViewportProvider } from '../units';
+import { refreshViewportUnits } from '../style';
+
+let viewport = { width: 0, height: 0 };
+
+// `vw`/`vh` follow the window, and a resize writes the values that used them again.
+function updateViewport() {
+  try {
+    const width = cssUnits.viewportWidth;
+    const height = cssUnits.viewportHeight;
+    if (width === viewport.width && height === viewport.height) return;
+    viewport = { width, height };
+    refreshViewportUnits();
+  } catch (_) {}
+}
 
 enum TextType {
   None = 0,
@@ -31,6 +47,10 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree();
+      setViewportProvider(() => ({ width: Screen.mainScreen.widthDIPs, height: Screen.mainScreen.heightDIPs }));
+      // Core raises orientationChanged on every window resize on Windows.
+      Application.on(Application.orientationChangedEvent, updateViewport);
+      Application.on(Application.displayedEvent, updateViewport);
     }
     return Tree._tree;
   }

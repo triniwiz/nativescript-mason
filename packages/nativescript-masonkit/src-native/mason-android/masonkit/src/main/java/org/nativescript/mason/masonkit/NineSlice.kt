@@ -656,7 +656,7 @@ internal class NineSliceSource(token: String) {
     }
     if (requested) return null
     requested = true
-    Glide.with(context).asBitmap().load(u).into(object : CustomTarget<Bitmap>() {
+    Glide.with(context).asBitmap().load(imageSource(context, u)).into(object : CustomTarget<Bitmap>() {
       override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
         raster = resource
         generation++

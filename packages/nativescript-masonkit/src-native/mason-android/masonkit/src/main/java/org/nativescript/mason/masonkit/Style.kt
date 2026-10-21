@@ -786,10 +786,7 @@ internal object StyleState {
   const val SET: Byte = 1
 }
 
-// Cached regex patterns for transform parsing (avoid per-call compilation)
-private val TRANSFORM_FN_REGEX = Regex("(\\w+)\\(([^)]*)\\)")
 private val STYLE_WHITESPACE_REGEX = Regex("""\s+""")
-private val TRANSFORM_WS_REGEX = Regex("\\s+")
 
 class Style internal constructor(@Transient internal var node: Node) {
   internal var isValueInitialized: Boolean = false
@@ -1399,294 +1396,27 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
-  // Transform (buffer-backed)
-
-  internal data class TransformOp(val type: Int, val a: Float, val b: Float)
+  // Transform
 
   internal var mTransformRaw: String = ""
+  internal var mTransformFns: List<TransformFn> = emptyList()
 
+  /** The part of the transform view properties can't hold (see [decompose]); drawn by [beginMask]. */
+  internal var transformShear = 0f
+    private set
+
+  /** An invalid value is ignored, as a browser drops the declaration. */
   var transform: String
     get() = mTransformRaw
     set(value) {
+      val fns = parseTransformList(value) ?: return
       mTransformRaw = value
-      writeTransformToBuffer(value)
+      mTransformFns = fns
       applyTransformToView()
     }
 
-  private fun writeTransformToBuffer(input: String) {
-    val ops = parseTransformOps(input)
-    prepareMut()
-
-    if (ops.isEmpty()) {
-      // Clear transform
-      values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
-      values.put(StyleKeys.TRANSFORM_FLAGS, 0.toByte())
-      return
-    }
-
-    // Check for matrix ops — write directly to matrix region
-    if (ops.size == 1 && ops[0].type == -1) {
-      // matrix() sentinel: a/b unused, matrix already written by parseTransformOps
-      return
-    }
-    if (ops.size == 1 && ops[0].type == -2) {
-      // matrix3d() sentinel
-      return
-    }
-
-    if (ops.size > StyleKeys.MAX_INLINE_TRANSFORM_OPS) {
-      // Too many ops — flatten to matrix
-      flattenOpsToMatrix(ops)
-      return
-    }
-
-    // Write inline ops
-    values.put(StyleKeys.TRANSFORM_COUNT, ops.size.toByte())
-    values.put(StyleKeys.TRANSFORM_FLAGS, 0.toByte())
-    for (i in ops.indices) {
-      val base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-      values.put(base, ops[i].type.toByte())
-      values.put(base + 1, 0.toByte()) // padding
-      values.put(base + 2, 0.toByte())
-      values.put(base + 3, 0.toByte())
-      values.putFloat(base + 4, ops[i].a)
-      values.putFloat(base + 8, ops[i].b)
-    }
-    // Zero remaining slots
-    for (i in ops.size until StyleKeys.MAX_INLINE_TRANSFORM_OPS) {
-      val base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-      values.putFloat(base, 0f) // zeros type + padding
-      values.putFloat(base + 4, 0f)
-      values.putFloat(base + 8, 0f)
-    }
-  }
-
-  private fun parseTransformOps(input: String): List<TransformOp> {
-    if (input.isBlank()) return emptyList()
-    val ops = mutableListOf<TransformOp>()
-    for (m in TRANSFORM_FN_REGEX.findAll(input)) {
-      val name = m.groupValues[1].trim().lowercase()
-      val rawArgs = m.groupValues[2].trim()
-      val args =
-        rawArgs.replace(',', ' ').split(TRANSFORM_WS_REGEX).map { it.trim() }
-          .filter { it.isNotEmpty() }
-      try {
-        when (name) {
-          "translate" -> {
-            val ax = args.getOrNull(0)?.let { parseLength(it) } ?: 0f
-            val ay = args.getOrNull(1)?.let { parseLength(it) } ?: 0f
-            ops.add(TransformOp(TransformOpType.TRANSLATE, ax, ay))
-          }
-
-          "translatex" -> ops.add(
-            TransformOp(
-              TransformOpType.TRANSLATE_X,
-              args.getOrNull(0)?.let { parseLength(it) } ?: 0f,
-              0f))
-
-          "translatey" -> ops.add(
-            TransformOp(
-              TransformOpType.TRANSLATE_Y,
-              0f,
-              args.getOrNull(0)?.let { parseLength(it) } ?: 0f))
-
-          "scale" -> {
-            val sx = args.getOrNull(0)?.toFloatOrNull() ?: 1f
-            val sy = args.getOrNull(1)?.toFloatOrNull() ?: sx
-            ops.add(TransformOp(TransformOpType.SCALE, sx, sy))
-          }
-
-          "scalex" -> ops.add(
-            TransformOp(
-              TransformOpType.SCALE_X,
-              args.getOrNull(0)?.toFloatOrNull() ?: 1f,
-              1f
-            )
-          )
-
-          "scaley" -> ops.add(
-            TransformOp(
-              TransformOpType.SCALE_Y,
-              1f,
-              args.getOrNull(0)?.toFloatOrNull() ?: 1f
-            )
-          )
-
-          "rotate" -> ops.add(
-            TransformOp(
-              TransformOpType.ROTATE,
-              parseAngle(args.getOrNull(0) ?: "0"),
-              0f
-            )
-          )
-
-          "skewx" -> ops.add(
-            TransformOp(
-              TransformOpType.SKEW_X,
-              parseAngle(args.getOrNull(0) ?: "0"),
-              0f
-            )
-          )
-
-          "skewy" -> ops.add(
-            TransformOp(
-              TransformOpType.SKEW_Y,
-              parseAngle(args.getOrNull(0) ?: "0"),
-              0f
-            )
-          )
-
-          "matrix" -> {
-            val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
-            if (nums.size >= 6) {
-              writeMatrixToBuffer(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5])
-              return listOf(TransformOp(-1, 0f, 0f)) // sentinel
-            }
-          }
-
-          "matrix3d" -> {
-            val nums = args.mapNotNull { it.replace("px", "").toFloatOrNull() }
-            if (nums.size >= 16) {
-              writeMatrix3dToBuffer(nums)
-              return listOf(TransformOp(-2, 0f, 0f)) // sentinel
-            }
-          }
-        }
-      } catch (_: Exception) {
-      }
-    }
-    return ops
-  }
-
-  private fun writeMatrixToBuffer(a: Float, b: Float, c: Float, d: Float, tx: Float, ty: Float) {
-    prepareMut()
-    values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
-    values.put(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX.toByte())
-    // Write as 4x4 column-major identity with 2D affine embedded
-    val base = StyleKeys.TRANSFORM_MATRIX
-    // Column 0: [a, b, 0, 0]
-    values.putFloat(base, a)
-    values.putFloat(base + 4, b)
-    values.putFloat(base + 8, 0f)
-    values.putFloat(base + 12, 0f)
-    // Column 1: [c, d, 0, 0]
-    values.putFloat(base + 16, c)
-    values.putFloat(base + 20, d)
-    values.putFloat(base + 24, 0f)
-    values.putFloat(base + 28, 0f)
-    // Column 2: [0, 0, 1, 0]
-    values.putFloat(base + 32, 0f)
-    values.putFloat(base + 36, 0f)
-    values.putFloat(base + 40, 1f)
-    values.putFloat(base + 44, 0f)
-    // Column 3: [tx, ty, 0, 1]
-    values.putFloat(base + 48, tx)
-    values.putFloat(base + 52, ty)
-    values.putFloat(base + 56, 0f)
-    values.putFloat(base + 60, 1f)
-  }
-
-  private fun writeMatrix3dToBuffer(nums: List<Float>) {
-    prepareMut()
-    values.put(StyleKeys.TRANSFORM_COUNT, 0.toByte())
-    values.put(
-      StyleKeys.TRANSFORM_FLAGS,
-      (StyleKeys.TRANSFORM_FLAG_HAS_MATRIX or StyleKeys.TRANSFORM_FLAG_IS_3D).toByte()
-    )
-    val base = StyleKeys.TRANSFORM_MATRIX
-    // CSS matrix3d is in column-major order: m11,m12,m13,m14, m21,m22,m23,m24, ...
-    for (i in 0 until 16) {
-      values.putFloat(base + i * 4, nums[i])
-    }
-  }
-
-  private fun flattenOpsToMatrix(ops: List<TransformOp>) {
-    // Compose all ops into a 2D affine matrix, then write as 4x4
-    var a = 1f;
-    var b = 0f;
-    var c = 0f;
-    var d = 1f;
-    var tx = 0f;
-    var ty = 0f
-    for (op in ops) {
-      when (op.type) {
-        TransformOpType.TRANSLATE -> {
-          tx += a * op.a + c * op.b; ty += b * op.a + d * op.b
-        }
-
-        TransformOpType.TRANSLATE_X -> {
-          tx += a * op.a; ty += b * op.a
-        }
-
-        TransformOpType.TRANSLATE_Y -> {
-          tx += c * op.b; ty += d * op.b
-        }
-
-        TransformOpType.SCALE -> {
-          a *= op.a; b *= op.a; c *= op.b; d *= op.b
-        }
-
-        TransformOpType.SCALE_X -> {
-          a *= op.a; b *= op.a
-        }
-
-        TransformOpType.SCALE_Y -> {
-          c *= op.b; d *= op.b
-        }
-
-        TransformOpType.ROTATE -> {
-          val rad = Math.toRadians(op.a.toDouble())
-          val cos = cos(rad).toFloat()
-          val sin = sin(rad).toFloat()
-          val na = a * cos + c * sin
-          val nb = b * cos + d * sin
-          val nc = a * -sin + c * cos
-          val nd = b * -sin + d * cos
-          a = na; b = nb; c = nc; d = nd
-        }
-
-        TransformOpType.SKEW_X -> {
-          val t = tan(Math.toRadians(op.a.toDouble())).toFloat()
-          val nc = a * t + c
-          val nd = b * t + d
-          c = nc; d = nd
-        }
-
-        TransformOpType.SKEW_Y -> {
-          val t = tan(Math.toRadians(op.a.toDouble())).toFloat()
-          val na = a + c * t
-          val nb = b + d * t
-          a = na; b = nb
-        }
-      }
-    }
-    writeMatrixToBuffer(a, b, c, d, tx, ty)
-  }
-
-  private fun parseLength(s: String): Float {
-    val v = s.trim()
-    return when {
-      v.endsWith("px") -> v.removeSuffix("px").toFloatOrNull() ?: 0f
-      v.endsWith("dp") -> v.removeSuffix("dp").toFloatOrNull() ?: 0f
-      v.endsWith("%") -> v.removeSuffix("%").toFloatOrNull() ?: 0f
-      else -> v.toFloatOrNull() ?: 0f
-    }
-  }
-
-  private fun parseAngle(s: String): Float {
-    val v = s.trim()
-    return when {
-      v.endsWith("deg") -> v.removeSuffix("deg").toFloatOrNull() ?: 0f
-      v.endsWith("rad") -> (v.removeSuffix("rad").toFloatOrNull()
-        ?: 0f) * (180f / Math.PI.toFloat())
-
-      else -> v.toFloatOrNull() ?: 0f
-    }
-  }
-
   private val hasCssTransform: Boolean
-    get() = values.get(StyleKeys.TRANSFORM_COUNT).toInt() != 0 ||
-      (values.get(StyleKeys.TRANSFORM_FLAGS).toInt() and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0
+    get() = mTransformFns.isNotEmpty()
 
   /**
    * Sets the pivot from transform-origin (device px from the left/top edge, or % of the size).
@@ -1717,6 +1447,11 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   // A pivot set in pixels does not follow the size, so a set origin is re-applied on resize.
   internal fun onViewSizeChanged(v: View) {
+    // translate() percentages are of the box.
+    if (hasCssTransform) {
+      applyTransformToView()
+      return
+    }
     if (values.get(StyleKeys.TRANSFORM_ORIGIN_STATE) != StyleState.INHERIT) {
       applyPivot(v, hasCssTransform)
     }
@@ -1734,69 +1469,25 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun applyTransformToView() {
     val v = node.view as? View ?: return
-    val count = values.get(StyleKeys.TRANSFORM_COUNT).toInt() and 0xFF
-    val flags = values.get(StyleKeys.TRANSFORM_FLAGS).toInt() and 0xFF
+    val fns = mTransformFns
 
-    if (count == 0 && (flags and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) == 0) {
-      // No transform — reset to identity
+    if (fns.isEmpty()) {
       applyPivot(v, false)
       v.translationX = 0f; v.translationY = 0f
       v.scaleX = 1f; v.scaleY = 1f; v.rotation = node.inlineTurn
+      if (transformShear != 0f) transformShear = 0f
       v.invalidate()
       return
     }
 
-    if ((flags and StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0) {
-      // Read 4x4 matrix and decompose into translate/rotate/scale
-      val base = StyleKeys.TRANSFORM_MATRIX
-      val a = values.getFloat(base)
-      val b = values.getFloat(base + 4)
-      val c = values.getFloat(base + 16)
-      val d = values.getFloat(base + 20)
-      val tx = values.getFloat(base + 48)
-      val ty = values.getFloat(base + 52)
-      val scaleX = sqrt((a * a + b * b).toDouble()).toFloat()
-      var rotate = 0f
-      var scaleY = 1f
-      if (scaleX != 0f) {
-        rotate = Math.toDegrees(atan2(b.toDouble(), a.toDouble())).toFloat()
-        scaleY = (a * d - b * c) / scaleX
-      }
-      applyPivot(v, true)
-      v.translationX = tx; v.translationY = ty
-      v.rotation = rotate + node.inlineTurn; v.scaleX = scaleX; v.scaleY = scaleY
-    } else {
-      // Compose inline ops
-      var tx = 0f;
-      var ty = 0f;
-      var rot = 0f;
-      var sx = 1f;
-      var sy = 1f
-      for (i in 0 until count) {
-        val opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-        val type = values.get(opBase).toInt() and 0xFF
-        val a = values.getFloat(opBase + 4)
-        val b = values.getFloat(opBase + 8)
-        when (type) {
-          TransformOpType.TRANSLATE -> {
-            tx += a; ty += b
-          }
-
-          TransformOpType.TRANSLATE_X -> tx += a
-          TransformOpType.TRANSLATE_Y -> ty += b
-          TransformOpType.SCALE -> {
-            sx *= a; sy *= b
-          }
-
-          TransformOpType.SCALE_X -> sx *= a
-          TransformOpType.SCALE_Y -> sy *= b
-          TransformOpType.ROTATE -> rot += a
-        }
-      }
-      applyPivot(v, true)
-      v.translationX = tx; v.translationY = ty
-      v.rotation = rot + node.inlineTurn; v.scaleX = sx; v.scaleY = sy
-    }
+    // Percentages in translate() are of the border box, so this reruns on resize.
+    val t = decompose(projectAffine(fns, v.width.toFloat(), v.height.toFloat(), LengthContext.forStyle(this)))
+    applyPivot(v, true)
+    v.translationX = t.translationX; v.translationY = t.translationY
+    v.rotation = t.rotation + node.inlineTurn; v.scaleX = t.scaleX; v.scaleY = t.scaleY
+    transformShear = t.shear
+    // The shear is drawn in draw(), which a ViewGroup with willNotDraw skips.
+    if (t.shear != 0f && v is android.view.ViewGroup) v.setWillNotDraw(false)
     v.invalidate()
   }
 
@@ -3450,7 +3141,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   // ============================================================
   internal var mBackdropFilter: CSSFilters.CSSFilter? = null
 
-  // Filters content BEHIND the view; unlike setRenderEffect, children stay sharp (API 31+).
+  // Filters content BEHIND the view; unlike setRenderEffect, children stay sharp.
   internal var mBackdropHelper: BackdropHelper? = null
 
   var backdropFilter: String = ""
@@ -3464,17 +3155,11 @@ class Style internal constructor(@Transient internal var node: Node) {
       applyBackdropFilter()
     }
 
-  @android.annotation.SuppressLint("NewApi")
   private fun applyBackdropFilter() {
     val view = node.view as? android.view.View ?: return
 
-    if (android.os.Build.VERSION.SDK_INT < 31) {
-      view.invalidate()
-      return
-    }
-
-    // Never apply the filter to the view's OWN output — that blurs children.
-    view.setRenderEffect(null)
+    // Never apply the filter to the view's OWN output: that blurs children.
+    if (android.os.Build.VERSION.SDK_INT >= 31) view.setRenderEffect(null)
 
     val filter = mBackdropFilter
     if (filter == null || filter.filters.isEmpty()) {

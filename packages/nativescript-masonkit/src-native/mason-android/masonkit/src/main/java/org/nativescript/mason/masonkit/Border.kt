@@ -11,11 +11,13 @@ import org.nativescript.mason.masonkit.LengthPercentage.Points
 import org.nativescript.mason.masonkit.LengthPercentage.Zero
 import org.nativescript.mason.masonkit.enums.BorderStyle
 import java.nio.ByteBuffer
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 class Border(val owner: Style, side: Side) {
   val keys: IKey = when (side) {
@@ -811,6 +813,53 @@ class BorderRenderer(private val style: Style) {
     return r * cssRadiusScale(width, height)
   }
 
+  /** True when a corner uses a corner-shape other than round. */
+  fun hasCornerShape(): Boolean =
+    topLeftExponent != 1f || topRightExponent != 1f ||
+      bottomRightExponent != 1f || bottomLeftExponent != 1f
+
+  /** Hash of the corner-shape exponents, for caches keyed on the box shape. */
+  fun cornerShapeHash(): Int {
+    var h = topLeftExponent.toBits()
+    h = 31 * h + topRightExponent.toBits()
+    h = 31 * h + bottomRightExponent.toBits()
+    return 31 * h + bottomLeftExponent.toBits()
+  }
+
+  /**
+   * Adds [rect] with [radii] (the 8-float [getRadii] layout) and this box's corner-shape
+   * to [path], so box shadows follow the same shape as the border and background.
+   */
+  fun addShapePath(path: Path, rect: RectF, radii: FloatArray) {
+    if (!hasCornerShape()) {
+      path.addRoundRect(rect, radii, Path.Direction.CW)
+      return
+    }
+    val w = rect.width()
+    val h = rect.height()
+    var f = 1f
+    if (radii[0] + radii[2] > 0f) f = f.coerceAtMost(w / (radii[0] + radii[2]))
+    if (radii[3] + radii[5] > 0f) f = f.coerceAtMost(h / (radii[3] + radii[5]))
+    if (radii[6] + radii[4] > 0f) f = f.coerceAtMost(w / (radii[6] + radii[4]))
+    if (radii[1] + radii[7] > 0f) f = f.coerceAtMost(h / (radii[1] + radii[7]))
+    val x = rect.left
+    val y = rect.top
+    path.moveTo(x + radii[0] * f, y)
+    path.lineTo(x + w - radii[2] * f, y)
+    tempRadius.set(radii[2] * f, radii[3] * f)
+    addCornerToPath(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, x, y)
+    path.lineTo(x + w, y + h - radii[5] * f)
+    tempRadius.set(radii[4] * f, radii[5] * f)
+    addCornerToPath(path, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, x, y)
+    path.lineTo(x + radii[6] * f, y + h)
+    tempRadius.set(radii[6] * f, radii[7] * f)
+    addCornerToPath(path, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, x, y)
+    path.lineTo(x, y + radii[1] * f)
+    tempRadius.set(radii[0] * f, radii[1] * f)
+    addCornerToPath(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, x, y)
+    path.close()
+  }
+
   /** Check if there are any border radii set */
   fun hasRadii(): Boolean {
     return topLeftCorner.x > 0f || topLeftCorner.y > 0f ||
@@ -847,33 +896,34 @@ class BorderRenderer(private val style: Style) {
     exponent: Float,
     width: Float,
     height: Float,
-    ofs: Float = 0f
+    ofs: Float = 0f,
+    ofsY: Float = ofs
   ) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
     if (exponent == 1f) {
       // Use Android's analytic arc with reusable RectF
       when (corner) {
-        Corner.TOP_LEFT -> cornerRect.set(ofs, ofs, ofs + radius.x * 2, ofs + radius.y * 2)
+        Corner.TOP_LEFT -> cornerRect.set(ofs, ofsY, ofs + radius.x * 2, ofsY + radius.y * 2)
         Corner.TOP_RIGHT -> cornerRect.set(
           ofs + width - radius.x * 2,
-          ofs,
+          ofsY,
           ofs + width,
-          ofs + radius.y * 2
+          ofsY + radius.y * 2
         )
 
         Corner.BOTTOM_RIGHT -> cornerRect.set(
           ofs + width - radius.x * 2,
-          ofs + height - radius.y * 2,
+          ofsY + height - radius.y * 2,
           ofs + width,
-          ofs + height
+          ofsY + height
         )
 
         Corner.BOTTOM_LEFT -> cornerRect.set(
           ofs,
-          ofs + height - radius.y * 2,
+          ofsY + height - radius.y * 2,
           ofs + radius.x * 2,
-          ofs + height
+          ofsY + height
         )
       }
 
@@ -889,12 +939,21 @@ class BorderRenderer(private val style: Style) {
     }
 
     // Superellipse fallback
+    val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
+    val concave = exponent < 0f
+    val shallow = exponent > -1f && exponent < 0f
+    val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
+    val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
-      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
-      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+      val a = cos(angle).pow(power).toFloat()
+      val b = sin(angle).pow(power).toFloat()
+      val sx = 1 - sqrt(1 - t)
+      val sy = 1 - sqrt(t)
+      val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
+      val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
 
       var px: Float
       var py: Float
@@ -919,7 +978,7 @@ class BorderRenderer(private val style: Style) {
 
       // offset by ofs to convert from local (0..width/height) coords to absolute
       px += ofs
-      py += ofs
+      py += ofsY
       path.lineTo(px, py)
     }
   }
@@ -1311,12 +1370,21 @@ class BorderRenderer(private val style: Style) {
     }
 
     // Superellipse fallback
+    val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
+    val concave = exponent < 0f
+    val shallow = exponent > -1f && exponent < 0f
+    val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
+    val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
     val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
-      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
-      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+      val a = cos(angle).pow(power).toFloat()
+      val b = sin(angle).pow(power).toFloat()
+      val sx = 1 - sqrt(1 - t)
+      val sy = 1 - sqrt(t)
+      val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
+      val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
 
       var px: Float
       var py: Float
@@ -1727,48 +1795,46 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
   }
 }
 
-// corner-shape
-// CSS syntax:
-//   corner-shape: round                      → exponent 1 on all corners (default)
-//   corner-shape: superellipse               → exponent 0.5 on all corners
-//   corner-shape: superellipse(0.3)          → exponent 0.3 on all corners
-//   corner-shape: squircle                   → alias for superellipse (0.5)
-//   corner-shape: notch                      → exponent 2 on all corners
-//   corner-shape: bevel                      → exponent 4 on all corners
-//   1–4 value shorthand follows CSS corner order: TL TR BR BL
-//
+// corner-shape stores the CSS superellipse parameter K per corner: round 1, squircle 2, bevel 0,
+// scoop -1, notch -infinity, square infinity, or superellipse(K).
 
 private val cornerShapeTokenRegex =
-  Regex("""(round|superellipse(?:\((-?\d+(?:\.\d+)?)\))?|squircle|notch|bevel)""")
+  Regex("""superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)""")
 
 fun exponentToCornerShapeToken(exponent: Float): String {
   return when (exponent) {
     1.0f -> "round"
-    0.5f -> "squircle"
-    2.0f -> "notch"
-    4.0f -> "bevel"
-    else -> "superellipse($exponent)"
+    2.0f -> "squircle"
+    0.0f -> "bevel"
+    -1.0f -> "scoop"
+    Float.NEGATIVE_INFINITY -> "notch"
+    Float.POSITIVE_INFINITY -> "square"
+    else -> "superellipse(${if (abs(exponent) < 1e6f && exponent == exponent.toInt().toFloat()) exponent.toInt().toString() else exponent.toString()})"
   }
 }
 
 fun parseCornerShapeToken(token: String): Float? {
-  val match = cornerShapeTokenRegex.matchEntire(token.trim().lowercase()) ?: return null
-  val keyword = match.groupValues[1]
-  val explicitExp = match.groupValues.getOrNull(2)?.toFloatOrNull()
-  return when {
-    keyword.startsWith("superellipse") -> explicitExp ?: 0.5f
-    keyword == "squircle" -> 0.5f
-    keyword == "round" -> 1.0f
-    keyword == "notch" -> 2.0f
-    keyword == "bevel" -> 4.0f
-    else -> null
+  val t = token.trim().lowercase()
+  when (t) {
+    "round" -> return 1.0f
+    "squircle" -> return 2.0f
+    "bevel" -> return 0.0f
+    "scoop" -> return -1.0f
+    "notch" -> return Float.NEGATIVE_INFINITY
+    "square" -> return Float.POSITIVE_INFINITY
+  }
+  val k = cornerShapeTokenRegex.matchEntire(t)?.groupValues?.get(1) ?: return null
+  return when (k) {
+    "infinity" -> Float.POSITIVE_INFINITY
+    "-infinity" -> Float.NEGATIVE_INFINITY
+    else -> k.toFloatOrNull()?.takeUnless { it.isNaN() }
   }
 }
 
 fun parseCornerShape(style: Style, value: String) {
-  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";"))
-  val exponents = tokens.mapNotNull { parseCornerShapeToken(it) }
-  if (exponents.isEmpty()) return
+  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";")).filter { it.isNotEmpty() }
+  if (tokens.isEmpty() || tokens.size > 4) return
+  val exponents = tokens.map { parseCornerShapeToken(it) ?: return }
 
   // CSS 4-corner shorthand: 1→all, 2→(TL+BR, TR+BL), 3→(TL, TR+BL, BR), 4→per-corner
   val (tl, tr, br, bl) = when (exponents.size) {

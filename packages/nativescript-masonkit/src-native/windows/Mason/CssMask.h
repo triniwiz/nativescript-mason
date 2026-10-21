@@ -1,7 +1,7 @@
 #pragma once
 // CSS masking on Windows: mask-* layers, clip-path, mask-border and border-image.
 //
-// The .windows.ts layer resolves units, colours and gradients into a JSON spec (see windows-mask.ts)
+// The .windows.ts layer resolves units, colours and gradients into a JSON spec (see mask.windows.ts)
 // and Css::SetMask / Css::SetBorderImage decode its images. Everything is drawn with Direct2D in
 // device pixels:
 //   - The mask (layers, then clip-path and mask-border intersected with them) is an alpha surface.
@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string_view>
 #include <functional>
 #include <memory>
@@ -26,7 +27,10 @@
 #include <d2d1effects.h>
 #include <shlwapi.h>
 #include <winrt/Windows.Data.Json.h>
+#include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Composition.h>
 #include "RoundedMask.h"
 #include "Decoration.h"
@@ -34,6 +38,7 @@
 namespace mason_cssmask
 {
     namespace mux = winrt::Microsoft::UI::Xaml;
+    namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
     namespace mucomp = winrt::Microsoft::UI::Composition;
     namespace wf = winrt::Windows::Foundation;
     namespace json = winrt::Windows::Data::Json;
@@ -60,6 +65,12 @@ namespace mason_cssmask
         float cornerX{ 0.0f }, cornerY{ 0.0f };
         float cx{ 0.5f }, cy{ 0.5f }, rx{ 0.5f }, ry{ 0.5f };
         std::vector<std::pair<float, uint32_t>> stops;
+        bool repeating{ false };
+        // Radial circle: 0 closest-side, 1 farthest-side, 2 closest-corner, 3 farthest-corner, -1 ellipse.
+        int circle{ -1 };
+        float circleRadius{ -1.0f };
+        // Per stop: a 0-1 fraction or a length in DIPs (NaN when absent), sent when a length needs the line's size.
+        std::vector<float> stopPct, stopPx;
         // The SVG uses currentColor, kept as kCurrentColor until it's drawn.
         bool currentColor{ false };
         bool Drawable() const { return kind != Kind::None; }
@@ -78,6 +89,8 @@ namespace mason_cssmask
         int origin{ PaddingBox }, clip{ BorderBox };
         int mode{ 0 };      // 0 match-source, 1 alpha, 2 luminance
         int composite{ 0 }; // 0 add, 1 subtract, 2 intersect, 3 exclude
+        int blend{ 0 };     // background-blend-mode, in mask.windows.ts BLEND order
+        int attachment{ 0 }; // 0 scroll, 1 fixed, 2 local
     };
 
     struct ClipShape
@@ -88,6 +101,8 @@ namespace mason_cssmask
         std::vector<int> kinds; // circle/ellipse radii: 0 length, 1 closest-side, 2 farthest-side
         bool evenOdd{ false };
         std::string path;
+        // path() as absolute commands from svg-path.windows.ts: 0 M, 1 L, 2 C, 3 Q, 4 Z.
+        std::vector<float> commands;
     };
 
     struct NineSlice
@@ -123,6 +138,22 @@ namespace mason_cssmask
         float border[4]{};  // top, right, bottom, left
         float padding[4]{};
         float margin[4]{};
+        // left, top, right, bottom; empty unless a fixed or scroll background layer needs them.
+        float viewport[4]{};
+        float scrollport[4]{};
+        bool HasViewport() const { return viewport[2] > viewport[0] && viewport[3] > viewport[1]; }
+        bool HasScrollport() const { return scrollport[2] > scrollport[0] && scrollport[3] > scrollport[1]; }
+        D2D1_RECT_F In(int box, int attachment) const
+        {
+            if (attachment == 2 || !HasScrollport()) return Get(box);
+            Boxes port = *this;
+            port.width = scrollport[2] - scrollport[0];
+            port.height = scrollport[3] - scrollport[1];
+            D2D1_RECT_F r = port.Get(box);
+            r.left += scrollport[0]; r.right += scrollport[0];
+            r.top += scrollport[1]; r.bottom += scrollport[1];
+            return r;
+        }
         D2D1_RECT_F Get(int box) const
         {
             D2D1_RECT_F r{ 0.0f, 0.0f, width, height };
@@ -259,6 +290,27 @@ namespace mason_cssmask
             }
         }
         if (image.stops.empty()) return image;
+        image.repeating = o.GetNamedNumber(L"rp", 0.0) != 0.0;
+        image.circle = static_cast<int>(o.GetNamedNumber(L"ci", -1.0));
+        image.circleRadius = static_cast<float>(o.GetNamedNumber(L"cr", -1.0));
+        auto numbers = [&](wchar_t const* key, std::vector<float>& out)
+        {
+            if (auto a = Arr(o, key))
+            {
+                for (uint32_t i = 0; i < a.Size(); ++i)
+                {
+                    auto v = a.GetAt(i);
+                    out.push_back(v.ValueType() == json::JsonValueType::Number ? static_cast<float>(v.GetNumber()) : std::numeric_limits<float>::quiet_NaN());
+                }
+            }
+        };
+        numbers(L"p", image.stopPct);
+        numbers(L"l", image.stopPx);
+        if (image.stopPct.size() != image.stops.size() || image.stopPx.size() != image.stops.size())
+        {
+            image.stopPct.clear();
+            image.stopPx.clear();
+        }
         if (auto c = Arr(o, L"c")) { image.cx = Num(c, 0, 0.5f); image.cy = Num(c, 1, 0.5f); }
         if (auto r = Arr(o, L"r")) { image.rx = Num(r, 0, 0.5f); image.ry = Num(r, 1, 0.5f); }
         image.angle = static_cast<float>(o.GetNamedNumber(L"a", 180.0));
@@ -298,6 +350,8 @@ namespace mason_cssmask
                 layer.clip = static_cast<int>(o.GetNamedNumber(L"c", BorderBox));
                 layer.mode = static_cast<int>(o.GetNamedNumber(L"m", 0));
                 layer.composite = static_cast<int>(o.GetNamedNumber(L"k", 0));
+                layer.blend = static_cast<int>(o.GetNamedNumber(L"b", 0));
+                layer.attachment = static_cast<int>(o.GetNamedNumber(L"a", 0));
                 spec.layers.push_back(std::move(layer));
             }
         }
@@ -311,6 +365,7 @@ namespace mason_cssmask
             if (auto k = Arr(o, L"k")) for (uint32_t i = 0; i < k.Size(); ++i) clip.kinds.push_back(static_cast<int>(Num(k, i)));
             clip.evenOdd = o.GetNamedBoolean(L"e", false);
             clip.path = winrt::to_string(o.GetNamedString(L"d", L""));
+            if (auto pc = Arr(o, L"pc")) for (uint32_t i = 0; i < pc.Size(); ++i) clip.commands.push_back(Num(pc, i));
             spec.clip = std::move(clip);
         }
         if (root.HasKey(L"mb") && root.GetNamedValue(L"mb").ValueType() == json::JsonValueType::Object)
@@ -430,13 +485,91 @@ namespace mason_cssmask
         return {};
     }
 
-    inline winrt::com_ptr<ID2D1GradientStopCollection> Stops(ID2D1DeviceContext* ctx, Image const& image, D2D1_EXTEND_MODE extend)
+    inline std::vector<float> StopPositions(Image const& image, float length)
+    {
+        const size_t n = image.stops.size();
+        std::vector<float> out(n, 0.0f);
+        if (image.stopPx.empty())
+        {
+            for (size_t i = 0; i < n; ++i) out[i] = image.stops[i].first;
+            return out;
+        }
+        size_t anchor = n;
+        for (size_t i = 0; i < n; ++i)
+        {
+            float given = !std::isnan(image.stopPx[i]) ? (length > 0.0f ? image.stopPx[i] / length : 0.0f) : image.stopPct[i];
+            if (std::isnan(given))
+            {
+                if (i == 0) given = 0.0f;
+                else if (i + 1 == n) given = 1.0f;
+                else continue;
+            }
+            const float position = anchor < n ? (std::max)(given, out[anchor]) : given;
+            out[i] = position;
+            if (anchor < n)
+            {
+                for (size_t k = anchor + 1; k < i; ++k) out[k] = out[anchor] + (position - out[anchor]) * static_cast<float>(k - anchor) / static_cast<float>(i - anchor);
+            }
+            anchor = i;
+        }
+        return out;
+    }
+
+    struct Ramp
     {
         std::vector<D2D1_GRADIENT_STOP> stops;
-        for (auto const& [offset, argb] : image.stops) stops.push_back({ offset, ColorOf(argb) });
-        if (stops.size() == 1) stops.push_back({ 1.0f, stops[0].color });
+        float from{ 0.0f }, to{ 1.0f };
+        bool wrap{ false };
+    };
+
+    inline Ramp RampOf(Image const& image, float length)
+    {
+        Ramp ramp;
+        const auto positions = StopPositions(image, length);
+        if (positions.empty()) return ramp;
+        ramp.wrap = image.repeating && positions.back() - positions.front() > 1e-4f;
+        ramp.from = ramp.wrap ? positions.front() : (std::min)(positions.front(), 0.0f);
+        ramp.to = ramp.wrap ? positions.back() : (std::max)(positions.back(), 1.0f);
+        const float span = ramp.to - ramp.from;
+        for (size_t i = 0; i < positions.size(); ++i) ramp.stops.push_back({ (positions[i] - ramp.from) / span, ColorOf(image.stops[i].second) });
+        if (ramp.stops.size() == 1) ramp.stops.push_back({ 1.0f, ramp.stops[0].color });
+        return ramp;
+    }
+
+    inline D2D1_COLOR_F RampColorAt(std::vector<D2D1_GRADIENT_STOP> const& s, float t)
+    {
+        if (t <= s.front().position) return s.front().color;
+        for (size_t i = 1; i < s.size(); ++i)
+        {
+            if (t <= s[i].position)
+            {
+                const float span = s[i].position - s[i - 1].position;
+                const float f = span > 0.0f ? (t - s[i - 1].position) / span : 1.0f;
+                const auto a = s[i - 1].color, b = s[i].color;
+                return D2D1::ColorF(a.r + (b.r - a.r) * f, a.g + (b.g - a.g) * f, a.b + (b.b - a.b) * f, a.a + (b.a - a.a) * f);
+            }
+        }
+        return s.back().color;
+    }
+
+    // Direct2D starts a wrapping radial period at the centre, so a period that starts later is rotated.
+    inline std::vector<D2D1_GRADIENT_STOP> Rotate(std::vector<D2D1_GRADIENT_STOP> const& s, float phase)
+    {
+        if (phase <= 1e-5f || phase >= 1.0f - 1e-5f) return s;
+        std::vector<D2D1_GRADIENT_STOP> out;
+        out.push_back({ 0.0f, RampColorAt(s, 1.0f - phase) });
+        for (auto const& stop : s) if (stop.position + phase >= 1.0f) out.push_back({ stop.position + phase - 1.0f, stop.color });
+        for (auto const& stop : s) if (stop.position + phase < 1.0f) out.push_back({ stop.position + phase, stop.color });
+        out.push_back({ 1.0f, RampColorAt(s, 1.0f - phase) });
+        return out;
+    }
+
+    inline winrt::com_ptr<ID2D1GradientStopCollection> Collection(ID2D1DeviceContext* ctx, std::vector<D2D1_GRADIENT_STOP> const& stops, bool wrap)
+    {
         winrt::com_ptr<ID2D1GradientStopCollection> collection;
-        ctx->CreateGradientStopCollection(stops.data(), static_cast<UINT32>(stops.size()), D2D1_GAMMA_2_2, extend, collection.put());
+        if (stops.empty()) return collection;
+        ctx->CreateGradientStopCollection(stops.data(), static_cast<UINT32>(stops.size()), D2D1_GAMMA_2_2,
+            wrap ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP, collection.put());
         return collection;
     }
 
@@ -458,7 +591,7 @@ namespace mason_cssmask
     }
 
     // Draws `image` to fill the rect (0, 0, w, h) in the current transform.
-    inline void DrawImage(ID2D1DeviceContext* ctx, Image const& image, float w, float h, uint32_t color = 0xFF000000)
+    inline void DrawImage(ID2D1DeviceContext* ctx, Image const& image, float w, float h, uint32_t color = 0xFF000000, float unit = 1.0f)
     {
         if (w <= 0.0f || h <= 0.0f) return;
         const auto rect = D2D1::RectF(0.0f, 0.0f, w, h);
@@ -493,10 +626,12 @@ namespace mason_cssmask
             const float dy = corner ? image.cornerY * w / diagonal : -std::cos(a);
             const float half = (std::abs(w * dx) + std::abs(h * dy)) / 2.0f;
             const D2D1_POINT_2F c{ w / 2.0f, h / 2.0f };
-            auto stops = Stops(ctx, image, D2D1_EXTEND_MODE_CLAMP);
+            const auto ramp = RampOf(image, 2.0f * half / unit);
+            auto stops = Collection(ctx, ramp.stops, ramp.wrap);
+            const D2D1_POINT_2F start{ c.x - dx * half, c.y - dy * half };
+            auto along = [&](float t) { return D2D1_POINT_2F{ start.x + 2.0f * dx * half * t, start.y + 2.0f * dy * half * t }; };
             winrt::com_ptr<ID2D1LinearGradientBrush> brush;
-            if (stops && SUCCEEDED(ctx->CreateLinearGradientBrush(
-                D2D1::LinearGradientBrushProperties({ c.x - dx * half, c.y - dy * half }, { c.x + dx * half, c.y + dy * half }), stops.get(), brush.put())))
+            if (stops && SUCCEEDED(ctx->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(along(ramp.from), along(ramp.to)), stops.get(), brush.put())))
             {
                 ctx->FillRectangle(rect, brush.get());
             }
@@ -504,10 +639,47 @@ namespace mason_cssmask
         }
         case Image::Kind::Radial:
         {
-            auto stops = Stops(ctx, image, D2D1_EXTEND_MODE_CLAMP);
+            float rx = image.rx * w, ry = image.ry * h;
+            if (image.circle >= 0 || image.circleRadius >= 0.0f)
+            {
+                const float sx = (std::min)(image.cx, 1.0f - image.cx) * w, sy = (std::min)(image.cy, 1.0f - image.cy) * h;
+                const float fx = (std::max)(image.cx, 1.0f - image.cx) * w, fy = (std::max)(image.cy, 1.0f - image.cy) * h;
+                float r = image.circleRadius * unit;
+                if (image.circleRadius < 0.0f)
+                {
+                    switch (image.circle)
+                    {
+                    case 0: r = (std::min)(sx, sy); break;
+                    case 1: r = (std::max)(fx, fy); break;
+                    case 2: r = std::hypot(sx, sy); break;
+                    default: r = std::hypot(fx, fy); break;
+                    }
+                }
+                rx = ry = (std::max)(r, 0.001f);
+            }
+            auto ramp = RampOf(image, rx / unit);
+            float scale = ramp.to;
+            if (ramp.wrap)
+            {
+                scale = ramp.to - ramp.from;
+                const float phase = ramp.from / scale - std::floor(ramp.from / scale);
+                ramp.stops = Rotate(ramp.stops, phase);
+            }
+            else if (ramp.from < 0.0f)
+            {
+                const auto atCentre = RampColorAt(ramp.stops, -ramp.from / (ramp.to - ramp.from));
+                std::vector<D2D1_GRADIENT_STOP> clipped{ { 0.0f, atCentre } };
+                for (auto const& stop : ramp.stops)
+                {
+                    const float t = stop.position * (ramp.to - ramp.from) + ramp.from;
+                    if (t > 0.0f) clipped.push_back({ t / ramp.to, stop.color });
+                }
+                ramp.stops = std::move(clipped);
+            }
+            auto stops = Collection(ctx, ramp.stops, ramp.wrap);
             winrt::com_ptr<ID2D1RadialGradientBrush> brush;
-            if (stops && SUCCEEDED(ctx->CreateRadialGradientBrush(
-                D2D1::RadialGradientBrushProperties({ image.cx * w, image.cy * h }, {}, image.rx * w, image.ry * h), stops.get(), brush.put())))
+            if (stops && scale > 0.0f && SUCCEEDED(ctx->CreateRadialGradientBrush(
+                D2D1::RadialGradientBrushProperties({ image.cx * w, image.cy * h }, {}, rx * scale, ry * scale), stops.get(), brush.put())))
             {
                 ctx->FillRectangle(rect, brush.get());
             }
@@ -583,8 +755,10 @@ namespace mason_cssmask
     // One mask layer, tiled over its origin box and clipped to its clip box. Coordinates in DIPs.
     inline void DrawLayer(ID2D1DeviceContext* ctx, Layer const& layer, Boxes const& boxes, float scale, uint32_t color = 0xFF000000)
     {
-        const D2D1_RECT_F area = boxes.Get(layer.origin);
-        D2D1_RECT_F clip = layer.clip == NoClip ? D2D1::RectF(-1e5f, -1e5f, 1e5f, 1e5f) : boxes.Get(layer.clip);
+        const bool fixed = layer.attachment == 1 && boxes.HasViewport();
+        const D2D1_RECT_F area = fixed ? D2D1::RectF(boxes.viewport[0], boxes.viewport[1], boxes.viewport[2], boxes.viewport[3])
+                                       : boxes.In(layer.origin, layer.attachment);
+        D2D1_RECT_F clip = layer.clip == NoClip ? D2D1::RectF(-1e5f, -1e5f, 1e5f, 1e5f) : boxes.In(layer.clip, fixed ? 0 : layer.attachment);
         const float aw = area.right - area.left, ah = area.bottom - area.top;
         const D2D1_SIZE_F natural = NaturalSize(ctx, layer.image);
         const bool hasRatio = natural.width > 0.0f && natural.height > 0.0f;
@@ -651,7 +825,7 @@ namespace mason_cssmask
         ctx->SetTarget(tile.get());
         ctx->SetTransform(D2D1::Matrix3x2F::Identity());
         ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-        DrawImage(ctx, layer.image, static_cast<float>(pw), static_cast<float>(ph), color);
+        DrawImage(ctx, layer.image, static_cast<float>(pw), static_cast<float>(ph), color, scale);
         ctx->SetTarget(target.get());
         ctx->SetTransform(transform);
 
@@ -706,8 +880,8 @@ namespace mason_cssmask
         return ref;
     }
 
-    // The clip-path shape as a geometry in DIPs, for every shape but path() (which only the SVG
-    // renderer parses). Null for an empty shape.
+    // The clip-path shape as a geometry in DIPs. Null for an empty shape. path() is drawn by the
+    // SVG renderer; this geometry, from its parsed commands, is for hit testing.
     inline winrt::com_ptr<ID2D1Geometry> ClipGeometry(ID2D1Factory* factory, ClipShape const& clip, Boxes const& boxes)
     {
         const D2D1_RECT_F ref = ClipReference(clip, boxes);
@@ -782,6 +956,64 @@ namespace mason_cssmask
             sink->EndFigure(D2D1_FIGURE_END_CLOSED);
             return close();
         }
+        case 5:
+        {
+            auto const& c = clip.commands;
+            if (c.empty() || !open()) return nullptr;
+            sink->SetFillMode(clip.evenOdd ? D2D1_FILL_MODE_ALTERNATE : D2D1_FILL_MODE_WINDING);
+            auto pt = [&](size_t i) { return D2D1_POINT_2F{ ref.left + c[i], ref.top + c[i + 1] }; };
+            bool inFigure = false;
+            D2D1_POINT_2F current{ ref.left, ref.top }, start = current;
+            auto begin = [&]()
+            {
+                if (inFigure) return;
+                sink->BeginFigure(current, D2D1_FIGURE_BEGIN_FILLED);
+                inFigure = true;
+            };
+            size_t i = 0;
+            while (i < c.size())
+            {
+                const int op = static_cast<int>(c[i++]);
+                if (op == 0 && i + 2 <= c.size())
+                {
+                    if (inFigure) sink->EndFigure(D2D1_FIGURE_END_OPEN);
+                    inFigure = false;
+                    current = start = pt(i);
+                    i += 2;
+                }
+                else if (op == 1 && i + 2 <= c.size())
+                {
+                    begin();
+                    current = pt(i);
+                    sink->AddLine(current);
+                    i += 2;
+                }
+                else if (op == 2 && i + 6 <= c.size())
+                {
+                    begin();
+                    sink->AddBezier(D2D1::BezierSegment(pt(i), pt(i + 2), pt(i + 4)));
+                    current = pt(i + 4);
+                    i += 6;
+                }
+                else if (op == 3 && i + 4 <= c.size())
+                {
+                    begin();
+                    sink->AddQuadraticBezier(D2D1::QuadraticBezierSegment(pt(i), pt(i + 2)));
+                    current = pt(i + 2);
+                    i += 4;
+                }
+                else if (op == 4)
+                {
+                    if (inFigure) sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+                    inFigure = false;
+                    current = start;
+                }
+                else break;
+            }
+            // Fills treat an open figure as closed.
+            if (inFigure) sink->EndFigure(D2D1_FIGURE_END_OPEN);
+            return close();
+        }
         default:
             return nullptr;
         }
@@ -816,11 +1048,11 @@ namespace mason_cssmask
         if (auto geometry = ClipGeometry(factory.get(), clip, boxes)) ctx->FillGeometry(geometry.get(), white.get());
     }
 
-    // Whether a point (DIPs from the border box's top-left) is inside the clip-path; true for
-    // path(), whose shape only the SVG renderer knows.
+    // Whether a point (DIPs from the border box's top-left) is inside the clip-path; true for a
+    // path() spec without parsed commands.
     inline bool ClipContains(ClipShape const& clip, Boxes const& boxes, float x, float y)
     {
-        if (clip.shape == 5) return true;
+        if (clip.shape == 5 && clip.commands.empty()) return true;
         thread_local winrt::com_ptr<ID2D1Factory> factory;
         if (!factory && FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory), factory.put_void()))) return true;
         auto geometry = ClipGeometry(factory.get(), clip, boxes);
@@ -934,7 +1166,7 @@ namespace mason_cssmask
         ctx->SetTarget(source.get());
         ctx->SetTransform(D2D1::Matrix3x2F::Identity());
         ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-        DrawImage(ctx, nine.image, static_cast<float>(sw), static_cast<float>(sh), color);
+        DrawImage(ctx, nine.image, static_cast<float>(sw), static_cast<float>(sh), color, k);
         // CopyFromBitmap below reads pixels directly, ahead of any drawing still batched.
         ctx->Flush();
         ctx->SetTarget(target.get());
@@ -1106,11 +1338,49 @@ namespace mason_cssmask
 
     // An image background: background-color under the image layers, which a XAML Panel can't do
     // with its single Background brush. `layers` reuses the mask layer spec.
+    inline bool BlendModeOf(int blend, D2D1_BLEND_MODE& mode)
+    {
+        switch (blend)
+        {
+        case 1: mode = D2D1_BLEND_MODE_MULTIPLY; return true;
+        case 2: mode = D2D1_BLEND_MODE_SCREEN; return true;
+        case 3: mode = D2D1_BLEND_MODE_OVERLAY; return true;
+        case 4: mode = D2D1_BLEND_MODE_DARKEN; return true;
+        case 5: mode = D2D1_BLEND_MODE_LIGHTEN; return true;
+        case 6: mode = D2D1_BLEND_MODE_COLOR_DODGE; return true;
+        case 7: mode = D2D1_BLEND_MODE_COLOR_BURN; return true;
+        case 8: mode = D2D1_BLEND_MODE_HARD_LIGHT; return true;
+        case 9: mode = D2D1_BLEND_MODE_SOFT_LIGHT; return true;
+        case 10: mode = D2D1_BLEND_MODE_DIFFERENCE; return true;
+        case 11: mode = D2D1_BLEND_MODE_EXCLUSION; return true;
+        case 12: mode = D2D1_BLEND_MODE_HUE; return true;
+        case 13: mode = D2D1_BLEND_MODE_SATURATION; return true;
+        case 14: mode = D2D1_BLEND_MODE_COLOR; return true;
+        case 15: mode = D2D1_BLEND_MODE_LUMINOSITY; return true;
+        default: return false;
+        }
+    }
+
     inline void PaintBackground(ID2D1DeviceContext* ctx, Spec const& spec, uint32_t color, uint32_t textColor, Boxes const& boxes, float scale)
     {
+        winrt::com_ptr<ID2D1Image> surface;
+        ctx->GetTarget(surface.put());
         D2D1_MATRIX_3X2_F transform;
         ctx->GetTransform(&transform);
-        ctx->SetTransform(D2D1::Matrix3x2F::Scale(scale, scale) * transform);
+        const auto toPx = D2D1::Matrix3x2F::Scale(scale, scale);
+        const bool blends = std::any_of(spec.layers.begin(), spec.layers.end(), [](Layer const& l) { D2D1_BLEND_MODE m; return l.image.Drawable() && BlendModeOf(l.blend, m); });
+        const uint32_t pw = static_cast<uint32_t>(std::ceil(boxes.width * scale)), ph = static_cast<uint32_t>(std::ceil(boxes.height * scale));
+        winrt::com_ptr<ID2D1Bitmap1> group = blends ? TargetBitmap(ctx, pw, ph) : nullptr;
+        if (group)
+        {
+            ctx->SetTarget(group.get());
+            ctx->SetTransform(toPx);
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+        }
+        else
+        {
+            ctx->SetTransform(toPx * transform);
+        }
         if ((color >> 24) != 0)
         {
             winrt::com_ptr<ID2D1SolidColorBrush> brush;
@@ -1119,9 +1389,38 @@ namespace mason_cssmask
         }
         for (size_t n = spec.layers.size(); n-- > 0;)
         {
-            if (spec.layers[n].image.Drawable()) DrawLayer(ctx, spec.layers[n], boxes, scale, textColor);
+            Layer const& layer = spec.layers[n];
+            if (!layer.image.Drawable()) continue;
+            D2D1_BLEND_MODE mode;
+            if (!group || !BlendModeOf(layer.blend, mode))
+            {
+                DrawLayer(ctx, layer, boxes, scale, textColor);
+                continue;
+            }
+            auto source = TargetBitmap(ctx, pw, ph);
+            auto blended = TargetBitmap(ctx, pw, ph);
+            winrt::com_ptr<ID2D1Effect> effect;
+            if (!source || !blended || FAILED(ctx->CreateEffect(CLSID_D2D1Blend, effect.put())))
+            {
+                DrawLayer(ctx, layer, boxes, scale, textColor);
+                continue;
+            }
+            ctx->SetTarget(source.get());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            DrawLayer(ctx, layer, boxes, scale, textColor);
+            effect->SetInput(0, group.get());
+            effect->SetInput(1, source.get());
+            effect->SetValue(D2D1_BLEND_PROP_MODE, mode);
+            ctx->SetTarget(blended.get());
+            ctx->SetTransform(D2D1::Matrix3x2F::Identity());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            ctx->DrawImage(effect.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_COPY);
+            ctx->SetTransform(toPx);
+            group = blended;
         }
+        ctx->SetTarget(surface.get());
         ctx->SetTransform(transform);
+        if (group) ctx->DrawImage(group.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
     }
 
     struct Entry
@@ -1134,6 +1433,13 @@ namespace mason_cssmask
         uint32_t backgroundColor{ 0 };
         uint32_t backgroundTextColor{ 0 };
         float backgroundScale{ 0.0f };
+        Boxes backgroundLayout;
+        std::vector<std::function<void()>> unhooks;
+        int watched{ -1 };
+        int anchor{ 0 };
+        mucomp::CompositionSurfaceBrush anchorBrush{ nullptr };
+        std::vector<void*> anchorScrollers;
+        mucomp::CompositionPropertySet anchorProps{ nullptr };
         std::shared_ptr<Spec> mask;
         std::shared_ptr<NineSlice> borderImage;
         // The mask surface, its brush and what it was last drawn for.
@@ -1383,6 +1689,267 @@ namespace mason_cssmask
         entry->borderTextColor = textColor;
     }
 
+    enum Anchor { Unanchored = 0, Scrollport = 1, Viewport = 2 };
+
+    inline muxc::ScrollViewer HostScroller(mux::UIElement const& element)
+    {
+        auto fe = element.try_as<mux::FrameworkElement>();
+        return fe ? fe.Parent().try_as<muxc::ScrollViewer>() : nullptr;
+    }
+
+    inline std::vector<muxc::ScrollViewer> AncestorScrollers(mux::UIElement const& element)
+    {
+        std::vector<muxc::ScrollViewer> out;
+        for (auto parent = mux::Media::VisualTreeHelper::GetParent(element); parent; parent = mux::Media::VisualTreeHelper::GetParent(parent))
+        {
+            if (auto sv = parent.try_as<muxc::ScrollViewer>()) out.push_back(sv);
+        }
+        return out;
+    }
+
+    // Painted once and moved by the compositor: all layers scroll with a scroll container's viewport,
+    // or all are fixed to the window and clipped to the border box.
+    inline int AnchorOf(mux::UIElement const& element, Spec const& spec, uint32_t color)
+    {
+        bool any = false, scroll = true, fixed = true;
+        for (auto const& layer : spec.layers)
+        {
+            if (!layer.image.Drawable()) continue;
+            any = true;
+            if (layer.attachment != 0) scroll = false;
+            if (layer.attachment != 1 || layer.clip != BorderBox) fixed = false;
+        }
+        if (!any) return Unanchored;
+        if (scroll && HostScroller(element)) return Scrollport;
+        if (fixed && ((color >> 24) == 0 || spec.layers.back().clip == BorderBox) && element.XamlRoot()) return Viewport;
+        return Unanchored;
+    }
+
+    inline void Attach(mux::UIElement const& element, Spec const& spec, Boxes& boxes)
+    {
+        bool fixed = false, scroll = false;
+        for (auto const& layer : spec.layers)
+        {
+            if (!layer.image.Drawable()) continue;
+            if (layer.attachment == 1) fixed = true;
+            else if (layer.attachment == 0) scroll = true;
+        }
+        if (!fixed && !scroll) return;
+        try
+        {
+            if (auto sv = HostScroller(element))
+            {
+                const float zoom = sv.ZoomFactor() > 0.0f ? sv.ZoomFactor() : 1.0f;
+                const float x = static_cast<float>(sv.HorizontalOffset()) / zoom, y = static_cast<float>(sv.VerticalOffset()) / zoom;
+                const float w = (std::min)(static_cast<float>(sv.ViewportWidth()) / zoom, boxes.width);
+                const float h = (std::min)(static_cast<float>(sv.ViewportHeight()) / zoom, boxes.height);
+                if (w > 0.0f && h > 0.0f)
+                {
+                    boxes.scrollport[0] = x; boxes.scrollport[1] = y;
+                    boxes.scrollport[2] = x + w; boxes.scrollport[3] = y + h;
+                }
+            }
+            auto root = fixed ? element.XamlRoot() : nullptr;
+            if (root)
+            {
+                const auto at = element.TransformToVisual(nullptr).TransformPoint({ 0.0f, 0.0f });
+                const auto size = root.Size();
+                boxes.viewport[0] = -at.X; boxes.viewport[1] = -at.Y;
+                boxes.viewport[2] = static_cast<float>(size.Width) - at.X; boxes.viewport[3] = static_cast<float>(size.Height) - at.Y;
+            }
+        }
+        catch (...)
+        {
+        }
+    }
+
+    inline Boxes Place(mux::UIElement const& element, Spec const& spec, Boxes boxes, int& anchor)
+    {
+        try
+        {
+            if (anchor == Scrollport)
+            {
+                auto sv = HostScroller(element);
+                const float zoom = sv.ZoomFactor() > 0.0f ? sv.ZoomFactor() : 1.0f;
+                const float w = (std::min)(static_cast<float>(sv.ViewportWidth()) / zoom, boxes.width);
+                const float h = (std::min)(static_cast<float>(sv.ViewportHeight()) / zoom, boxes.height);
+                if (w > 0.0f && h > 0.0f)
+                {
+                    boxes.width = w;
+                    boxes.height = h;
+                    return boxes;
+                }
+            }
+            else if (anchor == Viewport)
+            {
+                const auto size = element.XamlRoot().Size();
+                Boxes window;
+                window.width = static_cast<float>(size.Width);
+                window.height = static_cast<float>(size.Height);
+                window.viewport[2] = window.width;
+                window.viewport[3] = window.height;
+                if (window.width > 0.0f && window.height > 0.0f) return window;
+            }
+        }
+        catch (...)
+        {
+        }
+        anchor = Unanchored;
+        Attach(element, spec, boxes);
+        return boxes;
+    }
+
+    inline void Anchor(mux::UIElement const& element, Entry& entry, mucomp::CompositionSurfaceBrush const& brush, int anchor, float scale)
+    {
+        try
+        {
+            if (anchor == Unanchored)
+            {
+                if (entry.anchorBrush == brush)
+                {
+                    brush.StopAnimation(L"Offset");
+                    brush.Offset({ 0.0f, 0.0f });
+                    brush.Scale({ 1.0f, 1.0f });
+                    brush.Stretch(mucomp::CompositionStretch::Fill);
+                }
+                entry.anchor = Unanchored;
+                entry.anchorBrush = nullptr;
+                entry.anchorScrollers.clear();
+                entry.anchorProps = nullptr;
+                return;
+            }
+            const auto scrollers = anchor == Scrollport ? std::vector<muxc::ScrollViewer>{ HostScroller(element) } : AncestorScrollers(element);
+            std::vector<void*> keys;
+            keys.reserve(scrollers.size());
+            for (auto const& sv : scrollers) keys.push_back(winrt::get_abi(sv.as<wf::IUnknown>()));
+            if (anchor == Viewport)
+            {
+                const auto at = element.TransformToVisual(nullptr).TransformPoint({ 0.0f, 0.0f });
+                float x = at.X, y = at.Y;
+                for (auto const& sv : scrollers)
+                {
+                    x += static_cast<float>(sv.HorizontalOffset());
+                    y += static_cast<float>(sv.VerticalOffset());
+                }
+                if (!entry.anchorProps) entry.anchorProps = brush.Compositor().CreatePropertySet();
+                entry.anchorProps.InsertScalar(L"X", x);
+                entry.anchorProps.InsertScalar(L"Y", y);
+            }
+            if (entry.anchorBrush == brush && entry.anchor == anchor && entry.anchorScrollers == keys) return;
+            brush.Stretch(mucomp::CompositionStretch::None);
+            brush.HorizontalAlignmentRatio(0.0f);
+            brush.VerticalAlignmentRatio(0.0f);
+            brush.Scale({ 1.0f / scale, 1.0f / scale });
+            std::wstring ex = anchor == Viewport ? L"-p.X" : L"0", ey = anchor == Viewport ? L"-p.Y" : L"0";
+            auto expr = brush.Compositor().CreateExpressionAnimation();
+            for (size_t i = 0; i < scrollers.size(); ++i)
+            {
+                const std::wstring name = L"s" + std::to_wstring(i);
+                ex += L" - " + name + L".Translation.X";
+                ey += L" - " + name + L".Translation.Y";
+                expr.SetReferenceParameter(name, mux::Hosting::ElementCompositionPreview::GetScrollViewerManipulationPropertySet(scrollers[i]));
+            }
+            if (anchor == Viewport) expr.SetReferenceParameter(L"p", entry.anchorProps);
+            expr.Expression(L"Vector2(" + ex + L", " + ey + L")");
+            brush.StartAnimation(L"Offset", expr);
+            entry.anchor = anchor;
+            entry.anchorBrush = brush;
+            entry.anchorScrollers = std::move(keys);
+        }
+        catch (...)
+        {
+        }
+    }
+
+    inline void Unwatch(Entry& entry)
+    {
+        for (auto& unhook : entry.unhooks) unhook();
+        entry.unhooks.clear();
+        entry.watched = -1;
+    }
+
+    inline void RepaintBackground(mux::UIElement const& element);
+
+    inline void Watch(mux::UIElement const& element, Entry& entry, int anchor)
+    {
+        if (entry.watched == anchor || !element.XamlRoot()) return;
+        Unwatch(entry);
+        entry.watched = anchor;
+        const auto weak = winrt::make_weak(element);
+        auto repaint = [weak](auto&&, auto&&) { if (auto e = weak.get()) RepaintBackground(e); };
+        auto onScroll = [&](muxc::ScrollViewer const& sv)
+        {
+            auto token = sv.ViewChanged(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(sv), token] { if (auto s = w.get()) s.ViewChanged(token); });
+        };
+        auto onRoot = [&]
+        {
+            auto root = element.XamlRoot();
+            auto token = root.Changed(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(root), token] { if (auto r = w.get()) r.Changed(token); });
+        };
+        if (anchor == Scrollport)
+        {
+            auto sv = HostScroller(element);
+            auto token = sv.SizeChanged(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(sv), token] { if (auto s = w.get()) s.SizeChanged(token); });
+            return;
+        }
+        if (anchor == Viewport)
+        {
+            onRoot();
+            if (auto fe = element.try_as<mux::FrameworkElement>())
+            {
+                auto token = fe.EffectiveViewportChanged(repaint);
+                entry.unhooks.push_back([w = winrt::make_weak(fe), token] { if (auto f = w.get()) f.EffectiveViewportChanged(token); });
+            }
+            return;
+        }
+        const auto& layers = entry.background->layers;
+        const bool fixed = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 1; });
+        const bool scroll = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 0; });
+        if (fixed)
+        {
+            for (auto const& sv : AncestorScrollers(element)) onScroll(sv);
+            onRoot();
+        }
+        else if (scroll)
+        {
+            if (auto sv = HostScroller(element)) onScroll(sv);
+        }
+    }
+
+    inline mucomp::CompositionBrush PaintBackgroundFor(mux::UIElement const& element, Entry& entry, uint32_t color, uint32_t textColor, float scale)
+    {
+        int anchor = AnchorOf(element, *entry.background, color);
+        const Boxes boxes = Place(element, *entry.background, entry.backgroundLayout, anchor);
+        Watch(element, entry, anchor);
+        if (!entry.backgroundBrush || !(entry.backgroundBoxes == boxes) || entry.backgroundColor != color || entry.backgroundTextColor != textColor
+            || entry.backgroundScale != scale)
+        {
+            auto spec = entry.background;
+            const std::string key = SurfaceKey("cssbackground", entry);
+            auto brush = PaintSurface(key, std::ceil(boxes.width * scale), std::ceil(boxes.height * scale),
+                [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); });
+            if (!brush) return nullptr;
+            entry.backgroundBrush = brush;
+            entry.backgroundKey = key;
+            entry.backgroundBoxes = boxes;
+            entry.backgroundColor = color;
+            entry.backgroundTextColor = textColor;
+            entry.backgroundScale = scale;
+        }
+        Anchor(element, entry, entry.backgroundBrush, anchor, scale);
+        return entry.backgroundBrush;
+    }
+
+    inline void RepaintBackground(mux::UIElement const& element)
+    {
+        auto* entry = Find(element);
+        if (!entry || !entry->background || !entry->backgroundBrush) return;
+        PaintBackgroundFor(element, *entry, entry->backgroundColor, entry->backgroundTextColor, entry->backgroundScale);
+    }
+
     inline bool HasBackground(mux::UIElement const& element)
     {
         auto* entry = Find(element);
@@ -1397,14 +1964,20 @@ namespace mason_cssmask
             auto* entry = Find(element);
             if (!entry || !entry->background) return;
             entry->background = nullptr;
+            Unwatch(*entry);
             ReleaseSurface(entry->backgroundKey);
             entry->backgroundBrush = nullptr;
             entry->backgroundKey.clear();
+            entry->anchor = Unanchored;
+            entry->anchorBrush = nullptr;
+            entry->anchorScrollers.clear();
+            entry->anchorProps = nullptr;
             return;
         }
         auto& entry = Ensure(element);
         entry.background = std::move(spec);
         entry.backgroundBrush = nullptr;
+        Unwatch(entry);
     }
 
     // The painted background (colour under the image layers) for the element's current size.
@@ -1413,23 +1986,16 @@ namespace mason_cssmask
     {
         auto* entry = Find(element);
         if (!entry || !entry->background || width <= 0.0f || height <= 0.0f) return nullptr;
-        const Boxes boxes = BoxesOf(node, width, height);
-        if (entry->backgroundBrush && entry->backgroundBoxes == boxes && entry->backgroundColor == color && entry->backgroundTextColor == textColor
-            && entry->backgroundScale == scale)
+        entry->backgroundLayout = BoxesOf(node, width, height);
+        auto brush = PaintBackgroundFor(element, *entry, color, textColor, scale);
+        if (brush && entry->watched == Unanchored && !entry->unhooks.empty())
         {
-            return entry->backgroundBrush;
+            if (auto queue = element.DispatcherQueue())
+            {
+                queue.TryEnqueue(winrt::Microsoft::UI::Dispatching::DispatcherQueuePriority::Low,
+                    [weak = winrt::make_weak(element)] { if (auto e = weak.get()) RepaintBackground(e); });
+            }
         }
-        auto spec = entry->background;
-        const std::string key = SurfaceKey("cssbackground", *entry);
-        auto brush = PaintSurface(key, std::ceil(width * scale), std::ceil(height * scale),
-            [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); });
-        if (!brush) return nullptr;
-        entry->backgroundBrush = brush;
-        entry->backgroundKey = key;
-        entry->backgroundBoxes = boxes;
-        entry->backgroundColor = color;
-        entry->backgroundTextColor = textColor;
-        entry->backgroundScale = scale;
         return brush;
     }
 

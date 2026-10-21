@@ -105,6 +105,17 @@ class Spans {
       get() = Type.Typeface
   }
 
+  /** A text size in device px. AbsoluteSizeSpan takes whole px, which drifts at fractional densities. */
+  class PxSizeSpan(val px: Float) : android.text.style.MetricAffectingSpan() {
+    override fun updateDrawState(tp: TextPaint) {
+      tp.textSize = px
+    }
+
+    override fun updateMeasureState(tp: TextPaint) {
+      tp.textSize = px
+    }
+  }
+
   class SizeSpan(val attributes: TextDefaultAttributes, val scale: Boolean = false) :
     android.text.style.AbsoluteSizeSpan(attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE, scale),
     NSCSpan {

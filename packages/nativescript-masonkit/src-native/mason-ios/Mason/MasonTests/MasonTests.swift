@@ -5,7 +5,9 @@
 //  Created by Osei Fortune on 28/11/2022.
 //
 
+import CoreImage
 import CoreText
+import Metal
 import XCTest
 @testable import Mason
 
@@ -891,5 +893,324 @@ final class ReapplyTests: XCTestCase {
     child.setSize(70, 30)
     root.computeWithSize(100, 100)
     XCTAssertEqual(child.frame.size.width, first.size.width * 70 / 50, accuracy: 0.5)
+  }
+}
+
+final class CSSFilterFunctionTests: XCTestCase {
+
+  /// One opaque sRGB pixel through a filter chain, as 0...255 channels.
+  private func run(_ css: String, _ r: CGFloat, _ g: CGFloat, _ b: CGFloat) throws -> [Int] {
+    let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+    let context = CSSFilters.makeContext(device)
+    let input = CIImage(color: CIColor(red: r, green: g, blue: b, alpha: 1, colorSpace: CSSFilters.sRGB)!)
+      .cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
+    let output = CSSFilters.applyBackdropChain(CSSFilters.parse(css), to: input, scale: 1)
+    var px = [UInt8](repeating: 0, count: 4)
+    context.render(output, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: 1, y: 1, width: 1, height: 1),
+                   format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return px.prefix(3).map { Int($0) }
+  }
+
+  private func assertPixel(_ css: String, _ input: (CGFloat, CGFloat, CGFloat), _ expected: [Int], line: UInt = #line) throws {
+    let actual = try run(css, input.0, input.1, input.2)
+    for (a, e) in zip(actual, expected) {
+      XCTAssertEqual(a, e, accuracy: 2, "\(css): \(actual) vs \(expected)", line: line)
+    }
+  }
+
+  func testColorFunctionsMatchTheSpecInSRGB() throws {
+    // Expected values: the Filter Effects 1 matrices applied to gamma-encoded sRGB, as browsers do.
+    try assertPixel("brightness(0.5)", (1, 1, 1), [128, 128, 128])
+    try assertPixel("brightness(1.5)", (0.4, 0.2, 0), [153, 77, 0])
+    try assertPixel("contrast(2)", (0.75, 0.25, 0.5), [255, 0, 128])
+    try assertPixel("grayscale(1)", (1, 0, 0), [54, 54, 54])
+    try assertPixel("sepia(1)", (1, 1, 1), [255, 255, 239])
+    try assertPixel("saturate(0)", (0, 0, 1), [18, 18, 18])
+    try assertPixel("hue-rotate(90deg)", (1, 0, 0), [0, 91, 0])
+    try assertPixel("invert(1)", (1, 0.25, 0), [0, 191, 255])
+    try assertPixel("invert(0.5)", (1, 0, 0), [128, 128, 128])
+    try assertPixel("brightness(2) contrast(0.5)", (0.25, 0.25, 0.25), [128, 128, 128])
+  }
+
+  func testLengthsAreCSSPixels() {
+    guard case .blur(let radius) = CSSFilters.parse("blur(6px)").first else { return XCTFail("blur") }
+    XCTAssertEqual(radius, 6)
+    guard case .dropShadow(let x, let y, let blur, _) = CSSFilters.parse("drop-shadow(2px 3px 4px black)").first else { return XCTFail("drop-shadow") }
+    XCTAssertEqual([x, y, blur], [2, 3, 4])
+  }
+}
+
+final class ElementFilterTests: XCTestCase {
+  private let box = CGRect(x: 0, y: 0, width: 20, height: 20)
+
+  /// An opaque `color` square the size of `box`, at 1 pixel per point.
+  private func square(_ color: CIColor) -> CIImage {
+    CIImage(color: color).cropped(to: box)
+  }
+
+  /// RGBA at Core Image pixel (x, y), y up from the box's bottom edge.
+  private func rgba(_ image: CIImage, _ x: CGFloat, _ y: CGFloat) throws -> [Int] {
+    let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+    var px = [UInt8](repeating: 0, count: 4)
+    CSSFilters.makeContext(device).render(image, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: x, y: y, width: 1, height: 1),
+                                          format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return px.map { Int($0) }
+  }
+
+  func testPaintRegionGrowsByThreeDeviationsPerBlurAndFollowsShadows() {
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("blur(4px)"), box: CGRect(x: 0, y: 0, width: 100, height: 50)),
+                   CGRect(x: -12, y: -12, width: 124, height: 74))
+    // The third length is the standard deviation, so 12pt around the offset box.
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("drop-shadow(10px 5px 4px black)"), box: CGRect(x: 0, y: 0, width: 100, height: 50)),
+                   CGRect(x: -2, y: -7, width: 124, height: 74))
+    XCTAssertEqual(CSSFilters.paintRegion(CSSFilters.parse("grayscale(1)"), box: box), box)
+    XCTAssertEqual(CSSFilters.paintRegionPixels(CSSFilters.parse("blur(1px)"), box: box, scale: 3),
+                   CGRect(x: -9, y: -9, width: 78, height: 78))
+  }
+
+  func testChainKinds() {
+    XCTAssertTrue(CSSFilters.isShadowOnly(CSSFilters.parse("drop-shadow(1px 1px red) drop-shadow(2px 2px blue)")))
+    XCTAssertFalse(CSSFilters.isShadowOnly(CSSFilters.parse("drop-shadow(1px 1px red) brightness(0.5)")))
+    XCTAssertTrue(CSSFilters.needsBackdropCover(CSSFilters.parse("blur(2px)")))
+    XCTAssertTrue(CSSFilters.needsBackdropCover(CSSFilters.parse("grayscale(1) opacity(0.5)")))
+    XCTAssertFalse(CSSFilters.needsBackdropCover(CSSFilters.parse("drop-shadow(1px 1px 2px red) sepia(1)")))
+  }
+
+  func testBlurSpreadsPastTheBoxAndFadesAtItsEdges() throws {
+    let out = CSSFilters.applyElementChain(CSSFilters.parse("blur(4px)"), to: square(CIColor(red: 1, green: 0, blue: 0)), scale: 1)
+    XCTAssertGreaterThan(try rgba(out, -3, 10)[3], 20, "paints outside the box")
+    XCTAssertEqual(Double(try rgba(out, 0, 10)[3]), 128, accuracy: 20, "half covered at the edge")
+    // A 2.5 sd margin on both axes: erf(2.5 / sqrt(2)) squared.
+    XCTAssertEqual(try rgba(out, 10, 10)[3], 249, accuracy: 3)
+    XCTAssertLessThan(try rgba(out, -13, 10)[3], 2)
+  }
+
+  func testDropShadowIsTheBlurredAlphaInItsColourUnderTheImage() throws {
+    let white = square(CIColor(red: 1, green: 1, blue: 1))
+    let out = CSSFilters.applyElementChain(CSSFilters.parse("drop-shadow(40px 0 4px blue)"), to: white, scale: 1)
+    XCTAssertEqual(Array(try rgba(out, 10, 10).prefix(3)), [255, 255, 255], "the element stays on top")
+    let centre = try rgba(out, 50, 10)
+    XCTAssertEqual(centre[2], centre[3], accuracy: 3)
+    XCTAssertLessThan(centre[0], 10, "the shadow is its colour, not a copy of the element")
+    XCTAssertGreaterThan(centre[3], 230)
+    XCTAssertEqual(Double(try rgba(out, 60, 10)[3]), 128, accuracy: 25, "blurred, not a hard edge")
+
+    let shadows = CSSFilters.applyShadowsOnly(CSSFilters.parse("drop-shadow(40px 0 4px blue)"), to: white, scale: 1)
+    XCTAssertLessThan(try rgba(shadows, 10, 10)[3], 10, "the shadow-only output leaves the element out")
+    XCTAssertGreaterThan(try rgba(shadows, 50, 10)[3], 230)
+  }
+
+  func testShadowColoursParseWithoutCrashing() {
+    for css in ["drop-shadow(1px 1px rgb(0 0 0 / 50%))", "drop-shadow(1px 1px #zzz)", "drop-shadow(1px 1px hsl(120 100% 50%))", "drop-shadow(#ff000080 1px 1px)"] {
+      XCTAssertEqual(CSSFilters.parse(css).count, 1, css)
+    }
+    guard case .dropShadow(_, _, _, let color) = CSSFilters.parse("drop-shadow(#ff000080 1px 1px)").first else { return XCTFail("parse") }
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    color.getRed(&r, green: &g, blue: &b, alpha: &a)
+    XCTAssertEqual(r, 1, accuracy: 0.01)
+    XCTAssertEqual(a, 0.5, accuracy: 0.01)
+  }
+}
+
+final class BackdropCaptureTests: XCTestCase {
+  /// The sRGB pixel at (x, 5) of `layer` rendered with `render(in:)`.
+  private func pixel(_ layer: CALayer, _ x: CGFloat) -> [UInt8] {
+    let fmt = UIGraphicsImageRendererFormat()
+    fmt.scale = 1
+    fmt.preferredRange = .standard
+    let img = UIGraphicsImageRenderer(size: layer.bounds.size, format: fmt).image { ctx in layer.render(in: ctx.cgContext) }
+    var px = [UInt8](repeating: 0, count: 4)
+    CIContext().render(CIImage(cgImage: img.cgImage!), toBitmap: &px, rowBytes: 4, bounds: CGRect(x: x, y: 5, width: 1, height: 1),
+                       format: .RGBA8, colorSpace: CSSFilters.sRGB)
+    return Array(px.prefix(3))
+  }
+
+  func testGradientLayersAreCapturedAsTheScreenShowsThem() {
+    let root = CALayer()
+    root.frame = CGRect(x: 0, y: 0, width: 100, height: 10)
+    let g = CAGradientLayer()
+    g.frame = root.bounds
+    g.colors = [UIColor.blue.cgColor, UIColor.magenta.cgColor]
+    g.startPoint = CGPoint(x: 0, y: 0.5)
+    g.endPoint = CGPoint(x: 1, y: 0.5)
+    root.addSublayer(g)
+
+    // render(in:) alone blends blue to magenta through green.
+    XCTAssertGreaterThan(pixel(root, 50)[1], 30)
+
+    let swapped = CSSFilters.substituteGradients(in: root, rect: root.bounds, scale: 1)
+    XCTAssertEqual(swapped.count, 1)
+    let mid = pixel(root, 50)
+    XCTAssertEqual(Double(mid[0]), 128, accuracy: 3)
+    XCTAssertEqual(mid[1], 0)
+    XCTAssertEqual(mid[2], 255)
+    XCTAssertEqual(pixel(root, 2)[0], 3, accuracy: 4, "start at the left")
+    for (layer, colors, contents) in swapped {
+      layer.colors = colors
+      layer.contents = contents
+    }
+    XCTAssertEqual(g.colors?.count, 2)
+    XCTAssertNil(g.contents)
+    XCTAssertTrue(CSSFilters.substituteGradients(in: root, rect: CGRect(x: 200, y: 0, width: 10, height: 10), scale: 1).isEmpty,
+                  "a gradient outside the region is left alone")
+  }
+}
+
+final class TextFeatureTests: XCTestCase {
+
+  private func width(_ s: NSAttributedString) -> CGFloat {
+    CGFloat(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(s), nil, nil, nil))
+  }
+
+  func testUnsetTextJustifyReadsAsAuto() {
+    let text = NSCMason.shared.createTextView(type: .P)
+    XCTAssertEqual(text.node.style.resolvedTextJustify, .Auto)
+  }
+
+  func testFontFeatureSettingsParse() {
+    XCTAssertTrue(parseFontFeatureSettings("normal").isEmpty)
+    let parsed = parseFontFeatureSettings("\"liga\" 0, 'tnum', \"ss01\" on, \"kern\" off, \"cv01\" 3")
+    XCTAssertEqual(parsed.map { $0.tag }, ["liga", "tnum", "ss01", "kern", "cv01"])
+    XCTAssertEqual(parsed.map { $0.value }, [0, 1, 1, 0, 3])
+    XCTAssertTrue(parseFontFeatureSettings("\"toolong\"").isEmpty, "a tag is four characters")
+    XCTAssertTrue(parseFontFeatureSettings("\"liga\" -1").isEmpty)
+  }
+
+  func testTabularNumbersChangeDigitWidths() {
+    let font = CTFontCreateUIFontForLanguage(.system, 16, nil)!
+    let attrs = [kCTFontFeatureSettingsAttribute: [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]] as CFArray] as CFDictionary
+    let tabular = CTFontCreateCopyWithAttributes(font, 0, nil, CTFontDescriptorCreateWithAttributes(attrs))
+    let ones = width(NSAttributedString(string: "1111", attributes: [.font: font]))
+    let tabularOnes = width(NSAttributedString(string: "1111", attributes: [.font: tabular]))
+    let zeros = width(NSAttributedString(string: "0000", attributes: [.font: tabular]))
+    XCTAssertNotEqual(ones, tabularOnes, accuracy: 0.1)
+    XCTAssertEqual(tabularOnes, zeros, accuracy: 0.1)
+  }
+
+  func testFontStretchNarrowsAndWidens() {
+    let font = CTFontCreateUIFontForLanguage(.system, 16, nil)!
+    let normal = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: font]))
+    let condensed = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: applyingFontStretch(font, percent: 75)]))
+    let expanded = width(NSAttributedString(string: "Wide and narrow", attributes: [.font: applyingFontStretch(font, percent: 125)]))
+    XCTAssertLessThan(condensed, normal - 5)
+    XCTAssertGreaterThan(expanded, normal + 5)
+  }
+
+  func testWordSpacingKernsSpacesOnly() {
+    let s = NSMutableAttributedString(string: "a b\u{00A0}c", attributes: [.kern: CGFloat(1), Constants.WORD_SPACING_KEY: CGFloat(5)])
+    TextEngine.applyWordSpacing(s)
+    XCTAssertEqual(s.attribute(.kern, at: 0, effectiveRange: nil) as? CGFloat, 1)
+    XCTAssertEqual(s.attribute(.kern, at: 1, effectiveRange: nil) as? CGFloat, 6)
+    XCTAssertEqual(s.attribute(.kern, at: 3, effectiveRange: nil) as? CGFloat, 6)
+    // A container flattening this string applies nothing more.
+    TextEngine.applyWordSpacing(s)
+    XCTAssertEqual(s.attribute(.kern, at: 1, effectiveRange: nil) as? CGFloat, 6)
+  }
+
+  func testInterCharacterJustificationFillsEachLineButTheLast() {
+    let font = CTFontCreateWithName("Helvetica" as CFString, 16, nil)
+    let text = NSAttributedString(string: "aaaa bbbb cccc dddd eeee ffff", attributes: [.font: font])
+    let justified = TextEngine.justifying(text, 100, .characters)
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: 100, height: 1000), transform: nil)
+    let before = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(text), CFRange(), path, nil)
+    let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(justified), CFRange(), path, nil)
+    let lines = CTFrameGetLines(frame) as! [CTLine]
+    XCTAssertEqual(lines.count, (CTFrameGetLines(before) as! [CTLine]).count, "same breaks")
+    XCTAssertGreaterThan(lines.count, 1)
+    for line in lines.dropLast() {
+      let used = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      XCTAssertEqual(used, 100, accuracy: 0.1)
+    }
+    let last = lines.last!
+    XCTAssertLessThan(CGFloat(CTLineGetTypographicBounds(last, nil, nil, nil)), 99)
+  }
+
+  func testInterWordJustificationWidensOnlySpaces() {
+    let font = CTFontCreateWithName("Helvetica" as CFString, 16, nil)
+    let text = NSAttributedString(string: "aaaa bbbb cccc dddd eeee ffff", attributes: [.font: font])
+    let justified = TextEngine.justifying(text, 100, .words)
+    for i in 0..<justified.length {
+      let kern = justified.attribute(.kern, at: i, effectiveRange: nil) as? CGFloat
+      if (text.string as NSString).character(at: i) != 0x20 { XCTAssertNil(kern, "letters keep their spacing") }
+    }
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: 100, height: 1000), transform: nil)
+    let lines = CTFrameGetLines(CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(justified), CFRange(), path, nil)) as! [CTLine]
+    for line in lines.dropLast() where CTLineGetStringRange(line).length > 5 {
+      let used = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      XCTAssertEqual(used, 100, accuracy: 0.1)
+    }
+  }
+
+  func testPercentTranslateResolvesAgainstTheBox() {
+    let ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)] = [
+      (.translate, StyleKeys.TRANSFORM_OP_A_PERCENT | StyleKeys.TRANSFORM_OP_B_PERCENT, -50, -50),
+      (.translateX, 0, 10, 0),
+    ]
+    let t = MasonStyle.composeTransformOps(ops, size: CGSize(width: 60, height: 30))
+    XCTAssertEqual(t.tx, -20, accuracy: 1e-6)
+    XCTAssertEqual(t.ty, -15, accuracy: 1e-6)
+  }
+}
+
+final class HTMLParserTests: XCTestCase {
+
+  private func texts(_ node: MasonNode) -> [String] {
+    node.children.flatMap { child -> [String] in
+      if let t = child as? MasonTextNode { return [t.data] }
+      return texts(child)
+    }
+  }
+
+  func testPreKeepsWhitespace() {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<pre>\n  a  b\n<code>  c\n    d</code></pre><p>  e   f  </p>")
+    XCTAssertEqual(roots.count, 2)
+    XCTAssertEqual(texts(roots[0]), ["  a  b\n", "  c\n    d"], "verbatim, minus the newline right after <pre>")
+    XCTAssertEqual(texts(roots[1]), [" e f "])
+  }
+
+  func testDropsStyleAndScript() {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<style>p { color: red }</style><div>a<script>alert(1)</script>b</div><title>t</title><meta charset='utf-8'>")
+    XCTAssertEqual(roots.count, 1)
+    XCTAssertEqual(texts(roots[0]), ["a", "b"])
+  }
+
+  func testAppliesValueAndPlaceholder() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<input value='hi' placeholder='Name'><textarea placeholder='Notes'></textarea>")
+    let input = try XCTUnwrap(roots.first?.view as? MasonInput)
+    XCTAssertEqual(input.value, "hi")
+    XCTAssertEqual(input.placeholder, "Name")
+    let area = try XCTUnwrap(roots.last?.view as? MasonTextArea)
+    XCTAssertEqual(area.placeholder, "Notes")
+  }
+
+  func testDisabledInputAndTextArea() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<input disabled><textarea disabled></textarea><input type='checkbox' disabled>")
+    let input = try XCTUnwrap(roots[0].view as? MasonInput)
+    XCTAssertTrue(input.disabled)
+    XCTAssertFalse(input.isUserInteractionEnabled)
+    let area = try XCTUnwrap(roots[1].view as? MasonTextArea)
+    XCTAssertTrue(area.disabled)
+    XCTAssertFalse(area.isEditable)
+    XCTAssertFalse(area.isSelectable)
+    let checkbox = try XCTUnwrap(roots[2].view as? MasonInput)
+    XCTAssertFalse(checkbox.checkboxInput.isEnabled, "native controls draw disabled")
+
+    input.type = .Range
+    XCTAssertFalse(input.rangeInput.isEnabled, "kept across a type change")
+    input.disabled = false
+    XCTAssertTrue(input.isUserInteractionEnabled)
+    XCTAssertTrue(input.rangeInput.isEnabled)
+  }
+
+  func testViewportUnitText() {
+    XCTAssertTrue(hasViewportUnit("50vw"))
+    XCTAssertTrue(hasViewportUnit("calc(100vh - 10px)"))
+    XCTAssertTrue(hasViewportUnit("1px solid red, 2.5VMIN"))
+    XCTAssertFalse(hasViewportUnit("10px"))
+    XCTAssertFalse(hasViewportUnit("url(vw.png)"))
   }
 }

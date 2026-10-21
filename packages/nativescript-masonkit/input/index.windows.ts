@@ -2,7 +2,7 @@ import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
 import { ViewBase, windowsFontSource } from '../common';
 import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, syncCheckedPseudoClass, typeProperty } from './common';
-import { masonEngine } from '../windows-panel-helpers';
+import { masonEngine } from '../panel-helpers';
 import { toCamelCase } from '../css-shorthands';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';

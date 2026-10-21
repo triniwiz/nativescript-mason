@@ -348,7 +348,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
           !gradient.repeating, gradient.type.lowercased() == "linear",
           bg.boxInsets(bgLayer.origin) == .zero,
           bounds.width > 0, bounds.height > 0 else { return nil }
-    let parsed = parseGradientStops(gradient.stops)
+    let w = bounds.width
+    let h = bounds.height
+    let (start, end) = linearGradientPoints(direction: gradient.direction, width: w, height: h)
+    let parsed = parseGradientStops(gradient.stops, lineLength: hypot(end.x - start.x, end.y - start.y))
     guard !parsed.colors.isEmpty else { return nil }
     let (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
     guard colors.allSatisfy({ $0.alpha >= 1 }) else { return nil }
@@ -357,9 +360,6 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
             zip(locations, locations.dropFirst()).allSatisfy({ $0 <= $1 }),
             locations.allSatisfy({ $0 >= 0 && $0 <= 1 }) else { return nil }
     }
-    let w = bounds.width
-    let h = bounds.height
-    let (start, end) = linearGradientPoints(direction: gradient.direction, width: w, height: h)
     // Core Animation keeps the bands perpendicular to start->end in unit space.
     let lengthSq = (end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y)
     guard lengthSq > 0 else { return nil }
@@ -772,7 +772,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // clips the gradient background to the rounded border path, so corners stay
     // clean without it.
     if layer.shouldRasterize { layer.shouldRasterize = false }
-    // Transforms pivot on the layer's centre anchor; only a transform-origin depends on the size.
+    // Transforms pivot on the layer's centre anchor; a transform-origin or a percentage depends on the size.
     if style.transformDependsOnOrigin { style.applyTransformFromBuffer() }
   }
 

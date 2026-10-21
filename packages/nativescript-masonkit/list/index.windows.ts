@@ -3,7 +3,7 @@ import { ListBase } from './common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, native_, style_ } from '../symbols';
-import { appendNativeChild } from '../windows-panel-helpers';
+import { appendNativeChild } from '../panel-helpers';
 
 class ListView extends ListBase {
   [style_];

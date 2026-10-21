@@ -80,11 +80,49 @@ enum BackgroundBlendMode: String {
 }
 
 // MARK: - BackgroundRepeat
-enum BackgroundRepeat: String {
-  case repeatXY = "repeat"
-  case repeatX = "repeat-x"
-  case repeatY = "repeat-y"
+/// One axis of `background-repeat` / `mask-repeat`.
+enum RepeatStyle: String {
+  case `repeat`
+  case space
+  case round
   case noRepeat = "no-repeat"
+}
+
+struct BackgroundRepeat: Equatable {
+  var x: RepeatStyle
+  var y: RepeatStyle
+
+  static let repeatXY = BackgroundRepeat(x: .repeat, y: .repeat)
+  static let repeatX = BackgroundRepeat(x: .repeat, y: .noRepeat)
+  static let repeatY = BackgroundRepeat(x: .noRepeat, y: .repeat)
+  static let noRepeat = BackgroundRepeat(x: .noRepeat, y: .noRepeat)
+
+  /// One or two keywords (`repeat-x`, `space round`, ...); nil when invalid.
+  static func parse(_ value: String) -> BackgroundRepeat? {
+    let tokens = splitTopLevelWhitespace(value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    switch tokens.count {
+    case 1:
+      switch tokens[0] {
+      case "repeat-x": return .repeatX
+      case "repeat-y": return .repeatY
+      default:
+        guard let style = RepeatStyle(rawValue: tokens[0]) else { return nil }
+        return BackgroundRepeat(x: style, y: style)
+      }
+    case 2:
+      guard let x = RepeatStyle(rawValue: tokens[0]), let y = RepeatStyle(rawValue: tokens[1]) else { return nil }
+      return BackgroundRepeat(x: x, y: y)
+    default:
+      return nil
+    }
+  }
+
+  var rawValue: String {
+    if x == y { return x.rawValue }
+    if self == .repeatX { return "repeat-x" }
+    if self == .repeatY { return "repeat-y" }
+    return "\(x.rawValue) \(y.rawValue)"
+  }
 }
 
 // MARK: - Gradient
@@ -149,6 +187,8 @@ class BackgroundLayer {
   var shader: CGGradient? = nil
   // remember dimensions used to create cached gradient
   var shaderWidth: CGFloat = -1
+  /// A radial shader's end radius, in ending-shape radii.
+  var shaderExtent: CGFloat = 1
   var shaderHeight: CGFloat = -1
   /// The stops `shader` was built from; a conic gradient samples them itself.
   var shaderColors: [CGColor] = []
@@ -305,7 +345,7 @@ class Background {
       let v = parts[idx % parts.count]
       switch name {
       case "background-repeat":
-        layer.repeatType = parseRepeat(v)
+        if let r = BackgroundRepeat.parse(v) { layer.repeatType = r }
       case "background-position":
         if let p = parsePosition(splitTopLevelWhitespace(v)) { layer.position = p }
       case "background-position-x":
@@ -501,13 +541,13 @@ func parseBackgroundLayers(_ css: String) -> [BackgroundLayer] {
   splitBackgroundLayers(css).map { parseLayer($0) }.filter { !$0.isDefault }
 }
 
-private let REPEAT_KEYS: Set<String> = ["repeat", "repeat-x", "repeat-y", "no-repeat"]
+private let REPEAT_KEYS: Set<String> = ["repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round"]
 private let POSITION_KEYS: Set<String> = ["top", "bottom", "left", "right", "center"]
 private let BOX_KEYWORDS: Set<String> = ["border-box", "padding-box", "content-box"]
 private let ATTACHMENT_KEYWORDS: Set<String> = ["scroll", "fixed", "local"]
 
 func parseRepeat(_ value: String) -> BackgroundRepeat {
-  BackgroundRepeat(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) ?? .noRepeat
+  BackgroundRepeat.parse(value) ?? .noRepeat
 }
 
 /// Cut the first `linear-`/`radial-`/`conic-gradient(...)` (or its `repeating-` form) out of
@@ -564,6 +604,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
   var boxes: [BackgroundClip] = []
   var positionTokens: [String] = []
   var sizeTokens: [String] = []
+  var repeatTokens: [String] = []
   var afterSlash = false
   for raw in splitTopLevelWhitespace(value) {
     let t = raw.lowercased()
@@ -584,7 +625,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
     } else if afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != nil) {
       sizeTokens.append(t)
     } else if REPEAT_KEYS.contains(t) {
-      layer.repeatType = parseRepeat(t)
+      repeatTokens.append(t)
     } else if ATTACHMENT_KEYWORDS.contains(t), let attachment = BackgroundAttachment.parse(t) {
       layer.attachment = attachment
     } else if BOX_KEYWORDS.contains(t), let box = BackgroundClip.parse(t) {
@@ -596,6 +637,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       layer.backgroundColor = col
     }
   }
+  if let r = BackgroundRepeat.parse(repeatTokens.joined(separator: " ")) { layer.repeatType = r }
   if !positionTokens.isEmpty { layer.position = parsePosition(positionTokens) }
   if !sizeTokens.isEmpty { layer.size = parseSize(sizeTokens.joined(separator: " ")) }
   if boxes.count == 1 {
@@ -766,7 +808,7 @@ func parseGradient(_ str: String) -> Gradient? {
       interpolation = extracted.method
       t = extracted.rest
     }
-    if !t.isEmpty && isAngleOrDirection(t) {
+    if !t.isEmpty && (isAngleOrDirection(t) || (type.hasSuffix("radial") && isRadialPrelude(t))) {
       direction = t
     }
     if direction != nil || extracted != nil {
@@ -809,6 +851,14 @@ func expandColorStops(_ stops: [String]) -> [String] {
     return parts.count == 3 ? ["\(parts[0]) \(parts[1])", "\(parts[0]) \(parts[2])"] : [stop]
   }
 }
+
+/// A radial shape and size with no `at`: `circle 50px`, `40px 20%`, `ellipse closest-side`.
+private func isRadialPrelude(_ value: String) -> Bool {
+  let tokens = value.lowercased().split(separator: " ").map(String.init)
+  return !tokens.isEmpty && tokens.allSatisfy { radialShapeKeywords.contains($0) || parseLengthPercentage($0) != nil }
+}
+
+let radialShapeKeywords: Set<String> = ["circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner"]
 
 // MARK: - Helper to detect if a token is an angle, direction, or radial shape/position
 private func isAngleOrDirection(_ token: String) -> Bool {

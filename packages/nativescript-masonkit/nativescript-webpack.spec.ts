@@ -6,8 +6,8 @@ const applyConfig = createRequire(import.meta.url)('./nativescript.webpack.js') 
 
 const APP_ENTRY = '/app/src/app.ts';
 
-/** Runs the config against a bundle entry holding `entries`, returning the result. */
-function bundleAfterConfig(entries: string[]): string[] {
+/** Runs the config against a bundle entry holding `entries` and DefinePlugin `defines`. */
+function runConfig(entries: string[], defines: Record<string, unknown> | null = {}, platform = 'android') {
   let values = [...entries];
   const bundle = {
     values: () => [...values],
@@ -20,12 +20,20 @@ function bundleAfterConfig(entries: string[]): string[] {
       return bundle;
     },
   };
+  let args = defines ? [defines] : [];
+  const config = {
+    entry: () => bundle,
+    plugins: { has: (name: string) => name === 'DefinePlugin' && defines !== null },
+    plugin: () => ({ tap: (fn: (a: unknown[]) => unknown[]) => (args = fn(args) as typeof args) }),
+  };
   applyConfig({
-    Utils: { platform: { getEntryPath: () => APP_ENTRY } },
-    chainWebpack: (fn: (config: unknown) => void) => fn({ entry: () => bundle }),
+    Utils: { platform: { getEntryPath: () => APP_ENTRY, getPlatformName: () => platform } },
+    chainWebpack: (fn: (config: unknown) => void) => fn(config),
   });
-  return values;
+  return { entries: values, defines: args[0] };
 }
+
+const bundleAfterConfig = (entries: string[]) => runConfig(entries).entries;
 
 describe('nativescript.webpack.js', () => {
   // app-css-loader imports app.css at the top of the app entry, so MasonKit's
@@ -38,5 +46,12 @@ describe('nativescript.webpack.js', () => {
     expect(bundleAfterConfig(['@nativescript/core/globals/index'])).toEqual(['@nativescript/core/globals/index']);
     const already = ['@triniwiz/nativescript-masonkit', APP_ENTRY];
     expect(bundleAfterConfig(already)).toEqual(already);
+  });
+
+  it('defines __WINDOWS__ when the webpack release does not', () => {
+    expect(runConfig([APP_ENTRY], { __ANDROID__: true }).defines).toEqual({ __ANDROID__: true, __WINDOWS__: false });
+    expect(runConfig([APP_ENTRY], {}, 'windows').defines).toEqual({ __WINDOWS__: true });
+    expect(runConfig([APP_ENTRY], { __WINDOWS__: 'kept' }).defines).toEqual({ __WINDOWS__: 'kept' });
+    expect(runConfig([APP_ENTRY], null).entries).toEqual(['@triniwiz/nativescript-masonkit', APP_ENTRY]);
   });
 });

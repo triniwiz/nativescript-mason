@@ -2,7 +2,7 @@ import { TextBase, textContentProperty, windowsMemberKind } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isText_, isMasonView_, native_, runMember_ } from '../symbols';
-import { removeNativeChild } from '../windows-panel-helpers';
+import { removeNativeChild } from '../panel-helpers';
 
 // crates/mason-core/src/utils/ua_defaults.rs as [font size, margin top, bottom, left, right] in CSS
 // px, a font size of 0 leaving it inherited. Android and iOS read it over FFI;

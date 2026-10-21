@@ -49,7 +49,8 @@ internal class ThemelessContext private constructor(base: Context, template: and
   ContextThemeWrapper(base, base.resources.newTheme()) {
   // The paint a themed platform TextView starts with (flags, typeface, density, locale).
   // TextPaint.set, unlike the copy constructor, also copies density, which dip sizes use.
-  private val templatePaint = TextPaint().apply { set(template.paint) }
+  // Unhinted advances: whole-pixel glyphs drift at fractional densities (2.625, 2.75).
+  private val templatePaint = TextPaint().apply { set(template.paint); isSubpixelText = true; isLinearText = true }
 
   fun newTextPaint(): TextPaint = TextPaint().apply { set(templatePaint) }
 
@@ -61,7 +62,7 @@ internal class ThemelessContext private constructor(base: Context, template: and
     fun textPaint(context: Context): TextPaint {
       val wrapped = wrap(context)
       return (wrapped as? ThemelessContext)?.newTextPaint()
-        ?: TextPaint().apply { set(android.widget.TextView(context).paint) }
+        ?: TextPaint().apply { set(android.widget.TextView(context).paint); isSubpixelText = true; isLinearText = true }
     }
 
     fun wrap(context: Context): Context {
@@ -759,9 +760,11 @@ open class TextView @JvmOverloads constructor(
     if (textPaint.flags and Paint.UNDERLINE_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_UNDERLINE
     if (textPaint.flags and Paint.STRIKE_THRU_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_STRIKE_THRU
     structure.setTextStyle(textPaint.textSize, textPaint.color, AssistStructure.ViewNode.TEXT_COLOR_UNDEFINED, style)
-    structure.setMinTextEms(-1)
-    structure.setMaxTextEms(-1)
-    structure.setMaxTextLength(-1)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      structure.setMinTextEms(-1)
+      structure.setMaxTextEms(-1)
+      structure.setMaxTextLength(-1)
+    }
   }
 
   private fun provideVisibleLines(structure: ViewStructure, text: CharSequence, layout: android.text.Layout) {
@@ -799,7 +802,7 @@ open class TextView @JvmOverloads constructor(
       }
     }
     structure.setId(id, pkg, type, entry)
-    structure.setImportantForAutofill(importantForAutofill)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) structure.setImportantForAutofill(importantForAutofill)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
     structure.setDimens(left, top, scrollX, scrollY, width, height)
     structure.setVisibility(visibility)
@@ -810,7 +813,7 @@ open class TextView @JvmOverloads constructor(
     if (isSelected) structure.setSelected(true)
     if (isActivated) structure.setActivated(true)
     if (isLongClickable) structure.setLongClickable(true)
-    if (isOpaque) structure.setOpaque(true)
+    if (isOpaque && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) structure.setOpaque(true)
     if (isContextClickable) structure.setContextClickable(true)
     structure.setClassName(accessibilityClassName.toString())
     structure.setContentDescription(contentDescription)

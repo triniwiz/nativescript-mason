@@ -1044,7 +1044,7 @@ one shorthand string, `Style.borderImage`, parsed natively on set. `HTMLParser` 
 
 ## CSS masks (Windows)
 
-Windows parses in TS, as for the rest of its styling: `windows-mask.ts` turns the `mask-*`,
+Windows parses in TS, as for the rest of its styling: `mask.windows.ts` turns the `mask-*`,
 `clip-path` and `mask-border-*` longhands (gathered once per microtask in
 `Style.scheduleWindowsMask`) into a JSON spec for `Css.SetMask`, `border-image` into one for
 `Css.SetBorderImage`, and a `url()` background into one for `Css.SetBackgroundLayers`. Units,
@@ -1058,7 +1058,7 @@ SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device p
   for both, the source visual hidden as for filters). A mask change repaints the surface in
   place; the sprite is rebuilt only when the mask comes or goes.
 - **Gradients:** linear and radial from the existing TS parsers; conic is parsed in
-  `windows-mask.ts` and drawn as one wedge per degree. `repeating-*` draw as non-repeating.
+  `mask.windows.ts` and drawn as one wedge per degree. `repeating-*` draw as non-repeating.
 - **clip-path:** every basic shape and box. `path()` is drawn by the SVG renderer, so for
   hit testing it counts as its whole box. `Events.cpp` sends a tap outside the shape (on
   the element or an ancestor) to whatever is under it, and `ElementFromPoint` skips it.
@@ -1077,7 +1077,7 @@ SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device p
   `color` (`mason_visual::CurrentColor`) when painted; the colour is part of `Apply`'s inputs,
   so a theme switch repaints. Paint on the root `<svg>` (Bootstrap Icons' `fill`) moves to a
   `<g>` around the shapes (`HoistRootPaint`): Direct2D's SVG renderer doesn't pass it down.
-- Tests: `windows-mask.spec.ts`.
+- Tests: `mask.windows.spec.ts`.
 
 ## Transforms and font sizes (Windows)
 

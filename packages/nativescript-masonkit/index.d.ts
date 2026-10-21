@@ -19,7 +19,7 @@ export type DimensionKeyword = 'min-content' | 'max-content' | 'fit-content' | '
 
 export type DimensionLength = LengthAuto | DimensionKeyword;
 
-export type SizeLength = { width: LengthType; height: LengthType };
+export type SizeLength = { width: Length; height: Length };
 
 export type Position = 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
 
@@ -29,13 +29,13 @@ export type BoxSizing = 'border-box' | 'content-box';
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
-export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse';
+export type FlexWrap = 'nowrap' | 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse';
 
 export type FlexDirection = 'column' | 'row' | 'column-reverse' | 'row-reverse';
 
 export type GapTypeUnit = `px` | 'dip' | '%';
 
-export type Gap = `${string}${GapTypeUnit} ${string}${GapTypeUnit}` | SizeLengthType;
+export type Gap = Length | `${string}${GapTypeUnit} ${string}${GapTypeUnit}`;
 
 export type AlignItems = 'normal' | 'flex-start' | 'flex-end' | 'start' | 'end' | 'center' | 'baseline' | 'stretch';
 
@@ -513,6 +513,9 @@ export class Li extends VBase {}
 export class TextAreaBase extends InputBase {}
 
 export class TextArea extends TextAreaBase {}
+
+export * from './web';
+export { registerAppFontsDirectory } from './fonts';
 
 export { setCssDiagnostics, getCssDiagnostics, clearCssDiagnostics, formatCssDiagnostics, cssDiagnosticsEnabled } from './diagnostics';
 export type { CssDiagnostic, CssDiagnosticKind, CssDiagnosticsOptions } from './diagnostics';

@@ -2869,6 +2869,13 @@ declare module org {
 					public nodeForView($this$nodeForView_u24lambda_u2423_u24lambda_u2422: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
 					public createTextView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.TextView;
 					public setDeviceScale(value: number): void;
+					public getViewportWidth(): number;
+					public getViewportHeight(): number;
+					public setViewport(width: number, height: number): void;
+					public updateViewport(context: globalAndroid.content.Context): void;
+					public watchViewport(context: globalAndroid.content.Context): void;
+					public getViewportListener(): org.nativescript.mason.masonkit.Mason.ViewportListener;
+					public setViewportListener(value: org.nativescript.mason.masonkit.Mason.ViewportListener): void;
 					public getNodes$masonkit_release(): java.util.HashMap<java.lang.Long,java.lang.ref.WeakReference<org.nativescript.mason.masonkit.Node>>;
 					public createInput(context: globalAndroid.content.Context, type: org.nativescript.mason.masonkit.Input.Type): org.nativescript.mason.masonkit.Input;
 					public requestLayout(node: number): void;
@@ -2908,6 +2915,12 @@ declare module org {
 						public initLib$masonkit_release(): void;
 						public getGson$masonkit_release(): com.google.gson.Gson;
 						public getShared(): org.nativescript.mason.masonkit.Mason;
+					}
+					export class ViewportListener {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason.ViewportListener>;
+						public constructor(implementation: { onViewportChanged(width: number, height: number): void });
+						public constructor();
+						public onViewportChanged(width: number, height: number): void;
 					}
 				}
 			}

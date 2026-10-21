@@ -353,6 +353,7 @@ namespace mason_visual
         {
             h = (h ^ Bits(r.x[i])) * 16777619u;
             h = (h ^ Bits(r.y[i])) * 16777619u;
+            h = (h ^ Bits(r.k[i])) * 16777619u;
         }
         return h;
     }

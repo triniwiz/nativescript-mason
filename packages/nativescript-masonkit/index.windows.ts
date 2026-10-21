@@ -10,7 +10,7 @@ export { Li } from './li';
 export { OrderedList as Ol, UnorderedList as Ul } from './list';
 export { TextArea } from './textarea';
 export * from './web';
-import './html-windows';
+import './inner-html';
 
 export { setCssDiagnostics, getCssDiagnostics, clearCssDiagnostics, formatCssDiagnostics, cssDiagnosticsEnabled } from './diagnostics';
 export { setCssUnitContext, cssUnits } from './units';

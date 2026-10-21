@@ -1,31 +1,24 @@
 import { tokenizeCss } from './css-shorthands';
-import { expandColorStops, resolveStopPositions } from './gradient-stops';
+import type { WindowsBackgroundBoxes, WindowsBackgroundLonghands, WindowsMaskContext } from './mask';
+import { pathCommands } from './svg-path';
+import { expandColorStops, repeatStops, resolveStopPositions } from './gradient-stops';
 
 // Windows draws masks with Direct2D (CssMask.h) from a JSON spec built here: units, colours and
 // gradients are resolved in TS, as for the rest of Windows styling, and the native side only lays
 // out and paints. Android and iOS parse the same CSS natively (Mask.kt, Mask.swift).
 
-/** What the encoder needs from the element's style. */
-export interface WindowsMaskContext {
-  /** A CSS length (not a percentage) in DIPs, or undefined. */
-  length(token: string): number | undefined;
-  /** A CSS colour as 0xAARRGGBB, or null. */
-  color(value: string): number | null;
-  linear(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[] } | null;
-  radial(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[] } | null;
-  /** A url() target as a path or data URI the native side can load. */
-  source(url: string): string;
-}
-
 /** px plus a percentage of whatever the value resolves against. */
 type Len = [px: number, pct: number];
 
-type WindowsImage = { t: 'img'; src: string } | { t: 'lin'; a: number; k?: [number, number]; s: number[] } | { t: 'rad'; c: [number, number]; r: [number, number]; s: number[] } | { t: 'con'; a: number; c: [number, number]; s: number[] };
+type GradientStops = { s: number[]; rp?: 1; p?: Array<number | null>; l?: Array<number | null> };
+type WindowsImage = { t: 'img'; src: string } | ({ t: 'lin'; a: number; k?: [number, number] } & GradientStops) | ({ t: 'rad'; c: [number, number]; r: [number, number]; ci?: number; cr?: number } & GradientStops) | { t: 'con'; a: number; c: [number, number]; s: number[] };
 
 const BOX: Record<string, number> = { 'border-box': 0, 'padding-box': 1, 'content-box': 2, 'margin-box': 3, 'fill-box': 0, 'stroke-box': 0, 'view-box': 0, 'no-clip': 3 };
 const REPEAT: Record<string, number> = { repeat: 0, 'no-repeat': 1, space: 2, round: 3, stretch: 4 };
 const MODE: Record<string, number> = { 'match-source': 0, alpha: 1, luminance: 2 };
 const COMPOSITE: Record<string, number> = { add: 0, subtract: 1, intersect: 2, exclude: 3 };
+const BLEND = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'];
+const ATTACHMENT: Record<string, number> = { scroll: 0, fixed: 1, local: 2 };
 
 function layerList(value: string | undefined): string[] {
   if (!value) return [];
@@ -123,7 +116,9 @@ function parseConic(value: string, ctx: WindowsMaskContext): WindowsImage | null
     positions.push(pos ? (pos[2] === '%' ? parseFloat(pos[1]) / 100 : angleDegrees(parseFloat(pos[1]), pos[2]) / 360) : null);
   }
   if (!colors.length) return null;
-  return { t: 'con', a: from, c: [cx, cy], s: flatStops(resolveStopPositions(positions), colors) };
+  const offsets = resolveStopPositions(positions);
+  const stops = /^\s*repeating-/i.test(value) ? repeatStops(offsets, colors) : { offsets, colors };
+  return { t: 'con', a: from, c: [cx, cy], s: flatStops(stops.offsets, stops.colors) };
 }
 
 function angleDegrees(n: number, unit: string): number {
@@ -139,6 +134,16 @@ function angleDegrees(n: number, unit: string): number {
   }
 }
 
+function gradientStops(g: { offsets: number[]; colors: number[]; positions?: Array<number | null>; lengths?: Array<number | null> }, repeating: boolean): GradientStops {
+  const out: GradientStops = { s: flatStops(g.offsets, g.colors) };
+  if (repeating) out.rp = 1;
+  if (g.lengths && g.positions) {
+    out.p = g.positions;
+    out.l = g.lengths;
+  }
+  return out;
+}
+
 /** One mask/border image, or null for `none` and anything that can't be drawn. */
 export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImage | null {
   const t = token.trim();
@@ -146,13 +151,16 @@ export function encodeImage(token: string, ctx: WindowsMaskContext): WindowsImag
   const url = urlOf(t);
   if (url != null) return url ? { t: 'img', src: ctx.source(url) } : null;
   if (/^(repeating-)?conic-gradient\(/i.test(t)) return parseConic(t, ctx);
+  const repeating = /^repeating-/i.test(t);
   if (/^(repeating-)?radial-gradient\(/i.test(t)) {
     const g = ctx.radial(t);
-    return g && g.colors.length ? { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], s: flatStops(g.offsets, g.colors) } : null;
+    if (!g || !g.colors.length) return null;
+    return { t: 'rad', c: [g.cx, g.cy], r: [g.rx, g.ry], ...(g.circle != null && { ci: g.circle }), ...(g.circleRadius != null && { cr: g.circleRadius }), ...gradientStops(g, repeating) };
   }
   if (/^(repeating-)?linear-gradient\(/i.test(t)) {
     const g = ctx.linear(t);
-    return g && g.colors.length ? { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), s: flatStops(g.offsets, g.colors) } : null;
+    if (!g || !g.colors.length) return null;
+    return { t: 'lin', a: g.angle, ...(g.corner && { k: g.corner }), ...gradientStops(g, repeating) };
   }
   return null;
 }
@@ -328,7 +336,7 @@ export function encodeClipPath(value: string, ctx: WindowsMaskContext): Record<s
       let evenOdd = false;
       if (/^(evenodd|nonzero)$/i.test(list[0] ?? '')) evenOdd = list.shift()!.toLowerCase() === 'evenodd';
       const d = (list[0] ?? '').replace(/^["']|["']$/g, '');
-      return d ? { b: box, s: 5, d, e: evenOdd } : null;
+      return d ? { b: box, s: 5, d, e: evenOdd, pc: pathCommands(d) } : null;
     }
     default:
       return null;
@@ -417,13 +425,77 @@ export function encodeWindowsMask(css: ReadonlyMap<string, string>, ctx: Windows
   return Object.keys(spec).length ? JSON.stringify(spec) : '';
 }
 
-/** One url() background layer as the JSON Css.SetBackgroundLayers takes, or '' if it can't be drawn. */
-export function encodeWindowsBackground(url: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext): string {
-  if (!url) return '';
+const originOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.origin ?? '').trim().toLowerCase()] ?? 1;
+const clipOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.clip ?? '').trim().toLowerCase()] ?? 0;
+
+function backgroundLayer(image: WindowsImage, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes): string {
   const [x, y] = encodePosition(position || '0% 0%', ctx);
-  // Backgrounds are positioned in the padding box and painted to the border box's edge.
-  const layer = { i: { t: 'img', src: ctx.source(url) }, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: 1, c: 0, m: 0, k: 0 };
+  const layer = { i: image, sz: encodeSize(size || 'auto', ctx), p: [...x, ...y], r: encodeRepeat(repeat || 'repeat'), o: originOf(boxes), c: clipOf(boxes), m: 0, k: 0 };
   return JSON.stringify({ l: [layer] });
+}
+
+/** One url() background layer as the JSON Css.SetBackgroundLayers takes, or '' if it can't be drawn. */
+export function encodeWindowsBackground(url: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes = {}): string {
+  if (!url) return '';
+  return backgroundLayer({ t: 'img', src: ctx.source(url) }, size, position, repeat, ctx, boxes);
+}
+
+/** A gradient background layer as the JSON Css.SetBackgroundLayers takes, or ''. */
+export function encodeWindowsGradientBackground(gradient: string, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes = {}): string {
+  const image = encodeImage(gradient, ctx);
+  if (!image || image.t === 'img') return '';
+  return backgroundLayer(image, size, position, repeat, ctx, boxes);
+}
+
+/** background-color clipped to `clip`, as one transparent layer (the colour is clipped to the bottom layer's box). */
+export function encodeWindowsColorClip(clip: string, ctx: WindowsMaskContext): string {
+  return backgroundLayer({ t: 'lin', a: 180, s: [0, 0] }, '', '', 'no-repeat', ctx, { clip });
+}
+
+/** Whether only the layer painter draws these layers: several of them, a blend mode or a fixed or local attachment. */
+export function needsWindowsBackgroundLayers(css: WindowsBackgroundLonghands): boolean {
+  if (layerList(css.image).length > 1) return true;
+  for (const blend of layerList(css.blend)) if (blend.toLowerCase() !== 'normal') return true;
+  for (const attachment of layerList(css.attachment)) if (attachment.toLowerCase() !== 'scroll') return true;
+  return false;
+}
+
+/** Every background layer, the first on top, as the JSON Css.SetBackgroundLayers takes, or '' if none can be drawn. */
+export function encodeWindowsBackgroundLayers(css: WindowsBackgroundLonghands, ctx: WindowsMaskContext): string {
+  const images = layerList(css.image);
+  const sizes = layerList(css.size);
+  const positions = layerList(css.position);
+  const repeats = layerList(css.repeat);
+  const origins = layerList(css.origin);
+  const clips = layerList(css.clip);
+  const attachments = layerList(css.attachment);
+  const blends = layerList(css.blend);
+  const layers: Array<Record<string, unknown>> = [];
+  let drawable = false;
+  for (let i = 0; i < images.length; i++) {
+    const image = encodeImage(images[i], ctx);
+    if (image) drawable = true;
+    const [x, y] = encodePosition(at(positions, i, '0% 0%'), ctx);
+    const blend = BLEND.indexOf(at(blends, i, 'normal').toLowerCase());
+    layers.push({
+      i: image ?? undefined,
+      sz: encodeSize(at(sizes, i, 'auto'), ctx),
+      p: [...x, ...y],
+      r: encodeRepeat(at(repeats, i, 'repeat')),
+      o: BOX[at(origins, i, 'padding-box').toLowerCase()] ?? 1,
+      c: BOX[at(clips, i, 'border-box').toLowerCase()] ?? 0,
+      m: 0,
+      k: 0,
+      b: blend < 0 ? 0 : blend,
+      a: ATTACHMENT[at(attachments, i, 'scroll').toLowerCase()] ?? 0,
+    });
+  }
+  return drawable ? JSON.stringify({ l: layers }) : '';
+}
+
+/** Whether the boxes differ from the CSS defaults, which the plain brush paths assume. */
+export function hasCustomBackgroundBoxes(boxes: WindowsBackgroundBoxes): boolean {
+  return originOf(boxes) !== 1 || clipOf(boxes) !== 0;
 }
 
 const BORDER_IMAGE_REPEAT = new Set(['stretch', 'repeat', 'round', 'space']);
@@ -454,3 +526,5 @@ export function encodeWindowsBorderImage(value: string, ctx: WindowsMaskContext)
 
 /** Longhands that feed Css.SetMask. */
 export const WINDOWS_MASK_PROPERTIES = new Set(['mask-image', 'mask-size', 'mask-position', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-mode', 'mask-composite', 'clip-path', 'mask-border-source', 'mask-border-slice', 'mask-border-width', 'mask-border-outset', 'mask-border-repeat', 'mask-border-mode']);
+
+export type { WindowsBackgroundBoxes, WindowsBackgroundLonghands, WindowsMaskContext };

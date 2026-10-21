@@ -44,14 +44,14 @@ final class BorderBufferSyncTests: XCTestCase {
   func testARadiusWriteKeepsTheCornerShape() {
     let view = MasonUIView(mason: NSCMason.shared)
     let style = view.style
-    style.cornerShapeTopLeft = "bevel"
+    style.cornerShapeTopLeft = "scoop"
     style.prepareMut()
     writeCorner(style, xType: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, xValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE,
                 yType: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, yValue: StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE, type: 0, value: 10)
     sync(view, .borderRadius)
 
     XCTAssertEqual(style.mBorderRender.radius.topLeft.horizontal, .Points(10))
-    XCTAssertEqual(style.mBorderRender.radius.topLeft.exponent, 4)
+    XCTAssertEqual(style.mBorderRender.radius.topLeft.exponent, -1)
   }
 
   func testZeroRadiiLeaveNoRadii() {

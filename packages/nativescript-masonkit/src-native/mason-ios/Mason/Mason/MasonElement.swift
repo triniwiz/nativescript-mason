@@ -1322,8 +1322,16 @@ class MasonElementHelpers: NSObject {
   /// Remove outset-shadow sublayers in `container` whose owner is no longer a
   /// direct child (or whose style was freed). Safety net for per-child cleanup.
   internal static func reconcileShadowLayers(_ container: UIView?) {
-    guard MasonShadowLayer.anyCreated, let container = container, let sublayers = container.layer.sublayers else { return }
+    guard MasonShadowLayer.anyCreated || CSSFilters.FilterOutputLayer.anyCreated,
+          let container = container, let sublayers = container.layer.sublayers else { return }
     for layer in sublayers {
+      if let output = layer as? CSSFilters.FilterOutputLayer {
+        let ownerView = output.owner?.elementView
+        if ownerView == nil || (ownerView !== container && ownerView?.superview !== container) {
+          output.removeFromSuperlayer()
+        }
+        continue
+      }
       guard let shadow = layer as? MasonShadowLayer else { continue }
       let ownerView = shadow.masonStyle?.node.view
       if ownerView == nil || ownerView?.superview !== container {

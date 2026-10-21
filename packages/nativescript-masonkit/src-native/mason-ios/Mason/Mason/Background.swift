@@ -141,7 +141,7 @@ extension Background {
     }
 
     if let urlStr = layer.image {
-      if isSvgDataUrl(urlStr) {
+      if isSvgSource(urlStr) {
         drawSvgLayer(layer, url: urlStr, context: context, paintRect: paintRect, area: area)
         return
       }
@@ -166,7 +166,7 @@ extension Background {
   private func drawGradient(layer: BackgroundLayer, context: CGContext, paintRect: CGRect, area: CGRect) {
     guard let gradient = layer.gradient else { return }
     // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-    let (width, height) = resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height)
+    let (width, height) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height))
     if width <= 0 || height <= 0 { return }
 
     // if size changed since last shader creation, clear cache
@@ -174,12 +174,41 @@ extension Background {
       layer.shader = nil
     }
 
+    let kind = gradient.type.lowercased()
+    var lineStart = CGPoint.zero, lineEnd = CGPoint.zero
+    var radial = RadialGradientShape(center: .zero, rx: 1, ry: 1)
+    // Stops placed with a length are fractions of this.
+    var lineLength: CGFloat = 0
+    switch kind {
+    case "linear":
+      (lineStart, lineEnd) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
+      lineLength = hypot(lineEnd.x - lineStart.x, lineEnd.y - lineStart.y)
+    case "radial":
+      radial = resolveRadialGradientShape(direction: gradient.direction, width: width, height: height)
+      lineLength = radial.rx
+    default:
+      break
+    }
+
     if layer.shader == nil {
-      let parsed = parseGradientStops(gradient.stops)
+      let parsed = parseGradientStops(gradient.stops, lineLength: lineLength)
       if parsed.colors.isEmpty { return }
       var (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
+      layer.shaderExtent = 1
+      if kind == "radial" {
+        // Past its ending shape a radial runs on to its last stop, or repeats, up to the farthest corner.
+        let corner = radial.farthestCornerScale(width: width, height: height)
+        var extent = max(1, gradient.repeating ? corner : min(locations.last ?? 1, corner))
+        // CoreGraphics extends a hard stop at the very end with its first colour, not its last.
+        if !gradient.repeating, locations.count >= 2, locations[locations.count - 2] == locations[locations.count - 1],
+           locations[locations.count - 1] >= extent { extent *= 1.001 }
+        if extent > 1 { locations = locations.map { $0 / extent } }
+        layer.shaderExtent = extent
+      }
       if gradient.repeating {
         (colors, locations) = unrollRepeatingStops(colors, locations)
+      } else {
+        (colors, locations) = clipStopsToUnit(colors, locations)
       }
       layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations.isEmpty ? nil : locations)
       layer.shaderColors = colors
@@ -196,20 +225,15 @@ extension Background {
     context.saveGState()
     context.clip(to: CGRect(x: x, y: y, width: width, height: height))
     context.translateBy(x: x, y: y)
-    switch gradient.type.lowercased() {
+    switch kind {
     case "linear":
-      let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
-      context.drawLinearGradient(shader, start: start, end: end, options: options)
+      context.drawLinearGradient(shader, start: lineStart, end: lineEnd, options: options)
     case "radial":
-      let center = resolveRadialGradientCenter(direction: gradient.direction, width: width, height: height)
-      // Radius must reach the farthest corner from the resolved centre.
-      let radius = max([
-        hypot(center.x, center.y),
-        hypot(width - center.x, center.y),
-        hypot(center.x, height - center.y),
-        hypot(width - center.x, height - center.y)
-      ].max() ?? max(width, height) / 2, 1)
-      context.drawRadialGradient(shader, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: options)
+      // An ellipse is a circle of radius rx, squashed vertically about the centre.
+      context.translateBy(x: radial.center.x, y: radial.center.y)
+      context.scaleBy(x: 1, y: radial.ry / radial.rx)
+      context.drawRadialGradient(shader, startCenter: .zero, startRadius: 0, endCenter: .zero,
+                                 endRadius: radial.rx * layer.shaderExtent, options: options)
     case "conic":
       drawConicGradient(context: context, colors: layer.shaderColors, locations: layer.shaderLocations,
                         direction: gradient.direction, width: width, height: height)
@@ -224,23 +248,14 @@ extension Background {
   /// Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer.
   private func forEachTile(_ layer: BackgroundLayer, paintRect: CGRect, area: CGRect, drawW: CGFloat, drawH: CGFloat, _ draw: (CGFloat, CGFloat) -> Void) {
     let pos = layer.position
-    let x = area.minX + (pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0)
-    let y = area.minY + (pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0)
-    let repeatX = layer.repeatType == .repeatXY || layer.repeatType == .repeatX
-    let repeatY = layer.repeatType == .repeatXY || layer.repeatType == .repeatY
-    // Tiles start at the resolved position and extend both ways across the paint rect.
-    let startX = repeatX ? x - ceil((x - paintRect.minX) / drawW) * drawW : x
-    let startY = repeatY ? y - ceil((y - paintRect.minY) / drawH) * drawH : y
-    let endX = repeatX ? paintRect.maxX : x + 1
-    let endY = repeatY ? paintRect.maxY : y + 1
-    var py = startY
-    while py < endY {
-      var px = startX
-      while px < endX {
-        draw(px, py)
-        px += drawW
-      }
-      py += drawH
+    let offsetX = pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0
+    let offsetY = pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0
+    let xs = backgroundTileStarts(layer.repeatType.x, areaStart: area.minX, areaLength: area.width,
+                                  clipStart: paintRect.minX, clipEnd: paintRect.maxX, tile: drawW, offset: offsetX)
+    let ys = backgroundTileStarts(layer.repeatType.y, areaStart: area.minY, areaLength: area.height,
+                                  clipStart: paintRect.minY, clipEnd: paintRect.maxY, tile: drawH, offset: offsetY)
+    for py in ys {
+      for px in xs { draw(px, py) }
     }
   }
 
@@ -253,7 +268,7 @@ extension Background {
     let doc: SvgDocument
     if let parsed = layer.svg {
       doc = parsed
-    } else if let parsed = decodeSvgDataUrl(url) {
+    } else if let parsed = decodeSvgSource(url) {
       layer.svg = parsed
       doc = parsed
     } else {
@@ -261,7 +276,7 @@ extension Background {
       return
     }
     // Intrinsic size in points: 1 SVG px is 1 CSS px.
-    let (drawWidth, drawHeight) = resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height)
+    let (drawWidth, drawHeight) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height))
     if drawWidth <= 0 || drawHeight <= 0 { return }
     let scale = max(CGFloat(NSCMason.scale), 1)
     let fit = min(1, maxSvgRasterPx / (max(drawWidth, drawHeight) * scale))
@@ -284,7 +299,7 @@ extension Background {
   /// `drawSize`, when given, is the already-resolved tile size in points.
   private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect, drawSize: (CGFloat, CGFloat)? = nil) {
     // Intrinsic size in points: a 1x image is 1 CSS px per pixel.
-    let (drawWidth, drawHeight) = drawSize ?? resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height)
+    let (drawWidth, drawHeight) = drawSize ?? roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height))
     if drawWidth <= 0 || drawHeight <= 0 { return }
 
     // UIImage.draw keeps UIKit orientation in both UIView.draw and CALayer.draw(in:) contexts.
@@ -298,6 +313,54 @@ extension Background {
     UIGraphicsPopContext()
     context.restoreGState()
   }
+}
+
+/// `round` scales the tile so a whole number of tiles fills the area. When the other axis is
+/// not `round` and its size is `auto`, it scales too, keeping the tile's ratio.
+func roundedTileSize(_ layer: BackgroundLayer, area: CGRect, _ size: (CGFloat, CGFloat)) -> (CGFloat, CGFloat) {
+  var (w, h) = size
+  let rep = layer.repeatType
+  let autoW = layer.size == nil || (layer.size?.keyword == nil && layer.size?.width == nil)
+  let autoH = layer.size == nil || (layer.size?.keyword == nil && layer.size?.height == nil)
+  if rep.x == .round && w > 0 && area.width > 0 {
+    let old = w
+    w = area.width / max(1, (area.width / w).rounded())
+    if autoH && rep.y != .round { h *= w / old }
+  }
+  if rep.y == .round && h > 0 && area.height > 0 {
+    let old = h
+    h = area.height / max(1, (area.height / h).rounded())
+    if autoW && rep.x != .round { w *= h / old }
+  }
+  return (w, h)
+}
+
+/// Where a layer's tiles start along one axis. `space` spreads whole tiles so the first and
+/// last touch the area's edges (one tile at `offset` when two don't fit).
+func backgroundTileStarts(_ style: RepeatStyle, areaStart: CGFloat, areaLength: CGFloat, clipStart: CGFloat,
+                          clipEnd: CGFloat, tile: CGFloat, offset: CGFloat) -> [CGFloat] {
+  guard tile > 0 else { return [] }
+  if style == .noRepeat { return [areaStart + offset] }
+  // Past this many the tiles are sub-pixel anyway.
+  let maxTiles = 4096
+  var step = tile
+  var first: CGFloat
+  if style == .space {
+    let n = Int(floor(areaLength / tile + 1e-4))
+    if n <= 1 { return [areaStart + offset] }
+    step = tile + (areaLength - CGFloat(n) * tile) / CGFloat(n - 1)
+    first = areaStart - ceil(max(0, areaStart - clipStart) / step) * step
+  } else {
+    first = areaStart + offset
+    first -= ceil((first - clipStart) / tile) * tile
+  }
+  var starts: [CGFloat] = []
+  var s = first
+  while s < clipEnd && starts.count < maxTiles {
+    starts.append(s)
+    s += step
+  }
+  return starts
 }
 
 /// Resolve `background-size` against the positioning area (points), keeping the image ratio for `auto`.
@@ -379,7 +442,8 @@ func unrollRepeatingStops(_ colors: [CGColor], _ locations: [CGFloat]) -> (color
     for i in 0..<colors.count {
       if outColors.count >= maxStops { break outer }
       outColors.append(colors[i])
-      outLocations.append(locations[i] + shift)
+      // Rounding can put a period's first stop a hair before the last one's end.
+      outLocations.append(max(locations[i] + shift, outLocations.last ?? -.greatestFiniteMagnitude))
     }
     k += 1
   }
@@ -392,6 +456,28 @@ func unrollRepeatingStops(_ colors: [CGColor], _ locations: [CGFloat]) -> (color
   clippedColors.append(sampleGradient(outColors, outLocations, 1))
   clippedLocations.append(1)
   return (clippedColors, clippedLocations)
+}
+
+/// Stops placed outside 0...1 cut to that range, with the colours at the two ends sampled.
+func clipStopsToUnit(_ colors: [CGColor], _ locations: [CGFloat]) -> (colors: [CGColor], locations: [CGFloat]) {
+  guard colors.count == locations.count, let first = locations.first, let last = locations.last,
+        first < 0 || last > 1 else { return (colors, locations) }
+  var outColors: [CGColor] = []
+  var outLocations: [CGFloat] = []
+  // A stop exactly at an end already holds the colour past it, which a sample would not.
+  if !locations.contains(0) {
+    outColors.append(sampleGradient(colors, locations, 0))
+    outLocations.append(0)
+  }
+  for (c, l) in zip(colors, locations) where l >= 0 && l <= 1 {
+    outColors.append(c)
+    outLocations.append(l)
+  }
+  if !locations.contains(1) {
+    outColors.append(sampleGradient(colors, locations, 1))
+    outLocations.append(1)
+  }
+  return (outColors, outLocations)
 }
 
 /// The colour of a stop list at `t`, interpolated in sRGB like CGGradient.
@@ -481,6 +567,72 @@ func resolveRadialGradientCenter(direction: String?, width: CGFloat, height: CGF
   return resolvePositionKeywords(positionStr, width: width, height: height)
 }
 
+/// A radial gradient's centre and ending shape radii, in points.
+struct RadialGradientShape: Equatable {
+  var center: CGPoint
+  var rx: CGFloat
+  var ry: CGFloat
+
+  /// How many ending shapes it takes to reach the box corner farthest from the centre.
+  func farthestCornerScale(width: CGFloat, height: CGFloat) -> CGFloat {
+    let dx = max(center.x, width - center.x)
+    let dy = max(center.y, height - center.y)
+    return hypot(dx / rx, dy / ry)
+  }
+}
+
+/// The ending shape of `radial-gradient(<shape> <size> at <position>, ...)` per CSS Images 3:
+/// `circle` or `ellipse`, a size keyword (default `farthest-corner`) or explicit radii.
+func resolveRadialGradientShape(direction: String?, width: CGFloat, height: CGFloat) -> RadialGradientShape {
+  let center = resolveRadialGradientCenter(direction: direction, width: width, height: height)
+  var prelude = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+  if prelude.hasPrefix("at ") {
+    prelude = ""
+  } else if let at = prelude.range(of: " at ") {
+    prelude = String(prelude[..<at.lowerBound])
+  }
+  var circle = false, ellipse = false
+  var keyword = "farthest-corner"
+  var radii: [CGFloat] = []
+  for token in prelude.split(separator: " ").map(String.init) {
+    switch token {
+    case "circle": circle = true
+    case "ellipse": ellipse = true
+    case "closest-side", "closest-corner", "farthest-side", "farthest-corner": keyword = token
+    default:
+      switch parseLengthPercentage(token) {
+      case .Points(let px)?: radii.append(CGFloat(px) / CGFloat(NSCMason.scale))
+      case .Percent(let f)?: radii.append(CGFloat(f) * (radii.isEmpty ? width : height))
+      default: break
+      }
+    }
+  }
+  // One length and no shape keyword is a circle.
+  if !ellipse && radii.count == 1 { circle = true }
+  let minRadius: CGFloat = 0.01
+  if circle, let r = radii.first {
+    return RadialGradientShape(center: center, rx: max(r, minRadius), ry: max(r, minRadius))
+  }
+  if !circle && radii.count >= 2 {
+    return RadialGradientShape(center: center, rx: max(radii[0], minRadius), ry: max(radii[1], minRadius))
+  }
+  let closest = keyword.hasPrefix("closest")
+  let sx = closest ? min(center.x, width - center.x) : max(center.x, width - center.x)
+  let sy = closest ? min(center.y, height - center.y) : max(center.y, height - center.y)
+  var rx: CGFloat, ry: CGFloat
+  if circle {
+    let r = keyword.hasSuffix("corner") ? hypot(sx, sy) : (closest ? min(sx, sy) : max(sx, sy))
+    rx = r
+    ry = r
+  } else {
+    // A corner ellipse keeps the side ellipse's aspect ratio and passes through the corner.
+    let k: CGFloat = keyword.hasSuffix("corner") ? sqrt(2) : 1
+    rx = sx * k
+    ry = sy * k
+  }
+  return RadialGradientShape(center: center, rx: max(rx, minRadius), ry: max(ry, minRadius))
+}
+
 /// Convert a CSS background-position value (keyword or percentage based) to
 /// absolute pixel coordinates.
 private func resolvePositionKeywords(_ position: String, width: CGFloat, height: CGFloat) -> CGPoint {
@@ -520,9 +672,10 @@ private func resolvePositionKeywords(_ position: String, width: CGFloat, height:
 }
 
 // MARK: - Gradient Stop Parsing
-/// Parse gradient stop strings (e.g. "transparent 66%", "rgba(0,0,0,0.5)").
+/// Parse gradient stop strings (e.g. "transparent 66%", "red 20px", "rgba(0,0,0,0.5)").
 /// Returns parallel arrays of CGColor and CGFloat positions following CSS inference rules.
-func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CGFloat]) {
+/// A length is placed as a fraction of `lineLength` (points), and is unplaced without one.
+func parseGradientStops(_ stops: [String], lineLength: CGFloat = 0) -> (colors: [CGColor], locations: [CGFloat]) {
   var parsedColors: [CGColor?] = []
   var parsedPositions: [CGFloat?] = []
   for raw in stops {
@@ -544,6 +697,8 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
         position = CGFloat(val / 100.0)
       } else if let val = Double(posPart) {
         position = CGFloat(val <= 1.0 ? val : val / 100.0)
+      } else if lineLength > 0, case .Points(let px)? = parseLengthPercentage(posPart) {
+        position = CGFloat(px) / CGFloat(NSCMason.scale) / lineLength
       }
       parsedColors.append(color)
       parsedPositions.append(position)
@@ -557,6 +712,12 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
   if n > 0 {
     if parsedPositions[0] == nil { parsedPositions[0] = 0.0 }
     if parsedPositions[n - 1] == nil { parsedPositions[n - 1] = 1.0 }
+    // A stop placed before an earlier one moves up to it.
+    var furthest = -CGFloat.greatestFiniteMagnitude
+    for k in 0..<n {
+      guard let p = parsedPositions[k] else { continue }
+      if p < furthest { parsedPositions[k] = furthest } else { furthest = p }
+    }
     // Forward pass: fill runs of nil between anchors by linear interpolation.
     var i = 0
     while i < n {
@@ -585,14 +746,31 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
 }
 
 // MARK: - Image Loading
+/// `~/` is the NativeScript app folder and a bare absolute path is a file, as on the other platforms.
+func resolveImageURL(_ source: String) -> URL? {
+  if source.hasPrefix("~/") {
+    return URL(fileURLWithPath: Bundle.main.bundlePath + "/app/" + source.dropFirst(2))
+  }
+  if source.hasPrefix("/") { return URL(fileURLWithPath: source) }
+  return URL(string: source)
+}
+
 func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
   if let image = decodeDataUrlImage(url: url) {
     completion(image)
     return
   }
 
-  guard let u = URL(string: url) else {
+  if url.hasPrefix("res://") {
+    completion(UIImage(named: String(url.dropFirst("res://".count))))
+    return
+  }
+  guard let u = resolveImageURL(url) else {
     completion(nil)
+    return
+  }
+  if u.isFileURL {
+    completion(UIImage(contentsOfFile: u.path))
     return
   }
 
@@ -645,6 +823,19 @@ func decodeSvgDataUrl(_ url: String) -> SvgDocument? {
   return parseSvgDocument(svg)
 }
 
+/// A data URL or local file (`~/`, absolute path) holding SVG.
+func isSvgSource(_ url: String) -> Bool {
+  if isSvgDataUrl(url) { return true }
+  guard let u = resolveImageURL(url), u.isFileURL else { return false }
+  return u.pathExtension.lowercased() == "svg"
+}
+
+func decodeSvgSource(_ url: String) -> SvgDocument? {
+  if isSvgDataUrl(url) { return decodeSvgDataUrl(url) }
+  guard let u = resolveImageURL(url), u.isFileURL, let text = try? String(contentsOf: u, encoding: .utf8) else { return nil }
+  return parseSvgDocument(text)
+}
+
 func decodeDataUrlImage(url: String) -> UIImage? {
   guard let decoded = decodeDataUrl(url) else { return nil }
   let meta = decoded.meta, imageData = decoded.data
@@ -662,11 +853,20 @@ private func svgCGColor(_ paint: SvgPaint, opacity: CGFloat, currentColor: UInt3
   switch paint {
   case let .color(c): argb = c
   case .currentColor: argb = currentColor
-  case .none: argb = 0
+  default: argb = 0
   }
+  return svgCGColor(argb: argb, opacity: opacity)
+}
+
+private func svgCGColor(argb: UInt32, opacity: CGFloat) -> CGColor {
   let a = CGFloat((argb >> 24) & 0xFF) / 255 * min(max(opacity, 0), 1)
   return CGColor(srgbRed: CGFloat((argb >> 16) & 0xFF) / 255, green: CGFloat((argb >> 8) & 0xFF) / 255,
                  blue: CGFloat(argb & 0xFF) / 255, alpha: a)
+}
+
+private func svgStopColor(_ stop: SvgGradientStop, currentColor: UInt32) -> CGColor {
+  guard stop.currentColor else { return svgCGColor(argb: stop.argb, opacity: 1) }
+  return svgCGColor(argb: currentColor, opacity: CGFloat((stop.argb >> 24) & 0xFF) / 255)
 }
 
 func svgCGPath(_ commands: [SvgPathCommand]) -> CGPath {
@@ -690,6 +890,132 @@ func svgCGPath(_ commands: [SvgPathCommand]) -> CGPath {
   return path
 }
 
+/// Stops over periods `lo..<hi` of a reflected or repeated gradient, in 0...1.
+private func svgPeriodicStops(_ stops: [SvgGradientStop], _ spread: SvgSpread, _ lo: Int, _ hi: Int) -> [SvgGradientStop] {
+  let span = CGFloat(hi - lo)
+  var out: [SvgGradientStop] = []
+  for k in lo..<hi {
+    let reversed = spread == .reflect && ((k % 2) + 2) % 2 == 1
+    let period = reversed ? stops.reversed().map { s -> SvgGradientStop in var r = s; r.offset = 1 - s.offset; return r } : stops
+    for s in period {
+      var e = s
+      e.offset = (CGFloat(k - lo) + s.offset) / span
+      out.append(e)
+    }
+  }
+  return out
+}
+
+/// Draws `g` over the current clip; reflect and repeat are unrolled over the clipped area.
+private func drawSvgGradient(_ cg: CGContext, _ g: SvgGradient, opacity: CGFloat, currentColor: UInt32) {
+  cg.saveGState()
+  defer { cg.restoreGState() }
+  cg.concatenate(g.transform)
+  cg.setAlpha(min(max(opacity, 0), 1))
+  let box = cg.boundingBoxOfClipPath
+  guard !box.isNull, !box.isInfinite else { return }
+  let corners = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                 CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.maxX, y: box.maxY)]
+  let maxPeriods = 256
+  var stops = g.stops
+  let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+  func gradient() -> CGGradient? {
+    CGGradient(colorsSpace: space, colors: stops.map { svgStopColor($0, currentColor: currentColor) } as CFArray,
+               locations: stops.map { $0.offset })
+  }
+
+  if !g.radial {
+    var start = CGPoint(x: g.x1, y: g.y1), end = CGPoint(x: g.x2, y: g.y2)
+    if g.spread != .pad {
+      let dx = g.x2 - g.x1, dy = g.y2 - g.y1, len2 = dx * dx + dy * dy
+      let ts = corners.map { (($0.x - g.x1) * dx + ($0.y - g.y1) * dy) / len2 }
+      var lo = Int(floor(ts.min() ?? 0)), hi = Int(ceil(ts.max() ?? 1))
+      if hi <= lo { hi = lo + 1 }
+      if hi - lo > maxPeriods { lo = max(lo, -maxPeriods / 2); hi = min(hi, lo + maxPeriods) }
+      stops = svgPeriodicStops(g.stops, g.spread, lo, hi)
+      start = CGPoint(x: g.x1 + CGFloat(lo) * dx, y: g.y1 + CGFloat(lo) * dy)
+      end = CGPoint(x: g.x1 + CGFloat(hi) * dx, y: g.y1 + CGFloat(hi) * dy)
+    }
+    guard let gr = gradient() else { return }
+    cg.drawLinearGradient(gr, start: start, end: end, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    return
+  }
+
+  let f = CGPoint(x: g.fx, y: g.fy)
+  var endCenter = CGPoint(x: g.cx, y: g.cy), endRadius = g.r
+  if g.spread != .pad {
+    // The circle for t has centre f + t (c - f) and radius t r; find the largest t at a corner.
+    let ex = g.cx - g.fx, ey = g.cy - g.fy
+    let a = ex * ex + ey * ey - g.r * g.r
+    var tMax: CGFloat = 1
+    if a < 0 {
+      for p in corners {
+        let qx = p.x - g.fx, qy = p.y - g.fy
+        let qe = qx * ex + qy * ey
+        let t = (qe - (qe * qe - a * (qx * qx + qy * qy)).squareRoot()) / a
+        tMax = max(tMax, t)
+      }
+    }
+    let hi = min(maxPeriods, Int(ceil(tMax)))
+    stops = svgPeriodicStops(g.stops, g.spread, 0, hi)
+    endCenter = CGPoint(x: g.fx + CGFloat(hi) * ex, y: g.fy + CGFloat(hi) * ey)
+    endRadius = CGFloat(hi) * g.r
+  }
+  guard let gr = gradient() else { return }
+  cg.drawRadialGradient(gr, startCenter: f, startRadius: 0, endCenter: endCenter, endRadius: endRadius,
+                        options: [.drawsAfterEndLocation])
+}
+
+/// The union of `clip`'s paths, and the rule to fill it with.
+private func svgClipPath(_ clip: SvgClip) -> (CGPath, CGPathFillRule) {
+  let first = clip.paths.first?.evenOdd ?? false
+  let mixed = clip.paths.contains { $0.evenOdd != first }
+  if mixed, #available(iOS 16.0, *) {
+    var acc: CGPath = CGMutablePath()
+    for c in clip.paths {
+      let path = CGMutablePath()
+      path.addPath(svgCGPath(c.commands), transform: c.transform)
+      let region = path.union(path, using: c.evenOdd ? .evenOdd : .winding)
+      acc = acc.union(region, using: .winding)
+    }
+    return (acc, .winding)
+  }
+  let out = CGMutablePath()
+  for c in clip.paths { out.addPath(svgCGPath(c.commands), transform: c.transform) }
+  return (out, first ? .evenOdd : .winding)
+}
+
+private func drawSvgImage(_ cg: CGContext, _ image: SvgImage) {
+  guard let ui = decodeDataUrlImage(url: image.href), ui.size.width > 0, ui.size.height > 0 else { return }
+  let iw = ui.size.width, ih = ui.size.height
+  // An auto side keeps the image's aspect ratio.
+  let w = image.width ?? image.height.map { $0 * iw / ih } ?? iw
+  let h = image.height ?? image.width.map { $0 * ih / iw } ?? ih
+  cg.saveGState()
+  defer { cg.restoreGState() }
+  cg.concatenate(image.transform)
+  cg.translateBy(x: image.x, y: image.y)
+  if image.slice { cg.clip(to: CGRect(x: 0, y: 0, width: w, height: h)) }
+  cg.concatenate(svgViewBoxTransform(CGRect(x: 0, y: 0, width: iw, height: ih), image.alignX, image.alignY, image.slice, w, h))
+  ui.draw(in: CGRect(x: 0, y: 0, width: iw, height: ih), blendMode: .normal, alpha: min(max(image.opacity, 0), 1))
+}
+
+private func setSvgStrokeStyle(_ cg: CGContext, _ shape: SvgShape) {
+  cg.setLineWidth(shape.strokeWidth)
+  switch shape.lineCap {
+  case .butt: cg.setLineCap(.butt)
+  case .round: cg.setLineCap(.round)
+  case .square: cg.setLineCap(.square)
+  }
+  switch shape.lineJoin {
+  case .miter: cg.setLineJoin(.miter)
+  case .round: cg.setLineJoin(.round)
+  case .bevel: cg.setLineJoin(.bevel)
+  }
+  cg.setMiterLimit(shape.miterLimit)
+  if let dashes = shape.dashArray { cg.setLineDash(phase: shape.dashOffset, lengths: dashes) }
+}
+
 /// Rasterize `doc` at `size` points and `scale`; `currentColor` paints use `currentColor` (ARGB).
 func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, currentColor: UInt32) -> UIImage? {
   guard size.width > 0, size.height > 0, !doc.ops.isEmpty else { return nil }
@@ -708,32 +1034,44 @@ func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, current
       case .endGroup:
         cg.endTransparencyLayer()
         cg.restoreGState()
+      case let .beginClip(clip):
+        cg.saveGState()
+        let (path, rule) = svgClipPath(clip)
+        cg.addPath(path)
+        cg.clip(using: rule)
+      case .endClip:
+        cg.restoreGState()
+      case let .image(image):
+        drawSvgImage(cg, image)
       case let .shape(shape):
         let path = svgCGPath(shape.commands)
         cg.saveGState()
         cg.concatenate(shape.transform)
         if shape.hasFill {
           cg.addPath(path)
-          cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
-          cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
+          if case let .gradient(g) = shape.fill {
+            cg.saveGState()
+            cg.clip(using: shape.evenOdd ? .evenOdd : .winding)
+            drawSvgGradient(cg, g, opacity: shape.fillOpacity, currentColor: currentColor)
+            cg.restoreGState()
+          } else {
+            cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
+            cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
+          }
         }
         if shape.hasStroke {
           cg.addPath(path)
-          cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
-          cg.setLineWidth(shape.strokeWidth)
-          switch shape.lineCap {
-          case .butt: cg.setLineCap(.butt)
-          case .round: cg.setLineCap(.round)
-          case .square: cg.setLineCap(.square)
+          setSvgStrokeStyle(cg, shape)
+          if case let .gradient(g) = shape.stroke {
+            cg.saveGState()
+            cg.replacePathWithStrokedPath()
+            cg.clip()
+            drawSvgGradient(cg, g, opacity: shape.strokeOpacity, currentColor: currentColor)
+            cg.restoreGState()
+          } else {
+            cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
+            cg.strokePath()
           }
-          switch shape.lineJoin {
-          case .miter: cg.setLineJoin(.miter)
-          case .round: cg.setLineJoin(.round)
-          case .bevel: cg.setLineJoin(.bevel)
-          }
-          cg.setMiterLimit(shape.miterLimit)
-          if let dashes = shape.dashArray { cg.setLineDash(phase: shape.dashOffset, lengths: dashes) }
-          cg.strokePath()
         }
         cg.restoreGState()
       }

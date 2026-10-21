@@ -62,23 +62,24 @@ export class StoryComponent {}
 }
 ```
 
-> **Lengths:** use unitless values. In NativeScript `px` means _physical device
-> pixels_, so `padding: 12px` lands at ~4 on a 3x screen. Unitless is the dip
-> value, which is what matches a CSS pixel in a browser.
+> **Lengths:** on MasonKit elements `px` is a CSS pixel, as in a browser, and a
+> unitless value is the same size. Plain NativeScript views keep core's meaning,
+> where `px` is a device pixel.
 
 ### Available elements
 
 | From                                  | Elements                                                                                                                                              |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@triniwiz/nativescript-masonkit`     | `View`, `Text`, `Scroll`, `Img`, `Button`, `Input`, `TextArea`, `Br`, `Ul`, `Ol`, `Li`                                                                |
-| `@triniwiz/nativescript-masonkit/web` | `div`, `section`, `header`, `footer`, `article`, `main`, `nav`, `aside`, `span`, `code`, `h1`-`h6`, `p`, `ul`, `li`, `blockquote`, `b`, `strong`, `a` |
+| `@triniwiz/nativescript-masonkit/web` | Every HTML-shaped element: `div`, `section`, `p`, `span`, `h1`-`h6`, `ul`, `ol`, `li`, `a`, `details`, `summary`, `label` and [more](https://triniwiz.github.io/nativescript-mason/elements/html) |
 
 Each name works in its original, lowercase and kebab-case spelling, so `<View>`,
 `<view>` and `<text-area>` all resolve.
 
 Note that these **replace** some core elements in Angular templates: `<Button>`,
-`<img>` and `<Span>` resolve to MasonKit's versions rather than core's `Button`,
-`Image` and `Span`. Turn off either set if you would rather keep the classic
+`<button>` and `<img>` resolve to MasonKit's versions rather than core's `Button`
+and `Image`, and so do lowercase `<span>` and `<label>`. The exact spellings
+`<Span>` and `<Label>` stay core's, which `<FormattedString>` needs. Turn off either set if you would rather keep the classic
 widgets:
 
 ```ts
@@ -184,9 +185,6 @@ rather than inserted in position, and removals leave stale entries behind.
 **A routed screen shows only its ActionBar, everything else is blank.**
 That component is a page root whose host box collapsed. Add its selector to
 `passthrough`. Check the console - auto-detection logs the name.
-
-**Everything looks cramped, but the text size is right.**
-Lengths are in `px`. In NativeScript that means physical pixels. Drop the unit.
 
 **A component's `class` or `backgroundColor` does nothing.**
 Component host mode is off, or that element is in `passthrough`.

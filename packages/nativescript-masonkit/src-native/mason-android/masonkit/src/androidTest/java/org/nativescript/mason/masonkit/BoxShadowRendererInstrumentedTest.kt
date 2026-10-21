@@ -181,4 +181,33 @@ class BoxShadowRendererInstrumentedTest {
     })
     bitmap.recycle()
   }
+
+  /** Outset shadow pixel at (x, y) css px from the box corner, for a 200px box with a 20px spread. */
+  private fun shadowAlphaAt(cornerShape: String, x: Float, y: Float): Int {
+    val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+    val d = context.resources.displayMetrics.density
+    val view = View(context, Mason.shared).apply {
+      style.borderRadius = "40px"
+      if (cornerShape.isNotEmpty()) style.cornerShape = cornerShape
+      style.boxShadow = "0px 0px 0px 20px rgb(0, 0, 0)"
+    }
+    val size = 200f * d
+    val pad = 100f * d
+    val bitmap = Bitmap.createBitmap((size + pad * 2).toInt(), (size + pad * 2).toInt(), Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    canvas.translate(pad, pad)
+    view.style.mBorderRenderer.updateCache(size, size)
+    view.style.mBoxShadowRenderer.drawOutsetShadows(view, canvas, size, size, view.style.mBorderRenderer)
+    val alpha = android.graphics.Color.alpha(bitmap.getPixel((pad + x * d).toInt(), (pad + y * d).toInt()))
+    bitmap.recycle()
+    return alpha
+  }
+
+  @Test
+  fun outsetShadowFollowsCornerShape() {
+    // The 60px shadow corner reaches the diagonal at -2.4px when round, 10px when bevelled.
+    assertEquals("round corner covers (5, 5)", 255, shadowAlphaAt("", 5f, 5f))
+    assertEquals("bevel corner leaves (5, 5) empty", 0, shadowAlphaAt("bevel", 5f, 5f))
+    assertEquals("bevel corner covers (14, 14)", 255, shadowAlphaAt("bevel", 14f, 14f))
+  }
 }

@@ -817,6 +817,8 @@ declare class MasonInput extends UIView {
 
 	accept: string;
 
+	disabled: boolean;
+
 	checked: boolean;
 
 	cssAppearance: MasonInputAppearance;
@@ -2690,6 +2692,8 @@ declare class MasonTextArea extends MasonTextInput implements MasonElementObjc {
 
 	cols: number;
 
+	disabled: boolean;
+
 	readonly mason: NSCMason;
 
 	maxLength: number;
@@ -3723,6 +3727,8 @@ declare const enum NSCFontWeight {
 }
 
 declare class NSCMason extends NSObject {
+
+	static setViewportListener(listener: () => void): void;
 
 	static alloc(): NSCMason; // inherited from NSObject
 

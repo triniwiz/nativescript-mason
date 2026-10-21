@@ -807,8 +807,21 @@ public class TextEngine: NSObject {
   private var cachedFramesetter: CTFramesetter?
   private var framesetterStringVersion: UInt64 = UInt64.max
 
-  // The text's soft hyphens and first-line indent resolved for one width (0 without soft hyphens).
-  private var fitted: (version: UInt64, width: CGFloat, indent: CGFloat, framesetter: CTFramesetter)?
+  // The text's soft hyphens, first-line indent and inter-character justification resolved for one
+  // width (0 when neither applies).
+  private var fitted: (version: UInt64, width: CGFloat, indent: CGFloat, justify: CGFloat, framesetter: CTFramesetter)?
+
+  /// How `text-align: justify` spreads a line's slack: nil when not justified.
+  private var justification: Justification? {
+    guard style.resolvedTextAlign == .Justify else { return nil }
+    switch style.resolvedTextJustify {
+    case .None: return nil
+    case .InterCharacter, .Distribute: return .characters
+    default: return .words
+    }
+  }
+
+  enum Justification { case words, characters }
 
   /// The framesetter for `text` wrapped at `width`, with soft hyphens broken and drawn as on the
   /// web, and the first line indented by `indent` (lay it out in `wrapRect`).
@@ -821,17 +834,22 @@ public class TextEngine: NSObject {
       cachedFramesetter = base
       framesetterStringVersion = segmentsInvalidateVersion
     }
-    let hyphenWidth: CGFloat = width.isFinite && width > 0 && width < 1_000_000
+    let finiteWidth = width.isFinite && width > 0 && width < 1_000_000
+    let hyphenWidth: CGFloat = finiteWidth
       && (text.string as NSString).range(of: "\u{00AD}").location != NSNotFound ? width : 0
-    if hyphenWidth == 0 && indent == 0 { return base }
-    if let fitted = fitted, fitted.version == segmentsInvalidateVersion, fitted.width == hyphenWidth, fitted.indent == indent {
+    let justify = finiteWidth && hyphenWidth == 0 ? justification : nil
+    let justifyWidth: CGFloat = justify == nil ? 0 : width
+    if hyphenWidth == 0 && indent == 0 && justifyWidth == 0 { return base }
+    if let fitted = fitted, fitted.version == segmentsInvalidateVersion, fitted.width == hyphenWidth, fitted.indent == indent,
+       fitted.justify == justifyWidth {
       return fitted.framesetter
     }
-    let source = indent == 0 ? text : TextEngine.indenting(text, indent)
+    var source = indent == 0 ? text : TextEngine.indenting(text, indent)
+    if let justify = justify { source = TextEngine.justifying(source, justifyWidth + max(0, -indent), justify) }
     let framesetter = hyphenWidth > 0
       ? TextEngine.fitSoftHyphens(source, hyphenWidth + max(0, -indent))
       : CTFramesetterCreateWithAttributedString(source)
-    fitted = (segmentsInvalidateVersion, hyphenWidth, indent, framesetter)
+    fitted = (segmentsInvalidateVersion, hyphenWidth, indent, justifyWidth, framesetter)
     return framesetter
   }
 
@@ -841,6 +859,66 @@ public class TextEngine: NSObject {
       let range = CTLineGetStringRange($0)
       return range.location + range.length
     }
+  }
+
+  /// word-spacing: each space gets its extra advance as kerning, on top of any letter-spacing.
+  /// The key is consumed, so a container flattening this text doesn't add it again.
+  static func applyWordSpacing(_ text: NSMutableAttributedString) {
+    guard text.length > 0 else { return }
+    let chars = text.string as NSString
+    var spaced: [NSRange] = []
+    text.enumerateAttribute(Constants.WORD_SPACING_KEY, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+      guard let extra = value as? CGFloat else { return }
+      spaced.append(range)
+      for i in range.location..<(range.location + range.length) {
+        let c = chars.character(at: i)
+        guard c == 0x20 || c == 0xA0 else { continue }
+        let kern = (text.attribute(.kern, at: i, effectiveRange: nil) as? CGFloat) ?? 0
+        text.addAttribute(.kern, value: kern + extra, range: NSRange(location: i, length: 1))
+      }
+    }
+    for range in spaced { text.removeAttribute(Constants.WORD_SPACING_KEY, range: range) }
+  }
+
+  /// text-align: justify: each wrapped line but the last spreads its slack as kerning.
+  static func justifying(_ text: NSAttributedString, _ width: CGFloat, _ mode: Justification) -> NSAttributedString {
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
+    let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(text), CFRange(location: 0, length: 0), path, nil)
+    guard let lines = CTFrameGetLines(frame) as? [CTLine], !lines.isEmpty else { return text }
+    var origins = [CGPoint](repeating: .zero, count: lines.count)
+    CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+    let out = NSMutableAttributedString(attributedString: text)
+    let chars = text.string as NSString
+    for (index, line) in lines.enumerated() {
+      let range = CTLineGetStringRange(line)
+      let end = range.location + range.length
+      guard range.length > 0, end < chars.length, chars.character(at: end - 1) != 0x0A else { continue }
+      var last = end
+      while last > range.location, isBreakSpace(chars.character(at: last - 1)) { last -= 1 }
+      // Where the slack goes: after each character but the last, or on each inner space.
+      var gaps: [NSRange] = []
+      var i = range.location
+      while i < last {
+        let cluster = chars.rangeOfComposedCharacterSequence(at: i)
+        let next = cluster.location + cluster.length
+        if next < last {
+          let c = chars.character(at: cluster.location)
+          if mode == .characters || c == 0x20 || c == 0xA0 { gaps.append(cluster) }
+        }
+        i = next
+      }
+      guard !gaps.isEmpty else { continue }
+      let used = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - CGFloat(CTLineGetTrailingWhitespaceWidth(line))
+      // A hair under the slack so the line still fits.
+      let extra = (width - origins[index].x - used - 0.01) / CGFloat(gaps.count)
+      guard extra > 0 else { continue }
+      for cluster in gaps {
+        let at = NSRange(location: cluster.location + cluster.length - 1, length: 1)
+        let kern = (out.attribute(.kern, at: at.location, effectiveRange: nil) as? CGFloat) ?? 0
+        out.addAttribute(.kern, value: kern + extra, range: at)
+      }
+    }
+    return out
   }
 
   private static func isBreakSpace(_ c: unichar) -> Bool {
@@ -2257,6 +2335,8 @@ public class TextEngine: NSObject {
       }
       composed.insert(NSAttributedString(string: insideMarker, attributes: attrs), at: 0)
     }
+
+    TextEngine.applyWordSpacing(composed)
 
     // Wrap with Unicode bidi control characters when unicode-bidi requires
     // character-level overrides beyond what paragraph direction provides.

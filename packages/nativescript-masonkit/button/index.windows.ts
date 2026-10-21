@@ -3,7 +3,7 @@ import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isText_, isMasonView_, native_, runMember_ } from '../symbols';
-import { removeNativeChild } from '../windows-panel-helpers';
+import { removeNativeChild } from '../panel-helpers';
 
 @CSSType('Button')
 export class Button extends ButtonBase {

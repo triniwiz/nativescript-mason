@@ -869,6 +869,8 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic) BOOL multiple;
 @property (nonatomic, copy) NSString * _Nonnull accept;
+/// <code>disabled</code>: the control takes no touches or focus, and native controls draw disabled.
+@property (nonatomic) BOOL disabled;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 /// Called whenever the checked state changes, from a tap or from code.
@@ -1569,6 +1571,8 @@ SWIFT_CLASS_NAMED("MasonTextArea")
 @property (nonatomic) NSInteger cols;
 @property (nonatomic, copy) NSString * _Nonnull name;
 @property (nonatomic) NSInteger maxLength;
+/// <code>disabled</code>: no editing, selection or focus; the content still scrolls.
+@property (nonatomic) BOOL disabled;
 @property (nonatomic, copy) NSString * _Nonnull value;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
@@ -1896,6 +1900,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) float rootFontSize;)
 + (void)setRootFontSize:(float)value;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) CGSize viewportSize;)
 + (CGSize)viewportSize SWIFT_WARN_UNUSED_RESULT;
+/// Called on the main thread after the key window changes size, so values that used a
+/// viewport unit can be resolved again.
++ (void)setViewportListener:(void (^ _Nullable)(void))listener;
 /// The display scale every layout value is converted through.
 /// Cached: resolving it walks <code>connectedScenes</code> and each scene’s windows,
 /// and it’s read on the hottest paths there are (once per text measure,

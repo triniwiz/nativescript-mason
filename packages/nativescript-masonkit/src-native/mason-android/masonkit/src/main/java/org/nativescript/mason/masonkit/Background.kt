@@ -8,6 +8,7 @@ import android.graphics.PorterDuffXfermode
 import android.os.Build
 import androidx.annotation.RequiresApi
 import kotlin.math.ceil
+import kotlin.math.floor
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -37,11 +38,14 @@ private val bitmapDstRect = RectF()
 
 private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
 private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
+private val ANY_GRADIENT_REGEX = Regex("""(repeating-)?(linear|radial|conic)-gradient\(""", RegexOption.IGNORE_CASE)
 private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
-private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
+private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round")
 private val WHITESPACE_REGEX = Regex("""\s+""")
 private val COMMA_WHITESPACE_REGEX = Regex("""[\s,]+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
+private val RADIAL_SHAPE_WORDS =
+  setOf("circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner")
 private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
 private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})")
 private val RGBA_REGEX =
@@ -274,7 +278,7 @@ class Background(
     layers.forEachIndexed { idx, layer ->
       val v = parts[idx % parts.size]
       when (name) {
-        "repeat" -> layer.repeat = parseRepeat(v)
+        "repeat" -> parseRepeat(v)?.let { layer.repeat = it }
         "position" -> parsePosition(splitTopLevelWhitespace(v))?.let { layer.position = it }
         "position-x" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = true)?.let {
           layer.position = (layer.position ?: BackgroundPosition()).copy(x = it)
@@ -415,8 +419,51 @@ class Background(
   }
 }
 
-enum class BackgroundRepeat(val value: String) {
-  REPEAT("repeat"), REPEAT_X("repeat-x"), REPEAT_Y("repeat-y"), NO_REPEAT("no-repeat")
+/** One axis of `background-repeat` / `mask-repeat`. */
+enum class RepeatStyle(val value: String) {
+  REPEAT("repeat"), SPACE("space"), ROUND("round"), NO_REPEAT("no-repeat");
+
+  companion object {
+    fun parse(value: String): RepeatStyle? = entries.firstOrNull { it.value == value }
+  }
+}
+
+/** `background-repeat` / `mask-repeat`, per axis. */
+data class BackgroundRepeat(val x: RepeatStyle, val y: RepeatStyle) {
+  val value: String
+    get() = when {
+      x == y -> x.value
+      x == RepeatStyle.REPEAT && y == RepeatStyle.NO_REPEAT -> "repeat-x"
+      x == RepeatStyle.NO_REPEAT && y == RepeatStyle.REPEAT -> "repeat-y"
+      else -> "${x.value} ${y.value}"
+    }
+
+  companion object {
+    @JvmField val REPEAT = BackgroundRepeat(RepeatStyle.REPEAT, RepeatStyle.REPEAT)
+    @JvmField val REPEAT_X = BackgroundRepeat(RepeatStyle.REPEAT, RepeatStyle.NO_REPEAT)
+    @JvmField val REPEAT_Y = BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.REPEAT)
+    @JvmField val NO_REPEAT = BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.NO_REPEAT)
+
+    /** `repeat-x`, `repeat-y`, or one or two axis keywords; null when invalid. */
+    fun parse(value: String): BackgroundRepeat? {
+      val tokens = value.trim().lowercase().split(WHITESPACE_REGEX).filter { it.isNotEmpty() }
+      return when (tokens.size) {
+        1 -> when (tokens[0]) {
+          "repeat-x" -> REPEAT_X
+          "repeat-y" -> REPEAT_Y
+          else -> RepeatStyle.parse(tokens[0])?.let { BackgroundRepeat(it, it) }
+        }
+
+        2 -> {
+          val x = RepeatStyle.parse(tokens[0]) ?: return null
+          val y = RepeatStyle.parse(tokens[1]) ?: return null
+          BackgroundRepeat(x, y)
+        }
+
+        else -> null
+      }
+    }
+  }
 }
 
 data class Gradient(
@@ -427,6 +474,13 @@ data class Gradient(
   /** `repeating-*-gradient`: the stop run tiles along the gradient line. */
   val repeating: Boolean = false,
 )
+
+/** Glide model for a CSS image URL: `~/` is the app folder and an absolute path is a file. */
+internal fun imageSource(context: Context, url: String): Any = when {
+  url.startsWith("~/") -> java.io.File(java.io.File(context.filesDir, "app"), url.substring(2))
+  url.startsWith("/") -> java.io.File(url)
+  else -> url
+}
 
 /** [currentColor] is the element's resolved CSS `color`, for SVG `currentColor` paints. */
 fun drawBackground(
@@ -455,7 +509,7 @@ fun drawBackground(
     }
 
     // Load bitmap asynchronously
-    Glide.with(context).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
+    Glide.with(context).asBitmap().load(imageSource(context, imageUrl)).into(object : CustomTarget<Bitmap>() {
       override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
         layer.bitmap = resource
         layer.bitmapIsDevicePx = false
@@ -486,7 +540,7 @@ private fun drawSvgLayer(
   }
   val density = context.resources.displayMetrics.density
   // Intrinsic size in device px: 1 SVG px is 1 CSS px.
-  val (drawW, drawH) = resolveBitmapSize(layer.size, doc.width * density, doc.height * density, area.width(), area.height())
+  val (drawW, drawH) = resolveTileSize(layer, doc.width * density, doc.height * density, area.width(), area.height())
   if (drawW <= 0f || drawH <= 0f) return
   val fit = minOf(1f, MAX_SVG_RASTER_PX / maxOf(drawW, drawH))
   val pxW = ceil(drawW * fit).toInt().coerceAtLeast(1)
@@ -546,7 +600,7 @@ private fun svgPaintColor(paint: SvgPaint, opacity: Float, currentColor: Int): I
   val argb = when (paint) {
     is SvgPaint.Color -> paint.argb
     SvgPaint.CurrentColor -> currentColor
-    SvgPaint.None -> 0
+    else -> 0
   }
   val alpha = (((argb ushr 24) and 0xFF) * opacity.coerceIn(0f, 1f)).toInt().coerceIn(0, 255)
   return (alpha shl 24) or (argb and 0x00FFFFFF)
@@ -565,6 +619,91 @@ private fun buildSvgPath(path: Path, commands: List<SvgPathCommand>) {
   }
 }
 
+private fun svgStopColor(stop: SvgGradientStop, currentColor: Int): Int {
+  if (!stop.currentColor) return stop.argb
+  val alpha = ((currentColor ushr 24) and 0xFF) * ((stop.argb ushr 24) and 0xFF) / 255
+  return (alpha shl 24) or (currentColor and 0xFFFFFF)
+}
+
+/** A shader for [g], in the shape's user space. */
+private fun svgGradientShader(g: SvgGradient, currentColor: Int): Shader {
+  val colors = IntArray(g.stops.size) { svgStopColor(g.stops[it], currentColor) }
+  val positions = FloatArray(g.stops.size) { g.stops[it].offset }
+  val tile = when (g.spread) {
+    SvgSpread.PAD -> Shader.TileMode.CLAMP
+    SvgSpread.REFLECT -> Shader.TileMode.MIRROR
+    SvgSpread.REPEAT -> Shader.TileMode.REPEAT
+  }
+  val shader = if (!g.radial) {
+    LinearGradient(g.x1, g.y1, g.x2, g.y2, colors, positions, tile)
+  } else if ((g.fx != g.cx || g.fy != g.cy) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    // Two-point conical: from the focal point (radius 0) out to the end circle.
+    val longs = LongArray(colors.size) { Color.pack(colors[it]) }
+    RadialGradient(g.fx, g.fy, 0f, g.cx, g.cy, g.r, longs, positions, tile)
+  } else {
+    RadialGradient(g.cx, g.cy, g.r, colors, positions, tile)
+  }
+  shader.setLocalMatrix(svgMatrix(g.transform))
+  return shader
+}
+
+/** Colour, or shader for a gradient, of [paint] at [opacity]. */
+private fun applySvgPaint(target: Paint, paint: SvgPaint, opacity: Float, currentColor: Int) {
+  if (paint is SvgPaint.Gradient) {
+    target.shader = svgGradientShader(paint.gradient, currentColor)
+    target.color = Color.BLACK
+    target.alpha = (opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+  } else {
+    target.color = svgPaintColor(paint, opacity, currentColor)
+  }
+}
+
+private fun svgClipPath(clip: SvgClip): Path {
+  val out = Path()
+  val evenOdd = clip.paths.first().evenOdd
+  if (clip.paths.all { it.evenOdd == evenOdd }) {
+    val p = Path()
+    for (c in clip.paths) {
+      buildSvgPath(p, c.commands)
+      p.transform(svgMatrix(c.transform))
+      out.addPath(p)
+    }
+    out.fillType = if (evenOdd) Path.FillType.EVEN_ODD else Path.FillType.WINDING
+    return out
+  }
+  // Mixed clip-rules: union paths that each keep their own rule.
+  for (c in clip.paths) {
+    val p = Path()
+    buildSvgPath(p, c.commands)
+    p.transform(svgMatrix(c.transform))
+    p.fillType = if (c.evenOdd) Path.FillType.EVEN_ODD else Path.FillType.WINDING
+    out.op(p, Path.Op.UNION)
+  }
+  return out
+}
+
+private fun drawSvgImage(canvas: Canvas, image: SvgImage, paint: Paint) {
+  val bitmap = decodeDataUrlBitmap(image.href) ?: return
+  val iw = bitmap.width.toFloat()
+  val ih = bitmap.height.toFloat()
+  if (iw <= 0f || ih <= 0f) return
+  // An auto side keeps the image's aspect ratio.
+  val w = image.width ?: image.height?.let { it * iw / ih } ?: iw
+  val h = image.height ?: image.width?.let { it * ih / iw } ?: ih
+  val m = svgViewBoxTransform(floatArrayOf(0f, 0f, iw, ih), image.alignX, image.alignY, image.slice, w, h)
+  canvas.save()
+  canvas.concat(svgMatrix(image.transform))
+  canvas.translate(image.x, image.y)
+  if (image.slice) canvas.clipRect(0f, 0f, w, h)
+  canvas.concat(svgMatrix(m))
+  paint.reset()
+  paint.isAntiAlias = true
+  paint.isFilterBitmap = true
+  paint.alpha = (image.opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+  canvas.drawBitmap(bitmap, 0f, 0f, paint)
+  canvas.restore()
+}
+
 /** Rasterize [doc] into a [w] x [h] px bitmap; `currentColor` paints use [currentColor]. */
 internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: Int): Bitmap? {
   if (w <= 0 || h <= 0 || doc.ops.isEmpty()) return null
@@ -576,6 +715,9 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
   canvas.concat(svgMatrix(doc.viewportTransform(w.toFloat(), h.toFloat())))
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   val path = Path()
+  // A clip draws its content into a layer, then erases outside it with the inverse path (AA).
+  val clips = ArrayList<SvgClip>()
+  val clipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
   for (op in doc.ops) {
     when (op) {
       is SvgOp.BeginGroup -> {
@@ -584,6 +726,20 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
       }
 
       SvgOp.EndGroup -> canvas.restore()
+      is SvgOp.BeginClip -> {
+        clips.add(op.clip)
+        canvas.saveLayer(null, null)
+      }
+
+      SvgOp.EndClip -> {
+        if (clips.isNotEmpty()) {
+          val outside = svgClipPath(clips.removeAt(clips.size - 1)).apply { toggleInverseFillType() }
+          canvas.drawPath(outside, clipPaint)
+          canvas.restore()
+        }
+      }
+
+      is SvgOp.Image -> drawSvgImage(canvas, op.image, paint)
       is SvgOp.Shape -> {
         val shape = op.shape
         buildSvgPath(path, shape.commands)
@@ -594,7 +750,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           paint.reset()
           paint.isAntiAlias = true
           paint.style = Paint.Style.FILL
-          paint.color = svgPaintColor(shape.fill, shape.fillOpacity, currentColor)
+          applySvgPaint(paint, shape.fill, shape.fillOpacity, currentColor)
           canvas.drawPath(path, paint)
         }
         if (shape.hasStroke) {
@@ -614,7 +770,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           }
           paint.strokeMiter = shape.miterLimit
           shape.dashArray?.let { paint.pathEffect = DashPathEffect(it, shape.dashOffset) }
-          paint.color = svgPaintColor(shape.stroke, shape.strokeOpacity, currentColor)
+          applySvgPaint(paint, shape.stroke, shape.strokeOpacity, currentColor)
           canvas.drawPath(path, paint)
         }
         canvas.restore()
@@ -626,7 +782,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
   // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-  val (tileW, tileH) = resolveBitmapSize(layer.size, area.width(), area.height(), area.width(), area.height())
+  val (tileW, tileH) = resolveTileSize(layer, area.width(), area.height(), area.width(), area.height())
   // No shader means no fill: gradientPaint's fallback colour is opaque black.
   val shader = gradientShader(layer, tileW.toInt(), tileH.toInt()) ?: return
   gradientPaint.shader = shader
@@ -663,6 +819,7 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     var x1 = 0f
     var y1 = 0f
     var radius = 0f
+    var radiusY = 0f
     var fromDeg = 0f
     val lineLength = when (type) {
       "linear" -> {
@@ -674,13 +831,10 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
       "radial" -> {
         val (cx, cy) = resolveRadialGradientCenter(gradient.direction, w, h)
         x0 = cx; y0 = cy
-        // Radius must reach the farthest corner from the resolved centre.
-        radius = maxOf(
-          hypot((cx).toDouble(), (cy).toDouble()),
-          hypot((width - cx).toDouble(), (cy).toDouble()),
-          hypot((cx).toDouble(), (height - cy).toDouble()),
-          hypot((width - cx).toDouble(), (height - cy).toDouble())
-        ).toFloat().coerceAtLeast(1f)
+        val radii = radialGradientRadii(radialShapePart(gradient.direction), cx, cy, w, h)
+        radius = radii[0]
+        radiusY = radii[1]
+        // Stops sit on the horizontal ray, so lengths resolve against rx.
         radius
       }
 
@@ -724,7 +878,10 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     layer.shader = when (type) {
       "linear" -> LinearGradient(x0, y0, x1, y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
 
-      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP)
+      // An ellipse is the circle of radius rx scaled vertically about the centre.
+      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP).apply {
+        if (radiusY != radius) setLocalMatrix(Matrix().apply { setScale(1f, radiusY / radius, x0, y0) })
+      }
 
       // SweepGradient starts at 3 o'clock; CSS conic starts at 12 o'clock, both clockwise.
       "conic" -> SweepGradient(x0, y0, shaderColors, positionsArray).apply {
@@ -852,26 +1009,57 @@ private fun lerpArgb(a: Int, b: Int, f: Float): Int {
   return (ch(24) shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
 }
 
+/** Most tiles drawn per axis; finer tilings are cut off. */
+private const val MAX_TILES_PER_AXIS = 4096
+
+/** Per-axis tiling scratch: first origin, step, count. Draws run on the UI thread. */
+private val tileAxisX = FloatArray(3)
+private val tileAxisY = FloatArray(3)
+
+/** One axis's tiles, written to [out] as first origin, step and count; `space` spreads whole tiles edge to edge. */
+internal fun tileAxis(
+  style: RepeatStyle, areaStart: Float, areaLength: Float, paintStart: Float, paintEnd: Float,
+  tile: Float, offset: Float, out: FloatArray
+) {
+  out[0] = areaStart + offset
+  out[1] = tile
+  out[2] = 1f
+  if (tile <= 0f) {
+    out[2] = 0f
+    return
+  }
+  val start = when (style) {
+    RepeatStyle.NO_REPEAT -> return
+    RepeatStyle.SPACE -> {
+      val n = floor(areaLength / tile + 1e-4f).toInt()
+      if (n <= 1) return
+      out[1] = tile + (areaLength - n * tile) / (n - 1)
+      areaStart
+    }
+    RepeatStyle.REPEAT, RepeatStyle.ROUND -> areaStart + offset
+  }
+  val step = out[1]
+  val first = start - ceil((start - paintStart) / step) * step
+  out[0] = first
+  out[2] = ceil((paintEnd - first) / step).coerceIn(0f, MAX_TILES_PER_AXIS.toFloat())
+}
+
 /** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */
 private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: RectF, drawW: Float, drawH: Float, draw: (Float, Float) -> Unit) {
   val pos = layer.position
-  val x = area.left + (pos?.x?.resolve(area.width(), drawW) ?: 0f)
-  val y = area.top + (pos?.y?.resolve(area.height(), drawH) ?: 0f)
-  val repeatX = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_X
-  val repeatY = layer.repeat == BackgroundRepeat.REPEAT || layer.repeat == BackgroundRepeat.REPEAT_Y
-  // Tiles start at the resolved position and extend both ways across the paint rect.
-  val startX = if (repeatX) x - ceil((x - paintRect.left) / drawW) * drawW else x
-  val startY = if (repeatY) y - ceil((y - paintRect.top) / drawH) * drawH else y
-  val endX = if (repeatX) paintRect.right else x + 1f
-  val endY = if (repeatY) paintRect.bottom else y + 1f
-  var py = startY
-  while (py < endY) {
-    var px = startX
-    while (px < endX) {
-      draw(px, py)
-      px += drawW
-    }
-    py += drawH
+  val offsetX = pos?.x?.resolve(area.width(), drawW) ?: 0f
+  val offsetY = pos?.y?.resolve(area.height(), drawH) ?: 0f
+  tileAxis(layer.repeat.x, area.left, area.width(), paintRect.left, paintRect.right, drawW, offsetX, tileAxisX)
+  tileAxis(layer.repeat.y, area.top, area.height(), paintRect.top, paintRect.bottom, drawH, offsetY, tileAxisY)
+  val x0 = tileAxisX[0]
+  val stepX = tileAxisX[1]
+  val countX = tileAxisX[2].toInt()
+  val y0 = tileAxisY[0]
+  val stepY = tileAxisY[1]
+  val countY = tileAxisY[2].toInt()
+  for (j in 0 until countY) {
+    val py = y0 + j * stepY
+    for (i in 0 until countX) draw(x0 + i * stepX, py)
   }
 }
 
@@ -941,7 +1129,7 @@ private fun cornerGradientEndpoints(ep: FloatArray, x: Float, y: Float, width: F
  * Parse a CSS angle string (e.g. "135deg", "0.75turn", "1.5rad", "200grad")
  * to radians. Returns null if the string cannot be parsed.
  */
-private fun parseCssAngleToRadians(value: String): Double? {
+internal fun parseCssAngleToRadians(value: String): Double? {
   val v = value.trim().lowercase()
   return when {
     v.endsWith("deg") -> v.removeSuffix("deg").toDoubleOrNull()
@@ -974,13 +1162,75 @@ private fun resolveRadialGradientCenter(
   val defaultCenter = Pair(width / 2f, height / 2f)
   val dir = direction?.trim()?.lowercase() ?: return defaultCenter
 
-  // Extract the position portion after "at "
-  val atIndex = dir.indexOf(" at ")
-  val positionStr = if (atIndex >= 0) dir.substring(atIndex + 4).trim() else return defaultCenter
+  val atIndex = radialAtIndex(dir)
+  val positionStr = if (atIndex >= 0) dir.substring(atIndex + 2).trim() else return defaultCenter
   if (positionStr.isEmpty()) return defaultCenter
 
   return resolvePositionKeywords(positionStr, width, height)
 }
+
+/** Index of the `at` that starts a radial prelude's position, or -1. */
+private fun radialAtIndex(dir: String): Int = when {
+  dir == "at" || dir.startsWith("at ") -> 0
+  else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
+}
+
+/** The `<shape> <size>` part of a radial prelude, without its `at <position>`. */
+internal fun radialShapePart(direction: String?): String? {
+  val dir = direction?.trim()?.lowercase() ?: return null
+  val at = radialAtIndex(dir)
+  return (if (at >= 0) dir.substring(0, at) else dir).trim().ifEmpty { null }
+}
+
+/** True when [token] is a radial prelude (`circle 20px at top`), not a colour stop. */
+internal fun isRadialPrelude(token: String): Boolean {
+  val v = token.trim().lowercase()
+  if (v.isEmpty()) return false
+  val shape = radialShapePart(v) ?: return radialAtIndex(v) == 0
+  val parts = shape.split(WHITESPACE_REGEX)
+  return parts.all { it in RADIAL_SHAPE_WORDS || parseBackgroundLength(it) != null }
+}
+
+/**
+ * The ending shape's radii [rx, ry] in px for a radial [shape] (`circle`, `ellipse`, a size
+ * keyword or explicit radii) centred at [cx], [cy] in a [width] x [height] box, per CSS Images 3.
+ * The default is an ellipse to the farthest corner; a single length is a circle.
+ */
+internal fun radialGradientRadii(
+  shape: String?,
+  cx: Float,
+  cy: Float,
+  width: Float,
+  height: Float,
+  length: (String) -> BackgroundOffset? = ::parseBackgroundLength,
+): FloatArray {
+  val parts = shape?.trim()?.lowercase()?.split(WHITESPACE_REGEX)?.filter { it.isNotEmpty() } ?: emptyList()
+  val lengths = parts.filter { it !in RADIAL_SHAPE_WORDS }.mapNotNull(length)
+  val circle = "circle" in parts || ("ellipse" !in parts && lengths.size == 1)
+  if (lengths.isNotEmpty()) {
+    val rx = lengths[0].fraction * width + lengths[0].px
+    val ry = if (circle || lengths.size < 2) rx else lengths[1].fraction * height + lengths[1].px
+    return floatArrayOf(rx.coerceAtLeast(MIN_RADIAL_RADIUS), ry.coerceAtLeast(MIN_RADIAL_RADIUS))
+  }
+  val size = parts.firstOrNull { it in RADIAL_SHAPE_WORDS && it != "circle" && it != "ellipse" } ?: "farthest-corner"
+  val closest = size.startsWith("closest")
+  val sideX = if (closest) minOf(cx, width - cx) else maxOf(cx, width - cx)
+  val sideY = if (closest) minOf(cy, height - cy) else maxOf(cy, height - cy)
+  val corner = size.endsWith("corner")
+  val out = when {
+    circle && corner -> hypot(sideX, sideY).let { floatArrayOf(it, it) }
+    circle -> (if (closest) minOf(sideX, sideY) else maxOf(sideX, sideY)).let { floatArrayOf(it, it) }
+    // A corner ellipse keeps the side ellipse's aspect ratio and passes through that corner.
+    corner -> floatArrayOf(sideX * SQRT_2, sideY * SQRT_2)
+    else -> floatArrayOf(sideX, sideY)
+  }
+  out[0] = out[0].coerceAtLeast(MIN_RADIAL_RADIUS)
+  out[1] = out[1].coerceAtLeast(MIN_RADIAL_RADIUS)
+  return out
+}
+
+private const val MIN_RADIAL_RADIUS = 1f
+private const val SQRT_2 = 1.4142135f
 
 /**
  * Convert a CSS background-position value (keyword or percentage based) to
@@ -1048,7 +1298,7 @@ private fun drawBitmapLayer(
   val areaH = area.height()
   val imgScale = if (layer.bitmapIsDevicePx) 1f else Mason.shared.scale
   val (drawWidth, drawHeight) = if (drawW != null && drawH != null) drawW to drawH
-  else resolveBitmapSize(layer.size, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
+  else resolveTileSize(layer, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
   if (drawWidth <= 0f || drawHeight <= 0f) return
 
   // Reuse cached RectF and Paint to avoid per-tile allocations
@@ -1060,6 +1310,27 @@ private fun drawBitmapLayer(
     canvas.drawBitmap(bitmap, null, dst, paint)
   }
   layer.blendMode.clear(paint)
+}
+
+/** The tile size: `background-size`, then `round` fits a whole number of tiles. */
+internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
+  var (w, h) = resolveBitmapSize(layer.size, imgW, imgH, areaW, areaH)
+  val size = layer.size
+  val autoW = size == null || (size.keyword == null && size.width == null)
+  val autoH = size == null || (size.keyword == null && size.height == null)
+  val roundX = layer.repeat.x == RepeatStyle.ROUND
+  val roundY = layer.repeat.y == RepeatStyle.ROUND
+  if (roundX && w > 0f && areaW > 0f) {
+    val old = w
+    w = areaW / maxOf(1f, Math.round(areaW / w).toFloat())
+    if (autoH && !roundY) h *= w / old
+  }
+  if (roundY && h > 0f && areaH > 0f) {
+    val old = h
+    h = areaH / maxOf(1f, Math.round(areaH / h).toFloat())
+    if (autoW && !roundX) w *= h / old
+  }
+  return w to h
 }
 
 /** Resolve `background-size` against the positioning area, keeping the image ratio for `auto`. */
@@ -1231,12 +1502,7 @@ fun parseColor(value: String): Int? {
   }
 }
 
-fun parseRepeat(value: String): BackgroundRepeat = when (value.lowercase()) {
-  "repeat" -> BackgroundRepeat.REPEAT
-  "repeat-x" -> BackgroundRepeat.REPEAT_X
-  "repeat-y" -> BackgroundRepeat.REPEAT_Y
-  else -> BackgroundRepeat.NO_REPEAT
-}
+fun parseRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
 /** One `<length>` or `<percentage>` of a background position/size, or null. */
 private fun parseBackgroundLength(token: String): BackgroundOffset? {
@@ -1425,7 +1691,8 @@ fun parseGradient(part: String): Gradient? {
   // `to right in oklab`: the method shares the first argument with the direction.
   val extracted = ColorInterpolation.extract(items.first())
   val first = extracted?.first ?: items.first()
-  val direction = if (first.isNotBlank() && isAngleOrDirection(first)) first.trim() else null
+  val prelude = if (type.equals("radial", ignoreCase = true)) isRadialPrelude(first) else isAngleOrDirection(first)
+  val direction = if (first.isNotBlank() && prelude) first.trim() else null
   val stops = if (direction != null || extracted != null) items.drop(1) else items
 
   return Gradient(type, direction, expandColorStops(stops.map { it.trim() }), extracted?.second)
@@ -1475,7 +1742,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
   }
 
   // Gradient: the function consumes its own parentheses, the rest are tokens.
-  GRADIENT_REGEX.find(value)?.let { match ->
+  ANY_GRADIENT_REGEX.find(value)?.let { match ->
     val paren = value.indexOf('(', match.range.first)
     var depth = 0
     var end = paren
@@ -1487,14 +1754,15 @@ fun parseLayer(layerValue: String): BackgroundLayer {
       end++
     }
     val gradientText = value.substring(match.range.first, minOf(end + 1, value.length))
-    layer.gradient = parseGradient(gradientText)
-    value = (value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
+    layer.gradient = parseMaskGradient(gradientText)
+    value =(value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
   }
 
   val tokens = splitTopLevelWhitespace(value).filter { it.isNotBlank() }
   val boxes = mutableListOf<BackgroundClip>()
   val positionTokens = mutableListOf<String>()
   val sizeTokens = mutableListOf<String>()
+  val repeatTokens = mutableListOf<String>()
   var afterSlash = false
   for (raw in tokens) {
     val t = raw.lowercase()
@@ -1510,7 +1778,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
         positionTokens.add(p); sizeTokens.add(sz); afterSlash = true
       }
       afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != null) -> sizeTokens.add(t)
-      t in REPEAT_KEYS -> layer.repeat = parseRepeat(t)
+      t in REPEAT_KEYS -> repeatTokens.add(t)
       t in ATTACHMENT_KEYWORDS -> BackgroundAttachment.parse(t)?.let {
         layer.attachment = it
       }
@@ -1519,6 +1787,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
       else -> parseColor(raw)?.let { layer.layerColor = it }
     }
   }
+  if (repeatTokens.isNotEmpty()) parseRepeat(repeatTokens.joinToString(" "))?.let { layer.repeat = it }
   if (positionTokens.isNotEmpty()) layer.position = parsePosition(positionTokens)
   if (sizeTokens.isNotEmpty()) layer.size = parseSize(sizeTokens.joinToString(" "))
   if (boxes.size == 1) {

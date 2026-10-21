@@ -459,7 +459,7 @@ final class NineSliceSource {
       return gradientImage(area: area, scale: scale, painter: painter)
     }
     guard let url = layer.image, !failed else { return nil }
-    if isSvgDataUrl(url) {
+    if isSvgSource(url) {
       return svgImage(url, area: area, scale: scale, style: style)
     }
     if bitmap == nil && !loading {
@@ -505,7 +505,7 @@ final class NineSliceSource {
 
   private func svgImage(_ url: String, area: CGSize, scale: CGFloat, style: MasonStyle) -> Image? {
     if svg == nil {
-      svg = decodeSvgDataUrl(url)
+      svg = decodeSvgSource(url)
       if svg == nil {
         failed = true
         return nil

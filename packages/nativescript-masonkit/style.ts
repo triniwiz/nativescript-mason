@@ -2,14 +2,15 @@ import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
 import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
-import { masonEngine } from './windows-panel-helpers';
+import { masonEngine } from './panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
 import { expandColorStops, resolveStopPositions } from './gradient-stops';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { encodeCssFilter, parseCssFilter } from './css-filter';
 import { resolveCssColors } from './css-colors';
 import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
-import { encodeWindowsBackground, encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './windows-mask';
+import { encodeWindowsBackground, encodeWindowsBackgroundLayers, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, hasCustomBackgroundBoxes, needsWindowsBackgroundLayers, type WindowsBackgroundBoxes, type WindowsBackgroundLonghands, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './mask';
+import { splitBackground } from './css-shorthands';
 import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
@@ -387,6 +388,7 @@ function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefi
     case 'vh':
     case 'vmin':
     case 'vmax': {
+      noteViewportUnit();
       const { viewportWidth: w, viewportHeight: h } = cssUnits;
       if (w <= 0 || h <= 0) {
         reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: `${n}${unit}`, detail: 'viewport size not known yet, resolved to 0' });
@@ -417,6 +419,21 @@ function evaluateLengthMath(value: string, emBasis?: number) {
 /** `value` with every resolvable math function replaced by its result, for the native parsers. */
 export function resolveCssMathIn(value: string, emBasis?: number): string {
   return substituteCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
+}
+
+const GRID_RELATIVE_LENGTH = /(^|[\s(,\]])([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(rem|em|pt|vw|vh|vmin|vmax)(?=$|[\s),[])/gi;
+
+/** A grid track list with relative units and math functions resolved to `px`, which the native parser reads. */
+export function resolveGridTrackUnits(value: string, emBasis?: number): string {
+  if (!value) {
+    return value;
+  }
+  let out = hasCssMathFunction(value) ? resolveCssMathIn(value, emBasis) : value;
+  out = out.replace(GRID_RELATIVE_LENGTH, (_m, lead: string, n: string, unit: string) => `${lead}${finite(unitToCssPx(parseFloat(n), unit.toLowerCase(), emBasis) ?? 0)}px`);
+  if (hasCssMathFunction(out)) {
+    reportCssDiagnostic({ kind: 'not-implemented', name: 'grid track list', value, detail: 'a math function mixing % with a length, dropped by the track parser' });
+  }
+  return out;
 }
 
 /**
@@ -465,6 +482,7 @@ function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
   if (t.endsWith('em')) return layout.toDevicePixels(n * (emBasis && emBasis > 0 ? emBasis : cssUnits.rootFontSize));
   if (t.endsWith('pt')) return layout.toDevicePixels(n * PX_PER_PT);
   if (t.endsWith('vmin') || t.endsWith('vmax') || t.endsWith('vw') || t.endsWith('vh')) {
+    noteViewportUnit();
     if (cssUnits.viewportWidth <= 0 || cssUnits.viewportHeight <= 0) {
       reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: t, detail: 'viewport size not known yet, resolved to 0' });
       return 0;
@@ -572,6 +590,17 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
     return undefined;
   }
   return layout.toDeviceIndependentPixels(tokenToDevicePx(t, n, emBasis));
+}
+
+const SIZING_KEYWORD = /^(min-content|max-content|fit-content|stretch|content|fit-content\(.+\))$/;
+
+export function isSizingKeyword(value: unknown): value is string {
+  return typeof value === 'string' && SIZING_KEYWORD.test(value.trim());
+}
+
+/** The keyword carried as the unit of a core length object, if any. */
+function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
+  return isSizingKeyword(value?.unit) ? (value.unit as string) : undefined;
 }
 
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
@@ -900,7 +929,7 @@ const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
 
 // Parse `linear-gradient(<dir>? <in colorspace>?, <color> <stop>?, ...)` into a CSS angle, per-stop argb + offsets and the interpolation.
-export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string } | null {
+export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null> } | null {
   const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -923,20 +952,30 @@ export function parseLinearGradientCss(value: string): { angle: number; corner?:
     corner = parseGradientCorner(head);
     start = 1;
   }
+  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
+  if (colors.length < 1) return null;
+  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }) };
+}
+
+// A length stop needs the gradient line's length, which only the painter knows.
+function parseGradientStops(stops: string[]): { colors: number[]; positions: Array<number | null>; lengths?: Array<number | null> } {
   const colors: number[] = [];
   const positions: Array<number | null> = [];
-  for (const stop of expandColorStops(parts.slice(start))) {
-    // A length position needs the gradient line's length, unknown here, so that stop is placed as
-    // if it had none rather than dropped.
-    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
+  const lengths: Array<number | null> = [];
+  let anyLength = false;
+  for (const stop of expandColorStops(stops)) {
+    const pos = /\s+(-?[\d.]+)(%|[a-z]+)?\s*$/i.exec(stop);
     const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
     const argb = normalizeColorValue(colorStr);
     if (argb == null) continue;
     colors.push(argb >>> 0);
-    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
+    const percent = pos?.[2] === '%';
+    const length = pos && !percent ? cssLengthToDip(pos[1] + (pos[2] ?? 'px')) : undefined;
+    positions.push(percent ? parseFloat(pos[1]) / 100 : null);
+    lengths.push(length ?? null);
+    if (length != null) anyLength = true;
   }
-  if (colors.length < 1) return null;
-  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation };
+  return { colors, positions, ...(anyLength && { lengths }) };
 }
 
 const RADIAL_GRADIENT_ARGS = /radial-gradient\s*\(([\s\S]*)\)\s*$/i;
@@ -968,7 +1007,7 @@ export function parseBoxPosition(value: string, fallback = 0.5): { x: number; y:
   return { x: fallback, y: fallback };
 }
 
-export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string } | null {
+export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null>; circle?: number; circleRadius?: number } | null {
   const m = RADIAL_GRADIENT_ARGS.exec(value.trim());
   if (!m) return null;
   const parts = splitTopLevelCommas(m[1])
@@ -998,21 +1037,16 @@ export function parseRadialGradientCss(value: string): { cx: number; cy: number;
     const sizeKeyword = /(closest-side|farthest-side|closest-corner|farthest-corner)/i.exec(head);
     if (sizeKeyword) size = sizeKeyword[1].toLowerCase();
   }
+  const shape = head.replace(/\bat\s+.+$/i, '');
+  const circleLength = /\bcircle\b/i.test(shape) || /^\s*-?[\d.]+[a-z]*\s*$/i.test(shape) ? /(-?[\d.]+(?:px|r?em|pt|vw|vh)?)(?=\s|$)/i.exec(shape) : null;
+  const circleRadius = circleLength ? cssLengthToDip(/[a-z]$/i.test(circleLength[1]) ? circleLength[1] : circleLength[1] + 'px') : undefined;
+  const circle = /\bcircle\b/i.test(shape) || circleRadius != null ? ['closest-side', 'farthest-side', 'closest-corner', 'farthest-corner'].indexOf(size) : undefined;
   const sideX = size.startsWith('closest') ? Math.min(cx, 1 - cx) : Math.max(cx, 1 - cx);
   const sideY = size.startsWith('closest') ? Math.min(cy, 1 - cy) : Math.max(cy, 1 - cy);
   const corner = size.endsWith('corner') ? Math.SQRT2 : 1;
-  const colors: number[] = [];
-  const positions: Array<number | null> = [];
-  for (const stop of expandColorStops(parts.slice(start))) {
-    const pos = /\s+(-?[\d.]+)(%|[a-z]+)\s*$/i.exec(stop);
-    const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
-    const argb = normalizeColorValue(colorStr);
-    if (argb == null) continue;
-    colors.push(argb >>> 0);
-    positions.push(pos && pos[2] === '%' ? parseFloat(pos[1]) / 100 : null);
-  }
+  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
   if (colors.length < 1) return null;
-  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation };
+  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }), ...(circle != null && { circle }), ...(circleRadius != null && { circleRadius }) };
 }
 
 export function backgroundFit(size: string | null | undefined): number {
@@ -1126,6 +1160,43 @@ export function parseBorderRadiusShorthand(value: string, emBasis?: number): { t
       return { tl: vals[0], tr: vals[1], br: vals[2], bl: vals[3] };
   }
 }
+
+const CORNER_SHAPE_KEYWORDS: Record<string, number> = { round: 1, squircle: 2, bevel: 0, scoop: -1, notch: -Infinity, square: Infinity };
+const SUPERELLIPSE = /^superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)$/;
+
+/** corner-shape as each corner's superellipse parameter K (TL TR BR BL), or null if a token is invalid. An empty value resets to round. */
+export function parseCornerShape(value: string): [number, number, number, number] | null {
+  const tokens = splitTopLevelSpaces(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+  if (!tokens.length || (tokens.length === 1 && /^(initial|unset|revert|none)$/.test(tokens[0]))) return [1, 1, 1, 1];
+  if (tokens.length > 4) return null;
+  const e: number[] = [];
+  for (const token of tokens) {
+    if (token in CORNER_SHAPE_KEYWORDS) {
+      e.push(CORNER_SHAPE_KEYWORDS[token]);
+      continue;
+    }
+    const m = SUPERELLIPSE.exec(token);
+    if (!m) return null;
+    e.push(m[1] === 'infinity' ? Infinity : m[1] === '-infinity' ? -Infinity : Number(m[1]));
+  }
+  switch (e.length) {
+    case 1:
+      return [e[0], e[0], e[0], e[0]];
+    case 2:
+      return [e[0], e[1], e[0], e[1]];
+    case 3:
+      return [e[0], e[1], e[2], e[1]];
+    default:
+      return [e[0], e[1], e[2], e[3]];
+  }
+}
+
+const CORNER_SHAPE_KEYS = [StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT];
+const CORNER_SHAPE_LONGHANDS: Record<string, number> = { 'corner-shape-top-left': 0, 'corner-shape-top-right': 1, 'corner-shape-bottom-right': 2, 'corner-shape-bottom-left': 3 };
 
 // Split on top-level whitespace, keeping parenthesised groups (e.g. `rgba(0,0,0,.5)`) intact.
 function splitTopLevelSpaces(value: string): string[] {
@@ -1511,6 +1582,58 @@ export function cssColorToRgba(color: string): string | null {
   return `rgba(${color_.r}, ${color_.g}, ${color_.b}, ${+(color_.a / 255).toFixed(4)})`;
 }
 
+// Style writes that resolved a viewport unit, kept so a viewport change can write them again, as
+// a browser re-resolves vw/vh when the window resizes. Each setter is wrapped once below.
+const viewportWrites = new WeakMap<object, Map<string, unknown>>();
+const viewportStyles = new Set<WeakRef<object>>();
+const writeTargets: object[] = [];
+const writeNames: string[] = [];
+const writeValues: unknown[] = [];
+let writeDepth = 0;
+const VIEWPORT_UNIT_TEXT = /\d(?:vw|vh|vmin|vmax)\b/i;
+
+/** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
+export function beginStyleWrite(target: object, name: string, value: unknown): void {
+  viewportWrites.get(target)?.delete(name);
+  writeTargets[writeDepth] = target;
+  writeNames[writeDepth] = name;
+  writeValues[writeDepth] = value;
+  writeDepth++;
+  // Android and iOS parse some CSS text natively, so the text itself marks a viewport unit.
+  if (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
+}
+
+export function endStyleWrite(): void {
+  writeDepth--;
+  writeTargets[writeDepth] = writeValues[writeDepth] = undefined as never;
+}
+
+function noteViewportUnit() {
+  if (!writeDepth) return;
+  const target = writeTargets[writeDepth - 1];
+  let writes = viewportWrites.get(target);
+  if (!writes) {
+    writes = new Map();
+    viewportWrites.set(target, writes);
+    viewportStyles.add(new WeakRef(target));
+  }
+  writes.set(writeNames[writeDepth - 1], writeValues[writeDepth - 1]);
+}
+
+/** Writes every style property that used vw/vh/vmin/vmax again, against the current viewport. */
+export function refreshViewportUnits(): void {
+  for (const ref of viewportStyles) {
+    const style = ref.deref() as Record<string, unknown> | undefined;
+    const writes = style && viewportWrites.get(style);
+    if (!style || !writes || !writes.size) {
+      viewportStyles.delete(ref);
+      continue;
+    }
+    const keys = Array.from(writes.keys());
+    for (let i = 0; i < keys.length; i++) style[keys[i]] = writes.get(keys[i]);
+  }
+}
+
 export class Style {
   private view_: View;
   // Fetched on first use; see loadBuffer.
@@ -1769,16 +1892,40 @@ export class Style {
   private _windowsBackgroundSize?: string;
   private _windowsBackgroundPosition?: string;
   private _windowsImageBackground = false;
+  private _windowsBackgroundShorthand = false;
 
   private applyWindowsBackground(shorthand: boolean) {
     const v = (this._windowsBackground ?? '').trim();
     const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
     const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
     try {
+      const longhands = this.windowsBackgroundLonghands(shorthand, v);
+      if (longhands && (needsWindowsBackgroundLayers(longhands) || (ANY_GRADIENT.test(v) && this.windowsScrolls()))) {
+        const spec = encodeWindowsBackgroundLayers(longhands, this.windowsMaskContext());
+        if (spec) {
+          this._windowsImageBackground = true;
+          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+          if (longhands.color) this.backgroundColor = longhands.color as never;
+          return;
+        }
+      }
       const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
       if (!url && this._windowsImageBackground) {
         this._windowsImageBackground = false;
         NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
+      }
+      const boxes = this.windowsBackgroundBoxes(shorthand ? layer : '');
+      const setLayers = (spec: string) => {
+        if (!spec) return false;
+        this._windowsImageBackground = true;
+        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
+        return true;
+      };
+      // Only the layer painter places a background in a box other than the CSS defaults.
+      if (ANY_GRADIENT.test(layer) && (hasCustomBackgroundBoxes(boxes) || /^(repeating-|conic-gradient)/i.test(layer) || this.windowsColorUnder() || /\d(px|r?em|pt|vw|vh)\b|\bcircle\b/i.test(layer))) {
+        const ctx = this.windowsMaskContext();
+        setLayers(encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', ctx, boxes));
+        return;
       }
       if (/^radial-gradient/i.test(layer)) {
         const g = parseRadialGradientCss(layer);
@@ -1799,12 +1946,7 @@ export class Style {
         const repeatKeywords = shorthand ? (rest.match(/\b(no-repeat|repeat-x|repeat-y|repeat|space|round)\b/gi) ?? []).join(' ') : '';
         const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
         // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
-        const spec = encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext());
-        if (spec) {
-          this._windowsImageBackground = true;
-          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
-          return;
-        }
+        if (setLayers(encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext(), boxes))) return;
         let source = url[2];
         if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
         const box = parseBoxPosition(position || '0% 0%', 0);
@@ -1814,9 +1956,51 @@ export class Style {
       }
       if (!ANY_GRADIENT.test(layer)) {
         NativeScript.Mason.Css.ClearBackground(this.nativeView);
-        if (shorthand && v.length && v.toLowerCase() !== 'none') this.backgroundColor = v as never;
+        const color = v.replace(/\b(border-box|padding-box|content-box)\b/gi, '').trim();
+        if (shorthand && color.length && color.toLowerCase() !== 'none') this.backgroundColor = color as never;
+        if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
       }
     } catch (_) {}
+  }
+
+  private windowsScrolls(): boolean {
+    if (!this.style_view) return false;
+    const x = getInt8(this.style_view, StyleKeys.OVERFLOW_X);
+    const y = getInt8(this.style_view, StyleKeys.OVERFLOW_Y);
+    return x === 2 || x === 4 || y === 2 || y === 4;
+  }
+
+  private windowsColorUnder(): boolean {
+    return !!this.style_view && getUint32(this.style_view, StyleKeys.BACKGROUND_COLOR) >>> 24 > 0;
+  }
+
+  private windowsReapplyGradient() {
+    if (ANY_GRADIENT.test(this._windowsBackground ?? '')) this.applyWindowsBackground(this._windowsBackgroundShorthand);
+  }
+
+  private windowsBackgroundLonghands(shorthand: boolean, value: string): (WindowsBackgroundLonghands & { color?: string }) | null {
+    const css = this._windowsCss;
+    const blend = css.get('background-blend-mode');
+    if (!shorthand) {
+      return { image: value, size: this._windowsBackgroundSize, position: this._windowsBackgroundPosition, repeat: css.get('background-repeat'), origin: css.get('background-origin'), clip: css.get('background-clip'), attachment: css.get('background-attachment'), blend };
+    }
+    let parts: unknown[];
+    try {
+      parts = splitBackground(value);
+    } catch (_) {
+      return null;
+    }
+    const text = (part: unknown) => (typeof part === 'string' ? part : undefined);
+    const [color, image, repeat, position, size, clip, origin, attachment] = parts.map(text);
+    if (!image) return null;
+    return { image, size, position, repeat, origin, clip, attachment, blend, color };
+  }
+
+  // background-origin and background-clip: the shorthand's box keywords (origin, then clip), else the longhands.
+  private windowsBackgroundBoxes(shorthandLayer: string): WindowsBackgroundBoxes {
+    const keywords = shorthandLayer.match(/\b(border-box|padding-box|content-box)\b/gi) ?? [];
+    if (keywords.length) return { origin: keywords[0], clip: keywords[1] ?? keywords[0] };
+    return { origin: this._windowsCss.get('background-origin'), clip: this._windowsCss.get('background-clip') };
   }
 
   private _windowsMaskSpec = '';
@@ -1875,17 +2059,22 @@ export class Style {
     // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
       this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
+      this._windowsBackgroundShorthand = name === 'background';
       this.applyWindowsBackground(name === 'background');
       return;
     }
-    if (name === 'background-repeat') {
-      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+    if (name === 'background-clip' || name === 'background-origin') {
+      this.applyWindowsBackground(false);
+      return;
+    }
+    if (name === 'background-repeat' || name === 'background-attachment' || name === 'background-blend-mode') {
+      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
     if (name === 'background-size' || name === 'background-position') {
       if (name === 'background-size') this._windowsBackgroundSize = String(value ?? '');
       else this._windowsBackgroundPosition = String(value ?? '');
-      if (/url\(/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
+      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
       return;
     }
 
@@ -1943,6 +2132,16 @@ export class Style {
         setUint8(this.style_view, keys.xType, type);
         setUint8(this.style_view, keys.yType, type);
       }
+      this.commitState(StateKeys.BORDER_RADIUS);
+      return;
+    }
+    if (name === 'corner-shape' || name in CORNER_SHAPE_LONGHANDS) {
+      const text = typeof value === 'string' ? value : '';
+      const e = parseCornerShape(text);
+      if (!e || (name !== 'corner-shape' && splitTopLevelSpaces(text.trim()).length > 1)) return;
+      this.prepareMut();
+      if (name === 'corner-shape') for (let i = 0; i < 4; i++) setFloat32(this.style_view, CORNER_SHAPE_KEYS[i], e[i]);
+      else setFloat32(this.style_view, CORNER_SHAPE_KEYS[CORNER_SHAPE_LONGHANDS[name]], e[0]);
       this.commitState(StateKeys.BORDER_RADIUS);
       return;
     }
@@ -2602,6 +2801,7 @@ export class Style {
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 1);
     setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
     this.commitState(StateKeys.BACKGROUND_COLOR);
+    if (__WINDOWS__ && !this._windowsImageBackground && normalized >>> 24 > 0) this.windowsReapplyGradient();
   }
 
   get textWrap() {
@@ -2612,7 +2812,7 @@ export class Style {
     return getUint8(this.style_view, StyleKeys.TEXT_WRAP);
   }
 
-  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
+  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance' | 'pretty' | 'stable') {
     if (!this.style_view) {
       return;
     }
@@ -2624,6 +2824,8 @@ export class Style {
         wrap = 1;
         break;
       case 'wrap':
+      case 'pretty':
+      case 'stable':
         wrap = 0;
         break;
       case 'balance':
@@ -2807,7 +3009,7 @@ export class Style {
   get flexWrap() {
     switch (getInt8(this.style_view, StyleKeys.FLEX_WRAP)) {
       case 0:
-        return 'no-wrap';
+        return 'nowrap';
       case 1:
         return 'wrap';
       case 2:
@@ -2819,9 +3021,10 @@ export class Style {
     }
   }
 
-  set flexWrap(value: 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
+  set flexWrap(value: 'nowrap' | 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
     let wrap = -1;
     switch (value) {
+      case 'nowrap':
       case 'no-wrap':
         wrap = 0;
         break;
@@ -2979,8 +3182,18 @@ export class Style {
             setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
             break;
-          default:
-            return;
+          default: {
+            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
+            const keyword = sizingKeywordOf(value);
+            if (!keyword) {
+              return;
+            }
+            this.prepareMut();
+            const dim = dimensionFromString(keyword);
+            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
+            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
+            break;
+          }
         }
         break;
       default:
@@ -3025,8 +3238,18 @@ export class Style {
             setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
             setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
             break;
-          default:
-            return;
+          default: {
+            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
+            const keyword = sizingKeywordOf(value);
+            if (!keyword) {
+              return;
+            }
+            this.prepareMut();
+            const dim = dimensionFromString(keyword);
+            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
+            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
+            break;
+          }
         }
         break;
       default:
@@ -4521,6 +4744,7 @@ export class Style {
     }
     // A bare number can't marshal over JNI into the native String setter.
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoRows(this.nativeView, value);
     }
@@ -4555,6 +4779,7 @@ export class Style {
     }
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoColumns(this.nativeView, value);
     }
@@ -4582,7 +4807,7 @@ export class Style {
   }
 
   set gridAutoFlow(value: GridAutoFlow) {
-    const v = ({ row: 0, column: 1, 'row dense': 2, 'column dense': 3 } as Record<string, number>)[value];
+    const v = gridAutoFlowFromString(value);
     if (v !== undefined) {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, v);
@@ -4850,6 +5075,7 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateRows(this.nativeView, value);
     }
@@ -4899,6 +5125,7 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateColumns(this.nativeView, value);
     }
@@ -4979,6 +5206,7 @@ export class Style {
       }
     }
     this.commitState(StateKeys.OVERFLOW);
+    if (__WINDOWS__) this.windowsReapplyGradient();
   }
   get overflowX() {
     switch (getInt8(this.style_view, StyleKeys.OVERFLOW_X)) {
@@ -4997,6 +5225,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
       this.commitState(StateKeys.OVERFLOW_X);
+      if (__WINDOWS__) this.windowsReapplyGradient();
     }
   }
 
@@ -5021,6 +5250,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
       this.commitState(StateKeys.OVERFLOW_Y);
+      if (__WINDOWS__) this.windowsReapplyGradient();
     }
   }
 
@@ -5078,8 +5308,9 @@ export class Style {
 
   set letterSpacing(value: string | number | CoreTypes.LengthType) {
     if (typeof value === 'string') {
+      const t = value.trim();
       this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, tokenToDevicePx(value, parseFloat(value) || 0));
+      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, t === 'normal' ? 0 : finite(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t))));
       setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
       this.commitState(StateKeys.LETTER_SPACING);
     } else if (typeof value === 'number') {
@@ -5112,12 +5343,18 @@ export class Style {
   set lineHeight(value: string | number | CoreTypes.LengthType) {
     if (typeof value === 'string') {
       const t = value.trim();
+      if (t === 'normal') {
+        this.prepareMut();
+        setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 0);
+        this.commitState(StateKeys.LINE_HEIGHT);
+        return;
+      }
       // A unitless line-height is a multiplier (`line-height: 1.5`), not a
       // length — TYPE 0 means "multiply by the resolved font size".
       const unitless = /^-?[\d.]+$/.test(t);
       this.prepareMut();
       // An absolute line-height is stored in CSS px (iOS points, Android dip), as the number path.
-      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0)));
+      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : finite(layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t)))));
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
       setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, unitless ? 0 : 1);
       this.commitState(StateKeys.LINE_HEIGHT);
@@ -5198,7 +5435,7 @@ export class Style {
       // clip ?
       return 'start';
     }
-    const type = getInt32(this.style_view, StyleKeys.TEXT_ALIGN);
+    const type = getInt8(this.style_view, StyleKeys.TEXT_ALIGN);
     switch (type) {
       case 0:
         // auto
@@ -5252,7 +5489,7 @@ export class Style {
 
     if (align !== -1) {
       this.prepareMut();
-      setInt32(this.style_view, StyleKeys.TEXT_ALIGN, align);
+      setInt8(this.style_view, StyleKeys.TEXT_ALIGN, align);
       setInt8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, 1);
       this.commitState(StateKeys.TEXT_ALIGN);
     }
@@ -6887,6 +7124,19 @@ export class Style {
     setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, parsed.y);
     setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE, 1);
     this.commitState(StateKeys.TRANSFORM_ORIGIN);
+    // Windows applies the origin with the transform, natively it isn't read from the buffer.
+    if (__WINDOWS__) (this.view as any)?._applyWindowsTransform?.();
+  }
+
+  /** transform-origin as fractions of a `width` x `height` box, or null when it isn't set. */
+  transformOriginFraction(width: number, height: number): { x: number; y: number } | null {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE)) return null;
+    const side = (typeKey: StyleKeys, valueKey: StyleKeys, size: number) => {
+      const value = getFloat32(this.style_view, valueKey);
+      if (getUint8(this.style_view, typeKey) === 1) return value / 100;
+      return size > 0 ? layout.toDeviceIndependentPixels(value) / size : 0;
+    };
+    return { x: side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, width), y: side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, height) };
   }
 
   set 'transform-origin'(value: string) {
@@ -7566,4 +7816,52 @@ export class Style {
       transformOrigin: this.transformOrigin,
     };
   }
+}
+
+{
+  const proto = Style.prototype as unknown as Record<string, unknown>;
+  const names = Object.getOwnPropertyNames(proto);
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+    const set = descriptor?.set;
+    if (!set) continue;
+    Object.defineProperty(proto, name, {
+      ...descriptor,
+      set(this: object, value: unknown) {
+        beginStyleWrite(this, name, value);
+        try {
+          set.call(this, value);
+        } finally {
+          endStyleWrite();
+        }
+      },
+    });
+  }
+}
+
+/** `grid-auto-flow` as its buffer value: `row`/`column` and `dense`, in either order. */
+export function gridAutoFlowFromString(value: unknown): number | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const tokens = value.trim().toLowerCase().split(/\s+/);
+  if (tokens.length === 0 || tokens.length > 2 || new Set(tokens).size !== tokens.length) {
+    return undefined;
+  }
+  let column = false;
+  let dense = false;
+  for (const token of tokens) {
+    if (token === 'dense') {
+      dense = true;
+    } else if (token === 'column') {
+      column = true;
+    } else if (token !== 'row') {
+      return undefined;
+    }
+  }
+  if (tokens.length === 2 && !dense) {
+    return undefined;
+  }
+  return (column ? 1 : 0) + (dense ? 2 : 0);
 }

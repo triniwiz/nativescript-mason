@@ -19,9 +19,9 @@ final class SuperellipseTests: XCTestCase {
     let pixels: [UInt8]
   }
 
-  private func render(_ view: UIView) throws -> RenderedImage {
+  private func render(_ view: UIView, scale: CGFloat = 1) throws -> RenderedImage {
     let format = UIGraphicsImageRendererFormat()
-    format.scale = 1
+    format.scale = scale
     format.opaque = false
 
     let image = UIGraphicsImageRenderer(size: view.bounds.size, format: format).image { _ in
@@ -221,7 +221,7 @@ final class SuperellipseTests: XCTestCase {
     let view = MasonUIView(mason: mason)
     let renderer = view.style.mBorderRender
 
-    let exponents: [CGFloat] = [0.3, 0.5, 1.0, 2.0, 4.0]
+    let exponents: [CGFloat] = [-.infinity, -1.0, 0.0, 0.5, 1.0, 2.0, 4.0, .infinity]
     let rect = CGRect(x: 0, y: 0, width: 200, height: 150)
 
     for exp in exponents {
@@ -333,5 +333,44 @@ final class SuperellipseTests: XCTestCase {
     XCTAssertGreaterThan(arcPixel.r, arcPixel.g, "Arc pixel should be red-dominant")
     XCTAssertGreaterThan(arcPixel.r, arcPixel.b, "Arc pixel should be red-dominant")
     XCTAssertEqual(interiorPixel.a, 0, "Rounded corner should remain clipped inside the arc")
+  }
+
+  func test_cornerShape_keywordsAreTheCssSuperellipseParameter() {
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("round"), 1)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("squircle"), 2)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("bevel"), 0)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("scoop"), -1)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("notch"), -.infinity)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("square"), .infinity)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(1.5)"), 1.5)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(-2)"), -2)
+    XCTAssertEqual(CSSBorderRenderer.parseCornerShapeToken("superellipse(-infinity)"), -.infinity)
+    XCTAssertNil(CSSBorderRenderer.parseCornerShapeToken("superellipse"))
+    XCTAssertNil(CSSBorderRenderer.parseCornerShapeToken("wobbly"))
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(-1), "scoop")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(-.infinity), "notch")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(3), "superellipse(3)")
+    XCTAssertEqual(CSSBorderRenderer.exponentToCornerShapeToken(0.5), "superellipse(0.5)")
+  }
+
+  func test_insetShadowSpreadIsTheShadowColour() throws {
+    for scale in [CGFloat(1), 3] {
+      let view = MasonUIView(mason: NSCMason.shared)
+      view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+      view.style.backgroundColor = 0xFFFFFFFF
+      view.style.borderRadius = "20px"
+      view.style.boxShadow = "inset 0 0 6px 10px rgb(0 0 255)"
+      let image = try render(view, scale: scale)
+      let ring = pixel(at: CGPoint(x: 4 * scale, y: 50 * scale), in: image)
+      XCTAssertGreaterThan(ring.b, 200, "the spread ring is the shadow colour at scale \(scale)")
+      XCTAssertLessThan(ring.r, 60)
+      let centre = pixel(at: CGPoint(x: 50 * scale, y: 50 * scale), in: image)
+      XCTAssertGreaterThan(centre.r, 240, "the middle stays the background at scale \(scale)")
+
+      view.style.boxShadow = "inset 10px 0 0 0 rgb(0 0 255)"
+      let shifted = try render(view, scale: scale)
+      XCTAssertGreaterThan(pixel(at: CGPoint(x: 5 * scale, y: 50 * scale), in: shifted).b, 200, "an x offset shades the left edge")
+      XCTAssertGreaterThan(pixel(at: CGPoint(x: 95 * scale, y: 50 * scale), in: shifted).r, 240, "and leaves the right edge")
+    }
   }
 }

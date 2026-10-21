@@ -140,13 +140,12 @@ class BoxShadowRenderer {
       let framePath = UIBezierPath(rect: outerRect)
       framePath.append(innerPath.reversing())
 
-      // Apply shadow (inward direction)
-      let shadowOffset = CGSize(width: shadow.offsetX, height: shadow.offsetY)
+      // The frame covers the spread ring, so draw it off to the left and move only its
+      // shadow back; the opaque fill never lands in the box and the shadow carries the alpha.
+      let away = outerRect.width
+      let shadowOffset = CGSize(width: shadow.offsetX + away, height: shadow.offsetY)
       context.setShadow(offset: shadowOffset, blur: shadow.blurRadius, color: shadow.color.cgColor)
-
-      // Draw the frame with opaque fill — the shadow color carries the
-      // intended alpha via setShadow(color:).  Using the translucent
-      // shadow color as fill would double-attenuate the result.
+      context.translateBy(x: -away, y: 0)
       context.addPath(framePath.cgPath)
       context.setFillColor(UIColor.black.cgColor)
       context.fillPath()

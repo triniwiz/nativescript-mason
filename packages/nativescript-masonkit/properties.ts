@@ -1,4 +1,45 @@
-import { CssProperty, CssAnimationProperty, InheritedCssProperty, backgroundColorProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font, Property, makeParser, makeValidator, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty, minWidthProperty, minHeightProperty, widthProperty, heightProperty } from '@nativescript/core';
+import {
+  CssProperty,
+  CssAnimationProperty,
+  InheritedCssProperty,
+  backgroundColorProperty,
+  Style,
+  ViewBase as NSViewBase,
+  ShorthandProperty,
+  Length as CoreLength,
+  fontSizeProperty,
+  textAlignmentProperty,
+  textDecorationProperty,
+  textTransformProperty,
+  PercentLength as CorePercentLength,
+  Trace,
+  CoreTypes,
+  unsetValue,
+  verticalAlignmentProperty,
+  textShadowProperty,
+  Font,
+  Property,
+  makeParser,
+  makeValidator,
+  marginTopProperty,
+  marginRightProperty,
+  marginBottomProperty,
+  marginLeftProperty,
+  paddingTopProperty,
+  paddingRightProperty,
+  paddingBottomProperty,
+  paddingLeftProperty,
+  borderTopWidthProperty,
+  borderRightWidthProperty,
+  borderBottomWidthProperty,
+  borderLeftWidthProperty,
+  minWidthProperty,
+  minHeightProperty,
+  widthProperty,
+  heightProperty,
+  lineHeightProperty,
+  letterSpacingProperty,
+} from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
 import { isMasonView_, touchAction_ } from './symbols';
@@ -6,7 +47,7 @@ import { isMasonView_, touchAction_ } from './symbols';
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
 import type { Style as MasonStyle } from './style';
-import { cssLengthToDip, parseAspectRatio } from './style';
+import { beginStyleWrite, cssLengthToDip, endStyleWrite, isSizingKeyword, parseAspectRatio } from './style';
 import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
@@ -589,6 +630,42 @@ function overrideForMasonViews<TValue>(
   property.overrideHandlers(handlers);
 }
 
+const rawDeclarations = new WeakMap<object, Map<string, { converted: unknown; raw: string }>>();
+
+/** Plain views keep core's number; a mason view also records the raw declaration so its units survive. */
+function keepRawDeclarationForMasonViews(property: { name: string; overrideHandlers(options: any): void }, coreConverter: (value: string) => unknown): void {
+  property.overrideHandlers({
+    valueConverter(this: Style, value: string) {
+      const converted = coreConverter(value);
+      if (isMasonView(this)) {
+        let raw = rawDeclarations.get(this);
+        if (!raw) {
+          raw = new Map();
+          rawDeclarations.set(this, raw);
+        }
+        raw.set(property.name, { converted, raw: value });
+      }
+      return converted;
+    },
+  });
+}
+
+/** The declaration behind `value` if it came from this view's own CSS, else `value`. */
+export function masonRawDeclaration(style: Style, propertyName: string, value: unknown): unknown {
+  const raw = rawDeclarations.get(style)?.get(propertyName);
+  if (!raw) {
+    return value;
+  }
+  if (Object.is(raw.converted, value)) {
+    return raw.raw;
+  }
+  rawDeclarations.get(style).delete(propertyName);
+  return value;
+}
+
+keepRawDeclarationForMasonViews(lineHeightProperty, (v) => parseFloat(v));
+keepRawDeclarationForMasonViews(letterSpacingProperty, (v) => parseFloat(v));
+
 overrideForMasonViews<string>(flexDirectionProperty, {
   coreConverter: FlexDirectionParse,
   apply: (style, value) => {
@@ -940,9 +1017,18 @@ function masonLengthDeclaration(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value;
   }
+  const keyword = sizingKeywordLength(value);
+  if (keyword) {
+    return keyword;
+  }
   const dip = cssLengthToDip(value);
   // A bare number is a dip to core and a CSS pixel to mason — the same size.
   return dip === undefined ? value : String(dip);
+}
+
+/** Core throws on sizing keywords; a negative length reads as auto to core and carries the keyword as its unit. */
+function sizingKeywordLength(value: string): { unit: string; value: number } | undefined {
+  return isSizingKeyword(value) ? { unit: value.trim(), value: -2 } : undefined;
 }
 
 const MASON_SIZE_KEYS = [widthProperty, heightProperty].flatMap((property) => [property.name, property.cssName, property.cssLocalName]).filter((key): key is string => typeof key === 'string' && key.length > 0);
@@ -972,7 +1058,12 @@ function masonStyleProto(proto: object): object {
       configurable: true,
       get,
       set(this: Style, value: unknown) {
-        set.call(this, masonLengthDeclaration(value));
+        beginStyleWrite(this, key, value);
+        try {
+          set.call(this, masonLengthDeclaration(value));
+        } finally {
+          endStyleWrite();
+        }
       },
     });
   }
@@ -1361,7 +1452,7 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: masonLengthEquals,
   // @ts-ignore
-  valueConverter: masonInsetConverter,
+  valueConverter: (value: unknown) => (isSizingKeyword(value) ? value.trim() : masonInsetConverter(value)),
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, flexBasisProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -1560,6 +1651,7 @@ export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
 // @ts-ignore
 export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
+  cssName: 'text-wrap',
   affectsLayout: true,
   defaultValue: 'wrap',
   valueChanged(target: any, oldValue, newValue) {
@@ -1768,21 +1860,29 @@ gridAreaProperty.register(Style);
 // scalar properties lose CSS/local priority (including an explicit `auto`).
 // Preserve Mason's direct accessors; core 9.1 stylesheet expansion uses these
 // same longhands for both kinds of view.
-function gridParts(value: string, count: number): string[] {
-  const parts = value.split('/').map((part) => part.trim());
+/** A lone `<custom-ident>` placement, which an omitted end copies instead of `auto`. */
+function isGridIdent(part: string): boolean {
+  return /^-?[A-Za-z_][\w-]*$/.test(part) && !/^(auto|span)$/i.test(part);
+}
+
+/** Splits `a / b / ...` into `count` longhands, filling omitted ones as CSS Grid does. */
+export function gridParts(value: string, count: number): string[] {
+  const parts = String(value)
+    .split('/')
+    .map((part) => part.trim());
   if (parts.length > count || parts.some((part) => !part)) throw new Error(`Invalid grid placement: ${value}`);
-  while (parts.length < count) parts.push('auto');
+  // Omitted ends copy their start (grid-area: row-start, column-start, row-end, column-end).
+  for (let i = parts.length; i < count; i++) {
+    const start = parts[i - (count === 4 ? 2 : 1)] ?? parts[0];
+    parts.push(isGridIdent(start) ? start : 'auto');
+  }
   return parts;
 }
 
 const gridPlacementShorthands: MasonShorthand[] = [
   { cssName: 'grid-row', longhands: [gridRowStartProperty, gridRowEndProperty], split: (value) => gridParts(value, 2) },
   { cssName: 'grid-column', longhands: [gridColumnStartProperty, gridColumnEndProperty], split: (value) => gridParts(value, 2) },
-  {
-    cssName: 'grid-area',
-    longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty],
-    split: (value) => (value.includes('/') ? gridParts(value, 4) : [value, value, value, value]),
-  },
+  { cssName: 'grid-area', longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty], split: (value) => gridParts(value, 4) },
 ];
 for (const entry of gridPlacementShorthands) {
   const shorthand = masonShorthandProperty(entry, function (this: Style) {

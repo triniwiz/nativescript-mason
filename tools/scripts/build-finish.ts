@@ -45,7 +45,20 @@ function copyAngularDist() {
     .catch((err) => console.error(err));
 }
 
+// @nx/js:tsc adds "type": "module" from the tsconfig, which breaks nativescript.webpack.js; keep the source values.
+function restoreModuleFields() {
+  const distPath = path.join('dist', 'packages', packageName, 'package.json');
+  if (!fs.existsSync(distPath)) return;
+  const dist = JSON.parse(fs.readFileSync(distPath));
+  for (const field of ['type', 'module']) {
+    if (packageJson[field] === undefined) delete dist[field];
+    else dist[field] = packageJson[field];
+  }
+  fs.writeFileSync(distPath, JSON.stringify(dist, null, 2) + '\n');
+}
+
 function finishPreparation() {
+  restoreModuleFields();
   fs.copy(path.join('tools', 'assets', 'publishing'), path.join('dist', 'packages', packageName))
     .then(() => console.log(`${npmPackageName} ready to publish.`))
     .catch((err) => console.error(err));

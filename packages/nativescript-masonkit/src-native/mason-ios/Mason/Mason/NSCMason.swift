@@ -389,6 +389,61 @@ public class NSCMason: NSObject {
     }
   }
 
+  private static var viewportListener: (() -> Void)?
+  private static var viewportWatched = false
+  private static var lastViewport: CGSize = .zero
+  private static var viewportCheckScheduled = false
+  private static let observedScenes = NSHashTable<UIWindowScene>.weakObjects()
+  private static var sceneObservations: [NSKeyValueObservation] = []
+
+  /// Called on the main thread after the key window changes size, so values that used a
+  /// viewport unit can be resolved again.
+  @objc public static func setViewportListener(_ listener: (() -> Void)?) {
+    viewportListener = listener
+    watchViewport()
+  }
+
+  static func watchViewport() {
+    if viewportWatched { return }
+    viewportWatched = true
+    lastViewport = viewportSize
+    var names: [Notification.Name] = [UIScene.didActivateNotification, UIApplication.didBecomeActiveNotification]
+    #if !os(visionOS)
+    names.append(UIDevice.orientationDidChangeNotification)
+    #endif
+    for name in names {
+      NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+        observeSceneGeometry()
+        scheduleViewportCheck()
+      }
+    }
+    observeSceneGeometry()
+  }
+
+  // A scene's geometry changes on rotation and on every window resize.
+  private static func observeSceneGeometry() {
+    guard #available(iOS 16.0, *) else { return }
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene, !observedScenes.contains(windowScene) else { continue }
+      observedScenes.add(windowScene)
+      sceneObservations.append(windowScene.observe(\.effectiveGeometry) { _, _ in scheduleViewportCheck() })
+    }
+  }
+
+  // The window takes its new bounds after the geometry change is reported.
+  private static func scheduleViewportCheck() {
+    if viewportCheckScheduled { return }
+    viewportCheckScheduled = true
+    DispatchQueue.main.async {
+      viewportCheckScheduled = false
+      let size = viewportSize
+      guard size.width > 0, size.height > 0, size != lastViewport else { return }
+      lastViewport = size
+      HTMLParser.refreshViewportStyles()
+      viewportListener?()
+    }
+  }
+
   private static var _scale: Float = 0
   private static var scaleObserversInstalled = false
 

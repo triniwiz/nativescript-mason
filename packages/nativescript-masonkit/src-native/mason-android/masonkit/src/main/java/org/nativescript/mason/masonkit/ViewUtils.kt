@@ -98,7 +98,7 @@ class ViewUtils {
       beforeChildren: ((Canvas) -> Unit)? = null,
     ) {
       // Skip draw during backdrop capture — this view is the "hole" the blurred result fills.
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && style.mBackdropHelper?.isCapturing == true) {
+      if (style.mBackdropHelper?.isCapturing == true) {
         return
       }
 
@@ -133,11 +133,9 @@ class ViewUtils {
       val boxSave = canvas.save()
       if (boxDx != 0f || boxDy != 0f) canvas.translate(boxDx, boxDy)
 
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        style.mBackdropHelper?.let { helper ->
-          val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
-          helper.draw(canvas, if (!outerPath.isEmpty) outerPath else null)
-        }
+      style.mBackdropHelper?.let { helper ->
+        val outerPath = style.mBorderRenderer.getOuterClipPath(width, height)
+        helper.draw(canvas, if (!outerPath.isEmpty) outerPath else null)
       }
 
       val hasRadii = style.mBorderRenderer.hasRadii()

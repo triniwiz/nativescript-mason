@@ -114,10 +114,11 @@ import {
   listStyleTypeProperty,
   listStylePositionProperty,
   installMasonSizeUnits,
+  masonRawDeclaration,
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
-import { masonEngine, removeNativeChild } from './windows-panel-helpers';
+import { masonEngine, removeNativeChild } from './panel-helpers';
 import { TextNode } from './text-node';
 import { compile } from './pseudo';
 import { frameworkRegistry } from './framework-registry';
@@ -293,6 +294,7 @@ declare module '@nativescript/core/ui/styling/style' {
     top: LengthAuto;
     bottom: LengthAuto;
     gridGap: Gap;
+    // @ts-ignore
     gap: Gap;
     // @ts-ignore
     rowGap: Length;
@@ -2791,14 +2793,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     const style = this._styleHelper;
     // @ts-ignore
-    if (style) style.lineHeight = value;
+    if (style) style.lineHeight = masonRawDeclaration(this.style, 'lineHeight', value);
   }
 
   [letterSpacingProperty.setNative](value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
     // @ts-ignore
-    if (style) style.letterSpacing = value;
+    if (style) style.letterSpacing = masonRawDeclaration(this.style, 'letterSpacing', value);
   }
 
   [textAlignmentProperty.setNative](value) {
@@ -3387,7 +3389,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   get gridGap(): Length {
-    return this.style.gridGap;
+    return this.style.gridGap as Length;
   }
 
   set rowGap(value: Length) {
@@ -3767,7 +3769,35 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const native = this.nativeViewProtected;
     if (!native) return;
     const self = this as any;
-    NativeScript.Mason.Css.SetTransforms(native, typeof self.scaleX === 'number' ? self.scaleX : 1, typeof self.scaleY === 'number' ? self.scaleY : 1, self.rotate || 0, self.translateX || 0, self.translateY || 0, self.originX ?? 0.5, self.originY ?? 0.5);
+    const origin = this._windowsTransformOrigin(native);
+    NativeScript.Mason.Css.SetTransforms(native, typeof self.scaleX === 'number' ? self.scaleX : 1, typeof self.scaleY === 'number' ? self.scaleY : 1, self.rotate || 0, self.translateX || 0, self.translateY || 0, origin.x, origin.y);
+  }
+
+  // CSS transform-origin when set, else core's originX/originY. RenderTransformOrigin is shared
+  // by every part of the element's transform.
+  _windowsTransformOrigin(native: any): { x: number; y: number } {
+    const self = this as any;
+    // @ts-ignore
+    const css = this._styleHelper?.transformOriginFraction?.(native?.ActualWidth ?? 0, native?.ActualHeight ?? 0);
+    return css ?? { x: self.originX ?? 0.5, y: self.originY ?? 0.5 };
+  }
+
+  _windowsTransformValue: unknown;
+
+  _applyWindowsTransform(value = this._windowsTransformValue) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
+    this._windowsTransformValue = value;
+    if (!style || !nv) return;
+    try {
+      const size = { width: nv.ActualWidth ?? 0, height: nv.ActualHeight ?? 0 };
+      const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)), size);
+      const origin = this._windowsTransformOrigin(nv);
+      if (!m) NativeScript.Mason.Css.ClearTransform(nv);
+      else NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
+      NativeScript.Mason.Css.SetTransformOrigin(nv, origin.x, origin.y);
+    } catch (_) {}
   }
 
   animate(options: any) {
@@ -3808,21 +3838,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.transform = value;
-      if (__WINDOWS__) {
-        // transform isn't a Mason buffer prop — apply it to the FrameworkElement via Composition,
-        // like @nativescript/core does on its own panels (the plugin's View is a custom Panel core
-        // doesn't drive transforms on). Parse the CSS string to a matrix and set RenderTransform.
-        const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
-        try {
-          const size = { width: nv?.ActualWidth ?? 0, height: nv?.ActualHeight ?? 0 };
-          const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)), size);
-          if (!m) NativeScript.Mason.Css.ClearTransform(nv);
-          else {
-            NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
-            NativeScript.Mason.Css.SetTransformOrigin(nv, (this as any).originX ?? 0.5, (this as any).originY ?? 0.5);
-          }
-        } catch (_) {}
-      }
+      // Windows: transform isn't read from the buffer; it becomes the panel's RenderTransform.
+      if (__WINDOWS__) this._applyWindowsTransform(value);
     }
   }
 }

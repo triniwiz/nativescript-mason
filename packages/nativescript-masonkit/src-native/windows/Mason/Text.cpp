@@ -1100,8 +1100,9 @@ namespace winrt::NativeScript::Mason::implementation
             m_transform = m_hasTransform ? u8(sk::kTextTransform) : 0;
             m_background = u32(sk::kBackgroundColor);
         }
-        // Read only the TEXT_ALIGN byte: JS writes it as an int32 that overlaps TEXT_ALIGN_STATE.
         m_textAlign = u8(sk::kTextAlign);
+        // text-justify: none (-1) turns justify off.
+        if (m_textAlign == 4 && u8(sk::kTextJustifyState) && static_cast<int8_t>(u8(sk::kTextJustify)) == -1) m_textAlign = 0;
         m_measureCache->startAligned = !m_rtl && m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
         // white-space 1 pre, 4 nowrap; text-wrap 1 nowrap; text-overflow 1 ellipsis.
         m_measureCache->noWrap = (u8(sk::kWhiteSpaceState) && (u8(sk::kWhiteSpace) == 1 || u8(sk::kWhiteSpace) == 4)) || (u8(sk::kTextWrapState) && u8(sk::kTextWrap) == 1);

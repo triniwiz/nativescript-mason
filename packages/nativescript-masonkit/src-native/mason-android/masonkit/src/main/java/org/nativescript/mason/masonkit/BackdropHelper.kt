@@ -15,30 +15,9 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Implements CSS `backdrop-filter` on Android.
- *
- * The naive approach — `view.setRenderEffect(effect)` — filters the view's OWN
- * render output (its background AND every child), so the element's own content
- * (e.g. `Text "Hello world"`) gets blurred. That is the opposite of what CSS
- * `backdrop-filter` specifies: the filter must apply only to the content drawn
- * *behind* the element (the "backdrop"), while the element's own content stays
- * crisp on top.
- *
- * Backdrop capture deliberately uses a software [Bitmap] plus [stackBlur]
- * instead of `RenderNode` + `RenderEffect`: that capture/effect chain has
- * crashed RenderThread on Android 16, while regular foreground `filter: blur()`
- * remains safe.
- *
- *  1. A [ViewTreeObserver.OnPreDrawListener] on the target runs each frame.
- *  2. It draws the backdrop's root view into a downscaled [Bitmap], translated
- *     so the target's top-left maps to (0,0). While drawing, the target draws
- *     nothing (the [isCapturing] guard short-circuits [ViewUtils] render), so
- *     the snapshot contains only what's behind the target.
- *  3. [stackBlur] blurs that bitmap in place; a combined [ColorMatrix] (for
- *     brightness/contrast/etc.) is applied later via a [Paint] at draw time.
- *  4. During the target's normal draw, [draw] blits the blurred bitmap
- *     *underneath* the element's own background/border/children — so the
- *     backdrop is filtered and the content stays sharp.
+ * CSS `backdrop-filter`: each frame the root is drawn (without the target) into a downscaled
+ * bitmap, blurred and colour-matrixed, then drawn under the target's own content. A software
+ * bitmap rather than RenderNode + RenderEffect, which crashed RenderThread on Android 16.
  */
 internal class BackdropHelper(private val target: View) {
 
@@ -47,6 +26,12 @@ internal class BackdropHelper(private val target: View) {
   private var colorMatrix: ColorMatrix? = null
 
   private var blurredBitmap: Bitmap? = null
+  /** The unfiltered snapshot behind [blurredBitmap], and a reusable capture target. */
+  private var lastCapture: Bitmap? = null
+  private var scratch: Bitmap? = null
+  /** The filter changed since [blurredBitmap] was made. */
+  private var filterChanged = true
+  private var colorFilter: ColorMatrixColorFilter? = null
   private var contentWidth = 0
   private var contentHeight = 0
 
@@ -84,6 +69,8 @@ internal class BackdropHelper(private val target: View) {
     cssFilter = filter
     blurRadiusPx = filter?.backdropBlurRadiusPx() ?: 0f
     colorMatrix = filter?.buildBackdropColorMatrix()
+    colorFilter = colorMatrix?.let { ColorMatrixColorFilter(it) }
+    filterChanged = true
     if (filter != null && filter.filters.isNotEmpty() && (blurRadiusPx > 0f || colorMatrix != null)) {
       enable()
     } else {
@@ -107,6 +94,10 @@ internal class BackdropHelper(private val target: View) {
     unregisterPreDraw()
     blurredBitmap?.recycle()
     blurredBitmap = null
+    lastCapture?.recycle()
+    lastCapture = null
+    scratch?.recycle()
+    scratch = null
   }
 
   private fun registerPreDraw() {
@@ -164,11 +155,13 @@ internal class BackdropHelper(private val target: View) {
     val bw = max(1, w / scale)
     val bh = max(1, h / scale)
 
-    val bmp = try {
-      Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-    } catch (_: Throwable) {
-      return
-    }
+    val bmp = scratch?.takeIf { !it.isRecycled && it.width == bw && it.height == bh }?.apply { eraseColor(0) }
+      ?: try {
+        Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+      } catch (_: Throwable) {
+        return
+      }
+    scratch = null
 
     val recorded = try {
       val canvas = Canvas(bmp)
@@ -191,23 +184,41 @@ internal class BackdropHelper(private val target: View) {
     }
 
     if (!recorded) {
-      bmp.recycle()
+      scratch = bmp
       return
     }
 
+    val previous = lastCapture
+    if (!filterChanged && blurredBitmap != null && contentWidth == w && contentHeight == h &&
+      previous != null && bmp.sameAs(previous)
+    ) {
+      scratch = bmp
+      return
+    }
+    scratch = previous?.takeIf { it.width == bw && it.height == bh }
+    if (scratch == null) previous?.recycle()
+    lastCapture = bmp
+
+    // A new bitmap each time: the one on screen may still be referenced by a recorded frame.
+    val out = try {
+      bmp.copy(Bitmap.Config.ARGB_8888, true)
+    } catch (_: Throwable) {
+      null
+    } ?: return
     if (blurRadiusPx > 0f) {
       val r = (blurRadiusPx / scale).roundToInt().coerceIn(1, 25)
       try {
-        stackBlur(bmp, r)
+        stackBlur(out, r)
       } catch (_: Throwable) {
         // Show the captured backdrop rather than dropping it entirely.
       }
     }
 
     val old = blurredBitmap
-    blurredBitmap = bmp
+    blurredBitmap = out
     contentWidth = w
     contentHeight = h
+    filterChanged = false
     old?.recycle()
 
     target.invalidate()
@@ -222,7 +233,7 @@ internal class BackdropHelper(private val target: View) {
     val bmp = blurredBitmap ?: return
     if (bmp.isRecycled || isCapturing) return
 
-    drawPaint.colorFilter = colorMatrix?.let { ColorMatrixColorFilter(it) }
+    drawPaint.colorFilter = colorFilter
 
     val save = canvas.save()
     if (clipPath != null && !clipPath.isEmpty) {

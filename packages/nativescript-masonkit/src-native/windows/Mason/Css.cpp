@@ -35,6 +35,7 @@
 #include "Positioning.h"
 #include "ScrollHost.h"
 #include "Invalidation.h"
+#include "SvgPrepare.h"
 
 using namespace winrt;
 
@@ -708,7 +709,7 @@ namespace winrt::NativeScript::Mason::implementation
             std::string svg = DecodeSvgDataUri(v);
             if (svg.empty()) return;
             imaging::SvgImageSource svgSource;
-            LoadSvg(svgSource, PrepareSvg(std::move(svg), ResolveCurrentColor(element)));
+            LoadSvg(svgSource, PrepareSvg(mason_svg::Resolve(std::move(svg)), ResolveCurrentColor(element)));
             brush.ImageSource(svgSource);
         }
         else
@@ -861,7 +862,7 @@ namespace
             {
                 std::string svg = DecodeSvgDataUri(v);
                 if (svg.empty()) return image;
-                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(mason_svg::Resolve(std::move(svg)), image.currentColor), 0xFF000000u));
                 image.kind = mason_cssmask::Image::Kind::Svg;
                 return image;
             }
@@ -871,7 +872,7 @@ namespace
                 std::ifstream file(source, std::ios::binary);
                 std::string svg((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
                 if (svg.empty()) return image;
-                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(std::move(svg), image.currentColor), 0xFF000000u));
+                image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(mason_svg::Resolve(std::move(svg)), image.currentColor), 0xFF000000u));
                 image.kind = mason_cssmask::Image::Kind::Svg;
                 return image;
             }

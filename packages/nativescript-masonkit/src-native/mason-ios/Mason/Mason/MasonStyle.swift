@@ -289,6 +289,11 @@ public struct StyleKeys {
   public static let MAX_INLINE_TRANSFORM_OPS = 6
   public static let TRANSFORM_FLAG_HAS_MATRIX: UInt8 = 0x01
   public static let TRANSFORM_FLAG_IS_3D: UInt8 = 0x02
+  /// An inline op holds a percentage, resolved against the border box when applied.
+  public static let TRANSFORM_FLAG_HAS_PERCENT: UInt8 = 0x04
+  /// Per-op byte 1: which of `a` / `b` are percentages.
+  public static let TRANSFORM_OP_A_PERCENT: UInt8 = 0x01
+  public static let TRANSFORM_OP_B_PERCENT: UInt8 = 0x02
 }
 
 @objc public enum TransformOpType: UInt8 {
@@ -893,10 +898,11 @@ public class MasonStyle: NSObject {
     let type: UInt8
     let a: Float
     let b: Float
+    var percent: UInt8 = 0
   }
 
   private func writeTransformToBuffer(_ input: String) {
-    let ops = parseTransformOps(input)
+    var ops = parseTransformOps(input)
     prepareMut()
 
     if ops.isEmpty {
@@ -908,18 +914,21 @@ public class MasonStyle: NSObject {
     // Sentinel check: matrix/matrix3d already written by parser
     if ops.count == 1 && ops[0].type == 255 { return }
 
-    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS {
+    // Percentages need the box size, so a long list keeps only its first inline ops.
+    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS && !ops.contains(where: { $0.percent != 0 }) {
       flattenOpsToMatrix(ops)
       return
     }
+    ops = Array(ops.prefix(StyleKeys.MAX_INLINE_TRANSFORM_OPS))
 
     // Write inline ops
+    let hasPercent = ops.contains { $0.percent != 0 }
     setUInt8(StyleKeys.TRANSFORM_COUNT, UInt8(ops.count))
-    setUInt8(StyleKeys.TRANSFORM_FLAGS, 0)
+    setUInt8(StyleKeys.TRANSFORM_FLAGS, hasPercent ? StyleKeys.TRANSFORM_FLAG_HAS_PERCENT : 0)
     for i in 0..<ops.count {
       let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
       setUInt8(base, ops[i].type)
-      setUInt8(base + 1, 0) // padding
+      setUInt8(base + 1, ops[i].percent)
       setUInt8(base + 2, 0)
       setUInt8(base + 3, 0)
       setFloat(base + 4, ops[i].a)
@@ -949,12 +958,16 @@ public class MasonStyle: NSObject {
       let rawArgs = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
       let args = rawArgs.replacingOccurrences(of: ",", with: " ").split(separator: " ").map { String($0) }
       switch name {
-      case "translate":
-        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: parseTransformLength(args, 0), b: parseTransformLength(args, 1)))
+      case "translate", "translate3d":
+        let x = parseTransformLength(args, 0), y = parseTransformLength(args, 1)
+        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: x.value, b: y.value,
+                               percent: (x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0) | (y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0)))
       case "translatex":
-        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: parseTransformLength(args, 0), b: 0))
+        let x = parseTransformLength(args, 0)
+        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: x.value, b: 0, percent: x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0))
       case "translatey":
-        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: parseTransformLength(args, 0)))
+        let y = parseTransformLength(args, 0)
+        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: y.value, percent: y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0))
       case "scale":
         let sx = parseTransformNumber(args, 0, 1.0)
         let sy = parseTransformNumber(args, 1, Double(sx))
@@ -1097,13 +1110,29 @@ public class MasonStyle: NSObject {
         }
       }
     } else {
-      // Compose inline ops
-      var affine = CGAffineTransform.identity
-      for i in 0..<count {
+      // Compose inline ops; percentages resolve against the size on the main thread.
+      let ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)] = (0..<count).map { i in
         let opBase = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-        let type = TransformOpType(rawValue: getUInt8(opBase)) ?? .none
-        let a = CGFloat(getFloat(opBase + 4))
-        let b = CGFloat(getFloat(opBase + 8))
+        return (TransformOpType(rawValue: getUInt8(opBase)) ?? .none, getUInt8(opBase + 1),
+                CGFloat(getFloat(opBase + 4)), CGFloat(getFloat(opBase + 8)))
+      }
+      DispatchQueue.main.async { [weak self] in
+        let size = view.bounds.size
+        let composed = MasonStyle.composeTransformOps(ops, size: size)
+        view.transform = (self?.aboutTransformOrigin(composed, size) ?? composed).rotated(by: turn)
+        self?.updateShadowLayer(for: view.bounds)
+      }
+    }
+  }
+
+  static func composeTransformOps(_ ops: [(type: TransformOpType, percent: UInt8, a: CGFloat, b: CGFloat)], size: CGSize) -> CGAffineTransform {
+      var affine = CGAffineTransform.identity
+      for op in ops {
+        let type = op.type
+        var a = op.a
+        var b = op.b
+        if op.percent & StyleKeys.TRANSFORM_OP_A_PERCENT != 0 { a = a / 100 * size.width }
+        if op.percent & StyleKeys.TRANSFORM_OP_B_PERCENT != 0 { b = b / 100 * size.height }
         switch type {
         case .translate: affine = affine.translatedBy(x: a, y: b)
         case .translateX: affine = affine.translatedBy(x: a, y: 0)
@@ -1121,12 +1150,7 @@ public class MasonStyle: NSObject {
         case .none: break
         }
       }
-      let composed = affine
-      DispatchQueue.main.async { [weak self] in
-        view.transform = (self?.aboutTransformOrigin(composed, view.bounds.size) ?? composed).rotated(by: turn)
-        self?.updateShadowLayer(for: view.bounds)
-      }
-    }
+      return affine
   }
 
   // UIKit transforms about the centre (the layer's anchor, which Mason's frames rely on),
@@ -1153,12 +1177,13 @@ public class MasonStyle: NSObject {
     return CATransform3DConcat(CATransform3DConcat(CATransform3DMakeTranslation(-d.x, -d.y, 0), t), CATransform3DMakeTranslation(d.x, d.y, 0))
   }
 
-  private func parseTransformLength(_ args: [String], _ index: Int) -> Float {
-    guard index < args.count else { return 0 }
+  /// A translate length in CSS px, or a percentage of the border box (`percent`).
+  private func parseTransformLength(_ args: [String], _ index: Int) -> (value: Float, percent: Bool) {
+    guard index < args.count else { return (0, false) }
     let s = args[index].trimmingCharacters(in: .whitespaces)
-    if s.hasSuffix("px") { return Float(s.dropLast(2)) ?? 0 }
-    if s.hasSuffix("%") { return Float(s.dropLast(1)) ?? 0 }
-    return Float(s) ?? 0
+    if s.hasSuffix("px") { return (Float(s.dropLast(2)) ?? 0, false) }
+    if s.hasSuffix("%") { return (Float(s.dropLast(1)) ?? 0, true) }
+    return (Float(s) ?? 0, false)
   }
 
   private func parseTransformAngleDeg(_ s: String) -> Float {
@@ -1450,8 +1475,7 @@ public class MasonStyle: NSObject {
   }
   
   
-  // Created on first parse: CSSFilter owns a CAMetalLayer, and every draw
-  // checks for a filter, so views without one shouldn't pay for it.
+  // Created on first parse: views without a filter shouldn't pay for one.
   private var mFilterStorage: CSSFilters.CSSFilter?
   var mFilter: CSSFilters.CSSFilter {
     if let filter = mFilterStorage { return filter }
@@ -1506,22 +1530,9 @@ public class MasonStyle: NSObject {
     mFilter.parse(css: css)
     guard !mFilter.filters.isEmpty else { return }
 
-    // Clip to border-radius so the overlay follows the element shape.
-    context.saveGState()
-    if mBorderRender.hasRadii() {
-      let clipPath = mBorderRender.getClipPath(rect: rect, radius: mBorderRender.radius)
-      context.addPath(clipPath.cgPath)
-      context.clip()
+    if let view = view {
+      mFilter.apply(to: view)
     }
-
-    if !mFilter.applyFast(in: context, rect: rect) {
-      context.restoreGState()
-      if let view = view {
-        mFilter.apply(to: view)
-      }
-      return
-    }
-    context.restoreGState()
   }
 
   internal var mBackground: Background!
@@ -2063,7 +2074,7 @@ public class MasonStyle: NSObject {
   
   public var textJustify: TextJustify {
     get {
-      return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY))!
+      return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto
     }
     set {
       prepareMut()
@@ -3186,6 +3197,7 @@ public class MasonStyle: NSObject {
       shadowLayerAdded = false
       shadowLayerParent = nil
     }
+    mFilterStorage?.layer.removeFromSuperlayer()
   }
 
   /// Reset shadow-layer bookkeeping when the layer was pulled externally.
@@ -3199,6 +3211,7 @@ public class MasonStyle: NSObject {
   internal func updateShadowLayer(for bounds: CGRect) {
     guard let view = node.view else { return }
     syncShadowLayer(view, viewBounds: bounds)
+    mFilterStorage?.syncOutputGeometry()
   }
   
   internal lazy var mBorderRender: CSSBorderRenderer  = {
@@ -4062,10 +4075,13 @@ public class MasonStyle: NSObject {
     return getUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE) != 0
   }
 
-  /// Whether a buffer transform pivots on a set transform-origin, so it must be reapplied on resize.
+  /// Whether a buffer transform pivots on a set transform-origin or holds a percentage, so it
+  /// must be reapplied on resize.
   internal var transformDependsOnOrigin: Bool {
+    let flags = getUInt8(StyleKeys.TRANSFORM_FLAGS)
+    if flags & StyleKeys.TRANSFORM_FLAG_HAS_PERCENT != 0 { return true }
     return hasTransformOrigin && (getUInt8(StyleKeys.TRANSFORM_COUNT) != 0
-      || (getUInt8(StyleKeys.TRANSFORM_FLAGS) & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0)
+      || (flags & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) != 0)
   }
 
   private var _transformRaw: String?
@@ -4290,10 +4306,7 @@ public class MasonStyle: NSObject {
       if backdropFilter.isEmpty {
         if let current = mBackdropFilterStorage, !current.filters.isEmpty {
           current.reset()
-          if let view = node.view {
-            view.subviews.filter { $0.layer.name == "_mason_backdrop" }.forEach { $0.removeFromSuperview() }
-            view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
-          }
+          node.view?.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
         }
         return
       }
@@ -4313,15 +4326,10 @@ public class MasonStyle: NSObject {
     }
   }
 
-  /// Keep the backdrop effect view / layer sized to the host view. Called from
-  /// `MasonUIView.layoutSubviews` because `backdropFilter` is usually set before
-  /// the view has a non-zero bounds, so the initial frame in `applyAsBackdrop`
-  /// would otherwise stay `.zero` and the effect would never appear.
+  /// Keep the backdrop layer sized to the host view: `backdropFilter` is usually set before the
+  /// view has a size.
   func updateBackdropFrames(for bounds: CGRect) {
     guard let backdrop = mBackdropFilterStorage, !backdrop.filters.isEmpty, let view = node.view else { return }
-    if let effectView = view.subviews.first(where: { $0.layer.name == "_mason_backdrop" }) {
-      if effectView.frame != bounds { effectView.frame = bounds }
-    }
     if let backdropLayer = view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" }) {
       if backdropLayer.frame != bounds {
         CATransaction.begin()
@@ -4410,8 +4418,15 @@ public class MasonStyle: NSObject {
 
   @objc public var fontFeatureSettings: String = "normal" {
     didSet {
+      hasFontFeatureSettings = true
       notifyTextStyleChanged(StateKeys.fontFamily)
     }
+  }
+  private var hasFontFeatureSettings = false
+
+  /// font-feature-settings here or inherited.
+  internal var resolvedFontFeatureSettings: String {
+    hasFontFeatureSettings ? fontFeatureSettings : (parentStyleWithTextValues?.resolvedFontFeatureSettings ?? "normal")
   }
   
   public func updateNativeStyle() {
@@ -5030,16 +5045,11 @@ extension MasonStyle {
   }
   
   internal var resolvedTextJustify: TextJustify {
-    let state = getUInt8(StyleKeys.TEXT_JUSTIFY_STATE)
-    return if (state == StyleState.INHERIT) {
-      parentStyleWithTextValues?.resolvedTextJustify ?? TextJustify(
-        rawValue: getInt8(
-          StyleKeys.TEXT_JUSTIFY
-        )
-      )!
-    } else {
-      TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY))!
+    if getUInt8(StyleKeys.TEXT_JUSTIFY_STATE) == StyleState.INHERIT, let parent = parentStyleWithTextValues {
+      return parent.resolvedTextJustify
     }
+    // An unset buffer holds no valid value.
+    return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto
   }
   
   internal var resolvedLineHeight: Float {
@@ -5135,6 +5145,20 @@ extension MasonStyle {
       return color != 0 ? color : nil
     }
     return parentStyleWithTextValues?.explicitCaretColor
+  }
+
+  /// word-spacing here or inherited: device px, a percentage of the space advance, or none.
+  internal var resolvedWordSpacingValue: (value: Float, isPercent: Bool)? {
+    let state = getUInt8(StyleKeys.WORD_SPACING_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedWordSpacingValue
+    }
+    if state != StyleState.SET { return nil }
+    switch getUInt8(StyleKeys.WORD_SPACING_TYPE) {
+    case 0: return (getFloat(StyleKeys.WORD_SPACING), false)
+    case 1: return (getFloat(StyleKeys.WORD_SPACING), true)
+    default: return nil
+    }
   }
 
   internal var resolvedWordSpacing: Float {

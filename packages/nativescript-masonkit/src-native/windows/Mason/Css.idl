@@ -66,7 +66,7 @@ namespace NativeScript.Mason
         static void SetFilter(Microsoft.UI.Xaml.UIElement element, String filter);
         static void SetBackdropFilter(Microsoft.UI.Xaml.UIElement element, String filter);
 
-        // CSS masking, as the JSON windows-mask.ts builds: mask-* layers, clip-path and
+        // CSS masking, as the JSON mask.windows.ts builds: mask-* layers, clip-path and
         // mask-border in SetMask, border-image in SetBorderImage. An empty spec removes it.
         static void SetMask(Microsoft.UI.Xaml.UIElement element, String spec);
         static void SetBorderImage(Microsoft.UI.Xaml.UIElement element, String spec);

@@ -197,38 +197,8 @@ internal fun parseMaskImageSource(token: String): BackgroundLayer? {
   return layer
 }
 
-/**
- * `mask-repeat`: one or two keywords. `space` and `round` tile like `repeat` (the background
- * painter has no spacing/rounding). Null when invalid.
- */
-internal fun parseMaskRepeat(value: String): BackgroundRepeat? {
-  val tokens = value.trim().lowercase().split(Regex("""\s+""")).filter { it.isNotEmpty() }
-  fun tiles(t: String): Boolean? = when (t) {
-    "repeat", "space", "round" -> true
-    "no-repeat" -> false
-    else -> null
-  }
-  return when (tokens.size) {
-    1 -> when (tokens[0]) {
-      "repeat-x" -> BackgroundRepeat.REPEAT_X
-      "repeat-y" -> BackgroundRepeat.REPEAT_Y
-      else -> tiles(tokens[0])?.let { if (it) BackgroundRepeat.REPEAT else BackgroundRepeat.NO_REPEAT }
-    }
-
-    2 -> {
-      val x = tiles(tokens[0]) ?: return null
-      val y = tiles(tokens[1]) ?: return null
-      when {
-        x && y -> BackgroundRepeat.REPEAT
-        x -> BackgroundRepeat.REPEAT_X
-        y -> BackgroundRepeat.REPEAT_Y
-        else -> BackgroundRepeat.NO_REPEAT
-      }
-    }
-
-    else -> null
-  }
-}
+/** `mask-repeat`: one or two keywords. Null when invalid. */
+internal fun parseMaskRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
 /**
  * The mask layers for a set of longhands (empty strings are initial values). The image list
@@ -646,12 +616,21 @@ class Mask internal constructor(private val style: Style) {
 internal fun beginMask(view: android.view.View, style: Style, canvas: Canvas): Int {
   val clip = style.mClipPath
   val mask = style.mMask
-  if (clip == null && mask == null) return -1
+  val shear = style.transformShear
+  if (clip == null && mask == null && shear == 0f) return -1
   val outer = canvas.save()
+  if (shear != 0f) {
+    // The view's own properties hold the rest of the transform, about the same pivot.
+    val px = view.scrollX + view.pivotX
+    val py = view.scrollY + view.pivotY
+    canvas.translate(px, py)
+    canvas.skew(shear, 0f)
+    canvas.translate(-px, -py)
+  }
   val clipped = clip?.begin(view, canvas, masked = mask?.isActive() == true) == true
   val maskSave = mask?.beginDraw(view, canvas) ?: -1
   mask?.pendingSave = maskSave
-  if (!clipped && maskSave < 0) {
+  if (!clipped && maskSave < 0 && shear == 0f) {
     canvas.restoreToCount(outer)
     return -1
   }

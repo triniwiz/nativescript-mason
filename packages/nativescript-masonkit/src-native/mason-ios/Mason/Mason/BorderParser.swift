@@ -402,7 +402,7 @@ extension CSSBorderRenderer {
     }
     func corner(_ xType: Int, _ xValue: Int, _ yType: Int, _ yValue: Int, _ exp: Int) -> CornerRadius {
       let e = style.getFloat(exp)
-      return CornerRadius(horizontal: length(xValue, xType), vertical: length(yValue, yType), exponent: e > 0 ? CGFloat(e) : 1)
+      return CornerRadius(horizontal: length(xValue, xType), vertical: length(yValue, yType), exponent: e.isNaN ? 1 : CGFloat(e))
     }
     let render = style.mBorderRender
     render.radius.topLeft = corner(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE,
@@ -554,61 +554,59 @@ extension CSSBorderRenderer {
     style.setOrAppendState(.inset)
   }
 
-  // corner-shape
-  // CSS syntax:
-  //   corner-shape: round                      → exponent 1 on all corners (default)
-  //   corner-shape: superellipse               → exponent 0.5 on all corners
-  //   corner-shape: superellipse(0.3)          → exponent 0.3 on all corners
-  //   corner-shape: squircle                   → alias for superellipse (0.5)
-  //   corner-shape: notch                      → exponent 2 on all corners
-  //   corner-shape: bevel                      → exponent 4 on all corners
-  //   1–4 value shorthand follows CSS corner order: TL TR BR BL
-  
+  // corner-shape stores the CSS superellipse parameter K per corner: round 1, squircle 2, bevel 0,
+  // scoop -1, notch -infinity, square infinity, or superellipse(K).
 
   private static let cornerShapeTokenRegex = try! NSRegularExpression(
-    pattern: "^(round|superellipse(?:\\((-?\\d+(?:\\.\\d+)?)\\))?|squircle|notch|bevel)$",
+    pattern: "^superellipse\\(\\s*(-?infinity|[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?)\\s*\\)$",
     options: [.caseInsensitive]
   )
 
   static func exponentToCornerShapeToken(_ exponent: Float) -> String {
     switch exponent {
     case 1.0: return "round"
-    case 0.5: return "squircle"
-    case 2.0: return "notch"
-    case 4.0: return "bevel"
-    default: return "superellipse(\(exponent))"
+    case 2.0: return "squircle"
+    case 0.0: return "bevel"
+    case -1.0: return "scoop"
+    case -.infinity: return "notch"
+    case .infinity: return "square"
+    default:
+      return exponent == exponent.rounded() && abs(exponent) < 1e6 ? "superellipse(\(Int(exponent)))" : "superellipse(\(exponent))"
     }
   }
 
   static func parseCornerShapeToken(_ token: String) -> Float? {
     let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    switch t {
+    case "round": return 1.0
+    case "squircle": return 2.0
+    case "bevel": return 0.0
+    case "scoop": return -1.0
+    case "notch": return -.infinity
+    case "square": return .infinity
+    default: break
+    }
     let nsT = t as NSString
     guard let match = cornerShapeTokenRegex.firstMatch(
       in: t, range: NSRange(location: 0, length: nsT.length)
     ) else { return nil }
-
-    let keyword = nsT.substring(with: match.range(at: 1))
-    let expRange = match.range(at: 2)
-    let explicitExp: Float? = expRange.location != NSNotFound
-      ? Float(nsT.substring(with: expRange))
-      : nil
-
-    if keyword.hasPrefix("superellipse") { return explicitExp ?? 0.5 }
-    switch keyword {
-    case "squircle": return 0.5
-    case "round":    return 1.0
-    case "notch":    return 2.0
-    case "bevel":    return 4.0
-    default:         return nil
-    }
+    let k = nsT.substring(with: match.range(at: 1))
+    if k == "infinity" { return .infinity }
+    if k == "-infinity" { return -.infinity }
+    guard let value = Float(k), !value.isNaN else { return nil }
+    return value
   }
 
   static func parseCornerShape(_ style: MasonStyle, _ value: String) {
     let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
       .replacingOccurrences(of: ";", with: "")
     let tokens = cleaned.split(whereSeparator: { $0.isWhitespace })
-    let exponents = tokens.compactMap { parseCornerShapeToken(String($0)) }
-    guard !exponents.isEmpty else { return }
+    guard !tokens.isEmpty, tokens.count <= 4 else { return }
+    var exponents: [Float] = []
+    for token in tokens {
+      guard let exponent = parseCornerShapeToken(String(token)) else { return }
+      exponents.append(exponent)
+    }
 
     let tl, tr, br, bl: Float
     switch exponents.count {

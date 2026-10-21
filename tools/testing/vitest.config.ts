@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { platformSuffixResolver } from './mason-test-kit/platform-suffix-resolver';
 
 const root = resolve(__dirname, '../..');
@@ -9,6 +10,19 @@ const root = resolve(__dirname, '../..');
  * not symlink it into node_modules, so Node's ESM loader cannot find it; this
  * routes the import to the source entry before Node sees it.
  */
+/** Prefer masonkit's `.windows.ts` modules, as the Windows build does. */
+const windowsSuffixResolver = () => ({
+  name: 'masonkit-windows-suffix-resolver',
+  enforce: 'pre' as const,
+  resolveId(source: string, importer?: string) {
+    if (!importer || !source.startsWith('.') || /\.(ts|js)$/.test(source)) return null;
+    const masonRoot = resolve(root, 'packages/nativescript-masonkit');
+    if (!importer.startsWith(masonRoot)) return null;
+    const base = resolve(dirname(importer), source);
+    return [`${base}.windows.ts`, `${base}/index.windows.ts`].find(existsSync) ?? null;
+  },
+});
+
 const masonkitInternalResolver = () => ({
   name: 'masonkit-internal-resolver',
   enforce: 'pre' as const,
@@ -79,6 +93,7 @@ export default defineConfig({
       {
         extends: true,
         define: { __WINDOWS__: 'true' },
+        plugins: [windowsSuffixResolver()],
         test: { name: 'windows-sync', include: ['packages/**/style-native-sync.spec.ts'] },
       },
       {
@@ -91,6 +106,7 @@ export default defineConfig({
         // Windows code paths, against mocked NativeScript.Mason natives.
         extends: true,
         define: { __WINDOWS__: 'true' },
+        plugins: [windowsSuffixResolver()],
         test: {
           name: 'windows',
           include: ['packages/**/*.windows.spec.ts'],

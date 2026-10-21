@@ -168,6 +168,7 @@ class BoxShadowRenderer(private val style: Style) {
       height: Int,
       radii: FloatArray?,
       pool: CSSFilters.BitmapPool,
+      shape: BorderRenderer? = null,
     ): Bitmap {
       val bitmap = pool.getBitmap(width, height, Bitmap.Config.ARGB_8888)
       bitmap.eraseColor(Color.TRANSPARENT)
@@ -182,7 +183,7 @@ class BoxShadowRenderer(private val style: Style) {
 
       if (radii != null) {
         val path = Path()
-        path.addRoundRect(rect, radii, Path.Direction.CW)
+        if (shape != null) shape.addShapePath(path, rect, radii) else path.addRoundRect(rect, radii, Path.Direction.CW)
         canvas.drawPath(path, paint)
       } else {
         canvas.drawRect(rect, paint)
@@ -360,11 +361,18 @@ class BoxShadowRenderer(private val style: Style) {
     insetKey.reset()
   }
 
+  // Raster cache key bits for the shadow shape: its radii plus any corner-shape.
+  private fun shapeBits(radii: FloatArray?, borderRenderer: BorderRenderer): List<Int> {
+    val bits = radii?.map(SharedBoxShadowCache::floatBits) ?: return emptyList()
+    return if (borderRenderer.hasCornerShape()) bits + borderRenderer.cornerShapeHash() else bits
+  }
+
   private fun radiiHash(borderRenderer: BorderRenderer): Int {
     if (!borderRenderer.hasRadii()) return 0
     val radii = borderRenderer.getRadii()
     var result = 1
     for (i in radii.indices) result = 31 * result + radii[i].toBits()
+    if (borderRenderer.hasCornerShape()) result = 31 * result + borderRenderer.cornerShapeHash()
     return result
   }
 
@@ -443,7 +451,7 @@ class BoxShadowRenderer(private val style: Style) {
           recording.drawRect(rect, paint)
         } else {
           tmpPath.reset()
-          tmpPath.addRoundRect(rect, adjustedRadii, Path.Direction.CW)
+          borderRenderer.addShapePath(tmpPath, rect, adjustedRadii)
           recording.drawPath(tmpPath, paint)
         }
         node.endRecording()
@@ -512,7 +520,7 @@ class BoxShadowRenderer(private val style: Style) {
         val key = SharedBoxShadowCache.Key(
           SharedBoxShadowCache.floatBits(width),
           SharedBoxShadowCache.floatBits(height),
-          adjustedRadii?.map(SharedBoxShadowCache::floatBits) ?: emptyList(),
+          shapeBits(adjustedRadii, borderRenderer),
           SharedBoxShadowCache.floatBits(rasterBlur),
           SharedBoxShadowCache.floatBits(spread),
           shadow.color,
@@ -527,6 +535,7 @@ class BoxShadowRenderer(private val style: Style) {
             rasterShapeH,
             adjustedRadii,
             pool,
+            borderRenderer,
           )
           val rendered = createBlurredShadowBitmapRS(
             context,
@@ -543,6 +552,7 @@ class BoxShadowRenderer(private val style: Style) {
             width * scale,
             height * scale,
             clearRadii,
+            borderRenderer,
           )
           SharedBoxShadowCache.put(key, rendered)
           rendered
@@ -584,7 +594,8 @@ class BoxShadowRenderer(private val style: Style) {
     top: Float,
     width: Float,
     height: Float,
-    radii: FloatArray?
+    radii: FloatArray?,
+    shape: BorderRenderer,
   ) {
     bitmap.setHasAlpha(true)
     val canvas = Canvas(bitmap)
@@ -595,7 +606,7 @@ class BoxShadowRenderer(private val style: Style) {
     val rect = RectF(left, top, left + width, top + height)
     if (radii != null) {
       tmpPath.reset()
-      tmpPath.addRoundRect(rect, radii, Path.Direction.CW)
+      shape.addShapePath(tmpPath, rect, radii)
       canvas.drawPath(tmpPath, clearPaint)
     } else {
       canvas.drawRect(rect, clearPaint)
@@ -704,7 +715,7 @@ class BoxShadowRenderer(private val style: Style) {
         shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         if (innerRadii != null) {
           nodePath.reset()
-          nodePath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+          borderRenderer.addShapePath(nodePath, shapeRect, innerRadii)
           shapeCanvas.drawPath(nodePath, shapePaint)
         } else {
           shapeCanvas.drawRect(shapeRect, shapePaint)
@@ -785,7 +796,7 @@ class BoxShadowRenderer(private val style: Style) {
         val key = SharedBoxShadowCache.Key(
           SharedBoxShadowCache.floatBits(width),
           SharedBoxShadowCache.floatBits(height),
-          innerRadii?.map(SharedBoxShadowCache::floatBits) ?: emptyList(),
+          shapeBits(innerRadii, borderRenderer),
           SharedBoxShadowCache.floatBits(rasterBlur),
           SharedBoxShadowCache.floatBits(spread),
           shadow.color,
@@ -817,7 +828,7 @@ class BoxShadowRenderer(private val style: Style) {
           shapePaint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.CLEAR)
           if (innerRadii != null) {
             tmpPath.reset()
-            tmpPath.addRoundRect(shapeRect, innerRadii, Path.Direction.CW)
+            borderRenderer.addShapePath(tmpPath, shapeRect, innerRadii)
             frameCanvas.drawPath(tmpPath, shapePaint)
           } else {
             frameCanvas.drawRect(shapeRect, shapePaint)

@@ -1,6 +1,7 @@
 import { Screen } from '@nativescript/core';
 import { InputType } from '..';
-import { setCssUnitContext } from '../units';
+import { setViewportProvider } from '../units';
+import { refreshViewportUnits } from '../style';
 
 enum TextType {
   None = 0,
@@ -50,8 +51,14 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree(NSCMason.shared);
-      // `vw`/`vh` have nothing to resolve against until the viewport is known.
-      setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
+      // `vw`/`vh` follow the key window, so rotation and resizing reach new style writes.
+      setViewportProvider(() => {
+        const size = (NSCMason as any).viewportSize as CGSize;
+        if (size && size.width > 0 && size.height > 0) return { width: size.width, height: size.height };
+        return { width: Screen.mainScreen.widthDIPs, height: Screen.mainScreen.heightDIPs };
+      });
+      // A rotation or window resize writes the values that used them again.
+      NSCMason.setViewportListener(() => refreshViewportUnits());
     }
     return Tree._tree;
   }

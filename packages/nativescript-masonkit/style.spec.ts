@@ -4,7 +4,7 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseLinearGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseRadialGradientCss, parseTextDecoration, refreshViewportUnits, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -282,6 +282,37 @@ describe('CSS relative units', () => {
     t.style.width = '50vw' as never;
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(0);
   });
+
+  it('writes viewport units again against a new viewport, as a browser does on resize', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.height = '25vh' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(500);
+    expect(t.getFloat32(K.HEIGHT_VALUE)).toBe(100);
+  });
+
+  it('forgets a viewport unit once the property is written without one', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = '10px' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
+  });
+
+  it('writes CSS text with a viewport unit again, for values the platform parses natively', () => {
+    const t = styleUnderTest();
+    t.style.background = 'linear-gradient(red 0 5vw, blue 0 10vw)';
+    t.style.border = '1px solid red';
+    const written: Record<string, unknown> = {};
+    for (const name of ['background', 'border']) {
+      Object.defineProperty(t.style, name, { configurable: true, set: (v: unknown) => (written[name] = v) });
+    }
+    refreshViewportUnits();
+    expect(written).toEqual({ background: 'linear-gradient(red 0 5vw, blue 0 10vw)' });
+  });
 });
 
 describe('Windows border-radius parsing', () => {
@@ -313,6 +344,29 @@ describe('Windows border-radius parsing', () => {
 
   it('ignores the vertical radii after a slash', () => {
     expect(parseBorderRadiusShorthand('8px / 2px').tl).toEqual({ type: 0, value: 8 });
+  });
+});
+
+describe('Windows corner-shape parsing', () => {
+  it('maps keywords to their CSS superellipse parameter', () => {
+    expect(parseCornerShape('round')).toEqual([1, 1, 1, 1]);
+    expect(parseCornerShape('squircle')).toEqual([2, 2, 2, 2]);
+    expect(parseCornerShape('bevel scoop')).toEqual([0, -1, 0, -1]);
+    expect(parseCornerShape('notch square round')).toEqual([-Infinity, Infinity, 1, Infinity]);
+    expect(parseCornerShape('round bevel scoop squircle')).toEqual([1, 0, -1, 2]);
+  });
+
+  it('takes any number or infinity in superellipse()', () => {
+    expect(parseCornerShape('superellipse(1.5)')).toEqual([1.5, 1.5, 1.5, 1.5]);
+    expect(parseCornerShape('superellipse(-2) superellipse(infinity)')).toEqual([-2, Infinity, -2, Infinity]);
+    expect(parseCornerShape('superellipse(-infinity)')).toEqual([-Infinity, -Infinity, -Infinity, -Infinity]);
+  });
+
+  it('rejects unknown tokens', () => {
+    expect(parseCornerShape('superellipse')).toBeNull();
+    expect(parseCornerShape('superellipse(nan)')).toBeNull();
+    expect(parseCornerShape('round wobbly')).toBeNull();
+    expect(parseCornerShape('round round round round round')).toBeNull();
   });
 });
 
@@ -386,6 +440,21 @@ describe('Windows CSS-string shorthands', () => {
     expect(t.getUint8(K.DECORATION_STYLE)).toBe(2);
   });
 
+  it('writes corner-shape exponents in CSS corner order', () => {
+    const t = styleUnderTest();
+    const corners = () => ['TOP_LEFT', 'TOP_RIGHT', 'BOTTOM_RIGHT', 'BOTTOM_LEFT'].map((c) => t.getFloat32(K[`BORDER_RADIUS_${c}_EXPONENT`]));
+    apply(t, 'corner-shape', 'squircle scoop');
+    expect(corners()).toEqual([2, -1, 2, -1]);
+    apply(t, 'corner-shape-bottom-left', 'notch');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape-top-left', 'round bevel');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape', 'round wobbly');
+    expect(corners()).toEqual([2, -1, 2, -Infinity]);
+    apply(t, 'corner-shape', '');
+    expect(corners()).toEqual([1, 1, 1, 1]);
+  });
+
   it('ignores a declaration with an unknown token', () => {
     const t = styleUnderTest();
     apply(t, 'text-decoration', 'underline');
@@ -437,6 +506,24 @@ describe('text-decoration parsing', () => {
     expect(textDecorationLineToCss(5)).toBe('underline line-through');
     expect(textDecorationLineToCss(0)).toBe('none');
     expect(parseTextDecorationLine('sideways')).toBeNull();
+  });
+});
+
+describe('gradient length stops', () => {
+  it('keeps a length position apart and places that stop as if it had none', () => {
+    const g = parseLinearGradientCss('repeating-linear-gradient(0deg, red 0px 20px, transparent 20px 40px)')!;
+    expect(g.lengths).toEqual([0, 20, 20, 40]);
+    expect(g.positions).toEqual([null, null, null, null]);
+    expect(g.offsets).toEqual([0, 1 / 3, 2 / 3, 1]);
+    expect(parseLinearGradientCss('linear-gradient(red 10%, blue)')!.lengths).toBeUndefined();
+  });
+
+  it('marks a radial circle with its size keyword or radius', () => {
+    expect(parseRadialGradientCss('radial-gradient(circle, red, blue)')!.circle).toBe(3);
+    expect(parseRadialGradientCss('radial-gradient(circle closest-side at 20% 30%, red, blue)')!.circle).toBe(0);
+    expect(parseRadialGradientCss('radial-gradient(circle 20px, red, blue)')!.circleRadius).toBe(20);
+    expect(parseRadialGradientCss('radial-gradient(red, blue)')!.circle).toBeUndefined();
+    expect(parseRadialGradientCss('radial-gradient(ellipse at top, red, blue)')!.circle).toBeUndefined();
   });
 });
 
@@ -606,5 +693,40 @@ describe('em resolves against the font size CSS would compute', () => {
     child.style.fontSize = 10 as never;
     (child.style as any).paddingLeft = '2em';
     expect(child.getFloat32(K.PADDING_LEFT_VALUE)).toBeCloseTo(20, 3);
+  });
+});
+
+describe('flex-wrap', () => {
+  it('accepts the CSS spelling nowrap, so it can undo wrap', () => {
+    const t = styleUnderTest();
+    t.style.flexWrap = 'wrap';
+    expect(t.getInt8(K.FLEX_WRAP)).toBe(1);
+    t.style.flexWrap = 'nowrap';
+    expect(t.getInt8(K.FLEX_WRAP)).toBe(0);
+    expect(t.style.flexWrap).toBe('nowrap');
+  });
+});
+
+describe('text-align', () => {
+  it('writes one byte, leaving text-justify alone', () => {
+    const t = styleUnderTest();
+    (t.style as any).textJustify = 'inter-character';
+    const justify = t.getInt8(K.TEXT_JUSTIFY);
+    const justifyState = t.getInt8(K.TEXT_JUSTIFY_STATE);
+    (t.style as any).textAlignment = 'center';
+    expect(t.getInt8(K.TEXT_JUSTIFY)).toBe(justify);
+    expect(t.getInt8(K.TEXT_JUSTIFY_STATE)).toBe(justifyState);
+    expect(t.getInt8(K.TEXT_ALIGN_STATE)).toBe(1);
+    expect((t.style as any).textAlignment).toBe('center');
+  });
+});
+
+describe('a style object with text-justify then text-align', () => {
+  it('keeps text-justify, whichever lands first', () => {
+    const t = styleUnderTest();
+    (t.style as any).textJustify = 'inter-character';
+    (t.style as any).textAlignment = 'justify';
+    expect((t.style as any).textJustify).toBe('inter-character');
+    expect((t.style as any).textAlignment).toBe('justify');
   });
 });

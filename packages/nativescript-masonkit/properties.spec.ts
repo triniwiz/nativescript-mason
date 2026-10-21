@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+import { PercentLength } from '@nativescript/core';
 import { _getStyleProperties, CssAnimationProperty } from '@nativescript/core/ui/core/properties';
 import * as coreStyleProperties from '@nativescript/core/ui/styling/style-properties';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { setCssUnitContext } from './units';
-import { installMasonSizeUnits, maxWidthProperty } from './properties';
+import { installMasonSizeUnits, masonRawDeclaration, maxWidthProperty } from './properties';
 import { toCamelCase } from './css-shorthands';
 
 // Importing properties.ts runs its ~80 register(Style) calls and, importantly,
@@ -106,6 +107,33 @@ describe('width/height resolve the units core cannot', () => {
     const { under, style } = masonSizeHost();
     (style as any)['max-width'] = '2rem';
     expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(32 * 2, 3);
+  });
+
+  it('sizing keywords survive core and reach the buffer', () => {
+    const { under, style } = masonSizeHost();
+    (style as any)['width'] = 'min-content';
+    const stored = (style as any).width;
+    expect(stored).toEqual({ unit: 'min-content', value: -2 });
+    // Core's own measure reads it as auto.
+    expect(PercentLength.toDevicePixels(stored, -2, 300)).toBeLessThan(0);
+    under.style.width = stored;
+    expect(under.getInt8(styleKey('WIDTH_TYPE'))).toBe(3);
+    under.style.height = { unit: 'fit-content(50%)', value: -2 } as never;
+    expect(under.getInt8(styleKey('HEIGHT_TYPE'))).toBe(7);
+    expect(under.getFloat32(styleKey('HEIGHT_VALUE'))).toBeCloseTo(0.5, 5);
+  });
+
+  it('a change between two keywords is a change to core', () => {
+    const { style } = masonSizeHost();
+    (style as any)['width'] = 'min-content';
+    (style as any)['width'] = 'max-content';
+    expect((style as any).width).toEqual({ unit: 'max-content', value: -2 });
+  });
+
+  it('flex-basis takes sizing keywords', () => {
+    const { under, style } = masonHost();
+    (style as any)['flex-basis'] = 'max-content';
+    expect(under.getInt8(styleKey('FLEX_BASIS_TYPE'))).toBe(4);
   });
 
   it('a plain NativeScript view keeps core parsing, units and all', () => {
@@ -391,5 +419,53 @@ describe('plain NativeScript views keep core semantics', () => {
     (style as any)['font-size'] = '20px';
     // FONT_SIZE is a dip buffer, so 20px lands as 20 whatever the scale.
     expect(under.getInt32(styleKey('FONT_SIZE'))).toBe(20);
+  });
+});
+
+describe('line-height and letter-spacing keep their units on mason views', () => {
+  it('core keeps its number while mason sees the declaration', () => {
+    setScreenScale(2);
+    setCssUnitContext({ rootFontSize: 16, viewportWidth: 400, viewportHeight: 800 });
+    const { under, style } = masonHost();
+    (style as any)['line-height'] = '2rem';
+    expect((style as any).lineHeight).toBe(2);
+    under.style.lineHeight = masonRawDeclaration(style, 'lineHeight', 2) as never;
+    expect(under.getFloat32(styleKey('LINE_HEIGHT'))).toBeCloseTo(32, 4);
+    expect(under.getUint8(styleKey('LINE_HEIGHT_TYPE'))).toBe(1);
+
+    (style as any)['letter-spacing'] = '0.5rem';
+    under.style.letterSpacing = masonRawDeclaration(style, 'letterSpacing', (style as any).letterSpacing) as never;
+    expect(under.getFloat32(styleKey('LETTER_SPACING'))).toBeCloseTo(8 * 2, 4);
+  });
+
+  it('a value from elsewhere is used as is', () => {
+    const { style } = masonHost();
+    (style as any)['line-height'] = '2rem';
+    expect(masonRawDeclaration(style, 'lineHeight', 24)).toBe(24);
+    // The stale declaration is dropped.
+    expect(masonRawDeclaration(style, 'lineHeight', 2)).toBe(2);
+  });
+
+  it('a plain view records nothing', () => {
+    const { style } = coreHost();
+    (style as any)['line-height'] = '2rem';
+    expect((style as any).lineHeight).toBe(2);
+    expect(masonRawDeclaration(style, 'lineHeight', 2)).toBe(2);
+  });
+
+  it('line-height: normal unsets the value', () => {
+    const { under } = masonHost();
+    under.style.lineHeight = '20px' as never;
+    expect(under.getUint8(styleKey('LINE_HEIGHT_STATE'))).toBe(1);
+    under.style.lineHeight = 'normal' as never;
+    expect(under.getUint8(styleKey('LINE_HEIGHT_STATE'))).toBe(0);
+  });
+});
+
+describe('text-wrap', () => {
+  it('is matched from a stylesheet', () => {
+    const { under, style } = masonHost({ requestLayout: () => {} });
+    (style as any)['text-wrap'] = 'nowrap';
+    expect(under.getUint8(styleKey('TEXT_WRAP'))).toBe(1);
   });
 });
