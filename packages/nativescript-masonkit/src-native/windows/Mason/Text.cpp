@@ -702,7 +702,7 @@ namespace winrt::NativeScript::Mason::implementation
             auto& c = *cache;
             RefreshBoxes(c);
             IDWriteTextLayout* layout = c.Layout();
-            if (!layout) return mason_leaf::PackMeasure(0.0f, 0.0f);
+            if (!layout || c.paragraph.text.empty()) return mason_leaf::PackMeasure(0.0f, 0.0f);
             const float slack = SlackFor(mason_visual::g_computeScale);
             const Size d = AnswerMeasure(c, kw, aw,
                 [layout, slack, &c](float width) -> Size
