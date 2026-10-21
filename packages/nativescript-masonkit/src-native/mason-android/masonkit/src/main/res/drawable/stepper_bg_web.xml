@@ -4,7 +4,7 @@
   <!-- Selected -->
   <item android:state_selected="true">
     <shape android:shape="rectangle">
-      <solid android:color="@android:color/system_neutral2_200"/>
+      <solid android:color="#FFE5E5EA"/>
 <!--      <corners android:radius="8dp"/>-->
     </shape>
   </item>
@@ -12,7 +12,7 @@
   <!-- Pressed -->
   <item android:state_pressed="true">
     <shape android:shape="rectangle">
-      <solid android:color="@android:color/system_neutral2_200"/>
+      <solid android:color="#FFE5E5EA"/>
 <!--      <corners android:radius="8dp"/>-->
     </shape>
   </item>
@@ -20,7 +20,7 @@
   <!-- Default -->
   <item>
     <shape android:shape="rectangle">
-      <solid android:color="@android:color/system_neutral2_100"/>
+      <solid android:color="#FFF2F2F7"/>
 <!--      <corners android:radius="8dp"/>-->
     </shape>
   </item>

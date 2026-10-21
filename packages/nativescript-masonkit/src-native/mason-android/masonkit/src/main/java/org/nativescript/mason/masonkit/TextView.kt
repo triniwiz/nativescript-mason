@@ -759,9 +759,11 @@ open class TextView @JvmOverloads constructor(
     if (textPaint.flags and Paint.UNDERLINE_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_UNDERLINE
     if (textPaint.flags and Paint.STRIKE_THRU_TEXT_FLAG != 0) style = style or AssistStructure.ViewNode.TEXT_STYLE_STRIKE_THRU
     structure.setTextStyle(textPaint.textSize, textPaint.color, AssistStructure.ViewNode.TEXT_COLOR_UNDEFINED, style)
-    structure.setMinTextEms(-1)
-    structure.setMaxTextEms(-1)
-    structure.setMaxTextLength(-1)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      structure.setMinTextEms(-1)
+      structure.setMaxTextEms(-1)
+      structure.setMaxTextLength(-1)
+    }
   }
 
   private fun provideVisibleLines(structure: ViewStructure, text: CharSequence, layout: android.text.Layout) {
@@ -799,7 +801,7 @@ open class TextView @JvmOverloads constructor(
       }
     }
     structure.setId(id, pkg, type, entry)
-    structure.setImportantForAutofill(importantForAutofill)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) structure.setImportantForAutofill(importantForAutofill)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
     structure.setDimens(left, top, scrollX, scrollY, width, height)
     structure.setVisibility(visibility)
@@ -810,7 +812,7 @@ open class TextView @JvmOverloads constructor(
     if (isSelected) structure.setSelected(true)
     if (isActivated) structure.setActivated(true)
     if (isLongClickable) structure.setLongClickable(true)
-    if (isOpaque) structure.setOpaque(true)
+    if (isOpaque && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) structure.setOpaque(true)
     if (isContextClickable) structure.setContextClickable(true)
     structure.setClassName(accessibilityClassName.toString())
     structure.setContentDescription(contentDescription)

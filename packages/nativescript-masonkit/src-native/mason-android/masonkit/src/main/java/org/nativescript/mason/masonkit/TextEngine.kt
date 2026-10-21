@@ -2043,7 +2043,8 @@ class TextEngine(val container: TextContainer) {
     var bottom = primary.bottom
     val fm = singleLineTextMetrics
     fm.leading = primary.leading
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+    // The text-range overload is API 34.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
       p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
       top = minOf(top, fm.top)
       ascent = minOf(ascent, fm.ascent)
