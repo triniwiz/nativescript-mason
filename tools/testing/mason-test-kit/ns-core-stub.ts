@@ -26,3 +26,6 @@ export { Screen } from '@nativescript/core/platform';
 // AddChildFromBuilder is an interface, so it has no runtime export; a value
 // import of the name still has to resolve.
 export const AddChildFromBuilder = undefined as never;
+
+// `Utils.layout` converts between dips and device pixels.
+export * as Utils from './ns-layout';
