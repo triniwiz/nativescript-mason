@@ -41,7 +41,7 @@ jobs:
         run: npx tsc -p packages/nativescript-masonkit/tsconfig.json --noEmit
 
   rust:
-    name: mason-core
+    name: Rust core and C bridge
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,4 +50,4 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
-      - run: cargo test -p mason-core --all-targets
+      - run: cargo test -p mason-core -p mason-c --all-targets

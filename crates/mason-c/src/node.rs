@@ -194,22 +194,19 @@ pub extern "C" fn mason_node_array_destroy(array: *mut NodeArray) {
     if array.is_null() {
         return;
     }
-    let array = unsafe { &mut *array };
+    let array = unsafe { Box::from_raw(array) };
     if !array.array.is_null() {
-        let mut buf = unsafe {
-            Vec::from_raw_parts(
+        // get_children returns a boxed slice and an independently allocated
+        // descriptor. Release both, and unregister each owned child wrapper.
+        let nodes = unsafe {
+            Box::from_raw(std::slice::from_raw_parts_mut(
                 array.array as *mut *mut CMasonNode,
                 array.length,
-                array.length,
-            )
+            ))
         };
-        let _: Vec<_> = buf
-            .iter_mut()
-            .map(|v| {
-                let a = *v;
-                unsafe { Box::from_raw(a) }
-            })
-            .collect();
+        for &node in nodes.iter() {
+            mason_node_destroy(node);
+        }
     }
 }
 
@@ -328,7 +325,11 @@ pub extern "C" fn mason_node_new_node_with_children(
     unsafe {
         let mason = &mut (*mason).0;
 
-        let data = std::slice::from_raw_parts(children, children_size);
+        let data = if children_size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(children, children_size)
+        };
 
         let data: Vec<_> = data
             .iter()
@@ -401,7 +402,11 @@ pub extern "C" fn mason_node_new_text_node_with_children(
     unsafe {
         let mason = &mut (*mason).0;
 
-        let data = std::slice::from_raw_parts(children, children_size);
+        let data = if children_size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(children, children_size)
+        };
 
         let data: Vec<_> = data
             .iter()
@@ -880,7 +885,11 @@ pub extern "C" fn mason_node_set_children(
 
         let node_id = &(*node).0;
 
-        let data = std::slice::from_raw_parts(children, children_size);
+        let data = if children_size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(children, children_size)
+        };
 
         let data: Vec<_> = data
             .iter()
@@ -1330,7 +1339,11 @@ pub extern "C" fn mason_node_is_children_same(
             return false;
         }
 
-        let data = std::slice::from_raw_parts(children, children_size);
+        let data = if children_size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(children, children_size)
+        };
 
         let data: Vec<_> = data
             .iter()
