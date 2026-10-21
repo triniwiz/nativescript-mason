@@ -1,3 +1,4 @@
+import { computeMasonRoot } from '../nested-root';
 import { Color, CSSType, Utils } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
 import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, syncCheckedPseudoClass } from './common';
@@ -199,14 +200,13 @@ export class Input extends InputElementBase {
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Claim this root for the host's spec; see view/index.ios.ts.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -216,10 +216,10 @@ export class Input extends InputElementBase {
         } else {
           // either we have fixed dimensions or the spec did not constrain us
           // – compute using max-content so the view can grow to its children.
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, 'max-content', () => {
+            // @ts-ignore
+            this.ios.mason_computeWithMaxContent();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

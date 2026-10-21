@@ -56,6 +56,7 @@ import { originXProperty, originYProperty } from '@nativescript/core/ui/core/vie
 import { animateTransforms } from './css-keyframes';
 import { adoptForeignLayout, releaseForeignLayout } from './foreign-layout';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
+import { forgetMasonRootSizes, measuringForeign } from './nested-root';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
 import {
@@ -1284,7 +1285,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const parent = parentRef.deref();
       const view = childRef.deref();
       if (!parent || !view) return CGSizeMake(0, 0);
-      NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+      measuringForeign(() => {
+        NSView.measureChild(parent as never, view, spec(knownW, availW), spec(knownH, availH));
+      });
       return CGSizeMake(view.getMeasuredWidth(), view.getMeasuredHeight());
     });
   }
@@ -1354,6 +1357,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private _masonClimbTurn: Set<any> | null = null;
 
   requestLayout(): void {
+    if (__APPLE__) forgetMasonRootSizes(this);
     // A natively placed view only needs its Mason root re-measured: skip the
     // per-ancestor hops (each a JS call plus a native setNeedsLayout).
     if (this._masonPlacedNatively) {

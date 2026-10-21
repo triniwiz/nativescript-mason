@@ -412,6 +412,25 @@ and `fontInternal` is core's *inheritable* aggregate font property — so a
 descendant. Mason's own `font-family` works (see below); inheritance across the
 boundary does not.
 
+### Nested Mason roots under a foreign parent (iOS)
+
+An outer Mason tree measures a foreign (non-Mason) leaf through
+`setMeasureForViewBlock`, inside its own Rust compute. If that leaf hosts a
+Mason child, the child's `onMeasure` foreign-parent branch calls
+`mason_computeWithSize`/`mason_computeWithMaxContent` — which Swift ignores
+while `NSCMason.inCompute` is set, so the child reads a stale
+`computedLayout` (0×0 on first measure) and `mason_markRootComputeApplied*`
+hides the miss by clearing `computeCacheDirty`. `nested-root.ts` fixes this in
+JS: `measuringForeign` counts the foreign-measure depth, `computeMasonRoot`
+defers nested computes and replays them on a zero-delay flush
+(`flushNestedRoots`). Sizes are cached per constraint key — one outer pass can
+measure the same root under several constraints — and a changed size dirties
+the foreign leaf and calls `requestLayout()`, capped at 4 invalidations so a
+host that never settles can't loop forever. `ViewBase.requestLayout` drops the
+cache via `forgetMasonRootSizes`, except during the flush's own invalidation.
+Android already defers via `Element.computeOrDeferNested`, Swift via
+`computeNestedRootLater`; the JS `onMeasure` path had no equivalent.
+
 ## Units: `px` is a CSS pixel
 
 **`px` means a CSS pixel — the same size as a dip — exactly as on the web.** A bare

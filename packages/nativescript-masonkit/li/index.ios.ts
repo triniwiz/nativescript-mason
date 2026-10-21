@@ -1,3 +1,4 @@
+import { computeMasonRoot } from '../nested-root';
 import { CSSType, Utils, View } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
@@ -98,14 +99,13 @@ export class Li extends ViewBase {
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
           // we have explicit constraints from the spec, use them
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Claim this root for the host's spec; see view/index.ios.ts.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -119,10 +119,10 @@ export class Li extends ViewBase {
         } else {
           // Nothing definite to resolve against:
           // measure by max-content so we don't accidentally collapse to zero.
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, 'max-content', () => {
+            // @ts-ignore
+            this.ios.mason_computeWithMaxContent();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

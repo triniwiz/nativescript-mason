@@ -1,3 +1,4 @@
+import { computeMasonRoot } from '../nested-root';
 import { CSSType, Utils, View } from '@nativescript/core';
 import { ViewBase, setRootNativeViewFrame } from '../common';
 import { Style } from '../style';
@@ -72,16 +73,15 @@ export class Scroll extends ViewBase {
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-          // this.ios.computeWithSize(specWidth, specHeight);
-          // _setNativeViewFrame
-
-          // @ts-ignore
-          var layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Claim this root for the host's spec; see view/index.ios.ts.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+            // this.ios.computeWithSize(specWidth, specHeight);
+            // _setNativeViewFrame
+          });
           //const layout = this.ios.layout();
           // A scroll container is a VIEWPORT: its own box must never exceed the
           // available space, even though its children (the scrollable content)
@@ -103,11 +103,12 @@ export class Scroll extends ViewBase {
           return;
         } else {
           // unconstrained or explicit size – fall back to max-content
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // // @ts-ignore
-          // this.ios.computeWithMaxContent();
-          var layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, 'max-content', () => {
+            // @ts-ignore
+            this.ios.mason_computeWithMaxContent();
+            // // @ts-ignore
+            // this.ios.computeWithMaxContent();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

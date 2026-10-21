@@ -1,3 +1,4 @@
+import { computeMasonRoot } from '../nested-root';
 import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
 import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
@@ -88,17 +89,15 @@ export class Button extends ButtonBase {
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
-          // todo
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-          //this.ios.computeWithMaxContent();
-
-          // todo
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // todo
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Claim this root for the host's spec; see view/index.ios.ts.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+            //this.ios.computeWithMaxContent();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -139,11 +138,11 @@ export class Button extends ButtonBase {
               break;
           }
 
-          // todo
-          // @ts-ignore
-          this.ios.mason_computeWithSize(width, height);
-
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${width}x${height}`, () => {
+            // todo
+            // @ts-ignore
+            this.ios.mason_computeWithSize(width, height);
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

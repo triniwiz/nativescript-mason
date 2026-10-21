@@ -3,6 +3,7 @@ import { ViewBase, setRootNativeViewFrame } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
+import { computeMasonRoot } from '../nested-root';
 
 /** Views with queued native inserts (see `View._addViewToNativeVisualTree`). */
 let pendingAddHosts = 0;
@@ -76,20 +77,17 @@ export class View extends ViewBase {
         // Compute against the spec's bounds whenever it gives any; max-content only when it doesn't.
         if (!unconstrained) {
           // we have explicit constraints from the spec, use them
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Tell autoComputeIfRoot this parent size is already handled (so
-          // setting our frame below doesn't trigger a redundant native
-          // compute+apply pass), and hand it the spec — not always the
-          // superview's bounds, e.g. a Page measures against the safe area.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // computeWithSize already applied the layout natively and cached it
-          // on the node — read it back instead of paying for another native
-          // round trip via mason_layout().
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Tell autoComputeIfRoot this parent size is already handled (so
+            // setting our frame below doesn't trigger a redundant native
+            // compute+apply pass), and hand it the spec — not always the
+            // superview's bounds, e.g. a Page measures against the safe area.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          });
+          // computeMasonRoot returns the size computeWithSize cached on the node (or, inside an outer compute, the size to report until the deferred compute runs).
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -99,15 +97,15 @@ export class View extends ViewBase {
         } else {
           // Nothing definite to resolve against: measure by max-content so we
           // don't accidentally collapse to zero.
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // Same as above: prevent autoComputeIfRoot from immediately
-          // overriding this max-content measurement with a constrained
-          // compute against the parent's exact bounds.
-          // @ts-ignore
-          this.ios.mason_markRootComputeApplied();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, 'max-content', () => {
+            // @ts-ignore
+            this.ios.mason_computeWithMaxContent();
+            // Same as above: prevent autoComputeIfRoot from immediately
+            // overriding this max-content measurement with a constrained
+            // compute against the parent's exact bounds.
+            // @ts-ignore
+            this.ios.mason_markRootComputeApplied();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);

@@ -1,3 +1,4 @@
+import { computeMasonRoot } from '../nested-root';
 import { CSSType, knownFolders, Utils } from '@nativescript/core';
 import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
@@ -79,14 +80,13 @@ export class Img extends ImageBase {
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, `${specWidth}x${specHeight}`, () => {
+            // @ts-ignore
+            this.ios.mason_computeWithSize(specWidth, specHeight);
+            // Claim this root for the host's spec; see view/index.ios.ts.
+            // @ts-ignore
+            this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -96,10 +96,10 @@ export class Img extends ImageBase {
         } else {
           // fallback to max-content when unconstrained or explicit sizes
           // are provided
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = computeMasonRoot(this as never, 'max-content', () => {
+            // @ts-ignore
+            this.ios.mason_computeWithMaxContent();
+          });
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
