@@ -6,15 +6,24 @@
 //
 
 import Foundation
+import ObjectiveC
 import UIKit
 import FontManager
+
+private var foreignViewNodesKey: UInt8 = 0
+
+// A foreign view owns its nodes; each node only borrows the view. Keeping the
+// cache on the view avoids an engine -> node -> engine retain cycle as well.
+private final class ForeignViewNodes {
+  var nodes: [ObjectIdentifier: MasonNode] = [:]
+}
 
 @objc(NSCMason)
 @objcMembers
 public class NSCMason: NSObject {
   public internal(set) var nativePtr: OpaquePointer?
   internal var nodes: [Int64: MasonNode] = [:]
-  internal var viewNodes: [UIView: MasonNode] = [:]
+  private let foreignViews = NSHashTable<UIView>.weakObjects()
 
   // True while Rust holds a lock during compute — prevents a nested Mason
   // root from re-entering Rust on the same thread and deadlocking.
@@ -71,17 +80,22 @@ public class NSCMason: NSObject {
       return view.node
     }
     
-    guard let node = viewNodes[view] else {
-      let node = MasonNode(mason: self)
-      node.view = view
-      if(isLeaf){
-        // Set measure function for all leaf nodes (inline elements)
-        node.setDefaultMeasureFunction()
-      }
-      
-      viewNodes[view] = node
-      return node
+    let cache: ForeignViewNodes
+    if let existing = objc_getAssociatedObject(view, &foreignViewNodesKey) as? ForeignViewNodes {
+      cache = existing
+    } else {
+      cache = ForeignViewNodes()
+      objc_setAssociatedObject(view, &foreignViewNodesKey, cache, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
+    let engine = ObjectIdentifier(self)
+    if let node = cache.nodes[engine] { return node }
+    let node = MasonNode(mason: self)
+    node.view = view
+    if isLeaf {
+      node.setDefaultMeasureFunction()
+    }
+    cache.nodes[engine] = node
+    foreignViews.add(view)
     return node
   }
   
@@ -242,9 +256,19 @@ public class NSCMason: NSObject {
   
   
   public func clear(){
-    mason_clear(nativePtr)
+    // Cached nodes unregister their native callbacks during deinit. Their
+    // Rust nodes must still exist until those Swift owners are released.
     nodes.removeAll()
-    viewNodes.removeAll()
+    let engine = ObjectIdentifier(self)
+    for view in foreignViews.allObjects {
+      guard let cache = objc_getAssociatedObject(view, &foreignViewNodesKey) as? ForeignViewNodes else { continue }
+      cache.nodes.removeValue(forKey: engine)
+      if cache.nodes.isEmpty {
+        objc_setAssociatedObject(view, &foreignViewNodesKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+      }
+    }
+    foreignViews.removeAllObjects()
+    mason_clear(nativePtr)
   }
   
   
