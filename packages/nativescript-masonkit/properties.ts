@@ -1768,21 +1768,29 @@ gridAreaProperty.register(Style);
 // scalar properties lose CSS/local priority (including an explicit `auto`).
 // Preserve Mason's direct accessors; core 9.1 stylesheet expansion uses these
 // same longhands for both kinds of view.
-function gridParts(value: string, count: number): string[] {
-  const parts = value.split('/').map((part) => part.trim());
+/** A lone `<custom-ident>` placement, which an omitted end copies instead of `auto`. */
+function isGridIdent(part: string): boolean {
+  return /^-?[A-Za-z_][\w-]*$/.test(part) && !/^(auto|span)$/i.test(part);
+}
+
+/** Splits `a / b / ...` into `count` longhands, filling omitted ones as CSS Grid does. */
+export function gridParts(value: string, count: number): string[] {
+  const parts = String(value)
+    .split('/')
+    .map((part) => part.trim());
   if (parts.length > count || parts.some((part) => !part)) throw new Error(`Invalid grid placement: ${value}`);
-  while (parts.length < count) parts.push('auto');
+  // Omitted ends copy their start (grid-area: row-start, column-start, row-end, column-end).
+  for (let i = parts.length; i < count; i++) {
+    const start = parts[i - (count === 4 ? 2 : 1)] ?? parts[0];
+    parts.push(isGridIdent(start) ? start : 'auto');
+  }
   return parts;
 }
 
 const gridPlacementShorthands: MasonShorthand[] = [
   { cssName: 'grid-row', longhands: [gridRowStartProperty, gridRowEndProperty], split: (value) => gridParts(value, 2) },
   { cssName: 'grid-column', longhands: [gridColumnStartProperty, gridColumnEndProperty], split: (value) => gridParts(value, 2) },
-  {
-    cssName: 'grid-area',
-    longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty],
-    split: (value) => (value.includes('/') ? gridParts(value, 4) : [value, value, value, value]),
-  },
+  { cssName: 'grid-area', longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty], split: (value) => gridParts(value, 4) },
 ];
 for (const entry of gridPlacementShorthands) {
   const shorthand = masonShorthandProperty(entry, function (this: Style) {

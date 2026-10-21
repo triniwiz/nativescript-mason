@@ -419,6 +419,21 @@ export function resolveCssMathIn(value: string, emBasis?: number): string {
   return substituteCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
 }
 
+const GRID_RELATIVE_LENGTH = /(^|[\s(,\]])([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(rem|em|pt|vw|vh|vmin|vmax)(?=$|[\s),[])/gi;
+
+/** A grid track list with relative units and math functions resolved to `px`, which the native parser reads. */
+export function resolveGridTrackUnits(value: string, emBasis?: number): string {
+  if (!value) {
+    return value;
+  }
+  let out = hasCssMathFunction(value) ? resolveCssMathIn(value, emBasis) : value;
+  out = out.replace(GRID_RELATIVE_LENGTH, (_m, lead: string, n: string, unit: string) => `${lead}${finite(unitToCssPx(parseFloat(n), unit.toLowerCase(), emBasis) ?? 0)}px`);
+  if (hasCssMathFunction(out)) {
+    reportCssDiagnostic({ kind: 'not-implemented', name: 'grid track list', value, detail: 'a math function mixing % with a length, dropped by the track parser' });
+  }
+  return out;
+}
+
 /**
  * A math function in a `<length-percentage>` as the buffer's type/value pair,
  * or undefined when `t` isn't one or doesn't resolve.
@@ -4544,6 +4559,7 @@ export class Style {
     }
     // A bare number can't marshal over JNI into the native String setter.
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoRows(this.nativeView, value);
     }
@@ -4578,6 +4594,7 @@ export class Style {
     }
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoColumns(this.nativeView, value);
     }
@@ -4605,7 +4622,7 @@ export class Style {
   }
 
   set gridAutoFlow(value: GridAutoFlow) {
-    const v = ({ row: 0, column: 1, 'row dense': 2, 'column dense': 3 } as Record<string, number>)[value];
+    const v = gridAutoFlowFromString(value);
     if (v !== undefined) {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, v);
@@ -4873,6 +4890,7 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateRows(this.nativeView, value);
     }
@@ -4922,6 +4940,7 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
+    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateColumns(this.nativeView, value);
     }
@@ -7602,4 +7621,30 @@ export class Style {
       transformOrigin: this.transformOrigin,
     };
   }
+}
+
+/** `grid-auto-flow` as its buffer value: `row`/`column` and `dense`, in either order. */
+export function gridAutoFlowFromString(value: unknown): number | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const tokens = value.trim().toLowerCase().split(/\s+/);
+  if (tokens.length === 0 || tokens.length > 2 || new Set(tokens).size !== tokens.length) {
+    return undefined;
+  }
+  let column = false;
+  let dense = false;
+  for (const token of tokens) {
+    if (token === 'dense') {
+      dense = true;
+    } else if (token === 'column') {
+      column = true;
+    } else if (token !== 'row') {
+      return undefined;
+    }
+  }
+  if (tokens.length === 2 && !dense) {
+    return undefined;
+  }
+  return (column ? 1 : 0) + (dense ? 2 : 0);
 }
