@@ -1,5 +1,5 @@
 import type { NSVElement, NSVViewMeta } from 'nativescript-vue';
-import { frameworkRegistry, readChildNodes } from '@triniwiz/nativescript-masonkit';
+import { frameworkRegistry, hasTextRun, readChildNodes } from '@triniwiz/nativescript-masonkit';
 
 interface MasonChildOps {
   _children?: unknown[];
@@ -9,14 +9,13 @@ interface MasonChildOps {
 }
 
 /**
- * Nodes that occupy a slot in MasonKit's raw child list: elements and
- * non-empty text nodes. Empty text nodes (Vue's keyed-fragment anchors) get no
- * native text run, mirroring `textProperty.setNative` in the base package.
+ * Count existing raw slots. Framework text can exist before native load has
+ * built its run; counting that pending text shifts later element insertions.
  */
-function isVisualOrTextNode(node: { nodeType?: unknown; text?: unknown }): boolean {
+function occupiesRawSlot(node: { nodeType?: unknown; text?: unknown }, children?: unknown[]): boolean {
   const t = node.nodeType;
   if (t === 'text' || t === 3) {
-    return (node.text ?? '') !== '';
+    return children ? hasTextRun(children, node) : (node.text ?? '') !== '';
   }
   return t === 'element' || t === 1;
 }
@@ -27,9 +26,11 @@ function rawChildIndex(parent: NSVElement, child: NSVElement): number {
   const childIndex = childNodes.indexOf(child);
   if (childIndex < 0) return -1;
 
+  const children = (parent.nativeView as MasonChildOps)._children;
+  const raw = Array.isArray(children) ? children : undefined;
   let rawIndex = 0;
   for (let i = 0; i < childIndex; i++) {
-    if (isVisualOrTextNode(childNodes[i])) rawIndex++;
+    if (occupiesRawSlot(childNodes[i], raw)) rawIndex++;
   }
   return rawIndex;
 }
