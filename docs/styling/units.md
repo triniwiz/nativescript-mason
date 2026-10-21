@@ -63,7 +63,7 @@ On `font-size` itself, `em` and `%` are relative to the parent's font size, as i
 
 ### Viewport units
 
-The viewport is the window size in dip, on every platform. MasonKit updates it on rotation and window resize. A viewport unit resolves when the value is set, so a value already applied keeps its size; values set after the change, including stylesheet rules that re-apply, use the new viewport.
+The viewport is the window size in dip, on every platform. On Windows and Android, values that use a viewport unit are resolved again when the window resizes or rotates, as in a browser. On iOS a value already applied keeps its size; values set after the change, including stylesheet rules that re-apply, use the new viewport.
 
 To override the context yourself (for example in tests):
 

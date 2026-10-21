@@ -47,7 +47,7 @@ import { isMasonView_, touchAction_ } from './symbols';
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
 import type { Style as MasonStyle } from './style';
-import { cssLengthToDip, isSizingKeyword, parseAspectRatio } from './style';
+import { beginStyleWrite, cssLengthToDip, endStyleWrite, isSizingKeyword, parseAspectRatio } from './style';
 import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
@@ -1058,7 +1058,12 @@ function masonStyleProto(proto: object): object {
       configurable: true,
       get,
       set(this: Style, value: unknown) {
-        set.call(this, masonLengthDeclaration(value));
+        beginStyleWrite(this, key, value);
+        try {
+          set.call(this, masonLengthDeclaration(value));
+        } finally {
+          endStyleWrite();
+        }
       },
     });
   }

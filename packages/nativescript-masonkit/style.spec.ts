@@ -4,7 +4,7 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseRadialGradientCss, parseTextDecoration, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseRadialGradientCss, parseTextDecoration, refreshViewportUnits, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -281,6 +281,25 @@ describe('CSS relative units', () => {
     const t = styleUnderTest();
     t.style.width = '50vw' as never;
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(0);
+  });
+
+  it('writes viewport units again against a new viewport, as a browser does on resize', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.height = '25vh' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(500);
+    expect(t.getFloat32(K.HEIGHT_VALUE)).toBe(100);
+  });
+
+  it('forgets a viewport unit once the property is written without one', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = '10px' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
   });
 });
 

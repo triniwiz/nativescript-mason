@@ -1,11 +1,18 @@
 import { Application, Screen } from '@nativescript/core';
 import { InputType } from '..';
-import { setCssUnitContext } from '../units';
+import { cssUnits, setViewportProvider } from '../units';
+import { refreshViewportUnits } from '../style';
 
-// `vw`/`vh` resolve against the window, which resizes on desktop.
+let viewport = { width: 0, height: 0 };
+
+// `vw`/`vh` follow the window, and a resize writes the values that used them again.
 function updateViewport() {
   try {
-    setCssUnitContext({ viewportWidth: Screen.mainScreen.widthDIPs, viewportHeight: Screen.mainScreen.heightDIPs });
+    const width = cssUnits.viewportWidth;
+    const height = cssUnits.viewportHeight;
+    if (width === viewport.width && height === viewport.height) return;
+    viewport = { width, height };
+    refreshViewportUnits();
   } catch (_) {}
 }
 
@@ -40,7 +47,7 @@ export class Tree {
   static get instance() {
     if (!Tree._tree) {
       Tree._tree = new Tree();
-      updateViewport();
+      setViewportProvider(() => ({ width: Screen.mainScreen.widthDIPs, height: Screen.mainScreen.heightDIPs }));
       // Core raises orientationChanged on every window resize on Windows.
       Application.on(Application.orientationChangedEvent, updateViewport);
       Application.on(Application.displayedEvent, updateViewport);

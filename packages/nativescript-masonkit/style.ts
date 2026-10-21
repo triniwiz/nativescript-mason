@@ -388,6 +388,7 @@ function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefi
     case 'vh':
     case 'vmin':
     case 'vmax': {
+      noteViewportUnit();
       const { viewportWidth: w, viewportHeight: h } = cssUnits;
       if (w <= 0 || h <= 0) {
         reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: `${n}${unit}`, detail: 'viewport size not known yet, resolved to 0' });
@@ -481,6 +482,7 @@ function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
   if (t.endsWith('em')) return layout.toDevicePixels(n * (emBasis && emBasis > 0 ? emBasis : cssUnits.rootFontSize));
   if (t.endsWith('pt')) return layout.toDevicePixels(n * PX_PER_PT);
   if (t.endsWith('vmin') || t.endsWith('vmax') || t.endsWith('vw') || t.endsWith('vh')) {
+    noteViewportUnit();
     if (cssUnits.viewportWidth <= 0 || cssUnits.viewportHeight <= 0) {
       reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: t, detail: 'viewport size not known yet, resolved to 0' });
       return 0;
@@ -1574,6 +1576,55 @@ export function cssColorToRgba(color: string): string | null {
     return null;
   }
   return `rgba(${color_.r}, ${color_.g}, ${color_.b}, ${+(color_.a / 255).toFixed(4)})`;
+}
+
+// Style writes that resolved a viewport unit, kept so a viewport change can write them again, as
+// a browser re-resolves vw/vh when the window resizes. Each setter is wrapped once below.
+const viewportWrites = new WeakMap<object, Map<string, unknown>>();
+const viewportStyles = new Set<WeakRef<object>>();
+const writeTargets: object[] = [];
+const writeNames: string[] = [];
+const writeValues: unknown[] = [];
+let writeDepth = 0;
+
+/** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
+export function beginStyleWrite(target: object, name: string, value: unknown): void {
+  viewportWrites.get(target)?.delete(name);
+  writeTargets[writeDepth] = target;
+  writeNames[writeDepth] = name;
+  writeValues[writeDepth] = value;
+  writeDepth++;
+}
+
+export function endStyleWrite(): void {
+  writeDepth--;
+  writeTargets[writeDepth] = writeValues[writeDepth] = undefined as never;
+}
+
+function noteViewportUnit() {
+  if (!writeDepth) return;
+  const target = writeTargets[writeDepth - 1];
+  let writes = viewportWrites.get(target);
+  if (!writes) {
+    writes = new Map();
+    viewportWrites.set(target, writes);
+    viewportStyles.add(new WeakRef(target));
+  }
+  writes.set(writeNames[writeDepth - 1], writeValues[writeDepth - 1]);
+}
+
+/** Writes every style property that used vw/vh/vmin/vmax again, against the current viewport. */
+export function refreshViewportUnits(): void {
+  for (const ref of viewportStyles) {
+    const style = ref.deref() as Record<string, unknown> | undefined;
+    const writes = style && viewportWrites.get(style);
+    if (!style || !writes || !writes.size) {
+      viewportStyles.delete(ref);
+      continue;
+    }
+    const keys = Array.from(writes.keys());
+    for (let i = 0; i < keys.length; i++) style[keys[i]] = writes.get(keys[i]);
+  }
 }
 
 export class Style {
@@ -7757,6 +7808,28 @@ export class Style {
       lineClamp: this.lineClamp,
       transformOrigin: this.transformOrigin,
     };
+  }
+}
+
+{
+  const proto = Style.prototype as unknown as Record<string, unknown>;
+  const names = Object.getOwnPropertyNames(proto);
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+    const set = descriptor?.set;
+    if (!set) continue;
+    Object.defineProperty(proto, name, {
+      ...descriptor,
+      set(this: object, value: unknown) {
+        beginStyleWrite(this, name, value);
+        try {
+          set.call(this, value);
+        } finally {
+          endStyleWrite();
+        }
+      },
+    });
   }
 }
 

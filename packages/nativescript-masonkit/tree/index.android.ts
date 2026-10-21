@@ -1,6 +1,7 @@
 import { Screen, Utils } from '@nativescript/core';
 import { InputType } from '..';
 import { setCssUnitContext } from '../units';
+import { refreshViewportUnits } from '../style';
 
 enum TextType {
   None = 0,
@@ -54,6 +55,7 @@ export class Tree {
         new org.nativescript.mason.masonkit.Mason.ViewportListener({
           onViewportChanged(width: number, height: number) {
             setCssUnitContext({ viewportWidth: width, viewportHeight: height });
+            refreshViewportUnits();
           },
         }),
       );
