@@ -1741,13 +1741,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!view) return;
     if (__ANDROID__) {
       //@ts-ignore
-      if (typeof view.removeChild === 'function') view.removeChild(node);
+      if (node && typeof view.removeChild === 'function') view.removeChild(node);
       //@ts-ignore
       else view.removeChildAt(index);
     }
     if (__APPLE__) {
       //@ts-ignore
-      if (view.mason_removeChildNode) view.mason_removeChildNode(node);
+      if (node && view.mason_removeChildNode) view.mason_removeChildNode(node);
       //@ts-ignore
       else view.mason_removeChildAt?.(index);
     }
@@ -1784,27 +1784,45 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChildren() {
-    if (this._viewChildren.length === 0) {
+    const children = this._children as any[];
+    if (children.length === 0) {
       return;
     }
     this._masonSettleNativeAdds();
-    for (const child of this._viewChildren) {
-      // @ts-ignore
-      child._isMasonChild = false;
-      if (child instanceof NSView) {
+    // Backwards, so index-based native removal stays aligned. Text runs and
+    // placeholders hold native nodes too.
+    for (let i = children.length - 1; i >= 0; i--) {
+      const child = children[i];
+      if (!child) continue;
+      if (child[isPlaceholder_]) {
+        if (!__WINDOWS__ && child._view) this._nativeRemoveChildNode(child._view.node, i);
+        child[isTextChild_] = false;
+      } else if (child instanceof NSView) {
+        // @ts-ignore
+        child._isMasonChild = false;
         this._removeView(child);
+      } else if (!__WINDOWS__ && text_ in child) {
+        const node = child[textNode_];
+        this._nativeRemoveChildNode(node, i);
+        // Unbind the framework node so it can be adopted again.
+        const raw = node?.__raw__;
+        if (raw) {
+          raw[textNodeProxied_] = false;
+          raw[textNode_] = undefined;
+        }
       }
     }
     if (__WINDOWS__) {
       this._forEachAnonymousText((anonymous) => masonEngine().RemoveChild((this as any)._view, anonymous));
-      for (const c of this._children as any[]) {
+      for (const c of children) {
         if (!c) continue;
         c[anonymousText_] = undefined;
         c[runMember_] = undefined;
       }
     }
-    this._children.splice(0);
+    children.splice(0);
     this._invalidateAttachCursor();
+    this.requestLayout();
   }
 
   [zIndexProperty.setNative](value: number) {
