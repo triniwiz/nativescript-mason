@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <unordered_map>
 #include <vector>
 #include <winrt/NativeScript.Mason.h>
 #include <winrt/Windows.UI.Xaml.Interop.h>
@@ -34,12 +33,6 @@ namespace mason_panel
     namespace nsm = winrt::NativeScript::Mason;
     namespace mux = winrt::Microsoft::UI::Xaml;
     namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
-
-    inline void* IdOf(mux::UIElement const& e)
-    {
-        auto unk = e.as<winrt::Windows::Foundation::IUnknown>();
-        return winrt::get_abi(unk);
-    }
 
     // Percentage width/height of a non-Mason child (Mason.SetPercentWidth/Height): XAML sizes have
     // no percentages. NaN when unset.
@@ -120,14 +113,36 @@ namespace mason_panel
         return sv ? sv.Content().try_as<nsm::IMasonElement>() : nullptr;
     }
 
+    // On the element, not the panel: JS keeps a view of the leaf's style buffer.
+    inline mux::DependencyProperty const& LeafProperty()
+    {
+        static const mux::DependencyProperty leaf = mux::DependencyProperty::RegisterAttached(L"MasonLeaf",
+            winrt::xaml_typename<winrt::Windows::Foundation::IInspectable>(), winrt::xaml_typename<nsm::Mason>(), mux::PropertyMetadata{ nullptr });
+        return leaf;
+    }
+
+    inline nsm::Node ForeignLeaf(nsm::Mason const& engine, mux::UIElement const& child)
+    {
+        if (auto leaf = child.GetValue(LeafProperty()).try_as<nsm::Node>()) return leaf;
+        auto leaf = engine.CreateNode(false);
+        auto weak = winrt::make_weak(child);
+        nsm::MeasureFunc cb = [weak](float kw, float kh, float aw, float ah) -> int64_t
+        {
+            auto c = weak.get();
+            if (!c) return mason_leaf::PackMeasure(0.0f, 0.0f);
+            return MeasureForeign(c, kw, kh, aw, ah);
+        };
+        leaf.SetMeasure(cb);
+        child.SetValue(LeafProperty(), leaf);
+        return leaf;
+    }
+
     inline std::vector<mux::UIElement> SyncChildren(
         nsm::Mason const& engine, nsm::Node const& node,
-        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
-        mux::UIElement& layer)
+        muxc::UIElementCollection const& children, mux::UIElement& layer)
     {
         std::vector<mux::UIElement> visible;
         std::vector<nsm::Node> nodes;
-        std::unordered_map<void*, nsm::Node> next;
 
         for (auto const& child : children)
         {
@@ -152,50 +167,24 @@ namespace mason_panel
             }
             visible.push_back(child);
 
-            void* id = IdOf(child);
-            auto it = leaves.find(id);
-            nsm::Node leaf{ nullptr };
-            if (it != leaves.end())
-            {
-                leaf = it->second;
-                leaves.erase(it);
-            }
-            else
-            {
-                leaf = engine.CreateNode(false);
-                auto weak = winrt::make_weak(child);
-                nsm::MeasureFunc cb = [weak](float kw, float kh, float aw, float ah) -> int64_t
-                {
-                    auto c = weak.get();
-                    if (!c) return mason_leaf::PackMeasure(0.0f, 0.0f);
-                    return MeasureForeign(c, kw, kh, aw, ah);
-                };
-                leaf.SetMeasure(cb);
-            }
+            auto leaf = ForeignLeaf(engine, child);
             if (auto fe = child.try_as<mux::FrameworkElement>()) SyncForeignBox(leaf, fe);
-            next.emplace(id, leaf);
             nodes.push_back(leaf);
         }
 
-        for (auto& kv : leaves)
-        {
-            if (kv.second) kv.second.Destroy();
-        }
-        leaves = std::move(next);
         node.SetChildren(nodes);
         return visible;
     }
 
     inline winrt::Windows::Foundation::Size Measure(
         nsm::Mason const& engine, nsm::Node const& node, mux::UIElement const& self,
-        muxc::UIElementCollection const& children, std::unordered_map<void*, nsm::Node>& leaves,
-        winrt::Windows::Foundation::Size const& available)
+        muxc::UIElementCollection const& children, winrt::Windows::Foundation::Size const& available)
     {
         const bool isRoot = !HasMasonAncestor(self);
         // Before any child is measured: changing a TextBlock's inlines mid-measure costs far more.
         if (isRoot) mason_leaf::FlushBeforeCompute();
         mux::UIElement layer{ nullptr };
-        auto visible = SyncChildren(engine, node, children, leaves, layer);
+        auto visible = SyncChildren(engine, node, children, layer);
         for (auto const& c : visible)
         {
             // A scroller is measured at its frame, here and in Arrange: XAML clips an element arranged

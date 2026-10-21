@@ -77,6 +77,11 @@ export default defineConfig({
         test: { name: 'apple-sync', include: ['packages/**/style-native-sync.spec.ts'] },
       },
       {
+        extends: true,
+        define: { __WINDOWS__: 'true' },
+        test: { name: 'windows-sync', include: ['packages/**/style-native-sync.spec.ts'] },
+      },
+      {
         // Android code paths, against mocked org.nativescript.mason natives.
         extends: true,
         define: { __ANDROID__: 'true' },

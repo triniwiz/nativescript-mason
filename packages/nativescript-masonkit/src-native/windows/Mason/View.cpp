@@ -69,7 +69,7 @@ namespace winrt::NativeScript::Mason::implementation
         if (!m_node) return Size{ 0, 0 };
         // Children added to a closed details since the last pass are hidden before they're synced.
         if (m_role == 1) HideClosedContent(false);
-        return mason_panel::Measure(m_engine, m_node, get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), Children(), m_leaves, availableSize);
+        return mason_panel::Measure(m_engine, m_node, get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), Children(), availableSize);
     }
 
     Size View::ArrangeOverride(Size const& finalSize)

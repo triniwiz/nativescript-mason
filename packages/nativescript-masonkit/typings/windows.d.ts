@@ -176,6 +176,9 @@ declare namespace NativeScript.Mason {
     PrintTree(node: Node): void;
     // The element's own (unshared) style buffer.
     StyleValues(element: IMasonElement): any;
+    // A core (non-Mason) child's leaf style buffer, and its commit.
+    ForeignStyleValues(element: any): any;
+    SyncForeignStyle(element: any, d0: number, d1: number, d2: number, d3: number): void;
     ReparentChild(parent: any, child: any, index: number): void;
     RemoveChild(parent: any, child: any): void;
     // Percentage size (0-1, NaN clears) of a core (non-Mason) child.

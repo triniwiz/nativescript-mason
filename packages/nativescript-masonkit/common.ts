@@ -547,17 +547,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // Core's CustomLayoutView finds the child with a WinRT call per sibling. Mason's containers remove
   // their children natively themselves, so only core's bookkeeping is kept.
   public _removeViewFromNativeVisualTree(child: any): void {
+    releaseForeignLayout(child);
     if (__WINDOWS__) {
       child._isAddedToNativeVisualTree = false;
       return;
     }
-    releaseForeignLayout(child);
     super._removeViewFromNativeVisualTree(child);
   }
 
   /** Mirror a plain child's CSS layout into its Mason leaf; containers call this after the native insert. */
   _masonAdoptForeign(child: any): void {
-    if (__ANDROID__ || __APPLE__) adoptForeignLayout(child);
+    adoptForeignLayout(child);
   }
 
   private _masonFinishTeardown() {

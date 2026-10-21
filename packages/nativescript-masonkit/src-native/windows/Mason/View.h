@@ -1,7 +1,6 @@
 #pragma once
 #include "View.g.h"
 #include "VisualState.h"
-#include <unordered_map>
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -36,7 +35,6 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
         int32_t m_nodeKind{ 0 };
-        std::unordered_map<void*, winrt::NativeScript::Mason::Node> m_leaves;
         int32_t m_role{ 0 };
         bool m_open{ false };
         bool m_tapHooked{ false };

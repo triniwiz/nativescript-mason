@@ -37,6 +37,11 @@ namespace NativeScript.Mason
         // JS runtime calls instance methods at well under half the cost of static ones.
         Windows.Storage.Streams.IBuffer StyleValues(IMasonElement element);
 
+        // The style buffer of a non-Mason child's leaf, and the commit after JS writes it (dirty
+        // words as IMasonElement.SyncStyle).
+        Windows.Storage.Streams.IBuffer ForeignStyleValues(Microsoft.UI.Xaml.UIElement element);
+        void SyncForeignStyle(Microsoft.UI.Xaml.UIElement element, Int32 d0, Int32 d1, Int32 d2, Int32 d3);
+
         // Css.ReparentChild / Css.RemoveChild.
         void ReparentChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child, Int32 index);
         void RemoveChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child);
