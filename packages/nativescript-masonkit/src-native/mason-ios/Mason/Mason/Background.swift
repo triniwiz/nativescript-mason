@@ -141,7 +141,7 @@ extension Background {
     }
 
     if let urlStr = layer.image {
-      if isSvgDataUrl(urlStr) {
+      if isSvgSource(urlStr) {
         drawSvgLayer(layer, url: urlStr, context: context, paintRect: paintRect, area: area)
         return
       }
@@ -244,7 +244,7 @@ extension Background {
     let doc: SvgDocument
     if let parsed = layer.svg {
       doc = parsed
-    } else if let parsed = decodeSvgDataUrl(url) {
+    } else if let parsed = decodeSvgSource(url) {
       layer.svg = parsed
       doc = parsed
     } else {
@@ -624,14 +624,31 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
 }
 
 // MARK: - Image Loading
+/// `~/` is the NativeScript app folder and a bare absolute path is a file, as on the other platforms.
+func resolveImageURL(_ source: String) -> URL? {
+  if source.hasPrefix("~/") {
+    return URL(fileURLWithPath: Bundle.main.bundlePath + "/app/" + source.dropFirst(2))
+  }
+  if source.hasPrefix("/") { return URL(fileURLWithPath: source) }
+  return URL(string: source)
+}
+
 func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
   if let image = decodeDataUrlImage(url: url) {
     completion(image)
     return
   }
 
-  guard let u = URL(string: url) else {
+  if url.hasPrefix("res://") {
+    completion(UIImage(named: String(url.dropFirst("res://".count))))
+    return
+  }
+  guard let u = resolveImageURL(url) else {
     completion(nil)
+    return
+  }
+  if u.isFileURL {
+    completion(UIImage(contentsOfFile: u.path))
     return
   }
 
@@ -682,6 +699,19 @@ private func decodeDataUrl(_ url: String) -> (meta: String, data: Data)? {
 func decodeSvgDataUrl(_ url: String) -> SvgDocument? {
   guard let decoded = decodeDataUrl(url), let svg = String(data: decoded.data, encoding: .utf8) else { return nil }
   return parseSvgDocument(svg)
+}
+
+/// A data URL or local file (`~/`, absolute path) holding SVG.
+func isSvgSource(_ url: String) -> Bool {
+  if isSvgDataUrl(url) { return true }
+  guard let u = resolveImageURL(url), u.isFileURL else { return false }
+  return u.pathExtension.lowercased() == "svg"
+}
+
+func decodeSvgSource(_ url: String) -> SvgDocument? {
+  if isSvgDataUrl(url) { return decodeSvgDataUrl(url) }
+  guard let u = resolveImageURL(url), u.isFileURL, let text = try? String(contentsOf: u, encoding: .utf8) else { return nil }
+  return parseSvgDocument(text)
 }
 
 func decodeDataUrlImage(url: String) -> UIImage? {
