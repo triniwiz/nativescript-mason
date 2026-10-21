@@ -301,6 +301,18 @@ describe('CSS relative units', () => {
     refreshViewportUnits();
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
   });
+
+  it('writes CSS text with a viewport unit again, for values the platform parses natively', () => {
+    const t = styleUnderTest();
+    t.style.background = 'linear-gradient(red 0 5vw, blue 0 10vw)';
+    t.style.border = '1px solid red';
+    const written: Record<string, unknown> = {};
+    for (const name of ['background', 'border']) {
+      Object.defineProperty(t.style, name, { configurable: true, set: (v: unknown) => (written[name] = v) });
+    }
+    refreshViewportUnits();
+    expect(written).toEqual({ background: 'linear-gradient(red 0 5vw, blue 0 10vw)' });
+  });
 });
 
 describe('Windows border-radius parsing', () => {

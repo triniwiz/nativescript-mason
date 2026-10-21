@@ -234,4 +234,87 @@ final class LayerPaintTests: XCTestCase {
     XCTAssertFalse(behind.applyLayerPaintIfEligible(), "negative z-index child under the gradient layer")
   }
 
+  // MARK: - Gradient geometry
+
+  func testLengthStopsArePlacedOnTheGradientLine() {
+    let parsed = parseGradientStops(expandColorStops(["red 0 20px", "blue 20px 40px"]), lineLength: 100)
+    XCTAssertEqual(parsed.locations.map { ($0 * 1e4).rounded() / 1e4 }, [0, 0.2, 0.2, 0.4])
+    XCTAssertEqual(parseGradientStops(["red 20px", "blue"]).locations, [0, 1], "no line, no length")
+  }
+
+  func testAStopBeforeAnEarlierOneMovesUpToIt() {
+    let parsed = parseGradientStops(["red 50%", "blue 20%", "green"])
+    XCTAssertEqual(parsed.locations, [0.5, 0.5, 1])
+  }
+
+  func testRadialShapeAndSize() {
+    func shape(_ direction: String?) -> RadialGradientShape {
+      resolveRadialGradientShape(direction: direction, width: 200, height: 100)
+    }
+    let corner = shape(nil)
+    XCTAssertEqual(corner.rx, 100 * sqrt(2), accuracy: 1e-6, "farthest-corner ellipse by default")
+    XCTAssertEqual(corner.ry, 50 * sqrt(2), accuracy: 1e-6)
+    XCTAssertEqual(shape("circle").rx, hypot(100, 50), accuracy: 1e-6)
+    XCTAssertEqual(shape("circle").ry, hypot(100, 50), accuracy: 1e-6)
+    XCTAssertEqual(shape("closest-side"), RadialGradientShape(center: CGPoint(x: 100, y: 50), rx: 100, ry: 50))
+    XCTAssertEqual(shape("circle closest-side").rx, 50)
+    XCTAssertEqual(shape("circle farthest-side at 10% 50%").rx, 180, accuracy: 1e-6)
+    XCTAssertEqual(shape("circle 30px").rx, 30, accuracy: 1e-6)
+    XCTAssertEqual(shape("30px at top left").ry, 30, accuracy: 1e-6, "one length is a circle")
+    let explicit = shape("ellipse 40px 20% at 0 0")
+    XCTAssertEqual(explicit.rx, 40, accuracy: 1e-6)
+    XCTAssertEqual(explicit.ry, 20, accuracy: 1e-6)
+    XCTAssertEqual(explicit.center, .zero)
+  }
+
+  func testRadialPreludeIsNotAStop() {
+    for (css, direction) in [("radial-gradient(circle 50px at 10px 20px, red, blue)", "circle 50px at 10px 20px"),
+                             ("radial-gradient(40px 20%, red, blue)", "40px 20%"),
+                             ("radial-gradient(ellipse closest-side, red, blue)", "ellipse closest-side")] {
+      let g = parseGradient(css)
+      XCTAssertEqual(g?.direction, direction, css)
+      XCTAssertEqual(g?.stops.count, 2, css)
+    }
+  }
+
+  private func color(_ b: Bitmap, _ x: CGFloat, _ y: CGFloat) -> String {
+    let p = b.rgba(Int(x * scale), Int(y * scale))
+    return p.r > 200 && p.b < 60 ? "red" : p.b > 200 && p.r < 60 ? "blue" : "\(p)"
+  }
+
+  func testRepeatingPxStripes() throws {
+    let v = view(100, 10) { $0.background = "repeating-linear-gradient(to right, red 0 10px, blue 10px 20px)" }
+    let b = try cpu(v)
+    for (x, expected) in [(5.0, "red"), (15.0, "blue"), (25.0, "red"), (55.0, "blue"), (85.0, "red"), (95.0, "blue")] {
+      XCTAssertEqual(color(b, x, 5), expected, "at x \(x)")
+    }
+  }
+
+  func testEllipseRadial() throws {
+    let v = view(200, 100) { $0.background = "radial-gradient(closest-side, red 0 90%, blue 90%)" }
+    let b = try cpu(v)
+    XCTAssertEqual(color(b, 185, 50), "red", "inside the ellipse on the long axis")
+    XCTAssertEqual(color(b, 100, 7), "red", "inside on the short axis")
+    XCTAssertEqual(color(b, 100, 2), "blue")
+    XCTAssertEqual(color(b, 195, 50), "blue")
+    XCTAssertEqual(color(b, 170, 20), "blue", "outside near the corner")
+  }
+
+  func testRepeatingRadialReachesTheCorners() throws {
+    let v = view(100, 100) { $0.background = "repeating-radial-gradient(circle 10px, red 0 5px, blue 5px 10px)" }
+    let b = try cpu(v)
+    // Past the 10px ending shape the bands keep repeating out to the corners.
+    XCTAssertEqual(color(b, 50 + 2, 50), "red")
+    XCTAssertEqual(color(b, 50 + 7, 50), "blue")
+    XCTAssertEqual(color(b, 50 + 42, 50), "red")
+    XCTAssertEqual(color(b, 4, 4), "red", "about 64.7px out")
+  }
+
+  func testRadialStopsPastTheEndingShapeKeepGoing() throws {
+    let v = view(100, 100) { $0.background = "radial-gradient(circle 10px, red 0 20px, blue 20px)" }
+    let b = try cpu(v)
+    XCTAssertEqual(color(b, 50 + 15, 50), "red")
+    XCTAssertEqual(color(b, 50 + 25, 50), "blue")
+  }
+
 }

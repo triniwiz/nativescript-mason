@@ -1,6 +1,7 @@
 import { Screen } from '@nativescript/core';
 import { InputType } from '..';
 import { setViewportProvider } from '../units';
+import { refreshViewportUnits } from '../style';
 
 enum TextType {
   None = 0,
@@ -56,6 +57,8 @@ export class Tree {
         if (size && size.width > 0 && size.height > 0) return { width: size.width, height: size.height };
         return { width: Screen.mainScreen.widthDIPs, height: Screen.mainScreen.heightDIPs };
       });
+      // A rotation or window resize writes the values that used them again.
+      NSCMason.setViewportListener(() => refreshViewportUnits());
     }
     return Tree._tree;
   }

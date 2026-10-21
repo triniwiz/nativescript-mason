@@ -43,6 +43,16 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 
 	public var maxLength: Int = -1
 
+	/// `disabled`: no editing, selection or focus; the content still scrolls.
+	public var disabled: Bool = false {
+		didSet {
+			isEditable = !disabled
+			isSelectable = !disabled
+			if disabled { _ = resignFirstResponder() }
+			if disabled { accessibilityTraits.insert(.notEnabled) } else { accessibilityTraits.remove(.notEnabled) }
+		}
+	}
+
 	public var value: String {
 		get { return text ?? "" }
 		set {

@@ -490,7 +490,13 @@ public class HTMLParser: NSObject {
         }
       case "disabled":
         // A boolean attribute is true whenever present, whatever its value.
-        (element as? UIControl)?.isEnabled = false
+        if let input = element as? MasonInput {
+          input.disabled = true
+        } else if let area = element as? MasonTextArea {
+          area.disabled = true
+        } else {
+          (element as? UIControl)?.isEnabled = false
+        }
       default:
         break
       }
@@ -595,6 +601,33 @@ public class HTMLParser: NSObject {
     element.configure { style in
       for (property, value) in declarations {
         applyStyleProperty(property, value: value, to: style)
+      }
+    }
+    let viewport = declarations.filter { hasViewportUnit($0.1) }
+    if !viewport.isEmpty {
+      Self.viewportStyles.setObject(ViewportDeclarations(viewport), forKey: element.uiView)
+      NSCMason.watchViewport()
+    }
+  }
+
+  private final class ViewportDeclarations {
+    let list: [(String, String)]
+    init(_ list: [(String, String)]) { self.list = list }
+  }
+
+  // Inline declarations that used vw/vh/vmin/vmax, applied again when the window resizes.
+  private static let viewportStyles = NSMapTable<UIView, ViewportDeclarations>.weakToStrongObjects()
+
+  /// Resolves parsed inline viewport units again against the current window.
+  static func refreshViewportStyles() {
+    guard viewportStyles.count > 0, let views = viewportStyles.keyEnumerator().allObjects as? [UIView] else { return }
+    let parser = HTMLParser(mason: NSCMason.shared)
+    for view in views {
+      guard let element = view as? MasonElement, let declarations = viewportStyles.object(forKey: view) else { continue }
+      element.configure { style in
+        for (property, value) in declarations.list {
+          parser.applyStyleProperty(property, value: value, to: style)
+        }
       }
     }
   }
@@ -1305,4 +1338,12 @@ public class HTMLParser: NSObject {
 
     return result
   }
+}
+
+private let viewportUnitRegex = try! NSRegularExpression(pattern: "[0-9.](vw|vh|vmin|vmax)\\b", options: .caseInsensitive)
+
+/// True when CSS text holds a vw/vh/vmin/vmax length.
+func hasViewportUnit(_ value: String) -> Bool {
+  guard value.contains("v") || value.contains("V") else { return false }
+  return viewportUnitRegex.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil
 }

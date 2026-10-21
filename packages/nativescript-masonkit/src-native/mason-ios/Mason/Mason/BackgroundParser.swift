@@ -187,6 +187,8 @@ class BackgroundLayer {
   var shader: CGGradient? = nil
   // remember dimensions used to create cached gradient
   var shaderWidth: CGFloat = -1
+  /// A radial shader's end radius, in ending-shape radii.
+  var shaderExtent: CGFloat = 1
   var shaderHeight: CGFloat = -1
   /// The stops `shader` was built from; a conic gradient samples them itself.
   var shaderColors: [CGColor] = []
@@ -806,7 +808,7 @@ func parseGradient(_ str: String) -> Gradient? {
       interpolation = extracted.method
       t = extracted.rest
     }
-    if !t.isEmpty && isAngleOrDirection(t) {
+    if !t.isEmpty && (isAngleOrDirection(t) || (type.hasSuffix("radial") && isRadialPrelude(t))) {
       direction = t
     }
     if direction != nil || extracted != nil {
@@ -849,6 +851,14 @@ func expandColorStops(_ stops: [String]) -> [String] {
     return parts.count == 3 ? ["\(parts[0]) \(parts[1])", "\(parts[0]) \(parts[2])"] : [stop]
   }
 }
+
+/// A radial shape and size with no `at`: `circle 50px`, `40px 20%`, `ellipse closest-side`.
+private func isRadialPrelude(_ value: String) -> Bool {
+  let tokens = value.lowercased().split(separator: " ").map(String.init)
+  return !tokens.isEmpty && tokens.allSatisfy { radialShapeKeywords.contains($0) || parseLengthPercentage($0) != nil }
+}
+
+let radialShapeKeywords: Set<String> = ["circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner"]
 
 // MARK: - Helper to detect if a token is an angle, direction, or radial shape/position
 private func isAngleOrDirection(_ token: String) -> Bool {

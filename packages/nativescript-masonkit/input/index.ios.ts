@@ -1,5 +1,6 @@
 import { Color, CSSType, Utils } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base';
+import { isEnabledProperty } from '@nativescript/core/ui/core/view';
 import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, syncCheckedPseudoClass } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
@@ -124,6 +125,13 @@ export class Input extends InputElementBase {
   [placeholderColorProperty.setNative](value: Color | UIColor) {
     if (this._view) {
       this._view.placeholderColor = value instanceof Color ? value.ios : value;
+    }
+  }
+
+  // Core only disables a UIControl, and MasonInput is a plain view hosting one.
+  [isEnabledProperty.setNative](value: boolean) {
+    if (this._view) {
+      this._view.disabled = !value;
     }
   }
 

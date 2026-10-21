@@ -222,6 +222,10 @@ final class MaskTests: XCTestCase {
     XCTAssertEqual(colors.count, locations.count)
     XCTAssertEqual(locations.filter { abs($0 - 0.25) < 1e-6 }.count, 2, "each period ends where the next begins")
     XCTAssertEqual(locations.filter { abs($0 - 0.5) < 1e-6 }.count, 2)
+
+    let period: CGFloat = 12 / 182.3
+    let rings = unrollRepeatingStops([black, black, clear, clear], [0, period / 3, period / 3, period]).locations
+    XCTAssertTrue(zip(rings, rings.dropFirst()).allSatisfy { $0 <= $1 }, "never out of order")
   }
 
   // MARK: - Rendering

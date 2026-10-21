@@ -1166,7 +1166,11 @@ const SUPERELLIPSE = /^superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e
 
 /** corner-shape as each corner's superellipse parameter K (TL TR BR BL), or null if a token is invalid. An empty value resets to round. */
 export function parseCornerShape(value: string): [number, number, number, number] | null {
-  const tokens = splitTopLevelSpaces(String(value ?? '').trim().toLowerCase());
+  const tokens = splitTopLevelSpaces(
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
   if (!tokens.length || (tokens.length === 1 && /^(initial|unset|revert|none)$/.test(tokens[0]))) return [1, 1, 1, 1];
   if (tokens.length > 4) return null;
   const e: number[] = [];
@@ -1586,6 +1590,7 @@ const writeTargets: object[] = [];
 const writeNames: string[] = [];
 const writeValues: unknown[] = [];
 let writeDepth = 0;
+const VIEWPORT_UNIT_TEXT = /\d(?:vw|vh|vmin|vmax)\b/i;
 
 /** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
 export function beginStyleWrite(target: object, name: string, value: unknown): void {
@@ -1594,6 +1599,8 @@ export function beginStyleWrite(target: object, name: string, value: unknown): v
   writeNames[writeDepth] = name;
   writeValues[writeDepth] = value;
   writeDepth++;
+  // Android and iOS parse some CSS text natively, so the text itself marks a viewport unit.
+  if (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
 }
 
 export function endStyleWrite(): void {

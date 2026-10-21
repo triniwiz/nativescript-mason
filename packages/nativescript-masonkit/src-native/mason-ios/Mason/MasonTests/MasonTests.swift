@@ -1185,4 +1185,32 @@ final class HTMLParserTests: XCTestCase {
     let area = try XCTUnwrap(roots.last?.view as? MasonTextArea)
     XCTAssertEqual(area.placeholder, "Notes")
   }
+
+  func testDisabledInputAndTextArea() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<input disabled><textarea disabled></textarea><input type='checkbox' disabled>")
+    let input = try XCTUnwrap(roots[0].view as? MasonInput)
+    XCTAssertTrue(input.disabled)
+    XCTAssertFalse(input.isUserInteractionEnabled)
+    let area = try XCTUnwrap(roots[1].view as? MasonTextArea)
+    XCTAssertTrue(area.disabled)
+    XCTAssertFalse(area.isEditable)
+    XCTAssertFalse(area.isSelectable)
+    let checkbox = try XCTUnwrap(roots[2].view as? MasonInput)
+    XCTAssertFalse(checkbox.checkboxInput.isEnabled, "native controls draw disabled")
+
+    input.type = .Range
+    XCTAssertFalse(input.rangeInput.isEnabled, "kept across a type change")
+    input.disabled = false
+    XCTAssertTrue(input.isUserInteractionEnabled)
+    XCTAssertTrue(input.rangeInput.isEnabled)
+  }
+
+  func testViewportUnitText() {
+    XCTAssertTrue(hasViewportUnit("50vw"))
+    XCTAssertTrue(hasViewportUnit("calc(100vh - 10px)"))
+    XCTAssertTrue(hasViewportUnit("1px solid red, 2.5VMIN"))
+    XCTAssertFalse(hasViewportUnit("10px"))
+    XCTAssertFalse(hasViewportUnit("url(vw.png)"))
+  }
 }

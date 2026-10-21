@@ -208,6 +208,26 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }()
   
   public var accept: String = "*/*"
+
+  /// `disabled`: the control takes no touches or focus, and native controls draw disabled.
+  public var disabled: Bool = false {
+    didSet {
+      if oldValue != disabled { applyDisabled() }
+    }
+  }
+
+  private func applyDisabled() {
+    isUserInteractionEnabled = !disabled
+    for subview in subviews {
+      (subview as? UIControl)?.isEnabled = !disabled
+    }
+    if disabled {
+      endEditing(true)
+      accessibilityTraits.insert(.notEnabled)
+    } else {
+      accessibilityTraits.remove(.notEnabled)
+    }
+  }
   
   
   public var uiView: UIView {
@@ -814,6 +834,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     default:
       break
     }
+    if disabled { applyDisabled() }
   }
   
   private func setup(_ mason: NSCMason, _ type: MasonInputType){

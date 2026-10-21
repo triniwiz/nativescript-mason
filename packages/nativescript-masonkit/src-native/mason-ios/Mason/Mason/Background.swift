@@ -174,12 +174,41 @@ extension Background {
       layer.shader = nil
     }
 
+    let kind = gradient.type.lowercased()
+    var lineStart = CGPoint.zero, lineEnd = CGPoint.zero
+    var radial = RadialGradientShape(center: .zero, rx: 1, ry: 1)
+    // Stops placed with a length are fractions of this.
+    var lineLength: CGFloat = 0
+    switch kind {
+    case "linear":
+      (lineStart, lineEnd) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
+      lineLength = hypot(lineEnd.x - lineStart.x, lineEnd.y - lineStart.y)
+    case "radial":
+      radial = resolveRadialGradientShape(direction: gradient.direction, width: width, height: height)
+      lineLength = radial.rx
+    default:
+      break
+    }
+
     if layer.shader == nil {
-      let parsed = parseGradientStops(gradient.stops)
+      let parsed = parseGradientStops(gradient.stops, lineLength: lineLength)
       if parsed.colors.isEmpty { return }
       var (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
+      layer.shaderExtent = 1
+      if kind == "radial" {
+        // Past its ending shape a radial runs on to its last stop, or repeats, up to the farthest corner.
+        let corner = radial.farthestCornerScale(width: width, height: height)
+        var extent = max(1, gradient.repeating ? corner : min(locations.last ?? 1, corner))
+        // CoreGraphics extends a hard stop at the very end with its first colour, not its last.
+        if !gradient.repeating, locations.count >= 2, locations[locations.count - 2] == locations[locations.count - 1],
+           locations[locations.count - 1] >= extent { extent *= 1.001 }
+        if extent > 1 { locations = locations.map { $0 / extent } }
+        layer.shaderExtent = extent
+      }
       if gradient.repeating {
         (colors, locations) = unrollRepeatingStops(colors, locations)
+      } else {
+        (colors, locations) = clipStopsToUnit(colors, locations)
       }
       layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors as CFArray, locations: locations.isEmpty ? nil : locations)
       layer.shaderColors = colors
@@ -196,20 +225,15 @@ extension Background {
     context.saveGState()
     context.clip(to: CGRect(x: x, y: y, width: width, height: height))
     context.translateBy(x: x, y: y)
-    switch gradient.type.lowercased() {
+    switch kind {
     case "linear":
-      let (start, end) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
-      context.drawLinearGradient(shader, start: start, end: end, options: options)
+      context.drawLinearGradient(shader, start: lineStart, end: lineEnd, options: options)
     case "radial":
-      let center = resolveRadialGradientCenter(direction: gradient.direction, width: width, height: height)
-      // Radius must reach the farthest corner from the resolved centre.
-      let radius = max([
-        hypot(center.x, center.y),
-        hypot(width - center.x, center.y),
-        hypot(center.x, height - center.y),
-        hypot(width - center.x, height - center.y)
-      ].max() ?? max(width, height) / 2, 1)
-      context.drawRadialGradient(shader, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: options)
+      // An ellipse is a circle of radius rx, squashed vertically about the centre.
+      context.translateBy(x: radial.center.x, y: radial.center.y)
+      context.scaleBy(x: 1, y: radial.ry / radial.rx)
+      context.drawRadialGradient(shader, startCenter: .zero, startRadius: 0, endCenter: .zero,
+                                 endRadius: radial.rx * layer.shaderExtent, options: options)
     case "conic":
       drawConicGradient(context: context, colors: layer.shaderColors, locations: layer.shaderLocations,
                         direction: gradient.direction, width: width, height: height)
@@ -418,7 +442,8 @@ func unrollRepeatingStops(_ colors: [CGColor], _ locations: [CGFloat]) -> (color
     for i in 0..<colors.count {
       if outColors.count >= maxStops { break outer }
       outColors.append(colors[i])
-      outLocations.append(locations[i] + shift)
+      // Rounding can put a period's first stop a hair before the last one's end.
+      outLocations.append(max(locations[i] + shift, outLocations.last ?? -.greatestFiniteMagnitude))
     }
     k += 1
   }
@@ -431,6 +456,28 @@ func unrollRepeatingStops(_ colors: [CGColor], _ locations: [CGFloat]) -> (color
   clippedColors.append(sampleGradient(outColors, outLocations, 1))
   clippedLocations.append(1)
   return (clippedColors, clippedLocations)
+}
+
+/// Stops placed outside 0...1 cut to that range, with the colours at the two ends sampled.
+func clipStopsToUnit(_ colors: [CGColor], _ locations: [CGFloat]) -> (colors: [CGColor], locations: [CGFloat]) {
+  guard colors.count == locations.count, let first = locations.first, let last = locations.last,
+        first < 0 || last > 1 else { return (colors, locations) }
+  var outColors: [CGColor] = []
+  var outLocations: [CGFloat] = []
+  // A stop exactly at an end already holds the colour past it, which a sample would not.
+  if !locations.contains(0) {
+    outColors.append(sampleGradient(colors, locations, 0))
+    outLocations.append(0)
+  }
+  for (c, l) in zip(colors, locations) where l >= 0 && l <= 1 {
+    outColors.append(c)
+    outLocations.append(l)
+  }
+  if !locations.contains(1) {
+    outColors.append(sampleGradient(colors, locations, 1))
+    outLocations.append(1)
+  }
+  return (outColors, outLocations)
 }
 
 /// The colour of a stop list at `t`, interpolated in sRGB like CGGradient.
@@ -520,6 +567,72 @@ func resolveRadialGradientCenter(direction: String?, width: CGFloat, height: CGF
   return resolvePositionKeywords(positionStr, width: width, height: height)
 }
 
+/// A radial gradient's centre and ending shape radii, in points.
+struct RadialGradientShape: Equatable {
+  var center: CGPoint
+  var rx: CGFloat
+  var ry: CGFloat
+
+  /// How many ending shapes it takes to reach the box corner farthest from the centre.
+  func farthestCornerScale(width: CGFloat, height: CGFloat) -> CGFloat {
+    let dx = max(center.x, width - center.x)
+    let dy = max(center.y, height - center.y)
+    return hypot(dx / rx, dy / ry)
+  }
+}
+
+/// The ending shape of `radial-gradient(<shape> <size> at <position>, ...)` per CSS Images 3:
+/// `circle` or `ellipse`, a size keyword (default `farthest-corner`) or explicit radii.
+func resolveRadialGradientShape(direction: String?, width: CGFloat, height: CGFloat) -> RadialGradientShape {
+  let center = resolveRadialGradientCenter(direction: direction, width: width, height: height)
+  var prelude = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+  if prelude.hasPrefix("at ") {
+    prelude = ""
+  } else if let at = prelude.range(of: " at ") {
+    prelude = String(prelude[..<at.lowerBound])
+  }
+  var circle = false, ellipse = false
+  var keyword = "farthest-corner"
+  var radii: [CGFloat] = []
+  for token in prelude.split(separator: " ").map(String.init) {
+    switch token {
+    case "circle": circle = true
+    case "ellipse": ellipse = true
+    case "closest-side", "closest-corner", "farthest-side", "farthest-corner": keyword = token
+    default:
+      switch parseLengthPercentage(token) {
+      case .Points(let px)?: radii.append(CGFloat(px) / CGFloat(NSCMason.scale))
+      case .Percent(let f)?: radii.append(CGFloat(f) * (radii.isEmpty ? width : height))
+      default: break
+      }
+    }
+  }
+  // One length and no shape keyword is a circle.
+  if !ellipse && radii.count == 1 { circle = true }
+  let minRadius: CGFloat = 0.01
+  if circle, let r = radii.first {
+    return RadialGradientShape(center: center, rx: max(r, minRadius), ry: max(r, minRadius))
+  }
+  if !circle && radii.count >= 2 {
+    return RadialGradientShape(center: center, rx: max(radii[0], minRadius), ry: max(radii[1], minRadius))
+  }
+  let closest = keyword.hasPrefix("closest")
+  let sx = closest ? min(center.x, width - center.x) : max(center.x, width - center.x)
+  let sy = closest ? min(center.y, height - center.y) : max(center.y, height - center.y)
+  var rx: CGFloat, ry: CGFloat
+  if circle {
+    let r = keyword.hasSuffix("corner") ? hypot(sx, sy) : (closest ? min(sx, sy) : max(sx, sy))
+    rx = r
+    ry = r
+  } else {
+    // A corner ellipse keeps the side ellipse's aspect ratio and passes through the corner.
+    let k: CGFloat = keyword.hasSuffix("corner") ? sqrt(2) : 1
+    rx = sx * k
+    ry = sy * k
+  }
+  return RadialGradientShape(center: center, rx: max(rx, minRadius), ry: max(ry, minRadius))
+}
+
 /// Convert a CSS background-position value (keyword or percentage based) to
 /// absolute pixel coordinates.
 private func resolvePositionKeywords(_ position: String, width: CGFloat, height: CGFloat) -> CGPoint {
@@ -559,9 +672,10 @@ private func resolvePositionKeywords(_ position: String, width: CGFloat, height:
 }
 
 // MARK: - Gradient Stop Parsing
-/// Parse gradient stop strings (e.g. "transparent 66%", "rgba(0,0,0,0.5)").
+/// Parse gradient stop strings (e.g. "transparent 66%", "red 20px", "rgba(0,0,0,0.5)").
 /// Returns parallel arrays of CGColor and CGFloat positions following CSS inference rules.
-func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CGFloat]) {
+/// A length is placed as a fraction of `lineLength` (points), and is unplaced without one.
+func parseGradientStops(_ stops: [String], lineLength: CGFloat = 0) -> (colors: [CGColor], locations: [CGFloat]) {
   var parsedColors: [CGColor?] = []
   var parsedPositions: [CGFloat?] = []
   for raw in stops {
@@ -583,6 +697,8 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
         position = CGFloat(val / 100.0)
       } else if let val = Double(posPart) {
         position = CGFloat(val <= 1.0 ? val : val / 100.0)
+      } else if lineLength > 0, case .Points(let px)? = parseLengthPercentage(posPart) {
+        position = CGFloat(px) / CGFloat(NSCMason.scale) / lineLength
       }
       parsedColors.append(color)
       parsedPositions.append(position)
@@ -596,6 +712,12 @@ func parseGradientStops(_ stops: [String]) -> (colors: [CGColor], locations: [CG
   if n > 0 {
     if parsedPositions[0] == nil { parsedPositions[0] = 0.0 }
     if parsedPositions[n - 1] == nil { parsedPositions[n - 1] = 1.0 }
+    // A stop placed before an earlier one moves up to it.
+    var furthest = -CGFloat.greatestFiniteMagnitude
+    for k in 0..<n {
+      guard let p = parsedPositions[k] else { continue }
+      if p < furthest { parsedPositions[k] = furthest } else { furthest = p }
+    }
     // Forward pass: fill runs of nil between anchors by linear interpolation.
     var i = 0
     while i < n {
