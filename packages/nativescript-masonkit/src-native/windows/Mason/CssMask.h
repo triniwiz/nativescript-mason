@@ -1288,10 +1288,13 @@ namespace mason_cssmask
         uint32_t backgroundColor{ 0 };
         uint32_t backgroundTextColor{ 0 };
         float backgroundScale{ 0.0f };
-        std::vector<std::pair<winrt::weak_ref<muxc::ScrollViewer>, winrt::event_token>> scrollHooks;
-        winrt::weak_ref<mux::XamlRoot> rootHook;
-        winrt::event_token rootToken{};
-        bool watching{ false };
+        Boxes backgroundLayout;
+        std::vector<std::function<void()>> unhooks;
+        int watched{ -1 };
+        int anchor{ 0 };
+        mucomp::CompositionSurfaceBrush anchorBrush{ nullptr };
+        std::vector<void*> anchorScrollers;
+        mucomp::CompositionPropertySet anchorProps{ nullptr };
         std::shared_ptr<Spec> mask;
         std::shared_ptr<NineSlice> borderImage;
         // The mask surface, its brush and what it was last drawn for.
@@ -1541,6 +1544,42 @@ namespace mason_cssmask
         entry->borderTextColor = textColor;
     }
 
+    enum Anchor { Unanchored = 0, Scrollport = 1, Viewport = 2 };
+
+    inline muxc::ScrollViewer HostScroller(mux::UIElement const& element)
+    {
+        auto fe = element.try_as<mux::FrameworkElement>();
+        return fe ? fe.Parent().try_as<muxc::ScrollViewer>() : nullptr;
+    }
+
+    inline std::vector<muxc::ScrollViewer> AncestorScrollers(mux::UIElement const& element)
+    {
+        std::vector<muxc::ScrollViewer> out;
+        for (auto parent = mux::Media::VisualTreeHelper::GetParent(element); parent; parent = mux::Media::VisualTreeHelper::GetParent(parent))
+        {
+            if (auto sv = parent.try_as<muxc::ScrollViewer>()) out.push_back(sv);
+        }
+        return out;
+    }
+
+    // Painted once and moved by the compositor: all layers scroll with a scroll container's viewport,
+    // or all are fixed to the window and clipped to the border box.
+    inline int AnchorOf(mux::UIElement const& element, Spec const& spec, uint32_t color)
+    {
+        bool any = false, scroll = true, fixed = true;
+        for (auto const& layer : spec.layers)
+        {
+            if (!layer.image.Drawable()) continue;
+            any = true;
+            if (layer.attachment != 0) scroll = false;
+            if (layer.attachment != 1 || layer.clip != BorderBox) fixed = false;
+        }
+        if (!any) return Unanchored;
+        if (scroll && HostScroller(element)) return Scrollport;
+        if (fixed && ((color >> 24) == 0 || spec.layers.back().clip == BorderBox) && element.XamlRoot()) return Viewport;
+        return Unanchored;
+    }
+
     inline void Attach(mux::UIElement const& element, Spec const& spec, Boxes& boxes)
     {
         bool fixed = false, scroll = false;
@@ -1553,8 +1592,7 @@ namespace mason_cssmask
         if (!fixed && !scroll) return;
         try
         {
-            auto fe = element.try_as<mux::FrameworkElement>();
-            if (auto sv = fe ? fe.Parent().try_as<muxc::ScrollViewer>() : nullptr)
+            if (auto sv = HostScroller(element))
             {
                 const float zoom = sv.ZoomFactor() > 0.0f ? sv.ZoomFactor() : 1.0f;
                 const float x = static_cast<float>(sv.HorizontalOffset()) / zoom, y = static_cast<float>(sv.VerticalOffset()) / zoom;
@@ -1580,69 +1618,191 @@ namespace mason_cssmask
         }
     }
 
+    inline Boxes Place(mux::UIElement const& element, Spec const& spec, Boxes boxes, int& anchor)
+    {
+        try
+        {
+            if (anchor == Scrollport)
+            {
+                auto sv = HostScroller(element);
+                const float zoom = sv.ZoomFactor() > 0.0f ? sv.ZoomFactor() : 1.0f;
+                const float w = (std::min)(static_cast<float>(sv.ViewportWidth()) / zoom, boxes.width);
+                const float h = (std::min)(static_cast<float>(sv.ViewportHeight()) / zoom, boxes.height);
+                if (w > 0.0f && h > 0.0f)
+                {
+                    boxes.width = w;
+                    boxes.height = h;
+                    return boxes;
+                }
+            }
+            else if (anchor == Viewport)
+            {
+                const auto size = element.XamlRoot().Size();
+                Boxes window;
+                window.width = static_cast<float>(size.Width);
+                window.height = static_cast<float>(size.Height);
+                window.viewport[2] = window.width;
+                window.viewport[3] = window.height;
+                if (window.width > 0.0f && window.height > 0.0f) return window;
+            }
+        }
+        catch (...)
+        {
+        }
+        anchor = Unanchored;
+        Attach(element, spec, boxes);
+        return boxes;
+    }
+
+    inline void Anchor(mux::UIElement const& element, Entry& entry, mucomp::CompositionSurfaceBrush const& brush, int anchor, float scale)
+    {
+        try
+        {
+            if (anchor == Unanchored)
+            {
+                if (entry.anchorBrush == brush)
+                {
+                    brush.StopAnimation(L"Offset");
+                    brush.Offset({ 0.0f, 0.0f });
+                    brush.Scale({ 1.0f, 1.0f });
+                    brush.Stretch(mucomp::CompositionStretch::Fill);
+                }
+                entry.anchor = Unanchored;
+                entry.anchorBrush = nullptr;
+                entry.anchorScrollers.clear();
+                entry.anchorProps = nullptr;
+                return;
+            }
+            const auto scrollers = anchor == Scrollport ? std::vector<muxc::ScrollViewer>{ HostScroller(element) } : AncestorScrollers(element);
+            std::vector<void*> keys;
+            keys.reserve(scrollers.size());
+            for (auto const& sv : scrollers) keys.push_back(winrt::get_abi(sv.as<wf::IUnknown>()));
+            if (anchor == Viewport)
+            {
+                const auto at = element.TransformToVisual(nullptr).TransformPoint({ 0.0f, 0.0f });
+                float x = at.X, y = at.Y;
+                for (auto const& sv : scrollers)
+                {
+                    x += static_cast<float>(sv.HorizontalOffset());
+                    y += static_cast<float>(sv.VerticalOffset());
+                }
+                if (!entry.anchorProps) entry.anchorProps = brush.Compositor().CreatePropertySet();
+                entry.anchorProps.InsertScalar(L"X", x);
+                entry.anchorProps.InsertScalar(L"Y", y);
+            }
+            if (entry.anchorBrush == brush && entry.anchor == anchor && entry.anchorScrollers == keys) return;
+            brush.Stretch(mucomp::CompositionStretch::None);
+            brush.HorizontalAlignmentRatio(0.0f);
+            brush.VerticalAlignmentRatio(0.0f);
+            brush.Scale({ 1.0f / scale, 1.0f / scale });
+            std::wstring ex = anchor == Viewport ? L"-p.X" : L"0", ey = anchor == Viewport ? L"-p.Y" : L"0";
+            auto expr = brush.Compositor().CreateExpressionAnimation();
+            for (size_t i = 0; i < scrollers.size(); ++i)
+            {
+                const std::wstring name = L"s" + std::to_wstring(i);
+                ex += L" - " + name + L".Translation.X";
+                ey += L" - " + name + L".Translation.Y";
+                expr.SetReferenceParameter(name, mux::Hosting::ElementCompositionPreview::GetScrollViewerManipulationPropertySet(scrollers[i]));
+            }
+            if (anchor == Viewport) expr.SetReferenceParameter(L"p", entry.anchorProps);
+            expr.Expression(L"Vector2(" + ex + L", " + ey + L")");
+            brush.StartAnimation(L"Offset", expr);
+            entry.anchor = anchor;
+            entry.anchorBrush = brush;
+            entry.anchorScrollers = std::move(keys);
+        }
+        catch (...)
+        {
+        }
+    }
+
     inline void Unwatch(Entry& entry)
     {
-        for (auto& [weak, token] : entry.scrollHooks)
+        for (auto& unhook : entry.unhooks) unhook();
+        entry.unhooks.clear();
+        entry.watched = -1;
+    }
+
+    inline void RepaintBackground(mux::UIElement const& element);
+
+    inline void Watch(mux::UIElement const& element, Entry& entry, int anchor)
+    {
+        if (entry.watched == anchor || !element.XamlRoot()) return;
+        Unwatch(entry);
+        entry.watched = anchor;
+        const auto weak = winrt::make_weak(element);
+        auto repaint = [weak](auto&&, auto&&) { if (auto e = weak.get()) RepaintBackground(e); };
+        auto onScroll = [&](muxc::ScrollViewer const& sv)
         {
-            if (auto sv = weak.get()) sv.ViewChanged(token);
+            auto token = sv.ViewChanged(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(sv), token] { if (auto s = w.get()) s.ViewChanged(token); });
+        };
+        auto onRoot = [&]
+        {
+            auto root = element.XamlRoot();
+            auto token = root.Changed(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(root), token] { if (auto r = w.get()) r.Changed(token); });
+        };
+        if (anchor == Scrollport)
+        {
+            auto sv = HostScroller(element);
+            auto token = sv.SizeChanged(repaint);
+            entry.unhooks.push_back([w = winrt::make_weak(sv), token] { if (auto s = w.get()) s.SizeChanged(token); });
+            return;
         }
-        entry.scrollHooks.clear();
-        if (auto root = entry.rootHook.get()) root.Changed(entry.rootToken);
-        entry.rootHook = nullptr;
-        entry.watching = false;
+        if (anchor == Viewport)
+        {
+            onRoot();
+            if (auto fe = element.try_as<mux::FrameworkElement>())
+            {
+                auto token = fe.EffectiveViewportChanged(repaint);
+                entry.unhooks.push_back([w = winrt::make_weak(fe), token] { if (auto f = w.get()) f.EffectiveViewportChanged(token); });
+            }
+            return;
+        }
+        const auto& layers = entry.background->layers;
+        const bool fixed = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 1; });
+        const bool scroll = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 0; });
+        if (fixed)
+        {
+            for (auto const& sv : AncestorScrollers(element)) onScroll(sv);
+            onRoot();
+        }
+        else if (scroll)
+        {
+            if (auto sv = HostScroller(element)) onScroll(sv);
+        }
+    }
+
+    inline mucomp::CompositionBrush PaintBackgroundFor(mux::UIElement const& element, Entry& entry, uint32_t color, uint32_t textColor, float scale)
+    {
+        int anchor = AnchorOf(element, *entry.background, color);
+        const Boxes boxes = Place(element, *entry.background, entry.backgroundLayout, anchor);
+        Watch(element, entry, anchor);
+        if (!entry.backgroundBrush || !(entry.backgroundBoxes == boxes) || entry.backgroundColor != color || entry.backgroundTextColor != textColor
+            || entry.backgroundScale != scale)
+        {
+            auto spec = entry.background;
+            const std::string key = SurfaceKey("cssbackground", entry);
+            auto brush = PaintSurface(key, std::ceil(boxes.width * scale), std::ceil(boxes.height * scale),
+                [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); });
+            if (!brush) return nullptr;
+            entry.backgroundBrush = brush;
+            entry.backgroundKey = key;
+            entry.backgroundBoxes = boxes;
+            entry.backgroundColor = color;
+            entry.backgroundTextColor = textColor;
+            entry.backgroundScale = scale;
+        }
+        Anchor(element, entry, entry.backgroundBrush, anchor, scale);
+        return entry.backgroundBrush;
     }
 
     inline void RepaintBackground(mux::UIElement const& element)
     {
         auto* entry = Find(element);
         if (!entry || !entry->background || !entry->backgroundBrush) return;
-        Boxes boxes = entry->backgroundBoxes;
-        std::fill(std::begin(boxes.viewport), std::end(boxes.viewport), 0.0f);
-        std::fill(std::begin(boxes.scrollport), std::end(boxes.scrollport), 0.0f);
-        Attach(element, *entry->background, boxes);
-        if (boxes == entry->backgroundBoxes) return;
-        auto spec = entry->background;
-        const uint32_t color = entry->backgroundColor, textColor = entry->backgroundTextColor;
-        const float scale = entry->backgroundScale;
-        if (PaintSurface(entry->backgroundKey, std::ceil(boxes.width * scale), std::ceil(boxes.height * scale),
-            [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); }))
-        {
-            entry->backgroundBoxes = boxes;
-        }
-    }
-
-    inline void Watch(mux::UIElement const& element, Entry& entry)
-    {
-        const bool fixed = std::any_of(entry.background->layers.begin(), entry.background->layers.end(),
-            [](Layer const& l) { return l.image.Drawable() && l.attachment == 1; });
-        const bool scroll = std::any_of(entry.background->layers.begin(), entry.background->layers.end(),
-            [](Layer const& l) { return l.image.Drawable() && l.attachment == 0; });
-        auto fe = element.try_as<mux::FrameworkElement>();
-        const bool scroller = scroll && fe && fe.Parent().try_as<muxc::ScrollViewer>();
-        if (!fixed && !scroller)
-        {
-            if (entry.watching) Unwatch(entry);
-            return;
-        }
-        if (entry.watching || !element.XamlRoot()) return;
-        entry.watching = true;
-        const auto weak = winrt::make_weak(element);
-        auto repaint = [weak](auto&&, auto&&) { if (auto e = weak.get()) RepaintBackground(e); };
-        if (scroller && !fixed)
-        {
-            auto sv = fe.Parent().as<muxc::ScrollViewer>();
-            entry.scrollHooks.emplace_back(winrt::make_weak(sv), sv.ViewChanged(repaint));
-            return;
-        }
-        for (auto parent = mux::Media::VisualTreeHelper::GetParent(element); parent; parent = mux::Media::VisualTreeHelper::GetParent(parent))
-        {
-            if (auto sv = parent.try_as<muxc::ScrollViewer>()) entry.scrollHooks.emplace_back(winrt::make_weak(sv), sv.ViewChanged(repaint));
-        }
-        if (auto root = element.XamlRoot())
-        {
-            entry.rootHook = winrt::make_weak(root);
-            entry.rootToken = root.Changed(repaint);
-        }
+        PaintBackgroundFor(element, *entry, entry->backgroundColor, entry->backgroundTextColor, entry->backgroundScale);
     }
 
     inline bool HasBackground(mux::UIElement const& element)
@@ -1663,6 +1823,10 @@ namespace mason_cssmask
             ReleaseSurface(entry->backgroundKey);
             entry->backgroundBrush = nullptr;
             entry->backgroundKey.clear();
+            entry->anchor = Unanchored;
+            entry->anchorBrush = nullptr;
+            entry->anchorScrollers.clear();
+            entry->anchorProps = nullptr;
             return;
         }
         auto& entry = Ensure(element);
@@ -1677,26 +1841,9 @@ namespace mason_cssmask
     {
         auto* entry = Find(element);
         if (!entry || !entry->background || width <= 0.0f || height <= 0.0f) return nullptr;
-        Boxes boxes = BoxesOf(node, width, height);
-        Attach(element, *entry->background, boxes);
-        Watch(element, *entry);
-        if (entry->backgroundBrush && entry->backgroundBoxes == boxes && entry->backgroundColor == color && entry->backgroundTextColor == textColor
-            && entry->backgroundScale == scale)
-        {
-            return entry->backgroundBrush;
-        }
-        auto spec = entry->background;
-        const std::string key = SurfaceKey("cssbackground", *entry);
-        auto brush = PaintSurface(key, std::ceil(width * scale), std::ceil(height * scale),
-            [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); });
-        if (!brush) return nullptr;
-        entry->backgroundBrush = brush;
-        entry->backgroundKey = key;
-        entry->backgroundBoxes = boxes;
-        entry->backgroundColor = color;
-        entry->backgroundTextColor = textColor;
-        entry->backgroundScale = scale;
-        if (entry->watching)
+        entry->backgroundLayout = BoxesOf(node, width, height);
+        auto brush = PaintBackgroundFor(element, *entry, color, textColor, scale);
+        if (brush && entry->watched == Unanchored && !entry->unhooks.empty())
         {
             if (auto queue = element.DispatcherQueue())
             {

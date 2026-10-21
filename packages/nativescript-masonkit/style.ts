@@ -1829,6 +1829,7 @@ export class Style {
   private _windowsBackgroundSize?: string;
   private _windowsBackgroundPosition?: string;
   private _windowsImageBackground = false;
+  private _windowsBackgroundShorthand = false;
 
   private applyWindowsBackground(shorthand: boolean) {
     const v = (this._windowsBackground ?? '').trim();
@@ -1836,7 +1837,7 @@ export class Style {
     const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
     try {
       const longhands = this.windowsBackgroundLonghands(shorthand, v);
-      if (longhands && needsWindowsBackgroundLayers(longhands)) {
+      if (longhands && (needsWindowsBackgroundLayers(longhands) || (ANY_GRADIENT.test(v) && this.windowsScrolls()))) {
         const spec = encodeWindowsBackgroundLayers(longhands, this.windowsMaskContext());
         if (spec) {
           this._windowsImageBackground = true;
@@ -1899,6 +1900,17 @@ export class Style {
         if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
       }
     } catch (_) {}
+  }
+
+  private windowsScrolls(): boolean {
+    if (!this.style_view) return false;
+    const x = getInt8(this.style_view, StyleKeys.OVERFLOW_X);
+    const y = getInt8(this.style_view, StyleKeys.OVERFLOW_Y);
+    return x === 2 || x === 4 || y === 2 || y === 4;
+  }
+
+  private windowsOverflowChanged() {
+    if (ANY_GRADIENT.test(this._windowsBackground ?? '')) this.applyWindowsBackground(this._windowsBackgroundShorthand);
   }
 
   private windowsBackgroundLonghands(shorthand: boolean, value: string): (WindowsBackgroundLonghands & { color?: string }) | null {
@@ -1982,6 +1994,7 @@ export class Style {
     // it lets VisualApply repaint the color.
     if (name === 'background' || name === 'background-image') {
       this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
+      this._windowsBackgroundShorthand = name === 'background';
       this.applyWindowsBackground(name === 'background');
       return;
     }
@@ -5127,6 +5140,7 @@ export class Style {
       }
     }
     this.commitState(StateKeys.OVERFLOW);
+    if (__WINDOWS__) this.windowsOverflowChanged();
   }
   get overflowX() {
     switch (getInt8(this.style_view, StyleKeys.OVERFLOW_X)) {
@@ -5145,6 +5159,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
       this.commitState(StateKeys.OVERFLOW_X);
+      if (__WINDOWS__) this.windowsOverflowChanged();
     }
   }
 
@@ -5169,6 +5184,7 @@ export class Style {
       this.prepareMut();
       setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
       this.commitState(StateKeys.OVERFLOW_Y);
+      if (__WINDOWS__) this.windowsOverflowChanged();
     }
   }
 

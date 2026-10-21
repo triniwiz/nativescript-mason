@@ -45,8 +45,8 @@ The shorthand expands into longhands, so a later longhand overrides one part, as
 
 Per-layer lists repeat cyclically when they are shorter than the layer list, as CSS specifies.
 
-::: warning Windows
-Windows does not apply `background-clip: text` yet.
+::: warning
+`background-clip: text` is not applied on any platform yet; the background is painted as with `border-box`.
 :::
 
 `background-blend-mode` needs Android 10 (API 29) or later.

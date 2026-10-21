@@ -40,8 +40,7 @@ Plain XAML children of a Mason `View` are measured through a Mason measure callb
 - **Gradients.** `conic-gradient` and `repeating-*` gradients work in backgrounds, masks and border images; the stops are tiled in TS before they reach Direct2D.
 - **`clip-path`.** A tap outside the clip shape, including a `path()`, goes to whatever is underneath.
 - **SVG backgrounds** are drawn by Direct2D's SVG renderer. `<style>` sheets, `<use>` of a `<symbol>` and a plain `href` are rewritten into what it draws first.
-- **`background-attachment`.** `fixed` layers, and `scroll` layers on a scroll container, are repainted as the view scrolls.
-- **Not applied yet:** `background-clip: text`.
+- **`background-attachment`.** A background whose layers are all `fixed` (clipped to the border box), or all `scroll` on a scroll container, is painted once and moved by the compositor as the view scrolls. Other mixes of `fixed` or `scroll` layers are repainted after each scroll step.
 - **Checkboxes and radios** with `appearance: none` keep the WinUI control underneath (invisible, still focusable and tappable) so the CSS box is what you see.
 - **Accessibility.** Links and clickable inline elements are exposed to UI Automation as children of the text, and `<summary>` exposes the Expand/Collapse pattern.
 
