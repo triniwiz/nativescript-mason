@@ -62,6 +62,42 @@ final class TextIndentLineClampTests: XCTestCase {
 
   // MARK: line-clamp
 
+  func test_textDataMutation_reflows_clears_and_matches_fresh_layout() throws {
+    let (root, p) = paragraph("Short", width: 120)
+    let text = try XCTUnwrap(p.node.children.first as? MasonTextNode)
+    let initial = height(p)
+    for value in [TextIndentLineClampTests.long, "", "Short"] {
+      text.data = value
+      layout(root, p, width: 120)
+      let fresh = paragraph(value, width: 120).p
+      XCTAssertEqual(height(p), height(fresh), accuracy: scale)
+      if value == TextIndentLineClampTests.long {
+        XCTAssertGreaterThan(height(p), initial)
+      }
+    }
+    XCTAssertEqual(height(p), initial, accuracy: scale)
+  }
+
+  func test_fontSize_buffer_mutations_match_typed_layout_and_reset() {
+    let (root, p) = paragraph(TextIndentLineClampTests.long, width: 120)
+    let initial = height(p)
+    for size in [Int32(28), 12, 16] {
+      p.style.prepareMut()
+      p.style.setInt32(StyleKeys.FONT_SIZE, size)
+      p.style.setUInt8(StyleKeys.FONT_SIZE_TYPE, 0)
+      p.style.setUInt8(StyleKeys.FONT_SIZE_STATE, 1)
+      sync(p, .fontSize)
+      layout(root, p, width: 120)
+      let fresh = paragraph(TextIndentLineClampTests.long, width: 120) { _, text in text.style.fontSize = size }.p
+      XCTAssertEqual(height(p), height(fresh), accuracy: scale)
+    }
+    p.style.prepareMut()
+    p.style.setUInt8(StyleKeys.FONT_SIZE_STATE, 0)
+    sync(p, .fontSize)
+    layout(root, p, width: 120)
+    XCTAssertEqual(height(p), initial, accuracy: scale)
+  }
+
   func test_lineClamp_measures_the_height_of_n_lines() {
     let free = height(paragraph(TextIndentLineClampTests.long).p)
     let one = height(paragraph(TextIndentLineClampTests.long) { _, p in p.style.lineClamp = 1 }.p)
