@@ -893,3 +893,38 @@ final class ReapplyTests: XCTestCase {
     XCTAssertEqual(child.frame.size.width, first.size.width * 70 / 50, accuracy: 0.5)
   }
 }
+
+final class HTMLParserTests: XCTestCase {
+
+  private func texts(_ node: MasonNode) -> [String] {
+    node.children.flatMap { child -> [String] in
+      if let t = child as? MasonTextNode { return [t.data] }
+      return texts(child)
+    }
+  }
+
+  func testPreKeepsWhitespace() {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<pre>\n  a  b\n<code>  c\n    d</code></pre><p>  e   f  </p>")
+    XCTAssertEqual(roots.count, 2)
+    XCTAssertEqual(texts(roots[0]), ["  a  b\n", "  c\n    d"], "verbatim, minus the newline right after <pre>")
+    XCTAssertEqual(texts(roots[1]), [" e f "])
+  }
+
+  func testDropsStyleAndScript() {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<style>p { color: red }</style><div>a<script>alert(1)</script>b</div><title>t</title><meta charset='utf-8'>")
+    XCTAssertEqual(roots.count, 1)
+    XCTAssertEqual(texts(roots[0]), ["a", "b"])
+  }
+
+  func testAppliesValueAndPlaceholder() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<input value='hi' placeholder='Name'><textarea placeholder='Notes'></textarea>")
+    let input = try XCTUnwrap(roots.first?.view as? MasonInput)
+    XCTAssertEqual(input.value, "hi")
+    XCTAssertEqual(input.placeholder, "Name")
+    let area = try XCTUnwrap(roots.last?.view as? MasonTextArea)
+    XCTAssertEqual(area.placeholder, "Notes")
+  }
+}

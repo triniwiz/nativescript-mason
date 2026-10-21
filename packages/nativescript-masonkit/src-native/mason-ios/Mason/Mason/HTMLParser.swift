@@ -59,6 +59,8 @@ public class HTMLParser: NSObject {
   /// be consumed verbatim up to the matching close tag. Without this a `<style>`
   /// block's CSS was tokenized as tags and its body rendered as visible text.
   private static let rawTextElements: Set<String> = ["style", "script", "textarea", "title"]
+  /// Never rendered: these and their content are left out of the tree.
+  private static let droppedElements: Set<String> = ["style", "script", "title", "head", "meta", "link", "base"]
 
   private func tokenize(_ html: String) -> [Token] {
     var tokens: [Token] = []
@@ -244,6 +246,10 @@ public class HTMLParser: NSObject {
 
       switch token {
       case .openTag(let name, let attributes, let selfClosing):
+        if Self.droppedElements.contains(name) {
+          if !selfClosing && !Self.voidElements.contains(name) { i = Self.indexAfterClose(of: name, in: tokens, from: i) }
+          continue
+        }
         let node = createElement(name: name, attributes: attributes)
 
         if let parent = stack.last {
@@ -269,10 +275,15 @@ public class HTMLParser: NSObject {
 
       case .text(let text):
         let parentIsRawText = stack.last.map { Self.rawTextElements.contains($0.name) } ?? false
-        // Outside a raw-text element, HTML collapses whitespace runs to one
+        let inPre = stack.contains { $0.name == "pre" }
+        // Outside a raw-text element or <pre>, HTML collapses whitespace runs to one
         // space. Whitespace-only text stays a space inside an inline flow
         // (`<b>b</b> <i>c</i>`); flex and grid containers ignore it.
-        var trimmed = parentIsRawText ? text : Self.collapseWhitespace(text)
+        var trimmed = parentIsRawText || inPre ? text : Self.collapseWhitespace(text)
+        // A newline right after <pre> is not content.
+        if inPre, stack.last?.name == "pre", i >= 2, case .openTag("pre", _, _) = tokens[i - 2] {
+          if trimmed.hasPrefix("\r\n") { trimmed.removeFirst(2) } else if trimmed.hasPrefix("\n") { trimmed.removeFirst() }
+        }
         if trimmed.isEmpty && !text.isEmpty, let parent = stack.last,
            [Display.Block, Display.Inline, Display.InlineBlock].contains(parent.node.style.display) {
           trimmed = " "
@@ -294,6 +305,25 @@ public class HTMLParser: NSObject {
     }
 
     return roots
+  }
+
+  /// The token index after the close tag matching an open `name` whose content starts at `start`.
+  private static func indexAfterClose(of name: String, in tokens: [Token], from start: Int) -> Int {
+    var depth = 1
+    var j = start
+    while j < tokens.count {
+      switch tokens[j] {
+      case .openTag(let n, _, let selfClosing) where n == name && !selfClosing:
+        depth += 1
+      case .closeTag(let n) where n == name:
+        depth -= 1
+        if depth == 0 { return j + 1 }
+      default:
+        break
+      }
+      j += 1
+    }
+    return tokens.count
   }
 
   // MARK: - Element Factory
@@ -446,6 +476,18 @@ public class HTMLParser: NSObject {
         if let d = parseDimensionAuto(value) { element.node.style.width = d }
       case "height":
         if let d = parseDimensionAuto(value) { element.node.style.height = d }
+      case "value":
+        if let input = element as? MasonInput {
+          input.value = value
+        } else if let area = element as? MasonTextArea {
+          area.value = value
+        }
+      case "placeholder":
+        if let input = element as? MasonInput {
+          input.placeholder = value
+        } else if let area = element as? MasonTextArea {
+          area.placeholder = value
+        }
       case "disabled":
         // A boolean attribute is true whenever present, whatever its value.
         (element as? UIControl)?.isEnabled = false
