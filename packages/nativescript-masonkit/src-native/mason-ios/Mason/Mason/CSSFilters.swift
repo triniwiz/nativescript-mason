@@ -588,10 +588,7 @@ public class CSSFilters {
       }
     }
 
-    /// Apply filters as a backdrop effect (CSS backdrop-filter): what is painted behind the view
-    /// is snapshotted, run through the filter chain and shown under the view's own content,
-    /// clipped to `clipPathProvider` (the border radius, re-queried each render).
-    /// `CALayer.backgroundFilters` is macOS-only, so this is done by hand.
+    /// CSS backdrop-filter: a filtered snapshot of what is behind the view, under its content.
     public func applyAsBackdrop(to view: UIView, clipPathProvider: (() -> UIBezierPath?)? = nil) {
       isApplying = true
       defer { isApplying = false }
@@ -672,8 +669,7 @@ public class CSSFilters {
     }
   }
 
-  /// Re-renders backdrop filters after the main run loop did any work (input, timers, layout,
-  /// loads), so an idle screen costs nothing. One display link for all of them, at up to 30 fps.
+  /// Re-renders backdrops after the main run loop did any work, from one shared display link (up to 30 fps).
   final class BackdropScheduler: NSObject {
     static let shared = BackdropScheduler()
     private let filters = NSHashTable<CSSFilter>.weakObjects()
@@ -857,9 +853,7 @@ public class CSSFilters {
   }
   private static let gradientImages = NSMapTable<CAGradientLayer, GradientImage>.weakToStrongObjects()
 
-  /// `render(in:)` blends a gradient layer's colours differently from the screen (blue to magenta
-  /// picks up green), so each axial one overlapping `rect` (in `root`) is shown as the same
-  /// gradient drawn by CoreGraphics while capturing. Returns what to restore.
+  /// Draws axial gradients over `rect` with CoreGraphics while capturing; returns what to restore.
   static func substituteGradients(in root: CALayer, rect: CGRect, scale: CGFloat) -> [(CAGradientLayer, [Any]?, Any?)] {
     var swapped: [(CAGradientLayer, [Any]?, Any?)] = []
     func visit(_ layer: CALayer) {
@@ -898,9 +892,7 @@ public class CSSFilters {
     return image
   }
 
-  /// What is painted behind `view` in the region it covers: the window's layer tree, rendered
-  /// with `view` (and so its own backdrop layer) hidden. `render(in:)` reads the model tree, so
-  /// the hide never reaches the screen.
+  /// The window's layers behind `view` over its region, rendered with `view` hidden.
   private static func captureBackdropToCIImage(view: UIView, scale: CGFloat) -> CIImage? {
     guard view.bounds.width > 0 && view.bounds.height > 0 else { return nil }
 

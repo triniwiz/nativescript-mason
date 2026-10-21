@@ -1013,11 +1013,7 @@ private const val MAX_TILES_PER_AXIS = 4096
 private val tileAxisX = FloatArray(3)
 private val tileAxisY = FloatArray(3)
 
-/**
- * Where the tiles of one axis go, written to [out] as first origin, step and count. `space`
- * spreads whole tiles so the outer ones touch the area's edges (one tile at the position when
- * fewer than two fit); the pattern then continues across the paint range.
- */
+/** One axis's tiles, written to [out] as first origin, step and count; `space` spreads whole tiles edge to edge. */
 internal fun tileAxis(
   style: RepeatStyle, areaStart: Float, areaLength: Float, paintStart: Float, paintEnd: Float,
   tile: Float, offset: Float, out: FloatArray
@@ -1251,10 +1247,7 @@ private fun drawBitmapLayer(
   layer.blendMode.clear(paint)
 }
 
-/**
- * The layer's tile size: `background-size`, then `round` rescales an axis to fit a whole number
- * of tiles (the other axis keeps the ratio when its size is `auto`).
- */
+/** The tile size: `background-size`, then `round` fits a whole number of tiles. */
 internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
   var (w, h) = resolveBitmapSize(layer.size, imgW, imgH, areaW, areaH)
   val size = layer.size

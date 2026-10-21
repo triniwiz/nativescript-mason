@@ -15,30 +15,9 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Implements CSS `backdrop-filter` on Android.
- *
- * The naive approach — `view.setRenderEffect(effect)` — filters the view's OWN
- * render output (its background AND every child), so the element's own content
- * (e.g. `Text "Hello world"`) gets blurred. That is the opposite of what CSS
- * `backdrop-filter` specifies: the filter must apply only to the content drawn
- * *behind* the element (the "backdrop"), while the element's own content stays
- * crisp on top.
- *
- * Backdrop capture deliberately uses a software [Bitmap] plus [stackBlur]
- * instead of `RenderNode` + `RenderEffect`: that capture/effect chain has
- * crashed RenderThread on Android 16, and this path works on every API level.
- *
- *  1. A [ViewTreeObserver.OnPreDrawListener] on the target runs each frame.
- *  2. It draws the backdrop's root view into a downscaled [Bitmap], translated
- *     so the target's top-left maps to (0,0). While drawing, the target draws
- *     nothing (the [isCapturing] guard short-circuits [ViewUtils] render), so
- *     the snapshot contains only what's behind the target. A snapshot equal to
- *     the previous one keeps the current result and doesn't invalidate.
- *  3. [stackBlur] blurs a copy of it; a combined [ColorMatrix] (for
- *     brightness/contrast/etc.) is applied later via a [Paint] at draw time.
- *  4. During the target's normal draw, [draw] blits the blurred bitmap
- *     *underneath* the element's own background/border/children — so the
- *     backdrop is filtered and the content stays sharp.
+ * CSS `backdrop-filter`: each frame the root is drawn (without the target) into a downscaled
+ * bitmap, blurred and colour-matrixed, then drawn under the target's own content. A software
+ * bitmap rather than RenderNode + RenderEffect, which crashed RenderThread on Android 16.
  */
 internal class BackdropHelper(private val target: View) {
 

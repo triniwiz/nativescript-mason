@@ -51,10 +51,7 @@ export const cssUnits: CssUnitContext = {
   },
 };
 
-/**
- * Resolve `vw`/`vh` against `provider` (the window size in CSS px) at the time each style is
- * written, so a rotation or resize is picked up. A value set through `setCssUnitContext` wins.
- */
+/** Resolves vw/vh against `provider` (window size in CSS px) on each write; `setCssUnitContext` values win. */
 export function setViewportProvider(provider: (() => ViewportSize) | null): void {
   viewportProvider = provider;
   liveViewport = null;

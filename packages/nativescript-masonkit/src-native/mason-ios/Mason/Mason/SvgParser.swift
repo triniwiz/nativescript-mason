@@ -2,14 +2,8 @@
 //  SvgParser.swift
 //  Mason
 //
-//  A static-SVG reader for `data:image/svg+xml` images (pure parsing; `renderSvgDocument` in
-//  Background.swift draws). Handles shapes, the full path grammar, presentation attributes,
-//  `transform`, viewBox, linear and radial gradients, <use> (incl. <symbol>), <clipPath>, <style>
-//  sheets with simple selectors (type, .class, #id, compounds and lists) and <image> with a
-//  raster data: URL. Not supported: <text>, patterns (`url(#..)` uses its fallback colour),
-//  masks, filters, markers, nested <svg> viewports, `clip-path` on a <clipPath>, `transform`
-//  from CSS, the SVG 2 focal radius `fr` and remote references. Keep in step with the Kotlin
-//  `SvgParser.kt`.
+//  Static SVG reader for `data:image/svg+xml` (Background.swift draws). No <text>, patterns, masks, filters,
+//  markers, nested <svg> or remote references. Keep in step with SvgParser.kt.
 //
 
 import UIKit

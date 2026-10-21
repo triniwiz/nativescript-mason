@@ -6,10 +6,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
-/**
- * CSS `transform` (CSS Transforms 1 and the 3D functions of level 2). Lengths stay unresolved
- * until the box size is known: percentages in `translate*` are of the element's border box.
- */
+/** A CSS transform list; lengths resolve once the box is known (translate percentages are of the border box). */
 internal sealed class TransformFn {
   data class Translate(val x: CssLength, val y: CssLength, val z: CssLength = CssLength.ZERO) : TransformFn()
   data class Scale(val x: Float, val y: Float, val z: Float = 1f) : TransformFn()
@@ -155,11 +152,7 @@ private fun matrixFor(fn: TransformFn, width: Float, height: Float, ctx: LengthC
   return m
 }
 
-/**
- * The 4x4 of a transform list over a [width] x [height] box (device px), flattened to how it
- * paints a flat element without a `perspective` on its parent: z drops out (an orthographic
- * projection), and a perspective term only scales the result.
- */
+/** The list's 4x4 over a [width] x [height] box in device px, flattened as for a parent without perspective. */
 internal fun projectAffine(fns: List<TransformFn>, width: Float, height: Float, ctx: LengthContext): Affine {
   if (fns.isEmpty()) return Affine.IDENTITY
   var m = identity4()
@@ -168,10 +161,7 @@ internal fun projectAffine(fns: List<TransformFn>, width: Float, height: Float, 
   return Affine(m[0] / w, m[1] / w, m[4] / w, m[5] / w, m[12] / w, m[13] / w)
 }
 
-/**
- * An affine as Android view properties: `translation`, then `rotation` and `scale` about the
- * pivot, with [shear] (x += shear * y, about the pivot) left for the view's own draw.
- */
+/** An affine as view translation, rotation and scale about the pivot, plus [shear] for the view's own draw. */
 internal data class ViewTransform(
   val translationX: Float, val translationY: Float, val rotation: Float,
   val scaleX: Float, val scaleY: Float, val shear: Float,

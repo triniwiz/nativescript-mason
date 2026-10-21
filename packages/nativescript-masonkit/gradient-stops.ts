@@ -68,10 +68,7 @@ function colorAt(offsets: number[], colors: number[], t: number, fromRight: bool
   return colors[n - 1] >>> 0;
 }
 
-/**
- * A `repeating-*-gradient`'s stops tiled across [0, end], cut at both ends with the colour
- * there, so a non-repeating gradient draws it. A zero-length period is returned unchanged.
- */
+/** A repeating gradient's stops tiled across [0, end], so a plain gradient draws it. */
 export function repeatStops(offsets: number[], colors: number[], end = 1): { offsets: number[]; colors: number[] } {
   const n = offsets.length;
   if (n < 2 || colors.length !== n) return { offsets, colors };
@@ -99,10 +96,7 @@ export function repeatStops(offsets: number[], colors: number[], end = 1): { off
   return { offsets: outOffsets, colors: outColors };
 }
 
-/**
- * How far past its ending shape a radial gradient reaches inside the box, in multiples of the
- * radius: the farthest corner's normalized distance, at least 1.
- */
+/** How far past its ending shape a radial gradient reaches in the box, in radii (at least 1). */
 export function radialReach(cx: number, cy: number, rx: number, ry: number): number {
   let reach = 1;
   for (const x of [0, 1]) {

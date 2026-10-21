@@ -880,9 +880,7 @@ public class TextEngine: NSObject {
     for range in spaced { text.removeAttribute(Constants.WORD_SPACING_KEY, range: range) }
   }
 
-  /// text-align: justify. Each wrapped line but a paragraph's last gets its slack as kerning at its
-  /// word separators (`words`) or between all its characters; the breaks stay put because each
-  /// line still just fits.
+  /// text-align: justify: each wrapped line but the last spreads its slack as kerning.
   static func justifying(_ text: NSAttributedString, _ width: CGFloat, _ mode: Justification) -> NSAttributedString {
     let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
     let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(text), CFRange(location: 0, length: 0), path, nil)

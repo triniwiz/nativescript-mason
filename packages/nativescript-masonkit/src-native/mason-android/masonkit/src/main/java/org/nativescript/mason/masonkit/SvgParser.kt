@@ -12,14 +12,8 @@ import kotlin.math.sqrt
 import kotlin.math.tan
 
 /*
- * A small static-SVG reader for `data:image/svg+xml` images. Pure Kotlin (no android.graphics)
- * so the JVM tests can run it; `renderSvgDocument` in Background.kt rasterizes the result.
- * Covers the basic shapes, the full path grammar, presentation attributes, `transform`, viewBox,
- * linear and radial gradients, <use> (incl. <symbol>), <clipPath>, <style> sheets with simple
- * selectors (type, .class, #id, compounds and lists) and <image> with a raster data: URL.
- * Not supported: <text>, patterns (`url(#..)` uses its fallback colour), masks, filters,
- * markers, nested <svg> viewports, `clip-path` on a <clipPath>, `transform` from CSS, the SVG 2
- * focal radius `fr` and remote references. Mirrors `SvgParser.swift`; keep the two in step.
+ * Static SVG reader for `data:image/svg+xml` (pure Kotlin for JVM tests; Background.kt draws). No <text>, patterns,
+ * masks, filters, markers, nested <svg> or remote references. Keep in step with SvgParser.swift.
  */
 
 /** One absolute path segment. Arcs, H/V, S and T are already normalised away. */
