@@ -260,46 +260,6 @@ public class CSSFilters {
     return CIImage(image: image)
   }
 
-  /// Snapshots the content behind `view` (walks to the topmost ancestor and
-  /// renders just the region `view` occupies), excluding `view`'s own subtree —
-  /// the "hole" needed so backdrop-filter never filters the element's own content.
-  private static func captureBackdropToCIImage(view: UIView, scale: CGFloat) -> CIImage? {
-    guard view.bounds.width > 0 && view.bounds.height > 0 else { return nil }
-
-    var root: UIView = view
-    while let superview = root.superview { root = superview }
-    guard root !== view else { return nil }
-
-    let frameInRoot = view.convert(view.bounds, to: root)
-    guard frameInRoot.width > 0 && frameInRoot.height > 0 else { return nil }
-
-    let fmt = UIGraphicsImageRendererFormat()
-    fmt.scale = scale
-    fmt.opaque = false
-    let renderer = UIGraphicsImageRenderer(size: frameInRoot.size, format: fmt)
-
-    let wasHidden = view.isHidden
-    view.isHidden = true
-    let image = renderer.image { _ in
-      // Offset so `view`'s region lands at the image origin; unscaled, so this
-      // is a crop, not a stretch.
-      let drawRect = CGRect(
-        x: -frameInRoot.origin.x,
-        y: -frameInRoot.origin.y,
-        width: root.bounds.width,
-        height: root.bounds.height
-      )
-      root.drawHierarchy(in: drawRect, afterScreenUpdates: false)
-    }
-    view.isHidden = wasHidden
-
-    if let cg = image.cgImage {
-      return CIImage(cgImage: cg)
-    }
-    return CIImage(image: image)
-  }
-
-
   public class CSSFilter: NSObject {
     let layer = CAMetalLayer()
     var filters: [Filter]
@@ -309,10 +269,7 @@ public class CSSFilters {
     // MARK: - backdrop-filter live-render state
     private weak var backdropView: UIView?
     private var backdropRenderLayer: CALayer?
-    private var backdropBlurView: UIVisualEffectView?
-    private var backdropDisplayLink: CADisplayLink?
     private var backdropClipPathProvider: (() -> UIBezierPath?)?
-    private var backdropFrameParity = false
     
     public override init() {
       filters = []
@@ -342,16 +299,11 @@ public class CSSFilters {
       tearDownBackdropRendering()
     }
 
-    /// Stops the live backdrop CADisplayLink and removes the render layer /
-    /// blur view. Does not touch `filters` — called both from `reset()` and
-    /// at the top of `applyAsBackdrop` before rebuilding.
+    /// Stops live backdrop rendering and removes the render layer. Does not touch `filters`.
     private func tearDownBackdropRendering() {
-      backdropDisplayLink?.invalidate()
-      backdropDisplayLink = nil
+      BackdropScheduler.shared.remove(self)
       backdropRenderLayer?.removeFromSuperlayer()
       backdropRenderLayer = nil
-      backdropBlurView?.removeFromSuperview()
-      backdropBlurView = nil
       backdropClipPathProvider = nil
       backdropView = nil
     }
@@ -460,46 +412,6 @@ public class CSSFilters {
       observeSublayerContents(layer: view.layer)
     }
     
-    /// Lightweight CGContext-based render for simple, single color filters.
-    /// Returns true if handled; false means the caller should fall back to
-    /// the full Metal/CIFilter pipeline via `apply(to:)`.
-    public func applyFast(in context: CGContext, rect: CGRect) -> Bool {
-      guard filters.count == 1 else { return false }
-
-      switch filters[0] {
-      case .brightness(let value):
-        if value < 1.0 {
-          // Darken: multiply blend darkens each channel proportionally
-          context.saveGState()
-          context.setBlendMode(.multiply)
-          let gray = max(value, 0)
-          context.setFillColor(UIColor(white: gray, alpha: 1).cgColor)
-          context.fill(rect)
-          context.restoreGState()
-        } else if value > 1.0 {
-          // Lighten: screen blend (additive) with white at (value-1) alpha
-          context.saveGState()
-          context.setBlendMode(.screen)
-          let alpha = min(value - 1.0, 1.0)
-          context.setFillColor(UIColor(white: 1, alpha: alpha).cgColor)
-          context.fill(rect)
-          context.restoreGState()
-        }
-        return true
-
-      case .grayscale:
-        // Desaturate via luminance overlay isn't accurate enough for a fast path
-        return false
-
-      case .opacity:
-        // Opacity is already handled by the view's alpha — no CGContext trick
-        return false
-
-      default:
-        return false
-      }
-    }
-
     public func apply(to view: UIView) {
       isApplying = true
       defer { isApplying = false }
@@ -508,7 +420,7 @@ public class CSSFilters {
         device = MTLCreateSystemDefaultDevice()
         guard let device = device else {return}
         commandQueue = device.makeCommandQueue()
-        ciContext = CIContext(mtlDevice: device)
+        ciContext = CSSFilters.makeContext(device)
       }
       if(self.view != view){
         layer.device = device
@@ -646,71 +558,14 @@ public class CSSFilters {
             output = result.cropped(to: cropExtent)
           }
           
-        case .brightness(let value):
-          let f = CIFilter.colorControls()
-          f.brightness = Float(value - 1)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
-        case .contrast(let value):
-          let f = CIFilter.colorControls()
-          f.contrast = Float(value)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
-        case .saturate(let value):
-          let f = CIFilter.colorControls()
-          f.saturation = Float(value)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
-        case .hueRotate(let degrees):
-          let f = CIFilter.hueAdjust()
-          f.angle = Float(degrees * .pi / 180)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
-        case .invert(let amount):
-          let t = CGFloat(1 - 2 * amount)
-          let o = CGFloat(amount)
-          let f = CIFilter.colorMatrix()
-          f.rVector = CIVector(x: t, y: 0, z: 0, w: 0)
-          f.gVector = CIVector(x: 0, y: t, z: 0, w: 0)
-          f.bVector = CIVector(x: 0, y: 0, z: t, w: 0)
-          f.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-          f.biasVector = CIVector(x: o, y: o, z: o, w: 0)
-          let cropExtent = output.extent
-          if let clamp = CIFilter(name: "CIAffineClamp") {
-            clamp.setValue(output, forKey: kCIInputImageKey)
-            clamp.setValue(CGAffineTransform.identity, forKey: "inputTransform")
-            if let clamped = clamp.outputImage {
-              f.setValue(clamped, forKey: kCIInputImageKey)
-              if let result = f.outputImage {
-                output = result.cropped(to: cropExtent)
-              }
-              continue
-            }
-          }
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
         case .opacity(let amount):
           view.alpha = amount
-          
-        case .sepia(let amount):
-          let f = CIFilter.sepiaTone()
-          f.intensity = Float(amount)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-          
-        case .grayscale(let amount):
-          let f = CIFilter.colorControls()
-          f.saturation = Float(1 - amount)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
+
+        case .brightness, .contrast, .saturate, .hueRotate, .invert, .sepia, .grayscale:
+          output = CSSFilters.applyColorFunction(filter, to: output)
         }
       }
-      
+
       let drawableBounds = CGRect(
         origin: .zero,
         size: CGSize(width: CGFloat(drawable.texture.width), height: CGFloat(drawable.texture.height))
@@ -733,91 +588,32 @@ public class CSSFilters {
       }
     }
 
-    /// Apply filters as a backdrop effect (CSS backdrop-filter).
-    /// Unlike `apply(to:)` which overlays the view's own content,
-    /// this blurs/filters the content _behind_ the view.
-    ///
-    /// `CALayer.backgroundFilters` is macOS-only and silently ignored on iOS,
-    /// so non-blur filters (and any mix with blur) are done by hand: snapshot
-    /// the backdrop, run the CIFilter chain over it, and re-render on a
-    /// CADisplayLink so it tracks whatever is scrolling/animating behind it.
-    /// Pure blur (no other filters) still uses UIVisualEffectView — it's
-    /// compositor-backed and already tracks the backdrop live for free.
-    ///
-    /// `clipPathProvider` supplies the element's border-radius clip path
-    /// (independent of `overflow`, like its own background) — re-queried each
-    /// render so it tracks layout changes.
+    /// Apply filters as a backdrop effect (CSS backdrop-filter): what is painted behind the view
+    /// is snapshotted, run through the filter chain and shown under the view's own content,
+    /// clipped to `clipPathProvider` (the border radius, re-queried each render).
+    /// `CALayer.backgroundFilters` is macOS-only, so this is done by hand.
     public func applyAsBackdrop(to view: UIView, clipPathProvider: (() -> UIBezierPath?)? = nil) {
       isApplying = true
       defer { isApplying = false }
 
-      // Remove stale backdrop views/layers/link from a previous call.
-      view.subviews.filter { $0.layer.name == "_mason_backdrop" }.forEach { $0.removeFromSuperview() }
       view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
       tearDownBackdropRendering()
 
-      guard !filters.isEmpty else { return }
+      let active = filters.contains { if case .dropShadow = $0 { return false } else { return true } }
+      guard active else { return }
 
       if device == nil {
         device = MTLCreateSystemDefaultDevice()
         guard let device = device else { return }
         commandQueue = device.makeCommandQueue()
-        ciContext = CIContext(mtlDevice: device)
+        ciContext = CSSFilters.makeContext(device)
       }
-
-      var blurRadius: CGFloat = 0
-      var hasOtherFilters = false
-      for filter in filters {
-        switch filter {
-        case .blur(let r): blurRadius = max(blurRadius, r)
-        case .dropShadow: break // not applicable to backdrop-filter
-        default: hasOtherFilters = true
-        }
-      }
-
-      guard blurRadius > 0 || hasOtherFilters else { return }
 
       backdropView = view
       backdropClipPathProvider = clipPathProvider
-
-      if blurRadius > 0 && !hasOtherFilters {
-        setupBackdropBlurView(on: view, radius: blurRadius)
-        return
-      }
-
       setupBackdropRenderLayer(on: view)
       renderBackdropFrame()
-
-      let link = CADisplayLink(target: self, selector: #selector(backdropDisplayLinkStep))
-      link.add(to: .main, forMode: .common)
-      backdropDisplayLink = link
-    }
-
-    private func setupBackdropBlurView(on view: UIView, radius: CGFloat) {
-      let blurEffect = UIBlurEffect(style: .regular)
-      let effectView = UIVisualEffectView(effect: nil)
-      effectView.frame = view.bounds
-      effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-      effectView.layer.name = "_mason_backdrop"
-      effectView.isUserInteractionEnabled = false
-      view.insertSubview(effectView, at: 0)
-      UIView.animate(withDuration: 0) {
-        effectView.effect = blurEffect
-      }
-      // Set custom radius on the gaussian blur sublayer if accessible
-      if let backdropLayers = effectView.layer.sublayers {
-        for sublayer in backdropLayers {
-          if let bgFilters = sublayer.value(forKey: "filters") as? [NSObject] {
-            for bgFilter in bgFilters {
-              let filterName = String(describing: type(of: bgFilter))
-              if filterName.localizedCaseInsensitiveContains("blur") {
-                bgFilter.setValue(radius, forKey: "inputRadius")
-              }
-            }
-          }
-        }
-      }
-      backdropBlurView = effectView
+      BackdropScheduler.shared.add(self)
     }
 
     private func setupBackdropRenderLayer(on view: UIView) {
@@ -844,137 +640,306 @@ public class CSSFilters {
       }
     }
 
-    @objc private func backdropDisplayLinkStep() {
-      guard let view = backdropView else {
-        backdropDisplayLink?.invalidate()
-        backdropDisplayLink = nil
-        return
+    /// A blur of 2pt or more hides the detail a 1x snapshot loses.
+    private var backdropCaptureScale: CGFloat {
+      let blur = filters.reduce(CGFloat(0)) { acc, f in
+        if case .blur(let r) = f { return max(acc, r) }
+        return acc
       }
-      // Skip the (relatively costly) snapshot+filter pass while off-window
-      // rather than tearing the link down — it self-resumes on reattach.
-      guard view.window != nil else { return }
+      return blur >= 2 ? 1 : CGFloat(NSCMason.scale)
+    }
 
-      // Throttle to ~30fps: a full 60fps snapshot+CIFilter pass per frame is
-      // unnecessary for a background effect and doubles the per-frame cost.
-      backdropFrameParity.toggle()
-      guard backdropFrameParity else { return }
-
+    func renderBackdropIfVisible() {
+      guard let view = backdropView, view.window != nil else { return }
       renderBackdropFrame()
     }
 
     private func renderBackdropFrame() {
-      guard let view = backdropView, let renderLayer = backdropRenderLayer else {
+      guard let view = backdropView, let renderLayer = backdropRenderLayer,
+            view.bounds.width > 0, view.bounds.height > 0, let context = ciContext else { return }
+      let scale = backdropCaptureScale
+      guard let input = CSSFilters.captureBackdropToCIImage(view: view, scale: scale) else { return }
+      let output = CSSFilters.applyBackdropChain(filters, to: input, scale: scale)
+      guard let cgImage = context.createCGImage(output, from: input.extent, format: .BGRA8, colorSpace: CSSFilters.sRGB) else {
         return
       }
-      guard view.bounds.width > 0, view.bounds.height > 0 else {
-        return
-      }
-      guard let context = ciContext else {
-        return
-      }
-
-      let scale = CGFloat(NSCMason.scale)
-      guard var output = CSSFilters.captureBackdropToCIImage(view: view, scale: scale) else {
-        return
-      }
-      let extent = output.extent
-
-      for filter in filters {
-        switch filter {
-        case .blur(let radius):
-          let blurPx = Float(radius * scale)
-          guard blurPx > 0 else { continue }
-          let blurFilter = CIFilter.gaussianBlur()
-          blurFilter.radius = blurPx
-          if let clamp = CIFilter(name: "CIAffineClamp") {
-            clamp.setValue(output, forKey: kCIInputImageKey)
-            clamp.setValue(CGAffineTransform.identity, forKey: "inputTransform")
-            if let clamped = clamp.outputImage {
-              blurFilter.inputImage = clamped
-            } else {
-              blurFilter.inputImage = output
-            }
-          } else {
-            blurFilter.inputImage = output
-          }
-          if let result = blurFilter.outputImage { output = result.cropped(to: extent) }
-
-        case .brightness(let value):
-          let f = CIFilter.colorControls()
-          f.brightness = Float(value - 1)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .contrast(let value):
-          let f = CIFilter.colorControls()
-          f.contrast = Float(value)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .saturate(let value):
-          let f = CIFilter.colorControls()
-          f.saturation = Float(value)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .hueRotate(let degrees):
-          let f = CIFilter.hueAdjust()
-          f.angle = Float(degrees * .pi / 180)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .invert(let amount):
-          let t = CGFloat(1 - 2 * amount)
-          let o = CGFloat(amount)
-          let f = CIFilter.colorMatrix()
-          f.rVector = CIVector(x: t, y: 0, z: 0, w: 0)
-          f.gVector = CIVector(x: 0, y: t, z: 0, w: 0)
-          f.bVector = CIVector(x: 0, y: 0, z: t, w: 0)
-          f.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-          f.biasVector = CIVector(x: o, y: o, z: o, w: 0)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .opacity(let amount):
-          // backdrop-filter opacity: reduce alpha of the backdrop content
-          let f = CIFilter.colorMatrix()
-          f.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
-          f.gVector = CIVector(x: 0, y: 1, z: 0, w: 0)
-          f.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
-          f.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(amount))
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .sepia(let amount):
-          let f = CIFilter.sepiaTone()
-          f.intensity = Float(amount)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .grayscale(let amount):
-          let f = CIFilter.colorControls()
-          f.saturation = Float(1 - amount)
-          f.setValue(output, forKey: kCIInputImageKey)
-          if let result = f.outputImage { output = result }
-
-        case .dropShadow:
-          break // drop-shadow not applicable for backdrop-filter
-        }
-      }
-
-      guard let cgImage = context.createCGImage(output, from: extent, format: .BGRA8, colorSpace: CSSFilters.deviceRGB) else {
-        return
-      }
-
       updateBackdropMask(renderLayer)
-
       CATransaction.begin()
       CATransaction.setDisableActions(true)
+      if renderLayer.frame != view.bounds { renderLayer.frame = view.bounds }
       renderLayer.contents = cgImage
       CATransaction.commit()
     }
   }
-  
+
+  /// Re-renders backdrop filters after the main run loop did any work (input, timers, layout,
+  /// loads), so an idle screen costs nothing. One display link for all of them, at up to 30 fps.
+  final class BackdropScheduler: NSObject {
+    static let shared = BackdropScheduler()
+    private let filters = NSHashTable<CSSFilter>.weakObjects()
+    private var link: CADisplayLink?
+    private var observer: CFRunLoopObserver?
+    private var dirty = false
+    /// The run loop pass that ran our own render, which changes nothing behind.
+    private var ownPass = false
+
+    func add(_ filter: CSSFilter) {
+      filters.add(filter)
+      if observer == nil {
+        let obs = CFRunLoopObserverCreateWithHandler(kCFAllocatorDefault, CFRunLoopActivity.beforeWaiting.rawValue, true, 0) { [weak self] _, _ in
+          self?.runLoopDidWork()
+        }
+        CFRunLoopAddObserver(CFRunLoopGetMain(), obs, .commonModes)
+        observer = obs
+      }
+      if link == nil {
+        let l = CADisplayLink(target: self, selector: #selector(tick))
+        l.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
+        l.isPaused = true
+        l.add(to: .main, forMode: .common)
+        link = l
+      }
+    }
+
+    func remove(_ filter: CSSFilter) {
+      filters.remove(filter)
+      if filters.allObjects.isEmpty { stop() }
+    }
+
+    private func stop() {
+      link?.invalidate()
+      link = nil
+      if let obs = observer {
+        CFRunLoopRemoveObserver(CFRunLoopGetMain(), obs, .commonModes)
+        observer = nil
+      }
+      dirty = false
+    }
+
+    private func runLoopDidWork() {
+      if ownPass {
+        ownPass = false
+        return
+      }
+      if !dirty {
+        dirty = true
+        link?.isPaused = false
+      }
+    }
+
+    @objc private func tick() {
+      link?.isPaused = true
+      guard dirty else { return }
+      dirty = false
+      let live = filters.allObjects
+      if live.isEmpty {
+        stop()
+        return
+      }
+      for filter in live { filter.renderBackdropIfVisible() }
+      ownPass = true
+    }
+  }
+
+  // MARK: - Filter functions
+
+  static let sRGB = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+
+  /// Browsers run CSS filter functions on gamma-encoded sRGB, not Core Image's linear default.
+  static func makeContext(_ device: MTLDevice) -> CIContext {
+    CIContext(mtlDevice: device, options: [.workingColorSpace: sRGB, .outputColorSpace: sRGB])
+  }
+
+  /// The row-major 3x3 matrix and per-channel bias of a CSS colour filter function, as Filter
+  /// Effects 1 defines them; nil for blur, opacity and drop-shadow.
+  static func colorMatrix(for filter: Filter) -> (m: [CGFloat], bias: CGFloat)? {
+    func unit(_ v: CGFloat) -> CGFloat { min(max(v, 0), 1) }
+    switch filter {
+    case .brightness(let v):
+      let v = max(v, 0)
+      return ([v, 0, 0, 0, v, 0, 0, 0, v], 0)
+    case .contrast(let v):
+      let v = max(v, 0)
+      return ([v, 0, 0, 0, v, 0, 0, 0, v], 0.5 - 0.5 * v)
+    case .saturate(let v):
+      let s = max(v, 0)
+      return ([0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s,
+               0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s,
+               0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s], 0)
+    case .grayscale(let amount):
+      let s = 1 - unit(amount)
+      return ([0.2126 + 0.7874 * s, 0.7152 - 0.7152 * s, 0.0722 - 0.0722 * s,
+               0.2126 - 0.2126 * s, 0.7152 + 0.2848 * s, 0.0722 - 0.0722 * s,
+               0.2126 - 0.2126 * s, 0.7152 - 0.7152 * s, 0.0722 + 0.9278 * s], 0)
+    case .sepia(let amount):
+      let s = 1 - unit(amount)
+      return ([0.393 + 0.607 * s, 0.769 - 0.769 * s, 0.189 - 0.189 * s,
+               0.349 - 0.349 * s, 0.686 + 0.314 * s, 0.168 - 0.168 * s,
+               0.272 - 0.272 * s, 0.534 - 0.534 * s, 0.131 + 0.869 * s], 0)
+    case .hueRotate(let degrees):
+      let r = degrees * .pi / 180
+      let c = cos(r), n = sin(r)
+      return ([0.213 + c * 0.787 - n * 0.213, 0.715 - c * 0.715 - n * 0.715, 0.072 - c * 0.072 + n * 0.928,
+               0.213 - c * 0.213 + n * 0.143, 0.715 + c * 0.285 + n * 0.140, 0.072 - c * 0.072 - n * 0.283,
+               0.213 - c * 0.213 - n * 0.787, 0.715 - c * 0.715 + n * 0.715, 0.072 + c * 0.928 + n * 0.072], 0)
+    case .invert(let amount):
+      let a = unit(amount)
+      return ([1 - 2 * a, 0, 0, 0, 1 - 2 * a, 0, 0, 0, 1 - 2 * a], a)
+    default:
+      return nil
+    }
+  }
+
+  /// One colour filter function, clamped to 0...1 as each step is in a browser.
+  static func applyColorFunction(_ filter: Filter, to image: CIImage) -> CIImage {
+    guard let (m, bias) = colorMatrix(for: filter) else { return image }
+    let f = CIFilter.colorMatrix()
+    f.inputImage = image
+    f.rVector = CIVector(x: m[0], y: m[1], z: m[2], w: 0)
+    f.gVector = CIVector(x: m[3], y: m[4], z: m[5], w: 0)
+    f.bVector = CIVector(x: m[6], y: m[7], z: m[8], w: 0)
+    f.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+    f.biasVector = CIVector(x: bias, y: bias, z: bias, w: 0)
+    let clamp = CIFilter.colorClamp()
+    clamp.inputImage = f.outputImage
+    clamp.minComponents = CIVector(x: 0, y: 0, z: 0, w: 0)
+    clamp.maxComponents = CIVector(x: 1, y: 1, z: 1, w: 1)
+    return clamp.outputImage ?? image
+  }
+
+  /// `image` with reflected copies across each edge and corner, cropped `margin` past its extent.
+  static func mirrored(_ image: CIImage, margin: CGFloat) -> CIImage {
+    let e = image.extent
+    var out = image
+    for sx in [-1, 0, 1] {
+      for sy in [-1, 0, 1] where sx != 0 || sy != 0 {
+        var t = CGAffineTransform.identity
+        if sx != 0 { t = t.concatenating(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 2 * (sx < 0 ? e.minX : e.maxX), ty: 0)) }
+        if sy != 0 { t = t.concatenating(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 2 * (sy < 0 ? e.minY : e.maxY))) }
+        out = image.transformed(by: t).composited(over: out)
+      }
+    }
+    return out.cropped(to: e.insetBy(dx: -margin, dy: -margin))
+  }
+
+  /// A backdrop-filter chain over `image`, captured at `scale` pixels per point.
+  static func applyBackdropChain(_ filters: [Filter], to image: CIImage, scale: CGFloat) -> CIImage {
+    let extent = image.extent
+    var output = image
+    for filter in filters {
+      switch filter {
+      case .blur(let radius):
+        // CSS blur() is the Gaussian's standard deviation; the backdrop reflects at its edges.
+        let sigma = Float(radius * scale)
+        guard sigma > 0 else { continue }
+        let blur = CIFilter.gaussianBlur()
+        blur.inputImage = mirrored(output, margin: CGFloat(sigma) * 3).clampedToExtent()
+        blur.radius = sigma
+        if let result = blur.outputImage { output = result.cropped(to: extent) }
+      case .opacity(let amount):
+        let f = CIFilter.colorMatrix()
+        f.inputImage = output
+        f.aVector = CIVector(x: 0, y: 0, z: 0, w: min(max(amount, 0), 1))
+        if let result = f.outputImage { output = result }
+      case .dropShadow:
+        break
+      default:
+        output = applyColorFunction(filter, to: output)
+      }
+    }
+    return output
+  }
+
+  private final class GradientImage {
+    let key: [AnyHashable]
+    let image: CGImage
+    init(key: [AnyHashable], image: CGImage) { self.key = key; self.image = image }
+  }
+  private static let gradientImages = NSMapTable<CAGradientLayer, GradientImage>.weakToStrongObjects()
+
+  /// `render(in:)` blends a gradient layer's colours differently from the screen (blue to magenta
+  /// picks up green), so each axial one overlapping `rect` (in `root`) is shown as the same
+  /// gradient drawn by CoreGraphics while capturing. Returns what to restore.
+  static func substituteGradients(in root: CALayer, rect: CGRect, scale: CGFloat) -> [(CAGradientLayer, [Any]?, Any?)] {
+    var swapped: [(CAGradientLayer, [Any]?, Any?)] = []
+    func visit(_ layer: CALayer) {
+      if layer.isHidden || layer.opacity == 0 { return }
+      if let g = layer as? CAGradientLayer, g.type == .axial, let colors = g.colors, !colors.isEmpty,
+         g.bounds.width > 0, g.bounds.height > 0, g.convert(g.bounds, to: root).intersects(rect),
+         let image = gradientImage(g, colors: colors, scale: scale) {
+        swapped.append((g, colors, g.contents))
+        g.colors = nil
+        g.contents = image
+      }
+      layer.sublayers?.forEach(visit)
+    }
+    visit(root)
+    return swapped
+  }
+
+  private static func gradientImage(_ g: CAGradientLayer, colors: [Any], scale: CGFloat) -> CGImage? {
+    let cgColors = colors.map { $0 as! CGColor }
+    let locations = g.locations?.map { CGFloat(truncating: $0) }
+    var key: [AnyHashable] = [g.bounds.width, g.bounds.height, scale, g.startPoint.x, g.startPoint.y, g.endPoint.x, g.endPoint.y]
+    key += cgColors.flatMap { ($0.converted(to: sRGB, intent: .defaultIntent, options: nil)?.components ?? []).map { AnyHashable($0) } }
+    key += (locations ?? []).map { AnyHashable($0) }
+    if let cached = gradientImages.object(forKey: g), cached.key == key { return cached.image }
+    let w = Int(ceil(g.bounds.width * scale)), h = Int(ceil(g.bounds.height * scale))
+    guard w > 0, h > 0, w * h <= 16_000_000,
+          let gradient = CGGradient(colorsSpace: deviceRGB, colors: cgColors as CFArray, locations: locations),
+          let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: sRGB,
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+    // Unit-square points, y down as the layer's; the bitmap context is y up.
+    let start = CGPoint(x: g.startPoint.x * CGFloat(w), y: (1 - g.startPoint.y) * CGFloat(h))
+    let end = CGPoint(x: g.endPoint.x * CGFloat(w), y: (1 - g.endPoint.y) * CGFloat(h))
+    ctx.drawLinearGradient(gradient, start: start, end: end, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    guard let image = ctx.makeImage() else { return nil }
+    gradientImages.setObject(GradientImage(key: key, image: image), forKey: g)
+    return image
+  }
+
+  /// What is painted behind `view` in the region it covers: the window's layer tree, rendered
+  /// with `view` (and so its own backdrop layer) hidden. `render(in:)` reads the model tree, so
+  /// the hide never reaches the screen.
+  private static func captureBackdropToCIImage(view: UIView, scale: CGFloat) -> CIImage? {
+    guard view.bounds.width > 0 && view.bounds.height > 0 else { return nil }
+
+    var root: UIView = view
+    while let superview = root.superview { root = superview }
+    guard root !== view else { return nil }
+
+    let frameInRoot = view.convert(view.bounds, to: root)
+    guard frameInRoot.width > 0 && frameInRoot.height > 0 else { return nil }
+
+    let fmt = UIGraphicsImageRendererFormat()
+    fmt.scale = scale
+    fmt.opaque = false
+    // 8-bit sRGB is all the filter chain reads, at half the memory of the wide-colour default.
+    fmt.preferredRange = .standard
+    let renderer = UIGraphicsImageRenderer(size: frameInRoot.size, format: fmt)
+
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    let wasHidden = view.layer.isHidden
+    view.layer.isHidden = true
+    let swapped = substituteGradients(in: root.layer, rect: frameInRoot, scale: scale)
+    let image = renderer.image { ctx in
+      ctx.cgContext.translateBy(x: -frameInRoot.minX, y: -frameInRoot.minY)
+      root.layer.render(in: ctx.cgContext)
+    }
+    for (layer, colors, contents) in swapped {
+      layer.colors = colors
+      layer.contents = contents
+    }
+    view.layer.isHidden = wasHidden
+    CATransaction.commit()
+
+    if let cg = image.cgImage {
+      return CIImage(cgImage: cg)
+    }
+    return CIImage(image: image)
+  }
+
   private static func splitCssArgs(_ input: String) -> [String] {
     var result: [String] = []
     var current = ""
@@ -1077,8 +1042,8 @@ public class CSSFilters {
   private static func parseCssFloat(_ value: String, defaultValue: CGFloat = 0) -> CGFloat {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     if trimmed.hasSuffix("px") {
-      let px = CGFloat(Double(trimmed.dropLast(2)) ?? Double(defaultValue))
-      return px / CGFloat(NSCMason.scale)
+      // A CSS px is a point.
+      return CGFloat(Double(trimmed.dropLast(2)) ?? Double(defaultValue))
     } else if trimmed.hasSuffix("%") {
       return CGFloat((Double(trimmed.dropLast()) ?? Double(defaultValue)) / 100.0)
     } else {
