@@ -85,17 +85,19 @@ export class TextArea extends TextAreaBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this[isMasonView_]) {
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
+      if (!this.parent?.[isMasonView_]) {
+        const unconstrained = widthMode === Utils.layout.UNSPECIFIED && heightMode === Utils.layout.UNSPECIFIED;
+        const availableWidth = widthMode === Utils.layout.UNSPECIFIED ? -2 : specWidth;
+        const availableHeight = heightMode === Utils.layout.UNSPECIFIED ? -2 : specHeight;
 
         // Compute against the parent's bounds whenever the spec gives any; see
         // view/index.ios.ts for why auto/auto doesn't matter here.
         if (!unconstrained) {
           // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
+          this.ios.mason_computeWithSize(availableWidth, availableHeight);
           // Claim this root for the host's spec; see view/index.ios.ts.
           // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
+          this.ios.mason_markRootComputeAppliedWithSize(availableWidth, availableHeight);
           // @ts-ignore
           const layout = this.ios.node.computedLayout;
 
