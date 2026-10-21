@@ -16,3 +16,10 @@ export { setCssUnitContext, cssUnits } from './units';
 export { frameworkRegistry, readChildNodes, readLinkedList, type MasonFrameworkAdapter, type MasonNodeKind } from './framework-registry';
 export { hasTextRun } from './text-runs';
 export { registerAppFontsDirectory } from './fonts';
+
+export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';
+
+// Android-only shadow backend overrides; iOS has a single shadow renderer.
+export function setBoxShadowRenderMode(_mode: BoxShadowRenderMode): void {}
+
+export function setBoxShadowSoftwareRasterScale(_scale: number | null): void {}
