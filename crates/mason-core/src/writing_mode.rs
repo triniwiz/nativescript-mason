@@ -248,6 +248,7 @@ pub(crate) fn layout_in_frame(
     set_frame(outer);
 
     let width = output.size.height;
+    let shift = left_overflow(tree, node_id.into(), &output, frame, width);
     PLACED.with(|placed| {
         let mut placed = placed.borrow_mut();
         // A child placed twice still holds a single frame layout.
@@ -261,11 +262,39 @@ pub(crate) fn layout_in_frame(
             last = Some(id);
             if let Some(node) = inner.nodes.get_mut(id) {
                 node.unrounded_layout = layout_to_physical(node.unrounded_layout, frame, width);
+                node.unrounded_layout.location.x += shift;
             }
         }
         placed.truncate(start);
     });
     output_to_physical(output, frame)
+}
+
+/// A `vertical-rl` scroll container's content overflows to the left, where its scroll origin
+/// is the right edge. Scroll views only reach positive offsets, so the content is moved right
+/// by its left overflow and the container's content box starts there; the platform starts it
+/// scrolled to the end. A clipped (`hidden`) box keeps its content in place, showing the start.
+fn left_overflow(
+    tree: &Tree,
+    id: Id,
+    output: &LayoutOutput,
+    frame: LayoutFrame,
+    width: f32,
+) -> f32 {
+    if !frame.is_rl() {
+        return 0.0;
+    }
+    let scrolls = tree.inner().nodes.get(id).is_some_and(|node| {
+        matches!(
+            node.style().get_overflow().x,
+            crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+        )
+    });
+    if !scrolls {
+        return 0.0;
+    }
+    // The frame's block axis (y) is the physical width.
+    (output.scrollable_overflow_rect.bottom - width).max(0.0)
 }
 
 /// Frame a vertical container runs its own algorithm in, or `Physical` for every other node.

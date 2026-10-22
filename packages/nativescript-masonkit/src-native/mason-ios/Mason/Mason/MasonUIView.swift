@@ -1929,7 +1929,19 @@ extension MasonUIView {
   func applyPendingScroll() {
     let target = _pendingScroll
     clearPendingScroll()
-    webScrollTo(target.x, target.y, smooth: _pendingScrollSmooth)
+    webScrollTo(fromWebScrollLeft(target.x), target.y, smooth: _pendingScrollSmooth)
+  }
+
+  /// vertical-rl scrolls from the right: the web's scrollLeft is 0 there and negative to the
+  /// left, while the content offset counts from the left edge.
+  private var scrollsFromRight: Bool { style.resolvedWritingMode == 1 }
+
+  func fromWebScrollLeft(_ x: CGFloat) -> CGFloat {
+    scrollsFromRight && !x.isNaN ? x + webScrollRange.x : x
+  }
+
+  func toWebScrollLeft(_ x: CGFloat) -> CGFloat {
+    scrollsFromRight ? x - webScrollRange.x : x
   }
 
   @objc func _scrollAnimationStep() {
@@ -1966,7 +1978,9 @@ enum MasonWebScroll {
   }
 
   static func offset(_ element: MasonElement) -> CGPoint {
-    (element.uiView as? MasonUIView)?.contentOffset ?? .zero
+    guard let view = element.uiView as? MasonUIView else { return .zero }
+    let offset = view.contentOffset
+    return CGPoint(x: view.toWebScrollLeft(offset.x), y: offset.y)
   }
 
   /// The padding box (scrollbars overlay, so they take no room).
@@ -2009,7 +2023,7 @@ enum MasonWebScroll {
       view.setPendingScroll(x, y, smooth: smooth)
       view.applyPendingScroll()
     } else {
-      view.webScrollTo(x, y, smooth: smooth)
+      view.webScrollTo(view.fromWebScrollLeft(x), y, smooth: smooth)
     }
   }
 

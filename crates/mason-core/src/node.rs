@@ -585,6 +585,7 @@ pub struct Node {
     pub(crate) cache: LayoutCache,
     /// Resolved writing mode `cache` was built for; see `Tree::sync_writing_mode`.
     pub(crate) cached_writing_mode: WritingMode,
+    /// text-orientation in the low 2 bits, text-combine-upright above them.
     pub(crate) cached_text_orientation: u8,
     pub(crate) inline_measure_cache: InlineMeasureCache,
     pub(crate) subtree_analysis: Option<SubtreeAnalysis>,

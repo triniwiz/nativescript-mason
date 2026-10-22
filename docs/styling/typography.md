@@ -259,10 +259,20 @@ Inline elements are not clamped.
 | `unicode-bidi` | `normal`, `embed`, `bidi-override`, `isolate`, `isolate-override`, `plaintext` |
 | `writing-mode` | `horizontal-tb`, `vertical-rl`, `vertical-lr` |
 | `text-orientation` | `mixed`, `upright`, `sideways` |
+| `text-combine-upright` | `none`, `all`, `digits` (2 to 4) |
+| `text-spacing-trim` | `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all`, `auto` |
 
 Vertical writing modes are covered in [Block, inline and float](/styling/flow#writing-modes).
 
-Logical properties (`margin-inline-start`, `padding-block`, ...) map for horizontal left-to-right text regardless of `direction`. See [Box model and sizing](/styling/box-model).
+Logical properties (`margin-inline-start`, `padding-block`, ...) follow `direction` and the writing mode. See [Box model and sizing](/styling/box-model#logical-properties).
+
+### text-spacing-trim
+
+Full-width punctuation set next to other punctuation gives up the blank half of its em, as in browsers: `」「` and `。」` take 1.5em instead of 2em. An opening bracket after another punctuation mark, and a closing mark before a closing mark or a middle dot (`・：；`), are set half-width. It inherits and applies to horizontal and vertical text.
+
+`space-all` turns it off. `normal`, `auto`, `space-first`, `trim-start`, `trim-both` and `trim-all` all trim adjacent punctuation; trimming at the start or end of a line, which `trim-start`, `trim-both` and `trim-all` add in CSS, is not supported yet.
+
+Mason removes the blank half itself on iOS and Windows, so any CJK font works. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
 
 ## Color
 

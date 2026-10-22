@@ -268,6 +268,57 @@ TRANSFORM_ORIGIN_STATE               u8
 TEXT_ORIENTATION                     u8           # 0 mixed, 1 upright, 2 sideways
 TEXT_ORIENTATION_STATE               u8
 
+# CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+# A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+# min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+# never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+# maps to when it was written after that side's physical one. Types are the physical group's.
+LOGICAL_SEQ                          u8
+MARGIN_ORDER                         bytes(8)
+MARGIN_BLOCK_START_TYPE              u8
+MARGIN_INLINE_END_TYPE               u8
+MARGIN_BLOCK_END_TYPE                u8
+MARGIN_INLINE_START_TYPE             u8
+MARGIN_BLOCK_START_VALUE             f32
+MARGIN_INLINE_END_VALUE              f32
+MARGIN_BLOCK_END_VALUE               f32
+MARGIN_INLINE_START_VALUE            f32
+PADDING_ORDER                        bytes(8)
+PADDING_BLOCK_START_TYPE             u8
+PADDING_INLINE_END_TYPE              u8
+PADDING_BLOCK_END_TYPE               u8
+PADDING_INLINE_START_TYPE            u8
+PADDING_BLOCK_START_VALUE            f32
+PADDING_INLINE_END_VALUE             f32
+PADDING_BLOCK_END_VALUE              f32
+PADDING_INLINE_START_VALUE           f32
+INSET_ORDER                          bytes(8)
+INSET_BLOCK_START_TYPE               u8
+INSET_INLINE_END_TYPE                u8
+INSET_BLOCK_END_TYPE                 u8
+INSET_INLINE_START_TYPE              u8
+INSET_BLOCK_START_VALUE              f32
+INSET_INLINE_END_VALUE               f32
+INSET_BLOCK_END_VALUE                f32
+INSET_INLINE_START_VALUE             f32
+SIZE_ORDER                           bytes(12)
+INLINE_SIZE_TYPE                     u8
+BLOCK_SIZE_TYPE                      u8
+MIN_INLINE_SIZE_TYPE                 u8
+MIN_BLOCK_SIZE_TYPE                  u8
+MAX_INLINE_SIZE_TYPE                 u8
+MAX_BLOCK_SIZE_TYPE                  u8
+INLINE_SIZE_VALUE                    f32
+BLOCK_SIZE_VALUE                     f32
+MIN_INLINE_SIZE_VALUE                f32
+MIN_BLOCK_SIZE_VALUE                 f32
+MAX_INLINE_SIZE_VALUE                f32
+MAX_BLOCK_SIZE_VALUE                 f32
+TEXT_COMBINE_UPRIGHT                 u8           # 0 none, 1 all, 2-4 digits (that many)
+TEXT_COMBINE_UPRIGHT_STATE           u8
+TEXT_SPACING_TRIM                    u8           # 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+TEXT_SPACING_TRIM_STATE              u8
+
 [state]
 DISPLAY
 POSITION
@@ -352,3 +403,5 @@ TEXT_INDENT
 LINE_CLAMP
 TRANSFORM_ORIGIN
 TEXT_ORIENTATION
+TEXT_COMBINE_UPRIGHT
+TEXT_SPACING_TRIM

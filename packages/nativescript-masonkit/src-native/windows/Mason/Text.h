@@ -219,6 +219,8 @@ namespace winrt::NativeScript::Mason::implementation
 
             std::vector<winrt::NativeScript::Mason::Node> boxNodes;
             std::vector<winrt::weak_ref<winrt::NativeScript::Mason::Text>> boxTexts;
+            // The element each of the paragraph's spans comes from, for its text-orientation.
+            std::vector<winrt::NativeScript::Mason::Node> spanNodes;
             float ascent{ 0.0f };
             float descent{ 0.0f };
             float lineHeight{ 0.0f };
@@ -257,7 +259,13 @@ namespace winrt::NativeScript::Mason::implementation
                 if (!layout)
                 {
                     layout = mason_dwrite::Build(paragraph);
-                    if (layout) mason_dwrite::ApplyUprights(layout.get(), paragraph);
+                    if (layout)
+                    {
+                        // Build trims horizontal text; upright glyphs take their marks first.
+                        auto marks = mason_dwrite::HalfWidthMarks(paragraph);
+                        mason_dwrite::ApplyUprights(layout.get(), paragraph, marks);
+                        if (mason_dwrite::TrimsAfterUprights(paragraph)) mason_dwrite::ApplySpacingTrim(layout.get(), paragraph, marks);
+                    }
                 }
                 return layout.get();
             }

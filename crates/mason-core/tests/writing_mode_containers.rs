@@ -824,3 +824,133 @@ fn webspec_css_vertical_rl_nested() {
         ],
     );
 }
+
+ahem_measure!(measure_eleven_cells, &[9.0; 11]);
+
+/// A vertical paragraph holding an inline element, its text sent as one segment per upright
+/// cell: the flow runs down its 100px height, so the eleven 9px cells are one line, not one
+/// line each across its 10px width.
+#[test]
+fn vertical_text_with_an_inline_child_flows_its_segments_down_the_line() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+    let row = add_box(&mut mason, stage_id, |s| {
+        s.set_display(Display::Flex);
+        s.set_flex_direction(FlexDirection::Row);
+    });
+    let p = mason.create_text_node();
+    let p_id = p.id();
+    mason.with_style_mut(p_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Box);
+        s.set_writing_mode(WritingMode::VerticalRl);
+        s.set_size(fixed(0.0, 100.0));
+        s.set_font_metrics_values(8.0, 2.0, 5.0, 0.0, 7.0);
+    });
+    mason.set_measure(p_id, Some(measure_eleven_cells), std::ptr::null_mut());
+    let span = mason.create_text_node();
+    let span_id = span.id();
+    mason.with_style_mut(span_id, |s| s.set_display_mode(DisplayMode::Inline));
+    mason.append_node(row, &[p_id]);
+    mason.append_node(p_id, &[span_id]);
+    let cell = InlineSegment::Text {
+        flags: 0,
+        width: 9.0,
+        ascent: 8.0,
+        descent: 2.0,
+    };
+    mason.set_segments(p_id, vec![cell; 11]);
+
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+
+    check(&mason, &[("p", p_id, 0.0, 0.0, 10.0, 100.0)]);
+}
+
+/// Columns overflowing a vertical-rl scroll container to the left are moved right by that
+/// overflow, so the content box runs from 0 and a scroll view started at its end reaches them.
+fn rl_scroller(overflow: mason_core::style::Overflow) -> (Mason, Id, Vec<Id>) {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+    let root = add_box(&mut mason, stage_id, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(WritingMode::VerticalRl);
+        s.set_size(fixed(50.0, 100.0));
+        s.set_overflow(Point {
+            x: overflow,
+            y: mason_core::style::Overflow::Visible,
+        });
+    });
+    let columns = (0..3)
+        .map(|_| {
+            add_box(&mut mason, root, |s| {
+                s.set_display(Display::Block);
+                s.set_size(fixed(30.0, 0.0));
+            })
+        })
+        .collect();
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+    (mason, root, columns)
+}
+
+#[test]
+fn vertical_rl_scroll_container_moves_left_overflow_into_its_content_box() {
+    let (mason, root, c) = rl_scroller(mason_core::style::Overflow::Scroll);
+    check(
+        &mason,
+        &[
+            ("c0", c[0], 60.0, 0.0, 30.0, 100.0),
+            ("c1", c[1], 30.0, 0.0, 30.0, 100.0),
+            ("c2", c[2], 0.0, 0.0, 30.0, 100.0),
+        ],
+    );
+    let l = mason.layout_raw(root);
+    assert_eq!(l.scrollable_overflow_rect.right, 90.0);
+}
+
+#[test]
+fn clipped_vertical_rl_box_keeps_its_columns_overflowing_left() {
+    let (mason, _, c) = rl_scroller(mason_core::style::Overflow::Hidden);
+    check(
+        &mason,
+        &[
+            ("c0", c[0], 20.0, 0.0, 30.0, 100.0),
+            ("c2", c[2], -40.0, 0.0, 30.0, 100.0),
+        ],
+    );
+}
+
+/// Floats in vertical-rl: `left` is line-left (the top) and `right` line-right (the bottom),
+/// both at the block-start (right) edge. Their exclusions are in the container's own frame,
+/// where its sideways text is laid out: x along the lines, y across them from the block start.
+#[test]
+fn floats_in_vertical_rl_sit_at_the_line_ends_with_exclusions_in_the_frame() {
+    let mut mason = Mason::new();
+    let stage_id = stage(&mut mason);
+    let root = add_box(&mut mason, stage_id, |s| {
+        s.set_display(Display::Block);
+        s.set_writing_mode(WritingMode::VerticalRl);
+        s.set_size(fixed(100.0, 100.0));
+    });
+    let left = add_box(&mut mason, root, |s| {
+        s.set_display(Display::Block);
+        s.set_float(Float::Left);
+        s.set_size(fixed(20.0, 30.0));
+    });
+    let right = add_box(&mut mason, root, |s| {
+        s.set_display(Display::Block);
+        s.set_float(Float::Right);
+        s.set_size(fixed(10.0, 15.0));
+    });
+    mason.compute_wh(stage_id, 1280.0, 2688.0);
+    check(
+        &mason,
+        &[
+            ("left", left, 80.0, 0.0, 20.0, 30.0),
+            ("right", right, 90.0, 85.0, 10.0, 15.0),
+        ],
+    );
+    assert_eq!(
+        mason.get_float_exclusions(root),
+        vec![0.0, 0.0, 30.0, 20.0, 1.0, 85.0, 0.0, 15.0, 10.0, 2.0]
+    );
+}

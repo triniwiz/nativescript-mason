@@ -270,6 +270,57 @@ enum StyleKeys {
   TRANSFORM_ORIGIN_STATE = 608,
   TEXT_ORIENTATION = 609, // 0 mixed, 1 upright, 2 sideways
   TEXT_ORIENTATION_STATE = 610,
+
+  // CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+  // A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+  // min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+  // never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+  // maps to when it was written after that side's physical one. Types are the physical group's.
+  LOGICAL_SEQ = 611,
+  MARGIN_ORDER = 612, // bytes(8) (612-619)
+  MARGIN_BLOCK_START_TYPE = 620,
+  MARGIN_INLINE_END_TYPE = 621,
+  MARGIN_BLOCK_END_TYPE = 622,
+  MARGIN_INLINE_START_TYPE = 623,
+  MARGIN_BLOCK_START_VALUE = 624, // f32 (624-627)
+  MARGIN_INLINE_END_VALUE = 628, // f32 (628-631)
+  MARGIN_BLOCK_END_VALUE = 632, // f32 (632-635)
+  MARGIN_INLINE_START_VALUE = 636, // f32 (636-639)
+  PADDING_ORDER = 640, // bytes(8) (640-647)
+  PADDING_BLOCK_START_TYPE = 648,
+  PADDING_INLINE_END_TYPE = 649,
+  PADDING_BLOCK_END_TYPE = 650,
+  PADDING_INLINE_START_TYPE = 651,
+  PADDING_BLOCK_START_VALUE = 652, // f32 (652-655)
+  PADDING_INLINE_END_VALUE = 656, // f32 (656-659)
+  PADDING_BLOCK_END_VALUE = 660, // f32 (660-663)
+  PADDING_INLINE_START_VALUE = 664, // f32 (664-667)
+  INSET_ORDER = 668, // bytes(8) (668-675)
+  INSET_BLOCK_START_TYPE = 676,
+  INSET_INLINE_END_TYPE = 677,
+  INSET_BLOCK_END_TYPE = 678,
+  INSET_INLINE_START_TYPE = 679,
+  INSET_BLOCK_START_VALUE = 680, // f32 (680-683)
+  INSET_INLINE_END_VALUE = 684, // f32 (684-687)
+  INSET_BLOCK_END_VALUE = 688, // f32 (688-691)
+  INSET_INLINE_START_VALUE = 692, // f32 (692-695)
+  SIZE_ORDER = 696, // bytes(12) (696-707)
+  INLINE_SIZE_TYPE = 708,
+  BLOCK_SIZE_TYPE = 709,
+  MIN_INLINE_SIZE_TYPE = 710,
+  MIN_BLOCK_SIZE_TYPE = 711,
+  MAX_INLINE_SIZE_TYPE = 712,
+  MAX_BLOCK_SIZE_TYPE = 713,
+  INLINE_SIZE_VALUE = 714, // f32 (714-717)
+  BLOCK_SIZE_VALUE = 718, // f32 (718-721)
+  MIN_INLINE_SIZE_VALUE = 722, // f32 (722-725)
+  MIN_BLOCK_SIZE_VALUE = 726, // f32 (726-729)
+  MAX_INLINE_SIZE_VALUE = 730, // f32 (730-733)
+  MAX_BLOCK_SIZE_VALUE = 734, // f32 (734-737)
+  TEXT_COMBINE_UPRIGHT = 738, // 0 none, 1 all, 2-4 digits (that many)
+  TEXT_COMBINE_UPRIGHT_STATE = 739,
+  TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+  TEXT_SPACING_TRIM_STATE = 741,
   // </style-keys:offsets>
 }
 
@@ -799,6 +850,8 @@ class StateKeys {
   static readonly LINE_CLAMP = StateKeys.flag(80);
   static readonly TRANSFORM_ORIGIN = StateKeys.flag(81);
   static readonly TEXT_ORIENTATION = StateKeys.flag(82);
+  static readonly TEXT_COMBINE_UPRIGHT = StateKeys.flag(83);
+  static readonly TEXT_SPACING_TRIM = StateKeys.flag(84);
   // </style-keys:state>
 
   static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
@@ -1375,6 +1428,68 @@ function parseSidesColorShorthand(value: string): { t: number | null; r: number 
   }
 }
 
+// CSS logical properties (see StyleKeys.LOGICAL_SEQ): each group's write stamps, logical slots
+// and the encoding its values use. Size slots: inline, block, min-inline, min-block,
+// max-inline, max-block.
+type LogicalKind = 'auto' | 'length' | 'dimension';
+interface LogicalGroup {
+  order: number;
+  half: number;
+  types: number;
+  values: number;
+  kind: (slot: number) => LogicalKind;
+  state: (slot: number) => StateKeys;
+}
+const LOGICAL_GROUPS: Record<'margin' | 'padding' | 'inset' | 'size', LogicalGroup> = {
+  margin: { order: StyleKeys.MARGIN_ORDER, half: 4, types: StyleKeys.MARGIN_BLOCK_START_TYPE, values: StyleKeys.MARGIN_BLOCK_START_VALUE, kind: () => 'auto', state: () => StateKeys.MARGIN },
+  padding: { order: StyleKeys.PADDING_ORDER, half: 4, types: StyleKeys.PADDING_BLOCK_START_TYPE, values: StyleKeys.PADDING_BLOCK_START_VALUE, kind: () => 'length', state: () => StateKeys.PADDING },
+  inset: { order: StyleKeys.INSET_ORDER, half: 4, types: StyleKeys.INSET_BLOCK_START_TYPE, values: StyleKeys.INSET_BLOCK_START_VALUE, kind: () => 'auto', state: () => StateKeys.INSET },
+  size: {
+    order: StyleKeys.SIZE_ORDER,
+    half: 6,
+    types: StyleKeys.INLINE_SIZE_TYPE,
+    values: StyleKeys.INLINE_SIZE_VALUE,
+    kind: (slot) => (slot < 2 ? 'dimension' : 'auto'),
+    state: (slot) => (slot < 2 ? StateKeys.SIZE : slot < 4 ? StateKeys.MIN_SIZE : StateKeys.MAX_SIZE),
+  },
+};
+export type LogicalGroupName = keyof typeof LOGICAL_GROUPS;
+const LOGICAL_STAMPS: ReadonlyArray<[order: number, length: number]> = [
+  [StyleKeys.MARGIN_ORDER, 8],
+  [StyleKeys.PADDING_ORDER, 8],
+  [StyleKeys.INSET_ORDER, 8],
+  [StyleKeys.SIZE_ORDER, 12],
+];
+const stampUsed = new Uint8Array(256);
+const stampRank = new Uint8Array(256);
+
+/** A length in the buffer's encoding for `kind` (auto: margins, insets, min/max; length: padding; dimension: sizes). */
+function logicalTypeValue(value: unknown, kind: LogicalKind, emBasis: number | undefined): { type: number; value: number } | undefined {
+  switch (typeof value) {
+    case 'string':
+      return kind === 'length' ? lengthPercentageFromString(value, emBasis) : kind === 'dimension' ? dimensionFromString(value, emBasis) : lengthPercentageAutoFromString(value, emBasis);
+    case 'number':
+      return { type: kind === 'length' ? 0 : 1, value: layout.toDevicePixels(value) };
+    case 'object': {
+      const length = value as { unit?: string; value: number } | null;
+      if (!length) return undefined;
+      switch (length.unit) {
+        case 'dip':
+        case 'px':
+          return { type: kind === 'length' ? 0 : 1, value: layout.toDevicePixels(length.value) };
+        case '%':
+          return { type: kind === 'length' ? 1 : 2, value: length.value };
+      }
+      const keyword = kind === 'dimension' ? sizingKeywordOf(length) : undefined;
+      return keyword ? dimensionFromString(keyword) : undefined;
+    }
+  }
+  return undefined;
+}
+
+// text-spacing-trim keywords, in their buffer order.
+const TEXT_SPACING_TRIM_VALUES = ['normal', 'space-all', 'space-first', 'trim-start', 'trim-both', 'trim-all', 'auto'];
+
 const i8Buffer = new Int8Array(4);
 
 const f32Buffer = new Uint8Array(Float32Array.BYTES_PER_ELEMENT * 4);
@@ -1646,6 +1761,8 @@ export function refreshViewportUnits(): void {
 const INHERITED_TEXT_STATE = {
   writingMode: [StyleKeys.WRITING_MODE_STATE, StateKeys.WRITING_MODE],
   textOrientation: [StyleKeys.TEXT_ORIENTATION_STATE, StateKeys.TEXT_ORIENTATION],
+  textCombineUpright: [StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, StateKeys.TEXT_COMBINE_UPRIGHT],
+  textSpacingTrim: [StyleKeys.TEXT_SPACING_TRIM_STATE, StateKeys.TEXT_SPACING_TRIM],
   hyphens: [StyleKeys.HYPHENS_STATE, StateKeys.HYPHENS],
   whiteSpace: [StyleKeys.WHITE_SPACE_STATE, StateKeys.WHITE_SPACE],
   wordSpacing: [StyleKeys.WORD_SPACING_STATE, StateKeys.WORD_SPACING],
@@ -3122,6 +3239,8 @@ export class Style {
         return;
     }
 
+    this.stampPhysical('size', 0b100);
+
     this.commitState(StateKeys.MIN_SIZE);
   }
 
@@ -3169,6 +3288,7 @@ export class Style {
       default:
         return;
     }
+    this.stampPhysical('size', 0b1000);
     this.commitState(StateKeys.MIN_SIZE);
   }
 
@@ -3225,6 +3345,7 @@ export class Style {
       default:
         return;
     }
+    this.stampPhysical('size', 0b1);
     this.commitState(StateKeys.SIZE);
   }
 
@@ -3281,6 +3402,7 @@ export class Style {
       default:
         return;
     }
+    this.stampPhysical('size', 0b10);
     this.commitState(StateKeys.SIZE);
   }
 
@@ -3327,6 +3449,7 @@ export class Style {
       default:
         return;
     }
+    this.stampPhysical('size', 0b10000);
     this.commitState(StateKeys.MAX_SIZE);
   }
 
@@ -3373,6 +3496,7 @@ export class Style {
       default:
         return;
     }
+    this.stampPhysical('size', 0b100000);
     this.commitState(StateKeys.MAX_SIZE);
   }
 
@@ -3559,6 +3683,7 @@ export class Style {
         this.bottom = sides[2] as never;
         this.left = sides[3] as never;
         this.inBatch = wasInBatch;
+        this.stampPhysical('inset', 0b1111);
         this.commitState(StateKeys.INSET);
         return;
       }
@@ -3606,6 +3731,8 @@ export class Style {
 
       this.u8View.set(f32Buffer, StyleKeys.INSET_LEFT_VALUE);
 
+      this.stampPhysical('inset', 0b1111);
+
       this.commitState(StateKeys.INSET);
     }
   }
@@ -3650,6 +3777,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('inset', 0b1000);
     this.commitState(StateKeys.INSET);
   }
 
@@ -3693,6 +3821,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('inset', 0b10);
     this.commitState(StateKeys.INSET);
   }
 
@@ -3736,6 +3865,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('inset', 0b1);
     this.commitState(StateKeys.INSET);
   }
 
@@ -3779,6 +3909,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('inset', 0b100);
     this.commitState(StateKeys.INSET);
   }
 
@@ -3793,6 +3924,7 @@ export class Style {
         this.marginBottom = sides[2] as never;
         this.marginLeft = sides[3] as never;
         this.inBatch = wasInBatch;
+        this.stampPhysical('margin', 0b1111);
         this.commitState(StateKeys.MARGIN);
         return;
       }
@@ -3840,6 +3972,8 @@ export class Style {
 
       this.u8View.set(f32Buffer, StyleKeys.MARGIN_LEFT_VALUE);
 
+      this.stampPhysical('margin', 0b1111);
+
       this.commitState(StateKeys.MARGIN);
     }
   }
@@ -3884,6 +4018,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('margin', 0b1000);
     this.commitState(StateKeys.MARGIN);
   }
 
@@ -3927,6 +4062,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('margin', 0b10);
     this.commitState(StateKeys.MARGIN);
   }
 
@@ -3970,6 +4106,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('margin', 0b1);
     this.commitState(StateKeys.MARGIN);
   }
 
@@ -4012,6 +4149,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('margin', 0b100);
     this.commitState(StateKeys.MARGIN);
   }
 
@@ -4026,6 +4164,7 @@ export class Style {
         this.paddingBottom = sides[2] as never;
         this.paddingLeft = sides[3] as never;
         this.inBatch = wasInBatch;
+        this.stampPhysical('padding', 0b1111);
         this.commitState(StateKeys.PADDING);
         return;
       }
@@ -4035,6 +4174,7 @@ export class Style {
     this.inBatch = true;
     this.paddingBottom = this.paddingLeft = this.paddingRight = this.paddingTop = value;
     this.inBatch = wasInBatch;
+    this.stampPhysical('padding', 0b1111);
     this.commitState(StateKeys.PADDING);
   }
 
@@ -4078,6 +4218,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('padding', 0b1000);
     this.commitState(StateKeys.PADDING);
   }
 
@@ -4120,6 +4261,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('padding', 0b10);
     this.commitState(StateKeys.PADDING);
   }
 
@@ -4163,6 +4305,7 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('padding', 0b1);
     this.commitState(StateKeys.PADDING);
   }
 
@@ -4205,7 +4348,69 @@ export class Style {
         }
         break;
     }
+    this.stampPhysical('padding', 0b100);
     this.commitState(StateKeys.PADDING);
+  }
+
+  // CSS logical properties: see StyleKeys.LOGICAL_SEQ.
+
+  /** The next write stamp; at the counter's end every stamp is renumbered by rank, keeping their order. */
+  private nextLogicalStamp(): number {
+    const view = this.style_view;
+    let seq = getUint8(view, StyleKeys.LOGICAL_SEQ);
+    if (seq === 255) {
+      stampUsed.fill(0);
+      for (const [order, length] of LOGICAL_STAMPS) {
+        for (let i = 0; i < length; i++) stampUsed[getUint8(view, order + i)] = 1;
+      }
+      let next = 0;
+      for (let stamp = 1; stamp < 256; stamp++) stampRank[stamp] = stampUsed[stamp] ? ++next : 0;
+      for (const [order, length] of LOGICAL_STAMPS) {
+        for (let i = 0; i < length; i++) setUint8(view, order + i, stampRank[getUint8(view, order + i)]);
+      }
+      seq = next;
+    }
+    setUint8(view, StyleKeys.LOGICAL_SEQ, seq + 1);
+    return seq + 1;
+  }
+
+  /** Stamps the physical slots in `mask` as written now, so they win over older logical values. Free while the group has none. */
+  private stampPhysical(group: LogicalGroupName, mask: number) {
+    const { order, half } = LOGICAL_GROUPS[group];
+    const view = this.style_view;
+    let logical = false;
+    for (let i = 0; i < half; i++) {
+      if (getUint8(view, order + half + i) !== 0) {
+        logical = true;
+        break;
+      }
+    }
+    if (!logical) return;
+    const stamp = this.nextLogicalStamp();
+    for (let i = 0; i < half; i++) {
+      if (mask & (1 << i)) setUint8(view, order + i, stamp);
+    }
+  }
+
+  /**
+   * Sets a logical side (margin, padding, inset: 0 block-start, 1 inline-end, 2 block-end,
+   * 3 inline-start; size: see LOGICAL_GROUPS). null or undefined removes it, so the physical
+   * value applies again.
+   */
+  setLogical(group: LogicalGroupName, slot: number, value: unknown) {
+    const entry = LOGICAL_GROUPS[group];
+    const parsed = value == null || value === '' ? undefined : logicalTypeValue(value, entry.kind(slot), this.emBasisFor(value));
+    if (value != null && value !== '' && !parsed) return;
+    this.prepareMut();
+    const view = this.style_view;
+    if (parsed) {
+      setUint8(view, entry.order + entry.half + slot, this.nextLogicalStamp());
+      setInt8(view, entry.types + slot, parsed.type);
+      setFloat32(view, entry.values + slot * 4, parsed.value);
+    } else {
+      setUint8(view, entry.order + entry.half + slot, 0);
+    }
+    this.commitState(entry.state(slot));
   }
 
   get gridGap() {
@@ -7724,6 +7929,60 @@ export class Style {
     return this.textOrientation;
   }
 
+  /** text-combine-upright: `none`, `all`, or `digits` with an optional count of 2 to 4 (2 when omitted). */
+  get textCombineUpright(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)) return 'none';
+    const value = getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT);
+    return value === 0 ? 'none' : value === 1 ? 'all' : `digits ${value}`;
+  }
+
+  set textCombineUpright(value: string) {
+    const parts = String(value).trim().toLowerCase().split(/\s+/);
+    let v = -1;
+    if (parts.length === 1 && parts[0] === 'none') v = 0;
+    else if (parts.length === 1 && parts[0] === 'all') v = 1;
+    else if (parts[0] === 'digits' && parts.length <= 2) {
+      const count = parts.length === 2 ? Number(parts[1]) : 2;
+      if (Number.isInteger(count) && count >= 2 && count <= 4) v = count;
+    }
+    if (v === -1) return;
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT, v);
+    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, 1);
+    this.commitState(StateKeys.TEXT_COMBINE_UPRIGHT);
+  }
+
+  set 'text-combine-upright'(value: string) {
+    this.textCombineUpright = value;
+  }
+
+  get 'text-combine-upright'() {
+    return this.textCombineUpright;
+  }
+
+  /** text-spacing-trim: `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all` or `auto`. */
+  get textSpacingTrim(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE)) return 'normal';
+    return TEXT_SPACING_TRIM_VALUES[getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM)] ?? 'normal';
+  }
+
+  set textSpacingTrim(value: string) {
+    const v = TEXT_SPACING_TRIM_VALUES.indexOf(String(value).trim().toLowerCase());
+    if (v === -1) return;
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM, v);
+    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE, 1);
+    this.commitState(StateKeys.TEXT_SPACING_TRIM);
+  }
+
+  set 'text-spacing-trim'(value: string) {
+    this.textSpacingTrim = value;
+  }
+
+  get 'text-spacing-trim'() {
+    return this.textSpacingTrim;
+  }
+
   /** Lets an inherited text property inherit again, as when its declaration is removed. */
   unsetInheritedText(name: InheritedTextProperty) {
     const [state, key] = INHERITED_TEXT_STATE[name];
@@ -7885,6 +8144,8 @@ export class Style {
       borderStyle: this.borderStyle,
       writingMode: this.writingMode,
       textOrientation: this.textOrientation,
+      textCombineUpright: this.textCombineUpright,
+      textSpacingTrim: this.textSpacingTrim,
       unicodeBidi: this.unicodeBidi,
       hyphens: this.hyphens,
       caretColor: this.caretColor,

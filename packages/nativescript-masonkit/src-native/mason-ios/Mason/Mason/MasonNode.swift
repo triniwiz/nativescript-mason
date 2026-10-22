@@ -899,7 +899,16 @@ public class MasonNode: NSObject {
       let scaleF = CGFloat(NSCMason.scale)
       attrs[.kern] = CGFloat(letterSpacing) / scaleF
     }
-    
+
+    if style.resolvedTextSpacingTrim == 1 { attrs[Constants.SPACING_TRIM_OFF_KEY] = true }
+
+    // Vertical text reads text-orientation per run, as an inline element can set its own.
+    if style.resolvedWritingMode != 0 {
+      attrs[Constants.TEXT_ORIENTATION_KEY] = style.resolvedTextOrientation
+      let combine = style.resolvedTextCombineUpright
+      if combine != 0 { attrs[Constants.TEXT_COMBINE_KEY] = combine }
+    }
+
     let lineHeightType = style.resolvedLineHeightType
     let lineHeight = style.resolvedLineHeight
     // Absolute line-height is a dip value (dip == pt on iOS); a unitless one is

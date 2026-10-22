@@ -115,6 +115,7 @@ import {
   listStylePositionProperty,
   installMasonSizeUnits,
   masonRawDeclaration,
+  logicalLonghands,
 } from './properties';
 import { masonLayout } from './display-density';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
@@ -3880,6 +3881,14 @@ export function windowsFontSource(font: any): string {
     if (source) return String(source);
   } catch (_) {}
   return String((font && typeof font === 'object' ? font.fontFamily : '') ?? '');
+}
+
+// Logical margins, padding, insets and sizes: see properties.ts.
+for (const { property, group, slot } of logicalLonghands) {
+  ViewBase.prototype[property.setNative] = function (this: ViewBase, value: unknown) {
+    // @ts-ignore
+    this._styleHelper?.setLogical(group, slot, value === property.defaultValue ? undefined : value);
+  };
 }
 
 export class TextBase extends ViewBase {

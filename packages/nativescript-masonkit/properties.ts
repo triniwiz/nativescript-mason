@@ -46,7 +46,7 @@ import { isMasonView_, touchAction_ } from './symbols';
 
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
-import type { Style as MasonStyle } from './style';
+import type { LogicalGroupName, Style as MasonStyle } from './style';
 import { beginStyleWrite, cssLengthToDip, endStyleWrite, isSizingKeyword, parseAspectRatio } from './style';
 import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
@@ -2433,6 +2433,32 @@ export const textOrientationProperty = new CssProperty<Style, string>({
   },
 });
 
+export const textCombineUprightProperty = new CssProperty<Style, string>({
+  name: 'textCombineUpright',
+  cssName: 'text-combine-upright',
+  // No default: it inherits, so the initial value is a real change under another value.
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue == null) view.unsetInheritedText('textCombineUpright');
+      else view.textCombineUpright = newValue;
+    }
+  },
+});
+
+export const textSpacingTrimProperty = new CssProperty<Style, string>({
+  name: 'textSpacingTrim',
+  cssName: 'text-spacing-trim',
+  // No default: it inherits, so the initial value is a real change under another value.
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue == null) view.unsetInheritedText('textSpacingTrim');
+      else view.textSpacingTrim = newValue;
+    }
+  },
+});
+
 export const unicodeBidiProperty = new CssProperty<Style, string>({
   name: 'unicodeBidi',
   cssName: 'unicode-bidi',
@@ -2507,6 +2533,8 @@ maskModeProperty.register(Style);
 maskCompositeProperty.register(Style);
 writingModeProperty.register(Style);
 textOrientationProperty.register(Style);
+textCombineUprightProperty.register(Style);
+textSpacingTrimProperty.register(Style);
 unicodeBidiProperty.register(Style);
 caretColorProperty.register(Style);
 
@@ -2700,8 +2728,11 @@ borderLeftProperty.register(Style);
 // ---------------------------------------------------------------------------
 // Logical properties
 // ---------------------------------------------------------------------------
-// Shorthands over the physical longhands for horizontal left-to-right text (inline = left/right,
-// block = top/bottom). Not direction-aware: shorthands expand at parse time, before any element exists.
+// Margins, padding, insets and sizes are longhands of their own: a Mason view stores them as
+// logical sides, which mason-core maps by the box's writing mode and direction (the later of a
+// physical and a logical declaration wins a side). A plain NativeScript view gets the physical
+// property for horizontal left-to-right text. Borders and corners are shorthands over the
+// physical longhands for horizontal left-to-right text, as their painters read those.
 
 type Sides = readonly [top: ShorthandLonghand, right: ShorthandLonghand, bottom: ShorthandLonghand, left: ShorthandLonghand];
 
@@ -2712,20 +2743,65 @@ const LOGICAL_SIDES: ReadonlyArray<[logical: string, physical: number]> = [
   ['inline-start', 3],
 ];
 
-/** `<prefix>-inline<suffix>`, `<prefix>-block<suffix>` and the four `-start`/`-end` sides. */
-function logicalSides(prefix: string, suffix: string, sides: Sides, splitAxis: (value: string) => string[]): MasonShorthand[] {
+/** `<prefix>-inline<suffix>`, `<prefix>-block<suffix>` and, when `perSide`, the four `-start`/`-end` sides. */
+function logicalSides(prefix: string, suffix: string, sides: Sides, splitAxis: (value: string) => string[], perSide = true): MasonShorthand[] {
   const inline: MasonShorthand = { cssName: `${prefix}-inline${suffix}`, longhands: [sides[3], sides[1]], split: splitAxis };
   const block: MasonShorthand = { cssName: `${prefix}-block${suffix}`, longhands: [sides[0], sides[2]], split: splitAxis };
-  const perSide = LOGICAL_SIDES.map(([side, i]): MasonShorthand => ({ cssName: `${prefix}-${side}${suffix}`, longhands: [sides[i]], split: passThrough }));
-  return [inline, block, ...perSide];
+  if (!perSide) return [inline, block];
+  return [inline, block, ...LOGICAL_SIDES.map(([side, i]): MasonShorthand => ({ cssName: `${prefix}-${side}${suffix}`, longhands: [sides[i]], split: passThrough }))];
 }
+
+export interface LogicalLonghand {
+  property: CssProperty<Style, unknown>;
+  group: LogicalGroupName;
+  slot: number;
+}
+
+/** Logical longhands; Mason views write them in setNative (common.ts), once the native view exists. */
+export const logicalLonghands: LogicalLonghand[] = [];
+
+function logicalLonghand(cssName: string, group: LogicalGroupName, slot: number, physical: ShorthandLonghand) {
+  const property = new CssProperty<Style, unknown>({
+    name: toCamelCase(cssName),
+    cssName,
+    valueChanged(target, oldValue, newValue) {
+      const ref = target?.viewRef;
+      const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
+      if (!view || view[isMasonView_]) return;
+      // cssName is the cascade's css-tier key ('css:margin-left').
+      (target as never)[physical.cssName] = (newValue ?? unsetValue) as never;
+    },
+  });
+  property.register(Style);
+  logicalLonghands.push({ property, group, slot });
+  return property;
+}
+
+/** A group's four logical sides, in the positions of the physical sides they map to in horizontal left-to-right text. */
+function logicalSideLonghands(prefix: string, group: LogicalGroupName, physical: Sides): Sides {
+  return LOGICAL_SIDES.map(([side, i]) => logicalLonghand(`${prefix}-${side}`, group, i, physical[i])) as unknown as Sides;
+}
+
+export const marginLogicalLonghands = logicalSideLonghands('margin', 'margin', marginLonghands as unknown as Sides);
+export const paddingLogicalLonghands = logicalSideLonghands('padding', 'padding', paddingLonghands as unknown as Sides);
+export const insetLogicalLonghands = logicalSideLonghands('inset', 'inset', [topProperty, rightProperty, bottomProperty, leftProperty]);
+export const logicalSizeLonghands = (
+  [
+    ['inline-size', widthProperty],
+    ['block-size', heightProperty],
+    ['min-inline-size', minWidthProperty],
+    ['min-block-size', minHeightProperty],
+    ['max-inline-size', maxWidthProperty],
+    ['max-block-size', maxHeightProperty],
+  ] as const
+).map(([cssName, physical], slot) => logicalLonghand(cssName, 'size', slot, physical as ShorthandLonghand));
 
 const borderSideLonghands = (i: number) => [borderWidthLonghands[i], borderStyleLonghands[i], borderColorLonghands[i]];
 
 const logicalShorthands: MasonShorthand[] = [
-  ...logicalSides('margin', '', marginLonghands as unknown as Sides, splitMarginStartEnd),
-  ...logicalSides('padding', '', paddingLonghands as unknown as Sides, splitPaddingStartEnd),
-  ...logicalSides('inset', '', [topProperty, rightProperty, bottomProperty, leftProperty], splitInsetStartEnd),
+  ...logicalSides('margin', '', marginLogicalLonghands, splitMarginStartEnd, false),
+  ...logicalSides('padding', '', paddingLogicalLonghands, splitPaddingStartEnd, false),
+  ...logicalSides('inset', '', insetLogicalLonghands, splitInsetStartEnd, false),
   ...logicalSides('border', '-width', borderWidthLonghands as unknown as Sides, splitBorderWidthStartEnd),
   ...logicalSides('border', '-style', borderStyleLonghands as unknown as Sides, splitBorderStyleStartEnd),
   ...logicalSides('border', '-color', borderColorLonghands as unknown as Sides, splitBorderColorStartEnd),
@@ -2738,12 +2814,6 @@ const logicalShorthands: MasonShorthand[] = [
   { cssName: 'border-start-end-radius', longhands: [borderTopRightRadiusProperty], split: passThrough },
   { cssName: 'border-end-end-radius', longhands: [borderBottomRightRadiusProperty], split: passThrough },
   { cssName: 'border-end-start-radius', longhands: [borderBottomLeftRadiusProperty], split: passThrough },
-  { cssName: 'inline-size', longhands: [widthProperty], split: passThrough },
-  { cssName: 'block-size', longhands: [heightProperty], split: passThrough },
-  { cssName: 'min-inline-size', longhands: [minWidthProperty], split: passThrough },
-  { cssName: 'min-block-size', longhands: [minHeightProperty], split: passThrough },
-  { cssName: 'max-inline-size', longhands: [maxWidthProperty], split: passThrough },
-  { cssName: 'max-block-size', longhands: [maxHeightProperty], split: passThrough },
   { cssName: 'overflow-inline', longhands: [overflowXProperty], split: passThrough },
   { cssName: 'overflow-block', longhands: [overflowYProperty], split: passThrough },
 ];

@@ -144,6 +144,11 @@ declare module '@nativescript/core/ui/styling/style' {
     blockSize: string;
     writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
     textOrientation: 'mixed' | 'upright' | 'sideways';
+    textCombineUpright: 'none' | 'all' | 'digits' | `digits ${2 | 3 | 4}`;
+    textSpacingTrim: 'normal' | 'space-all' | 'space-first' | 'trim-start' | 'trim-both' | 'trim-all' | 'auto';
+    textCombineUpright: 'none' | 'all' | 'digits' | `digits ${2 | 3 | 4}`;
+    textSpacingTrim: 'normal' | 'space-all' | 'space-first' | 'trim-start' | 'trim-both' | 'trim-all' | 'auto';
+    textSpacingTrim: 'normal' | 'space-all' | 'space-first' | 'trim-start' | 'trim-both' | 'trim-all' | 'auto';
     unicodeBidi: 'normal' | 'embed' | 'bidi-override';
     backdropFilter: string;
     maskImage: string;
@@ -262,6 +267,8 @@ interface Style {
   blockSize: string;
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   textOrientation: 'mixed' | 'upright' | 'sideways';
+  textCombineUpright: 'none' | 'all' | 'digits' | `digits ${2 | 3 | 4}`;
+  textSpacingTrim: 'normal' | 'space-all' | 'space-first' | 'trim-start' | 'trim-both' | 'trim-all' | 'auto';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   maskImage: string;
@@ -367,6 +374,8 @@ interface IViewBase {
   blockSize: string;
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   textOrientation: 'mixed' | 'upright' | 'sideways';
+  textCombineUpright: 'none' | 'all' | 'digits' | `digits ${2 | 3 | 4}`;
+  textSpacingTrim: 'normal' | 'space-all' | 'space-first' | 'trim-start' | 'trim-both' | 'trim-all' | 'auto';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   maskImage: string;

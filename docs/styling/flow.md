@@ -112,9 +112,11 @@ A vertical box is also a vertical container. Its children lay out in its writing
 }
 
 .page p {
-  margin: 0 0 0 16px; /* the space before the next column, see below */
+  margin-block: 0 16px; /* the left side in vertical-rl: the space before the next column */
 }
 ```
+
+Logical properties follow the writing mode, and so do the default margins of `<p>` and headings, which space vertical paragraphs left and right. See [Logical properties](/styling/box-model#logical-properties).
 
 A box whose writing mode is orthogonal to its container's (a vertical box in a horizontal page, or a `horizontal-tb` box inside a vertical one) sizes its inline axis to fit its content, up to the space it has. That space is its containing block's definite size in that axis, else the viewport height, as in CSS.
 
@@ -128,15 +130,37 @@ Sets how glyphs sit in vertical text. It inherits.
 | `upright` | Every character stays upright, Latin and spaces included. |
 | `sideways` | Every character is turned sideways. `sideways-right` is accepted as the same value. |
 
-Full-width characters take 1em along the line. Other upright characters take the font's height. Brackets, the long vowel mark `ー` and wave dashes are turned with the line, as their vertical forms are. The ideographic comma and full stop (`、` `。`) use the font's vertical forms, which put them in the corner of their cell.
+A full-width character's cell along the line is the font's vertical advance where the font has vertical metrics, else that font's height, as in Chrome. Full-width characters use the font's vertical forms: the ideographic comma and full stop (`、` `。`) and small kana sit in the corner of their cell, and brackets, the long vowel mark `ー` and wave dashes take their turned shapes. A bracket or dash the font has no vertical form for is turned with the line instead.
+
+`text-orientation` can be set on an inline element: `<span>` inside a `mixed` paragraph can keep its Latin letters upright.
+
+### text-combine-upright
+
+Sets a run of characters horizontally in a single upright cell of 1em, squeezed to fit when it's wider, as for dates and numbers in vertical Japanese. It inherits.
+
+| Value | Combines |
+| --- | --- |
+| `none` (default) | nothing |
+| `all` | all of the element's text |
+| `digits`, `digits 2` to `digits 4` | each run of up to that many ASCII digits (2 when no number is given); longer runs stay sideways |
+
+```html
+<p class="page">令和<span class="tcy">6</span>年<span class="tcy">12</span>月</p>
+```
+
+```css
+.tcy {
+  text-combine-upright: all;
+}
+```
+
+### Scrolling and floats
+
+A `vertical-rl` box that scrolls (`overflow-x: scroll` or `auto`) starts at its right edge, where its first column is, and scrolls left towards the rest, keeping its distance from the right edge when its content changes. Its `scrollLeft` is 0 at the start and negative to the left, as in browsers.
+
+Floats in a vertical box sit at the ends of its lines: `float: left` at the top (line-left) and `float: right` at the bottom, against its block-start side. The text beside them shortens its lines around them on iOS and Android. On Windows the floats are placed, but the text doesn't wrap around them yet.
 
 Not supported yet:
 
-- `text-combine-upright`
-- float exclusions in vertical text
 - turning the label of a button or other widget inside vertical text
-- scroll containers in `vertical-rl`: content that overflows to the left can't be scrolled to
-- logical properties (`margin-inline`, `inset-block`, ...) still map as for horizontal text
-- the default margins of `<p>` and headings stay on their top and bottom in vertical text; set `margin-left`/`margin-right` to space vertical paragraphs
-- `text-orientation` set on an inline element inside a paragraph: the paragraph's own value is used for all of its text
-- small kana keep their horizontal glyph, so they sit low in their cell instead of in its corner
+- inline boxes (images, buttons) in vertical text beside floats keep their line positions as if there were no floats

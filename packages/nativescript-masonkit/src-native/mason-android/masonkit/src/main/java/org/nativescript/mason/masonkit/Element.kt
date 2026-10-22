@@ -911,8 +911,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         } else {
           layoutHeight
         }
-        view.scrollContentWidth = scrollCW
-        view.scrollContentHeight = scrollCH
+        view.setScrollContent(scrollCW, scrollCH)
         view.layout(x, y, right, bottom)
       } else {
         val lx = x.coerceIn(Int.MIN_VALUE, Int.MAX_VALUE)
@@ -1224,8 +1223,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
               Overflow.Auto.value -> if (nv.contentHeight > nv.height) nv.contentHeight.toInt() else nv.height.toInt()
               else -> maxOf(nv.contentHeight.toInt(), nv.height.toInt())
             }
-            view.scrollContentWidth = scrollCW
-            view.scrollContentHeight = scrollCH
+            view.setScrollContent(scrollCW, scrollCH)
 
             // Enable scroll axes based on overflow style + content exceeding viewport.
             // updateScrollState() in Scroll.onLayout won't run when the Scroll's own

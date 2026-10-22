@@ -178,7 +178,7 @@ export class P extends Text {
 // position, so it lands inside whatever space the container's own padding
 // already pushed that child into; no separate per-item bookkeeping needed.
 function applyListUaDefaults(view: Scroll): void {
-  applyUaCss(view, { 'margin-top': 16, 'margin-bottom': 16, 'padding-left': 40 });
+  applyUaCss(view, { 'margin-block-start': 16, 'margin-block-end': 16, 'padding-inline-start': 40 });
 }
 
 @CSSType('ul')
@@ -312,7 +312,7 @@ export class Figure extends BlockElement {
   constructor() {
     super();
     // Browser UA default: `margin: 1em 40px`.
-    applyUaCss(this, { 'margin-top': 16, 'margin-bottom': 16, 'margin-left': 40, 'margin-right': 40 });
+    applyUaCss(this, { 'margin-block-start': 16, 'margin-block-end': 16, 'margin-inline-start': 40, 'margin-inline-end': 40 });
   }
 }
 
@@ -553,7 +553,7 @@ export class Hgroup extends BlockElement {}
 export class Dl extends BlockElement {
   constructor() {
     super();
-    applyUaCss(this, { 'margin-top': 16, 'margin-bottom': 16 });
+    applyUaCss(this, { 'margin-block-start': 16, 'margin-block-end': 16 });
   }
 }
 
@@ -565,7 +565,7 @@ export class Dd extends BlockElement {
   constructor() {
     super();
     // Browser UA default: `margin-inline-start: 40px`.
-    applyUaCss(this, { 'margin-left': 40 });
+    applyUaCss(this, { 'margin-inline-start': 40 });
   }
 }
 
@@ -589,8 +589,8 @@ export class Hr extends BlockElement {
     // 1px border. Mason has no `border-style: inset`, so a plain 1px top border
     // is the closest honest approximation.
     applyUaCss(this, {
-      'margin-top': 8,
-      'margin-bottom': 8,
+      'margin-block-start': 8,
+      'margin-block-end': 8,
       'border-top-width': 1,
       'border-top-style': 'solid',
       height: 0,

@@ -48,6 +48,8 @@ describe('an inherited keyword reaches the buffer even when it is the initial va
   const CASES: Array<[string, string, string]> = [
     ['writing-mode', 'horizontal-tb', 'WRITING_MODE_STATE'],
     ['text-orientation', 'mixed', 'TEXT_ORIENTATION_STATE'],
+    ['text-combine-upright', 'none', 'TEXT_COMBINE_UPRIGHT_STATE'],
+    ['text-spacing-trim', 'normal', 'TEXT_SPACING_TRIM_STATE'],
     ['hyphens', 'manual', 'HYPHENS_STATE'],
     ['white-space', 'normal', 'WHITE_SPACE_STATE'],
     ['word-spacing', 'normal', 'WORD_SPACING_STATE'],

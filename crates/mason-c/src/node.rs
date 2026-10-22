@@ -555,6 +555,28 @@ pub extern "C" fn mason_node_get_text_orientation(mason: *mut CMason, node: *mut
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_get_text_combine_upright(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe { (*mason).0.resolved_text_combine_upright((*node).0.id()) }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_text_spacing_trim(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe { (*mason).0.resolved_text_spacing_trim((*node).0.id()) }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_get_direction(mason: *mut CMason, node: *mut CMasonNode) -> u8 {
     if mason.is_null() || node.is_null() {
         return 0;

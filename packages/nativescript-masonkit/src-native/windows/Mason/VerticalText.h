@@ -29,8 +29,8 @@ namespace mason_dwrite
         0x1F000, 0x1F2FF, 0x1F300, 0x1F64F, 0x1F680, 0x1F77F, 0x1F900, 0x1FAFF, 0x20000, 0x3FFFD,
     };
 
-    // The Tr ones among them (brackets, the long vowel mark, wave dashes): their vertical forms
-    // are the glyph turned, so they're drawn sideways, which turns them the same way.
+    // The Tr ones among them (brackets, the long vowel mark, wave dashes): upright only as the
+    // font's vertical form, else drawn sideways, which turns them the way that form does.
     inline constexpr uint32_t kRotatedRanges[] = {
         0x2329, 0x232A, 0x3008, 0x3011, 0x3014, 0x301F, 0x3030, 0x3030, 0x30A0, 0x30A0,
         0x30FC, 0x30FC, 0xFE59, 0xFE5E, 0xFF08, 0xFF09, 0xFF0D, 0xFF0D, 0xFF1A, 0xFF1E,
@@ -52,12 +52,7 @@ namespace mason_dwrite
         return false;
     }
 
-    inline bool IsUprightInMixed(uint32_t cp) { return InRanges(kUprightRanges, cp) && !InRanges(kRotatedRanges, cp); }
-
-    // Ideographic commas and full stops, whose vertical alternates ('vert') sit in the cell's corner.
-    inline bool TakesVerticalAlternate(uint32_t cp) { return cp == 0x3001 || cp == 0x3002 || cp == 0xFF0C || cp == 0xFF0E; }
-
-    // Full-width characters advance 1em upright; others the font's ascent plus descent.
+    // Full-width characters: drawn as their vertical forms, centred on the ideographic em box.
     inline bool IsWideUpright(uint32_t cp) { return cp >= 0x2E80 || (cp >= 0x1100 && cp <= 0x11FF); }
 
     // Controls, line breaks and format characters (zero-width spaces among them) keep their
@@ -102,8 +97,104 @@ namespace mason_dwrite
         // Full width: centred on the ideographic em box, as CSS's central baseline does.
         bool wide{ false };
         float size{ 0.0f };
+        // The baseline's distance below the cell's top edge from the font's vertical origin
+        // (VORG), or negative to centre the glyph.
+        float baseline{ -1.0f };
+        // text-combine-upright: the run's text set horizontally in the cell, squeezed to fit.
+        bool combined{ false };
+        // text-spacing-trim: kPunctuationOpening or kPunctuationClosing keeps that half of the
+        // cell (which is then half the font's), 0 all of it.
+        uint8_t half{ 0 };
         winrt::com_ptr<IDWriteTextLayout> glyph;
     };
+
+    // Records the first glyph a layout draws and the font it comes from (fallback included).
+    struct GlyphProbe : winrt::implements<GlyphProbe, IDWriteTextRenderer>
+    {
+        HRESULT __stdcall IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
+        {
+            *disabled = TRUE;
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override
+        {
+            *transform = DWRITE_MATRIX{ 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetPixelsPerDip(void*, FLOAT* pixels) noexcept override
+        {
+            *pixels = 1.0f;
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawGlyphRun(void*, FLOAT, FLOAT, DWRITE_MEASURING_MODE, DWRITE_GLYPH_RUN const* run,
+            DWRITE_GLYPH_RUN_DESCRIPTION const*, ::IUnknown*) noexcept override
+        {
+            if (!run) return S_OK;
+            if (!face && run->fontFace && run->glyphCount > 0)
+            {
+                face.copy_from(run->fontFace);
+                glyph = run->glyphIndices[0];
+            }
+            glyphs += run->glyphCount;
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawUnderline(void*, FLOAT, FLOAT, DWRITE_UNDERLINE const*, ::IUnknown*) noexcept override { return S_OK; }
+        HRESULT __stdcall DrawStrikethrough(void*, FLOAT, FLOAT, DWRITE_STRIKETHROUGH const*, ::IUnknown*) noexcept override { return S_OK; }
+        HRESULT __stdcall DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, ::IUnknown*) noexcept override { return S_OK; }
+
+        winrt::com_ptr<IDWriteFontFace> face;
+        UINT16 glyph{ 0 };
+        uint32_t glyphs{ 0 };
+    };
+
+    inline bool HasFontTable(IDWriteFontFace* face, UINT32 tag)
+    {
+        const void* data = nullptr;
+        UINT32 size = 0;
+        void* context = nullptr;
+        BOOL exists = FALSE;
+        if (FAILED(face->TryGetFontTable(tag, &data, &size, &context, &exists))) return false;
+        if (exists) face->ReleaseFontTable(context);
+        return exists != FALSE;
+    }
+
+    // What the font a grapheme is drawn in says about it set upright, in ems. `advance` is the
+    // vertical advance (vmtx) or 0, `height` the font's ascent plus descent, `origin` the
+    // vertical origin (VORG) or negative, `form` whether the glyph drawn is a vertical form.
+    struct VerticalGlyph
+    {
+        bool single{ false };
+        bool form{ false };
+        float advance{ 0.0f };
+        float height{ 0.0f };
+        float origin{ -1.0f };
+    };
+
+    inline VerticalGlyph ProbeVertical(IDWriteTextLayout* layout, uint32_t cp)
+    {
+        VerticalGlyph v;
+        auto probe = winrt::make_self<GlyphProbe>();
+        if (!layout || FAILED(layout->Draw(nullptr, probe.get(), 0.0f, 0.0f)) || !probe->face || probe->glyphs != 1) return v;
+        v.single = true;
+        auto* face = probe->face.get();
+        UINT16 nominal = 0;
+        const UINT32 point = cp;
+        if (SUCCEEDED(face->GetGlyphIndices(&point, 1, &nominal))) v.form = nominal != 0 && nominal != probe->glyph;
+        DWRITE_FONT_METRICS metrics{};
+        face->GetMetrics(&metrics);
+        if (metrics.designUnitsPerEm == 0) return v;
+        const float unit = 1.0f / metrics.designUnitsPerEm;
+        v.height = (metrics.ascent + metrics.descent) * unit;
+        DWRITE_GLYPH_METRICS glyph{};
+        if (FAILED(face->GetDesignGlyphMetrics(&probe->glyph, 1, &glyph, TRUE))) return v;
+        if (HasFontTable(face, DWRITE_MAKE_OPENTYPE_TAG('v', 'm', 't', 'x'))) v.advance = glyph.advanceHeight * unit;
+        if (HasFontTable(face, DWRITE_MAKE_OPENTYPE_TAG('V', 'O', 'R', 'G'))) v.origin = glyph.verticalOriginY * unit;
+        return v;
+    }
 
     // The layout's cells share its list of uprights, so the list lives as long as the layout.
     struct UprightCell : winrt::implements<UprightCell, IDWriteInlineObject>
@@ -159,20 +250,125 @@ namespace mason_dwrite
         return nullptr;
     }
 
-    // Gives the graphemes `p.upright` keeps upright (1 text-orientation mixed, 2 upright) a cell.
-    // Inline boxes and soft hyphens keep their own inline objects.
-    inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p)
+    // Gives the graphemes their text-orientation keeps upright (1 mixed, 2 upright) a cell: a
+    // span's own, else `p.upright`. Full-width graphemes are drawn as the font's vertical form,
+    // and a bracket or other Tr character without one stays sideways. Cells are the font's
+    // vertical advance (vmtx), else the height of the font the glyph comes from. Inline boxes
+    // and soft hyphens keep their own inline objects.
+    // `marks` (see HalfWidthMarks): an upright mark set half-width keeps half its cell, and its
+    // mark is cleared so ApplySpacingTrim leaves it alone.
+    inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t>& marks)
     {
         UprightRegistry().erase(layout);
-        if (p.upright == 0 || p.text.empty()) return;
+        if (p.text.empty()) return;
+        auto spanAt = [&](size_t i) -> const Span*
+        {
+            const Span* found = nullptr;
+            for (auto const& s : p.spans)
+            {
+                if (i >= s.start && i < s.start + s.length) found = &s;
+            }
+            return found;
+        };
+        auto combineAt = [&](size_t i) -> uint8_t
+        {
+            const Span* span = spanAt(i);
+            return span && span->combine != kParagraphUpright ? span->combine : p.combine;
+        };
+        const bool combines = p.combine != 0
+            || std::any_of(p.spans.begin(), p.spans.end(), [](Span const& s) { return s.combine != 0 && s.combine != kParagraphUpright; });
+        if (p.upright == 0 && !combines
+            && std::none_of(p.spans.begin(), p.spans.end(), [](Span const& s) { return s.upright == 1 || s.upright == 2; }))
+        {
+            return;
+        }
         auto* factory = Factory();
         if (!factory) return;
         auto uprights = std::make_shared<std::vector<Upright>>();
         winrt::com_ptr<IDWriteTextLayout1> spacing;
         layout->QueryInterface(IID_PPV_ARGS(spacing.put()));
+
+        // text-combine-upright: each run to combine (all of an element's text, or each run of up
+        // to N ASCII digits) becomes one upright 1em cell, its text set horizontally and squeezed.
+        std::vector<bool> covered(combines ? p.text.size() : 0, false);
+        auto combine = [&](size_t start, size_t end)
+        {
+            if (end <= start) return;
+            for (auto const& b : p.boxes)
+            {
+                if (b.position >= start && b.position < end) return;
+            }
+            const Span* span = spanAt(start);
+            const Font& font = span ? span->font : p.font;
+            const float size = (std::max)(span ? span->fontSize : p.fontSize, 0.1f);
+            const DWRITE_FONT_STYLE style = span ? span->style : p.style;
+            const DWRITE_FONT_WEIGHT weight = MatchWeight(font, span ? span->weight : p.weight, style);
+            const FontMetrics m = MetricsOf(font, weight, style);
+            Upright u;
+            u.position = static_cast<uint32_t>(start);
+            u.length = static_cast<uint32_t>(end - start);
+            u.wide = true;
+            u.combined = true;
+            u.size = size;
+            u.cell = size;
+            u.color = span ? span->color : p.color;
+            winrt::com_ptr<IDWriteTextFormat> format;
+            if (SUCCEEDED(factory->CreateTextFormat(font.family.c_str(), font.Collection(), weight, style,
+                    span ? span->stretch : p.stretch, size, L"en-us", format.put())))
+            {
+                factory->CreateTextLayout(p.text.c_str() + start, u.length, format.get(), kUnbounded, kUnbounded, u.glyph.put());
+            }
+            auto cell = winrt::make_self<UprightCell>(uprights, size + (span ? span->letterSpacing : 0.0f), m.ascent * size, m.descent * size, true);
+            layout->SetInlineObject(cell.get(), DWRITE_TEXT_RANGE{ u.position, u.length });
+            uprights->push_back(std::move(u));
+            for (size_t k = start; k < end; ++k) covered[k] = true;
+        };
+        if (combines)
+        {
+            for (size_t i = 0; i < p.text.size();)
+            {
+                const uint8_t mode = combineAt(i);
+                size_t end = i + 1;
+                while (end < p.text.size() && combineAt(end) == mode) ++end;
+                if (mode == 1)
+                {
+                    // Line breaks end a run.
+                    size_t start = i;
+                    for (size_t j = i; j < end; ++j)
+                    {
+                        if (p.text[j] != L'\n') continue;
+                        combine(start, j);
+                        start = j + 1;
+                    }
+                    combine(start, end);
+                }
+                else if (mode >= 2)
+                {
+                    for (size_t j = i; j < end;)
+                    {
+                        if (p.text[j] < L'0' || p.text[j] > L'9')
+                        {
+                            ++j;
+                            continue;
+                        }
+                        size_t k = j;
+                        while (k < end && p.text[k] >= L'0' && p.text[k] <= L'9') ++k;
+                        if (k - j <= mode) combine(j, k);
+                        j = k;
+                    }
+                }
+                i = end;
+            }
+        }
+
         size_t box = 0;
         for (size_t i = 0; i < p.text.size();)
         {
+            if (!covered.empty() && covered[i])
+            {
+                ++i;
+                continue;
+            }
             size_t units = 1;
             const uint32_t cp = CodePointAt(p.text, i, units);
             size_t end = i + units;
@@ -185,14 +381,11 @@ namespace mason_dwrite
             }
             while (box < p.boxes.size() && p.boxes[box].position < i) ++box;
             const bool isBox = box < p.boxes.size() && p.boxes[box].position < end;
-            const bool upright = p.upright == 2 ? !StaysSideways(cp) && !InRanges(kRotatedRanges, cp) : IsUprightInMixed(cp);
+            const Span* span = spanAt(i);
+            const uint8_t mode = span && span->upright != kParagraphUpright ? span->upright : p.upright;
+            const bool upright = mode == 2 ? !StaysSideways(cp) : mode == 1 && InRanges(kUprightRanges, cp);
             if (upright && !isBox && cp != kSoftHyphen)
             {
-                const Span* span = nullptr;
-                for (auto const& s : p.spans)
-                {
-                    if (i >= s.start && i < s.start + s.length) span = &s;
-                }
                 const Font& font = span ? span->font : p.font;
                 const float size = (std::max)(span ? span->fontSize : p.fontSize, 0.1f);
                 const DWRITE_FONT_STYLE style = span ? span->style : p.style;
@@ -209,10 +402,11 @@ namespace mason_dwrite
                     i = end;
                     continue;
                 }
+                const bool rotated = InRanges(kRotatedRanges, cp);
                 Upright u;
                 u.position = static_cast<uint32_t>(i);
                 u.length = static_cast<uint32_t>(end - i);
-                u.wide = IsWideUpright(cp);
+                u.wide = rotated || IsWideUpright(cp);
                 u.size = size;
                 u.cell = u.wide ? size : ascent + descent;
                 u.color = span ? span->color : p.color;
@@ -222,11 +416,28 @@ namespace mason_dwrite
                     && SUCCEEDED(factory->CreateTextLayout(p.text.c_str() + i, u.length, format.get(), kUnbounded, kUnbounded, u.glyph.put())))
                 {
                     winrt::com_ptr<IDWriteTypography> typography;
-                    if (TakesVerticalAlternate(cp) && SUCCEEDED(factory->CreateTypography(typography.put())))
+                    if (u.wide && SUCCEEDED(factory->CreateTypography(typography.put())))
                     {
                         typography->AddFontFeature({ DWRITE_FONT_FEATURE_TAG_VERTICAL_WRITING, 1 });
                         u.glyph->SetTypography(typography.get(), DWRITE_TEXT_RANGE{ 0, u.length });
                     }
+                }
+                const VerticalGlyph vertical = ProbeVertical(u.glyph.get(), cp);
+                if (rotated && !vertical.form)
+                {
+                    i = end;
+                    continue;
+                }
+                if (vertical.single)
+                {
+                    u.cell = (vertical.advance > 0.0f ? vertical.advance : vertical.height) * size;
+                    if (vertical.origin >= 0.0f) u.baseline = vertical.origin * size;
+                }
+                if (i < marks.size() && marks[i])
+                {
+                    u.half = marks[i];
+                    u.cell /= 2.0f;
+                    marks[i] = 0;
                 }
                 auto cell = winrt::make_self<UprightCell>(uprights, u.cell + letterSpacing, ascent, descent, IsWideUpright(cp));
                 layout->SetInlineObject(cell.get(), DWRITE_TEXT_RANGE{ u.position, u.length });
@@ -265,10 +476,18 @@ namespace mason_dwrite
             UINT32 count = 0;
             u.glyph->GetLineMetrics(&glyphLine, 1, &count);
             const auto& lineBand = bands[static_cast<size_t>(line)];
-            const D2D1_POINT_2F centre{ x + u.cell / 2.0f, lineBand.top + (lineBand.bottom - lineBand.top) / 2.0f };
-            // Full-width glyphs centre their em box (0.12em below the baseline to 0.88em above it).
-            const float top = u.wide ? centre.y + 0.38f * u.size - glyphLine.baseline : centre.y - glyph.height / 2.0f;
-            context->SetTransform(D2D1::Matrix3x2F::Rotation(-90.0f, centre) * transform);
+            // A half-width mark's glyph is centred on its full cell, of which it keeps one half.
+            const float along = u.half == kPunctuationOpening ? 0.0f : u.half == kPunctuationClosing ? u.cell : u.cell / 2.0f;
+            const float full = u.half ? u.cell * 2.0f : u.cell;
+            const D2D1_POINT_2F centre{ x + along, lineBand.top + (lineBand.bottom - lineBand.top) / 2.0f };
+            // The font's vertical origin, else full-width glyphs centre their em box (0.12em below
+            // the baseline to 0.88em above it) and others their own box.
+            const float top = u.baseline >= 0.0f ? centre.y - full / 2.0f + u.baseline - glyphLine.baseline
+                : u.wide ? centre.y + 0.38f * u.size - glyphLine.baseline : centre.y - glyph.height / 2.0f;
+            // A combined run is squeezed across its cell to fit.
+            const float squeeze = u.combined && glyph.widthIncludingTrailingWhitespace > u.cell
+                ? u.cell / glyph.widthIncludingTrailingWhitespace : 1.0f;
+            context->SetTransform(D2D1::Matrix3x2F::Scale(squeeze, 1.0f, centre) * D2D1::Matrix3x2F::Rotation(-90.0f, centre) * transform);
             context->DrawTextLayout(D2D1::Point2F(centre.x - glyph.widthIncludingTrailingWhitespace / 2.0f, top),
                 u.glyph.get(), brushFor(u.color), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
         }

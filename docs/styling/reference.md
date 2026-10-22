@@ -15,7 +15,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `backdrop-filter` | filter functions, as `filter` | no | `drop-shadow()` has no effect | [Effects](/styling/effects#backdrop-filter) |
 | `background`, `background-color`, `background-image`, `background-position` (`-x`, `-y`), `background-size`, `background-repeat` | CSS background syntax, multiple layers; `background-repeat` includes `space` and `round` | no | | [Backgrounds](/styling/backgrounds-borders#backgrounds) |
 | `background-origin`, `background-clip`, `background-attachment`, `background-blend-mode` | box keywords, plus `text` for the clip; `scroll`/`fixed`/`local`; blend modes | no | Blend modes need Android 10 (API 29) | [Backgrounds](/styling/backgrounds-borders#background-shorthand-and-layers) |
-| `block-size`, `min-block-size`, `max-block-size` | as `height`, `min-height`, `max-height` | no | Logical, maps to the vertical axis | [Box model](/styling/box-model) |
+| `block-size`, `min-block-size`, `max-block-size` | as `height`, `min-height`, `max-height` | no | Logical: the height in horizontal text, the width in vertical text | [Box model](/styling/box-model#logical-properties) |
 | `border`, `border-top`, `border-right`, `border-bottom`, `border-left` | `<width> <style> <color>` | no | | [Borders](/styling/backgrounds-borders#borders) |
 | `border-block`, `border-inline`, `border-block-start`, `border-block-end`, `border-inline-start`, `border-inline-end` (and `-width`, `-style`, `-color`) | as the physical forms | no | Logical, mapped for horizontal left-to-right text | [Borders](/styling/backgrounds-borders#borders) |
 | `border-color`, `border-top-color`, `border-right-color`, `border-bottom-color`, `border-left-color` | colors, 1 to 4 values | no | | [Borders](/styling/backgrounds-borders#borders) |
@@ -56,9 +56,9 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `grid-template-columns`, `grid-template-rows` | track lists, `repeat()`, `minmax()`, `fr`, `auto-fill`, `auto-fit` | no | | [Grid](/styling/grid) |
 | `height`, `width` | `auto`, length, percentage, `min-content`, `max-content`, `fit-content`, `fit-content(<length>)`, `stretch` | no | | [Box model](/styling/box-model) |
 | `hyphens` | `none`, `manual`, `auto` | yes | | [Typography](/styling/typography#hyphens) |
-| `inline-size`, `min-inline-size`, `max-inline-size` | as `width`, `min-width`, `max-width` | no | Logical, maps to the horizontal axis | [Box model](/styling/box-model) |
+| `inline-size`, `min-inline-size`, `max-inline-size` | as `width`, `min-width`, `max-width` | no | Logical: the width in horizontal text, the height in vertical text | [Box model](/styling/box-model#logical-properties) |
 | `inset` | 1 to 4 values of `top`, `right`, `bottom`, `left` | no | Shorthand | [Positioning](/styling/positioning) |
-| `inset-block`, `inset-inline`, `inset-block-start`, `inset-block-end`, `inset-inline-start`, `inset-inline-end` | as `inset` | no | Logical | [Positioning](/styling/positioning) |
+| `inset-block`, `inset-inline`, `inset-block-start`, `inset-block-end`, `inset-inline-start`, `inset-inline-end` | as `inset` | no | Logical, follows the writing mode and direction | [Box model](/styling/box-model#logical-properties) |
 | `justify-content` | as `align-content` | no | | [Flexbox](/styling/flexbox) |
 | `justify-items` | as `align-items` | no | | [Grid](/styling/grid) |
 | `justify-self` | as `align-self` | no | | [Grid](/styling/grid) |
@@ -84,7 +84,9 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `text-decoration`, `text-decoration-line`, `text-decoration-style`, `text-decoration-color`, `text-decoration-thickness` | full CSS values, including `overline` and `wavy` | no | | [Typography](/styling/typography#text-decoration) |
 | `text-indent` | length, percentage | yes | | [Typography](/styling/typography#text-indent) |
 | `text-justify` | `auto`, `none`, `inter-word`, `inter-character`, `distribute` | yes | Windows honours `none` only | [Typography](/styling/typography#text-justify) |
-| `text-orientation` | `mixed`, `upright`, `sideways` | yes | Per paragraph, not per inline element | [Flow](/styling/flow#text-orientation) |
+| `text-orientation` | `mixed`, `upright`, `sideways` | yes | | [Flow](/styling/flow#text-orientation) |
+| `text-combine-upright` | `none`, `all`, `digits` (2-4) | yes | Vertical text | [Flow](/styling/flow#text-combine-upright) |
+| `text-spacing-trim` | `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all`, `auto` | yes | Adjacent punctuation only | [Typography](/styling/typography#text-spacing-trim) |
 | `text-overflow` | `clip`, `ellipsis` | no | | [Typography](/styling/typography#text-overflow) |
 | `text-shadow` | `<x> <y> [blur] [color]`, comma separated | yes | | [Typography](/styling/typography#text-shadow) |
 | `text-transform` | `none`, `capitalize`, `uppercase`, `lowercase` | yes | | [Typography](/styling/typography#text-transform) |

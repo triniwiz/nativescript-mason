@@ -5,7 +5,7 @@
 // Byte offsets into the shared style buffer.
 namespace mason_style_keys
 {
-    inline constexpr uint32_t kStyleBufferSize = 612;
+    inline constexpr uint32_t kStyleBufferSize = 744;
 
     inline constexpr uint32_t kDisplay = 0;
     inline constexpr uint32_t kPosition = 1;
@@ -255,6 +255,57 @@ namespace mason_style_keys
     inline constexpr uint32_t kTransformOriginState = 608;
     inline constexpr uint32_t kTextOrientation = 609; // 0 mixed, 1 upright, 2 sideways
     inline constexpr uint32_t kTextOrientationState = 610;
+
+    // CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+    // A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+    // min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+    // never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+    // maps to when it was written after that side's physical one. Types are the physical group's.
+    inline constexpr uint32_t kLogicalSeq = 611;
+    inline constexpr uint32_t kMarginOrder = 612; // bytes(8) (612-619)
+    inline constexpr uint32_t kMarginBlockStartType = 620;
+    inline constexpr uint32_t kMarginInlineEndType = 621;
+    inline constexpr uint32_t kMarginBlockEndType = 622;
+    inline constexpr uint32_t kMarginInlineStartType = 623;
+    inline constexpr uint32_t kMarginBlockStartValue = 624; // f32 (624-627)
+    inline constexpr uint32_t kMarginInlineEndValue = 628; // f32 (628-631)
+    inline constexpr uint32_t kMarginBlockEndValue = 632; // f32 (632-635)
+    inline constexpr uint32_t kMarginInlineStartValue = 636; // f32 (636-639)
+    inline constexpr uint32_t kPaddingOrder = 640; // bytes(8) (640-647)
+    inline constexpr uint32_t kPaddingBlockStartType = 648;
+    inline constexpr uint32_t kPaddingInlineEndType = 649;
+    inline constexpr uint32_t kPaddingBlockEndType = 650;
+    inline constexpr uint32_t kPaddingInlineStartType = 651;
+    inline constexpr uint32_t kPaddingBlockStartValue = 652; // f32 (652-655)
+    inline constexpr uint32_t kPaddingInlineEndValue = 656; // f32 (656-659)
+    inline constexpr uint32_t kPaddingBlockEndValue = 660; // f32 (660-663)
+    inline constexpr uint32_t kPaddingInlineStartValue = 664; // f32 (664-667)
+    inline constexpr uint32_t kInsetOrder = 668; // bytes(8) (668-675)
+    inline constexpr uint32_t kInsetBlockStartType = 676;
+    inline constexpr uint32_t kInsetInlineEndType = 677;
+    inline constexpr uint32_t kInsetBlockEndType = 678;
+    inline constexpr uint32_t kInsetInlineStartType = 679;
+    inline constexpr uint32_t kInsetBlockStartValue = 680; // f32 (680-683)
+    inline constexpr uint32_t kInsetInlineEndValue = 684; // f32 (684-687)
+    inline constexpr uint32_t kInsetBlockEndValue = 688; // f32 (688-691)
+    inline constexpr uint32_t kInsetInlineStartValue = 692; // f32 (692-695)
+    inline constexpr uint32_t kSizeOrder = 696; // bytes(12) (696-707)
+    inline constexpr uint32_t kInlineSizeType = 708;
+    inline constexpr uint32_t kBlockSizeType = 709;
+    inline constexpr uint32_t kMinInlineSizeType = 710;
+    inline constexpr uint32_t kMinBlockSizeType = 711;
+    inline constexpr uint32_t kMaxInlineSizeType = 712;
+    inline constexpr uint32_t kMaxBlockSizeType = 713;
+    inline constexpr uint32_t kInlineSizeValue = 714; // f32 (714-717)
+    inline constexpr uint32_t kBlockSizeValue = 718; // f32 (718-721)
+    inline constexpr uint32_t kMinInlineSizeValue = 722; // f32 (722-725)
+    inline constexpr uint32_t kMinBlockSizeValue = 726; // f32 (726-729)
+    inline constexpr uint32_t kMaxInlineSizeValue = 730; // f32 (730-733)
+    inline constexpr uint32_t kMaxBlockSizeValue = 734; // f32 (734-737)
+    inline constexpr uint32_t kTextCombineUpright = 738; // 0 none, 1 all, 2-4 digits (that many)
+    inline constexpr uint32_t kTextCombineUprightState = 739;
+    inline constexpr uint32_t kTextSpacingTrim = 740; // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+    inline constexpr uint32_t kTextSpacingTrimState = 741;
 }
 
 // Bit numbers of the 128-bit style dirty mask.
@@ -343,4 +394,6 @@ namespace mason_state_keys
     inline constexpr uint32_t kLineClamp = 80;
     inline constexpr uint32_t kTransformOrigin = 81;
     inline constexpr uint32_t kTextOrientation = 82;
+    inline constexpr uint32_t kTextCombineUpright = 83;
+    inline constexpr uint32_t kTextSpacingTrim = 84;
 }

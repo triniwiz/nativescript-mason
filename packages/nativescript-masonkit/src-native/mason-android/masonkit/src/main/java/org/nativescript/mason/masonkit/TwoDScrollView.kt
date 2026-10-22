@@ -257,6 +257,16 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   internal var hasPendingScroll = false
     private set
 
+  /**
+   * vertical-rl scrolls from the right: the web's scrollLeft is 0 there and negative to the
+   * left, while scrollX counts from the left edge.
+   */
+  internal open val scrollsFromRight: Boolean get() = false
+
+  internal fun fromWebScrollLeft(x: Float): Float = if (scrollsFromRight) x + maxScrollX else x
+
+  internal fun toWebScrollLeft(x: Float): Float = if (scrollsFromRight) x - maxScrollX else x
+
   /** Keeps a scrollTo made before layout for the next layout pass; a later one replaces it per axis. */
   internal fun setPendingScroll(x: Float, y: Float, smooth: Boolean) {
     if (!x.isNaN()) pendingScrollX = x
@@ -269,7 +279,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
   internal fun applyPendingScroll() {
     if (!hasPendingScroll) return
     hasPendingScroll = false
-    val x = if (pendingScrollX.isNaN()) scrollX else pendingScrollX.roundToInt()
+    val x = if (pendingScrollX.isNaN()) scrollX else fromWebScrollLeft(pendingScrollX).roundToInt()
     val y = if (pendingScrollY.isNaN()) scrollY else pendingScrollY.roundToInt()
     pendingScrollX = Float.NaN
     pendingScrollY = Float.NaN

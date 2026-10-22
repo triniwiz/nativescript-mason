@@ -312,6 +312,8 @@ public class TextEngine: NSObject {
       || state.contains(.wordSpacing)
       || state.contains(.writingMode)
       || state.contains(.textOrientation)
+      || state.contains(.textCombineUpright)
+      || state.contains(.textSpacingTrim)
       || state.contains(.unicodeBidi)
       || state.contains(.hyphens)
       || state.contains(.fontStretch)
@@ -517,16 +519,24 @@ public class TextEngine: NSObject {
   /// so the rect grows by it there and the other lines take it back as head indent.
   /// The margin boxes of floats beside this text, in its content box (points, y down). Positions
   /// come from the last layout pass, so text not yet placed starts at the container's origin.
+  /// Vertical text gets them in its sideways frame, which is the one a vertical container's
+  /// exclusions are in: x along the lines, y across them from the block-start side.
   internal func floatExclusionRects() -> [CGRect] {
-    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
-    guard verticalWritingMode == 0, let parent = node.parent else { return [] }
+    guard let parent = node.parent else { return [] }
     let raw = NativeHelpers.nativeNodeGetFloatExclusions(node.mason, parent)
     guard raw.count >= 5 else { return [] }
     let scale = CGFloat(NSCMason.scale)
     let own = node.computedLayout
     let box = parent.computedLayout
-    let offX = CGFloat(own.x - box.paddingLeft - box.borderLeft + own.paddingLeft + own.borderLeft)
-    let offY = CGFloat(own.y - box.paddingTop - box.borderTop + own.paddingTop + own.borderTop)
+    var offX = CGFloat(own.x - box.paddingLeft - box.borderLeft + own.paddingLeft + own.borderLeft)
+    var offY = CGFloat(own.y - box.paddingTop - box.borderTop + own.paddingTop + own.borderTop)
+    if verticalWritingMode != 0 {
+      let blockStart = verticalWritingMode == 1
+        ? (box.width - box.paddingRight - box.borderRight) - (own.x + own.width) + own.paddingRight + own.borderRight
+        : own.x - box.paddingLeft - box.borderLeft + own.paddingLeft + own.borderLeft
+      offX = CGFloat(own.y - box.paddingTop - box.borderTop + own.paddingTop + own.borderTop)
+      offY = CGFloat(blockStart)
+    }
     var rects: [CGRect] = []
     rects.reserveCapacity(raw.count / 5)
     var i = 0
@@ -828,6 +838,8 @@ public class TextEngine: NSObject {
   
   private var isBuilding = false
   internal var cachedAttributedString: NSAttributedString?
+  /// The cached text before vertical text's upright glyphs are marked; see buildAttributedString.
+  private var cachedPlainAttributedString: NSAttributedString?
 
   // Cached CTFramesetter — expensive to create (glyph shaping, font fallback, bidi
   // analysis). Valid while the attributed string hasn't changed. Keyed by
@@ -1108,6 +1120,7 @@ public class TextEngine: NSObject {
   func invalidateInlineSegments(_ markDirty: Bool = true) {
     segmentsInvalidateVersion &+= 1
     cachedAttributedString = nil
+    cachedPlainAttributedString = nil
     cachedFramesetter = nil  // framesetter derives from the attributed string
     if markDirty {
       node.markDirty()
@@ -2144,15 +2157,17 @@ public class TextEngine: NSObject {
     return (text.string as NSString).range(of: "\n").location != NSNotFound
   }
 
-  internal func buildAttributedString(forMeasurement: Bool = false) -> NSAttributedString {
+  /// `nested` builds a flattened child's piece for its parent's text, without the upright
+  /// glyphs of vertical text: the parent marks the whole text once.
+  internal func buildAttributedString(forMeasurement: Bool = false, nested: Bool = false) -> NSAttributedString {
     // Return cached version if valid
     if let cached = cachedAttributedString, attributedStringVersion == segmentsInvalidateVersion {
-      return cached
+      return nested ? (cachedPlainAttributedString ?? cached) : cached
     }
     
     if isBuilding {
         // Never return empty — return last known good value
-        return cachedAttributedString ?? NSMutableAttributedString()
+        return (nested ? cachedPlainAttributedString : nil) ?? cachedAttributedString ?? NSMutableAttributedString()
     }
     
     isBuilding = true
@@ -2191,7 +2206,7 @@ public class TextEngine: NSObject {
         fragment = nil
       } else if let textView = MasonViewKind.textContainer(child.view) {
         if shouldFlattenTextContainer(textView) {
-          let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement), textView.node.style.resolvedBackgroundColor))
+          let piece = NSMutableAttributedString(attributedString: TextEngine.withInlineBackground(textView.engine.buildAttributedString(forMeasurement: forMeasurement, nested: true), textView.node.style.resolvedBackgroundColor))
           if piece.length > 0 {
             let text = piece.string as NSString
             if textView.engine.edgeWhitespace(atStart: true) == true,
@@ -2433,12 +2448,14 @@ public class TextEngine: NSObject {
     }
 
     // Cache the result
+    let trimmed = TextEngine.applySpacingTrim(result, vertical: verticalWritingMode != 0)
     let oriented = verticalWritingMode != 0
-      ? TextEngine.applyUprightGlyphs(result, orientation: style.resolvedTextOrientation) : result
+      ? TextEngine.applyUprightGlyphs(trimmed, orientation: style.resolvedTextOrientation) : trimmed
     hasUprightGlyphs = oriented !== result
+    cachedPlainAttributedString = result
     cachedAttributedString = oriented
     attributedStringVersion = segmentsInvalidateVersion
-    return oriented
+    return nested ? result : oriented
   }
   
   

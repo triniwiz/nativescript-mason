@@ -436,6 +436,8 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedWordSpacingType.toLong()
     h = h * 1000003 xor style.resolvedWritingMode.toLong()
     h = h * 1000003 xor style.resolvedTextOrientation.toLong()
+    h = h * 1000003 xor style.resolvedTextCombineUpright.toLong()
+    h = h * 1000003 xor style.resolvedTextSpacingTrim.toLong()
     h = h * 1000003 xor style.resolvedUnicodeBidi.toLong()
     h = h * 1000003 xor style.resolvedHyphens.toLong()
     h = h * 1000003 xor style.resolvedFontStretch.toLong()
@@ -1131,14 +1133,26 @@ class TextEngine(val container: TextContainer) {
    * the last layout pass, so text that hasn't been placed yet starts at the container's origin.
    */
   internal fun floatExclusions(): FloatArray? {
-    if (isVerticalWritingMode || !hasFloatedSibling()) return null
+    if (!hasFloatedSibling()) return null
     val parent = node.parent ?: return null
     val raw = NativeHelpers.nativeNodeGetFloatExclusions(node.mason.nativePtr, parent.nativePtr)
     if (raw.isEmpty()) return null
-    val offX = node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
+    var offX = node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
       node.computedPaddingLeft + node.computedBorderLeft
-    val offY = node.computedY - parent.computedPaddingTop - parent.computedBorderTop +
+    var offY = node.computedY - parent.computedPaddingTop - parent.computedBorderTop +
       node.computedPaddingTop + node.computedBorderTop
+    // Vertical text gets them in its sideways frame, which is the one a vertical container's
+    // exclusions are in: x along the lines, y across them from the block-start side.
+    if (isVerticalWritingMode) {
+      offX = offY
+      offY = if (style.resolvedWritingMode.toInt() == 1) {
+        (parent.computedWidth - parent.computedPaddingRight - parent.computedBorderRight) -
+          (node.computedX + node.computedWidth) + node.computedPaddingRight + node.computedBorderRight
+      } else {
+        node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
+          node.computedPaddingLeft + node.computedBorderLeft
+      }
+    }
     val out = FloatArray(raw.size / 5 * 5)
     for (b in out.indices step 5) {
       out[b] = raw[b] - offX
@@ -1156,7 +1170,8 @@ class TextEngine(val container: TextContainer) {
     if (container !is TextView && container !is android.widget.TextView) return null
     val view = container.node.view as? View ?: return null
     val exclusions = floatExclusions() ?: return null
-    val contentWidth = view.width - view.paddingLeft - view.paddingRight
+    val contentWidth = if (isVerticalWritingMode) view.height - view.paddingTop - view.paddingBottom
+    else view.width - view.paddingLeft - view.paddingRight
     if (contentWidth <= 0) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
@@ -2551,8 +2566,12 @@ class TextEngine(val container: TextContainer) {
 
       else -> content // 0 = normal, no wrapping needed
     }
-    if (!nested && isVerticalWritingMode) {
-      applyUprightGlyphs(wrapped, style.resolvedTextOrientation.toInt())
+    if (!nested) {
+      val off = spacingTrimOff(wrapped)
+      applySpacingTrim(wrapped, off)
+      if (isVerticalWritingMode) {
+        applyUprightGlyphs(wrapped, style.resolvedTextOrientation.toInt(), style.resolvedTextCombineUpright.toInt())
+      }
     }
 
     // Cache the result
@@ -2591,6 +2610,19 @@ class TextEngine(val container: TextContainer) {
     for (span in spanned.getSpans(0, spanned.length, ViewSpan::class.java)) {
       block(span.childNode, if (span.drawn) span.drawnRect else null)
     }
+  }
+
+  /** Positions text-spacing-trim: space-all covers (the innermost element's value), or null for none. */
+  private fun spacingTrimOff(text: Spanned): BooleanArray? {
+    val own = style.resolvedTextSpacingTrim.toInt() == 1
+    val elements = text.getSpans(0, text.length, NodeSpan::class.java)
+    if (!own && elements.none { it.node.style.resolvedTextSpacingTrim.toInt() == 1 }) return null
+    val off = BooleanArray(text.length) { own }
+    elements.sortBy { text.getSpanStart(it) - text.getSpanEnd(it) }
+    for (element in elements) {
+      off.fill(element.node.style.resolvedTextSpacingTrim.toInt() == 1, text.getSpanStart(element), text.getSpanEnd(element))
+    }
+    return off
   }
 
   /** Marks the range a flattened element produced, so a tap on it can find it. */
@@ -2868,6 +2900,8 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
           StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
           StateKeys.hasFlag(low, high, StateKeys.TEXT_ORIENTATION) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_COMBINE_UPRIGHT) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_SPACING_TRIM) ||
           StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
           StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
           StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||

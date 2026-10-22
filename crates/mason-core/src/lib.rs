@@ -807,6 +807,17 @@ impl Mason {
         crate::tree::resolved_text_orientation(&self.0.inner(), node_id)
     }
 
+    /// `text-spacing-trim` for `node_id`, inherited: 0 normal, 1 space-all, 2 space-first,
+    /// 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
+    pub fn resolved_text_spacing_trim(&self, node_id: Id) -> u8 {
+        crate::tree::resolved_text_spacing_trim(&self.0.inner(), node_id)
+    }
+
+    /// `text-combine-upright` for `node_id`, inherited: 0 none, 1 all, 2-4 digits.
+    pub fn resolved_text_combine_upright(&self, node_id: Id) -> u8 {
+        crate::tree::resolved_text_combine_upright(&self.0.inner(), node_id)
+    }
+
     pub fn is_rtl(&self, node_id: Id) -> bool {
         matches!(
             crate::tree::resolved_direction(&self.0.inner(), node_id),

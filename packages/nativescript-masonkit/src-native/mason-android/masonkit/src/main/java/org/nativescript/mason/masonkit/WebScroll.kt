@@ -9,7 +9,8 @@ import android.view.View as AndroidView
 /** Element scroll offsets, sizes and scrolling, in device pixels. */
 object WebScroll {
   @JvmStatic
-  fun scrollLeft(view: AndroidView): Float = (view as? TwoDScrollView)?.scrollX?.toFloat() ?: 0f
+  fun scrollLeft(view: AndroidView): Float =
+    (view as? TwoDScrollView)?.let { it.toWebScrollLeft(it.scrollX.toFloat()) } ?: 0f
 
   @JvmStatic
   fun scrollTop(view: AndroidView): Float = (view as? TwoDScrollView)?.scrollY?.toFloat() ?: 0f

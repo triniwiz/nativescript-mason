@@ -581,6 +581,52 @@ describe('text-orientation', () => {
   });
 });
 
+describe('text-combine-upright', () => {
+  it.each([
+    ['none', 0, 'none'],
+    ['all', 1, 'all'],
+    ['digits', 2, 'digits 2'],
+    ['digits 4', 4, 'digits 4'],
+  ])('%s is stored as %i and reads back as %s', (input, stored, read) => {
+    const t = styleUnderTest();
+    assign(t, 'text-combine-upright', input);
+    expect(t.getUint8(K.TEXT_COMBINE_UPRIGHT)).toBe(stored);
+    expect(t.getUint8(K.TEXT_COMBINE_UPRIGHT_STATE)).toBe(1);
+    expect((t.style as any).textCombineUpright).toBe(read);
+  });
+
+  it.each(['digits 5', 'digits 1', 'all digits', 'horizontal'])('%s leaves it inherited', (input) => {
+    const t = styleUnderTest();
+    assign(t, 'textCombineUpright', input);
+    expect(t.getUint8(K.TEXT_COMBINE_UPRIGHT_STATE)).toBe(0);
+  });
+});
+
+describe('text-spacing-trim', () => {
+  it.each([
+    ['normal', 0],
+    ['space-all', 1],
+    ['space-first', 2],
+    ['trim-start', 3],
+    ['trim-both', 4],
+    ['trim-all', 5],
+    ['auto', 6],
+  ])('%s is stored as %i', (input, stored) => {
+    const t = styleUnderTest();
+    assign(t, 'text-spacing-trim', input);
+    expect(t.getUint8(K.TEXT_SPACING_TRIM)).toBe(stored);
+    expect(t.getUint8(K.TEXT_SPACING_TRIM_STATE)).toBe(1);
+    expect((t.style as any).textSpacingTrim).toBe(input);
+  });
+
+  it('an unknown keyword leaves it inherited', () => {
+    const t = styleUnderTest();
+    assign(t, 'textSpacingTrim', 'trim-end');
+    expect(t.getUint8(K.TEXT_SPACING_TRIM_STATE)).toBe(0);
+    expect((t.style as any).textSpacingTrim).toBe('normal');
+  });
+});
+
 describe('text-indent', () => {
   it.each(SCALES)('a length is stored in device pixels at scale %i', (scale) => {
     setScreenScale(scale);

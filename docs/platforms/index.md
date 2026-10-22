@@ -23,7 +23,9 @@ Almost everything in these docs behaves the same on every platform. The differen
 | Flexbox, grid, block, inline flow, float | Yes | Yes | Yes |
 | `position: fixed` / `sticky` | Yes | Yes | Yes |
 | `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes |
-| `text-orientation` | Yes | Yes | Yes |
+| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes |
+| `text-spacing-trim` (adjacent punctuation) | Yes | Yes (font's `halt`) | Yes |
+| Floats in vertical text | Yes | Yes | Floats are placed; text doesn't wrap around them |
 | `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) |
 | SVG `url()` backgrounds | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer |
 | `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes |
@@ -38,7 +40,7 @@ Notes:
 - **Mask hit testing.** As in browsers, `clip-path` limits where an element can be tapped and masks do not.
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
-- **Vertical writing modes.** `text-combine-upright` and scrolling a `vertical-rl` container towards its overflowing left side are not supported yet on any platform. See [Writing modes](/styling/flow#writing-modes).
+- **Vertical writing modes.** On Windows, text in a vertical box doesn't wrap around floats yet; the floats themselves are placed. Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
 
 ## Platform-specific APIs
 

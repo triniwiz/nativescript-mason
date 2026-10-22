@@ -318,8 +318,18 @@ namespace mason_dwrite
         DWRITE_FONT_STRETCH stretch{ DWRITE_FONT_STRETCH_NORMAL };
         float wordSpacing{ 0.0f };
         std::wstring features;
+        // Vertical text: the element's own text-orientation, as Paragraph::upright, or
+        // kParagraphUpright to use the paragraph's.
+        uint8_t upright{ 0xFF };
+        // Vertical text: the element's own text-combine-upright, as Paragraph::combine, or
+        // kParagraphUpright to use the paragraph's.
+        uint8_t combine{ 0xFF };
+        // Its own text-spacing-trim (0 normal, 1 space-all, ...), or kParagraphUpright.
+        uint8_t spacingTrim{ 0xFF };
         bool operator==(Span const&) const = default;
     };
+
+    inline constexpr uint8_t kParagraphUpright = 0xFF;
 
     struct Shadow
     {
@@ -514,6 +524,10 @@ namespace mason_dwrite
         uint32_t lineClamp{ 0 };
         // Vertical text's upright graphemes: 0 none (sideways), 1 text-orientation mixed, 2 upright.
         uint8_t upright{ 0 };
+        // Vertical text's text-combine-upright: 0 none, 1 all, 2-4 digits (that many).
+        uint8_t combine{ 0 };
+        // text-spacing-trim: 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
+        uint8_t spacingTrim{ 0 };
         bool operator==(Paragraph const&) const = default;
 
         Flow FlowAt(float lineWidth) const
@@ -577,6 +591,10 @@ namespace mason_dwrite
         return ch == L' ' || ch == L'\u00A0' || ch == L'\u1361' || ch == L'\u3000';
     }
 
+    // text-spacing-trim, in SpacingTrim.h.
+    inline bool TrimsAfterUprights(Paragraph const& p);
+    inline std::vector<uint8_t> HalfWidthMarks(Paragraph const& p);
+    inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks);
     inline winrt::com_ptr<IDWriteTextLayout> Build(Paragraph const& p)
     {
         auto* factory = Factory();
@@ -718,6 +736,8 @@ namespace mason_dwrite
             }
             HyphenRegistry()[layout.get()] = hyphens;
         }
+        // A paragraph with upright glyphs is trimmed after them (Text's MeasureCache::Layout).
+        if (!TrimsAfterUprights(p)) ApplySpacingTrim(layout.get(), p, HalfWidthMarks(p));
         return layout;
     }
 
@@ -1124,4 +1144,5 @@ namespace mason_dwrite
     }
 }
 
+#include "SpacingTrim.h"
 #include "VerticalText.h"

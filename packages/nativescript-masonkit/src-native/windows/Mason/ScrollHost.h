@@ -158,9 +158,30 @@ namespace mason_scroll
         });
     }
 
+    // vertical-rl content starts at the right (mason-core moves its left overflow into the content
+    // box): a right-to-left ScrollViewer starts at its right end and stays anchored there, and its
+    // content is set back to left-to-right so it isn't mirrored.
+    inline void SyncScrollOrigin(muxc::ScrollViewer const& sv, nsm::IMasonElement const& content)
+    {
+        auto node = content ? content.Node() : nullptr;
+        bool rl = false;
+        if (node)
+        {
+            auto* impl = winrt::get_self<nsm::implementation::Node>(node);
+            rl = mason_node_get_writing_mode(impl->MasonPtr(), impl->NodePtr()) == 1;
+        }
+        const auto flow = rl ? mux::FlowDirection::RightToLeft : mux::FlowDirection::LeftToRight;
+        if (sv.FlowDirection() != flow) sv.FlowDirection(flow);
+        if (auto fe = content.try_as<mux::FrameworkElement>(); fe && fe.FlowDirection() != mux::FlowDirection::LeftToRight)
+        {
+            fe.FlowDirection(mux::FlowDirection::LeftToRight);
+        }
+    }
+
     inline void SyncScroller(muxc::ScrollViewer const& sv, nsm::IMasonElement const& content)
     {
         const Axes axes = ReadAxes(content ? content.Node() : nullptr);
+        if (content) SyncScrollOrigin(sv, content);
         if (!IsHost(sv))
         {
             Configure(sv, axes, true);
@@ -280,15 +301,22 @@ namespace mason_scroll
         });
     }
 
+    // A right-to-left ScrollViewer (vertical-rl) measures its horizontal offset from the right,
+    // growing to the left; the web's scrollLeft is 0 there and negative to the left.
+    inline double WebLeft(muxc::ScrollViewer const& sv, double left)
+    {
+        return !std::isnan(left) && sv.FlowDirection() == mux::FlowDirection::RightToLeft ? -left : left;
+    }
+
     inline double Offset(mux::UIElement const& element, bool vertical)
     {
         auto sv = ScrollerOf(element);
         if (!sv) return 0;
         if (auto it = RequestedOffsets().find(IdentityOf(sv)); it != RequestedOffsets().end())
         {
-            return vertical ? it->second.second : it->second.first;
+            return vertical ? it->second.second : WebLeft(sv, it->second.first);
         }
-        return vertical ? sv.VerticalOffset() : sv.HorizontalOffset();
+        return vertical ? sv.VerticalOffset() : WebLeft(sv, sv.HorizontalOffset());
     }
 
     // Size reads run a pending layout pass first, as on the web.
@@ -391,7 +419,7 @@ namespace mason_scroll
         const Seek seek = it->second;
         pending.erase(it);
         sv.UpdateLayout();
-        ChangeTo(sv, seek.left, seek.top, seek.smooth);
+        ChangeTo(sv, WebLeft(sv, seek.left), seek.top, seek.smooth);
     }
 
     // NaN keeps an axis. Before the element has a loaded ScrollViewer, the request waits for one;
@@ -405,7 +433,7 @@ namespace mason_scroll
         auto sv = ScrollerOf(element);
         if (sv && sv.IsLoaded() && !waiting)
         {
-            ChangeTo(sv, left, top, smooth);
+            ChangeTo(sv, WebLeft(sv, left), top, smooth);
             return;
         }
         std::erase_if(pending, [](auto const& entry) { return !entry.second.element.get(); });

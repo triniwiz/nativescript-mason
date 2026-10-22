@@ -2786,32 +2786,77 @@ impl Tree {
                     }
                 }
 
-                // prepared_items diagnostics removed
-                let content_available_width = child_inputs
-                    .available_space
-                    .width
-                    .into_option()
-                    .unwrap_or(f32::INFINITY);
+                // Vertical text: the segments run along sideways lines, so the flow runs in
+                // the box's own frame (line length = height) and placements are turned back.
+                let vertical_rl = vertical_box
+                    && crate::tree::resolved_writing_mode(&self.inner(), id)
+                        == crate::style::WritingMode::VerticalRl;
+                if vertical_box {
+                    for item in prepared_items.iter_mut() {
+                        transpose_prepared_item(item, vertical_rl);
+                    }
+                }
+                let content_available_width = if vertical_box {
+                    content_box_child_base.available_space.height
+                } else {
+                    child_inputs.available_space.width
+                }
+                .into_option()
+                .unwrap_or(f32::INFINITY);
 
-                let float_rects = self.get_float_rects_simple(id).unwrap_or_default();
+                let float_rects = if vertical_box {
+                    Vec::new()
+                } else {
+                    self.get_float_rects_simple(id).unwrap_or_default()
+                };
+                let (content_left, content_top) = if vertical_box {
+                    (0.0, 0.0)
+                } else {
+                    (pb.left, pb.top)
+                };
                 let mut ifc = InlineFormattingContext::new(
                     content_available_width,
-                    pb.left,
-                    pb.top,
+                    content_left,
+                    content_top,
                     parent_font,
                     style.get_text_align(),
                     float_rects,
                 );
                 ifc.process_items(&prepared_items);
-                let (ifc_width, ifc_height, placements) = ifc.finalize();
+                let (flow_width, flow_height, mut placements) = ifc.finalize();
+                let (ifc_width, ifc_height) = if vertical_box {
+                    (flow_height, flow_width)
+                } else {
+                    (flow_width, flow_height)
+                };
 
                 // Ensure the native-measured size accommodates inline formatting
-                // results (lines / inline-blocks). The IFC returns content height
-                // excluding padding; incorporate padding so the parent size grows
+                // results (lines / inline-blocks). The IFC returns the content's block
+                // size excluding padding; incorporate padding so the parent size grows
                 // to fit inline children when necessary.
-                let required_height = ifc_height + pb.top + pb.bottom;
-                if ret.size.height < required_height {
-                    ret.size.height = required_height;
+                if vertical_box {
+                    let required_width = ifc_width + pb.left + pb.right;
+                    if ret.size.width < required_width {
+                        ret.size.width = required_width;
+                    }
+                    let physical_content_width = (ret.size.width - pb.left - pb.right).max(0.0);
+                    for (child_id, x, y) in placements.iter_mut() {
+                        let thickness = self
+                            .nodes()
+                            .get(*child_id)
+                            .map_or(0.0, |node| node.unrounded_layout.size.width);
+                        let across = if vertical_rl {
+                            physical_content_width - *y - thickness
+                        } else {
+                            *y
+                        };
+                        (*x, *y) = (pb.left + across, pb.top + *x);
+                    }
+                } else {
+                    let required_height = ifc_height + pb.top + pb.bottom;
+                    if ret.size.height < required_height {
+                        ret.size.height = required_height;
+                    }
                 }
 
                 // Ensure content_size reflects the content-box (exclude padding+border)

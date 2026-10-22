@@ -701,7 +701,26 @@ impl Tree {
             // width/height against the incoming available_space and clamp with
             // min/max rules.  This gives us something closer to what the layout
             // pass will eventually use than blindly using the root size.
-            let (container_space, container_w) = {
+            // A vertical container places its floats in its own frame, where lines run down
+            // it: x along the lines (its height), y across them from its block-start side.
+            // Exclusions stay in that frame, which is the one its sideways text is laid out in.
+            let frame = {
+                let inner = self.inner();
+                if inner.has_writing_modes {
+                    inner.nodes.get(container_id).map_or(
+                        crate::writing_mode::LayoutFrame::Physical,
+                        |n| {
+                            crate::writing_mode::LayoutFrame::from_writing_mode(
+                                n.cached_writing_mode,
+                            )
+                        },
+                    )
+                } else {
+                    crate::writing_mode::LayoutFrame::Physical
+                }
+            };
+            let vertical = frame.is_vertical();
+            let (container_space, container_w, container_h) = {
                 let parent_w = available_space.width.into_option().unwrap_or(f32::INFINITY);
                 let parent_h = available_space
                     .height
@@ -771,8 +790,10 @@ impl Tree {
                         height: AvailableSpace::Definite(h),
                     },
                     w,
+                    h,
                 )
             };
+            let container_w = if vertical { container_h } else { container_w };
 
             for child_id in ids.into_iter() {
                 // Extract measure/style under short locks
@@ -876,8 +897,9 @@ impl Tree {
                 let mut inner_mut = self.inner_mut();
                 if let Some(vec) = inner_mut.float_context.get_mut(container_id) {
                     if let Some(fr) = vec.iter_mut().find(|f| f.node == child_id) {
-                        fr.right = measured.width; // right := width
-                        fr.bottom = measured.height; // bottom := height
+                        let size = frame.size(measured);
+                        fr.right = size.width; // right := width
+                        fr.bottom = size.height; // bottom := height
                     }
                 }
             }
@@ -899,6 +921,7 @@ impl Tree {
                                 .style()
                                 .get_margin()
                                 .resolve_or_zero(Some(container_w), |_v, _b| 0.0);
+                            let m = frame.rect(m);
                             margin_list.push((fr.node, (m.left, m.right, m.top, m.bottom)));
                         }
                     }
@@ -1700,6 +1723,7 @@ impl Tree {
         while let Some((current, resolved)) = stack.pop() {
             let node = &mut tree.nodes[current];
             (node.cached_writing_mode, node.cached_text_orientation) = resolved;
+            node.inner_style_mut().writing_mode = resolved.0;
             node.mark_dirty();
             side.remove(&block_key(tree.uid, current));
             if let Some(children) = tree.children.get(current) {
@@ -1718,12 +1742,14 @@ impl Tree {
 
     fn writing_mode_in(
         node: &Node,
-        (mode, orientation): (crate::style::WritingMode, u8),
+        (mode, text): (crate::style::WritingMode, u8),
     ) -> (crate::style::WritingMode, u8) {
         let style = node.style();
+        let orientation = style.get_text_orientation().unwrap_or(text & 3);
+        let combine = style.get_text_combine_upright().unwrap_or(text >> 2);
         (
             style.get_writing_mode().unwrap_or(mode),
-            style.get_text_orientation().unwrap_or(orientation),
+            orientation | combine << 2,
         )
     }
 
@@ -2086,8 +2112,9 @@ impl Tree {
         if let Some(n) = tree.nodes.get(node) {
             let style = n.style();
             let floats = style.get_float() != Float::None;
-            let writing_mode =
-                style.get_writing_mode().is_some() || style.get_text_orientation().is_some();
+            let writing_mode = style.get_writing_mode().is_some()
+                || style.get_text_orientation().is_some()
+                || style.get_text_combine_upright().is_some();
             let overflow = style.get_overflow();
             let scrolls = matches!(
                 overflow.x,
@@ -2307,8 +2334,9 @@ impl Tree {
                 || style.non_buffer_snapshot() != non_buffer_before;
 
             sets_float = style.get_float() != Float::None;
-            sets_writing_mode =
-                style.get_writing_mode().is_some() || style.get_text_orientation().is_some();
+            sets_writing_mode = style.get_writing_mode().is_some()
+                || style.get_text_orientation().is_some()
+                || style.get_text_combine_upright().is_some();
             let overflow = style.get_overflow();
             sets_scroll_container = matches!(
                 overflow.x,
@@ -2492,6 +2520,38 @@ pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::W
         current = tree.parents.get(n).copied().flatten();
     }
     crate::style::WritingMode::HorizontalTb
+}
+
+/// `id`'s text-spacing-trim (0 normal, 1 space-all, ...): its own, else the nearest ancestor's.
+pub(crate) fn resolved_text_spacing_trim(tree: &TreeInner, id: Id) -> u8 {
+    use crate::style::StyleKeys;
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(node) = tree.nodes.get(n) {
+            let data = node.style().data();
+            if data[StyleKeys::TEXT_SPACING_TRIM_STATE as usize] != 0 {
+                return data[StyleKeys::TEXT_SPACING_TRIM as usize];
+            }
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    0
+}
+
+/// `id`'s text-combine-upright (0 none, 1 all, 2-4 digits): its own, else the nearest ancestor's.
+pub(crate) fn resolved_text_combine_upright(tree: &TreeInner, id: Id) -> u8 {
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(value) = tree
+            .nodes
+            .get(n)
+            .and_then(|node| node.style().get_text_combine_upright())
+        {
+            return value;
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    0
 }
 
 /// `id`'s text-orientation (0 mixed, 1 upright, 2 sideways): its own, else the nearest ancestor's.

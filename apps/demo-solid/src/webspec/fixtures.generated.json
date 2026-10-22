@@ -968,6 +968,25 @@
     ]
   },
   {
+    "name": "css_vertical_rl_logical_sides",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "height": "100px" },
+      "children": [
+        { "seq": 1, "tag": "p", "style": { "font-size": "16px", "width": "16px" }, "children": [], "text": "HH​HH​HH" },
+        { "seq": 2, "tag": "div", "style": { "display": "block", "margin-block-start": "6px", "margin-inline-start": "4px", "padding-block-end": "3px", "inline-size": "50px", "block-size": "12px" }, "children": [] },
+        { "seq": 3, "tag": "div", "style": { "display": "block", "margin-block-end": "9px", "margin-left": "2px", "inline-size": "20px", "block-size": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 72, "height": 100 },
+      { "seq": 1, "x": 40, "y": 0, "width": 16, "height": 100 },
+      { "seq": 2, "x": 12, "y": 4, "width": 12, "height": 50 },
+      { "seq": 3, "x": 2, "y": 0, "width": 10, "height": 20 }
+    ]
+  },
+  {
     "name": "css_vertical_rl_nested",
     "tree": {
       "seq": 0,

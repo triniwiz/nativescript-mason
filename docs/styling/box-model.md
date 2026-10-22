@@ -125,27 +125,32 @@ Every block container (`<div>`, `<section>`, `<ul>`, ...) can become a scroll co
 
 ## Logical properties
 
-Logical properties are accepted and mapped for horizontal, left-to-right text: *inline* means left/right and *block* means top/bottom.
+Logical properties name sides by the flow of the text: *block* is the direction blocks stack in, *inline* the direction a line runs. They follow the box's `writing-mode` and `direction`:
 
-| Logical | Physical |
+| Side | `horizontal-tb` | `vertical-rl` | `vertical-lr` |
+| --- | --- | --- | --- |
+| block-start / block-end | top / bottom | right / left | left / right |
+| inline-start / inline-end | left / right (right / left in `rtl`) | top / bottom (bottom / top in `rtl`) | top / bottom (bottom / top in `rtl`) |
+
+`inline-size` is the width in horizontal text and the height in vertical text, and `block-size` the other way round.
+
+| Logical | Maps by writing mode |
 | --- | --- |
-| `inline-size`, `block-size` | `width`, `height` |
-| `min-inline-size`, `max-inline-size`, `min-block-size`, `max-block-size` | the matching `min-*` / `max-*` |
-| `margin-inline`, `margin-block` | `margin-left` + `margin-right`, `margin-top` + `margin-bottom` |
-| `margin-inline-start`, `margin-inline-end`, `margin-block-start`, `margin-block-end` | `margin-left`, `margin-right`, `margin-top`, `margin-bottom` |
-| `padding-inline*`, `padding-block*` | same pattern for padding |
-| `inset-inline*`, `inset-block*` | `left` / `right`, `top` / `bottom` |
-| `border-inline*`, `border-block*` (also `-width`, `-style`, `-color`) | the matching side borders |
-| `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius`, `border-end-start-radius` | top-left, top-right, bottom-right, bottom-left radius |
-| `overflow-inline`, `overflow-block` | `overflow-x`, `overflow-y` |
+| `inline-size`, `block-size`, `min-inline-size`, `max-inline-size`, `min-block-size`, `max-block-size` | yes |
+| `margin-inline`, `margin-block`, `margin-inline-start`, `margin-inline-end`, `margin-block-start`, `margin-block-end` | yes |
+| `padding-inline*`, `padding-block*` | yes |
+| `inset-inline*`, `inset-block*` | yes |
+| `border-inline*`, `border-block*` (also `-width`, `-style`, `-color`) | no, as for horizontal left-to-right text |
+| `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius`, `border-end-start-radius` | no: top-left, top-right, bottom-right, bottom-left |
+| `overflow-inline`, `overflow-block` | no: `overflow-x`, `overflow-y` |
 
 ```css
 .item {
-  padding-inline: 16px;      /* left and right */
-  margin-block-end: 8px;     /* bottom */
+  padding-inline: 16px;      /* left and right in horizontal text, top and bottom in vertical text */
+  margin-block-end: 8px;     /* bottom in horizontal text, left in vertical-rl */
 }
 ```
 
-::: info
-The mapping is fixed. Logical properties expand to physical ones when the stylesheet is parsed, before any element exists, so they don't follow `direction: rtl` or a vertical `writing-mode`.
-:::
+A logical and a physical property can set the same side (`margin-left` and `margin-inline-start` in left-to-right text). The one declared later wins, as in CSS. Code that sets margins, padding or insets through the native iOS or Android API sets the physical sides, and those win over the default margins of `<p>`, headings and lists.
+
+The default margins of `<p>`, headings, `<blockquote>`, `<pre>`, lists and `<figure>` are logical (`margin-block`, `margin-inline`), so in vertical text they space paragraphs left and right. They are fixed lengths for a 16px font rather than `em`s, as before.
