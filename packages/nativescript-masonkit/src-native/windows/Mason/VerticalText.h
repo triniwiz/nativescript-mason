@@ -165,11 +165,13 @@ namespace mason_dwrite
 
     // What the font a grapheme is drawn in says about it set upright, in ems. `advance` is the
     // vertical advance (vmtx) or 0, `height` the font's ascent plus descent, `origin` the
-    // vertical origin (VORG) or negative, `form` whether the glyph drawn is a vertical form.
+    // vertical origin (VORG) or negative, `form` whether the glyph drawn is a vertical form, `halves`
+    // whether the font has vertical half-width forms (vhal).
     struct VerticalGlyph
     {
         bool single{ false };
         bool form{ false };
+        bool halves{ false };
         float advance{ 0.0f };
         float height{ 0.0f };
         float origin{ -1.0f };
@@ -182,6 +184,7 @@ namespace mason_dwrite
         if (!layout || FAILED(layout->Draw(nullptr, probe.get(), 0.0f, 0.0f)) || !probe->face || probe->glyphs != 1) return v;
         v.single = true;
         auto* face = probe->face.get();
+        v.halves = HasPositioningFeature(face, DWRITE_MAKE_OPENTYPE_TAG('v', 'h', 'a', 'l'));
         UINT16 nominal = 0;
         const UINT32 point = cp;
         if (SUCCEEDED(face->GetGlyphIndices(&point, 1, &nominal))) v.form = nominal != 0 && nominal != probe->glyph;
@@ -436,9 +439,12 @@ namespace mason_dwrite
                 }
                 if (i < marks.size() && marks[i])
                 {
-                    u.half = marks[i];
-                    u.trimmed = (std::max)(u.cell - size / 2.0f, 0.0f);
-                    u.cell -= u.trimmed;
+                    if (vertical.halves)
+                    {
+                        u.half = marks[i];
+                        u.trimmed = (std::max)(u.cell - size / 2.0f, 0.0f);
+                        u.cell -= u.trimmed;
+                    }
                     marks[i] = 0;
                 }
                 auto cell = winrt::make_self<UprightCell>(uprights, u.cell + letterSpacing, ascent, descent, IsWideUpright(cp));

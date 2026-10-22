@@ -866,7 +866,8 @@ flex and grid children flow in the container's writing mode) and
   a negative kern at one glyph's advance).
 - **text-spacing-trim**: `SpacingTrim.swift/.kt/.h`. Adjacent punctuation, paragraph
   edges and trim-all are marked when the text is built; iOS kerns (an opening or middle
-  mark also draws back by `GLYPH_SHIFT_KEY`), Windows uses negative character spacing,
+  mark also draws back by `GLYPH_SHIFT_KEY`), Windows uses negative character spacing
+  for marks whose drawn font lists `halt` in GPOS (`vhal` for upright cells), as Chrome,
   Android the font's `halt` (Minikin applies 'chws' by default on API 35+, so
   `space-all` adds `'chws' 0`). Upright cells in vertical text are halved instead.
   Soft line breaks (iOS `trimmingLineEdges` in `framesetter(for:)`, Android

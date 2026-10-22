@@ -4,8 +4,9 @@
 // (every value but space-all), at the start and end of each paragraph (trim-start and
 // trim-both, trim-both) or everywhere (trim-all). A mark's ink sits in one part of its em: a
 // closing mark's at its start, an opening mark's at its end, a middle mark's in its centre. So the
-// blank part goes by negative character spacing, which needs no font support, and an upright
-// cell in vertical text is halved instead (see VerticalText.h). The same classes and rules are in
+// blank part goes by negative character spacing, and an upright cell in vertical text is halved
+// instead (see VerticalText.h). As in Chrome, only marks whose font has half-width forms (halt,
+// vhal for upright glyphs) are trimmed. The same classes and rules are in
 // iOS SpacingTrim.swift and Android SpacingTrim.kt, which also trim at soft line breaks.
 // Included by DWriteText.h after Paragraph and Span.
 
@@ -54,6 +55,82 @@ namespace mason_dwrite
 
     inline bool IsForcedBreak(wchar_t c) { return c == L'\n' || c == L'\r' || c == 0x2028 || c == 0x2029; }
 
+    // Whether the font's GPOS table lists the feature `tag` (halt, vhal), for any script.
+    inline bool HasPositioningFeature(IDWriteFontFace* face, UINT32 tag)
+    {
+        thread_local std::vector<std::tuple<winrt::com_ptr<IDWriteFontFace>, UINT32, bool>> known;
+        for (auto const& [font, feature, has] : known)
+        {
+            if (font.get() == face && feature == tag) return has;
+        }
+        const void* data = nullptr;
+        UINT32 size = 0;
+        void* context = nullptr;
+        BOOL exists = FALSE;
+        bool has = false;
+        if (SUCCEEDED(face->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('G', 'P', 'O', 'S'), &data, &size, &context, &exists)) && exists)
+        {
+            auto const* bytes = static_cast<uint8_t const*>(data);
+            auto u16 = [&](size_t at) -> size_t { return at + 2 <= size ? static_cast<size_t>(bytes[at] << 8 | bytes[at + 1]) : 0; };
+            const size_t list = u16(6);
+            const size_t count = list ? u16(list) : 0;
+            for (size_t i = 0; i < count && !has; ++i)
+            {
+                const size_t record = list + 2 + i * 6;
+                if (record + 4 > size) break;
+                has = DWRITE_MAKE_OPENTYPE_TAG(bytes[record], bytes[record + 1], bytes[record + 2], bytes[record + 3]) == tag;
+            }
+            face->ReleaseFontTable(context);
+        }
+        winrt::com_ptr<IDWriteFontFace> font;
+        font.copy_from(face);
+        known.emplace_back(std::move(font), tag, has);
+        return has;
+    }
+
+    // The font each marked position is drawn in, fallback included.
+    struct MarkFonts : winrt::implements<MarkFonts, IDWriteTextRenderer>
+    {
+        explicit MarkFonts(std::vector<uint8_t> const& marks) : marks(marks), faces(marks.size()) {}
+
+        HRESULT __stdcall IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
+        {
+            *disabled = TRUE;
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override
+        {
+            *transform = DWRITE_MATRIX{ 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetPixelsPerDip(void*, FLOAT* pixels) noexcept override
+        {
+            *pixels = 1.0f;
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawGlyphRun(void*, FLOAT, FLOAT, DWRITE_MEASURING_MODE, DWRITE_GLYPH_RUN const* run,
+            DWRITE_GLYPH_RUN_DESCRIPTION const* description, ::IUnknown*) noexcept override
+        {
+            if (!run || !run->fontFace || !description) return S_OK;
+            const size_t end = (std::min)(static_cast<size_t>(description->textPosition) + description->stringLength, marks.size());
+            for (size_t i = description->textPosition; i < end; ++i)
+            {
+                if (marks[i]) faces[i].copy_from(run->fontFace);
+            }
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawUnderline(void*, FLOAT, FLOAT, DWRITE_UNDERLINE const*, ::IUnknown*) noexcept override { return S_OK; }
+        HRESULT __stdcall DrawStrikethrough(void*, FLOAT, FLOAT, DWRITE_STRIKETHROUGH const*, ::IUnknown*) noexcept override { return S_OK; }
+        HRESULT __stdcall DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, ::IUnknown*) noexcept override { return S_OK; }
+
+        std::vector<uint8_t> const& marks;
+        std::vector<winrt::com_ptr<IDWriteFontFace>> faces;
+    };
+
     // The marks set half-width, by position, as their class: next to other punctuation (an
     // opening mark after a mark, a closing mark before a closing or middle one), an opening mark
     // starting a paragraph (trim-start, trim-both), a closing one ending it (trim-both), and every
@@ -93,13 +170,14 @@ namespace mason_dwrite
 
     // Sets each marked mark half-width by character spacing, dropping the blank part of its
     // advance past half an em: trailing space after a closing mark, leading space before an
-    // opening one, half of it each side of a middle one. Fonts with proportional punctuation
-    // (Yu Gothic UI) have less or none to drop. `marks` left by ApplyUprights.
+    // opening one, half of it each side of a middle one. `marks` left by ApplyUprights.
     inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks)
     {
         if (marks.empty()) return;
         winrt::com_ptr<IDWriteTextLayout1> spacing;
         if (FAILED(layout->QueryInterface(IID_PPV_ARGS(spacing.put())))) return;
+        auto fonts = winrt::make_self<MarkFonts>(marks);
+        if (FAILED(layout->Draw(nullptr, fonts.get(), 0.0f, 0.0f))) return;
         UINT32 count = 0;
         layout->GetClusterMetrics(nullptr, 0, &count);
         std::vector<DWRITE_CLUSTER_METRICS> clusters(count);
@@ -113,7 +191,7 @@ namespace mason_dwrite
         }
         for (size_t i = 0; i < marks.size(); ++i)
         {
-            if (!marks[i]) continue;
+            if (!marks[i] || !fonts->faces[i] || !HasPositioningFeature(fonts->faces[i].get(), DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 't'))) continue;
             const auto position = static_cast<UINT32>(i);
             FLOAT size = 0.0f, leading = 0.0f, trailing = 0.0f, minimum = 0.0f;
             if (FAILED(layout->GetFontSize(position, &size)) || FAILED(spacing->GetCharacterSpacing(position, &leading, &trailing, &minimum))) continue;
