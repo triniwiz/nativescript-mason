@@ -271,6 +271,7 @@ namespace winrt::NativeScript::Mason::implementation
         };
 
         static bool RefreshBoxes(MeasureCache& cache);
+        static bool RefreshUpright(MeasureCache& cache);
         // Margin boxes of the floats beside the text, in its content box, from the last layout.
         static std::vector<mason_dwrite::Exclusion> FloatExclusions(MeasureCache const& cache);
         void SyncFloatParent();

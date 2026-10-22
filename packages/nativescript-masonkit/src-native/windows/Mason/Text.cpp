@@ -204,6 +204,13 @@ namespace
         return scale > 0.0f ? 1.0f / scale : 1.0f;
     }
 
+    uint8_t UprightOf(winrt::NativeScript::Mason::implementation::Node* node)
+    {
+        if (mason_node_get_writing_mode(node->MasonPtr(), node->NodePtr()) == 0) return 0;
+        const uint8_t orientation = mason_node_get_text_orientation(node->MasonPtr(), node->NodePtr());
+        return orientation == 2 ? 0 : orientation == 1 ? 2 : 1;
+    }
+
     DWRITE_FONT_WEIGHT WeightOf(int32_t weight)
     {
         return static_cast<DWRITE_FONT_WEIGHT>(weight > 0 ? weight : 400);
@@ -758,6 +765,7 @@ namespace winrt::NativeScript::Mason::implementation
         nsm::MeasureFunc cb = [cache](float kw, float, float aw, float) -> int64_t
         {
             auto& c = *cache;
+            RefreshUpright(c);
             RefreshBoxes(c);
             IDWriteTextLayout* layout = c.Layout();
             if (!layout || c.paragraph.text.empty()) return mason_leaf::PackMeasure(0.0f, 0.0f);
@@ -1484,12 +1492,7 @@ namespace winrt::NativeScript::Mason::implementation
         p.indent = m_textIndent;
         p.indentPercent = m_textIndentPercent;
         p.lineClamp = m_lineClamp;
-        if (auto* self = winrt::get_self<implementation::Node>(m_node);
-            mason_node_get_writing_mode(self->MasonPtr(), self->NodePtr()) != 0)
-        {
-            const uint8_t orientation = mason_node_get_text_orientation(self->MasonPtr(), self->NodePtr());
-            p.upright = orientation == 2 ? 0 : orientation == 1 ? 2 : 1;
-        }
+        p.upright = UprightOf(winrt::get_self<implementation::Node>(m_node));
 
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;
@@ -1699,6 +1702,7 @@ namespace winrt::NativeScript::Mason::implementation
     {
         FlushRebuild();
         auto& c = *m_measureCache;
+        RefreshUpright(c);
         IDWriteTextLayout* layout = c.Layout();
         if (!layout || c.paragraph.text.empty())
         {
@@ -2281,6 +2285,19 @@ namespace winrt::NativeScript::Mason::implementation
             }
             b.text = winrt::hstring{ kept };
         }
+    }
+
+    bool Text::RefreshUpright(MeasureCache& c)
+    {
+        auto node = c.node.get();
+        if (!node) return false;
+        const uint8_t upright = UprightOf(winrt::get_self<implementation::Node>(node));
+        if (c.paragraph.upright == upright) return false;
+        c.paragraph.upright = upright;
+        c.layout = nullptr;
+        c.Reset();
+        ++c.version;
+        return true;
     }
 
     bool Text::RefreshBoxes(MeasureCache& c)
