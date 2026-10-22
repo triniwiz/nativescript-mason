@@ -1,9 +1,10 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { CSSType } from '@nativescript/core';
 import { isEnabledProperty } from '@nativescript/core/ui/core/view';
 import { TextAreaBase, rowsProperty, colsProperty, maxLengthProperty } from './common';
 import { defaultValueProperty, getValueProperty, setValueProperty, placeholderProperty } from '../input/common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
+import { setMeasuredFromNative } from '../common';
 import { Style } from '../style';
 
 @CSSType('textarea')
@@ -88,73 +89,8 @@ export class TextArea extends TextAreaBase {
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
     if (nativeView) {
-      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
-      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-
-      if (!this[isMasonView_]) {
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-        // Compute against the parent's bounds whenever the spec gives any; see
-        // view/index.ios.ts for why auto/auto doesn't matter here.
-        if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-          return;
-        } else {
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-        }
-      } else {
-        // @ts-ignore
-        let layout = this.ios.node.computedLayout;
-
-        /*
-        // If the parent Mason document hasn't run a compute pass yet,
-        // computedLayout is still MasonLayout.empty (0×0).  Trigger a compute
-        // now so NativeScript never assigns a zero frame to this view, which
-        // would make it invisible (UIScrollView.clipsToBounds = true).
-        if (layout.width === 0 && layout.height === 0) {
-          const unconstrained =
-            widthMode === Utils.layout.UNSPECIFIED ||
-            heightMode === Utils.layout.UNSPECIFIED ||
-            (widthMode === Utils.layout.AT_MOST && specWidth === 0) ||
-            (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-          if (!unconstrained) {
-            // @ts-ignore
-            this.ios.mason_computeWithSize(specWidth, specHeight);
-          } else {
-            // @ts-ignore
-            this.ios.mason_computeWithMaxContent();
-          }
-          // @ts-ignore
-          layout = this.ios.node.computedLayout;
-        }
-        */
-
-        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-        this.setMeasuredDimension(w, h);
-      }
+      // @ts-ignore
+      setMeasuredFromNative(this, nativeView.mason_measure(widthMeasureSpec, heightMeasureSpec, !this.parent?.[isMasonView_], false));
     }
   }
 

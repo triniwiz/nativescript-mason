@@ -1,6 +1,6 @@
 import { ChangedData, CSSType, ItemEventData, ProxyViewContainer, Screen, StackLayout, Utils, View } from '@nativescript/core';
 import { ListBase } from './common';
-import { ViewBase } from '../common';
+import { ViewBase, setMeasuredFromNative } from '../common';
 import { isMasonView_, native_, style_ } from '../symbols';
 import { Tree } from '../tree/index';
 import { Style } from '../style';
@@ -121,52 +121,8 @@ export class List extends ListBase {
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
     if (nativeView) {
-      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
-      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-
-      if (!this[isMasonView_]) {
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-        // Compute against the parent's bounds whenever the spec gives any; see
-        // view/index.ios.ts for why auto/auto doesn't matter here.
-        if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-          return;
-        } else {
-          // fallback to max-content when unconstrained or explicit sizes
-          // are provided
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-        }
-      } else {
-        // @ts-ignore
-        const layout = this.ios.node.computedLayout;
-        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-        this.setMeasuredDimension(w, h);
-      }
+      // @ts-ignore
+      setMeasuredFromNative(this, nativeView.mason_measure(widthMeasureSpec, heightMeasureSpec, !this.parent?.[isMasonView_], false));
     }
   }
 

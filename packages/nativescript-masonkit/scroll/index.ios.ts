@@ -1,5 +1,5 @@
-import { CSSType, Utils, View } from '@nativescript/core';
-import { ViewBase, setRootNativeViewFrame } from '../common';
+import { CSSType } from '@nativescript/core';
+import { ViewBase, setRootNativeViewFrame, setMeasuredFromNative } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isMasonView_, native_, isPlaceholder_, isText_ } from '../symbols';
@@ -59,72 +59,9 @@ export class Scroll extends ViewBase {
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
     if (nativeView) {
-      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
-      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-      if (this.parent && !this.parent[isMasonView_]) {
-        // same reasoning as other views – if the scroll view is the root it may
-        // receive an UNSPECIFIED spec, or sometimes an AT_MOST/0 spec, which we
-        // must treat as unconstrained.
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-        // Compute against the parent's bounds whenever the spec gives any; see
-        // view/index.ios.ts for why auto/auto doesn't matter here.
-        if (!unconstrained) {
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-          // this.ios.computeWithSize(specWidth, specHeight);
-          // _setNativeViewFrame
-
-          // @ts-ignore
-          var layout = this.ios.node.computedLayout;
-          //const layout = this.ios.layout();
-          // A scroll container is a VIEWPORT: its own box must never exceed the
-          // available space, even though its children (the scrollable content)
-          // can. Mason lays the node out at its natural content height because
-          // the default overflow is `visible`; clamp the measured box back to
-          // the spec so the native view is the viewport and `contentSize`
-          // (the natural content extent) overflows it → the pan scroll engages.
-          const viewportW = widthMode === Utils.layout.EXACTLY ? specWidth : Math.min(layout.width, specWidth);
-          const viewportH = heightMode === Utils.layout.EXACTLY ? specHeight : Math.min(layout.height, specHeight);
-          const w = Utils.layout.makeMeasureSpec(viewportW, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(viewportH, Utils.layout.EXACTLY);
-
-          // this.eachLayoutChild((child) => {
-          //   ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
-          // });
-
-          this.setMeasuredDimension(w, h);
-
-          return;
-        } else {
-          // unconstrained or explicit size – fall back to max-content
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // // @ts-ignore
-          // this.ios.computeWithMaxContent();
-          var layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-
-          // this.eachLayoutChild((child) => {
-          //   ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
-          // });
-        }
-      } else {
-        // @ts-ignore
-        var layout = this.ios.node.computedLayout;
-        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-        this.setMeasuredDimension(w, h);
-      }
+      // As a root, the box is the viewport: clamped to the specs so the content overflows it and scrolls.
+      // @ts-ignore
+      setMeasuredFromNative(this, nativeView.mason_measure(widthMeasureSpec, heightMeasureSpec, !!this.parent && !this.parent[isMasonView_], true));
     }
   }
 

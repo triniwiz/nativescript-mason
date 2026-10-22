@@ -20,6 +20,15 @@ public class NSCMason: NSObject {
   // root from re-entering Rust on the same thread and deadlocking.
   internal var inCompute = false
 
+  // Compute nesting depth, roots whose measure waited for the running compute,
+  // and roots whose settled sizes last until the outermost compute ends.
+  internal var passDepth = 0
+  internal var deferredRoots: [MasonNode] = []
+  internal var settledRoots: [MasonNode] = []
+  // The foreign view whose host measure is running, and foreign nodes dirtied meanwhile.
+  internal weak var measuringForeignView: UIView? = nil
+  private var deferredDirty: [MasonNode] = []
+
   public static var shared = NSCMason()
   
   // Use NSMapTable with weak keys to avoid retaining nodes that have been removed
@@ -91,10 +100,53 @@ public class NSCMason: NSObject {
   @objc(setMeasureForView:block:)
   public func setMeasure(for view: UIView, block: @escaping (_ knownWidth: CGFloat, _ knownHeight: CGFloat, _ availableWidth: CGFloat, _ availableHeight: CGFloat) -> CGSize) {
     let node = nodeForView(view)
-    node.setMeasureFunction { known, available in
-      block(known?.width ?? .nan, known?.height ?? .nan, available.width, available.height)
+    node.setMeasureFunction { [weak self, weak view] known, available in
+      let previous = self?.measuringForeignView
+      self?.measuringForeignView = view
+      defer { self?.measuringForeignView = previous }
+      return block(known?.width ?? .nan, known?.height ?? .nan, available.width, available.height)
     }
     node.markDirty()
+  }
+
+  /// Drops a foreign view's cached measurement after its content changed. A
+  /// running compute holds Rust's lock, so that waits until it returns.
+  public func invalidateForeignView(_ view: UIView) {
+    let node = nodeForView(view)
+    if inCompute {
+      deferredDirty.append(node)
+    } else {
+      node.markDirty()
+    }
+  }
+
+  /// Settles the roots deferred during the compute that just returned. True
+  /// when one reported a stale size and the caller should compute again.
+  internal func settleDeferredRoots() -> Bool {
+    if !deferredDirty.isEmpty {
+      let dirty = deferredDirty
+      deferredDirty.removeAll()
+      for node in dirty { node.markDirty() }
+    }
+    guard !deferredRoots.isEmpty else { return false }
+    let roots = deferredRoots
+    deferredRoots.removeAll()
+    var stale = false
+    for node in roots {
+      guard let element = node.view as? MasonElement else {
+        node.deferredRootSizes.removeAll()
+        node.deferredRootLeaf = nil
+        continue
+      }
+      if element.settleDeferredSizes() { stale = true }
+    }
+    return stale
+  }
+
+  internal func endPass() {
+    guard !settledRoots.isEmpty else { return }
+    for node in settledRoots { node.settledRootSizes.removeAll() }
+    settledRoots.removeAll()
   }
 
   // Percentage width/height (a 0-1 fraction, NaN clears it) of a view Mason doesn't own, resolved

@@ -633,35 +633,27 @@ extension MasonElement {
   public func compute() {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    mason_node_compute(mason.nativePtr, node.nativePtr)
-    mason.inCompute = false
+    runPass { mason_node_compute(mason.nativePtr, node.nativePtr); return nil }
   }
 
   public func compute(_ width: Float, _ height: Float) {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    mason_node_compute_wh(mason.nativePtr, node.nativePtr, width, height)
-    mason.inCompute = false
+    runPass { mason_node_compute_wh(mason.nativePtr, node.nativePtr, width, height); return nil }
     setComputeCache(CGSize(width: CGFloat(width), height: CGFloat(height)))
   }
 
   public func computeMaxContent() {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    mason_node_compute_max_content(mason.nativePtr, node.nativePtr)
-    mason.inCompute = false
+    runPass { mason_node_compute_max_content(mason.nativePtr, node.nativePtr); return nil }
     setComputeCache(CGSize(width: CGFloat(-2), height: CGFloat(-2)))
   }
 
   public func computeMinContent() {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    mason_node_compute_min_content(mason.nativePtr, node.nativePtr)
-    mason.inCompute = false
+    runPass { mason_node_compute_min_content(mason.nativePtr, node.nativePtr); return nil }
     setComputeCache(CGSize(width: CGFloat(-1), height: CGFloat(-1)))
   }
 
@@ -669,15 +661,9 @@ extension MasonElement {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
     setComputeCache(CGSize(width: CGFloat(width), height: CGFloat(height)))
-    mason.inCompute = true
-    let points = mason_node_compute_wh_and_layout(mason.nativePtr,
-                                                   node.nativePtr, width, height, create_layout)
-    mason.inCompute = false
-    guard let points = points else {
-      return
+    runPass {
+      mason_node_compute_wh_and_layout(mason.nativePtr, node.nativePtr, width, height, create_layout)
     }
-    let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
-    MasonElementHelpers.applyToView(node, layout)
   }
 
   public func computeWithViewSize(){
@@ -688,18 +674,7 @@ extension MasonElement {
     let w = Float(uiView.frame.size.width) * NSCMason.scale
     let h = Float(uiView.frame.size.height) * NSCMason.scale
     if(layout){
-      let mason = node.mason
-      if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-      setComputeCache(CGSize(width: CGFloat(w), height: CGFloat(h)))
-      mason.inCompute = true
-      let points = mason_node_compute_wh_and_layout(mason.nativePtr,
-                                                     node.nativePtr, w, h, create_layout)
-      mason.inCompute = false
-      guard let points = points else {
-        return
-      }
-      let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
-      MasonElementHelpers.applyToView(node, layout)
+      computeWithSize(w, h)
     } else {
       compute(w, h)
     }
@@ -708,31 +683,119 @@ extension MasonElement {
   public func computeWithMaxContent(){
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    let points = mason_node_compute_max_content_and_layout(mason.nativePtr,
-                                                            node.nativePtr, create_layout)
-    mason.inCompute = false
-    setComputeCache(CGSize(width: CGFloat(-2), height: CGFloat(-2)))
-    guard let points = points else {
-      return
+    runPass {
+      mason_node_compute_max_content_and_layout(mason.nativePtr, node.nativePtr, create_layout)
     }
-    let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
-    MasonElementHelpers.applyToView(node, layout)
+    setComputeCache(CGSize(width: CGFloat(-2), height: CGFloat(-2)))
   }
 
   public func computeWithMinContent(){
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
-    let points = mason_node_compute_min_content_and_layout(mason.nativePtr,
-                                                            node.nativePtr, create_layout)
-    mason.inCompute = false
-    setComputeCache(CGSize(width: CGFloat(-1), height: CGFloat(-1)))
-    guard let points = points else {
-      return
+    runPass {
+      mason_node_compute_min_content_and_layout(mason.nativePtr, node.nativePtr, create_layout)
     }
-    let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
-    MasonElementHelpers.applyToView(node, layout)
+    setComputeCache(CGSize(width: CGFloat(-1), height: CGFloat(-1)))
+  }
+
+  /// Runs a compute with Rust's lock held and applies the layout it returns.
+  /// Roots a foreign host measured meanwhile are computed right after, and the
+  /// pass reruns (at most twice) when one of them had reported a stale size.
+  private func runPass(_ compute: () -> UnsafeMutableRawPointer?) {
+    let mason = node.mason
+    mason.passDepth += 1
+    defer {
+      mason.passDepth -= 1
+      if mason.passDepth == 0 { mason.endPass() }
+    }
+    for _ in 0..<3 {
+      mason.inCompute = true
+      let points = compute()
+      mason.inCompute = false
+      if let points = points {
+        let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
+        MasonElementHelpers.applyToView(node, layout)
+      }
+      if !mason.settleDeferredRoots() { return }
+    }
+  }
+
+  /// Computes this root for the box its host offers (device px, -2 is
+  /// max-content per axis) and claims it for autoComputeIfRoot. Returns its size.
+  internal func computeRoot(_ width: Float, _ height: Float) -> CGSize {
+    if width == -2 && height == -2 {
+      computeWithMaxContent()
+      markRootComputeApplied()
+    } else {
+      computeWithSize(width, height)
+      markRootComputeApplied(width, height)
+    }
+    return layoutSize
+  }
+
+  private var layoutSize: CGSize {
+    let layout = node.computedLayout
+    return CGSize(width: CGFloat(layout.width), height: CGFloat(layout.height))
+  }
+
+  /// Core's onMeasure. A root computes for its host's specs, each axis on its
+  /// own (UNSPECIFIED or AT_MOST 0 is max-content); `viewport` clamps a scroll
+  /// container to them. Returns device px packed as width * 2^24 + height.
+  public func measure(_ widthSpec: Int, _ heightSpec: Int, root: Bool, viewport: Bool) -> Double {
+    var size: CGSize
+    if root {
+      let (width, widthMode) = MasonElementHelpers.decodeMeasureSpec(widthSpec)
+      let (height, heightMode) = MasonElementHelpers.decodeMeasureSpec(heightSpec)
+      let w: Float = widthMode == .unspecified || (widthMode == .atMost && width == 0) ? -2 : Float(width)
+      let h: Float = heightMode == .unspecified || (heightMode == .atMost && height == 0) ? -2 : Float(height)
+      size = node.mason.inCompute ? deferredRootSize(w, h) : computeRoot(w, h)
+      if viewport {
+        if w != -2 { size.width = widthMode == .exactly ? CGFloat(width) : min(size.width, CGFloat(width)) }
+        if h != -2 { size.height = heightMode == .exactly ? CGFloat(height) : min(size.height, CGFloat(height)) }
+      }
+    } else {
+      size = layoutSize
+    }
+    let w = max(0, size.width.rounded()), h = max(0, size.height.rounded())
+    return Double(w) * 16_777_216 + Double(h)
+  }
+
+  /// A root measured while an outer compute holds Rust's lock can't compute
+  /// now. Reuse a size settled earlier in this pass, or queue the compute for
+  /// when the outer one returns and report the current size until then.
+  private func deferredRootSize(_ width: Float, _ height: Float) -> CGSize {
+    let available = CGSize(width: CGFloat(width), height: CGFloat(height))
+    if let settled = node.settledRootSizes.first(where: { $0.available == available }) {
+      return settled.size
+    }
+    let current = layoutSize
+    let mason = node.mason
+    if node.deferredRootSizes.isEmpty { mason.deferredRoots.append(node) }
+    if !node.deferredRootSizes.contains(where: { $0.available == available }) {
+      node.deferredRootSizes.append(MasonRootSize(available: available, size: current))
+    }
+    if node.deferredRootLeaf == nil { node.deferredRootLeaf = mason.measuringForeignView }
+    return current
+  }
+
+  /// Runs the computes `deferredRootSize` queued. True when one differs from
+  /// the size reported, after dirtying the foreign leaf that hosts this root.
+  internal func settleDeferredSizes() -> Bool {
+    let queued = node.deferredRootSizes
+    let leaf = node.deferredRootLeaf
+    node.deferredRootSizes.removeAll()
+    node.deferredRootLeaf = nil
+    var stale = false
+    for entry in queued {
+      let size = computeRoot(Float(entry.available.width), Float(entry.available.height))
+      node.settledRootSizes.append(MasonRootSize(available: entry.available, size: size))
+      if size != entry.size { stale = true }
+    }
+    if !queued.isEmpty { node.mason.settledRoots.append(node) }
+    guard stale, let host = leaf ?? foreignHostLeaf()?.leaf else { return false }
+    host.setNeedsLayout()
+    node.mason.nodeForView(host).markDirty()
+    return true
   }
 
   public func attachAndApply(){
@@ -896,7 +959,28 @@ extension UIView {
 }
 
 
+/// A root's size for the box (device px, -2 max-content) its host measured it in.
+internal struct MasonRootSize {
+  let available: CGSize
+  let size: CGSize
+}
+
+internal enum MasonSpecMode {
+  case unspecified, exactly, atMost
+}
+
 class MasonElementHelpers: NSObject {
+  /// Decodes a core measure spec: mode in the top two bits, device px below.
+  static func decodeMeasureSpec(_ spec: Int) -> (Int, MasonSpecMode) {
+    let bits = UInt32(truncatingIfNeeded: spec)
+    let size = Int(bits & 0x3FFF_FFFF)
+    switch bits >> 30 {
+    case 1: return (size, .exactly)
+    case 2: return (size, .atMost)
+    default: return (size, .unspecified)
+    }
+  }
+
   @objc public static func elementFromPoint(_ root: UIView, x: CGFloat, y: CGFloat) -> UIView? {
     return hitTest(root, CGPoint(x: x + root.bounds.origin.x, y: y + root.bounds.origin.y))
   }

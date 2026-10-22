@@ -3792,6 +3792,8 @@ declare class NSCMason extends NSObject {
 
 	layoutForView(view: UIView): MasonLayout;
 
+	invalidateForeignView(view: UIView): void;
+
 	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
 
 	printTree(node: MasonNode): void;

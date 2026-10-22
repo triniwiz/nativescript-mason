@@ -1,8 +1,7 @@
 import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
-import { ButtonBase, textContentProperty } from '../common';
+import { ButtonBase, textContentProperty, setMeasuredFromNative } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { parseLength } from '../utils';
 import { style_, isText_, isMasonView_, isTextChild_, native_ } from '../symbols';
 
 @CSSType('Button')
@@ -75,93 +74,14 @@ export class Button extends ButtonBase {
 
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
-
     if (nativeView) {
-      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
-      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-
-      if (!this[isMasonView_]) {
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-        // Compute against the parent's bounds whenever the spec gives any; see
-        // view/index.ios.ts for why auto/auto doesn't matter here.
-        if (!unconstrained) {
-          // todo
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Claim this root for the host's spec; see view/index.ios.ts.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-          //this.ios.computeWithMaxContent();
-
-          // todo
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-          return;
-        } else {
-          let width;
-          switch (typeof this.width) {
-            case 'object': {
-              const parent = this.parent as any;
-              const mw = parent?.getMeasuredWidth?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.width ?? 0);
-              width = parseLength(this.width, mw);
-              break;
-            }
-            case 'string':
-              width = -2;
-              break;
-            case 'number':
-              width = Utils.layout.toDevicePixels(this.width);
-              break;
-          }
-
-          let height;
-          switch (typeof this.height) {
-            case 'object': {
-              const parent = this.parent as any;
-              const mh = parent?.getMeasuredHeight?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.height ?? 0);
-              height = parseLength(this.height, mh);
-              break;
-            }
-
-            case 'string':
-              height = -2;
-              break;
-            case 'number':
-              height = Utils.layout.toDevicePixels(this.height);
-              break;
-          }
-
-          // todo
-          // @ts-ignore
-          this.ios.mason_computeWithSize(width, height);
-
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-        }
-      } else {
-        // todo
-        // @ts-ignore
-        const layout = nativeView.node.computedLayout;
-        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
+      const root = !this.parent?.[isMasonView_];
+      // @ts-ignore
+      setMeasuredFromNative(this, nativeView.mason_measure(widthMeasureSpec, heightMeasureSpec, root, false));
+      if (!root) {
         this.eachLayoutChild((child) => {
           View.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
         });
-
-        this.setMeasuredDimension(w, h);
       }
     }
   }
