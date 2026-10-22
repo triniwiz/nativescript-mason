@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-source $HOME/.cargo/env
-source $HOME/.profile
+if [[ -f "${CARGO_HOME:-$HOME/.cargo}/env" ]]; then
+  source "${CARGO_HOME:-$HOME/.cargo}/env"
+fi
+if [[ -f "$HOME/.profile" ]]; then
+  source "$HOME/.profile"
+fi
 
 whereis cc
 
