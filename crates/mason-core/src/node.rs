@@ -585,6 +585,7 @@ pub struct Node {
     pub(crate) cache: LayoutCache,
     /// Resolved writing mode `cache` was built for; see `Tree::sync_writing_mode`.
     pub(crate) cached_writing_mode: WritingMode,
+    pub(crate) cached_text_orientation: u8,
     pub(crate) inline_measure_cache: InlineMeasureCache,
     pub(crate) subtree_analysis: Option<SubtreeAnalysis>,
     pub(crate) unrounded_layout: Layout,
@@ -611,6 +612,7 @@ impl Node {
             style: Style::new(arena),
             cache: Default::default(),
             cached_writing_mode: WritingMode::HorizontalTb,
+            cached_text_orientation: 0,
             inline_measure_cache: InlineMeasureCache::new(),
             subtree_analysis: None,
             unrounded_layout: Default::default(),
@@ -634,6 +636,7 @@ impl Node {
             style: Style::new_with_handle(arena, handle),
             cache: Default::default(),
             cached_writing_mode: WritingMode::HorizontalTb,
+            cached_text_orientation: 0,
             inline_measure_cache: InlineMeasureCache::new(),
             subtree_analysis: None,
             unrounded_layout: Default::default(),

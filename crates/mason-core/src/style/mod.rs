@@ -2396,6 +2396,13 @@ impl Style {
         )
     }
 
+    pub fn get_text_orientation(&self) -> Option<u8> {
+        if get_style_data_u8(self.data(), StyleKeys::TEXT_ORIENTATION_STATE) == 0 {
+            return None;
+        }
+        Some(get_style_data_u8(self.data(), StyleKeys::TEXT_ORIENTATION).min(2))
+    }
+
     pub fn set_writing_mode(&mut self, value: WritingMode) {
         self.prepare_mut();
         let data = self.data_mut();

@@ -1672,9 +1672,9 @@ impl Tree {
         res
     }
 
-    /// Cache keys ignore the inherited writing mode, so when `id`'s resolved mode
-    /// differs from the one its caches were built for, clear them for it and every
-    /// descendant inheriting it. O(1) unless the mode actually changed.
+    /// Cache keys ignore the inherited writing mode and text-orientation, so when
+    /// `id`'s resolved values differ from the ones its caches were built for, clear
+    /// them for it and every descendant inheriting them. O(1) unless one changed.
     pub(crate) fn sync_writing_mode(tree: &mut TreeInner, id: Id) {
         if !tree.has_writing_modes {
             return;
@@ -1682,34 +1682,49 @@ impl Tree {
         let Some(node) = tree.nodes.get(id) else {
             return;
         };
-        let mode = node.style().get_writing_mode().unwrap_or_else(|| {
-            tree.parents
-                .get(id)
-                .copied()
-                .flatten()
-                .and_then(|parent| tree.nodes.get(parent))
-                .map_or(crate::style::WritingMode::HorizontalTb, |parent| {
-                    parent.cached_writing_mode
-                })
-        });
-        if node.cached_writing_mode == mode {
+        let inherited = tree
+            .parents
+            .get(id)
+            .copied()
+            .flatten()
+            .and_then(|parent| tree.nodes.get(parent))
+            .map_or((crate::style::WritingMode::HorizontalTb, 0), |parent| {
+                (parent.cached_writing_mode, parent.cached_text_orientation)
+            });
+        let resolved = Self::writing_mode_in(node, inherited);
+        if (node.cached_writing_mode, node.cached_text_orientation) == resolved {
             return;
         }
         let mut side = block_measure_cache();
-        let mut stack = vec![id];
-        while let Some(current) = stack.pop() {
+        let mut stack = vec![(id, resolved)];
+        while let Some((current, resolved)) = stack.pop() {
             let node = &mut tree.nodes[current];
-            node.cached_writing_mode = mode;
+            (node.cached_writing_mode, node.cached_text_orientation) = resolved;
             node.mark_dirty();
             side.remove(&block_key(tree.uid, current));
             if let Some(children) = tree.children.get(current) {
-                stack.extend(children.iter().copied().filter(|&child| {
-                    tree.nodes
-                        .get(child)
-                        .is_some_and(|child| child.style().get_writing_mode().is_none())
-                }));
+                for &child in children {
+                    let Some(node) = tree.nodes.get(child) else {
+                        continue;
+                    };
+                    let next = Self::writing_mode_in(node, resolved);
+                    if (node.cached_writing_mode, node.cached_text_orientation) != next {
+                        stack.push((child, next));
+                    }
+                }
             }
         }
+    }
+
+    fn writing_mode_in(
+        node: &Node,
+        (mode, orientation): (crate::style::WritingMode, u8),
+    ) -> (crate::style::WritingMode, u8) {
+        let style = node.style();
+        (
+            style.get_writing_mode().unwrap_or(mode),
+            style.get_text_orientation().unwrap_or(orientation),
+        )
     }
 
     pub fn detach(&mut self, child: Id) {
@@ -2071,7 +2086,8 @@ impl Tree {
         if let Some(n) = tree.nodes.get(node) {
             let style = n.style();
             let floats = style.get_float() != Float::None;
-            let writing_mode = style.get_writing_mode().is_some();
+            let writing_mode =
+                style.get_writing_mode().is_some() || style.get_text_orientation().is_some();
             let overflow = style.get_overflow();
             let scrolls = matches!(
                 overflow.x,
@@ -2291,7 +2307,8 @@ impl Tree {
                 || style.non_buffer_snapshot() != non_buffer_before;
 
             sets_float = style.get_float() != Float::None;
-            sets_writing_mode = style.get_writing_mode().is_some();
+            sets_writing_mode =
+                style.get_writing_mode().is_some() || style.get_text_orientation().is_some();
             let overflow = style.get_overflow();
             sets_scroll_container = matches!(
                 overflow.x,

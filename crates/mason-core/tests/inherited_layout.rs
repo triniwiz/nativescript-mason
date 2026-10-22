@@ -208,3 +208,49 @@ fn a_detached_subtree_computed_as_a_root_drops_the_inherited_mode() {
     let (vertical, horizontal) = (detached(true), detached(false));
     assert_eq!(vertical, horizontal);
 }
+
+static ORIENTED_MEASURES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+extern "C" fn counted_measure(
+    data: *const c_void,
+    known_w: c_float,
+    known_h: c_float,
+    available_w: c_float,
+    available_h: c_float,
+) -> c_longlong {
+    ORIENTED_MEASURES.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    measure(data, known_w, known_h, available_w, available_h)
+}
+
+#[test]
+fn inherited_text_orientation_changes_remeasure_text() {
+    use mason_core::style::StyleKeys;
+    use std::sync::atomic::Ordering;
+    let mut tree = Fixture::new(WritingMode::VerticalRl, 2, Display::Block);
+    let text = tree.nodes[3].id();
+    tree.mason
+        .set_measure(text, Some(counted_measure), std::ptr::null_mut());
+    tree.compute();
+    let root = tree.nodes[0].id();
+    let measures = || ORIENTED_MEASURES.load(Ordering::SeqCst);
+
+    tree.mason.mark_dirty(root);
+    let before = measures();
+    tree.compute();
+    assert_eq!(measures(), before, "an unchanged root keeps the text's measure");
+
+    for (orientation, state) in [(1, 1), (2, 1), (0, 0)] {
+        let (ptr, len) = tree.mason.style_data_raw_mut(root);
+        assert!(!ptr.is_null());
+        // SAFETY: the root owns this buffer, the engine stays alive, and no
+        // other references or layout calls access it during these writes.
+        let data = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+        data[StyleKeys::TEXT_ORIENTATION as usize] = orientation;
+        data[StyleKeys::TEXT_ORIENTATION_STATE as usize] = state;
+        tree.mason.mark_dirty(root);
+        let before = measures();
+        tree.compute();
+        assert!(measures() > before, "text-orientation {orientation} must remeasure the text");
+        assert_eq!(tree.mason.resolved_text_orientation(text), orientation);
+    }
+}
