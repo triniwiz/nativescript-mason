@@ -591,6 +591,10 @@ class CSSFilters {
 
     internal var shadowNodes: ArrayList<RenderNode> = arrayListOf()
 
+    // How far the shadows reach past the box.
+    internal var padX = 0
+    internal var padY = 0
+
     companion object {
       fun build(view: View, filters: List<Filter>, draw: (Canvas) -> Unit): FilterHelperV3 {
         val helper = FilterHelperV3()
@@ -625,11 +629,13 @@ class CSSFilters {
 
               if (!sourceDrawn) {
                 helper.sourceNode.setPosition(0, 0, view.width, view.height)
+                // Children and their shadows may paint outside the box.
+                helper.sourceNode.clipToBounds = false
                 val sourceCanvas = helper.sourceNode.beginRecording()
 
-                view.setTag(R.id.tag_suppress_ops, true)
+                view.setTag(R.id.tag_filter_source, true)
                 view.draw(sourceCanvas)
-                view.setTag(R.id.tag_suppress_ops, false)
+                view.setTag(R.id.tag_filter_source, false)
 
                 helper.sourceNode.endRecording()
                 sourceDrawn = true
@@ -662,16 +668,17 @@ class CSSFilters {
                 shadowEffect
               )
 
+              // Room on every side for the offset and blur, which the node's bounds would clip.
+              val padX = kotlin.math.ceil(kotlin.math.abs(filter.offsetX) + filter.blur * 3).toInt()
+              val padY = kotlin.math.ceil(kotlin.math.abs(filter.offsetY) + filter.blur * 3).toInt()
+              helper.padX = maxOf(helper.padX, padX)
+              helper.padY = maxOf(helper.padY, padY)
               val shadowNode = RenderNode("shadow")
               shadowNode.setRenderEffect(offsetEffect)
-              shadowNode.setPosition(
-                0,
-                0,
-                view.width + kotlin.math.abs(filter.offsetX).toInt() + filter.blur.toInt() * 3,
-                view.height + kotlin.math.abs(filter.offsetY).toInt() + filter.blur.toInt() * 3
-              )
+              shadowNode.setPosition(-padX, -padY, view.width + padX, view.height + padY)
 
               val shadowCanvas = shadowNode.beginRecording()
+              shadowCanvas.translate(padX.toFloat(), padY.toFloat())
               shadowCanvas.drawRenderNode(helper.sourceNode)
               shadowNode.endRecording()
 
@@ -720,9 +727,10 @@ class CSSFilters {
         helper.filter?.let {
 
           if (helper.shadowNodes.isNotEmpty()) {
-            helper.compositeNode.setPosition(0, 0, view.width, view.height)
+            helper.compositeNode.setPosition(-helper.padX, -helper.padY, view.width + helper.padX, view.height + helper.padY)
 
             val compositeCanvas = helper.compositeNode.beginRecording()
+            compositeCanvas.translate(helper.padX.toFloat(), helper.padY.toFloat())
 
             for (node in helper.shadowNodes) {
               compositeCanvas.drawRenderNode(node)
@@ -760,6 +768,9 @@ class CSSFilters {
     init {
       this.css = css
     }
+
+    internal val hasDropShadow: Boolean
+      get() = filters.any { it is Filter.DropShadow }
 
     private fun hasShadowOrBlur(): Boolean {
       return filters.any { it is Filter.DropShadow || it is Filter.Blur }

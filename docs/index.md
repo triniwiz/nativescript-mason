@@ -88,6 +88,5 @@ Register the elements once for your flavour of NativeScript, as shown in [Framew
 Most of CSS layout and painting behaves as it does in a browser, and the [support matrix](./platforms/) lists the differences per platform. The larger gaps today:
 
 - Vertical writing modes only cover vertical text inside a horizontal layout: no upright CJK, and no vertical containers whose children flow vertically.
-- On iOS and Android, `background-clip: text` applies to text elements, not to a container holding text elements.
 
 </div>

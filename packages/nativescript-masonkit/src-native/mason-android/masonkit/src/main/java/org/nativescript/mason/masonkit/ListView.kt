@@ -47,6 +47,12 @@ class ListView @JvmOverloads constructor(
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
     !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
 
+  // A descendant's text moved or changed: a text-clipped background paints through it.
+  override fun onDescendantInvalidated(child: android.view.View, target: android.view.View) {
+    super.onDescendantInvalidated(child, target)
+    ViewUtils.repaintIfTextClipped(this, style)
+  }
+
   override fun dispatchDraw(canvas: Canvas) {
     // Draw children's outset box shadows at parent level, after this view's own
     // background/border so an opaque parent background can't paint over them.

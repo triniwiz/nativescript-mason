@@ -42,6 +42,64 @@ extension Background {
 
   var hasTextClip: Bool { layers.contains { $0.clip == .text } }
 
+  /// Set once any `background-clip: text` is parsed; until then text changes skip the ancestor walk.
+  static var textClipsInUse = false
+
+  /// Text in `view` changed or moved: repaints the text-clipped backgrounds above it.
+  static func repaintTextClips(above view: UIView) {
+    var current = view.superview
+    while let v = current {
+      if let element = MasonViewKind.element(v), element.style.mBackground?.hasTextClip == true {
+        v.setNeedsDisplay()
+      }
+      current = v.superview
+    }
+  }
+
+  /// The glyph outlines of `view`'s text and of every text inside it, in `view`'s coordinates.
+  static func textGlyphPath(of view: UIView) -> CGPath {
+    let path = CGMutablePath()
+    let outer = collectingTextGlyphs
+    collectingTextGlyphs = true
+    addTextGlyphs(of: view, to: path, transform: .identity)
+    collectingTextGlyphs = outer
+    return path
+  }
+
+  /// True while a text-clipped background draws the texts it needs, which then don't repaint it.
+  static var collectingTextGlyphs = false
+
+  private static func addTextGlyphs(of view: UIView, to path: CGMutablePath, transform: CGAffineTransform) {
+    if let text = view as? MasonText {
+      path.addPath(text.engine.glyphOutlinePath(), transform: transform)
+    }
+    for sub in view.subviews where !sub.isHidden && sub.alpha > 0 {
+      // Its outlines come from its last draw, which may still be pending in this pass.
+      if sub is MasonText { sub.layer.displayIfNeeded() }
+      let layer = sub.layer
+      let b = sub.bounds
+      let toSuper = CGAffineTransform(translationX: -(b.minX + b.width * layer.anchorPoint.x),
+                                      y: -(b.minY + b.height * layer.anchorPoint.y))
+        .concatenating(sub.transform)
+        .concatenating(CGAffineTransform(translationX: layer.position.x, y: layer.position.y))
+      addTextGlyphs(of: sub, to: path, transform: toSuper.concatenating(transform))
+    }
+  }
+
+  /// The `background-clip: text` layers, inside the glyphs of `view`'s text and the text inside it.
+  func drawThroughText(view: UIView, caLayer: CALayer? = nil, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
+    let glyphs = Background.textGlyphPath(of: view)
+    guard !glyphs.isEmpty else { return }
+    context.saveGState()
+    context.addPath(glyphs)
+    context.clip()
+    // The layers set their own blend modes, so composite them as one group.
+    context.beginTransparencyLayer(auxiliaryInfo: nil)
+    drawAll(view: view, caLayer: caLayer, in: context, rect: rect, precomputedColor: precomputedColor, pass: .textOnly)
+    context.endTransparencyLayer()
+    context.restoreGState()
+  }
+
   // See the `on view:` overload below for what `precomputedColor` is for.
   func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil, pass: TextClipPass = .all) {
     drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor, pass: pass)
@@ -51,7 +109,12 @@ extension Background {
   // it twice when the caller needed it anyway (resolution isn't a plain
   // buffer read - it walks the pseudo-state chain).
   func draw(on view: UIView, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
-    drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor)
+    guard hasTextClip else {
+      drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor)
+      return
+    }
+    drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor, pass: .excludingText)
+    drawThroughText(view: view, in: context, rect: rect, precomputedColor: precomputedColor)
   }
 
   /// `rect` is what the caller fills with the base color. Clip and positioning

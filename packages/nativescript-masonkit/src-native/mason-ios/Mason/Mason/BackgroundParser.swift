@@ -18,7 +18,9 @@ enum BackgroundClip: String {
   case text = "text"
 
   static func parse(_ value: String) -> BackgroundClip? {
-    BackgroundClip(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    let clip = BackgroundClip(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    if clip == .text { Background.textClipsInUse = true }
+    return clip
   }
 
   static func parseOrigin(_ value: String) -> BackgroundClip? {
@@ -657,7 +659,10 @@ func parseLayer(_ str: String) -> BackgroundLayer {
     layer.clip = boxes[1]
   }
   // `text` is the clip; a box keyword beside it is only the origin.
-  if clipsToText { layer.clip = .text }
+  if clipsToText {
+    layer.clip = .text
+    Background.textClipsInUse = true
+  }
   
   return layer
 }

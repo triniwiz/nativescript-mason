@@ -247,6 +247,13 @@ class Background(
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
 
+  /** Whether a layer paints through the text (`background-clip: text`). */
+  val hasTextClip: Boolean
+    get() {
+      for (i in layers.indices) if (layers[i].clip == BackgroundClip.TEXT) return true
+      return false
+    }
+
   private fun invalidateView() {
     (style.node.view as? android.view.View)?.invalidate()
   }

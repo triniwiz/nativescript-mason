@@ -1,6 +1,9 @@
 package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.os.Build
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
@@ -10,8 +13,53 @@ import org.nativescript.mason.masonkit.enums.Overflow
 /** Which background layers a paint covers; `background-clip: text` ones go through the glyphs. */
 internal enum class TextClipPass { ALL, EXCLUDING_TEXT, TEXT_ONLY }
 
+// Keeps the text-clipped layers only where the glyph mask under them is drawn.
+private val GLYPH_MASK_PAINT = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN) }
+
 class ViewUtils {
   companion object {
+    /**
+     * `background-clip: text`: the text-clipped layers show through the glyphs of the view's
+     * own text and of every text inside it, as in the web.
+     */
+    private fun drawTextClippedLayers(
+      view: android.view.View,
+      canvas: Canvas,
+      style: Style,
+      background: Background,
+      width: Float,
+      height: Float,
+      boxDx: Float,
+      boxDy: Float
+    ) {
+      val save = canvas.saveLayer(0f, 0f, width, height, null)
+      canvas.withTranslation(-boxDx, -boxDy) { drawGlyphMasks(view, this) }
+      canvas.saveLayer(0f, 0f, width, height, GLYPH_MASK_PAINT)
+      drawBackgroundLayers(view, canvas, style, background, width, height, boxDx, boxDy, TextClipPass.TEXT_ONLY)
+      canvas.restoreToCount(save)
+    }
+
+    // Glyphs of [view]'s text and its descendants', in its content coordinates.
+    private fun drawGlyphMasks(view: android.view.View, canvas: Canvas) {
+      if (view is TextView) view.drawGlyphMask(canvas)
+      if (view !is ViewGroup) return
+      for (i in 0 until view.childCount) {
+        val child = view.getChildAt(i)
+        if (child.visibility != android.view.View.VISIBLE) continue
+        canvas.withSave {
+          translate(child.left.toFloat(), child.top.toFloat())
+          if (!child.matrix.isIdentity) concat(child.matrix)
+          translate(-child.scrollX.toFloat(), -child.scrollY.toFloat())
+          drawGlyphMasks(child, this)
+        }
+      }
+    }
+
+    /** Text-clipped backgrounds paint through descendant text, so its changes and moves repaint them. */
+    internal fun repaintIfTextClipped(view: android.view.View, style: Style) {
+      if (style.mBackground?.hasTextClip == true) view.invalidate()
+    }
+
     /** The background color and layers in [pass], bottom layer first, each clipped to its box. */
     internal fun drawBackgroundLayers(
       view: android.view.View,
@@ -164,6 +212,18 @@ class ViewUtils {
       val width = view.width.toFloat()
       val height = view.height.toFloat()
 
+      // drop-shadow() shadows the whole element, background and border included: the filter
+      // records this draw without itself, then paints the shadows and the recording.
+      val filterSource = view.getTag(R.id.tag_filter_source) as? Boolean ?: false
+      if (!filterSource && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        resolveFilter(style)
+        val filter = style.mFilter
+        if (filter != null && filter.hasDropShadow && !filter.canApplyFast()) {
+          filter.renderFilters(view, canvas) {}
+          return
+        }
+      }
+
       // A view with no border or radius skips creating a renderer unless it paints something.
       val borderless = !style.mBorderRendererExists && !style.mayHaveBorderOrRadius()
       if (!borderless) style.mBorderRenderer.updateCache(width, height)
@@ -213,9 +273,12 @@ class ViewUtils {
             if (!outerPath.isEmpty) {
               canvas.clipPath(outerPath)
             }
-            // A text view paints its text-clipped layers through the glyphs instead.
-            drawBackgroundLayers(view, canvas, style, background, width, height, boxDx, boxDy,
-              if (view is TextView) TextClipPass.EXCLUDING_TEXT else TextClipPass.ALL)
+            if (background.hasTextClip) {
+              drawBackgroundLayers(view, canvas, style, background, width, height, boxDx, boxDy, TextClipPass.EXCLUDING_TEXT)
+              drawTextClippedLayers(view, canvas, style, background, width, height, boxDx, boxDy)
+            } else {
+              drawBackgroundLayers(view, canvas, style, background, width, height, boxDx, boxDy, TextClipPass.ALL)
+            }
           }
         }
       }
@@ -246,18 +309,9 @@ class ViewUtils {
       // children themselves so the shadows sit behind their content.
       beforeChildren?.invoke(canvas)
 
-      // Resolve filter CSS (pseudo-aware) so :active/:hover strings apply
-      // only when the node's pseudo mask is active.
-      val css = style.resolvedFilterString
-      if ((style.mFilter == null && css.isNotEmpty()) || (style.mFilter != null && style.mFilter?.css != css)) {
-        val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
-        style.mFilter = CSSFilters.parse(css)
-        if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
-          (style.node.view as? View)?.invalidate()
-        }
-      }
-
-      val useFastFilter = style.mFilter?.canApplyFast() == true
+      resolveFilter(style)
+      val activeFilter = if (filterSource) null else style.mFilter
+      val useFastFilter = activeFilter?.canApplyFast() == true
 
       // Block 2: Content with inner border-radius clip + overflow clip.
       // Per CSS, border-radius clips child content only when overflow isn't visible;
@@ -279,7 +333,7 @@ class ViewUtils {
 
         Style.applyOverflowClip(style, canvas, style.node, width, height)
 
-        val filter = style.mFilter
+        val filter = activeFilter
         if (filter != null) {
           if (filter.filters.isEmpty() || useFastFilter) {
             // No filter or fast-path — draw content normally; fast overlay applied below
@@ -303,7 +357,7 @@ class ViewUtils {
           superDraw(canvas)
         }
       }
-      val filterRenders = style.mFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
+      val filterRenders = activeFilter?.let { it.filters.isNotEmpty() && !useFastFilter } == true
       if (overflowClipsContent || filterRenders || !style.isValueInitialized) {
         canvas.withSave { drawContent() }
       } else {
@@ -319,10 +373,23 @@ class ViewUtils {
           if (hasRadii) {
             canvas.clipPath(style.mBorderRenderer.getOuterClipPath(width, height))
           }
-          style.mFilter?.applyFast(canvas, width, height)
+          activeFilter?.applyFast(canvas, width, height)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
           view.setRenderEffect(null)
+        }
+      }
+    }
+
+    // Parses the filter CSS (pseudo-aware) so :active/:hover strings apply only when the node's
+    // pseudo mask is active.
+    private fun resolveFilter(style: Style) {
+      val css = style.resolvedFilterString
+      if ((style.mFilter == null && css.isNotEmpty()) || (style.mFilter != null && style.mFilter?.css != css)) {
+        val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
+        style.mFilter = CSSFilters.parse(css)
+        if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
+          (style.node.view as? View)?.invalidate()
         }
       }
     }

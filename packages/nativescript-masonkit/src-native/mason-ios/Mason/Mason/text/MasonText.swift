@@ -260,6 +260,12 @@ public class MasonTextLayer: CALayer {
     isOpaque = false
     needsDisplayOnBoundsChange = true
   }
+
+  // A text-clipped background above paints through this text.
+  public override func setNeedsDisplay() {
+    super.setNeedsDisplay()
+    if Background.textClipsInUse, let view = textView { Background.repaintTextClips(above: view) }
+  }
   
   public override func draw(in context: CGContext) {
     guard let textView = textView else {
@@ -338,7 +344,7 @@ public class MasonTextLayer: CALayer {
     textView.engine.drawText(context: context, rect: bounds)
     if clipsToText {
       context.saveGState()
-      context.addPath(textView.engine.glyphOutlinePath())
+      context.addPath(Background.textGlyphPath(of: textView))
       context.clip()
       // The layers set their own blend modes, so composite them as one group behind the text.
       context.setBlendMode(.destinationOver)
@@ -362,6 +368,11 @@ public class MasonTextLayer: CALayer {
     }
 
     textView.style.applyResolvedFilter(in: context, rect: bounds, view: textView)
+
+    // A text-clipped background above may have painted before this text had drawn.
+    if Background.textClipsInUse && !Background.collectingTextGlyphs {
+      Background.repaintTextClips(above: textView)
+    }
   }
 }
 
@@ -501,6 +512,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     // Those layers live in the old superview, so remove them while it is still current.
     if newSuperview == nil {
       style.removeShadowLayer()
+      if Background.textClipsInUse { Background.repaintTextClips(above: self) }
     }
   }
 

@@ -9,7 +9,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
-import android.graphics.PorterDuffXfermode
 import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.RectF
@@ -84,9 +83,8 @@ internal class ThemelessContext private constructor(base: Context, template: and
  * A Mason text element. It lays out and draws its text itself, and is a ViewGroup so the
  * inline boxes in its text can be real child views.
  */
-// background-clip: text draws the glyphs opaque black, then keeps only the layers inside them.
+// background-clip: text masks are the glyphs drawn opaque black.
 private val GLYPH_MASK_FILTER = PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC)
-private val GLYPH_MASK_PAINT = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN) }
 
 open class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -217,85 +215,100 @@ open class TextView @JvmOverloads constructor(
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
-      if (engine.isVerticalWritingMode) {
-        drawVertical(c)
-        return@onDraw
-      }
-      // Build float-aware layout lazily if we have floated siblings.
-      // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
-      // when applyLayoutFlat positions the view), so try building float-aware
-      // layout unconditionally.
-      if (floatAwareStaticLayout == null) {
-        floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(textPaint)
-        // Measured before the floats settled: lay out again so the box fits the wrapped lines.
-        if (floatAwareStaticLayout != null && !engine.floatExclusions().contentEquals(engine.measuredExclusions)) {
-          post { invalidateLayout() }
-        }
-      }
-
-      // After rotation Taffy reuses cached measure results, so measure() never
-      // re-runs to rebuild cachedStaticLayout (cleared by onSizeChanged). Rebuild
-      // it here at the current content width so our custom centered draw still
-      // runs instead of falling back to the platform's top-aligned TextView.
-      val contentWidth = width - paddingLeft - paddingRight
-      if (floatAwareStaticLayout == null &&
-        (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
-      ) {
-        engine.rebuildCachedStaticLayout(textPaint, contentWidth)
-      }
-
-      val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
-
-      if (layoutToDraw != null) {
-        val contentH = height - paddingTop - paddingBottom
-        val dy = if (layoutToDraw.lineCount == 1 && contentH > 0) {
-          val baseline0 = layoutToDraw.getLineBaseline(0)
-          val glyphCenter = baseline0 +
-            (layoutToDraw.getLineAscent(0) + layoutToDraw.getLineDescent(0)) / 2f
-          contentH / 2f - glyphCenter
-        } else if (centersVertically && contentH > layoutToDraw.height) {
-          (contentH - layoutToDraw.height) / 2f
-        } else 0f
-        // We bypass super.onDraw, which normally insets the layout by the view's
-        // padding — so apply paddingLeft/paddingTop here.
-        if (layoutToDraw.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
-        val tx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layoutToDraw, contentWidth)
-        val ty = paddingTop.toFloat() + dy
-        drawnLayout = layoutToDraw
-        drawnDx = tx
-        drawnDy = ty
-        drawTextClippedBackground(c, layoutToDraw, tx, ty)
-        if (tx != 0f || ty != 0f) {
-          val save = c.save()
-          c.translate(tx, ty)
-          layoutToDraw.draw(c)
-          TextDecorations.draw(c, layoutToDraw)
-          c.restoreToCount(save)
-        } else {
-          layoutToDraw.draw(c)
-          TextDecorations.draw(c, layoutToDraw)
-        }
-        layoutInlineBoxes(layoutToDraw)
-        updateInlineAccessibility()
-      }
+      val layout = resolveDrawnLayout() ?: return@onDraw
+      drawResolvedLayout(c, layout, true)
+      layoutInlineBoxes(layout)
+      updateInlineAccessibility()
     }
   }
 
-  // background-clip: text: the text-clipped layers show through the glyphs, under the text itself.
-  private fun drawTextClippedBackground(c: Canvas, layout: android.text.Layout, tx: Float, ty: Float) {
-    val background = style.mBackground ?: return
-    if (background.layers.none { it.clip == BackgroundClip.TEXT }) return
-    val w = width.toFloat()
-    val h = height.toFloat()
-    val save = c.saveLayer(0f, 0f, w, h, null)
+  /** The glyphs opaque black where onDraw draws them: a `background-clip: text` mask. */
+  internal fun drawGlyphMask(c: Canvas) {
+    engine.applyTextIfNeeded()
+    val layout = resolveDrawnLayout() ?: return
     val paint = layout.paint
     val filter = paint.colorFilter
-    paint.colorFilter = GLYPH_MASK_FILTER
-    c.withTranslation(tx, ty) { layout.draw(this) }
+    setPaintColorFilter(c, paint, GLYPH_MASK_FILTER)
+    drawResolvedLayout(c, layout, false)
+    setPaintColorFilter(c, paint, filter)
+  }
+
+  // Paint applies a color filter natively on its next draw, but Paint.set copies the native
+  // paint, so the layout's span paints missed (or kept) it. An empty draw applies it now.
+  private fun setPaintColorFilter(c: Canvas, paint: Paint, filter: android.graphics.ColorFilter?) {
     paint.colorFilter = filter
-    c.saveLayer(0f, 0f, w, h, GLYPH_MASK_PAINT)
-    ViewUtils.drawBackgroundLayers(this, c, style, background, w, h, 0f, 0f, TextClipPass.TEXT_ONLY)
-    c.restoreToCount(save)
+    c.drawText("", 0f, 0f, paint)
+  }
+
+  // A descendant's text moved or changed: a text-clipped background paints through it.
+  override fun onDescendantInvalidated(child: View, target: View) {
+    super.onDescendantInvalidated(child, target)
+    ViewUtils.repaintIfTextClipped(this, style)
+  }
+
+  // The layout to draw this frame, built if needed, with drawnDx/drawnDy set to its offset.
+  private fun resolveDrawnLayout(): android.text.Layout? {
+    if (engine.isVerticalWritingMode) {
+      val lineLength = height - paddingTop - paddingBottom
+      if (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength))) {
+        engine.rebuildCachedStaticLayout(textPaint, lineLength)
+      }
+      val layout = cachedStaticLayout ?: return null
+      drawnLayout = layout
+      if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
+      return layout
+    }
+    // Build float-aware layout lazily if we have floated siblings.
+    // Note: cachedStaticLayout may be null here (cleared by onSizeChanged
+    // when applyLayoutFlat positions the view), so try building float-aware
+    // layout unconditionally.
+    if (floatAwareStaticLayout == null) {
+      floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(textPaint)
+      // Measured before the floats settled: lay out again so the box fits the wrapped lines.
+      if (floatAwareStaticLayout != null && !engine.floatExclusions().contentEquals(engine.measuredExclusions)) {
+        post { invalidateLayout() }
+      }
+    }
+
+    // After rotation Taffy reuses cached measure results, so measure() never
+    // re-runs to rebuild cachedStaticLayout (cleared by onSizeChanged). Rebuild
+    // it here at the current content width so our custom centered draw still
+    // runs instead of falling back to the platform's top-aligned TextView.
+    val contentWidth = width - paddingLeft - paddingRight
+    if (floatAwareStaticLayout == null &&
+      (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
+    ) {
+      engine.rebuildCachedStaticLayout(textPaint, contentWidth)
+    }
+
+    val layout = floatAwareStaticLayout ?: cachedStaticLayout ?: return null
+    val contentH = height - paddingTop - paddingBottom
+    val dy = if (layout.lineCount == 1 && contentH > 0) {
+      val baseline0 = layout.getLineBaseline(0)
+      val glyphCenter = baseline0 +
+        (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
+      contentH / 2f - glyphCenter
+    } else if (centersVertically && contentH > layout.height) {
+      (contentH - layout.height) / 2f
+    } else 0f
+    if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
+    // We bypass super.onDraw, which normally insets the layout by the view's
+    // padding — so apply paddingLeft/paddingTop here.
+    drawnLayout = layout
+    drawnDx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layout, contentWidth)
+    drawnDy = paddingTop.toFloat() + dy
+    return layout
+  }
+
+  private fun drawResolvedLayout(c: Canvas, layout: android.text.Layout, decorations: Boolean) {
+    if (engine.isVerticalWritingMode) {
+      drawVertical(c, layout, decorations)
+      return
+    }
+    c.withTranslation(drawnDx, drawnDy) {
+      layout.draw(this)
+      if (decorations) TextDecorations.draw(this, layout)
+    }
   }
 
   /**
@@ -320,24 +333,15 @@ open class TextView @JvmOverloads constructor(
    * lines from the right, which is one rotation; vertical-lr stacks them from the left with the
    * glyphs still turned clockwise, so each line is placed on its own.
    */
-  private fun drawVertical(c: Canvas) {
-    val lineLength = height - paddingTop - paddingBottom
-    if (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength))) {
-      engine.rebuildCachedStaticLayout(textPaint, lineLength)
-    }
-    val layout = cachedStaticLayout ?: return
-    drawnLayout = layout
-    if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
+  private fun drawVertical(c: Canvas, layout: android.text.Layout, decorations: Boolean) {
     val top = paddingTop.toFloat()
     if (style.resolvedWritingMode.toInt() == 1) {
       val save = c.save()
       c.translate((width - paddingRight).toFloat(), top)
       c.rotate(90f)
       layout.draw(c)
-      TextDecorations.draw(c, layout)
+      if (decorations) TextDecorations.draw(c, layout)
       c.restoreToCount(save)
-      layoutInlineBoxes(layout)
-      updateInlineAccessibility()
       return
     }
     for (i in 0 until layout.lineCount) {
@@ -348,11 +352,9 @@ open class TextView @JvmOverloads constructor(
       c.rotate(90f)
       c.clipRect(0, lineTop, layout.width, lineBottom)
       layout.draw(c)
-      TextDecorations.draw(c, layout)
+      if (decorations) TextDecorations.draw(c, layout)
       c.restoreToCount(save)
     }
-    layoutInlineBoxes(layout)
-    updateInlineAccessibility()
   }
 
   // The layout last drawn and its offset, for mapping touches into it.

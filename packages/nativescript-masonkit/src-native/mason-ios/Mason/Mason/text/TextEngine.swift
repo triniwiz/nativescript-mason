@@ -2020,6 +2020,7 @@ public class TextEngine: NSObject {
     // text layer renders our content. Drawing here would produce duplicate text.
     if let parentNode = node.layoutParent, let parentContainer = MasonViewKind.textContainer(parentNode.view),
        parentContainer.engine.shouldFlattenTextContainer(container) {
+      drawnLines.removeAll()
       drawState = .idle
       return
     }
