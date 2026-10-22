@@ -106,6 +106,8 @@ namespace mason_dwrite
         // that part of the cell, 0 all of it. `trimmed` is the blank length dropped.
         uint8_t half{ 0 };
         float trimmed{ 0.0f };
+        // The blank length it drops set half-width, 0 where its font has no vhal.
+        float trimmable{ 0.0f };
         winrt::com_ptr<IDWriteTextLayout> glyph;
     };
 
@@ -437,12 +439,13 @@ namespace mason_dwrite
                     u.cell = (vertical.advance > 0.0f ? vertical.advance : vertical.height) * size;
                     if (vertical.origin >= 0.0f) u.baseline = vertical.origin * size;
                 }
+                if (vertical.halves) u.trimmable = (std::max)(u.cell - size / 2.0f, 0.0f);
                 if (i < marks.size() && marks[i])
                 {
-                    if (vertical.halves)
+                    if (u.trimmable > 0.0f)
                     {
                         u.half = marks[i];
-                        u.trimmed = (std::max)(u.cell - size / 2.0f, 0.0f);
+                        u.trimmed = u.trimmable;
                         u.cell -= u.trimmed;
                     }
                     marks[i] = 0;
@@ -457,6 +460,40 @@ namespace mason_dwrite
         auto& registry = UprightRegistry();
         if (registry.size() > 64) std::erase_if(registry, [](auto const& entry) { return entry.second.expired(); });
         registry[layout] = uprights;
+    }
+
+    inline float UprightTrimmable(IDWriteTextLayout* layout, uint32_t position)
+    {
+        auto uprights = UprightsOf(layout);
+        if (!uprights) return -1.0f;
+        for (auto const& u : *uprights)
+        {
+            if (u.position == position) return u.combined ? 0.0f : u.trimmable;
+        }
+        return -1.0f;
+    }
+
+    inline void HalveUpright(IDWriteTextLayout* layout, uint32_t position, uint8_t half)
+    {
+        auto uprights = UprightsOf(layout);
+        if (!uprights) return;
+        for (auto& u : *uprights)
+        {
+            if (u.position != position) continue;
+            const float drop = half ? u.trimmable - u.trimmed : -u.trimmed;
+            winrt::com_ptr<IDWriteInlineObject> old;
+            DWRITE_INLINE_OBJECT_METRICS metrics{};
+            DWRITE_BREAK_CONDITION before{}, after{};
+            if (drop == 0.0f || FAILED(layout->GetInlineObject(position, old.put(), nullptr)) || !old || FAILED(old->GetMetrics(&metrics))) return;
+            old->GetBreakConditions(&before, &after);
+            u.half = half;
+            u.trimmed = half ? u.trimmable : 0.0f;
+            u.cell -= drop;
+            auto cell = winrt::make_self<UprightCell>(uprights, metrics.width - drop, metrics.baseline, metrics.height - metrics.baseline,
+                before == DWRITE_BREAK_CONDITION_CAN_BREAK);
+            layout->SetInlineObject(cell.get(), DWRITE_TEXT_RANGE{ u.position, u.length });
+            return;
+        }
     }
 
     // Draws `layout`'s upright graphemes turned back, centred in their cells on the line's central

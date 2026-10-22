@@ -874,8 +874,11 @@ flex and grid children flow in the container's writing mode) and
   `layoutTrimmingLineEdges` in `newTrimmedStaticLayout`, not beside floats) lay the
   text out, trim line-start opening marks and line-end closing marks, and redo it up
   to three times until the breaks settle; a closing bracket the line broke before is
-  set half-width when that lets it end the line (as Chrome; not `、。`). Windows has no
-  line-edge pass yet.
+  set half-width when that lets it end the line (as Chrome; not `、。`). Windows
+  (`FitLineEdges`, run from `Configure` for the Text's cached layout only, so not
+  beside floats) does the same on the DirectWrite layout per width: character
+  spacing for sideways marks, a resized `UprightCell` for upright ones. Its
+  `LineEdgeRegistry` holds each layout so an address isn't reused while registered.
 - **vertical-rl scroll containers** (overflow-x scroll/auto): `writing_mode.rs`
   moves the content right by its left overflow; iOS/Android keep the offset's
   distance from the right end (starting there), Windows uses a right-to-left
@@ -891,7 +894,7 @@ flex and grid children flow in the container's writing mode) and
   (`tree_inline.rs`, text-container branch) runs transposed too; it used to run
   horizontally, putting each upright cell on its own line and growing the box.
 - **Not supported yet:** vertical text in native text fields (`<input>`,
-  `<textarea>`); Windows `text-spacing-trim` at wrapped lines.
+  `<textarea>`).
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0

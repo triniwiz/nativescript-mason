@@ -24,7 +24,7 @@ Almost everything in these docs behaves the same on every platform. The differen
 | `position: fixed` / `sticky` | Yes | Yes | Yes |
 | `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes |
 | `text-orientation`, `text-combine-upright` | Yes | Yes | Yes |
-| `text-spacing-trim` | Yes | Yes (font's `halt`) | Fonts with `halt`/`vhal`, at paragraph edges and between marks, not at wrapped lines |
+| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) |
 | Floats in vertical text | Yes | Yes | Yes |
 | `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) |
 | SVG `url()` backgrounds | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer |

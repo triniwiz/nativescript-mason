@@ -259,6 +259,7 @@ namespace winrt::NativeScript::Mason::implementation
                 if (!layout)
                 {
                     layout = mason_dwrite::BuildUpright(paragraph);
+                    mason_dwrite::WatchLineEdges(layout.get(), paragraph);
                 }
                 return layout.get();
             }

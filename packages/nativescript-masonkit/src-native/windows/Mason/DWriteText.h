@@ -595,6 +595,8 @@ namespace mason_dwrite
     inline bool TrimsAfterUprights(Paragraph const& p);
     inline std::vector<uint8_t> HalfWidthMarks(Paragraph const& p);
     inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks);
+    inline void FitLineEdges(IDWriteTextLayout* layout, float maxWidth, float indent);
+    inline void ResetLineEdges(IDWriteTextLayout* layout);
     // Vertical text's upright cells, in VerticalText.h.
     inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t>& marks);
     inline winrt::com_ptr<IDWriteTextLayout> Build(Paragraph const& p)
@@ -864,6 +866,7 @@ namespace mason_dwrite
         {
             if (auto hyphens = HyphensOf(layout)) FitHyphens(layout, *hyphens, maxWidth);
         }
+        FitLineEdges(layout, wrapping != DWRITE_WORD_WRAPPING_NO_WRAP ? maxWidth : std::numeric_limits<float>::infinity(), flow.indents ? flow.indent : 0.0f);
         if (flow.lineClamp > 0) Clamp(layout, flow.lineClamp);
     }
 
@@ -886,6 +889,7 @@ namespace mason_dwrite
     inline float MinContentWidth(IDWriteTextLayout* layout, Flow const& flow = {})
     {
         if (flow.indents) SetIndent(layout, flow.indent);
+        ResetLineEdges(layout);
         FLOAT width = 0.0f;
         return SUCCEEDED(layout->DetermineMinWidth(&width)) ? width : 0.0f;
     }
