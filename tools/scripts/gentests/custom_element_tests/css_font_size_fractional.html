@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    a fractional font-size is kept, not cut to a whole number
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="width: 200px; flex-direction: column; align-items: flex-start;">
+  <div style="font-size: 12.8px;">XXXXX</div>
+  <div style="font-size: 1.28em;">XXXXX</div>
+  <div style="font-size: 0.8rem;">XXXXX</div>
+</div>
+
+</body>
+</html>

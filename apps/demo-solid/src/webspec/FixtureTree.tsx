@@ -63,11 +63,12 @@ const TAG_RENDERERS: Record<string, (p: NodeProps) => any> = {
 
 function renderNode(node: FixtureNode, refs: Map<number, any>, isRoot = false): any {
   const render = TAG_RENDERERS[node.tag ?? 'div'] ?? TAG_RENDERERS.div
-  // Own text first, then element children — the order they appear in the
-  // fixture's markup, which is what the browser measured.
+  // Own text and element children in the order they appear in the fixture's
+  // markup, which is what the browser measured.
   const children: any[] = []
-  if (node.text) children.push(node.text)
+  if (node.text && !node.textAfter) children.push(node.text)
   for (const child of node.children) children.push(renderNode(child, refs))
+  if (node.text && node.textAfter) children.push(node.text)
   return render({
     ref: (el: any) => refs.set(node.seq, el),
     style: cssToStyle(node.style, isRoot),

@@ -85,7 +85,14 @@ function buildStyleTree($, root) {
       .text()
       .replace(/\s+/g, ' ')
       .trim();
-    if (ownText.length) node.text = ownText;
+    if (ownText.length) {
+      node.text = ownText;
+      // Text that only starts after the element children (e.g. beside a float) keeps that order.
+      const contents = $(el).contents().toArray();
+      const firstText = contents.findIndex((n) => n.type === 'text' && n.data.trim().length);
+      const firstElement = contents.findIndex((n) => n.type === 'tag' && WALKABLE_TAGS.has(n.tagName?.toLowerCase()));
+      if (firstElement !== -1 && firstElement < firstText) node.textAfter = true;
+    }
     for (const child of $(el).children().toArray()) {
       if (WALKABLE_TAGS.has(child.tagName?.toLowerCase())) {
         node.children.push(walk(child));

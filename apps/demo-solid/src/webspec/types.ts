@@ -9,6 +9,8 @@ export interface FixtureNode {
    * fixture measures an empty box.
    */
   text?: string;
+  /** The text follows the element children in the markup instead of leading them. */
+  textAfter?: boolean;
   children: FixtureNode[];
 }
 
