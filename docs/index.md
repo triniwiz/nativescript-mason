@@ -1,50 +1,25 @@
 ---
-layout: home
-
-hero:
-  name: MasonKit
-  text: Web layout for NativeScript
-  tagline: Flexbox, grid, block and inline flow, and HTML-shaped elements, rendered as real native views on iOS, Android and Windows.
-  image:
-    src: /logo.svg
-    alt: MasonKit
-  actions:
-    - theme: brand
-      text: Get started
-      link: /guide/introduction
-    - theme: alt
-      text: Quick start
-      link: /guide/quick-start
-    - theme: alt
-      text: GitHub
-      link: https://github.com/triniwiz/nativescript-mason
-
-features:
-  - title: CSS you already know
-    details: display, flex, grid, position, float, gap, calc() and friends behave the way they do in a browser, including px as a CSS pixel and rem, em, vw and vh units.
-    link: /styling/
-    linkText: How CSS applies
-  - title: HTML-shaped elements
-    details: div, section, p, span, h1 to h6, ul, ol, li, a, img, input, details and more, with browser-like default styles and inline text flow.
-    link: /elements/
-    linkText: Browse elements
-  - title: Native views, Rust layout
-    details: Every element is a native view. Layout runs in a Rust core built on taffy.
-    link: /guide/how-it-works
-    linkText: How it works
-  - title: Every NativeScript flavour
-    details: Plain XML and TypeScript, Angular, Vue 3 and Svelte Native entry points ship in the package. React and Solid work through the same element registry.
-    link: /frameworks/
-    linkText: Framework setup
-  - title: Mixes with existing views
-    details: Drop a Label or StackLayout into a Mason container, or a Mason tree into a GridLayout. Plain views keep NativeScript's own semantics.
-    link: /guide/mixing-views
-    linkText: Mixing views
-  - title: Tells you what it dropped
-    details: Turn on CSS diagnostics to see every unknown unit, unparsable value or unsupported function instead of silently losing it.
-    link: /guide/diagnostics
-    linkText: CSS diagnostics
+layout: page
+title: MasonKit
+sidebar: false
+aside: false
 ---
+
+<div class="home vp-doc">
+
+# MasonKit
+
+<p class="lede">
+MasonKit brings the web's layout model to NativeScript. Flexbox, grid, block and inline flow, floats and positioning are computed by a Rust engine built on taffy, and every element is drawn as a native view on iOS, Android and Windows. You write HTML-shaped elements and ordinary CSS; it works with plain NativeScript, Angular, Vue, Svelte, React and Solid.
+</p>
+
+<div class="links">
+  <a href="./guide/introduction">Introduction</a>
+  <a href="./guide/quick-start">Quick start</a>
+  <a href="./frameworks/">Framework setup</a>
+  <a href="./styling/reference">Property reference</a>
+  <a href="./platforms/">What each platform supports</a>
+</div>
 
 ## Install
 
@@ -52,10 +27,23 @@ features:
 ns plugin add @triniwiz/nativescript-masonkit
 ```
 
+## A small example
+
+<div class="example">
+<div>
+
 ```html
 <div class="card">
   <h2>Hello Mason</h2>
-  <p>Styled with <strong>real</strong> CSS.</p>
+  <p>
+    Styled with <strong>real</strong> CSS:
+    flexbox, gradients and rem units.
+  </p>
+  <div class="tags">
+    <span>flex</span>
+    <span>grid</span>
+    <span>float</span>
+  </div>
 </div>
 ```
 
@@ -69,6 +57,38 @@ ns plugin add @triniwiz/nativescript-masonkit
   background: linear-gradient(135deg, #3d5afe, #7c4dff);
   color: white;
 }
+.card h2,
+.card p {
+  margin: 0;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tags span {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 13px;
+}
 ```
 
-Pick your flavour in [Framework setup](/frameworks/) to register the elements.
+</div>
+<div class="shots">
+  <figure><img src="/screens/example-ios.png" alt="The card on iOS"><figcaption>iOS</figcaption></figure>
+  <figure><img src="/screens/example-android.png" alt="The card on Android"><figcaption>Android</figcaption></figure>
+</div>
+</div>
+
+Register the elements once for your flavour of NativeScript, as shown in [Framework setup](./frameworks/), and the markup above works as written.
+
+## What is not there yet
+
+Most of CSS layout and painting behaves as it does in a browser, and the [support matrix](./platforms/) lists the differences per platform. The larger gaps today:
+
+- Vertical writing modes only cover vertical text inside a horizontal layout: no upright CJK, and no vertical containers whose children flow vertically.
+- `background-clip: text` applies to text elements, not to a container holding text elements, and not yet on Windows.
+- On Windows, text does not wrap around floats.
+
+</div>

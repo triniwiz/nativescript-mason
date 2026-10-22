@@ -46,7 +46,17 @@ The shorthand expands into longhands, so a later longhand overrides one part, as
 Per-layer lists repeat cyclically when they are shorter than the layer list, as CSS specifies.
 
 ::: warning
-`background-clip: text` is not applied on any platform yet; the background is painted as with `border-box`.
+`background-clip: text` (also spelled `-webkit-background-clip: text`, or `text` in the `background` shorthand) paints the background only inside the glyphs. Pair it with a transparent `color` to show the background through the text:
+
+```css
+.headline {
+  background: linear-gradient(90deg, #e91e63, #3f51b5);
+  background-clip: text;
+  color: transparent;
+}
+```
+
+It applies to text elements (`p`, `span`, headings and the like) on iOS and Android, including inline text merged into them. A container does not yet clip its background to the text of its child elements, and Windows paints the background as with `border-box`.
 :::
 
 `background-blend-mode` needs Android 10 (API 29) or later.
