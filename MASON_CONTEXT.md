@@ -782,8 +782,9 @@ every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
 ### writing-mode
 
-`vertical-rl` / `vertical-lr` work for a vertical box inside a horizontal layout,
-with sideways glyphs (`text-orientation: mixed` for Latin text).
+`vertical-rl` / `vertical-lr` work for vertical text, vertical containers (block,
+flex and grid children flow in the container's writing mode) and
+`text-orientation: mixed | upright | sideways`.
 
 - **Layout lives in mason-core.** For text, Rust only sizes boxes; the platform
   breaks and draws lines. So `cached_leaf_measure` (`tree_inline.rs`) and the
@@ -817,10 +818,31 @@ with sideways glyphs (`text-orientation: mixed` for Latin text).
   placements turned back (`transpose_prepared_item`). Inline-blocks holding
   text are measured at their inherent size before the text is, so a box isn't
   shrunk to its min-content.
-- **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
-  containers whose children flow vertically (taffy only supports horizontal-tb),
-  float exclusions, and turning the label of a button or other widget inside
-  vertical text.
+- **Vertical containers** (`writing_mode.rs`). Taffy only knows horizontal-tb,
+  so a vertical container runs its flex, grid or block algorithm (and the
+  out-of-flow pass) in a transposed frame: `StyleGuard` reads sizes and sides
+  in the frame of the asking algorithm (a thread-local `LayoutFrame`), the
+  child boundary in `compute_block_child_layout` turns inputs back to physical,
+  and the layouts set during the algorithm are turned to physical afterwards
+  (mirrored across the width for vertical-rl). Everything below the boundary
+  stays physical, so the vertical-text code above is unchanged. A child in the
+  container's own writing mode (`is_parallel_flow`) skips the orthogonal-flow
+  fallbacks; an orthogonal one (a vertical box in horizontal flow or the
+  reverse) gets a fit-content inline size (`fit_orthogonal_inline_size`).
+- **text-orientation** (`VerticalText.kt/.swift/.h`, one table per platform).
+  Upright graphemes get a cell along the sideways line (1em full-width, else
+  the font's height) and are drawn turned back. Android scales the advance with
+  `textScaleX` (Minikin drops letter spacing at a line's start); iOS kerns it
+  (run delegates broke CoreText line breaking, and split runs miss an exact
+  fit, hence a 1/64pt wrap slack); Windows uses inline objects. Tr characters
+  (brackets, ー, 〜) are drawn sideways, which is how their vertical forms look;
+  only 、。，． take vertical alternates (on iOS via
+  `kCTVerticalFormsAttributeName`, filled as an outline).
+- **Not supported yet:** float exclusions, turning the label of a button or
+  other widget inside vertical text, `text-combine-upright`, scrolling a
+  vertical-rl container to its left overflow, logical properties and UA
+  paragraph margins (they stay physical), per-span `text-orientation`, and
+  vertical alternates for small kana.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0

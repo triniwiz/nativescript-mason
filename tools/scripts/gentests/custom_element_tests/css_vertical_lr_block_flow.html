@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    vertical-lr blocks stack left to right
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="display: block; writing-mode: vertical-lr; height: 40px; padding-left: 8px; border-top: 2px solid;">
+  <div style="display: block;">HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH</div>
+  <div style="display: block; margin-left: 4px;">HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH</div>
+</div>
+
+</body>
+</html>

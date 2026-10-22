@@ -258,6 +258,9 @@ Inline elements are not clamped.
 | `direction` | `ltr`, `rtl` |
 | `unicode-bidi` | `normal`, `embed`, `bidi-override`, `isolate`, `isolate-override`, `plaintext` |
 | `writing-mode` | `horizontal-tb`, `vertical-rl`, `vertical-lr` |
+| `text-orientation` | `mixed`, `upright`, `sideways` |
+
+Vertical writing modes are covered in [Block, inline and float](/styling/flow#writing-modes).
 
 Logical properties (`margin-inline-start`, `padding-block`, ...) map for horizontal left-to-right text regardless of `direction`. See [Box model and sizing](/styling/box-model).
 

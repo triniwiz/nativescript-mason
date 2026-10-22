@@ -89,11 +89,54 @@ Text beside a float wraps around the float's margin box, and the block grows to 
 }
 ```
 
-A vertical box inside a horizontal layout works: text runs top to bottom with sideways glyphs, lines stack right to left (`vertical-rl`) or left to right (`vertical-lr`), and inline boxes inside the text are turned with it. Its line length comes from its own height, a definite containing-block height, or failing those the viewport height, as in CSS.
+Text in a vertical box runs top to bottom and its lines stack right to left (`vertical-rl`) or left to right (`vertical-lr`). Inline boxes inside the text are turned with it.
+
+A vertical box is also a vertical container. Its children lay out in its writing mode:
+
+- Block children stack right to left (`vertical-rl`) or left to right (`vertical-lr`), and stretch along the box's height. Margins collapse along that axis.
+- In a flex container, `flex-direction: row` runs down the page and `column` runs across it.
+- In a grid container, `grid-template-columns` sizes tracks down the page and `grid-template-rows` sizes them across it.
+- `gap`, `justify-*` and `align-*` follow the same logical axes. Sizes, padding, margins, borders and insets stay physical, as in CSS.
+
+```html
+<div class="page">
+  <p>第一段。縦書きの段落は右から左へ並びます。</p>
+  <p>第二段。</p>
+</div>
+```
+
+```css
+.page {
+  writing-mode: vertical-rl;
+  height: 320px;
+}
+
+.page p {
+  margin: 0 0 0 16px; /* the space before the next column, see below */
+}
+```
+
+A box whose writing mode is orthogonal to its container's (a vertical box in a horizontal page, or a `horizontal-tb` box inside a vertical one) sizes its inline axis to fit its content, up to the space it has. That space is its containing block's definite size in that axis, else the viewport height, as in CSS.
+
+### text-orientation
+
+Sets how glyphs sit in vertical text. It inherits.
+
+| Value | Glyphs |
+| --- | --- |
+| `mixed` (default) | CJK, kana, Hangul and other characters Unicode marks upright stay upright; Latin and other scripts are turned sideways. |
+| `upright` | Every character stays upright, Latin and spaces included. |
+| `sideways` | Every character is turned sideways. `sideways-right` is accepted as the same value. |
+
+Full-width characters take 1em along the line. Other upright characters take the font's height. Brackets, the long vowel mark `ー` and wave dashes are turned with the line, as their vertical forms are. The ideographic comma and full stop (`、` `。`) use the font's vertical forms, which put them in the corner of their cell.
 
 Not supported yet:
 
-- upright CJK glyphs (`text-orientation: upright`)
-- vertical containers whose block children flow vertically (only the text inside a vertical box is vertical)
+- `text-combine-upright`
 - float exclusions in vertical text
 - turning the label of a button or other widget inside vertical text
+- scroll containers in `vertical-rl`: content that overflows to the left can't be scrolled to
+- logical properties (`margin-inline`, `inset-block`, ...) still map as for horizontal text
+- the default margins of `<p>` and headings stay on their top and bottom in vertical text; set `margin-left`/`margin-right` to space vertical paragraphs
+- `text-orientation` set on an inline element inside a paragraph: the paragraph's own value is used for all of its text
+- small kana keep their horizontal glyph, so they sit low in their cell instead of in its corner

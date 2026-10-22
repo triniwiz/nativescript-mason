@@ -84,6 +84,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `text-decoration`, `text-decoration-line`, `text-decoration-style`, `text-decoration-color`, `text-decoration-thickness` | full CSS values, including `overline` and `wavy` | no | | [Typography](/styling/typography#text-decoration) |
 | `text-indent` | length, percentage | yes | | [Typography](/styling/typography#text-indent) |
 | `text-justify` | `auto`, `none`, `inter-word`, `inter-character`, `distribute` | yes | Windows honours `none` only | [Typography](/styling/typography#text-justify) |
+| `text-orientation` | `mixed`, `upright`, `sideways` | yes | Per paragraph, not per inline element | [Flow](/styling/flow#text-orientation) |
 | `text-overflow` | `clip`, `ellipsis` | no | | [Typography](/styling/typography#text-overflow) |
 | `text-shadow` | `<x> <y> [blur] [color]`, comma separated | yes | | [Typography](/styling/typography#text-shadow) |
 | `text-transform` | `none`, `capitalize`, `uppercase`, `lowercase` | yes | | [Typography](/styling/typography#text-transform) |
@@ -96,7 +97,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `visibility` | `visible`, `hidden` | no | Handled by NativeScript core; keeps the element's space | [Effects](/styling/effects#opacity-and-visibility) |
 | `white-space` | `normal`, `pre`, `pre-wrap`, `pre-line`, `nowrap`, `break-spaces` | yes | | [Typography](/styling/typography#white-space) |
 | `word-spacing` | `normal`, length, percentage | yes | Android needs Android 10 (API 29) | [Typography](/styling/typography#letter-spacing-and-word-spacing) |
-| `writing-mode` | `horizontal-tb`, `vertical-rl`, `vertical-lr` | yes | | [Typography](/styling/typography#writing-direction) |
+| `writing-mode` | `horizontal-tb`, `vertical-rl`, `vertical-lr` | yes | Vertical containers lay out their children vertically | [Flow](/styling/flow#writing-modes) |
 | `z-index` | an integer | no | | [Positioning](/styling/positioning) |
 
 ## Not supported
