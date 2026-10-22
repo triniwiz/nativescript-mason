@@ -1772,7 +1772,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         // Floats beside the text shorten its lines. Measured beside other floats, it's laid out again.
         const mason_dwrite::FloatLayout* around = nullptr;
-        if (!vertical && !m_inlineOwner)
+        if (!m_inlineOwner)
         {
             SyncFloatParent();
             auto floats = FloatExclusions(c);
@@ -2013,8 +2013,9 @@ namespace winrt::NativeScript::Mason::implementation
         if (!parent || !node) return out;
         auto* own = winrt::get_self<implementation::Node>(node);
         auto* box = winrt::get_self<implementation::Node>(parent);
-        // Nor are vertical lines, or a text that floats itself.
-        if (mason_node_get_writing_mode(own->MasonPtr(), own->NodePtr()) != 0) return out;
+        // Nor are lines in another writing mode than the floats', or a text that floats itself.
+        const uint8_t vertical = mason_node_get_writing_mode(own->MasonPtr(), own->NodePtr());
+        if (vertical != mason_node_get_writing_mode(box->MasonPtr(), box->NodePtr())) return out;
         uint32_t len = 0;
         const uint8_t* style = own->StyleData(len);
         if (style && len > mason_style_keys::kFloat && style[mason_style_keys::kFloat] != 0) return out;
@@ -2030,7 +2031,18 @@ namespace winrt::NativeScript::Mason::implementation
         float x = 0.0f, y = 0.0f, left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
         own->ContentOrigin(x, y);
         box->ContentInsets(left, top, right, bottom);
-        const float dx = x - left, dy = y - top;
+        float dx = x - left, dy = y - top;
+        if (vertical)
+        {
+            dx = y - top;
+            dy = x - left;
+            if (vertical == 1)
+            {
+                float ownLeft = 0.0f, ownTop = 0.0f, ownRight = 0.0f, ownBottom = 0.0f;
+                own->ContentInsets(ownLeft, ownTop, ownRight, ownBottom);
+                dy = (box->LayoutWidth() - right) - (x - ownLeft + own->LayoutWidth() - ownRight);
+            }
+        }
         for (size_t i = 0; i + 4 < count; i += 5)
         {
             const uint8_t side = static_cast<uint8_t>(raw[i + 4] == 1.0f ? 1 : raw[i + 4] == 2.0f ? 2 : 0);
@@ -2628,7 +2640,8 @@ namespace winrt::NativeScript::Mason::implementation
             auto* layout = m_measureCache->layout.get();
             if (!layout) return false;
             const float across = point.X - m_frame.left;
-            for (auto const& line : mason_dwrite::LineBands(layout))
+            auto lines = DrawnLines();
+            for (auto const& line : lines ? mason_dwrite::LineBands(*lines) : mason_dwrite::LineBands(layout))
             {
                 if (across < line.top || across >= line.bottom) continue;
                 u = point.Y - m_frame.top;
@@ -2656,7 +2669,8 @@ namespace winrt::NativeScript::Mason::implementation
             if (auto* layout = m_measureCache->layout.get())
             {
                 const float middle = v + height * 0.5f;
-                for (auto const& line : mason_dwrite::LineBands(layout))
+                auto lines = DrawnLines();
+                for (auto const& line : lines ? mason_dwrite::LineBands(*lines) : mason_dwrite::LineBands(layout))
                 {
                     if (middle >= line.top && middle < line.bottom) sum = line.top + line.bottom;
                 }

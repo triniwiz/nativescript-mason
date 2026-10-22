@@ -281,7 +281,7 @@ Full-width punctuation gives up the blank half of its em in some places, as in b
 
 As in Chrome, a line-end comma or full stop (`、。，．`) isn't set half-width just to fit the line. Chrome doesn't support `trim-both`, `trim-all` and `auto`; MasonKit follows the CSS Text 4 definitions for them.
 
-Mason removes the blank half itself on iOS and Windows, so any CJK font works. Windows trims at the start and end of each paragraph but not yet at the lines it wraps. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
+Mason removes the blank half itself on iOS and Windows, so any CJK font works. On Windows a mark keeps at least half an em: punctuation that is already narrow in its font, as in Yu Gothic UI, isn't trimmed further. Windows trims at the start and end of each paragraph but not yet at the lines it wraps. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
 
 ## Color
 

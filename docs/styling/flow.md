@@ -158,7 +158,7 @@ Sets a run of characters horizontally in a single upright cell of 1em, squeezed 
 
 A `vertical-rl` box that scrolls (`overflow-x: scroll` or `auto`) starts at its right edge, where its first column is, and scrolls left towards the rest, keeping its distance from the right edge when its content changes. Its `scrollLeft` is 0 at the start and negative to the left, as in browsers. `scrollIntoView()` aligns along the scroller's own block and inline axes, so `block: 'start'` brings an element to the right edge of a `vertical-rl` scroller (iOS and Android; Windows aligns physically).
 
-Floats in a vertical box sit at the ends of its lines: `float: left` at the top (line-left) and `float: right` at the bottom, against its block-start side. The text beside them shortens its lines around them on iOS and Android. On Windows the floats are placed, but the text doesn't wrap around them yet.
+Floats in a vertical box sit at the ends of its lines: `float: left` at the top (line-left) and `float: right` at the bottom, against its block-start side. The text beside them shortens its lines around them.
 
 Inline boxes (images, buttons) in vertical text move along their lines around floats as the text does.
 

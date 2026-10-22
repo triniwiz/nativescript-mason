@@ -91,26 +91,41 @@ namespace mason_dwrite
         return marks;
     }
 
-    // Drops each marked mark's blank half by character spacing: trailing space after a closing
-    // mark, leading space before an opening one, a quarter of each around a middle one. `marks` left by ApplyUprights.
+    // Sets each marked mark half-width by character spacing, dropping the blank part of its
+    // advance past half an em: trailing space after a closing mark, leading space before an
+    // opening one, half of it each side of a middle one. Fonts with proportional punctuation
+    // (Yu Gothic UI) have less or none to drop. `marks` left by ApplyUprights.
     inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks)
     {
         if (marks.empty()) return;
         winrt::com_ptr<IDWriteTextLayout1> spacing;
         if (FAILED(layout->QueryInterface(IID_PPV_ARGS(spacing.put())))) return;
+        UINT32 count = 0;
+        layout->GetClusterMetrics(nullptr, 0, &count);
+        std::vector<DWRITE_CLUSTER_METRICS> clusters(count);
+        if (count == 0 || FAILED(layout->GetClusterMetrics(clusters.data(), count, &count))) return;
+        std::vector<float> advances(marks.size(), 0.0f);
+        size_t at = 0;
+        for (auto const& cluster : clusters)
+        {
+            if (at < advances.size()) advances[at] = cluster.width;
+            at += cluster.length;
+        }
         for (size_t i = 0; i < marks.size(); ++i)
         {
             if (!marks[i]) continue;
             const auto position = static_cast<UINT32>(i);
             FLOAT size = 0.0f, leading = 0.0f, trailing = 0.0f, minimum = 0.0f;
             if (FAILED(layout->GetFontSize(position, &size)) || FAILED(spacing->GetCharacterSpacing(position, &leading, &trailing, &minimum))) continue;
-            if (marks[i] == kPunctuationOpening) leading -= size / 2.0f;
+            const float blank = advances[i] - leading - trailing - size / 2.0f;
+            if (blank <= 0.0f) continue;
+            if (marks[i] == kPunctuationOpening) leading -= blank;
             else if (marks[i] == kPunctuationMiddle)
             {
-                leading -= size / 4.0f;
-                trailing -= size / 4.0f;
+                leading -= blank / 2.0f;
+                trailing -= blank / 2.0f;
             }
-            else trailing -= size / 2.0f;
+            else trailing -= blank;
             spacing->SetCharacterSpacing(leading, trailing, minimum, DWRITE_TEXT_RANGE{ position, 1 });
         }
     }

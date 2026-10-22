@@ -103,8 +103,9 @@ namespace mason_dwrite
         // text-combine-upright: the run's text set horizontally in the cell, squeezed to fit.
         bool combined{ false };
         // text-spacing-trim: kPunctuationOpening, kPunctuationClosing or kPunctuationMiddle keeps
-        // that part of the cell (which is then half the font's), 0 all of it.
+        // that part of the cell, 0 all of it. `trimmed` is the blank length dropped.
         uint8_t half{ 0 };
+        float trimmed{ 0.0f };
         winrt::com_ptr<IDWriteTextLayout> glyph;
     };
 
@@ -255,8 +256,8 @@ namespace mason_dwrite
     // and a bracket or other Tr character without one stays sideways. Cells are the font's
     // vertical advance (vmtx), else the height of the font the glyph comes from. Inline boxes
     // and soft hyphens keep their own inline objects.
-    // `marks` (see HalfWidthMarks): an upright mark set half-width keeps half its cell, and its
-    // mark is cleared so ApplySpacingTrim leaves it alone.
+    // `marks` (see HalfWidthMarks): an upright mark set half-width keeps at most half an em of its
+    // cell, and its mark is cleared so ApplySpacingTrim leaves it alone.
     inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t>& marks)
     {
         UprightRegistry().erase(layout);
@@ -436,7 +437,8 @@ namespace mason_dwrite
                 if (i < marks.size() && marks[i])
                 {
                     u.half = marks[i];
-                    u.cell /= 2.0f;
+                    u.trimmed = (std::max)(u.cell - size / 2.0f, 0.0f);
+                    u.cell -= u.trimmed;
                     marks[i] = 0;
                 }
                 auto cell = winrt::make_self<UprightCell>(uprights, u.cell + letterSpacing, ascent, descent, IsWideUpright(cp));
@@ -445,7 +447,10 @@ namespace mason_dwrite
             }
             i = end;
         }
-        if (!uprights->empty()) UprightRegistry()[layout] = uprights;
+        if (uprights->empty()) return;
+        auto& registry = UprightRegistry();
+        if (registry.size() > 64) std::erase_if(registry, [](auto const& entry) { return entry.second.expired(); });
+        registry[layout] = uprights;
     }
 
     // Draws `layout`'s upright graphemes turned back, centred in their cells on the line's central
@@ -476,9 +481,10 @@ namespace mason_dwrite
             UINT32 count = 0;
             u.glyph->GetLineMetrics(&glyphLine, 1, &count);
             const auto& lineBand = bands[static_cast<size_t>(line)];
-            // A half-width mark's glyph is centred on its full cell, of which it keeps one half.
-            const float along = u.half == kPunctuationOpening ? 0.0f : u.half == kPunctuationClosing ? u.cell : u.cell / 2.0f;
-            const float full = u.half ? u.cell * 2.0f : u.cell;
+            // A half-width mark's glyph is centred on its full cell, of which it keeps one part.
+            const float full = u.cell + u.trimmed;
+            const float along = u.half == kPunctuationOpening ? full / 2.0f - u.trimmed
+                : u.half == kPunctuationMiddle ? full / 2.0f - u.trimmed / 2.0f : full / 2.0f;
             const D2D1_POINT_2F centre{ x + along, lineBand.top + (lineBand.bottom - lineBand.top) / 2.0f };
             // The font's vertical origin, else full-width glyphs centre their em box (0.12em below
             // the baseline to 0.88em above it) and others their own box.

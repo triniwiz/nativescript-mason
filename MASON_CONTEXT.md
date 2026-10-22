@@ -883,12 +883,14 @@ flex and grid children flow in the container's writing mode) and
 - **Floats** in a vertical container: taffy places them in the transposed frame;
   the exclusion pre-pass (`measure_place_floats`) also runs in the frame and exports
   frame coordinates, which iOS/Android text uses directly in its sideways layout.
+  Windows `Text::FloatExclusions` moves them into the text's sideways frame, and
+  `FloatWrap` lines (built with upright cells) are drawn turned by
+  `DrawVerticalLines`.
 - **Inline layout of a vertical text container with inline children**
   (`tree_inline.rs`, text-container branch) runs transposed too; it used to run
   horizontally, putting each upright cell on its own line and growing the box.
 - **Not supported yet:** vertical text in native text fields (`<input>`,
-  `<textarea>`); Windows text wrapping around floats in vertical text; Windows
-  `text-spacing-trim` at wrapped lines.
+  `<textarea>`); Windows `text-spacing-trim` at wrapped lines.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0

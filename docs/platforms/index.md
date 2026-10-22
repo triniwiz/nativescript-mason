@@ -40,7 +40,7 @@ Notes:
 - **Mask hit testing.** As in browsers, `clip-path` limits where an element can be tapped and masks do not.
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
-- **Vertical writing modes.** On Windows, text in a vertical box doesn't wrap around floats yet; the floats themselves are placed. Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
+- **Vertical writing modes.** Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
 
 ## Platform-specific APIs
 

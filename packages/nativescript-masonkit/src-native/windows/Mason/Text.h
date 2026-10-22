@@ -258,14 +258,7 @@ namespace winrt::NativeScript::Mason::implementation
             {
                 if (!layout)
                 {
-                    layout = mason_dwrite::Build(paragraph);
-                    if (layout)
-                    {
-                        // Build trims horizontal text; upright glyphs take their marks first.
-                        auto marks = mason_dwrite::HalfWidthMarks(paragraph);
-                        mason_dwrite::ApplyUprights(layout.get(), paragraph, marks);
-                        if (mason_dwrite::TrimsAfterUprights(paragraph)) mason_dwrite::ApplySpacingTrim(layout.get(), paragraph, marks);
-                    }
+                    layout = mason_dwrite::BuildUpright(paragraph);
                 }
                 return layout.get();
             }

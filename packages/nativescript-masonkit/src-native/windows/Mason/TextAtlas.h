@@ -529,6 +529,45 @@ namespace mason_atlas
         }
     }
 
+    inline void DrawVerticalLines(Atlas& a, ID2D1DeviceContext* context, Sprite const* s, D2D1::Matrix3x2F const& slot)
+    {
+        ID2D1SolidColorBrush* fill = BrushFor(a, context, s->color);
+        auto brush = [&](uint32_t argb) { return BrushFor(a, context, argb); };
+        for (auto const& line : s->lines)
+        {
+            IDWriteTextLayout* layout = line.layout.get();
+            if (!layout) continue;
+            layout->SetDrawingEffect(fill, DWRITE_TEXT_RANGE{ 0, UINT32_MAX });
+            for (auto const& span : line.spans)
+            {
+                if (span.color != s->color) layout->SetDrawingEffect(brush(span.color), DWRITE_TEXT_RANGE{ span.start, span.length });
+            }
+            const auto shift = D2D1::Matrix3x2F::Translation(line.x, line.y);
+            if (s->vertical == 1)
+            {
+                const auto turned = shift * D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX, s->originY) * slot;
+                context->SetTransform(turned);
+                context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                mason_dwrite::DrawUprights(context, layout, turned, brush);
+                continue;
+            }
+            int band = 0;
+            for (auto const& bounds : mason_dwrite::LineBands(layout))
+            {
+                const float top = line.y + bounds.top, bottom = line.y + bounds.bottom;
+                context->SetTransform(slot);
+                context->PushAxisAlignedClip(D2D1::RectF(s->originX + top, -mason_dwrite::kUnbounded, s->originX + bottom, mason_dwrite::kUnbounded),
+                    D2D1_ANTIALIAS_MODE_ALIASED);
+                const auto turned = shift * D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX + top + bottom, s->originY) * slot;
+                context->SetTransform(turned);
+                context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                mason_dwrite::DrawUprights(context, layout, turned, brush, band++);
+                context->PopAxisAlignedClip();
+            }
+        }
+        context->SetTransform(slot);
+    }
+
     inline HRESULT Draw(Atlas& a, Region const& region)
     {
         auto interop = region.page->surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
@@ -552,9 +591,10 @@ namespace mason_atlas
             context->SetDpi(96.0f * scale, 96.0f * scale);
             const auto slot = D2D1::Matrix3x2F::Translation((offset.x + item.x - region.rect.left) / scale, (offset.y + item.y - region.rect.top) / scale);
             context->SetTransform(slot);
-            if (!s->lines.empty() && !s->vertical)
+            if (!s->lines.empty())
             {
-                DrawLines(a, context.get(), s);
+                if (s->vertical) DrawVerticalLines(a, context.get(), s, slot);
+                else DrawLines(a, context.get(), s);
                 continue;
             }
             IDWriteTextLayout* layout = s->layout.get();
@@ -768,6 +808,7 @@ namespace mason_atlas
         {
             if (line.layout) line.layout->Draw(nullptr, sink.get(), line.x, line.y);
         }
+        if (glyphs.vertical == 2 && !glyphs.lines.empty()) bands = mason_dwrite::LineBands(glyphs.lines);
         const float x = glyphs.x + dx, y = glyphs.y + dy;
         for (auto const& part : sink->parts)
         {

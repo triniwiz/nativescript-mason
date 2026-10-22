@@ -595,6 +595,8 @@ namespace mason_dwrite
     inline bool TrimsAfterUprights(Paragraph const& p);
     inline std::vector<uint8_t> HalfWidthMarks(Paragraph const& p);
     inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks);
+    // Vertical text's upright cells, in VerticalText.h.
+    inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t>& marks);
     inline winrt::com_ptr<IDWriteTextLayout> Build(Paragraph const& p)
     {
         auto* factory = Factory();
@@ -738,6 +740,18 @@ namespace mason_dwrite
         }
         // A paragraph with upright glyphs is trimmed after them (Text's MeasureCache::Layout).
         if (!TrimsAfterUprights(p)) ApplySpacingTrim(layout.get(), p, HalfWidthMarks(p));
+        return layout;
+    }
+
+    inline winrt::com_ptr<IDWriteTextLayout> BuildUpright(Paragraph const& p)
+    {
+        auto layout = Build(p);
+        if (layout && TrimsAfterUprights(p))
+        {
+            auto marks = HalfWidthMarks(p);
+            ApplyUprights(layout.get(), p, marks);
+            ApplySpacingTrim(layout.get(), p, marks);
+        }
         return layout;
     }
 
@@ -1000,7 +1014,7 @@ namespace mason_dwrite
                 rest.indentPercent = false;
                 flow = Flow{ true, first.indent, 0 };
             }
-            auto layout = Build(rest);
+            auto layout = BuildUpright(rest);
             if (!layout) break;
             if (y >= floatsBottom)
             {
@@ -1052,7 +1066,7 @@ namespace mason_dwrite
             }
             // The line on its own, unwrapped so it stays one line, aligned in its part of the box.
             Paragraph text = Slice(rest, 0, visible);
-            auto own = Build(text);
+            auto own = BuildUpright(text);
             if (!own) break;
             Configure(own.get(), DWRITE_WORD_WRAPPING_NO_WRAP, (std::max)(right - left, 0.0f) + slack, flow);
             DWRITE_TEXT_METRICS m{};
@@ -1066,7 +1080,7 @@ namespace mason_dwrite
             if (p.lineClamp > 0 && count + 1 >= p.lineClamp && start + length < size)
             {
                 text = std::move(rest);
-                own = Build(text);
+                own = BuildUpright(text);
                 if (!own) break;
                 Configure(own.get(), wrapping, (std::max)(right - left, 0.0f) + slack, Flow{ flow.indents, flow.indent, 1 });
                 own->GetMetrics(&m);
@@ -1080,6 +1094,24 @@ namespace mason_dwrite
         }
         out.height = y;
         return out;
+    }
+
+    inline std::vector<LineBand> LineBands(std::vector<FloatLine> const& lines)
+    {
+        std::vector<LineBand> bands;
+        for (auto const& line : lines)
+        {
+            if (!line.layout) continue;
+            for (auto band : LineBands(line.layout.get()))
+            {
+                band.top += line.y;
+                band.bottom += line.y;
+                band.baseline += line.y;
+                band.start += line.start;
+                bands.push_back(band);
+            }
+        }
+        return bands;
     }
 
     inline FloatLine const* LineAt(std::vector<FloatLine> const& lines, uint32_t position)
