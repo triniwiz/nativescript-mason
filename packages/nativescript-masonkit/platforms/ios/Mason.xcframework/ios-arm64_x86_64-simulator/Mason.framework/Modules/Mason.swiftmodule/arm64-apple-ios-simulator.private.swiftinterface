@@ -3180,6 +3180,7 @@ public enum InlineSegmentPayload {
 @objc @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
   @objc override dynamic public init()
   @objc override dynamic public init(layer: Any)
+  @objc override dynamic public func setNeedsDisplay()
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }

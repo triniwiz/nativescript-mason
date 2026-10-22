@@ -1589,6 +1589,7 @@ SWIFT_CLASS("_TtC5Mason14MasonTextLayer")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithLayer:(id _Nonnull)layer OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
 - (void)drawInContext:(CGContextRef _Nonnull)context;
 @end
 
