@@ -13,6 +13,7 @@ import android.text.style.UpdateAppearance
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
+import kotlin.math.roundToInt
 
 class Spans {
   enum class Type {
@@ -66,7 +67,7 @@ class Spans {
   class RunStyleSpan(
     private val attributes: TextDefaultAttributes,
     private val setColor: Boolean,
-    private val measureSize: Int?,
+    private val measureSize: Float?,
     private val letterSpacingPx: Float?,
     private val typeface: Typeface?,
     private val isBold: Boolean,
@@ -117,13 +118,13 @@ class Spans {
   }
 
   class SizeSpan(val attributes: TextDefaultAttributes, val scale: Boolean = false) :
-    android.text.style.AbsoluteSizeSpan(attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE, scale),
+    android.text.style.AbsoluteSizeSpan((attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE).roundToInt(), scale),
     NSCSpan {
     override val type: Type
       get() = Type.Size
 
     override fun getSize(): Int {
-      return attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE
+      return (attributes.fontSize ?: Constants.DEFAULT_FONT_SIZE).roundToInt()
     }
 
     override fun updateDrawState(ds: TextPaint) {
@@ -131,7 +132,7 @@ class Spans {
       if (scale) {
         ds.textSize = size * ds.density
       } else {
-        ds.textSize = size.toFloat()
+        ds.textSize = size
       }
     }
   }

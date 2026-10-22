@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    text beside a right float wraps at the float and the block grows to fit
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="width: 200px; flex-direction: column; align-items: flex-start;">
+  <div style="display: block; width: 200px;"><div style="float: right; width: 100px; height: 50px;"></div>XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX</div>
+  <div style="width: 200px; height: 10px;"></div>
+</div>
+
+</body>
+</html>

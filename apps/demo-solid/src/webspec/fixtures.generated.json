@@ -661,6 +661,97 @@
     ]
   },
   {
+    "name": "css_float_left_text_wraps",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "200px", "flex-direction": "column", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block", "width": "200px" }, "children": [{ "seq": 2, "tag": "div", "style": { "float": "left", "width": "100px", "height": "50px" }, "children": [] }], "text": "XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX", "textAfter": true },
+        { "seq": 3, "tag": "div", "style": { "width": "200px", "height": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 110 },
+      { "seq": 1, "x": 0, "y": 0, "width": 200, "height": 100 },
+      { "seq": 2, "x": 0, "y": 0, "width": 100, "height": 50 },
+      { "seq": 3, "x": 0, "y": 100, "width": 200, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_float_right_text_wraps_padded",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "220px", "flex-direction": "column", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block", "width": "220px", "padding": "10px 10px 10px 10px" }, "children": [{ "seq": 2, "tag": "div", "style": { "float": "right", "width": "80px", "height": "50px", "margin-left": "20px" }, "children": [] }], "text": "XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX", "textAfter": true },
+        { "seq": 3, "tag": "div", "style": { "width": "200px", "height": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 220, "height": 130 },
+      { "seq": 1, "x": 0, "y": 0, "width": 220, "height": 120 },
+      { "seq": 2, "x": 130, "y": 10, "width": 80, "height": 50 },
+      { "seq": 3, "x": 0, "y": 120, "width": 200, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_float_right_text_wraps",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "200px", "flex-direction": "column", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block", "width": "200px" }, "children": [{ "seq": 2, "tag": "div", "style": { "float": "right", "width": "100px", "height": "50px" }, "children": [] }], "text": "XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX", "textAfter": true },
+        { "seq": 3, "tag": "div", "style": { "width": "200px", "height": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 110 },
+      { "seq": 1, "x": 0, "y": 0, "width": 200, "height": 100 },
+      { "seq": 2, "x": 100, "y": 0, "width": 100, "height": 50 },
+      { "seq": 3, "x": 0, "y": 100, "width": 200, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_float_text_wraps_padded",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "220px", "flex-direction": "column", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block", "width": "220px", "padding": "10px 10px 10px 10px" }, "children": [{ "seq": 2, "tag": "div", "style": { "float": "left", "width": "80px", "height": "50px", "margin-right": "20px" }, "children": [] }], "text": "XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX", "textAfter": true },
+        { "seq": 3, "tag": "div", "style": { "width": "200px", "height": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 220, "height": 130 },
+      { "seq": 1, "x": 0, "y": 0, "width": 220, "height": 120 },
+      { "seq": 2, "x": 10, "y": 10, "width": 80, "height": 50 },
+      { "seq": 3, "x": 0, "y": 120, "width": 200, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_font_size_fractional",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "width": "200px", "flex-direction": "column", "align-items": "flex-start" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "font-size": "12.8px" }, "children": [], "text": "XXXXX" },
+        { "seq": 2, "tag": "div", "style": { "font-size": "1.28em" }, "children": [], "text": "XXXXX" },
+        { "seq": 3, "tag": "div", "style": { "font-size": "0.8rem" }, "children": [], "text": "XXXXX" }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 200, "height": 38.390625 },
+      { "seq": 1, "x": 0, "y": 0, "width": 64, "height": 12.796875 },
+      { "seq": 2, "x": 0, "y": 12.796875, "width": 64, "height": 12.796875 },
+      { "seq": 3, "x": 0, "y": 25.59375, "width": 64, "height": 12.796875 }
+    ]
+  },
+  {
     "name": "css_line_clamp_not_reached",
     "tree": { "seq": 0, "tag": "div", "style": { "width": "50px", "flex-direction": "column", "align-items": "flex-start" }, "children": [{ "seq": 1, "tag": "div", "style": { "width": "50px", "display": "-webkit-box", "-webkit-box-orient": "vertical", "-webkit-line-clamp": "5", "overflow": "hidden" }, "children": [], "text": "XXX XXX" }] },
     "expected": [

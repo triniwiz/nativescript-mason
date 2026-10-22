@@ -38,10 +38,18 @@ private const val RAD_TO_DEG = (180f / PI_FLOAT)
 // Keep author-supplied blur radii bounded before they reach RenderEffect.
 internal const val MAX_RENDER_EFFECT_BLUR_RADIUS_PX = 100f
 
+// Filter blurs are kept as CSS standard deviations in device px. RenderEffect (Skia) and
+// RenderScript take radii, which they turn back into a deviation their own way.
+internal fun skiaBlurRadius(sigma: Float): Float =
+  ((sigma - 0.5f) / 0.57735f).coerceIn(0.01f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
+
+internal fun renderScriptBlurRadius(sigma: Float): Float = ((sigma - 0.6f) / 0.4f).coerceIn(0.0001f, 25f)
+
 
 class CSSFilters {
 
   sealed class Filter {
+    // Standard deviation in device px.
     data class Blur(val radiusPx: Float) : Filter()
     data class Brightness(val value: Float) : Filter()
     data class Contrast(val value: Float) : Filter()
@@ -184,7 +192,7 @@ class CSSFilters {
         val input = Allocation.createFromBitmap(rs, source)
         val output = Allocation.createTyped(rs, input.type)
         val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-        script.setRadius(blurRadius.coerceIn(0f, 25f))
+        script.setRadius(renderScriptBlurRadius(blurRadius))
         script.setInput(input)
         script.forEach(output)
 
@@ -266,7 +274,7 @@ class CSSFilters {
             val input = Allocation.createFromBitmap(rsInner, tempBmp)
             val output = Allocation.createTyped(rsInner, input.type)
             val script = ScriptIntrinsicBlur.create(rsInner, Element.U8_4(rsInner))
-            script.setRadius(blurRadius.coerceIn(0f, 25f))
+            script.setRadius(renderScriptBlurRadius(blurRadius))
             script.setInput(input)
             script.forEach(output)
 
@@ -484,7 +492,7 @@ class CSSFilters {
                 val input = Allocation.createFromBitmap(rs, source)
                 val output = Allocation.createTyped(rs, input.type)
                 val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-                script.setRadius(filter.radiusPx.coerceIn(0.0001f, 25f))
+                script.setRadius(renderScriptBlurRadius(filter.radiusPx))
                 script.setInput(input)
                 script.forEach(output)
 
@@ -583,6 +591,10 @@ class CSSFilters {
 
     internal var shadowNodes: ArrayList<RenderNode> = arrayListOf()
 
+    // How far the shadows reach past the box.
+    internal var padX = 0
+    internal var padY = 0
+
     companion object {
       fun build(view: View, filters: List<Filter>, draw: (Canvas) -> Unit): FilterHelperV3 {
         val helper = FilterHelperV3()
@@ -594,7 +606,7 @@ class CSSFilters {
           when (filter) {
             is Filter.Blur -> {
               if (filter.radiusPx > 0) {
-                val r = filter.radiusPx.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
+                val r = skiaBlurRadius(filter.radiusPx)
                 effects.add(
                   RenderEffect.createBlurEffect(r, r, Shader.TileMode.DECAL)
                 )
@@ -617,11 +629,13 @@ class CSSFilters {
 
               if (!sourceDrawn) {
                 helper.sourceNode.setPosition(0, 0, view.width, view.height)
+                // Children and their shadows may paint outside the box.
+                helper.sourceNode.clipToBounds = false
                 val sourceCanvas = helper.sourceNode.beginRecording()
 
-                view.setTag(R.id.tag_suppress_ops, true)
+                view.setTag(R.id.tag_filter_source, true)
                 view.draw(sourceCanvas)
-                view.setTag(R.id.tag_suppress_ops, false)
+                view.setTag(R.id.tag_filter_source, false)
 
                 helper.sourceNode.endRecording()
                 sourceDrawn = true
@@ -641,7 +655,7 @@ class CSSFilters {
               val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
 
               val shadowEffect = if (filter.blur > 0f) {
-                val r = filter.blur.coerceIn(0f, MAX_RENDER_EFFECT_BLUR_RADIUS_PX)
+                val r = skiaBlurRadius(filter.blur)
                 val blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.DECAL)
                 RenderEffect.createChainEffect(colorEffect, blurEffect)
               } else {
@@ -654,16 +668,17 @@ class CSSFilters {
                 shadowEffect
               )
 
+              // Room on every side for the offset and blur, which the node's bounds would clip.
+              val padX = kotlin.math.ceil(kotlin.math.abs(filter.offsetX) + filter.blur * 3).toInt()
+              val padY = kotlin.math.ceil(kotlin.math.abs(filter.offsetY) + filter.blur * 3).toInt()
+              helper.padX = maxOf(helper.padX, padX)
+              helper.padY = maxOf(helper.padY, padY)
               val shadowNode = RenderNode("shadow")
               shadowNode.setRenderEffect(offsetEffect)
-              shadowNode.setPosition(
-                0,
-                0,
-                view.width + kotlin.math.abs(filter.offsetX).toInt() + filter.blur.toInt() * 3,
-                view.height + kotlin.math.abs(filter.offsetY).toInt() + filter.blur.toInt() * 3
-              )
+              shadowNode.setPosition(-padX, -padY, view.width + padX, view.height + padY)
 
               val shadowCanvas = shadowNode.beginRecording()
+              shadowCanvas.translate(padX.toFloat(), padY.toFloat())
               shadowCanvas.drawRenderNode(helper.sourceNode)
               shadowNode.endRecording()
 
@@ -712,9 +727,10 @@ class CSSFilters {
         helper.filter?.let {
 
           if (helper.shadowNodes.isNotEmpty()) {
-            helper.compositeNode.setPosition(0, 0, view.width, view.height)
+            helper.compositeNode.setPosition(-helper.padX, -helper.padY, view.width + helper.padX, view.height + helper.padY)
 
             val compositeCanvas = helper.compositeNode.beginRecording()
+            compositeCanvas.translate(helper.padX.toFloat(), helper.padY.toFloat())
 
             for (node in helper.shadowNodes) {
               compositeCanvas.drawRenderNode(node)
@@ -752,6 +768,9 @@ class CSSFilters {
     init {
       this.css = css
     }
+
+    internal val hasDropShadow: Boolean
+      get() = filters.any { it is Filter.DropShadow }
 
     private fun hasShadowOrBlur(): Boolean {
       return filters.any { it is Filter.DropShadow || it is Filter.Blur }
@@ -1172,7 +1191,10 @@ class CSSFilters {
       canUseDip: Boolean = false
     ): Float {
       return when {
-        value.endsWith("px") -> value.removeSuffix("px").toFloatOrNull() ?: default
+        // px is a CSS pixel: a length scales with the density like a bare number.
+        value.endsWith("px") -> (value.removeSuffix("px").toFloatOrNull() ?: default).let {
+          if (canUseDip) it * Resources.getSystem().displayMetrics.density else it
+        }
         value.endsWith("%") -> (value.removeSuffix("%").toFloatOrNull() ?: default) / 100f
         else -> {
           val ret = value.toFloatOrNull() ?: default
@@ -1218,7 +1240,8 @@ class CSSFilters {
 
       val offsetX = parseCssFloat(tokens[0], 0f, true)
       val offsetY = parseCssFloat(tokens[1], 0f, true)
-      val blur = if (tokens.size >= 3) parseCssFloat(tokens[2], 0f, true) else 0f
+      // A shadow's blur is a radius, twice the deviation the other blurs carry.
+      val blur = if (tokens.size >= 3) parseCssFloat(tokens[2], 0f, true) / 2f else 0f
 
       val color = if (tokens.size >= 4) {
         parseCssColor(tokens.subList(3, tokens.size).joinToString(" "))

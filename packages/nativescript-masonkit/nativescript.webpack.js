@@ -28,6 +28,28 @@ module.exports = (webpack) => {
     entries.forEach((entry) => bundle.add(entry));
   });
 
+  // @nativescript/tailwind strips the CSS core can't apply from all app CSS; keep what MasonKit
+  // supports (see postcss-guard.js). Ordered after tailwind's own hook adds its plugin.
+  webpack.chainWebpack(
+    (config) => {
+      for (const rule of ['css', 'scss']) {
+        if (!config.module?.rules.has(rule) || !config.module.rule(rule).uses.has('postcss-loader')) continue;
+        config.module
+          .rule(rule)
+          .use('postcss-loader')
+          .tap((options = {}) => {
+            const plugins = options.postcssOptions?.plugins;
+            const at = Array.isArray(plugins) ? plugins.indexOf('@nativescript/tailwind') : -1;
+            if (at === -1) return options;
+            const guard = require('./postcss-guard');
+            const next = [...plugins.slice(0, at), guard.before(), plugins[at], guard.after(), ...plugins.slice(at + 1)];
+            return { ...options, postcssOptions: { ...options.postcssOptions, plugins: next } };
+          });
+      }
+    },
+    { order: 10 },
+  );
+
   // MasonKit branches on __WINDOWS__, which older @nativescript/webpack releases don't define.
   webpack.chainWebpack((config) => {
     if (!config.plugins.has('DefinePlugin')) {

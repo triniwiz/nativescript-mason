@@ -2274,6 +2274,18 @@ export const maskBorderModeProperty = new CssProperty<Style, string>({
 // The -webkit- prefixed names older and autoprefixed CSS still uses, set on the same Style
 // properties. Composite operators and box keywords are translated to the standard ones.
 
+// Gradient-text CSS is usually written `-webkit-background-clip: text`.
+const webkitBackgroundClipProperty = new CssProperty<Style, string>({
+  name: 'webkitBackgroundClip',
+  cssName: '-webkit-background-clip',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.backgroundClip = newValue as never;
+    }
+  },
+});
+
 const webkitMaskImageProperty = new CssProperty<Style, string>({
   name: 'webkitMaskImage',
   cssName: '-webkit-mask-image',
@@ -2457,6 +2469,7 @@ maskBorderWidthProperty.register(Style);
 maskBorderOutsetProperty.register(Style);
 maskBorderRepeatProperty.register(Style);
 maskBorderModeProperty.register(Style);
+webkitBackgroundClipProperty.register(Style);
 webkitMaskImageProperty.register(Style);
 webkitMaskSizeProperty.register(Style);
 webkitMaskPositionProperty.register(Style);

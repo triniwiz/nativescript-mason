@@ -829,6 +829,34 @@ impl Mason {
             .unwrap_or_default()
     }
 
+    /// Float exclusions for text in a container as a flat
+    /// `[left, top, width, height, side]` vec: margin boxes in the container's
+    /// content box, `side` 1 for left and 2 for right.
+    pub fn get_float_exclusions(&self, container_id: Id) -> Vec<f32> {
+        self.0
+            .get_float_rects(container_id)
+            .map(|rects| {
+                let mut out = Vec::with_capacity(rects.len() * 5);
+                for r in rects {
+                    let [ml, mr, mt, mb] = r.margin;
+                    let side = match r.side {
+                        Float::Left => 1.0,
+                        Float::Right => 2.0,
+                        _ => 0.0,
+                    };
+                    out.extend_from_slice(&[
+                        r.left - ml,
+                        r.top - mt,
+                        r.right + ml + mr,
+                        r.bottom + mt + mb,
+                        side,
+                    ]);
+                }
+                out
+            })
+            .unwrap_or_default()
+    }
+
     /// Return float rects including the `node` id for each rect so callers
     /// can correlate rects with author nodes. Each entry is a tuple
     /// `(Id, left, top, right, bottom)` in engine logical units.

@@ -76,7 +76,8 @@ namespace mason_cssmask
         bool Drawable() const { return kind != Kind::None; }
     };
 
-    enum Box { BorderBox = 0, PaddingBox = 1, ContentBox = 2, NoClip = 3, MarginBox = 3 };
+    // TextClip is background-clip: text, painted inside the text's glyphs; it boxes as the border box.
+    enum Box { BorderBox = 0, PaddingBox = 1, ContentBox = 2, NoClip = 3, MarginBox = 3, TextClip = 4 };
     enum Repeat { RepeatTile = 0, NoRepeat = 1, Space = 2, Round = 3, Stretch = 4 };
 
     struct Layer
@@ -124,6 +125,8 @@ namespace mason_cssmask
         std::vector<Layer> layers;
         std::optional<ClipShape> clip;
         std::optional<NineSlice> border;
+        // A background layer is clipped to text.
+        bool hasTextClip{ false };
         bool HasLayers() const
         {
             return std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable(); });
@@ -352,6 +355,7 @@ namespace mason_cssmask
                 layer.composite = static_cast<int>(o.GetNamedNumber(L"k", 0));
                 layer.blend = static_cast<int>(o.GetNamedNumber(L"b", 0));
                 layer.attachment = static_cast<int>(o.GetNamedNumber(L"a", 0));
+                if (layer.clip == TextClip) spec.hasTextClip = true;
                 spec.layers.push_back(std::move(layer));
             }
         }
@@ -1361,8 +1365,36 @@ namespace mason_cssmask
         }
     }
 
-    inline void PaintBackground(ID2D1DeviceContext* ctx, Spec const& spec, uint32_t color, uint32_t textColor, Boxes const& boxes, float scale)
+    // background-clip: text. Text.cpp sets the hook: a text element's glyph outlines as drawn, built in
+    // the factory they're painted with, in DIPs from its border box. Empty for an element that can't
+    // give them (text clips at the border box there); a null geometry is a text with no glyphs.
+    using TextOutline = std::function<winrt::com_ptr<ID2D1Geometry>(ID2D1Factory*)>;
+    inline std::function<TextOutline(mux::UIElement const&, uint64_t& revision)> g_textOutline;
+
+    inline void PaintBackground(ID2D1DeviceContext* ctx, Spec const& spec, uint32_t color, uint32_t textColor, Boxes const& boxes, float scale,
+        TextOutline const& text = {})
     {
+        const bool textClip = spec.hasTextClip && text;
+        winrt::com_ptr<ID2D1Geometry> glyphs;
+        if (textClip)
+        {
+            winrt::com_ptr<ID2D1Factory> factory;
+            ctx->GetFactory(factory.put());
+            glyphs = text(factory.get());
+        }
+        // Paints a layer, or the colour, inside the glyphs when it's clipped to text.
+        auto clipped = [&](int clip, auto const& paint)
+        {
+            if (clip != TextClip || !textClip)
+            {
+                paint();
+                return;
+            }
+            if (!glyphs) return;
+            ctx->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), glyphs.get()), nullptr);
+            paint();
+            ctx->PopLayer();
+        };
         winrt::com_ptr<ID2D1Image> surface;
         ctx->GetTarget(surface.put());
         D2D1_MATRIX_3X2_F transform;
@@ -1383,18 +1415,21 @@ namespace mason_cssmask
         }
         if ((color >> 24) != 0)
         {
+            // The colour takes the bottom layer's clip, text included.
+            const int clip = spec.layers.empty() ? BorderBox : spec.layers.back().clip;
             winrt::com_ptr<ID2D1SolidColorBrush> brush;
             ctx->CreateSolidColorBrush(ColorOf(color), brush.put());
-            ctx->FillRectangle(boxes.Get(spec.layers.empty() ? BorderBox : spec.layers.back().clip), brush.get());
+            clipped(clip, [&] { ctx->FillRectangle(boxes.Get(clip), brush.get()); });
         }
         for (size_t n = spec.layers.size(); n-- > 0;)
         {
             Layer const& layer = spec.layers[n];
             if (!layer.image.Drawable()) continue;
+            auto draw = [&] { DrawLayer(ctx, layer, boxes, scale, textColor); };
             D2D1_BLEND_MODE mode;
             if (!group || !BlendModeOf(layer.blend, mode))
             {
-                DrawLayer(ctx, layer, boxes, scale, textColor);
+                clipped(layer.clip, draw);
                 continue;
             }
             auto source = TargetBitmap(ctx, pw, ph);
@@ -1402,12 +1437,12 @@ namespace mason_cssmask
             winrt::com_ptr<ID2D1Effect> effect;
             if (!source || !blended || FAILED(ctx->CreateEffect(CLSID_D2D1Blend, effect.put())))
             {
-                DrawLayer(ctx, layer, boxes, scale, textColor);
+                clipped(layer.clip, draw);
                 continue;
             }
             ctx->SetTarget(source.get());
             ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-            DrawLayer(ctx, layer, boxes, scale, textColor);
+            clipped(layer.clip, draw);
             effect->SetInput(0, group.get());
             effect->SetInput(1, source.get());
             effect->SetValue(D2D1_BLEND_PROP_MODE, mode);
@@ -1433,6 +1468,8 @@ namespace mason_cssmask
         uint32_t backgroundColor{ 0 };
         uint32_t backgroundTextColor{ 0 };
         float backgroundScale{ 0.0f };
+        // The glyphs a text-clipped background was painted inside.
+        uint64_t backgroundTextRevision{ 0 };
         Boxes backgroundLayout;
         std::vector<std::function<void()>> unhooks;
         int watched{ -1 };
@@ -1924,13 +1961,16 @@ namespace mason_cssmask
         int anchor = AnchorOf(element, *entry.background, color);
         const Boxes boxes = Place(element, *entry.background, entry.backgroundLayout, anchor);
         Watch(element, entry, anchor);
+        uint64_t textRevision = 0;
+        TextOutline text;
+        if (entry.background->hasTextClip && g_textOutline) text = g_textOutline(element, textRevision);
         if (!entry.backgroundBrush || !(entry.backgroundBoxes == boxes) || entry.backgroundColor != color || entry.backgroundTextColor != textColor
-            || entry.backgroundScale != scale)
+            || entry.backgroundScale != scale || entry.backgroundTextRevision != textRevision)
         {
             auto spec = entry.background;
             const std::string key = SurfaceKey("cssbackground", entry);
             auto brush = PaintSurface(key, std::ceil(boxes.width * scale), std::ceil(boxes.height * scale),
-                [spec, color, textColor, boxes, scale](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale); });
+                [spec, color, textColor, boxes, scale, text](ID2D1DeviceContext* ctx, float, float) { PaintBackground(ctx, *spec, color, textColor, boxes, scale, text); });
             if (!brush) return nullptr;
             entry.backgroundBrush = brush;
             entry.backgroundKey = key;
@@ -1938,6 +1978,7 @@ namespace mason_cssmask
             entry.backgroundColor = color;
             entry.backgroundTextColor = textColor;
             entry.backgroundScale = scale;
+            entry.backgroundTextRevision = textRevision;
         }
         Anchor(element, entry, entry.backgroundBrush, anchor, scale);
         return entry.backgroundBrush;
@@ -1948,6 +1989,18 @@ namespace mason_cssmask
         auto* entry = Find(element);
         if (!entry || !entry->background || !entry->backgroundBrush) return;
         PaintBackgroundFor(element, *entry, entry->backgroundColor, entry->backgroundTextColor, entry->backgroundScale);
+    }
+
+    inline int g_textClips = 0;
+
+    inline void RepaintTextClips(mux::UIElement const& element, bool ancestors)
+    {
+        if (g_textClips <= 0) return;
+        for (auto e = element; e; e = ancestors ? winrt::Microsoft::UI::Xaml::Media::VisualTreeHelper::GetParent(e).try_as<mux::UIElement>() : nullptr)
+        {
+            auto* entry = Find(e);
+            if (entry && entry->background && entry->background->hasTextClip) RepaintBackground(e);
+        }
     }
 
     inline bool HasBackground(mux::UIElement const& element)
@@ -1963,6 +2016,7 @@ namespace mason_cssmask
         {
             auto* entry = Find(element);
             if (!entry || !entry->background) return;
+            if (entry->background->hasTextClip) --g_textClips;
             entry->background = nullptr;
             Unwatch(*entry);
             ReleaseSurface(entry->backgroundKey);
@@ -1975,6 +2029,8 @@ namespace mason_cssmask
             return;
         }
         auto& entry = Ensure(element);
+        if (entry.background && entry.background->hasTextClip) --g_textClips;
+        if (spec->hasTextClip) ++g_textClips;
         entry.background = std::move(spec);
         entry.backgroundBrush = nullptr;
         Unwatch(entry);

@@ -77,9 +77,7 @@ Vertical margins between adjacent block siblings collapse to the larger of the t
 }
 ```
 
-::: warning Text around floats
-Floated boxes are positioned on every platform. On Android the following lines wrap around the float when drawn, but the paragraph is measured as if the float were not there, so its height can be short. For media-plus-text layouts a flex row is the safer choice there.
-:::
+Text beside a float wraps around the float's margin box, and the block grows to fit the wrapped lines.
 
 ## Writing modes
 

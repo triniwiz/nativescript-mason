@@ -178,16 +178,22 @@ describe('background boxes', () => {
     expect(hasCustomBackgroundBoxes({ origin: 'padding-box', clip: 'border-box' })).toBe(false);
     expect(hasCustomBackgroundBoxes({ clip: 'content-box' })).toBe(true);
     expect(hasCustomBackgroundBoxes({ origin: 'border-box' })).toBe(true);
-    // background-clip: text isn't drawn on Windows, so it keeps the default.
-    expect(hasCustomBackgroundBoxes({ clip: 'text' })).toBe(false);
+    expect(hasCustomBackgroundBoxes({ clip: 'text' })).toBe(true);
+  });
+
+  it('clips to text for background-clip only', () => {
+    expect(JSON.parse(encodeWindowsGradientBackground('linear-gradient(black, transparent)', '', '', '', ctx, { clip: 'text' })).l[0]).toMatchObject({ o: 1, c: 4 });
+    expect(JSON.parse(encodeWindowsColorClip('text', ctx)).l[0]).toMatchObject({ c: 4 });
+    expect(JSON.parse(encodeWindowsBackgroundLayers({ image: 'url(a.png), url(b.png)', clip: 'text, padding-box' }, ctx)).l.map((l: { c: number }) => l.c)).toEqual([4, 1]);
+    // text is no mask-clip or origin value.
+    expect(mask({ 'mask-image': 'url(a.svg)', 'mask-clip': 'text' }).l[0].c).toBe(0);
+    expect(JSON.parse(encodeWindowsBackground('~/a.png', '', '', '', ctx, { origin: 'text' })).l[0]).toMatchObject({ o: 1 });
   });
 });
 
 describe('background layers', () => {
   it('encodes every layer with its blend mode and attachment, repeating short lists', () => {
-    const spec = JSON.parse(
-      encodeWindowsBackgroundLayers({ image: 'url(~/a.png), linear-gradient(red, blue), none', repeat: 'no-repeat, repeat', attachment: 'fixed, local', blend: 'multiply, screen, luminosity', origin: 'content-box' }, ctx),
-    );
+    const spec = JSON.parse(encodeWindowsBackgroundLayers({ image: 'url(~/a.png), linear-gradient(red, blue), none', repeat: 'no-repeat, repeat', attachment: 'fixed, local', blend: 'multiply, screen, luminosity', origin: 'content-box' }, ctx));
     expect(spec.l).toHaveLength(3);
     expect(spec.l[0]).toMatchObject({ i: { t: 'img', src: '/app/a.png' }, r: [1, 1], a: 1, b: 1, o: 2 });
     expect(spec.l[1]).toMatchObject({ i: { t: 'lin' }, r: [0, 0], a: 2, b: 2 });

@@ -197,7 +197,7 @@ public struct StyleKeys {
   // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
   public static let FONT_COLOR = 324 // u32 (324-327)
   public static let FONT_COLOR_STATE = 328
-  public static let FONT_SIZE = 329 // i32 (329-332)
+  public static let FONT_SIZE = 329 // f32 (329-332)
   public static let FONT_SIZE_TYPE = 333
   public static let FONT_SIZE_STATE = 334
   public static let FONT_WEIGHT = 335 // i32 (335-338)
@@ -1486,6 +1486,10 @@ public class MasonStyle: NSObject {
   
   public var filter: String = "" {
     didSet {
+      // Whether inline text is merged into its parent's depends on the filter.
+      if filter.isEmpty != oldValue.isEmpty, let parent = node.parent?.view as? MasonText {
+        parent.requestLayout()
+      }
       if filter.isEmpty {
         if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
         return
@@ -2018,13 +2022,13 @@ public class MasonStyle: NSObject {
     listStylePosition = pos
   }
 
-  public var fontSize: Int32 {
+  public var fontSize: Float {
     get {
-      return getInt32(StyleKeys.FONT_SIZE)
+      return getFloat(StyleKeys.FONT_SIZE)
     }
     set {
       prepareMut()
-      setInt32(StyleKeys.FONT_SIZE, newValue)
+      setFloat(StyleKeys.FONT_SIZE, newValue)
       setUInt8(StyleKeys.FONT_SIZE_TYPE, 0)
       setUInt8(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
 
@@ -4865,33 +4869,32 @@ extension MasonStyle {
     return resolvePseudoUInt32(StyleKeys.FONT_COLOR, StyleKeys.FONT_COLOR_STATE, base, .color)
   }
 
-  internal var resolvedFontSize: Int32 {
+  internal var resolvedFontSize: Float {
     let state = getUInt8(StyleKeys.FONT_SIZE_STATE)
     let type = getUInt8(StyleKeys.FONT_SIZE_TYPE)
     // PERCENT == 1
     if (type == StyleState.SET) {
       let parentFontSize = {
-        if let parent = node.parent as? MasonTextNode, parent.style.isValueInitialized  {
+        if let parent = node.parent, parent.style.isValueInitialized {
           return parent.style.resolvedFontSize
         }else {
           return Constants.DEFAULT_FONT_SIZE
         }
       }()
       
-      return resolvePercentageFontSize(parentFontSize, getInt32(StyleKeys.FONT_SIZE))
+      return resolvePercentageFontSize(parentFontSize)
     }
     
     return if (state == StyleState.INHERIT) {
-      parentStyleWithTextValues?.resolvedFontSize ?? getInt32(StyleKeys.FONT_SIZE)
+      parentStyleWithTextValues?.resolvedFontSize ?? getFloat(StyleKeys.FONT_SIZE)
     } else {
-      getInt32(StyleKeys.FONT_SIZE)
+      getFloat(StyleKeys.FONT_SIZE)
     }
   }
   
-  internal func resolvePercentageFontSize(_ parentFontSize: Int32, _ percent: Int32) -> Int32 {
-    let rawSize = getInt32(StyleKeys.FONT_SIZE)
-    let percent = Float(rawSize) / 100
-    return max(Int32((Float(parentFontSize) * percent).rounded(.up)), 0)
+  internal func resolvePercentageFontSize(_ parentFontSize: Float) -> Float {
+    let percent = getFloat(StyleKeys.FONT_SIZE) / 100
+    return max(parentFontSize * percent, 0)
   }
   
   internal var resolvedFontWeight: NSCFontWeight  {

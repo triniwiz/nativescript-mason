@@ -163,8 +163,8 @@ CSS `transition` is not supported. Animate a change with `@keyframes`, or with c
 </div>
 ```
 
-::: warning @nativescript/tailwind 2.x
-Version 2.x runs a PostCSS step over every stylesheet in the app, not just Tailwind's output, and removes what NativeScript core doesn't support: `display`, values ending in `min-content`, `max-content`, `vw` or `vh`, and `:hover` rules. Your own MasonKit CSS loses those declarations without any error. The repo's React demo uses version 4, which keeps them.
+::: info What MasonKit does about @nativescript/tailwind's CSS step
+`@nativescript/tailwind` runs a PostCSS step over every stylesheet in the app, not just Tailwind's output, and removes what NativeScript core can't apply: `display`, `gap`, grid properties, values ending in `min-content`, `max-content`, `vw` or `vh`, and `:hover` rules. MasonKit's webpack hook wraps that step and puts back whatever it removed, so your own MasonKit CSS comes through intact. Declarations the step keeps stay as it rewrote them, so a kept `rem` value arrives as px against a 16px root. This is tested with version 4.
 :::
 
 ## When a value doesn't apply

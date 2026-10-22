@@ -63,7 +63,7 @@ Functions: `blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()
 
 | Platform | Notes |
 | --- | --- |
-| iOS | All functions, on containers (`div` and friends). Text elements (`p`, `span`, headings) don't take `filter` yet. |
+| iOS | All functions. |
 | Android | All functions. Fastest on Android 12 (API 31) and later, which use `RenderEffect`; earlier versions take a slower offscreen path. |
 | Windows | All functions. |
 

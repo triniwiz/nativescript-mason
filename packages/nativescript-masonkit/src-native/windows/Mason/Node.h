@@ -86,6 +86,8 @@ namespace winrt::NativeScript::Mason::implementation
         void ShallowFrames(std::vector<winrt::Windows::Foundation::Rect>& out);
         // Border plus padding on each side of this node's content box.
         void ContentInsets(float& left, float& top, float& right, float& bottom);
+        // Where this node's content box starts in its parent's border box.
+        void ContentOrigin(float& x, float& y);
 
         // Position relative to the layout root in DIPs, set by the parent panel's arrange.
         float ArrangeX{ 0.0f };

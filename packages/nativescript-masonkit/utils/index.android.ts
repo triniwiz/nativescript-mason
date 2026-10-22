@@ -18,6 +18,7 @@ import { parseUnit } from '@nativescript/core/css/parser';
 import type { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, style_ } from '../symbols';
+import { masonLayout } from '../display-density';
 
 const enum Overflow {
   Visible = 0,
@@ -255,9 +256,9 @@ export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPx
     case '%':
       return length.value * parent;
     case 'dip':
-      return Utils.layout.toDevicePixels(length.value);
+      return masonLayout.toDevicePixels(length.value);
     case 'px':
-      return Utils.layout.toDevicePixels(length.value);
+      return masonLayout.toDevicePixels(length.value);
   }
 }
 
@@ -408,7 +409,7 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
   let typeOf = typeof value;
 
   if (typeOf === 'number') {
-    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
+    return { value: masonLayout.toDevicePixels(value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
   }
 
   if (typeOf === 'string') {
@@ -420,9 +421,9 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
       case '%':
         return { value: value.value, type: 'percent', native_type: 2 /* MasonDimensionCompatType.Percent */ };
       case 'px':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
       case 'dip':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
     }
   }
 
@@ -451,7 +452,7 @@ function _parseDimensionString(value: string): ReturnType<typeof _toMasonDimensi
       return { value: parseFloat(limit) || 0, type: 'fit-content-percent', native_type: MasonDimensionCompatType.FitContentPercent };
     }
     const n = parseFloat(limit) || 0;
-    return { value: limit.endsWith('px') ? n : Utils.layout.toDevicePixels(n), type: 'fit-content-points', native_type: MasonDimensionCompatType.FitContentPoints };
+    return { value: limit.endsWith('px') ? n : masonLayout.toDevicePixels(n), type: 'fit-content-points', native_type: MasonDimensionCompatType.FitContentPoints };
   }
   return null;
 }
@@ -492,17 +493,17 @@ export function _intoMasonDimension(value) {
       case '%':
         return new org.nativescript.mason.masonkit.Dimension.Percent(value.value);
       case 'px':
-        return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value.value));
+        return new org.nativescript.mason.masonkit.Dimension.Points(masonLayout.toDevicePixels(value.value));
       case 'dip':
-        return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value.value));
+        return new org.nativescript.mason.masonkit.Dimension.Points(masonLayout.toDevicePixels(value.value));
     }
   }
 
   if (typeOf === 'number') {
-    return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value));
+    return new org.nativescript.mason.masonkit.Dimension.Points(masonLayout.toDevicePixels(value));
   }
 
-  return new org.nativescript.mason.masonkit.Dimension.Points(Utils.layout.toDevicePixels(value));
+  return new org.nativescript.mason.masonkit.Dimension.Points(masonLayout.toDevicePixels(value));
 }
 
 export function _toLengthPercentageAuto(value): { value: number; type: 'auto' | 'points' | 'percent'; native_type: MasonLengthPercentageAutoCompatType } {
@@ -519,14 +520,14 @@ export function _toLengthPercentageAuto(value): { value: number; type: 'auto' | 
       case '%':
         return { value: value.value, type: 'percent', native_type: MasonLengthPercentageAutoCompatType.Percent };
       case 'px':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
       case 'dip':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
     }
   }
 
   if (typeOf === 'number') {
-    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
+    return { value: masonLayout.toDevicePixels(value), type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
   }
 
   return { value: value, type: 'points', native_type: MasonLengthPercentageAutoCompatType.Points };
@@ -550,14 +551,14 @@ export function _toLengthPercentage(value): { value: number; type: 'points' | 'p
       case '%':
         return { value: value.value, type: 'percent', native_type: MasonLengthPercentageCompatType.Percent };
       case 'px':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
       case 'dip':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
+        return { value: masonLayout.toDevicePixels(value.value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
     }
   }
 
   if (typeOf === 'number') {
-    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
+    return { value: masonLayout.toDevicePixels(value), type: 'points', native_type: MasonLengthPercentageCompatType.Points };
   }
 
   return { value: value, type: 'points', native_type: MasonLengthPercentageCompatType.Points };
@@ -573,20 +574,20 @@ export function _parseGridLine(value): { value: number; type: number } {
 
   if (value === 'auto' || value === undefined) {
     parsedValue = 0;
-    parsedType = 0 /* GridPlacementCompatType.Auto */;
+    parsedType = 0; /* GridPlacementCompatType.Auto */
   }
 
   if (typeof value === 'string') {
     if (value.startsWith('span')) {
       parsedValue = Number(value.replace('span', '').trim());
-      parsedType = 2 /* GridPlacementCompatType.Span */;
+      parsedType = 2; /* GridPlacementCompatType.Span */
     } else {
       parsedValue = Number(value.trim());
       if (parsedValue < 1) {
         parsedValue = 0;
-        parsedType = 0 /* GridPlacementCompatType.Auto */;
+        parsedType = 0; /* GridPlacementCompatType.Auto */
       } else {
-        parsedType = 1 /* GridPlacementCompatType.Line */;
+        parsedType = 1; /* GridPlacementCompatType.Line */
       }
     }
   }
@@ -595,9 +596,9 @@ export function _parseGridLine(value): { value: number; type: number } {
     parsedValue = value;
     if (parsedValue < 1) {
       parsedValue = 0;
-      parsedType = 0 /* GridPlacementCompatType.Auto */;
+      parsedType = 0; /* GridPlacementCompatType.Auto */
     } else {
-      parsedType = 1 /* GridPlacementCompatType.Line */;
+      parsedType = 1; /* GridPlacementCompatType.Line */
     }
   }
 
@@ -683,7 +684,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
       }
 
       if (fitContent.indexOf('px') > -1) {
-        const dip = Utils.layout.toDevicePixels(parseInt(fitContent.replace('dip', '')));
+        const dip = masonLayout.toDevicePixels(parseInt(fitContent.replace('dip', '')));
         return {
           min_type: MinSizingType.Auto,
           min_value: dip,
@@ -710,7 +711,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
         max_value: px,
       };
     } else if (value.indexOf('dip') > -1) {
-      const dip = Utils.layout.toDevicePixels(parseInt(value.replace('dip', '')));
+      const dip = masonLayout.toDevicePixels(parseInt(value.replace('dip', '')));
       return {
         min_type: MinSizingType.Points,
         min_value: dip,
@@ -726,7 +727,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
         max_value: percent,
       };
     } else {
-      const dip = Utils.layout.toDevicePixels(Number(value));
+      const dip = masonLayout.toDevicePixels(Number(value));
       return {
         min_type: MinSizingType.Points,
         min_value: dip,
@@ -736,7 +737,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
     }
   }
   if (typeof value === 'number') {
-    const dip = Utils.layout.toDevicePixels(value);
+    const dip = masonLayout.toDevicePixels(value);
     return {
       min_type: MinSizingType.Points,
       min_value: dip,

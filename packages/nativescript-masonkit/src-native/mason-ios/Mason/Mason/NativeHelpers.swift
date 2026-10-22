@@ -39,6 +39,21 @@ class NativeHelpers {
   /// Return float rects along with the native CMasonNode pointer for each float.
   /// Each entry is `(nativePtr, rect)` where `nativePtr` is the CMasonNode pointer
   /// that was serialized by the Rust wrapper, and `rect` is in engine logical units.
+  /// A container's float margin boxes as `[left, top, width, height, side]` runs in its content box, device px.
+  static func nativeNodeGetFloatExclusions(_ mason: NSCMason, _ node: MasonNode) -> [Float] {
+    var buffer = [Float](repeating: 0, count: 20)
+    let count = Int(buffer.withUnsafeMutableBufferPointer {
+      mason_node_get_float_exclusions(mason.nativePtr, node.nativePtr, $0.baseAddress, UInt($0.count))
+    })
+    if count > buffer.count {
+      buffer = [Float](repeating: 0, count: count)
+      _ = buffer.withUnsafeMutableBufferPointer {
+        mason_node_get_float_exclusions(mason.nativePtr, node.nativePtr, $0.baseAddress, UInt($0.count))
+      }
+    }
+    return Array(buffer.prefix(count))
+  }
+
   static func nativeNodeGetFloatRectsWithNodes(_ mason: NSCMason, _ node: MasonNode) -> [(OpaquePointer?, CGRect)] {
     guard let buffer = mason_node_get_float_rects_buffer(mason.nativePtr, node.nativePtr) else { return [] }
 

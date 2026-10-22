@@ -64,7 +64,7 @@ class TransformActivity : AppCompatActivity() {
     val label = mason.createTextView(this)
     label.textContent = "Transformed"
     label.style.setColor("#FFFFFF")
-    label.style.fontSize = 18
+    label.style.fontSize = 18f
     box.addView(label)
 
     // Default transform

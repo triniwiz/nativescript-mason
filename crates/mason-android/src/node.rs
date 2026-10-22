@@ -385,6 +385,30 @@ pub extern "system" fn nativeGetFloatRects(
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeGetFloatExclusions(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+) -> jfloatArray {
+    if taffy == 0 || node == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+    unsafe {
+        let mason = &*(taffy as *mut Mason);
+        let node_ref = &*(node as *mut NodeRef);
+        let output = mason.get_float_exclusions(node_ref.id());
+        match env.new_float_array(output.len() as i32) {
+            Ok(array) => {
+                let _ = env.set_float_array_region(&array, 0, output.as_slice());
+                array.into_raw()
+            }
+            Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_NativeHelpers_nativeNodeGetFloatRectAndroidIds(
     env: JNIEnv,
     _: JClass,

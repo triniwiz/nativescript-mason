@@ -178,7 +178,7 @@ REF_COUNT                            u32    # copy-on-write share count
 # Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
 FONT_COLOR                           u32
 FONT_COLOR_STATE                     u8
-FONT_SIZE                            i32
+FONT_SIZE                            f32
 FONT_SIZE_TYPE                       u8
 FONT_SIZE_STATE                      u8
 FONT_WEIGHT                          i32

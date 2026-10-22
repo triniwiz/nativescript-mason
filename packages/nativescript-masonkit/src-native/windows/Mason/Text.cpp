@@ -4,6 +4,7 @@
 #include "TextNode.h"
 #include "StyleKeys.h"
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -85,6 +86,9 @@ namespace
     }
 
     bool g_directWrite = true;
+
+    // Layouts a text asks for in a row when the floats beside it moved after it was measured.
+    constexpr uint8_t kFloatRelayouts = 2;
 
     winrt::NativeScript::Mason::Node NodeOfBox(mux::UIElement const& box)
     {
@@ -671,6 +675,60 @@ namespace winrt::NativeScript::Mason::implementation
         m_measureCache->node = winrt::make_weak(m_node);
         WatchTextScale();
         if (!mason_visual::g_onScaleChanged) mason_visual::g_onScaleChanged = [] { RefreshTexts(Change::Scale); };
+        if (!mason_cssmask::g_textOutline)
+        {
+            mason_cssmask::g_textOutline = [](mux::UIElement const& element, uint64_t& revision) -> mason_cssmask::TextOutline
+            {
+                // A TextBlock's glyphs can't be outlined: clipped at the border box.
+                if (auto text = element.try_as<nsm::Text>(); text && !winrt::get_self<Text>(text)->m_direct) return {};
+                auto own = NodeOfBox(element);
+                if (!own) return {};
+                auto* origin = winrt::get_self<implementation::Node>(own);
+                struct Placed
+                {
+                    std::shared_ptr<mason_atlas::Glyphs> glyphs;
+                    float x;
+                    float y;
+                };
+                std::vector<Placed> placed;
+                revision = 14695981039346656037ull;
+                auto mix = [&revision](uint64_t value) { revision = (revision ^ value) * 1099511628211ull; };
+                auto collect = [&](auto& self, mux::UIElement const& e) -> void
+                {
+                    if (auto text = e.try_as<nsm::Text>())
+                    {
+                        auto* impl = winrt::get_self<Text>(text);
+                        if (impl->m_direct && impl->m_glyphs && !impl->m_inlineOwner)
+                        {
+                            float x = 0.0f, y = 0.0f;
+                            if (e != element && impl->m_node)
+                            {
+                                auto* node = winrt::get_self<implementation::Node>(impl->m_node);
+                                x = node->ArrangeX - origin->ArrangeX;
+                                y = node->ArrangeY - origin->ArrangeY;
+                            }
+                            placed.push_back({ impl->m_glyphs, x, y });
+                            mix(impl->m_glyphRevision);
+                            mix(std::bit_cast<uint32_t>(x));
+                            mix(std::bit_cast<uint32_t>(y));
+                        }
+                    }
+                    const int32_t count = muxm::VisualTreeHelper::GetChildrenCount(e);
+                    for (int32_t i = 0; i < count; ++i)
+                    {
+                        if (auto child = muxm::VisualTreeHelper::GetChild(e, i).try_as<mux::UIElement>()) self(self, child);
+                    }
+                };
+                collect(collect, element);
+                mix(placed.size());
+                return [placed = std::move(placed)](ID2D1Factory* factory) -> winrt::com_ptr<ID2D1Geometry>
+                {
+                    std::vector<winrt::com_ptr<ID2D1Geometry>> parts;
+                    for (auto const& p : placed) mason_atlas::Outline(factory, *p.glyphs, p.x, p.y, parts);
+                    return mason_atlas::Group(factory, parts);
+                };
+            };
+        }
         LiveTexts().insert(this);
     }
 
@@ -704,6 +762,17 @@ namespace winrt::NativeScript::Mason::implementation
             IDWriteTextLayout* layout = c.Layout();
             if (!layout || c.paragraph.text.empty()) return mason_leaf::PackMeasure(0.0f, 0.0f);
             const float slack = SlackFor(mason_visual::g_computeScale);
+            // Floats shorten lines only at a definite width; intrinsic sizes ignore them.
+            const float lineWidth = ResolveWidth(kw, aw);
+            if (lineWidth > 0.0f && std::isfinite(lineWidth))
+            {
+                c.measuredFloats = FloatExclusions(c);
+                if (!c.measuredFloats.empty())
+                {
+                    auto const& around = c.AroundFloats(lineWidth, slack, c.measuredFloats);
+                    return mason_leaf::PackMeasure((std::min)(around.width, lineWidth), around.height);
+                }
+            }
             const Size d = AnswerMeasure(c, kw, aw,
                 [layout, slack, &c](float width) -> Size
                 {
@@ -846,16 +915,17 @@ namespace winrt::NativeScript::Mason::implementation
             if (!node) continue;
             uint32_t len = 0;
             const uint8_t* data = winrt::get_self<implementation::Node>(node)->StyleData(len);
-            if (!data || len < 335 || data[334] == 0 || data[333] == 1) continue;
-            int32_t fs = 0;
-            std::memcpy(&fs, data + 329, 4);
+            namespace sk = mason_style_keys;
+            if (!data || len <= sk::kFontSizeState || data[sk::kFontSizeState] == 0 || data[sk::kFontSizeType] == 1) continue;
+            float fs = 0;
+            std::memcpy(&fs, data + sk::kFontSize, 4);
             if (fs > 0)
             {
                 base = fs;
                 break;
             }
         }
-        return std::ceil(base * m_fontSizePercent / 100.0);
+        return base * m_fontSizePercent / 100.0;
     }
     void Text::FontSize(double value) { if (value > 0.0) { m_fontSize = value; if (m_text) m_text.FontSize(value); RequestRebuild(); } }
 
@@ -1058,9 +1128,9 @@ namespace winrt::NativeScript::Mason::implementation
         m_fontSizePercent = 0;
         if (u8(sk::kFontSizeState))
         {
-            const int32_t fs = i32(sk::kFontSize);
-            if (u8(sk::kFontSizeType) == 1) m_fontSizePercent = (std::max)(fs, 0);
-            else if (fs > 0) m_fontSize = static_cast<double>(fs);
+            const double fs = f32(sk::kFontSize);
+            if (u8(sk::kFontSizeType) == 1) m_fontSizePercent = (std::max)(fs, 0.0);
+            else if (fs > 0) m_fontSize = fs;
         }
         if (u8(sk::kFontWeightState)) { int32_t fw = i32(sk::kFontWeight); if (fw > 0) m_fontWeight = fw; }
         if (u8(sk::kFontStyleState)) { m_fontStyle = u8(sk::kFontStyleType); m_hasFontStyle = true; } // 0 normal, 1 italic, 2 oblique
@@ -1230,7 +1300,7 @@ namespace winrt::NativeScript::Mason::implementation
     Text::Resolved Text::Resolve(Resolved parent) const
     {
         if (m_hasColor) parent.color = m_color;
-        if (m_fontSizePercent > 0) parent.fontSize = std::ceil(parent.fontSize * m_fontSizePercent / 100.0);
+        if (m_fontSizePercent > 0) parent.fontSize = parent.fontSize * m_fontSizePercent / 100.0;
         else if (m_fontSize > 0.0) parent.fontSize = m_fontSize;
         if (m_fontWeight > 0) parent.fontWeight = m_fontWeight;
         if (m_hasFontStyle) parent.fontStyle = m_fontStyle;
@@ -1606,6 +1676,12 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::HideSprite()
     {
+        if (m_glyphs)
+        {
+            m_glyphs = nullptr;
+            ++m_glyphRevision;
+            m_glyphsChanged = true;
+        }
         if (!m_sprite) return;
         mason_atlas::Forget(m_sprite.get());
         m_drawnValid = false;
@@ -1640,20 +1716,64 @@ namespace winrt::NativeScript::Mason::implementation
             c.maxValid = true;
         }
 
+        // Floats beside the text shorten its lines. Measured beside other floats, it's laid out again.
+        const mason_dwrite::FloatLayout* around = nullptr;
+        if (!vertical && !m_inlineOwner)
+        {
+            SyncFloatParent();
+            auto floats = FloatExclusions(c);
+            if (floats == c.measuredFloats) c.floatRelayouts = 0;
+            else if (c.floatRelayouts < kFloatRelayouts)
+            {
+                ++c.floatRelayouts;
+                mason_leaf::StyleChanged(get_strong().as<mux::UIElement>(), m_node);
+            }
+            if (!floats.empty()) around = &c.AroundFloats(width, slack, floats);
+        }
+
         // An unwrapped line that fits needs no breaking, and a start-aligned one no box either, so it
         // keeps the unbounded width it was measured at. A line that can't wrap overflows, or is
         // trimmed at the box.
         const auto flow = c.paragraph.FlowAt(width);
         const float lineWidth = c.max.Width + (c.paragraph.indentPercent ? flow.indent : 0.0f);
         const bool overflows = width + slack < lineWidth;
-        const bool wrap = overflows && !c.noWrap;
+        const bool wrap = around || (overflows && !c.noWrap);
         const bool leading = c.paragraph.alignment == DWRITE_TEXT_ALIGNMENT_LEADING && !c.paragraph.rtl;
         const float maxWidth = wrap || (overflows && c.paragraph.ellipsis) ? width + slack : leading ? mason_dwrite::kUnbounded : width;
-        mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth, flow);
+        // The ink around the layout box: along the lines (u) and across them (v), in its frame.
         DWRITE_TEXT_METRICS metrics{};
-        DWRITE_OVERHANG_METRICS overhang{};
-        layout->GetMetrics(&metrics);
-        layout->GetOverhangMetrics(&overhang);
+        float u0 = 0.0f, u1 = 0.0f, v0 = 0.0f, v1 = 0.0f;
+        if (around)
+        {
+            u0 = v0 = (std::numeric_limits<float>::max)();
+            u1 = v1 = std::numeric_limits<float>::lowest();
+            for (auto const& line : around->lines)
+            {
+                if (!line.layout) continue;
+                DWRITE_TEXT_METRICS m{};
+                DWRITE_OVERHANG_METRICS o{};
+                line.layout->GetMetrics(&m);
+                line.layout->GetOverhangMetrics(&o);
+                u0 = (std::min)(u0, line.x - o.left);
+                u1 = (std::max)(u1, line.x + line.layout->GetMaxWidth() + o.right);
+                v0 = (std::min)(v0, line.y - o.top);
+                v1 = (std::max)(v1, line.y + line.layout->GetMaxHeight() + o.bottom);
+                metrics.lineCount += m.lineCount;
+            }
+            metrics.height = around->height;
+            if (metrics.lineCount == 0) u0 = u1 = v0 = v1 = 0.0f;
+        }
+        else
+        {
+            mason_dwrite::Configure(layout, wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, maxWidth, flow);
+            DWRITE_OVERHANG_METRICS overhang{};
+            layout->GetMetrics(&metrics);
+            layout->GetOverhangMetrics(&overhang);
+            u0 = -overhang.left;
+            u1 = maxWidth + overhang.right;
+            v0 = -overhang.top;
+            v1 = layout->GetMaxHeight() + overhang.bottom;
+        }
         if (m_isButton && !vertical)
         {
             const float spare = finalSize.Height - top - bottom - metrics.height;
@@ -1666,9 +1786,6 @@ namespace winrt::NativeScript::Mason::implementation
 
         // The ink in device pixels around the content box, a pixel of margin for antialiasing. The
         // element sits on whole pixels, so the slot does, and the layout keeps its fraction.
-        // Along the lines (u) and across them (v), in the layout's frame:
-        const float u0 = -overhang.left, u1 = maxWidth + overhang.right;
-        const float v0 = -overhang.top, v1 = layout->GetMaxHeight() + overhang.bottom;
         float inkLeft = left + u0, inkTop = top + v0, inkRight = left + u1, inkBottom = top + v1;
         float layoutX = left;
         if (vertical == 1)
@@ -1734,6 +1851,7 @@ namespace winrt::NativeScript::Mason::implementation
         next.width = pxRight - pxLeft;
         next.height = pxBottom - pxTop;
         next.vertical = vertical;
+        if (around) next.floats = c.wrappedFloats;
 
         if (!m_sprite) m_sprite = std::make_unique<mason_atlas::Sprite>();
         auto& sprite = *m_sprite;
@@ -1761,7 +1879,11 @@ namespace winrt::NativeScript::Mason::implementation
             m_spriteSize = size;
         }
 
-        if (m_drawnValid && m_drawn == next && (sprite.page || sprite.queued)) return;
+        if (m_drawnValid && m_drawn == next && (sprite.page || sprite.queued))
+        {
+            KeepGlyphs(layoutX, top, false);
+            return;
+        }
         m_drawn = next;
         m_drawnValid = true;
         sprite.layout = c.layout;
@@ -1778,7 +1900,8 @@ namespace winrt::NativeScript::Mason::implementation
         }
         sprite.shadows = vertical ? std::vector<mason_dwrite::Shadow>{} : c.paragraph.shadows;
         sprite.softHyphens.clear();
-        if (wrap && !vertical)
+        sprite.lines = around ? around->lines : std::vector<mason_dwrite::FloatLine>{};
+        if (wrap && !vertical && !around)
         {
             for (uint32_t i = 0; i < c.paragraph.text.size(); ++i)
             {
@@ -1792,6 +1915,76 @@ namespace winrt::NativeScript::Mason::implementation
         sprite.height = next.height;
         sprite.scale = scale;
         mason_atlas::Queue(&sprite);
+        KeepGlyphs(layoutX, top, true);
+    }
+
+    void Text::KeepGlyphs(float x, float y, bool redrawn)
+    {
+        if (!m_sprite || (!redrawn && m_glyphs && m_glyphs->x == x && m_glyphs->y == y)) return;
+        auto const& sprite = *m_sprite;
+        auto glyphs = std::make_shared<mason_atlas::Glyphs>();
+        glyphs->layout = sprite.layout;
+        glyphs->wrapping = sprite.wrapping;
+        glyphs->maxWidth = sprite.maxWidth;
+        glyphs->flow = sprite.flow;
+        glyphs->lines = sprite.lines;
+        glyphs->x = x;
+        glyphs->y = y;
+        glyphs->vertical = sprite.vertical;
+        m_glyphs = std::move(glyphs);
+        ++m_glyphRevision;
+        m_glyphsChanged = true;
+    }
+
+    std::vector<mason_dwrite::FloatLine> const* Text::DrawnLines() const
+    {
+        return m_drawnValid && m_sprite && !m_sprite->lines.empty() ? &m_sprite->lines : nullptr;
+    }
+
+    void Text::SyncFloatParent()
+    {
+        // The Mason element laying this text out holds the floats beside it.
+        auto& c = *m_measureCache;
+        auto parent = Parent();
+        auto element = parent ? parent.try_as<nsm::IMasonElement>() : nullptr;
+        auto node = element ? element.Node() : nullptr;
+        if (c.floatParent.get() != node) c.floatParent = node ? winrt::make_weak(node) : winrt::weak_ref<nsm::Node>{};
+    }
+
+    std::vector<mason_dwrite::Exclusion> Text::FloatExclusions(MeasureCache const& c)
+    {
+        std::vector<mason_dwrite::Exclusion> out;
+        auto parent = c.floatParent.get();
+        auto node = c.node.get();
+        if (!parent || !node) return out;
+        auto* own = winrt::get_self<implementation::Node>(node);
+        auto* box = winrt::get_self<implementation::Node>(parent);
+        // Nor are vertical lines, or a text that floats itself.
+        if (mason_node_get_writing_mode(own->MasonPtr(), own->NodePtr()) != 0) return out;
+        uint32_t len = 0;
+        const uint8_t* style = own->StyleData(len);
+        if (style && len > mason_style_keys::kFloat && style[mason_style_keys::kFloat] != 0) return out;
+        thread_local std::vector<float> raw(40);
+        size_t count = static_cast<size_t>(mason_node_get_float_exclusions(box->MasonPtr(), box->NodePtr(), raw.data(), raw.size()));
+        if (count < 5) return out;
+        if (count > raw.size())
+        {
+            raw.resize(count);
+            count = (std::min)(static_cast<size_t>(mason_node_get_float_exclusions(box->MasonPtr(), box->NodePtr(), raw.data(), raw.size())), raw.size());
+        }
+        // Runs of [left, top, width, height, side] in the container's content box, moved into this one.
+        float x = 0.0f, y = 0.0f, left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+        own->ContentOrigin(x, y);
+        box->ContentInsets(left, top, right, bottom);
+        const float dx = x - left, dy = y - top;
+        for (size_t i = 0; i + 4 < count; i += 5)
+        {
+            const uint8_t side = static_cast<uint8_t>(raw[i + 4] == 1.0f ? 1 : raw[i + 4] == 2.0f ? 2 : 0);
+            // Floats wholly above the text don't touch its lines.
+            if (!side || raw[i + 2] <= 0.0f || raw[i + 3] <= 0.0f || raw[i + 1] + raw[i + 3] - dy <= 0.0f) continue;
+            out.push_back({ raw[i] - dx, raw[i + 1] - dy, raw[i] + raw[i + 2] - dx, raw[i + 1] + raw[i + 3] - dy, side });
+        }
+        return out;
     }
 
     winrt::Microsoft::UI::Xaml::Automation::Peers::AutomationPeer Text::OnCreateAutomationPeer()
@@ -2014,6 +2207,12 @@ namespace winrt::NativeScript::Mason::implementation
         }
         ArrangeBoxes();
         mason_visual::Apply(get_strong().as<mux::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
+        // background-clip: text paints inside the glyphs just drawn.
+        if (m_glyphsChanged)
+        {
+            m_glyphsChanged = false;
+            mason_cssmask::RepaintTextClips(get_strong().as<mux::UIElement>(), true);
+        }
         if (m_listItem || m_marker) SyncMarker(finalSize);
         // A summary's text can be built before it's placed in the summary.
         else if (!m_inlineOwner && SummaryMarker() != m_insideMarker) RequestRebuild();
@@ -2147,8 +2346,12 @@ namespace winrt::NativeScript::Mason::implementation
         auto* self = winrt::get_self<implementation::Node>(m_node);
         if (m_direct && c.layout && m_drawnValid && !boxes.empty())
         {
-            mason_dwrite::Configure(c.layout.get(), m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
-            mason_dwrite::BoxRects(c.layout.get(), c.paragraph.boxes, rects);
+            if (auto lines = DrawnLines()) mason_dwrite::BoxRects(*lines, c.paragraph.boxes, rects);
+            else
+            {
+                mason_dwrite::Configure(c.layout.get(), m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
+                mason_dwrite::BoxRects(c.layout.get(), c.paragraph.boxes, rects);
+            }
         }
         const float scale = mason_visual::RasterScale(get_strong().as<mux::UIElement>());
         auto snap = [scale](float absolute, float origin)
@@ -2186,11 +2389,13 @@ namespace winrt::NativeScript::Mason::implementation
         auto& c = *m_measureCache;
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return nullptr;
-        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
+        auto lines = DrawnLines();
+        if (!lines) mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
         float x = 0.0f, y = 0.0f;
         if (!ToLayout(point, x, y)) return nullptr;
         std::vector<mason_dwrite::BoxRect> rects;
-        mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
+        if (lines) mason_dwrite::BoxRects(*lines, c.paragraph.boxes, rects);
+        else mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
         size_t box = 0;
         for (auto const& piece : m_pieces)
         {
@@ -2202,7 +2407,7 @@ namespace winrt::NativeScript::Mason::implementation
             }
             ++box;
         }
-        const int32_t position = mason_dwrite::PositionAt(layout, x, y);
+        const int32_t position = lines ? mason_dwrite::PositionAt(*lines, x, y) : mason_dwrite::PositionAt(layout, x, y);
         if (position < 0) return nullptr;
         for (auto const& piece : m_pieces)
         {
@@ -2218,9 +2423,14 @@ namespace winrt::NativeScript::Mason::implementation
         auto& c = *m_measureCache;
         IDWriteTextLayout* layout = c.layout.get();
         if (!layout) return items;
-        mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
+        auto lines = DrawnLines();
         std::vector<mason_dwrite::BoxRect> rects;
-        mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
+        if (lines) mason_dwrite::BoxRects(*lines, c.paragraph.boxes, rects);
+        else
+        {
+            mason_dwrite::Configure(layout, m_drawn.wrap ? DWRITE_WORD_WRAPPING_WHOLE_WORD : DWRITE_WORD_WRAPPING_NO_WRAP, m_drawn.maxWidth, m_drawn.flow);
+            mason_dwrite::BoxRects(layout, c.paragraph.boxes, rects);
+        }
         std::wstring_view chars{ c.paragraph.text };
         size_t box = 0;
         uint32_t lastEnd = 0;
@@ -2260,13 +2470,11 @@ namespace winrt::NativeScript::Mason::implementation
                 lastEnd = piece.start + piece.length;
                 continue;
             }
-            UINT32 count = 0;
-            layout->HitTestTextRange(piece.start, piece.length, 0.0f, 0.0f, nullptr, 0, &count);
-            std::vector<DWRITE_HIT_TEST_METRICS> hits(count);
-            if (count == 0 || FAILED(layout->HitTestTextRange(piece.start, piece.length, 0.0f, 0.0f, hits.data(), count, &count))) continue;
+            DWRITE_HIT_TEST_METRICS hit{};
+            if (lines ? !mason_dwrite::FirstRangeHit(*lines, piece.start, piece.length, hit) : !mason_dwrite::FirstRangeHit(layout, piece.start, piece.length, 0.0f, 0.0f, hit)) continue;
             InlineItem item;
             item.element = target;
-            item.bounds = FromLayout(hits[0].left, hits[0].top, hits[0].width, hits[0].height);
+            item.bounds = FromLayout(hit.left, hit.top, hit.width, hit.height);
             item.label = winrt::hstring{ label };
             item.isLink = isLink;
             items.push_back(std::move(item));

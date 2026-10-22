@@ -16,6 +16,7 @@
           "packages/nativescript-masonkit/index.d.ts",
           "packages/nativescript-masonkit/references.d.ts",
           "packages/nativescript-masonkit/nativescript.webpack.js",
+          "packages/nativescript-masonkit/postcss-guard.js",
           "LICENSE",
           {
             "glob": "**/*",

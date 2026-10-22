@@ -247,11 +247,14 @@ describe('background', () => {
     ['repeat space radial-gradient(circle at 50% 50%, red, blue)', [U, 'radial-gradient(circle at 50% 50%, red, blue)', 'repeat space', U, U, U, U, U]],
     ['linear-gradient(red, blue), url(b.png) repeat-x left top / 50% blue', ['blue', 'linear-gradient(red, blue), url(b.png)', 'repeat, repeat-x', '0% 0%, left top', 'auto, 50%', U, U, U]],
     ['url(a.png) padding-box, url(b.png)', [U, 'url(a.png), url(b.png)', U, U, U, 'padding-box, border-box', 'padding-box, padding-box', U]],
+    ['linear-gradient(red, blue) text', [U, 'linear-gradient(red, blue)', U, U, U, 'text', U, U]],
+    ['linear-gradient(red, blue) content-box text', [U, 'linear-gradient(red, blue)', U, U, U, 'text', 'content-box', U]],
+    ['text content-box url(a.png)', [U, 'url(a.png)', U, U, U, 'text', 'content-box', U]],
   ])('%s', (value, parts) => {
     expect(splitBackground(value)).toEqual(parts);
   });
 
-  it.each(['red, url(a.png)', 'url(a) url(b)', 'red blue', 'url(a) / cover', 'center /', 'center / cover contain', 'url(a),', 'no-repeat repeat-x'])('rejects "%s"', (value) => {
+  it.each(['red, url(a.png)', 'url(a) url(b)', 'red blue', 'url(a) / cover', 'center /', 'center / cover contain', 'url(a),', 'no-repeat repeat-x', 'url(a) text text', 'url(a) padding-box content-box text'])('rejects "%s"', (value) => {
     expect(() => splitBackground(value)).toThrow();
   });
 

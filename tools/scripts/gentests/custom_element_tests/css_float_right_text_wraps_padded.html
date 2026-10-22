@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    text beside a right float in a padded block wraps at the float
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="width: 220px; flex-direction: column; align-items: flex-start;">
+  <div style="display: block; width: 220px; padding: 10px 10px 10px 10px;"><div style="float: right; width: 80px; height: 50px; margin-left: 20px;"></div>XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX XXXX</div>
+  <div style="width: 200px; height: 10px;"></div>
+</div>
+
+</body>
+</html>

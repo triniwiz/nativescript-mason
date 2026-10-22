@@ -37,8 +37,6 @@ Notes:
 - **Mask hit testing.** As in browsers, `clip-path` limits where an element can be tapped and masks do not.
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
-- **`background-clip: text`** is not applied on any platform yet; the background is painted as with `border-box`.
-- **Text around floats on Android.** Lines wrap around floats when the text is drawn, but the paragraph is measured without them, so its height can come out shorter than on iOS or the web.
 - **Vertical writing modes.** Upright CJK (`text-orientation: upright`) and vertical containers whose children flow vertically are not supported yet on any platform.
 
 ## Platform-specific APIs

@@ -11,6 +11,7 @@ import Forms from './components/forms'
 import Inputs from './components/inputs'
 import Details from './components/details'
 import QA from './components/qa'
+import DocsExample from './components/docs-example'
 import WebSpec from './webspec/WebSpec'
 import MaxWidthChurnRepro from './webspec/MaxWidthChurnRepro'
 import { BenchRoutes, type BenchRouteDefs } from './bench/routes'
@@ -30,6 +31,7 @@ declare module 'solid-navigation' {
       Inputs: RouteDefinition
       Details: RouteDefinition
       QA: RouteDefinition
+      DocsExample: RouteDefinition
       WebSpec: RouteDefinition
       MaxWidthChurnRepro: RouteDefinition
     }
@@ -51,6 +53,7 @@ const App = () => {
       <Route name="Inputs" component={Inputs} />
       <Route name="Details" component={Details} />
       <Route name="QA" component={QA} />
+      <Route name="DocsExample" component={DocsExample} />
       <Route name="WebSpec" component={WebSpec} />
       <Route name="MaxWidthChurnRepro" component={MaxWidthChurnRepro} />
       <BenchRoutes />

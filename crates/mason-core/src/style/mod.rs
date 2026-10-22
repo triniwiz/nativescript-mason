@@ -615,7 +615,7 @@ pub enum StyleKeys {
     // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
     FONT_COLOR = 324, // u32 (324-327)
     FONT_COLOR_STATE = 328,
-    FONT_SIZE = 329, // i32 (329-332)
+    FONT_SIZE = 329, // f32 (329-332)
     FONT_SIZE_TYPE = 333,
     FONT_SIZE_STATE = 334,
     FONT_WEIGHT = 335, // i32 (335-338)
@@ -929,7 +929,7 @@ impl Style {
     }
 }
 
-const DEFAULT_FONT_SIZE: i32 = 16;
+const DEFAULT_FONT_SIZE: f32 = 16.0;
 const UNSET_COLOR: u32 = 0xDEADBEEF;
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -972,7 +972,7 @@ impl Style {
             400, // normal
         );
 
-        set_style_data_i32(buffer, StyleKeys::FONT_SIZE, DEFAULT_FONT_SIZE);
+        set_style_data_f32(buffer, StyleKeys::FONT_SIZE, DEFAULT_FONT_SIZE);
 
         set_style_data_u32(buffer, StyleKeys::FONT_COLOR, 0xFF000000);
 

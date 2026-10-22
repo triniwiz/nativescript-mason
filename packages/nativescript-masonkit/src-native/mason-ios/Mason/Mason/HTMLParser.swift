@@ -724,7 +724,7 @@ public class HTMLParser: NSObject {
 
     case "font-size":
       if let v = parseFloatValue(value) {
-        style.fontSize = Int32(v)
+        style.fontSize = Float(v)
       }
 
     case "font-weight":

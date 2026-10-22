@@ -10,14 +10,22 @@ import UIKit
 import CoreGraphics
 
 // MARK: - BackgroundClip
-/// Box keywords shared by `background-clip` and `background-origin`.
+/// Box keywords shared by `background-clip` and `background-origin`; `text` is a clip only.
 enum BackgroundClip: String {
   case borderBox = "border-box"
   case paddingBox = "padding-box"
   case contentBox = "content-box"
+  case text = "text"
 
   static func parse(_ value: String) -> BackgroundClip? {
-    BackgroundClip(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    let clip = BackgroundClip(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    if clip == .text { Background.textClipsInUse = true }
+    return clip
+  }
+
+  static func parseOrigin(_ value: String) -> BackgroundClip? {
+    let box = parse(value)
+    return box == .text ? nil : box
   }
 }
 
@@ -365,7 +373,7 @@ class Background {
       case "background-clip":
         if let clip = BackgroundClip.parse(v) { layer.clip = clip }
       case "background-origin":
-        if let origin = BackgroundOrigin.parse(v) { layer.origin = origin }
+        if let origin = BackgroundOrigin.parseOrigin(v) { layer.origin = origin }
       case "background-attachment":
         if let attachment = BackgroundAttachment.parse(v) { layer.attachment = attachment }
       case "background-blend-mode":
@@ -602,6 +610,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
   }
 
   var boxes: [BackgroundClip] = []
+  var clipsToText = false
   var positionTokens: [String] = []
   var sizeTokens: [String] = []
   var repeatTokens: [String] = []
@@ -628,6 +637,8 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       repeatTokens.append(t)
     } else if ATTACHMENT_KEYWORDS.contains(t), let attachment = BackgroundAttachment.parse(t) {
       layer.attachment = attachment
+    } else if t == "text" {
+      clipsToText = true
     } else if BOX_KEYWORDS.contains(t), let box = BackgroundClip.parse(t) {
       boxes.append(box)
     } else if POSITION_KEYS.contains(t) || parseBackgroundLength(t) != nil {
@@ -646,6 +657,11 @@ func parseLayer(_ str: String) -> BackgroundLayer {
   } else if boxes.count >= 2 {
     layer.origin = boxes[0]
     layer.clip = boxes[1]
+  }
+  // `text` is the clip; a box keyword beside it is only the origin.
+  if clipsToText {
+    layer.clip = .text
+    Background.textClipsInUse = true
   }
   
   return layer

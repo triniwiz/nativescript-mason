@@ -66,14 +66,17 @@ internal val PSEUDO_CSS_ORDER = arrayOf(
 )
 
 enum class BackgroundClip(val css: String) {
-  BORDER_BOX("border-box"), PADDING_BOX("padding-box"), CONTENT_BOX("content-box");
+  BORDER_BOX("border-box"), PADDING_BOX("padding-box"), CONTENT_BOX("content-box"), TEXT("text");
 
   companion object {
     fun parse(value: String): BackgroundClip? = entries.firstOrNull { it.css == value.trim().lowercase() }
+
+    /** `text` is a clip only, never an origin. */
+    fun parseOrigin(value: String): BackgroundClip? = parse(value)?.takeIf { it != TEXT }
   }
 }
 
-/** `background-origin` uses the same box keywords as `background-clip`. */
+/** `background-origin` uses the same box keywords as `background-clip`, bar `text`. */
 typealias BackgroundOrigin = BackgroundClip
 
 enum class BackgroundAttachment(val css: String) {
@@ -244,6 +247,13 @@ class Background(
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
 
+  /** Whether a layer paints through the text (`background-clip: text`). */
+  val hasTextClip: Boolean
+    get() {
+      for (i in layers.indices) if (layers[i].clip == BackgroundClip.TEXT) return true
+      return false
+    }
+
   private fun invalidateView() {
     (style.node.view as? android.view.View)?.invalidate()
   }
@@ -288,7 +298,7 @@ class Background(
         }
         "size" -> parseSize(v)?.let { layer.size = it }
         "clip" -> BackgroundClip.parse(v)?.let { layer.clip = it }
-        "origin" -> BackgroundOrigin.parse(v)?.let { layer.origin = it }
+        "origin" -> BackgroundOrigin.parseOrigin(v)?.let { layer.origin = it }
         "attachment" -> BackgroundAttachment.parse(v)?.let { layer.attachment = it }
         "blend-mode" -> BackgroundBlendMode.parse(v)?.let { layer.blendMode = it }
       }
@@ -386,7 +396,7 @@ class Background(
       }
       if (layer.attachment != BackgroundAttachment.FIXED) {
         when (layer.origin) {
-          BackgroundOrigin.BORDER_BOX -> {}
+          BackgroundOrigin.BORDER_BOX, BackgroundOrigin.TEXT -> {}
           BackgroundOrigin.PADDING_BOX -> area.inset(node.computedBorderLeft, node.computedBorderTop, node.computedBorderRight, node.computedBorderBottom)
           BackgroundOrigin.CONTENT_BOX -> area.inset(
             node.computedBorderLeft + node.computedPaddingLeft,
@@ -1760,6 +1770,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
 
   val tokens = splitTopLevelWhitespace(value).filter { it.isNotBlank() }
   val boxes = mutableListOf<BackgroundClip>()
+  var clipsToText = false
   val positionTokens = mutableListOf<String>()
   val sizeTokens = mutableListOf<String>()
   val repeatTokens = mutableListOf<String>()
@@ -1782,6 +1793,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
       t in ATTACHMENT_KEYWORDS -> BackgroundAttachment.parse(t)?.let {
         layer.attachment = it
       }
+      t == "text" -> clipsToText = true
       t in BOX_KEYWORDS -> BackgroundClip.parse(t)?.let { boxes.add(it) }
       t in POSITION_KEYS || parseBackgroundLength(t) != null -> { afterSlash = false; positionTokens.add(t) }
       else -> parseColor(raw)?.let { layer.layerColor = it }
@@ -1797,6 +1809,8 @@ fun parseLayer(layerValue: String): BackgroundLayer {
     layer.origin = boxes[0]
     layer.clip = boxes[1]
   }
+  // `text` is the clip; a box keyword beside it is only the origin.
+  if (clipsToText) layer.clip = BackgroundClip.TEXT
 
   return layer
 }

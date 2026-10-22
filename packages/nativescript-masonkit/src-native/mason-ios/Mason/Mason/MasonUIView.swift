@@ -790,6 +790,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // owns it) is still current, else it's orphaned.
     if newSuperview == nil {
       style.removeShadowLayer()
+      if Background.textClipsInUse { Background.repaintTextClips(above: self) }
     }
   }
 

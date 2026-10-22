@@ -10,6 +10,7 @@
 namespace mason_atlas
 {
     struct Sprite;
+    struct Glyphs;
 }
 
 namespace winrt::NativeScript::Mason::implementation
@@ -224,6 +225,33 @@ namespace winrt::NativeScript::Mason::implementation
             // writing-mode: 0 horizontal-tb, 1 vertical-rl, 2 vertical-lr.
             uint8_t writingMode{ 0 };
 
+            // Floats beside the text: their container, the ones the last definite measure wrapped
+            // around, and the layout around them for one width.
+            winrt::weak_ref<winrt::NativeScript::Mason::Node> floatParent;
+            std::vector<mason_dwrite::Exclusion> measuredFloats;
+            std::vector<mason_dwrite::Exclusion> wrappedFloats;
+            mason_dwrite::FloatLayout wrapped;
+            float wrappedWidth{ -1.0f };
+            float wrappedSlack{ 0.0f };
+            uint64_t wrappedVersion{ 0 };
+            bool wrappedNoWrap{ false };
+            // Layouts asked for in a row because the floats moved after measuring.
+            uint8_t floatRelayouts{ 0 };
+
+            mason_dwrite::FloatLayout const& AroundFloats(float width, float slack, std::vector<mason_dwrite::Exclusion> const& floats)
+            {
+                if (wrappedWidth != width || wrappedSlack != slack || wrappedVersion != version || wrappedNoWrap != noWrap || wrappedFloats != floats)
+                {
+                    wrapped = mason_dwrite::FloatWrap(paragraph, width, slack, floats, noWrap);
+                    wrappedNoWrap = noWrap;
+                    wrappedFloats = floats;
+                    wrappedWidth = width;
+                    wrappedSlack = slack;
+                    wrappedVersion = version;
+                }
+                return wrapped;
+            }
+
             IDWriteTextLayout* Layout()
             {
                 if (!layout) layout = mason_dwrite::Build(paragraph);
@@ -235,10 +263,13 @@ namespace winrt::NativeScript::Mason::implementation
                 return maxValid && startAligned && laidOutWidth == std::numeric_limits<float>::infinity() && width >= max.Width;
             }
 
-            void Reset() { minValid = false; maxValid = false; breaks = -1; count = 0; next = 0; laidOutWidth = -1.0f; }
+            void Reset() { minValid = false; maxValid = false; breaks = -1; count = 0; next = 0; laidOutWidth = -1.0f; wrappedWidth = -1.0f; }
         };
 
         static bool RefreshBoxes(MeasureCache& cache);
+        // Margin boxes of the floats beside the text, in its content box, from the last layout.
+        static std::vector<mason_dwrite::Exclusion> FloatExclusions(MeasureCache const& cache);
+        void SyncFloatParent();
 
         // Lays the TextBlock out for a line width, infinity for max-content.
         static void LayOut(winrt::Microsoft::UI::Xaml::Controls::TextBlock const& block, MeasureCache& cache, float width);
@@ -278,6 +309,7 @@ namespace winrt::NativeScript::Mason::implementation
             int width{ 0 };
             int height{ 0 };
             uint8_t vertical{ 0 };
+            std::vector<mason_dwrite::Exclusion> floats;
             bool operator==(Drawn const&) const = default;
         };
         // The content box the layout was arranged in; vertical text runs its lines down it.
@@ -293,6 +325,12 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Windows::Foundation::Rect FromLayout(float u, float v, float width, float height) const;
         Drawn m_drawn;
         bool m_drawnValid{ false };
+        // What was last drawn, for background-clip: text; the revision changes with it.
+        std::shared_ptr<mason_atlas::Glyphs> m_glyphs;
+        uint64_t m_glyphRevision{ 0 };
+        bool m_glyphsChanged{ false };
+        void KeepGlyphs(float x, float y, bool redrawn);
+        std::vector<mason_dwrite::FloatLine> const* DrawnLines() const;
         // Shared with the measure callback, which only holds weak references.
         std::shared_ptr<MeasureCache> m_measureCache{ std::make_shared<MeasureCache>() };
         bool m_builtValid{ false };
@@ -319,7 +357,7 @@ namespace winrt::NativeScript::Mason::implementation
         
         double m_fontSize{ 0.0 };
         // A percent (or em) font-size, x100 of the parent's; 0 when the size is absolute.
-        int32_t m_fontSizePercent{ 0 };
+        double m_fontSizePercent{ 0 };
         double OwnFontSize() const;
         bool m_listItem{ false };
         winrt::Microsoft::UI::Composition::SpriteVisual m_marker{ nullptr };

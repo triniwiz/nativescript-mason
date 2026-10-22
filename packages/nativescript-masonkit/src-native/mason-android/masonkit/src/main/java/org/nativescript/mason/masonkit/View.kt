@@ -226,6 +226,12 @@ open class View @JvmOverloads constructor(
     endMask(style, canvas, save)
   }
 
+  // A descendant's text moved or changed: a text-clipped background paints through it.
+  override fun onDescendantInvalidated(child: android.view.View, target: android.view.View) {
+    super.onDescendantInvalidated(child, target)
+    ViewUtils.repaintIfTextClipped(this, style)
+  }
+
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(
       this,

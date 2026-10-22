@@ -35,24 +35,101 @@ extension Background {
     }
   }
 
+  /// Which layers a draw paints: `background-clip: text` layers go through the glyphs instead.
+  enum TextClipPass {
+    case all, excludingText, textOnly
+  }
+
+  var hasTextClip: Bool { layers.contains { $0.clip == .text } }
+
+  /// Set once any `background-clip: text` is parsed; until then text changes skip the ancestor walk.
+  static var textClipsInUse = false
+
+  /// Text in `view` changed or moved: repaints the text-clipped backgrounds above it.
+  static func repaintTextClips(above view: UIView) {
+    var current = view.superview
+    while let v = current {
+      if let element = MasonViewKind.element(v), element.style.mBackground?.hasTextClip == true {
+        v.setNeedsDisplay()
+      }
+      current = v.superview
+    }
+  }
+
+  /// The glyph outlines of `view`'s text and of every text inside it, in `view`'s coordinates.
+  static func textGlyphPath(of view: UIView) -> CGPath {
+    let path = CGMutablePath()
+    let outer = collectingTextGlyphs
+    collectingTextGlyphs = true
+    addTextGlyphs(of: view, to: path, transform: .identity)
+    collectingTextGlyphs = outer
+    return path
+  }
+
+  /// True while a text-clipped background draws the texts it needs, which then don't repaint it.
+  static var collectingTextGlyphs = false
+
+  private static func addTextGlyphs(of view: UIView, to path: CGMutablePath, transform: CGAffineTransform) {
+    if let text = view as? MasonText {
+      path.addPath(text.engine.glyphOutlinePath(), transform: transform)
+    }
+    for sub in view.subviews where !sub.isHidden && sub.alpha > 0 {
+      // Its outlines come from its last draw, which may still be pending in this pass.
+      if sub is MasonText { sub.layer.displayIfNeeded() }
+      let layer = sub.layer
+      let b = sub.bounds
+      let toSuper = CGAffineTransform(translationX: -(b.minX + b.width * layer.anchorPoint.x),
+                                      y: -(b.minY + b.height * layer.anchorPoint.y))
+        .concatenating(sub.transform)
+        .concatenating(CGAffineTransform(translationX: layer.position.x, y: layer.position.y))
+      addTextGlyphs(of: sub, to: path, transform: toSuper.concatenating(transform))
+    }
+  }
+
+  /// The `background-clip: text` layers, inside the glyphs of `view`'s text and the text inside it.
+  func drawThroughText(view: UIView, caLayer: CALayer? = nil, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
+    let glyphs = Background.textGlyphPath(of: view)
+    guard !glyphs.isEmpty else { return }
+    context.saveGState()
+    context.addPath(glyphs)
+    context.clip()
+    // The layers set their own blend modes, so composite them as one group.
+    context.beginTransparencyLayer(auxiliaryInfo: nil)
+    drawAll(view: view, caLayer: caLayer, in: context, rect: rect, precomputedColor: precomputedColor, pass: .textOnly)
+    context.endTransparencyLayer()
+    context.restoreGState()
+  }
+
   // See the `on view:` overload below for what `precomputedColor` is for.
-  func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
-    drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor)
+  func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil, pass: TextClipPass = .all) {
+    drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor, pass: pass)
   }
 
   // `precomputedColor`: pass an already-resolved color to avoid resolving
   // it twice when the caller needed it anyway (resolution isn't a plain
   // buffer read - it walks the pseudo-state chain).
   func draw(on view: UIView, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
-    drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor)
+    guard hasTextClip else {
+      drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor)
+      return
+    }
+    drawAll(view: view, caLayer: nil, in: context, rect: rect, precomputedColor: precomputedColor, pass: .excludingText)
+    drawThroughText(view: view, in: context, rect: rect, precomputedColor: precomputedColor)
   }
 
   /// `rect` is what the caller fills with the base color. Clip and positioning
   /// boxes come from the view's own border box, whatever inset `rect` carries.
-  private func drawAll(view: UIView?, caLayer: CALayer?, in context: CGContext, rect: CGRect, precomputedColor: UInt32?) {
+  private func drawAll(view: UIView?, caLayer: CALayer?, in context: CGContext, rect: CGRect, precomputedColor: UInt32?, pass: TextClipPass = .all) {
     let box = view?.bounds ?? caLayer?.bounds ?? rect
     let resolved = precomputedColor ?? style.resolvedBackgroundColor
-    if resolved != 0 {
+    func inPass(_ clip: BackgroundClip?) -> Bool {
+      switch pass {
+      case .all: return true
+      case .excludingText: return clip != .text
+      case .textOnly: return clip == .text
+      }
+    }
+    if resolved != 0 && inPass(layers.last?.clip) {
       // The color is clipped like the bottom-most layer.
       context.saveGState()
       if let clip = layers.last?.clip, clip != .borderBox {
@@ -64,9 +141,9 @@ extension Background {
     }
 
     // Reverse so the first layer in the list is drawn on top.
-    for bgLayer in layers.reversed() {
+    for bgLayer in layers.reversed() where inPass(bgLayer.clip) {
       context.saveGState()
-      if bgLayer.clip != .borderBox {
+      if bgLayer.clip != .borderBox && bgLayer.clip != .text {
         context.clip(to: box.inset(by: boxInsets(bgLayer.clip)))
       }
       context.setBlendMode(bgLayer.blendMode.cgBlendMode)
@@ -86,7 +163,7 @@ extension Background {
 
   /// Border (and padding) insets of `box` in points, from the node's computed layout (device px).
   func boxInsets(_ box: BackgroundClip) -> UIEdgeInsets {
-    if box == .borderBox { return .zero }
+    if box == .borderBox || box == .text { return .zero }
     let scale = CGFloat(NSCMason.scale)
     let l = style.node.computedLayout
     var top = CGFloat(l.borderTop)

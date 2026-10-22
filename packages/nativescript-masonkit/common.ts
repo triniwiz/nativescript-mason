@@ -116,6 +116,7 @@ import {
   installMasonSizeUnits,
   masonRawDeclaration,
 } from './properties';
+import { masonLayout } from './display-density';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
 import { masonEngine, removeNativeChild } from './panel-helpers';
@@ -200,7 +201,7 @@ function nativeScrollOffset(view: any, vertical: boolean): number {
   if (!native) return 0;
   if (__ANDROID__) {
     const scroll = org.nativescript.mason.masonkit.WebScroll;
-    return Utils.layout.toDeviceIndependentPixels(vertical ? scroll.scrollTop(native) : scroll.scrollLeft(native));
+    return masonLayout.toDeviceIndependentPixels(vertical ? scroll.scrollTop(native) : scroll.scrollLeft(native));
   }
   if (__APPLE__) {
     return (vertical ? native.mason_scrollTop : native.mason_scrollLeft) ?? 0;
@@ -216,7 +217,7 @@ function nativeScrollMetric(view: any, metric: ScrollMetric): number {
   if (!native) return 0;
   let value = 0;
   if (__ANDROID__) {
-    value = Utils.layout.toDeviceIndependentPixels(org.nativescript.mason.masonkit.WebScroll[metric](native));
+    value = masonLayout.toDeviceIndependentPixels(org.nativescript.mason.masonkit.WebScroll[metric](native));
   } else if (__APPLE__) {
     value = native[`mason_${metric}`];
   } else if (__WINDOWS__) {
@@ -237,7 +238,7 @@ function nativeScrollTo(view: any, left: number, top: number, smooth: boolean) {
     return;
   }
   if (__ANDROID__) {
-    org.nativescript.mason.masonkit.WebScroll.scrollTo(native, isNaN(left) ? NaN : Utils.layout.toDevicePixels(left), isNaN(top) ? NaN : Utils.layout.toDevicePixels(top), smooth);
+    org.nativescript.mason.masonkit.WebScroll.scrollTo(native, isNaN(left) ? NaN : masonLayout.toDevicePixels(left), isNaN(top) ? NaN : masonLayout.toDevicePixels(top), smooth);
   } else if (__APPLE__) {
     native.mason_scrollTo(left, top, smooth);
   } else if (__WINDOWS__) {
@@ -452,8 +453,8 @@ export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect
   if (!CGRectEqualToRect(adjusted, frame)) {
     // Each measure pass lays the root out at the safe-area size again, so check the
     // computed size rather than whether the frame changed.
-    const width = Utils.layout.toDevicePixels(adjusted.size.width);
-    const height = Utils.layout.toDevicePixels(adjusted.size.height);
+    const width = masonLayout.toDevicePixels(adjusted.size.width);
+    const height = masonLayout.toDevicePixels(adjusted.size.height);
     const layout = view.ios.node.computedLayout;
     if (Math.round(layout.width) !== Math.round(width) || Math.round(layout.height) !== Math.round(height)) {
       view.ios.mason_computeWithSize(width, height);
@@ -708,7 +709,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     let nativeHit: any = null;
     if (__ANDROID__ && typeof nativeView.elementFromPoint === 'function') {
       // Android views hit-test in device pixels.
-      nativeHit = nativeView.elementFromPoint(Utils.layout.toDevicePixels(x), Utils.layout.toDevicePixels(y));
+      nativeHit = nativeView.elementFromPoint(masonLayout.toDevicePixels(x), masonLayout.toDevicePixels(y));
     } else if (__APPLE__) {
       const hitTest = nativeView.mason_elementFromPointY ?? nativeView.mason_elementFromPoint ?? nativeView.elementFromPoint;
       if (typeof hitTest === 'function') {
@@ -1382,14 +1383,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   getMeasuredWidth(): number {
     if (this._masonPlacedNatively && this.nativeViewProtected) {
-      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.width));
+      return Math.round(masonLayout.toDevicePixels(this.nativeViewProtected.frame.size.width));
     }
     return super.getMeasuredWidth();
   }
 
   getMeasuredHeight(): number {
     if (this._masonPlacedNatively && this.nativeViewProtected) {
-      return Math.round(Utils.layout.toDevicePixels(this.nativeViewProtected.frame.size.height));
+      return Math.round(masonLayout.toDevicePixels(this.nativeViewProtected.frame.size.height));
     }
     return super.getMeasuredHeight();
   }

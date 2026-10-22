@@ -1154,6 +1154,7 @@ class MasonElementHelpers: NSObject {
     }
 
     let sizeBefore = view.bounds.size
+    let frameBefore = view.frame
     // An inline box inside text: its text view knows where the text left room.
     if let text = view.superview as? MasonText, text.ownsInlineBox(view) {
       text.placeInlineBox(node, view, newFrame)
@@ -1174,6 +1175,10 @@ class MasonElementHelpers: NSObject {
     // A transform about a set transform-origin depends on the size.
     if view.bounds.size != sizeBefore && node.style.transformDependsOnOrigin {
       node.style.applyTransformFromBuffer()
+    }
+    // Text-clipped backgrounds above paint through the text in this box.
+    if Background.textClipsInUse && view.frame != frameBefore {
+      Background.repaintTextClips(above: view)
     }
 
     // Reposition the outset box-shadow layer here (where the frame is applied):

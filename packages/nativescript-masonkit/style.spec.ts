@@ -99,6 +99,8 @@ const TEXT_DIP: Case[] = [
   { prop: 'fontSize', input: '20px', valueOffset: K.FONT_SIZE, expected: dipConstant(20) },
   { prop: 'fontSize', input: { value: 20, unit: 'px' }, valueOffset: K.FONT_SIZE, expected: dipConstant(20) },
   { prop: 'fontSize', input: { value: 20, unit: 'dip' }, valueOffset: K.FONT_SIZE, expected: dipConstant(20) },
+  { prop: 'fontSize', input: '12.8px', valueOffset: K.FONT_SIZE, expected: dipConstant(12.8) },
+  { prop: 'fontSize', input: '0.8rem', valueOffset: K.FONT_SIZE, expected: dipConstant(12.8) },
 ];
 
 // An absolute line-height (TYPE 1) is CSS px: iOS reads points, Android's span applies the density.
@@ -131,7 +133,7 @@ describe.each(SCALES)('screen scale %i', (scale) => {
     it.each(TEXT_DIP.map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s', (_label, c) => {
       const t = styleUnderTest();
       assign(t, c.prop, c.input);
-      expect(t.getInt32(c.valueOffset)).toBe(c.expected(scale));
+      expect(t.getFloat32(c.valueOffset)).toBeCloseTo(c.expected(scale), 4);
     });
   });
 
@@ -265,14 +267,14 @@ describe('CSS relative units', () => {
   it('font-size in em becomes a percentage so inheritance resolves it natively', () => {
     const t = styleUnderTest();
     t.style.fontSize = '1.5em' as never;
-    expect(t.getInt32(K.FONT_SIZE)).toBe(150);
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(150);
     expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(1);
   });
 
   it('font-size in rem is absolute against the root font size', () => {
     const t = styleUnderTest();
     t.style.fontSize = '1.5rem' as never;
-    expect(t.getInt32(K.FONT_SIZE)).toBe(24);
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(24);
     expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(0);
   });
 

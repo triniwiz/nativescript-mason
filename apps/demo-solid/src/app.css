@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
 
 .ns-light Page {
   background-color: #edf1f9;
@@ -69,4 +68,36 @@
 
 .details-plain:open summary {
   color: #00b894;
+}
+
+/* The docs home page example (docs/index.md); its screenshots come from the DocsExample page. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3d5afe, #7c4dff);
+  color: white;
+}
+
+.card h2 {
+  margin: 0;
+}
+
+.card p {
+  margin: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tags span {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 13px;
 }

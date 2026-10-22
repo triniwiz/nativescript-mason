@@ -47,6 +47,7 @@ import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 /** U+200B ZERO WIDTH SPACE breaks a line without being whitespace (Java
  *  classifies it as a format char), so `isWhitespace` alone reports a whole
@@ -268,7 +269,7 @@ class TextEngine(val container: TextContainer) {
     ) {
       val fontSize = style.resolvedFontSize
       val prevTextSize = paint.textSize
-      val newTextSize = if (fontSize == 0) {
+      val newTextSize = if (fontSize == 0f) {
         0f
       } else {
         TypedValue.applyDimension(
@@ -418,7 +419,7 @@ class TextEngine(val container: TextContainer) {
 
   private fun textLayoutSignatureUnsafe(): Long {
     var h = 0x3456789abcdefL
-    h = h * 1000003 xor style.resolvedFontSize.toLong()
+    h = h * 1000003 xor style.resolvedFontSize.toRawBits().toLong()
     h = h * 1000003 xor (style.resolvedFontFace.resolvedTypeface?.let { System.identityHashCode(it) } ?: 0).toLong()
     h = h * 1000003 xor style.resolvedFontWeight.ordinal.toLong()
     h = h * 1000003 xor style.resolvedFontStyle.hashCode().toLong()
@@ -581,7 +582,9 @@ class TextEngine(val container: TextContainer) {
     justified: Boolean,
     indent: Int,
     maxLines: Int,
-    ellipsizedWidth: Int = 0
+    ellipsizedWidth: Int = 0,
+    leftIndents: IntArray? = null,
+    rightIndents: IntArray? = null
   ): StaticLayout {
     var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), width)
       .setAlignment(alignment)
@@ -601,7 +604,9 @@ class TextEngine(val container: TextContainer) {
       )
     }
 
-    if (indent != 0) {
+    if (leftIndents != null || rightIndents != null) {
+      builder = builder.setIndents(leftIndents, rightIndents)
+    } else if (indent != 0) {
       val indents = indentArrayFor(indent)
       builder = if (startsRtl(text, heuristic)) builder.setIndents(null, indents)
       else builder.setIndents(indents, null)
@@ -816,7 +821,8 @@ class TextEngine(val container: TextContainer) {
     paint: TextPaint,
     availableWidth: Float,
     availableHeight: Float,
-    spec: MeasureWidthSpec
+    spec: MeasureWidthSpec,
+    exclusions: FloatArray?
   ): Layout? {
     val spannable = applyTextIfNeeded()
     (container.node.view as? View)?.let {
@@ -836,11 +842,14 @@ class TextEngine(val container: TextContainer) {
 
     val indent = textIndentPx(spec.indentBasis)
     val maxLines = lineClamp
-    val entry = buildStaticLayoutCached(
+    // Beside a float the lines are laid out around it, filling the line box.
+    val entry = if (exclusions == null) buildStaticLayoutCached(
       spannable, paint, spec.constraint, alignment, textDirectionHeuristic, indent, maxLines
-    )
-    val layout = entry.layout
+    ) else null
+    val layout = entry?.layout ?: floatWrappedLayout(spannable, paint, spec.constraint, exclusions!!)
+    val lineWidth = entry?.maxLineWidth ?: spec.constraint.toFloat()
     measuredMaxLines = maxLines
+    measuredExclusions = exclusions
 
     val breaksAtSoftHyphens = style.resolvedHyphens.toInt() != 1
     val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
@@ -851,7 +860,7 @@ class TextEngine(val container: TextContainer) {
       // The first word also carries the indent.
       if (indent != 0) maxOf(widest, firstWordWidth(spannable, paint, advances) + indent) else widest
     } else {
-      entry.maxLineWidth
+      lineWidth
     }
 
     // Store the actual measured dimensions (not the constraints)
@@ -886,7 +895,10 @@ class TextEngine(val container: TextContainer) {
     }
 
     if (container is TextView) {
-      if (entry.widthIndependent) {
+      if (entry == null) {
+        container.setCachedStaticLayout(layout, spec.constraint)
+        container.floatAwareStaticLayout = layout as StaticLayout
+      } else if (entry.widthIndependent) {
         container.setCachedStaticLayout(layout, entry.maxLineWidth.toInt(), layout.width + DRAW_WIDTH_SLACK)
       } else {
         container.setCachedStaticLayout(layout, spec.constraint)
@@ -894,7 +906,7 @@ class TextEngine(val container: TextContainer) {
     }
 
     // CRITICAL: Collect and send segments to Rust
-    collectAndCacheSegments(layout, spannable, paint, entry.maxLineWidth)
+    collectAndCacheSegments(layout, spannable, paint, lineWidth)
 
     return layout
   }
@@ -981,13 +993,17 @@ class TextEngine(val container: TextContainer) {
       }
       flushTextStyleIfNeeded()
       val mcSpec = computeWidthConstraint(knownWidth, knownHeight, availableWidth)
+      // Only a definite line length wraps around floats; intrinsic sizes ignore them.
+      val exclusions = if (availableWidth != -1f && availableWidth != -2f &&
+        mcSpec.constraint != Int.MAX_VALUE && !mcSpec.isInline && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+      ) floatExclusions() else null
       // An unconstrained line length still resolves a percentage indent, so key on its basis too.
       val percentIndent = percentTextIndent
-      val mcWKey = if (percentIndent && mcSpec.constraint == Int.MAX_VALUE) {
+      val mcWKey = (if (percentIndent && mcSpec.constraint == Int.MAX_VALUE) {
         Int.MAX_VALUE.toLong() + 1L + mcSpec.indentBasis.toLong()
       } else {
         mcSpec.constraint.toLong()
-      }
+      }) xor (exclusions?.contentHashCode()?.toLong()?.shl(32) ?: 0L)
       val mcWMode = when (availableWidth) {
         -1f -> 0L
         -2f -> 1L
@@ -1010,7 +1026,7 @@ class TextEngine(val container: TextContainer) {
           return measureCacheVals[i]
         }
       }
-      if (mcWMode == 2L && !percentIndent && maxContentVersion == ver &&
+      if (mcWMode == 2L && !percentIndent && exclusions == null && maxContentVersion == ver &&
         mcSpec.constraint >= maxContentWidth && mcSpec.constraint <= maxContentConstraint
       ) {
         storeMeasure(ver, mcWKey, mcWMode, maxContentOut)
@@ -1021,7 +1037,8 @@ class TextEngine(val container: TextContainer) {
         paint,
         availableWidth,
         availableHeight,
-        mcSpec
+        mcSpec,
+        exclusions
       )
 
 
@@ -1094,163 +1111,142 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
+  // The exclusions the last definite measure laid out around, or null.
+  internal var measuredExclusions: FloatArray? = null
+    private set
+
+  private fun hasFloatedSibling(): Boolean {
+    val parent = node.parent ?: return false
+    for (child in parent.children) {
+      if (child === node || child.type != NodeType.Element || !child.style.isValueInitialized) continue
+      if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) return true
+    }
+    return false
+  }
+
   /**
-   * Build a float-aware StaticLayout that wraps text around floated sibling elements.
-   * Called AFTER layout has been computed and view positions are known (during draw phase).
-   * Returns null if there are no float exclusions or API level < M.
+   * The margin boxes of floats beside this text, as `[left, top, right, bottom, side]` runs in
+   * its content box (side 1 left, 2 right), or null when there are none. Positions come from
+   * the last layout pass, so text that hasn't been placed yet starts at the container's origin.
    */
+  internal fun floatExclusions(): FloatArray? {
+    if (isVerticalWritingMode || !hasFloatedSibling()) return null
+    val parent = node.parent ?: return null
+    val raw = NativeHelpers.nativeNodeGetFloatExclusions(node.mason.nativePtr, parent.nativePtr)
+    if (raw.isEmpty()) return null
+    val offX = node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
+      node.computedPaddingLeft + node.computedBorderLeft
+    val offY = node.computedY - parent.computedPaddingTop - parent.computedBorderTop +
+      node.computedPaddingTop + node.computedBorderTop
+    val out = FloatArray(raw.size / 5 * 5)
+    for (b in out.indices step 5) {
+      out[b] = raw[b] - offX
+      out[b + 1] = raw[b + 1] - offY
+      out[b + 2] = raw[b] + raw[b + 2] - offX
+      out[b + 3] = raw[b + 1] + raw[b + 3] - offY
+      out[b + 4] = raw[b + 4]
+    }
+    return out
+  }
+
+  /** The float-wrapped layout to draw at the view's content width, or null with no float beside it. */
   internal fun buildFloatAwareStaticLayout(paint: TextPaint): StaticLayout? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isVerticalWritingMode) return null
-
-    val parentNode = node.parent ?: return null
-    val view = container.node.view as? View ?: return null
-    val frame = view.drawingTime
-    if (frame != 0L && parentNode.floatScanFrame == frame && !parentNode.floatScanHasFloat) return null
-
-    // Collect floated sibling exclusions from the parent's children.
-    // Expand each exclusion by the float's margins to match CSS margin-box behavior.
-    val exclusions = mutableListOf<FloatExclusion>()
-    for (child in parentNode.children) {
-      if (child === node) continue
-      if (child.type != NodeType.Element) continue
-      val childView = child.view as? View ?: continue
-      if (!child.style.isValueInitialized) continue
-      val floatSide = try {
-        child.style.float
-      } catch (_: Throwable) {
-        continue
-      }
-      if (floatSide == org.nativescript.mason.masonkit.enums.Float.None) continue
-
-      // Read margins from the float's style to expand the exclusion to the margin box
-      val margin = try {
-        child.style.margin
-      } catch (_: Throwable) {
-        null
-      }
-      val ml = resolveMarginValue(margin?.left)
-      val mr = resolveMarginValue(margin?.right)
-      val mt = resolveMarginValue(margin?.top)
-      val mb = resolveMarginValue(margin?.bottom)
-
-      // Use Android View positions (border-box) expanded by margins
-      exclusions.add(
-        FloatExclusion(
-          (childView.left - ml).toInt(), (childView.top - mt).toInt(),
-          (childView.right + mr).toInt(), (childView.bottom + mb).toInt(),
-          floatSide
-        )
-      )
-    }
-
-    if (frame != 0L) {
-      val selfFloats = node.style.isValueInitialized && try {
-        node.style.float != org.nativescript.mason.masonkit.enums.Float.None
-      } catch (_: Throwable) {
-        false
-      }
-      parentNode.floatScanFrame = frame
-      parentNode.floatScanHasFloat = exclusions.isNotEmpty() || selfFloats
-    }
-    if (exclusions.isEmpty()) return null
-
-    // Get text from the container (already set during measure)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
     if (container !is TextView && container !is android.widget.TextView) return null
+    val view = container.node.view as? View ?: return null
+    val exclusions = floatExclusions() ?: return null
+    val contentWidth = view.width - view.paddingLeft - view.paddingRight
+    if (contentWidth <= 0) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
+    return floatWrappedLayout(text, paint, contentWidth, exclusions)
+  }
 
-    val viewWidth = view.width
-    if (viewWidth <= 0) return null
-
-    val padL = view.paddingLeft
-    val padR = view.paddingRight
-    val padT = view.paddingTop
-    val contentWidth = viewWidth - padL - padR
-    if (contentWidth <= 0) return null
-
-    val textLeft = view.left
-    val textTop = view.top
-
-    // Estimate line height from font metrics
-    paint.getFontMetrics(scratchFontMetrics)
-    val fm = scratchFontMetrics
-    val lineH = (-fm.ascent + fm.descent).coerceAtLeast(1f)
-
-    // Calculate max number of lines we need to consider
-    val maxExclBottom = exclusions.maxOf { it.bottom }
-    val maxLines = ((maxExclBottom - textTop).toFloat() / lineH + 20).toInt().coerceIn(1, 500)
-
-    val leftIndents = IntArray(maxLines)
-    val rightIndents = IntArray(maxLines)
-
-    var hasIndents = false
-
-    for (line in 0 until maxLines) {
-      val lineTopInParent = textTop + padT + (line * lineH)
-      val lineBottomInParent = lineTopInParent + lineH
-
-      var leftInset = 0f
-      var rightInset = 0f
-
-      for (e in exclusions) {
-        // Check vertical overlap
-        if (lineBottomInParent > e.top && lineTopInParent < e.bottom) {
-          when (e.side) {
-            org.nativescript.mason.masonkit.enums.Float.Left -> {
-              // Left float: indent from left = float's right edge - text content left edge
-              val indent = e.right.toFloat() - (textLeft + padL)
-              leftInset = maxOf(leftInset, indent)
-            }
-
-            org.nativescript.mason.masonkit.enums.Float.Right -> {
-              // Right float: indent from right = text content right edge - float's left edge
-              val indent = (textLeft + viewWidth - padR).toFloat() - e.left.toFloat()
-              rightInset = maxOf(rightInset, indent)
-            }
-
-            else -> {}
-          }
+  // Per-line start/end indents keeping each line clear of the floats it overlaps. [line] gives a
+  // line's top and bottom; the last entry also covers any lines after it.
+  private inline fun floatIndents(
+    exclusions: FloatArray,
+    width: Int,
+    textIndent: Int,
+    rtl: Boolean,
+    count: Int,
+    line: (Int) -> Pair<Float, Float>
+  ): Pair<IntArray, IntArray> {
+    val left = IntArray(count)
+    val right = IntArray(count)
+    for (i in 0 until count) {
+      val (top, bottom) = line(i)
+      var l = 0f
+      var r = 0f
+      for (b in exclusions.indices step 5) {
+        if (bottom <= exclusions[b + 1] || top >= exclusions[b + 3]) continue
+        when (exclusions[b + 4]) {
+          1f -> l = maxOf(l, exclusions[b + 2])
+          2f -> r = maxOf(r, width - exclusions[b])
         }
       }
-
-      leftIndents[line] = leftInset.toInt().coerceAtLeast(0)
-      rightIndents[line] = rightInset.toInt().coerceAtLeast(0)
-
-      if (leftIndents[line] > 0 || rightIndents[line] > 0) hasIndents = true
+      var li = ceil(l).toInt().coerceIn(0, width)
+      var ri = ceil(r).toInt().coerceIn(0, width)
+      // Floats covering the whole line still leave StaticLayout a sliver to break into.
+      if (li + ri >= width) {
+        ri = (width - 1 - li).coerceAtLeast(0)
+        li = minOf(li, width - 1)
+      }
+      left[i] = li
+      right[i] = ri
     }
-
-    if (!hasIndents) return null
-
-    val alignment = getLayoutAlignment()
-
-    val heuristic = getTextDirectionHeuristic()
-
-    // text-indent shifts the first line from the start edge on top of any float.
-    val textIndent = textIndentPx(contentWidth.toFloat())
     if (textIndent != 0) {
-      if (startsRtl(text, heuristic)) rightIndents[0] += textIndent else leftIndents[0] += textIndent
+      if (rtl) right[0] += textIndent else left[0] += textIndent
     }
-    val maxLinesClamp = lineClamp
+    return left to right
+  }
 
-    var builder = StaticLayout.Builder.obtain(text, 0, text.length, hyphenationPaint(text, paint), contentWidth)
-      .setAlignment(alignment)
-      .setHyphenationFrequency(hyphenationFrequency(text))
-      .setLineSpacing(0f, 1f)
-      .setIncludePad(includePadding)
-      .setTextDirection(heuristic)
-      .setIndents(leftIndents, rightIndents)
-    if (maxLinesClamp > 0) {
-      builder = builder.setMaxLines(maxLinesClamp).setEllipsize(TextUtils.TruncateAt.END)
-    }
+  /**
+   * Lays [text] out at [width] with its lines wrapped around [exclusions] (see
+   * [floatExclusions]). Line positions are first estimated from the font's line height, then
+   * the indents are redone from the laid-out lines, so line-height and tall runs count.
+   */
+  @androidx.annotation.RequiresApi(Build.VERSION_CODES.M)
+  private fun floatWrappedLayout(text: CharSequence, paint: TextPaint, width: Int, exclusions: FloatArray): StaticLayout {
+    val alignment = getLayoutAlignment()
+    val heuristic = getTextDirectionHeuristic()
+    val justified = justificationMode(style.resolvedTextAlign, style.resolvedTextJustify) !=
+      Layout.JUSTIFICATION_MODE_NONE
+    val textIndent = textIndentPx(width.toFloat())
+    val rtl = startsRtl(text, heuristic)
+    val maxLines = lineClamp
+    paint.getFontMetrics(scratchFontMetrics)
+    val lineH = (scratchFontMetrics.descent - scratchFontMetrics.ascent).coerceAtLeast(1f)
+    var floatsBottom = 0f
+    for (b in exclusions.indices step 5) floatsBottom = maxOf(floatsBottom, exclusions[b + 3])
+    val estimated = (ceil(floatsBottom / lineH).toInt() + 1).coerceIn(1, 1000)
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      builder = builder.setUseLineSpacingFromFallbacks(true)
+    var (left, right) = floatIndents(exclusions, width, textIndent, rtl, estimated) { i ->
+      i * lineH to (i + 1) * lineH
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      builder = builder.setJustificationMode(justificationMode(style.resolvedTextAlign, style.resolvedTextJustify))
+    var layout = newStaticLayout(text, paint, width, alignment, heuristic, justified, 0, maxLines,
+      leftIndents = left, rightIndents = right)
+    repeat(2) {
+      val n = layout.lineCount
+      if (n == 0) return layout
+      val last = layout.getLineBottom(n - 1).toFloat()
+      val (l, r) = floatIndents(exclusions, width, textIndent, rtl, n + 1) { i ->
+        if (i < n) layout.getLineTop(i).toFloat() to layout.getLineBottom(i).toFloat() else last to last + lineH
+      }
+      var same = true
+      for (i in 0..n) {
+        if (left[minOf(i, left.size - 1)] != l[i] || right[minOf(i, right.size - 1)] != r[i]) {
+          same = false
+          break
+        }
+      }
+      if (same) return layout
+      left = l
+      right = r
+      layout = newStaticLayout(text, paint, width, alignment, heuristic, justified, 0, maxLines,
+        leftIndents = left, rightIndents = right)
     }
-
-    return builder.build()
+    return layout
   }
 
   /**
@@ -1597,6 +1593,25 @@ class TextEngine(val container: TextContainer) {
               result = buf.getInt(valueKey)
             } catch (_: Throwable) {
             }
+          }
+        }
+      }
+    }
+    return result
+  }
+
+  private fun resolvePseudoFloat(valueKey: Int, key: StateKeys, base: Float): Float {
+    val mask = node.pseudoMask
+    if (mask == 0) return base
+    var result = base
+    for (state in PSEUDO_CSS_ORDER) {
+      if (mask and state.mask != 0) {
+        val buf = node.getPseudoBuffer(state.mask)
+        if (buf.capacity() >= StyleKeys.PSEUDO_SET_MASK_HIGH + 8) {
+          val setLow = buf.getLong(StyleKeys.PSEUDO_SET_MASK_LOW)
+          val setHigh = buf.getLong(StyleKeys.PSEUDO_SET_MASK_HIGH)
+          if ((setLow and key.low) != 0L || (setHigh and key.high) != 0L) {
+            result = buf.getFloat(valueKey)
           }
         }
       }
@@ -2138,6 +2153,8 @@ class TextEngine(val container: TextContainer) {
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
+    // A filter needs the element's own painted box to work on.
+    if (container.node.style.resolvedFilterString.isNotEmpty()) return false
     // Blockquotes: prefer flattening to render a CSS-like left bar, but only
     // when it's safe to represent as an inline decoration. If the blockquote
     // has other view-level properties (padding, background drawable, radii,
@@ -2226,14 +2243,13 @@ class TextEngine(val container: TextContainer) {
     }
 
     val fontSizeBase = container.style.resolvedFontSize
-    val fontSize = resolvePseudoInt(StyleKeys.FONT_SIZE, StateKeys.FONT_SIZE, fontSizeBase)
+    val fontSize = resolvePseudoFloat(StyleKeys.FONT_SIZE, StateKeys.FONT_SIZE, fontSizeBase)
 
     // Apply font size (convert SP -> px and apply as absolute px to respect
     // system font scaling). Use dip=false because we're passing px.
     if (fontSize > 0) {
       try {
-        val dm = (container.node.view as? View)?.resources?.displayMetrics
-          ?: android.content.res.Resources.getSystem().displayMetrics
+        val dm = node.mason.displayMetrics(container.node.view as? View)
         val px = android.util.TypedValue.applyDimension(
           android.util.TypedValue.COMPLEX_UNIT_SP,
           fontSize.toFloat(),
@@ -2241,7 +2257,7 @@ class TextEngine(val container: TextContainer) {
         )
         spannable.setSpan(Spans.PxSizeSpan(px), start, end, flags)
       } catch (_: Throwable) {
-        spannable.setSpan(AbsoluteSizeSpan(fontSize, true), start, end, flags)
+        spannable.setSpan(AbsoluteSizeSpan(fontSize.roundToInt(), true), start, end, flags)
       }
     }
 
@@ -2756,6 +2772,8 @@ class TextEngine(val container: TextContainer) {
   private fun warmable(): Boolean {
     if (textStyleFlushPending || style.fontDirty) return false
     for (child in node.children) if (child !is TextNode) return false
+    // Floats are placed when the layout pass starts, after warming.
+    if (hasFloatedSibling()) return false
     val parentFloat = try {
       node.parent?.style?.float
     } catch (_: Throwable) {
@@ -2908,19 +2926,4 @@ class TextEngine(val container: TextContainer) {
   }
 }
 
-/** Describes a floated sibling element's position and side for float-aware text wrapping. */
 private class PackedSegments(val floats: FloatArray, val longs: LongArray, val kinds: IntArray)
-
-internal data class FloatExclusion(
-  val left: Int,
-  val top: Int,
-  val right: Int,
-  val bottom: Int,
-  val side: org.nativescript.mason.masonkit.enums.Float
-)
-
-/** Resolve a margin value to pixels. Only Points are resolved; Auto/Percent return 0. */
-internal fun resolveMarginValue(value: LengthPercentageAuto?): Float = when (value) {
-  is LengthPercentageAuto.Points -> value.points
-  else -> 0f
-}

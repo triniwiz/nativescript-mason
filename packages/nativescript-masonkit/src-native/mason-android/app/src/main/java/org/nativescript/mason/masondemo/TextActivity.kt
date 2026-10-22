@@ -114,7 +114,7 @@ class TextActivity : AppCompatActivity() {
     root.style.size = Size(Dimension.Percent(1f), Dimension.Auto)
     root.setBackgroundColor(Color.RED)
     val text = Mason.shared.createTextView(this, TextType.P)
-    text.fontSize = 18
+    text.fontSize = 18f
     text.backgroundColorValue = Color.BLUE
     text.style.setLineHeight(28f, false)
     text.append("Hello")
@@ -127,7 +127,7 @@ class TextActivity : AppCompatActivity() {
 
   fun fontSize() {
     val root = Mason.shared.createView(this)
-    root.style.fontSize = 30
+    root.style.fontSize = 30f
 
     val outer1 = Mason.shared.createTextView(this, TextType.Span)
     outer1.append("Outer")
@@ -139,7 +139,7 @@ class TextActivity : AppCompatActivity() {
 
     root.append(outer1)
 
-    outer2.style.fontSize = 10
+    outer2.style.fontSize = 10f
 
     body.append(root)
     outer2.style.color = Color.RED
@@ -147,7 +147,7 @@ class TextActivity : AppCompatActivity() {
     outer1.style.fontWeight = FontWeight.Bold
 
     val text = Mason.shared.createTextView(this, TextType.P)
-    text.fontSize = 16
+    text.fontSize = 16f
     text.append(
       """
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque a tempor nisi. Sed et pellentesque metus, eu luctus tellus. Vivamus interdum pretium lorem, dignissim auctor elit sollicitudin non. Maecenas eget ex in erat sollicitudin elementum. Praesent vitae mattis nisi, sed posuere neque. Sed sit amet aliquet nulla, vel posuere lorem. Nunc quis odio vehicula, facilisis leo at, convallis elit.
@@ -331,7 +331,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       runOnUiThread {
         root.style.inBatch = true
         root.style.color = Color.RED
-        root.style.fontSize = 20
+        root.style.fontSize = 20f
         root.style.fontStyle = FontStyle.Italic
         root.style.fontWeight = FontWeight.Bold
         root.style.inBatch = false
@@ -1177,7 +1177,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     p.append(span)
 
     span.color = Color.BLUE
-    span.fontSize = 24
+    span.fontSize = 24f
 
     body.appendView(arrayOf(h1, h2, h3, h4, h5, h6, p))
 
@@ -1305,7 +1305,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     b.color = Color.RED
     // b.backgroundColorValue = Color.BLUE
 
-    b.fontSize = 24
+    b.fontSize = 24f
 
     a.append(b)
 
@@ -1315,7 +1315,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
     Timer().schedule(2000L) {
       runOnUiThread {
-        b.fontSize = 60
+        b.fontSize = 60f
       }
     }
   }

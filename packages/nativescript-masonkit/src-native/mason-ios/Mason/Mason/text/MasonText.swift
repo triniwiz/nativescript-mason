@@ -260,6 +260,12 @@ public class MasonTextLayer: CALayer {
     isOpaque = false
     needsDisplayOnBoundsChange = true
   }
+
+  // A text-clipped background above paints through this text.
+  public override func setNeedsDisplay() {
+    super.setNeedsDisplay()
+    if Background.textClipsInUse, let view = textView { Background.repaintTextClips(above: view) }
+  }
   
   public override func draw(in context: CGContext) {
     guard let textView = textView else {
@@ -289,14 +295,16 @@ public class MasonTextLayer: CALayer {
     if let tv = textView as? MasonText {
       let bg = tv.style.resolvedBackgroundColor
       resolvedBg = bg
-      let hasOwnBg = bg != 0
+      let hasOwnBg = bg != 0 || !tv.style.mBackground.layers.isEmpty
       if tv.type == .P && !hasOwnBg { skipBackground = true }
       let parentBg = tv.node.parent?.style.background.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
       if !parentBg.isEmpty && !hasOwnBg { skipBackground = true }
     }
 
+    let clipsToText = !skipBackground && textView.style.mBackground.hasTextClip
     if !skipBackground {
-      textView.style.mBackground.draw(on: self, in: context, rect: bounds, precomputedColor: resolvedBg)
+      textView.style.mBackground.draw(on: self, in: context, rect: bounds, precomputedColor: resolvedBg,
+                                      pass: clipsToText ? .excludingText : .all)
     }
 
     // If this is a flattened blockquote, draw an inline left bar (on top of background)
@@ -331,8 +339,21 @@ public class MasonTextLayer: CALayer {
       }
     }
 
-    // Draw text
+    // Draw text. `background-clip: text` layers go behind it, inside the glyphs only.
+    if clipsToText { context.beginTransparencyLayer(auxiliaryInfo: nil) }
     textView.engine.drawText(context: context, rect: bounds)
+    if clipsToText {
+      context.saveGState()
+      context.addPath(Background.textGlyphPath(of: textView))
+      context.clip()
+      // The layers set their own blend modes, so composite them as one group behind the text.
+      context.setBlendMode(.destinationOver)
+      context.beginTransparencyLayer(auxiliaryInfo: nil)
+      textView.style.mBackground.draw(on: self, in: context, rect: bounds, precomputedColor: resolvedBg, pass: .textOnly)
+      context.endTransparencyLayer()
+      context.restoreGState()
+      context.endTransparencyLayer()
+    }
     (textView as? MasonText)?.inlineBoxesDrawn()
 
     // Restore pre-clip state before drawing border — border uses its own rounded path
@@ -347,6 +368,11 @@ public class MasonTextLayer: CALayer {
     }
 
     textView.style.applyResolvedFilter(in: context, rect: bounds, view: textView)
+
+    // A text-clipped background above may have painted before this text had drawn.
+    if Background.textClipsInUse && !Background.collectingTextGlyphs {
+      Background.repaintTextClips(above: textView)
+    }
   }
 }
 
@@ -362,63 +388,12 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   lazy public var engine = {
     TextEngine(container: self)
   }()
-  
-  private var frameCache: [Int: CTFrame] = [:] // keyed by hash of attributed string + width
 
   // Last laid-out size; used to force a text redraw on resize (e.g. rotation).
   // needsDisplayOnBoundsChange alone leaves offscreen views with a stale bitmap
   // that CoreAnimation rescales into the new bounds, squishing the glyphs.
   private var lastLaidOutSize: CGSize = .zero
 
-  private func cachedFrame(for text: NSAttributedString, width: CGFloat) -> CTFrame {
-    let key = text.hash ^ width.hashValue
-    if let cached = frameCache[key] {
-      return cached
-    }
-    
-    let framesetter = CTFramesetterCreateWithAttributedString(text)
-    
-    // Build frame path with exclusion holes for floated rects returned by the engine
-    // Avoid using an infinite height for the framesetter path; large
-    // finite values are sufficient and prevent CTFramesetter from doing
-    // pathological work. Prefer the current view height when available.
-    let fallbackHeight: CGFloat = 10000.0
-    let availableHeight = max(self.bounds.height, fallbackHeight)
-    let outerRect = CGRect(x: 0, y: 0, width: width, height: availableHeight)
-    
-    let bezier = UIBezierPath(rect: outerRect)
-    bezier.usesEvenOddFillRule = true
-    // Ask for float rects on the containing layout node (parent) so sibling floats are included.
-    let containerNode = node.parent ?? node
-
-    // Fetch float rects from engine: each entry is (nativePtr, rect) in logical units
-    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
-    let scale = CGFloat(NSCMason.scale)
-    // Compute this text view's origin in container coordinates (points)
-    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
-    if floatEntries.count > 0 {
-      let paddingLeft = CGFloat(node.computedLayout.paddingLeft) / scale
-      for (_, rectLogical) in floatEntries {
-        // NativeHelpers returns unscaled engine values (device pixels).
-        // Convert to UIKit points for the exclusion path and flip Y into the
-        // CTFrame path coordinate space (path uses top-origin with height = availableHeight).
-        let rectW = rectLogical.width / scale
-        let rectH = rectLogical.height / scale
-        let rectX = rectLogical.origin.x / scale
-        let flippedY = availableHeight - ((rectLogical.origin.y + rectLogical.height) / scale)
-        // Convert from container-local points to this text-view-local coordinates
-        // Subtract left padding so measurements match drawing logic
-        let rectForPath = CGRect(x: rectX - textViewOffset.x - paddingLeft, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
-        bezier.append(UIBezierPath(rect: rectForPath))
-      }
-    }
-    
-    let path = bezier.cgPath
-    let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
-    
-    frameCache[key] = frame
-    return frame
-  }
   
   public override class var layerClass: AnyClass { MasonTextLayer.self }
   
@@ -528,44 +503,19 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       lastLaidOutSize = bounds.size
       textLayer.setNeedsDisplay()
     }
+    // Keeps the outset shadow and filter output layers on the view as UIKit moves it.
+    style.updateShadowLayer(for: CGRect(origin: .zero, size: bounds.size))
+  }
 
-    // Ensure engine layout has been computed for the containing layout so float rects are available
-    let containerNode = node.parent ?? node
-    
-    // After normal layout, position floated child views based on engine float rects.
-    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
-    let scale2 = CGFloat(NSCMason.scale)
-    
-    // Compute this text view's origin in container coordinates (points)
-    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale2, y: CGFloat(node.computedLayout.y) / scale2)
-    
-    let paddingLeft = CGFloat(node.computedLayout.paddingLeft) / scale2
-    
-    for (nodePtr, rectLogical) in floatEntries {
-      guard let nativePtr = nodePtr else { continue }
-      
-      // Find matching child node by nativePtr
-      if let matched = containerNode.children.first(where: { $0.nativePtr == nativePtr }) {
-        if matched.parent !== containerNode { continue }
-        
-        if let v = matched.view {
-          if let cview = containerNode.view, cview === v { continue }
-          // NativeHelpers returns unscaled engine values (device pixels).
-          // Convert to UIKit points before sizing the view. Subtract this
-          // text view's container offset and any left padding so the native
-          // view aligns with the exclusion path used by CoreText.
-          let frame = CGRect(x: rectLogical.origin.x / scale2 - textViewOffset.x - paddingLeft,
-                             y: rectLogical.origin.y / scale2 - textViewOffset.y,
-                             width: rectLogical.width / scale2,
-                             height: rectLogical.height / scale2)
-          if v.superview !== self { addSubview(v) }
-          v.frame = frame
-          bringSubviewToFront(v)
-        }
-      }
+  public override func willMove(toSuperview newSuperview: UIView?) {
+    super.willMove(toSuperview: newSuperview)
+    // Those layers live in the old superview, so remove them while it is still current.
+    if newSuperview == nil {
+      style.removeShadowLayer()
+      if Background.textClipsInUse { Background.repaintTextClips(above: self) }
     }
   }
-  
+
   // An inline element being pressed: an inline box or a flattened element such as <a>.
   private var inlineTapTarget: MasonNode?
   private var inlineTapStart: CGPoint?
@@ -628,8 +578,11 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
     let bounds = CGRect(origin: view.bounds.origin, size: rect.size)
     let center = CGPoint(x: rect.midX, y: rect.midY)
+    let moved = view.bounds.size != bounds.size || view.center != center
     if view.bounds.size != bounds.size { view.bounds = bounds }
     if view.center != center { view.center = center }
+    // Its shadow and filter output layers sit beside it in this view, so they follow it.
+    if moved { box.style.updateShadowLayer(for: CGRect(origin: .zero, size: rect.size)) }
   }
 
   // After a draw, boxes the text moved are laid out again.
@@ -889,42 +842,42 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       break
     case .H1:
       let ua1 = MasonText.uaDefault("h1") // fontSize 2em, margin 0.67em
-      fontSize = Int32(ua1.font_size)
+      fontSize = ua1.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua1, scale)
       break
     case .H2:
       let ua2 = MasonText.uaDefault("h2") // fontSize 1.5em, margin 0.83em
-      fontSize = Int32(ua2.font_size)
+      fontSize = ua2.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua2, scale)
       break
     case .H3:
       let ua3 = MasonText.uaDefault("h3") // fontSize 1.17em ≈ 18.72, margin 1em
-      fontSize = Int32(ua3.font_size)
+      fontSize = ua3.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua3, scale)
       break
     case .H4:
       let ua4 = MasonText.uaDefault("h4") // fontSize 1em, margin 1.33em
-      fontSize = Int32(ua4.font_size)
+      fontSize = ua4.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua4, scale)
       break
     case .H5:
       let ua5 = MasonText.uaDefault("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
-      fontSize = Int32(ua5.font_size)
+      fontSize = ua5.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua5, scale)
       break
     case .H6:
       let ua6 = MasonText.uaDefault("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
-      fontSize = Int32(ua6.font_size)
+      fontSize = ua6.font_size
       style.display = .Block
       style.fontWeight = "bold"
       style.margin = MasonText.uaMargin(ua6, scale)
@@ -1050,7 +1003,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     }
   }
   
-  public var fontSize: Int32 {
+  public var fontSize: Float {
     get {
       return style.fontSize
     }

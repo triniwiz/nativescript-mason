@@ -24,7 +24,7 @@ internal struct Constants {
   
   static let FONT_WEIGHT = "[[font_weight]]"
 
-  static let DEFAULT_FONT_SIZE: Int32 = 16
+  static let DEFAULT_FONT_SIZE: Float = 16
 
   /// Attributed-string key carrying a `MasonTextDecoration`; TextEngine draws it.
   static let DECORATION_KEY = NSAttributedString.Key("[[mason_decoration]]")

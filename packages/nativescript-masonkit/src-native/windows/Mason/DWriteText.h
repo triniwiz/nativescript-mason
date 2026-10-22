@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cwchar>
 #include <cwctype>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -851,5 +852,272 @@ namespace mason_dwrite
         if (flow.indents) SetIndent(layout, flow.indent);
         FLOAT width = 0.0f;
         return SUCCEEDED(layout->DetermineMinWidth(&width)) ? width : 0.0f;
+    }
+
+    // A float's margin box beside a paragraph, in DIPs from its origin; side 1 left, 2 right.
+    struct Exclusion
+    {
+        float left{ 0.0f };
+        float top{ 0.0f };
+        float right{ 0.0f };
+        float bottom{ 0.0f };
+        uint8_t side{ 0 };
+        bool operator==(Exclusion const&) const = default;
+    };
+
+    // Lines laid out on their own, placed at x, y from the paragraph's origin. Never reconfigured.
+    struct FloatLine
+    {
+        winrt::com_ptr<IDWriteTextLayout> layout;
+        std::vector<Span> spans;
+        float x{ 0.0f };
+        float y{ 0.0f };
+        uint32_t start{ 0 };
+        uint32_t length{ 0 };
+    };
+
+    // A paragraph wrapped around floats: a layout per line beside them, then one for the rest.
+    struct FloatLayout
+    {
+        std::vector<FloatLine> lines;
+        // The ink's right edge from the origin, and the height of every line.
+        float width{ 0.0f };
+        float height{ 0.0f };
+    };
+
+    // Characters [start, start + length) with the spans and inline boxes in them; only a slice from
+    // the start keeps the first-line indent.
+    inline Paragraph Slice(Paragraph const& p, uint32_t start, uint32_t length)
+    {
+        Paragraph out = p;
+        out.text.assign(p.text, start, length);
+        out.spans.clear();
+        for (auto const& s : p.spans)
+        {
+            const uint32_t from = (std::max)(s.start, start);
+            const uint32_t to = (std::min)(s.start + s.length, start + length);
+            if (to <= from) continue;
+            Span clipped = s;
+            clipped.start = from - start;
+            clipped.length = to - from;
+            out.spans.push_back(std::move(clipped));
+        }
+        out.boxes.clear();
+        for (auto const& b : p.boxes)
+        {
+            if (b.position < start || b.position >= start + length) continue;
+            Box moved = b;
+            moved.position -= start;
+            out.boxes.push_back(moved);
+        }
+        if (start > 0)
+        {
+            out.indent = 0.0f;
+            out.indentPercent = false;
+        }
+        return out;
+    }
+
+    // Where a line from top to bottom is clear of the floats in a box `width` wide, and the nearest
+    // bottom of a float beside it (infinity with none).
+    inline void ClearSpan(std::vector<Exclusion> const& floats, float width, float top, float bottom, float& start, float& end, float& below)
+    {
+        start = 0.0f;
+        end = width;
+        below = std::numeric_limits<float>::infinity();
+        for (auto const& f : floats)
+        {
+            if (bottom <= f.top || top >= f.bottom || f.right <= f.left) continue;
+            if (f.side == 1) start = (std::max)(start, f.right);
+            else if (f.side == 2) end = (std::min)(end, f.left);
+            else continue;
+            below = (std::min)(below, f.bottom);
+        }
+        start = (std::clamp)(start, 0.0f, width);
+        end = (std::clamp)(end, start, width);
+    }
+
+    inline bool IsLineBreak(wchar_t ch)
+    {
+        return ch == L'\n' || ch == L'\r' || ch == 0x2028 || ch == 0x2029;
+    }
+
+    // The paragraph at `width` with each line beside a float kept clear of it, as CSS shortens line
+    // boxes; a line too narrow for its first word moves below the float. Lines past the floats
+    // share one layout. Unwrapped text breaks only at its hard breaks.
+    inline FloatLayout FloatWrap(Paragraph const& p, float width, float slack, std::vector<Exclusion> const& floats, bool noWrap)
+    {
+        const DWRITE_WORD_WRAPPING wrapping = noWrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WHOLE_WORD;
+        const float wrapAt = noWrap ? std::numeric_limits<float>::infinity() : width + slack;
+        FloatLayout out;
+        float floatsBottom = 0.0f;
+        for (auto const& f : floats) floatsBottom = (std::max)(floatsBottom, f.bottom);
+        const Flow first = p.FlowAt(width);
+        const uint32_t size = static_cast<uint32_t>(p.text.size());
+        uint32_t start = 0;
+        uint32_t count = 0;
+        float y = 0.0f;
+        std::vector<DWRITE_LINE_METRICS> metrics;
+        auto firstLine = [&](IDWriteTextLayout* layout, DWRITE_LINE_METRICS& line) -> bool
+        {
+            UINT32 n = 0;
+            layout->GetLineMetrics(nullptr, 0, &n);
+            metrics.resize(n);
+            if (n == 0 || FAILED(layout->GetLineMetrics(metrics.data(), n, &n))) return false;
+            line = metrics[0];
+            return true;
+        };
+        while (start < size && out.lines.size() < 1000)
+        {
+            Paragraph rest = Slice(p, start, size - start);
+            Flow flow;
+            if (start == 0 && first.indents)
+            {
+                // Resolved once: a percentage is of the whole line, not the part beside a float.
+                rest.indent = first.indent;
+                rest.indentPercent = false;
+                flow = Flow{ true, first.indent, 0 };
+            }
+            auto layout = Build(rest);
+            if (!layout) break;
+            if (y >= floatsBottom)
+            {
+                flow.lineClamp = p.lineClamp > 0 ? p.lineClamp - count : 0;
+                Configure(layout.get(), wrapping, width + slack, flow);
+                DWRITE_TEXT_METRICS m{};
+                layout->GetMetrics(&m);
+                out.width = (std::max)(out.width, m.left + m.width);
+                out.lines.push_back({ layout, std::move(rest.spans), 0.0f, y, start, size - start });
+                y += m.height;
+                break;
+            }
+
+            // Which floats a line is beside depends on its height, first taken at the full width.
+            DWRITE_LINE_METRICS line{};
+            LayOut(layout.get(), wrapAt, flow);
+            if (!firstLine(layout.get(), line)) break;
+            float left = 0.0f, right = width, below = 0.0f;
+            ClearSpan(floats, width, y, y + line.height, left, right, below);
+            if (!noWrap && right - left < width)
+            {
+                LayOut(layout.get(), right - left + slack, flow);
+                if (!firstLine(layout.get(), line)) break;
+                // A taller line can reach another float.
+                float l = 0.0f, r = 0.0f, b = 0.0f;
+                ClearSpan(floats, width, y, y + line.height, l, r, b);
+                if (l != left || r != right)
+                {
+                    left = l;
+                    right = r;
+                    below = b;
+                    LayOut(layout.get(), right - left + slack, flow);
+                    if (!firstLine(layout.get(), line)) break;
+                }
+            }
+            if (line.length == 0) break;
+            const uint32_t length = (std::min)(line.length, size - start);
+            uint32_t visible = length;
+            while (visible > 0 && IsLineBreak(rest.text[visible - 1])) --visible;
+            const bool beside = right - left < width;
+            if (visible == 0)
+            {
+                // An empty line between hard breaks.
+                y += line.height;
+                start += length;
+                ++count;
+                if (p.lineClamp > 0 && count >= p.lineClamp) break;
+                continue;
+            }
+            // The line on its own, unwrapped so it stays one line, aligned in its part of the box.
+            Paragraph text = Slice(rest, 0, visible);
+            auto own = Build(text);
+            if (!own) break;
+            Configure(own.get(), DWRITE_WORD_WRAPPING_NO_WRAP, (std::max)(right - left, 0.0f) + slack, flow);
+            DWRITE_TEXT_METRICS m{};
+            own->GetMetrics(&m);
+            // Too narrow for its first word: CSS moves the line down past the float.
+            if (beside && (right - left <= 0.0f || m.width > right - left + slack) && std::isfinite(below) && below > y)
+            {
+                y = below;
+                continue;
+            }
+            if (p.lineClamp > 0 && count + 1 >= p.lineClamp && start + length < size)
+            {
+                text = std::move(rest);
+                own = Build(text);
+                if (!own) break;
+                Configure(own.get(), wrapping, (std::max)(right - left, 0.0f) + slack, Flow{ flow.indents, flow.indent, 1 });
+                own->GetMetrics(&m);
+            }
+            out.width = (std::max)(out.width, left + m.left + m.width);
+            out.lines.push_back({ own, std::move(text.spans), left, y, start, static_cast<uint32_t>(text.text.size()) });
+            y += line.height;
+            start += length;
+            ++count;
+            if (p.lineClamp > 0 && count >= p.lineClamp) break;
+        }
+        out.height = y;
+        return out;
+    }
+
+    inline FloatLine const* LineAt(std::vector<FloatLine> const& lines, uint32_t position)
+    {
+        for (auto const& line : lines)
+        {
+            if (line.layout && position >= line.start && position < line.start + line.length) return &line;
+        }
+        return nullptr;
+    }
+
+    inline void BoxRects(std::vector<FloatLine> const& lines, std::vector<Box> const& boxes, std::vector<BoxRect>& out)
+    {
+        out.clear();
+        std::vector<Box> one(1);
+        std::vector<BoxRect> rect;
+        for (auto const& b : boxes)
+        {
+            BoxRect placed{};
+            if (auto const* line = LineAt(lines, b.position))
+            {
+                one[0] = b;
+                one[0].position -= line->start;
+                BoxRects(line->layout.get(), one, rect);
+                if (!rect.empty()) placed = { rect[0].x + line->x, rect[0].y + line->y, rect[0].width, rect[0].height };
+            }
+            out.push_back(placed);
+        }
+    }
+
+    inline int32_t PositionAt(std::vector<FloatLine> const& lines, float x, float y)
+    {
+        for (auto const& line : lines)
+        {
+            if (!line.layout) continue;
+            DWRITE_TEXT_METRICS m{};
+            line.layout->GetMetrics(&m);
+            if (y < line.y || y >= line.y + m.height) continue;
+            const int32_t position = PositionAt(line.layout.get(), x - line.x, y - line.y);
+            return position < 0 ? -1 : position + static_cast<int32_t>(line.start);
+        }
+        return -1;
+    }
+
+    inline bool FirstRangeHit(IDWriteTextLayout* layout, uint32_t start, uint32_t length, float x, float y, DWRITE_HIT_TEST_METRICS& out)
+    {
+        UINT32 count = 0;
+        layout->HitTestTextRange(start, length, x, y, nullptr, 0, &count);
+        if (count == 0) return false;
+        std::vector<DWRITE_HIT_TEST_METRICS> hits(count);
+        if (FAILED(layout->HitTestTextRange(start, length, x, y, hits.data(), count, &count)) || count == 0) return false;
+        out = hits[0];
+        return true;
+    }
+
+    inline bool FirstRangeHit(std::vector<FloatLine> const& lines, uint32_t start, uint32_t length, DWRITE_HIT_TEST_METRICS& out)
+    {
+        auto const* line = LineAt(lines, start);
+        if (!line) return false;
+        const uint32_t local = start - line->start;
+        return FirstRangeHit(line->layout.get(), local, (std::min)(length, line->length - local), line->x, line->y, out);
     }
 }

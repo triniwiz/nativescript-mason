@@ -424,7 +424,7 @@ object StyleKeys {
   // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
   const val FONT_COLOR = 324 // u32 (324-327)
   const val FONT_COLOR_STATE = 328
-  const val FONT_SIZE = 329 // i32 (329-332)
+  const val FONT_SIZE = 329 // f32 (329-332)
   const val FONT_SIZE_TYPE = 333
   const val FONT_SIZE_STATE = 334
   const val FONT_WEIGHT = 335 // i32 (335-338)
@@ -1388,6 +1388,10 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var filter: String = ""
     set(value) {
+      // Whether inline text is merged into its parent's depends on the filter.
+      if (value.isEmpty() != field.isEmpty()) {
+        (node.parent?.view as? TextView)?.engine?.invalidateInlineSegments()
+      }
       field = value
       val hadFilters = mFilter?.filters?.isNotEmpty() ?: false
       mFilter = CSSFilters.parse(value)
@@ -1709,13 +1713,13 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
 
-  var fontSize: Int
+  var fontSize: Float
     get() {
-      return values.getInt(StyleKeys.FONT_SIZE)
+      return values.getFloat(StyleKeys.FONT_SIZE)
     }
     set(value) {
       prepareMut()
-      values.putInt(StyleKeys.FONT_SIZE, value)
+      values.putFloat(StyleKeys.FONT_SIZE, value)
       values.put(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
       if (inBatch) {
         setOrAppendState(StateKeys.FONT_SIZE)
@@ -4871,7 +4875,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       )
     }
 
-  internal val resolvedFontSize: Int
+  internal val resolvedFontSize: Float
     get() {
       val state = values.get(StyleKeys.FONT_SIZE_STATE)
       val type = values.get(StyleKeys.FONT_SIZE_TYPE)
@@ -4880,8 +4884,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         val parentFontSize =
           node.parent?.takeIf { it.style.isValueInitialized }?.style?.resolvedFontSize
             ?: Constants.DEFAULT_FONT_SIZE
-        val base = resolvePercentageFontSize(parentFontSize, values.getInt(StyleKeys.FONT_SIZE))
-        return resolvePseudoInt(
+        val base = resolvePercentageFontSize(parentFontSize)
+        return resolvePseudoFloat(
           StyleKeys.FONT_SIZE,
           StyleKeys.FONT_SIZE_STATE,
           base,
@@ -4889,11 +4893,11 @@ class Style internal constructor(@Transient internal var node: Node) {
         )
       }
       val base = if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedFontSize ?: values.getInt(StyleKeys.FONT_SIZE)
+        parentStyleWithTextValues?.resolvedFontSize ?: values.getFloat(StyleKeys.FONT_SIZE)
       } else {
-        values.getInt(StyleKeys.FONT_SIZE)
+        values.getFloat(StyleKeys.FONT_SIZE)
       }
-      return resolvePseudoInt(
+      return resolvePseudoFloat(
         StyleKeys.FONT_SIZE,
         StyleKeys.FONT_SIZE_STATE,
         base,
@@ -4901,10 +4905,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       )
     }
 
-  internal fun resolvePercentageFontSize(parentFontSize: Int, percent: Int): Int {
-    val rawSize = values.getInt(StyleKeys.FONT_SIZE)
-    val percent = rawSize.toFloat() / 100f
-    return ceil((parentFontSize * percent).coerceAtLeast(0f)).toInt()
+  internal fun resolvePercentageFontSize(parentFontSize: Float): Float {
+    val percent = values.getFloat(StyleKeys.FONT_SIZE) / 100f
+    return (parentFontSize * percent).coerceAtLeast(0f)
   }
 
   internal val resolvedFontWeight: FontWeight
@@ -5575,7 +5578,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       val paddingBottom = node.computedPaddingBottom
 
       when (clip) {
-        BackgroundClip.BORDER_BOX -> {
+        // Text-clipped layers paint through the glyphs (TextView); elsewhere as border-box.
+        BackgroundClip.BORDER_BOX, BackgroundClip.TEXT -> {
           // Border box = full view bounds
           val p = style.mBorderRenderer.getOuterClipPath(w, h)
           canvas.clipPath(p)

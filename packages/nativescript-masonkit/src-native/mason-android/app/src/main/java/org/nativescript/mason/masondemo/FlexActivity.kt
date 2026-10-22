@@ -55,7 +55,7 @@ class FlexActivity : AppCompatActivity() {
     title.textContent = "Mason Demo"
     title.configure { s ->
       s.color = android.graphics.Color.WHITE
-      s.fontSize = 20
+      s.fontSize = 20f
     }
     appBar.addView(title)
     rootLayout.addView(appBar)
@@ -84,7 +84,7 @@ class FlexActivity : AppCompatActivity() {
       // Add card title
       val cTitle = mason.createTextView(this)
       cTitle.textContent = "Card ${i + 1}"
-      cTitle.configure { s -> s.fontSize = 16; s.color = Color.DKGRAY }
+      cTitle.configure { s -> s.fontSize = 16f; s.color = Color.DKGRAY }
       card.addView(cTitle)
 
       // Add placeholder content block
@@ -110,7 +110,7 @@ class FlexActivity : AppCompatActivity() {
     }
     val info = mason.createTextView(this)
     info.textContent = "Flex demo — responsive cards with wrapping"
-    info.configure { s -> s.fontSize = 14; s.color = Color.DKGRAY }
+    info.configure { s -> s.fontSize = 14f; s.color = Color.DKGRAY }
     footer.addView(info)
 
     rootLayout.addView(content)
