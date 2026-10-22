@@ -54,6 +54,8 @@ namespace mason_atlas
         std::vector<mason_dwrite::Span> extras;
         std::vector<mason_dwrite::Shadow> shadows;
         std::vector<uint32_t> softHyphens;
+        // Text wrapped around floats draws these in place of the layout.
+        std::vector<mason_dwrite::FloatLine> lines;
         // DIPs from the slot's top-left to the layout's origin. Vertical text (1 vertical-rl, 2
         // vertical-lr) is turned 90° clockwise: the origin is where its first line starts, for
         // vertical-lr the left of the line stack.
@@ -498,6 +500,35 @@ namespace mason_atlas
         }
     }
 
+    // Each line laid out around floats, at its own offset.
+    inline void DrawLines(Atlas& a, ID2D1DeviceContext* context, Sprite const* s)
+    {
+        ID2D1SolidColorBrush* fill = BrushFor(a, context, s->color);
+        for (auto const& line : s->lines)
+        {
+            IDWriteTextLayout* layout = line.layout.get();
+            if (!layout) continue;
+            const float ox = s->originX + line.x, oy = s->originY + line.y;
+            auto paint = [&]
+            {
+                layout->SetDrawingEffect(fill, DWRITE_TEXT_RANGE{ 0, UINT32_MAX });
+                for (auto const& span : line.spans)
+                {
+                    if (span.color != s->color) layout->SetDrawingEffect(BrushFor(a, context, span.color), DWRITE_TEXT_RANGE{ span.start, span.length });
+                }
+            };
+            paint();
+            DrawBackgrounds(a, context, layout, ox, oy, line.spans);
+            if (!s->shadows.empty())
+            {
+                DrawShadows(a, context, layout, ox, oy, s->shadows);
+                paint();
+            }
+            context->DrawTextLayout(D2D1::Point2F(ox, oy), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            DrawDecorations(a, context, layout, ox, oy, s->scale, line.spans);
+        }
+    }
+
     inline HRESULT Draw(Atlas& a, Region const& region)
     {
         auto interop = region.page->surface.as<mucomp::ICompositionDrawingSurfaceInterop>();
@@ -521,6 +552,11 @@ namespace mason_atlas
             context->SetDpi(96.0f * scale, 96.0f * scale);
             const auto slot = D2D1::Matrix3x2F::Translation((offset.x + item.x - region.rect.left) / scale, (offset.y + item.y - region.rect.top) / scale);
             context->SetTransform(slot);
+            if (!s->lines.empty() && !s->vertical)
+            {
+                DrawLines(a, context.get(), s);
+                continue;
+            }
             IDWriteTextLayout* layout = s->layout.get();
             mason_dwrite::Configure(layout, s->wrapping, s->maxWidth, s->flow);
             ID2D1SolidColorBrush* fill = BrushFor(a, context.get(), s->color);
@@ -635,5 +671,96 @@ namespace mason_atlas
             FlushNextFrame(a);
             return;
         }
+    }
+
+    // What a text draws, kept to outline its glyphs for background-clip: text. The layout is shared
+    // with measuring, so its wrapping and box are applied again first.
+    struct Glyphs
+    {
+        winrt::com_ptr<IDWriteTextLayout> layout;
+        DWRITE_WORD_WRAPPING wrapping{ DWRITE_WORD_WRAPPING_NO_WRAP };
+        float maxWidth{ 0.0f };
+        mason_dwrite::Flow flow;
+        std::vector<mason_dwrite::FloatLine> lines;
+        // The layout's origin in DIPs from the element's border box.
+        float x{ 0.0f };
+        float y{ 0.0f };
+    };
+
+    // A renderer that collects each glyph run's outline at its baseline origin.
+    struct OutlineSink : winrt::implements<OutlineSink, IDWriteTextRenderer>
+    {
+        explicit OutlineSink(ID2D1Factory* factory) : factory(factory) {}
+
+        HRESULT __stdcall IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
+        {
+            *disabled = TRUE;
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override
+        {
+            *transform = DWRITE_MATRIX{ 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
+            return S_OK;
+        }
+
+        HRESULT __stdcall GetPixelsPerDip(void*, FLOAT* pixelsPerDip) noexcept override
+        {
+            *pixelsPerDip = 1.0f;
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawGlyphRun(void*, FLOAT x, FLOAT y, DWRITE_MEASURING_MODE, DWRITE_GLYPH_RUN const* run,
+            DWRITE_GLYPH_RUN_DESCRIPTION const*, ::IUnknown*) noexcept override
+        {
+            if (!run || !run->fontFace || run->glyphCount == 0) return S_OK;
+            winrt::com_ptr<ID2D1PathGeometry> path;
+            winrt::com_ptr<ID2D1GeometrySink> sink;
+            if (FAILED(factory->CreatePathGeometry(path.put())) || FAILED(path->Open(sink.put()))) return S_OK;
+            sink->SetFillMode(D2D1_FILL_MODE_WINDING);
+            const HRESULT outlined = run->fontFace->GetGlyphRunOutline(run->fontEmSize, run->glyphIndices, run->glyphAdvances, run->glyphOffsets,
+                run->glyphCount, run->isSideways, run->bidiLevel % 2, sink.get());
+            if (FAILED(sink->Close()) || FAILED(outlined)) return S_OK;
+            winrt::com_ptr<ID2D1TransformedGeometry> placed;
+            if (SUCCEEDED(factory->CreateTransformedGeometry(path.get(), D2D1::Matrix3x2F::Translation(x, y), placed.put()))) parts.push_back(placed);
+            return S_OK;
+        }
+
+        HRESULT __stdcall DrawUnderline(void*, FLOAT, FLOAT, DWRITE_UNDERLINE const*, ::IUnknown*) noexcept override { return S_OK; }
+        HRESULT __stdcall DrawStrikethrough(void*, FLOAT, FLOAT, DWRITE_STRIKETHROUGH const*, ::IUnknown*) noexcept override { return S_OK; }
+
+        // The ellipsis sign draws its glyphs back through this renderer; inline boxes draw nothing.
+        HRESULT __stdcall DrawInlineObject(void* context, FLOAT x, FLOAT y, IDWriteInlineObject* object, BOOL sideways, BOOL rtl,
+            ::IUnknown* effect) noexcept override
+        {
+            return object ? object->Draw(context, this, x, y, sideways, rtl, effect) : S_OK;
+        }
+
+        ID2D1Factory* factory{ nullptr };
+        std::vector<winrt::com_ptr<ID2D1Geometry>> parts;
+    };
+
+    // The glyphs' outlines as one geometry in DIPs from the element's border box, built in the
+    // factory they're drawn with. Null without any.
+    inline winrt::com_ptr<ID2D1Geometry> Outline(ID2D1Factory* factory, Glyphs const& glyphs)
+    {
+        if (!factory) return nullptr;
+        auto sink = winrt::make_self<OutlineSink>(factory);
+        if (glyphs.lines.empty() && glyphs.layout)
+        {
+            mason_dwrite::Configure(glyphs.layout.get(), glyphs.wrapping, glyphs.maxWidth, glyphs.flow);
+            glyphs.layout->Draw(nullptr, sink.get(), glyphs.x, glyphs.y);
+        }
+        for (auto const& line : glyphs.lines)
+        {
+            if (line.layout) line.layout->Draw(nullptr, sink.get(), glyphs.x + line.x, glyphs.y + line.y);
+        }
+        if (sink->parts.empty()) return nullptr;
+        std::vector<ID2D1Geometry*> parts;
+        parts.reserve(sink->parts.size());
+        for (auto const& part : sink->parts) parts.push_back(part.get());
+        winrt::com_ptr<ID2D1GeometryGroup> group;
+        if (FAILED(factory->CreateGeometryGroup(D2D1_FILL_MODE_WINDING, parts.data(), static_cast<UINT32>(parts.size()), group.put()))) return nullptr;
+        return group;
     }
 }

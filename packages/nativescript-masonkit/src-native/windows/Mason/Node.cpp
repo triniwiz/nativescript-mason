@@ -316,6 +316,20 @@ namespace winrt::NativeScript::Mason::implementation
         left = g_layoutSink[8] + g_layoutSink[16];
     }
 
+    void Node::ContentOrigin(float& x, float& y)
+    {
+        // The frame's x and y, plus the left and top border and padding (see ContentInsets).
+        g_layoutSink.clear();
+        mason_node_layout_shallow(m_mason, m_node, &LayoutSink);
+        if (g_layoutSink.size() < 17)
+        {
+            x = y = 0.0f;
+            return;
+        }
+        x = g_layoutSink[1] + g_layoutSink[8] + g_layoutSink[16];
+        y = g_layoutSink[2] + g_layoutSink[5] + g_layoutSink[13];
+    }
+
     float Node::LayoutWidth()
     {
         g_layoutSink.clear();

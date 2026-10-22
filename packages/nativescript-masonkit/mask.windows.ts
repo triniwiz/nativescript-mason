@@ -14,6 +14,8 @@ type GradientStops = { s: number[]; rp?: 1; p?: Array<number | null>; l?: Array<
 type WindowsImage = { t: 'img'; src: string } | ({ t: 'lin'; a: number; k?: [number, number] } & GradientStops) | ({ t: 'rad'; c: [number, number]; r: [number, number]; ci?: number; cr?: number } & GradientStops) | { t: 'con'; a: number; c: [number, number]; s: number[] };
 
 const BOX: Record<string, number> = { 'border-box': 0, 'padding-box': 1, 'content-box': 2, 'margin-box': 3, 'fill-box': 0, 'stroke-box': 0, 'view-box': 0, 'no-clip': 3 };
+// background-clip also takes `text`: painted inside the glyphs of a text element (CssMask.h TextClip).
+const BACKGROUND_CLIP: Record<string, number> = { ...BOX, text: 4 };
 const REPEAT: Record<string, number> = { repeat: 0, 'no-repeat': 1, space: 2, round: 3, stretch: 4 };
 const MODE: Record<string, number> = { 'match-source': 0, alpha: 1, luminance: 2 };
 const COMPOSITE: Record<string, number> = { add: 0, subtract: 1, intersect: 2, exclude: 3 };
@@ -426,7 +428,7 @@ export function encodeWindowsMask(css: ReadonlyMap<string, string>, ctx: Windows
 }
 
 const originOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.origin ?? '').trim().toLowerCase()] ?? 1;
-const clipOf = (boxes: WindowsBackgroundBoxes) => BOX[(boxes.clip ?? '').trim().toLowerCase()] ?? 0;
+const clipOf = (boxes: WindowsBackgroundBoxes) => BACKGROUND_CLIP[(boxes.clip ?? '').trim().toLowerCase()] ?? 0;
 
 function backgroundLayer(image: WindowsImage, size: string, position: string, repeat: string, ctx: WindowsMaskContext, boxes: WindowsBackgroundBoxes): string {
   const [x, y] = encodePosition(position || '0% 0%', ctx);
@@ -483,7 +485,7 @@ export function encodeWindowsBackgroundLayers(css: WindowsBackgroundLonghands, c
       p: [...x, ...y],
       r: encodeRepeat(at(repeats, i, 'repeat')),
       o: BOX[at(origins, i, 'padding-box').toLowerCase()] ?? 1,
-      c: BOX[at(clips, i, 'border-box').toLowerCase()] ?? 0,
+      c: BACKGROUND_CLIP[at(clips, i, 'border-box').toLowerCase()] ?? 0,
       m: 0,
       k: 0,
       b: blend < 0 ? 0 : blend,

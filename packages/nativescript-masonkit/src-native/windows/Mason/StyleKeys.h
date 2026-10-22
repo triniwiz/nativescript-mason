@@ -166,7 +166,7 @@ namespace mason_style_keys
     // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
     inline constexpr uint32_t kFontColor = 324; // u32 (324-327)
     inline constexpr uint32_t kFontColorState = 328;
-    inline constexpr uint32_t kFontSize = 329; // i32 (329-332)
+    inline constexpr uint32_t kFontSize = 329; // f32 (329-332)
     inline constexpr uint32_t kFontSizeType = 333;
     inline constexpr uint32_t kFontSizeState = 334;
     inline constexpr uint32_t kFontWeight = 335; // i32 (335-338)

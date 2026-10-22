@@ -41,7 +41,7 @@ namespace mason_form
         auto f32 = [&](uint32_t o) -> float { float v = 0.0f; if (o + 4 <= len) std::memcpy(&v, d + o, 4); return v; };
         s.hasColor = u8(sk::kFontColorState) != 0;
         s.color = s.hasColor ? static_cast<uint32_t>(i32(sk::kFontColor)) : 0;
-        s.fontSize = u8(sk::kFontSizeState) && i32(sk::kFontSize) > 0 ? static_cast<double>(i32(sk::kFontSize)) : 0.0;
+        s.fontSize = u8(sk::kFontSizeState) && f32(sk::kFontSize) > 0 ? static_cast<double>(f32(sk::kFontSize)) : 0.0;
         s.fontWeight = u8(sk::kFontWeightState) && i32(sk::kFontWeight) > 0 ? i32(sk::kFontWeight) : 0;
         s.hasFontStyle = u8(sk::kFontStyleState) != 0;
         s.fontStyle = s.hasFontStyle ? u8(sk::kFontStyleType) : 0;

@@ -193,6 +193,16 @@ void *mason_node_get_float_rects(struct CMason *mason,
 struct CMasonBuffer *mason_node_get_float_rects_buffer(struct CMason *mason,
                                                        struct CMasonNode *node);
 
+/**
+ * Writes up to `capacity` floats of the container's float exclusions
+ * (`[left, top, width, height, side]` margin boxes, see `Mason::get_float_exclusions`)
+ * into `out` and returns how many there are in total.
+ */
+uintptr_t mason_node_get_float_exclusions(struct CMason *mason,
+                                          struct CMasonNode *node,
+                                          float *out,
+                                          uintptr_t capacity);
+
 void mason_node_release_float_rects_buffer(struct CMasonBuffer *buffer);
 
 void mason_node_compute_wh(struct CMason *mason,
