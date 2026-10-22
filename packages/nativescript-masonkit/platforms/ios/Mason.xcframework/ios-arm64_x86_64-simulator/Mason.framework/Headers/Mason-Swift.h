@@ -1343,7 +1343,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setBorderColor:(NSString * _Nonnull)css;
 - (void)applyListStyleType:(NSString * _Nonnull)css;
 - (void)applyListStylePosition:(NSString * _Nonnull)css;
-@property (nonatomic) int32_t fontSize;
+@property (nonatomic) float fontSize;
 - (void)setFontStyle:(enum MasonFontStyle)style :(int32_t)slant;
 @property (nonatomic) enum MasonTextJustify textJustify;
 @property (nonatomic) enum MasonFontStyle fontStyle;
@@ -1490,6 +1490,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)didMoveToWindow;
 - (void)requestLayout;
 - (void)layoutSubviews;
+- (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
 - (void)touchesBegan:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
 - (void)touchesMoved:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
 - (void)touchesEnded:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
@@ -1512,7 +1513,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 @property (nonatomic) uint32_t decorationColor;
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
 @property (nonatomic) enum MasonDecorationLine decorationLine;
-@property (nonatomic) int32_t fontSize;
+@property (nonatomic) float fontSize;
 @property (nonatomic) enum MasonFontStyle fontStyle;
 - (void)setFontStyle:(enum MasonFontStyle)style slant:(int32_t)slant;
 @property (nonatomic, copy) NSString * _Nonnull fontWeight;
@@ -3522,7 +3523,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setBorderColor:(NSString * _Nonnull)css;
 - (void)applyListStyleType:(NSString * _Nonnull)css;
 - (void)applyListStylePosition:(NSString * _Nonnull)css;
-@property (nonatomic) int32_t fontSize;
+@property (nonatomic) float fontSize;
 - (void)setFontStyle:(enum MasonFontStyle)style :(int32_t)slant;
 @property (nonatomic) enum MasonTextJustify textJustify;
 @property (nonatomic) enum MasonFontStyle fontStyle;
@@ -3669,6 +3670,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)didMoveToWindow;
 - (void)requestLayout;
 - (void)layoutSubviews;
+- (void)willMoveToSuperview:(UIView * _Nullable)newSuperview;
 - (void)touchesBegan:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
 - (void)touchesMoved:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
 - (void)touchesEnded:(NSSet<UITouch *> * _Nonnull)touches withEvent:(UIEvent * _Nullable)event;
@@ -3691,7 +3693,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 @property (nonatomic) uint32_t decorationColor;
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
 @property (nonatomic) enum MasonDecorationLine decorationLine;
-@property (nonatomic) int32_t fontSize;
+@property (nonatomic) float fontSize;
 @property (nonatomic) enum MasonFontStyle fontStyle;
 - (void)setFontStyle:(enum MasonFontStyle)style slant:(int32_t)slant;
 @property (nonatomic, copy) NSString * _Nonnull fontWeight;

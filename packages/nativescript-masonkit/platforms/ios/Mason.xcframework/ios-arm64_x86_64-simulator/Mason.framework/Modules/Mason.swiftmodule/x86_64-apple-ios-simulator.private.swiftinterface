@@ -1680,7 +1680,7 @@ public struct StateKeys : Swift.Equatable {
   @objc public func setBorderColor(_ css: Swift.String)
   @objc public func applyListStyleType(_ css: Swift.String)
   @objc public func applyListStylePosition(_ css: Swift.String)
-  @objc public var fontSize: Swift.Int32 {
+  @objc public var fontSize: Swift.Float {
     @objc get
     @objc set
   }
@@ -3209,6 +3209,7 @@ public enum InlineSegmentPayload {
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didMoveToWindow()
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func willMove(toSuperview newSuperview: UIKit.UIView?)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesBegan(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesMoved(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesEnded(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
@@ -3261,7 +3262,7 @@ public enum InlineSegmentPayload {
     @objc get
     @objc set
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var fontSize: Swift.Int32 {
+  @objc @_Concurrency.MainActor @preconcurrency public var fontSize: Swift.Float {
     @objc get
     @objc set
   }
