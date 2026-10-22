@@ -200,6 +200,7 @@ extension Mason.Button {
   @objc public func setDeviceScale(_ value: Swift.Float)
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
   @objc(setMeasureForView:block:) public func setMeasure(for view: UIKit.UIView, block: @escaping (_ knownWidth: CoreFoundation.CGFloat, _ knownHeight: CoreFoundation.CGFloat, _ availableWidth: CoreFoundation.CGFloat, _ availableHeight: CoreFoundation.CGFloat) -> CoreFoundation.CGSize)
+  @objc public func invalidateForeignView(_ view: UIKit.UIView)
   @objc public func setPercentWidth(_ view: UIKit.UIView, _ fraction: Swift.Float)
   @objc public func setPercentHeight(_ view: UIKit.UIView, _ fraction: Swift.Float)
   @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
@@ -508,6 +509,7 @@ extension Mason.MasonElement {
   public func computeWithViewSize(layout: Swift.Bool)
   public func computeWithMaxContent()
   public func computeWithMinContent()
+  public func measure(_ widthSpec: Swift.Int, _ heightSpec: Swift.Int, root: Swift.Bool, viewport: Swift.Bool) -> Swift.Double
   public func attachAndApply()
 }
 extension Mason.MasonElement {
@@ -2359,6 +2361,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_computeWithViewSize()
   @objc dynamic public func mason_computeWithViewSize(layout: Swift.Bool)
   @objc dynamic public func mason_computeWithMaxContent()
+  @objc dynamic public func mason_measure(_ widthSpec: Swift.Int, _ heightSpec: Swift.Int, _ root: Swift.Bool, _ viewport: Swift.Bool) -> Swift.Double
   @objc dynamic public func mason_markRootComputeApplied()
   @objc dynamic public func mason_markRootComputeAppliedWithSize(_ width: Swift.Float, _ height: Swift.Float)
   @objc dynamic public func mason_computeWithMinContent()
