@@ -693,6 +693,8 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_computeWithSize(width: number, height: number): void;
 
+	mason_measure(widthSpec: number, heightSpec: number, root: boolean, viewport: boolean): number;
+
 	mason_computeWithViewSize(): void;
 
 	mason_computeWithViewSizeWithLayout(layout: boolean): void;

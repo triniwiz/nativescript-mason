@@ -54,7 +54,7 @@ import type { CornerIndex, CornerRadius } from './css-shorthands';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
-import { adoptForeignLayout, releaseForeignLayout } from './foreign-layout';
+import { adoptForeignLayout, invalidateOnLayoutRequest, releaseForeignLayout } from './foreign-layout';
 import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
 import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
 import { parseCssTransform } from './css-transform';
@@ -442,6 +442,12 @@ function windowsBreakRun(child: any) {
  * `iosOverflowSafeArea` the same way: when the frame grows past the safe area it lays out
  * again at the new size. Like core views, it raises `layoutChanged` when the frame changes.
  */
+/** Reports the device px size `mason_measure` returns, packed as width * 2^24 + height. */
+export function setMeasuredFromNative(view: any, packed: number): void {
+  const width = Math.floor(packed / 16777216);
+  view.setMeasuredDimension(width, packed - width * 16777216);
+}
+
 export function setRootNativeViewFrame(view: any, nativeView: any, frame: CGRect): void {
   // Place the view before adjusting, as core does: the safe-area math reads its
   // position on screen, and a stale one applied the insets twice.
@@ -1276,6 +1282,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const native = this.nativeViewProtected as any;
     const mason = native?.mason ?? native?.node?.mason;
     if (typeof mason?.setMeasureForViewBlock !== 'function') return;
+    invalidateOnLayoutRequest(child, mason);
     const parentRef = new WeakRef(this);
     const childRef = new WeakRef(child);
     const spec = (known: number, available: number) => {

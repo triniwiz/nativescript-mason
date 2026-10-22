@@ -687,6 +687,12 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     computeWithMaxContent(element)
   }
 
+  /// Core's onMeasure in one call, see `MasonElement.measure`.
+  @objc public func mason_measure(_ widthSpec: Int, _ heightSpec: Int, _ root: Bool, _ viewport: Bool) -> Double {
+    guard let element = self as? MasonElement else { return 0 }
+    return element.measure(widthSpec, heightSpec, root: root, viewport: viewport)
+  }
+
   @objc public func mason_markRootComputeApplied(){
     guard let element = self as? MasonElement else { return }
     markRootComputeApplied(element)

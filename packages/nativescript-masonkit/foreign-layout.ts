@@ -20,6 +20,7 @@ interface LayoutProperty {
 
 const foreignStyle_ = Symbol('mason:foreignStyle');
 const foreignProto_ = Symbol('mason:foreignProto');
+const foreignInvalidate_ = Symbol('mason:foreignInvalidate');
 
 // Core px objects are device pixels; Mason reads px as CSS pixels, and numbers as dip.
 function toMason(value: any): any {
@@ -120,8 +121,36 @@ export function adoptForeignLayout(view: any): void {
   if (grid) writeGrid(helper, style);
 }
 
-/** Stop mirroring and give the child its own Style prototype back. */
+/** iOS: a content change core reports through requestLayout drops the child's cached Mason measurement. */
+export function invalidateOnLayoutRequest(view: any, mason: any): void {
+  const hook = view[foreignInvalidate_];
+  if (hook) {
+    hook.mason = mason;
+    return;
+  }
+  const original = view.requestLayout;
+  if (typeof original !== 'function') return;
+  const state = {
+    mason,
+    own: Object.getOwnPropertyDescriptor(view, 'requestLayout'),
+    requestLayout(this: any) {
+      const native = this.nativeViewProtected;
+      if (native) state.mason.invalidateForeignView(native);
+      return original.call(this);
+    },
+  };
+  view.requestLayout = state.requestLayout;
+  view[foreignInvalidate_] = state;
+}
+
+/** Stop mirroring and give the child its own Style prototype and requestLayout back. */
 export function releaseForeignLayout(view: any): void {
+  const hook = view?.[foreignInvalidate_];
+  if (hook) {
+    view[foreignInvalidate_] = undefined;
+    if (hook.own) Object.defineProperty(view, 'requestLayout', hook.own);
+    else delete view.requestLayout;
+  }
   if (!view?.[foreignStyle_]) return;
   view[foreignStyle_] = undefined;
   const style = view.style;

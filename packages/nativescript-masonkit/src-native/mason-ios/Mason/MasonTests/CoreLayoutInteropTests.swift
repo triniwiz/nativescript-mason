@@ -121,6 +121,90 @@ final class CoreLayoutInteropTests: XCTestCase {
     )
   }
 
+  private func spec(_ size: CGFloat, _ mode: Int) -> Int {
+    (Int(size) & 0x3FFF_FFFF) | (mode << 30)
+  }
+
+  private func unpack(_ packed: Double) -> CGSize {
+    let width = (packed / 16_777_216).rounded(.down)
+    return CGSize(width: width, height: packed - width * 16_777_216)
+  }
+
+  /// A host bounding only the width still bounds it; only the open axis is max-content.
+  func test_rootMeasureKeepsEachBoundedAxis() {
+    let scale = CGFloat(NSCMason.scale)
+    let root = MasonUIView(mason: mason)
+    root.display = .Block
+    let child = MasonUIView(mason: mason)
+    child.display = .Block
+    child.setSizeHeight(50 * NSCMason.scale, 1)
+    root.addView(child)
+
+    let size = unpack(root.measure(spec(300 * scale, 1), spec(0, 0), root: true, viewport: false))
+    XCTAssertEqual(size, CGSize(width: (300 * scale).rounded(), height: (50 * scale).rounded()))
+  }
+
+  /// A scroll viewport is clamped to the bounded axis only.
+  func test_rootMeasureClampsAViewportOnBoundedAxes() {
+    let scale = CGFloat(NSCMason.scale)
+    let root = MasonUIView(mason: mason)
+    root.display = .Block
+    let child = MasonUIView(mason: mason)
+    child.setSize(400 * NSCMason.scale, 500 * NSCMason.scale)
+    root.addView(child)
+
+    let size = unpack(root.measure(spec(200 * scale, 2), spec(0, 0), root: true, viewport: true))
+    XCTAssertEqual(size, CGSize(width: (200 * scale).rounded(), height: (500 * scale).rounded()))
+  }
+
+  /// A Mason root measured by a foreign leaf's host measure during the outer
+  /// compute gets its real size in that same pass, not a turn later.
+  func test_nestedRootMeasuredByAForeignHostSettlesInTheSamePass() {
+    let scale = CGFloat(NSCMason.scale)
+    let root = MasonUIView(mason: mason)
+    root.display = .Flex
+    root.alignItems = .FlexStart
+    let leaf = UIView()
+    let nested = MasonUIView(mason: mason)
+    nested.setSize(120 * NSCMason.scale, 60 * NSCMason.scale)
+    leaf.addSubview(nested)
+    root.addView(leaf)
+
+    var measures = 0
+    mason.setMeasure(for: leaf) { [unowned self] _, _, availableWidth, availableHeight in
+      measures += 1
+      let width = availableWidth > 0 ? self.spec(availableWidth, 2) : self.spec(0, 0)
+      let height = availableHeight > 0 ? self.spec(availableHeight, 2) : self.spec(0, 0)
+      return self.unpack(nested.measure(width, height, root: true, viewport: false))
+    }
+
+    root.computeWithSize(Float(300 * scale), Float(300 * scale))
+    XCTAssertGreaterThan(measures, 1, "the outer pass should rerun once the nested root settles")
+    XCTAssertEqual(leaf.frame.size, CGSize(width: 120, height: 60))
+    XCTAssertTrue(nested.node.deferredRootSizes.isEmpty)
+    XCTAssertTrue(nested.node.settledRootSizes.isEmpty, "settled sizes only last for one outer compute")
+  }
+
+  /// Content changes reported during a compute are applied once it returns.
+  func test_foreignInvalidationDuringAComputeWaitsForIt() {
+    let root = MasonUIView(mason: mason)
+    let leaf = UIView()
+    root.addView(leaf)
+    var width: CGFloat = 40
+    var invalidated = false
+    mason.setMeasure(for: leaf) { [unowned self] _, _, _, _ in
+      if !invalidated {
+        invalidated = true
+        self.mason.invalidateForeignView(leaf)
+      }
+      return CGSize(width: width, height: 20)
+    }
+    root.computeWithSize(-2, -2)
+    width = 80
+    root.computeWithSize(-2, -2)
+    XCTAssertEqual(leaf.frame.width * CGFloat(NSCMason.scale), 80, accuracy: 0.5)
+  }
+
   /// A Mason child added as a plain subview of a foreign container (not
   /// through Mason's node tree) should still resolve to a real, non-zero size.
   func test_masonChildInsideForeignContainerResolvesRealSize() {

@@ -1,5 +1,5 @@
-import { CSSType, Utils } from '@nativescript/core';
-import { ViewBase, setRootNativeViewFrame } from '../common';
+import { CSSType } from '@nativescript/core';
+import { ViewBase, setRootNativeViewFrame, setMeasuredFromNative } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
@@ -63,65 +63,11 @@ export class View extends ViewBase {
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
     if (nativeView) {
-      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
-      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-
-      const parentIsMason = this.parent && this.parent[isMasonView_];
-      if (!parentIsMason) {
-        if (pendingAddHosts > 0) flushNativeAddsDeep(this);
-        const unconstrained = widthMode === Utils.layout.UNSPECIFIED || heightMode === Utils.layout.UNSPECIFIED || (widthMode === Utils.layout.AT_MOST && specWidth === 0) || (heightMode === Utils.layout.AT_MOST && specHeight === 0);
-
-        // Compute against the spec's bounds whenever it gives any; max-content only when it doesn't.
-        if (!unconstrained) {
-          // we have explicit constraints from the spec, use them
-          // @ts-ignore
-          this.ios.mason_computeWithSize(specWidth, specHeight);
-          // Tell autoComputeIfRoot this parent size is already handled (so
-          // setting our frame below doesn't trigger a redundant native
-          // compute+apply pass), and hand it the spec — not always the
-          // superview's bounds, e.g. a Page measures against the safe area.
-          // @ts-ignore
-          this.ios.mason_markRootComputeAppliedWithSize(specWidth, specHeight);
-
-          // computeWithSize already applied the layout natively and cached it
-          // on the node — read it back instead of paying for another native
-          // round trip via mason_layout().
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-          return;
-        } else {
-          // Nothing definite to resolve against: measure by max-content so we
-          // don't accidentally collapse to zero.
-          // @ts-ignore
-          this.ios.mason_computeWithMaxContent();
-          // Same as above: prevent autoComputeIfRoot from immediately
-          // overriding this max-content measurement with a constrained
-          // compute against the parent's exact bounds.
-          // @ts-ignore
-          this.ios.mason_markRootComputeApplied();
-          // @ts-ignore
-          const layout = this.ios.node.computedLayout;
-
-          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-          this.setMeasuredDimension(w, h);
-        }
-      } else {
-        // @ts-ignore
-        const layout = this.ios.node.computedLayout;
-        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
-        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
-
-        this.setMeasuredDimension(w, h);
-      }
+      const root = !this.parent?.[isMasonView_];
+      if (root && pendingAddHosts > 0) flushNativeAddsDeep(this);
+      // One native call computes a root for the host's specs, or reads a child's placed box.
+      // @ts-ignore
+      setMeasuredFromNative(this, nativeView.mason_measure(widthMeasureSpec, heightMeasureSpec, root, false));
     }
   }
 

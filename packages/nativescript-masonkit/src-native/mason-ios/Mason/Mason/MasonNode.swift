@@ -279,6 +279,10 @@ public class MasonNode: NSObject {
   internal var nestedComputePending = false
   internal var nestedComputeWidth: Float = 0
   internal var nestedComputeHeight: Float = 0
+  // Root measures made during an outer compute, see `deferredRootSize` in MasonElement.swift.
+  internal var deferredRootSizes: [MasonRootSize] = []
+  internal var settledRootSizes: [MasonRootSize] = []
+  internal weak var deferredRootLeaf: UIView? = nil
   
   public internal(set) var document: MasonDocument? = nil
   
