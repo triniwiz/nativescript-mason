@@ -39,6 +39,8 @@ jobs:
         run: npm run test:jsx-types
       - name: Typecheck the plugin
         run: npx tsc -p packages/nativescript-masonkit/tsconfig.json --noEmit
+      - name: Type-check the public consumer API
+        run: npx tsc -p tools/testing/consumer-types/tsconfig.json
 
   rust:
     name: mason-core

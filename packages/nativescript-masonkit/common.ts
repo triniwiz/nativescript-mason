@@ -1422,7 +1422,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return found;
   }
 
-  getChildIndex(child: NSView) {
+  getChildIndex(child: unknown) {
     let index = -1;
     let i = 0;
     this._eachViewChild((c) => {
