@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -445,19 +446,86 @@ namespace mason_scroll
         ApplyPendingSeek(element);
     }
 
-    // block/inline: 0 start, 1 center, 2 end, 3 nearest.
+    inline std::pair<int32_t, int32_t> PhysicalModes(int32_t block, int32_t inlineMode, uint8_t writingMode, bool rtl)
+    {
+        auto flipped = [](int32_t mode) { return mode == 0 ? 2 : mode == 2 ? 0 : mode; };
+        const int32_t along = rtl ? flipped(inlineMode) : inlineMode;
+        if (writingMode == 1) return { flipped(block), along };
+        if (writingMode == 2) return { block, along };
+        return { along, block };
+    }
+
+    inline double Align(double start, double size, double at, double port, int32_t mode)
+    {
+        const double end = start + size;
+        switch (mode)
+        {
+        case 0: return start;
+        case 1: return start + size / 2 - port / 2;
+        case 2: return end - port;
+        default:
+            // CSSOM "nearest".
+            if (start < at && end > at + port) return at;
+            if ((start < at && size <= port) || (end > at + port && size > port)) return start;
+            if ((start < at && size > port) || (end > at + port && size <= port)) return end - port;
+            return at;
+        }
+    }
+
+    // block/inline: 0 start, 1 center, 2 end, 3 nearest, along each Mason scroller's own axes.
     inline void ScrollIntoView(mux::UIElement const& element, int32_t block, int32_t inlineMode, bool smooth)
     {
         if (!element) return;
         element.UpdateLayout();
-        auto ratio = [](int32_t mode)
+        // A scroll container is aligned as its ScrollViewer's box, not its content.
+        mux::UIElement target = element;
+        if (auto own = ScrollerOf(element)) target = own;
+        auto fe = target.try_as<mux::FrameworkElement>();
+        if (!fe) return;
+        const winrt::Windows::Foundation::Rect bounds{ 0.0f, 0.0f, static_cast<float>(fe.ActualWidth()), static_cast<float>(fe.ActualHeight()) };
+        // ChangeTo lands later, so outer scrollers see the target where it will be.
+        double shiftX = 0, shiftY = 0;
+        for (auto parent = mux::Media::VisualTreeHelper::GetParent(target); parent; parent = mux::Media::VisualTreeHelper::GetParent(parent))
         {
-            return mode == 0 ? 0.0 : mode == 1 ? 0.5 : mode == 2 ? 1.0 : std::numeric_limits<double>::quiet_NaN();
-        };
-        mux::BringIntoViewOptions options;
-        options.AnimationDesired(smooth);
-        options.VerticalAlignmentRatio(ratio(block));
-        options.HorizontalAlignmentRatio(ratio(inlineMode));
-        element.StartBringIntoView(options);
+            auto sv = parent.try_as<muxc::ScrollViewer>();
+            auto content = sv ? sv.Content().try_as<mux::UIElement>() : nullptr;
+            if (!content) continue;
+            auto rect = target.TransformToVisual(content).TransformBounds(bounds);
+            rect.X -= static_cast<float>(shiftX);
+            rect.Y -= static_cast<float>(shiftY);
+            auto mason = content.try_as<nsm::IMasonElement>();
+            auto node = mason ? mason.Node() : nullptr;
+            if (!node)
+            {
+                auto ratio = [](int32_t mode)
+                {
+                    return mode == 0 ? 0.0 : mode == 1 ? 0.5 : mode == 2 ? 1.0 : std::numeric_limits<double>::quiet_NaN();
+                };
+                mux::BringIntoViewOptions options;
+                options.AnimationDesired(smooth);
+                options.VerticalAlignmentRatio(ratio(block));
+                options.HorizontalAlignmentRatio(ratio(inlineMode));
+                options.TargetRect(rect);
+                content.StartBringIntoView(options);
+                return;
+            }
+            if (!sv.IsLoaded()) continue;
+            auto* impl = winrt::get_self<nsm::implementation::Node>(node);
+            const auto [modeX, modeY] = PhysicalModes(block, inlineMode, mason_node_get_writing_mode(impl->MasonPtr(), impl->NodePtr()),
+                mason_node_get_direction(impl->MasonPtr(), impl->NodePtr()) != 0);
+            double h = sv.HorizontalOffset(), v = sv.VerticalOffset();
+            if (auto it = RequestedOffsets().find(IdentityOf(sv)); it != RequestedOffsets().end()) std::tie(h, v) = it->second;
+            const double maxX = sv.ScrollableWidth(), maxY = sv.ScrollableHeight();
+            // A right-to-left ScrollViewer counts its offset from the right.
+            const bool rl = sv.FlowDirection() == mux::FlowDirection::RightToLeft;
+            const double left = rl ? maxX - h : h;
+            auto clamp = [](double value, double max) { return (std::min)((std::max)(value, 0.0), (std::max)(max, 0.0)); };
+            const double x = clamp(Align(rect.X, rect.Width, left, sv.ViewportWidth(), modeX), maxX);
+            const double y = clamp(Align(rect.Y, rect.Height, v, sv.ViewportHeight(), modeY), maxY);
+            if (x == left && y == v) continue;
+            ChangeTo(sv, rl ? maxX - x : x, y, smooth);
+            shiftX += x - left;
+            shiftY += y - v;
+        }
     }
 }
