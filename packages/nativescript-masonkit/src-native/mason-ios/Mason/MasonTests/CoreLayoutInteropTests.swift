@@ -37,6 +37,50 @@ final class CoreLayoutInteropTests: XCTestCase {
     mason = nil
   }
 
+  func test_droppedForeignViewReleasesItsNodeAndEngine() {
+    weak var releasedView: UIView?
+    weak var releasedNode: MasonNode?
+    weak var releasedMason: NSCMason?
+    autoreleasepool {
+      let engine = NSCMason()
+      let view = UIView()
+      releasedMason = engine
+      releasedView = view
+      releasedNode = engine.nodeForView(view)
+    }
+    XCTAssertNil(releasedView, "the engine must not keep a foreign view alive")
+    XCTAssertNil(releasedNode)
+    XCTAssertNil(releasedMason, "foreign nodes must not form an engine retain cycle")
+  }
+
+  func test_removedForeignViewAndNodeAreReleased() {
+    let root = MasonUIView(mason: mason)
+    weak var releasedView: UIView?
+    weak var releasedNode: MasonNode?
+    autoreleasepool {
+      let child = UIView()
+      root.addView(child)
+      releasedView = child
+      releasedNode = mason.nodeForView(child)
+      root.removeView(child)
+    }
+    XCTAssertNil(releasedView)
+    XCTAssertNil(releasedNode)
+    XCTAssertTrue(root.node.children.isEmpty)
+  }
+
+  func test_clearingAnEngineOnlyReleasesItsOwnForeignNodes() {
+    let engine = NSCMason()
+    let otherEngine = NSCMason()
+    let view = UIView()
+    weak var previous = engine.nodeForView(view)
+    let otherNode = otherEngine.nodeForView(view)
+    engine.clear()
+    XCTAssertNil(previous)
+    XCTAssertTrue(otherEngine.nodeForView(view) === otherNode)
+    XCTAssertNotNil(engine.nodeForView(view).nativePtr)
+  }
+
   /// A Mason root's compute must not deadlock when measuring a foreign leaf
   /// whose `sizeThatFits` forces layout on a nested Mason root. If this
   /// regresses, this test never returns.

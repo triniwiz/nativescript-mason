@@ -14,7 +14,9 @@ import FontManager
 public class NSCMason: NSObject {
   public internal(set) var nativePtr: OpaquePointer?
   internal var nodes: [Int64: MasonNode] = [:]
-  internal var viewNodes: [UIView: MasonNode] = [:]
+  // Views with a node from nodeForView, only walked by clear(). The node itself
+  // is associated with its view, so the engine retains neither.
+  private let foreignViews = NSHashTable<UIView>.weakObjects()
 
   // True while Rust holds a lock during compute — prevents a nested Mason
   // root from re-entering Rust on the same thread and deadlocking.
@@ -67,21 +69,22 @@ public class NSCMason: NSObject {
   }
   
   public func nodeForView(_ view: UIView, _ isLeaf: Bool = true) -> MasonNode{
-    if let view = view as? MasonElement{
+    // Keyed by engine so each engine keeps its own node. The node retains its
+    // engine, so the key address can't be reused while the association lives.
+    let key = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
+    if let node = objc_getAssociatedObject(view, key) as? MasonNode { return node }
+    // Callers mostly pass foreign views, so the protocol cast only runs on a miss.
+    if let view = view as? MasonElement {
       return view.node
     }
-    
-    guard let node = viewNodes[view] else {
-      let node = MasonNode(mason: self)
-      node.view = view
-      if(isLeaf){
-        // Set measure function for all leaf nodes (inline elements)
-        node.setDefaultMeasureFunction()
-      }
-      
-      viewNodes[view] = node
-      return node
+    let node = MasonNode(mason: self)
+    node.view = view
+    if isLeaf {
+      // Set measure function for all leaf nodes (inline elements)
+      node.setDefaultMeasureFunction()
     }
+    objc_setAssociatedObject(view, key, node, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    foreignViews.add(view)
     return node
   }
   
@@ -242,9 +245,14 @@ public class NSCMason: NSObject {
   
   
   public func clear(){
-    mason_clear(nativePtr)
+    // Release Swift nodes first: their deinit still talks to their Rust nodes.
     nodes.removeAll()
-    viewNodes.removeAll()
+    let key = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
+    for view in foreignViews.allObjects {
+      objc_setAssociatedObject(view, key, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+    foreignViews.removeAllObjects()
+    mason_clear(nativePtr)
   }
   
   
