@@ -76,6 +76,8 @@ pub(crate) struct TreeInner {
     // instead of unconditionally re-scanning every node on every layout pass.
     pub(crate) has_floats: bool,
     pub(crate) has_scroll_containers: bool,
+    // Skips writing-mode syncs until some node declares a writing mode.
+    pub(crate) has_writing_modes: bool,
     // Set when a node is removed from `nodes`; tells compute_layout's
     // sanitize pass it needs to scrub stale ids from `children`.
     pub(crate) structure_dirty: bool,
@@ -103,6 +105,7 @@ impl TreeInner {
             float_context: Default::default(),
             has_floats: false,
             has_scroll_containers: false,
+            has_writing_modes: false,
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
@@ -125,6 +128,7 @@ impl TreeInner {
             style_arena: Box::new(StyleArena::with_capacity(&[0u8; STYLE_BUFFER_SIZE], value)),
             has_floats: false,
             has_scroll_containers: false,
+            has_writing_modes: false,
             structure_dirty: false,
             viewport_height: None,
             uid: next_tree_uid(),
@@ -1252,6 +1256,8 @@ impl Tree {
         drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue(), &self.2);
 
         self.sync_details();
+        // A detached subtree computed as its own root no longer inherits a mode.
+        Self::sync_writing_mode(&mut self.inner_mut(), root.into());
 
         // Hold both locks for the whole pass so its many short-lived guards skip the atomics.
         let (tree_lock, data_lock) = (Arc::clone(&self.0), Arc::clone(&self.2));
@@ -1651,7 +1657,48 @@ impl Tree {
             Some(old_parent) => old_parent != parent,
             None => true,
         };
+        Self::sync_writing_mode(tree, child);
         res
+    }
+
+    /// Cache keys ignore the inherited writing mode, so when `id`'s resolved mode
+    /// differs from the one its caches were built for, clear them for it and every
+    /// descendant inheriting it. O(1) unless the mode actually changed.
+    pub(crate) fn sync_writing_mode(tree: &mut TreeInner, id: Id) {
+        if !tree.has_writing_modes {
+            return;
+        }
+        let Some(node) = tree.nodes.get(id) else {
+            return;
+        };
+        let mode = node.style().get_writing_mode().unwrap_or_else(|| {
+            tree.parents
+                .get(id)
+                .copied()
+                .flatten()
+                .and_then(|parent| tree.nodes.get(parent))
+                .map_or(crate::style::WritingMode::HorizontalTb, |parent| {
+                    parent.cached_writing_mode
+                })
+        });
+        if node.cached_writing_mode == mode {
+            return;
+        }
+        let mut side = block_measure_cache();
+        let mut stack = vec![id];
+        while let Some(current) = stack.pop() {
+            let node = &mut tree.nodes[current];
+            node.cached_writing_mode = mode;
+            node.mark_dirty();
+            side.remove(&block_key(tree.uid, current));
+            if let Some(children) = tree.children.get(current) {
+                stack.extend(children.iter().copied().filter(|&child| {
+                    tree.nodes
+                        .get(child)
+                        .is_some_and(|child| child.style().get_writing_mode().is_none())
+                }));
+            }
+        }
     }
 
     pub fn detach(&mut self, child: Id) {
@@ -1693,7 +1740,7 @@ impl Tree {
             tree.children.insert(parent, children.to_vec());
             for &child in children {
                 Self::detach_inner(tree, child);
-                tree.parents.insert(child, Some(parent));
+                Self::set_parent_inner(tree, child, Some(parent));
             }
             Self::mark_dirty_inner(tree, parent);
             return;
@@ -1728,6 +1775,11 @@ impl Tree {
         current.clear();
         current.extend_from_slice(children);
         Self::mark_dirty_inner(tree, parent);
+        if tree.has_writing_modes {
+            for &child in children {
+                Self::sync_writing_mode(tree, child);
+            }
+        }
 
         if !collectable.is_empty() {
             let mut data = self.2.write();
@@ -1847,7 +1899,7 @@ impl Tree {
 
             // Insert after the reference node
             children.insert(node_pos + 1, node);
-            tree.parents.insert(node, Some(parent));
+            Tree::set_parent_inner(&mut tree, node, Some(parent));
         } else {
             // Detach child from its current parent
             Tree::detach_inner(&mut tree, node);
@@ -1855,7 +1907,7 @@ impl Tree {
             // Re-get children after detach (it may have modified the vec)
             let children = tree.children.get_mut(parent).unwrap();
             children.push(node);
-            tree.parents.insert(node, Some(parent));
+            Tree::set_parent_inner(&mut tree, node, Some(parent));
             Tree::mark_dirty_inner(&mut tree, parent);
             return;
         }
@@ -1889,7 +1941,7 @@ impl Tree {
 
         // Insert before the reference node
         children.insert(node_pos, node);
-        tree.parents.insert(node, Some(parent));
+        Tree::set_parent_inner(&mut tree, node, Some(parent));
 
         Tree::mark_dirty_inner(&mut tree, parent);
     }
@@ -1919,7 +1971,7 @@ impl Tree {
                 children.insert(index.min(children.len()), child);
             }
 
-            tree.parents.insert(child, Some(node));
+            Tree::set_parent_inner(&mut tree, child, Some(node));
 
             Tree::mark_dirty_inner(&mut tree, node);
         }
@@ -2008,6 +2060,7 @@ impl Tree {
         if let Some(n) = tree.nodes.get(node) {
             let style = n.style();
             let floats = style.get_float() != Float::None;
+            let writing_mode = style.get_writing_mode().is_some();
             let overflow = style.get_overflow();
             let scrolls = matches!(
                 overflow.x,
@@ -2022,8 +2075,12 @@ impl Tree {
             if scrolls {
                 tree.has_scroll_containers = true;
             }
+            if writing_mode {
+                tree.has_writing_modes = true;
+            }
         }
         Self::mark_dirty_inner(&mut tree, node);
+        Self::sync_writing_mode(&mut tree, node);
     }
 
     fn mark_dirty_inner(tree: &mut TreeInner, node: Id) {
@@ -2061,7 +2118,7 @@ impl Tree {
             let index = children.iter().position(|&id| id == replaced)?;
             children[index] = child;
             tree.parents.remove(replaced);
-            tree.parents.insert(child, Some(node));
+            Self::set_parent_inner(&mut tree, child, Some(node));
             Self::mark_dirty_inner(&mut tree, node);
         }
 
@@ -2204,6 +2261,7 @@ impl Tree {
         // as disjoint through it.
         let mut sets_float = false;
         let mut sets_scroll_container = false;
+        let mut sets_writing_mode = false;
         let mut changed = true;
         if let Some(node) = tree.nodes.get_mut(node_id) {
             let style = node.style_mut();
@@ -2222,6 +2280,7 @@ impl Tree {
                 || style.non_buffer_snapshot() != non_buffer_before;
 
             sets_float = style.get_float() != Float::None;
+            sets_writing_mode = style.get_writing_mode().is_some();
             let overflow = style.get_overflow();
             sets_scroll_container = matches!(
                 overflow.x,
@@ -2237,12 +2296,16 @@ impl Tree {
         if sets_scroll_container {
             tree.has_scroll_containers = true;
         }
+        if sets_writing_mode {
+            tree.has_writing_modes = true;
+        }
         if changed {
             // A style change can affect this node's contribution to its
             // ancestors' layout (size, flex basis, etc.), so propagate the
             // dirty flag to the root — marking only this node leaves
             // ancestor/root caches stale.
             Tree::mark_dirty_inner(tree, node_id);
+            Tree::sync_writing_mode(tree, node_id);
         }
     }
 }
