@@ -340,11 +340,12 @@ export const paddingProperty = new CssProperty<Style, string>({
 export const whiteSpaceProperty = new CssProperty<Style, string>({
   name: 'whiteSpace',
   cssName: 'white-space',
-  defaultValue: 'normal',
+  // No default: it inherits, so the initial value is a real change under another value.
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.whiteSpace = newValue as never;
+      if (newValue == null) view.unsetInheritedText('whiteSpace');
+      else view.whiteSpace = newValue as never;
     }
   },
 });
@@ -1999,11 +2000,12 @@ export const borderImageProperty = new CssProperty<Style, string>({
 export const fontStretchProperty = new CssProperty<Style, string>({
   name: 'fontStretch',
   cssName: 'font-stretch',
-  defaultValue: 'normal',
+  // No default: it inherits, so the initial value is a real change under another value.
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.fontStretch = newValue as never;
+      if (newValue == null) view.unsetInheritedText('fontStretch');
+      else view.fontStretch = newValue as never;
     }
   },
 });
@@ -2023,11 +2025,12 @@ export const fontFeatureSettingsProperty = new CssProperty<Style, string>({
 export const wordSpacingProperty = new CssProperty<Style, string>({
   name: 'wordSpacing',
   cssName: 'word-spacing',
-  defaultValue: 'normal',
+  // No default: it inherits, so the initial value is a real change under another value.
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.wordSpacing = newValue as never;
+      if (newValue == null) view.unsetInheritedText('wordSpacing');
+      else view.wordSpacing = newValue as never;
     }
   },
 });
@@ -2035,11 +2038,12 @@ export const wordSpacingProperty = new CssProperty<Style, string>({
 export const hyphensProperty = new CssProperty<Style, string>({
   name: 'hyphens',
   cssName: 'hyphens',
-  defaultValue: 'manual',
+  // No default: it inherits, so the initial value is a real change under another value.
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.hyphens = newValue as never;
+      if (newValue == null) view.unsetInheritedText('hyphens');
+      else view.hyphens = newValue as never;
     }
   },
 });
@@ -2406,11 +2410,25 @@ const webkitMaskBoxImageProperty = masonShorthandProperty(webkitMaskBoxImageShor
 export const writingModeProperty = new CssProperty<Style, string>({
   name: 'writingMode',
   cssName: 'writing-mode',
-  defaultValue: 'horizontal-tb',
+  // No default: it inherits, so the initial value is a real change under another value.
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.writingMode = newValue as never;
+      if (newValue == null) view.unsetInheritedText('writingMode');
+      else view.writingMode = newValue as never;
+    }
+  },
+});
+
+export const textOrientationProperty = new CssProperty<Style, string>({
+  name: 'textOrientation',
+  cssName: 'text-orientation',
+  // No default: it inherits, so the initial value is a real change under another value.
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue == null) view.unsetInheritedText('textOrientation');
+      else view.textOrientation = newValue as never;
     }
   },
 });
@@ -2488,6 +2506,7 @@ maskClipProperty.register(Style);
 maskModeProperty.register(Style);
 maskCompositeProperty.register(Style);
 writingModeProperty.register(Style);
+textOrientationProperty.register(Style);
 unicodeBidiProperty.register(Style);
 caretColorProperty.register(Style);
 

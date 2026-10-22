@@ -268,6 +268,8 @@ enum StyleKeys {
   TRANSFORM_ORIGIN_X_VALUE = 600, // f32 (600-603)
   TRANSFORM_ORIGIN_Y_VALUE = 604, // f32 (604-607)
   TRANSFORM_ORIGIN_STATE = 608,
+  TEXT_ORIENTATION = 609, // 0 mixed, 1 upright, 2 sideways
+  TEXT_ORIENTATION_STATE = 610,
   // </style-keys:offsets>
 }
 
@@ -796,12 +798,16 @@ class StateKeys {
   static readonly TEXT_INDENT = StateKeys.flag(79);
   static readonly LINE_CLAMP = StateKeys.flag(80);
   static readonly TRANSFORM_ORIGIN = StateKeys.flag(81);
+  static readonly TEXT_ORIENTATION = StateKeys.flag(82);
   // </style-keys:state>
 
   static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
 
   static readonly FLOW_TYPE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE).or(StateKeys.POSITION).or(StateKeys.FLOAT);
-  static readonly WINDOWS_TEXT = [StateKeys.INVALIDATE_TEXT, StateKeys.FONT_COLOR, StateKeys.DECORATION_LINE, StateKeys.DECORATION_COLOR, StateKeys.TEXT_ALIGN, StateKeys.TEXT_JUSTIFY, StateKeys.FONT_SIZE, StateKeys.TEXT_TRANSFORM, StateKeys.FONT_STYLE, StateKeys.FONT_STYLE_SLANT, StateKeys.TEXT_WRAP, StateKeys.TEXT_OVERFLOW, StateKeys.DECORATION_STYLE, StateKeys.WHITE_SPACE, StateKeys.FONT_WEIGHT, StateKeys.LINE_HEIGHT, StateKeys.VERTICAL_ALIGN, StateKeys.DECORATION_THICKNESS, StateKeys.TEXT_SHADOWS, StateKeys.FONT_FAMILY, StateKeys.LETTER_SPACING, StateKeys.FONT_VARIANT_NUMERIC, StateKeys.WRITING_MODE, StateKeys.UNICODE_BIDI, StateKeys.HYPHENS, StateKeys.WORD_SPACING, StateKeys.FONT_STRETCH, StateKeys.TEXT_INDENT, StateKeys.LINE_CLAMP].reduce((mask, key) => mask.or(key), StateKeys.NONE);
+  static readonly WINDOWS_TEXT = [StateKeys.INVALIDATE_TEXT, StateKeys.FONT_COLOR, StateKeys.DECORATION_LINE, StateKeys.DECORATION_COLOR, StateKeys.TEXT_ALIGN, StateKeys.TEXT_JUSTIFY, StateKeys.FONT_SIZE, StateKeys.TEXT_TRANSFORM, StateKeys.FONT_STYLE, StateKeys.FONT_STYLE_SLANT, StateKeys.TEXT_WRAP, StateKeys.TEXT_OVERFLOW, StateKeys.DECORATION_STYLE, StateKeys.WHITE_SPACE, StateKeys.FONT_WEIGHT, StateKeys.LINE_HEIGHT, StateKeys.VERTICAL_ALIGN, StateKeys.DECORATION_THICKNESS, StateKeys.TEXT_SHADOWS, StateKeys.FONT_FAMILY, StateKeys.LETTER_SPACING, StateKeys.FONT_VARIANT_NUMERIC, StateKeys.WRITING_MODE, StateKeys.UNICODE_BIDI, StateKeys.HYPHENS, StateKeys.WORD_SPACING, StateKeys.FONT_STRETCH, StateKeys.TEXT_INDENT, StateKeys.LINE_CLAMP, StateKeys.TEXT_ORIENTATION].reduce(
+    (mask, key) => mask.or(key),
+    StateKeys.NONE,
+  );
 
   /** The mask as one unsigned 128-bit value (tests and diagnostics). */
   get bits(): bigint {
@@ -1635,6 +1641,18 @@ export function refreshViewportUnits(): void {
     for (let i = 0; i < keys.length; i++) style[keys[i]] = writes.get(keys[i]);
   }
 }
+
+// Inherited text properties a stylesheet can drop back to inheriting: their *_STATE byte.
+const INHERITED_TEXT_STATE = {
+  writingMode: [StyleKeys.WRITING_MODE_STATE, StateKeys.WRITING_MODE],
+  textOrientation: [StyleKeys.TEXT_ORIENTATION_STATE, StateKeys.TEXT_ORIENTATION],
+  hyphens: [StyleKeys.HYPHENS_STATE, StateKeys.HYPHENS],
+  whiteSpace: [StyleKeys.WHITE_SPACE_STATE, StateKeys.WHITE_SPACE],
+  wordSpacing: [StyleKeys.WORD_SPACING_STATE, StateKeys.WORD_SPACING],
+  fontStretch: [StyleKeys.FONT_STRETCH_STATE, StateKeys.FONT_STRETCH],
+} as const;
+
+export type InheritedTextProperty = keyof typeof INHERITED_TEXT_STATE;
 
 export class Style {
   private view_: View;
@@ -7663,6 +7681,58 @@ export class Style {
     return this.writingMode;
   }
 
+  get textOrientation(): 'mixed' | 'upright' | 'sideways' {
+    if (!this.style_view) return 'mixed';
+    const state = getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE);
+    if (!state) return 'mixed';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION)) {
+      case 1:
+        return 'upright';
+      case 2:
+        return 'sideways';
+      default:
+        return 'mixed';
+    }
+  }
+
+  set textOrientation(value: 'mixed' | 'upright' | 'sideways' | 'sideways-right') {
+    let v = -1;
+    switch (value) {
+      case 'mixed':
+        v = 0;
+        break;
+      case 'upright':
+        v = 1;
+        break;
+      case 'sideways':
+      case 'sideways-right':
+        v = 2;
+        break;
+    }
+    if (v === -1) return;
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION, v);
+    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE, 1);
+    this.commitState(StateKeys.TEXT_ORIENTATION);
+  }
+
+  set 'text-orientation'(value: 'mixed' | 'upright' | 'sideways') {
+    this.textOrientation = value;
+  }
+
+  get 'text-orientation'() {
+    return this.textOrientation;
+  }
+
+  /** Lets an inherited text property inherit again, as when its declaration is removed. */
+  unsetInheritedText(name: InheritedTextProperty) {
+    const [state, key] = INHERITED_TEXT_STATE[name];
+    if (!this.style_view || !getUint8(this.style_view, state)) return;
+    this.prepareMut();
+    setUint8(this.style_view, state, 0);
+    this.commitState(key);
+  }
+
   get unicodeBidi(): string {
     if (!this.style_view) return 'normal';
     const state = getUint8(this.style_view, StyleKeys.UNICODE_BIDI_STATE);
@@ -7814,6 +7884,7 @@ export class Style {
       objectPosition: this.objectPosition,
       borderStyle: this.borderStyle,
       writingMode: this.writingMode,
+      textOrientation: this.textOrientation,
       unicodeBidi: this.unicodeBidi,
       hyphens: this.hyphens,
       caretColor: this.caretColor,

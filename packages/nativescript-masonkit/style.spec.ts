@@ -559,6 +559,28 @@ describe('parseLinearGradientCss', () => {
   });
 });
 
+describe('text-orientation', () => {
+  it.each([
+    ['mixed', 0, 'mixed'],
+    ['upright', 1, 'upright'],
+    ['sideways', 2, 'sideways'],
+    ['sideways-right', 2, 'sideways'],
+  ])('%s is stored as %i and reads back as %s', (input, stored, read) => {
+    const t = styleUnderTest();
+    assign(t, 'text-orientation', input);
+    expect(t.getUint8(K.TEXT_ORIENTATION)).toBe(stored);
+    expect(t.getUint8(K.TEXT_ORIENTATION_STATE)).toBe(1);
+    expect((t.style as any).textOrientation).toBe(read);
+  });
+
+  it('an unknown keyword leaves it inherited', () => {
+    const t = styleUnderTest();
+    assign(t, 'textOrientation', 'diagonal');
+    expect(t.getUint8(K.TEXT_ORIENTATION_STATE)).toBe(0);
+    expect((t.style as any).textOrientation).toBe('mixed');
+  });
+});
+
 describe('text-indent', () => {
   it.each(SCALES)('a length is stored in device pixels at scale %i', (scale) => {
     setScreenScale(scale);

@@ -143,6 +143,7 @@ declare module '@nativescript/core/ui/styling/style' {
     inlineSize: string;
     blockSize: string;
     writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
+    textOrientation: 'mixed' | 'upright' | 'sideways';
     unicodeBidi: 'normal' | 'embed' | 'bidi-override';
     backdropFilter: string;
     maskImage: string;
@@ -260,6 +261,7 @@ interface Style {
   inlineSize: string;
   blockSize: string;
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
+  textOrientation: 'mixed' | 'upright' | 'sideways';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   maskImage: string;
@@ -364,6 +366,7 @@ interface IViewBase {
   inlineSize: string;
   blockSize: string;
   writingMode: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
+  textOrientation: 'mixed' | 'upright' | 'sideways';
   unicodeBidi: 'normal' | 'embed' | 'bidi-override';
   backdropFilter: string;
   maskImage: string;

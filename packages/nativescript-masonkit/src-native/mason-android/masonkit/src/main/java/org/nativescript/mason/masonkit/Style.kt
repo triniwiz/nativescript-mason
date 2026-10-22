@@ -511,6 +511,8 @@ object StyleKeys {
   const val TRANSFORM_ORIGIN_X_VALUE = 600 // f32 (600-603)
   const val TRANSFORM_ORIGIN_Y_VALUE = 604 // f32 (604-607)
   const val TRANSFORM_ORIGIN_STATE = 608
+  const val TEXT_ORIENTATION = 609 // 0 mixed, 1 upright, 2 sideways
+  const val TEXT_ORIENTATION_STATE = 610
   // </style-keys:offsets>
   const val TRANSFORM_OP_SIZE = 12
   const val MAX_INLINE_TRANSFORM_OPS = 6
@@ -621,6 +623,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_INDENT = flag(79)
     val LINE_CLAMP = flag(80)
     val TRANSFORM_ORIGIN = flag(81)
+    val TEXT_ORIENTATION = flag(82)
     // </style-keys:state>
 
     /**
@@ -634,7 +637,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       LETTER_SPACING or TEXT_JUSTIFY or BACKGROUND_COLOR or LINE_HEIGHT or
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or
-      TEXT_INDENT or LINE_CLAMP
+      TEXT_INDENT or LINE_CLAMP or TEXT_ORIENTATION
 
     /**
      * The text-affecting subset of [ALL_TEXT] that changes what the native
@@ -644,7 +647,8 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_LAYOUT: StateKeys = FONT_SIZE or FONT_WEIGHT or FONT_STYLE or FONT_FAMILY or
       FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or TEXT_TRANSFORM or LETTER_SPACING or
       TEXT_JUSTIFY or LINE_HEIGHT or TEXT_ALIGN or TEXT_OVERFLOW or WORD_SPACING or
-      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or TEXT_INDENT or LINE_CLAMP
+      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or TEXT_INDENT or LINE_CLAMP or
+      TEXT_ORIENTATION
 
     /**
      * Properties whose change can affect this node's contribution to Taffy
@@ -4658,6 +4662,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   private var memoWritingMode: Byte = 0
   private var memoUnicodeBidi: Byte = 0
   private var memoHyphens: Byte = 0
+  private var memoTextOrientation: Byte = 0
   private var memoTextIndent = 0f
   private var memoTextIndentType: Byte = 0
   private var memoLineClamp = 0
@@ -5345,6 +5350,21 @@ class Style internal constructor(@Transient internal var node: Node) {
       return value
     }
 
+  /** text-orientation: 0 mixed, 1 upright, 2 sideways. */
+  internal val resolvedTextOrientation: Byte
+    get() {
+      if (memoHas(MEMO_TEXT_ORIENTATION)) return memoTextOrientation
+      val state = values.get(StyleKeys.TEXT_ORIENTATION_STATE)
+      val value = if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedTextOrientation ?: values.get(StyleKeys.TEXT_ORIENTATION)
+      } else {
+        values.get(StyleKeys.TEXT_ORIENTATION)
+      }
+      memoTextOrientation = value
+      memoPut(MEMO_TEXT_ORIENTATION)
+      return value
+    }
+
   internal val resolvedUnicodeBidi: Byte
     get() {
       if (memoHas(MEMO_UNICODE_BIDI)) return memoUnicodeBidi
@@ -5874,3 +5894,4 @@ private const val MEMO_HYPHENS = 4
 private const val MEMO_TEXT_ALIGN = 8
 private const val MEMO_TEXT_INDENT = 16
 private const val MEMO_LINE_CLAMP = 32
+private const val MEMO_TEXT_ORIENTATION = 64

@@ -284,6 +284,8 @@ public struct StyleKeys {
   public static let TRANSFORM_ORIGIN_X_VALUE = 600 // f32 (600-603)
   public static let TRANSFORM_ORIGIN_Y_VALUE = 604 // f32 (604-607)
   public static let TRANSFORM_ORIGIN_STATE = 608
+  public static let TEXT_ORIENTATION = 609 // 0 mixed, 1 upright, 2 sideways
+  public static let TEXT_ORIENTATION_STATE = 610
   // </style-keys:offsets>
   public static let TRANSFORM_OP_SIZE = 12
   public static let MAX_INLINE_TRANSFORM_OPS = 6
@@ -422,6 +424,7 @@ public struct StateKeys: Equatable {
   public static let textIndent = StateKeys(79)
   public static let lineClamp = StateKeys(80)
   public static let transformOrigin = StateKeys(81)
+  public static let textOrientation = StateKeys(82)
   // </style-keys:state>
 
   /// Union of all text-relevant keys that may differ in a pseudo buffer.
@@ -867,7 +870,7 @@ public class MasonStyle: NSObject {
     .backgroundColor, .decorationColor, .decorationLine, .decorationStyle,
     .letterSpacing, .lineHeight, .textAlign, .textJustify,
     .verticalAlign, .textShadow, .fontVariantNumeric,
-    .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
+    .hyphens, .wordSpacing, .writingMode, .textOrientation, .unicodeBidi, .fontStretch,
     .decorationThinkness, .listStylePosition, .listStyleType,
     .textIndent, .lineClamp
   ].reduce(StateKeys.none) { $0.union($1) }
@@ -5181,6 +5184,15 @@ extension MasonStyle {
       return parentStyleWithTextValues?.resolvedWritingMode ?? getUInt8(StyleKeys.WRITING_MODE)
     }
     return getUInt8(StyleKeys.WRITING_MODE)
+  }
+
+  /// text-orientation: 0 mixed, 1 upright, 2 sideways.
+  internal var resolvedTextOrientation: UInt8 {
+    let state = getUInt8(StyleKeys.TEXT_ORIENTATION_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedTextOrientation ?? getUInt8(StyleKeys.TEXT_ORIENTATION)
+    }
+    return getUInt8(StyleKeys.TEXT_ORIENTATION)
   }
 
   internal var resolvedUnicodeBidi: UInt8 {
