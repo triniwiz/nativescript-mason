@@ -1,4 +1,5 @@
 use crate::pass_lock::RawRwLock;
+use crate::writing_mode::LayoutFrame;
 use crate::Style;
 use parking_lot::lock_api::MappedRwLockReadGuard;
 use std::ops::Deref;
@@ -12,7 +13,12 @@ use taffy::{
     LengthPercentageAuto, Line, Point, Position, Rect, Size, TextAlign, TrackSizingFunction,
 };
 
-pub struct StyleGuard<'a>(pub(crate) MappedRwLockReadGuard<'a, RawRwLock, Style>);
+/// `.1` is the frame the asking algorithm runs in: sides and sizes are read in it, so a
+/// vertical container's algorithm sees its inline axis as x (see `writing_mode`).
+pub struct StyleGuard<'a>(
+    pub(crate) MappedRwLockReadGuard<'a, RawRwLock, Style>,
+    pub(crate) LayoutFrame,
+);
 
 impl<'a> Deref for StyleGuard<'a> {
     type Target = Style;
@@ -48,16 +54,19 @@ impl<'a> CoreStyle for StyleGuard<'a> {
 
     #[inline(always)]
     fn direction(&self) -> Direction {
+        if self.1.is_vertical() {
+            return Direction::Ltr;
+        }
         self.get_direction()
     }
 
     #[inline(always)]
     fn overflow(&self) -> Point<taffy::Overflow> {
         let flow = self.get_overflow();
-        Point {
+        self.1.point(Point {
             x: flow.x.into(),
             y: flow.y.into(),
-        }
+        })
     }
 
     #[inline(always)]
@@ -71,43 +80,51 @@ impl<'a> CoreStyle for StyleGuard<'a> {
     }
     #[inline(always)]
     fn inset(&self) -> Rect<LengthPercentageAuto> {
-        self.get_inset()
+        self.1.rect(self.get_inset())
     }
 
     #[inline(always)]
     fn size(&self) -> Size<Dimension> {
-        self.get_size()
+        self.1.size(self.get_size())
     }
 
     #[inline(always)]
     fn min_size(&self) -> Size<LengthPercentageAuto> {
-        self.get_min_size()
-            .map(crate::style::dimension_to_length_percentage_auto)
+        self.1.size(
+            self.get_min_size()
+                .map(crate::style::dimension_to_length_percentage_auto),
+        )
     }
 
     #[inline(always)]
     fn max_size(&self) -> Size<LengthPercentageAuto> {
-        self.get_max_size()
-            .map(crate::style::dimension_to_length_percentage_auto)
+        self.1.size(
+            self.get_max_size()
+                .map(crate::style::dimension_to_length_percentage_auto),
+        )
     }
 
     #[inline(always)]
     fn aspect_ratio(&self) -> Option<f32> {
-        self.get_aspect_ratio()
+        let ratio = self.get_aspect_ratio();
+        if self.1.is_vertical() {
+            return ratio.filter(|r| *r != 0.0).map(|r| 1.0 / r);
+        }
+        ratio
     }
 
     #[inline(always)]
     fn margin(&self) -> Rect<LengthPercentageAuto> {
-        self.get_margin()
+        self.1.rect(self.get_margin())
     }
 
     #[inline(always)]
     fn padding(&self) -> Rect<LengthPercentage> {
-        self.get_padding()
+        self.1.rect(self.get_padding())
     }
     #[inline(always)]
     fn border(&self) -> Rect<LengthPercentage> {
-        self.get_border()
+        self.1.rect(self.get_border())
     }
 }
 
@@ -119,16 +136,17 @@ impl<'a> BlockContainerStyle for StyleGuard<'a> {
 }
 
 impl<'a> BlockItemStyle for StyleGuard<'a> {
-    /// A box that sets a vertical writing mode inside horizontal block flow has its width
-    /// sized by its lines, not stretched: `start` makes block layout size an auto width as
-    /// fit-content. Everything else keeps `normal`.
+    /// A box whose writing mode is orthogonal to its block container's (a vertical box in
+    /// horizontal flow, or the reverse) has its inline-axis extent in the container sized by
+    /// its lines, not stretched: `start` makes block layout size it as fit-content.
+    /// Everything else keeps `normal`.
     #[inline(always)]
     fn justify_self(&self) -> Option<AlignSelf> {
-        let vertical = matches!(
-            self.get_writing_mode(),
-            Some(crate::style::WritingMode::VerticalRl | crate::style::WritingMode::VerticalLr)
-        );
-        (vertical && self.get_size().width.is_auto()).then_some(AlignSelf::START)
+        let container_vertical = self.1.is_vertical();
+        let vertical = self.get_writing_mode().map_or(container_vertical, |mode| {
+            mode != crate::style::WritingMode::HorizontalTb
+        });
+        (vertical != container_vertical && self.size().width.is_auto()).then_some(AlignSelf::START)
     }
 
     #[inline(always)]

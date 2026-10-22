@@ -6,6 +6,7 @@ use crate::pass_lock::{PassGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWrit
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
+use crate::writing_mode::LayoutFrame;
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
@@ -555,6 +556,15 @@ impl Tree {
     #[inline(always)]
     fn node_from_id_mut(&mut self, node_id: NodeId) -> MappedRwLockWriteGuard<'_, RawRwLock, Node> {
         RwLockWriteGuard::map(self.0.write(), |v| v.nodes.get_mut(node_id.into()).unwrap())
+    }
+
+    /// Style handed to taffy, read in the frame of the algorithm asking for it.
+    #[inline(always)]
+    fn style_guard(&self, node_id: NodeId) -> StyleGuard<'_> {
+        StyleGuard(
+            self.style_from_id(node_id),
+            crate::writing_mode::current_frame(),
+        )
     }
 
     #[inline(always)]
@@ -1310,6 +1320,7 @@ impl Tree {
 
         {
             let _pass = LayoutPassGuard::enter();
+            let _frame = crate::writing_mode::FramePassGuard::enter();
             compute_root_layout(self, root, available_space);
         }
 
@@ -2363,7 +2374,7 @@ impl LayoutPartialTree for Tree {
     type CustomIdent = Atom;
 
     fn get_core_container_style(&self, node_id: NodeId) -> Self::CoreContainerStyle<'_> {
-        StyleGuard(self.style_from_id(node_id))
+        self.style_guard(node_id)
     }
 
     fn resolve_calc_value(&self, _val: *const (), _basis: f32) -> f32 {
@@ -2392,6 +2403,9 @@ impl LayoutPartialTree for Tree {
         } else {
             let node = tree.node_from_id_mut(node_id);
             node.unrounded_layout = *layout;
+            if crate::writing_mode::current_frame().is_vertical() {
+                crate::writing_mode::record_placed(id);
+            }
         }
     }
 
@@ -2461,6 +2475,22 @@ pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::W
         current = tree.parents.get(n).copied().flatten();
     }
     crate::style::WritingMode::HorizontalTb
+}
+
+/// `id`'s text-orientation (0 mixed, 1 upright, 2 sideways): its own, else the nearest ancestor's.
+pub(crate) fn resolved_text_orientation(tree: &TreeInner, id: Id) -> u8 {
+    use crate::style::StyleKeys;
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(node) = tree.nodes.get(n) {
+            let data = node.style().data();
+            if data[StyleKeys::TEXT_ORIENTATION_STATE as usize] != 0 {
+                return data[StyleKeys::TEXT_ORIENTATION as usize].min(2);
+            }
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    0
 }
 
 pub(crate) fn resolved_direction(tree: &TreeInner, id: Id) -> taffy::style::Direction {
@@ -2593,13 +2623,11 @@ impl taffy::LayoutFlexboxContainer for Tree {
         Self: 'a;
 
     fn get_flexbox_container_style(&self, node_id: NodeId) -> Self::FlexboxContainerStyle<'_> {
-        let style = self.style_from_id(node_id);
-        StyleGuard(style)
+        self.style_guard(node_id)
     }
 
     fn get_flexbox_child_style(&self, child_node_id: NodeId) -> Self::FlexboxItemStyle<'_> {
-        let style = self.style_from_id(child_node_id);
-        StyleGuard(style)
+        self.style_guard(child_node_id)
     }
 }
 
@@ -2615,13 +2643,11 @@ impl taffy::LayoutGridContainer for Tree {
         Self: 'a;
 
     fn get_grid_container_style(&self, node_id: NodeId) -> Self::GridContainerStyle<'_> {
-        let style = self.style_from_id(node_id);
-        StyleGuard(style)
+        self.style_guard(node_id)
     }
 
     fn get_grid_child_style(&self, child_node_id: NodeId) -> Self::GridItemStyle<'_> {
-        let style = self.style_from_id(child_node_id);
-        StyleGuard(style)
+        self.style_guard(child_node_id)
     }
 
     fn set_detailed_grid_info(
@@ -2648,23 +2674,56 @@ impl LayoutBlockContainer for Tree {
         Self: 'a;
 
     fn get_block_container_style(&self, node_id: NodeId) -> Self::BlockContainerStyle<'_> {
-        let style = self.style_from_id(node_id);
-        StyleGuard(style)
+        self.style_guard(node_id)
     }
 
     fn get_block_child_style(&self, child_node_id: NodeId) -> Self::BlockItemStyle<'_> {
-        let style = self.style_from_id(child_node_id);
-        StyleGuard(style)
+        self.style_guard(child_node_id)
     }
 
     fn compute_block_child_layout(
         &mut self,
         node_id: NodeId,
         inputs: LayoutInput,
-        block_ctx: Option<&mut BlockContext<'_>>,
+        mut block_ctx: Option<&mut BlockContext<'_>>,
     ) -> LayoutOutput {
+        let frame = crate::writing_mode::current_frame();
+        if frame.is_vertical() {
+            // Asked by a vertical container's algorithm: the child itself lays out physically.
+            let outer = crate::writing_mode::set_frame(LayoutFrame::Physical);
+            let parallel = self.inner().nodes.get(node_id.into()).is_some_and(|node| {
+                LayoutFrame::from_writing_mode(node.cached_writing_mode).is_vertical()
+            });
+            let outer_child =
+                crate::writing_mode::set_parallel_child(parallel.then_some(node_id.into()));
+            let mut physical = inputs.transpose();
+            if !parallel {
+                // A horizontal child is an orthogonal flow: its line length is its containing
+                // block's width when the container can only offer it an intrinsic size.
+                if physical.known_dimensions.width.is_none()
+                    && !matches!(physical.available_space.width, AvailableSpace::Definite(_))
+                {
+                    if let Some(width) = physical.parent_size.width {
+                        physical.available_space.width = AvailableSpace::Definite(width);
+                    }
+                }
+                physical = fit_orthogonal_inline_size(
+                    self,
+                    node_id.into(),
+                    physical,
+                    false,
+                    &mut |tree, inputs| tree.compute_block_child_layout(node_id, inputs, None),
+                );
+            }
+            let output = self.compute_block_child_layout(node_id, physical, None);
+            crate::writing_mode::set_parallel_child(outer_child);
+            crate::writing_mode::set_frame(outer);
+            return crate::writing_mode::output_to_frame(output, frame);
+        }
         compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
+            let frame = crate::writing_mode::container_frame(tree, id);
+            let mut laid_out_in_frame = false;
             let (has_children, display_mode, display, size, is_text_container, overflow) = {
                 let inner = tree.0.read();
                 let node = inner.nodes.get(id).unwrap();
@@ -2756,7 +2815,21 @@ impl LayoutBlockContainer for Tree {
                                 tree.inner().children.get(id).cloned().unwrap_or_default();
                             tree.compute_mixed_layout(id, children.as_slice(), inputs, block_ctx)
                         } else {
-                            compute_block_layout(tree, node_id, inputs, block_ctx)
+                            in_frame(
+                                tree,
+                                node_id,
+                                inputs,
+                                frame,
+                                &mut laid_out_in_frame,
+                                |t, i, framed| {
+                                    let ctx = if framed {
+                                        None
+                                    } else {
+                                        block_ctx.as_deref_mut()
+                                    };
+                                    compute_block_layout(t, node_id, i, ctx)
+                                },
+                            )
                         };
 
                         // If the block layout produced zero or tiny height despite
@@ -2808,7 +2881,14 @@ impl LayoutBlockContainer for Tree {
                         computed_layout
                     }
                     (Display::Flex, true) => {
-                        let mut computed_layout = compute_flexbox_layout(tree, node_id, inputs);
+                        let mut computed_layout = in_frame(
+                            tree,
+                            node_id,
+                            inputs,
+                            frame,
+                            &mut laid_out_in_frame,
+                            |t, i, _| compute_flexbox_layout(t, node_id, i),
+                        );
                         // Clamp scroll container visible size, preserve content extent
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
@@ -2835,7 +2915,14 @@ impl LayoutBlockContainer for Tree {
                         eprintln!("GRID_TRACE node={:?} known_w={:?} avail_w={:?} parent_w={:?} sizing={:?}",
                             node_id, inputs.known_dimensions.width, inputs.available_space.width,
                             inputs.parent_size.width, inputs.sizing_mode);
-                        let mut computed_layout = compute_grid_layout(tree, node_id, inputs);
+                        let mut computed_layout = in_frame(
+                            tree,
+                            node_id,
+                            inputs,
+                            frame,
+                            &mut laid_out_in_frame,
+                            |t, i, _| compute_grid_layout(t, node_id, i),
+                        );
                         #[cfg(test)]
                         eprintln!(
                             "GRID_TRACE result size={:?} scrollable_overflow_rect={:?}",
@@ -2885,11 +2972,12 @@ impl LayoutBlockContainer for Tree {
                             let is_text_container = node.is_text_container();
                             let vertical =
                                 is_text_container && is_vertical_writing_mode(&inner, id);
-                            let viewport_height = inner.viewport_height;
-                            let containing_height = if vertical {
-                                containing_block_height(&inner, id)
+                            let orthogonal = vertical && !crate::writing_mode::is_parallel_flow(id);
+                            // A vertical container's own child already gets its line length.
+                            let (viewport_height, containing_height) = if orthogonal {
+                                (inner.viewport_height, containing_block_height(&inner, id))
                             } else {
-                                None
+                                (None, None)
                             };
                             let measure = tree.node_data().get(id).unwrap().copy_measure();
                             (
@@ -2905,7 +2993,7 @@ impl LayoutBlockContainer for Tree {
                             )
                         };
 
-                        let inputs = if vertical {
+                        let inputs = if vertical && !crate::writing_mode::is_parallel_flow(id) {
                             orthogonal_flow_inputs(inputs)
                         } else {
                             inputs
@@ -3137,8 +3225,22 @@ impl LayoutBlockContainer for Tree {
                         tree.compute_inline_layout(node_id, inputs, block_ctx)
                     } else {
                         match (display, has_children) {
-                            (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
-                            (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
+                            (Display::Flex, true) => in_frame(
+                                tree,
+                                node_id,
+                                inputs,
+                                frame,
+                                &mut laid_out_in_frame,
+                                |t, i, _| compute_flexbox_layout(t, node_id, i),
+                            ),
+                            (Display::Grid, true) => in_frame(
+                                tree,
+                                node_id,
+                                inputs,
+                                frame,
+                                &mut laid_out_in_frame,
+                                |t, i, _| compute_grid_layout(t, node_id, i),
+                            ),
                             (Display::Block | Display::FlowRoot, true) => {
                                 let analysis = tree.analyze_subtree(id);
                                 if analysis.all_inline {
@@ -3153,7 +3255,21 @@ impl LayoutBlockContainer for Tree {
                                         block_ctx,
                                     )
                                 } else {
-                                    compute_block_layout(tree, node_id, inputs, block_ctx)
+                                    in_frame(
+                                        tree,
+                                        node_id,
+                                        inputs,
+                                        frame,
+                                        &mut laid_out_in_frame,
+                                        |t, i, framed| {
+                                            let ctx = if framed {
+                                                None
+                                            } else {
+                                                block_ctx.as_deref_mut()
+                                            };
+                                            compute_block_layout(t, node_id, i, ctx)
+                                        },
+                                    )
                                 }
                             }
                             _ => {
@@ -3277,13 +3393,148 @@ impl LayoutBlockContainer for Tree {
 
             // Lay out the out-of-flow boxes for which this node is the containing block;
             // the rest keep bubbling up via `output.oof_candidates`.
-            if inputs.run_mode == taffy::RunMode::PerformLayout {
+            // (A vertical container ran this pass in its own frame.)
+            if inputs.run_mode == taffy::RunMode::PerformLayout && !laid_out_in_frame {
                 taffy::compute_oof_layout(tree, node_id, &mut output);
             }
 
             output
         })
     }
+}
+
+/// Runs a taffy container algorithm, in the node's own frame when it is a vertical container.
+#[inline]
+fn in_frame(
+    tree: &mut Tree,
+    node_id: NodeId,
+    inputs: LayoutInput,
+    frame: LayoutFrame,
+    laid_out_in_frame: &mut bool,
+    mut algorithm: impl FnMut(&mut Tree, LayoutInput, bool) -> LayoutOutput,
+) -> LayoutOutput {
+    if !frame.is_vertical() {
+        return algorithm(tree, inputs, false);
+    }
+    *laid_out_in_frame = true;
+    let id: Id = node_id.into();
+    let mut run = |tree: &mut Tree, inputs: LayoutInput| {
+        crate::writing_mode::layout_in_frame(tree, node_id, inputs, frame, |t, i| {
+            algorithm(t, i, true)
+        })
+    };
+    if crate::writing_mode::is_parallel_flow(id) {
+        return run(tree, inputs);
+    }
+    let inputs = vertical_container_inputs(&tree.inner(), id, inputs);
+    let inputs = fit_orthogonal_inline_size(tree, id, inputs, true, &mut run);
+    run(tree, inputs)
+}
+
+/// A vertical container's inline size is its height. With none known, CSS takes the containing
+/// block's definite height (not an available height an auto-height parent offers), else the
+/// viewport height, as for vertical text.
+fn vertical_container_inputs(tree: &TreeInner, id: Id, mut inputs: LayoutInput) -> LayoutInput {
+    if inputs.known_dimensions.height.is_none() {
+        let line = inputs
+            .parent_size
+            .height
+            .or_else(|| containing_block_height(tree, id))
+            .or(tree.viewport_height);
+        inputs.available_space.height =
+            line.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite);
+    }
+    inputs
+}
+
+/// A box whose writing mode is orthogonal to its container's, with an auto inline size, is
+/// fit-content in its definite available inline space (CSS Writing Modes 7.3). `vertical` says
+/// the box's inline axis is its height.
+pub(crate) fn fit_orthogonal_inline_size(
+    tree: &mut Tree,
+    id: Id,
+    mut inputs: LayoutInput,
+    vertical: bool,
+    measure: &mut impl FnMut(&mut Tree, LayoutInput) -> LayoutOutput,
+) -> LayoutInput {
+    let inline = |s: Size<f32>| if vertical { s.height } else { s.width };
+    let (known, available) = if vertical {
+        (
+            inputs.known_dimensions.height,
+            inputs.available_space.height,
+        )
+    } else {
+        (inputs.known_dimensions.width, inputs.available_space.width)
+    };
+    let AvailableSpace::Definite(available) = available else {
+        return inputs;
+    };
+    if known.is_some() {
+        return inputs;
+    }
+    // The box's min and max inline size, as border-box lengths.
+    let Some((min, max)) = tree.inner().nodes.get(id).and_then(|node| {
+        let style = node.style();
+        let pick = |s: Size<taffy::Dimension>| if vertical { s.height } else { s.width };
+        if !pick(style.get_size()).is_auto() {
+            return None;
+        }
+        let basis = if vertical {
+            inputs.parent_size.height
+        } else {
+            inputs.parent_size.width
+        };
+        let edges = if style.get_box_sizing() == taffy::BoxSizing::ContentBox {
+            let pb = style
+                .get_padding()
+                .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0)
+                + style
+                    .border()
+                    .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0);
+            if vertical {
+                pb.top + pb.bottom
+            } else {
+                pb.left + pb.right
+            }
+        } else {
+            0.0
+        };
+        let min = pick(style.get_min_size()).maybe_resolve(basis, |_, _| 0.0);
+        let max = pick(style.get_max_size()).maybe_resolve(basis, |_, _| 0.0);
+        Some((min.map(|v| v + edges), max.map(|v| v + edges)))
+    }) else {
+        return inputs;
+    };
+    let mut probe = |tree: &mut Tree, space: AvailableSpace| {
+        let mut probe = LayoutInput {
+            run_mode: taffy::RunMode::ComputeSize,
+            ..inputs
+        };
+        if vertical {
+            probe.available_space.height = space;
+        } else {
+            probe.available_space.width = space;
+        }
+        inline(measure(tree, probe).size)
+    };
+    let max_content = probe(tree, AvailableSpace::MaxContent);
+    let mut size = if max_content <= available {
+        max_content
+    } else {
+        probe(tree, AvailableSpace::MinContent).max(available)
+    };
+    if let Some(max) = max {
+        size = size.min(max);
+    }
+    if let Some(min) = min {
+        size = size.max(min);
+    }
+    if vertical {
+        inputs.known_dimensions.height = Some(size);
+    } else {
+        inputs.known_dimensions.width = Some(size);
+    }
+    inputs
 }
 
 impl RoundTree for Tree {
@@ -3321,7 +3572,7 @@ impl taffy::LayoutContainingBlock for Tree {
         Self: 'a;
 
     fn get_oof_item_style(&self, node_id: NodeId) -> Self::OofItemStyle<'_> {
-        StyleGuard(self.style_from_id(node_id))
+        self.style_guard(node_id)
     }
 
     fn clear_hoisted_children(&mut self, node_id: NodeId) {

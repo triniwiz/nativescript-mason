@@ -1467,10 +1467,22 @@ impl Tree {
             let known = transpose(known_dimensions);
             let (containing_height, viewport_height) = {
                 let inner = self.inner();
-                (
-                    crate::tree::containing_block_height(&inner, child_id),
-                    inner.viewport_height,
-                )
+                // Under a vertical container the offered height already is the line length.
+                let parallel = crate::writing_mode::is_parallel_flow(child_id)
+                    || inner
+                        .parents
+                        .get(child_id)
+                        .copied()
+                        .flatten()
+                        .is_some_and(crate::writing_mode::is_parallel_flow);
+                if parallel {
+                    (None, None)
+                } else {
+                    (
+                        crate::tree::containing_block_height(&inner, child_id),
+                        inner.viewport_height,
+                    )
+                }
             };
             let available = with_viewport_line_length(
                 known,
@@ -2432,7 +2444,7 @@ impl Tree {
     ) -> LayoutOutput {
         let id: Id = node_id.into();
         let vertical_box = crate::tree::is_vertical_writing_mode(&self.inner(), id);
-        let inputs = if vertical_box {
+        let inputs = if vertical_box && !crate::writing_mode::is_parallel_flow(id) {
             crate::tree::orthogonal_flow_inputs(inputs)
         } else {
             inputs
@@ -2530,11 +2542,13 @@ impl Tree {
                     .map(|h| (h - pb.top - pb.bottom).max(0.0)),
             };
             let content_box_available_space = Size {
-                width: match available_space.width {
-                    AvailableSpace::Definite(w) => {
+                width: match (content_box_parent_size.width, available_space.width) {
+                    // Its own definite width is the line length, whatever the parent offers.
+                    (Some(w), _) => AvailableSpace::Definite(w),
+                    (_, AvailableSpace::Definite(w)) => {
                         AvailableSpace::Definite((w - pb.left - pb.right).max(0.0))
                     }
-                    other => other,
+                    (_, other) => other,
                 },
                 height: match (
                     vertical_box,

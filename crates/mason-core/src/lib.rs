@@ -38,6 +38,7 @@ pub mod style;
 mod tree;
 mod tree_inline;
 pub mod utils;
+mod writing_mode;
 
 #[inline]
 pub(crate) fn scrollable_overflow_rect_from_size(size: Size<f32>) -> Rect<f32> {
@@ -798,6 +799,12 @@ impl Mason {
     /// The writing mode `node_id` lays its text out in: its own, else the nearest ancestor's.
     pub fn resolved_writing_mode(&self, node_id: Id) -> crate::style::WritingMode {
         crate::tree::resolved_writing_mode(&self.0.inner(), node_id)
+    }
+
+    /// `text-orientation` for `node_id`'s vertical text, inherited like the writing mode:
+    /// 0 mixed, 1 upright, 2 sideways.
+    pub fn resolved_text_orientation(&self, node_id: Id) -> u8 {
+        crate::tree::resolved_text_orientation(&self.0.inner(), node_id)
     }
 
     pub fn is_rtl(&self, node_id: Id) -> bool {

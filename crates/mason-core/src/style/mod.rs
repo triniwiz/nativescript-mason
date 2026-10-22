@@ -702,6 +702,8 @@ pub enum StyleKeys {
     TRANSFORM_ORIGIN_X_VALUE = 600, // f32 (600-603)
     TRANSFORM_ORIGIN_Y_VALUE = 604, // f32 (604-607)
     TRANSFORM_ORIGIN_STATE = 608,
+    TEXT_ORIENTATION = 609, // 0 mixed, 1 upright, 2 sideways
+    TEXT_ORIENTATION_STATE = 610,
     // </style-keys:offsets>
 }
 
@@ -829,6 +831,7 @@ bitflags! {
         const TEXT_INDENT = 1u128 << 79;
         const LINE_CLAMP = 1u128 << 80;
         const TRANSFORM_ORIGIN = 1u128 << 81;
+        const TEXT_ORIENTATION = 1u128 << 82;
         // </style-keys:state>
     }
 }

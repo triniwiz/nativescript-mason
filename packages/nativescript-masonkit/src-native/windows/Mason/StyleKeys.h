@@ -253,6 +253,8 @@ namespace mason_style_keys
     inline constexpr uint32_t kTransformOriginXValue = 600; // f32 (600-603)
     inline constexpr uint32_t kTransformOriginYValue = 604; // f32 (604-607)
     inline constexpr uint32_t kTransformOriginState = 608;
+    inline constexpr uint32_t kTextOrientation = 609; // 0 mixed, 1 upright, 2 sideways
+    inline constexpr uint32_t kTextOrientationState = 610;
 }
 
 // Bit numbers of the 128-bit style dirty mask.
@@ -340,4 +342,5 @@ namespace mason_state_keys
     inline constexpr uint32_t kTextIndent = 79;
     inline constexpr uint32_t kLineClamp = 80;
     inline constexpr uint32_t kTransformOrigin = 81;
+    inline constexpr uint32_t kTextOrientation = 82;
 }

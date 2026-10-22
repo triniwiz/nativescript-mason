@@ -265,6 +265,8 @@ TRANSFORM_ORIGIN_Y_TYPE              u8
 TRANSFORM_ORIGIN_X_VALUE             f32
 TRANSFORM_ORIGIN_Y_VALUE             f32
 TRANSFORM_ORIGIN_STATE               u8
+TEXT_ORIENTATION                     u8           # 0 mixed, 1 upright, 2 sideways
+TEXT_ORIENTATION_STATE               u8
 
 [state]
 DISPLAY
@@ -349,3 +351,4 @@ FONT_STRETCH
 TEXT_INDENT
 LINE_CLAMP
 TRANSFORM_ORIGIN
+TEXT_ORIENTATION
