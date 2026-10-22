@@ -20,7 +20,7 @@
     "@nativescript-dom/solidjs-types": "~1.0.25",
     "@nativescript/android": "~9.1.1",
     "@nativescript/ios": "~9.1.0",
-    "@nativescript/tailwind": "~2.1.0",
+    "@nativescript/tailwind": "~4.0.10",
     "@nativescript/types": "~9.1.2",
     "@nativescript/webpack": "https://pkg.pr.new/@nativescript/webpack@11515",
     "@nativescript/windows": "1.0.0-beta.9",
@@ -29,7 +29,7 @@
     "babel-preset-solid": "^1.8.19",
     "nativescript": "9.1.2-dev.2026-09-24-36031892256",
     "solid-refresh": "^0.7.5",
-    "tailwindcss": "~3.4.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "~5.9.0"
   },
   "scripts": {
