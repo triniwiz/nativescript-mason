@@ -49,6 +49,10 @@ import kotlin.math.abs
 
 val white_space = "\\s+".toRegex()
 
+// Paint and metrics for drawing upright glyphs in vertical text; draws run on the UI thread.
+private val uprightPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+private val uprightGlyphMetrics = Paint.FontMetrics()
+
 internal class ThemelessContext private constructor(base: Context, template: android.widget.TextView) :
   ContextThemeWrapper(base, base.resources.newTheme()) {
   // The paint a themed platform TextView starts with (flags, typeface, density, locale).
@@ -250,10 +254,13 @@ open class TextView @JvmOverloads constructor(
   private fun resolveDrawnLayout(): android.text.Layout? {
     if (engine.isVerticalWritingMode) {
       val lineLength = height - paddingTop - paddingBottom
-      if (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength))) {
+      if (floatAwareStaticLayout == null) floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(textPaint)
+      if (floatAwareStaticLayout == null &&
+        (cachedStaticLayout == null || (lineLength > 0 && !cachedStaticLayoutFits(lineLength)))
+      ) {
         engine.rebuildCachedStaticLayout(textPaint, lineLength)
       }
-      val layout = cachedStaticLayout ?: return null
+      val layout = floatAwareStaticLayout ?: cachedStaticLayout ?: return null
       drawnLayout = layout
       if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
       return layout
@@ -340,6 +347,7 @@ open class TextView @JvmOverloads constructor(
       c.translate((width - paddingRight).toFloat(), top)
       c.rotate(90f)
       layout.draw(c)
+      drawUprightGlyphs(c, layout)
       if (decorations) TextDecorations.draw(c, layout)
       c.restoreToCount(save)
       return
@@ -352,7 +360,56 @@ open class TextView @JvmOverloads constructor(
       c.rotate(90f)
       c.clipRect(0, lineTop, layout.width, lineBottom)
       layout.draw(c)
+      drawUprightGlyphs(c, layout, i)
       if (decorations) TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+    }
+  }
+
+  /**
+   * text-orientation: glyphs kept upright are painted clear in the sideways [layout] (see
+   * [Spans.UprightGlyphSpan]); draw each turned back, centred in its cell on the line's central
+   * baseline. [onlyLine] limits it to one line, for vertical-lr's per-line draw.
+   */
+  private fun drawUprightGlyphs(c: Canvas, layout: android.text.Layout, onlyLine: Int = -1) {
+    val text = layout.text as? android.text.Spanned ?: return
+    val spans = text.getSpans(0, text.length, Spans.UprightGlyphSpan::class.java)
+    if (spans.isEmpty()) return
+    val paint = uprightPaint
+    for (span in spans) {
+      val start = text.getSpanStart(span)
+      val end = text.getSpanEnd(span)
+      val line = layout.getLineForOffset(start)
+      if (onlyLine >= 0 && line != onlyLine) continue
+      val ellipsis = layout.getEllipsisCount(line)
+      if (ellipsis > 0 && start >= layout.getLineStart(line) + layout.getEllipsisStart(line)) continue
+      paint.set(layout.paint)
+      for (style in text.getSpans(start, end, android.text.style.CharacterStyle::class.java)) {
+        if (style !is Spans.UprightGlyphSpan) style.updateDrawState(paint)
+      }
+      paint.letterSpacing = 0f
+      paint.textScaleX = 1f
+      paint.textAlign = Paint.Align.LEFT
+      val cell = span.cell(paint) ?: continue
+      // A combined run is set horizontally, squeezed into its cell.
+      if (span.combined) paint.textScaleX = minOf(1f, cell.advance / paint.measureText(span.glyph))
+      else if (span.wide) paint.fontFeatureSettings = withVerticalForms(paint.fontFeatureSettings)
+      paint.getFontMetrics(uprightGlyphMetrics)
+      // A half-width mark's glyph is centred on its full cell, of which it keeps one half.
+      val cx = layout.getPrimaryHorizontal(start) + when (span.half) {
+        PUNCTUATION_OPENING -> 0f
+        PUNCTUATION_CLOSING -> cell.advance
+        else -> cell.advance / 2f
+      }
+      val cy = layout.getLineBaseline(line) + (uprightGlyphMetrics.ascent + uprightGlyphMetrics.descent) / 2f
+      val glyphWidth = paint.measureText(span.glyph)
+      // Full-width glyphs centre their em box (0.12em below the baseline to 0.88em above it),
+      // as CSS's central baseline does; others their ascent and descent.
+      val baseline = if (span.wide) cy + 0.38f * paint.textSize
+      else cy - (uprightGlyphMetrics.ascent + uprightGlyphMetrics.descent) / 2f
+      val save = c.save()
+      c.rotate(-90f, cx, cy)
+      c.drawText(span.glyph, cx - glyphWidth / 2f, baseline, paint)
       c.restoreToCount(save)
     }
   }
@@ -814,14 +871,10 @@ open class TextView @JvmOverloads constructor(
     // CSS px to device pixels by display density. Must stay in sync with iOS
     // MasonText.swift's equivalent call.
     val density = node.mason.displayMetrics(this).density
-    // ua = [fontSize, marginTop, marginBottom, marginLeft, marginRight]
+    // ua = [fontSize, marginTop, marginBottom, marginLeft, marginRight], set as `margin-block` and
+    // `margin-inline` so vertical text gets them on its left and right.
     val uaMargin = { ua: FloatArray ->
-      Rect<LengthPercentageAuto>(
-        top = LengthPercentageAuto.Points(ua[1] * density),
-        right = LengthPercentageAuto.Points(ua[4] * density),
-        bottom = LengthPercentageAuto.Points(ua[2] * density),
-        left = LengthPercentageAuto.Points(ua[3] * density),
-      )
+      node.style.setLogicalMargin(ua[1] * density, ua[4] * density, ua[2] * density, ua[3] * density)
     }
 
     setPadding(0, 0, 0, 0)
@@ -845,7 +898,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h1") // fontSize 2em, margin 0.67em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.H2 -> {
@@ -853,7 +906,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h2") // fontSize 1.5em, margin 0.83em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.H3 -> {
@@ -861,7 +914,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h3") // fontSize 1.17em ≈ 18.72, margin 1em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.H4 -> {
@@ -869,7 +922,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h4") // fontSize 1em (16), margin 1.33em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.H5 -> {
@@ -877,7 +930,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.H6 -> {
@@ -885,7 +938,7 @@ open class TextView @JvmOverloads constructor(
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
           fontSize = ua[0]
-          node.style.margin = uaMargin(ua)
+          uaMargin(ua)
         }
 
         TextType.Li -> {
@@ -897,7 +950,7 @@ open class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           node.style.display = Display.Block
-          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("blockquote")) // 1em 40px
+          uaMargin(Mason.nativeUaDefaultForTag("blockquote")) // 1em 40px
         }
 
         TextType.B, TextType.Strong -> {
@@ -909,7 +962,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontFamily = "monospace"
           whiteSpace = Styles.WhiteSpace.Pre
-          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("pre")) // 1em
+          uaMargin(Mason.nativeUaDefaultForTag("pre")) // 1em
         }
 
         TextType.I, TextType.Em -> {
@@ -919,7 +972,7 @@ open class TextView @JvmOverloads constructor(
 
         TextType.P -> {
           node.style.display = Display.Block
-          node.style.margin = uaMargin(Mason.nativeUaDefaultForTag("p")) // 1em
+          uaMargin(Mason.nativeUaDefaultForTag("p")) // 1em
         }
 
         TextType.A -> {

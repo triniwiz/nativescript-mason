@@ -258,8 +258,30 @@ Inline elements are not clamped.
 | `direction` | `ltr`, `rtl` |
 | `unicode-bidi` | `normal`, `embed`, `bidi-override`, `isolate`, `isolate-override`, `plaintext` |
 | `writing-mode` | `horizontal-tb`, `vertical-rl`, `vertical-lr` |
+| `text-orientation` | `mixed`, `upright`, `sideways` |
+| `text-combine-upright` | `none`, `all`, `digits` (2 to 4) |
+| `text-spacing-trim` | `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all`, `auto` |
 
-Logical properties (`margin-inline-start`, `padding-block`, ...) map for horizontal left-to-right text regardless of `direction`. See [Box model and sizing](/styling/box-model).
+Vertical writing modes are covered in [Block, inline and float](/styling/flow#writing-modes).
+
+Logical properties (`margin-inline-start`, `padding-block`, ...) follow `direction` and the writing mode. See [Box model and sizing](/styling/box-model#logical-properties).
+
+### text-spacing-trim
+
+Full-width punctuation gives up the blank half of its em in some places, as in browsers. It inherits and applies to horizontal and vertical text.
+
+| Value | Set half-width |
+| --- | --- |
+| `normal`, `auto` | An opening bracket after another punctuation mark, and a closing mark before a closing mark or a middle dot (`・：；`): `」「` and `。」` take 1.5em instead of 2em. A closing bracket that would end a line if it were half-width, rather than move to the next line. |
+| `space-first` | As `normal`, and an opening bracket starting a line, except the first line and lines after a forced break |
+| `trim-start` | As `normal`, and an opening bracket starting any line |
+| `trim-both` | As `trim-start`, and a closing mark ending any line |
+| `trim-all` | Every full-width punctuation mark |
+| `space-all` | Nothing |
+
+As in Chrome, a line-end comma or full stop (`、。，．`) isn't set half-width just to fit the line. Chrome doesn't support `trim-both`, `trim-all` and `auto`; MasonKit follows the CSS Text 4 definitions for them.
+
+Mason removes the blank half itself on iOS, so any CJK font works. Windows, as Chrome, trims only marks whose font has half-width forms (`halt`, and `vhal` for upright marks in vertical text): Yu Gothic does; Yu Gothic UI, the Japanese fallback, and MS Gothic don't, so their punctuation keeps its spacing. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
 
 ## Color
 

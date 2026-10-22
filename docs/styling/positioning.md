@@ -31,7 +31,7 @@ As on the web, `static` is the default, so an absolutely positioned box looks pa
 
 ## Insets
 
-`top`, `right`, `bottom`, `left` and the `inset` shorthand (one to four values, like `margin`) accept lengths, percentages and `auto`. Percentages resolve against the containing block: `left`/`right` against its width, `top`/`bottom` against its height. The logical forms (`inset-inline`, `inset-block`, `inset-inline-start`, ...) are also accepted, mapped for left-to-right text.
+`top`, `right`, `bottom`, `left` and the `inset` shorthand (one to four values, like `margin`) accept lengths, percentages and `auto`. Percentages resolve against the containing block: `left`/`right` against its width, `top`/`bottom` against its height. The logical forms (`inset-inline`, `inset-block`, `inset-inline-start`, ...) are also accepted and follow the writing mode and direction; see [Logical properties](/styling/box-model#logical-properties).
 
 ```css
 .overlay {

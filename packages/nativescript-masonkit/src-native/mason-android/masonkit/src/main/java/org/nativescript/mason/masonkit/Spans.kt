@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import androidx.core.graphics.withSave
 import kotlin.math.roundToInt
 
+
 class Spans {
   enum class Type {
     View,
@@ -25,7 +26,8 @@ class Spans {
     Tracking,
     LetterSpacing,
     Size,
-    Typeface
+    Typeface,
+    Upright
   }
 
   interface NSCSpan {
@@ -165,6 +167,67 @@ class Spans {
       if (textSize > 0f) {
         tp.letterSpacing = letterSpacingPx / textSize
       }
+    }
+  }
+
+  /**
+   * A grapheme kept upright in vertical text (see VerticalText.kt). Its advance along the
+   * sideways line is scaled to its upright cell (see [uprightCell]), and it paints clear:
+   * TextView draws it upright in that cell. Scaled, not letter-spaced: Minikin drops letter
+   * spacing at a line's start. With [combined] it's a text-combine-upright run: its text set
+   * horizontally in one 1em cell, squeezed to fit.
+   */
+  class UprightGlyphSpan(
+    internal val glyph: String,
+    internal val wide: Boolean,
+    internal val rotated: Boolean,
+    internal val combined: Boolean = false,
+    /** text-spacing-trim: PUNCTUATION_OPENING or _CLOSING keeps that half of the cell, 0 all of it. */
+    internal val half: Int = 0,
+  ) : android.text.style.MetricAffectingSpan(), NSCSpan {
+    override val type: Type
+      get() = Type.Upright
+
+    // The cell for the paint last asked about: measure and draw ask with the same one, many
+    // times per layout. One reference, so a layout on another thread sees a whole memo.
+    private class Memo(
+      val typeface: Typeface?, val size: Float, val features: String?, val variations: String?, val cell: UprightCell?,
+    )
+
+    private var memo: Memo? = null
+
+    /** Its cell in [paint], or null when it stays sideways (see [uprightCell]). */
+    internal fun cell(paint: Paint): UprightCell? {
+      val variations = variationsOf(paint)
+      memo?.let {
+        if (it.size == paint.textSize && it.typeface === paint.typeface &&
+          it.features == paint.fontFeatureSettings && it.variations == variations
+        ) return it.cell
+      }
+      var cell = if (combined) UprightCell(paint.textSize) else uprightCell(glyph, wide, rotated, paint)
+      if (half != 0 && cell != null) cell = UprightCell(cell.advance / 2f)
+      memo = Memo(paint.typeface, paint.textSize, paint.fontFeatureSettings, variations, cell)
+      return cell
+    }
+
+    // Returns whether the glyph is upright.
+    private fun fillCell(tp: TextPaint): Boolean {
+      if (tp.textSize <= 0f) return false
+      val cell = cell(tp) ?: return false
+      val spacing = tp.letterSpacing
+      tp.letterSpacing = 0f
+      val advance = tp.measureText(glyph)
+      tp.letterSpacing = spacing
+      if (advance > 0f) tp.textScaleX *= cell.advance / advance
+      return true
+    }
+
+    override fun updateMeasureState(textPaint: TextPaint) {
+      fillCell(textPaint)
+    }
+
+    override fun updateDrawState(tp: TextPaint) {
+      if (fillCell(tp)) tp.alpha = 0
     }
   }
 

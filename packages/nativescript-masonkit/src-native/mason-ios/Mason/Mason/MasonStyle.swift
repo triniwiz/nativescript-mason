@@ -36,7 +36,7 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 
 public struct StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-  public static let STYLE_BUFFER_SIZE = 612
+  public static let STYLE_BUFFER_SIZE = 744
 
   public static let DISPLAY = 0
   public static let POSITION = 1
@@ -284,6 +284,59 @@ public struct StyleKeys {
   public static let TRANSFORM_ORIGIN_X_VALUE = 600 // f32 (600-603)
   public static let TRANSFORM_ORIGIN_Y_VALUE = 604 // f32 (604-607)
   public static let TRANSFORM_ORIGIN_STATE = 608
+  public static let TEXT_ORIENTATION = 609 // 0 mixed, 1 upright, 2 sideways
+  public static let TEXT_ORIENTATION_STATE = 610
+
+  // CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+  // A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+  // min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+  // never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+  // maps to when it was written after that side's physical one. Types are the physical group's.
+  public static let LOGICAL_SEQ = 611
+  public static let MARGIN_ORDER = 612 // bytes(8) (612-619)
+  public static let MARGIN_BLOCK_START_TYPE = 620
+  public static let MARGIN_INLINE_END_TYPE = 621
+  public static let MARGIN_BLOCK_END_TYPE = 622
+  public static let MARGIN_INLINE_START_TYPE = 623
+  public static let MARGIN_BLOCK_START_VALUE = 624 // f32 (624-627)
+  public static let MARGIN_INLINE_END_VALUE = 628 // f32 (628-631)
+  public static let MARGIN_BLOCK_END_VALUE = 632 // f32 (632-635)
+  public static let MARGIN_INLINE_START_VALUE = 636 // f32 (636-639)
+  public static let PADDING_ORDER = 640 // bytes(8) (640-647)
+  public static let PADDING_BLOCK_START_TYPE = 648
+  public static let PADDING_INLINE_END_TYPE = 649
+  public static let PADDING_BLOCK_END_TYPE = 650
+  public static let PADDING_INLINE_START_TYPE = 651
+  public static let PADDING_BLOCK_START_VALUE = 652 // f32 (652-655)
+  public static let PADDING_INLINE_END_VALUE = 656 // f32 (656-659)
+  public static let PADDING_BLOCK_END_VALUE = 660 // f32 (660-663)
+  public static let PADDING_INLINE_START_VALUE = 664 // f32 (664-667)
+  public static let INSET_ORDER = 668 // bytes(8) (668-675)
+  public static let INSET_BLOCK_START_TYPE = 676
+  public static let INSET_INLINE_END_TYPE = 677
+  public static let INSET_BLOCK_END_TYPE = 678
+  public static let INSET_INLINE_START_TYPE = 679
+  public static let INSET_BLOCK_START_VALUE = 680 // f32 (680-683)
+  public static let INSET_INLINE_END_VALUE = 684 // f32 (684-687)
+  public static let INSET_BLOCK_END_VALUE = 688 // f32 (688-691)
+  public static let INSET_INLINE_START_VALUE = 692 // f32 (692-695)
+  public static let SIZE_ORDER = 696 // bytes(12) (696-707)
+  public static let INLINE_SIZE_TYPE = 708
+  public static let BLOCK_SIZE_TYPE = 709
+  public static let MIN_INLINE_SIZE_TYPE = 710
+  public static let MIN_BLOCK_SIZE_TYPE = 711
+  public static let MAX_INLINE_SIZE_TYPE = 712
+  public static let MAX_BLOCK_SIZE_TYPE = 713
+  public static let INLINE_SIZE_VALUE = 714 // f32 (714-717)
+  public static let BLOCK_SIZE_VALUE = 718 // f32 (718-721)
+  public static let MIN_INLINE_SIZE_VALUE = 722 // f32 (722-725)
+  public static let MIN_BLOCK_SIZE_VALUE = 726 // f32 (726-729)
+  public static let MAX_INLINE_SIZE_VALUE = 730 // f32 (730-733)
+  public static let MAX_BLOCK_SIZE_VALUE = 734 // f32 (734-737)
+  public static let TEXT_COMBINE_UPRIGHT = 738 // 0 none, 1 all, 2-4 digits (that many)
+  public static let TEXT_COMBINE_UPRIGHT_STATE = 739
+  public static let TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+  public static let TEXT_SPACING_TRIM_STATE = 741
   // </style-keys:offsets>
   public static let TRANSFORM_OP_SIZE = 12
   public static let MAX_INLINE_TRANSFORM_OPS = 6
@@ -422,6 +475,9 @@ public struct StateKeys: Equatable {
   public static let textIndent = StateKeys(79)
   public static let lineClamp = StateKeys(80)
   public static let transformOrigin = StateKeys(81)
+  public static let textOrientation = StateKeys(82)
+  public static let textCombineUpright = StateKeys(83)
+  public static let textSpacingTrim = StateKeys(84)
   // </style-keys:state>
 
   /// Union of all text-relevant keys that may differ in a pseudo buffer.
@@ -809,7 +865,71 @@ public class MasonStyle: NSObject {
   }
   
   internal func setOrAppendState(_ value: StateKeys) {
+    clearLogicalSides(value)
     setStateFromHalves(value.low, value.high)
+  }
+
+  // MARK: CSS logical sides (see StyleKeys.LOGICAL_SEQ)
+
+  private static let logicalStamps: [(order: Int, length: Int)] = [
+    (StyleKeys.MARGIN_ORDER, 8), (StyleKeys.PADDING_ORDER, 8), (StyleKeys.INSET_ORDER, 8), (StyleKeys.SIZE_ORDER, 12),
+  ]
+  private static let logicalGroups: [(key: StateKeys, order: Int, half: Int)] = [
+    (.margin, StyleKeys.MARGIN_ORDER, 4), (.padding, StyleKeys.PADDING_ORDER, 4), (.inset, StyleKeys.INSET_ORDER, 4),
+    (StateKeys.size.union(.minSize).union(.maxSize), StyleKeys.SIZE_ORDER, 6),
+  ]
+  private static let logicalKeys = logicalGroups.reduce(StateKeys(low: 0, high: 0)) { $0.union($1.key) }
+
+  /// A native write of a box side is a physical declaration: the group's logical sides (the
+  /// UA margins) give way to it. The TypeScript layer stamps sides one by one instead.
+  private func clearLogicalSides(_ value: StateKeys) {
+    if !value.contains(MasonStyle.logicalKeys) { return }
+    var prepared = false
+    for (key, order, half) in MasonStyle.logicalGroups where value.contains(key) {
+      for i in 0..<half where getUInt8(order + half + i) != 0 {
+        // The buffer may be shared with other nodes.
+        if !prepared {
+          prepareMut()
+          prepared = true
+        }
+        setUInt8(order + half + i, 0)
+      }
+    }
+  }
+
+  /// The next write stamp; at the counter's end every stamp is renumbered by rank, keeping their order.
+  private func nextLogicalStamp() -> UInt8 {
+    var seq = getUInt8(StyleKeys.LOGICAL_SEQ)
+    if seq == UInt8.max {
+      var used = [Bool](repeating: false, count: 256)
+      for (order, length) in MasonStyle.logicalStamps {
+        for i in 0..<length { used[Int(getUInt8(order + i))] = true }
+      }
+      var rank = [UInt8](repeating: 0, count: 256)
+      var next: UInt8 = 0
+      for stamp in 1..<256 where used[stamp] {
+        next += 1
+        rank[stamp] = next
+      }
+      for (order, length) in MasonStyle.logicalStamps {
+        for i in 0..<length { setUInt8(order + i, rank[Int(getUInt8(order + i))]) }
+      }
+      seq = next
+    }
+    setUInt8(StyleKeys.LOGICAL_SEQ, seq + 1)
+    return seq + 1
+  }
+
+  /// Margins as logical sides, in device px, so a vertical box gets them on its block axis:
+  /// a block text element's UA margins (`margin-block`, `margin-inline`).
+  internal func setLogicalMargin(blockStart: Float, inlineEnd: Float, blockEnd: Float, inlineStart: Float) {
+    prepareMut()
+    for (slot, value) in [blockStart, inlineEnd, blockEnd, inlineStart].enumerated() {
+      setUInt8(StyleKeys.MARGIN_ORDER + 4 + slot, nextLogicalStamp())
+      setInt8(StyleKeys.MARGIN_BLOCK_START_TYPE + slot, 1)
+      setFloat(StyleKeys.MARGIN_BLOCK_START_VALUE + slot * 4, value)
+    }
+    setStateFromHalves(StateKeys.margin.low, StateKeys.margin.high)
   }
 
   // Helpers to set full 128-bit masks (low/high halves)
@@ -867,7 +987,7 @@ public class MasonStyle: NSObject {
     .backgroundColor, .decorationColor, .decorationLine, .decorationStyle,
     .letterSpacing, .lineHeight, .textAlign, .textJustify,
     .verticalAlign, .textShadow, .fontVariantNumeric,
-    .hyphens, .wordSpacing, .writingMode, .unicodeBidi, .fontStretch,
+    .hyphens, .wordSpacing, .writingMode, .textOrientation, .textCombineUpright, .textSpacingTrim, .unicodeBidi, .fontStretch,
     .decorationThinkness, .listStylePosition, .listStyleType,
     .textIndent, .lineClamp
   ].reduce(StateKeys.none) { $0.union($1) }
@@ -5181,6 +5301,33 @@ extension MasonStyle {
       return parentStyleWithTextValues?.resolvedWritingMode ?? getUInt8(StyleKeys.WRITING_MODE)
     }
     return getUInt8(StyleKeys.WRITING_MODE)
+  }
+
+  /// text-orientation: 0 mixed, 1 upright, 2 sideways.
+  /// text-spacing-trim: 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
+  internal var resolvedTextSpacingTrim: UInt8 {
+    let state = getUInt8(StyleKeys.TEXT_SPACING_TRIM_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedTextSpacingTrim ?? getUInt8(StyleKeys.TEXT_SPACING_TRIM)
+    }
+    return getUInt8(StyleKeys.TEXT_SPACING_TRIM)
+  }
+
+  /// text-combine-upright: 0 none, 1 all, 2-4 digits (that many).
+  internal var resolvedTextCombineUpright: UInt8 {
+    let state = getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedTextCombineUpright ?? getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT)
+    }
+    return getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT)
+  }
+
+  internal var resolvedTextOrientation: UInt8 {
+    let state = getUInt8(StyleKeys.TEXT_ORIENTATION_STATE)
+    if state == StyleState.INHERIT {
+      return parentStyleWithTextValues?.resolvedTextOrientation ?? getUInt8(StyleKeys.TEXT_ORIENTATION)
+    }
+    return getUInt8(StyleKeys.TEXT_ORIENTATION)
   }
 
   internal var resolvedUnicodeBidi: UInt8 {

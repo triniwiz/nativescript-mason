@@ -46,10 +46,11 @@ export class Text extends TextBase {
       style.display = 'block';
       if (ua[0] > 0) style.fontSize = ua[0];
       if (!Tree.instance.preflight) {
-        style.marginTop = ua[1];
-        style.marginBottom = ua[2];
-        style.marginLeft = ua[3];
-        style.marginRight = ua[4];
+        // margin-block and margin-inline, so vertical text gets them on its left and right.
+        style.setLogical('margin', 0, ua[1]);
+        style.setLogical('margin', 1, ua[4]);
+        style.setLogical('margin', 2, ua[2]);
+        style.setLogical('margin', 3, ua[3]);
       }
     }
     if (tag === 'li') {

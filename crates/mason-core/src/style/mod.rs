@@ -702,6 +702,59 @@ pub enum StyleKeys {
     TRANSFORM_ORIGIN_X_VALUE = 600, // f32 (600-603)
     TRANSFORM_ORIGIN_Y_VALUE = 604, // f32 (604-607)
     TRANSFORM_ORIGIN_STATE = 608,
+    TEXT_ORIENTATION = 609, // 0 mixed, 1 upright, 2 sideways
+    TEXT_ORIENTATION_STATE = 610,
+
+    // CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+    // A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+    // min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+    // never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+    // maps to when it was written after that side's physical one. Types are the physical group's.
+    LOGICAL_SEQ = 611,
+    MARGIN_ORDER = 612, // bytes(8) (612-619)
+    MARGIN_BLOCK_START_TYPE = 620,
+    MARGIN_INLINE_END_TYPE = 621,
+    MARGIN_BLOCK_END_TYPE = 622,
+    MARGIN_INLINE_START_TYPE = 623,
+    MARGIN_BLOCK_START_VALUE = 624,  // f32 (624-627)
+    MARGIN_INLINE_END_VALUE = 628,   // f32 (628-631)
+    MARGIN_BLOCK_END_VALUE = 632,    // f32 (632-635)
+    MARGIN_INLINE_START_VALUE = 636, // f32 (636-639)
+    PADDING_ORDER = 640,             // bytes(8) (640-647)
+    PADDING_BLOCK_START_TYPE = 648,
+    PADDING_INLINE_END_TYPE = 649,
+    PADDING_BLOCK_END_TYPE = 650,
+    PADDING_INLINE_START_TYPE = 651,
+    PADDING_BLOCK_START_VALUE = 652,  // f32 (652-655)
+    PADDING_INLINE_END_VALUE = 656,   // f32 (656-659)
+    PADDING_BLOCK_END_VALUE = 660,    // f32 (660-663)
+    PADDING_INLINE_START_VALUE = 664, // f32 (664-667)
+    INSET_ORDER = 668,                // bytes(8) (668-675)
+    INSET_BLOCK_START_TYPE = 676,
+    INSET_INLINE_END_TYPE = 677,
+    INSET_BLOCK_END_TYPE = 678,
+    INSET_INLINE_START_TYPE = 679,
+    INSET_BLOCK_START_VALUE = 680,  // f32 (680-683)
+    INSET_INLINE_END_VALUE = 684,   // f32 (684-687)
+    INSET_BLOCK_END_VALUE = 688,    // f32 (688-691)
+    INSET_INLINE_START_VALUE = 692, // f32 (692-695)
+    SIZE_ORDER = 696,               // bytes(12) (696-707)
+    INLINE_SIZE_TYPE = 708,
+    BLOCK_SIZE_TYPE = 709,
+    MIN_INLINE_SIZE_TYPE = 710,
+    MIN_BLOCK_SIZE_TYPE = 711,
+    MAX_INLINE_SIZE_TYPE = 712,
+    MAX_BLOCK_SIZE_TYPE = 713,
+    INLINE_SIZE_VALUE = 714,     // f32 (714-717)
+    BLOCK_SIZE_VALUE = 718,      // f32 (718-721)
+    MIN_INLINE_SIZE_VALUE = 722, // f32 (722-725)
+    MIN_BLOCK_SIZE_VALUE = 726,  // f32 (726-729)
+    MAX_INLINE_SIZE_VALUE = 730, // f32 (730-733)
+    MAX_BLOCK_SIZE_VALUE = 734,  // f32 (734-737)
+    TEXT_COMBINE_UPRIGHT = 738,  // 0 none, 1 all, 2-4 digits (that many)
+    TEXT_COMBINE_UPRIGHT_STATE = 739,
+    TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+    TEXT_SPACING_TRIM_STATE = 741,
     // </style-keys:offsets>
 }
 
@@ -829,6 +882,9 @@ bitflags! {
         const TEXT_INDENT = 1u128 << 79;
         const LINE_CLAMP = 1u128 << 80;
         const TRANSFORM_ORIGIN = 1u128 << 81;
+        const TEXT_ORIENTATION = 1u128 << 82;
+        const TEXT_COMBINE_UPRIGHT = 1u128 << 83;
+        const TEXT_SPACING_TRIM = 1u128 << 84;
         // </style-keys:state>
     }
 }
@@ -876,6 +932,8 @@ pub struct Style {
     // Generates no box, like `display: none`, while leaving the author's `display` alone
     // (a closed <details>' content).
     pub(crate) hidden: bool,
+    // The box's resolved (inherited) writing mode, which maps its logical sides.
+    pub(crate) writing_mode: WritingMode,
 }
 
 impl Clone for Style {
@@ -889,6 +947,7 @@ impl Clone for Style {
             device_scale: self.device_scale.clone(),
             handle: self.handle,
             hidden: self.hidden,
+            writing_mode: self.writing_mode,
         }
     }
 }
@@ -1181,6 +1240,7 @@ impl Style {
             device_scale: None,
             handle,
             hidden: false,
+            writing_mode: WritingMode::HorizontalTb,
         }
     }
 
@@ -1672,7 +1732,7 @@ impl Style {
         )
     }
 
-    pub fn get_inset(&self) -> Rect<LengthPercentageAuto> {
+    fn physical_inset(&self) -> Rect<LengthPercentageAuto> {
         let data = self.data();
         unsafe {
             let mut inset_type = [0i8; 4];
@@ -1703,6 +1763,7 @@ impl Style {
 
     pub fn set_inset(&mut self, value: Rect<LengthPercentageAuto>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::INSET_ORDER, 8, 0b1111);
         let (lt, lv) = length_percentage_auto_to_type_value(value.left);
         let (rt, rv) = length_percentage_auto_to_type_value(value.right);
         let (tt, tv) = length_percentage_auto_to_type_value(value.top);
@@ -1731,6 +1792,7 @@ impl Style {
 
     pub fn set_left_inset(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::INSET_ORDER, 8, 0b1000);
         let left = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::INSET_LEFT_TYPE, left.0);
         set_style_data_f32(self.data_mut(), StyleKeys::INSET_LEFT_VALUE, left.1);
@@ -1745,6 +1807,7 @@ impl Style {
 
     pub fn set_right_inset(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::INSET_ORDER, 8, 0b10);
         let right = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::INSET_RIGHT_TYPE, right.0);
         set_style_data_f32(self.data_mut(), StyleKeys::INSET_RIGHT_VALUE, right.1);
@@ -1759,6 +1822,7 @@ impl Style {
 
     pub fn set_top_inset(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::INSET_ORDER, 8, 0b1);
         let top = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::INSET_TOP_TYPE, top.0);
         set_style_data_f32(self.data_mut(), StyleKeys::INSET_TOP_VALUE, top.1);
@@ -1773,6 +1837,7 @@ impl Style {
 
     pub fn set_bottom_inset(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::INSET_ORDER, 8, 0b100);
         let bottom = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::INSET_BOTTOM_TYPE, bottom.0);
         set_style_data_f32(self.data_mut(), StyleKeys::INSET_BOTTOM_VALUE, bottom.1);
@@ -1785,7 +1850,7 @@ impl Style {
         )
     }
 
-    pub fn get_margin(&self) -> Rect<LengthPercentageAuto> {
+    fn physical_margin(&self) -> Rect<LengthPercentageAuto> {
         let data = self.data();
         unsafe {
             let mut margin_type = [0i8; 4];
@@ -1816,6 +1881,7 @@ impl Style {
 
     pub fn set_margin(&mut self, value: Rect<LengthPercentageAuto>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::MARGIN_ORDER, 8, 0b1111);
         let (lt, lv) = length_percentage_auto_to_type_value(value.left);
         let (rt, rv) = length_percentage_auto_to_type_value(value.right);
         let (tt, tv) = length_percentage_auto_to_type_value(value.top);
@@ -1844,6 +1910,7 @@ impl Style {
 
     pub fn set_left_margin(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::MARGIN_ORDER, 8, 0b1000);
         let left = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_LEFT_TYPE, left.0);
         set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_LEFT_VALUE, left.1);
@@ -1858,6 +1925,7 @@ impl Style {
 
     pub fn set_right_margin(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::MARGIN_ORDER, 8, 0b10);
         let right = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_RIGHT_TYPE, right.0);
         set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_RIGHT_VALUE, right.1);
@@ -1872,6 +1940,7 @@ impl Style {
 
     pub fn set_top_margin(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::MARGIN_ORDER, 8, 0b1);
         let top = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_TOP_TYPE, top.0);
         set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_TOP_VALUE, top.1);
@@ -1886,6 +1955,7 @@ impl Style {
 
     pub fn set_bottom_margin(&mut self, value: LengthPercentageAuto) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::MARGIN_ORDER, 8, 0b100);
         let bottom = length_percentage_auto_to_type_value(value);
         set_style_data_i8(self.data_mut(), StyleKeys::MARGIN_BOTTOM_TYPE, bottom.0);
         set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_BOTTOM_VALUE, bottom.1);
@@ -1898,7 +1968,7 @@ impl Style {
         )
     }
 
-    pub fn get_padding(&self) -> Rect<LengthPercentage> {
+    fn physical_padding(&self) -> Rect<LengthPercentage> {
         let data = self.data();
         unsafe {
             let mut padding_type = [0i8; 4];
@@ -1929,6 +1999,7 @@ impl Style {
 
     pub fn set_padding(&mut self, value: Rect<LengthPercentage>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::PADDING_ORDER, 8, 0b1111);
 
         let (lt, lv) = length_percentage_to_type_value(value.left);
         let (rt, rv) = length_percentage_to_type_value(value.right);
@@ -2015,7 +2086,7 @@ impl Style {
         }
     }
 
-    pub fn get_size(&self) -> Size<Dimension> {
+    fn physical_size(&self) -> Size<Dimension> {
         let data = self.data();
         unsafe {
             let mut size_type = [0i8; 2];
@@ -2043,6 +2114,7 @@ impl Style {
 
     pub fn set_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b11);
         let (wt, wv) = dimension_to_type_value(value.width);
         let (ht, hv) = dimension_to_type_value(value.height);
 
@@ -2081,6 +2153,7 @@ impl Style {
 
     pub fn set_width(&mut self, value: Dimension) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b1);
         let data = self.data_mut();
         let width = dimension_to_type_value(value);
         set_style_data_i8(data, StyleKeys::WIDTH_TYPE, width.0);
@@ -2089,13 +2162,14 @@ impl Style {
 
     pub fn set_height(&mut self, value: Dimension) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b10);
         let data = self.data_mut();
         let height = dimension_to_type_value(value);
         set_style_data_i8(data, StyleKeys::HEIGHT_TYPE, height.0);
         set_style_data_f32(data, StyleKeys::HEIGHT_VALUE, height.1);
     }
 
-    pub fn get_min_size(&self) -> Size<Dimension> {
+    fn physical_min_size(&self) -> Size<Dimension> {
         let data = self.data();
         unsafe {
             let mut size_type = [0i8; 2];
@@ -2123,6 +2197,7 @@ impl Style {
 
     pub fn set_min_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b1100);
         let (wt, wv) = dimension_to_type_value(value.width);
         let (ht, hv) = dimension_to_type_value(value.height);
 
@@ -2147,6 +2222,7 @@ impl Style {
 
     pub fn set_min_width(&mut self, value: Dimension) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b100);
         let data = self.data_mut();
         let width = dimension_to_type_value(value);
         set_style_data_i8(data, StyleKeys::MIN_WIDTH_TYPE, width.0);
@@ -2155,13 +2231,14 @@ impl Style {
 
     pub fn set_min_height(&mut self, value: Dimension) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b1000);
         let data = self.data_mut();
         let height = dimension_to_type_value(value);
         set_style_data_i8(data, StyleKeys::MIN_HEIGHT_TYPE, height.0);
         set_style_data_f32(data, StyleKeys::MIN_HEIGHT_VALUE, height.1);
     }
 
-    pub fn get_max_size(&self) -> Size<Dimension> {
+    fn physical_max_size(&self) -> Size<Dimension> {
         let data = self.data();
         unsafe {
             let mut size_type = [0i8; 2];
@@ -2189,6 +2266,7 @@ impl Style {
 
     pub fn set_max_size(&mut self, value: Size<Dimension>) {
         self.prepare_mut();
+        self.stamp_physical(StyleKeys::SIZE_ORDER, 12, 0b110000);
         let (wt, wv) = dimension_to_type_value(value.width);
         let (ht, hv) = dimension_to_type_value(value.height);
 
@@ -2391,6 +2469,21 @@ impl Style {
         crate::utils::writing_mode_from_enum(
             get_style_data_u8(self.data(), StyleKeys::WRITING_MODE) as i8,
         )
+    }
+
+    pub fn get_text_orientation(&self) -> Option<u8> {
+        if get_style_data_u8(self.data(), StyleKeys::TEXT_ORIENTATION_STATE) == 0 {
+            return None;
+        }
+        Some(get_style_data_u8(self.data(), StyleKeys::TEXT_ORIENTATION).min(2))
+    }
+
+    /// text-combine-upright: 0 none, 1 all, 2-4 digits (that many); None when inherited.
+    pub fn get_text_combine_upright(&self) -> Option<u8> {
+        if get_style_data_u8(self.data(), StyleKeys::TEXT_COMBINE_UPRIGHT_STATE) == 0 {
+            return None;
+        }
+        Some(get_style_data_u8(self.data(), StyleKeys::TEXT_COMBINE_UPRIGHT).min(4))
     }
 
     pub fn set_writing_mode(&mut self, value: WritingMode) {
@@ -3252,5 +3345,280 @@ impl GridItemStyle for Style {
             AbsoluteAxis::Horizontal => self.grid_column(),
             AbsoluteAxis::Vertical => self.grid_row(),
         }
+    }
+}
+
+// Logical sides, in the order of a group's logical slots.
+const BLOCK_START: usize = 0;
+const INLINE_END: usize = 1;
+const BLOCK_END: usize = 2;
+const INLINE_START: usize = 3;
+
+fn set_rect_side<T>(rect: &mut Rect<T>, side: usize, value: T) {
+    match side {
+        0 => rect.top = value,
+        1 => rect.right = value,
+        2 => rect.bottom = value,
+        _ => rect.left = value,
+    }
+}
+
+impl Style {
+    /// For each physical side (top, right, bottom, left), the logical side on it in this box's
+    /// writing mode and direction.
+    fn logical_sides_on(&self) -> [usize; 4] {
+        let rtl = self.get_direction() == Direction::Rtl;
+        let (start, end) = if rtl {
+            (INLINE_END, INLINE_START)
+        } else {
+            (INLINE_START, INLINE_END)
+        };
+        match self.writing_mode {
+            WritingMode::HorizontalTb => [BLOCK_START, end, BLOCK_END, start],
+            WritingMode::VerticalRl => [start, BLOCK_START, end, BLOCK_END],
+            WritingMode::VerticalLr => [start, BLOCK_END, end, BLOCK_START],
+        }
+    }
+
+    /// For each physical side, the logical slot that wins it: one written after the side's own
+    /// physical value. None when the group has no logical values.
+    #[inline]
+    fn logical_winners(&self, order: StyleKeys) -> Option<[Option<usize>; 4]> {
+        let at = order as usize;
+        let stamps = &self.data()[at..at + 8];
+        if stamps[4..8] == [0; 4] {
+            return None;
+        }
+        let on = self.logical_sides_on();
+        Some(std::array::from_fn(|side| {
+            let logical = on[side];
+            (stamps[4 + logical] > stamps[side]).then_some(logical)
+        }))
+    }
+
+    fn logical_type_value(&self, types: StyleKeys, values: StyleKeys, slot: usize) -> (i8, f32) {
+        let data = self.data();
+        (
+            data[types as usize + slot] as i8,
+            f32::from_le_bytes(
+                data[values as usize + slot * 4..values as usize + slot * 4 + 4]
+                    .try_into()
+                    .unwrap(),
+            ),
+        )
+    }
+
+    fn with_logical_sides<T>(
+        &self,
+        mut rect: Rect<T>,
+        order: StyleKeys,
+        types: StyleKeys,
+        values: StyleKeys,
+        decode: impl Fn(i8, f32) -> T,
+    ) -> Rect<T> {
+        if let Some(winners) = self.logical_winners(order) {
+            for (side, winner) in winners.into_iter().enumerate() {
+                if let Some(slot) = winner {
+                    let (t, v) = self.logical_type_value(types, values, slot);
+                    set_rect_side(&mut rect, side, decode(t, v));
+                }
+            }
+        }
+        rect
+    }
+
+    pub fn get_margin(&self) -> Rect<LengthPercentageAuto> {
+        self.with_logical_sides(
+            self.physical_margin(),
+            StyleKeys::MARGIN_ORDER,
+            StyleKeys::MARGIN_BLOCK_START_TYPE,
+            StyleKeys::MARGIN_BLOCK_START_VALUE,
+            length_percentage_auto_from_type_value,
+        )
+    }
+
+    pub fn get_padding(&self) -> Rect<LengthPercentage> {
+        self.with_logical_sides(
+            self.physical_padding(),
+            StyleKeys::PADDING_ORDER,
+            StyleKeys::PADDING_BLOCK_START_TYPE,
+            StyleKeys::PADDING_BLOCK_START_VALUE,
+            length_percentage_from_type_value,
+        )
+    }
+
+    pub fn get_inset(&self) -> Rect<LengthPercentageAuto> {
+        self.with_logical_sides(
+            self.physical_inset(),
+            StyleKeys::INSET_ORDER,
+            StyleKeys::INSET_BLOCK_START_TYPE,
+            StyleKeys::INSET_BLOCK_START_VALUE,
+            length_percentage_auto_from_type_value,
+        )
+    }
+
+    /// `pair` 0 size, 1 min size, 2 max size: inline-size is the width in horizontal text and
+    /// the height in vertical text.
+    fn with_logical_size(&self, mut size: Size<Dimension>, pair: usize) -> Size<Dimension> {
+        let at = StyleKeys::SIZE_ORDER as usize;
+        let stamps = &self.data()[at..at + 12];
+        if stamps[6..12] == [0; 6] {
+            return size;
+        }
+        let vertical = self.writing_mode != WritingMode::HorizontalTb;
+        for axis in 0..2 {
+            // The logical slot (inline 0, block 1) on this physical axis (width 0, height 1).
+            let logical = if vertical { 1 - axis } else { axis };
+            let physical_stamp = stamps[pair * 2 + axis];
+            let slot = pair * 2 + logical;
+            if stamps[6 + slot] > physical_stamp {
+                let (t, v) = self.logical_type_value(
+                    StyleKeys::INLINE_SIZE_TYPE,
+                    StyleKeys::INLINE_SIZE_VALUE,
+                    slot,
+                );
+                let value = dimension_from_type_value(t, v);
+                if axis == 0 {
+                    size.width = value;
+                } else {
+                    size.height = value;
+                }
+            }
+        }
+        size
+    }
+
+    /// Marks the physical slots in `mask` (see `StyleKeys::LOGICAL_SEQ`) as written now, so they
+    /// win over older logical values. Free while the group has none.
+    fn stamp_physical(&mut self, order: StyleKeys, len: usize, mask: u32) {
+        let at = order as usize;
+        let half = len / 2;
+        if self.data()[at + half..at + len].iter().all(|&s| s == 0) {
+            return;
+        }
+        let stamp = self.next_logical_stamp();
+        let data = self.data_mut();
+        for slot in 0..half {
+            if mask & (1 << slot) != 0 {
+                data[at + slot] = stamp;
+            }
+        }
+    }
+
+    /// The next write stamp. At the counter's end the stamps are renumbered by rank, which
+    /// keeps their order.
+    fn next_logical_stamp(&mut self) -> u8 {
+        const GROUPS: [(StyleKeys, usize); 4] = [
+            (StyleKeys::MARGIN_ORDER, 8),
+            (StyleKeys::PADDING_ORDER, 8),
+            (StyleKeys::INSET_ORDER, 8),
+            (StyleKeys::SIZE_ORDER, 12),
+        ];
+        let data = self.data_mut();
+        let mut seq = data[StyleKeys::LOGICAL_SEQ as usize];
+        if seq == u8::MAX {
+            let mut used = [false; 256];
+            for (order, len) in GROUPS {
+                for &stamp in &data[order as usize..order as usize + len] {
+                    used[stamp as usize] = true;
+                }
+            }
+            let mut rank = [0u8; 256];
+            let mut next = 0u8;
+            for stamp in 1..256 {
+                if used[stamp] {
+                    next += 1;
+                    rank[stamp] = next;
+                }
+            }
+            for (order, len) in GROUPS {
+                for stamp in &mut data[order as usize..order as usize + len] {
+                    *stamp = rank[*stamp as usize];
+                }
+            }
+            seq = next;
+        }
+        seq += 1;
+        data[StyleKeys::LOGICAL_SEQ as usize] = seq;
+        seq
+    }
+
+    fn set_logical_side(
+        &mut self,
+        order: StyleKeys,
+        types: StyleKeys,
+        values: StyleKeys,
+        slot: usize,
+        half: usize,
+        (t, v): (i8, f32),
+    ) {
+        self.prepare_mut();
+        let stamp = self.next_logical_stamp();
+        let data = self.data_mut();
+        data[order as usize + half + slot] = stamp;
+        data[types as usize + slot] = t as u8;
+        data[values as usize + slot * 4..values as usize + slot * 4 + 4]
+            .copy_from_slice(&v.to_le_bytes());
+    }
+
+    /// Sets a logical margin side: 0 block-start, 1 inline-end, 2 block-end, 3 inline-start.
+    pub fn set_logical_margin(&mut self, side: usize, value: LengthPercentageAuto) {
+        self.set_logical_side(
+            StyleKeys::MARGIN_ORDER,
+            StyleKeys::MARGIN_BLOCK_START_TYPE,
+            StyleKeys::MARGIN_BLOCK_START_VALUE,
+            side,
+            4,
+            length_percentage_auto_to_type_value(value),
+        );
+    }
+
+    /// Sets a logical padding side, as `set_logical_margin`.
+    pub fn set_logical_padding(&mut self, side: usize, value: LengthPercentage) {
+        self.set_logical_side(
+            StyleKeys::PADDING_ORDER,
+            StyleKeys::PADDING_BLOCK_START_TYPE,
+            StyleKeys::PADDING_BLOCK_START_VALUE,
+            side,
+            4,
+            length_percentage_to_type_value(value),
+        );
+    }
+
+    /// Sets a logical inset side, as `set_logical_margin`.
+    pub fn set_logical_inset(&mut self, side: usize, value: LengthPercentageAuto) {
+        self.set_logical_side(
+            StyleKeys::INSET_ORDER,
+            StyleKeys::INSET_BLOCK_START_TYPE,
+            StyleKeys::INSET_BLOCK_START_VALUE,
+            side,
+            4,
+            length_percentage_auto_to_type_value(value),
+        );
+    }
+
+    /// Sets a logical size: 0 inline-size, 1 block-size, 2 min-inline-size, 3 min-block-size,
+    /// 4 max-inline-size, 5 max-block-size.
+    pub fn set_logical_size(&mut self, slot: usize, value: Dimension) {
+        self.set_logical_side(
+            StyleKeys::SIZE_ORDER,
+            StyleKeys::INLINE_SIZE_TYPE,
+            StyleKeys::INLINE_SIZE_VALUE,
+            slot,
+            6,
+            dimension_to_type_value(value),
+        );
+    }
+
+    pub fn get_size(&self) -> Size<Dimension> {
+        self.with_logical_size(self.physical_size(), 0)
+    }
+
+    pub fn get_min_size(&self) -> Size<Dimension> {
+        self.with_logical_size(self.physical_min_size(), 1)
+    }
+
+    pub fn get_max_size(&self) -> Size<Dimension> {
+        self.with_logical_size(self.physical_max_size(), 2)
     }
 }

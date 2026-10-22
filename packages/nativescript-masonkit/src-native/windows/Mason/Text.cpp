@@ -204,6 +204,48 @@ namespace
         return scale > 0.0f ? 1.0f / scale : 1.0f;
     }
 
+    // text-orientation as Paragraph::upright: 0 sideways, 1 mixed, 2 upright.
+    uint8_t OrientationOf(winrt::NativeScript::Mason::implementation::Node* node)
+    {
+        const uint8_t orientation = mason_node_get_text_orientation(node->MasonPtr(), node->NodePtr());
+        return orientation == 2 ? 0 : orientation == 1 ? 2 : 1;
+    }
+
+    uint8_t UprightOf(winrt::NativeScript::Mason::implementation::Node* node)
+    {
+        if (mason_node_get_writing_mode(node->MasonPtr(), node->NodePtr()) == 0) return 0;
+        return OrientationOf(node);
+    }
+
+    // A span's own text-combine-upright in vertical text, else the paragraph's.
+    uint8_t SpanCombineOf(winrt::NativeScript::Mason::implementation::Node* paragraph, winrt::NativeScript::Mason::Node const& owner)
+    {
+        if (!owner || mason_node_get_writing_mode(paragraph->MasonPtr(), paragraph->NodePtr()) == 0) return mason_dwrite::kParagraphUpright;
+        auto* node = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(owner);
+        return mason_node_get_text_combine_upright(node->MasonPtr(), node->NodePtr());
+    }
+
+    // text-spacing-trim of a span's element, else the paragraph's (kParagraphUpright).
+    uint8_t SpanSpacingTrimOf(winrt::NativeScript::Mason::Node const& owner)
+    {
+        if (!owner) return mason_dwrite::kParagraphUpright;
+        auto* node = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(owner);
+        return mason_node_get_text_spacing_trim(node->MasonPtr(), node->NodePtr());
+    }
+
+    uint8_t CombineOf(winrt::NativeScript::Mason::implementation::Node* node)
+    {
+        if (mason_node_get_writing_mode(node->MasonPtr(), node->NodePtr()) == 0) return 0;
+        return mason_node_get_text_combine_upright(node->MasonPtr(), node->NodePtr());
+    }
+
+    // A span's own text-orientation in vertical text, else the paragraph's.
+    uint8_t SpanUprightOf(winrt::NativeScript::Mason::implementation::Node* paragraph, winrt::NativeScript::Mason::Node const& owner)
+    {
+        if (!owner || mason_node_get_writing_mode(paragraph->MasonPtr(), paragraph->NodePtr()) == 0) return mason_dwrite::kParagraphUpright;
+        return OrientationOf(winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(owner));
+    }
+
     DWRITE_FONT_WEIGHT WeightOf(int32_t weight)
     {
         return static_cast<DWRITE_FONT_WEIGHT>(weight > 0 ? weight : 400);
@@ -758,6 +800,7 @@ namespace winrt::NativeScript::Mason::implementation
         nsm::MeasureFunc cb = [cache](float kw, float, float aw, float) -> int64_t
         {
             auto& c = *cache;
+            RefreshUpright(c);
             RefreshBoxes(c);
             IDWriteTextLayout* layout = c.Layout();
             if (!layout || c.paragraph.text.empty()) return mason_leaf::PackMeasure(0.0f, 0.0f);
@@ -1484,10 +1527,15 @@ namespace winrt::NativeScript::Mason::implementation
         p.indent = m_textIndent;
         p.indentPercent = m_textIndentPercent;
         p.lineClamp = m_lineClamp;
+        p.upright = UprightOf(winrt::get_self<implementation::Node>(m_node));
+        p.combine = CombineOf(winrt::get_self<implementation::Node>(m_node));
+        p.spacingTrim = mason_node_get_text_spacing_trim(winrt::get_self<implementation::Node>(m_node)->MasonPtr(), winrt::get_self<implementation::Node>(m_node)->NodePtr());
 
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;
+        auto* paragraphNode = winrt::get_self<implementation::Node>(m_node);
         std::vector<nsm::Node> boxNodes;
+        std::vector<nsm::Node> spanNodes;
         std::vector<winrt::weak_ref<nsm::Text>> boxTexts;
         m_pieces.clear();
         for (auto const& b : runs)
@@ -1546,6 +1594,10 @@ namespace winrt::NativeScript::Mason::implementation
                 span.decorationColor = f.hasDecorationColor ? f.decorationColor : f.color;
                 span.decorationThickness = f.decorationThickness;
             }
+            spanNodes.push_back(b.owner ? b.owner->m_node : nsm::Node{ nullptr });
+            span.upright = SpanUprightOf(paragraphNode, spanNodes.back());
+            span.combine = SpanCombineOf(paragraphNode, spanNodes.back());
+            span.spacingTrim = SpanSpacingTrimOf(spanNodes.back());
             if (b.owner && span.length > 0)
             {
                 nsm::Text element = *const_cast<Text*>(b.owner);
@@ -1571,6 +1623,7 @@ namespace winrt::NativeScript::Mason::implementation
         }
         c.boxNodes = std::move(boxNodes);
         c.boxTexts = std::move(boxTexts);
+        c.spanNodes = std::move(spanNodes);
         if (c.layout && c.paragraph == p) return;
         c.paragraph = std::move(p);
         c.layout = nullptr;
@@ -1693,6 +1746,7 @@ namespace winrt::NativeScript::Mason::implementation
     {
         FlushRebuild();
         auto& c = *m_measureCache;
+        RefreshUpright(c);
         IDWriteTextLayout* layout = c.Layout();
         if (!layout || c.paragraph.text.empty())
         {
@@ -1718,7 +1772,7 @@ namespace winrt::NativeScript::Mason::implementation
 
         // Floats beside the text shorten its lines. Measured beside other floats, it's laid out again.
         const mason_dwrite::FloatLayout* around = nullptr;
-        if (!vertical && !m_inlineOwner)
+        if (!m_inlineOwner)
         {
             SyncFloatParent();
             auto floats = FloatExclusions(c);
@@ -1959,8 +2013,9 @@ namespace winrt::NativeScript::Mason::implementation
         if (!parent || !node) return out;
         auto* own = winrt::get_self<implementation::Node>(node);
         auto* box = winrt::get_self<implementation::Node>(parent);
-        // Nor are vertical lines, or a text that floats itself.
-        if (mason_node_get_writing_mode(own->MasonPtr(), own->NodePtr()) != 0) return out;
+        // Nor are lines in another writing mode than the floats', or a text that floats itself.
+        const uint8_t vertical = mason_node_get_writing_mode(own->MasonPtr(), own->NodePtr());
+        if (vertical != mason_node_get_writing_mode(box->MasonPtr(), box->NodePtr())) return out;
         uint32_t len = 0;
         const uint8_t* style = own->StyleData(len);
         if (style && len > mason_style_keys::kFloat && style[mason_style_keys::kFloat] != 0) return out;
@@ -1976,7 +2031,18 @@ namespace winrt::NativeScript::Mason::implementation
         float x = 0.0f, y = 0.0f, left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
         own->ContentOrigin(x, y);
         box->ContentInsets(left, top, right, bottom);
-        const float dx = x - left, dy = y - top;
+        float dx = x - left, dy = y - top;
+        if (vertical)
+        {
+            dx = y - top;
+            dy = x - left;
+            if (vertical == 1)
+            {
+                float ownLeft = 0.0f, ownTop = 0.0f, ownRight = 0.0f, ownBottom = 0.0f;
+                own->ContentInsets(ownLeft, ownTop, ownRight, ownBottom);
+                dy = (box->LayoutWidth() - right) - (x - ownLeft + own->LayoutWidth() - ownRight);
+            }
+        }
         for (size_t i = 0; i + 4 < count; i += 5)
         {
             const uint8_t side = static_cast<uint8_t>(raw[i + 4] == 1.0f ? 1 : raw[i + 4] == 2.0f ? 2 : 0);
@@ -2277,6 +2343,37 @@ namespace winrt::NativeScript::Mason::implementation
         }
     }
 
+    bool Text::RefreshUpright(MeasureCache& c)
+    {
+        auto node = c.node.get();
+        if (!node) return false;
+        auto* paragraphNode = winrt::get_self<implementation::Node>(node);
+        const uint8_t upright = UprightOf(paragraphNode);
+        const uint8_t combine = CombineOf(paragraphNode);
+        const uint8_t trim = mason_node_get_text_spacing_trim(paragraphNode->MasonPtr(), paragraphNode->NodePtr());
+        bool changed = c.paragraph.upright != upright || c.paragraph.combine != combine || c.paragraph.spacingTrim != trim;
+        c.paragraph.upright = upright;
+        c.paragraph.combine = combine;
+        c.paragraph.spacingTrim = trim;
+        for (size_t i = 0; i < c.paragraph.spans.size() && i < c.spanNodes.size(); ++i)
+        {
+            auto& span = c.paragraph.spans[i];
+            const uint8_t own = SpanUprightOf(paragraphNode, c.spanNodes[i]);
+            const uint8_t ownCombine = SpanCombineOf(paragraphNode, c.spanNodes[i]);
+            const uint8_t ownTrim = SpanSpacingTrimOf(c.spanNodes[i]);
+            if (span.upright == own && span.combine == ownCombine && span.spacingTrim == ownTrim) continue;
+            span.upright = own;
+            span.combine = ownCombine;
+            span.spacingTrim = ownTrim;
+            changed = true;
+        }
+        if (!changed) return false;
+        c.layout = nullptr;
+        c.Reset();
+        ++c.version;
+        return true;
+    }
+
     bool Text::RefreshBoxes(MeasureCache& c)
     {
         if (c.boxNodes.empty()) return false;
@@ -2543,7 +2640,8 @@ namespace winrt::NativeScript::Mason::implementation
             auto* layout = m_measureCache->layout.get();
             if (!layout) return false;
             const float across = point.X - m_frame.left;
-            for (auto const& line : mason_dwrite::LineBands(layout))
+            auto lines = DrawnLines();
+            for (auto const& line : lines ? mason_dwrite::LineBands(*lines) : mason_dwrite::LineBands(layout))
             {
                 if (across < line.top || across >= line.bottom) continue;
                 u = point.Y - m_frame.top;
@@ -2571,7 +2669,8 @@ namespace winrt::NativeScript::Mason::implementation
             if (auto* layout = m_measureCache->layout.get())
             {
                 const float middle = v + height * 0.5f;
-                for (auto const& line : mason_dwrite::LineBands(layout))
+                auto lines = DrawnLines();
+                for (auto const& line : lines ? mason_dwrite::LineBands(*lines) : mason_dwrite::LineBands(layout))
                 {
                     if (middle >= line.top && middle < line.bottom) sum = line.top + line.bottom;
                 }

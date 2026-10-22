@@ -140,34 +140,48 @@ class TextTypeDefaultsInstrumentedTest {
     )
   }
 
+  // UA margins are logical (margin-block, margin-inline): read them off the laid-out box.
+  private fun uaMargin(type: TextType): Rect<Float> {
+    val tv = createTextView(type)
+    return computeAndLayout(tv, tv.node.mason, 400f, -1f).margin
+  }
+
   @Test
   fun blockquoteHasLeftRightMargin() {
-    val tv = createTextView(TextType.Blockquote)
-    val margin = tv.style.margin
+    val margin = uaMargin(TextType.Blockquote)
     // Web blockquote: margin-inline-start: 40px, margin-inline-end: 40px
-    Assert.assertTrue(
-      "Blockquote should have left margin (web: 40px)",
-      (margin.left as? LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
-    )
-    Assert.assertTrue(
-      "Blockquote should have right margin (web: 40px)",
-      (margin.right as? LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
-    )
+    Assert.assertTrue("Blockquote should have left margin (web: 40px)", margin.left > 0f)
+    Assert.assertTrue("Blockquote should have right margin (web: 40px)", margin.right > 0f)
   }
 
   @Test
   fun blockquoteHasTopBottomMargin() {
-    val tv = createTextView(TextType.Blockquote)
-    val margin = tv.style.margin
+    val margin = uaMargin(TextType.Blockquote)
     // Web blockquote: margin-block-start: 1em, margin-block-end: 1em
-    Assert.assertTrue(
-      "Blockquote should have top margin (web: 1em ≈ 16px)",
-      (margin.top as? LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
-    )
-    Assert.assertTrue(
-      "Blockquote should have bottom margin (web: 1em ≈ 16px)",
-      (margin.bottom as? LengthPercentageAuto.Points)?.points?.let { it > 0f } ?: false
-    )
+    Assert.assertTrue("Blockquote should have top margin (web: 1em ≈ 16px)", margin.top > 0f)
+    Assert.assertTrue("Blockquote should have bottom margin (web: 1em ≈ 16px)", margin.bottom > 0f)
+  }
+
+  @Test
+  fun verticalParagraphUaMarginsAreOnItsLeftAndRight() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = Mason()
+    val root = mason.createView(context)
+    root.style.prepareMut()
+    root.style.values.put(StyleKeys.WRITING_MODE, 1)
+    root.style.values.put(StyleKeys.WRITING_MODE_STATE, 1)
+    root.syncStyle(StateKeys.WRITING_MODE.low, StateKeys.WRITING_MODE.high)
+    root.style.setSizeHeight(200f, Dimension.Kind.Points.value)
+    val p = mason.createTextView(context, TextType.P)
+    root.addView(p)
+    val layout = Layout.fromFloatArray(
+      NativeHelpers.nativeNodeComputeWithSizeAndLayout(mason.nativePtr, root.node.nativePtr, -1f, -1f), 0
+    ).second
+    val margin = layout.children[0].margin
+    Assert.assertTrue("left ${margin.left}", margin.left > 0f)
+    Assert.assertTrue("right ${margin.right}", margin.right > 0f)
+    Assert.assertEquals(0f, margin.top)
+    Assert.assertEquals(0f, margin.bottom)
   }
 
   // Font property state tracking: inline children must resolve correctly

@@ -57,8 +57,8 @@ namespace mason_leaf
 
     // Inclusive StateKeys bit ranges, as Android's StateKeys.LAYOUT_MASK and TEXT_LAYOUT.
     namespace st = mason_state_keys;
-    inline constexpr StyleDirty kLayoutKeys = StateFlags({ { st::kDisplay, st::kMaxContentHeight }, { st::kFloat, st::kClear }, { st::kListStylePosition, st::kInvalidateText }, { st::kTextAlign, st::kTextJustify }, { st::kFontSize, st::kTextOverflow }, { st::kWhiteSpace, st::kVerticalAlign }, { st::kFontFamily, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp } });
-    inline constexpr StyleDirty kTextKeys = StateFlags({ { st::kDirection, st::kDirection }, { st::kInvalidateText, st::kTextJustify }, { st::kFontSize, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp } });
+    inline constexpr StyleDirty kLayoutKeys = StateFlags({ { st::kDisplay, st::kMaxContentHeight }, { st::kFloat, st::kClear }, { st::kListStylePosition, st::kInvalidateText }, { st::kTextAlign, st::kTextJustify }, { st::kFontSize, st::kTextOverflow }, { st::kWhiteSpace, st::kVerticalAlign }, { st::kFontFamily, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp }, { st::kTextOrientation, st::kTextOrientation } });
+    inline constexpr StyleDirty kTextKeys = StateFlags({ { st::kDirection, st::kDirection }, { st::kInvalidateText, st::kTextJustify }, { st::kFontSize, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp }, { st::kTextOrientation, st::kTextOrientation } });
     inline constexpr StyleDirty kControlKeys = StateFlags({ { st::kInvalidateText, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch } });
 
     inline bool AnyDirty(StyleDirty const& dirty, StyleDirty const& mask)

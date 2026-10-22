@@ -850,6 +850,187 @@
     ]
   },
   {
+    "name": "css_text_orientation_upright",
+    "tree": { "seq": 0, "tag": "div", "style": { "display": "block", "writing-mode": "vertical-rl", "text-orientation": "upright", "height": "40px" }, "children": [{ "seq": 1, "tag": "div", "style": { "display": "block" }, "children": [], "text": "HH​HH​HH​HH​HH​HH​HH" }] },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 40, "height": 40 },
+      { "seq": 1, "x": 0, "y": 0, "width": 40, "height": 40 }
+    ]
+  },
+  {
+    "name": "css_vertical_lr_block_flow",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-lr", "height": "40px", "padding-left": "8px", "border-top": "2px solid" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block" }, "children": [], "text": "HH​HH​HH​HH​HH​HH​HH" },
+        { "seq": 2, "tag": "div", "style": { "display": "block", "margin-left": "4px" }, "children": [], "text": "HH​HH​HH" }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 112, "height": 40 },
+      { "seq": 1, "x": 8, "y": 2, "width": 70, "height": 38 },
+      { "seq": 2, "x": 82, "y": 2, "width": 30, "height": 38 }
+    ]
+  },
+  {
+    "name": "css_vertical_lr_grid",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "grid", "writing-mode": "vertical-lr", "grid-template-columns": "30px 40px", "grid-template-rows": "15px 25px", "gap": "2px 3px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": {}, "children": [] },
+        { "seq": 2, "tag": "div", "style": {}, "children": [] },
+        { "seq": 3, "tag": "div", "style": {}, "children": [] },
+        { "seq": 4, "tag": "div", "style": {}, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 42, "height": 73 },
+      { "seq": 1, "x": 0, "y": 0, "width": 15, "height": 30 },
+      { "seq": 2, "x": 0, "y": 33, "width": 15, "height": 40 },
+      { "seq": 3, "x": 17, "y": 0, "width": 25, "height": 30 },
+      { "seq": 4, "x": 17, "y": 33, "width": 25, "height": 40 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_abspos",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "width": "100px", "height": "80px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "position": "absolute", "width": "10px", "height": "20px", "right": "5px", "top": "7px" }, "children": [] },
+        { "seq": 2, "tag": "div", "style": { "position": "absolute", "width": "10px", "height": "20px", "left": "3px", "bottom": "4px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 100, "height": 80 },
+      { "seq": 1, "x": 85, "y": 7, "width": 10, "height": 20 },
+      { "seq": 2, "x": 3, "y": 56, "width": 10, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_block_flow",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "height": "100px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block" }, "children": [], "text": "HH​HH​HH" },
+        { "seq": 2, "tag": "div", "style": { "display": "block", "margin-right": "8px", "margin-left": "5px" }, "children": [], "text": "HH​HH​HH​HH​HH​HH​HH" },
+        { "seq": 3, "tag": "div", "style": { "display": "block", "width": "15px", "margin-right": "3px", "padding-top": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 58, "height": 100 },
+      { "seq": 1, "x": 48, "y": 0, "width": 10, "height": 100 },
+      { "seq": 2, "x": 20, "y": 0, "width": 20, "height": 100 },
+      { "seq": 3, "x": 0, "y": 0, "width": 15, "height": 100 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_flex_column",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "flex", "flex-direction": "column", "writing-mode": "vertical-rl", "width": "100px", "height": "50px", "align-items": "start", "row-gap": "5px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "width": "20px", "height": "10px" }, "children": [] },
+        { "seq": 2, "tag": "div", "style": { "width": "30px", "height": "10px", "flex-grow": "1" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 100, "height": 50 },
+      { "seq": 1, "x": 80, "y": 0, "width": 20, "height": 10 },
+      { "seq": 2, "x": 0, "y": 0, "width": 75, "height": 10 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_flex_row",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "flex", "writing-mode": "vertical-rl", "width": "50px", "height": "100px", "justify-content": "center", "column-gap": "10px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "height": "20px" }, "children": [] },
+        { "seq": 2, "tag": "div", "style": { "height": "20px", "width": "30px" }, "children": [] },
+        { "seq": 3, "tag": "div", "style": {}, "children": [], "text": "HH" }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 50, "height": 100 },
+      { "seq": 1, "x": 0, "y": 10, "width": 50, "height": 20 },
+      { "seq": 2, "x": 20, "y": 40, "width": 30, "height": 20 },
+      { "seq": 3, "x": 0, "y": 70, "width": 50, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_logical_sides",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "height": "100px" },
+      "children": [
+        { "seq": 1, "tag": "p", "style": { "font-size": "16px", "width": "16px" }, "children": [], "text": "HH​HH​HH" },
+        { "seq": 2, "tag": "div", "style": { "display": "block", "margin-block-start": "6px", "margin-inline-start": "4px", "padding-block-end": "3px", "inline-size": "50px", "block-size": "12px" }, "children": [] },
+        { "seq": 3, "tag": "div", "style": { "display": "block", "margin-block-end": "9px", "margin-left": "2px", "inline-size": "20px", "block-size": "10px" }, "children": [] }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 72, "height": 100 },
+      { "seq": 1, "x": 40, "y": 0, "width": 16, "height": 100 },
+      { "seq": 2, "x": 12, "y": 4, "width": 12, "height": 50 },
+      { "seq": 3, "x": 2, "y": 0, "width": 10, "height": 20 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_nested",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "height": "100px", "padding-top": "2px", "padding-right": "3px" },
+      "children": [
+        {
+          "seq": 1,
+          "tag": "div",
+          "style": { "display": "block" },
+          "children": [
+            { "seq": 2, "tag": "div", "style": { "display": "block" }, "children": [], "text": "HH​HH​HH" },
+            { "seq": 3, "tag": "div", "style": { "display": "block" }, "children": [], "text": "HH​HH​HH" }
+          ]
+        },
+        { "seq": 4, "tag": "div", "style": { "display": "block", "writing-mode": "vertical-lr" }, "children": [], "text": "HH​HH​HH" }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 33, "height": 100 },
+      { "seq": 1, "x": 10, "y": 2, "width": 20, "height": 98 },
+      { "seq": 2, "x": 20, "y": 2, "width": 10, "height": 98 },
+      { "seq": 3, "x": 10, "y": 2, "width": 10, "height": 98 },
+      { "seq": 4, "x": 0, "y": 2, "width": 10, "height": 98 }
+    ]
+  },
+  {
+    "name": "css_vertical_rl_orthogonal_child",
+    "tree": {
+      "seq": 0,
+      "tag": "div",
+      "style": { "display": "block", "writing-mode": "vertical-rl", "width": "50px", "height": "100px" },
+      "children": [
+        { "seq": 1, "tag": "div", "style": { "display": "block", "writing-mode": "horizontal-tb" }, "children": [], "text": "HH​HH​HH" },
+        { "seq": 2, "tag": "div", "style": { "display": "block", "writing-mode": "horizontal-tb", "width": "25px" }, "children": [], "text": "HH​HH​HH" }
+      ]
+    },
+    "expected": [
+      { "seq": 0, "x": 0, "y": 0, "width": 50, "height": 100 },
+      { "seq": 1, "x": 0, "y": 0, "width": 50, "height": 20 },
+      { "seq": 2, "x": -25, "y": 0, "width": 25, "height": 30 }
+    ]
+  },
+  {
     "name": "display_none_fixed_size",
     "tree": {
       "seq": 0,

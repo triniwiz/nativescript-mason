@@ -361,12 +361,32 @@ class Scroll @JvmOverloads constructor(
     val fullW = maxOf(cw, computedW)
     val fullH = maxOf(ch, computedH)
 
-    _enableScrollX = isScrollableX() || (isAutoX() && fullW > vpW)
-    _enableScrollY = isScrollableY() || (isAutoY() && fullH > vpH)
-
-    scrollContentWidth = if (_enableScrollX) maxOf(fullW, vpW) else vpW
-    scrollContentHeight = if (_enableScrollY) maxOf(fullH, vpH) else vpH
+    val enableX = isScrollableX() || (isAutoX() && fullW > vpW)
+    val enableY = isScrollableY() || (isAutoY() && fullH > vpH)
+    setScrollContent(if (enableX) maxOf(fullW, vpW) else vpW, if (enableY) maxOf(fullH, vpH) else vpH)
+    _enableScrollX = enableX
+    _enableScrollY = enableY
   }
+
+  /**
+   * Sets the scrolled content's size. vertical-rl content starts at the right (mason-core moves
+   * its left overflow into the content box): the horizontal offset keeps its distance from the
+   * end, starting there, applied on the next layout.
+   */
+  internal fun setScrollContent(width: Int, height: Int) {
+    if (scrollFromEnd < 0 && width != scrollContentWidth && scrollsFromRight) {
+      scrollFromEnd = maxScrollX - scrollX
+    }
+    scrollContentWidth = width
+    scrollContentHeight = height
+  }
+
+  override val scrollsFromRight: Boolean
+    get() = style.resolvedWritingMode.toInt() == 1
+
+  // vertical-rl: the scroll offset's distance from the right end, kept until the next layout
+  // places it; -1 when none is pending.
+  private var scrollFromEnd = -1
 
   // Layout
 
@@ -399,7 +419,13 @@ class Scroll @JvmOverloads constructor(
       }
     }
 
-    if (hasPendingScroll) applyPendingScroll() else scrollTo(scrollX, scrollY)
+    val fromEnd = scrollFromEnd
+    scrollFromEnd = -1
+    when {
+      hasPendingScroll -> applyPendingScroll()
+      fromEnd >= 0 -> scrollTo(maxScrollX - fromEnd, scrollY)
+      else -> scrollTo(scrollX, scrollY)
+    }
   }
 
   override fun generateDefaultLayoutParams(): LayoutParams {

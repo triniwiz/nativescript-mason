@@ -263,7 +263,7 @@ fun parseInsetShorthand(style: Style, value: String) {
 
 object StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-  const val STYLE_BUFFER_SIZE = 612
+  const val STYLE_BUFFER_SIZE = 744
 
   const val DISPLAY = 0
   const val POSITION = 1
@@ -511,6 +511,59 @@ object StyleKeys {
   const val TRANSFORM_ORIGIN_X_VALUE = 600 // f32 (600-603)
   const val TRANSFORM_ORIGIN_Y_VALUE = 604 // f32 (604-607)
   const val TRANSFORM_ORIGIN_STATE = 608
+  const val TEXT_ORIENTATION = 609 // 0 mixed, 1 upright, 2 sideways
+  const val TEXT_ORIENTATION_STATE = 610
+
+  // CSS logical properties, mapped onto physical sides by the box's writing mode and direction.
+  // A group's ORDER bytes are its physical slots (top, right, bottom, left; sizes: width, height,
+  // min-width, min-height, max-width, max-height) then its logical ones in the order below: 0
+  // never written, else the write's LOGICAL_SEQ stamp. A logical value applies to the side it
+  // maps to when it was written after that side's physical one. Types are the physical group's.
+  const val LOGICAL_SEQ = 611
+  const val MARGIN_ORDER = 612 // bytes(8) (612-619)
+  const val MARGIN_BLOCK_START_TYPE = 620
+  const val MARGIN_INLINE_END_TYPE = 621
+  const val MARGIN_BLOCK_END_TYPE = 622
+  const val MARGIN_INLINE_START_TYPE = 623
+  const val MARGIN_BLOCK_START_VALUE = 624 // f32 (624-627)
+  const val MARGIN_INLINE_END_VALUE = 628 // f32 (628-631)
+  const val MARGIN_BLOCK_END_VALUE = 632 // f32 (632-635)
+  const val MARGIN_INLINE_START_VALUE = 636 // f32 (636-639)
+  const val PADDING_ORDER = 640 // bytes(8) (640-647)
+  const val PADDING_BLOCK_START_TYPE = 648
+  const val PADDING_INLINE_END_TYPE = 649
+  const val PADDING_BLOCK_END_TYPE = 650
+  const val PADDING_INLINE_START_TYPE = 651
+  const val PADDING_BLOCK_START_VALUE = 652 // f32 (652-655)
+  const val PADDING_INLINE_END_VALUE = 656 // f32 (656-659)
+  const val PADDING_BLOCK_END_VALUE = 660 // f32 (660-663)
+  const val PADDING_INLINE_START_VALUE = 664 // f32 (664-667)
+  const val INSET_ORDER = 668 // bytes(8) (668-675)
+  const val INSET_BLOCK_START_TYPE = 676
+  const val INSET_INLINE_END_TYPE = 677
+  const val INSET_BLOCK_END_TYPE = 678
+  const val INSET_INLINE_START_TYPE = 679
+  const val INSET_BLOCK_START_VALUE = 680 // f32 (680-683)
+  const val INSET_INLINE_END_VALUE = 684 // f32 (684-687)
+  const val INSET_BLOCK_END_VALUE = 688 // f32 (688-691)
+  const val INSET_INLINE_START_VALUE = 692 // f32 (692-695)
+  const val SIZE_ORDER = 696 // bytes(12) (696-707)
+  const val INLINE_SIZE_TYPE = 708
+  const val BLOCK_SIZE_TYPE = 709
+  const val MIN_INLINE_SIZE_TYPE = 710
+  const val MIN_BLOCK_SIZE_TYPE = 711
+  const val MAX_INLINE_SIZE_TYPE = 712
+  const val MAX_BLOCK_SIZE_TYPE = 713
+  const val INLINE_SIZE_VALUE = 714 // f32 (714-717)
+  const val BLOCK_SIZE_VALUE = 718 // f32 (718-721)
+  const val MIN_INLINE_SIZE_VALUE = 722 // f32 (722-725)
+  const val MIN_BLOCK_SIZE_VALUE = 726 // f32 (726-729)
+  const val MAX_INLINE_SIZE_VALUE = 730 // f32 (730-733)
+  const val MAX_BLOCK_SIZE_VALUE = 734 // f32 (734-737)
+  const val TEXT_COMBINE_UPRIGHT = 738 // 0 none, 1 all, 2-4 digits (that many)
+  const val TEXT_COMBINE_UPRIGHT_STATE = 739
+  const val TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
+  const val TEXT_SPACING_TRIM_STATE = 741
   // </style-keys:offsets>
   const val TRANSFORM_OP_SIZE = 12
   const val MAX_INLINE_TRANSFORM_OPS = 6
@@ -621,6 +674,9 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_INDENT = flag(79)
     val LINE_CLAMP = flag(80)
     val TRANSFORM_ORIGIN = flag(81)
+    val TEXT_ORIENTATION = flag(82)
+    val TEXT_COMBINE_UPRIGHT = flag(83)
+    val TEXT_SPACING_TRIM = flag(84)
     // </style-keys:state>
 
     /**
@@ -634,7 +690,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       LETTER_SPACING or TEXT_JUSTIFY or BACKGROUND_COLOR or LINE_HEIGHT or
       TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
       WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or
-      TEXT_INDENT or LINE_CLAMP
+      TEXT_INDENT or LINE_CLAMP or TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT or TEXT_SPACING_TRIM
 
     /**
      * The text-affecting subset of [ALL_TEXT] that changes what the native
@@ -644,7 +700,8 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_LAYOUT: StateKeys = FONT_SIZE or FONT_WEIGHT or FONT_STYLE or FONT_FAMILY or
       FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or TEXT_TRANSFORM or LETTER_SPACING or
       TEXT_JUSTIFY or LINE_HEIGHT or TEXT_ALIGN or TEXT_OVERFLOW or WORD_SPACING or
-      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or TEXT_INDENT or LINE_CLAMP
+      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or TEXT_INDENT or LINE_CLAMP or
+      TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT or TEXT_SPACING_TRIM
 
     /**
      * Properties whose change can affect this node's contribution to Taffy
@@ -1173,6 +1230,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   private fun isDirtyEmpty(): Boolean = (isDirty == -1L && isDirtyHigh == -1L)
 
   internal fun setOrAppendState(value: StateKeys) {
+    clearLogicalSides(value)
     styleVersion++
     if (isDirtyEmpty()) {
       isDirty = value.low
@@ -1189,6 +1247,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   internal fun setOrAppendState(keys: Array<StateKeys>) {
     styleVersion++
     for (value in keys) {
+      clearLogicalSides(value)
       if (isDirtyEmpty()) {
         isDirty = value.low
         isDirtyHigh = value.high
@@ -1200,6 +1259,69 @@ class Style internal constructor(@Transient internal var node: Node) {
     if (!inBatch) {
       updateNativeStyle()
     }
+  }
+
+  // CSS logical sides (see StyleKeys.LOGICAL_SEQ)
+
+  /**
+   * A native write of a box side is a physical declaration: the group's logical sides (the UA
+   * margins) give way to it. The TypeScript layer stamps sides one by one instead.
+   */
+  private fun clearLogicalSides(value: StateKeys) {
+    if (!(value hasFlag LOGICAL_STATE_KEYS)) return
+    var prepared = false
+    for (g in LOGICAL_GROUP_KEYS.indices) {
+      if (!(value hasFlag LOGICAL_GROUP_KEYS[g])) continue
+      val first = LOGICAL_GROUP_ORDERS[g] + LOGICAL_GROUP_HALVES[g]
+      for (i in first until first + LOGICAL_GROUP_HALVES[g]) {
+        if (values.get(i).toInt() == 0) continue
+        // The buffer may be shared with other nodes.
+        if (!prepared) {
+          prepareMut()
+          prepared = true
+        }
+        values.put(i, 0)
+      }
+    }
+  }
+
+  /** The next write stamp; at the counter's end every stamp is renumbered by rank, keeping their order. */
+  private fun nextLogicalStamp(): Int {
+    val buffer = values
+    var seq = buffer.get(StyleKeys.LOGICAL_SEQ).toInt() and 0xFF
+    if (seq == 255) {
+      val used = BooleanArray(256)
+      for (g in LOGICAL_GROUP_ORDERS.indices) {
+        val order = LOGICAL_GROUP_ORDERS[g]
+        for (i in order until order + LOGICAL_GROUP_HALVES[g] * 2) used[buffer.get(i).toInt() and 0xFF] = true
+      }
+      val rank = IntArray(256)
+      var next = 0
+      for (stamp in 1 until 256) if (used[stamp]) rank[stamp] = ++next
+      for (g in LOGICAL_GROUP_ORDERS.indices) {
+        val order = LOGICAL_GROUP_ORDERS[g]
+        for (i in order until order + LOGICAL_GROUP_HALVES[g] * 2) buffer.put(i, rank[buffer.get(i).toInt() and 0xFF].toByte())
+      }
+      seq = next
+    }
+    buffer.put(StyleKeys.LOGICAL_SEQ, (seq + 1).toByte())
+    return seq + 1
+  }
+
+  /**
+   * Margins as logical sides, in device px, so a vertical box gets them on its block axis: a
+   * block text element's UA margins (`margin-block`, `margin-inline`).
+   */
+  internal fun setLogicalMargin(blockStart: Float, inlineEnd: Float, blockEnd: Float, inlineStart: Float) {
+    prepareMut()
+    val buffer = values
+    val sides = floatArrayOf(blockStart, inlineEnd, blockEnd, inlineStart)
+    for (slot in 0 until 4) {
+      buffer.put(StyleKeys.MARGIN_ORDER + 4 + slot, nextLogicalStamp().toByte())
+      buffer.put(StyleKeys.MARGIN_BLOCK_START_TYPE + slot, 1)
+      buffer.putFloat(StyleKeys.MARGIN_BLOCK_START_VALUE + slot * 4, sides[slot])
+    }
+    setStateFromHalves(StateKeys.MARGIN.low, StateKeys.MARGIN.high)
   }
 
   private fun updateTextStyle() {
@@ -4658,6 +4780,9 @@ class Style internal constructor(@Transient internal var node: Node) {
   private var memoWritingMode: Byte = 0
   private var memoUnicodeBidi: Byte = 0
   private var memoHyphens: Byte = 0
+  private var memoTextOrientation: Byte = 0
+  private var memoTextCombine: Byte = 0
+  private var memoTextSpacingTrim: Byte = 0
   private var memoTextIndent = 0f
   private var memoTextIndentType: Byte = 0
   private var memoLineClamp = 0
@@ -5345,6 +5470,51 @@ class Style internal constructor(@Transient internal var node: Node) {
       return value
     }
 
+  /** text-orientation: 0 mixed, 1 upright, 2 sideways. */
+  internal val resolvedTextOrientation: Byte
+    get() {
+      if (memoHas(MEMO_TEXT_ORIENTATION)) return memoTextOrientation
+      val state = values.get(StyleKeys.TEXT_ORIENTATION_STATE)
+      val value = if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedTextOrientation ?: values.get(StyleKeys.TEXT_ORIENTATION)
+      } else {
+        values.get(StyleKeys.TEXT_ORIENTATION)
+      }
+      memoTextOrientation = value
+      memoPut(MEMO_TEXT_ORIENTATION)
+      return value
+    }
+
+  /** text-spacing-trim: 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto. */
+  internal val resolvedTextSpacingTrim: Byte
+    get() {
+      if (memoHas(MEMO_TEXT_SPACING_TRIM)) return memoTextSpacingTrim
+      val state = values.get(StyleKeys.TEXT_SPACING_TRIM_STATE)
+      val value = if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedTextSpacingTrim ?: values.get(StyleKeys.TEXT_SPACING_TRIM)
+      } else {
+        values.get(StyleKeys.TEXT_SPACING_TRIM)
+      }
+      memoTextSpacingTrim = value
+      memoPut(MEMO_TEXT_SPACING_TRIM)
+      return value
+    }
+
+  /** text-combine-upright: 0 none, 1 all, 2-4 digits (that many). */
+  internal val resolvedTextCombineUpright: Byte
+    get() {
+      if (memoHas(MEMO_TEXT_COMBINE)) return memoTextCombine
+      val state = values.get(StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)
+      val value = if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedTextCombineUpright ?: values.get(StyleKeys.TEXT_COMBINE_UPRIGHT)
+      } else {
+        values.get(StyleKeys.TEXT_COMBINE_UPRIGHT)
+      }
+      memoTextCombine = value
+      memoPut(MEMO_TEXT_COMBINE)
+      return value
+    }
+
   internal val resolvedUnicodeBidi: Byte
     get() {
       if (memoHas(MEMO_UNICODE_BIDI)) return memoUnicodeBidi
@@ -5874,3 +6044,14 @@ private const val MEMO_HYPHENS = 4
 private const val MEMO_TEXT_ALIGN = 8
 private const val MEMO_TEXT_INDENT = 16
 private const val MEMO_LINE_CLAMP = 32
+private const val MEMO_TEXT_ORIENTATION = 64
+private const val MEMO_TEXT_COMBINE = 128
+private const val MEMO_TEXT_SPACING_TRIM = 256
+
+// Logical side groups: their state key, ORDER offset and logical slot count (see StyleKeys.LOGICAL_SEQ).
+private val LOGICAL_GROUP_KEYS = arrayOf(
+  StateKeys.MARGIN, StateKeys.PADDING, StateKeys.INSET, StateKeys.SIZE or StateKeys.MIN_SIZE or StateKeys.MAX_SIZE,
+)
+private val LOGICAL_GROUP_ORDERS = intArrayOf(StyleKeys.MARGIN_ORDER, StyleKeys.PADDING_ORDER, StyleKeys.INSET_ORDER, StyleKeys.SIZE_ORDER)
+private val LOGICAL_GROUP_HALVES = intArrayOf(4, 4, 4, 6)
+private val LOGICAL_STATE_KEYS = LOGICAL_GROUP_KEYS.reduce { a, b -> a or b }

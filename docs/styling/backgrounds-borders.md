@@ -128,7 +128,7 @@ Every CSS border shorthand is supported and expands into width, style and color 
 | Color | `border-color` (1 to 4 values), `border-top-color`, `border-right-color`, `border-bottom-color`, `border-left-color` |
 | Logical | `border-inline`, `border-block`, `border-inline-start`, `border-inline-end`, `border-block-start`, `border-block-end`, and their `-width`, `-style`, `-color` forms |
 
-Logical borders map for horizontal left-to-right text: inline is left and right, block is top and bottom.
+Logical borders map by the writing mode and direction, as the other [logical properties](/styling/box-model#logical-properties) do: in horizontal left-to-right text inline is left and right and block is top and bottom, in `vertical-rl` inline is top and bottom and block-start is the right. The later of a physical and a logical declaration wins a side.
 
 Border styles: `none`, `hidden`, `dotted`, `dashed`, `solid`, `double`, `groove`, `ridge`, `inset`, `outset`. Border widths take lengths and the `thin`, `medium` and `thick` keywords.
 
@@ -145,7 +145,7 @@ Border styles: `none`, `hidden`, `dotted`, `dashed`, `solid`, `double`, `groove`
 .blob { border-radius: 40% 60% 60% 40% / 60% 30% 70% 40%; }
 ```
 
-The 1 to 4 value shorthand, the elliptical `/` form, and the per-corner longhands (`border-top-left-radius`, ...) are supported, with lengths or percentages. The logical corners `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius` and `border-end-start-radius` map to top-left, top-right, bottom-right and bottom-left.
+The 1 to 4 value shorthand, the elliptical `/` form, and the per-corner longhands (`border-top-left-radius`, ...) are supported, with lengths or percentages. The logical corners `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius` and `border-end-start-radius` name the block side then the inline side: top-left, top-right, bottom-right and bottom-left in horizontal left-to-right text, and top-right, bottom-right, bottom-left and top-left in `vertical-rl`.
 
 A radius rounds the element's own background and border. As in CSS, children are clipped to the rounded shape only when `overflow` is not `visible`.
 

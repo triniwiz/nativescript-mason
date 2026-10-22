@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    logical sides and UA paragraph margins in vertical-rl
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="display: block; writing-mode: vertical-rl; height: 100px;">
+  <p style="font-size: 16px; width: 16px;">HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH</p>
+  <div style="display: block; margin-block-start: 6px; margin-inline-start: 4px; padding-block-end: 3px; inline-size: 50px; block-size: 12px;"></div>
+  <div style="display: block; margin-block-end: 9px; margin-left: 2px; inline-size: 20px; block-size: 10px;"></div>
+</div>
+
+</body>
+</html>

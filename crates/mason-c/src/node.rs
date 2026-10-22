@@ -545,6 +545,37 @@ pub extern "C" fn mason_node_get_writing_mode(mason: *mut CMason, node: *mut CMa
     }
 }
 
+/// text-orientation of the node's vertical text: 0 mixed, 1 upright, 2 sideways.
+#[no_mangle]
+pub extern "C" fn mason_node_get_text_orientation(mason: *mut CMason, node: *mut CMasonNode) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe { (*mason).0.resolved_text_orientation((*node).0.id()) }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_text_combine_upright(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe { (*mason).0.resolved_text_combine_upright((*node).0.id()) }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_get_text_spacing_trim(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> u8 {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe { (*mason).0.resolved_text_spacing_trim((*node).0.id()) }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_node_get_direction(mason: *mut CMason, node: *mut CMasonNode) -> u8 {
     if mason.is_null() || node.is_null() {

@@ -22,7 +22,10 @@ Almost everything in these docs behaves the same on every platform. The differen
 | --- | --- | --- | --- |
 | Flexbox, grid, block, inline flow, float | Yes | Yes | Yes |
 | `position: fixed` / `sticky` | Yes | Yes | Yes |
-| `writing-mode: vertical-rl` / `vertical-lr` | Yes | Yes | Yes |
+| `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes |
+| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes |
+| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) |
+| Floats in vertical text | Yes | Yes | Yes |
 | `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) |
 | SVG `url()` backgrounds | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer |
 | `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes |
@@ -37,7 +40,7 @@ Notes:
 - **Mask hit testing.** As in browsers, `clip-path` limits where an element can be tapped and masks do not.
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG backgrounds.** Shapes, paths, groups, transforms, fills, strokes, opacity, linear and radial gradients, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. `<text>`, patterns, masks, filters and markers inside the SVG are not supported anywhere.
-- **Vertical writing modes.** Upright CJK (`text-orientation: upright`) and vertical containers whose children flow vertically are not supported yet on any platform.
+- **Vertical writing modes.** Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
 
 ## Platform-specific APIs
 

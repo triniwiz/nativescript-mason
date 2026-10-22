@@ -12,7 +12,7 @@ use taffy::Display;
 
 // always keep aligned 4
 // <style-keys:size> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-pub const STYLE_BUFFER_SIZE: usize = 612;
+pub const STYLE_BUFFER_SIZE: usize = 744;
 // </style-keys:size>
 
 #[repr(u32)]

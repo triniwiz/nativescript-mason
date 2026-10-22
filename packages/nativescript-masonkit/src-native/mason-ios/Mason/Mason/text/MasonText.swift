@@ -339,9 +339,12 @@ public class MasonTextLayer: CALayer {
       }
     }
 
-    // Draw text. `background-clip: text` layers go behind it, inside the glyphs only.
+    // Draw text. `background-clip: text` layers go behind it, inside the glyphs only. Glyph ink
+    // overflowing a tight line-height is drawn in the ink layer, which reaches past the box.
+    let ink = (clipsToText || hasRadii) ? 0 : textView.engine.inkOverflow()
+    textView.updateInkLayer(ink)
     if clipsToText { context.beginTransparencyLayer(auxiliaryInfo: nil) }
-    textView.engine.drawText(context: context, rect: bounds)
+    if ink == 0 { textView.engine.drawText(context: context, rect: bounds) }
     if clipsToText {
       context.saveGState()
       context.addPath(Background.textGlyphPath(of: textView))
@@ -377,6 +380,36 @@ public class MasonTextLayer: CALayer {
 }
 
 
+/// Draws text whose glyph ink overflows its box (a line-height tighter than the font): a layer
+/// reaching past the text view's own by `inset` on the block axis, which it can't draw past.
+final class MasonInkLayer: CALayer {
+  weak var textView: MasonText?
+  var inset = CGSize.zero
+
+  override init() {
+    super.init()
+    isOpaque = false
+    needsDisplayOnBoundsChange = true
+  }
+
+  override init(layer: Any) {
+    super.init(layer: layer)
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  override func action(forKey event: String) -> CAAction? { NSNull() }
+
+  override func draw(in context: CGContext) {
+    guard let textView else { return }
+    // In the text view's coordinates, from the ink layer's corner.
+    context.translateBy(x: inset.width, y: inset.height)
+    textView.engine.drawText(context: context, rect: bounds.offsetBy(dx: -inset.width, dy: -inset.height))
+  }
+}
+
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
@@ -399,6 +432,38 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   var textLayer: MasonTextLayer {
     return layer as! MasonTextLayer
+  }
+
+  private var inkLayer: MasonInkLayer?
+
+  /// Shows the ink layer for glyph ink overflowing the box by `overflow` across its lines, or
+  /// hides it at 0.
+  func updateInkLayer(_ overflow: CGFloat) {
+    guard overflow > 0 else {
+      if let inkLayer, !inkLayer.isHidden {
+        inkLayer.isHidden = true
+        inkLayer.contents = nil
+      }
+      return
+    }
+    let ink = inkLayer ?? {
+      let created = MasonInkLayer()
+      created.textView = self
+      created.contentsScale = CGFloat(NSCMason.scale)
+      textLayer.addSublayer(created)
+      inkLayer = created
+      return created
+    }()
+    let vertical = engine.verticalWritingMode != 0
+    let inset = vertical ? CGSize(width: overflow / 2, height: 0) : CGSize(width: 0, height: overflow / 2)
+    let frame = bounds.insetBy(dx: -inset.width, dy: -inset.height)
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    ink.isHidden = false
+    ink.inset = inset
+    if ink.frame != frame { ink.frame = frame }
+    CATransaction.commit()
+    ink.setNeedsDisplay()
   }
   
   public var textValues: NSMutableData {
@@ -791,17 +856,12 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     return value
   }
 
-  static func uaMargin(_ ua: CMasonUaDefault, _ scale: Float) -> MasonRect<MasonLengthPercentageAuto> {
-    return MasonRect(
-      .Points(ua.margin_top * scale),
-      .Points(ua.margin_right * scale),
-      .Points(ua.margin_bottom * scale),
-      .Points(ua.margin_left * scale)
-    )
-  }
-
-  static func uaMargin(_ tag: String, _ scale: Float) -> MasonRect<MasonLengthPercentageAuto> {
-    return uaMargin(uaDefault(tag), scale)
+  /// The UA margins as `margin-block` and `margin-inline`, so vertical text gets them on its
+  /// left and right.
+  static func applyUaMargin(_ style: MasonStyle, _ ua: CMasonUaDefault, _ scale: Float) {
+    style.setLogicalMargin(
+      blockStart: ua.margin_top * scale, inlineEnd: ua.margin_right * scale,
+      blockEnd: ua.margin_bottom * scale, inlineStart: ua.margin_left * scale)
   }
 
   private func initText(){
@@ -829,7 +889,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     // TextView.kt's equivalent call.
     case .P:
       style.display = .Block
-      style.margin = MasonText.uaMargin("p", scale) // 1em
+      MasonText.applyUaMargin(style, MasonText.uaDefault("p"), scale) // 1em
       break
     case .Span:
       style.display = .Inline
@@ -845,42 +905,42 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       fontSize = ua1.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua1, scale)
+      MasonText.applyUaMargin(style, ua1, scale)
       break
     case .H2:
       let ua2 = MasonText.uaDefault("h2") // fontSize 1.5em, margin 0.83em
       fontSize = ua2.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua2, scale)
+      MasonText.applyUaMargin(style, ua2, scale)
       break
     case .H3:
       let ua3 = MasonText.uaDefault("h3") // fontSize 1.17em ≈ 18.72, margin 1em
       fontSize = ua3.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua3, scale)
+      MasonText.applyUaMargin(style, ua3, scale)
       break
     case .H4:
       let ua4 = MasonText.uaDefault("h4") // fontSize 1em, margin 1.33em
       fontSize = ua4.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua4, scale)
+      MasonText.applyUaMargin(style, ua4, scale)
       break
     case .H5:
       let ua5 = MasonText.uaDefault("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
       fontSize = ua5.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua5, scale)
+      MasonText.applyUaMargin(style, ua5, scale)
       break
     case .H6:
       let ua6 = MasonText.uaDefault("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
       fontSize = ua6.font_size
       style.display = .Block
       style.fontWeight = "bold"
-      style.margin = MasonText.uaMargin(ua6, scale)
+      MasonText.applyUaMargin(style, ua6, scale)
       break
     case .Li:
       // Real browsers give <li> `display: list-item` (block box + ::marker).
@@ -890,7 +950,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       break
     case .Blockquote:
       style.display = .Block
-      style.margin = MasonText.uaMargin("blockquote", scale) // 1em 40px
+      MasonText.applyUaMargin(style, MasonText.uaDefault("blockquote"), scale) // 1em 40px
       break
     case .B, .Strong:
       style.display = .Inline
@@ -902,7 +962,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     // wide/loose next to Android's clean mono.
     style.fontFamily = "ui-monospace"
       whiteSpace = .Pre
-      style.margin = MasonText.uaMargin("pre", scale) // 1em
+      MasonText.applyUaMargin(style, MasonText.uaDefault("pre"), scale) // 1em
       break
     case .I, .Em:
       style.display = .Inline

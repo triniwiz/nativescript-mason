@@ -318,8 +318,18 @@ namespace mason_dwrite
         DWRITE_FONT_STRETCH stretch{ DWRITE_FONT_STRETCH_NORMAL };
         float wordSpacing{ 0.0f };
         std::wstring features;
+        // Vertical text: the element's own text-orientation, as Paragraph::upright, or
+        // kParagraphUpright to use the paragraph's.
+        uint8_t upright{ 0xFF };
+        // Vertical text: the element's own text-combine-upright, as Paragraph::combine, or
+        // kParagraphUpright to use the paragraph's.
+        uint8_t combine{ 0xFF };
+        // Its own text-spacing-trim (0 normal, 1 space-all, ...), or kParagraphUpright.
+        uint8_t spacingTrim{ 0xFF };
         bool operator==(Span const&) const = default;
     };
+
+    inline constexpr uint8_t kParagraphUpright = 0xFF;
 
     struct Shadow
     {
@@ -512,6 +522,12 @@ namespace mason_dwrite
         float indent{ 0.0f };
         bool indentPercent{ false };
         uint32_t lineClamp{ 0 };
+        // Vertical text's upright graphemes: 0 none (sideways), 1 text-orientation mixed, 2 upright.
+        uint8_t upright{ 0 };
+        // Vertical text's text-combine-upright: 0 none, 1 all, 2-4 digits (that many).
+        uint8_t combine{ 0 };
+        // text-spacing-trim: 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
+        uint8_t spacingTrim{ 0 };
         bool operator==(Paragraph const&) const = default;
 
         Flow FlowAt(float lineWidth) const
@@ -575,6 +591,14 @@ namespace mason_dwrite
         return ch == L' ' || ch == L'\u00A0' || ch == L'\u1361' || ch == L'\u3000';
     }
 
+    // text-spacing-trim, in SpacingTrim.h.
+    inline bool TrimsAfterUprights(Paragraph const& p);
+    inline std::vector<uint8_t> HalfWidthMarks(Paragraph const& p);
+    inline void ApplySpacingTrim(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t> const& marks);
+    inline void FitLineEdges(IDWriteTextLayout* layout, float maxWidth, float indent);
+    inline void ResetLineEdges(IDWriteTextLayout* layout);
+    // Vertical text's upright cells, in VerticalText.h.
+    inline void ApplyUprights(IDWriteTextLayout* layout, Paragraph const& p, std::vector<uint8_t>& marks);
     inline winrt::com_ptr<IDWriteTextLayout> Build(Paragraph const& p)
     {
         auto* factory = Factory();
@@ -716,6 +740,20 @@ namespace mason_dwrite
             }
             HyphenRegistry()[layout.get()] = hyphens;
         }
+        // A paragraph with upright glyphs is trimmed after them (Text's MeasureCache::Layout).
+        if (!TrimsAfterUprights(p)) ApplySpacingTrim(layout.get(), p, HalfWidthMarks(p));
+        return layout;
+    }
+
+    inline winrt::com_ptr<IDWriteTextLayout> BuildUpright(Paragraph const& p)
+    {
+        auto layout = Build(p);
+        if (layout && TrimsAfterUprights(p))
+        {
+            auto marks = HalfWidthMarks(p);
+            ApplyUprights(layout.get(), p, marks);
+            ApplySpacingTrim(layout.get(), p, marks);
+        }
         return layout;
     }
 
@@ -828,6 +866,7 @@ namespace mason_dwrite
         {
             if (auto hyphens = HyphensOf(layout)) FitHyphens(layout, *hyphens, maxWidth);
         }
+        FitLineEdges(layout, wrapping != DWRITE_WORD_WRAPPING_NO_WRAP ? maxWidth : std::numeric_limits<float>::infinity(), flow.indents ? flow.indent : 0.0f);
         if (flow.lineClamp > 0) Clamp(layout, flow.lineClamp);
     }
 
@@ -850,6 +889,7 @@ namespace mason_dwrite
     inline float MinContentWidth(IDWriteTextLayout* layout, Flow const& flow = {})
     {
         if (flow.indents) SetIndent(layout, flow.indent);
+        ResetLineEdges(layout);
         FLOAT width = 0.0f;
         return SUCCEEDED(layout->DetermineMinWidth(&width)) ? width : 0.0f;
     }
@@ -978,7 +1018,7 @@ namespace mason_dwrite
                 rest.indentPercent = false;
                 flow = Flow{ true, first.indent, 0 };
             }
-            auto layout = Build(rest);
+            auto layout = BuildUpright(rest);
             if (!layout) break;
             if (y >= floatsBottom)
             {
@@ -1030,7 +1070,7 @@ namespace mason_dwrite
             }
             // The line on its own, unwrapped so it stays one line, aligned in its part of the box.
             Paragraph text = Slice(rest, 0, visible);
-            auto own = Build(text);
+            auto own = BuildUpright(text);
             if (!own) break;
             Configure(own.get(), DWRITE_WORD_WRAPPING_NO_WRAP, (std::max)(right - left, 0.0f) + slack, flow);
             DWRITE_TEXT_METRICS m{};
@@ -1044,7 +1084,7 @@ namespace mason_dwrite
             if (p.lineClamp > 0 && count + 1 >= p.lineClamp && start + length < size)
             {
                 text = std::move(rest);
-                own = Build(text);
+                own = BuildUpright(text);
                 if (!own) break;
                 Configure(own.get(), wrapping, (std::max)(right - left, 0.0f) + slack, Flow{ flow.indents, flow.indent, 1 });
                 own->GetMetrics(&m);
@@ -1058,6 +1098,24 @@ namespace mason_dwrite
         }
         out.height = y;
         return out;
+    }
+
+    inline std::vector<LineBand> LineBands(std::vector<FloatLine> const& lines)
+    {
+        std::vector<LineBand> bands;
+        for (auto const& line : lines)
+        {
+            if (!line.layout) continue;
+            for (auto band : LineBands(line.layout.get()))
+            {
+                band.top += line.y;
+                band.bottom += line.y;
+                band.baseline += line.y;
+                band.start += line.start;
+                bands.push_back(band);
+            }
+        }
+        return bands;
     }
 
     inline FloatLine const* LineAt(std::vector<FloatLine> const& lines, uint32_t position)
@@ -1121,3 +1179,6 @@ namespace mason_dwrite
         return FirstRangeHit(line->layout.get(), local, (std::min)(length, line->length - local), line->x, line->y, out);
     }
 }
+
+#include "SpacingTrim.h"
+#include "VerticalText.h"

@@ -89,11 +89,77 @@ Text beside a float wraps around the float's margin box, and the block grows to 
 }
 ```
 
-A vertical box inside a horizontal layout works: text runs top to bottom with sideways glyphs, lines stack right to left (`vertical-rl`) or left to right (`vertical-lr`), and inline boxes inside the text are turned with it. Its line length comes from its own height, a definite containing-block height, or failing those the viewport height, as in CSS.
+Text in a vertical box runs top to bottom and its lines stack right to left (`vertical-rl`) or left to right (`vertical-lr`). Inline boxes inside the text are turned with it.
 
-Not supported yet:
+A vertical box is also a vertical container. Its children lay out in its writing mode:
 
-- upright CJK glyphs (`text-orientation: upright`)
-- vertical containers whose block children flow vertically (only the text inside a vertical box is vertical)
-- float exclusions in vertical text
-- turning the label of a button or other widget inside vertical text
+- Block children stack right to left (`vertical-rl`) or left to right (`vertical-lr`), and stretch along the box's height. Margins collapse along that axis.
+- In a flex container, `flex-direction: row` runs down the page and `column` runs across it.
+- In a grid container, `grid-template-columns` sizes tracks down the page and `grid-template-rows` sizes them across it.
+- `gap`, `justify-*` and `align-*` follow the same logical axes. Sizes, padding, margins, borders and insets stay physical, as in CSS.
+
+```html
+<div class="page">
+  <p>第一段。縦書きの段落は右から左へ並びます。</p>
+  <p>第二段。</p>
+</div>
+```
+
+```css
+.page {
+  writing-mode: vertical-rl;
+  height: 320px;
+}
+
+.page p {
+  margin-block: 0 16px; /* the left side in vertical-rl: the space before the next column */
+}
+```
+
+Logical properties follow the writing mode, and so do the default margins of `<p>` and headings, which space vertical paragraphs left and right. See [Logical properties](/styling/box-model#logical-properties).
+
+A box whose writing mode is orthogonal to its container's (a vertical box in a horizontal page, or a `horizontal-tb` box inside a vertical one) sizes its inline axis to fit its content, up to the space it has. That space is its containing block's definite size in that axis, else the viewport height, as in CSS.
+
+### text-orientation
+
+Sets how glyphs sit in vertical text. It inherits.
+
+| Value | Glyphs |
+| --- | --- |
+| `mixed` (default) | CJK, kana, Hangul and other characters Unicode marks upright stay upright; Latin and other scripts are turned sideways. |
+| `upright` | Every character stays upright, Latin and spaces included. |
+| `sideways` | Every character is turned sideways. `sideways-right` is accepted as the same value. |
+
+A full-width character's cell along the line is the font's vertical advance where the font has vertical metrics, else that font's height, as in Chrome. Full-width characters use the font's vertical forms: the ideographic comma and full stop (`、` `。`) and small kana sit in the corner of their cell, and brackets, the long vowel mark `ー` and wave dashes take their turned shapes. A bracket or dash the font has no vertical form for is turned with the line instead.
+
+`text-orientation` can be set on an inline element: `<span>` inside a `mixed` paragraph can keep its Latin letters upright.
+
+### text-combine-upright
+
+Sets a run of characters horizontally in a single upright cell of 1em, squeezed to fit when it's wider, as for dates and numbers in vertical Japanese. It inherits.
+
+| Value | Combines |
+| --- | --- |
+| `none` (default) | nothing |
+| `all` | all of the element's text |
+| `digits`, `digits 2` to `digits 4` | each run of up to that many ASCII digits (2 when no number is given); longer runs stay sideways |
+
+```html
+<p class="page">令和<span class="tcy">6</span>年<span class="tcy">12</span>月</p>
+```
+
+```css
+.tcy {
+  text-combine-upright: all;
+}
+```
+
+### Scrolling and floats
+
+A `vertical-rl` box that scrolls (`overflow-x: scroll` or `auto`) starts at its right edge, where its first column is, and scrolls left towards the rest, keeping its distance from the right edge when its content changes. Its `scrollLeft` is 0 at the start and negative to the left, as in browsers. `scrollIntoView()` aligns along the scroller's own block and inline axes, so `block: 'start'` brings an element to the right edge of a `vertical-rl` scroller, as the CSSOM View spec says. Chrome instead turns `block` and `inline` into sides once, from the element's own writing mode, so a horizontal scroller around vertical text aligns differently there.
+
+Floats in a vertical box sit at the ends of its lines: `float: left` at the top (line-left) and `float: right` at the bottom, against its block-start side. The text beside them shortens its lines around them.
+
+Inline boxes (images, buttons) in vertical text move along their lines around floats as the text does.
+
+Buttons set their label in the writing mode. Text fields (`<input>`, `<textarea>`) are native controls without vertical text layout: in vertical text they are placed like any inline box, and their text doesn't follow `writing-mode`.

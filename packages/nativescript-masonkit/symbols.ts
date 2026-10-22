@@ -42,3 +42,6 @@ export const borderSideColors_ = Symbol('[[borderSideColors]]');
 export const eventType_ = Symbol('[[eventType]]');
 
 export const touchAction_ = Symbol('[[touchAction]]');
+
+/** Rewrites a view's logical borders, corners and overflow (and, unless passed false, its descendants') after its writing mode or direction changed. */
+export const remapLogicalBoxes_ = Symbol('[[remapLogicalBoxes]]');

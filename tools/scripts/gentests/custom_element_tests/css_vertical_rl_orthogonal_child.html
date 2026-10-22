@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    horizontal box inside a vertical-rl container
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="display: block; writing-mode: vertical-rl; width: 50px; height: 100px;">
+  <div style="display: block; writing-mode: horizontal-tb;">HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH</div>
+  <div style="display: block; writing-mode: horizontal-tb; width: 25px;">HH&ZeroWidthSpace;HH&ZeroWidthSpace;HH</div>
+</div>
+
+</body>
+</html>

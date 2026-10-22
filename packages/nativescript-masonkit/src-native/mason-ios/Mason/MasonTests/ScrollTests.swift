@@ -51,6 +51,17 @@ final class ScrollTests: XCTestCase {
     return { n }
   }
 
+  func testScrollIntoViewModesFollowTheScrollersWritingMode() {
+    // block: start (0), inline: nearest (3).
+    XCTAssertTrue(MasonWebScroll.physicalModes(0, 3, writingMode: 0, rtl: false) == (3, 0))
+    // vertical-rl: the block axis is x, starting at the right; inline is y.
+    XCTAssertTrue(MasonWebScroll.physicalModes(0, 3, writingMode: 1, rtl: false) == (2, 3))
+    XCTAssertTrue(MasonWebScroll.physicalModes(0, 0, writingMode: 2, rtl: false) == (0, 0))
+    // rtl starts the inline axis at its far end.
+    XCTAssertTrue(MasonWebScroll.physicalModes(1, 0, writingMode: 0, rtl: true) == (2, 1))
+    XCTAssertTrue(MasonWebScroll.physicalModes(2, 2, writingMode: 1, rtl: true) == (0, 0))
+  }
+
   func testSeekBeforeLayoutIsKeptPerAxisAndClampedAfterLayout() {
     let view = fixture()
     MasonWebScroll.scrollTo(view, 10, 20, smooth: false)

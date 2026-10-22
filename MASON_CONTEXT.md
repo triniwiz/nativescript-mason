@@ -541,7 +541,7 @@ commitState(StateKeys.X)
 ### iOS
 
 - Regular-weight text must render via `CTRunDraw`, not `drawRunWithFakeBold`. The fake-bold condition is `!isBold && weight >= 600` (CSS weight cutoff), **not** `>= 0.4` (CoreText trait scale). Every regular run has CSS weight 400; `400 >= 0.4` fires the fake-bold path → fuzzy, too-heavy glyphs.
-- Single-line block text height is floored to `CTFontGetSize(font) * 1.2`. CoreText's single-line typographic bounds come out ~1.0× (SF/Helvetica report leading=0 and ascent+descent ≈ 1em). The 1.2× floor makes a single line match the web/Android `line-height: normal` box.
+- Single-line block text height is floored to `CTFontGetSize(font) * 1.2`. CoreText's single-line typographic bounds come out ~1.0× (SF/Helvetica report leading=0 and ascent+descent ≈ 1em). The 1.2× floor makes a single line match the web/Android `line-height: normal` box. It applies only to `line-height: normal`: an explicit line-height is the line box, n lines are n line boxes, and the ink that overflows a tight one is drawn by `MasonInkLayer`, a sublayer of the text layer outset by the overflow. CJK fonts' CTLines are spaced by the font's height past `maximumLineHeight` unless the paragraph's maximum line spacing is 0, which only a CTParagraphStyle can say, so `TextEngine.framesetter(_:)` converts fixed line boxes to one. CoreText also keeps a fixed line box one line-height from the next when it holds an inline box taller than it (the box overlaps the next line); `grownBoxLines` moves those lines and the ones after them so the line grows to fit, as in CSS, in both measure and `drawMultiLine`, and text segments of a fixed line box report its extents rather than the font's, so mason-core's IFC stacks the lines the same way.
 - Font metrics (`syncFontMetricsNow`) must be read from a font sized to `resolvedFontSize`, not a fixed `UIFont.labelFontSize` (17pt) stub. Use `baseFont.withSize(CGFloat(resolvedFontSize))` before reading ascent/descent/xHeight/capHeight/leading.
 
 ### UA default styles (both platforms)
@@ -621,12 +621,26 @@ camelCase accessors — `:active { background-color: red }` stamped a dead expan
 Only the accidentally-identical names (`color`, `display`, `padding`, …) ever
 worked. Both fixed.
 
-**Logical properties** (`margin-inline`, `padding-block-end`, `inset-inline-start`,
-`border-inline*`/`border-block*`, `border-start-end-radius`, `inline-size`, ...) are
-shorthands over the physical longhands (`properties.ts`, "Logical properties"),
-mapped for horizontal left-to-right text, so they cascade with the physical ones.
-Making them direction-aware needs a `direction` property and a mapping done per
-element, after the parse-time shorthand split.
+**Logical properties.** Margin, padding, inset and size sides (`margin-block-start`,
+`inline-size`, ...) are longhands of their own, stored in logical slots of the style
+buffer (`*_BLOCK_START_*`, `INLINE_SIZE_*`). Each group has ORDER bytes: one write
+stamp per physical and per logical slot from a per-node `LOGICAL_SEQ` counter
+(renumbered by rank when it wraps). mason-core's `get_margin`/`get_padding`/
+`get_inset`/`get_size`/... map each logical slot onto the physical side it lands on
+for the node's resolved writing mode (`Style::writing_mode`, kept by
+`sync_writing_mode`) and `direction`, and use it when it was stamped after that
+side's physical value: the later declaration wins, as in CSS. TS stamps physical
+writes only while the group has logical values, so horizontal-only use never touches
+the stamps. Native typed setters (iOS/Android `setOrAppendState`) clear the group's
+logical stamps instead: a native write overrides the UA margins. UA margins of text
+types and web.ts blocks are written as logical sides (oldest stamp). Logical longhands
+write through `setNative` (common.ts) so the native view isn't created early. Borders,
+corner radii and `overflow-inline/block` are logical longhands too, but the painters
+read physical slots, so `logical-boxes.ts` resolves them in TS: per view and group it
+keeps write stamps for the physical and logical longhands, writes each physical side the
+later declaration (by the box's own or nearest Mason ancestor's writing mode and
+direction) through the physical setNative, and redoes it for the view and its
+descendants when `writing-mode` or `direction` is set on a view.
 
 **`flex` shorthand.** The converter tested `value.length` (the *string's* length)
 instead of `values.length`, then pushed an object where core destructures a
@@ -782,8 +796,9 @@ every child. Cheap to spot in the fixture JSON: look for `"text": "\n  \n  "`.
 
 ### writing-mode
 
-`vertical-rl` / `vertical-lr` work for a vertical box inside a horizontal layout,
-with sideways glyphs (`text-orientation: mixed` for Latin text).
+`vertical-rl` / `vertical-lr` work for vertical text, vertical containers (block,
+flex and grid children flow in the container's writing mode) and
+`text-orientation: mixed | upright | sideways`.
 
 - **Layout lives in mason-core.** For text, Rust only sizes boxes; the platform
   breaks and draws lines. So `cached_leaf_measure` (`tree_inline.rs`) and the
@@ -817,10 +832,69 @@ with sideways glyphs (`text-orientation: mixed` for Latin text).
   placements turned back (`transpose_prepared_item`). Inline-blocks holding
   text are measured at their inherent size before the text is, so a box isn't
   shrunk to its min-content.
-- **Not supported yet:** upright CJK (`text-orientation: upright`), vertical
-  containers whose children flow vertically (taffy only supports horizontal-tb),
-  float exclusions, and turning the label of a button or other widget inside
-  vertical text.
+- **Vertical containers** (`writing_mode.rs`). Taffy only knows horizontal-tb,
+  so a vertical container runs its flex, grid or block algorithm (and the
+  out-of-flow pass) in a transposed frame: `StyleGuard` reads sizes and sides
+  in the frame of the asking algorithm (a thread-local `LayoutFrame`), the
+  child boundary in `compute_block_child_layout` turns inputs back to physical,
+  and the layouts set during the algorithm are turned to physical afterwards
+  (mirrored across the width for vertical-rl). Everything below the boundary
+  stays physical, so the vertical-text code above is unchanged. A child in the
+  container's own writing mode (`is_parallel_flow`) skips the orthogonal-flow
+  fallbacks; an orthogonal one (a vertical box in horizontal flow or the
+  reverse) gets a fit-content inline size (`fit_orthogonal_inline_size`).
+- **text-orientation** (`VerticalText.kt/.swift/.h`, one table per platform).
+  Upright graphemes get a cell along the sideways line (1em full-width, else
+  the font's height) and are drawn turned back. Android scales the advance with
+  `textScaleX` (Minikin drops letter spacing at a line's start); iOS kerns it
+  (run delegates broke CoreText line breaking, and split runs miss an exact
+  fit, hence a 1/64pt wrap slack); Windows uses inline objects. Tr characters
+  (brackets, ー, 〜) are drawn sideways, which is how their vertical forms look;
+  only 、。，． take vertical alternates (on iOS via
+  `kCTVerticalFormsAttributeName`, filled as an outline).
+  Superseded: full-width graphemes (and Tr characters the font has a vertical
+  form for) now draw the font's vertical form; cells use the font's vertical
+  advance (vmtx; on Android read from `Font.getBuffer()` on API 31+), else that
+  font's height. A Tr character without a vertical form stays sideways.
+- **Per-span text-orientation / text-combine-upright.** iOS: run attributes from
+  each node's default attributes; Android: innermost `NodeSpan`'s style; Windows:
+  `Span.upright`/`Span.combine` from the span's owner node. A flattened child's
+  piece is built `nested` (no upright marking) so the paragraph marks the whole
+  text once; marking twice doubled kerns on iOS.
+- **text-combine-upright** (`all`, `digits N`): one upright 1em cell per run,
+  text drawn horizontally and squeezed (iOS kern spread over the run: CoreText caps
+  a negative kern at one glyph's advance).
+- **text-spacing-trim**: `SpacingTrim.swift/.kt/.h`. Adjacent punctuation, paragraph
+  edges and trim-all are marked when the text is built; iOS kerns (an opening or middle
+  mark also draws back by `GLYPH_SHIFT_KEY`), Windows uses negative character spacing
+  for marks whose drawn font lists `halt` in GPOS (`vhal` for upright cells), as Chrome,
+  Android the font's `halt` (Minikin applies 'chws' by default on API 35+, so
+  `space-all` adds `'chws' 0`). Upright cells in vertical text are halved instead.
+  Soft line breaks (iOS `trimmingLineEdges` in `framesetter(for:)`, Android
+  `layoutTrimmingLineEdges` in `newTrimmedStaticLayout`, not beside floats) lay the
+  text out, trim line-start opening marks and line-end closing marks, and redo it up
+  to three times until the breaks settle; a closing bracket the line broke before is
+  set half-width when that lets it end the line (as Chrome; not `、。`). Windows
+  (`FitLineEdges`, run from `Configure` for the Text's cached layout only, so not
+  beside floats) does the same on the DirectWrite layout per width: character
+  spacing for sideways marks, a resized `UprightCell` for upright ones. Its
+  `LineEdgeRegistry` holds each layout so an address isn't reused while registered.
+- **vertical-rl scroll containers** (overflow-x scroll/auto): `writing_mode.rs`
+  moves the content right by its left overflow; iOS/Android keep the offset's
+  distance from the right end (starting there), Windows uses a right-to-left
+  ScrollViewer with left-to-right content. Web `scrollLeft` is 0 at the start and
+  negative to the left.
+- **Floats** in a vertical container: taffy places them in the transposed frame;
+  the exclusion pre-pass (`measure_place_floats`) also runs in the frame and exports
+  frame coordinates, which iOS/Android text uses directly in its sideways layout.
+  Windows `Text::FloatExclusions` moves them into the text's sideways frame, and
+  `FloatWrap` lines (built with upright cells) are drawn turned by
+  `DrawVerticalLines`.
+- **Inline layout of a vertical text container with inline children**
+  (`tree_inline.rs`, text-container branch) runs transposed too; it used to run
+  horizontally, putting each upright cell on its own line and growing the box.
+- **Not supported yet:** vertical text in native text fields (`<input>`,
+  `<textarea>`).
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0

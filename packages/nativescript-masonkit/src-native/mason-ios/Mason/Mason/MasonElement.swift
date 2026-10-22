@@ -1390,19 +1390,30 @@ class MasonElementHelpers: NSObject {
       default:      scrollHeight = bh
       }
       let newContentSize = CGSize(width: scrollWidth, height: scrollHeight)
+      // vertical-rl content starts at the right (mason-core moves its left overflow into the
+      // content box): the horizontal offset keeps its distance from the end, starting there.
+      let fromEnd = node.style.resolvedWritingMode == 1
 
       if let scroll = node.view as? Scroll {
+        let oldEnd = max(0, scroll.contentSize.width - bw) - scroll.contentOffset.x
         if scroll.contentSize != newContentSize { scroll.contentSize = newContentSize }
         MasonElementHelpers.handleOverflow(_overflow.x, scroll)
         MasonElementHelpers.handleOverflow(_overflow.y, scroll, true)
         // A shrinking contentSize can leave contentOffset past the new range.
         let maxX = max(0, newContentSize.width - scroll.bounds.width)
         let maxY = max(0, newContentSize.height - scroll.bounds.height)
-        let off = scroll.contentOffset
+        var off = scroll.contentOffset
+        if fromEnd { off.x = maxX - oldEnd }
         let clamped = CGPoint(x: min(max(0, off.x), maxX), y: min(max(0, off.y), maxY))
-        if clamped != off { scroll.setContentOffset(clamped, animated: false) }
+        if clamped != scroll.contentOffset { scroll.setContentOffset(clamped, animated: false) }
       } else if let masonView = masonView {
-        if masonView.contentSize != newContentSize { masonView.contentSize = newContentSize }
+        if masonView.contentSize != newContentSize {
+          let oldEnd = max(0, masonView.contentSize.width - bw) - masonView.contentOffset.x
+          masonView.contentSize = newContentSize
+          if fromEnd {
+            masonView.contentOffset = CGPoint(x: max(0, newContentSize.width - bw) - oldEnd, y: masonView.contentOffset.y)
+          }
+        }
       }
     }
     // Reassigning through the setter re-clamps a scrolled view after a content size

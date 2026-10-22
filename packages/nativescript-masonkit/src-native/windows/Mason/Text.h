@@ -219,6 +219,8 @@ namespace winrt::NativeScript::Mason::implementation
 
             std::vector<winrt::NativeScript::Mason::Node> boxNodes;
             std::vector<winrt::weak_ref<winrt::NativeScript::Mason::Text>> boxTexts;
+            // The element each of the paragraph's spans comes from, for its text-orientation.
+            std::vector<winrt::NativeScript::Mason::Node> spanNodes;
             float ascent{ 0.0f };
             float descent{ 0.0f };
             float lineHeight{ 0.0f };
@@ -254,7 +256,11 @@ namespace winrt::NativeScript::Mason::implementation
 
             IDWriteTextLayout* Layout()
             {
-                if (!layout) layout = mason_dwrite::Build(paragraph);
+                if (!layout)
+                {
+                    layout = mason_dwrite::BuildUpright(paragraph);
+                    mason_dwrite::WatchLineEdges(layout.get(), paragraph);
+                }
                 return layout.get();
             }
 
@@ -267,6 +273,7 @@ namespace winrt::NativeScript::Mason::implementation
         };
 
         static bool RefreshBoxes(MeasureCache& cache);
+        static bool RefreshUpright(MeasureCache& cache);
         // Margin boxes of the floats beside the text, in its content box, from the last layout.
         static std::vector<mason_dwrite::Exclusion> FloatExclusions(MeasureCache const& cache);
         void SyncFloatParent();

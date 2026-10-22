@@ -435,6 +435,9 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedWordSpacing.toRawBits().toLong()
     h = h * 1000003 xor style.resolvedWordSpacingType.toLong()
     h = h * 1000003 xor style.resolvedWritingMode.toLong()
+    h = h * 1000003 xor style.resolvedTextOrientation.toLong()
+    h = h * 1000003 xor style.resolvedTextCombineUpright.toLong()
+    h = h * 1000003 xor style.resolvedTextSpacingTrim.toLong()
     h = h * 1000003 xor style.resolvedUnicodeBidi.toLong()
     h = h * 1000003 xor style.resolvedHyphens.toLong()
     h = h * 1000003 xor style.resolvedFontStretch.toLong()
@@ -620,6 +623,27 @@ class TextEngine(val container: TextContainer) {
     return builder.build()
   }
 
+  // newStaticLayout, with text-spacing-trim's trims at soft line breaks. Not beside floats,
+  // whose lines have lengths of their own.
+  @androidx.annotation.RequiresApi(Build.VERSION_CODES.M)
+  private fun newTrimmedStaticLayout(
+    text: CharSequence,
+    paint: TextPaint,
+    width: Int,
+    alignment: android.text.Layout.Alignment,
+    heuristic: TextDirectionHeuristic,
+    justified: Boolean,
+    indent: Int,
+    maxLines: Int
+  ): StaticLayout {
+    if (!trimsLineEdges || text !== cachedAttributedString || width >= 1_000_000) {
+      return newStaticLayout(text, paint, width, alignment, heuristic, justified, indent, maxLines)
+    }
+    return layoutTrimmingLineEdges(text as Spanned, lineEdgeTrimModes, paint, width, indent) {
+      newStaticLayout(it, paint, width, alignment, heuristic, justified, indent, maxLines)
+    }
+  }
+
   private fun buildStaticLayoutCached(
     spannable: CharSequence,
     paint: TextPaint,
@@ -643,7 +667,7 @@ class TextEngine(val container: TextContainer) {
     // The one-line fast path has no indent; a single line never needs clamping.
     val built = (if (indent == 0) singleLineLayout(spannable, paint, safeWidthConstraint, alignment, justified) else null)
       ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      newStaticLayout(spannable, paint, safeWidthConstraint, alignment, heuristic, justified, indent, maxLines)
+      newTrimmedStaticLayout(spannable, paint, safeWidthConstraint, alignment, heuristic, justified, indent, maxLines)
     } else {
       StaticLayout(
         spannable, paint, safeWidthConstraint, alignment, 1f, // lineSpacingMultiplier
@@ -662,7 +686,8 @@ class TextEngine(val container: TextContainer) {
       heuristic = heuristic,
       layout = built,
       keepsTrailingSpaces = keepsTrailingSpaces(),
-      advances = if (justified) null else advancesFor(spannable, paint),
+      // A trimmed layout's text isn't the one advances are for.
+      advances = if (justified || built.text !== spannable) null else advancesFor(spannable, paint),
       indent = indent,
       maxLines = maxLines
     )
@@ -1130,14 +1155,26 @@ class TextEngine(val container: TextContainer) {
    * the last layout pass, so text that hasn't been placed yet starts at the container's origin.
    */
   internal fun floatExclusions(): FloatArray? {
-    if (isVerticalWritingMode || !hasFloatedSibling()) return null
+    if (!hasFloatedSibling()) return null
     val parent = node.parent ?: return null
     val raw = NativeHelpers.nativeNodeGetFloatExclusions(node.mason.nativePtr, parent.nativePtr)
     if (raw.isEmpty()) return null
-    val offX = node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
+    var offX = node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
       node.computedPaddingLeft + node.computedBorderLeft
-    val offY = node.computedY - parent.computedPaddingTop - parent.computedBorderTop +
+    var offY = node.computedY - parent.computedPaddingTop - parent.computedBorderTop +
       node.computedPaddingTop + node.computedBorderTop
+    // Vertical text gets them in its sideways frame, which is the one a vertical container's
+    // exclusions are in: x along the lines, y across them from the block-start side.
+    if (isVerticalWritingMode) {
+      offX = offY
+      offY = if (style.resolvedWritingMode.toInt() == 1) {
+        (parent.computedWidth - parent.computedPaddingRight - parent.computedBorderRight) -
+          (node.computedX + node.computedWidth) + node.computedPaddingRight + node.computedBorderRight
+      } else {
+        node.computedX - parent.computedPaddingLeft - parent.computedBorderLeft +
+          node.computedPaddingLeft + node.computedBorderLeft
+      }
+    }
     val out = FloatArray(raw.size / 5 * 5)
     for (b in out.indices step 5) {
       out[b] = raw[b] - offX
@@ -1155,7 +1192,8 @@ class TextEngine(val container: TextContainer) {
     if (container !is TextView && container !is android.widget.TextView) return null
     val view = container.node.view as? View ?: return null
     val exclusions = floatExclusions() ?: return null
-    val contentWidth = view.width - view.paddingLeft - view.paddingRight
+    val contentWidth = if (isVerticalWritingMode) view.height - view.paddingTop - view.paddingBottom
+    else view.width - view.paddingLeft - view.paddingRight
     if (contentWidth <= 0) return null
     val text: Spannable = currentText()
     if (text.isEmpty()) return null
@@ -1296,10 +1334,9 @@ class TextEngine(val container: TextContainer) {
       return cached.layout
     }
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      newStaticLayout(
-        text, paint, safeContentWidth, alignment, heuristic, justified, indent, maxLines,
-        if (ellipsize) contentWidth else 0
-      )
+      if (ellipsize) newStaticLayout(
+        text, paint, safeContentWidth, alignment, heuristic, justified, indent, maxLines, contentWidth
+      ) else newTrimmedStaticLayout(text, paint, safeContentWidth, alignment, heuristic, justified, indent, maxLines)
     } else {
       StaticLayout(text, paint, safeContentWidth, alignment, 1f, 0f, includePadding)
     }
@@ -2550,6 +2587,15 @@ class TextEngine(val container: TextContainer) {
 
       else -> content // 0 = normal, no wrapping needed
     }
+    if (!nested) {
+      val modes = spacingTrimModes(wrapped)
+      applySpacingTrim(wrapped, modes)
+      if (isVerticalWritingMode) {
+        applyUprightGlyphs(wrapped, style.resolvedTextOrientation.toInt(), style.resolvedTextCombineUpright.toInt())
+      }
+      lineEdgeTrimModes = modes
+      trimsLineEdges = trimsAtLineEdges(wrapped, modes)
+    }
 
     // Cache the result
     cachedAttributedString = wrapped
@@ -2588,6 +2634,20 @@ class TextEngine(val container: TextContainer) {
       block(span.childNode, if (span.drawn) span.drawnRect else null)
     }
   }
+
+  /** Each position's text-spacing-trim (the innermost element's value), or null when all are normal. */
+  private fun spacingTrimModes(text: Spanned): ByteArray? {
+    val elements = text.getSpans(0, text.length, NodeSpan::class.java)
+    elements.sortBy { text.getSpanStart(it) - text.getSpanEnd(it) }
+    return spacingTrimModes(
+      text.length, style.resolvedTextSpacingTrim.toInt(),
+      elements.map { Triple(it.node, text.getSpanStart(it), text.getSpanEnd(it)) }
+    )
+  }
+
+  // The cached text's text-spacing-trim per position, and whether a soft line break may trim it.
+  private var lineEdgeTrimModes: ByteArray? = null
+  private var trimsLineEdges = false
 
   /** Marks the range a flattened element produced, so a tap on it can find it. */
   internal class NodeSpan(val node: Node)
@@ -2863,6 +2923,9 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) ||
           StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
           StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_ORIENTATION) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_COMBINE_UPRIGHT) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_SPACING_TRIM) ||
           StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
           StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
           StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../scripts/gentest/test_helper.js"></script>
+  <link rel="stylesheet" type="text/css" href="../scripts/gentest/test_base_style.css">
+  <title>
+    absolute boxes inside a vertical-rl container
+  </title>
+<head/>
+<body>
+
+<div id="test-root" style="display: block; writing-mode: vertical-rl; width: 100px; height: 80px;">
+  <div style="position: absolute; width: 10px; height: 20px; right: 5px; top: 7px;"></div>
+  <div style="position: absolute; width: 10px; height: 20px; left: 3px; bottom: 4px;"></div>
+</div>
+
+</body>
+</html>
