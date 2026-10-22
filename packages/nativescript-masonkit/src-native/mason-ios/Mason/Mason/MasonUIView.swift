@@ -2049,9 +2049,11 @@ enum MasonWebScroll {
         let portW = b.width - px(l.borderLeft) - px(l.borderRight)
         let portH = b.height - px(l.borderTop) - px(l.borderBottom)
         let range = scroller.webScrollRange
+        let style = scroller.node.style
+        let modes = physicalModes(block, inline, writingMode: style.resolvedWritingMode, rtl: style.direction == .RTL)
         let to = CGPoint(
-          x: min(max(0, align(rect.minX, rect.width, portX, portW, offset.x, inline)), range.x),
-          y: min(max(0, align(rect.minY, rect.height, portY, portH, offset.y, block)), range.y)
+          x: min(max(0, align(rect.minX, rect.width, portX, portW, offset.x, modes.x)), range.x),
+          y: min(max(0, align(rect.minY, rect.height, portY, portH, offset.y, modes.y)), range.y)
         )
         if to != offset {
           plan.append((scroller, to))
@@ -2070,6 +2072,18 @@ enum MasonWebScroll {
       let pending = smooth ? shift : .zero
       let rect = target.convert(target.bounds, to: scrollView).offsetBy(dx: -pending.x, dy: -pending.y)
       scrollView.scrollRectToVisible(rect, animated: smooth)
+    }
+  }
+
+  /// `block` and `inline` (0 start, 1 center, 2 end, 3 nearest) as modes along x and y, from the
+  /// left and top, for a scroller in `writingMode` and `rtl`.
+  static func physicalModes(_ block: Int, _ inline: Int, writingMode: UInt8, rtl: Bool) -> (x: Int, y: Int) {
+    func flipped(_ mode: Int) -> Int { mode == 0 ? 2 : mode == 2 ? 0 : mode }
+    let along = rtl ? flipped(inline) : inline
+    switch writingMode {
+    case 1: return (flipped(block), along)
+    case 2: return (block, along)
+    default: return (along, block)
     }
   }
 

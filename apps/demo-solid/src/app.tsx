@@ -10,6 +10,7 @@ import Position from './components/position'
 import Forms from './components/forms'
 import Inputs from './components/inputs'
 import Details from './components/details'
+import Vertical from './components/vertical'
 import QA from './components/qa'
 import DocsExample from './components/docs-example'
 import WebSpec from './webspec/WebSpec'
@@ -30,6 +31,7 @@ declare module 'solid-navigation' {
       Forms: RouteDefinition
       Inputs: RouteDefinition
       Details: RouteDefinition
+      Vertical: RouteDefinition
       QA: RouteDefinition
       DocsExample: RouteDefinition
       WebSpec: RouteDefinition
@@ -52,6 +54,7 @@ const App = () => {
       <Route name="Forms" component={Forms} />
       <Route name="Inputs" component={Inputs} />
       <Route name="Details" component={Details} />
+      <Route name="Vertical" component={Vertical} />
       <Route name="QA" component={QA} />
       <Route name="DocsExample" component={DocsExample} />
       <Route name="WebSpec" component={WebSpec} />

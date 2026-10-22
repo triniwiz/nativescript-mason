@@ -154,11 +154,6 @@ export const splitInsetStartEnd = startEnd((token) => token === 'auto' || isLeng
 export const splitBorderWidthStartEnd = startEnd((token) => BORDER_WIDTH_KEYWORDS.has(token) || isLength(token));
 export const splitBorderColorStartEnd = startEnd((token) => token !== '/');
 
-/** A logical property that maps onto one physical longhand: the value as is. */
-export function passThrough(value: string): string[] {
-  return [value];
-}
-
 export const BORDER_STYLES: ReadonlySet<string> = new Set(['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset']);
 
 export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLowerCase()));

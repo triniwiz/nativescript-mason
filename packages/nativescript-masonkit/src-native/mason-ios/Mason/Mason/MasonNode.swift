@@ -900,7 +900,8 @@ public class MasonNode: NSObject {
       attrs[.kern] = CGFloat(letterSpacing) / scaleF
     }
 
-    if style.resolvedTextSpacingTrim == 1 { attrs[Constants.SPACING_TRIM_OFF_KEY] = true }
+    let spacingTrim = style.resolvedTextSpacingTrim
+    if spacingTrim != 0 && spacingTrim != 6 { attrs[Constants.SPACING_TRIM_KEY] = spacingTrim }
 
     // Vertical text reads text-orientation per run, as an inline element can set its own.
     if style.resolvedWritingMode != 0 {

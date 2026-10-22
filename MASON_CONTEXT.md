@@ -541,7 +541,7 @@ commitState(StateKeys.X)
 ### iOS
 
 - Regular-weight text must render via `CTRunDraw`, not `drawRunWithFakeBold`. The fake-bold condition is `!isBold && weight >= 600` (CSS weight cutoff), **not** `>= 0.4` (CoreText trait scale). Every regular run has CSS weight 400; `400 >= 0.4` fires the fake-bold path → fuzzy, too-heavy glyphs.
-- Single-line block text height is floored to `CTFontGetSize(font) * 1.2`. CoreText's single-line typographic bounds come out ~1.0× (SF/Helvetica report leading=0 and ascent+descent ≈ 1em). The 1.2× floor makes a single line match the web/Android `line-height: normal` box.
+- Single-line block text height is floored to `CTFontGetSize(font) * 1.2`. CoreText's single-line typographic bounds come out ~1.0× (SF/Helvetica report leading=0 and ascent+descent ≈ 1em). The 1.2× floor makes a single line match the web/Android `line-height: normal` box. It applies only to `line-height: normal`: an explicit line-height is the line box, n lines are n line boxes, and the ink that overflows a tight one is drawn by `MasonInkLayer`, a sublayer of the text layer outset by the overflow. CJK fonts' CTLines are spaced by the font's height past `maximumLineHeight` unless the paragraph's maximum line spacing is 0, which only a CTParagraphStyle can say, so `TextEngine.framesetter(_:)` converts fixed line boxes to one. CoreText also keeps a fixed line box one line-height from the next when it holds an inline box taller than it (the box overlaps the next line); `grownBoxLines` moves those lines and the ones after them so the line grows to fit, as in CSS, in both measure and `drawMultiLine`, and text segments of a fixed line box report its extents rather than the font's, so mason-core's IFC stacks the lines the same way.
 - Font metrics (`syncFontMetricsNow`) must be read from a font sized to `resolvedFontSize`, not a fixed `UIFont.labelFontSize` (17pt) stub. Use `baseFont.withSize(CGFloat(resolvedFontSize))` before reading ascent/descent/xHeight/capHeight/leading.
 
 ### UA default styles (both platforms)
@@ -635,9 +635,12 @@ the stamps. Native typed setters (iOS/Android `setOrAppendState`) clear the grou
 logical stamps instead: a native write overrides the UA margins. UA margins of text
 types and web.ts blocks are written as logical sides (oldest stamp). Logical longhands
 write through `setNative` (common.ts) so the native view isn't created early. Borders,
-corner radii and `overflow-inline/block` are still parse-time shorthands over the
-physical longhands for horizontal left-to-right text: the platforms paint borders from
-the physical slots.
+corner radii and `overflow-inline/block` are logical longhands too, but the painters
+read physical slots, so `logical-boxes.ts` resolves them in TS: per view and group it
+keeps write stamps for the physical and logical longhands, writes each physical side the
+later declaration (by the box's own or nearest Mason ancestor's writing mode and
+direction) through the physical setNative, and redoes it for the view and its
+descendants when `writing-mode` or `direction` is set on a view.
 
 **`flex` shorthand.** The converter tested `value.length` (the *string's* length)
 instead of `values.length`, then pushed an object where core destructures a
@@ -861,10 +864,17 @@ flex and grid children flow in the container's writing mode) and
 - **text-combine-upright** (`all`, `digits N`): one upright 1em cell per run,
   text drawn horizontally and squeezed (iOS kern spread over the run: CoreText caps
   a negative kern at one glyph's advance).
-- **text-spacing-trim** (adjacent punctuation only): `SpacingTrim.swift/.kt/.h`.
-  iOS kerns, Windows uses negative character spacing, Android the font's `halt`
-  (Minikin applies 'chws' by default on API 35+, so `space-all` adds `'chws' 0`).
-  Upright cells in vertical text are halved instead.
+- **text-spacing-trim**: `SpacingTrim.swift/.kt/.h`. Adjacent punctuation, paragraph
+  edges and trim-all are marked when the text is built; iOS kerns (an opening or middle
+  mark also draws back by `GLYPH_SHIFT_KEY`), Windows uses negative character spacing,
+  Android the font's `halt` (Minikin applies 'chws' by default on API 35+, so
+  `space-all` adds `'chws' 0`). Upright cells in vertical text are halved instead.
+  Soft line breaks (iOS `trimmingLineEdges` in `framesetter(for:)`, Android
+  `layoutTrimmingLineEdges` in `newTrimmedStaticLayout`, not beside floats) lay the
+  text out, trim line-start opening marks and line-end closing marks, and redo it up
+  to three times until the breaks settle; a closing bracket the line broke before is
+  set half-width when that lets it end the line (as Chrome; not `、。`). Windows has no
+  line-edge pass yet.
 - **vertical-rl scroll containers** (overflow-x scroll/auto): `writing_mode.rs`
   moves the content right by its left overflow; iOS/Android keep the offset's
   distance from the right end (starting there), Windows uses a right-to-left
@@ -876,9 +886,9 @@ flex and grid children flow in the container's writing mode) and
 - **Inline layout of a vertical text container with inline children**
   (`tree_inline.rs`, text-container branch) runs transposed too; it used to run
   horizontally, putting each upright cell on its own line and growing the box.
-- **Not supported yet:** turning the label of a button or other widget inside
-  vertical text; Windows text wrapping around floats in vertical text; line-start
-  and line-end `text-spacing-trim`.
+- **Not supported yet:** vertical text in native text fields (`<input>`,
+  `<textarea>`); Windows text wrapping around floats in vertical text; Windows
+  `text-spacing-trim` at wrapped lines.
 
 `FixtureTree.tsx` decides when a fixture has settled by polling sizes. An
 all-zero snapshot does **not** count as settled: a fresh tree holds steady at 0x0

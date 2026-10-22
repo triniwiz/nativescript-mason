@@ -82,6 +82,14 @@ const FEATURES = [
     count: 'Playground',
   },
   {
+    id: 'Vertical',
+    label: 'Vertical Writing',
+    desc: 'writing-mode, text-orientation, spacing trim & logical borders',
+    bg: '#6c5ce7',
+    glyph: '縦',
+    count: 'Playground',
+  },
+  {
     id: 'QA',
     label: 'QA Harness',
     desc: 'Scroll-auto, backdrop-filter & stress tests',

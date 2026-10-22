@@ -127,8 +127,49 @@ class TextOrientationInstrumentedTest {
     applySpacingTrim(beside, null)
     assertEquals("beside ${width(SpannableStringBuilder("字」"))}", 80f, width(beside), 0.5f)
     val off = SpannableStringBuilder("」「")
-    applySpacingTrim(off, BooleanArray(2) { true })
+    applySpacingTrim(off, ByteArray(2) { SPACING_TRIM_SPACE_ALL.toByte() })
     assertEquals("off ${width(SpannableStringBuilder("」「"))}", 80f, width(off), 0.5f)
+  }
+
+  private fun modes(length: Int, mode: Int) = if (mode == 0) null else ByteArray(length) { mode.toByte() }
+
+  private fun trimmed(s: String, mode: Int, vertical: Boolean = false): SpannableStringBuilder {
+    val text = SpannableStringBuilder(s)
+    applySpacingTrim(text, modes(s.length, mode))
+    if (vertical) applyUprightGlyphs(text, 0)
+    return text
+  }
+
+  @Test
+  fun paragraphEdgesTrimByValue() {
+    // trim-start drops an opening mark's blank half at a paragraph's start; space-first and normal don't.
+    assertEquals(60f, width(trimmed("「字", SPACING_TRIM_START)), 0.5f)
+    assertEquals(80f, width(trimmed("「字", SPACING_TRIM_SPACE_FIRST)), 0.5f)
+    assertEquals(80f, width(trimmed("「字", 0)), 0.5f)
+    // trim-both also a closing mark's at its end, trim-all every mark's.
+    assertEquals(80f, width(trimmed("「字」", SPACING_TRIM_BOTH)), 0.5f)
+    assertEquals(160f, width(trimmed("字・字、字", SPACING_TRIM_ALL)), 0.5f)
+    assertEquals(80f, width(trimmed("「字」", SPACING_TRIM_BOTH, vertical = true)), 0.5f)
+  }
+
+  private fun lineEnds(s: String, mode: Int, width: Int, vertical: Boolean = false): List<Int> {
+    val layout = layoutTrimmingLineEdges(trimmed(s, mode, vertical), modes(s.length, mode), paint, width, 0) {
+      StaticLayout.Builder.obtain(it, 0, it.length, paint, width).build()
+    }
+    return (0 until layout.lineCount).map { layout.getLineEnd(it) }
+  }
+
+  @Test
+  fun softLineBreaksTrimMarksAsChromeDoes() {
+    // 3em lines. trim-start halves the 「 starting the second line, and then 」 fits half-width at its end.
+    assertEquals(listOf(3, 7, 8), lineEnds("字字字「字字」字", SPACING_TRIM_START, 120))
+    assertEquals(listOf(3, 7, 8), lineEnds("字字字「字字」字", SPACING_TRIM_START, 120, vertical = true))
+    // normal keeps 「 whole, so 」 doesn't fit either and takes the character before it along.
+    assertEquals(listOf(3, 5, 8), lineEnds("字字字「字字」字", 0, 120))
+    // A closing bracket that fits half-width ends its line; a full stop doesn't, nor does space-all trim.
+    assertEquals(listOf(4, 5), lineEnds("字字字」字", 0, 140))
+    assertEquals(listOf(2, 5), lineEnds("字字字。字", 0, 140))
+    assertEquals(listOf(2, 5), lineEnds("字字字」字", SPACING_TRIM_SPACE_ALL, 140))
   }
 
   @Test

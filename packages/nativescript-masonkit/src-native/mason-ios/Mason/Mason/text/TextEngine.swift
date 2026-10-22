@@ -748,7 +748,18 @@ public class TextEngine: NSObject {
       // Beside floats the lines are drawn where CoreText puts them, below any space it leaves
       // above the first line, so count from the frame's top.
       let top = floatRects.isEmpty ? lineOrigins[0].y + firstAscent : outerRect.maxY
-      let measuredHeight = top - (lineOrigins[count - 1].y - lastDescent)
+      var measuredHeight = top - (lineOrigins[count - 1].y - lastDescent)
+      // A line-height tighter than the glyphs: n lines are n line boxes, as in CSS, and the ink
+      // overflows them (see inkOverflow). Fallback fonts' ascents aren't clamped to the box.
+      if floatRects.isEmpty, engine.inkOverflow() > 0,
+        let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+      {
+        measuredHeight = lineOrigins[0].y - lineOrigins[count - 1].y + paragraph.maximumLineHeight
+      }
+      // Lines that hold boxes taller than a fixed line-height grow to fit them.
+      if floatRects.isEmpty, let grown = grownBoxLines(Array(lines.prefix(count)), lineOrigins, text) {
+        measuredHeight = grown.y[0] + grown.above[0] - (grown.y[count - 1] - grown.below[count - 1])
+      }
 
       // The indent moves the first line along; it is not part of the CTLine's width.
       var measuredWidth: CGFloat = 0
@@ -786,7 +797,7 @@ public class TextEngine: NSObject {
     // normal` is the font's ascent+descent+leading. Floor to it so the descenders
     // fit; block text also keeps its ~1.2× web/Android box. Multi-line already exceeds it.
     let lineHeightIsNormal = engine.node.style.resolvedLineHeight <= 0
-    if (!isInLine || lineHeightIsNormal) && size.height > 0,
+    if lineHeightIsNormal && size.height > 0,
        let fv = engine.node.getDefaultAttributes()[.font],
        CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
       let font = fv as! CTFont
@@ -795,22 +806,8 @@ public class TextEngine: NSObject {
       if normalLineHeight > size.height { size.height = normalLineHeight }
     }
 
-    // A line-height tighter than the font's natural line box makes CoreText clamp
-    // each line's ascent/descent, so the measured height (≈ lines × line-height)
-    // is short of the glyph ink, which then clips at the edges. Reserve the
-    // shortfall once so the first line's full ascent and last line's full descent
-    // fit; the draw path re-anchors the baselines into that reserved space.
-    if allowWrap, size.height > 0,
-       let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
-       paragraph.maximumLineHeight > 0,
-       let fv = engine.node.getDefaultAttributes()[.font],
-       CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
-      let font = fv as! CTFont
-      let naturalLineHeight = CTFontGetAscent(font) + CTFontGetDescent(font)
-      if paragraph.maximumLineHeight < naturalLineHeight {
-        size.height += naturalLineHeight - paragraph.maximumLineHeight
-      }
-    }
+    // A line-height tighter than the font's natural line box keeps its CSS height; the glyph
+    // ink that overflows it is drawn outside the box (see inkOverflow).
 
     // Not rounded here: layout snaps edges to device pixels, and a whole-pixel line height
     // per text adds up down a column of fractional font sizes.
@@ -849,7 +846,9 @@ public class TextEngine: NSObject {
 
   // The text's soft hyphens, first-line indent and inter-character justification resolved for one
   // width (0 when neither applies).
-  private var fitted: (version: UInt64, width: CGFloat, indent: CGFloat, justify: CGFloat, framesetter: CTFramesetter)?
+  private var fitted: (version: UInt64, width: CGFloat, indent: CGFloat, justify: CGFloat, trim: CGFloat, framesetter: CTFramesetter)?
+  // Whether the text has a mark text-spacing-trim may trim at a soft line break.
+  private var lineEdgeTrims: (version: UInt64, any: Bool)?
 
   /// How `text-align: justify` spreads a line's slack: nil when not justified.
   private var justification: Justification? {
@@ -865,12 +864,113 @@ public class TextEngine: NSObject {
 
   /// The framesetter for `text` wrapped at `width`, with soft hyphens broken and drawn as on the
   /// web, and the first line indented by `indent` (lay it out in `wrapRect`).
+  /// A framesetter for `text`. CoreText spaces the lines of CJK fonts by their own height past
+  /// a paragraph's maximum line height unless its maximum line spacing is 0, which only a
+  /// CTParagraphStyle can say; a fixed line box gets one, so lines are a line-height apart.
+  static func framesetter(_ text: NSAttributedString) -> CTFramesetter {
+    CTFramesetterCreateWithAttributedString(fixedLineSpacing(text))
+  }
+
+  /// CSS grows a line to hold an inline box taller than its line-height; CoreText keeps a fixed
+  /// line box one line-height from the next and lets the box overlap it. Each line's baseline
+  /// (`origins` are CoreText's), how far its line box reaches above and below it, and the growth
+  /// in all; nil when no box sticks out of a fixed line box.
+  static func grownBoxLines(_ lines: [CTLine], _ origins: [CGPoint], _ text: NSAttributedString)
+    -> (y: [CGFloat], above: [CGFloat], below: [CGFloat], growth: CGFloat)?
+  {
+    guard lines.count > 1, origins.count >= lines.count, text.length > 0,
+      let style = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
+      style.maximumLineHeight > 0, style.minimumLineHeight == style.maximumLineHeight
+    else { return nil }
+    let lineHeight = style.maximumLineHeight
+    var boxes: [(above: CGFloat, below: CGFloat)?] = []
+    for line in lines {
+      var box: (above: CGFloat, below: CGFloat)?
+      for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+        guard (CTRunGetAttributes(run) as NSDictionary)[kCTRunDelegateAttributeName as String] != nil else { continue }
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, nil)
+        box = (max(box?.above ?? 0, ascent), max(box?.below ?? 0, descent))
+      }
+      boxes.append(box)
+    }
+    // Lines without boxes sit one line-height apart; they give the grid and the text's extents.
+    guard let plain = boxes.firstIndex(where: { $0 == nil }) else { return nil }
+    var textAbove: CGFloat = 0
+    var textBelow: CGFloat = 0
+    CTLineGetTypographicBounds(lines[plain], &textAbove, &textBelow, nil)
+    guard boxes.contains(where: { $0.map { $0.above > textAbove + 0.5 || $0.below > textBelow + 0.5 } ?? false })
+    else { return nil }
+    var y: [CGFloat] = []
+    var above: [CGFloat] = []
+    var below: [CGFloat] = []
+    var moved: CGFloat = 0
+    for i in lines.indices {
+      let up = max(0, (boxes[i]?.above ?? 0) - textAbove)
+      let down = max(0, (boxes[i]?.below ?? 0) - textBelow)
+      y.append(origins[plain].y + CGFloat(plain - i) * lineHeight - moved - up)
+      above.append(textAbove + up)
+      below.append(textBelow + down)
+      moved += up + down
+    }
+    return (y, above, below, moved)
+  }
+
+  private static func fixedLineSpacing(_ text: NSAttributedString) -> NSAttributedString {
+    var result: NSMutableAttributedString?
+    text.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+      guard let style = value as? NSParagraphStyle, style.maximumLineHeight > 0,
+        style.minimumLineHeight == style.maximumLineHeight
+      else { return }
+      let out = result ?? NSMutableAttributedString(attributedString: text)
+      result = out
+      out.addAttribute(.paragraphStyle, value: coreTextStyle(style), range: range)
+    }
+    return result ?? text
+  }
+
+  private static let coreTextFloatSpecs: [CTParagraphStyleSpecifier] = [
+    .firstLineHeadIndent, .headIndent, .tailIndent, .minimumLineHeight, .maximumLineHeight,
+    .minimumLineSpacing, .maximumLineSpacing, .paragraphSpacingBefore, .paragraphSpacing,
+    .lineHeightMultiple, .defaultTabInterval,
+  ]
+
+  /// `style` as a CTParagraphStyle whose maximum line spacing is its own line spacing.
+  private static func coreTextStyle(_ style: NSParagraphStyle) -> CTParagraphStyle {
+    var alignment = CTTextAlignment(style.alignment)
+    var lineBreak = CTLineBreakMode(rawValue: UInt8(style.lineBreakMode.rawValue)) ?? .byWordWrapping
+    var direction = CTWritingDirection(rawValue: Int8(style.baseWritingDirection.rawValue)) ?? .natural
+    var floats: [CGFloat] = [
+      style.firstLineHeadIndent, style.headIndent, style.tailIndent, style.minimumLineHeight, style.maximumLineHeight,
+      style.lineSpacing, style.lineSpacing, style.paragraphSpacingBefore, style.paragraphSpacing,
+      style.lineHeightMultiple, style.defaultTabInterval,
+    ]
+    return floats.withUnsafeMutableBufferPointer { values in
+      withUnsafeMutableBytes(of: &alignment) { a in
+        withUnsafeMutableBytes(of: &lineBreak) { b in
+          withUnsafeMutableBytes(of: &direction) { d in
+            var settings = [
+              CTParagraphStyleSetting(spec: .alignment, valueSize: a.count, value: a.baseAddress!),
+              CTParagraphStyleSetting(spec: .lineBreakMode, valueSize: b.count, value: b.baseAddress!),
+              CTParagraphStyleSetting(spec: .baseWritingDirection, valueSize: d.count, value: d.baseAddress!),
+            ]
+            for (i, spec) in coreTextFloatSpecs.enumerated() {
+              settings.append(CTParagraphStyleSetting(spec: spec, valueSize: MemoryLayout<CGFloat>.size, value: values.baseAddress! + i))
+            }
+            return CTParagraphStyleCreate(settings, settings.count)
+          }
+        }
+      }
+    }
+  }
+
   internal func framesetter(for text: NSAttributedString, width: CGFloat, indent: CGFloat = 0) -> CTFramesetter {
     let base: CTFramesetter
     if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
       base = cached
     } else {
-      base = CTFramesetterCreateWithAttributedString(text)
+      base = TextEngine.framesetter(text)
       cachedFramesetter = base
       framesetterStringVersion = segmentsInvalidateVersion
     }
@@ -879,17 +979,25 @@ public class TextEngine: NSObject {
       && (text.string as NSString).range(of: "\u{00AD}").location != NSNotFound ? width : 0
     let justify = finiteWidth && hyphenWidth == 0 ? justification : nil
     let justifyWidth: CGFloat = justify == nil ? 0 : width
-    if hyphenWidth == 0 && indent == 0 && justifyWidth == 0 { return base }
+    if finiteWidth && lineEdgeTrims?.version != segmentsInvalidateVersion {
+      lineEdgeTrims = (segmentsInvalidateVersion, TextEngine.trimsAtLineEdges(text))
+    }
+    let trimWidth: CGFloat = finiteWidth && lineEdgeTrims?.any == true ? width : 0
+    if hyphenWidth == 0 && indent == 0 && justifyWidth == 0 && trimWidth == 0 { return base }
     if let fitted = fitted, fitted.version == segmentsInvalidateVersion, fitted.width == hyphenWidth, fitted.indent == indent,
-       fitted.justify == justifyWidth {
+       fitted.justify == justifyWidth, fitted.trim == trimWidth {
       return fitted.framesetter
     }
     var source = indent == 0 ? text : TextEngine.indenting(text, indent)
+    if trimWidth > 0 {
+      source = TextEngine.trimmingLineEdges(source, in: wrapRect(width: trimWidth, height: 1_000_000, indent: indent))
+    }
     if let justify = justify { source = TextEngine.justifying(source, justifyWidth + max(0, -indent), justify) }
+    // Nothing trimmed and nothing else fitted: the text's own framesetter.
     let framesetter = hyphenWidth > 0
       ? TextEngine.fitSoftHyphens(source, hyphenWidth + max(0, -indent))
-      : CTFramesetterCreateWithAttributedString(source)
-    fitted = (segmentsInvalidateVersion, hyphenWidth, indent, justifyWidth, framesetter)
+      : source === text ? base : TextEngine.framesetter(source)
+    fitted = (segmentsInvalidateVersion, hyphenWidth, indent, justifyWidth, trimWidth, framesetter)
     return framesetter
   }
 
@@ -923,7 +1031,7 @@ public class TextEngine: NSObject {
   /// text-align: justify: each wrapped line but the last spreads its slack as kerning.
   static func justifying(_ text: NSAttributedString, _ width: CGFloat, _ mode: Justification) -> NSAttributedString {
     let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
-    let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(text), CFRange(location: 0, length: 0), path, nil)
+    let frame = CTFramesetterCreateFrame(TextEngine.framesetter(text), CFRange(location: 0, length: 0), path, nil)
     guard let lines = CTFrameGetLines(frame) as? [CTLine], !lines.isEmpty else { return text }
     var origins = [CGPoint](repeating: .zero, count: lines.count)
     CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
@@ -977,7 +1085,7 @@ public class TextEngine: NSObject {
       chars.replaceCharacters(in: NSRange(location: i, length: 1), with: "\u{2060}")
     }
     let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: 1_000_000), transform: nil)
-    var framesetter = CTFramesetterCreateWithAttributedString(fitted.copy() as! NSAttributedString)
+    var framesetter = TextEngine.framesetter(fitted.copy() as! NSAttributedString)
     var ends = lineEnds(framesetter, path)
     var line = 0
     while line < ends.count - 1 {
@@ -990,7 +1098,7 @@ public class TextEngine: NSObject {
       for point in softHyphens.reversed() where point >= wordStart && point < wordEnd {
         let at = NSRange(location: point, length: 1)
         chars.replaceCharacters(in: at, with: "\u{2010}")
-        let trial = CTFramesetterCreateWithAttributedString(fitted.copy() as! NSAttributedString)
+        let trial = TextEngine.framesetter(fitted.copy() as! NSAttributedString)
         let trialEnds = lineEnds(trial, path)
         if line < trialEnds.count, trialEnds[line] == point + 1 {
           framesetter = trial
@@ -1404,7 +1512,7 @@ public class TextEngine: NSObject {
             drawUprightRun(run, attributes: attrs, at: baselineOrigin, in: context)
             continue
           }
-          CTRunDraw(run, context, CFRange(location: 0, length: 0))
+          withGlyphShift(attrs, context) { CTRunDraw(run, context, CFRange(location: 0, length: 0)) }
         }
         context.restoreGState()
       }
@@ -1422,21 +1530,23 @@ public class TextEngine: NSObject {
         drawUprightRun(run, attributes: attrs, at: baselineOrigin, in: context)
         continue
       }
-      if let ctFont = attrs[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
-        let font = ctFont as! CTFont
-        let symbolicTraits = CTFontGetSymbolicTraits(font)
-        let isBold = symbolicTraits.contains(.traitBold)
-        let weight = attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
-          ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
-        // Fake-bold only when a bold weight is requested but no real bold face
-        // exists. `weight` is the CSS weight (100–900), so threshold is 600.
-        if !isBold && weight >= 600 {
-          drawRunWithFakeBold(run, in: context, at: baselineOrigin)
+      withGlyphShift(attrs, context) {
+        if let ctFont = attrs[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
+          let font = ctFont as! CTFont
+          let symbolicTraits = CTFontGetSymbolicTraits(font)
+          let isBold = symbolicTraits.contains(.traitBold)
+          let weight = attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
+            ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
+          // Fake-bold only when a bold weight is requested but no real bold face
+          // exists. `weight` is the CSS weight (100–900), so threshold is 600.
+          if !isBold && weight >= 600 {
+            drawRunWithFakeBold(run, in: context, at: baselineOrigin)
+          } else {
+            CTRunDraw(run, context, CFRange(location: 0, length: 0))
+          }
         } else {
           CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
-      } else {
-        CTRunDraw(run, context, CFRange(location: 0, length: 0))
       }
     }
 
@@ -1459,6 +1569,14 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Runs `draw` with the context moved along the line by the run's glyph shift (text-spacing-trim).
+  @inline(__always) func withGlyphShift(_ attributes: NSDictionary, _ context: CGContext, _ draw: () -> Void) {
+    guard let shift = attributes[Constants.GLYPH_SHIFT_KEY] as? CGFloat else { return draw() }
+    context.translateBy(x: shift, y: 0)
+    draw()
+    context.translateBy(x: -shift, y: 0)
+  }
+
   func drawRunWithFakeBold(_ run: CTRun, in context: CGContext, at lineOrigin: CGPoint, boldAmount: CGFloat = 1.0) {
     let glyphCount = CTRunGetGlyphCount(run)
     guard glyphCount > 0 else { return }
@@ -1727,9 +1845,11 @@ public class TextEngine: NSObject {
       taller.usesEvenOddFillRule = true
       appendHoles(taller, inside: tallerRect)
       frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
-    } else if CTFrameGetVisibleStringRange(frame).length < text.length && drawBounds.height > localOuter.height {
-      originShift = drawBounds.height - localOuter.height
-      let tallerRect = CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: drawBounds.height)
+    } else if CTFrameGetVisibleStringRange(frame).length < text.length {
+      // The view was sized for every line (measure lays out in a tall frame), so lay out in one
+      // as tall: lines it drops here would not be drawn.
+      originShift = 10000
+      let tallerRect = CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: localOuter.height + originShift)
       let taller = UIBezierPath(rect: tallerRect)
       taller.usesEvenOddFillRule = true
       appendHoles(taller, inside: tallerRect)
@@ -1752,6 +1872,15 @@ public class TextEngine: NSObject {
         origins[i].y -= originShift
         origins[i].x += localOuter.minX
       }
+    }
+
+    // Lines that hold boxes taller than a fixed line-height grow to fit them.
+    var grownExtents: (above: [CGFloat], below: [CGFloat])?
+    if floatRects.isEmpty, lineClamp == 0,
+      let grown = TextEngine.grownBoxLines(CTFrameGetLines(frame) as? [CTLine] ?? [], origins, text)
+    {
+      for i in origins.indices { origins[i].y = grown.y[i] }
+      grownExtents = (grown.above, grown.below)
     }
 
     // line-clamp: the first lines only, sitting as in a frame just that tall, the last one
@@ -1806,7 +1935,8 @@ public class TextEngine: NSObject {
           CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, nil, nil)
           lineAscent = max(lineAscent, runAscent)
         }
-        let boxRaised = lineAscent > fontAscent + 0.5
+        // Grown lines already make room for their boxes.
+        let boxRaised = grownExtents == nil && lineAscent > fontAscent + 0.5
         var lineBounds = drawBounds
         if fixedLineBox { lineBounds.size.height = maxLineHeight }
         let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
@@ -1826,6 +1956,10 @@ public class TextEngine: NSObject {
         var ascent: CGFloat = 0
         var descent: CGFloat = 0
         CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+        if let grown = grownExtents {
+          ascent = grown.above[i]
+          descent = grown.below[i]
+        }
         let y = origins[i].y + textBaseY
         origins[i].y = blockLow + blockHigh - y - ascent + descent - textBaseY
       }
@@ -1863,7 +1997,7 @@ public class TextEngine: NSObject {
               drawUprightRun(run, attributes: attributes, at: textPos, in: context)
               continue
             }
-            CTRunDraw(run, context, CFRange(location: 0, length: 0))
+            withGlyphShift(attributes, context) { CTRunDraw(run, context, CFRange(location: 0, length: 0)) }
           }
           context.restoreGState()
         }
@@ -1890,22 +2024,24 @@ public class TextEngine: NSObject {
           drawUprightRun(run, attributes: attributes, at: context.textPosition, in: context)
           continue
         }
-        if let ctFont = attributes[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
-          let font = ctFont as! CTFont
-          let symbolicTraits = CTFontGetSymbolicTraits(font)
-          let isBold = symbolicTraits.contains(.traitBold)
-          // The font's traits are only read when the run carries no weight.
-          let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
-            ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
-          // Fake-bold only when a bold weight is requested but no real bold face
-          // exists. `weight` is the CSS weight (100–900), so threshold is 600.
-          if !isBold && weight >= 600 {
+        withGlyphShift(attributes, context) {
+          if let ctFont = attributes[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
+            let font = ctFont as! CTFont
+            let symbolicTraits = CTFontGetSymbolicTraits(font)
+            let isBold = symbolicTraits.contains(.traitBold)
+            // The font's traits are only read when the run carries no weight.
+            let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat
+              ?? (CTFontCopyTraits(font) as? [CFString: Any])?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
+            // Fake-bold only when a bold weight is requested but no real bold face
+            // exists. `weight` is the CSS weight (100–900), so threshold is 600.
+            if !isBold && weight >= 600 {
               drawRunWithFakeBold(run, in: context, at: CGPoint(x: layoutBounds.origin.x + lineOrigin.x, y: lineOrigin.y + textBaseY))
             } else {
+              CTRunDraw(run, context, CFRange(location: 0, length: 0))
+            }
+          } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
-        } else {
-          CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
       }
 
@@ -2050,6 +2186,22 @@ public class TextEngine: NSObject {
     return UIEdgeInsets(top: top, left: left, bottom: bottom, right: right)
   }
 
+  /// How far the glyph ink of wrapping text overflows its box when its line-height is tighter
+  /// than the font's ascent plus descent: the first line's ascent and the last line's descent
+  /// stick out by half of it each, as CSS's negative half-leading puts them.
+  func inkOverflow() -> CGFloat {
+    let ws = style.whiteSpace
+    let text = buildAttributedString(forMeasurement: false)
+    let noWrap = ws == .Pre || ws == .NoWrap || style.textWrap == .NoWrap
+    guard text.length > 0, !(noWrap && !TextEngine.hasLineBreak(text)),
+      let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
+      paragraph.maximumLineHeight > 0,
+      let fv = node.getDefaultAttributes()[.font], CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID()
+    else { return 0 }
+    let font = fv as! CTFont
+    return max(0, CTFontGetAscent(font) + CTFontGetDescent(font) - paragraph.maximumLineHeight)
+  }
+
   func drawText(context: CGContext, rect: CGRect){
     // When this TextContainer is flattened into a parent TextContainer, the parent's
     // text layer renders our content. Drawing here would produce duplicate text.
@@ -2067,15 +2219,19 @@ public class TextEngine: NSObject {
     accessibilityElementsCache = nil
     context.saveGState()
     context.textMatrix = .identity
-    var rect = rect
+    // A rect away from the origin (the ink layer's, larger than the box) draws from its corner.
+    let origin = CGAffineTransform(translationX: rect.minX, y: rect.minY)
+    context.translateBy(x: rect.minX, y: rect.minY)
+    var rect = CGRect(origin: .zero, size: rect.size)
     if verticalWritingMode != 0 {
       // Lines run down the box and stack from the right, glyphs turned clockwise:
       // CoreText's (x, y) lands at (y, x). vertical-lr mirrors its lines in drawMultiLine.
-      drawnTransform = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
-      context.concatenate(drawnTransform)
+      let turn = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+      drawnTransform = turn.concatenating(origin)
+      context.concatenate(turn)
       rect = CGRect(x: 0, y: 0, width: rect.height, height: rect.width)
     } else {
-      drawnTransform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.height)
+      drawnTransform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.height).concatenating(origin)
       context.translateBy(x: 0, y: rect.height)
       context.scaleBy(x: 1.0, y: -1.0)
     }
@@ -2485,7 +2641,24 @@ public class TextEngine: NSObject {
     
     var segments: [CMasonSegment] = []
     let scale = CGFloat(NSCMason.scale)
-    
+    // A fixed line-height is the text's line box, not its font's ascent and descent: send what
+    // a line without boxes reaches, so Mason stacks the lines as CoreText does.
+    var lineBox: (ascent: CGFloat, descent: CGFloat)?
+    if let text = cachedAttributedString, text.length > 0,
+      let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
+      paragraph.maximumLineHeight > 0, paragraph.minimumLineHeight == paragraph.maximumLineHeight,
+      let plain = lines.prefix(shown).first(where: { line in
+        !(CTLineGetGlyphRuns(line) as? [CTRun] ?? []).contains {
+          (CTRunGetAttributes($0) as NSDictionary)[kCTRunDelegateAttributeName as String] != nil
+        }
+      })
+    {
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      CTLineGetTypographicBounds(plain, &ascent, &descent, nil)
+      lineBox = (ascent, descent)
+    }
+
     for line in lines.prefix(shown) {
       let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
       
@@ -2496,6 +2669,9 @@ public class TextEngine: NSObject {
         
         
         let attrs = CTRunGetAttributes(run) as NSDictionary
+        if let lineBox, attrs[kCTRunDelegateAttributeName as String] == nil {
+          (ascent, descent) = lineBox
+        }
         
         // Check if this is an inline child placeholder
         if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {

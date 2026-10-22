@@ -51,6 +51,7 @@ import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusPr
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
+import { installLogicalBoxes } from './logical-boxes';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
@@ -118,7 +119,7 @@ import {
   logicalLonghands,
 } from './properties';
 import { masonLayout } from './display-density';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, remapLogicalBoxes_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
 import { Tree } from './tree';
 import { masonEngine, removeNativeChild } from './panel-helpers';
 import { TextNode } from './text-node';
@@ -1846,7 +1847,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // @ts-ignore
     super[directionProperty.setNative]?.(value);
     const style = (this as any)._styleHelper;
-    if (style) style.direction = value === 'rtl' || value === 'ltr' ? value : 'inherit';
+    if (style) {
+      style.direction = value === 'rtl' || value === 'ltr' ? value : 'inherit';
+      (this as any)[remapLogicalBoxes_](false);
+    }
   }
 
   set verticalAlign(value) {
@@ -3890,6 +3894,9 @@ for (const { property, group, slot } of logicalLonghands) {
     this._styleHelper?.setLogical(group, slot, value === property.defaultValue ? undefined : value);
   };
 }
+
+// Logical borders, corners and overflow: see logical-boxes.ts.
+installLogicalBoxes(ViewBase.prototype);
 
 export class TextBase extends ViewBase {
   textContent: string;

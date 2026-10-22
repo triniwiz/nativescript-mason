@@ -339,9 +339,12 @@ public class MasonTextLayer: CALayer {
       }
     }
 
-    // Draw text. `background-clip: text` layers go behind it, inside the glyphs only.
+    // Draw text. `background-clip: text` layers go behind it, inside the glyphs only. Glyph ink
+    // overflowing a tight line-height is drawn in the ink layer, which reaches past the box.
+    let ink = (clipsToText || hasRadii) ? 0 : textView.engine.inkOverflow()
+    textView.updateInkLayer(ink)
     if clipsToText { context.beginTransparencyLayer(auxiliaryInfo: nil) }
-    textView.engine.drawText(context: context, rect: bounds)
+    if ink == 0 { textView.engine.drawText(context: context, rect: bounds) }
     if clipsToText {
       context.saveGState()
       context.addPath(Background.textGlyphPath(of: textView))
@@ -377,6 +380,36 @@ public class MasonTextLayer: CALayer {
 }
 
 
+/// Draws text whose glyph ink overflows its box (a line-height tighter than the font): a layer
+/// reaching past the text view's own by `inset` on the block axis, which it can't draw past.
+final class MasonInkLayer: CALayer {
+  weak var textView: MasonText?
+  var inset = CGSize.zero
+
+  override init() {
+    super.init()
+    isOpaque = false
+    needsDisplayOnBoundsChange = true
+  }
+
+  override init(layer: Any) {
+    super.init(layer: layer)
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  override func action(forKey event: String) -> CAAction? { NSNull() }
+
+  override func draw(in context: CGContext) {
+    guard let textView else { return }
+    // In the text view's coordinates, from the ink layer's corner.
+    context.translateBy(x: inset.width, y: inset.height)
+    textView.engine.drawText(context: context, rect: bounds.offsetBy(dx: -inset.width, dy: -inset.height))
+  }
+}
+
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
@@ -399,6 +432,38 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
   
   var textLayer: MasonTextLayer {
     return layer as! MasonTextLayer
+  }
+
+  private var inkLayer: MasonInkLayer?
+
+  /// Shows the ink layer for glyph ink overflowing the box by `overflow` across its lines, or
+  /// hides it at 0.
+  func updateInkLayer(_ overflow: CGFloat) {
+    guard overflow > 0 else {
+      if let inkLayer, !inkLayer.isHidden {
+        inkLayer.isHidden = true
+        inkLayer.contents = nil
+      }
+      return
+    }
+    let ink = inkLayer ?? {
+      let created = MasonInkLayer()
+      created.textView = self
+      created.contentsScale = CGFloat(NSCMason.scale)
+      textLayer.addSublayer(created)
+      inkLayer = created
+      return created
+    }()
+    let vertical = engine.verticalWritingMode != 0
+    let inset = vertical ? CGSize(width: overflow / 2, height: 0) : CGSize(width: 0, height: overflow / 2)
+    let frame = bounds.insetBy(dx: -inset.width, dy: -inset.height)
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    ink.isHidden = false
+    ink.inset = inset
+    if ink.frame != frame { ink.frame = frame }
+    CATransaction.commit()
+    ink.setNeedsDisplay()
   }
   
   public var textValues: NSMutableData {

@@ -288,7 +288,7 @@ internal fun applyUprightGlyphs(text: Spannable, orientation: Int, combine: Int 
       text.setSpan(
         Spans.UprightGlyphSpan(
           text.subSequence(i, end).toString(), rotated || isWideUpright(cp), rotated,
-          half = if (half == null) 0 else if (half.opening) PUNCTUATION_OPENING else PUNCTUATION_CLOSING,
+          half = half?.kind ?: 0,
         ),
         i, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
       )

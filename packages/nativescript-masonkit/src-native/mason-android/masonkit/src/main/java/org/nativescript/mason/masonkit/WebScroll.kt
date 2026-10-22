@@ -89,9 +89,17 @@ object WebScroll {
         val bt = node.computedBorderTop.orZero()
         val portW = host.width - bl - node.computedBorderRight.orZero()
         val portH = host.height - bt - node.computedBorderBottom.orZero()
-        val toX = align(rect.left.toFloat(), rect.width().toFloat(), host.scrollX + bl, portW, host.scrollX, inline)
+        val style = node.style
+        val rtl = style.direction == org.nativescript.mason.masonkit.enums.Direction.RTL
+        val along = if (rtl) flipped(inline) else inline
+        val (modeX, modeY) = when (style.resolvedWritingMode.toInt()) {
+          1 -> flipped(block) to along
+          2 -> block to along
+          else -> along to block
+        }
+        val toX = align(rect.left.toFloat(), rect.width().toFloat(), host.scrollX + bl, portW, host.scrollX, modeX)
           .roundToInt().coerceIn(0, host.maxScrollX)
-        val toY = align(rect.top.toFloat(), rect.height().toFloat(), host.scrollY + bt, portH, host.scrollY, block)
+        val toY = align(rect.top.toFloat(), rect.height().toFloat(), host.scrollY + bt, portH, host.scrollY, modeY)
           .roundToInt().coerceIn(0, host.maxScrollY)
         if (toX != host.scrollX || toY != host.scrollY) {
           plan.add(Triple(host, toX, toY))
@@ -108,6 +116,14 @@ object WebScroll {
     // Instant scrolls already moved the view; smooth ones haven't yet.
     if (smooth) rect.offset(-shiftX, -shiftY)
     outermost.requestRectangleOnScreen(rect, !smooth)
+  }
+
+  // block and inline are the scroller's (0 start, 1 center, 2 end, 3 nearest); start and end
+  // swap where its axis runs from the right or bottom.
+  private fun flipped(mode: Int): Int = when (mode) {
+    0 -> 2
+    2 -> 0
+    else -> mode
   }
 
   /** The offset that aligns [start, start + size) in the scrollport per [mode]. */

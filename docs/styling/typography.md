@@ -268,11 +268,20 @@ Logical properties (`margin-inline-start`, `padding-block`, ...) follow `directi
 
 ### text-spacing-trim
 
-Full-width punctuation set next to other punctuation gives up the blank half of its em, as in browsers: `」「` and `。」` take 1.5em instead of 2em. An opening bracket after another punctuation mark, and a closing mark before a closing mark or a middle dot (`・：；`), are set half-width. It inherits and applies to horizontal and vertical text.
+Full-width punctuation gives up the blank half of its em in some places, as in browsers. It inherits and applies to horizontal and vertical text.
 
-`space-all` turns it off. `normal`, `auto`, `space-first`, `trim-start`, `trim-both` and `trim-all` all trim adjacent punctuation; trimming at the start or end of a line, which `trim-start`, `trim-both` and `trim-all` add in CSS, is not supported yet.
+| Value | Set half-width |
+| --- | --- |
+| `normal`, `auto` | An opening bracket after another punctuation mark, and a closing mark before a closing mark or a middle dot (`・：；`): `」「` and `。」` take 1.5em instead of 2em. A closing bracket that would end a line if it were half-width, rather than move to the next line. |
+| `space-first` | As `normal`, and an opening bracket starting a line, except the first line and lines after a forced break |
+| `trim-start` | As `normal`, and an opening bracket starting any line |
+| `trim-both` | As `trim-start`, and a closing mark ending any line |
+| `trim-all` | Every full-width punctuation mark |
+| `space-all` | Nothing |
 
-Mason removes the blank half itself on iOS and Windows, so any CJK font works. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
+As in Chrome, a line-end comma or full stop (`、。，．`) isn't set half-width just to fit the line. Chrome doesn't support `trim-both`, `trim-all` and `auto`; MasonKit follows the CSS Text 4 definitions for them.
+
+Mason removes the blank half itself on iOS and Windows, so any CJK font works. Windows trims at the start and end of each paragraph but not yet at the lines it wraps. Android uses the font's half-width forms (`halt`), which Noto CJK has; Android 15 and later also apply the font's `chws` feature, which `space-all` turns off.
 
 ## Color
 

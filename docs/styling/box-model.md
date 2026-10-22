@@ -140,9 +140,9 @@ Logical properties name sides by the flow of the text: *block* is the direction 
 | `margin-inline`, `margin-block`, `margin-inline-start`, `margin-inline-end`, `margin-block-start`, `margin-block-end` | yes |
 | `padding-inline*`, `padding-block*` | yes |
 | `inset-inline*`, `inset-block*` | yes |
-| `border-inline*`, `border-block*` (also `-width`, `-style`, `-color`) | no, as for horizontal left-to-right text |
-| `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius`, `border-end-start-radius` | no: top-left, top-right, bottom-right, bottom-left |
-| `overflow-inline`, `overflow-block` | no: `overflow-x`, `overflow-y` |
+| `border-inline*`, `border-block*` (also `-width`, `-style`, `-color`) | yes |
+| `border-start-start-radius`, `border-start-end-radius`, `border-end-end-radius`, `border-end-start-radius` | yes: the corner where the block side meets the inline side |
+| `overflow-inline`, `overflow-block` | yes: `overflow-x` and `overflow-y` in horizontal text, the other way round in vertical text |
 
 ```css
 .item {

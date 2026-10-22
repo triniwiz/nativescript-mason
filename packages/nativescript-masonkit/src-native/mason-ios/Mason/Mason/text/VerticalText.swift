@@ -89,6 +89,17 @@ final class UprightGlyph: NSObject {
     squeeze = 1
     start = 0
   }
+  /// `glyph` set half-width: it keeps the part of its cell its ink is in.
+  init(halving glyph: UprightGlyph, _ kind: PunctuationWidth) {
+    grapheme = glyph.grapheme
+    cell = glyph.cell / 2
+    baseline = glyph.baseline - glyph.cell / 2 * HalfWidthPunctuation.leading(kind)
+    form = glyph.form
+    formFont = glyph.formFont
+    combined = false
+    squeeze = 1
+    start = 0
+  }
   init(combining text: String, at start: Int, cell: CGFloat, baseline: CGFloat, squeeze: CGFloat) {
     grapheme = text
     self.cell = cell
@@ -191,7 +202,7 @@ extension TextEngine {
       let half = attributes[Constants.HALF_WIDTH_KEY] as? HalfWidthPunctuation
       func sideways() {
         if let half {
-          kernHalfWidth(result, at: range.location, opening: half.opening)
+          halveSideways(result, at: range.location, half.kind)
           marked = true
         }
       }
@@ -206,11 +217,11 @@ extension TextEngine {
       guard let value = attributes[.font], CFGetTypeID(value as CFTypeRef) == CTFontGetTypeID()
       else { return }
       guard var metrics = uprightMetrics(grapheme, scalar.value, value as! CTFont) else { return sideways() }
-      // A half-width mark keeps the half of its cell its ink is in: a closing mark's first half,
-      // an opening mark's second.
+      // A half-width mark keeps the part of its cell its ink is in: a closing mark's first half,
+      // an opening mark's second, a middle mark's centre.
       if let half {
         metrics = UprightMetrics(
-          cell: metrics.cell / 2, baseline: half.opening ? metrics.baseline - metrics.cell / 2 : metrics.baseline,
+          cell: metrics.cell / 2, baseline: metrics.baseline - metrics.cell / 2 * HalfWidthPunctuation.leading(half.kind),
           form: metrics.form, formFont: metrics.formFont, advance: metrics.advance)
       }
       // Letter spacing stays on top of the cell. Kerning applies after a character, so it

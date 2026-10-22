@@ -3,7 +3,9 @@ import { _expandCssShorthand, unsetValue } from '@nativescript/core/ui/core/prop
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
-import { installMasonSizeUnits, logicalLonghands } from './properties';
+import { installMasonSizeUnits, logicalBoxGroups, logicalLonghands } from './properties';
+import { installLogicalBoxes } from './logical-boxes';
+import { remapLogicalBoxes_ } from './symbols';
 import { setCssUnitContext } from './units';
 
 const expand = (name: string, value: string) => _expandCssShorthand(name, value);
@@ -59,65 +61,55 @@ describe('logical shorthands', () => {
         ['inset-inline-end', '0'],
       ],
     ],
-    // Borders and corners stay shorthands over the physical sides for horizontal left-to-right text.
     [
       'border-inline-width',
       'thin 2px',
       [
-        ['border-left-width', 'thin'],
-        ['border-right-width', '2px'],
+        ['border-inline-start-width', 'thin'],
+        ['border-inline-end-width', '2px'],
       ],
     ],
-    ['border-block-start-width', '3px', [['border-top-width', '3px']]],
     [
       'border-inline-style',
       'dashed',
       [
-        ['border-left-style', 'dashed'],
-        ['border-right-style', 'dashed'],
+        ['border-inline-start-style', 'dashed'],
+        ['border-inline-end-style', 'dashed'],
       ],
     ],
-    ['border-block-end-style', 'solid', [['border-bottom-style', 'solid']]],
     [
-      'border-inline-color',
+      'border-block-color',
       'red blue',
       [
-        ['border-left-color', 'red'],
-        ['border-right-color', 'blue'],
+        ['border-block-start-color', 'red'],
+        ['border-block-end-color', 'blue'],
       ],
     ],
-    ['border-inline-start-color', 'red', [['border-left-color', 'red']]],
     [
       'border-block-end',
       '1px solid red',
       [
-        ['border-bottom-width', '1px'],
-        ['border-bottom-style', 'solid'],
-        ['border-bottom-color', 'red'],
+        ['border-block-end-width', '1px'],
+        ['border-block-end-style', 'solid'],
+        ['border-block-end-color', 'red'],
       ],
     ],
-    ['border-start-start-radius', '4px', [['border-top-left-radius', '4px']]],
-    ['border-start-end-radius', '4px', [['border-top-right-radius', '4px']]],
-    ['border-end-end-radius', '4px', [['border-bottom-right-radius', '4px']]],
-    ['border-end-start-radius', '4px', [['border-bottom-left-radius', '4px']]],
-    ['overflow-inline', 'hidden', [['overflow-x', 'hidden']]],
-    ['overflow-block', 'auto', [['overflow-y', 'auto']]],
   ] as Array<[string, string, [string, string][]]>)('%s: %s', (name, value, longhands) => {
     expect(expand(name, value)).toEqual(longhands);
   });
 
-  it.each(['margin-inline-start', 'padding-block-end', 'inset-block-start', 'inline-size', 'max-block-size'])('%s is a longhand of its own', (name) => {
+  it.each(['margin-inline-start', 'padding-block-end', 'inset-block-start', 'inline-size', 'max-block-size', 'border-block-start-width', 'border-inline-end-style', 'border-inline-start-color', 'border-start-end-radius', 'overflow-inline'])('%s is a longhand of its own', (name) => {
     expect(expand(name, '1px')).toBeUndefined();
   });
 
   it('border-inline gives both inline sides the same border', () => {
     expect(expand('border-inline', '2px dotted green')).toEqual([
-      ['border-left-width', '2px'],
-      ['border-left-style', 'dotted'],
-      ['border-left-color', 'green'],
-      ['border-right-width', '2px'],
-      ['border-right-style', 'dotted'],
-      ['border-right-color', 'green'],
+      ['border-inline-start-width', '2px'],
+      ['border-inline-start-style', 'dotted'],
+      ['border-inline-start-color', 'green'],
+      ['border-inline-end-width', '2px'],
+      ['border-inline-end-style', 'dotted'],
+      ['border-inline-end-color', 'green'],
     ]);
   });
 
@@ -222,5 +214,88 @@ describe('logical sides on a plain NativeScript view', () => {
     const { style } = coreHost();
     applyRules(style, [['margin-inline-start', '12']]);
     expect((style as any).marginLeft).toBe(12);
+  });
+});
+
+/** A Mason view host recording what reaches its physical border, corner and overflow setNatives. */
+function boxHost(parent?: any) {
+  const writes: Record<string, unknown> = {};
+  const handlers: Record<PropertyKey, unknown> = { nativeViewProtected: {}, parent };
+  for (const group of logicalBoxGroups) {
+    for (const property of group.physical) handlers[property.setNative] = (value: unknown) => (writes[property.name] = value);
+  }
+  const host = masonHost(handlers);
+  installLogicalBoxes(host.view);
+  return { ...host, writes };
+}
+
+describe('logical borders, corners and overflow on a Mason view', () => {
+  it('reach the physical side for horizontal left-to-right text', () => {
+    const { style, writes } = boxHost();
+    applyRules(style, [
+      ['border-inline-start', '3px solid red'],
+      ['border-start-end-radius', '4px'],
+      ['overflow-block', 'hidden'],
+    ]);
+    expect(writes).toMatchObject({ borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: 'red', borderTopRightRadius: '4px', overflowY: 'hidden' });
+  });
+
+  it('follow the writing mode and direction', () => {
+    const { under, view, style, writes } = boxHost();
+    under.style.writingMode = 'vertical-rl';
+    applyRules(style, [
+      ['border-inline-start-width', '1px'],
+      ['border-block-start-width', '2px'],
+      ['border-start-start-radius', '5px'],
+      ['overflow-inline', 'hidden'],
+    ]);
+    // vertical-rl: inline-start is the top, block-start the right; start-start the top-right corner.
+    expect(writes).toMatchObject({ borderTopWidth: '1px', borderRightWidth: '2px', borderTopRightRadius: '5px', overflowY: 'hidden' });
+    under.style.direction = 'rtl';
+    view[remapLogicalBoxes_]();
+    expect(writes).toMatchObject({ borderBottomWidth: '1px', borderBottomRightRadius: '5px' });
+    // The sides it left get their physical values back.
+    expect(writes.borderTopWidth).not.toBe('1px');
+    expect(writes.borderTopRightRadius).not.toBe('5px');
+  });
+
+  it("take an ancestor's writing mode", () => {
+    const outer = boxHost();
+    outer.under.style.writingMode = 'vertical-lr';
+    const { style, writes } = boxHost(outer.view);
+    applyRules(style, [['border-block-end-color', 'blue']]);
+    // vertical-lr: block-end is the right.
+    expect(writes).toMatchObject({ borderRightColor: 'blue' });
+  });
+
+  it('the later of a physical and a logical declaration wins a side', () => {
+    const { under, view, style, writes } = boxHost();
+    applyRules(style, [
+      ['border-left-color', 'green'],
+      ['border-inline-start-color', 'red'],
+    ]);
+    // Physical colors arrive parsed.
+    const color = (value: any) => value?.name ?? value;
+    expect(color(writes.borderLeftColor)).toBe('red');
+    applyRules(style, [['border-left-color', 'blue']]);
+    expect(color(writes.borderLeftColor)).toBe('blue');
+    applyRules(style, [['border-inline-start-color', 'pink']]);
+    expect(color(writes.borderLeftColor)).toBe('pink');
+    // Moved off the left side, the logical value gives it back its physical one.
+    under.style.writingMode = 'vertical-rl';
+    view[remapLogicalBoxes_]();
+    expect(color(writes.borderTopColor)).toBe('pink');
+    expect(color(writes.borderLeftColor)).toBe('blue');
+  });
+
+  it('removing a logical declaration restores the physical side', () => {
+    const { style, writes } = boxHost();
+    applyRules(style, [
+      ['overflow-x', 'scroll'],
+      ['overflow-inline', 'hidden'],
+    ]);
+    expect(writes.overflowX).toBe('hidden');
+    (style as any)['css:overflow-inline'] = unsetValue;
+    expect(writes.overflowX).toBe('scroll');
   });
 });

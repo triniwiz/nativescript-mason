@@ -7842,6 +7842,12 @@ export class Style {
     return this.maskBorderMode;
   }
 
+  /** This box's own writing-mode (0 horizontal-tb, 1 vertical-rl, 2 vertical-lr), or -1 when it inherits. */
+  get ownWritingMode(): number {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE)) return -1;
+    return getUint8(this.style_view, StyleKeys.WRITING_MODE);
+  }
+
   get writingMode(): 'horizontal-tb' | 'vertical-rl' | 'vertical-lr' {
     if (!this.style_view) return 'horizontal-tb';
     const state = getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE);

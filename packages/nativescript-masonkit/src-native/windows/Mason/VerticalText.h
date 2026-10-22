@@ -102,8 +102,8 @@ namespace mason_dwrite
         float baseline{ -1.0f };
         // text-combine-upright: the run's text set horizontally in the cell, squeezed to fit.
         bool combined{ false };
-        // text-spacing-trim: kPunctuationOpening or kPunctuationClosing keeps that half of the
-        // cell (which is then half the font's), 0 all of it.
+        // text-spacing-trim: kPunctuationOpening, kPunctuationClosing or kPunctuationMiddle keeps
+        // that part of the cell (which is then half the font's), 0 all of it.
         uint8_t half{ 0 };
         winrt::com_ptr<IDWriteTextLayout> glyph;
     };
