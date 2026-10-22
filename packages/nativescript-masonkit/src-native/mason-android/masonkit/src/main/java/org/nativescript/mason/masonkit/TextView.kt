@@ -49,6 +49,10 @@ import kotlin.math.abs
 
 val white_space = "\\s+".toRegex()
 
+// Paint and metrics for drawing upright glyphs in vertical text; draws run on the UI thread.
+private val uprightPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+private val uprightGlyphMetrics = Paint.FontMetrics()
+
 internal class ThemelessContext private constructor(base: Context, template: android.widget.TextView) :
   ContextThemeWrapper(base, base.resources.newTheme()) {
   // The paint a themed platform TextView starts with (flags, typeface, density, locale).
@@ -340,6 +344,7 @@ open class TextView @JvmOverloads constructor(
       c.translate((width - paddingRight).toFloat(), top)
       c.rotate(90f)
       layout.draw(c)
+      drawUprightGlyphs(c, layout)
       if (decorations) TextDecorations.draw(c, layout)
       c.restoreToCount(save)
       return
@@ -352,7 +357,51 @@ open class TextView @JvmOverloads constructor(
       c.rotate(90f)
       c.clipRect(0, lineTop, layout.width, lineBottom)
       layout.draw(c)
+      drawUprightGlyphs(c, layout, i)
       if (decorations) TextDecorations.draw(c, layout)
+      c.restoreToCount(save)
+    }
+  }
+
+  /**
+   * text-orientation: glyphs kept upright are painted clear in the sideways [layout] (see
+   * [Spans.UprightGlyphSpan]); draw each turned back, centred in its cell on the line's central
+   * baseline. [onlyLine] limits it to one line, for vertical-lr's per-line draw.
+   */
+  private fun drawUprightGlyphs(c: Canvas, layout: android.text.Layout, onlyLine: Int = -1) {
+    val text = layout.text as? android.text.Spanned ?: return
+    val spans = text.getSpans(0, text.length, Spans.UprightGlyphSpan::class.java)
+    if (spans.isEmpty()) return
+    val paint = uprightPaint
+    for (span in spans) {
+      val start = text.getSpanStart(span)
+      val end = text.getSpanEnd(span)
+      val line = layout.getLineForOffset(start)
+      if (onlyLine >= 0 && line != onlyLine) continue
+      val ellipsis = layout.getEllipsisCount(line)
+      if (ellipsis > 0 && start >= layout.getLineStart(line) + layout.getEllipsisStart(line)) continue
+      paint.set(layout.paint)
+      for (style in text.getSpans(start, end, android.text.style.CharacterStyle::class.java)) {
+        if (style !is Spans.UprightGlyphSpan) style.updateDrawState(paint)
+      }
+      paint.letterSpacing = 0f
+      paint.textScaleX = 1f
+      paint.textAlign = Paint.Align.LEFT
+      if (takesVerticalAlternate(span.glyph.codePointAt(0))) {
+        val features = paint.fontFeatureSettings
+        paint.fontFeatureSettings = if (features.isNullOrEmpty()) "'vert' 1" else "$features, 'vert' 1"
+      }
+      paint.getFontMetrics(uprightGlyphMetrics)
+      val cx = layout.getPrimaryHorizontal(start) + span.cellAdvance(paint) / 2f
+      val cy = layout.getLineBaseline(line) + (uprightGlyphMetrics.ascent + uprightGlyphMetrics.descent) / 2f
+      val glyphWidth = paint.measureText(span.glyph)
+      // Full-width glyphs centre their em box (0.12em below the baseline to 0.88em above it),
+      // as CSS's central baseline does; others their ascent and descent.
+      val baseline = if (span.wide) cy + 0.38f * paint.textSize
+      else cy - (uprightGlyphMetrics.ascent + uprightGlyphMetrics.descent) / 2f
+      val save = c.save()
+      c.rotate(-90f, cx, cy)
+      c.drawText(span.glyph, cx - glyphWidth / 2f, baseline, paint)
       c.restoreToCount(save)
     }
   }

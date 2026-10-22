@@ -512,6 +512,8 @@ namespace mason_dwrite
         float indent{ 0.0f };
         bool indentPercent{ false };
         uint32_t lineClamp{ 0 };
+        // Vertical text's upright graphemes: 0 none (sideways), 1 text-orientation mixed, 2 upright.
+        uint8_t upright{ 0 };
         bool operator==(Paragraph const&) const = default;
 
         Flow FlowAt(float lineWidth) const
@@ -1121,3 +1123,5 @@ namespace mason_dwrite
         return FirstRangeHit(line->layout.get(), local, (std::min)(length, line->length - local), line->x, line->y, out);
     }
 }
+
+#include "VerticalText.h"

@@ -15,6 +15,8 @@ import android.view.ViewGroup
 import androidx.core.graphics.withSave
 import kotlin.math.roundToInt
 
+private val uprightMetrics = Paint.FontMetrics()
+
 class Spans {
   enum class Type {
     View,
@@ -25,7 +27,8 @@ class Spans {
     Tracking,
     LetterSpacing,
     Size,
-    Typeface
+    Typeface,
+    Upright
   }
 
   interface NSCSpan {
@@ -165,6 +168,40 @@ class Spans {
       if (textSize > 0f) {
         tp.letterSpacing = letterSpacingPx / textSize
       }
+    }
+  }
+
+  /**
+   * A grapheme kept upright in vertical text (see VerticalText.kt). Its advance along the
+   * sideways line is scaled to the upright cell, 1em for full-width characters and the font's
+   * height otherwise, and it paints clear: TextView draws it upright in that cell. Scaled, not
+   * letter-spaced: Minikin drops letter spacing at a line's start.
+   */
+  class UprightGlyphSpan(internal val glyph: String, internal val wide: Boolean) :
+    android.text.style.MetricAffectingSpan(), NSCSpan {
+    override val type: Type
+      get() = Type.Upright
+
+    internal fun cellAdvance(paint: Paint): Float {
+      if (wide) return paint.textSize
+      paint.getFontMetrics(uprightMetrics)
+      return uprightMetrics.descent - uprightMetrics.ascent
+    }
+
+    private fun fillCell(tp: TextPaint) {
+      if (tp.textSize <= 0f) return
+      val spacing = tp.letterSpacing
+      tp.letterSpacing = 0f
+      val advance = tp.measureText(glyph)
+      tp.letterSpacing = spacing
+      if (advance > 0f) tp.textScaleX *= cellAdvance(tp) / advance
+    }
+
+    override fun updateMeasureState(textPaint: TextPaint) = fillCell(textPaint)
+
+    override fun updateDrawState(tp: TextPaint) {
+      fillCell(tp)
+      tp.alpha = 0
     }
   }
 

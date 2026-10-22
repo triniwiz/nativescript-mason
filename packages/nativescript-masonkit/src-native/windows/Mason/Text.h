@@ -254,7 +254,11 @@ namespace winrt::NativeScript::Mason::implementation
 
             IDWriteTextLayout* Layout()
             {
-                if (!layout) layout = mason_dwrite::Build(paragraph);
+                if (!layout)
+                {
+                    layout = mason_dwrite::Build(paragraph);
+                    if (layout) mason_dwrite::ApplyUprights(layout.get(), paragraph);
+                }
                 return layout.get();
             }
 

@@ -435,6 +435,7 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedWordSpacing.toRawBits().toLong()
     h = h * 1000003 xor style.resolvedWordSpacingType.toLong()
     h = h * 1000003 xor style.resolvedWritingMode.toLong()
+    h = h * 1000003 xor style.resolvedTextOrientation.toLong()
     h = h * 1000003 xor style.resolvedUnicodeBidi.toLong()
     h = h * 1000003 xor style.resolvedHyphens.toLong()
     h = h * 1000003 xor style.resolvedFontStretch.toLong()
@@ -2550,6 +2551,9 @@ class TextEngine(val container: TextContainer) {
 
       else -> content // 0 = normal, no wrapping needed
     }
+    if (!nested && isVerticalWritingMode) {
+      applyUprightGlyphs(wrapped, style.resolvedTextOrientation.toInt())
+    }
 
     // Cache the result
     cachedAttributedString = wrapped
@@ -2863,6 +2867,7 @@ class TextEngine(val container: TextContainer) {
           StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) ||
           StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
           StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
+          StateKeys.hasFlag(low, high, StateKeys.TEXT_ORIENTATION) ||
           StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
           StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
           StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||

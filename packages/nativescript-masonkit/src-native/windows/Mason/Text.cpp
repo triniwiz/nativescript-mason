@@ -1484,6 +1484,12 @@ namespace winrt::NativeScript::Mason::implementation
         p.indent = m_textIndent;
         p.indentPercent = m_textIndentPercent;
         p.lineClamp = m_lineClamp;
+        if (auto* self = winrt::get_self<implementation::Node>(m_node);
+            mason_node_get_writing_mode(self->MasonPtr(), self->NodePtr()) != 0)
+        {
+            const uint8_t orientation = mason_node_get_text_orientation(self->MasonPtr(), self->NodePtr());
+            p.upright = orientation == 2 ? 0 : orientation == 1 ? 2 : 1;
+        }
 
         using winrt::Windows::UI::Text::TextDecorations;
         auto& c = *m_measureCache;

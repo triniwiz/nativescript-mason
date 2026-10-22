@@ -567,19 +567,24 @@ namespace mason_atlas
             }
             if (s->vertical == 1)
             {
-                context->SetTransform(D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX, s->originY) * slot);
+                const auto turned = D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX, s->originY) * slot;
+                context->SetTransform(turned);
                 context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                mason_dwrite::DrawUprights(context.get(), layout, turned, [&](uint32_t argb) { return BrushFor(a, context.get(), argb); });
             }
             else if (s->vertical == 2)
             {
                 // Lines stack from the left with their glyphs still turned clockwise, so each is drawn on its own.
+                int band = 0;
                 for (auto const& line : mason_dwrite::LineBands(layout))
                 {
                     context->SetTransform(slot);
                     context->PushAxisAlignedClip(D2D1::RectF(s->originX + line.top, -mason_dwrite::kUnbounded, s->originX + line.bottom, mason_dwrite::kUnbounded),
                         D2D1_ANTIALIAS_MODE_ALIASED);
-                    context->SetTransform(D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX + line.top + line.bottom, s->originY) * slot);
+                    const auto turned = D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(s->originX + line.top + line.bottom, s->originY) * slot;
+                    context->SetTransform(turned);
                     context->DrawTextLayout(D2D1::Point2F(0.0f, 0.0f), layout, fill, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                    mason_dwrite::DrawUprights(context.get(), layout, turned, [&](uint32_t argb) { return BrushFor(a, context.get(), argb); }, band++);
                     context->PopAxisAlignedClip();
                 }
             }

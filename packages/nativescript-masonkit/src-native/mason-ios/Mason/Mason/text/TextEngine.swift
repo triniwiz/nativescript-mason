@@ -102,6 +102,9 @@ public class TextEngine: NSObject {
   /// Marks the range a flattened element produced, so a tap on it can find it.
   static let inlineNodeKey = NSAttributedString.Key("MasonInlineNode")
 
+  /// The current text keeps some glyphs upright (vertical text-orientation).
+  internal private(set) var hasUprightGlyphs = false
+
   // Hit regions from the last draw, in CoreText coordinates; drawnTransform maps them to the view.
   internal private(set) var drawnLines: [(line: CTLine, origin: CGPoint)] = []
   private var drawnBoxes: [(rect: CGRect, node: InlineNodeRef)] = []
@@ -308,6 +311,7 @@ public class TextEngine: NSObject {
       || state.contains(.verticalAlign)
       || state.contains(.wordSpacing)
       || state.contains(.writingMode)
+      || state.contains(.textOrientation)
       || state.contains(.unicodeBidi)
       || state.contains(.hyphens)
       || state.contains(.fontStretch)
@@ -535,6 +539,8 @@ public class TextEngine: NSObject {
   }
 
   internal func wrapRect(width: CGFloat, height: CGFloat, indent: CGFloat) -> CGRect {
+    // Upright glyphs are runs of their own, and CoreText misses a line they exactly fill.
+    let width = hasUprightGlyphs && width.isFinite ? width + 1 / 64 : width
     guard indent < 0 else { return CGRect(x: 0, y: 0, width: width, height: height) }
     let hang = -indent
     return CGRect(x: style.direction == .RTL ? 0 : -hang, y: 0, width: width + hang, height: height)
@@ -1381,6 +1387,10 @@ public class TextEngine: NSObject {
           if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
           // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
           if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+          if attrs[Constants.UPRIGHT_GLYPH_KEY] != nil {
+            drawUprightRun(run, attributes: attrs, at: baselineOrigin, in: context)
+            continue
+          }
           CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
         context.restoreGState()
@@ -1395,6 +1405,10 @@ public class TextEngine: NSObject {
       if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
       // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
       if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+      if attrs[Constants.UPRIGHT_GLYPH_KEY] != nil {
+        drawUprightRun(run, attributes: attrs, at: baselineOrigin, in: context)
+        continue
+      }
       if let ctFont = attrs[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
         let font = ctFont as! CTFont
         let symbolicTraits = CTFontGetSymbolicTraits(font)
@@ -1832,6 +1846,10 @@ public class TextEngine: NSObject {
             if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
             // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
             if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
+            if attributes[Constants.UPRIGHT_GLYPH_KEY] != nil {
+              drawUprightRun(run, attributes: attributes, at: textPos, in: context)
+              continue
+            }
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
           context.restoreGState()
@@ -1855,6 +1873,10 @@ public class TextEngine: NSObject {
         if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
         // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
         if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
+        if attributes[Constants.UPRIGHT_GLYPH_KEY] != nil {
+          drawUprightRun(run, attributes: attributes, at: context.textPosition, in: context)
+          continue
+        }
         if let ctFont = attributes[NSAttributedString.Key.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
           let font = ctFont as! CTFont
           let symbolicTraits = CTFontGetSymbolicTraits(font)
@@ -2411,9 +2433,12 @@ public class TextEngine: NSObject {
     }
 
     // Cache the result
-    cachedAttributedString = result
+    let oriented = verticalWritingMode != 0
+      ? TextEngine.applyUprightGlyphs(result, orientation: style.resolvedTextOrientation) : result
+    hasUprightGlyphs = oriented !== result
+    cachedAttributedString = oriented
     attributedStringVersion = segmentsInvalidateVersion
-    return result
+    return oriented
   }
   
   
