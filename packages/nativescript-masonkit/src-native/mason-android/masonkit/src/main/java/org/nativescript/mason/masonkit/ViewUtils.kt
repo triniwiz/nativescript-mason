@@ -7,8 +7,58 @@ import androidx.core.graphics.withSave
 import androidx.core.graphics.withTranslation
 import org.nativescript.mason.masonkit.enums.Overflow
 
+/** Which background layers a paint covers; `background-clip: text` ones go through the glyphs. */
+internal enum class TextClipPass { ALL, EXCLUDING_TEXT, TEXT_ONLY }
+
 class ViewUtils {
   companion object {
+    /** The background color and layers in [pass], bottom layer first, each clipped to its box. */
+    internal fun drawBackgroundLayers(
+      view: android.view.View,
+      canvas: Canvas,
+      style: Style,
+      background: Background,
+      width: Float,
+      height: Float,
+      boxDx: Float,
+      boxDy: Float,
+      pass: TextClipPass
+    ) {
+      fun inPass(clip: BackgroundClip?) = when (pass) {
+        TextClipPass.ALL -> true
+        TextClipPass.EXCLUDING_TEXT -> clip != BackgroundClip.TEXT
+        TextClipPass.TEXT_ONLY -> clip == BackgroundClip.TEXT
+      }
+      // The color is clipped like the bottom-most layer.
+      if (inPass(background.layers.lastOrNull()?.clip)) {
+        background.color?.let { color ->
+          background.bgPaint.color = color
+          canvas.drawRect(0f, 0f, width, height, background.bgPaint)
+        }
+      }
+
+      // Reverse so the first layer in the list is drawn on top.
+      background.layers.asReversed().forEach { layer ->
+        if (!inPass(layer.clip)) return@forEach
+        canvas.withSave {
+          // pass measured bounds so clip uses the real size instead of the
+          // potentially-zero computedWidth/Height stored on the node
+          Style.applyClip(canvas, layer.clip, style, width, height)
+          val area = Background.positioningArea(layer, view, style.node, width, height)
+          val paintRect = if (layer.attachment == BackgroundAttachment.LOCAL) {
+            // `local` layers scroll with the content across the whole scrollable box.
+            canvas.translate(-boxDx, -boxDy)
+            val content = Background.localContentSize(view, width, height)
+            android.graphics.RectF(0f, 0f, content.first, content.second)
+          } else {
+            android.graphics.RectF(0f, 0f, width, height)
+          }
+          if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
+          drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor)
+        }
+      }
+    }
+
 
     /**
      * Draw outset box-shadows for every child that is an [Element].
@@ -163,30 +213,9 @@ class ViewUtils {
             if (!outerPath.isEmpty) {
               canvas.clipPath(outerPath)
             }
-            background.color?.let { color ->
-              background.bgPaint.color = color
-              canvas.drawRect(0f, 0f, width, height, background.bgPaint)
-            }
-
-            // Reverse so the first layer in the list is drawn on top.
-            background.layers.asReversed().forEach { layer ->
-              canvas.withSave {
-                // pass measured bounds so clip uses the real size instead of the
-                // potentially-zero computedWidth/Height stored on the node
-                Style.applyClip(canvas, layer.clip, style, width, height)
-                val area = Background.positioningArea(layer, view, style.node, width, height)
-                val paintRect = if (layer.attachment == BackgroundAttachment.LOCAL) {
-                  // `local` layers scroll with the content across the whole scrollable box.
-                  canvas.translate(-boxDx, -boxDy)
-                  val content = Background.localContentSize(view, width, height)
-                  android.graphics.RectF(0f, 0f, content.first, content.second)
-                } else {
-                  android.graphics.RectF(0f, 0f, width, height)
-                }
-                if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
-                drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor)
-              }
-            }
+            // A text view paints its text-clipped layers through the glyphs instead.
+            drawBackgroundLayers(view, canvas, style, background, width, height, boxDx, boxDy,
+              if (view is TextView) TextClipPass.EXCLUDING_TEXT else TextClipPass.ALL)
           }
         }
       }

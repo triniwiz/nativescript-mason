@@ -281,7 +281,7 @@ const POSITION_KEYWORD = new Set(['left', 'right', 'top', 'bottom', 'center']);
 const SIZE_KEYWORD = new Set(['auto', 'cover', 'contain']);
 
 function isColorCandidate(token: string): boolean {
-  return token !== '/' && token !== 'none' && !IMAGE_FUNCTION.test(token) && !LENGTH.test(token) && ![REPEAT_SINGLE, REPEAT, ATTACHMENT, BOX, POSITION_KEYWORD, SIZE_KEYWORD].some((keywords) => keywords.has(token));
+  return token !== '/' && token !== 'none' && token !== 'text' && !IMAGE_FUNCTION.test(token) && !LENGTH.test(token) && ![REPEAT_SINGLE, REPEAT, ATTACHMENT, BOX, POSITION_KEYWORD, SIZE_KEYWORD].some((keywords) => keywords.has(token));
 }
 
 interface BackgroundLayer {
@@ -300,6 +300,8 @@ const LAYER_INITIAL = { image: 'none', repeat: 'repeat', position: '0% 0%', size
 function parseBackgroundLayer(tokens: string[], value: string, isFinal: boolean): BackgroundLayer {
   const layer: BackgroundLayer = {};
   let boxes = 0;
+  // `text` is a clip value only; a box keyword beside it is the origin.
+  let clipsToText = false;
   const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in background "${value}"`);
   let i = 0;
   const run = (accepts: (token: string) => boolean, max: number) => {
@@ -322,7 +324,10 @@ function parseBackgroundLayer(tokens: string[], value: string, isFinal: boolean)
     } else if (layer.attachment === undefined && ATTACHMENT.has(token)) {
       layer.attachment = token;
       i++;
-    } else if (boxes < 2 && BOX.has(token)) {
+    } else if (!clipsToText && token === 'text') {
+      clipsToText = true;
+      i++;
+    } else if (boxes < (clipsToText ? 1 : 2) && BOX.has(token)) {
       if (boxes === 0) {
         layer.origin = token;
       }
@@ -345,6 +350,12 @@ function parseBackgroundLayer(tokens: string[], value: string, isFinal: boolean)
     } else {
       throw invalid();
     }
+  }
+  if (clipsToText) {
+    if (boxes > 1) {
+      throw invalid();
+    }
+    layer.clip = 'text';
   }
   return layer;
 }

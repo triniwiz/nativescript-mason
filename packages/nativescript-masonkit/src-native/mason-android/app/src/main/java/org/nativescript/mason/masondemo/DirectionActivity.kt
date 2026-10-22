@@ -37,7 +37,7 @@ class DirectionActivity : AppCompatActivity() {
 
     val title = mason.createTextView(this)
     title.textContent = "Direction Demo"
-    title.fontSize = 22
+    title.fontSize = 22f
     title.style.color = Color.parseColor("#222222")
     title.style.margin = Rect(
       LengthPercentageAuto.Points(0f),
@@ -48,7 +48,7 @@ class DirectionActivity : AppCompatActivity() {
 
     val subtitle = mason.createTextView(this)
     subtitle.textContent = "Toggle direction to see row start move between left and right."
-    subtitle.fontSize = 14
+    subtitle.fontSize = 14f
     subtitle.style.color = Color.parseColor("#555555")
     subtitle.style.margin = Rect(
       LengthPercentageAuto.Points(0f),
@@ -58,7 +58,7 @@ class DirectionActivity : AppCompatActivity() {
     )
 
     val status = mason.createTextView(this)
-    status.fontSize = 16
+    status.fontSize = 16f
     status.style.color = Color.parseColor("#0F766E")
     status.style.margin = Rect(
       LengthPercentageAuto.Points(0f),
@@ -103,7 +103,7 @@ class DirectionActivity : AppCompatActivity() {
 
       val text = mason.createTextView(this)
       text.textContent = labels[i]
-      text.fontSize = 22
+      text.fontSize = 22f
       text.style.color = Color.WHITE
       card.addView(text)
 

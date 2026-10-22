@@ -56,6 +56,15 @@ class Mason {
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 
+  private var appResources: Resources? = null
+
+  /**
+   * The display metrics text converts font sizes with. Views outlive an Activity relaunch, and
+   * their own resources keep the old density, so this prefers the application's.
+   */
+  internal fun displayMetrics(view: android.view.View?): android.util.DisplayMetrics =
+    appResources?.displayMetrics ?: view?.resources?.displayMetrics ?: Resources.getSystem().displayMetrics
+
   /**
    * The context CSS relative units resolve against, mirroring the TS side's
    * `units.ts`. `rem` needs a root font size (the CSS default is 16) and
@@ -81,6 +90,7 @@ class Mason {
   /** Follow rotation and resizes from now on, so viewport units resolve against the current size. */
   fun watchViewport(context: Context) {
     val app = context.applicationContext ?: context
+    appResources = app.resources
     updateViewport(app)
     if (viewportCallbacks != null) return
     val callbacks = object : android.content.ComponentCallbacks {
@@ -100,11 +110,30 @@ class Mason {
     val metrics = android.util.DisplayMetrics()
     wm.defaultDisplay.getRealMetrics(metrics)
     if (metrics.density <= 0f) return
-    setViewport(metrics.widthPixels / metrics.density, metrics.heightPixels / metrics.density)
+    // A density change (Settings > Display size) relaunches the Activity; the listener
+    // hears of it before the views are styled again, even when the viewport in dp is unchanged.
+    val densityChanged = metrics.density != scale
+    if (densityChanged) {
+      setDeviceScale(metrics.density)
+      refreshTextMetrics()
+    }
+    setViewport(metrics.widthPixels / metrics.density, metrics.heightPixels / metrics.density, densityChanged)
   }
 
-  fun setViewport(width: Float, height: Float) {
-    if (width == viewportWidth && height == viewportHeight) return
+  // Text sized at the old density (font px, the paint's density) is sized again.
+  private fun refreshTextMetrics() {
+    val keys = StateKeys.ALL_TEXT
+    for (ref in nodes.values) {
+      val view = ref.get()?.view as? TextView ?: continue
+      view.onChange(keys.low, keys.high)
+      view.requestLayout()
+      view.invalidate()
+    }
+  }
+
+  @JvmOverloads
+  fun setViewport(width: Float, height: Float, force: Boolean = false) {
+    if (!force && width == viewportWidth && height == viewportHeight) return
     viewportWidth = width
     viewportHeight = height
     HTMLParser.refreshViewportStyles(this)

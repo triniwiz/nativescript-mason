@@ -665,6 +665,31 @@ pub extern "C" fn mason_node_get_float_rects_buffer(
     }
 }
 
+/// Writes up to `capacity` floats of the container's float exclusions
+/// (`[left, top, width, height, side]` margin boxes, see `Mason::get_float_exclusions`)
+/// into `out` and returns how many there are in total.
+#[no_mangle]
+pub extern "C" fn mason_node_get_float_exclusions(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    out: *mut c_float,
+    capacity: usize,
+) -> usize {
+    if mason.is_null() || node.is_null() {
+        return 0;
+    }
+    unsafe {
+        let mason = &(*mason).0;
+        let node = &(*node).0;
+        let output = mason.get_float_exclusions(node.id());
+        if !out.is_null() {
+            let n = output.len().min(capacity);
+            std::ptr::copy_nonoverlapping(output.as_ptr(), out, n);
+        }
+        output.len()
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_node_release_float_rects_buffer(buffer: *mut CMasonBuffer) {
     if buffer.is_null() {

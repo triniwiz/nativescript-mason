@@ -107,6 +107,35 @@ public class TextEngine: NSObject {
   private var drawnBoxes: [(rect: CGRect, node: InlineNodeRef)] = []
   private var drawnTransform = CGAffineTransform.identity
 
+  /// The outlines of the glyphs from the last draw, in the view's coordinates; what
+  /// `background-clip: text` paints through. Inline boxes are left out.
+  internal func glyphOutlinePath() -> CGPath {
+    let path = CGMutablePath()
+    for (line, origin) in drawnLines {
+      for case let run as CTRun in CTLineGetGlyphRuns(line) as NSArray {
+        let attrs = CTRunGetAttributes(run) as NSDictionary as? [NSAttributedString.Key: Any] ?? [:]
+        if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+        guard let fontValue = attrs[.font], CFGetTypeID(fontValue as CFTypeRef) == CTFontGetTypeID() else { continue }
+        let font = fontValue as! CTFont
+        let count = CTRunGetGlyphCount(run)
+        guard count > 0 else { continue }
+        var glyphs = [CGGlyph](repeating: 0, count: count)
+        var positions = [CGPoint](repeating: .zero, count: count)
+        CTRunGetGlyphs(run, CFRangeMake(0, count), &glyphs)
+        CTRunGetPositions(run, CFRangeMake(0, count), &positions)
+        let matrix = CTRunGetTextMatrix(run)
+        for i in 0..<count {
+          guard let glyph = CTFontCreatePathForGlyph(font, glyphs[i], nil) else { continue }
+          let place = matrix
+            .concatenating(CGAffineTransform(translationX: origin.x + positions[i].x, y: origin.y + positions[i].y))
+            .concatenating(drawnTransform)
+          path.addPath(glyph, transform: place)
+        }
+      }
+    }
+    return path
+  }
+
   /// The inline element under a point in the view: an inline box, else the innermost flattened
   /// element whose text is under the point. Nil over plain text or empty space.
   internal func inlineNode(at point: CGPoint) -> MasonNode? {
@@ -482,6 +511,29 @@ public class TextEngine: NSObject {
 
   /// The rect lines wrap in. A negative indent hangs the first line past the start edge,
   /// so the rect grows by it there and the other lines take it back as head indent.
+  /// The margin boxes of floats beside this text, in its content box (points, y down). Positions
+  /// come from the last layout pass, so text not yet placed starts at the container's origin.
+  internal func floatExclusionRects() -> [CGRect] {
+    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
+    guard verticalWritingMode == 0, let parent = node.parent else { return [] }
+    let raw = NativeHelpers.nativeNodeGetFloatExclusions(node.mason, parent)
+    guard raw.count >= 5 else { return [] }
+    let scale = CGFloat(NSCMason.scale)
+    let own = node.computedLayout
+    let box = parent.computedLayout
+    let offX = CGFloat(own.x - box.paddingLeft - box.borderLeft + own.paddingLeft + own.borderLeft)
+    let offY = CGFloat(own.y - box.paddingTop - box.borderTop + own.paddingTop + own.borderTop)
+    var rects: [CGRect] = []
+    rects.reserveCapacity(raw.count / 5)
+    var i = 0
+    while i + 4 < raw.count {
+      rects.append(CGRect(x: (CGFloat(raw[i]) - offX) / scale, y: (CGFloat(raw[i + 1]) - offY) / scale,
+                          width: CGFloat(raw[i + 2]) / scale, height: CGFloat(raw[i + 3]) / scale))
+      i += 5
+    }
+    return rects
+  }
+
   internal func wrapRect(width: CGFloat, height: CGFloat, indent: CGFloat) -> CGRect {
     guard indent < 0 else { return CGRect(x: 0, y: 0, width: width, height: height) }
     let hang = -indent
@@ -640,87 +692,55 @@ public class TextEngine: NSObject {
       constraintSize.height = 10000.0
     }
 
-    // Fetch floats now so we know whether we need the suggested-size pre-pass.
-    let containerNode = engine.node.parent ?? engine.node
-    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
-    let floatEntries = engine.verticalWritingMode == 0
-      ? NativeHelpers.nativeNodeGetFloatRectsWithNodes(engine.node.mason, containerNode) : []
-    let textViewOffset = CGPoint(x: CGFloat(engine.node.computedLayout.x) / scale, y: CGFloat(engine.node.computedLayout.y) / scale)
+    let floatRects = engine.floatExclusionRects()
 
-    // With floats we need the actual text height first to size the exclusion
-    // path, so call SuggestFrameSize (`suggestedSize` holds that result). With
-    // no floats the outer rect is enough, and height is derived from the
-    // frame's line origins instead.
-    var suggestedSize: CGSize? = nil
-    let pathHeight: CGFloat
-    if floatEntries.isEmpty {
-      pathHeight = constraintSize.height  // tall rect; real height computed from frame
-    } else {
-      var s = CTFramesetterSuggestFrameSizeWithConstraints(
-        framesetter,
-        CFRangeMake(0, text.length),
-        nil,
-        engine.wrapRect(width: constraintSize.width, height: constraintSize.height, indent: indent).size,
-        nil
-      )
-      if !s.height.isFinite || s.height <= 0 {
-        s.height = min(constraintSize.height, 10000.0)
-      }
-      suggestedSize = s
-      pathHeight = s.height
-    }
+    // Lay out in a tall path either way; the height comes from the frame's lines.
+    let pathHeight = constraintSize.height
 
-    // Build exclusion path (outer rect ± float cutouts)
+    // Build exclusion path (outer rect ± float cutouts). CoreText's y runs up from the bottom.
     let outerRect = engine.wrapRect(width: constraintSize.width, height: pathHeight, indent: indent)
     let bezier = UIBezierPath(rect: outerRect)
     bezier.usesEvenOddFillRule = true
-    if !floatEntries.isEmpty {
-      for (_, rectLogical) in floatEntries {
-        let rectW = rectLogical.width / scale
-        let rectH = rectLogical.height / scale
-        let rectX = rectLogical.origin.x / scale
-        let rectY = rectLogical.origin.y / scale
-        let rectForPath = CGRect(x: rectX - textViewOffset.x, y: rectY - textViewOffset.y, width: rectW, height: rectH)
-        bezier.append(UIBezierPath(rect: rectForPath))
-      }
+    // Even-odd: any part of a hole outside the outer rect would be filled instead, so clip it.
+    for r in floatRects {
+      let hole = CGRect(x: r.minX, y: pathHeight - r.maxY, width: r.width, height: r.height).intersection(outerRect)
+      if !hole.isNull && !hole.isEmpty { bezier.append(UIBezierPath(rect: hole)) }
     }
     let path = bezier.cgPath
 
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
 
-    // No-float path: derive size from the frame's line origins (CoreText's Y-up
-    // coordinate space measures lineOrigin.y from the frame's bottom):
+    // Derive size from the frame's line origins (CoreText's Y-up coordinate
+    // space measures lineOrigin.y from the frame's bottom):
     //   height = (firstLineOrigin.y + firstAscent) - (lastLineOrigin.y - lastDescent)
-    // Float path: SuggestFrameSize already ran above; reuse its result.
     // line-clamp: only the first lines count, the last of them measured as it is drawn.
     var size: CGSize
     let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
     let clamp = engine.lineClamp
     let shown = clamp > 0 ? min(lines.count, clamp) : lines.count
-    if let s = suggestedSize, shown == lines.count {
-      size = s  // float path: already have the correct size
+    if shown == 0 {
+      size = .zero
     } else {
-      if shown == 0 {
-        size = .zero
-      } else {
-        let count = shown
-        var lineOrigins = [CGPoint](repeating: .zero, count: count)
-        CTFrameGetLineOrigins(frame, CFRangeMake(0, count), &lineOrigins)
+      let count = shown
+      var lineOrigins = [CGPoint](repeating: .zero, count: count)
+      CTFrameGetLineOrigins(frame, CFRangeMake(0, count), &lineOrigins)
 
-        var firstAscent: CGFloat = 0
-        CTLineGetTypographicBounds(lines[0], &firstAscent, nil, nil)
-        var lastDescent: CGFloat = 0
-        CTLineGetTypographicBounds(lines[count - 1], nil, &lastDescent, nil)
-        let measuredHeight = (lineOrigins[0].y + firstAscent) - (lineOrigins[count - 1].y - lastDescent)
+      var firstAscent: CGFloat = 0
+      CTLineGetTypographicBounds(lines[0], &firstAscent, nil, nil)
+      var lastDescent: CGFloat = 0
+      CTLineGetTypographicBounds(lines[count - 1], nil, &lastDescent, nil)
+      // Beside floats the lines are drawn where CoreText puts them, below any space it leaves
+      // above the first line, so count from the frame's top.
+      let top = floatRects.isEmpty ? lineOrigins[0].y + firstAscent : outerRect.maxY
+      let measuredHeight = top - (lineOrigins[count - 1].y - lastDescent)
 
-        // The indent moves the first line along; it is not part of the CTLine's width.
-        var measuredWidth: CGFloat = 0
-        for i in 0..<count {
-          let lw = CGFloat(CTLineGetTypographicBounds(lines[i], nil, nil, nil)) + (i == 0 ? indent : 0)
-          if lw > measuredWidth { measuredWidth = lw }
-        }
-        size = CGSize(width: measuredWidth, height: max(measuredHeight, 0))
+      // The indent moves the first line along; it is not part of the CTLine's width.
+      var measuredWidth: CGFloat = 0
+      for i in 0..<count {
+        let lw = CGFloat(CTLineGetTypographicBounds(lines[i], nil, nil, nil)) + (i == 0 ? indent : 0)
+        if lw > measuredWidth { measuredWidth = lw }
       }
+      size = CGSize(width: measuredWidth, height: max(measuredHeight, 0))
     }
 
     if text.length > 0 && size.width <= 0 {
@@ -776,7 +796,9 @@ public class TextEngine: NSObject {
       }
     }
 
-    size.height = (size.height * scale).rounded(.up)
+    // Not rounded here: layout snaps edges to device pixels, and a whole-pixel line height
+    // per text adds up down a column of fractional font sizes.
+    size.height = size.height * scale
 
     // A `known` dimension of exactly 0 is often a transient probe, not an
     // authoritative constraint; only treat a positive value as authoritative,
@@ -1108,6 +1130,8 @@ public class TextEngine: NSObject {
 
     // An inline-block (a button, say) is an atomic box, never merged into the text.
     if style.display == .InlineBlock { return false }
+    // A filter needs the element's own painted box to work on.
+    if !style.resolvedFilterString.isEmpty { return false }
     
     // A background image/gradient needs a real box; a plain color is painted per
     // run when flattened, like an inline box's background on the web (and Android).
@@ -1613,12 +1637,15 @@ public class TextEngine: NSObject {
       nil
     )
 
+    // Lines beside floats need more height than the no-float suggestion; measure gave the view
+    // that height, so lay out in all of it.
+    let floatRects = floatExclusionRects()
     // Top-align text (matching CSS block-level behavior): no vertical offset
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
       width: drawBounds.width,
-      height: suggestedSize.height
+      height: floatRects.isEmpty ? suggestedSize.height : max(suggestedSize.height, drawBounds.height)
     )
 
     // Build exclusion path in layout-local coordinates (origin at zero).
@@ -1626,39 +1653,18 @@ public class TextEngine: NSObject {
     let localOuter = wrapRect(width: layoutBounds.width, height: layoutBounds.height, indent: indent)
     let bezier = UIBezierPath(rect: localOuter)
     bezier.usesEvenOddFillRule = true
-    var exclusions: [CGRect] = []
-    let containerNode = node.parent ?? node
-    let floatEntries = NativeHelpers.nativeNodeGetFloatRectsWithNodes(node.mason, containerNode)
-    let scale = CGFloat(NSCMason.scale)
-    // Compute this text view's origin in container coordinates (points)
-    let textViewOffset = CGPoint(x: CGFloat(node.computedLayout.x) / scale, y: CGFloat(node.computedLayout.y) / scale)
-    // Float exclusions are horizontal; vertical text doesn't wrap around them yet.
-    if floatEntries.count > 0 && verticalWritingMode == 0 {
-      for (nodePtr, rectLogical) in floatEntries {
-        // Prefer using the actual child view frame if the native view exists
-        // so exclusion holes exactly match placed native views. Fallback to
-        // engine rect conversion otherwise.
-        var rectForPath: CGRect
-        if let np = nodePtr, let matched = containerNode.children.first(where: { $0.nativePtr == np }), let v = matched.view {
-          // v.frame is already positioned relative to this text view (we
-          // subtract offsets when placing the view). Use it directly and
-          // flip Y into CT frame coordinates.
-          let vf = v.frame
-          rectForPath = CGRect(x: vf.origin.x, y: localOuter.height - (vf.origin.y + vf.size.height), width: vf.size.width, height: vf.size.height)
-        } else {
-          // Convert engine px -> points and flip Y for CoreText frame coordinates
-          let rectW = rectLogical.width / scale
-          let rectH = rectLogical.height / scale
-          let rectX = rectLogical.origin.x / scale
-          let flippedY = localOuter.height - ((rectLogical.origin.y + rectLogical.height) / scale)
-          // Convert from container-local points to this text-view-local coordinates
-          // Subtract layout origin to account for any left padding/inset applied to drawBounds
-          rectForPath = CGRect(x: rectX - textViewOffset.x - layoutBounds.origin.x, y: flippedY - textViewOffset.y, width: rectW, height: rectH)
-        }
-        exclusions.append(rectForPath)
-        bezier.append(UIBezierPath(rect: rectForPath))
+    // Floats beside the text, flipped into CoreText's bottom-up frame space.
+    let exclusions = floatRects.map {
+      CGRect(x: $0.minX, y: localOuter.height - $0.maxY, width: $0.width, height: $0.height)
+    }
+    // Even-odd fills any part of a hole outside the outer rect, so each is clipped to it.
+    func appendHoles(_ path: UIBezierPath, inside outer: CGRect) {
+      for exclusion in exclusions {
+        let hole = exclusion.intersection(outer)
+        if !hole.isNull && !hole.isEmpty { path.append(UIBezierPath(rect: hole)) }
       }
     }
+    appendHoles(bezier, inside: localOuter)
     let path = bezier.cgPath
 
     // DEBUG: visualize exclusion path (even-odd fill + stroke) so holes appear transparent
@@ -1685,11 +1691,21 @@ public class TextEngine: NSObject {
     // not the frame, which then drops it and nothing is drawn. Lay out in the height the view
     // was given instead, growing the path downward so the lines keep their top-anchored places.
     var originShift: CGFloat = 0
-    if CTFrameGetVisibleStringRange(frame).length < text.length && drawBounds.height > localOuter.height {
-      originShift = drawBounds.height - localOuter.height
-      let taller = UIBezierPath(rect: CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: drawBounds.height))
+    if !floatRects.isEmpty {
+      // Measure's height ends at the last line's descent, and CoreText drops a line whose leading
+      // runs past the frame, so let the frame run on below; the draw is clipped to the view.
+      originShift = 10000
+      let tallerRect = CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: localOuter.height + originShift)
+      let taller = UIBezierPath(rect: tallerRect)
       taller.usesEvenOddFillRule = true
-      for exclusion in exclusions { taller.append(UIBezierPath(rect: exclusion)) }
+      appendHoles(taller, inside: tallerRect)
+      frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
+    } else if CTFrameGetVisibleStringRange(frame).length < text.length && drawBounds.height > localOuter.height {
+      originShift = drawBounds.height - localOuter.height
+      let tallerRect = CGRect(x: localOuter.minX, y: -originShift, width: localOuter.width, height: drawBounds.height)
+      let taller = UIBezierPath(rect: tallerRect)
+      taller.usesEvenOddFillRule = true
+      appendHoles(taller, inside: tallerRect)
       frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
     }
 
@@ -1868,7 +1884,8 @@ public class TextEngine: NSObject {
 
     for i in 0..<linesCount {
       let line = lineAt(i)
-      let lineOrigin = CGPoint(x: origins[i].x, y: origins[i].y + (textBaseY - layoutBounds.origin.y))
+      // Where the line's text was drawn, padding offset included.
+      let lineOrigin = CGPoint(x: layoutBounds.origin.x + origins[i].x, y: origins[i].y + textBaseY)
       drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context, bounds: bounds)
     }
 
@@ -2337,6 +2354,17 @@ public class TextEngine: NSObject {
     }
 
     TextEngine.applyWordSpacing(composed)
+
+    // The paragraph's line box raises its glyphs to centre them (getDefaultAttributes). Runs
+    // merged in from inline elements sit on the same lines, so they get the same raise.
+    if let raise = node.getDefaultAttributes()[.baselineOffset] as? CGFloat, raise != 0, composed.length > 0 {
+      let whole = NSRange(location: 0, length: composed.length)
+      composed.enumerateAttributes(in: whole) { attrs, range, _ in
+        if attrs[.baselineOffset] == nil && attrs[Constants.VIEW_PLACEHOLDER_KEY] == nil {
+          composed.addAttribute(.baselineOffset, value: raise, range: range)
+        }
+      }
+    }
 
     // Wrap with Unicode bidi control characters when unicode-bidi requires
     // character-level overrides beyond what paragraph direction provides.

@@ -157,6 +157,10 @@ public class NativeHelpers {
   @FastNative
   static native float[] nativeNodeGetFloatRects(long mason, long node);
 
+  // Margin-box float exclusions in the container's content box: [left, top, width, height, side]*.
+  @FastNative
+  static native float[] nativeNodeGetFloatExclusions(long mason, long node);
+
   @CriticalNative
   static native void nativeNodeSetContext(long mason, long node, int measureFunc);
 

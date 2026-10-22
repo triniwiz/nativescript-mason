@@ -87,7 +87,7 @@ class InputInstrumentedTest {
     val (input, _) = layoutInput {
       it.placeholder = "hint"
       it.configure { style ->
-        style.fontSize = 24
+        style.fontSize = 24f
         style.textAlign = org.nativescript.mason.masonkit.enums.TextAlign.Center
       }
     }
@@ -161,7 +161,7 @@ class InputInstrumentedTest {
     InstrumentationRegistry.getInstrumentation().runOnMainSync {
       val tv = input.textInput
       tv.setSelection(3)
-      input.configure { style -> style.fontSize = 20 }
+      input.configure { style -> style.fontSize = 20f }
       assertEquals("caret survives a style change", 3, tv.selectionStart)
     }
   }

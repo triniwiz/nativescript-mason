@@ -151,7 +151,7 @@ impl Default for TreeInner {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct FloatRect {
     // Note: `left`/`top` are the position, `right`/`bottom` are used as
     // width/height for compatibility with existing `taffy::Rect` usage in
@@ -162,6 +162,8 @@ pub(crate) struct FloatRect {
     pub bottom: f32,
     pub side: Float,
     pub node: Id,
+    /// Resolved margins: left, right, top, bottom.
+    pub margin: [f32; 4],
 }
 
 thread_local! {
@@ -633,6 +635,7 @@ impl Tree {
                                 bottom: 0.0,
                                 side: float_side,
                                 node: child_id,
+                                margin: [0.0; 4],
                             });
                         }
                     } else {
@@ -691,13 +694,17 @@ impl Tree {
                     .into_option()
                     .unwrap_or(f32::INFINITY);
 
-                let (style_size, style_min, style_max) = {
+                let (style_size, style_min, style_max, padding, border, border_box) = {
                     let lock = self.0.read();
                     let node = lock.nodes.get(container_id).unwrap();
+                    let style = node.style();
                     (
-                        node.style().get_size(),
-                        node.style().get_min_size(),
-                        node.style().get_max_size(),
+                        style.get_size(),
+                        style.get_min_size(),
+                        style.get_max_size(),
+                        style.get_padding(),
+                        style.get_border(),
+                        style.get_box_sizing() == taffy::BoxSizing::BorderBox,
                     )
                 };
 
@@ -727,6 +734,21 @@ impl Tree {
                     .maybe_resolve(parent_h, |_, _| f32::INFINITY)
                 {
                     h = h.min(max_h);
+                }
+
+                // Floats sit in the content box. A border-box or auto width still
+                // includes the padding and border.
+                let inset = |a: taffy::LengthPercentage, b: taffy::LengthPercentage| {
+                    a.resolve_or_zero(Some(parent_w), |_, _| 0.0)
+                        + b.resolve_or_zero(Some(parent_w), |_, _| 0.0)
+                };
+                let pb_x = inset(padding.left, padding.right) + inset(border.left, border.right);
+                let pb_y = inset(padding.top, padding.bottom) + inset(border.top, border.bottom);
+                if border_box || style_size.width.is_auto() {
+                    w = (w - pb_x).max(0.0);
+                }
+                if border_box || style_size.height.is_auto() {
+                    h = (h - pb_y).max(0.0);
                 }
 
                 (
@@ -954,11 +976,12 @@ impl Tree {
                     candidates.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
 
                     // Precompute margins for this float
-                    let (ml, mr, mt, _mb) = margin_list
+                    let (ml, mr, mt, mb) = margin_list
                         .iter()
                         .find(|(id, _)| *id == fr.node)
                         .map(|(_, m)| *m)
                         .unwrap_or((0.0, 0.0, 0.0, 0.0));
+                    fr.margin = [ml, mr, mt, mb];
 
                     let mut placed_this = false;
 
@@ -1071,6 +1094,57 @@ impl Tree {
                             placed.push(*fr);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fn snapshot_float_context(&self) -> Vec<(Id, Vec<FloatRect>)> {
+        self.inner()
+            .float_context
+            .iter()
+            .filter(|(_, rects)| !rects.is_empty())
+            .map(|(id, rects)| (id, rects.clone()))
+            .collect()
+    }
+
+    /// Text beside a float is measured around it, so when a container's floats
+    /// move or resize its other children's cached measures are stale.
+    fn dirty_float_siblings(&mut self, previous: &[(Id, Vec<FloatRect>)]) {
+        let mut changed: Vec<Id> = Vec::new();
+        {
+            let inner = self.inner();
+            for (id, rects) in inner.float_context.iter() {
+                if rects.is_empty() {
+                    continue;
+                }
+                let before = previous.iter().find(|(p, _)| *p == id).map(|(_, r)| r);
+                if before != Some(rects) {
+                    changed.push(id);
+                }
+            }
+            for (id, _) in previous {
+                let now_empty = inner.float_context.get(*id).is_none_or(|r| r.is_empty());
+                if now_empty && !changed.contains(id) {
+                    changed.push(*id);
+                }
+            }
+        }
+        if changed.is_empty() {
+            return;
+        }
+        let mut tree = self.0.write();
+        for container in changed {
+            let Some(children) = tree.children.get(container).cloned() else {
+                continue;
+            };
+            for child in children {
+                let floats = tree
+                    .nodes
+                    .get(child)
+                    .is_some_and(|n| n.style().get_float() != Float::None);
+                if !floats && tree.nodes.contains_key(child) {
+                    Self::mark_dirty_inner(&mut tree, child);
                 }
             }
         }
@@ -1195,11 +1269,20 @@ impl Tree {
         // Clear and collect floats for the upcoming layout pass. We record
         // floated children per container first; then measure them against the
         // root available space so inline layout can consult approximate sizes.
+        let has_floats = self.inner().has_floats;
+        let previous_floats = if has_floats {
+            self.snapshot_float_context()
+        } else {
+            Vec::new()
+        };
         self.clear_float_context();
-        if self.inner().has_floats {
+        if has_floats {
             self.collect_floats(root.into());
         }
         self.measure_place_floats(root.into(), available_space);
+        if has_floats {
+            self.dirty_float_siblings(&previous_floats);
+        }
 
         // Sanitize children lists to remove stale node ids, but only when a
         // node was actually removed since the last pass.

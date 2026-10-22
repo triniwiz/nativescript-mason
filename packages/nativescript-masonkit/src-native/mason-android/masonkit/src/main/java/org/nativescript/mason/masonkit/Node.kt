@@ -125,6 +125,8 @@ open class Node internal constructor(
   // Helper to ensure the shared cursor points at this node's index before reads.
   private fun nv() = layoutTreeRef.cursor.apply { pointTo(layoutTreeIndex) }
 
+  val computedX get() = nv().x
+  val computedY get() = nv().y
   val computedWidth get() = nv().width
   val computedHeight get() = nv().height
 
@@ -287,9 +289,6 @@ open class Node internal constructor(
 
   // Degrees an inline box is turned to follow vertical text, on top of its own transform.
   internal var inlineTurn = 0f
-
-  internal var floatScanFrame = 0L
-  internal var floatScanHasFloat = false
 
   var onNodeAttached: (() -> Unit)? = null
   var onNodeDetached: (() -> Unit)? = null
@@ -654,6 +653,9 @@ open class Node internal constructor(
       child.parent = this
       val childView = child.view as? View ?: continue
       if (group != null) {
+        // A detach still queued from an earlier removal (an Activity relaunch re-attaches
+        // the same views) would otherwise take the view out again after this.
+        NodeUtils.cancelRemoval(childView)
         if (childView.parent !== group) {
           detachViewQuietly(childView)
           suppressChildOperations { group.addView(childView, viewIndex.coerceAtMost(group.childCount)) }

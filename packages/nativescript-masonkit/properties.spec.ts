@@ -418,7 +418,7 @@ describe('plain NativeScript views keep core semantics', () => {
     const { under, style } = masonHost();
     (style as any)['font-size'] = '20px';
     // FONT_SIZE is a dip buffer, so 20px lands as 20 whatever the scale.
-    expect(under.getInt32(styleKey('FONT_SIZE'))).toBe(20);
+    expect(under.getFloat32(styleKey('FONT_SIZE'))).toBe(20);
   });
 });
 

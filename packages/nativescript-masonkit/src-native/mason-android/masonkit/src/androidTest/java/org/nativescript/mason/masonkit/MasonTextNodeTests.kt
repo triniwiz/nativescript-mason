@@ -14,7 +14,7 @@ class MasonTextNodeTests {
 
     val attrs = TextDefaultAttributes()
     attrs.color = 0xFF112233.toInt()
-    attrs.fontSize = 18
+    attrs.fontSize = 18f
 
     TextNode.applyAttributes(spannable, 0, spannable.length, attrs)
 

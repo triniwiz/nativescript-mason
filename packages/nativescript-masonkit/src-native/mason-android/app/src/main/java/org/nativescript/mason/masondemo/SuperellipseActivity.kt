@@ -62,7 +62,7 @@ class SuperellipseActivity : AppCompatActivity() {
       header.configure { s ->
         s.display = Display.Block
         s.color = "#9CA3AF".toColorInt()
-        s.fontSize = 11
+        s.fontSize = 11f
       }
       header.style.margin = Rect(
         top = LengthPercentageAuto.Points(12 * scale),
@@ -100,7 +100,7 @@ class SuperellipseActivity : AppCompatActivity() {
     circLabel.configure { s ->
       s.textAlign = TextAlign.Center
       s.color = "#4338CA".toColorInt()
-      s.fontSize = 12
+      s.fontSize = 12f
     }
     circularCard.addView(circLabel)
 
@@ -122,7 +122,7 @@ class SuperellipseActivity : AppCompatActivity() {
     sqLabel.configure { s ->
       s.textAlign = TextAlign.Center
       s.color = "#15803D".toColorInt()
-      s.fontSize = 12
+      s.fontSize = 12f
     }
     squircleCard.addView(sqLabel)
 
@@ -168,7 +168,7 @@ class SuperellipseActivity : AppCompatActivity() {
       text.configure { s ->
         s.textAlign = TextAlign.Center
         s.color = "#374151".toColorInt()
-        s.fontSize = 13
+        s.fontSize = 13f
       }
       card.addView(text)
       container.addView(card)
@@ -193,7 +193,7 @@ class SuperellipseActivity : AppCompatActivity() {
     mixedLabel.configure { s ->
       s.textAlign = TextAlign.Center
       s.color = "#E2E8F0".toColorInt()
-      s.fontSize = 13
+      s.fontSize = 13f
     }
     mixed.addView(mixedLabel)
     container.addView(mixed)
@@ -263,7 +263,7 @@ class SuperellipseActivity : AppCompatActivity() {
       bannerText.textContent = b.text
       bannerText.configure { s ->
         s.color = b.fg.toColorInt()
-        s.fontSize = 14
+        s.fontSize = 14f
       }
       banner.addView(bannerText)
       container.addView(banner)
@@ -302,7 +302,7 @@ class SuperellipseActivity : AppCompatActivity() {
       text.textContent = label
       text.configure { s ->
         s.color = fg.toColorInt()
-        s.fontSize = 14
+        s.fontSize = 14f
       }
       pill.addView(text)
       return pill

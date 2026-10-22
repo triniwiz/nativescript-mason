@@ -21,7 +21,7 @@ class TextDefaultAttributes {
       resolvePending()
       field = value
     }
-  var fontSize: Int? = null
+  var fontSize: Float? = null
     get() {
       resolvePending()
       return field

@@ -722,7 +722,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
       "background-color" -> style.setBackgroundColor(value)
 
-      "font-size" -> parseFloatValue(value)?.let { style.fontSize = it.toInt() }
+      "font-size" -> parseFloatValue(value)?.let { style.fontSize = it }
 
       "font-weight" -> when (value) {
         "bold", "700" -> style.fontWeight = FontWeight.Bold

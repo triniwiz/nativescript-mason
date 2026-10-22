@@ -5,7 +5,11 @@ import android.app.assist.AssistStructure
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import android.graphics.PorterDuffXfermode
 import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.RectF
@@ -27,6 +31,7 @@ import android.view.ViewStructure
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeProvider
+import androidx.core.graphics.withTranslation
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.view.accessibility.AccessibilityNodeProviderCompat
 import androidx.customview.widget.ExploreByTouchHelper
@@ -79,6 +84,10 @@ internal class ThemelessContext private constructor(base: Context, template: and
  * A Mason text element. It lays out and draws its text itself, and is a ViewGroup so the
  * inline boxes in its text can be real child views.
  */
+// background-clip: text draws the glyphs opaque black, then keeps only the layers inside them.
+private val GLYPH_MASK_FILTER = PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC)
+private val GLYPH_MASK_PAINT = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN) }
+
 open class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : ViewGroup(if (attrs == null) ThemelessContext.wrap(context) else context, attrs), Element, MeasureFunc,
@@ -127,26 +136,26 @@ open class TextView @JvmOverloads constructor(
   }
 
   override fun setTextSize(size: Float) {
-    node.style.fontSize = size.toInt()
+    node.style.fontSize = size
   }
 
 
   override fun setTextSize(unit: Int, size: Float) {
     if (unit == TypedValue.COMPLEX_UNIT_SP) {
-      node.style.fontSize = size.toInt()
+      node.style.fontSize = size
       return
     }
 
-    val metrics = resources.displayMetrics
+    val metrics = node.mason.displayMetrics(this)
     val px = TypedValue.applyDimension(
       unit, size, metrics
     )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
       node.style.fontSize = TypedValue.deriveDimension(
         TypedValue.COMPLEX_UNIT_SP, px, metrics
-      ).toInt()
+      )
     } else {
-      node.style.fontSize = (px / metrics.density).toInt()
+      node.style.fontSize = px / metrics.density
     }
   }
 
@@ -173,9 +182,6 @@ open class TextView @JvmOverloads constructor(
 
   // Float-aware StaticLayout: wraps text around floated sibling elements
   internal var floatAwareStaticLayout: StaticLayout? = null
-
-  // Height applied by float-aware expansion so onSizeChanged can skip clearing the cache
-  private var floatExpandedHeight: Int = -1
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach {
       it.shader = null
@@ -183,17 +189,11 @@ open class TextView @JvmOverloads constructor(
       it.shaderHeight = -1
     } // force rebuild on next draw
     style.invalidateBorderRendererSize()
-    // Invalidate cached StaticLayout when size changes, but skip if this
-    // size change was triggered by our own float-aware height expansion.
-    if (floatExpandedHeight > 0 && h == floatExpandedHeight) {
-      // Keep the float-aware layout intact — we just expanded to fit it.
-    } else {
-      val lineLength = if (engine.isVerticalWritingMode) h - paddingTop - paddingBottom
-      else w - paddingLeft - paddingRight
-      if (!cachedStaticLayoutFits(lineLength)) clearCachedStaticLayout()
-      floatAwareStaticLayout = null
-      floatExpandedHeight = -1
-    }
+    // Invalidate cached StaticLayouts when the line length changes.
+    val lineLength = if (engine.isVerticalWritingMode) h - paddingTop - paddingBottom
+    else w - paddingLeft - paddingRight
+    if (!cachedStaticLayoutFits(lineLength)) clearCachedStaticLayout()
+    if (floatAwareStaticLayout?.width != lineLength) floatAwareStaticLayout = null
     style.onViewSizeChanged(this)
     super.onSizeChanged(w, h, oldw, oldh)
   }
@@ -227,6 +227,10 @@ open class TextView @JvmOverloads constructor(
       // layout unconditionally.
       if (floatAwareStaticLayout == null) {
         floatAwareStaticLayout = engine.buildFloatAwareStaticLayout(textPaint)
+        // Measured before the floats settled: lay out again so the box fits the wrapped lines.
+        if (floatAwareStaticLayout != null && !engine.floatExclusions().contentEquals(engine.measuredExclusions)) {
+          post { invalidateLayout() }
+        }
       }
 
       // After rotation Taffy reuses cached measure results, so measure() never
@@ -243,52 +247,6 @@ open class TextView @JvmOverloads constructor(
       val layoutToDraw = floatAwareStaticLayout ?: cachedStaticLayout
 
       if (layoutToDraw != null) {
-        // If the float-aware layout is taller than the view, expand bounds
-        // so text below the floats isn't clipped, and also grow ancestor
-        // containers so their borders wrap the full content.
-        if (layoutToDraw === floatAwareStaticLayout) {
-          val neededHeight = layoutToDraw.height + paddingTop + paddingBottom
-          if (neededHeight > height) {
-            val extraHeight = neededHeight - height
-            floatExpandedHeight = neededHeight
-            post {
-              layout(left, top, right, top + neededHeight)
-              // Grow ancestor Elements so their borders wrap the expanded
-              // text. Account for the child's bottom margin and the ancestor's
-              // border + padding when computing the needed height.
-              var child: android.view.View = this@TextView
-              var childNode: Node? = this@TextView.node
-              var anc = parent as? android.view.View
-              var topExpanded: android.view.View? = null
-              while (anc != null && anc is Element) {
-                val ancElement = anc as Element
-                val childMarginBottom = childNode?.let {
-                  resolveMarginValue(
-                    try {
-                      it.style.margin.bottom
-                    } catch (_: Throwable) {
-                      null
-                    }
-                  )
-                } ?: 0f
-                val ancBorderBottom = ancElement.node.computedBorderBottom
-                val needed =
-                  child.bottom + childMarginBottom.toInt() + anc.paddingBottom + ancBorderBottom.toInt()
-                val available = anc.height
-                if (needed <= available) break
-                anc.layout(anc.left, anc.top, anc.right, anc.top + needed)
-                topExpanded = anc
-                childNode = ancElement.node
-                child = anc
-                anc = anc.parent as? android.view.View
-                anc?.invalidate()
-              }
-              // Single invalidate on the topmost expanded ancestor redraws
-              // the whole subtree in one pass instead of per-ancestor.
-              (topExpanded ?: this@TextView).invalidate()
-            }
-          }
-        }
         val contentH = height - paddingTop - paddingBottom
         val dy = if (layoutToDraw.lineCount == 1 && contentH > 0) {
           val baseline0 = layoutToDraw.getLineBaseline(0)
@@ -306,6 +264,7 @@ open class TextView @JvmOverloads constructor(
         drawnLayout = layoutToDraw
         drawnDx = tx
         drawnDy = ty
+        drawTextClippedBackground(c, layoutToDraw, tx, ty)
         if (tx != 0f || ty != 0f) {
           val save = c.save()
           c.translate(tx, ty)
@@ -320,6 +279,23 @@ open class TextView @JvmOverloads constructor(
         updateInlineAccessibility()
       }
     }
+  }
+
+  // background-clip: text: the text-clipped layers show through the glyphs, under the text itself.
+  private fun drawTextClippedBackground(c: Canvas, layout: android.text.Layout, tx: Float, ty: Float) {
+    val background = style.mBackground ?: return
+    if (background.layers.none { it.clip == BackgroundClip.TEXT }) return
+    val w = width.toFloat()
+    val h = height.toFloat()
+    val save = c.saveLayer(0f, 0f, w, h, null)
+    val paint = layout.paint
+    val filter = paint.colorFilter
+    paint.colorFilter = GLYPH_MASK_FILTER
+    c.withTranslation(tx, ty) { layout.draw(this) }
+    paint.colorFilter = filter
+    c.saveLayer(0f, 0f, w, h, GLYPH_MASK_PAINT)
+    ViewUtils.drawBackgroundLayers(this, c, style, background, w, h, 0f, 0f, TextClipPass.TEXT_ONLY)
+    c.restoreToCount(save)
   }
 
   /**
@@ -835,7 +811,7 @@ open class TextView @JvmOverloads constructor(
     // (single source of truth, see ua_default_for_tag); this scales them from
     // CSS px to device pixels by display density. Must stay in sync with iOS
     // MasonText.swift's equivalent call.
-    val density = resources.displayMetrics.density
+    val density = node.mason.displayMetrics(this).density
     // ua = [fontSize, marginTop, marginBottom, marginLeft, marginRight]
     val uaMargin = { ua: FloatArray ->
       Rect<LengthPercentageAuto>(
@@ -866,7 +842,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h1") // fontSize 2em, margin 0.67em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -874,7 +850,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h2") // fontSize 1.5em, margin 0.83em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -882,7 +858,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h3") // fontSize 1.17em ≈ 18.72, margin 1em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -890,7 +866,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h4") // fontSize 1em (16), margin 1.33em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -898,7 +874,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h5") // fontSize 0.83em ≈ 13.28, margin 1.67em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -906,7 +882,7 @@ open class TextView @JvmOverloads constructor(
           node.style.display = Display.Block
           style.fontWeight = FontWeight.Bold
           val ua = Mason.nativeUaDefaultForTag("h6") // fontSize 0.67em ≈ 10.72, margin 2.33em
-          fontSize = ua[0].toInt()
+          fontSize = ua[0]
           node.style.margin = uaMargin(ua)
         }
 
@@ -981,8 +957,8 @@ open class TextView @JvmOverloads constructor(
 
     textPaint.textSize = TypedValue.applyDimension(
       TypedValue.COMPLEX_UNIT_SP,
-      fontSize.toFloat(),
-      resources.displayMetrics
+      fontSize,
+      node.mason.displayMetrics(this)
     )
 
     node.style.setStyleChangeListener(this)
@@ -1009,7 +985,10 @@ open class TextView @JvmOverloads constructor(
     // Style change affects layout; invalidate cached StaticLayout
     clearCachedStaticLayout()
     floatAwareStaticLayout = null
-    engine.onTextStyleChanged(low, high, textPaint, resources.displayMetrics)
+    val metrics = node.mason.displayMetrics(this)
+    // Spans scale by the paint's density, which a relaunch with a new density leaves behind.
+    if (textPaint.density != metrics.density) textPaint.density = metrics.density
+    engine.onTextStyleChanged(low, high, textPaint, metrics)
   }
 
   val values: ByteBuffer
@@ -1080,7 +1059,7 @@ open class TextView @JvmOverloads constructor(
     }
 
 
-  var fontSize: Int
+  var fontSize: Float
     get() {
       return style.fontSize
     }

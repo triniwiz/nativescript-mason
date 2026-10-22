@@ -1,5 +1,6 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
+import { displayDensity, masonLayout } from './display-density';
 import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { masonEngine } from './panel-helpers';
@@ -17,7 +18,7 @@ import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _pars
 
 // The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
 // is 1 until the window has a XamlRoot, so converting stored early styles unscaled and later ones scaled.
-const layout: typeof coreLayout = __WINDOWS__ ? { ...coreLayout, getDisplayDensity: () => 1, toDevicePixels: (value: number) => value, toDeviceIndependentPixels: (value: number) => value } : coreLayout;
+const layout: typeof coreLayout = __WINDOWS__ ? { ...coreLayout, getDisplayDensity: () => 1, toDevicePixels: (value: number) => value, toDeviceIndependentPixels: (value: number) => value } : { ...coreLayout, ...masonLayout };
 
 enum StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
@@ -180,7 +181,7 @@ enum StyleKeys {
   // Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
   FONT_COLOR = 324, // u32 (324-327)
   FONT_COLOR_STATE = 328,
-  FONT_SIZE = 329, // i32 (329-332)
+  FONT_SIZE = 329, // f32 (329-332)
   FONT_SIZE_TYPE = 333,
   FONT_SIZE_STATE = 334,
   FONT_WEIGHT = 335, // i32 (335-338)
@@ -1126,6 +1127,7 @@ function radiusCorners<T>(t: T[]): T[] | null {
 
 let deviceScaleCache = 0;
 function deviceScale(): number {
+  if (__ANDROID__) return displayDensity();
   return deviceScaleCache || (deviceScaleCache = Screen.mainScreen.scale);
 }
 
@@ -1939,7 +1941,7 @@ export class Style {
       }
       if (url) {
         const rest = layer.slice(url.index + url[0].length).trim();
-        const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box)\b/gi;
+        const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box|text)\b/gi;
         const [positionPart, sizePart] = rest.split('/').map((p) => p.replace(keywords, '').trim());
         const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : (this._windowsBackgroundSize ?? '');
         const position = shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '');
@@ -1956,7 +1958,7 @@ export class Style {
       }
       if (!ANY_GRADIENT.test(layer)) {
         NativeScript.Mason.Css.ClearBackground(this.nativeView);
-        const color = v.replace(/\b(border-box|padding-box|content-box)\b/gi, '').trim();
+        const color = v.replace(/\b(border-box|padding-box|content-box|text)\b/gi, '').trim();
         if (shorthand && color.length && color.toLowerCase() !== 'none') this.backgroundColor = color as never;
         if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
       }
@@ -1997,9 +1999,15 @@ export class Style {
   }
 
   // background-origin and background-clip: the shorthand's box keywords (origin, then clip), else the longhands.
+  // `text` is a clip only; url() and gradient arguments are skipped so a file name can't match it.
   private windowsBackgroundBoxes(shorthandLayer: string): WindowsBackgroundBoxes {
-    const keywords = shorthandLayer.match(/\b(border-box|padding-box|content-box)\b/gi) ?? [];
-    if (keywords.length) return { origin: keywords[0], clip: keywords[1] ?? keywords[0] };
+    const bare = shorthandLayer.replace(/[\w-]+\((?:[^()]|\([^()]*\))*\)/g, ' ');
+    const keywords: string[] = bare.match(/\b(border-box|padding-box|content-box|text)\b/gi) ?? [];
+    if (keywords.length) {
+      const boxes = keywords.filter((k) => k.toLowerCase() !== 'text');
+      const text = boxes.length < keywords.length;
+      return { origin: boxes[0], clip: text ? 'text' : (boxes[1] ?? boxes[0]) };
+    }
     return { origin: this._windowsCss.get('background-origin'), clip: this._windowsCss.get('background-clip') };
   }
 
@@ -2407,7 +2415,7 @@ export class Style {
     if (!this.style_view || getInt8(this.style_view, StyleKeys.FONT_SIZE_STATE) !== 1) {
       return this.parentEmBasis();
     }
-    const own = getInt32(this.style_view, StyleKeys.FONT_SIZE);
+    const own = getFloat32(this.style_view, StyleKeys.FONT_SIZE);
     if (own <= 0) {
       return this.parentEmBasis();
     }
@@ -2547,7 +2555,7 @@ export class Style {
     }
 
     const type = getUint8(this.style_view, StyleKeys.FONT_SIZE_TYPE);
-    const value = getInt32(this.style_view, StyleKeys.FONT_SIZE);
+    const value = getFloat32(this.style_view, StyleKeys.FONT_SIZE);
     if (type === 1) {
       return `${value / 100}%` as never;
     }
@@ -2593,7 +2601,7 @@ export class Style {
           resolved = layout.toDeviceIndependentPixels(n);
         }
 
-        setInt32(this.style_view, StyleKeys.FONT_SIZE, resolved);
+        setFloat32(this.style_view, StyleKeys.FONT_SIZE, resolved);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, isPercent ? 1 : 0);
         this.commitState(StateKeys.FONT_SIZE);
@@ -2601,7 +2609,7 @@ export class Style {
       }
       case 'number':
         this.prepareMut();
-        setInt32(this.style_view, StyleKeys.FONT_SIZE, value);
+        setFloat32(this.style_view, StyleKeys.FONT_SIZE, value);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
         setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
         this.commitState(StateKeys.FONT_SIZE);
@@ -2610,21 +2618,21 @@ export class Style {
         switch (value.unit) {
           case 'dip':
             this.prepareMut();
-            setInt32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
+            setFloat32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
             this.commitState(StateKeys.FONT_SIZE);
             break;
           case 'px':
             this.prepareMut();
-            setInt32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
+            setFloat32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
             this.commitState(StateKeys.FONT_SIZE);
             break;
           case '%':
             this.prepareMut();
-            setInt32(this.style_view, StyleKeys.FONT_SIZE, value.value * 100);
+            setFloat32(this.style_view, StyleKeys.FONT_SIZE, value.value * 100);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
             setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 1);
             this.commitState(StateKeys.FONT_SIZE);

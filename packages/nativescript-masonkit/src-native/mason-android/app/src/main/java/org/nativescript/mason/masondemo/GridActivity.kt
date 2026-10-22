@@ -769,7 +769,7 @@ class GridActivity : AppCompatActivity() {
 
     h2.configure {
       it.fontFamily = "'Courier New', monospace"
-      it.fontSize = 16
+      it.fontSize = 16f
       it.margin = Rect(
         LengthPercentageAuto.Zero,
         LengthPercentageAuto.Points(0f),
@@ -1470,7 +1470,7 @@ class GridActivity : AppCompatActivity() {
     body.configure {
       it.margin = Rect.uniform(LengthPercentageAuto.Points(40f))
       it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
-      it.fontSize = 80
+      it.fontSize = 80f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
     }
 
@@ -1512,7 +1512,7 @@ class GridActivity : AppCompatActivity() {
 
     boxA.configure {
       // 150%
-      it.fontSize = 150
+      it.fontSize = 150f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
@@ -1527,7 +1527,7 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxB.configure {
-      it.fontSize = 150
+      it.fontSize = 150f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
@@ -1542,7 +1542,7 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxC.configure {
-      it.fontSize = 150
+      it.fontSize = 150f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
@@ -1557,7 +1557,7 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxD.configure {
-      it.fontSize = 150
+      it.fontSize = 150f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
@@ -1572,7 +1572,7 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxE.configure {
-      it.fontSize = 150
+      it.fontSize = 150f
       it.values.put(StyleKeys.FONT_SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(

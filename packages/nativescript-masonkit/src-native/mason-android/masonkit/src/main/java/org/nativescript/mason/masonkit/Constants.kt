@@ -11,7 +11,7 @@ internal object Constants {
 
   const val VIEW_PLACEHOLDER = "\uFFFC"
 
-  const val DEFAULT_FONT_SIZE = 16
+  const val DEFAULT_FONT_SIZE = 16f
 
   const val ZERO: Byte = 0
 

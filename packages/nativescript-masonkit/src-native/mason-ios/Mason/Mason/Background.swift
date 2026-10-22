@@ -35,9 +35,16 @@ extension Background {
     }
   }
 
+  /// Which layers a draw paints: `background-clip: text` layers go through the glyphs instead.
+  enum TextClipPass {
+    case all, excludingText, textOnly
+  }
+
+  var hasTextClip: Bool { layers.contains { $0.clip == .text } }
+
   // See the `on view:` overload below for what `precomputedColor` is for.
-  func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil) {
-    drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor)
+  func draw(on layer: CALayer, in context: CGContext, rect: CGRect, precomputedColor: UInt32? = nil, pass: TextClipPass = .all) {
+    drawAll(view: style.node.view, caLayer: layer, in: context, rect: rect, precomputedColor: precomputedColor, pass: pass)
   }
 
   // `precomputedColor`: pass an already-resolved color to avoid resolving
@@ -49,10 +56,17 @@ extension Background {
 
   /// `rect` is what the caller fills with the base color. Clip and positioning
   /// boxes come from the view's own border box, whatever inset `rect` carries.
-  private func drawAll(view: UIView?, caLayer: CALayer?, in context: CGContext, rect: CGRect, precomputedColor: UInt32?) {
+  private func drawAll(view: UIView?, caLayer: CALayer?, in context: CGContext, rect: CGRect, precomputedColor: UInt32?, pass: TextClipPass = .all) {
     let box = view?.bounds ?? caLayer?.bounds ?? rect
     let resolved = precomputedColor ?? style.resolvedBackgroundColor
-    if resolved != 0 {
+    func inPass(_ clip: BackgroundClip?) -> Bool {
+      switch pass {
+      case .all: return true
+      case .excludingText: return clip != .text
+      case .textOnly: return clip == .text
+      }
+    }
+    if resolved != 0 && inPass(layers.last?.clip) {
       // The color is clipped like the bottom-most layer.
       context.saveGState()
       if let clip = layers.last?.clip, clip != .borderBox {
@@ -64,9 +78,9 @@ extension Background {
     }
 
     // Reverse so the first layer in the list is drawn on top.
-    for bgLayer in layers.reversed() {
+    for bgLayer in layers.reversed() where inPass(bgLayer.clip) {
       context.saveGState()
-      if bgLayer.clip != .borderBox {
+      if bgLayer.clip != .borderBox && bgLayer.clip != .text {
         context.clip(to: box.inset(by: boxInsets(bgLayer.clip)))
       }
       context.setBlendMode(bgLayer.blendMode.cgBlendMode)
@@ -86,7 +100,7 @@ extension Background {
 
   /// Border (and padding) insets of `box` in points, from the node's computed layout (device px).
   func boxInsets(_ box: BackgroundClip) -> UIEdgeInsets {
-    if box == .borderBox { return .zero }
+    if box == .borderBox || box == .text { return .zero }
     let scale = CGFloat(NSCMason.scale)
     let l = style.node.computedLayout
     var top = CGFloat(l.borderTop)

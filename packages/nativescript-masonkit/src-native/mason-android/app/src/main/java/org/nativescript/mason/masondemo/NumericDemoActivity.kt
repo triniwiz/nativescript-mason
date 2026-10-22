@@ -56,7 +56,7 @@ class NumericDemoActivity : AppCompatActivity() {
     title.textContent = "font-variant-numeric"
     title.configure { style ->
       style.display = Display.Block
-      style.fontSize = 22
+      style.fontSize = 22f
       style.fontWeight = FontWeight.Bold
       style.color = Color.parseColor("#1E293B")
       style.margin = Rect(
@@ -104,7 +104,7 @@ class NumericDemoActivity : AppCompatActivity() {
       timeText.textContent = "00:00.00"
       timeText.configure { style ->
         style.display = Display.Block
-        style.fontSize = 32
+        style.fontSize = 32f
         style.fontWeight = FontWeight.Bold
         style.color = Color.parseColor("#1E293B")
         style.textAlign = TextAlign.Center
@@ -133,7 +133,7 @@ class NumericDemoActivity : AppCompatActivity() {
       dot.textContent = if (tabular) "✅" else "❌"
       dot.configure { style ->
         style.display = Display.InlineBlock
-        style.fontSize = 14
+        style.fontSize = 14f
       }
       badge.addView(dot)
 
@@ -141,7 +141,7 @@ class NumericDemoActivity : AppCompatActivity() {
       labelText.textContent = label
       labelText.configure { style ->
         style.display = Display.InlineBlock
-        style.fontSize = 14
+        style.fontSize = 14f
         style.color = Color.parseColor("#64748B")
       }
       badge.addView(labelText)
@@ -192,7 +192,7 @@ class NumericDemoActivity : AppCompatActivity() {
       variantLabel.textContent = variant
       variantLabel.configure { style ->
         style.display = Display.Block
-        style.fontSize = 12
+        style.fontSize = 12f
         style.fontWeight = FontWeight.SemiBold
         style.color = Color.parseColor("#6366F1")
         style.margin = Rect(
@@ -208,7 +208,7 @@ class NumericDemoActivity : AppCompatActivity() {
       sampleText.textContent = sample
       sampleText.configure { style ->
         style.display = Display.Block
-        style.fontSize = 24
+        style.fontSize = 24f
         style.color = Color.parseColor("#1E293B")
         style.fontVariantNumericString = variant
       }

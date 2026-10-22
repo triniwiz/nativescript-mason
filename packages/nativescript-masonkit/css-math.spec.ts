@@ -139,21 +139,21 @@ describe('Mason lengths evaluate math functions with its units', () => {
   it('font-size resolves rem and the viewport, and keeps em parent-relative', () => {
     const t = styleUnderTest();
     (t.style as any).fontSize = 'clamp(1rem, 1rem + 2vw, 3rem)';
-    expect(t.getInt32(styleKey('FONT_SIZE'))).toBe(24);
+    expect(t.getFloat32(styleKey('FONT_SIZE'))).toBe(24);
     expect(t.getInt8(styleKey('FONT_SIZE_TYPE'))).toBe(0);
     (t.style as any).fontSize = 'calc(1.5em)';
-    expect(t.getInt32(styleKey('FONT_SIZE'))).toBe(150);
+    expect(t.getFloat32(styleKey('FONT_SIZE'))).toBe(150);
     expect(t.getInt8(styleKey('FONT_SIZE_TYPE'))).toBe(1);
     // em mixed with px can't be stored either way; it uses the root font size.
     (t.style as any).fontSize = 'clamp(12px, 0.75em, 0.75em)';
-    expect(t.getInt32(styleKey('FONT_SIZE'))).toBe(12);
+    expect(t.getFloat32(styleKey('FONT_SIZE'))).toBe(12);
     expect(t.getInt8(styleKey('FONT_SIZE_TYPE'))).toBe(0);
   });
 
   it('a stylesheet font-size reaches the setter as text', () => {
     const { under, style } = masonHost();
     (style as any)['font-size'] = 'calc(1rem + 4px)';
-    expect(under.getInt32(styleKey('FONT_SIZE'))).toBe(20);
+    expect(under.getFloat32(styleKey('FONT_SIZE'))).toBe(20);
   });
 
   it('a stylesheet gap or inset reaches the setter as text', () => {

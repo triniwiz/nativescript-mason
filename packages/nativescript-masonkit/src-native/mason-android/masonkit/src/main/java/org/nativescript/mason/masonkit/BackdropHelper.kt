@@ -151,7 +151,8 @@ internal class BackdropHelper(private val target: View) {
     val root = findCaptureRoot()
     if (root.width <= 0 || root.height <= 0) return
 
-    val scale = downscaleFor(blurRadiusPx)
+    // A stack blur's radius spans about two deviations.
+    val scale = downscaleFor(blurRadiusPx * 2f)
     val bw = max(1, w / scale)
     val bh = max(1, h / scale)
 
@@ -206,7 +207,7 @@ internal class BackdropHelper(private val target: View) {
       null
     } ?: return
     if (blurRadiusPx > 0f) {
-      val r = (blurRadiusPx / scale).roundToInt().coerceIn(1, 25)
+      val r = (blurRadiusPx * 2f / scale).roundToInt().coerceIn(1, 25)
       try {
         stackBlur(out, r)
       } catch (_: Throwable) {
