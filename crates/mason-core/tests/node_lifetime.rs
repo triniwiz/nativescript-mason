@@ -117,3 +117,41 @@ fn repeated_mount_unmount_does_not_grow() {
     }
     assert_eq!(mason.node_count(), baseline);
 }
+
+#[test]
+fn set_children_releases_removed_subtrees_but_keeps_retained_children() {
+    let mut mason = Mason::new();
+    let host = mason.create_node();
+    let kept = mason.create_node();
+    let (root, refs) = subtree(&mut mason, &host);
+    mason.append(host.id(), kept.id());
+    drop(root);
+    drop(refs);
+    assert_eq!(mason.node_count(), 12);
+
+    mason.set_children(host.id(), &[kept.id()]);
+    assert_eq!(mason.node_count(), 2);
+    drop(kept);
+    assert_eq!(mason.node_count(), 2, "host still owns the retained child");
+
+    mason.set_children(host.id(), &[]);
+    assert_eq!(mason.node_count(), 1);
+}
+
+#[test]
+fn set_children_detaches_referenced_children_without_retaining_them() {
+    let mut mason = Mason::new();
+    let host = mason.create_node();
+    let (root, refs) = subtree(&mut mason, &host);
+    drop(refs);
+
+    mason.set_children(host.id(), &[]);
+    assert_eq!(
+        mason.node_count(),
+        11,
+        "external reference keeps subtree alive"
+    );
+    assert_eq!(mason.get_root(root.id()).unwrap().id(), root.id());
+    drop(root);
+    assert_eq!(mason.node_count(), 1);
+}
