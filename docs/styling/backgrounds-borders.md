@@ -56,7 +56,7 @@ Per-layer lists repeat cyclically when they are shorter than the layer list, as 
 }
 ```
 
-It applies to text elements (`p`, `span`, headings and the like) on iOS and Android, including inline text merged into them. A container does not yet clip its background to the text of its child elements, and Windows paints the background as with `border-box`.
+It applies to text elements (`p`, `span`, headings and the like), including inline text merged into them. On Windows a container also clips its background to the text of its child elements; on iOS and Android it does not yet.
 :::
 
 `background-blend-mode` needs Android 10 (API 29) or later.

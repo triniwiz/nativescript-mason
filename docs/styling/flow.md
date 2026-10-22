@@ -79,10 +79,6 @@ Vertical margins between adjacent block siblings collapse to the larger of the t
 
 Text beside a float wraps around the float's margin box, and the block grows to fit the wrapped lines.
 
-::: warning Text around floats on Windows
-Floated boxes are positioned on every platform, but on Windows the text beside them does not wrap around them yet. For media-plus-text layouts there, a flex row is the safer choice.
-:::
-
 ## Writing modes
 
 `writing-mode` accepts `horizontal-tb` (default), `vertical-rl` and `vertical-lr`.

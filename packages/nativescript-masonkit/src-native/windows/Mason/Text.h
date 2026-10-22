@@ -234,14 +234,16 @@ namespace winrt::NativeScript::Mason::implementation
             float wrappedWidth{ -1.0f };
             float wrappedSlack{ 0.0f };
             uint64_t wrappedVersion{ 0 };
+            bool wrappedNoWrap{ false };
             // Layouts asked for in a row because the floats moved after measuring.
             uint8_t floatRelayouts{ 0 };
 
             mason_dwrite::FloatLayout const& AroundFloats(float width, float slack, std::vector<mason_dwrite::Exclusion> const& floats)
             {
-                if (wrappedWidth != width || wrappedSlack != slack || wrappedVersion != version || wrappedFloats != floats)
+                if (wrappedWidth != width || wrappedSlack != slack || wrappedVersion != version || wrappedNoWrap != noWrap || wrappedFloats != floats)
                 {
-                    wrapped = mason_dwrite::FloatWrap(paragraph, width, slack, floats);
+                    wrapped = mason_dwrite::FloatWrap(paragraph, width, slack, floats, noWrap);
+                    wrappedNoWrap = noWrap;
                     wrappedFloats = floats;
                     wrappedWidth = width;
                     wrappedSlack = slack;
@@ -328,6 +330,7 @@ namespace winrt::NativeScript::Mason::implementation
         uint64_t m_glyphRevision{ 0 };
         bool m_glyphsChanged{ false };
         void KeepGlyphs(float x, float y, bool redrawn);
+        std::vector<mason_dwrite::FloatLine> const* DrawnLines() const;
         // Shared with the measure callback, which only holds weak references.
         std::shared_ptr<MeasureCache> m_measureCache{ std::make_shared<MeasureCache>() };
         bool m_builtValid{ false };

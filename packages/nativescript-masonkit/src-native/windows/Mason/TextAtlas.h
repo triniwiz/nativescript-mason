@@ -685,6 +685,7 @@ namespace mason_atlas
         // The layout's origin in DIPs from the element's border box.
         float x{ 0.0f };
         float y{ 0.0f };
+        uint8_t vertical{ 0 };
     };
 
     // A renderer that collects each glyph run's outline at its baseline origin.
@@ -721,8 +722,7 @@ namespace mason_atlas
             const HRESULT outlined = run->fontFace->GetGlyphRunOutline(run->fontEmSize, run->glyphIndices, run->glyphAdvances, run->glyphOffsets,
                 run->glyphCount, run->isSideways, run->bidiLevel % 2, sink.get());
             if (FAILED(sink->Close()) || FAILED(outlined)) return S_OK;
-            winrt::com_ptr<ID2D1TransformedGeometry> placed;
-            if (SUCCEEDED(factory->CreateTransformedGeometry(path.get(), D2D1::Matrix3x2F::Translation(x, y), placed.put()))) parts.push_back(placed);
+            parts.push_back({ path, x, y });
             return S_OK;
         }
 
@@ -736,31 +736,64 @@ namespace mason_atlas
             return object ? object->Draw(context, this, x, y, sideways, rtl, effect) : S_OK;
         }
 
+        struct Part
+        {
+            winrt::com_ptr<ID2D1PathGeometry> path;
+            float x{ 0.0f };
+            float y{ 0.0f };
+        };
         ID2D1Factory* factory{ nullptr };
-        std::vector<winrt::com_ptr<ID2D1Geometry>> parts;
+        std::vector<Part> parts;
     };
 
-    // The glyphs' outlines as one geometry in DIPs from the element's border box, built in the
-    // factory they're drawn with. Null without any.
-    inline winrt::com_ptr<ID2D1Geometry> Outline(ID2D1Factory* factory, Glyphs const& glyphs)
+    // The glyphs' outlines in DIPs from the element's border box, moved by dx, dy and appended to
+    // `out`, built in the factory they're drawn with. Vertical text is turned as the atlas draws it.
+    inline void Outline(ID2D1Factory* factory, Glyphs const& glyphs, float dx, float dy, std::vector<winrt::com_ptr<ID2D1Geometry>>& out)
     {
-        if (!factory) return nullptr;
+        if (!factory) return;
         auto sink = winrt::make_self<OutlineSink>(factory);
+        std::vector<mason_dwrite::LineBand> bands;
         if (glyphs.lines.empty() && glyphs.layout)
         {
             mason_dwrite::Configure(glyphs.layout.get(), glyphs.wrapping, glyphs.maxWidth, glyphs.flow);
-            glyphs.layout->Draw(nullptr, sink.get(), glyphs.x, glyphs.y);
+            glyphs.layout->Draw(nullptr, sink.get(), 0.0f, 0.0f);
+            if (glyphs.vertical == 2) bands = mason_dwrite::LineBands(glyphs.layout.get());
         }
         for (auto const& line : glyphs.lines)
         {
-            if (line.layout) line.layout->Draw(nullptr, sink.get(), glyphs.x + line.x, glyphs.y + line.y);
+            if (line.layout) line.layout->Draw(nullptr, sink.get(), line.x, line.y);
         }
-        if (sink->parts.empty()) return nullptr;
-        std::vector<ID2D1Geometry*> parts;
-        parts.reserve(sink->parts.size());
-        for (auto const& part : sink->parts) parts.push_back(part.get());
+        const float x = glyphs.x + dx, y = glyphs.y + dy;
+        for (auto const& part : sink->parts)
+        {
+            D2D1::Matrix3x2F frame = D2D1::Matrix3x2F::Translation(x, y);
+            if (glyphs.vertical == 1) frame = D2D1::Matrix3x2F::Rotation(90.0f) * frame;
+            else if (glyphs.vertical == 2)
+            {
+                float shift = 0.0f;
+                for (auto const& band : bands)
+                {
+                    if (part.y >= band.top && part.y < band.bottom)
+                    {
+                        shift = band.top + band.bottom;
+                        break;
+                    }
+                }
+                frame = D2D1::Matrix3x2F::Rotation(90.0f) * D2D1::Matrix3x2F::Translation(x + shift, y);
+            }
+            winrt::com_ptr<ID2D1TransformedGeometry> placed;
+            if (SUCCEEDED(factory->CreateTransformedGeometry(part.path.get(), D2D1::Matrix3x2F::Translation(part.x, part.y) * frame, placed.put()))) out.push_back(placed);
+        }
+    }
+
+    inline winrt::com_ptr<ID2D1Geometry> Group(ID2D1Factory* factory, std::vector<winrt::com_ptr<ID2D1Geometry>> const& parts)
+    {
+        if (!factory || parts.empty()) return nullptr;
+        std::vector<ID2D1Geometry*> raw;
+        raw.reserve(parts.size());
+        for (auto const& part : parts) raw.push_back(part.get());
         winrt::com_ptr<ID2D1GeometryGroup> group;
-        if (FAILED(factory->CreateGeometryGroup(D2D1_FILL_MODE_WINDING, parts.data(), static_cast<UINT32>(parts.size()), group.put()))) return nullptr;
+        if (FAILED(factory->CreateGeometryGroup(D2D1_FILL_MODE_WINDING, raw.data(), static_cast<UINT32>(raw.size()), group.put()))) return nullptr;
         return group;
     }
 }

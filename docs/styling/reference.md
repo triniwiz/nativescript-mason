@@ -14,7 +14,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `aspect-ratio` | a number or `<w> / <h>` | no | | [Box model](/styling/box-model) |
 | `backdrop-filter` | filter functions, as `filter` | no | `drop-shadow()` has no effect | [Effects](/styling/effects#backdrop-filter) |
 | `background`, `background-color`, `background-image`, `background-position` (`-x`, `-y`), `background-size`, `background-repeat` | CSS background syntax, multiple layers; `background-repeat` includes `space` and `round` | no | | [Backgrounds](/styling/backgrounds-borders#backgrounds) |
-| `background-origin`, `background-clip`, `background-attachment`, `background-blend-mode` | box keywords, plus `text` for the clip; `scroll`/`fixed`/`local`; blend modes | no | Blend modes need Android 10 (API 29); `background-clip: text` on text elements only, not on Windows | [Backgrounds](/styling/backgrounds-borders#background-shorthand-and-layers) |
+| `background-origin`, `background-clip`, `background-attachment`, `background-blend-mode` | box keywords, plus `text` for the clip; `scroll`/`fixed`/`local`; blend modes | no | Blend modes need Android 10 (API 29); `background-clip: text` on containers is Windows-only | [Backgrounds](/styling/backgrounds-borders#background-shorthand-and-layers) |
 | `block-size`, `min-block-size`, `max-block-size` | as `height`, `min-height`, `max-height` | no | Logical, maps to the vertical axis | [Box model](/styling/box-model) |
 | `border`, `border-top`, `border-right`, `border-bottom`, `border-left` | `<width> <style> <color>` | no | | [Borders](/styling/backgrounds-borders#borders) |
 | `border-block`, `border-inline`, `border-block-start`, `border-block-end`, `border-inline-start`, `border-inline-end` (and `-width`, `-style`, `-color`) | as the physical forms | no | Logical, mapped for horizontal left-to-right text | [Borders](/styling/backgrounds-borders#borders) |
@@ -42,7 +42,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `flex-flow` | `<direction> <wrap>` | no | Shorthand | [Flexbox](/styling/flexbox) |
 | `flex-grow`, `flex-shrink` | numbers | no | | [Flexbox](/styling/flexbox) |
 | `flex-wrap` | `nowrap`, `wrap`, `wrap-reverse` | no | | [Flexbox](/styling/flexbox) |
-| `float` | `none`, `left`, `right` | no | Text doesn't wrap around floats on Windows | [Flow](/styling/flow) |
+| `float` | `none`, `left`, `right` | no | | [Flow](/styling/flow) |
 | `font-family` | a family list | yes | | [Typography](/styling/typography#font-family) |
 | `font-feature-settings` | `normal`, OpenType feature tags | no | Set it on the text element itself | [Typography](/styling/typography#font-feature-settings) |
 | `font-size` | length, percentage, `em`, `rem` | yes | | [Typography](/styling/typography#font-size) |

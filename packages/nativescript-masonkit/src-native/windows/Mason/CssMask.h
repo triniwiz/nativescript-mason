@@ -1991,6 +1991,18 @@ namespace mason_cssmask
         PaintBackgroundFor(element, *entry, entry->backgroundColor, entry->backgroundTextColor, entry->backgroundScale);
     }
 
+    inline int g_textClips = 0;
+
+    inline void RepaintTextClips(mux::UIElement const& element, bool ancestors)
+    {
+        if (g_textClips <= 0) return;
+        for (auto e = element; e; e = ancestors ? winrt::Microsoft::UI::Xaml::Media::VisualTreeHelper::GetParent(e).try_as<mux::UIElement>() : nullptr)
+        {
+            auto* entry = Find(e);
+            if (entry && entry->background && entry->background->hasTextClip) RepaintBackground(e);
+        }
+    }
+
     inline bool HasBackground(mux::UIElement const& element)
     {
         auto* entry = Find(element);
@@ -2004,6 +2016,7 @@ namespace mason_cssmask
         {
             auto* entry = Find(element);
             if (!entry || !entry->background) return;
+            if (entry->background->hasTextClip) --g_textClips;
             entry->background = nullptr;
             Unwatch(*entry);
             ReleaseSurface(entry->backgroundKey);
@@ -2016,6 +2029,8 @@ namespace mason_cssmask
             return;
         }
         auto& entry = Ensure(element);
+        if (entry.background && entry.background->hasTextClip) --g_textClips;
+        if (spec->hasTextClip) ++g_textClips;
         entry.background = std::move(spec);
         entry.backgroundBrush = nullptr;
         Unwatch(entry);
