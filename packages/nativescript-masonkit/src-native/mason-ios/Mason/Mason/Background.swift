@@ -1069,7 +1069,11 @@ private func drawSvgImage(_ cg: CGContext, _ image: SvgImage) {
   let w = image.width ?? image.height.map { $0 * iw / ih } ?? iw
   let h = image.height ?? image.width.map { $0 * ih / iw } ?? ih
   cg.saveGState()
-  defer { cg.restoreGState() }
+  UIGraphicsPushContext(cg)
+  defer {
+    UIGraphicsPopContext()
+    cg.restoreGState()
+  }
   cg.concatenate(image.transform)
   cg.translateBy(x: image.x, y: image.y)
   if image.slice { cg.clip(to: CGRect(x: 0, y: 0, width: w, height: h)) }
@@ -1102,56 +1106,172 @@ func renderSvgDocument(_ doc: SvgDocument, size: CGSize, scale: CGFloat, current
   return UIGraphicsImageRenderer(size: size, format: format).image { rendererContext in
     let cg = rendererContext.cgContext
     cg.concatenate(doc.viewportTransform(size.width, size.height))
-    for op in doc.ops {
-      switch op {
-      case let .beginGroup(opacity):
-        cg.saveGState()
-        cg.setAlpha(opacity)
-        cg.beginTransparencyLayer(auxiliaryInfo: nil)
-      case .endGroup:
-        cg.endTransparencyLayer()
-        cg.restoreGState()
-      case let .beginClip(clip):
-        cg.saveGState()
-        let (path, rule) = svgClipPath(clip)
+    drawSvgOps(cg, doc.ops, currentColor: currentColor)
+  }
+}
+
+/// Draws `ops` into `cg`, whose user space is the SVG's root user space (y down).
+func drawSvgOps(_ cg: CGContext, _ ops: [SvgOp], currentColor: UInt32) {
+  for op in ops {
+    switch op {
+    case let .beginGroup(opacity):
+      cg.saveGState()
+      cg.setAlpha(opacity)
+      cg.beginTransparencyLayer(auxiliaryInfo: nil)
+    case .endGroup:
+      cg.endTransparencyLayer()
+      cg.restoreGState()
+    case let .beginClip(clip):
+      cg.saveGState()
+      let (path, rule) = svgClipPath(clip)
+      cg.addPath(path)
+      cg.clip(using: rule)
+    case .endClip:
+      cg.restoreGState()
+    case let .image(image):
+      drawSvgImage(cg, image)
+    case let .masked(mask, content):
+      drawSvgMasked(cg, mask, content, currentColor: currentColor)
+    case let .shape(shape):
+      let path = svgCGPath(shape.commands)
+      cg.saveGState()
+      cg.concatenate(shape.transform)
+      if shape.hasFill {
         cg.addPath(path)
-        cg.clip(using: rule)
-      case .endClip:
-        cg.restoreGState()
-      case let .image(image):
-        drawSvgImage(cg, image)
-      case let .shape(shape):
-        let path = svgCGPath(shape.commands)
-        cg.saveGState()
-        cg.concatenate(shape.transform)
-        if shape.hasFill {
-          cg.addPath(path)
-          if case let .gradient(g) = shape.fill {
-            cg.saveGState()
-            cg.clip(using: shape.evenOdd ? .evenOdd : .winding)
-            drawSvgGradient(cg, g, opacity: shape.fillOpacity, currentColor: currentColor)
-            cg.restoreGState()
-          } else {
-            cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
-            cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
-          }
+        switch shape.fill {
+        case let .gradient(g):
+          cg.saveGState()
+          cg.clip(using: shape.evenOdd ? .evenOdd : .winding)
+          drawSvgGradient(cg, g, opacity: shape.fillOpacity, currentColor: currentColor)
+          cg.restoreGState()
+        case let .pattern(p):
+          cg.saveGState()
+          cg.clip(using: shape.evenOdd ? .evenOdd : .winding)
+          drawSvgPattern(cg, p, opacity: shape.fillOpacity, currentColor: currentColor)
+          cg.restoreGState()
+        default:
+          cg.setFillColor(svgCGColor(shape.fill, opacity: shape.fillOpacity, currentColor: currentColor))
+          cg.fillPath(using: shape.evenOdd ? .evenOdd : .winding)
         }
-        if shape.hasStroke {
-          cg.addPath(path)
-          setSvgStrokeStyle(cg, shape)
-          if case let .gradient(g) = shape.stroke {
-            cg.saveGState()
-            cg.replacePathWithStrokedPath()
-            cg.clip()
-            drawSvgGradient(cg, g, opacity: shape.strokeOpacity, currentColor: currentColor)
-            cg.restoreGState()
-          } else {
-            cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
-            cg.strokePath()
-          }
-        }
-        cg.restoreGState()
       }
+      if shape.hasStroke {
+        cg.addPath(path)
+        setSvgStrokeStyle(cg, shape)
+        switch shape.stroke {
+        case let .gradient(g):
+          cg.saveGState()
+          cg.replacePathWithStrokedPath()
+          cg.clip()
+          drawSvgGradient(cg, g, opacity: shape.strokeOpacity, currentColor: currentColor)
+          cg.restoreGState()
+        case let .pattern(p):
+          cg.saveGState()
+          cg.replacePathWithStrokedPath()
+          cg.clip()
+          drawSvgPattern(cg, p, opacity: shape.strokeOpacity, currentColor: currentColor)
+          cg.restoreGState()
+        default:
+          cg.setStrokeColor(svgCGColor(shape.stroke, opacity: shape.strokeOpacity, currentColor: currentColor))
+          cg.strokePath()
+        }
+      }
+      cg.restoreGState()
     }
   }
+}
+
+/// Largest pattern tile edge and mask area, in device pixels.
+private let maxSvgPatternTilePx = 2048
+private let maxSvgMaskPx: CGFloat = 4096 * 4096
+
+private let svgSRGB = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+
+/// A transparent `width` x `height` px bitmap (device space, y up) drawn by `draw`.
+private func svgOffscreen(_ width: Int, _ height: Int, _ draw: (CGContext) -> Void) -> CGImage? {
+  guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: svgSRGB,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+  draw(ctx)
+  return ctx.makeImage()
+}
+
+/// Tiles `pattern` over the current clip, the tile rasterized at the device scale it lands at.
+private func drawSvgPattern(_ cg: CGContext, _ pattern: SvgPattern, opacity: CGFloat, currentColor: UInt32) {
+  cg.saveGState()
+  defer { cg.restoreGState() }
+  cg.concatenate(pattern.transform)
+  let box = cg.boundingBoxOfClipPath
+  guard !box.isNull, !box.isInfinite, box.width > 0, box.height > 0 else { return }
+  let m = cg.userSpaceToDeviceSpaceTransform
+  let pw = min(max(Int((pattern.width * hypot(m.a, m.b)).rounded(.up)), 1), maxSvgPatternTilePx)
+  let ph = min(max(Int((pattern.height * hypot(m.c, m.d)).rounded(.up)), 1), maxSvgPatternTilePx)
+  guard let tile = svgOffscreen(pw, ph, { ctx in
+    // Tile units, y down like the user space it came from.
+    ctx.translateBy(x: 0, y: CGFloat(ph))
+    ctx.scaleBy(x: CGFloat(pw) / pattern.width, y: -CGFloat(ph) / pattern.height)
+    ctx.clip(to: CGRect(x: 0, y: 0, width: pattern.width, height: pattern.height))
+    drawSvgOps(ctx, pattern.ops, currentColor: currentColor)
+  }) else { return }
+  cg.setAlpha(min(max(opacity, 0), 1))
+  // CG draws images y up; flip so each tile lands upright.
+  cg.translateBy(x: 0, y: pattern.height)
+  cg.scaleBy(x: 1, y: -1)
+  cg.draw(tile, in: CGRect(x: 0, y: 0, width: pattern.width, height: pattern.height), byTiling: true)
+}
+
+/// The mask as an 8-bit coverage image: luminance times alpha, or alpha.
+private func svgMaskImage(_ width: Int, _ height: Int, luminance: Bool, _ draw: (CGContext) -> Void) -> CGImage? {
+  let count = width * height
+  var rgba = [UInt8](repeating: 0, count: count * 4)
+  let drawn: Bool = rgba.withUnsafeMutableBytes { buf in
+    guard let ctx = CGContext(data: buf.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                              space: svgSRGB, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+    draw(ctx)
+    return true
+  }
+  guard drawn else { return nil }
+  var coverage = [UInt8](repeating: 0, count: count)
+  for i in 0..<count {
+    if luminance {
+      // Premultiplied, so this is already luminance x alpha.
+      let l = 0.2125 * Float(rgba[i * 4]) + 0.7154 * Float(rgba[i * 4 + 1]) + 0.0721 * Float(rgba[i * 4 + 2])
+      coverage[i] = UInt8(min(255, l.rounded()))
+    } else {
+      coverage[i] = rgba[i * 4 + 3]
+    }
+  }
+  guard let provider = CGDataProvider(data: Data(coverage) as CFData) else { return nil }
+  return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width,
+                 space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                 provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+}
+
+/// Draws `content` and the mask offscreen in device pixels, then the content through the mask.
+private func drawSvgMasked(_ cg: CGContext, _ mask: SvgMask, _ content: [SvgOp], currentColor: UInt32) {
+  let device = cg.userSpaceToDeviceSpaceTransform
+  let (region, _) = svgClipPath(mask.region)
+  var rect = region.boundingBoxOfPath.applying(device)
+  let clip = cg.boundingBoxOfClipPath
+  if !clip.isNull && !clip.isInfinite { rect = rect.intersection(clip.applying(device)) }
+  rect = rect.integral
+  guard !rect.isNull, rect.width >= 1, rect.height >= 1, rect.width * rect.height <= maxSvgMaskPx else { return }
+  let w = Int(rect.width), h = Int(rect.height)
+  func place(_ ctx: CGContext) {
+    ctx.translateBy(x: -rect.minX, y: -rect.minY)
+    ctx.concatenate(device)
+  }
+  guard let coverage = svgMaskImage(w, h, luminance: mask.luminance, { ctx in
+          place(ctx)
+          ctx.addPath(region)
+          ctx.clip()
+          drawSvgOps(ctx, mask.ops, currentColor: currentColor)
+        }),
+        let drawn = svgOffscreen(w, h, { ctx in
+          place(ctx)
+          drawSvgOps(ctx, content, currentColor: currentColor)
+        }) else { return }
+  cg.saveGState()
+  cg.concatenate(device.inverted())
+  cg.clip(to: rect, mask: coverage)
+  cg.draw(drawn, in: rect)
+  cg.restoreGState()
 }

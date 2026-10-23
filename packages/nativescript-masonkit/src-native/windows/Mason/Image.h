@@ -3,7 +3,14 @@
 #include "Invalidation.h"
 #include "VisualState.h"
 #include <memory>
+#include <string>
+#include <winrt/Microsoft.UI.Composition.h>
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
+
+namespace mason_cssmask
+{
+    struct Image;
+}
 
 namespace winrt::NativeScript::Mason::implementation
 {
@@ -36,6 +43,10 @@ namespace winrt::NativeScript::Mason::implementation
         void Loaded(uint64_t generation, float width, float height);
         static winrt::fire_and_forget LoadData(winrt::Microsoft::UI::Xaml::Media::Imaging::BitmapImage bitmap, hstring uri);
         static winrt::fire_and_forget LoadFile(winrt::Microsoft::UI::Xaml::Media::Imaging::BitmapImage bitmap, hstring path);
+        static winrt::fire_and_forget LoadRemoteSvg(winrt::weak_ref<Image> weak, uint64_t generation, hstring uri);
+        void SvgLoaded(uint64_t generation, std::shared_ptr<mason_cssmask::Image> svg);
+        void PaintSvg(winrt::Windows::Foundation::Rect const& content, float width, float height);
+        void ClearSvg();
 
         winrt::NativeScript::Mason::Node m_node{ nullptr };
         mason_visual::AppliedState m_visual;
@@ -44,6 +55,11 @@ namespace winrt::NativeScript::Mason::implementation
         std::shared_ptr<Natural> m_natural = std::make_shared<Natural>();
         uint64_t m_generation{ 0 };
         bool m_clipped{ false };
+        // An SVG source, drawn by Mason's Direct2D SVG path into a sprite at the shown size.
+        std::shared_ptr<mason_cssmask::Image> m_svg;
+        winrt::Microsoft::UI::Composition::SpriteVisual m_svgVisual{ nullptr };
+        std::string m_svgKey;
+        std::string m_svgPainted;
     };
 }
 

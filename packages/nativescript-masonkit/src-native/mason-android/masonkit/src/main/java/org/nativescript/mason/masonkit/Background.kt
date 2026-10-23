@@ -10,6 +10,8 @@ import androidx.annotation.RequiresApi
 import kotlin.math.ceil
 import kotlin.math.floor
 import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
@@ -36,7 +38,6 @@ private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isDither = true
 private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 private val bitmapDstRect = RectF()
 
-private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
 private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
 private val ANY_GRADIENT_REGEX = Regex("""(repeating-)?(linear|radial|conic)-gradient\(""", RegexOption.IGNORE_CASE)
 private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
@@ -500,7 +501,7 @@ fun drawBackground(
   layer.gradient?.let { drawGradient(layer, canvas, paintRect, area) }
 
   layer.image?.let { imageUrl ->
-    if (imageUrl.startsWith("data:image/svg", ignoreCase = true)) {
+    if (isSvgSource(imageUrl)) {
       drawSvgLayer(context, layer, imageUrl, canvas, paintRect, area, currentColor)
       return
     }
@@ -543,7 +544,7 @@ private fun drawSvgLayer(
   context: Context, layer: BackgroundLayer, url: String, canvas: Canvas, paintRect: RectF, area: RectF, currentColor: Int
 ) {
   if (layer.svgFailed) return
-  val doc = layer.svg ?: decodeSvgDataUrl(url)?.also { layer.svg = it }
+  val doc = layer.svg ?: decodeSvgSource(context, url)?.also { layer.svg = it }
   if (doc == null) {
     layer.svgFailed = true
     return
@@ -591,6 +592,21 @@ private fun decodeDataUrlBytes(url: String): ByteArray? {
 internal fun decodeDataUrlBitmap(url: String): Bitmap? {
   val bytes = decodeDataUrlBytes(url) ?: return null
   return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}
+
+/** An SVG data URL, or a local `.svg` file (`~/` or an absolute path). */
+internal fun isSvgSource(url: String): Boolean =
+  url.startsWith("data:image/svg", ignoreCase = true) ||
+    ((url.startsWith("~/") || url.startsWith("/")) && url.substringBefore('?').endsWith(".svg", ignoreCase = true))
+
+internal fun decodeSvgSource(context: Context, url: String): SvgDocument? {
+  if (url.startsWith("data:", ignoreCase = true)) return decodeSvgDataUrl(url)
+  val file = imageSource(context, url.substringBefore('?')) as? java.io.File ?: return null
+  return try {
+    parseSvgDocument(file.readText())
+  } catch (_: Throwable) {
+    null
+  }
 }
 
 internal fun decodeSvgDataUrl(url: String): SvgDocument? {
@@ -657,15 +673,19 @@ private fun svgGradientShader(g: SvgGradient, currentColor: Int): Shader {
   return shader
 }
 
-/** Colour, or shader for a gradient, of [paint] at [opacity]. */
-private fun applySvgPaint(target: Paint, paint: SvgPaint, opacity: Float, currentColor: Int) {
-  if (paint is SvgPaint.Gradient) {
-    target.shader = svgGradientShader(paint.gradient, currentColor)
-    target.color = Color.BLACK
-    target.alpha = (opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-  } else {
-    target.color = svgPaintColor(paint, opacity, currentColor)
+/** Colour, or shader for a gradient or pattern, of [paint] at [opacity]; false when it draws nothing. */
+private fun applySvgPaint(canvas: Canvas, target: Paint, paint: SvgPaint, opacity: Float, currentColor: Int): Boolean {
+  when (paint) {
+    is SvgPaint.Gradient -> target.shader = svgGradientShader(paint.gradient, currentColor)
+    is SvgPaint.Pattern -> target.shader = svgPatternShader(canvas, paint.pattern, currentColor) ?: return false
+    else -> {
+      target.color = svgPaintColor(paint, opacity, currentColor)
+      return true
+    }
   }
+  target.color = Color.BLACK
+  target.alpha = (opacity.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+  return true
 }
 
 private fun svgClipPath(clip: SvgClip): Path {
@@ -723,12 +743,23 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
   }
   val canvas = Canvas(bitmap)
   canvas.concat(svgMatrix(doc.viewportTransform(w.toFloat(), h.toFloat())))
+  drawSvgOps(canvas, doc.ops, currentColor)
+  return bitmap
+}
+
+/** Largest pattern tile edge, in device px. */
+private const val MAX_SVG_PATTERN_TILE_PX = 2048
+
+private val svgLuminanceFilter = ColorMatrixColorFilter(LUMINANCE_MATRIX)
+
+/** Draws [ops] into [canvas], whose matrix maps the SVG's root user space to device px. */
+internal fun drawSvgOps(canvas: Canvas, ops: List<SvgOp>, currentColor: Int) {
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   val path = Path()
   // A clip draws its content into a layer, then erases outside it with the inverse path (AA).
   val clips = ArrayList<SvgClip>()
   val clipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
-  for (op in doc.ops) {
+  for (op in ops) {
     when (op) {
       is SvgOp.BeginGroup -> {
         @Suppress("DEPRECATION")
@@ -750,6 +781,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
       }
 
       is SvgOp.Image -> drawSvgImage(canvas, op.image, paint)
+      is SvgOp.Masked -> drawSvgMasked(canvas, op.mask, op.content, currentColor)
       is SvgOp.Shape -> {
         val shape = op.shape
         buildSvgPath(path, shape.commands)
@@ -760,8 +792,7 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           paint.reset()
           paint.isAntiAlias = true
           paint.style = Paint.Style.FILL
-          applySvgPaint(paint, shape.fill, shape.fillOpacity, currentColor)
-          canvas.drawPath(path, paint)
+          if (applySvgPaint(canvas, paint, shape.fill, shape.fillOpacity, currentColor)) canvas.drawPath(path, paint)
         }
         if (shape.hasStroke) {
           paint.reset()
@@ -780,14 +811,53 @@ internal fun renderSvgDocument(doc: SvgDocument, w: Int, h: Int, currentColor: I
           }
           paint.strokeMiter = shape.miterLimit
           shape.dashArray?.let { paint.pathEffect = DashPathEffect(it, shape.dashOffset) }
-          applySvgPaint(paint, shape.stroke, shape.strokeOpacity, currentColor)
-          canvas.drawPath(path, paint)
+          if (applySvgPaint(canvas, paint, shape.stroke, shape.strokeOpacity, currentColor)) canvas.drawPath(path, paint)
         }
         canvas.restore()
       }
     }
   }
-  return bitmap
+}
+
+/**
+ * A repeating shader for [pattern], its tile rasterized at the scale it lands at on [canvas]
+ * (whose matrix is the shape's user space); null when it has nothing to draw.
+ */
+private fun svgPatternShader(canvas: Canvas, pattern: SvgPattern, currentColor: Int): Shader? {
+  @Suppress("DEPRECATION")
+  val m = Matrix(canvas.matrix).apply { preConcat(svgMatrix(pattern.transform)) }
+  val v = FloatArray(9).also { m.getValues(it) }
+  val pw = ceil(pattern.width * hypot(v[Matrix.MSCALE_X], v[Matrix.MSKEW_Y])).toInt().coerceIn(1, MAX_SVG_PATTERN_TILE_PX)
+  val ph = ceil(pattern.height * hypot(v[Matrix.MSKEW_X], v[Matrix.MSCALE_Y])).toInt().coerceIn(1, MAX_SVG_PATTERN_TILE_PX)
+  val tile = Bitmap.createBitmap(pw, ph, Bitmap.Config.ARGB_8888)
+  val tileCanvas = Canvas(tile)
+  tileCanvas.scale(pw / pattern.width, ph / pattern.height)
+  tileCanvas.clipRect(0f, 0f, pattern.width, pattern.height)
+  drawSvgOps(tileCanvas, pattern.ops, currentColor)
+  return BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT).apply {
+    setLocalMatrix(svgMatrix(pattern.transform).apply { preScale(pattern.width / pw, pattern.height / ph) })
+  }
+}
+
+/** Draws [content] through [mask]: the content in a layer, multiplied by the mask's coverage. */
+private fun drawSvgMasked(canvas: Canvas, mask: SvgMask, content: List<SvgOp>, currentColor: Int) {
+  val region = svgClipPath(mask.region)
+  val bounds = RectF()
+  region.computeBounds(bounds, true)
+  val outer = canvas.saveLayer(bounds, null)
+  drawSvgOps(canvas, content, currentColor)
+  canvas.saveLayer(bounds, Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) })
+  canvas.clipPath(region)
+  if (mask.luminance) {
+    // Drawn over black, luminance x alpha becomes the layer's alpha.
+    canvas.saveLayer(bounds, Paint().apply { colorFilter = svgLuminanceFilter })
+    canvas.drawColor(Color.BLACK)
+    drawSvgOps(canvas, mask.ops, currentColor)
+    canvas.restore()
+  } else {
+    drawSvgOps(canvas, mask.ops, currentColor)
+  }
+  canvas.restoreToCount(outer)
 }
 
 fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
@@ -1746,9 +1816,9 @@ fun parseLayer(layerValue: String): BackgroundLayer {
   var value = layerValue.trim()
 
   // Image URL first: its contents must not be tokenized.
-  IMAGE_REGEX.find(value)?.let { match ->
-    layer.image = match.groups[1]?.value
-    value = value.removeRange(match.range).trim()
+  findCssUrl(value)?.let { (range, url) ->
+    layer.image = url
+    value = value.removeRange(range).trim()
   }
 
   // Gradient: the function consumes its own parentheses, the rest are tokens.
@@ -1819,8 +1889,14 @@ fun splitLayers(css: String): List<String> {
   val layers = mutableListOf<String>()
   var depth = 0
   var start = 0
+  var quote = 0.toChar()
   css.forEachIndexed { i, c ->
+    if (quote != 0.toChar()) {
+      if (c == quote) quote = 0.toChar()
+      return@forEachIndexed
+    }
     when (c) {
+      '"', '\'' -> quote = c
       '(' -> depth++
       ')' -> depth--
       ',' -> if (depth == 0) {
@@ -1831,6 +1907,35 @@ fun splitLayers(css: String): List<String> {
   }
   layers.add(css.substring(start))
   return layers
+}
+
+/**
+ * The first `url(...)` in [value] and its URL. Quotes and nested parentheses are skipped, so an
+ * unencoded SVG data URL holding `url(#id)` stays whole.
+ */
+internal fun findCssUrl(value: String): Pair<IntRange, String>? {
+  val start = value.indexOf("url(", ignoreCase = true)
+  if (start < 0) return null
+  var i = start + 4
+  var depth = 0
+  var quote = 0.toChar()
+  while (i < value.length) {
+    val c = value[i]
+    if (quote != 0.toChar()) {
+      if (c == '\\') i++ else if (c == quote) quote = 0.toChar()
+    } else if (c == '"' || c == '\'') {
+      quote = c
+    } else if (c == '(') {
+      depth++
+    } else if (c == ')') {
+      if (depth == 0) break
+      depth--
+    }
+    i++
+  }
+  if (i >= value.length) return null
+  val url = extractCssUrl(value.substring(start, i + 1)) ?: return null
+  return (start..i) to url
 }
 
 fun parseBackground(style: Style, css: String): Background? {

@@ -55,6 +55,38 @@ public class MasonImageLayer: CALayer {
   
   let contentsLayer = CALayer()
 
+  /// An SVG source, drawn as vectors at the size it is shown.
+  var svg: SvgDocument? {
+    didSet {
+      svgRaster = nil
+      if svg == nil && image == nil { contentsLayer.contents = nil }
+      setNeedsLayout()
+    }
+  }
+  private var svgRaster: (size: CGSize, color: UInt32)? = nil
+  /// The SVG's whole object-fit box; `contentsLayer` shows the part inside the element.
+  private var svgDrawSize: CGSize = .zero
+
+  /// Rasterizes the SVG at its shown size and device scale; again when that or `currentColor` changes.
+  func updateSvgContents() {
+    guard let doc = svg, let view = view else { return }
+    let size = svgDrawSize
+    let color = doc.usesCurrentColor ? view.style.resolvedColor : 0
+    if let r = svgRaster, r.size == size, r.color == color { return }
+    svgRaster = (size, color)
+    var image: CGImage? = nil
+    if size.width > 0 && size.height > 0 {
+      let scale = max(contentsScale, 1)
+      let fit = min(1, maxImgSvgRasterPx / (max(size.width, size.height) * scale))
+      image = renderSvgDocument(doc, size: CGSize(width: size.width * fit, height: size.height * fit), scale: scale,
+                                currentColor: color)?.cgImage
+    }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    contentsLayer.contents = image
+    CATransaction.commit()
+  }
+
   private func setup(){
     masksToBounds = true
     contentsLayer.contentsGravity = .resizeAspectFill
@@ -101,6 +133,8 @@ public class MasonImageLayer: CALayer {
     
     view.style.mBackground.draw(on: self, in: context, rect: bounds)
     view.style.applyResolvedFilter(in: context, rect: bounds, view: view)
+    // A redraw follows style changes, `color` among them.
+    if svg != nil { updateSvgContents() }
 
     /*
     let imageSize = CGSize(width: image.size.width * 3, height: image.size.height * 3)
@@ -186,8 +220,22 @@ public class MasonImageLayer: CALayer {
   
   public override func layoutSublayers() {
       super.layoutSublayers()
-      guard let view = view, let cgImage = image?.cgImage else {
+      defer { if svg != nil { updateSvgContents() } }
+      let imgW: CGFloat, imgH: CGFloat
+      if let doc = svg {
+        imgW = doc.width
+        imgH = doc.height
+      } else if let cgImage = image?.cgImage {
+        imgW = CGFloat(cgImage.width) / contentsLayer.contentsScale
+        imgH = CGFloat(cgImage.height) / contentsLayer.contentsScale
+      } else {
         contentsLayer.frame = bounds
+        contentsLayer.contentsRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        return
+      }
+      guard let view = view, imgW > 0, imgH > 0 else {
+        contentsLayer.frame = bounds
+        contentsLayer.contentsRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         return
       }
 
@@ -199,46 +247,54 @@ public class MasonImageLayer: CALayer {
 
       let viewW = bounds.width
       let viewH = bounds.height
-      let imgW = CGFloat(cgImage.width) / contentsLayer.contentsScale
-      let imgH = CGFloat(cgImage.height) / contentsLayer.contentsScale
+      let frame: CGRect
 
       switch fit {
       case .Cover:
         let scale = max(viewW / imgW, viewH / imgH)
         let w = imgW * scale
         let h = imgH * scale
-        let x = (viewW - w) * opXPct
-        let y = (viewH - h) * opYPct
-        contentsLayer.frame = CGRect(x: x, y: y, width: w, height: h)
+        frame = CGRect(x: (viewW - w) * opXPct, y: (viewH - h) * opYPct, width: w, height: h)
 
       case .Contain:
         let scale = min(viewW / imgW, viewH / imgH)
         let w = imgW * scale
         let h = imgH * scale
-        let x = (viewW - w) * opXPct
-        let y = (viewH - h) * opYPct
-        contentsLayer.frame = CGRect(x: x, y: y, width: w, height: h)
+        frame = CGRect(x: (viewW - w) * opXPct, y: (viewH - h) * opYPct, width: w, height: h)
 
       case .None:
-        let x = (viewW - imgW) * opXPct
-        let y = (viewH - imgH) * opYPct
-        contentsLayer.frame = CGRect(x: x, y: y, width: imgW, height: imgH)
+        frame = CGRect(x: (viewW - imgW) * opXPct, y: (viewH - imgH) * opYPct, width: imgW, height: imgH)
 
       case .ScaleDown:
         let containScale = min(viewW / imgW, viewH / imgH)
         let scale = min(1.0, containScale)
         let w = imgW * scale
         let h = imgH * scale
-        let x = (viewW - w) * opXPct
-        let y = (viewH - h) * opYPct
-        contentsLayer.frame = CGRect(x: x, y: y, width: w, height: h)
+        frame = CGRect(x: (viewW - w) * opXPct, y: (viewH - h) * opYPct, width: w, height: h)
 
       default:
         // Fill — stretch to bounds, object-position doesn't apply
-        contentsLayer.frame = bounds
+        frame = bounds
       }
+      svgDrawSize = frame.size
+      // Replaced content is clipped to its box whatever `overflow` says: show only the part inside.
+      let visible = frame.intersection(bounds)
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      if visible.isNull || visible.width <= 0 || visible.height <= 0 || frame.width <= 0 || frame.height <= 0 {
+        contentsLayer.frame = .zero
+      } else {
+        contentsLayer.frame = visible
+        contentsLayer.contentsRect = CGRect(x: (visible.minX - frame.minX) / frame.width, y: (visible.minY - frame.minY) / frame.height,
+                                            width: visible.width / frame.width, height: visible.height / frame.height)
+        contentsLayer.contentsGravity = .resize
+      }
+      CATransaction.commit()
   }
 }
+
+/// Largest edge of an `<img>` SVG raster, in device pixels.
+private let maxImgSvgRasterPx: CGFloat = 4096
 
 @objcMembers
 @objc(MasonImg)
@@ -307,9 +363,70 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   }
   
   internal var state: LoadingState? = nil
+
+  /// The SVG `src`, parsed; drawn by the layer instead of `image`.
+  internal var svg: SvgDocument? {
+    get { masonLayer.svg }
+    set {
+      masonLayer.svg = newValue
+      node.markDirty()
+      requestLayout()
+    }
+  }
+
+  /// Bumped per `src` so a slow load can't overwrite a newer one.
+  private var loadGeneration = 0
+
+  /// Finishes a load on the thread that started it.
+  private func finishLoad(_ generation: Int, on loop: CFRunLoop?, _ apply: @escaping () -> Void) {
+    let run = { [weak self] in
+      guard let self = self, self.loadGeneration == generation else { return }
+      apply()
+    }
+    if let loop = loop {
+      CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue, run)
+      CFRunLoopWakeUp(loop)
+    } else {
+      run()
+    }
+  }
+
+  /// SVG sources (data URLs, files, `.svg` URLs) go through Mason's SVG reader; nil otherwise.
+  private func loadSvg(_ src: String, _ generation: Int, _ current: CFRunLoop?) -> Bool {
+    let svgUrl = isSvgSource(src)
+    let remote = URL(string: src).flatMap { u -> URL? in
+      guard let scheme = u.scheme?.lowercased(), scheme == "http" || scheme == "https",
+            u.pathExtension.lowercased() == "svg" else { return nil }
+      return u
+    }
+    guard svgUrl || remote != nil else { return false }
+    state = .Loading
+    onStateChange?(.Loading, nil)
+    let done: (SvgDocument?, Error?) -> Void = { doc, error in
+      self.finishLoad(generation, on: current) {
+        self.state = doc != nil ? .Loaded : .Error
+        self.image = nil
+        self.svg = doc
+        self.onStateChange?(doc != nil ? .Loaded : .Error, error)
+      }
+    }
+    if let remote = remote {
+      URLSession.shared.dataTask(with: remote) { data, _, error in
+        let doc = data.flatMap { String(data: $0, encoding: .utf8) }.flatMap(parseSvgDocument)
+        done(doc, error)
+      }.resume()
+    } else {
+      done(decodeSvgSource(src), nil)
+    }
+    return true
+  }
   
   internal func loadImage(){
     let current = CFRunLoopGetCurrent()
+    loadGeneration += 1
+    let generation = loadGeneration
+    if svg != nil { svg = nil }
+    if let src = src, loadSvg(src, generation, current) { return }
     guard let src = src, let url = URL(string: src) else {
       if let current = current {
         CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
@@ -419,16 +536,27 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
     }
     
     
-    if let image = view.image {
+    // Intrinsic size in device px: 1 SVG px is 1 CSS px, 1 raster px one device px.
+    var natural = CGSize.zero
+    if let doc = view.svg {
+      let scale = CGFloat(NSCMason.scale)
+      natural = CGSize(width: doc.width * scale, height: doc.height * scale)
+    } else if let image = view.image {
       if let cgImage = image.cgImage {
-        ret.width = CGFloat(cgImage.width)
-        ret.height = CGFloat(cgImage.height)
+        natural = CGSize(width: CGFloat(cgImage.width), height: CGFloat(cgImage.height))
       }
-      
       if let ciImage = image.ciImage {
-        ret.width = CGFloat(ciImage.extent.width)
-        ret.height = CGFloat(ciImage.extent.height)
+        natural = ciImage.extent.size
       }
+    }
+    // One known side keeps the image's ratio.
+    let w = known?.width ?? .nan, h = known?.height ?? .nan
+    if !w.isNaN && h.isNaN {
+      ret.height = natural.width > 0 ? w * natural.height / natural.width : 0
+    } else if w.isNaN && !h.isNaN {
+      ret.width = natural.height > 0 ? h * natural.width / natural.height : 0
+    } else {
+      ret = natural
     }
     
     view.node.cachedWidth = ret.width

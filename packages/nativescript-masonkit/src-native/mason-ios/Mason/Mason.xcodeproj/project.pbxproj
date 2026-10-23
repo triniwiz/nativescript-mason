@@ -13,6 +13,7 @@
 		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
 		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
 		5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */; };
+		5A7E0C1DB0A15F6E00C0FE11 /* SvgText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */; };
 		5A7E0C1DB0A15F6E00C0FE03 /* SvgParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */; };
 		7C3A9E51D2B84F06000A5C01 /* Mask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C02 /* Mask.swift */; };
 		7C3A9E51D2B84F06000A5C03 /* MaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */; };
@@ -162,6 +163,7 @@
 		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
 		5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParser.swift; sourceTree = "<group>"; };
+		5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgText.swift; sourceTree = "<group>"; };
 		5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParserTests.swift; sourceTree = "<group>"; };
 		7C3A9E51D2B84F06000A5C02 /* Mask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mask.swift; sourceTree = "<group>"; };
 		7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskTests.swift; sourceTree = "<group>"; };
@@ -382,6 +384,7 @@
 				F134016E2ECE04DC00D6CFD9 /* Border.swift */,
 				F134016C2ECE04CB00D6CFD9 /* Background.swift */,
 				5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */,
+				5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */,
 				7C3A9E51D2B84F06000A5C02 /* Mask.swift */,
 				8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */,
 				8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */,
@@ -761,6 +764,7 @@
 				F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */,
 				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
 				5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */,
+				5A7E0C1DB0A15F6E00C0FE11 /* SvgText.swift in Sources */,
 				7C3A9E51D2B84F06000A5C01 /* Mask.swift in Sources */,
 				8D4B1F62E3C95A17000B6D01 /* ClipPath.swift in Sources */,
 				8D4B1F62E3C95A17000B6D03 /* NineSlice.swift in Sources */,

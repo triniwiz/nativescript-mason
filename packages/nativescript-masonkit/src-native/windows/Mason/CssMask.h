@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <limits>
 #include <string_view>
 #include <functional>
@@ -455,6 +456,142 @@ namespace mason_cssmask
         return size;
     }
 
+    inline winrt::com_ptr<ID2D1Image> Luminance(ID2D1DeviceContext* ctx, ID2D1Image* input);
+
+    // A drawn element of an SVG document and the mask segment it is in (ids from SvgRewrite.h).
+    struct SvgLeaf
+    {
+        winrt::com_ptr<ID2D1SvgElement> element;
+        int kind{ 0 }; // 0 outside masks, 1 masked element `index`, 2 mask content `index`
+        int index{ 0 };
+        bool shown{ true };
+    };
+
+    struct SvgMaskContent
+    {
+        winrt::com_ptr<ID2D1SvgElement> group;
+        bool luminance{ true };
+    };
+
+    inline std::wstring SvgTag(ID2D1SvgElement* element)
+    {
+        const UINT32 n = element->GetTagNameLength();
+        std::wstring s(n + 1, L'\0');
+        if (FAILED(element->GetTagName(s.data(), n + 1))) return {};
+        s.resize(n);
+        return s;
+    }
+
+    inline std::wstring SvgId(ID2D1SvgElement* element)
+    {
+        UINT32 n = 0;
+        if (!element->IsAttributeSpecified(L"id") || FAILED(element->GetAttributeValueLength(L"id", D2D1_SVG_ATTRIBUTE_STRING_TYPE_ID, &n))) return {};
+        std::wstring s(n + 1, L'\0');
+        if (FAILED(element->GetAttributeValue(L"id", D2D1_SVG_ATTRIBUTE_STRING_TYPE_ID, s.data(), n + 1))) return {};
+        s.resize(n);
+        return s;
+    }
+
+    // Leaves in document order; outside masks, `index` counts the masked elements before them.
+    inline void CollectSvgLeaves(ID2D1SvgElement* parent, int kind, int index, int& masks, std::vector<SvgLeaf>& leaves,
+        std::unordered_map<int, SvgMaskContent>& contents)
+    {
+        winrt::com_ptr<ID2D1SvgElement> child;
+        parent->GetFirstChild(child.put());
+        while (child)
+        {
+            const std::wstring tag = SvgTag(child.get());
+            const std::wstring id = SvgId(child.get());
+            if (id.rfind(L"__mason_mask_", 0) == 0)
+            {
+                const int k = static_cast<int>(std::wcstol(id.c_str() + 13, nullptr, 10));
+                CollectSvgLeaves(child.get(), 1, k, masks, leaves, contents);
+                masks = (std::max)(masks, k + 1);
+            }
+            else if (id.rfind(L"__mason_maskc_", 0) == 0 || id.rfind(L"__mason_maska_", 0) == 0)
+            {
+                const int k = static_cast<int>(std::wcstol(id.c_str() + 14, nullptr, 10));
+                contents[k] = { child, id[12] == L'c' };
+                CollectSvgLeaves(child.get(), 2, k, masks, leaves, contents);
+            }
+            else if (tag == L"path" || tag == L"rect" || tag == L"circle" || tag == L"ellipse" || tag == L"line" || tag == L"polyline"
+                || tag == L"polygon" || tag == L"image" || tag == L"use")
+            {
+                D2D1_SVG_DISPLAY display = D2D1_SVG_DISPLAY_INLINE;
+                if (child->IsAttributeSpecified(L"display")) child->GetAttributeValue(L"display", D2D1_SVG_ATTRIBUTE_POD_TYPE_DISPLAY, &display, sizeof(display));
+                leaves.push_back({ child, kind, kind == 0 ? masks : index, display != D2D1_SVG_DISPLAY_NONE });
+            }
+            else if (tag == L"g" || tag == L"svg" || tag == L"a" || tag == L"switch")
+            {
+                CollectSvgLeaves(child.get(), kind, index, masks, leaves, contents);
+            }
+            winrt::com_ptr<ID2D1SvgElement> next;
+            parent->GetNextChild(child.get(), next.put());
+            child = next;
+        }
+    }
+
+    inline void SetSvgDisplay(ID2D1SvgElement* element, bool shown)
+    {
+        const D2D1_SVG_DISPLAY display = shown ? D2D1_SVG_DISPLAY_INLINE : D2D1_SVG_DISPLAY_NONE;
+        element->SetAttributeValue(L"display", D2D1_SVG_ATTRIBUTE_POD_TYPE_DISPLAY, &display, sizeof(display));
+    }
+
+    // Draws the document in document order, each masked element and its mask's content drawn
+    // offscreen and composited (Direct2D's SVG renderer has no masks). The target must be a bitmap
+    // with nothing pushed, as DrawImage's tiles are.
+    inline void DrawSvgSegments(ID2D1DeviceContext* ctx, ID2D1DeviceContext5* ctx5, ID2D1SvgDocument* doc, ID2D1SvgElement* root)
+    {
+        std::vector<SvgLeaf> leaves;
+        std::unordered_map<int, SvgMaskContent> contents;
+        int masks = 0;
+        CollectSvgLeaves(root, 0, 0, masks, leaves, contents);
+        winrt::com_ptr<ID2D1Image> target;
+        ctx->GetTarget(target.put());
+        auto bitmap = target.try_as<ID2D1Bitmap>();
+        if (masks == 0 || !bitmap)
+        {
+            ctx5->DrawSvgDocument(doc);
+            return;
+        }
+        const D2D1_SIZE_U px = bitmap->GetPixelSize();
+        D2D1_MATRIX_3X2_F transform;
+        ctx->GetTransform(&transform);
+        auto show = [&](int kind, int index)
+        {
+            for (auto& leaf : leaves) SetSvgDisplay(leaf.element.get(), leaf.shown && leaf.kind == kind && leaf.index == index);
+        };
+        for (int k = 0; k <= masks; ++k)
+        {
+            show(0, k);
+            ctx5->DrawSvgDocument(doc);
+            if (k == masks) break;
+            auto it = contents.find(k);
+            auto drawn = TargetBitmap(ctx, px.width, px.height);
+            auto mask = TargetBitmap(ctx, px.width, px.height);
+            if (it == contents.end() || !drawn || !mask) continue;
+            show(1, k);
+            ctx->SetTarget(drawn.get());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            ctx5->DrawSvgDocument(doc);
+            show(2, k);
+            SetSvgDisplay(it->second.group.get(), true);
+            ctx->SetTarget(mask.get());
+            ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
+            ctx5->DrawSvgDocument(doc);
+            SetSvgDisplay(it->second.group.get(), false);
+            winrt::com_ptr<ID2D1Image> coverage = mask;
+            if (it->second.luminance) if (auto lum = Luminance(ctx, mask.get())) coverage = lum;
+            ctx->SetTransform(D2D1::Matrix3x2F::Identity());
+            ctx->SetTarget(drawn.get());
+            ctx->DrawImage(coverage.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_DESTINATION_IN);
+            ctx->SetTarget(target.get());
+            ctx->DrawImage(drawn.get(), D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+            ctx->SetTransform(transform);
+        }
+        for (auto& leaf : leaves) SetSvgDisplay(leaf.element.get(), leaf.shown);
+    }
+
     // Draws an SVG to fill `size` (its viewBox maps onto it as the SVG asks).
     inline void DrawSvg(ID2D1DeviceContext* ctx, ID2D1SvgDocument* doc, D2D1_SIZE_F size)
     {
@@ -475,7 +612,7 @@ namespace mason_cssmask
         root->SetAttributeValue(L"width", full);
         root->SetAttributeValue(L"height", full);
         doc->SetViewportSize(size);
-        if (auto ctx5 = Svg5(ctx)) ctx5->DrawSvgDocument(doc);
+        if (auto ctx5 = Svg5(ctx)) DrawSvgSegments(ctx, ctx5.get(), doc, root.get());
     }
 
     // An image's natural size in CSS px, 0 on an axis it lacks. Gradients have none.

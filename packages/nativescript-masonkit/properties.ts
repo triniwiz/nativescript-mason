@@ -42,7 +42,7 @@ import {
 } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
-import { isMasonView_, remapLogicalBoxes_, touchAction_ } from './symbols';
+import { elementDisplay_, isMasonView_, remapLogicalBoxes_, touchAction_ } from './symbols';
 
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
@@ -137,16 +137,29 @@ export const textProperty = new Property<ViewBase, string>({
   name: 'text',
 });
 
+/**
+ * Writes `display`; unsetting it restores the element's own display (inline for an img or a
+ * span), kept from before the first write.
+ */
+export function applyDisplay(style: MasonStyle, value: Display | undefined) {
+  const owner = style as MasonStyle & { [elementDisplay_]?: Display };
+  if (value) {
+    if (owner[elementDisplay_] === undefined) owner[elementDisplay_] = style.display as Display;
+    style.display = value as never;
+  } else if (owner[elementDisplay_] !== undefined) {
+    style.display = owner[elementDisplay_] as never;
+  }
+}
+
+// No defaultValue: core skips a value equal to the default, and `display: block` must still
+// reach an element that is inline on its own.
 export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
   cssName: 'display',
-  defaultValue: 'block',
   valueChanged: (target, oldValue, newValue) => {
     if (appliedInSetNative(target, displayProperty)) return;
     const view = getViewStyle(target.viewRef);
-    if (view && newValue) {
-      view.display = newValue;
-    }
+    if (view) applyDisplay(view, newValue);
   },
   valueConverter: function (value) {
     if (typeof value === 'number') {

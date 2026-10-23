@@ -978,22 +978,57 @@ inline flow, as on the web, so text wraps across element boundaries.
 
 ## SVG background images
 
-`url("data:image/svg+xml,...")` images are drawn by a small static-SVG reader, one per
-platform: `SvgParser.kt` / `SvgParser.swift` (pure parsing; `SvgParserTest.kt` /
-`SvgParserTests.swift` mirror each other, keep both in step) plus a renderer in each
-`Background` file. Windows draws `url()` backgrounds with Direct2D's SVG renderer (see CSS
-masks (Windows)); `Css::ApplyBackgroundImage` and WinUI's `SvgImageSource` are the fallback.
+`url("data:image/svg+xml,...")` images (and local `.svg` files) are drawn by a small static-SVG
+reader, one per platform: `SvgParser.kt` / `SvgParser.swift` (pure parsing; `SvgParserTest.kt` /
+`SvgParserTests.swift` mirror each other, keep both in step) plus a renderer in each `Background`
+file. Glyph outlines for `<text>` come from `SvgText.kt` / `SvgText.swift` (Paint / CoreText).
+Windows draws `url()` backgrounds with Direct2D's SVG renderer (see CSS masks (Windows));
+`Css::ApplyBackgroundImage` and WinUI's `SvgImageSource` are the fallback.
 
 - **Supported:** the full path grammar (arcs become cubics per SVG F.6), basic shapes,
-  `<g>` inheritance, `transform`, `style=""`, fill/stroke paint, `fill-rule`, opacity
-  (group opacity composites as one layer), caps/joins/miterlimit/dashes,
-  `preserveAspectRatio`.
-- **Not supported:** gradients/patterns (`url(#id)` uses its fallback colour, else none),
-  `<use>`, `<text>`, `<image>`, clip paths, masks, filters, markers, `<style>` sheets.
+  `<g>` inheritance, `transform`, `style=""` and `<style>` sheets (simple selectors),
+  fill/stroke paint, `fill-rule`, opacity (group opacity composites as one layer),
+  caps/joins/miterlimit/dashes, `preserveAspectRatio`, gradients, `<use>`/`<symbol>`,
+  `<clipPath>`, raster data-URL `<image>`, `<pattern>`, `<mask>`, markers and `<text>`/`<tspan>`.
+- **Not supported:** filters, `<textPath>`, text `rotate`/`textLength`, nested `<svg>`, SVG in
+  `<image>`, external references.
+- **Op list.** The builder flattens the tree into `SvgOp`s (shape, begin/end group and clip,
+  image, `masked(mask, content)`). Paint servers resolve per shape: a pattern becomes
+  `SvgPaint.pattern` holding its own op list for one tile. Nested lists share the op budget
+  (`nestedOps`).
+- **Patterns** draw a tile raster at the device scale it lands at (CG `draw(byTiling:)`, Android
+  `BitmapShader`). Contents inherit from the `<pattern>` (`documentStyle`), not the shape. A
+  pattern that can't paint (no size/content, a cycle) returns nil and the paint's fallback is
+  used, as Chrome does.
+- **Masks** render content and mask offscreen in device pixels (iOS: two bitmap contexts and
+  `clip(to:mask:)` with a luminance/alpha coverage image; Android: `saveLayer` + `DST_IN`, the
+  luminance layer drawn over black through `LUMINANCE_MATRIX`). The region is the mask's
+  x/y/width/height (default -10%/120% of the bbox) as a clip.
+- **Markers** sit on `svgMarkerVertices`: arcs' inner cubics are not vertices
+  (`parseSvgPathData(_:vertexEnds:)`), a closed subpath's ends take the bisector at its start.
+- **Text** is laid out by the builder (x/y/dx/dy lists per element, chunks and `text-anchor`,
+  white space collapse, `dominant-baseline`) and shaped per run by `svgTextShaper`, which tests
+  swap for a box shaper. Outlines are taken at 100px and scaled. Runs become ordinary shapes, so
+  text fills, strokes, clips and masks like any path.
 - **`currentColor`** is the element's resolved CSS `color` (`style.resolvedColor`), else the
   SVG's own `color`. iOS/Android re-rasterize when it changes; Windows resolves it once.
 - **Raster size:** the drawn size (after `background-size`) at device scale, cached on the
   `BackgroundLayer` until that size or the colour changes.
+- **`<img>`** with an SVG `src` (data URL, file, `.svg` URL) uses the same reader: iOS
+  `MasonImageLayer.svg` rasterizes at the object-fit box (clipped to the element through
+  `contentsRect`), Android `SvgDrawable` at the device size it is drawn at, Windows a sprite with a
+  `PaintSurface` drawn by `mason_cssmask::DrawImage`.
+
+### SVG on Windows
+
+Direct2D's SVG renderer has no text, markers, patterns or masks, so `SvgRewrite.h` rewrites
+them in `mason_svg::Resolve` after `<style>`/`<symbol>`: text becomes DirectWrite glyph outline
+paths (system fonts only), markers become transformed groups, a pattern fill becomes the shape's
+clip around tiled copies (a pattern stroke uses its fallback), and each masked element is wrapped
+in `__mason_mask_k` with a hidden copy of its mask content (`__mason_maskc_k`, or `maska` for
+alpha). `CssMask.h`'s `DrawSvgSegments` draws the document in segments by toggling `display`,
+compositing each masked element with its mask offscreen. Copies moved out of their definition
+get the definition's inherited paint set explicitly (`CopyInheritedPaint`).
 
 ## CSS masks (iOS)
 

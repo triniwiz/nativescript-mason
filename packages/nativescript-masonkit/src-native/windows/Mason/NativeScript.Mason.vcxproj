@@ -128,6 +128,8 @@
     <ClInclude Include="RoundedMask.h" />
     <ClInclude Include="CssMask.h" />
     <ClInclude Include="SvgPrepare.h" />
+    <ClInclude Include="SvgRewrite.h" />
+    <ClInclude Include="SvgSource.h" />
     <ClInclude Include="DWriteText.h" />
     <ClInclude Include="RootScale.h" />
     <ClInclude Include="TextAtlas.h" />
