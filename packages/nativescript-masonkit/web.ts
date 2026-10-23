@@ -1,6 +1,9 @@
 import { CSSType, Property, Utils, ViewBase, unsetValue } from '@nativescript/core';
 import { masonEngine } from './panel-helpers';
-import { Scroll, View, Text } from '.';
+// Not from '.': the index re-exports this module, so that import is a cycle.
+import { Scroll } from './scroll';
+import { Text } from './text';
+import { View } from './view';
 
 const enum TextType {
   None = 0,
