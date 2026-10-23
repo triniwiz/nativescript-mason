@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ProxyViewContainer } from '@nativescript/core';
 import { ViewBase } from './common';
 import { text_ } from './symbols';
 
@@ -66,5 +67,46 @@ describe('_nativeAttachIndex', () => {
     attach(h, children[0]);
     attach(h, children[1]);
     expect(h._nativeAttachIndex(children[3], 3)).toEqual({ jsIndex: 3, nativeIndex: 2 });
+  });
+});
+
+describe('passthrough hosts', () => {
+  // A ProxyViewContainer among the children, its `attached` children already on this view.
+  function proxyIn(h: any, attached: number) {
+    const proxy = Object.create(ProxyViewContainer.prototype) as any;
+    Object.defineProperty(proxy, 'parent', { value: h });
+    proxy._getNativeViewsCount = () => attached;
+    return proxy;
+  }
+  const hoisted = (proxy: any) => ({ id: -1, parent: proxy });
+
+  it('places a hoisted child after the siblings before the host', () => {
+    const children: any[] = views(3);
+    const h = host(children);
+    for (const c of children) attach(h, c);
+    const proxy = proxyIn(h, 0);
+    children.splice(2, 0, proxy);
+    // Core hands over the index inside the host: 0 for its first child.
+    expect(h._nativeAttachIndex(hoisted(proxy), 0).nativeIndex).toBe(2);
+  });
+
+  it('places a hoisted child at its slot inside the host', () => {
+    const children: any[] = views(2);
+    const h = host(children);
+    for (const c of children) attach(h, c);
+    const proxy = proxyIn(h, 2);
+    children.splice(1, 0, proxy);
+    expect(h._nativeAttachIndex(hoisted(proxy), 1).nativeIndex).toBe(2);
+    expect(h._nativeAttachIndex(hoisted(proxy), -1).nativeIndex).toBe(3);
+  });
+
+  it("counts a host's attached children for the siblings after it", () => {
+    const children: any[] = views(3);
+    const h = host(children);
+    attach(h, children[0]);
+    children.splice(1, 0, proxyIn(h, 2));
+    // children[2] is the old views(3)[1]: one view and the host's two before it.
+    expect(h._nativeIndexFor(2)).toBe(3);
+    expect(h._nativeAttachIndex(children[2], -1).nativeIndex).toBe(3);
   });
 });

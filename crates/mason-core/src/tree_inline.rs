@@ -1305,6 +1305,20 @@ impl Tree {
             return false;
         }
 
+        // A plain element set to `display: inline` (a div inside text) has no text
+        // of its own for the parent to merge into its string; the natives leave a
+        // placeholder for it. Its content is laid out as a box, like an inline-block,
+        // or it would be sized from segments it never has and come out 0x0.
+        if !node.is_text_container() && !node.has_measure {
+            let has_segments = self
+                .node_data()
+                .get(child_id)
+                .is_some_and(|data| !data.inline_segments().is_empty());
+            if !has_segments {
+                return false;
+            }
+        }
+
         true
     }
 

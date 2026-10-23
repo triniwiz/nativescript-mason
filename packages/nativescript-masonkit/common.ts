@@ -3,6 +3,7 @@
 import {
   AddChildFromBuilder,
   CustomLayoutView,
+  ProxyViewContainer,
   Utils,
   View as NSView,
   ViewBase as NSViewBase,
@@ -1556,6 +1557,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         group = anonymous;
         continue;
       }
+      // A passthrough host has no view of its own; its children attach straight to this view.
+      if (c instanceof ProxyViewContainer) {
+        index += c._getNativeViewsCount();
+        group = undefined;
+        continue;
+      }
       if (c[textNode_] || c instanceof TextNode || text_ in c || (c[isPlaceholder_] && c[native_]) || c._isMasonChild) {
         index++;
         group = undefined;
@@ -1566,7 +1573,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private _attachCursor: { child: any; jsIndex: number; nativeIndex: number } | undefined;
 
+  /** The passthrough host among this view's children that `child` is attached through, if any. */
+  private _hoistingProxy(child: any): any {
+    let proxy;
+    let p = child?.parent;
+    while (p instanceof ProxyViewContainer) {
+      proxy = p;
+      p = p.parent;
+    }
+    return p === this ? proxy : undefined;
+  }
+
   _nativeAttachIndex(child: any, atIndex: number): { jsIndex: number; nativeIndex: number } {
+    const proxy = this._hoistingProxy(child);
+    if (proxy) {
+      // Core offsets a passthrough host's children by the host's own slot only under a
+      // LayoutBase, so `atIndex` is the child's native index inside the host.
+      this._attachCursor = undefined;
+      const jsIndex = this._children.indexOf(proxy);
+      const inside = atIndex >= 0 ? atIndex : proxy._getNativeViewsCount();
+      return { jsIndex, nativeIndex: jsIndex <= -1 ? -1 : this._nativeIndexFor(jsIndex) + inside };
+    }
     const cur = this._attachCursor;
     let jsIndex: number;
     let nativeIndex: number;

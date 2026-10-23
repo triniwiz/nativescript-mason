@@ -20,6 +20,7 @@ export { backgroundColorProperty, borderBottomWidthProperty, borderLeftWidthProp
 export { letterSpacingProperty, lineHeightProperty, textAlignmentProperty, textDecorationProperty, textTransformProperty, textShadowProperty } from '@nativescript/core/ui/text-base/text-base-common';
 export { getViewById } from '@nativescript/core/ui/core/view-base';
 export { CustomLayoutView, View } from '@nativescript/core/ui/core/view';
+export { ProxyViewContainer } from '@nativescript/core/ui/proxy-view-container';
 export { PseudoClassHandler, CSSType } from '@nativescript/core/ui/core/view/view-common';
 export { Screen } from '@nativescript/core/platform';
 
