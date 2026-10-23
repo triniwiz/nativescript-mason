@@ -2620,8 +2620,13 @@ public class MasonStyle: NSObject {
       // `display: none` gives the subtree a zero-sized layout, but a
       // zero-sized UIView still draws unclipped. Take it out of the render
       // tree to match.
-      node.view?.isHidden = newValue == .None || MasonDetails.isHidden(node)
+      node.view?.isHidden = newValue == .None || hidesView || MasonDetails.isHidden(node)
     }
+  }
+
+  /// `visibility: hidden` or `collapse`: the view isn't drawn, though a hidden one keeps its box.
+  internal var hidesView: Bool {
+    return getUInt8(StyleKeys.VISIBILITY) != 0
   }
   
   public var position: Position {
