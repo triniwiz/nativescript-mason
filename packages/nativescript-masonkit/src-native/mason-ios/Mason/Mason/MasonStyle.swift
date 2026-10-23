@@ -337,6 +337,7 @@ public struct StyleKeys {
   public static let TEXT_COMBINE_UPRIGHT_STATE = 739
   public static let TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   public static let TEXT_SPACING_TRIM_STATE = 741
+  public static let VISIBILITY = 742 // 0 visible, 1 hidden, 2 collapse
   // </style-keys:offsets>
   public static let TRANSFORM_OP_SIZE = 12
   public static let MAX_INLINE_TRANSFORM_OPS = 6
@@ -478,6 +479,7 @@ public struct StateKeys: Equatable {
   public static let textOrientation = StateKeys(82)
   public static let textCombineUpright = StateKeys(83)
   public static let textSpacingTrim = StateKeys(84)
+  public static let visibility = StateKeys(85)
   // </style-keys:state>
 
   /// Union of all text-relevant keys that may differ in a pseudo buffer.
@@ -584,6 +586,7 @@ struct FontMetrics {
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
+  fileprivate static let visibilityCollapse: UInt8 = 2
   private static let transformFnRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "(\\w+)\\(([^)]*)\\)", options: [])
 
   public internal(set) var font: NSCFontFace!
@@ -948,7 +951,7 @@ public class MasonStyle: NSObject {
       updateNativeStyle()
     }
     let changed = StateKeys(low: low, high: high)
-    if changed.contains(StateKeys.display.union(.displayMode).union(.position).union(.float)) {
+    if changed.contains(StateKeys.display.union(.displayMode).union(.position).union(.float).union(.visibility)) {
       node.onFlowTypeChanged()
     }
   }
@@ -2570,6 +2573,7 @@ public class MasonStyle: NSObject {
   
   public var display: Display {
     get {
+      if getUInt8(StyleKeys.VISIBILITY) == MasonStyle.visibilityCollapse { return .None }
       let mode = DisplayMode(rawValue: getInt8(StyleKeys.DISPLAY_MODE))!
       switch mode {
       case .None:

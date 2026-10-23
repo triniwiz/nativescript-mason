@@ -293,22 +293,37 @@ open class TextView @JvmOverloads constructor(
     }
 
     val layout = floatAwareStaticLayout ?: cachedStaticLayout ?: return null
-    val contentH = height - paddingTop - paddingBottom
-    val dy = if (layout.lineCount == 1 && contentH > 0) {
-      val baseline0 = layout.getLineBaseline(0)
-      val glyphCenter = baseline0 +
-        (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
-      contentH / 2f - glyphCenter
-    } else if (centersVertically && contentH > layout.height) {
-      (contentH - layout.height) / 2f
-    } else 0f
+    val dy = verticalOffset(layout, height - paddingTop - paddingBottom)
     if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
     // We bypass super.onDraw, which normally insets the layout by the view's
     // padding — so apply paddingLeft/paddingTop here.
     drawnLayout = layout
-    drawnDx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layout, contentWidth) + containerAlignmentShift(layout, contentWidth)
+    drawnDx = paddingLeft.toFloat() + (containerAlignmentShift(layout, contentWidth) ?: unconstrainedAlignmentShift(layout, contentWidth))
     drawnDy = paddingTop.toFloat() + dy
     return layout
+  }
+
+  // One line is centred in the content box; more start at its top unless the view centres them.
+  private fun verticalOffset(layout: android.text.Layout, contentH: Int): Float =
+    if (layout.lineCount == 1 && contentH > 0) {
+      val glyphCenter = layout.getLineBaseline(0) + (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
+      contentH / 2f - glyphCenter
+    } else if (centersVertically && contentH > layout.height) {
+      (contentH - layout.height) / 2f
+    } else 0f
+
+  /** The last line's baseline from the top of a [width] by [height] content box, where it is drawn. */
+  private fun baselineFromTop(width: Float, height: Float): Float {
+    if (engine.isVerticalWritingMode) return Float.NaN
+    val contentWidth = width.toInt()
+    if (floatAwareStaticLayout == null &&
+      (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
+    ) {
+      engine.rebuildCachedStaticLayout(textPaint, contentWidth)
+    }
+    val layout = floatAwareStaticLayout ?: cachedStaticLayout
+    if (layout == null || layout.lineCount == 0) return height - style.paint.fontMetricsInt.descent
+    return verticalOffset(layout, height.toInt()) + layout.getLineBaseline(layout.lineCount - 1)
   }
 
   private fun drawResolvedLayout(c: Canvas, layout: android.text.Layout, decorations: Boolean) {
@@ -338,14 +353,8 @@ open class TextView @JvmOverloads constructor(
     }
   }
 
-  /**
-   * How far a flex or grid text element moves its text across. Its text is one anonymous item as
-   * wide as the longest line, which justify-content (a row), align-items (a column) or
-   * justify-items (a grid) places, so `display: flex; justify-content: center` centres an avatar's
-   * initials. 0 when the item starts at the left, as before.
-   */
-  private fun containerAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float {
-    if (contentWidth <= 0 || layout.lineCount == 0 || !style.isValueInitialized) return 0f
+  private fun containerAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float? {
+    if (contentWidth <= 0 || layout.lineCount == 0 || !style.isValueInitialized) return null
     val factor = when (style.display) {
       Display.Flex, Display.InlineFlex -> when (style.flexDirection) {
         FlexDirection.Row -> justifyFactor(style.justifyContent, reversed = false)
@@ -363,7 +372,7 @@ open class TextView @JvmOverloads constructor(
       }
       else -> 0f
     }
-    if (factor == 0f) return 0f
+    if (factor == 0f) return null
     var left = Float.MAX_VALUE
     var right = -Float.MAX_VALUE
     for (i in 0 until layout.lineCount) {
@@ -371,11 +380,10 @@ open class TextView @JvmOverloads constructor(
       right = maxOf(right, layout.getLineRight(i))
     }
     val free = contentWidth - (right - left)
-    if (free <= 0f) return 0f
+    if (free <= 0f) return null
     return factor * free - left
   }
 
-  /** Where justify-content puts a lone item: 0 at the start, 0.5 centred, 1 at the end. */
   private fun justifyFactor(value: JustifyContent, reversed: Boolean): Float = when (value) {
     JustifyContent.Center, JustifyContent.SpaceAround, JustifyContent.SpaceEvenly -> 0.5f
     JustifyContent.End -> 1f
@@ -1303,6 +1311,9 @@ open class TextView @JvmOverloads constructor(
     knownWidth: Float, knownHeight: Float,
     availableWidth: Float, availableHeight: Float
   ): Long {
+    if (availableWidth == MeasureOutput.BASELINE_QUERY) {
+      return MeasureOutput.make(baselineFromTop(knownWidth, knownHeight), MeasureOutput.BASELINE_QUERY)
+    }
     return engine.measure(textPaint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 

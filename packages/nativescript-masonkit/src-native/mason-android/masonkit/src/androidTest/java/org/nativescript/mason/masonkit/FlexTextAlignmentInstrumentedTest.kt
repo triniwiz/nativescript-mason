@@ -13,14 +13,13 @@ import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 
-/** The text of a flex text element is an anonymous item that the container places, as on the web. */
 @RunWith(AndroidJUnit4::class)
 class FlexTextAlignmentInstrumentedTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-  /** Columns of the leftmost and rightmost dark ink in a 200px-wide text element. */
   private fun inkColumns(configure: TextView.() -> Unit): Pair<Int, Int> {
     val mason = Mason()
     val text = mason.createTextView(context, TextType.Span).apply {
@@ -69,6 +68,18 @@ class FlexTextAlignmentInstrumentedTest {
       node.style.flexDirection = FlexDirection.Column
       node.style.alignItems = AlignItems.Center
     })
+  }
+
+  @Test
+  fun centredNowrapTextStaysInTheBox() {
+    for (whiteSpace in listOf(Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.Pre)) {
+      assertCentred(inkColumns {
+        node.style.display = Display.Flex
+        node.style.justifyContent = JustifyContent.Center
+        node.style.textAlign = TextAlign.Center
+        node.style.whiteSpace = whiteSpace
+      })
+    }
   }
 
   @Test

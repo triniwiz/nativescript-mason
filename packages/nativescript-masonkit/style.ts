@@ -321,6 +321,7 @@ enum StyleKeys {
   TEXT_COMBINE_UPRIGHT_STATE = 739,
   TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   TEXT_SPACING_TRIM_STATE = 741,
+  VISIBILITY = 742, // 0 visible, 1 hidden, 2 collapse
   // </style-keys:offsets>
 }
 
@@ -852,6 +853,7 @@ class StateKeys {
   static readonly TEXT_ORIENTATION = StateKeys.flag(82);
   static readonly TEXT_COMBINE_UPRIGHT = StateKeys.flag(83);
   static readonly TEXT_SPACING_TRIM = StateKeys.flag(84);
+  static readonly VISIBILITY = StateKeys.flag(85);
   // </style-keys:state>
 
   static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
@@ -1489,6 +1491,7 @@ function logicalTypeValue(value: unknown, kind: LogicalKind, emBasis: number | u
 
 // text-spacing-trim keywords, in their buffer order.
 const TEXT_SPACING_TRIM_VALUES = ['normal', 'space-all', 'space-first', 'trim-start', 'trim-both', 'trim-all', 'auto'];
+const VISIBILITY_VALUES = ['visible', 'hidden', 'collapse'] as const;
 
 const i8Buffer = new Int8Array(4);
 
@@ -7983,6 +7986,18 @@ export class Style {
 
   set 'text-spacing-trim'(value: string) {
     this.textSpacingTrim = value;
+  }
+
+  get visibility(): (typeof VISIBILITY_VALUES)[number] {
+    return (this.style_view && VISIBILITY_VALUES[getUint8(this.style_view, StyleKeys.VISIBILITY)]) || 'visible';
+  }
+
+  set visibility(value: (typeof VISIBILITY_VALUES)[number]) {
+    const v = VISIBILITY_VALUES.indexOf(value);
+    if (v === -1 || getUint8(this.style_view, StyleKeys.VISIBILITY) === v) return;
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.VISIBILITY, v);
+    this.commitState(StateKeys.VISIBILITY);
   }
 
   get 'text-spacing-trim'() {

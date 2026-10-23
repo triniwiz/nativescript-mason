@@ -1904,51 +1904,9 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-  /**
-   * How far a baseline-aligned inline box's baseline sits above its bottom edge. A box holding
-   * text sits on its last line's baseline, as on the web, so a padded `<code>` or button lines
-   * its text up with the text around it; so does a box whose text is in a descendant (an inline
-   * `<div>` around a link). A replaced element, a box without text and a box that clips its
-   * overflow sit on their bottom edge.
-   */
   internal fun inlineBoxBaseline(child: Node, height: Int): Int {
     if (height <= 0 || isVerticalWritingMode) return 0
-    val fromBottom = boxBaselineFromBottom(child, height.toFloat()) ?: return 0
-    return fromBottom.toInt().coerceIn(0, height)
-  }
-
-  /** How far `node`'s last line of text sits above its bottom edge, or null when it holds none. */
-  private fun boxBaselineFromBottom(node: Node, height: Float): Float? {
-    val style = node.style
-    if (style.isValueInitialized && (style.overflowX != Overflow.Visible || style.overflowY != Overflow.Visible)) {
-      return null
-    }
-    val textView = node.view as? TextView
-    if (textView == null) {
-      for (child in node.children.asReversed()) {
-        if (child.style.display == Display.None || child.style.position == Position.Absolute || child.style.position == Position.Fixed) continue
-        val childHeight = child.computedHeight
-        if (childHeight <= 0f) continue
-        val fromChildBottom = boxBaselineFromBottom(child, childHeight) ?: continue
-        return height - (child.computedY + childHeight) + fromChildBottom
-      }
-      return null
-    }
-    val insetTop = node.computedPaddingTop + node.computedBorderTop
-    val insetBottom = node.computedPaddingBottom + node.computedBorderBottom
-    val layout = textView.cachedStaticLayout
-    return if (layout != null && layout.lineCount > 0) {
-      val contentH = height - insetTop - insetBottom
-      // Where TextView draws the line: one line is centred in the content box, more start at its top.
-      val baselineFromTop = if (layout.lineCount == 1 && contentH > 0) {
-        contentH / 2f - (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
-      } else {
-        layout.getLineBaseline(layout.lineCount - 1).toFloat()
-      }
-      height - insetTop - baselineFromTop
-    } else {
-      insetBottom + style.paint.fontMetricsInt.descent
-    }
+    return child.inlineBaseline.toInt().coerceIn(0, height)
   }
 
   private fun createPlaceholder(child: Node): SpannableStringBuilder {

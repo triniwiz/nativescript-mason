@@ -755,6 +755,7 @@ pub enum StyleKeys {
     TEXT_COMBINE_UPRIGHT_STATE = 739,
     TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
     TEXT_SPACING_TRIM_STATE = 741,
+    VISIBILITY = 742, // 0 visible, 1 hidden, 2 collapse
     // </style-keys:offsets>
 }
 
@@ -763,6 +764,7 @@ pub const TRANSFORM_OP_SIZE: usize = 12; // bytes per op
 
 pub const TRANSFORM_FLAG_HAS_MATRIX: u8 = 0x01;
 pub const TRANSFORM_FLAG_IS_3D: u8 = 0x02;
+pub const VISIBILITY_COLLAPSE: u8 = 2;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -885,6 +887,7 @@ bitflags! {
         const TEXT_ORIENTATION = 1u128 << 82;
         const TEXT_COMBINE_UPRIGHT = 1u128 << 83;
         const TEXT_SPACING_TRIM = 1u128 << 84;
+        const VISIBILITY = 1u128 << 85;
         // </style-keys:state>
     }
 }
@@ -1399,26 +1402,6 @@ impl Style {
         );
     }
 
-    /// Get first baseline (offset from top of element)
-    pub fn first_baseline(&self) -> Option<f32> {
-        let value = get_style_data_f32(self.data(), StyleKeys::FIRST_BASELINE_OFFSET);
-        if value.is_nan() || value < 0.0 {
-            None
-        } else {
-            Some(value)
-        }
-    }
-
-    /// Set first baseline
-    pub fn set_first_baseline(&mut self, baseline: Option<f32>) {
-        self.prepare_mut();
-        set_style_data_f32(
-            self.data_mut(),
-            StyleKeys::FIRST_BASELINE_OFFSET,
-            baseline.unwrap_or(f32::NAN),
-        );
-    }
-
     fn get_vertical_align_enum(&self) -> VerticalAlign {
         match get_style_data_u8(self.data(), StyleKeys::VERTICAL_ALIGN_ENUM_OFFSET) {
             0 => VerticalAlign::Baseline,
@@ -1616,7 +1599,7 @@ impl Style {
     }
 
     pub fn get_display(&self) -> Display {
-        if self.hidden {
+        if self.hidden || get_style_data_u8(self.data(), StyleKeys::VISIBILITY) == VISIBILITY_COLLAPSE {
             return Display::None;
         }
         display_from_enum(get_style_data_i8(self.data(), StyleKeys::DISPLAY)).unwrap()

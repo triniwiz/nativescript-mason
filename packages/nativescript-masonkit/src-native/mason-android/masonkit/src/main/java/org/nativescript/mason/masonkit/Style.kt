@@ -564,6 +564,7 @@ object StyleKeys {
   const val TEXT_COMBINE_UPRIGHT_STATE = 739
   const val TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   const val TEXT_SPACING_TRIM_STATE = 741
+  const val VISIBILITY = 742 // 0 visible, 1 hidden, 2 collapse
   // </style-keys:offsets>
   const val TRANSFORM_OP_SIZE = 12
   const val MAX_INLINE_TRANSFORM_OPS = 6
@@ -677,6 +678,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_ORIENTATION = flag(82)
     val TEXT_COMBINE_UPRIGHT = flag(83)
     val TEXT_SPACING_TRIM = flag(84)
+    val VISIBILITY = flag(85)
     // </style-keys:state>
 
     /**
@@ -726,7 +728,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       GAP or ASPECT_RATIO or GRID_AUTO_FLOW or GRID_COLUMN or GRID_ROW or SCROLLBAR_WIDTH or
       ALIGN or BOX_SIZING or OVERFLOW or ITEM_IS_TABLE or ITEM_IS_REPLACED or DISPLAY_MODE or
       FORCE_INLINE or MIN_CONTENT_WIDTH or MIN_CONTENT_HEIGHT or MAX_CONTENT_WIDTH or
-      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or
+      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or VISIBILITY or
       TEXT_LAYOUT
 
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
@@ -1070,15 +1072,6 @@ class Style internal constructor(@Transient internal var node: Node) {
     if (!pendingMetricsSync) return false
     pendingMetricsSync = false
     return syncFontMetricsNow()
-  }
-
-  /**
-   * Update first baseline after text layout
-   */
-  internal fun updateFirstBaseline() {
-    val baseline = -paint.fontMetrics.ascent
-    prepareMut()
-    values.putFloat(StyleKeys.FIRST_BASELINE_OFFSET, baseline)
   }
 
   /**
@@ -2340,6 +2333,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var display: Display
     get() {
+      if (values.get(StyleKeys.VISIBILITY) == VISIBILITY_COLLAPSE) return Display.None
       val base = readDisplayFrom(values)
       return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
     }
@@ -5607,6 +5601,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     init {
       Mason.initLib()
     }
+
+    private const val VISIBILITY_COLLAPSE: Byte = 2
 
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 

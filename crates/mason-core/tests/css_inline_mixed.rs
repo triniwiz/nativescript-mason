@@ -289,8 +289,6 @@ fn inline_replaced_and_text_runs() {
     );
 }
 
-// A plain element set to `display: inline` inside text (`<p>see <div style="display:inline"><a>X</a></div></p>`)
-// has no text of its own to merge into the paragraph; its content must still be laid out.
 #[test]
 fn inline_element_inside_text_lays_out_its_content() {
     let mut mason = Mason::new();

@@ -318,6 +318,7 @@ TEXT_COMBINE_UPRIGHT                 u8           # 0 none, 1 all, 2-4 digits (t
 TEXT_COMBINE_UPRIGHT_STATE           u8
 TEXT_SPACING_TRIM                    u8           # 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
 TEXT_SPACING_TRIM_STATE              u8
+VISIBILITY                           u8           # 0 visible, 1 hidden, 2 collapse
 
 [state]
 DISPLAY
@@ -405,3 +406,4 @@ TRANSFORM_ORIGIN
 TEXT_ORIENTATION
 TEXT_COMBINE_UPRIGHT
 TEXT_SPACING_TRIM
+VISIBILITY

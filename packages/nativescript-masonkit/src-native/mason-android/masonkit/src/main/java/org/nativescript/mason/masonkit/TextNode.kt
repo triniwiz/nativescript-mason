@@ -375,7 +375,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
     }
 
-    // white-space and text-transform inherit, so a span inside a <pre> keeps its spaces.
     internal fun processText(text: String, style: Style): String {
       var processed = text
 

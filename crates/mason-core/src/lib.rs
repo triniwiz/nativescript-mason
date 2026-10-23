@@ -1565,6 +1565,55 @@ mod tests {
         });
     }
 
+    // A 40x20 text leaf whose last baseline is 15 from its content top.
+    extern "C" fn text_leaf_40x20(
+        _data: *const std::ffi::c_void,
+        _known_w: f32,
+        _known_h: f32,
+        avail_w: f32,
+        _avail_h: f32,
+    ) -> i64 {
+        if avail_w == crate::node::BASELINE_QUERY {
+            return MeasureOutput::make(15.0, crate::node::BASELINE_QUERY);
+        }
+        MeasureOutput::make(40.0, 20.0)
+    }
+
+    fn text_leaf(mason: &mut Mason) -> NodeRef {
+        let leaf = mason.create_text_node();
+        mason.set_measure(leaf.id(), Some(text_leaf_40x20), std::ptr::null_mut());
+        leaf
+    }
+
+    #[test]
+    fn inline_block_takes_its_last_lines_baseline_and_inline_flex_its_first() {
+        for (display, expected) in [(Display::Block, 5.0), (Display::Flex, 25.0)] {
+            let mut mason = Mason::new();
+            let ib = mason.create_node();
+            let first = text_leaf(&mut mason);
+            let last = text_leaf(&mut mason);
+            mason.with_style_mut(ib.id(), |s| {
+                s.set_display(display);
+                s.set_display_mode(crate::style::DisplayMode::Box);
+                s.set_flex_direction(taffy::FlexDirection::Column);
+            });
+            mason.append_node(ib.id(), &[first.id(), last.id()]);
+            mason.compute(ib.id());
+
+            assert_eq!(mason.0.get_child_baseline(ib.id()), expected, "{display:?}");
+        }
+    }
+
+    #[test]
+    fn text_leaf_answers_its_own_baseline() {
+        let mut mason = Mason::new();
+        let leaf = text_leaf(&mut mason);
+        mason.with_style_mut(leaf.id(), |s| s.set_display_mode(crate::style::DisplayMode::Box));
+        mason.compute(leaf.id());
+
+        assert_eq!(mason.0.get_child_baseline(leaf.id()), 5.0);
+    }
+
     #[test]
     fn inline_block_baseline_simple() {
         let mut mason = Mason::new();

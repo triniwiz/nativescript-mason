@@ -5,7 +5,6 @@ import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-ho
 import { ViewBase } from './common';
 import './properties';
 
-// What a stylesheet rule `transform: translateX(-35%)` becomes once core has parsed it.
 function applyStylesheetTransform(style: any, value: string) {
   for (const [name, longhand] of _expandCssShorthand('transform', value) ?? []) {
     style[`css:${name}`] = longhand;

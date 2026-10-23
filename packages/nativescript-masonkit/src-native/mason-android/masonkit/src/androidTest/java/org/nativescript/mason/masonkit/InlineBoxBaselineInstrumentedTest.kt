@@ -12,11 +12,6 @@ import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextType
 
-/**
- * A baseline-aligned inline box holding text sits on its text's baseline, so its glyphs end on
- * the same row as the text around it. Checked on the drawn pixels with "HHH", which has no
- * descenders.
- */
 @RunWith(AndroidJUnit4::class)
 class InlineBoxBaselineInstrumentedTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -35,7 +30,6 @@ class InlineBoxBaselineInstrumentedTest {
     return bitmap
   }
 
-  /** The lowest row with dark ink between columns `from` and `to`, or -1. */
   private fun inkBottom(bitmap: Bitmap, from: Int, to: Int): Int {
     for (y in bitmap.height - 1 downTo 0) {
       for (x in maxOf(from, 0) until minOf(to, bitmap.width)) {

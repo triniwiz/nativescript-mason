@@ -1815,8 +1815,7 @@ registerAlongsideCore(boxShadowProperty);
 registerAlongsideCore(transformProperty);
 
 // A stylesheet `transform` reaches only the longhands core splits it into (translateX and the
-// rest, in dips), so a percentage or an em in it was lost on a mason view. This shorthand,
-// built after core's, gives every view core's longhands and a mason view the value as written.
+// rest, in dips), so a percentage or an em in it was lost on a mason view.
 const transformDeclarationProperty = new CssProperty<Style, string>({
   name: 'masonTransformDeclaration',
   cssName: '-mason-transform-declaration',

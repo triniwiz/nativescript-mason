@@ -342,6 +342,14 @@ public class MasonNode: NSObject {
     return low | (high << 8)
   }
 
+  /// A baseline-aligned inline box's baseline from its bottom edge in pixels, set by mason-core
+  /// when its line is laid out.
+  var inlineBaseline: Float {
+    var len: Int = 0
+    guard let ptr = mason_node_get_state_buffer(mason.nativePtr, nativePtr, &len), len >= 12 else { return 0 }
+    return UnsafeRawPointer(ptr).loadUnaligned(fromByteOffset: 8, as: Float.self)
+  }
+
   public func hasPseudo(_ state: PseudoState) -> Bool {
     if state == .default { return pseudoMask == 0 }
     return (pseudoMask & state.rawValue) != 0

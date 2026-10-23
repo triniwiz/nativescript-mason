@@ -1557,7 +1557,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         group = anonymous;
         continue;
       }
-      // A passthrough host has no view of its own; its children attach straight to this view.
       if (c instanceof ProxyViewContainer) {
         index += c._getNativeViewsCount();
         group = undefined;
@@ -1573,7 +1572,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   private _attachCursor: { child: any; jsIndex: number; nativeIndex: number } | undefined;
 
-  /** The passthrough host among this view's children that `child` is attached through, if any. */
   private _hoistingProxy(child: any): any {
     let proxy;
     let p = child?.parent;
@@ -2995,32 +2993,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this.style.display = value;
   }
 
-  // The display a `visibility: collapse` replaced, to put back when the view is shown again.
-  private _displayBeforeCollapse: string | undefined;
-
   [visibilityProperty.setNative](value) {
     super[visibilityProperty.setNative]?.(value);
     // @ts-ignore
     const style = this._styleHelper;
-    if (!style) return;
-    // `collapse` takes the view out of layout, as in core.
-    if (value === 'collapse') {
-      this._displayBeforeCollapse ??= style.display;
-      style.display = 'none';
-    } else if (this._displayBeforeCollapse !== undefined) {
-      style.display = this._displayBeforeCollapse;
-      this._displayBeforeCollapse = undefined;
-    }
+    if (style) style.visibility = value;
   }
 
   [displayProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
-      if (this._displayBeforeCollapse !== undefined) {
-        this._displayBeforeCollapse = value;
-        return;
-      }
       // @ts-ignore
       style.display = value;
     }
@@ -3926,8 +3909,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
 textProperty.register(ViewBase);
 
-// A stylesheet `transform` also sets core's longhands (see properties.ts); while it does, mason
-// applies the whole transform and core's dips would only undo it.
 for (const property of [translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty]) {
   const coreSetNative = Object.getPrototypeOf(ViewBase.prototype)[property.setNative];
   if (!coreSetNative) continue;

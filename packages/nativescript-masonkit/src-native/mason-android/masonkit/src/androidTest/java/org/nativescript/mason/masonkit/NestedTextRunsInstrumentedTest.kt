@@ -11,7 +11,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.TextType
 
-/** Text elements nested more than one deep keep their own styles and inherited white-space. */
 @RunWith(AndroidJUnit4::class)
 class NestedTextRunsInstrumentedTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext

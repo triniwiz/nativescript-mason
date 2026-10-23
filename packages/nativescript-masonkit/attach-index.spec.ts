@@ -71,7 +71,6 @@ describe('_nativeAttachIndex', () => {
 });
 
 describe('passthrough hosts', () => {
-  // A ProxyViewContainer among the children, its `attached` children already on this view.
   function proxyIn(h: any, attached: number) {
     const proxy = Object.create(ProxyViewContainer.prototype) as any;
     Object.defineProperty(proxy, 'parent', { value: h });
@@ -105,7 +104,6 @@ describe('passthrough hosts', () => {
     const h = host(children);
     attach(h, children[0]);
     children.splice(1, 0, proxyIn(h, 2));
-    // children[2] is the old views(3)[1]: one view and the host's two before it.
     expect(h._nativeIndexFor(2)).toBe(3);
     expect(h._nativeAttachIndex(children[2], -1).nativeIndex).toBe(3);
   });
