@@ -261,3 +261,27 @@ fn inherited_text_orientation_changes_remeasure_text() {
         assert_eq!(tree.mason.resolved_text_orientation(text), orientation);
     }
 }
+
+#[test]
+fn text_inherits_white_space_from_an_ancestor() {
+    use mason_core::style::StyleKeys;
+    fn set(mason: &mut Mason, id: Id, value: u8) {
+        let (ptr, len) = mason.style_data_raw_mut(id);
+        // SAFETY: the node owns this buffer and nothing else touches it during the write.
+        let data = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+        data[StyleKeys::WHITE_SPACE as usize] = value;
+        data[StyleKeys::WHITE_SPACE_STATE as usize] = 1;
+    }
+    let mut tree = Fixture::new(WritingMode::HorizontalTb, 2, Display::Block);
+    let text = tree.nodes[3].id();
+    assert_eq!(tree.mason.resolved_white_space(text), 0);
+
+    set(&mut tree.mason, tree.nodes[0].id(), 1);
+    assert_eq!(tree.mason.resolved_white_space(text), 1, "pre from the root");
+
+    set(&mut tree.mason, tree.nodes[2].id(), 4);
+    assert_eq!(tree.mason.resolved_white_space(text), 4, "the nearest ancestor wins");
+
+    set(&mut tree.mason, text, 0);
+    assert_eq!(tree.mason.resolved_white_space(text), 0, "its own normal wins");
+}

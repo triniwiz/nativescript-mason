@@ -807,6 +807,11 @@ impl Mason {
         crate::tree::resolved_text_orientation(&self.0.inner(), node_id)
     }
 
+    /// `white-space` for `node_id`, inherited: 0 normal, 1 pre, 2 pre-wrap, 3 pre-line, 4 nowrap.
+    pub fn resolved_white_space(&self, node_id: Id) -> u8 {
+        crate::tree::resolved_white_space(&self.0.inner(), node_id)
+    }
+
     /// `text-spacing-trim` for `node_id`, inherited: 0 normal, 1 space-all, 2 space-first,
     /// 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
     pub fn resolved_text_spacing_trim(&self, node_id: Id) -> u8 {

@@ -2522,6 +2522,22 @@ pub(crate) fn resolved_writing_mode(tree: &TreeInner, id: Id) -> crate::style::W
     crate::style::WritingMode::HorizontalTb
 }
 
+/// `id`'s white-space (0 normal, 1 pre, ...): its own, else the nearest ancestor's.
+pub(crate) fn resolved_white_space(tree: &TreeInner, id: Id) -> u8 {
+    use crate::style::StyleKeys;
+    let mut current = Some(id);
+    while let Some(n) = current {
+        if let Some(node) = tree.nodes.get(n) {
+            let data = node.style().data();
+            if data[StyleKeys::WHITE_SPACE_STATE as usize] != 0 {
+                return data[StyleKeys::WHITE_SPACE as usize];
+            }
+        }
+        current = tree.parents.get(n).copied().flatten();
+    }
+    0
+}
+
 /// `id`'s text-spacing-trim (0 normal, 1 space-all, ...): its own, else the nearest ancestor's.
 pub(crate) fn resolved_text_spacing_trim(tree: &TreeInner, id: Id) -> u8 {
     use crate::style::StyleKeys;

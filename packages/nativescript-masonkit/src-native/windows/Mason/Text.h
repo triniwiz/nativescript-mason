@@ -351,8 +351,12 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_inputHooked{ false };
         bool m_hostsBoxes{ false };
         bool m_textTurned{ false };
-        // WHITE_SPACE byte: 0 normal, 1 pre, 2 pre-wrap, 3 pre-line, 4 nowrap, 5 break-spaces.
+        // WHITE_SPACE byte, inherited: 0 normal, 1 pre, 2 pre-wrap, 3 pre-line, 4 nowrap, 5 break-spaces.
         uint8_t m_whiteSpace{ 0 };
+        // text-wrap: nowrap.
+        bool m_textNoWrap{ false };
+        uint8_t ResolvedWhiteSpace() const;
+        void SetWhiteSpace(uint8_t value);
         std::vector<Piece> m_pieces;
         std::vector<winrt::NativeScript::Mason::Node> m_boxNodes;
         std::vector<winrt::Windows::Foundation::IInspectable> m_pressedChain;

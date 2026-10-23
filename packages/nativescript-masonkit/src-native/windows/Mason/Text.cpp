@@ -1262,9 +1262,9 @@ namespace winrt::NativeScript::Mason::implementation
         // text-justify: none (-1) turns justify off.
         if (m_textAlign == 4 && u8(sk::kTextJustifyState) && static_cast<int8_t>(u8(sk::kTextJustify)) == -1) m_textAlign = 0;
         m_measureCache->startAligned = !m_rtl && m_textAlign != 2 && m_textAlign != 3 && m_textAlign != 4 && m_textAlign != 6;
-        // white-space 1 pre, 4 nowrap; text-wrap 1 nowrap; text-overflow 1 ellipsis.
-        m_measureCache->noWrap = (u8(sk::kWhiteSpaceState) && (u8(sk::kWhiteSpace) == 1 || u8(sk::kWhiteSpace) == 4)) || (u8(sk::kTextWrapState) && u8(sk::kTextWrap) == 1);
-        m_whiteSpace = u8(sk::kWhiteSpaceState) ? u8(sk::kWhiteSpace) : 0;
+        // text-wrap 1 nowrap; text-overflow 1 ellipsis.
+        m_textNoWrap = u8(sk::kTextWrapState) && u8(sk::kTextWrap) == 1;
+        SetWhiteSpace(ResolvedWhiteSpace());
         m_ellipsis = u8(sk::kTextOverflowState) && u8(sk::kTextOverflow) == 1;
         m_textIndent = u8(sk::kTextIndentState) ? f32(sk::kTextIndent) : 0.0f;
         m_textIndentPercent = m_textIndent != 0.0f && u8(sk::kTextIndentType) == 1;
@@ -2333,7 +2333,30 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_listItem || m_marker) SyncMarker(finalSize);
         // A summary's text can be built before it's placed in the summary.
         else if (!m_inlineOwner && SummaryMarker() != m_insideMarker) RequestRebuild();
+        // So can a text inheriting white-space, before it's placed in its parent.
+        if (!m_inlineOwner)
+        {
+            if (const uint8_t whiteSpace = ResolvedWhiteSpace(); whiteSpace != m_whiteSpace)
+            {
+                SetWhiteSpace(whiteSpace);
+                m_paragraphDirty = true;
+                RequestRebuild();
+            }
+        }
         return finalSize;
+    }
+
+    uint8_t Text::ResolvedWhiteSpace() const
+    {
+        auto* node = winrt::get_self<implementation::Node>(m_node);
+        return mason_node_get_white_space(node->MasonPtr(), node->NodePtr());
+    }
+
+    // white-space 1 pre and 4 nowrap keep the text on one line, as text-wrap: nowrap does.
+    void Text::SetWhiteSpace(uint8_t value)
+    {
+        m_whiteSpace = value;
+        m_measureCache->noWrap = value == 1 || value == 4 || m_textNoWrap;
     }
 
     void Text::SyncBoxNodes(std::vector<BuiltRun> const& runs)
