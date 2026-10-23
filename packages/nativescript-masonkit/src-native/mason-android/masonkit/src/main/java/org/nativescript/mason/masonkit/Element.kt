@@ -1118,8 +1118,11 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
               )
             )
             if (fallbackWidth) width = view.measuredWidth
-            if (freeHeight) height = view.measuredHeight
-            if (width != assignedWidth || height != assignedHeight) {
+            // A positive Taffy height can come from flex grow or stretch.
+            // Keep that frame; the intrinsic measurement still invalidates
+            // cached content sizes so auto-sized parents and siblings reflow.
+            if (fallbackHeight) height = view.measuredHeight
+            if (width != assignedWidth || (freeHeight && view.measuredHeight != assignedHeight)) {
               node.dirty()
               this.node.computeCacheDirty = true
               this.view.requestLayout()
