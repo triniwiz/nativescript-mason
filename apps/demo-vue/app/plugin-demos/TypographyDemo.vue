@@ -65,7 +65,7 @@
       <p class="tk-text" style="font-size: 22; font-weight: bold; margin-bottom: 8">Inline Formatting</p>
 
       <div class="tk-surface" style="border-radius: 10; padding: 14; margin-bottom: 16; border: 1px solid #eee">
-        <p class="tk-text" style="font-size: 15; line-height: 24">
+        <p class="tk-text" style="font-size: 15; line-height: 24px">
           You can mix <b>bold text</b> with <span style="color: #E84393;">colored spans</span> and
           <span style="font-style: italic; color: #0984E3;">italic accents</span> in a single paragraph.
         </p>

@@ -131,7 +131,7 @@ const CSS = `
 .rm-title { font-size: 15; font-weight: bold; margin: 0; }
 .rm-badge { font-size: 10; color: white; padding: 1 5; border-radius: 4; }
 .rm-title-text { font-size: 15; font-weight: bold; }
-.rm-para { font-size: 13; line-height: 18; color: var(--bench-text-2); margin: 0; }
+.rm-para { font-size: 13; line-height: 18px; color: var(--bench-text-2); margin: 0; }
 .rm-meta { font-size: 11; color: var(--bench-muted); margin: 0; }
 
 .bh-bench { display: flex; flex-direction: column; gap: 12; }
