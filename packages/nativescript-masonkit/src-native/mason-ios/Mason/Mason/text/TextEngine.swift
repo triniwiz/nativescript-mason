@@ -818,7 +818,7 @@ public class TextEngine: NSObject {
        CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
       let font = fv as! CTFont
       let natural = CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
-      let normalLineHeight = isInLine ? natural : max(natural, CTFontGetSize(font) * 1.2)
+      let normalLineHeight = isInLine && !engine.node.isAnonymous ? natural : max(natural, CTFontGetSize(font) * 1.2)
       if normalLineHeight > size.height { size.height = normalLineHeight }
     }
 

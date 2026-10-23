@@ -931,8 +931,9 @@ public class MasonNode: NSObject {
       lineBox = CGFloat(lineHeight) * CGFloat(style.resolvedFontSize)
     }
     // `normal` on block text: every line gets the box a single line is measured with
-    // (TextEngine.measureUncached), not CoreText's tighter natural line pitch.
-    if lineBox == 0 && !TextEngine.isInlineTextType(type) {
+    // (TextEngine.measureUncached), not CoreText's tighter natural line pitch. An anonymous
+    // container is the block box around a div's own text.
+    if lineBox == 0 && (!TextEngine.isInlineTextType(type) || isAnonymous) {
       lineBox = normalBlockLineHeight
     }
     if lineBox > 0 {
