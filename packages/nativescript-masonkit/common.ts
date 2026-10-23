@@ -48,7 +48,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // The per-corner radius and per-side colour longhands core's `border-radius`
 // / `border-color` shorthands expand into. They live in the styling module
 // rather than core's root export, unlike the border *width* longhands above.
-import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
+import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, visibilityProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
@@ -2995,10 +2995,32 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this.style.display = value;
   }
 
+  // The display a `visibility: collapse` replaced, to put back when the view is shown again.
+  private _displayBeforeCollapse: string | undefined;
+
+  [visibilityProperty.setNative](value) {
+    super[visibilityProperty.setNative]?.(value);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (!style) return;
+    // `collapse` takes the view out of layout, as in core.
+    if (value === 'collapse') {
+      this._displayBeforeCollapse ??= style.display;
+      style.display = 'none';
+    } else if (this._displayBeforeCollapse !== undefined) {
+      style.display = this._displayBeforeCollapse;
+      this._displayBeforeCollapse = undefined;
+    }
+  }
+
   [displayProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
+      if (this._displayBeforeCollapse !== undefined) {
+        this._displayBeforeCollapse = value;
+        return;
+      }
       // @ts-ignore
       style.display = value;
     }
