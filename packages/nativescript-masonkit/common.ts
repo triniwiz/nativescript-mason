@@ -48,7 +48,7 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // The per-corner radius and per-side colour longhands core's `border-radius`
 // / `border-color` shorthands expand into. They live in the styling module
 // rather than core's root export, unlike the border *width* longhands above.
-import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, visibilityProperty } from '@nativescript/core/ui/styling/style-properties';
+import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, visibilityProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
 import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
 import type { CornerIndex, CornerRadius } from './css-shorthands';
@@ -3925,6 +3925,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 }
 
 textProperty.register(ViewBase);
+
+// A stylesheet `transform` also sets core's longhands (see properties.ts); while it does, mason
+// applies the whole transform and core's dips would only undo it.
+for (const property of [translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty]) {
+  const coreSetNative = Object.getPrototypeOf(ViewBase.prototype)[property.setNative];
+  if (!coreSetNative) continue;
+  ViewBase.prototype[property.setNative] = function (this: ViewBase, value: unknown) {
+    if ((this.style as any).masonTransformDeclaration) return;
+    coreSetNative.call(this, value);
+  };
+}
 
 // Core's Windows Font resolves app/fonts files to an ms-appx URI (and generics to system fonts);
 // the bare family name only finds installed fonts.
