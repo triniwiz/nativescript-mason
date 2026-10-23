@@ -375,11 +375,12 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
     }
 
+    // white-space and text-transform inherit, so a span inside a <pre> keeps its spaces.
     internal fun processText(text: String, style: Style): String {
       var processed = text
 
       // Apply text transform
-      processed = when (style.textTransform) {
+      processed = when (style.resolvedTextTransform) {
         Styles.TextTransform.None -> processed
         Styles.TextTransform.Capitalize -> processed.split(" ").joinToString(" ") {
           it.replaceFirstChar { c -> if (c.isLowerCase()) c.titlecase() else c.toString() }
@@ -391,7 +392,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       }
 
       // Apply whitespace processing
-      processed = when (style.whiteSpace) {
+      processed = when (style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap -> {
           // Collapse sequences of whitespace
           collapseWhitespace(normalizeNewlines(processed), collapseNewlines = true)

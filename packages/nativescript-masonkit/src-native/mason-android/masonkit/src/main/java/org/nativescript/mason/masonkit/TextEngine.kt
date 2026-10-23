@@ -2526,9 +2526,11 @@ class TextEngine(val container: TextContainer) {
             if (shouldFlattenTextContainer(childTextContainer)) {
               val nested = childTextContainer.engine.buildAttributedString(nested = true)
               val start = composed.length
-              composed.append(nested)
+              composed.append(nested.toString())
               val end = composed.length
               applyTextViewStylesToSpan(composed, start, end, childTextContainer)
+              // The child's own pieces go on after its style, so a span inside a span keeps its colour.
+              TextUtils.copySpansFrom(nested, 0, nested.length, null, composed, start)
               if (end > start) {
                 composed.setSpan(NodeSpan(child), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
               }
@@ -2661,7 +2663,7 @@ class TextEngine(val container: TextContainer) {
    */
   private fun collapseFlowSpaces(text: SpannableStringBuilder) {
     if (style.isValueInitialized) {
-      when (style.whiteSpace) {
+      when (style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.PreLine -> {}
         else -> return
       }
