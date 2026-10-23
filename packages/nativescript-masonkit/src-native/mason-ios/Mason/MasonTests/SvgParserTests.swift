@@ -356,7 +356,7 @@ final class SvgParserTests: XCTestCase {
         <path d="M0 0h2v2z"><title>has a child</title></path>
         <g display="none"><path d="M0 0h3v3z"/></g>
         <path visibility="hidden" d="M0 0h4v4z"/>
-        <text>skip</text>
+        <text> <tspan display="none">skip</tspan> </text>
       </svg>
       """)
     XCTAssertEqual(d.shapes.count, 1)
@@ -844,5 +844,403 @@ final class SvgParserTests: XCTestCase {
     XCTAssertEqual(left.a, 255)
     XCTAssertGreaterThan(left.r, 200)
     XCTAssertGreaterThan(right.b, 200)
+  }
+
+  // MARK: patterns
+
+  private func patternOf(_ paint: SvgPaint, file: StaticString = #filePath, line: UInt = #line) throws -> SvgPattern {
+    guard case let .pattern(p) = paint else {
+      XCTFail("not a pattern: \(paint)", file: file, line: line)
+      throw NSError(domain: "svg", code: 0)
+    }
+    return p
+  }
+
+  private func shapesIn(_ ops: [SvgOp]) -> [SvgShape] {
+    ops.compactMap { if case let .shape(s) = $0 { return s } else { return nil } }
+  }
+
+  func testPatternUserSpaceTileAndTransform() throws {
+    let d = try doc(##"""
+      <svg viewBox="0 0 20 20"><pattern id="p" x="1" width="4" height="5" patternUnits="userSpaceOnUse" patternTransform="translate(2 3)">
+        <rect width="2" height="2" fill="#ff0000"/></pattern><rect width="20" height="20" fill="url(#p)" stroke="url(#p) blue"/></svg>
+      """##)
+    let shape = try XCTUnwrap(d.shapes.first)
+    let p = try patternOf(shape.fill)
+    XCTAssertEqual(p.width, 4)
+    XCTAssertEqual(p.height, 5)
+    XCTAssertEqual(flat(p.transform), [1, 0, 0, 1, 3, 3])
+    let tile = shapesIn(p.ops)
+    XCTAssertEqual(tile.count, 1)
+    XCTAssertEqual(tile[0].fill, .color(0xFFFF_0000))
+    XCTAssertEqual(flat(tile[0].transform), [1, 0, 0, 1, 0, 0])
+    // The same pattern resolves for the stroke too, so the fallback is unused.
+    _ = try patternOf(shape.stroke)
+  }
+
+  func testPatternObjectBoundingBoxUnitsAndContent() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 100 100"><pattern id="p" x=".25" width=".5" height="25%" patternContentUnits="objectBoundingBox">
+        <rect width=".5" height=".5"/></pattern><rect x="10" y="20" width="40" height="80" fill="url(#p)"/></svg>
+      """)
+    let p = try patternOf(try XCTUnwrap(d.shapes.first).fill)
+    XCTAssertEqual(p.width, 20)
+    XCTAssertEqual(p.height, 20)
+    XCTAssertEqual(flat(p.transform), [1, 0, 0, 1, 20, 20])
+    XCTAssertEqual(flat(shapesIn(p.ops)[0].transform), [40, 0, 0, 80, 0, 0])
+  }
+
+  func testPatternViewBoxAndHrefInheritance() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 100 100"><pattern id="base" viewBox="0 0 2 2" fill="#00ff00"><circle cx="1" cy="1" r="1"/></pattern>
+        <pattern id="p" href="#base" width="10" height="20" patternUnits="userSpaceOnUse"/>
+        <rect width="100" height="100" fill="url(#p)"/></svg>
+      """)
+    let p = try patternOf(try XCTUnwrap(d.shapes.first).fill)
+    XCTAssertEqual(p.width, 10)
+    XCTAssertEqual(p.height, 20)
+    let tile = shapesIn(p.ops)
+    XCTAssertEqual(tile.count, 1)
+    // Contents inherit the pattern's fill; viewBox 2x2 meets in 10x20, centred vertically.
+    XCTAssertEqual(tile[0].fill, .color(0xFF00_FF00))
+    XCTAssertEqual(flat(tile[0].transform), [5, 0, 0, 5, 0, 5])
+  }
+
+  func testPatternEdgeCases() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><pattern id="zero" width="0" height="1"><rect width="1" height="1"/></pattern>
+        <pattern id="empty" width="1" height="1"/>
+        <pattern id="self" width="1" height="1"><rect width="1" height="1" fill="url(#self) red"/></pattern>
+        <rect width="1" height="1" fill="url(#zero) red"/><rect width="1" height="1" fill="url(#empty)"/>
+        <rect width="1" height="1" fill="url(#self)"/></svg>
+      """)
+    let s = d.shapes
+    // A zero-sized, empty or self-referencing pattern takes the fallback, else paints nothing.
+    XCTAssertEqual(s.count, 2)
+    XCTAssertEqual(s[0].fill, .color(0xFFFF_0000))
+    let p = try patternOf(s[1].fill)
+    XCTAssertEqual(shapesIn(p.ops).first?.fill, .color(0xFFFF_0000))
+  }
+
+  func testRenderPattern() throws {
+    let img = try render(##"""
+      <svg viewBox="0 0 20 20"><pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse">
+        <rect width="5" height="5" fill="#ff0000"/><rect x="5" y="5" width="5" height="5" fill="#0000ff"/></pattern>
+        <rect width="20" height="20" fill="url(#p)"/></svg>
+      """##, size: 40)
+    XCTAssertGreaterThan(pixel(img, 4, 4).r, 220)
+    XCTAssertGreaterThan(pixel(img, 15, 15).b, 220)
+    XCTAssertEqual(pixel(img, 15, 4).a, 0)
+    // Second tile repeats the first.
+    XCTAssertGreaterThan(pixel(img, 24, 24).r, 220)
+    XCTAssertGreaterThan(pixel(img, 35, 35).b, 220)
+    XCTAssertEqual(pixel(img, 4, 35).a, 0)
+  }
+
+  // MARK: masks
+
+  private func maskOf(_ op: SvgOp?, file: StaticString = #filePath, line: UInt = #line) throws -> (SvgMask, [SvgOp]) {
+    guard case let .masked(m, content)? = op else {
+      XCTFail("not masked: \(String(describing: op))", file: file, line: line)
+      throw NSError(domain: "svg", code: 0)
+    }
+    return (m, content)
+  }
+
+  func testMaskRegionContentAndType() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 100 100"><mask id="m"><rect width="50" height="100" fill="white"/></mask>
+        <mask id="a" style="mask-type: alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="30" height="40" maskContentUnits="objectBoundingBox">
+        <rect width=".5" height="1"/></mask>
+        <rect x="10" y="10" width="80" height="60" mask="url(#m)"/>
+        <rect x="10" y="10" width="80" height="60" mask="url(#a)"/></svg>
+      """)
+    XCTAssertEqual(d.ops.count, 2)
+    let (m, content) = try maskOf(d.ops[0])
+    XCTAssertTrue(m.luminance)
+    XCTAssertEqual(shapesIn(content).count, 1)
+    XCTAssertEqual(shapesIn(m.ops).first?.fill, .color(0xFFFF_FFFF))
+    // Default region: -10%/120% of the bounding box.
+    let region = try XCTUnwrap(m.region.paths.first)
+    XCTAssertEqual(flat(region.transform), [80, 0, 0, 60, 10, 10])
+    assertBounds(Bounds(minX: -0.1, minY: -0.1, maxX: 1.1, maxY: 1.1), bounds(region.commands), accuracy: 1e-5)
+
+    let (a, _) = try maskOf(d.ops[1])
+    XCTAssertFalse(a.luminance)
+    assertBounds(Bounds(minX: 0, minY: 0, maxX: 30, maxY: 40), bounds(a.region.paths[0].commands), accuracy: 1e-5)
+    XCTAssertEqual(flat(a.region.paths[0].transform), [1, 0, 0, 1, 0, 0])
+    XCTAssertEqual(flat(shapesIn(a.ops)[0].transform), [80, 0, 0, 60, 10, 10])
+  }
+
+  func testMaskEdgeCases() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 10 10"><mask id="empty"/><mask id="self"><rect width="5" height="5" fill="white" mask="url(#self)"/></mask>
+        <rect width="1" height="1" mask="url(#missing)"/><rect width="1" height="1" mask="url(#empty)"/>
+        <line x2="5" stroke="black" mask="url(#self)"/></svg>
+      """)
+    // A missing mask doesn't mask; an empty one hides; a horizontal line has no box for the default units.
+    XCTAssertEqual(d.ops.count, 1)
+    guard case .shape = d.ops[0] else { return XCTFail("\(d.ops)") }
+  }
+
+  func testRenderLuminanceAndAlphaMasks() throws {
+    let lum = try render(##"""
+      <svg viewBox="0 0 20 20"><mask id="m"><rect width="10" height="20" fill="white"/><rect x="10" width="10" height="20" fill="#808080"/></mask>
+        <rect width="20" height="20" fill="#ff0000" mask="url(#m)"/></svg>
+      """##, size: 20)
+    XCTAssertEqual(pixel(lum, 5, 10).a, 255)
+    XCTAssertGreaterThan(pixel(lum, 5, 10).r, 240)
+    XCTAssertEqual(Double(pixel(lum, 15, 10).a), 128, accuracy: 3)
+    let alpha = try render(##"""
+      <svg viewBox="0 0 20 20"><mask id="m" mask-type="alpha"><rect width="10" height="20" fill="#000000"/></mask>
+        <rect width="20" height="20" fill="#0000ff" mask="url(#m)"/></svg>
+      """##, size: 20)
+    XCTAssertEqual(pixel(alpha, 5, 10).a, 255)
+    XCTAssertEqual(pixel(alpha, 15, 10).a, 0)
+  }
+
+  // MARK: markers
+
+  func testMarkerVertices() {
+    let open = svgMarkerVertices(parseSvgPathData("M0 0 L10 0 L10 10"))
+    XCTAssertEqual(open.count, 3)
+    XCTAssertEqual(open[0].autoAngle, 0, accuracy: 1e-4)
+    XCTAssertEqual(open[1].autoAngle, 45, accuracy: 1e-4)
+    XCTAssertEqual(open[2].autoAngle, 90, accuracy: 1e-4)
+
+    // A closed square: the end sits on the start and both take the corner's bisector.
+    let closed = svgMarkerVertices(parseSvgPathData("M0 0 H10 V10 H0 Z"))
+    XCTAssertEqual(closed.count, 5)
+    XCTAssertEqual(closed[4].x, 0)
+    XCTAssertEqual(closed[4].y, 0)
+    XCTAssertEqual(closed[0].autoAngle, -45, accuracy: 1e-4)
+    XCTAssertEqual(closed[4].autoAngle, -45, accuracy: 1e-4)
+
+    // Arc pieces are one segment; curves use their control points.
+    var ends: [Bool] = []
+    let arc = parseSvgPathData("M0 0 A10 10 0 0 1 20 0 C20 10 30 10 30 0", vertexEnds: &ends)
+    let v = svgMarkerVertices(arc, vertexEnds: ends)
+    XCTAssertEqual(v.count, 3)
+    XCTAssertEqual(v[0].autoAngle, -90, accuracy: 1e-3)
+    XCTAssertEqual(v[1].inAngle ?? 0, 90, accuracy: 1e-3)
+    XCTAssertEqual(v[1].outAngle ?? 0, 90, accuracy: 1e-3)
+    XCTAssertEqual(v[2].autoAngle, -90, accuracy: 1e-3)
+  }
+
+  func testMarkersPlacedAndOriented() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 100 100"><marker id="m" markerWidth="4" markerHeight="4" refX="1" refY="2" orient="auto" fill="#00ff00">
+        <rect width="2" height="2"/></marker><marker id="s" orient="auto-start-reverse" markerUnits="userSpaceOnUse" overflow="visible">
+        <circle r="1"/></marker>
+        <polyline points="10,10 50,10 50,50" fill="none" stroke="black" stroke-width="2" marker-start="url(#s)" marker-mid="url(#m)" marker-end="url(#m)"/></svg>
+      """)
+    let ops = d.ops
+    // stroke, start marker (no clip), then mid and end each inside their clip.
+    XCTAssertEqual(ops.count, 8)
+    let shapes = d.shapes
+    XCTAssertEqual(shapes.count, 4)
+    // Start: reversed (180 deg), user space units.
+    let t0 = shapes[1].transform
+    XCTAssertEqual(t0.a, -1, accuracy: 1e-5)
+    XCTAssertEqual(t0.tx, 10, accuracy: 1e-5)
+    XCTAssertEqual(t0.ty, 10, accuracy: 1e-5)
+    // Mid at (50, 10) turning down: 45 deg, scaled by the stroke width, ref (1, 2) on the vertex.
+    let t1 = shapes[2].transform
+    let c = cos(CGFloat.pi / 4) * 2
+    XCTAssertEqual(t1.a, c, accuracy: 1e-5)
+    XCTAssertEqual(t1.b, c, accuracy: 1e-5)
+    let ref = CGPoint(x: 1, y: 2).applying(t1)
+    XCTAssertEqual(ref.x, 50, accuracy: 1e-4)
+    XCTAssertEqual(ref.y, 10, accuracy: 1e-4)
+    XCTAssertEqual(shapes[2].fill, .color(0xFF00_FF00))
+    // End at (50, 50) pointing down.
+    let ref2 = CGPoint(x: 1, y: 2).applying(shapes[3].transform)
+    XCTAssertEqual(ref2.x, 50, accuracy: 1e-4)
+    XCTAssertEqual(ref2.y, 50, accuracy: 1e-4)
+    XCTAssertEqual(shapes[3].transform.b, 2, accuracy: 1e-5)
+  }
+
+  func testMarkerViewBoxAndShorthand() throws {
+    let d = try doc("""
+      <svg viewBox="0 0 100 100"><style>path { marker: url(#m) }</style>
+        <marker id="m" viewBox="0 0 10 10" markerWidth="5" markerHeight="5" refX="center" refY="center"><rect width="10" height="10"/></marker>
+        <path d="M10 10 h20" stroke="black" marker-mid="none"/></svg>
+      """)
+    let shapes = d.shapes
+    XCTAssertEqual(shapes.count, 3)
+    // viewBox 10 -> 5 user units times stroke width 1, centred on each vertex.
+    XCTAssertEqual(flat(shapes[1].transform), [0.5, 0, 0, 0.5, 7.5, 7.5])
+    XCTAssertEqual(flat(shapes[2].transform), [0.5, 0, 0, 0.5, 27.5, 7.5])
+  }
+
+  func testRenderMarker() throws {
+    let img = try render(##"""
+      <svg viewBox="0 0 40 40"><marker id="a" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0 0 L10 5 L0 10z" fill="#ff0000"/></marker>
+        <line x1="5" y1="20" x2="25" y2="20" stroke="#0000ff" stroke-width="2" marker-end="url(#a)"/></svg>
+      """##, size: 40)
+    XCTAssertGreaterThan(pixel(img, 27, 20).r, 220)
+    XCTAssertGreaterThan(pixel(img, 15, 20).b, 220)
+    XCTAssertEqual(pixel(img, 37, 20).a, 0)
+  }
+
+  // MARK: text
+
+  /// Each character a 0.5em x 0.7em box sitting on the baseline; spaces draw nothing.
+  private struct BoxShaper: SvgTextShaping {
+    func shape(_ text: String, font: SvgFont, letterSpacing: CGFloat, wordSpacing: CGFloat) -> SvgTextRun {
+      var commands: [SvgPathCommand] = []
+      var pen: CGFloat = 0
+      let w = font.size * 0.5, h = font.size * 0.7
+      for sc in text.unicodeScalars {
+        if sc == " " {
+          pen += w + wordSpacing
+        } else {
+          commands += [.move(pen, -h), .line(pen + w, -h), .line(pen + w, 0), .line(pen, 0), .close]
+          pen += w
+        }
+        pen += letterSpacing
+      }
+      return SvgTextRun(commands: commands, advance: pen, ascent: font.size * 0.8, descent: font.size * 0.2, xHeight: font.size * 0.5)
+    }
+  }
+
+  private func withBoxShaper(_ body: () throws -> Void) rethrows {
+    let saved = svgTextShaper
+    svgTextShaper = BoxShaper()
+    defer { svgTextShaper = saved }
+    try body()
+  }
+
+  private func textBounds(_ shape: SvgShape) -> Bounds { bounds(shape.commands) }
+
+  func testTextPositionsWhiteSpaceAndAnchor() throws {
+    try withBoxShaper {
+      let d = try doc("""
+        <svg viewBox="0 0 200 100"><text x="10" y="50" font-size="20">
+          Hi   <tspan fill="red" dy="5">there</tspan></text>
+          <text x="100 120" y="80" font-size="10" text-anchor="middle">abc</text>
+          <text x="190" y="20" font-size="10" text-anchor="end" xml:space="preserve"> a </text></svg>
+        """)
+      let s = d.shapes
+      XCTAssertEqual(s.count, 5)
+      // "Hi " collapses to one space: 3 x 10 wide, then "there" 5 lower.
+      assertBounds(Bounds(minX: 10, minY: 36, maxX: 30, maxY: 50), textBounds(s[0]), accuracy: 1e-4)
+      XCTAssertEqual(s[0].fill, .color(0xFF00_0000))
+      assertBounds(Bounds(minX: 40, minY: 41, maxX: 90, maxY: 55), textBounds(s[1]), accuracy: 1e-4)
+      XCTAssertEqual(s[1].fill, .color(0xFFFF_0000))
+      // Two chunks: "a" centred on 100, "bc" centred on 120.
+      assertBounds(Bounds(minX: 97.5, minY: 73, maxX: 102.5, maxY: 80), textBounds(s[2]), accuracy: 1e-4)
+      assertBounds(Bounds(minX: 115, minY: 73, maxX: 125, maxY: 80), textBounds(s[3]), accuracy: 1e-4)
+      // Preserved spaces count towards the end anchor: " a " is 15 wide.
+      assertBounds(Bounds(minX: 180, minY: 13, maxX: 185, maxY: 20), textBounds(s[4]), accuracy: 1e-4)
+    }
+  }
+
+  func testTextFontPropertiesAndBaseline() throws {
+    try withBoxShaper {
+      let d = try doc("""
+        <svg viewBox="0 0 100 100"><g style="font: italic bold 10px 'My Font', sans-serif">
+          <text y="20" dominant-baseline="central" letter-spacing="2">ab</text>
+          <text y="40" font-size="200%" dominant-baseline="hanging"><tspan font-size=".5em" dx="3 4">ab</tspan></text></g></svg>
+        """)
+      let s = d.shapes
+      XCTAssertEqual(s.count, 3)
+      // central: baseline 3 lower (0.8 - 0.2) / 2 em; letter spacing 2 after each.
+      assertBounds(Bounds(minX: 0, minY: 16, maxX: 12, maxY: 23), textBounds(s[0]), accuracy: 1e-4)
+      // tspan at 10px inside a 20px text; hanging moves the baseline 0.8 x 0.8em down; each dx
+      // starts its own run.
+      assertBounds(Bounds(minX: 3, minY: 39.4, maxX: 8, maxY: 46.4), textBounds(s[1]), accuracy: 1e-4)
+      assertBounds(Bounds(minX: 12, minY: 39.4, maxX: 17, maxY: 46.4), textBounds(s[2]), accuracy: 1e-4)
+    }
+  }
+
+  func testTextFontParsing() {
+    XCTAssertEqual(parseSvgFontFamilies(" 'Open Sans', \"Helvetica Neue\" ,serif"), ["Open Sans", "Helvetica Neue", "serif"])
+    XCTAssertEqual(parseSvgFontSize("150%", parent: 10), 15)
+    XCTAssertEqual(parseSvgFontSize("2em", parent: 10), 20)
+    XCTAssertEqual(parseSvgFontSize("large", parent: 10), 18)
+    XCTAssertNil(parseSvgFontSize("-1px", parent: 10))
+    XCTAssertEqual(parseSvgFontWeight("bold", parent: 400), 700)
+    XCTAssertEqual(parseSvgFontWeight("bolder", parent: 700), 900)
+    XCTAssertEqual(parseSvgFontWeight("lighter", parent: 400), 100)
+    XCTAssertNil(parseSvgFontWeight("heavy", parent: 400))
+    XCTAssertEqual(parseSvgAngle("0.5turn"), 180)
+  }
+
+  func testTextAsClipPath() throws {
+    try withBoxShaper {
+      let d = try doc("""
+        <svg viewBox="0 0 100 100"><clipPath id="c"><text x="10" y="50" font-size="20">AB</text></clipPath>
+          <rect width="100" height="100" clip-path="url(#c)"/></svg>
+        """)
+      guard case let .beginClip(clip) = d.ops.first else { return XCTFail("\(d.ops)") }
+      XCTAssertEqual(clip.paths.count, 1)
+      assertBounds(Bounds(minX: 10, minY: 36, maxX: 30, maxY: 50), bounds(clip.paths[0].commands), accuracy: 1e-4)
+    }
+  }
+
+  func testRenderTextWithSystemFonts() throws {
+    let img = try render(##"""
+      <svg viewBox="0 0 100 100"><text x="50" y="60" font-family="sans-serif" font-size="40" font-weight="bold" fill="#ff0000" text-anchor="middle">II</text></svg>
+      """##, size: 100)
+    // Two bold stems around the centre; nothing at the edges or below the baseline.
+    var red = 0
+    var first = 100, last = 0
+    for x in 0..<100 where pixel(img, x, 50).a > 200 {
+      red += 1
+      first = min(first, x)
+      last = max(last, x)
+    }
+    XCTAssertGreaterThan(red, 6)
+    XCTAssertGreaterThan(pixel(img, first, 50).r, 220)
+    XCTAssertEqual(Double(first + last) / 2, 50, accuracy: 3)
+    XCTAssertEqual(pixel(img, 2, 50).a, 0)
+    XCTAssertEqual(pixel(img, 97, 50).a, 0)
+    XCTAssertEqual(pixel(img, 50, 75).a, 0)
+  }
+
+  // MARK: <img>
+
+  func testImgDrawsAnSvgSource() throws {
+    let mason = NSCMason.shared
+    let root = mason.createView()
+    let img = mason.createImageView()
+    root.addView(img)
+    img.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='10'><rect width='20' height='10' fill='%23ff0000'/></svg>"
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    let doc = try XCTUnwrap(img.svg)
+    XCTAssertEqual(doc.width, 20)
+    let scale = CGFloat(NSCMason.scale)
+    root.compute(400, -1)
+    XCTAssertEqual(CGFloat(img.layout().width) / scale, 20, accuracy: 0.5)
+    XCTAssertEqual(CGFloat(img.layout().height) / scale, 10, accuracy: 0.5)
+
+    img.frame = CGRect(x: 0, y: 0, width: 60, height: 30)
+    img.layer.layoutIfNeeded()
+    let contents = try XCTUnwrap(img.masonLayer.contentsLayer.contents)
+    let raster = contents as! CGImage
+    XCTAssertEqual(CGFloat(raster.width), 60 * max(img.masonLayer.contentsScale, 1), accuracy: 1)
+    // A raster src replaces the SVG.
+    img.src = nil
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    XCTAssertNil(img.svg)
+  }
+
+  func testInlineImgWithAWidthKeepsItsRatio() throws {
+    let mason = NSCMason.shared
+    let scale = CGFloat(NSCMason.scale)
+    let root = mason.createView()
+    let box = mason.createView()
+    box.style.size = MasonSize(.Points(Float(110 * scale)), .Auto)
+    root.addView(box)
+    let img = mason.createImageView()
+    img.style.size = MasonSize(.Points(Float(110 * scale)), .Auto)
+    box.addView(img)
+    img.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><rect width='120' height='60'/></svg>"
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    root.compute(400 * Float(scale), -1)
+    XCTAssertEqual(CGFloat(img.layout().width) / scale, 110, accuracy: 0.5)
+    XCTAssertEqual(CGFloat(img.layout().height) / scale, 55, accuracy: 0.5)
   }
 }

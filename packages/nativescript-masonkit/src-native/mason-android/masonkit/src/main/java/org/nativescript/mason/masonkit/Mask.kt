@@ -243,7 +243,7 @@ internal fun parseMaskLayers(
 }
 
 /** Alpha = luminance of the layer drawn over black, i.e. luminance x alpha. */
-private val LUMINANCE_MATRIX = floatArrayOf(
+internal val LUMINANCE_MATRIX = floatArrayOf(
   0f, 0f, 0f, 0f, 0f,
   0f, 0f, 0f, 0f, 0f,
   0f, 0f, 0f, 0f, 0f,

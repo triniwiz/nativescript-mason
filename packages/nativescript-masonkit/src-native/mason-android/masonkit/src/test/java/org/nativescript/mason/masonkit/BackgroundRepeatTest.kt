@@ -103,4 +103,17 @@ class BackgroundRepeatTest {
     val (w, _) = resolveTileSize(layer, 300f, 300f, 100f, 100f)
     assertEquals(100f, w, 1e-4f)
   }
+
+  @Test
+  fun svgDataUrlWithNestedUrlsStaysWhole() {
+    val svg = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><pattern id='p'/><rect fill='url(%23p)' points='1,2'/></svg>"
+    val layer = parseLayer("url(\"$svg\") center / contain no-repeat")
+    assertEquals(svg, layer.image)
+    assertEquals(BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.NO_REPEAT), layer.repeat)
+    // Commas and parentheses inside the quotes don't split layers.
+    val layers = splitLayers("url(\"$svg\"), linear-gradient(red, blue)")
+    assertEquals(2, layers.size)
+    assertEquals(svg, findCssUrl(layers[0])?.second)
+    assertEquals("a.png", parseLayer("url(a.png) repeat-x").image)
+  }
 }

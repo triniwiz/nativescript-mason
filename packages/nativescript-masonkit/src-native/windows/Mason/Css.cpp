@@ -36,6 +36,7 @@
 #include "ScrollHost.h"
 #include "Invalidation.h"
 #include "SvgPrepare.h"
+#include "SvgSource.h"
 
 using namespace winrt;
 
@@ -932,5 +933,23 @@ namespace winrt::NativeScript::Mason::implementation
         mason_cssmask::SetBorderImage(element, parsed.border ? std::make_shared<mason_cssmask::NineSlice>(std::move(*parsed.border)) : nullptr);
         mason_filter::Touch(element);
         element.InvalidateArrange();
+    }
+}
+
+namespace mason_css
+{
+    mason_cssmask::Image LoadSvgImage(std::wstring const& source)
+    {
+        auto image = LoadMaskImage(source);
+        return image.kind == mason_cssmask::Image::Kind::Svg ? image : mason_cssmask::Image{};
+    }
+
+    mason_cssmask::Image PrepareSvgImage(std::string svg)
+    {
+        mason_cssmask::Image image;
+        if (svg.empty()) return image;
+        image.svg = mason_cssmask::HoistRootPaint(PrepareSvg(mason_cssmask::MarkCurrentColor(mason_svg::Resolve(std::move(svg)), image.currentColor), 0xFF000000u));
+        image.kind = mason_cssmask::Image::Kind::Svg;
+        return image;
     }
 }

@@ -40,7 +40,7 @@ export class Img extends ImageBase {
     const nativeView = this._view;
     if (nativeView) {
       if (typeof value === 'string' && value.startsWith('~/')) {
-        nativeView.Source = value.replace('~/', knownFolders.currentApp().path);
+        nativeView.Source = knownFolders.currentApp().path + '/' + value.slice(2);
       } else {
         nativeView.Source = value;
       }

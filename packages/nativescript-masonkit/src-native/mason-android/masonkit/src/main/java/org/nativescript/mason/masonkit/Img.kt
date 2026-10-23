@@ -4,7 +4,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorFilter
 import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.widget.ImageView
@@ -14,6 +18,8 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import org.nativescript.mason.masonkit.enums.ObjectFit
+import kotlin.math.ceil
+import kotlin.math.hypot
 import kotlin.math.max
 
 @SuppressLint("AppCompatCustomView")
@@ -96,6 +102,42 @@ class Img @JvmOverloads constructor(
 
   private var currentTarget: CustomTarget<Bitmap>? = null
 
+  /** Bumped per [src] so a slow SVG fetch can't overwrite a newer source. */
+  private var svgGeneration = 0
+
+  /** The SVG [src], parsed; drawn as vectors at the size it is shown. */
+  val svg: SvgDocument?
+    get() = (drawable as? SvgDrawable)?.doc
+
+  /** SVG sources (data URLs, files, `.svg` URLs) go through Mason's SVG reader; false for anything else. */
+  private fun loadSvg(value: String): Boolean {
+    val path = value.substringBefore('?').substringBefore('#')
+    val remote = (value.startsWith("http://", true) || value.startsWith("https://", true)) && path.endsWith(".svg", true)
+    if (!remote && !isSvgSource(value)) return false
+    val generation = svgGeneration
+    onStateChange?.let { it(LoadingState.Loading) }
+    if (!remote) {
+      applySvg(generation, decodeSvgSource(context, value))
+      return true
+    }
+    Thread {
+      val doc = try {
+        java.net.URL(value).openStream().use { parseSvgDocument(it.readBytes().toString(Charsets.UTF_8)) }
+      } catch (_: Throwable) {
+        null
+      }
+      post { applySvg(generation, doc) }
+    }.start()
+    return true
+  }
+
+  private fun applySvg(generation: Int, doc: SvgDocument?) {
+    if (generation != svgGeneration) return
+    setImageDrawable(doc?.let { SvgDrawable(it, resources.displayMetrics.density) { style.resolvedColor } })
+    markDirtyAndRecompute()
+    onStateChange?.let { it(if (doc != null) LoadingState.Loaded else LoadingState.Error) }
+  }
+
   var src: String = ""
     set(value) {
       field = value
@@ -103,6 +145,9 @@ class Img @JvmOverloads constructor(
         Glide.with(this).clear(it)
         currentTarget = null
       }
+      svgGeneration++
+      if (drawable is SvgDrawable) setImageDrawable(null)
+      if (loadSvg(value)) return
       val target = object : CustomTarget<Bitmap>(
         when (node.computeCache.width) {
           Float.MIN_VALUE, -2f, -1f -> SIZE_ORIGINAL
@@ -317,24 +362,11 @@ class Img @JvmOverloads constructor(
       !it.isNaN() && it >= 0
     }
 
-    var retWidth = 0f
-    var retHeight = 0f
-
-    if (width != null) {
-      retWidth = width
-    } else {
-      drawable?.intrinsicWidth?.let {
-        retWidth = it.toFloat()
-      }
-    }
-
-    if (height != null) {
-      retHeight = height
-    } else {
-      drawable?.intrinsicHeight?.let {
-        retHeight = it.toFloat()
-      }
-    }
+    val iw = (drawable?.intrinsicWidth ?: 0).coerceAtLeast(0).toFloat()
+    val ih = (drawable?.intrinsicHeight ?: 0).coerceAtLeast(0).toFloat()
+    // One known side keeps the image's ratio.
+    val retWidth = width ?: if (height != null && ih > 0f) height * iw / ih else iw
+    val retHeight = height ?: if (width != null && iw > 0f) width * ih / iw else ih
 
     if (width != null && height != null) {
       drawable?.setBounds(0, 0, knownWidth.toInt(), knownHeight.toInt())
@@ -343,4 +375,54 @@ class Img @JvmOverloads constructor(
     return MeasureOutput.make(retWidth, retHeight)
   }
 
+}
+
+/** Largest edge of an `<img>` SVG raster, in device px. */
+private const val MAX_IMG_SVG_RASTER_PX = 4096
+
+/**
+ * An SVG as a drawable: intrinsic size in device px (1 SVG px is 1 CSS px), rasterized at the device
+ * size it is drawn at, again when that or [currentColor] changes.
+ */
+internal class SvgDrawable(val doc: SvgDocument, private val density: Float, private val currentColor: () -> Int) : Drawable() {
+  private var raster: Bitmap? = null
+  private var rasterColor = 0
+  private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+  private val dst = RectF()
+  private val values = FloatArray(9)
+
+  override fun getIntrinsicWidth() = ceil(doc.width * density).toInt()
+  override fun getIntrinsicHeight() = ceil(doc.height * density).toInt()
+
+  override fun draw(canvas: Canvas) {
+    val b = bounds
+    if (b.isEmpty) return
+    @Suppress("DEPRECATION")
+    canvas.matrix.getValues(values)
+    val sx = hypot(values[Matrix.MSCALE_X], values[Matrix.MSKEW_Y])
+    val sy = hypot(values[Matrix.MSKEW_X], values[Matrix.MSCALE_Y])
+    val fit = minOf(1f, MAX_IMG_SVG_RASTER_PX / maxOf(b.width() * sx, b.height() * sy))
+    val pw = ceil(b.width() * sx * fit).toInt().coerceAtLeast(1)
+    val ph = ceil(b.height() * sy * fit).toInt().coerceAtLeast(1)
+    val color = if (doc.usesCurrentColor) currentColor() else 0
+    var bitmap = raster
+    if (bitmap == null || bitmap.width != pw || bitmap.height != ph || rasterColor != color) {
+      bitmap = renderSvgDocument(doc, pw, ph, color) ?: return
+      raster = bitmap
+      rasterColor = color
+    }
+    dst.set(b)
+    canvas.drawBitmap(bitmap, null, dst, paint)
+  }
+
+  override fun setAlpha(alpha: Int) {
+    paint.alpha = alpha
+  }
+
+  override fun setColorFilter(colorFilter: ColorFilter?) {
+    paint.colorFilter = colorFilter
+  }
+
+  @Deprecated("Deprecated in Java")
+  override fun getOpacity() = PixelFormat.TRANSLUCENT
 }

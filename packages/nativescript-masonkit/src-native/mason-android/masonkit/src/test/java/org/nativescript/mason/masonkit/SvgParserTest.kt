@@ -439,7 +439,7 @@ class SvgParserTest {
         <path d="M0 0h2v2z"><title>has a child</title></path>
         <g display="none"><path d="M0 0h3v3z"/></g>
         <path visibility="hidden" d="M0 0h4v4z"/>
-        <text>skip</text>
+        <text> <tspan display="none">skip</tspan> </text>
       </svg>"""
     )
     assertEquals(1, d.shapes.size)
@@ -854,5 +854,288 @@ class SvgParserTest {
     val q = svgPathBounds(parseSvgPathData("M0 0Q5 10 10 0"))!!
     assertEquals(5f, q[3], 1e-5f)
     assertNull(svgPathBounds(emptyList()))
+  }
+
+  // MARK: patterns
+
+  private fun patternOf(paint: SvgPaint): SvgPattern =
+    (paint as? SvgPaint.Pattern)?.pattern ?: throw AssertionError("not a pattern: $paint")
+
+  private fun shapesIn(ops: List<SvgOp>) = ops.mapNotNull { (it as? SvgOp.Shape)?.shape }
+
+  @Test
+  fun patternUserSpaceTileAndTransform() {
+    val d = doc(
+      """<svg viewBox="0 0 20 20"><pattern id="p" x="1" width="4" height="5" patternUnits="userSpaceOnUse" patternTransform="translate(2 3)">
+        <rect width="2" height="2" fill="#ff0000"/></pattern><rect width="20" height="20" fill="url(#p)" stroke="url(#p) blue"/></svg>"""
+    )
+    val shape = d.shapes.first()
+    val p = patternOf(shape.fill)
+    assertEquals(4f, p.width, 0f)
+    assertEquals(5f, p.height, 0f)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 3f, 3f), p.transform.toList())
+    val tile = shapesIn(p.ops)
+    assertEquals(1, tile.size)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), tile[0].fill)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 0f, 0f), tile[0].transform.toList())
+    // The same pattern resolves for the stroke too, so the fallback is unused.
+    patternOf(shape.stroke)
+  }
+
+  @Test
+  fun patternObjectBoundingBoxUnitsAndContent() {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><pattern id="p" x=".25" width=".5" height="25%" patternContentUnits="objectBoundingBox">
+        <rect width=".5" height=".5"/></pattern><rect x="10" y="20" width="40" height="80" fill="url(#p)"/></svg>"""
+    )
+    val p = patternOf(d.shapes.first().fill)
+    assertEquals(20f, p.width, 1e-4f)
+    assertEquals(20f, p.height, 1e-4f)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 20f, 20f), p.transform.toList())
+    assertEquals(listOf(40f, 0f, 0f, 80f, 0f, 0f), shapesIn(p.ops)[0].transform.toList())
+  }
+
+  @Test
+  fun patternViewBoxAndHrefInheritance() {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><pattern id="base" viewBox="0 0 2 2" fill="#00ff00"><circle cx="1" cy="1" r="1"/></pattern>
+        <pattern id="p" href="#base" width="10" height="20" patternUnits="userSpaceOnUse"/>
+        <rect width="100" height="100" fill="url(#p)"/></svg>"""
+    )
+    val p = patternOf(d.shapes.first().fill)
+    assertEquals(10f, p.width, 0f)
+    assertEquals(20f, p.height, 0f)
+    val tile = shapesIn(p.ops)
+    assertEquals(1, tile.size)
+    // Contents inherit the pattern's fill; viewBox 2x2 meets in 10x20, centred vertically.
+    assertEquals(SvgPaint.Color(0xFF00FF00.toInt()), tile[0].fill)
+    assertEquals(listOf(5f, 0f, 0f, 5f, 0f, 5f), tile[0].transform.toList())
+  }
+
+  @Test
+  fun patternEdgeCases() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><pattern id="zero" width="0" height="1"><rect width="1" height="1"/></pattern>
+        <pattern id="empty" width="1" height="1"/>
+        <pattern id="self" width="1" height="1"><rect width="1" height="1" fill="url(#self) red"/></pattern>
+        <rect width="1" height="1" fill="url(#zero) red"/><rect width="1" height="1" fill="url(#empty)"/>
+        <rect width="1" height="1" fill="url(#self)"/></svg>"""
+    )
+    val s = d.shapes
+    // A zero-sized, empty or self-referencing pattern takes the fallback, else paints nothing.
+    assertEquals(2, s.size)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[0].fill)
+    val p = patternOf(s[1].fill)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), shapesIn(p.ops).first().fill)
+  }
+
+  // MARK: masks
+
+  private fun maskOf(op: SvgOp?): SvgOp.Masked = op as? SvgOp.Masked ?: throw AssertionError("not masked: $op")
+
+  @Test
+  fun maskRegionContentAndType() {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><mask id="m"><rect width="50" height="100" fill="white"/></mask>
+        <mask id="a" style="mask-type: alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="30" height="40" maskContentUnits="objectBoundingBox">
+        <rect width=".5" height="1"/></mask>
+        <rect x="10" y="10" width="80" height="60" mask="url(#m)"/>
+        <rect x="10" y="10" width="80" height="60" mask="url(#a)"/></svg>"""
+    )
+    assertEquals(2, d.ops.size)
+    val m = maskOf(d.ops[0])
+    assertTrue(m.mask.luminance)
+    assertEquals(1, shapesIn(m.content).size)
+    assertEquals(SvgPaint.Color(0xFFFFFFFF.toInt()), shapesIn(m.mask.ops).first().fill)
+    // Default region: -10%/120% of the bounding box.
+    val region = m.mask.region.paths.first()
+    assertEquals(listOf(80f, 0f, 0f, 60f, 10f, 10f), region.transform.toList())
+    assertBounds(Bounds(-0.1f, -0.1f, 1.1f, 1.1f), bounds(region.commands), 1e-5f)
+
+    val a = maskOf(d.ops[1]).mask
+    assertFalse(a.luminance)
+    assertBounds(Bounds(0f, 0f, 30f, 40f), bounds(a.region.paths[0].commands), 1e-5f)
+    assertEquals(listOf(1f, 0f, 0f, 1f, 0f, 0f), a.region.paths[0].transform.toList())
+    assertEquals(listOf(80f, 0f, 0f, 60f, 10f, 10f), shapesIn(a.ops)[0].transform.toList())
+  }
+
+  @Test
+  fun maskEdgeCases() {
+    val d = doc(
+      """<svg viewBox="0 0 10 10"><mask id="empty"/><mask id="self"><rect width="5" height="5" fill="white" mask="url(#self)"/></mask>
+        <rect width="1" height="1" mask="url(#missing)"/><rect width="1" height="1" mask="url(#empty)"/>
+        <line x2="5" stroke="black" mask="url(#self)"/></svg>"""
+    )
+    // A missing mask doesn't mask; an empty one hides; a horizontal line has no box for the default units.
+    assertEquals(1, d.ops.size)
+    assertTrue(d.ops[0] is SvgOp.Shape)
+  }
+
+  // MARK: markers
+
+  @Test
+  fun markerVertices() {
+    val open = svgMarkerVertices(parseSvgPathData("M0 0 L10 0 L10 10"))
+    assertEquals(3, open.size)
+    assertEquals(0f, open[0].autoAngle, 1e-4f)
+    assertEquals(45f, open[1].autoAngle, 1e-4f)
+    assertEquals(90f, open[2].autoAngle, 1e-4f)
+
+    // A closed square: the end sits on the start and both take the corner's bisector.
+    val closed = svgMarkerVertices(parseSvgPathData("M0 0 H10 V10 H0 Z"))
+    assertEquals(5, closed.size)
+    assertEquals(0f, closed[4].x, 0f)
+    assertEquals(0f, closed[4].y, 0f)
+    assertEquals(-45f, closed[0].autoAngle, 1e-4f)
+    assertEquals(-45f, closed[4].autoAngle, 1e-4f)
+
+    // Arc pieces are one segment; curves use their control points.
+    val ends = ArrayList<Boolean>()
+    val arc = parseSvgPathData("M0 0 A10 10 0 0 1 20 0 C20 10 30 10 30 0", ends)
+    val v = svgMarkerVertices(arc, ends)
+    assertEquals(3, v.size)
+    assertEquals(-90f, v[0].autoAngle, 1e-3f)
+    assertEquals(90f, v[1].inAngle!!, 1e-3f)
+    assertEquals(90f, v[1].outAngle!!, 1e-3f)
+    assertEquals(-90f, v[2].autoAngle, 1e-3f)
+  }
+
+  private fun apply(t: FloatArray, x: Float, y: Float) = (t[0] * x + t[2] * y + t[4]) to (t[1] * x + t[3] * y + t[5])
+
+  @Test
+  fun markersPlacedAndOriented() {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><marker id="m" markerWidth="4" markerHeight="4" refX="1" refY="2" orient="auto" fill="#00ff00">
+        <rect width="2" height="2"/></marker><marker id="s" orient="auto-start-reverse" markerUnits="userSpaceOnUse" overflow="visible">
+        <circle r="1"/></marker>
+        <polyline points="10,10 50,10 50,50" fill="none" stroke="black" stroke-width="2" marker-start="url(#s)" marker-mid="url(#m)" marker-end="url(#m)"/></svg>"""
+    )
+    // stroke, start marker (no clip), then mid and end each inside their clip.
+    assertEquals(8, d.ops.size)
+    val shapes = d.shapes
+    assertEquals(4, shapes.size)
+    // Start: reversed (180 deg), user space units.
+    val t0 = shapes[1].transform
+    assertEquals(-1f, t0[0], 1e-5f)
+    assertEquals(10f, t0[4], 1e-5f)
+    assertEquals(10f, t0[5], 1e-5f)
+    // Mid at (50, 10) turning down: 45 deg, scaled by the stroke width, ref (1, 2) on the vertex.
+    val t1 = shapes[2].transform
+    val c = (kotlin.math.cos(Math.PI / 4) * 2).toFloat()
+    assertEquals(c, t1[0], 1e-5f)
+    assertEquals(c, t1[1], 1e-5f)
+    assertPoint(50f, 10f, apply(t1, 1f, 2f), 1e-4f)
+    assertEquals(SvgPaint.Color(0xFF00FF00.toInt()), shapes[2].fill)
+    // End at (50, 50) pointing down.
+    assertPoint(50f, 50f, apply(shapes[3].transform, 1f, 2f), 1e-4f)
+    assertEquals(2f, shapes[3].transform[1], 1e-5f)
+  }
+
+  @Test
+  fun markerViewBoxAndShorthand() {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><style>path { marker: url(#m) }</style>
+        <marker id="m" viewBox="0 0 10 10" markerWidth="5" markerHeight="5" refX="center" refY="center"><rect width="10" height="10"/></marker>
+        <path d="M10 10 h20" stroke="black" marker-mid="none"/></svg>"""
+    )
+    val shapes = d.shapes
+    assertEquals(3, shapes.size)
+    // viewBox 10 -> 5 user units times stroke width 1, centred on each vertex.
+    assertEquals(listOf(0.5f, 0f, 0f, 0.5f, 7.5f, 7.5f), shapes[1].transform.toList())
+    assertEquals(listOf(0.5f, 0f, 0f, 0.5f, 27.5f, 7.5f), shapes[2].transform.toList())
+  }
+
+  // MARK: text
+
+  /** Each character a 0.5em x 0.7em box sitting on the baseline; spaces draw nothing. */
+  private val boxShaper = SvgTextShaping { text, font, letterSpacing, wordSpacing ->
+    val commands = ArrayList<SvgPathCommand>()
+    var pen = 0f
+    val w = font.size * 0.5f
+    val h = font.size * 0.7f
+    for (ch in text) {
+      if (ch == ' ') {
+        pen += w + wordSpacing
+      } else {
+        commands += listOf(MoveTo(pen, -h), LineTo(pen + w, -h), LineTo(pen + w, 0f), LineTo(pen, 0f), Close)
+        pen += w
+      }
+      pen += letterSpacing
+    }
+    SvgTextRun(commands, pen, font.size * 0.8f, font.size * 0.2f, font.size * 0.5f)
+  }
+
+  private fun <T> withBoxShaper(body: () -> T): T {
+    val saved = svgTextShaper
+    svgTextShaper = boxShaper
+    try {
+      return body()
+    } finally {
+      svgTextShaper = saved
+    }
+  }
+
+  @Test
+  fun textPositionsWhiteSpaceAndAnchor() = withBoxShaper {
+    val d = doc(
+      """<svg viewBox="0 0 200 100"><text x="10" y="50" font-size="20">
+          Hi   <tspan fill="red" dy="5">there</tspan></text>
+          <text x="100 120" y="80" font-size="10" text-anchor="middle">abc</text>
+          <text x="190" y="20" font-size="10" text-anchor="end" xml:space="preserve"> a </text></svg>"""
+    )
+    val s = d.shapes
+    assertEquals(5, s.size)
+    // "Hi " collapses to one space: 3 x 10 wide, then "there" 5 lower.
+    assertBounds(Bounds(10f, 36f, 30f, 50f), bounds(s[0].commands), 1e-4f)
+    assertEquals(SvgPaint.Color(0xFF000000.toInt()), s[0].fill)
+    assertBounds(Bounds(40f, 41f, 90f, 55f), bounds(s[1].commands), 1e-4f)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[1].fill)
+    // Two chunks: "a" centred on 100, "bc" centred on 120.
+    assertBounds(Bounds(97.5f, 73f, 102.5f, 80f), bounds(s[2].commands), 1e-4f)
+    assertBounds(Bounds(115f, 73f, 125f, 80f), bounds(s[3].commands), 1e-4f)
+    // Preserved spaces count towards the end anchor: " a " is 15 wide.
+    assertBounds(Bounds(180f, 13f, 185f, 20f), bounds(s[4].commands), 1e-4f)
+  }
+
+  @Test
+  fun textFontPropertiesAndBaseline() = withBoxShaper {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><g style="font: italic bold 10px 'My Font', sans-serif">
+          <text y="20" dominant-baseline="central" letter-spacing="2">ab</text>
+          <text y="40" font-size="200%" dominant-baseline="hanging"><tspan font-size=".5em" dx="3 4">ab</tspan></text></g></svg>"""
+    )
+    val s = d.shapes
+    assertEquals(3, s.size)
+    // central: baseline 3 lower (0.8 - 0.2) / 2 em; letter spacing 2 after each.
+    assertBounds(Bounds(0f, 16f, 12f, 23f), bounds(s[0].commands), 1e-4f)
+    // tspan at 10px inside a 20px text; hanging moves the baseline 0.8 x 0.8em down; each dx
+    // starts its own run.
+    assertBounds(Bounds(3f, 39.4f, 8f, 46.4f), bounds(s[1].commands), 1e-4f)
+    assertBounds(Bounds(12f, 39.4f, 17f, 46.4f), bounds(s[2].commands), 1e-4f)
+  }
+
+  @Test
+  fun textFontParsing() {
+    assertEquals(listOf("Open Sans", "Helvetica Neue", "serif"), parseSvgFontFamilies(" 'Open Sans', \"Helvetica Neue\" ,serif"))
+    assertEquals(15f, parseSvgFontSize("150%", 10f))
+    assertEquals(20f, parseSvgFontSize("2em", 10f))
+    assertEquals(18f, parseSvgFontSize("large", 10f))
+    assertNull(parseSvgFontSize("-1px", 10f))
+    assertEquals(700, parseSvgFontWeight("bold", 400))
+    assertEquals(900, parseSvgFontWeight("bolder", 700))
+    assertEquals(100, parseSvgFontWeight("lighter", 400))
+    assertNull(parseSvgFontWeight("heavy", 400))
+    assertEquals(180f, parseSvgAngle("0.5turn"))
+  }
+
+  @Test
+  fun textAsClipPath() = withBoxShaper {
+    val d = doc(
+      """<svg viewBox="0 0 100 100"><clipPath id="c"><text x="10" y="50" font-size="20">AB</text></clipPath>
+          <rect width="100" height="100" clip-path="url(#c)"/></svg>"""
+    )
+    val clip = (d.ops.first() as SvgOp.BeginClip).clip
+    assertEquals(1, clip.paths.size)
+    assertBounds(Bounds(10f, 36f, 30f, 50f), bounds(clip.paths[0].commands), 1e-4f)
   }
 }

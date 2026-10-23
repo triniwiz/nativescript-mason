@@ -44,7 +44,7 @@ export class Img extends ImageBase {
     const nativeView = this._view as org.nativescript.mason.masonkit.Img;
     if (nativeView) {
       if (typeof value === 'string' && value.startsWith('~/')) {
-        nativeView.setSrc(value.replace('~/', knownFolders.currentApp().path));
+        nativeView.setSrc(knownFolders.currentApp().path + '/' + value.slice(2));
       } else {
         nativeView.setSrc(value);
       }

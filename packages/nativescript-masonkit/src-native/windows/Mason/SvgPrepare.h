@@ -1,6 +1,7 @@
 #pragma once
 // Direct2D's SVG renderer ignores <style>, class and <symbol> and only follows xlink:href, so those
-// are rewritten into style="", groups and xlink:href first, as SvgParser.kt/.swift read them.
+// are rewritten into style="", groups and xlink:href first, as SvgParser.kt/.swift read them. Text,
+// markers, patterns and masks follow (SvgRewrite.h).
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -10,6 +11,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include <winrt/Windows.Data.Xml.Dom.h>
 
@@ -437,6 +439,12 @@ namespace mason_svg
         }
     }
 
+}
+
+#include "SvgRewrite.h"
+
+namespace mason_svg
+{
     inline bool HasBareHref(std::string_view svg)
     {
         for (size_t i = svg.find("href"); i != std::string_view::npos; i = svg.find("href", i + 4))
@@ -449,7 +457,57 @@ namespace mason_svg
     inline bool Needs(std::string_view svg)
     {
         return svg.find("<style") != std::string_view::npos || svg.find("<symbol") != std::string_view::npos || svg.find(":style") != std::string_view::npos
-            || svg.find(":symbol") != std::string_view::npos || HasBareHref(svg);
+            || svg.find(":symbol") != std::string_view::npos || HasBareHref(svg) || NeedsRewrite(svg);
+    }
+
+    // Parses SVG text, past a BOM and XML declaration; throws on malformed XML.
+    inline dom::XmlDocument LoadSvgXml(std::string_view text)
+    {
+        if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
+        const size_t lead = text.find_first_not_of(" \t\r\n");
+        if (lead != std::string_view::npos && text.substr(lead).starts_with("<?xml"))
+        {
+            const size_t end = text.find("?>", lead);
+            if (end != std::string_view::npos) text.remove_prefix(end + 2);
+        }
+        dom::XmlDocument doc;
+        dom::XmlLoadSettings settings;
+        settings.ProhibitDtd(false);
+        settings.ResolveExternals(false);
+        settings.ValidateOnParse(false);
+        settings.ElementContentWhiteSpace(true);
+        doc.LoadXml(winrt::to_hstring(text), settings);
+        return doc;
+    }
+
+    // An SVG's own size in CSS px: width/height, the other side from the viewBox's ratio, else the
+    // viewBox's size. 0 x 0 when it has none or doesn't parse.
+    inline std::pair<float, float> IntrinsicSize(std::string const& svg)
+    {
+        try
+        {
+            auto root = LoadSvgXml(svg).DocumentElement();
+            if (!root) return { 0.0f, 0.0f };
+            auto dimension = [&](wchar_t const* name)
+            {
+                const std::wstring v = Trim(std::wstring{ root.GetAttribute(name) });
+                float out = 0.0f;
+                return !v.empty() && v.back() != L'%' && Length(v, 0.0f, out) && out > 0.0f ? out : 0.0f;
+            };
+            float w = dimension(L"width"), h = dimension(L"height");
+            const auto vb = Numbers(std::wstring{ root.GetAttribute(L"viewBox") });
+            if (vb.size() == 4 && vb[2] > 0.0f && vb[3] > 0.0f)
+            {
+                if (w <= 0.0f && h <= 0.0f) return { vb[2], vb[3] };
+                if (w <= 0.0f) w = h * vb[2] / vb[3];
+                if (h <= 0.0f) h = w * vb[3] / vb[2];
+            }
+            return { w, h };
+        }
+        catch (...)
+        {
+            return { 0.0f, 0.0f };
+        }
     }
 
     inline std::string Resolve(std::string svg)
@@ -457,22 +515,8 @@ namespace mason_svg
         if (!Needs(svg)) return svg;
         try
         {
-            std::string_view text = svg;
-            if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
-            const size_t lead = text.find_first_not_of(" \t\r\n");
-            if (lead != std::string_view::npos && text.substr(lead).starts_with("<?xml"))
-            {
-                const size_t end = text.find("?>", lead);
-                if (end != std::string_view::npos) text.remove_prefix(end + 2);
-            }
             Context c;
-            c.doc = dom::XmlDocument();
-            dom::XmlLoadSettings settings;
-            settings.ProhibitDtd(false);
-            settings.ResolveExternals(false);
-            settings.ValidateOnParse(false);
-            settings.ElementContentWhiteSpace(true);
-            c.doc.LoadXml(winrt::to_hstring(text), settings);
+            c.doc = LoadSvgXml(svg);
             auto root = c.doc.DocumentElement();
             if (!root || LocalName(root) != L"svg") return svg;
             c.ns = root.NamespaceUri();
@@ -516,6 +560,7 @@ namespace mason_svg
             }
             std::vector<std::wstring> stack;
             ExpandUses(c, root, stack);
+            Rewrite(c, root);
 
             std::vector<dom::XmlElement> symbols, linked;
             ForEachElement(root, [&](dom::XmlElement const& el)

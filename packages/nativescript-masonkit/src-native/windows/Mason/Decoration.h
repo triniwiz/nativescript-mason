@@ -81,6 +81,9 @@ namespace mason_deco
         return root;
     }
 
+    // A layer drawing the element's content (its text, or an image's SVG) rather than its box.
+    inline bool IsContentLayer(winrt::hstring const& tag) { return tag == L"mason-text" || tag == L"mason-img"; }
+
     // Replace (or, when layer == nullptr, remove) the tagged layer inside the decoration root.
     inline void SetLayer(mux::UIElement const& element, winrt::hstring const& tag, mucomp::Visual const& layer)
     {
@@ -108,15 +111,15 @@ namespace mason_deco
         {
             layer.Comment(tag);
             // Content paints over the box's decorations.
-            mucomp::Visual text{ nullptr };
-            if (tag != L"mason-text")
+            mucomp::Visual content{ nullptr };
+            if (!IsContentLayer(tag))
             {
                 for (auto&& child : kids)
                 {
-                    if (child.Comment() == L"mason-text") text = child;
+                    if (IsContentLayer(child.Comment())) content = child;
                 }
             }
-            if (text) kids.InsertBelow(layer, text);
+            if (content) kids.InsertBelow(layer, content);
             else kids.InsertAtTop(layer);
         }
     }

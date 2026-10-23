@@ -12,8 +12,8 @@ import kotlin.math.sqrt
 import kotlin.math.tan
 
 /*
- * Static SVG reader for `data:image/svg+xml` (pure Kotlin for JVM tests; Background.kt draws). No <text>, patterns,
- * masks, filters, markers, nested <svg> or remote references. Keep in step with SvgParser.swift.
+ * Static SVG reader for `data:image/svg+xml` (pure Kotlin for JVM tests; Background.kt draws). No filters,
+ * <textPath>, nested <svg> or remote references. Keep in step with SvgParser.swift.
  */
 
 /** One absolute path segment. Arcs, H/V, S and T are already normalised away. */
@@ -45,6 +45,9 @@ sealed class SvgPaint {
   /** A gradient in the shape's own user space. */
   data class Gradient(val gradient: SvgGradient) : SvgPaint()
 
+  /** A `<pattern>` tile in the shape's own user space. */
+  data class Pattern(val pattern: SvgPattern) : SvgPaint()
+
   /** `url(#id)` while parsing, resolved per shape; never reaches a shape. */
   internal data class Ref(val id: String, val fallback: SvgPaint?) : SvgPaint()
 }
@@ -65,6 +68,15 @@ class SvgGradient(
   /** Gradient space to the shape's user space (bounding-box units and gradientTransform). */
   val transform: FloatArray,
 )
+
+/**
+ * A `<pattern>` resolved for one shape: [ops] draw one [width] x [height] tile, and [transform] maps
+ * tile space (origin at a tile corner) to the shape's user space.
+ */
+class SvgPattern(val width: Float, val height: Float, val transform: FloatArray, val ops: List<SvgOp>)
+
+/** A `<mask>` resolved for one element: [ops] (root user space) inside [region], read as luminance or alpha. */
+class SvgMask(val ops: List<SvgOp>, val region: SvgClip, val luminance: Boolean)
 
 /** One clip shape, with the transform to root user space. */
 class SvgClipPath(val commands: List<SvgPathCommand>, val transform: FloatArray, val evenOdd: Boolean)
@@ -124,6 +136,9 @@ sealed class SvgOp {
   }
 
   data class Image(val image: SvgImage) : SvgOp()
+
+  /** [content] drawn through [mask]. */
+  data class Masked(val mask: SvgMask, val content: List<SvgOp>) : SvgOp()
 }
 
 class SvgDocument(
@@ -240,8 +255,15 @@ private fun isPathCommand(c: Char) = "MmLlHhVvCcSsQqTtAaZz".indexOf(c) >= 0
  * Parse SVG path data into absolute commands. On an error the path is kept up to the last
  * complete segment, as SVG requires.
  */
-fun parseSvgPathData(d: String): List<SvgPathCommand> {
+fun parseSvgPathData(d: String): List<SvgPathCommand> = parseSvgPathData(d, null)
+
+/**
+ * As [parseSvgPathData]; fills [vertexEnds] with false where a command ends inside an arc, which is
+ * not a path vertex (markers skip it).
+ */
+fun parseSvgPathData(d: String, vertexEnds: MutableList<Boolean>?): List<SvgPathCommand> {
   val out = ArrayList<SvgPathCommand>()
+  val arcInner = ArrayList<Int>()
   val sc = SvgScanner(d)
   var cmd = ' '
   var cx = 0.0
@@ -370,7 +392,9 @@ fun parseSvgPathData(d: String): List<SvgPathCommand> {
         val x = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
         val y = oy + (sc.number() ?: break@loop)
         ensureMove()
+        val before = out.size
         appendSvgArc(out, cx, cy, rx, ry, rot, large, sweep, x, y)
+        if (out.size - before > 1) for (k in before until out.size - 1) arcInner.add(k)
         cx = x; cy = y
         lastCubic = false; lastQuad = false
       }
@@ -385,6 +409,11 @@ fun parseSvgPathData(d: String): List<SvgPathCommand> {
       else -> break@loop
     }
     sc.skipCommaWsp()
+  }
+  if (vertexEnds != null) {
+    vertexEnds.clear()
+    repeat(out.size) { vertexEnds.add(true) }
+    for (k in arcInner) vertexEnds[k] = false
   }
   return out
 }
@@ -767,6 +796,89 @@ private fun unionBounds(a: FloatArray?, b: FloatArray?): FloatArray? {
   return floatArrayOf(min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 }
 
+// MARK: - Marker vertices
+
+/**
+ * A vertex markers sit on, with the directions (degrees) of the segments into and out of it; null
+ * where there is none or it has no length.
+ */
+data class SvgMarkerVertex(val x: Float, val y: Float, var inAngle: Float? = null, var outAngle: Float? = null) {
+  /** The `orient="auto"` angle: the bisector where the path turns. */
+  val autoAngle: Float
+    get() {
+      var i = inAngle ?: return outAngle ?: 0f
+      val o = outAngle ?: return i
+      if (abs(i - o) > 180f) i += 360f
+      return (i + o) / 2f
+    }
+}
+
+private fun svgDirection(x0: Float, y0: Float, x1: Float, y1: Float): Float? {
+  if (x0 == x1 && y0 == y1) return null
+  return Math.toDegrees(atan2((y1 - y0).toDouble(), (x1 - x0).toDouble())).toFloat()
+}
+
+/**
+ * The vertices of a path in order. [vertexEnds] (from [parseSvgPathData]) marks commands that end
+ * inside an arc. A closed subpath ends at its start, and both its ends take the turn there.
+ */
+fun svgMarkerVertices(commands: List<SvgPathCommand>, vertexEnds: List<Boolean>? = null): List<SvgMarkerVertex> {
+  val out = ArrayList<SvgMarkerVertex>()
+  var cx = 0f
+  var cy = 0f
+  var sx = 0f
+  var sy = 0f
+  var start = -1
+  for ((i, c) in commands.withIndex()) {
+    val d0: Float?
+    val d1: Float?
+    val ex: Float
+    val ey: Float
+    when (c) {
+      is SvgPathCommand.MoveTo -> {
+        out.add(SvgMarkerVertex(c.x, c.y))
+        start = out.size - 1
+        cx = c.x; cy = c.y; sx = c.x; sy = c.y
+        continue
+      }
+
+      SvgPathCommand.Close -> {
+        if (start < 0) continue
+        val d = svgDirection(cx, cy, sx, sy)
+        val last = out.size - 1
+        if (d != null && out[last].outAngle == null) out[last].outAngle = d
+        val inAngle = d ?: out[last].inAngle
+        out[start].inAngle = inAngle
+        out.add(SvgMarkerVertex(sx, sy, inAngle, out[start].outAngle))
+        cx = sx; cy = sy
+        continue
+      }
+
+      is SvgPathCommand.LineTo -> {
+        d0 = svgDirection(cx, cy, c.x, c.y); d1 = d0; ex = c.x; ey = c.y
+      }
+
+      is SvgPathCommand.QuadTo -> {
+        d0 = svgDirection(cx, cy, c.x1, c.y1) ?: svgDirection(cx, cy, c.x, c.y)
+        d1 = svgDirection(c.x1, c.y1, c.x, c.y) ?: svgDirection(cx, cy, c.x, c.y)
+        ex = c.x; ey = c.y
+      }
+
+      is SvgPathCommand.CubicTo -> {
+        d0 = svgDirection(cx, cy, c.x1, c.y1) ?: svgDirection(cx, cy, c.x2, c.y2) ?: svgDirection(cx, cy, c.x, c.y)
+        d1 = svgDirection(c.x2, c.y2, c.x, c.y) ?: svgDirection(c.x1, c.y1, c.x, c.y) ?: svgDirection(cx, cy, c.x, c.y)
+        ex = c.x; ey = c.y
+      }
+    }
+    if (start < 0) continue
+    val last = out.size - 1
+    if (out[last].outAngle == null) out[last].outAngle = d0
+    if (vertexEnds?.getOrNull(i) != false) out.add(SvgMarkerVertex(ex, ey, d1))
+    cx = ex; cy = ey
+  }
+  return out
+}
+
 // MARK: - Style sheets
 
 internal class SvgCssDeclaration(val name: String, val value: String, val important: Boolean)
@@ -896,11 +1008,156 @@ private data class SvgStyleState(
   var color: Int? = null,
   var visible: Boolean = true,
   var clipEvenOdd: Boolean = false,
-)
+  var fontFamilies: List<String> = DEFAULT_FONT_FAMILIES,
+  var fontSize: Float = 16f,
+  var fontWeight: Int = 400,
+  var italic: Boolean = false,
+  var textAnchor: SvgTextAnchor = SvgTextAnchor.START,
+  var baseline: SvgBaseline = SvgBaseline.ALPHABETIC,
+  var letterSpacing: Float = 0f,
+  var wordSpacing: Float = 0f,
+  /** `xml:space="preserve"` / `white-space: pre`: keep every space. */
+  var preserveSpace: Boolean = false,
+  /** Marker ids, null for none. */
+  var markerStart: String? = null,
+  var markerMid: String? = null,
+  var markerEnd: String? = null,
+) {
+  val font: SvgFont get() = SvgFont(fontFamilies, fontSize, fontWeight, italic)
+  val hasMarkers: Boolean get() = markerStart != null || markerMid != null || markerEnd != null
+}
 
+enum class SvgTextAnchor { START, MIDDLE, END }
+
+/** The `dominant-baseline` a text's y positions refer to. */
+enum class SvgBaseline { ALPHABETIC, MIDDLE, CENTRAL, HANGING, TEXT_TOP, TEXT_BOTTOM, MATHEMATICAL }
+
+private val DEFAULT_FONT_FAMILIES = listOf("serif")
 private val CONTAINER_TAGS = setOf("svg", "g", "a", "switch")
 private val SHAPE_TAGS = setOf("path", "rect", "circle", "ellipse", "line", "polyline", "polygon")
 private val GRADIENT_TAGS = setOf("linearGradient", "radialGradient")
+/** Elements whose character data is text content. */
+private val TEXT_CONTENT_TAGS = setOf("text", "tspan", "a")
+/** Shapes that take markers. */
+private val MARKER_TAGS = setOf("path", "line", "polyline", "polygon")
+private const val TEXT_NODE_NAME = "#text"
+private val FONT_SIZE_KEYWORDS = mapOf(
+  "xx-small" to 9f, "x-small" to 10f, "small" to 13f, "medium" to 16f, "large" to 18f, "x-large" to 24f,
+  "xx-large" to 32f, "xxx-large" to 48f,
+)
+private val FONT_STRETCH_KEYWORDS = setOf(
+  "normal", "small-caps", "ultra-condensed", "extra-condensed", "condensed", "semi-condensed",
+  "semi-expanded", "expanded", "extra-expanded", "ultra-expanded",
+)
+/** Shorthands applySvgStyle reads before their longhands. */
+private val SVG_SHORTHANDS = mapOf(
+  "font" to listOf("font-family", "font-size", "font-weight", "font-style", "font-variant", "font-stretch", "line-height"),
+  "marker" to listOf("marker-start", "marker-mid", "marker-end"),
+)
+
+/** The families of a `font-family` list, unquoted. */
+fun parseSvgFontFamilies(raw: String): List<String> {
+  val out = ArrayList<String>()
+  val current = StringBuilder()
+  var quote = 0.toChar()
+  for (c in raw) {
+    if (quote != 0.toChar()) {
+      if (c == quote) quote = 0.toChar() else current.append(c)
+    } else if (c == '"' || c == '\'') {
+      quote = c
+    } else if (c == ',') {
+      current.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+      current.setLength(0)
+    } else {
+      current.append(c)
+    }
+  }
+  current.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+  return out
+}
+
+/** A length where `em` is [fontSize] and `%` is a fraction of [percentBasis]. */
+private fun parseSvgFontRelativeLength(raw: String, fontSize: Float, percentBasis: Float): Float? {
+  val v = raw.trim().lowercase()
+  val sc = SvgScanner(v)
+  val n = sc.number() ?: return null
+  return when (v.substring(sc.i).trim()) {
+    "em" -> n.toFloat() * fontSize
+    "ex" -> n.toFloat() * fontSize / 2f
+    "rem" -> n.toFloat() * 16f
+    else -> parseSvgLength(v, percentBasis)
+  }
+}
+
+/** A `font-size`; `em` and `%` are relative to the parent's size. */
+fun parseSvgFontSize(raw: String, parent: Float): Float? {
+  val v = raw.trim().lowercase()
+  FONT_SIZE_KEYWORDS[v]?.let { return it }
+  if (v == "larger") return parent * 1.2f
+  if (v == "smaller") return parent / 1.2f
+  return parseSvgFontRelativeLength(v, parent, parent)?.takeIf { it >= 0f }
+}
+
+/** A `font-weight` as a number; `bolder`/`lighter` step from the parent's. */
+fun parseSvgFontWeight(raw: String, parent: Int): Int? = when (val v = raw.trim().lowercase()) {
+  "normal" -> 400
+  "bold" -> 700
+  "bolder" -> if (parent < 350) 400 else if (parent < 550) 700 else 900
+  "lighter" -> if (parent < 550) 100 else if (parent < 750) 400 else 700
+  else -> v.toDoubleOrNull()?.takeIf { it >= 1.0 && it <= 1000.0 }?.toInt()
+}
+
+/** An angle in degrees: plain, or with `deg`, `rad`, `grad` or `turn`. */
+fun parseSvgAngle(raw: String): Float? {
+  val v = raw.trim()
+  val sc = SvgScanner(v)
+  val n = sc.number() ?: return null
+  return when (v.substring(sc.i).trim().lowercase()) {
+    "", "deg" -> n.toFloat()
+    "rad" -> Math.toDegrees(n).toFloat()
+    "grad" -> (n * 0.9).toFloat()
+    "turn" -> (n * 360).toFloat()
+    else -> null
+  }
+}
+
+/** The `font` shorthand: [style || weight || variant || stretch] size[/line-height] family. */
+private fun applySvgFontShorthand(raw: String, s: SvgStyleState, parentSize: Float, parentWeight: Int) {
+  var rest = raw.trim()
+  var italic = false
+  var weight = 400
+  while (rest.isNotEmpty()) {
+    val end = rest.indexOfFirst { it.isWhitespace() }.let { if (it < 0) rest.length else it }
+    val token = rest.substring(0, end)
+    val lower = token.lowercase()
+    val after = rest.substring(end).trimStart()
+    val w = parseSvgFontWeight(lower, parentWeight)
+    if (lower == "italic" || lower == "oblique") {
+      italic = true
+    } else if (lower in FONT_STRETCH_KEYWORDS) {
+      // nothing to apply
+    } else if (w != null) {
+      weight = w
+    } else {
+      val size = parseSvgFontSize(lower.substringBefore('/'), parentSize) ?: return
+      val families = parseSvgFontFamilies(after)
+      if (families.isEmpty()) return
+      s.italic = italic
+      s.fontWeight = weight
+      s.fontSize = size
+      s.fontFamilies = families
+      return
+    }
+    rest = after
+  }
+}
+
+/** A marker property as a one-element array: the id, or null for none. null when invalid. */
+private fun parseSvgMarkerRef(raw: String): Array<String?>? {
+  val v = raw.trim()
+  if (v == "none") return arrayOf(null)
+  return svgUrlFragment(v)?.let { arrayOf(it) }
+}
 
 /** Parse attributes of one start tag; returns null on a malformed tag. */
 internal fun parseSvgAttributes(tag: String): Map<String, String> {
@@ -1020,6 +1277,47 @@ private fun applySvgStyle(parent: SvgStyleState, props: Map<String, String>): Sv
   }
   prop("stroke-dashoffset")?.let { v -> parseSvgLength(v, 16f)?.let { s.dashOffset = it } }
   prop("visibility")?.let { v -> s.visible = v == "visible" }
+
+  prop("font")?.let { applySvgFontShorthand(it, s, parent.fontSize, parent.fontWeight) }
+  prop("font-family")?.let { v -> parseSvgFontFamilies(v).takeIf { it.isNotEmpty() }?.let { s.fontFamilies = it } }
+  prop("font-size")?.let { v -> parseSvgFontSize(v, parent.fontSize)?.let { s.fontSize = it } }
+  prop("font-weight")?.let { v -> parseSvgFontWeight(v, parent.fontWeight)?.let { s.fontWeight = it } }
+  when (prop("font-style")) {
+    "italic", "oblique" -> s.italic = true
+    "normal" -> s.italic = false
+  }
+  when (prop("text-anchor")) {
+    "start" -> s.textAnchor = SvgTextAnchor.START
+    "middle" -> s.textAnchor = SvgTextAnchor.MIDDLE
+    "end" -> s.textAnchor = SvgTextAnchor.END
+  }
+  when (prop("dominant-baseline")) {
+    "auto", "alphabetic", "use-script", "no-change", "reset-size" -> s.baseline = SvgBaseline.ALPHABETIC
+    "middle" -> s.baseline = SvgBaseline.MIDDLE
+    "central" -> s.baseline = SvgBaseline.CENTRAL
+    "hanging" -> s.baseline = SvgBaseline.HANGING
+    "text-top", "text-before-edge" -> s.baseline = SvgBaseline.TEXT_TOP
+    "text-bottom", "text-after-edge", "ideographic" -> s.baseline = SvgBaseline.TEXT_BOTTOM
+    "mathematical" -> s.baseline = SvgBaseline.MATHEMATICAL
+  }
+  prop("letter-spacing")?.let { v ->
+    if (v == "normal") s.letterSpacing = 0f else parseSvgFontRelativeLength(v, s.fontSize, s.fontSize)?.let { s.letterSpacing = it }
+  }
+  prop("word-spacing")?.let { v ->
+    if (v == "normal") s.wordSpacing = 0f else parseSvgFontRelativeLength(v, s.fontSize, s.fontSize)?.let { s.wordSpacing = it }
+  }
+  when (prop("xml:space")) {
+    "preserve" -> s.preserveSpace = true
+    "default" -> s.preserveSpace = false
+  }
+  when (prop("white-space")) {
+    "pre", "pre-wrap", "break-spaces" -> s.preserveSpace = true
+    "normal", "nowrap", "pre-line" -> s.preserveSpace = false
+  }
+  prop("marker")?.let { v -> parseSvgMarkerRef(v)?.let { s.markerStart = it[0]; s.markerMid = it[0]; s.markerEnd = it[0] } }
+  prop("marker-start")?.let { v -> parseSvgMarkerRef(v)?.let { s.markerStart = it[0] } }
+  prop("marker-mid")?.let { v -> parseSvgMarkerRef(v)?.let { s.markerMid = it[0] } }
+  prop("marker-end")?.let { v -> parseSvgMarkerRef(v)?.let { s.markerEnd = it[0] } }
   return s
 }
 
@@ -1029,6 +1327,8 @@ private class SvgNode(val name: String, val attrs: Map<String, String>, val pare
     attrs["class"]?.split(Regex("\\s+"))?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
   }
   var props: Map<String, String>? = null
+  /** Character data, for a `#text` node. */
+  var text: String = ""
 
   val href: String? get() = (attrs["href"] ?: attrs["xlink:href"])?.trim()
 }
@@ -1042,11 +1342,24 @@ private fun buildSvgTree(svg: String): SvgTree? {
   val stack = ArrayList<SvgNode?>()
   val ids = HashMap<String, SvgNode>()
   val css = StringBuilder()
+  // Character data inside text content, merged into one `#text` node per run.
+  fun appendText(text: String) {
+    val p = stack.lastOrNull() ?: return
+    if (p.name !in TEXT_CONTENT_TAGS || text.isEmpty()) return
+    val last = p.children.lastOrNull()
+    if (last != null && last.name == TEXT_NODE_NAME) {
+      last.text += text
+    } else {
+      p.children.add(SvgNode(TEXT_NODE_NAME, emptyMap(), p).also { it.text = text })
+    }
+  }
+
   var i = 0
   val n = svg.length
   while (i < n) {
     val lt = svg.indexOf('<', i)
     if (lt < 0) break
+    if (lt > i) appendText(decodeXmlEntities(svg.substring(i, lt)))
     if (svg.startsWith("<!--", lt)) {
       val end = svg.indexOf("-->", lt + 4)
       i = if (end < 0) n else end + 3
@@ -1054,6 +1367,7 @@ private fun buildSvgTree(svg: String): SvgTree? {
     }
     if (svg.startsWith("<![CDATA[", lt)) {
       val end = svg.indexOf("]]>", lt + 9)
+      appendText(svg.substring(lt + 9, if (end < 0) n else end))
       i = if (end < 0) n else end + 3
       continue
     }
@@ -1116,14 +1430,75 @@ private const val MAX_SVG_DEPTH = 128
 private const val MAX_SVG_VISITS = 100_000
 private const val MAX_SVG_OPS = 50_000
 
+private fun boxTransform(b: FloatArray) = floatArrayOf(b[2] - b[0], 0f, 0f, b[3] - b[1], b[0], b[1])
+
+private fun translation(x: Float, y: Float) = floatArrayOf(1f, 0f, 0f, 1f, x, y)
+
+/** One shaped run of a `<text>`: glyph outlines in the text's user space, with the style of the element they came from. */
+private class SvgTextPiece(var commands: List<SvgPathCommand>, val style: SvgStyleState)
+
+private class SvgTextChar(
+  var codePoint: Int,
+  /** The innermost text content element holding the character. */
+  val owner: SvgNode,
+  val style: SvgStyleState,
+) {
+  var x: Float? = null
+  var y: Float? = null
+  var dx = 0f
+  var dy = 0f
+}
+
+private class SvgTextChunk(val first: Int, val startX: Float, var endX: Float, val anchor: SvgTextAnchor)
+
+private class SvgTextRange(val node: SvgNode, val start: Int, var end: Int)
+
+/** Lengths in a list attribute such as a text's `x` or `dx`. */
+private fun parseSvgLengthList(raw: String?, percentBasis: Float): List<Float> {
+  if (raw == null) return emptyList()
+  val out = ArrayList<Float>()
+  for (token in raw.split(',', ' ', '\t', '\n', '\r')) {
+    if (token.isEmpty()) continue
+    out.add(parseSvgLength(token, percentBasis) ?: break)
+  }
+  return out
+}
+
+internal fun svgTranslated(commands: List<SvgPathCommand>, dx: Float, dy: Float): List<SvgPathCommand> {
+  if (dx == 0f && dy == 0f) return commands
+  return commands.map {
+    when (it) {
+      is SvgPathCommand.MoveTo -> SvgPathCommand.MoveTo(it.x + dx, it.y + dy)
+      is SvgPathCommand.LineTo -> SvgPathCommand.LineTo(it.x + dx, it.y + dy)
+      is SvgPathCommand.CubicTo -> SvgPathCommand.CubicTo(it.x1 + dx, it.y1 + dy, it.x2 + dx, it.y2 + dy, it.x + dx, it.y + dy)
+      is SvgPathCommand.QuadTo -> SvgPathCommand.QuadTo(it.x1 + dx, it.y1 + dy, it.x + dx, it.y + dy)
+      SvgPathCommand.Close -> SvgPathCommand.Close
+    }
+  }
+}
+
+/** How far below `y` the alphabetic baseline sits for [baseline]. */
+private fun svgBaselineShift(baseline: SvgBaseline, run: SvgTextRun): Float = when (baseline) {
+  SvgBaseline.ALPHABETIC -> 0f
+  SvgBaseline.MIDDLE -> run.xHeight / 2f
+  SvgBaseline.CENTRAL -> (run.ascent - run.descent) / 2f
+  SvgBaseline.HANGING -> run.ascent * 0.8f
+  SvgBaseline.TEXT_TOP -> run.ascent
+  SvgBaseline.TEXT_BOTTOM -> -run.descent
+  SvgBaseline.MATHEMATICAL -> run.ascent / 2f
+}
+
 private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
-  val ops = ArrayList<SvgOp>()
+  var ops = ArrayList<SvgOp>()
   var usesCurrentColor = false
   private val rules = if (tree.css.isBlank()) emptyList() else parseSvgStyleSheet(tree.css)
   private val onStack = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<SvgNode, Boolean>())
   private var visits = 0
+  /** Ops already moved into nested lists (pattern tiles, masks), counted against the budget. */
+  private var nestedOps = 0
   private val diag = sqrt((vbW * vbW + vbH * vbH) / 2f)
   private val emptyClip = SvgClip(emptyList())
+  private val emptyMask = SvgMask(emptyList(), emptyClip, true)
 
   /** Presentation attributes < style sheet < `style` attribute, with !important on top. */
   fun cascade(node: SvgNode): Map<String, String> {
@@ -1133,15 +1508,20 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     val matched = if (rules.isEmpty()) emptyList() else rules.filter { it.selector.matches(node.name, id, node.classes) }
       .sortedWith(compareBy({ it.selector.specificity }, { it.order }))
     val inline = node.attrs["style"]?.let { parseSvgCssDeclarations(it) } ?: emptyList()
-    for (r in matched) for (d in r.declarations) if (!d.important) out[d.name] = d.value
-    for (d in inline) if (!d.important) out[d.name] = d.value
-    for (r in matched) for (d in r.declarations) if (d.important) out[d.name] = d.value
-    for (d in inline) if (d.important) out[d.name] = d.value
+    fun put(d: SvgCssDeclaration) {
+      // A shorthand resets the longhands set before it.
+      SVG_SHORTHANDS[d.name]?.let { for (k in it) out.remove(k) }
+      out[d.name] = d.value
+    }
+    for (r in matched) for (d in r.declarations) if (!d.important) put(d)
+    for (d in inline) if (!d.important) put(d)
+    for (r in matched) for (d in r.declarations) if (d.important) put(d)
+    for (d in inline) if (d.important) put(d)
     node.props = out
     return out
   }
 
-  /** The inherited style at [node] in document order (for stops and clip paths). */
+  /** The inherited style at [node] in document order (for stops, clip paths, patterns, masks and markers). */
   private fun documentStyle(node: SvgNode): SvgStyleState {
     val chain = generateSequence(node) { it.parent }.toList().asReversed()
     var s = SvgStyleState()
@@ -1158,6 +1538,17 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
 
   private fun lx(node: SvgNode, k: String) = parseSvgLength(node.attrs[k], vbW)
   private fun ly(node: SvgNode, k: String) = parseSvgLength(node.attrs[k], vbH)
+
+  /** The ops [body] appends, as their own list. */
+  private inline fun capture(body: () -> Unit): List<SvgOp> {
+    val saved = ops
+    ops = ArrayList()
+    body()
+    val out = ops
+    ops = saved
+    nestedOps += out.size
+    return out
+  }
 
   fun shapeCommands(node: SvgNode): List<SvgPathCommand> = when (node.name) {
     "path" -> parseSvgPathData(node.attrs["d"] ?: "")
@@ -1208,6 +1599,8 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
           floatArrayOf(x, y, x + w, y + h)
         }
 
+        "text" -> textBounds(layoutText(node, documentStyle(node)))
+
         in CONTAINER_TAGS -> {
           var b: FloatArray? = null
           for (c in node.children) b = unionBounds(b, childBounds(c, depth + 1, seen))
@@ -1216,7 +1609,7 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
 
         "use" -> {
           val target = useTarget(node) ?: return null
-          val t = floatArrayOf(1f, 0f, 0f, 1f, lx(node, "x") ?: 0f, ly(node, "y") ?: 0f)
+          val t = translation(lx(node, "x") ?: 0f, ly(node, "y") ?: 0f)
           if (target.name == "symbol") {
             val w = lx(node, "width") ?: vbW
             val h = ly(node, "height") ?: vbH
@@ -1256,8 +1649,11 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
 
     is SvgPaint.Ref -> {
       val node = tree.ids[p.id]
-      if (node != null && node.name in GRADIENT_TAGS) gradientPaint(node, bounds)
-      else p.fallback?.let { resolvePaint(it, style, bounds) } ?: SvgPaint.None
+      when {
+        node != null && node.name in GRADIENT_TAGS -> gradientPaint(node, bounds)
+        else -> (if (node != null && node.name == "pattern") patternPaint(node, bounds) else null)
+          ?: p.fallback?.let { resolvePaint(it, style, bounds) } ?: SvgPaint.None
+      }
     }
 
     else -> p
@@ -1354,6 +1750,72 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     return SvgPaint.Gradient(SvgGradient(true, 0f, 0f, 0f, 0f, cx, cy, r, fx, fy, stops, spread, transform))
   }
 
+  /**
+   * `<pattern>` with its `href` chain: attributes from the first pattern that sets them, children from the
+   * first that has any. null when it can't paint (no size or content, a cycle), which takes the paint's
+   * fallback as in browsers.
+   */
+  private fun patternPaint(node: SvgNode, bounds: () -> FloatArray?): SvgPaint? {
+    val chain = ArrayList<SvgNode>()
+    val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<SvgNode, Boolean>())
+    var p: SvgNode? = node
+    while (p != null && p.name == "pattern" && chain.size < 16 && seen.add(p)) {
+      chain.add(p)
+      p = p.href?.takeIf { it.startsWith("#") }?.let { tree.ids[it.substring(1)] }
+    }
+    fun attr(k: String): String? = chain.firstNotNullOfOrNull { it.attrs[k]?.trim()?.takeIf { v -> v.isNotEmpty() } }
+    val content = chain.firstOrNull { c -> c.children.any { it.name != TEXT_NODE_NAME } } ?: return null
+    if (content in onStack) return null
+
+    var viewBox: FloatArray? = null
+    attr("viewBox")?.let { v ->
+      val nums = parseSvgNumberList(v)
+      if (nums.size == 4) {
+        // A zero-sized viewBox disables the pattern.
+        if (nums[2] <= 0.0 || nums[3] <= 0.0) return null
+        viewBox = floatArrayOf(nums[0].toFloat(), nums[1].toFloat(), nums[2].toFloat(), nums[3].toFloat())
+      }
+    }
+    val obbUnits = attr("patternUnits") != "userSpaceOnUse"
+    // A viewBox overrides patternContentUnits.
+    val obbContent = viewBox == null && attr("patternContentUnits") == "objectBoundingBox"
+    var box = floatArrayOf(0f, 0f, 0f, 0f)
+    if (obbUnits || obbContent) {
+      val b = bounds() ?: return null
+      if (b[2] - b[0] <= 0f || b[3] - b[1] <= 0f) return null
+      box = b
+    }
+    fun len(k: String, basis: Float) = parseSvgLength(attr(k), if (obbUnits) 1f else basis) ?: 0f
+    var x = len("x", vbW)
+    var y = len("y", vbH)
+    var w = len("width", vbW)
+    var h = len("height", vbH)
+    if (obbUnits) {
+      val bw = box[2] - box[0]
+      val bh = box[3] - box[1]
+      x = box[0] + x * bw
+      y = box[1] + y * bh
+      w *= bw
+      h *= bh
+    }
+    if (w <= 0f || h <= 0f) return null
+    val vb = viewBox
+    val tile = if (vb != null) {
+      val (ax, ay, slice) = parseSvgPreserveAspectRatio(attr("preserveAspectRatio"))
+      svgViewBoxTransform(vb, ax, ay, slice, w, h)
+    } else if (obbContent) {
+      floatArrayOf(box[2] - box[0], 0f, 0f, box[3] - box[1], 0f, 0f)
+    } else SVG_IDENTITY
+    val transform = svgMultiply(attr("patternTransform")?.let { parseSvgTransform(it) } ?: SVG_IDENTITY, translation(x, y))
+    // Contents inherit from the pattern, not from the shape that uses it.
+    val style = documentStyle(content)
+    onStack.add(content)
+    val tileOps = capture { for (child in content.children) walk(child, style, tile, 1) }
+    onStack.remove(content)
+    if (tileOps.isEmpty()) return null
+    return SvgPaint.Pattern(SvgPattern(w, h, transform, tileOps))
+  }
+
   // MARK: clipping
 
   /** The clip for [props]' `clip-path` at [ctm]; null for none, [emptyClip] when nothing shows. */
@@ -1378,14 +1840,20 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
   private fun collectClip(node: SvgNode, parent: SvgStyleState, base: FloatArray, out: MutableList<SvgClipPath>, allowUse: Boolean) {
     if (isHidden(node)) return
     val style = applySvgStyle(parent, cascade(node))
-    if (!style.visible) return
     val m = compose(base, node)
+    if (node.name == "text") {
+      for (piece in layoutText(node, style)) {
+        if (piece.style.visible && piece.commands.size >= 2) out.add(SvgClipPath(piece.commands, m, false))
+      }
+      return
+    }
+    if (!style.visible) return
     if (node.name in SHAPE_TAGS) {
       val commands = shapeCommands(node)
       if (commands.size >= 2) out.add(SvgClipPath(commands, m, style.clipEvenOdd))
     } else if (node.name == "use" && allowUse) {
-      val target = useTarget(node)?.takeIf { it.name in SHAPE_TAGS } ?: return
-      val t = svgMultiply(m, floatArrayOf(1f, 0f, 0f, 1f, lx(node, "x") ?: 0f, ly(node, "y") ?: 0f))
+      val target = useTarget(node)?.takeIf { it.name in SHAPE_TAGS || it.name == "text" } ?: return
+      val t = svgMultiply(m, translation(lx(node, "x") ?: 0f, ly(node, "y") ?: 0f))
       collectClip(target, style, t, out, allowUse = false)
     }
   }
@@ -1404,17 +1872,273 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     if (ops.size == start) ops.removeAt(ops.size - 1) else ops.add(SvgOp.EndClip)
   }
 
+  // MARK: masking
+
+  /** The mask for [props]' `mask`; null for none, [emptyMask] when nothing shows. */
+  private fun resolveMask(props: Map<String, String>, ctm: FloatArray, bounds: () -> FloatArray?, depth: Int): SvgMask? {
+    val id = props["mask"]?.let { svgUrlFragment(it) } ?: return null
+    val maskNode = tree.ids[id]?.takeIf { it.name == "mask" } ?: return null
+    // A mask used inside its own content is an error: nothing renders.
+    if (maskNode in onStack) return emptyMask
+    val attrs = maskNode.attrs
+    var regionT = ctm
+    val x: Float
+    val y: Float
+    val w: Float
+    val h: Float
+    if (attrs["maskUnits"]?.trim() == "userSpaceOnUse") {
+      x = parseSvgLength(attrs["x"] ?: "-10%", vbW) ?: 0f
+      y = parseSvgLength(attrs["y"] ?: "-10%", vbH) ?: 0f
+      w = parseSvgLength(attrs["width"] ?: "120%", vbW) ?: 0f
+      h = parseSvgLength(attrs["height"] ?: "120%", vbH) ?: 0f
+    } else {
+      val b = bounds() ?: return emptyMask
+      if (b[2] - b[0] <= 0f || b[3] - b[1] <= 0f) return emptyMask
+      regionT = svgMultiply(ctm, boxTransform(b))
+      x = parseSvgLength(attrs["x"] ?: "-10%", 1f) ?: 0f
+      y = parseSvgLength(attrs["y"] ?: "-10%", 1f) ?: 0f
+      w = parseSvgLength(attrs["width"] ?: "120%", 1f) ?: 0f
+      h = parseSvgLength(attrs["height"] ?: "120%", 1f) ?: 0f
+    }
+    if (w <= 0f || h <= 0f) return emptyMask
+    var contentT = ctm
+    if (attrs["maskContentUnits"]?.trim() == "objectBoundingBox") {
+      val b = bounds() ?: return emptyMask
+      if (b[2] - b[0] <= 0f || b[3] - b[1] <= 0f) return emptyMask
+      contentT = svgMultiply(ctm, boxTransform(b))
+    }
+    // Contents inherit from the mask, not from the element it masks.
+    val style = documentStyle(maskNode)
+    onStack.add(maskNode)
+    val maskOps = capture { for (child in maskNode.children) walk(child, style, contentT, depth + 1) }
+    onStack.remove(maskNode)
+    if (maskOps.isEmpty()) return emptyMask
+    val region = SvgClip(listOf(SvgClipPath(svgRectCommands(x, y, w, h, null, null), regionT, false)))
+    val alpha = cascade(maskNode)["mask-type"]?.trim() == "alpha"
+    return SvgMask(maskOps, region, !alpha)
+  }
+
+  /** Runs [body] through [props]' mask; skips it when the mask shows nothing. */
+  private inline fun withMask(props: Map<String, String>, ctm: FloatArray, noinline bounds: () -> FloatArray?, depth: Int, body: () -> Unit) {
+    val mask = resolveMask(props, ctm, bounds, depth)
+    if (mask === emptyMask) return
+    if (mask == null) {
+      body()
+      return
+    }
+    val content = capture(body)
+    if (content.isNotEmpty()) ops.add(SvgOp.Masked(mask, content))
+  }
+
+  // MARK: markers
+
+  /** The markers on a path, line, polyline or polygon, after the shape itself. */
+  private fun walkMarkers(node: SvgNode, commands: List<SvgPathCommand>, style: SvgStyleState, ctm: FloatArray, depth: Int) {
+    var ends: List<Boolean>? = null
+    var cmds = commands
+    if (node.name == "path") {
+      val e = ArrayList<Boolean>()
+      cmds = parseSvgPathData(node.attrs["d"] ?: "", e)
+      ends = e
+    }
+    val vertices = svgMarkerVertices(cmds, ends)
+    if (vertices.isEmpty()) return
+    val last = vertices.size - 1
+    for ((i, v) in vertices.withIndex()) {
+      if (i == 0) style.markerStart?.let { drawMarker(it, v, true, style.strokeWidth, ctm, depth) }
+      if (i in 1 until last) style.markerMid?.let { drawMarker(it, v, false, style.strokeWidth, ctm, depth) }
+      if (i == last) style.markerEnd?.let { drawMarker(it, v, false, style.strokeWidth, ctm, depth) }
+    }
+  }
+
+  private fun drawMarker(id: String, v: SvgMarkerVertex, start: Boolean, strokeWidth: Float, ctm: FloatArray, depth: Int) {
+    val marker = tree.ids[id]?.takeIf { it.name == "marker" } ?: return
+    if (depth > MAX_SVG_DEPTH || marker in onStack) return
+    val attrs = marker.attrs
+    val mw = parseSvgLength(attrs["markerWidth"] ?: "3", vbW) ?: 0f
+    val mh = parseSvgLength(attrs["markerHeight"] ?: "3", vbH) ?: 0f
+    if (mw <= 0f || mh <= 0f) return
+    var vbT = SVG_IDENTITY
+    var vb = floatArrayOf(0f, 0f, mw, mh)
+    attrs["viewBox"]?.let { raw ->
+      val nums = parseSvgNumberList(raw)
+      if (nums.size == 4) {
+        if (nums[2] <= 0.0 || nums[3] <= 0.0) return
+        vb = floatArrayOf(nums[0].toFloat(), nums[1].toFloat(), nums[2].toFloat(), nums[3].toFloat())
+        val (ax, ay, slice) = parseSvgPreserveAspectRatio(attrs["preserveAspectRatio"])
+        vbT = svgViewBoxTransform(vb, ax, ay, slice, mw, mh)
+      }
+    }
+    // refX/refY: viewBox units, or the SVG 2 keywords.
+    fun ref(raw: String?, lo: Float, size: Float, low: String, high: String): Float {
+      val r = raw?.trim() ?: return 0f
+      return when (r) {
+        low -> lo
+        "center" -> lo + size / 2f
+        high -> lo + size
+        else -> parseSvgLength(r, size) ?: 0f
+      }
+    }
+    val rx = ref(attrs["refX"], vb[0], vb[2], "left", "right")
+    val ry = ref(attrs["refY"], vb[1], vb[3], "top", "bottom")
+    val refX = vbT[0] * rx + vbT[2] * ry + vbT[4]
+    val refY = vbT[1] * rx + vbT[3] * ry + vbT[5]
+    val scale = if (attrs["markerUnits"]?.trim() == "userSpaceOnUse") 1f else strokeWidth
+    if (scale <= 0f) return
+    val angle = when (val orient = attrs["orient"]?.trim()) {
+      null -> 0f
+      "auto" -> v.autoAngle
+      "auto-start-reverse" -> v.autoAngle + (if (start) 180f else 0f)
+      else -> parseSvgAngle(orient) ?: 0f
+    }
+    val rad = Math.toRadians(angle.toDouble())
+    val c = (cos(rad) * scale).toFloat()
+    val sn = (sin(rad) * scale).toFloat()
+    val viewport = svgMultiply(svgMultiply(ctm, floatArrayOf(c, sn, -sn, c, v.x, v.y)), translation(-refX, -refY))
+    val props = cascade(marker)
+    val style = documentStyle(marker)
+    val overflow = props["overflow"]?.trim()
+    val clip = if (overflow == "visible" || overflow == "auto") null
+    else SvgClip(listOf(SvgClipPath(svgRectCommands(0f, 0f, mw, mh, null, null), viewport, false)))
+    onStack.add(marker)
+    try {
+      if (clip != null) ops.add(SvgOp.BeginClip(clip))
+      val first = ops.size
+      for (child in marker.children) walk(child, style, svgMultiply(viewport, vbT), depth + 1)
+      if (clip != null) {
+        if (ops.size == first) ops.removeAt(ops.size - 1) else ops.add(SvgOp.EndClip)
+      }
+    } finally {
+      onStack.remove(marker)
+    }
+  }
+
+  // MARK: text
+
+  /**
+   * The text's characters after white space handling, with the range each text content element
+   * covers (outermost first).
+   */
+  private fun collectText(
+    node: SvgNode, style: SvgStyleState, out: MutableList<SvgTextChar>, ranges: MutableList<SvgTextRange>,
+    lastSpace: BooleanArray, depth: Int,
+  ) {
+    if (depth > MAX_SVG_DEPTH) return
+    val range = SvgTextRange(node, out.size, out.size)
+    ranges.add(range)
+    for (child in node.children) {
+      if (child.name == TEXT_NODE_NAME) {
+        val text = child.text
+        var k = 0
+        while (k < text.length) {
+          val cp = text.codePointAt(k)
+          k += Character.charCount(cp)
+          val ws = cp == ' '.code || cp == '\t'.code || cp == '\n'.code || cp == '\r'.code
+          if (style.preserveSpace) {
+            out.add(SvgTextChar(if (ws) ' '.code else cp, node, style))
+            lastSpace[0] = false
+          } else if (ws) {
+            if (lastSpace[0]) continue
+            out.add(SvgTextChar(' '.code, node, style))
+            lastSpace[0] = true
+          } else {
+            out.add(SvgTextChar(cp, node, style))
+            lastSpace[0] = false
+          }
+        }
+      } else if (child.name == "tspan" || child.name == "a") {
+        if (isHidden(child)) continue
+        collectText(child, applySvgStyle(style, cascade(child)), out, ranges, lastSpace, depth + 1)
+      }
+    }
+    range.end = out.size
+  }
+
+  /** Glyph outlines of a `<text>` with [style], laid out in its user space. */
+  private fun layoutText(node: SvgNode, style: SvgStyleState): List<SvgTextPiece> {
+    val chars = ArrayList<SvgTextChar>()
+    val ranges = ArrayList<SvgTextRange>()
+    collectText(node, style, chars, ranges, booleanArrayOf(true), 0)
+    chars.lastOrNull()?.let { if (it.codePoint == ' '.code && !it.style.preserveSpace) chars.removeAt(chars.size - 1) }
+    if (chars.isEmpty()) return emptyList()
+    // Each element's positions go to its own characters in order; inner elements win.
+    for (r in ranges) {
+      val stop = min(r.end, chars.size)
+      if (r.start >= stop) continue
+      val xs = parseSvgLengthList(r.node.attrs["x"], vbW)
+      val ys = parseSvgLengthList(r.node.attrs["y"], vbH)
+      val dxs = parseSvgLengthList(r.node.attrs["dx"], vbW)
+      val dys = parseSvgLengthList(r.node.attrs["dy"], vbH)
+      for (k in 0 until stop - r.start) {
+        val c = chars[r.start + k]
+        if (k < xs.size) c.x = xs[k]
+        if (k < ys.size) c.y = ys[k]
+        if (k < dxs.size) c.dx = dxs[k]
+        if (k < dys.size) c.dy = dys[k]
+      }
+    }
+
+    val pieces = ArrayList<SvgTextPiece>()
+    // Anchored chunks: each ends where the next starts.
+    val chunks = ArrayList<SvgTextChunk>()
+    var px = 0f
+    var py = 0f
+    var i = 0
+    while (i < chars.size) {
+      val c = chars[i]
+      val penX = px
+      c.x?.let { px = it }
+      c.y?.let { py = it }
+      px += c.dx
+      py += c.dy
+      if (i == 0 || c.x != null || c.y != null) {
+        chunks.lastOrNull()?.endX = penX
+        chunks.add(SvgTextChunk(pieces.size, px, px, c.style.textAnchor))
+      }
+      // One run: same element, no positioning after its first character.
+      var j = i + 1
+      while (j < chars.size) {
+        val n = chars[j]
+        if (n.owner !== c.owner || n.x != null || n.y != null || n.dx != 0f || n.dy != 0f) break
+        j++
+      }
+      val text = StringBuilder()
+      for (k in i until j) text.appendCodePoint(chars[k].codePoint)
+      val run = svgTextShaper.shape(text.toString(), c.style.font, c.style.letterSpacing, c.style.wordSpacing)
+      val shift = svgBaselineShift(c.style.baseline, run)
+      if (run.commands.isNotEmpty()) pieces.add(SvgTextPiece(svgTranslated(run.commands, px, py + shift), c.style))
+      px += run.advance
+      i = j
+    }
+    chunks.lastOrNull()?.endX = px
+    for ((n, chunk) in chunks.withIndex()) {
+      if (chunk.anchor == SvgTextAnchor.START) continue
+      val width = chunk.endX - chunk.startX
+      val dx = if (chunk.anchor == SvgTextAnchor.MIDDLE) -width / 2f else -width
+      val end = if (n + 1 < chunks.size) chunks[n + 1].first else pieces.size
+      for (p in chunk.first until end) pieces[p].commands = svgTranslated(pieces[p].commands, dx, 0f)
+    }
+    return pieces
+  }
+
+  private fun textBounds(pieces: List<SvgTextPiece>): FloatArray? {
+    var b: FloatArray? = null
+    for (p in pieces) b = unionBounds(b, svgPathBounds(p.commands))
+    return b
+  }
+
   // MARK: walk
 
   fun walk(node: SvgNode, parent: SvgStyleState, ctm: FloatArray, depth: Int) {
-    if (depth > MAX_SVG_DEPTH || ++visits > MAX_SVG_VISITS || ops.size >= MAX_SVG_OPS) return
+    if (depth > MAX_SVG_DEPTH || ++visits > MAX_SVG_VISITS || ops.size + nestedOps >= MAX_SVG_OPS) return
     if (isHidden(node) || !onStack.add(node)) return
     try {
       when (node.name) {
         in CONTAINER_TAGS -> walkContainer(node, parent, ctm, depth)
-        in SHAPE_TAGS -> walkShape(node, parent, ctm)
+        in SHAPE_TAGS -> walkShape(node, parent, ctm, depth)
         "use" -> walkUse(node, parent, ctm, depth)
-        "image" -> walkImage(node, parent, ctm)
+        "image" -> walkImage(node, parent, ctm, depth)
+        "text" -> walkText(node, parent, ctm, depth)
       }
     } finally {
       onStack.remove(node)
@@ -1427,15 +2151,18 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     // The root's own transform is ignored (as in SVG 1.1); nested elements compose theirs.
     val ctm = if (node === tree.root) parentCtm else compose(parentCtm, node)
     val opacity = opacityOf(props)
-    withClip(props, ctm, { boundsOf(node) }) {
-      val group = opacity < 1f
-      if (group) ops.add(SvgOp.BeginGroup(opacity))
-      for (child in node.children) walk(child, style, ctm, depth + 1)
-      if (group) ops.add(SvgOp.EndGroup)
+    val boundsFn = { boundsOf(node) }
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        val group = opacity < 1f
+        if (group) ops.add(SvgOp.BeginGroup(opacity))
+        for (child in node.children) walk(child, style, ctm, depth + 1)
+        if (group) ops.add(SvgOp.EndGroup)
+      }
     }
   }
 
-  private fun walkShape(node: SvgNode, parent: SvgStyleState, parentCtm: FloatArray) {
+  private fun walkShape(node: SvgNode, parent: SvgStyleState, parentCtm: FloatArray, depth: Int) {
     val props = cascade(node)
     val style = applySvgStyle(parent, props)
     val ctm = compose(parentCtm, node)
@@ -1468,19 +2195,22 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
       dashArray = style.dashArray,
       dashOffset = style.dashOffset,
     )
-    if (!shape.hasFill && !shape.hasStroke) return
-    withClip(props, ctm, boundsFn) {
-      if (opacity < 1f) {
-        if (shape.hasFill && shape.hasStroke) {
-          // Fill and stroke overlap, so they composite together.
+    val markers = style.hasMarkers && node.name in MARKER_TAGS
+    val painted = shape.hasFill || shape.hasStroke
+    if (!painted && !markers) return
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        // Fill, stroke and markers overlap, so at partial opacity they composite together.
+        val group = opacity < 1f && ((shape.hasFill && shape.hasStroke) || markers)
+        if (group) {
           ops.add(SvgOp.BeginGroup(opacity))
-          ops.add(SvgOp.Shape(shape))
-          ops.add(SvgOp.EndGroup)
-          return@withClip
+        } else if (opacity < 1f) {
+          shape = shape.copy(fillOpacity = shape.fillOpacity * opacity, strokeOpacity = shape.strokeOpacity * opacity)
         }
-        shape = shape.copy(fillOpacity = shape.fillOpacity * opacity, strokeOpacity = shape.strokeOpacity * opacity)
+        if (painted) ops.add(SvgOp.Shape(shape))
+        if (markers) walkMarkers(node, commands, style, ctm, depth)
+        if (group) ops.add(SvgOp.EndGroup)
       }
-      ops.add(SvgOp.Shape(shape))
     }
   }
 
@@ -1490,13 +2220,16 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     val style = applySvgStyle(parent, props)
     // x/y translate the referenced content; the use's own clip is in its user space.
     val own = compose(parentCtm, node)
-    val ctm = svgMultiply(own, floatArrayOf(1f, 0f, 0f, 1f, lx(node, "x") ?: 0f, ly(node, "y") ?: 0f))
+    val ctm = svgMultiply(own, translation(lx(node, "x") ?: 0f, ly(node, "y") ?: 0f))
     val opacity = opacityOf(props)
-    withClip(props, own, { boundsOf(node) }) {
-      val group = opacity < 1f
-      if (group) ops.add(SvgOp.BeginGroup(opacity))
-      if (target.name == "symbol") walkSymbol(target, node, style, ctm, depth + 1) else walk(target, style, ctm, depth + 1)
-      if (group) ops.add(SvgOp.EndGroup)
+    val boundsFn = { boundsOf(node) }
+    withMask(props, own, boundsFn, depth) {
+      withClip(props, own, boundsFn) {
+        val group = opacity < 1f
+        if (group) ops.add(SvgOp.BeginGroup(opacity))
+        if (target.name == "symbol") walkSymbol(target, node, style, ctm, depth + 1) else walk(target, style, ctm, depth + 1)
+        if (group) ops.add(SvgOp.EndGroup)
+      }
     }
   }
 
@@ -1527,7 +2260,7 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     }
   }
 
-  private fun walkImage(node: SvgNode, parent: SvgStyleState, parentCtm: FloatArray) {
+  private fun walkImage(node: SvgNode, parent: SvgStyleState, parentCtm: FloatArray, depth: Int) {
     val props = cascade(node)
     val style = applySvgStyle(parent, props)
     val ctm = compose(parentCtm, node)
@@ -1542,8 +2275,48 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     val x = lx(node, "x") ?: 0f
     val y = ly(node, "y") ?: 0f
     val (ax, ay, slice) = parseSvgPreserveAspectRatio(node.attrs["preserveAspectRatio"])
-    withClip(props, ctm, { if (w != null && h != null) floatArrayOf(x, y, x + w, y + h) else null }) {
-      ops.add(SvgOp.Image(SvgImage(href, x, y, w, h, ax, ay, slice, ctm, opacity)))
+    val boundsFn = { if (w != null && h != null) floatArrayOf(x, y, x + w, y + h) else null }
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        ops.add(SvgOp.Image(SvgImage(href, x, y, w, h, ax, ay, slice, ctm, opacity)))
+      }
+    }
+  }
+
+  private fun walkText(node: SvgNode, parent: SvgStyleState, parentCtm: FloatArray, depth: Int) {
+    val props = cascade(node)
+    val style = applySvgStyle(parent, props)
+    val ctm = compose(parentCtm, node)
+    val opacity = opacityOf(props)
+    if (opacity <= 0f) return
+    val pieces = layoutText(node, style)
+    if (pieces.isEmpty()) return
+    var bounds: FloatArray? = null
+    var measured = false
+    val boundsFn = {
+      if (!measured) {
+        bounds = textBounds(pieces); measured = true
+      }
+      bounds
+    }
+    // Paint servers in bounding-box units use the whole text's box.
+    val shapes = ArrayList<SvgShape>()
+    for (piece in pieces) {
+      val s = piece.style
+      if (!s.visible) continue
+      val shape = SvgShape(
+        piece.commands, ctm, resolvePaint(s.fill, s, boundsFn), s.fillOpacity, false, resolvePaint(s.stroke, s, boundsFn),
+        s.strokeOpacity, s.strokeWidth, s.lineCap, s.lineJoin, s.miterLimit, s.dashArray, s.dashOffset,
+      )
+      if (shape.hasFill || shape.hasStroke) shapes.add(shape)
+    }
+    if (shapes.isEmpty()) return
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        if (opacity < 1f) ops.add(SvgOp.BeginGroup(opacity))
+        for (shape in shapes) ops.add(SvgOp.Shape(shape))
+        if (opacity < 1f) ops.add(SvgOp.EndGroup)
+      }
     }
   }
 }
