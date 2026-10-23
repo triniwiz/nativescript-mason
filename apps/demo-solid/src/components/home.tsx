@@ -50,6 +50,14 @@ const FEATURES = [
     count: 'Playground',
   },
   {
+    id: 'Svg',
+    label: 'SVG',
+    desc: 'Patterns, masks, markers, text & <img>',
+    bg: '#0984e3',
+    glyph: 'Sv',
+    count: 'Tests',
+  },
+  {
     id: 'Position',
     label: 'Position',
     desc: 'Absolute insets, stretch, centering & badges',

@@ -82,7 +82,13 @@ Shows an image from `src`: a remote URL or a local file path. A path starting wi
 
 `Img` is an inline replaced element, as in a browser: it sits on the text baseline and takes its intrinsic size until you size it. With [preflight](/elements/#preflight) it is `display: block`.
 
-`object-fit` (`contain`, `cover`, `fill`, `none`, `scale-down`) and `object-position` control how the image fills its box.
+`object-fit` (`contain`, `cover`, `fill`, `none`, `scale-down`) and `object-position` control how the image fills its box, and the image is clipped to that box. When only `width` or only `height` is set, the other follows the image's aspect ratio.
+
+`src` can also be an SVG: a `data:image/svg+xml,...` URL, a `.svg` file or a remote `.svg` URL. It is drawn as vectors at the size it is shown, with the same features as [SVG backgrounds](/styling/backgrounds-borders#svg-backgrounds). Its intrinsic size comes from the SVG's `width` and `height`, or its `viewBox`, and `currentColor` inside it is the element's CSS `color`.
+
+```html
+<Img src="~/assets/logo.svg" style="width: 120px" />
+```
 
 ## Button
 

@@ -932,6 +932,11 @@ const setFloat32 = (view: DataView, offset: number, value: number) => {
   view.setFloat32(offset, value, true);
 };
 
+// Core's Windows currentApp() is the package folder; the app's files are in its app\ folder.
+export function windowsAppFile(url: string): string {
+  return url.startsWith('~/') ? knownFolders.currentApp().path + '\\app\\' + url.slice(2).replace(/\//g, '\\') : url;
+}
+
 // Split a comma-separated list at top level only (commas inside parentheses, e.g. rgba(0,0,0,.5),
 // are kept with their token).
 function splitTopLevelCommas(s: string): string[] {
@@ -983,7 +988,7 @@ function parseGradientCorner(token: string): [number, number] | undefined {
 }
 
 const LINEAR_GRADIENT = /linear-gradient/i;
-const ANY_GRADIENT = /gradient/i;
+const ANY_GRADIENT = /-gradient\(/i;
 const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 
 const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
@@ -2084,8 +2089,7 @@ export class Style {
         const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
         // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
         if (setLayers(encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext(), boxes))) return;
-        let source = url[2];
-        if (source.startsWith('~/')) source = source.replace('~/', knownFolders.currentApp().path + '/');
+        const source = windowsAppFile(url[2]);
         const box = parseBoxPosition(position || '0% 0%', 0);
         const align = (f: number) => (f <= 0.25 ? 0 : f >= 0.75 ? 2 : 1);
         NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(box.x), align(box.y));
@@ -2155,7 +2159,7 @@ export class Style {
       color: (color) => normalizeColorValue(color),
       linear: parseLinearGradientCss,
       radial: parseRadialGradientCss,
-      source: (url) => (url.startsWith('~/') ? url.replace('~/', knownFolders.currentApp().path + '/') : url),
+      source: windowsAppFile,
     };
   }
 

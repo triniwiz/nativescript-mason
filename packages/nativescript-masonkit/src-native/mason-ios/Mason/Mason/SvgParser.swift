@@ -2,8 +2,8 @@
 //  SvgParser.swift
 //  Mason
 //
-//  Static SVG reader for `data:image/svg+xml` (Background.swift draws). No <text>, patterns, masks, filters,
-//  markers, nested <svg> or remote references. Keep in step with SvgParser.kt.
+//  Static SVG reader for `data:image/svg+xml` (Background.swift draws). No filters, <textPath>, nested <svg>
+//  or remote references. Keep in step with SvgParser.kt.
 //
 
 import UIKit
@@ -35,6 +35,8 @@ enum SvgPaint: Equatable {
   case color(UInt32)
   /// A gradient in the shape's own user space.
   case gradient(SvgGradient)
+  /// A `<pattern>` tile in the shape's own user space.
+  case pattern(SvgPattern)
   /// `url(#id)` while parsing, resolved per shape; never reaches a shape.
   indirect case ref(String, fallback: SvgPaint?)
 }
@@ -58,6 +60,38 @@ struct SvgGradient: Equatable {
   var spread: SvgSpread
   /// Gradient space to the shape's user space (bounding-box units and gradientTransform).
   var transform: CGAffineTransform
+}
+
+/// A `<pattern>` resolved for one shape: `ops` draw one `width` x `height` tile, and `transform` maps
+/// tile space (origin at a tile corner) to the shape's user space.
+final class SvgPattern: Equatable {
+  let width: CGFloat
+  let height: CGFloat
+  let transform: CGAffineTransform
+  let ops: [SvgOp]
+
+  init(width: CGFloat, height: CGFloat, transform: CGAffineTransform, ops: [SvgOp]) {
+    self.width = width
+    self.height = height
+    self.transform = transform
+    self.ops = ops
+  }
+
+  static func == (a: SvgPattern, b: SvgPattern) -> Bool { a === b }
+}
+
+/// A `<mask>` resolved for one element: `ops` (root user space) inside `region`, read as luminance
+/// or alpha.
+final class SvgMask {
+  let ops: [SvgOp]
+  let region: SvgClip
+  let luminance: Bool
+
+  init(ops: [SvgOp], region: SvgClip, luminance: Bool) {
+    self.ops = ops
+    self.region = region
+    self.luminance = luminance
+  }
 }
 
 /// One clip shape, with the transform to root user space.
@@ -116,6 +150,8 @@ enum SvgOp {
   case beginClip(SvgClip)
   case endClip
   case image(SvgImage)
+  /// `content` drawn through the mask.
+  case masked(SvgMask, [SvgOp])
 }
 
 final class SvgDocument {
@@ -260,7 +296,15 @@ private let pathCommandBytes = Set("MmLlHhVvCcSsQqTtAaZz".utf8)
 /// Parse SVG path data into absolute commands. On an error the path is kept up to the last
 /// complete segment, as SVG requires.
 func parseSvgPathData(_ d: String) -> [SvgPathCommand] {
+  var ends: [Bool] = []
+  return parseSvgPathData(d, vertexEnds: &ends)
+}
+
+/// As `parseSvgPathData(_:)`; `vertexEnds[i]` is false where command i ends inside an arc, which
+/// is not a path vertex (markers skip it).
+func parseSvgPathData(_ d: String, vertexEnds: inout [Bool]) -> [SvgPathCommand] {
   var out: [SvgPathCommand] = []
+  var arcInner: [Int] = []
   var sc = SvgScanner(d)
   var cmd: UInt8 = 0
   var cx = 0.0, cy = 0.0, sx = 0.0, sy = 0.0
@@ -389,7 +433,9 @@ func parseSvgPathData(_ d: String) -> [SvgPathCommand] {
       guard let b = sc.number() else { break loop }
       let x = ox + a, y = oy + b
       ensureMove()
+      let before = out.count
       appendSvgArc(&out, cx, cy, rx, ry, rot, large, sweep, x, y)
+      if out.count - before > 1 { arcInner.append(contentsOf: before..<(out.count - 1)) }
       cx = x; cy = y
       lastCubic = false; lastQuad = false
 
@@ -404,6 +450,8 @@ func parseSvgPathData(_ d: String) -> [SvgPathCommand] {
     }
     sc.skipCommaWsp()
   }
+  vertexEnds = [Bool](repeating: true, count: out.count)
+  for i in arcInner { vertexEnds[i] = false }
   return out
 }
 
@@ -728,6 +776,74 @@ private func unionBounds(_ a: CGRect?, _ b: CGRect?) -> CGRect? {
   return a.union(b)
 }
 
+// MARK: - Marker vertices
+
+/// A vertex markers sit on, with the directions (degrees) of the segments into and out of it; nil
+/// where there is none or it has no length.
+struct SvgMarkerVertex: Equatable {
+  var x: CGFloat
+  var y: CGFloat
+  var inAngle: CGFloat? = nil
+  var outAngle: CGFloat? = nil
+
+  /// The `orient="auto"` angle: the bisector where the path turns.
+  var autoAngle: CGFloat {
+    guard var i = inAngle, let o = outAngle else { return inAngle ?? outAngle ?? 0 }
+    if abs(i - o) > 180 { i += 360 }
+    return (i + o) / 2
+  }
+}
+
+private func svgDirection(_ x0: CGFloat, _ y0: CGFloat, _ x1: CGFloat, _ y1: CGFloat) -> CGFloat? {
+  if x0 == x1 && y0 == y1 { return nil }
+  return CGFloat(atan2(Double(y1 - y0), Double(x1 - x0)) * 180 / .pi)
+}
+
+/// The vertices of a path in order. `vertexEnds` (from `parseSvgPathData`) marks commands that end
+/// inside an arc. A closed subpath ends at its start, and both its ends take the turn there.
+func svgMarkerVertices(_ commands: [SvgPathCommand], vertexEnds: [Bool]? = nil) -> [SvgMarkerVertex] {
+  var out: [SvgMarkerVertex] = []
+  var cx: CGFloat = 0, cy: CGFloat = 0, sx: CGFloat = 0, sy: CGFloat = 0
+  var start = -1
+  for (i, c) in commands.enumerated() {
+    var d0: CGFloat? = nil, d1: CGFloat? = nil
+    switch c {
+    case let .move(x, y):
+      out.append(SvgMarkerVertex(x: x, y: y))
+      start = out.count - 1
+      cx = x; cy = y; sx = x; sy = y
+      continue
+    case .close:
+      guard start >= 0 else { continue }
+      let d = svgDirection(cx, cy, sx, sy)
+      let last = out.count - 1
+      if d != nil && out[last].outAngle == nil { out[last].outAngle = d }
+      let inAngle = d ?? out[last].inAngle
+      out[start].inAngle = inAngle
+      out.append(SvgMarkerVertex(x: sx, y: sy, inAngle: inAngle, outAngle: out[start].outAngle))
+      cx = sx; cy = sy
+      continue
+    case let .line(x, y):
+      d0 = svgDirection(cx, cy, x, y)
+      d1 = d0
+    case let .quad(x1, y1, x, y):
+      d0 = svgDirection(cx, cy, x1, y1) ?? svgDirection(cx, cy, x, y)
+      d1 = svgDirection(x1, y1, x, y) ?? svgDirection(cx, cy, x, y)
+    case let .cubic(x1, y1, x2, y2, x, y):
+      d0 = svgDirection(cx, cy, x1, y1) ?? svgDirection(cx, cy, x2, y2) ?? svgDirection(cx, cy, x, y)
+      d1 = svgDirection(x2, y2, x, y) ?? svgDirection(x1, y1, x, y) ?? svgDirection(cx, cy, x, y)
+    }
+    guard start >= 0, let end = c.endPoint else { continue }
+    let last = out.count - 1
+    if out[last].outAngle == nil { out[last].outAngle = d0 }
+    if vertexEnds.map({ i < $0.count ? $0[i] : true }) ?? true {
+      out.append(SvgMarkerVertex(x: end.x, y: end.y, inAngle: d1))
+    }
+    cx = end.x; cy = end.y
+  }
+  return out
+}
+
 // MARK: - Style sheets
 
 struct SvgCssDeclaration {
@@ -897,11 +1013,145 @@ private struct SvgStyleState {
   var color: UInt32? = nil
   var visible = true
   var clipEvenOdd = false
+  var fontFamilies: [String] = ["serif"]
+  var fontSize: CGFloat = 16
+  var fontWeight = 400
+  var italic = false
+  var textAnchor: SvgTextAnchor = .start
+  var baseline: SvgBaseline = .alphabetic
+  var letterSpacing: CGFloat = 0
+  var wordSpacing: CGFloat = 0
+  /// `xml:space="preserve"` / `white-space: pre`: keep every space.
+  var preserveSpace = false
+  /// Marker ids, nil for none.
+  var markerStart: String? = nil
+  var markerMid: String? = nil
+  var markerEnd: String? = nil
+
+  var font: SvgFont { SvgFont(families: fontFamilies, size: fontSize, weight: fontWeight, italic: italic) }
+  var hasMarkers: Bool { markerStart != nil || markerMid != nil || markerEnd != nil }
+}
+
+enum SvgTextAnchor { case start, middle, end }
+
+/// The `dominant-baseline` a text's y positions refer to.
+enum SvgBaseline { case alphabetic, middle, central, hanging, textTop, textBottom, mathematical }
+
+/// The families of a `font-family` list, unquoted.
+func parseSvgFontFamilies(_ raw: String) -> [String] {
+  var out: [String] = []
+  var current = ""
+  var quote: Character? = nil
+  for c in raw {
+    if let q = quote {
+      if c == q { quote = nil } else { current.append(c) }
+    } else if c == "\"" || c == "'" {
+      quote = c
+    } else if c == "," {
+      let f = current.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !f.isEmpty { out.append(f) }
+      current = ""
+    } else {
+      current.append(c)
+    }
+  }
+  let f = current.trimmingCharacters(in: .whitespacesAndNewlines)
+  if !f.isEmpty { out.append(f) }
+  return out
+}
+
+/// A length where `em` is `fontSize` and `%` is a fraction of `percentBasis`.
+private func parseSvgFontRelativeLength(_ raw: String, _ fontSize: CGFloat, _ percentBasis: CGFloat) -> CGFloat? {
+  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  var sc = SvgScanner(v)
+  guard let n = sc.number() else { return nil }
+  switch sc.rest.trimmingCharacters(in: .whitespaces) {
+  case "em": return CGFloat(n) * fontSize
+  case "ex": return CGFloat(n) * fontSize / 2
+  case "rem": return CGFloat(n) * 16
+  default: return parseSvgLength(v, percentBasis)
+  }
+}
+
+private let svgFontSizeKeywords: [String: CGFloat] = [
+  "xx-small": 9, "x-small": 10, "small": 13, "medium": 16, "large": 18, "x-large": 24, "xx-large": 32, "xxx-large": 48,
+]
+
+/// A `font-size`; `em` and `%` are relative to the parent's size.
+func parseSvgFontSize(_ raw: String, parent: CGFloat) -> CGFloat? {
+  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  if let k = svgFontSizeKeywords[v] { return k }
+  if v == "larger" { return parent * 1.2 }
+  if v == "smaller" { return parent / 1.2 }
+  guard let size = parseSvgFontRelativeLength(v, parent, parent), size >= 0 else { return nil }
+  return size
+}
+
+/// A `font-weight` as a number; `bolder`/`lighter` step from the parent's.
+func parseSvgFontWeight(_ raw: String, parent: Int) -> Int? {
+  switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+  case "normal": return 400
+  case "bold": return 700
+  case "bolder": return parent < 350 ? 400 : parent < 550 ? 700 : 900
+  case "lighter": return parent < 550 ? 100 : parent < 750 ? 400 : 700
+  case let v:
+    guard let n = Double(v), n >= 1, n <= 1000 else { return nil }
+    return Int(n)
+  }
+}
+
+private let svgFontStretchKeywords: Set<String> = [
+  "normal", "small-caps", "ultra-condensed", "extra-condensed", "condensed", "semi-condensed",
+  "semi-expanded", "expanded", "extra-expanded", "ultra-expanded",
+]
+
+/// The `font` shorthand: [style || weight || variant || stretch] size[/line-height] family.
+private func applySvgFontShorthand(_ raw: String, _ s: inout SvgStyleState, parentSize: CGFloat, parentWeight: Int) {
+  var rest = Substring(raw.trimmingCharacters(in: .whitespacesAndNewlines))
+  var italic = false
+  var weight = 400
+  while !rest.isEmpty {
+    let end = rest.firstIndex(where: { $0.isWhitespace }) ?? rest.endIndex
+    let token = String(rest[..<end])
+    let lower = token.lowercased()
+    let after = rest[end...].drop(while: { $0.isWhitespace })
+    if lower == "italic" || lower == "oblique" {
+      italic = true
+    } else if svgFontStretchKeywords.contains(lower) {
+      // nothing to apply
+    } else if let w = parseSvgFontWeight(lower, parent: parentWeight), lower != "normal" {
+      weight = w
+    } else {
+      let sizeText = lower.split(separator: "/", maxSplits: 1).first.map(String.init) ?? lower
+      guard let size = parseSvgFontSize(sizeText, parent: parentSize) else { return }
+      let families = parseSvgFontFamilies(String(after))
+      if families.isEmpty { return }
+      s.italic = italic
+      s.fontWeight = weight
+      s.fontSize = size
+      s.fontFamilies = families
+      return
+    }
+    rest = after
+  }
+}
+
+/// A marker property: `.some(nil)` for none, `.some(id)` for a reference, nil when invalid.
+private func parseSvgMarkerRef(_ raw: String) -> String?? {
+  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+  if v == "none" { return .some(nil) }
+  guard let id = svgUrlFragment(v) else { return nil }
+  return .some(id)
 }
 
 private let containerTags: Set<String> = ["svg", "g", "a", "switch"]
 private let shapeTags: Set<String> = ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"]
 private let gradientTags: Set<String> = ["linearGradient", "radialGradient"]
+/// Elements whose character data is text content.
+private let textContentTags: Set<String> = ["text", "tspan", "a"]
+/// Shapes that take markers.
+private let markerTags: Set<String> = ["path", "line", "polyline", "polygon"]
+private let textNodeName = "#text"
 
 /// Attributes of one start tag (the part after its name).
 func parseSvgAttributes(_ tag: String) -> [String: String] {
@@ -1022,6 +1272,57 @@ private func applySvgStyle(_ parent: SvgStyleState, _ props: [String: String]) -
   }
   if let v = prop("stroke-dashoffset"), let o = parseSvgLength(v, 16) { s.dashOffset = o }
   if let v = prop("visibility") { s.visible = v == "visible" }
+
+  if let v = prop("font") { applySvgFontShorthand(v, &s, parentSize: parent.fontSize, parentWeight: parent.fontWeight) }
+  if let v = prop("font-family") {
+    let families = parseSvgFontFamilies(v)
+    if !families.isEmpty { s.fontFamilies = families }
+  }
+  if let v = prop("font-size"), let size = parseSvgFontSize(v, parent: parent.fontSize) { s.fontSize = size }
+  if let v = prop("font-weight"), let w = parseSvgFontWeight(v, parent: parent.fontWeight) { s.fontWeight = w }
+  switch prop("font-style") {
+  case "italic", "oblique": s.italic = true
+  case "normal": s.italic = false
+  default: break
+  }
+  switch prop("text-anchor") {
+  case "start": s.textAnchor = .start
+  case "middle": s.textAnchor = .middle
+  case "end": s.textAnchor = .end
+  default: break
+  }
+  switch prop("dominant-baseline") {
+  case "auto", "alphabetic", "use-script", "no-change", "reset-size": s.baseline = .alphabetic
+  case "middle": s.baseline = .middle
+  case "central": s.baseline = .central
+  case "hanging": s.baseline = .hanging
+  case "text-top", "text-before-edge": s.baseline = .textTop
+  case "text-bottom", "text-after-edge", "ideographic": s.baseline = .textBottom
+  case "mathematical": s.baseline = .mathematical
+  default: break
+  }
+  if let v = prop("letter-spacing") {
+    if v == "normal" { s.letterSpacing = 0 } else if let l = parseSvgFontRelativeLength(v, s.fontSize, s.fontSize) { s.letterSpacing = l }
+  }
+  if let v = prop("word-spacing") {
+    if v == "normal" { s.wordSpacing = 0 } else if let l = parseSvgFontRelativeLength(v, s.fontSize, s.fontSize) { s.wordSpacing = l }
+  }
+  switch prop("xml:space") {
+  case "preserve": s.preserveSpace = true
+  case "default": s.preserveSpace = false
+  default: break
+  }
+  switch prop("white-space") {
+  case "pre", "pre-wrap", "break-spaces": s.preserveSpace = true
+  case "normal", "nowrap", "pre-line": s.preserveSpace = false
+  default: break
+  }
+  if let v = prop("marker"), let ref = parseSvgMarkerRef(v) {
+    s.markerStart = ref; s.markerMid = ref; s.markerEnd = ref
+  }
+  if let v = prop("marker-start"), let ref = parseSvgMarkerRef(v) { s.markerStart = ref }
+  if let v = prop("marker-mid"), let ref = parseSvgMarkerRef(v) { s.markerMid = ref }
+  if let v = prop("marker-end"), let ref = parseSvgMarkerRef(v) { s.markerEnd = ref }
   return s
 }
 
@@ -1031,6 +1332,8 @@ private final class SvgNode {
   weak var parent: SvgNode?
   var children: [SvgNode] = []
   var props: [String: String]? = nil
+  /// Character data, for a `#text` node.
+  var text = ""
 
   init(name: String, attrs: [String: String], parent: SvgNode?) {
     self.name = name
@@ -1078,15 +1381,30 @@ private func buildSvgTree(_ svg: String) -> SvgTree? {
     return nil
   }
 
+  // Character data inside text content, merged into one `#text` node per run.
+  func appendText(_ text: String) {
+    guard let p = stack.last ?? nil, textContentTags.contains(p.name), !text.isEmpty else { return }
+    if let last = p.children.last, last.name == textNodeName {
+      last.text += text
+    } else {
+      let node = SvgNode(name: textNodeName, attrs: [:], parent: p)
+      node.text = text
+      p.children.append(node)
+    }
+  }
+
   var i = 0
   while i < n {
     guard let open = s[i...].firstIndex(of: lt) else { break }
+    if open > i { appendText(decodeXmlEntities(String(decoding: s[i..<open], as: UTF8.self))) }
     if starts("<!--", at: open) {
       i = find("-->", from: open + 4).map { $0 + 3 } ?? n
       continue
     }
     if starts("<![CDATA[", at: open) {
-      i = find("]]>", from: open + 9).map { $0 + 3 } ?? n
+      let end = find("]]>", from: open + 9)
+      appendText(String(decoding: s[(open + 9)..<(end ?? n)], as: UTF8.self))
+      i = end.map { $0 + 3 } ?? n
       continue
     }
     if starts("<?", at: open) || starts("<!", at: open) {
@@ -1150,6 +1468,12 @@ private func buildSvgTree(_ svg: String) -> SvgTree? {
   return SvgTree(root: r, ids: ids, css: css)
 }
 
+/// Shorthands applySvgStyle reads before their longhands.
+private let svgShorthands: [String: [String]] = [
+  "font": ["font-family", "font-size", "font-weight", "font-style", "font-variant", "font-stretch", "line-height"],
+  "marker": ["marker-start", "marker-mid", "marker-end"],
+]
+
 private let maxSvgDepth = 128
 private let maxSvgVisits = 100_000
 private let maxSvgOps = 50_000
@@ -1169,6 +1493,80 @@ private enum SvgClipResolution {
   case clip(SvgClip)
 }
 
+private enum SvgMaskResolution {
+  case none
+  case empty
+  case mask(SvgMask)
+}
+
+/// One shaped run of a `<text>`: glyph outlines in the text's user space, with the style of the
+/// element they came from.
+private struct SvgTextPiece {
+  var commands: [SvgPathCommand]
+  var style: SvgStyleState
+}
+
+private struct SvgTextChar {
+  var scalar: Unicode.Scalar
+  /// The innermost text content element holding the character.
+  var owner: SvgNode
+  var style: SvgStyleState
+  var x: CGFloat? = nil
+  var y: CGFloat? = nil
+  var dx: CGFloat = 0
+  var dy: CGFloat = 0
+}
+
+/// Lengths in a list attribute such as a text's `x` or `dx`.
+private func parseSvgLengthList(_ raw: String?, _ percentBasis: CGFloat) -> [CGFloat] {
+  guard let raw = raw else { return [] }
+  var out: [CGFloat] = []
+  for token in raw.split(whereSeparator: { $0 == "," || $0.isWhitespace }) {
+    guard let v = parseSvgLength(String(token), percentBasis) else { break }
+    out.append(v)
+  }
+  return out
+}
+
+/// An angle in degrees: plain, or with `deg`, `rad`, `grad` or `turn`.
+func parseSvgAngle(_ raw: String) -> CGFloat? {
+  var sc = SvgScanner(raw.trimmingCharacters(in: .whitespacesAndNewlines))
+  guard let n = sc.number() else { return nil }
+  switch sc.rest.trimmingCharacters(in: .whitespaces).lowercased() {
+  case "", "deg": return CGFloat(n)
+  case "rad": return CGFloat(n * 180 / .pi)
+  case "grad": return CGFloat(n * 0.9)
+  case "turn": return CGFloat(n * 360)
+  default: return nil
+  }
+}
+
+func svgTranslated(_ commands: [SvgPathCommand], _ dx: CGFloat, _ dy: CGFloat) -> [SvgPathCommand] {
+  if dx == 0 && dy == 0 { return commands }
+  return commands.map {
+    switch $0 {
+    case let .move(x, y): return .move(x + dx, y + dy)
+    case let .line(x, y): return .line(x + dx, y + dy)
+    case let .cubic(x1, y1, x2, y2, x, y): return .cubic(x1 + dx, y1 + dy, x2 + dx, y2 + dy, x + dx, y + dy)
+    case let .quad(x1, y1, x, y): return .quad(x1 + dx, y1 + dy, x + dx, y + dy)
+    case .close: return .close
+    }
+  }
+}
+
+/// How far below `y` the alphabetic baseline sits for `baseline`.
+private func svgBaselineShift(_ baseline: SvgBaseline, _ run: SvgTextRun) -> CGFloat {
+  switch baseline {
+  case .alphabetic: return 0
+  case .middle: return run.xHeight / 2
+  case .central: return (run.ascent - run.descent) / 2
+  case .hanging: return run.ascent * 0.8
+  case .textTop: return run.ascent
+  case .textBottom: return -run.descent
+  case .mathematical: return run.ascent / 2
+  }
+}
+
 private final class SvgBuilder {
   let tree: SvgTree
   let vbW: CGFloat, vbH: CGFloat
@@ -1177,6 +1575,8 @@ private final class SvgBuilder {
   private let rules: [SvgCssRule]
   private var onStack = Set<ObjectIdentifier>()
   private var visits = 0
+  /// Ops already moved into nested lists (pattern tiles, masks), counted against the budget.
+  private var nestedOps = 0
   private let diag: CGFloat
 
   init(tree: SvgTree, vbW: CGFloat, vbH: CGFloat) {
@@ -1195,15 +1595,20 @@ private final class SvgBuilder {
     let matched = rules.isEmpty ? [] : rules.filter { $0.selector.matches(node.name, id, node.classes) }
       .sorted { ($0.selector.specificity, $0.order) < ($1.selector.specificity, $1.order) }
     let inline = node.attrs["style"].map(parseSvgCssDeclarations) ?? []
-    for r in matched { for d in r.declarations where !d.important { out[d.name] = d.value } }
-    for d in inline where !d.important { out[d.name] = d.value }
-    for r in matched { for d in r.declarations where d.important { out[d.name] = d.value } }
-    for d in inline where d.important { out[d.name] = d.value }
+    func put(_ d: SvgCssDeclaration) {
+      // A shorthand resets the longhands set before it.
+      if let longhands = svgShorthands[d.name] { for k in longhands { out.removeValue(forKey: k) } }
+      out[d.name] = d.value
+    }
+    for r in matched { for d in r.declarations where !d.important { put(d) } }
+    for d in inline where !d.important { put(d) }
+    for r in matched { for d in r.declarations where d.important { put(d) } }
+    for d in inline where d.important { put(d) }
     node.props = out
     return out
   }
 
-  /// The inherited style at `node` in document order (for stops and clip paths).
+  /// The inherited style at `node` in document order (for stops, clip paths, patterns, masks and markers).
   private func documentStyle(_ node: SvgNode) -> SvgStyleState {
     var chain: [SvgNode] = []
     var n: SvgNode? = node
@@ -1226,6 +1631,17 @@ private final class SvgBuilder {
 
   private func lx(_ node: SvgNode, _ k: String) -> CGFloat? { parseSvgLength(node.attrs[k], vbW) }
   private func ly(_ node: SvgNode, _ k: String) -> CGFloat? { parseSvgLength(node.attrs[k], vbH) }
+
+  /// The ops `body` appends, as their own list.
+  private func capture(_ body: () -> Void) -> [SvgOp] {
+    let saved = ops
+    ops = []
+    body()
+    let out = ops
+    ops = saved
+    nestedOps += out.count
+    return out
+  }
 
   func shapeCommands(_ node: SvgNode) -> [SvgPathCommand] {
     switch node.name {
@@ -1264,6 +1680,8 @@ private final class SvgBuilder {
     case "image":
       guard let w = lx(node, "width"), let h = ly(node, "height") else { return nil }
       return CGRect(x: lx(node, "x") ?? 0, y: ly(node, "y") ?? 0, width: w, height: h)
+    case "text":
+      return textBounds(layoutText(node, documentStyle(node)))
     case "use":
       guard let target = useTarget(node) else { return nil }
       let t = translation(lx(node, "x") ?? 0, ly(node, "y") ?? 0)
@@ -1299,7 +1717,10 @@ private final class SvgBuilder {
       usesCurrentColor = true
       return p
     case let .ref(id, fallback):
-      if let node = tree.ids[id], gradientTags.contains(node.name) { return gradientPaint(node, bounds) }
+      if let node = tree.ids[id] {
+        if gradientTags.contains(node.name) { return gradientPaint(node, bounds) }
+        if node.name == "pattern", let paint = patternPaint(node, bounds) { return paint }
+      }
       return fallback.map { resolvePaint($0, style, bounds) } ?? SvgPaint.none
     default:
       return p
@@ -1407,6 +1828,71 @@ private final class SvgBuilder {
                                  stops: stops, spread: spread, transform: transform))
   }
 
+  /// `<pattern>` with its `href` chain: attributes from the first pattern that sets them, children
+  /// from the first that has any. nil when it can't paint (no size or content, a cycle), which
+  /// takes the paint's fallback as in browsers.
+  private func patternPaint(_ node: SvgNode, _ bounds: () -> CGRect?) -> SvgPaint? {
+    var chain: [SvgNode] = []
+    var seen = Set<ObjectIdentifier>()
+    var p: SvgNode? = node
+    while let c = p, c.name == "pattern", chain.count < 16, !seen.contains(ObjectIdentifier(c)) {
+      seen.insert(ObjectIdentifier(c))
+      chain.append(c)
+      p = c.href.flatMap { $0.hasPrefix("#") ? tree.ids[String($0.dropFirst())] : nil }
+    }
+    func attr(_ k: String) -> String? {
+      for c in chain {
+        if let v = c.attrs[k]?.trimmingCharacters(in: .whitespaces), !v.isEmpty { return v }
+      }
+      return nil
+    }
+    guard let content = chain.first(where: { $0.children.contains { $0.name != textNodeName } }) else { return nil }
+    let key = ObjectIdentifier(content)
+    if onStack.contains(key) { return nil }
+
+    var viewBox: CGRect? = nil
+    if let v = attr("viewBox") {
+      let nums = parseSvgNumberList(v)
+      if nums.count == 4 {
+        // A zero-sized viewBox disables the pattern.
+        if nums[2] <= 0 || nums[3] <= 0 { return nil }
+        viewBox = CGRect(x: nums[0], y: nums[1], width: nums[2], height: nums[3])
+      }
+    }
+    let obbUnits = attr("patternUnits") != "userSpaceOnUse"
+    // A viewBox overrides patternContentUnits.
+    let obbContent = viewBox == nil && attr("patternContentUnits") == "objectBoundingBox"
+    var box = CGRect.zero
+    if obbUnits || obbContent {
+      guard let b = bounds(), b.width > 0, b.height > 0 else { return nil }
+      box = b
+    }
+    func len(_ k: String, _ basis: CGFloat) -> CGFloat { parseSvgLength(attr(k), obbUnits ? 1 : basis) ?? 0 }
+    var x = len("x", vbW), y = len("y", vbH), w = len("width", vbW), h = len("height", vbH)
+    if obbUnits {
+      x = box.minX + x * box.width
+      y = box.minY + y * box.height
+      w *= box.width
+      h *= box.height
+    }
+    guard w > 0, h > 0 else { return nil }
+    var tile = CGAffineTransform.identity
+    if let vb = viewBox {
+      let (ax, ay, slice) = parseSvgPreserveAspectRatio(attr("preserveAspectRatio"))
+      tile = svgViewBoxTransform(vb, ax, ay, slice, w, h)
+    } else if obbContent {
+      tile = CGAffineTransform(scaleX: box.width, y: box.height)
+    }
+    let transform = svgMultiply(attr("patternTransform").flatMap(parseSvgTransform) ?? .identity, translation(x, y))
+    // Contents inherit from the pattern, not from the shape that uses it.
+    let style = documentStyle(content)
+    onStack.insert(key)
+    let tileOps = capture { for child in content.children { walk(child, style, tile, 1) } }
+    onStack.remove(key)
+    if tileOps.isEmpty { return nil }
+    return .pattern(SvgPattern(width: w, height: h, transform: transform, ops: tileOps))
+  }
+
   // MARK: clipping
 
   private func resolveClip(_ props: [String: String], _ ctm: CGAffineTransform, _ bounds: () -> CGRect?) -> SvgClipResolution {
@@ -1427,13 +1913,19 @@ private final class SvgBuilder {
   private func collectClip(_ node: SvgNode, _ parent: SvgStyleState, _ base: CGAffineTransform, _ out: inout [SvgClipPath], allowUse: Bool) {
     if isHidden(node) { return }
     let style = applySvgStyle(parent, cascade(node))
-    if !style.visible { return }
     let m = compose(base, node)
+    if node.name == "text" {
+      for piece in layoutText(node, style) where piece.style.visible && piece.commands.count >= 2 {
+        out.append(SvgClipPath(commands: piece.commands, transform: m, evenOdd: false))
+      }
+      return
+    }
+    if !style.visible { return }
     if shapeTags.contains(node.name) {
       let commands = shapeCommands(node)
       if commands.count >= 2 { out.append(SvgClipPath(commands: commands, transform: m, evenOdd: style.clipEvenOdd)) }
     } else if node.name == "use" && allowUse {
-      guard let target = useTarget(node), shapeTags.contains(target.name) else { return }
+      guard let target = useTarget(node), shapeTags.contains(target.name) || target.name == "text" else { return }
       collectClip(target, style, svgMultiply(m, translation(lx(node, "x") ?? 0, ly(node, "y") ?? 0)), &out, allowUse: false)
     }
   }
@@ -1453,11 +1945,244 @@ private final class SvgBuilder {
     }
   }
 
+  // MARK: masking
+
+  private func resolveMask(_ props: [String: String], _ ctm: CGAffineTransform, _ bounds: () -> CGRect?, _ depth: Int) -> SvgMaskResolution {
+    guard let id = props["mask"].flatMap(svgUrlFragment), let maskNode = tree.ids[id], maskNode.name == "mask" else { return .none }
+    let key = ObjectIdentifier(maskNode)
+    // A mask used inside its own content is an error: nothing renders.
+    if onStack.contains(key) { return .empty }
+    let attrs = maskNode.attrs
+    var regionT = ctm
+    let x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat
+    if attrs["maskUnits"]?.trimmingCharacters(in: .whitespaces) == "userSpaceOnUse" {
+      x = parseSvgLength(attrs["x"] ?? "-10%", vbW) ?? 0
+      y = parseSvgLength(attrs["y"] ?? "-10%", vbH) ?? 0
+      w = parseSvgLength(attrs["width"] ?? "120%", vbW) ?? 0
+      h = parseSvgLength(attrs["height"] ?? "120%", vbH) ?? 0
+    } else {
+      guard let b = bounds(), b.width > 0, b.height > 0 else { return .empty }
+      regionT = svgMultiply(ctm, boxTransform(b))
+      x = parseSvgLength(attrs["x"] ?? "-10%", 1) ?? 0
+      y = parseSvgLength(attrs["y"] ?? "-10%", 1) ?? 0
+      w = parseSvgLength(attrs["width"] ?? "120%", 1) ?? 0
+      h = parseSvgLength(attrs["height"] ?? "120%", 1) ?? 0
+    }
+    guard w > 0, h > 0 else { return .empty }
+    var contentT = ctm
+    if attrs["maskContentUnits"]?.trimmingCharacters(in: .whitespaces) == "objectBoundingBox" {
+      guard let b = bounds(), b.width > 0, b.height > 0 else { return .empty }
+      contentT = svgMultiply(ctm, boxTransform(b))
+    }
+    // Contents inherit from the mask, not from the element it masks.
+    let style = documentStyle(maskNode)
+    onStack.insert(key)
+    let maskOps = capture { for child in maskNode.children { walk(child, style, contentT, depth + 1) } }
+    onStack.remove(key)
+    if maskOps.isEmpty { return .empty }
+    let region = SvgClip([SvgClipPath(commands: svgRectCommands(x, y, w, h, nil, nil), transform: regionT, evenOdd: false)])
+    let alpha = cascade(maskNode)["mask-type"]?.trimmingCharacters(in: .whitespaces) == "alpha"
+    return .mask(SvgMask(ops: maskOps, region: region, luminance: !alpha))
+  }
+
+  /// Runs `body` through `props`' mask; skips it when the mask shows nothing.
+  private func withMask(_ props: [String: String], _ ctm: CGAffineTransform, _ bounds: () -> CGRect?, _ depth: Int, _ body: () -> Void) {
+    switch resolveMask(props, ctm, bounds, depth) {
+    case .empty:
+      return
+    case .none:
+      body()
+    case let .mask(mask):
+      let content = capture(body)
+      if !content.isEmpty { ops.append(.masked(mask, content)) }
+    }
+  }
+
+  // MARK: markers
+
+  /// The markers on a path, line, polyline or polygon, after the shape itself.
+  private func walkMarkers(_ node: SvgNode, _ commands: [SvgPathCommand], _ style: SvgStyleState, _ ctm: CGAffineTransform, _ depth: Int) {
+    var ends: [Bool]? = nil
+    var cmds = commands
+    if node.name == "path" {
+      var e: [Bool] = []
+      cmds = parseSvgPathData(node.attrs["d"] ?? "", vertexEnds: &e)
+      ends = e
+    }
+    let vertices = svgMarkerVertices(cmds, vertexEnds: ends)
+    guard !vertices.isEmpty else { return }
+    let last = vertices.count - 1
+    for (i, v) in vertices.enumerated() {
+      if i == 0, let id = style.markerStart { drawMarker(id, v, start: true, style.strokeWidth, ctm, depth) }
+      if i > 0 && i < last, let id = style.markerMid { drawMarker(id, v, start: false, style.strokeWidth, ctm, depth) }
+      if i == last, let id = style.markerEnd { drawMarker(id, v, start: false, style.strokeWidth, ctm, depth) }
+    }
+  }
+
+  private func drawMarker(_ id: String, _ v: SvgMarkerVertex, start: Bool, _ strokeWidth: CGFloat, _ ctm: CGAffineTransform, _ depth: Int) {
+    guard let marker = tree.ids[id], marker.name == "marker" else { return }
+    let key = ObjectIdentifier(marker)
+    if depth > maxSvgDepth || onStack.contains(key) { return }
+    let attrs = marker.attrs
+    let mw = parseSvgLength(attrs["markerWidth"] ?? "3", vbW) ?? 0
+    let mh = parseSvgLength(attrs["markerHeight"] ?? "3", vbH) ?? 0
+    if mw <= 0 || mh <= 0 { return }
+    var vbT = CGAffineTransform.identity
+    var vb = CGRect(x: 0, y: 0, width: mw, height: mh)
+    if let raw = attrs["viewBox"] {
+      let nums = parseSvgNumberList(raw)
+      if nums.count == 4 {
+        if nums[2] <= 0 || nums[3] <= 0 { return }
+        vb = CGRect(x: nums[0], y: nums[1], width: nums[2], height: nums[3])
+        let (ax, ay, slice) = parseSvgPreserveAspectRatio(attrs["preserveAspectRatio"])
+        vbT = svgViewBoxTransform(vb, ax, ay, slice, mw, mh)
+      }
+    }
+    // refX/refY: viewBox units, or the SVG 2 keywords.
+    func ref(_ raw: String?, _ lo: CGFloat, _ size: CGFloat, _ low: String, _ high: String) -> CGFloat {
+      guard let v = raw?.trimmingCharacters(in: .whitespaces) else { return 0 }
+      if v == low { return lo }
+      if v == "center" { return lo + size / 2 }
+      if v == high { return lo + size }
+      return parseSvgLength(v, size) ?? 0
+    }
+    let refPoint = CGPoint(x: ref(attrs["refX"], vb.minX, vb.width, "left", "right"),
+                           y: ref(attrs["refY"], vb.minY, vb.height, "top", "bottom")).applying(vbT)
+    let scale = attrs["markerUnits"]?.trimmingCharacters(in: .whitespaces) == "userSpaceOnUse" ? 1 : strokeWidth
+    if scale <= 0 { return }
+    var angle: CGFloat
+    switch attrs["orient"]?.trimmingCharacters(in: .whitespaces) {
+    case "auto"?: angle = v.autoAngle
+    case "auto-start-reverse"?: angle = v.autoAngle + (start ? 180 : 0)
+    case let raw?: angle = parseSvgAngle(raw) ?? 0
+    case nil: angle = 0
+    }
+    let rad = angle * .pi / 180
+    let viewport = svgMultiply(ctm, CGAffineTransform(a: cos(rad) * scale, b: sin(rad) * scale, c: -sin(rad) * scale,
+                                                      d: cos(rad) * scale, tx: v.x, ty: v.y))
+      .translatedBy(x: -refPoint.x, y: -refPoint.y)
+    let props = cascade(marker)
+    let style = documentStyle(marker)
+    let overflow = props["overflow"]?.trimmingCharacters(in: .whitespaces)
+    let clip = overflow == "visible" || overflow == "auto" ? nil
+      : SvgClip([SvgClipPath(commands: svgRectCommands(0, 0, mw, mh, nil, nil), transform: viewport, evenOdd: false)])
+    onStack.insert(key)
+    defer { onStack.remove(key) }
+    if let clip = clip { ops.append(.beginClip(clip)) }
+    let first = ops.count
+    for child in marker.children { walk(child, style, svgMultiply(viewport, vbT), depth + 1) }
+    if clip != nil { if ops.count == first { ops.removeLast() } else { ops.append(.endClip) } }
+  }
+
+  // MARK: text
+
+  /// The text's characters after white space handling, with the `[start, end)` range each text
+  /// content element covers (outermost first).
+  private func collectText(_ node: SvgNode, _ style: SvgStyleState, _ out: inout [SvgTextChar],
+                           _ ranges: inout [(SvgNode, Int, Int)], _ lastSpace: inout Bool, _ depth: Int) {
+    if depth > maxSvgDepth { return }
+    let slot = ranges.count
+    ranges.append((node, out.count, out.count))
+    for child in node.children {
+      if child.name == textNodeName {
+        for sc in child.text.unicodeScalars {
+          let ws = sc == " " || sc == "\t" || sc == "\n" || sc == "\r"
+          if style.preserveSpace {
+            out.append(SvgTextChar(scalar: ws ? " " : sc, owner: node, style: style))
+            lastSpace = false
+          } else if ws {
+            if lastSpace { continue }
+            out.append(SvgTextChar(scalar: " ", owner: node, style: style))
+            lastSpace = true
+          } else {
+            out.append(SvgTextChar(scalar: sc, owner: node, style: style))
+            lastSpace = false
+          }
+        }
+      } else if child.name == "tspan" || child.name == "a" {
+        if isHidden(child) { continue }
+        collectText(child, applySvgStyle(style, cascade(child)), &out, &ranges, &lastSpace, depth + 1)
+      }
+    }
+    ranges[slot].2 = out.count
+  }
+
+  /// Glyph outlines of a `<text>` with `style`, laid out in its user space.
+  private func layoutText(_ node: SvgNode, _ style: SvgStyleState) -> [SvgTextPiece] {
+    var chars: [SvgTextChar] = []
+    var ranges: [(SvgNode, Int, Int)] = []
+    var lastSpace = true
+    collectText(node, style, &chars, &ranges, &lastSpace, 0)
+    if let last = chars.last, last.scalar == " ", !last.style.preserveSpace { chars.removeLast() }
+    if chars.isEmpty { return [] }
+    // Each element's positions go to its own characters in order; inner elements win.
+    for (el, start, end) in ranges {
+      let stop = min(end, chars.count)
+      guard start < stop else { continue }
+      let xs = parseSvgLengthList(el.attrs["x"], vbW), ys = parseSvgLengthList(el.attrs["y"], vbH)
+      let dxs = parseSvgLengthList(el.attrs["dx"], vbW), dys = parseSvgLengthList(el.attrs["dy"], vbH)
+      for k in 0..<(stop - start) {
+        let i = start + k
+        if k < xs.count { chars[i].x = xs[k] }
+        if k < ys.count { chars[i].y = ys[k] }
+        if k < dxs.count { chars[i].dx = dxs[k] }
+        if k < dys.count { chars[i].dy = dys[k] }
+      }
+    }
+
+    var pieces: [SvgTextPiece] = []
+    // Anchored chunks: first piece, start x and anchor; each ends where the next starts.
+    var chunks: [(first: Int, startX: CGFloat, endX: CGFloat, anchor: SvgTextAnchor)] = []
+    var px: CGFloat = 0, py: CGFloat = 0
+    var i = 0
+    while i < chars.count {
+      let c = chars[i]
+      let penX = px
+      if let x = c.x { px = x }
+      if let y = c.y { py = y }
+      px += c.dx
+      py += c.dy
+      if i == 0 || c.x != nil || c.y != nil {
+        if !chunks.isEmpty { chunks[chunks.count - 1].endX = penX }
+        chunks.append((first: pieces.count, startX: px, endX: px, anchor: c.style.textAnchor))
+      }
+      // One run: same element, no positioning after its first character.
+      var j = i + 1
+      while j < chars.count, chars[j].owner === c.owner, chars[j].x == nil, chars[j].y == nil, chars[j].dx == 0, chars[j].dy == 0 {
+        j += 1
+      }
+      var scalars = String.UnicodeScalarView()
+      scalars.append(contentsOf: chars[i..<j].map { $0.scalar })
+      let run = svgTextShaper.shape(String(scalars), font: c.style.font, letterSpacing: c.style.letterSpacing,
+                                    wordSpacing: c.style.wordSpacing)
+      let shift = svgBaselineShift(c.style.baseline, run)
+      if !run.commands.isEmpty {
+        pieces.append(SvgTextPiece(commands: svgTranslated(run.commands, px, py + shift), style: c.style))
+      }
+      px += run.advance
+      i = j
+    }
+    if !chunks.isEmpty { chunks[chunks.count - 1].endX = px }
+    for (n, chunk) in chunks.enumerated() where chunk.anchor != .start {
+      let width = chunk.endX - chunk.startX
+      let dx = chunk.anchor == .middle ? -width / 2 : -width
+      let end = n + 1 < chunks.count ? chunks[n + 1].first : pieces.count
+      for p in chunk.first..<end { pieces[p].commands = svgTranslated(pieces[p].commands, dx, 0) }
+    }
+    return pieces
+  }
+
+  private func textBounds(_ pieces: [SvgTextPiece]) -> CGRect? {
+    var b: CGRect? = nil
+    for p in pieces { b = unionBounds(b, svgPathBounds(p.commands)) }
+    return b
+  }
+
   // MARK: walk
 
   func walk(_ node: SvgNode, _ parent: SvgStyleState, _ ctm: CGAffineTransform, _ depth: Int) {
     visits += 1
-    if depth > maxSvgDepth || visits > maxSvgVisits || ops.count >= maxSvgOps { return }
+    if depth > maxSvgDepth || visits > maxSvgVisits || ops.count + nestedOps >= maxSvgOps { return }
     let key = ObjectIdentifier(node)
     if isHidden(node) || onStack.contains(key) { return }
     onStack.insert(key)
@@ -1465,11 +2190,13 @@ private final class SvgBuilder {
     if containerTags.contains(node.name) {
       walkContainer(node, parent, ctm, depth)
     } else if shapeTags.contains(node.name) {
-      walkShape(node, parent, ctm)
+      walkShape(node, parent, ctm, depth)
     } else if node.name == "use" {
       walkUse(node, parent, ctm, depth)
     } else if node.name == "image" {
-      walkImage(node, parent, ctm)
+      walkImage(node, parent, ctm, depth)
+    } else if node.name == "text" {
+      walkText(node, parent, ctm, depth)
     }
   }
 
@@ -1479,15 +2206,17 @@ private final class SvgBuilder {
     // The root's own transform is ignored (as in SVG 1.1); nested elements compose theirs.
     let ctm = node === tree.root ? parentCtm : compose(parentCtm, node)
     let opacity = opacityOf(props)
-    withClip(props, ctm, { boundsOf(node) }) {
-      let group = opacity < 1
-      if group { ops.append(.beginGroup(opacity)) }
-      for child in node.children { walk(child, style, ctm, depth + 1) }
-      if group { ops.append(.endGroup) }
+    withMask(props, ctm, { boundsOf(node) }, depth) {
+      withClip(props, ctm, { boundsOf(node) }) {
+        let group = opacity < 1
+        if group { ops.append(.beginGroup(opacity)) }
+        for child in node.children { walk(child, style, ctm, depth + 1) }
+        if group { ops.append(.endGroup) }
+      }
     }
   }
 
-  private func walkShape(_ node: SvgNode, _ parent: SvgStyleState, _ parentCtm: CGAffineTransform) {
+  private func walkShape(_ node: SvgNode, _ parent: SvgStyleState, _ parentCtm: CGAffineTransform, _ depth: Int) {
     let props = cascade(node)
     let style = applySvgStyle(parent, props)
     let ctm = compose(parentCtm, node)
@@ -1519,20 +2248,23 @@ private final class SvgBuilder {
       dashArray: style.dashArray,
       dashOffset: style.dashOffset
     )
-    if !shape.hasFill && !shape.hasStroke { return }
-    withClip(props, ctm, boundsFn) {
-      if opacity < 1 {
-        if shape.hasFill && shape.hasStroke {
-          // Fill and stroke overlap, so they composite together.
+    let markers = style.hasMarkers && markerTags.contains(node.name)
+    let painted = shape.hasFill || shape.hasStroke
+    if !painted && !markers { return }
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        // Fill, stroke and markers overlap, so at partial opacity they composite together.
+        let group = opacity < 1 && ((shape.hasFill && shape.hasStroke) || markers)
+        if group {
           ops.append(.beginGroup(opacity))
-          ops.append(.shape(shape))
-          ops.append(.endGroup)
-          return
+        } else if opacity < 1 {
+          shape.fillOpacity *= opacity
+          shape.strokeOpacity *= opacity
         }
-        shape.fillOpacity *= opacity
-        shape.strokeOpacity *= opacity
+        if painted { ops.append(.shape(shape)) }
+        if markers { walkMarkers(node, commands, style, ctm, depth) }
+        if group { ops.append(.endGroup) }
       }
-      ops.append(.shape(shape))
     }
   }
 
@@ -1544,11 +2276,13 @@ private final class SvgBuilder {
     let own = compose(parentCtm, node)
     let ctm = svgMultiply(own, translation(lx(node, "x") ?? 0, ly(node, "y") ?? 0))
     let opacity = opacityOf(props)
-    withClip(props, own, { boundsOf(node) }) {
-      let group = opacity < 1
-      if group { ops.append(.beginGroup(opacity)) }
-      if target.name == "symbol" { walkSymbol(target, node, style, ctm, depth + 1) } else { walk(target, style, ctm, depth + 1) }
-      if group { ops.append(.endGroup) }
+    withMask(props, own, { boundsOf(node) }, depth) {
+      withClip(props, own, { boundsOf(node) }) {
+        let group = opacity < 1
+        if group { ops.append(.beginGroup(opacity)) }
+        if target.name == "symbol" { walkSymbol(target, node, style, ctm, depth + 1) } else { walk(target, style, ctm, depth + 1) }
+        if group { ops.append(.endGroup) }
+      }
     }
   }
 
@@ -1581,7 +2315,7 @@ private final class SvgBuilder {
     if clip != nil { ops.append(.endClip) }
   }
 
-  private func walkImage(_ node: SvgNode, _ parent: SvgStyleState, _ parentCtm: CGAffineTransform) {
+  private func walkImage(_ node: SvgNode, _ parent: SvgStyleState, _ parentCtm: CGAffineTransform, _ depth: Int) {
     let props = cascade(node)
     let style = applySvgStyle(parent, props)
     let ctm = compose(parentCtm, node)
@@ -1594,9 +2328,49 @@ private final class SvgBuilder {
     if let h = h, h <= 0 { return }
     let x = lx(node, "x") ?? 0, y = ly(node, "y") ?? 0
     let (ax, ay, slice) = parseSvgPreserveAspectRatio(node.attrs["preserveAspectRatio"])
-    withClip(props, ctm, { w != nil && h != nil ? CGRect(x: x, y: y, width: w!, height: h!) : nil }) {
-      ops.append(.image(SvgImage(href: href, x: x, y: y, width: w, height: h, alignX: ax, alignY: ay, slice: slice,
-                                 transform: ctm, opacity: opacity)))
+    let boundsFn: () -> CGRect? = { w != nil && h != nil ? CGRect(x: x, y: y, width: w!, height: h!) : nil }
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        ops.append(.image(SvgImage(href: href, x: x, y: y, width: w, height: h, alignX: ax, alignY: ay, slice: slice,
+                                   transform: ctm, opacity: opacity)))
+      }
+    }
+  }
+
+  private func walkText(_ node: SvgNode, _ parent: SvgStyleState, _ parentCtm: CGAffineTransform, _ depth: Int) {
+    let props = cascade(node)
+    let style = applySvgStyle(parent, props)
+    let ctm = compose(parentCtm, node)
+    let opacity = opacityOf(props)
+    if opacity <= 0 { return }
+    let pieces = layoutText(node, style)
+    if pieces.isEmpty { return }
+    var measured = false
+    var bounds: CGRect? = nil
+    let boundsFn: () -> CGRect? = {
+      if !measured {
+        bounds = self.textBounds(pieces)
+        measured = true
+      }
+      return bounds
+    }
+    // Paint servers in bounding-box units use the whole text's box.
+    var shapes: [SvgShape] = []
+    for piece in pieces where piece.style.visible {
+      let s = piece.style
+      let shape = SvgShape(commands: piece.commands, transform: ctm, fill: resolvePaint(s.fill, s, boundsFn),
+                           fillOpacity: s.fillOpacity, evenOdd: false, stroke: resolvePaint(s.stroke, s, boundsFn),
+                           strokeOpacity: s.strokeOpacity, strokeWidth: s.strokeWidth, lineCap: s.lineCap,
+                           lineJoin: s.lineJoin, miterLimit: s.miterLimit, dashArray: s.dashArray, dashOffset: s.dashOffset)
+      if shape.hasFill || shape.hasStroke { shapes.append(shape) }
+    }
+    if shapes.isEmpty { return }
+    withMask(props, ctm, boundsFn, depth) {
+      withClip(props, ctm, boundsFn) {
+        if opacity < 1 { ops.append(.beginGroup(opacity)) }
+        for shape in shapes { ops.append(.shape(shape)) }
+        if opacity < 1 { ops.append(.endGroup) }
+      }
     }
   }
 }
