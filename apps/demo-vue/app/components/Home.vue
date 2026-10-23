@@ -77,6 +77,8 @@ import GridArea from '~/plugin-demos/Grid-Area.vue';
 import DisplayDemo from '~/plugin-demos/DisplayDemo.vue';
 import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
 import PositionDemo from '~/plugin-demos/PositionDemo.vue';
+import InlineBoxesDemo from '~/plugin-demos/InlineBoxesDemo.vue';
+import IssueReprosDemo from '~/plugin-demos/IssueReprosDemo.vue';
 import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
 import GradientDemo from '~/plugin-demos/GradientDemo.vue';
@@ -94,12 +96,18 @@ import Stress from '~/stress/Stress.vue';
 import BenchPage from '~/bench/BenchPage.vue';
 
 // `adb shell am start -n org.nativescript.plugindemovue/com.tns.NativeScriptActivity --ei bench 3`
-// opens the layout benchmark and runs it 3 times. The intent is read after mount because the
-// start activity is not always set yet when Home first mounts.
+// opens the layout benchmark and runs it 3 times; `--es demo "Inline boxes"` opens that demo page.
+// The intent is read after mount because the start activity is not always set yet when Home first mounts.
 onMounted(() => {
   if (!__ANDROID__) return;
   setTimeout(() => {
     const activity = Application.android.foregroundActivity ?? Application.android.startActivity;
+    const demo = activity?.getIntent()?.getStringExtra('demo');
+    const page = demo && groups.flatMap((group) => group.items).find((item) => item.title === demo)?.page;
+    if (page) {
+      $navigateTo(page, { animated: false });
+      return;
+    }
     const n = activity?.getIntent()?.getIntExtra('bench', 0) ?? 0;
     if (n <= 0) return;
     console.log(`BENCH_AUTOSTART ${n}`);
@@ -118,6 +126,7 @@ const groups = [
       { title: 'Display', desc: 'block / flex / none toggling', icon: 'D', color: '#e84393', page: DisplayDemo },
       { title: 'Spacing', desc: 'Margin, padding and gap', icon: 'S', color: '#fdcb6e', page: SpacingDemo },
       { title: 'Position', desc: 'Sticky headers and fixed overlays', icon: 'P', color: '#00b894', page: PositionDemo },
+      { title: 'Inline boxes', desc: 'Chips and inline wrappers on the text baseline', icon: 'I', color: '#0984e3', page: InlineBoxesDemo },
     ],
   },
   {
@@ -137,6 +146,7 @@ const groups = [
     items: [
       { title: 'Core views', desc: 'NativeScript widgets inside Mason containers', icon: 'C', color: '#74b9ff', page: CoreViewsDemo },
       { title: 'Showcase', desc: 'Component gallery', icon: 'W', color: '#a29bfe', page: ShowcaseDemo },
+      { title: 'Issue repros', desc: 'One card per reported MasonKit issue', icon: '!', color: '#d63031', page: IssueReprosDemo },
     ],
   },
   {
