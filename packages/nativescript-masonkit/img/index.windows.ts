@@ -1,7 +1,7 @@
-import { CSSType, knownFolders } from '@nativescript/core';
+import { CSSType } from '@nativescript/core';
 import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
-import { Style } from '../style';
+import { Style, windowsAppFile } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
 
 @CSSType('img')
@@ -39,11 +39,7 @@ export class Img extends ImageBase {
   [srcProperty.setNative](value) {
     const nativeView = this._view;
     if (nativeView) {
-      if (typeof value === 'string' && value.startsWith('~/')) {
-        nativeView.Source = knownFolders.currentApp().path + '/' + value.slice(2);
-      } else {
-        nativeView.Source = value;
-      }
+      nativeView.Source = typeof value === 'string' ? windowsAppFile(value) : value;
     }
   }
 }
