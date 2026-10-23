@@ -7,6 +7,30 @@
       <main class="page-body">
         <p class="tk-muted note">One card per reported issue. DOM probes log REPRO lines to the console.</p>
 
+        <p class="tk-text heading">A. Centred nowrap text in a flex box</p>
+        <div class="tk-surface card">
+          <div class="row-flex">
+            <span class="avatar nowrap-center">AB</span>
+            <span class="avatar pre-center">CD</span>
+            <span class="wide-pill">centred pill label</span>
+          </div>
+        </div>
+
+        <p class="tk-text heading">B. collapse then hidden keeps a gap</p>
+        <div class="tk-surface card">
+          <div class="bar a">above</div>
+          <div ref="collapseThenHidden" class="bar b">hidden (should be a gap)</div>
+          <div class="bar c">below</div>
+        </div>
+
+        <p class="tk-text heading">C. Centred pre, inline boxes on the baseline</p>
+        <div class="tk-surface card">
+          <pre class="code centred">one
+two two
+three three three</pre>
+          <p class="tk-text row">Press <kbd class="kbd">Ctrl</kbd> then <button class="inline-btn">Go</button> and <span class="kbd two-line">two<br />lines</span> end.</p>
+        </div>
+
         <p class="tk-text heading">1. Nested text keeps inline styles</p>
         <div class="tk-surface card">
           <p class="tk-text row">plain <span class="red bold">red bold</span> plain <span class="blue italic">blue italic</span></p>
@@ -142,6 +166,7 @@ const probeButton = ref<any>();
 const probeText = ref<any>();
 const probeSummary = ref('');
 const progressFill = ref<any>();
+const collapseThenHidden = ref<any>();
 
 function nativeOf(r: any) {
   return r?.nativeView ?? r;
@@ -160,6 +185,9 @@ function probe(label: string, fn: () => unknown): string {
 }
 
 onMounted(() => {
+  const hiddenBar = nativeOf(collapseThenHidden.value);
+  hiddenBar.visibility = 'collapse';
+  setTimeout(() => (hiddenBar.visibility = 'hidden'), 300);
   setTimeout(() => {
     const button = nativeOf(probeButton.value);
     const text = nativeOf(probeText.value);
@@ -275,7 +303,6 @@ onMounted(() => {
 
 .scroller { overflow-x: auto; }
 
-/* What a markdown stylesheet sets under preflight. */
 .md-ul {
   list-style-type: disc;
   padding-left: 24;
@@ -332,6 +359,42 @@ onMounted(() => {
   color: white;
   font-weight: bold;
 }
+
+.nowrap-center {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pre-center {
+  text-align: center;
+  white-space: pre;
+}
+
+.wide-pill {
+  display: flex;
+  justify-content: center;
+  width: 170;
+  height: 48;
+  align-items: center;
+  text-align: center;
+  white-space: nowrap;
+  border-radius: 24;
+  background-color: #81ecec;
+}
+
+.centred { text-align: center; }
+
+.inline-btn {
+  display: inline-block;
+  padding: 4 10;
+  border-width: 1;
+  border-color: #636e72;
+  border-radius: 6;
+  background-color: transparent;
+  color: #2d3436;
+}
+
+.two-line { display: inline-block; }
 
 .row-flex {
   display: flex;
