@@ -72,6 +72,27 @@ describe('an inherited keyword reaches the buffer even when it is the initial va
   });
 });
 
+describe('display', () => {
+  // `block` is no CssProperty default: on an element that is inline on its own (img, span)
+  // core would otherwise drop it as unchanged.
+  it('block reaches an element that is inline on its own', () => {
+    const { under, style } = masonHost();
+    under.style.display = 'inline';
+    (style as any).display = 'block';
+    expect(under.getInt8(styleKey('DISPLAY'))).toBe(3);
+    expect(under.getInt8(styleKey('DISPLAY_MODE'))).toBe(0);
+  });
+
+  it("unsetting it restores the element's own display", () => {
+    const { under, style } = masonHost();
+    under.style.display = 'inline';
+    (style as any).display = 'none';
+    expect(under.getInt8(styleKey('DISPLAY'))).toBe(0);
+    (style as any).display = undefined;
+    expect(under.style.display).toBe('inline');
+  });
+});
+
 describe('a mason view writes each declaration once', () => {
   it('leaves the write to setNative when the view has one', () => {
     setScreenScale(1);

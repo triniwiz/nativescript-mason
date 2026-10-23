@@ -70,6 +70,7 @@ import {
   columnGapProperty,
   cornerShapeProperty,
   displayProperty,
+  applyDisplay,
   filterProperty,
   flexBasisProperty,
   floatProperty,
@@ -2971,10 +2972,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [displayProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
-    if (style) {
-      // @ts-ignore
-      style.display = value;
-    }
+    if (style) applyDisplay(style, value);
   }
 
   get overflow() {

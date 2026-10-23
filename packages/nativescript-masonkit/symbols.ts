@@ -1,5 +1,7 @@
 export const native_ = Symbol('[[native]]');
 export const style_ = Symbol('[[style]]');
+// On a mason Style: the element's own display, kept from before `display` was first set.
+export const elementDisplay_ = Symbol('[[elementDisplay]]');
 export const isTextChild_ = Symbol('[[isTextChild]]');
 export const isText_ = Symbol('[[isText]]');
 export const isMasonView_ = Symbol('[[isMasonView]]');
