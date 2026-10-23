@@ -94,6 +94,7 @@ export class View extends ViewBase {
           pendingAddHosts++;
         }
         this._masonPendingAdds.push(child, index);
+        if (child.parent !== this) (child as any).once('loaded', () => this._masonFlushNativeAdds(child));
         return true;
       }
       this._masonInsertNative(child, index);

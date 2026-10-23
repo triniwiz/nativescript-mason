@@ -43,6 +43,7 @@ import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FontVariantNumeric
+import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
@@ -745,13 +746,13 @@ class TextEngine(val container: TextContainer) {
 
     var allowWrap = true
     if (node.style.isValueInitialized) {
-      val ws = node.style.whiteSpace
+      val ws = node.style.resolvedWhiteSpace
       // No wrap for pre / nowrap
       if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
         allowWrap = false
       }
       // Explicit override
-      if (node.style.textWrap == TextWrap.NoWrap) {
+      if (node.style.resolvedTextWrap == TextWrap.NoWrap) {
         allowWrap = false
       }
     }
@@ -1097,7 +1098,7 @@ class TextEngine(val container: TextContainer) {
       // A text node holding only collapsible whitespace (e.g. a JSX/HTML
       // newline+indent between sibling elements) must collapse to 0x0 rather
       // than floor to minLineHeight. `white-space: pre*`/`break-spaces` opt out.
-      val preservesWhitespace = node.style.isValueInitialized && when (node.style.whiteSpace) {
+      val preservesWhitespace = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap,
         Styles.WhiteSpace.PreLine, Styles.WhiteSpace.BreakSpaces -> true
         else -> false
@@ -1301,11 +1302,11 @@ class TextEngine(val container: TextContainer) {
 
     var allowWrap = true
     if (node.style.isValueInitialized) {
-      val ws = node.style.whiteSpace
+      val ws = node.style.resolvedWhiteSpace
       if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
         allowWrap = false
       }
-      if (node.style.textWrap == TextWrap.NoWrap) {
+      if (node.style.resolvedTextWrap == TextWrap.NoWrap) {
         allowWrap = false
       }
     }
@@ -1420,7 +1421,7 @@ class TextEngine(val container: TextContainer) {
           val pFm = paint.fontMetricsInt
           when (verticalAlign) {
             VerticalAlign.Baseline -> {
-              baseline = 0f
+              baseline = inlineBoxBaseline(viewSpan.childNode, height.toInt()).toFloat()
             }
 
             VerticalAlign.TextTop -> {
@@ -1750,8 +1751,9 @@ class TextEngine(val container: TextContainer) {
       fm?.let { metrics ->
         when (verticalAlign) {
           VerticalAlign.Baseline -> {
-            metrics.ascent = -height
-            metrics.descent = 0
+            val baseline = inlineBoxBaseline(childNode, height)
+            metrics.ascent = -(height - baseline)
+            metrics.descent = baseline
           }
 
           VerticalAlign.TextTop -> {
@@ -1848,7 +1850,7 @@ class TextEngine(val container: TextContainer) {
       // The 'y' parameter is the baseline position
       val drawY = when (verticalAlign) {
         VerticalAlign.Baseline -> {
-          (y - cachedHeight).toFloat()
+          (y - cachedHeight + inlineBoxBaseline(childNode, cachedHeight)).toFloat()
         }
 
         VerticalAlign.TextTop -> {
@@ -1900,6 +1902,11 @@ class TextEngine(val container: TextContainer) {
       drawnRect.set(x, drawY, x + cachedWidth, drawY + cachedHeight)
       drawn = true
     }
+  }
+
+  internal fun inlineBoxBaseline(child: Node, height: Int): Int {
+    if (height <= 0 || isVerticalWritingMode) return 0
+    return child.inlineBaseline.toInt().coerceIn(0, height)
   }
 
   private fun createPlaceholder(child: Node): SpannableStringBuilder {
@@ -2029,7 +2036,7 @@ class TextEngine(val container: TextContainer) {
     return ceilFine(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
   }
 
-  private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
+  private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
     else -> false
   }
@@ -2477,9 +2484,11 @@ class TextEngine(val container: TextContainer) {
             if (shouldFlattenTextContainer(childTextContainer)) {
               val nested = childTextContainer.engine.buildAttributedString(nested = true)
               val start = composed.length
-              composed.append(nested)
+              composed.append(nested.toString())
               val end = composed.length
               applyTextViewStylesToSpan(composed, start, end, childTextContainer)
+              // The child's own pieces go on after its style, so a span inside a span keeps its colour.
+              TextUtils.copySpansFrom(nested, 0, nested.length, null, composed, start)
               if (end > start) {
                 composed.setSpan(NodeSpan(child), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
               }
@@ -2612,7 +2621,7 @@ class TextEngine(val container: TextContainer) {
    */
   private fun collapseFlowSpaces(text: SpannableStringBuilder) {
     if (style.isValueInitialized) {
-      when (style.whiteSpace) {
+      when (style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.PreLine -> {}
         else -> return
       }

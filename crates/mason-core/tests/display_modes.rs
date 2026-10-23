@@ -259,3 +259,45 @@ fn android_float_activity_repro() {
     assert!(!rects.is_empty(), "expected at least one float rect");
     assert_eq!(rects[2], 68.0);
 }
+
+#[test]
+fn visibility_collapse_takes_the_box_out_of_flow_and_keeps_its_display() {
+    let mut mason = Mason::new();
+    let root_node = mason.create_node();
+    let root = root_node.id();
+    mason.with_style_mut(root, |s| {
+        s.set_display(Display::Block);
+        s.set_size(Size {
+            width: Dimension::length(100.0),
+            height: Dimension::auto(),
+        });
+    });
+    let row_nodes: Vec<_> = (0..3).map(|_| mason.create_node()).collect();
+    let rows: Vec<_> = row_nodes.iter().map(|n| n.id()).collect();
+    for &row in &rows {
+        mason.with_style_mut(row, |s| {
+            s.set_display(Display::Flex);
+            s.set_size(Size {
+                width: Dimension::auto(),
+                height: Dimension::length(10.0),
+            });
+        });
+    }
+    mason.append_node(root, &rows);
+    let set_visibility = |mason: &mut Mason, value: u8| {
+        mason.with_style_mut(rows[1], |s| {
+            s.prepare_mut();
+            s.data_mut()[mason_core::style::StyleKeys::VISIBILITY as usize] = value;
+        });
+    };
+
+    set_visibility(&mut mason, 2);
+    mason.compute_wh(root, 100.0, f32::NAN);
+    assert_eq!(mason.layout_raw(rows[2]).location.y, 10.0);
+    mason.with_style_mut(rows[1], |s| assert_eq!(s.get_display(), Display::None));
+
+    set_visibility(&mut mason, 1);
+    mason.compute_wh(root, 100.0, f32::NAN);
+    assert_eq!(mason.layout_raw(rows[2]).location.y, 20.0);
+    mason.with_style_mut(rows[1], |s| assert_eq!(s.get_display(), Display::Flex));
+}

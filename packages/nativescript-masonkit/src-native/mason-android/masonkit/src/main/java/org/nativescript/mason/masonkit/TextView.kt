@@ -38,7 +38,11 @@ import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
@@ -289,22 +293,37 @@ open class TextView @JvmOverloads constructor(
     }
 
     val layout = floatAwareStaticLayout ?: cachedStaticLayout ?: return null
-    val contentH = height - paddingTop - paddingBottom
-    val dy = if (layout.lineCount == 1 && contentH > 0) {
-      val baseline0 = layout.getLineBaseline(0)
-      val glyphCenter = baseline0 +
-        (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
-      contentH / 2f - glyphCenter
-    } else if (centersVertically && contentH > layout.height) {
-      (contentH - layout.height) / 2f
-    } else 0f
+    val dy = verticalOffset(layout, height - paddingTop - paddingBottom)
     if (layout.paint === engine.plainTextPaintOrNull) engine.preparePlainTextPaint(textPaint)
     // We bypass super.onDraw, which normally insets the layout by the view's
     // padding — so apply paddingLeft/paddingTop here.
     drawnLayout = layout
-    drawnDx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layout, contentWidth)
+    drawnDx = paddingLeft.toFloat() + (containerAlignmentShift(layout, contentWidth) ?: unconstrainedAlignmentShift(layout, contentWidth))
     drawnDy = paddingTop.toFloat() + dy
     return layout
+  }
+
+  // One line is centred in the content box; more start at its top unless the view centres them.
+  private fun verticalOffset(layout: android.text.Layout, contentH: Int): Float =
+    if (layout.lineCount == 1 && contentH > 0) {
+      val glyphCenter = layout.getLineBaseline(0) + (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
+      contentH / 2f - glyphCenter
+    } else if (centersVertically && contentH > layout.height) {
+      (contentH - layout.height) / 2f
+    } else 0f
+
+  /** The last line's baseline from the top of a [width] by [height] content box, where it is drawn. */
+  private fun baselineFromTop(width: Float, height: Float): Float {
+    if (engine.isVerticalWritingMode) return Float.NaN
+    val contentWidth = width.toInt()
+    if (floatAwareStaticLayout == null &&
+      (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
+    ) {
+      engine.rebuildCachedStaticLayout(textPaint, contentWidth)
+    }
+    val layout = floatAwareStaticLayout ?: cachedStaticLayout
+    if (layout == null || layout.lineCount == 0) return height - style.paint.fontMetricsInt.descent
+    return verticalOffset(layout, height.toInt()) + layout.getLineBaseline(layout.lineCount - 1)
   }
 
   private fun drawResolvedLayout(c: Canvas, layout: android.text.Layout, decorations: Boolean) {
@@ -332,6 +351,45 @@ open class TextView @JvmOverloads constructor(
       layout.getLineRight(0) >= layout.width - 0.5f -> -slack
       else -> -slack / 2f
     }
+  }
+
+  private fun containerAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float? {
+    if (contentWidth <= 0 || layout.lineCount == 0 || !style.isValueInitialized) return null
+    val factor = when (style.display) {
+      Display.Flex, Display.InlineFlex -> when (style.flexDirection) {
+        FlexDirection.Row -> justifyFactor(style.justifyContent, reversed = false)
+        FlexDirection.RowReverse -> justifyFactor(style.justifyContent, reversed = true)
+        else -> when (style.alignItems) {
+          AlignItems.Center -> 0.5f
+          AlignItems.End, AlignItems.FlexEnd -> 1f
+          else -> 0f
+        }
+      }
+      Display.Grid, Display.InlineGrid -> when (style.justifyItems) {
+        JustifyItems.Center -> 0.5f
+        JustifyItems.End, JustifyItems.FlexEnd -> 1f
+        else -> justifyFactor(style.justifyContent, reversed = false)
+      }
+      else -> 0f
+    }
+    if (factor == 0f) return null
+    var left = Float.MAX_VALUE
+    var right = -Float.MAX_VALUE
+    for (i in 0 until layout.lineCount) {
+      left = minOf(left, layout.getLineLeft(i))
+      right = maxOf(right, layout.getLineRight(i))
+    }
+    val free = contentWidth - (right - left)
+    if (free <= 0f) return null
+    return factor * free - left
+  }
+
+  private fun justifyFactor(value: JustifyContent, reversed: Boolean): Float = when (value) {
+    JustifyContent.Center, JustifyContent.SpaceAround, JustifyContent.SpaceEvenly -> 0.5f
+    JustifyContent.End -> 1f
+    JustifyContent.FlexEnd -> if (reversed) 0f else 1f
+    JustifyContent.Normal, JustifyContent.FlexStart, JustifyContent.SpaceBetween, JustifyContent.Stretch -> if (reversed) 1f else 0f
+    JustifyContent.Start -> 0f
   }
 
   /**
@@ -1253,6 +1311,9 @@ open class TextView @JvmOverloads constructor(
     knownWidth: Float, knownHeight: Float,
     availableWidth: Float, availableHeight: Float
   ): Long {
+    if (availableWidth == MeasureOutput.BASELINE_QUERY) {
+      return MeasureOutput.make(baselineFromTop(knownWidth, knownHeight), MeasureOutput.BASELINE_QUERY)
+    }
     return engine.measure(textPaint, knownWidth, knownHeight, availableWidth, availableHeight)
   }
 

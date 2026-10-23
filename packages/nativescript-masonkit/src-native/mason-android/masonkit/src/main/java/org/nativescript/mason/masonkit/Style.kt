@@ -564,6 +564,7 @@ object StyleKeys {
   const val TEXT_COMBINE_UPRIGHT_STATE = 739
   const val TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   const val TEXT_SPACING_TRIM_STATE = 741
+  const val VISIBILITY = 742 // 0 visible, 1 hidden, 2 collapse
   // </style-keys:offsets>
   const val TRANSFORM_OP_SIZE = 12
   const val MAX_INLINE_TRANSFORM_OPS = 6
@@ -677,6 +678,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_ORIENTATION = flag(82)
     val TEXT_COMBINE_UPRIGHT = flag(83)
     val TEXT_SPACING_TRIM = flag(84)
+    val VISIBILITY = flag(85)
     // </style-keys:state>
 
     /**
@@ -726,7 +728,7 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       GAP or ASPECT_RATIO or GRID_AUTO_FLOW or GRID_COLUMN or GRID_ROW or SCROLLBAR_WIDTH or
       ALIGN or BOX_SIZING or OVERFLOW or ITEM_IS_TABLE or ITEM_IS_REPLACED or DISPLAY_MODE or
       FORCE_INLINE or MIN_CONTENT_WIDTH or MIN_CONTENT_HEIGHT or MAX_CONTENT_WIDTH or
-      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or
+      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or VISIBILITY or
       TEXT_LAYOUT
 
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
@@ -1073,15 +1075,6 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   /**
-   * Update first baseline after text layout
-   */
-  internal fun updateFirstBaseline() {
-    val baseline = -paint.fontMetrics.ascent
-    prepareMut()
-    values.putFloat(StyleKeys.FIRST_BASELINE_OFFSET, baseline)
-  }
-
-  /**
    * Clear metrics when node no longer has text
    */
   internal fun clearFontMetrics() {
@@ -1375,9 +1368,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
     // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
     // and a view that was laid out before going `display: none` keeps drawing at its old frame.
-    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY) || StateKeys.hasFlag(low, high, StateKeys.VISIBILITY)) {
       (node.view as? View)?.let { view ->
-        val visibility = if (display == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
+        val visibility = if (display == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
         // GONE is `visibility: collapse` or a queued removal (NodeUtils); both outrank display.
         if (view.visibility != visibility && view.visibility != View.GONE) view.visibility = visibility
       }
@@ -2340,6 +2333,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var display: Display
     get() {
+      if (values.get(StyleKeys.VISIBILITY) == VISIBILITY_COLLAPSE) return Display.None
       val base = readDisplayFrom(values)
       return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
     }
@@ -2383,8 +2377,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
       // Mason positions children itself, and GONE is `visibility: collapse`.
       (node.view as? View)?.visibility =
-        if (value == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
+        if (value == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
     }
+
+  // `visibility: hidden` or `collapse`: the view isn't drawn, though a hidden one keeps its box.
+  internal val hidesView: Boolean
+    get() = values.get(StyleKeys.VISIBILITY) != 0.toByte()
 
   var position: Position
     get() {
@@ -5607,6 +5605,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     init {
       Mason.initLib()
     }
+
+    private const val VISIBILITY_COLLAPSE: Byte = 2
 
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 

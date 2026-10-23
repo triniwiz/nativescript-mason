@@ -1,5 +1,6 @@
 #pragma once
 #include "Node.g.h"
+#include <cstring>
 #include <vector>
 
 namespace winrt::NativeScript::Mason::implementation
@@ -88,6 +89,17 @@ namespace winrt::NativeScript::Mason::implementation
         void ContentInsets(float& left, float& top, float& right, float& bottom);
         // Where this node's content box starts in its parent's border box.
         void ContentOrigin(float& x, float& y);
+        // An inline-level box's baseline from its bottom edge, set by the engine with its line.
+        float InlineBaseline() const noexcept
+        {
+            uintptr_t len = 0;
+            const uint8_t* state = mason_node_get_state_buffer(m_mason, m_node, &len);
+            float baseline = 0.0f;
+            if (state && len >= kStateBaseline + sizeof(float)) std::memcpy(&baseline, state + kStateBaseline, sizeof(float));
+            return baseline;
+        }
+        // mason-core NodeStateKeys::BASELINE, an f32.
+        static constexpr uintptr_t kStateBaseline = 8;
 
         // Position relative to the layout root in DIPs, set by the parent panel's arrange.
         float ArrangeX{ 0.0f };

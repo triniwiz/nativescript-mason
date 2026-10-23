@@ -168,7 +168,7 @@ extension MasonTextNode {
         var processed = text
         
         // Apply text transform
-      let transform = container.node.style.textTransform
+      let transform = container.node.style.resolvedTextTransform
         switch transform {
         case .None:
             break

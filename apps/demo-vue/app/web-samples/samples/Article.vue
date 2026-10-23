@@ -99,7 +99,7 @@ article h1 {
   font-size: 26;
   font-weight: bold;
   color: var(--text);
-  line-height: 32;
+  line-height: 32px;
 }
 
 .byline {
@@ -177,13 +177,13 @@ article h1 {
 .lede {
   font-size: 16;
   color: var(--text);
-  line-height: 24;
+  line-height: 24px;
 }
 
 article p {
   font-size: 14;
   color: var(--text-2);
-  line-height: 22;
+  line-height: 22px;
 }
 
 article h2 {
@@ -199,7 +199,7 @@ blockquote {
   font-size: 15;
   font-style: italic;
   color: var(--text);
-  line-height: 22;
+  line-height: 22px;
   margin-top: 4;
   margin-bottom: 4;
 }

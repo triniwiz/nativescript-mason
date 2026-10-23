@@ -6,6 +6,9 @@ object MeasureOutput {
   const val MAX_BITS: Int = 0x7FC00002
   const val ZERO: Long = 0L
 
+  // An available width asking a text view for its last baseline (mason-core `BASELINE_QUERY`).
+  const val BASELINE_QUERY = -4f
+
   @JvmStatic
   fun isMinContent(value: Float): Boolean = value.toRawBits() == MIN_BITS
 

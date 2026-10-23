@@ -126,7 +126,7 @@ function runStyle(r: SpanRun): Record<string, string> {
 
 .para {
   font-size: 13;
-  line-height: 18;
+  line-height: 18px;
   color: var(--text-2);
 }
 

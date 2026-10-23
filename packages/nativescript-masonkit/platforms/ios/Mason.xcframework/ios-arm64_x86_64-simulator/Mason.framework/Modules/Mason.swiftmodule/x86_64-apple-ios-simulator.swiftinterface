@@ -1454,6 +1454,7 @@ public struct StyleKeys {
   public static let TEXT_COMBINE_UPRIGHT_STATE: Swift.Int
   public static let TEXT_SPACING_TRIM: Swift.Int
   public static let TEXT_SPACING_TRIM_STATE: Swift.Int
+  public static let VISIBILITY: Swift.Int
   public static let TRANSFORM_OP_SIZE: Swift.Int
   public static let MAX_INLINE_TRANSFORM_OPS: Swift.Int
   public static let TRANSFORM_FLAG_HAS_MATRIX: Swift.UInt8
@@ -1572,6 +1573,7 @@ public struct StateKeys : Swift.Equatable {
   public static let textOrientation: Mason.StateKeys
   public static let textCombineUpright: Mason.StateKeys
   public static let textSpacingTrim: Mason.StateKeys
+  public static let visibility: Mason.StateKeys
   public static let pseudoText: Mason.StateKeys
   public static func == (a: Mason.StateKeys, b: Mason.StateKeys) -> Swift.Bool
 }

@@ -27,23 +27,34 @@ private func boxIsInVerticalText(_ node: MasonNode) -> Bool {
   return mode == 1 || mode == 2
 }
 
-/// A box's size in points: measured, else laid out (a box with no content isn't measured).
+/// A box's border-box size in points: laid out, else measured before its first layout. A text
+/// box's measure is its content size, without its padding.
 internal func inlineBoxSize(_ node: MasonNode) -> CGSize {
   let scale = CGFloat(NSCMason.scale)
   let layout = node.computedLayout
-  let width = node.cachedWidth > 0 ? CGFloat(node.cachedWidth) : CGFloat(layout.width.isNaN ? 0 : layout.width)
-  let height = node.cachedHeight > 0 ? CGFloat(node.cachedHeight) : CGFloat(layout.height.isNaN ? 0 : layout.height)
+  let laidOut = !layout.width.isNaN && !layout.height.isNaN && (layout.width > 0 || layout.height > 0)
+  let width = laidOut ? CGFloat(layout.width) : CGFloat(node.cachedWidth)
+  let height = laidOut ? CGFloat(layout.height) : CGFloat(node.cachedHeight)
   return CGSize(width: width / scale, height: height / scale)
+}
+
+internal func inlineBoxBaseline(_ node: MasonNode, height: CGFloat) -> CGFloat {
+  guard height > 0, !boxIsInVerticalText(node), node.style.verticalAlign.align == .Baseline else { return 0 }
+  let fromBottom = CGFloat(node.inlineBaseline) / CGFloat(NSCMason.scale)
+  return fromBottom.isFinite ? min(max(fromBottom, 0), height) : 0
 }
 
 private func runDelegateGetAscent(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
   let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
   let size = inlineBoxSize(node)
-  return boxIsInVerticalText(node) ? size.width : size.height
+  let extent = boxIsInVerticalText(node) ? size.width : size.height
+  return extent - inlineBoxBaseline(node, height: extent)
 }
 
 private func runDelegateGetDescent(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
-  return 0
+  let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
+  let size = inlineBoxSize(node)
+  return inlineBoxBaseline(node, height: boxIsInVerticalText(node) ? size.width : size.height)
 }
 
 private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
@@ -401,9 +412,17 @@ public class TextEngine: NSObject {
   }
   
   fileprivate static func desiredWidth(_ text: NSAttributedString) -> CGFloat {
-    let line = CTLineCreateWithAttributedString(text)
-    let width = CTLineGetTypographicBounds(line, nil, nil, nil)
-    return ceil(width)
+    let string = text.string as NSString
+    guard string.rangeOfCharacter(from: .newlines).location != NSNotFound else {
+      return ceil(CTLineGetTypographicBounds(CTLineCreateWithAttributedString(text), nil, nil, nil))
+    }
+    var widest: Double = 0
+    string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+      guard range.length > 0 else { return }
+      let line = CTLineCreateWithAttributedString(text.attributedSubstring(from: range))
+      widest = max(widest, CTLineGetTypographicBounds(line, nil, nil, nil))
+    }
+    return ceil(widest)
   }
 
   /// `firstLineIndent` (text-indent) widens the first word, which starts the first line.
@@ -470,8 +489,8 @@ public class TextEngine: NSObject {
 
   fileprivate func maxContent(_ text: NSAttributedString, indent: CGFloat) -> CGFloat {
     syncIntrinsicVersion()
-    if intrinsicMax < 0 { intrinsicMax = max(0, TextEngine.desiredWidth(text) + indent) }
-    return intrinsicMax
+    if intrinsicMax < 0 { intrinsicMax = TextEngine.desiredWidth(text) }
+    return max(0, intrinsicMax + indent)
   }
 
   // text-indent and line-clamp, resolved once per invalidate version.
@@ -625,6 +644,9 @@ public class TextEngine: NSObject {
   }
   
   static func measure(_ engine: TextEngine, _ isInLine: Bool, isBlock: Bool = false, _ known: CGSize?, _ available: CGSize) -> CGSize {
+    if available.width == TextEngine.baselineQuery, let known {
+      return CGSize(width: engine.baselineFromTop(of: known), height: TextEngine.baselineQuery)
+    }
     if let known = known, (!isInLine || isBlock), !known.width.isNaN, known.width >= 0, !known.height.isNaN, known.height >= 0 {
       return known
     }
@@ -661,13 +683,7 @@ public class TextEngine: NSObject {
     var maxWidth = CGFloat.greatestFiniteMagnitude
     var maxHeight = CGFloat.greatestFiniteMagnitude
     
-    var allowWrap = true
-    if engine.node.style.isValueInitialized {
-      let ws = engine.node.style.whiteSpace
-      let noWrap = ws == .Pre || ws == .NoWrap || engine.node.style.textWrap == .NoWrap
-      // No wrap for pre / nowrap - but still allow if there are explicit line breaks (<br>)
-      if noWrap && !hasLineBreak(text) { allowWrap = false }
-    }
+    let allowWrap = engine.canWrap
     
     
     if allowWrap, available.width.isFinite && available.width > 0 {
@@ -688,7 +704,7 @@ public class TextEngine: NSObject {
 
     if(maxWidth == CGFloat.greatestFiniteMagnitude){
       if(available.width == -1){
-        maxWidth = engine.minContent(text, indent: indent)
+        maxWidth = allowWrap ? engine.minContent(text, indent: indent) : engine.maxContent(text, indent: indent)
       }
       
       if (available.width == -2){
@@ -802,7 +818,7 @@ public class TextEngine: NSObject {
        CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID() {
       let font = fv as! CTFont
       let natural = CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
-      let normalLineHeight = isInLine ? natural : max(natural, CTFontGetSize(font) * 1.2)
+      let normalLineHeight = isInLine && !engine.node.isAnonymous ? natural : max(natural, CTFontGetSize(font) * 1.2)
       if normalLineHeight > size.height { size.height = normalLineHeight }
     }
 
@@ -843,6 +859,10 @@ public class TextEngine: NSObject {
   // segmentsInvalidateVersion so it is automatically stale after any invalidation.
   private var cachedFramesetter: CTFramesetter?
   private var framesetterStringVersion: UInt64 = UInt64.max
+  // CoreText reads the run delegates when it typesets, so a framesetter made before its inline
+  // boxes were laid out keeps their old metrics: it is also keyed by their sizes and baselines.
+  private var framesetterBoxMetrics: [CGFloat] = []
+  private var inlineBoxNodes: (version: UInt64, nodes: [MasonNode])?
 
   // The text's soft hyphens, first-line indent and inter-character justification resolved for one
   // width (0 when neither applies).
@@ -965,14 +985,37 @@ public class TextEngine: NSObject {
     }
   }
 
+  private func currentInlineBoxMetrics(_ text: NSAttributedString) -> [CGFloat] {
+    if inlineBoxNodes?.version != segmentsInvalidateVersion {
+      var nodes: [MasonNode] = []
+      text.enumerateAttribute(Constants.VIEW_PLACEHOLDER_KEY, in: NSRange(location: 0, length: text.length), options: .longestEffectiveRangeNotRequired) { value, _, _ in
+        if let helper = value as? ViewHelper { nodes.append(helper.node) }
+      }
+      inlineBoxNodes = (segmentsInvalidateVersion, nodes)
+    }
+    guard let nodes = inlineBoxNodes?.nodes, !nodes.isEmpty else { return [] }
+    var metrics: [CGFloat] = []
+    metrics.reserveCapacity(nodes.count * 3)
+    for node in nodes {
+      let size = inlineBoxSize(node)
+      metrics.append(size.width)
+      metrics.append(size.height)
+      metrics.append(inlineBoxBaseline(node, height: boxIsInVerticalText(node) ? size.width : size.height))
+    }
+    return metrics
+  }
+
   internal func framesetter(for text: NSAttributedString, width: CGFloat, indent: CGFloat = 0) -> CTFramesetter {
     let base: CTFramesetter
-    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
+    let boxMetrics = currentInlineBoxMetrics(text)
+    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion, framesetterBoxMetrics == boxMetrics {
       base = cached
     } else {
       base = TextEngine.framesetter(text)
       cachedFramesetter = base
       framesetterStringVersion = segmentsInvalidateVersion
+      framesetterBoxMetrics = boxMetrics
+      fitted = nil
     }
     let finiteWidth = width.isFinite && width > 0 && width < 1_000_000
     let hyphenWidth: CGFloat = finiteWidth
@@ -1463,6 +1506,8 @@ public class TextEngine: NSObject {
     case .Left, .Auto, .Start, .Justify:
       horizontalOffset = 0
     }
+    let factor = containerAlignmentFactor
+    if factor > 0 { horizontalOffset = max(0, factor * (room - lineWidth)) }
     let originX = drawBounds.origin.x + (style.direction == .RTL ? 0 : indent) + horizontalOffset
     let baselineOrigin = CGPoint(x: originX, y: baselineY)
 
@@ -1602,14 +1647,11 @@ public class TextEngine: NSObject {
   }
   
   
-  /// Whether this text may wrap: white-space and text-wrap allow it, or it has explicit breaks.
+  /// white-space and text-wrap are inherited, so a block inside `<pre>` doesn't wrap either.
   internal var canWrap: Bool {
     guard node.style.isValueInitialized else { return true }
-    let ws = node.style.whiteSpace
-    if (ws == .Pre || ws == .NoWrap) || node.style.textWrap == .NoWrap {
-      return buildAttributedString(forMeasurement: true).string.contains("\n")
-    }
-    return true
+    let ws = node.style.resolvedWhiteSpace
+    return !((ws == .Pre || ws == .NoWrap) || node.style.resolvedTextWrap == .NoWrap)
   }
 
   /// Widest line, in points, when wrapped at `width`; trailing whitespace hangs.
@@ -1757,28 +1799,111 @@ public class TextEngine: NSObject {
   }
   
   
-  internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
-    guard text.length > 0 else { return }
+  private struct LineLayout {
+    let lines: CFArray
+    var origins: [CGPoint]
+    let count: Int
+    let clampedLast: CTLine?
+    let drawBounds: CGRect
+    let layoutBounds: CGRect
+    let path: CGPath
+    let textBaseY: CGFloat
+    let grownExtents: (above: [CGFloat], below: [CGFloat])?
 
-    var paddingRestore =  false
+    func line(_ i: Int) -> CTLine {
+      if i == count - 1, let last = clampedLast { return last }
+      return unsafeBitCast(CFArrayGetValueAtIndex(lines, i), to: CTLine.self)
+    }
+  }
+
+  private func drawsSingleLine(_ text: NSAttributedString) -> Bool {
+    return !canWrap && !TextEngine.hasLineBreak(text)
+  }
+
+  private var containerAlignmentFactor: CGFloat {
+    guard style.isValueInitialized, verticalWritingMode == 0 else { return 0 }
+    func justify(_ value: JustifyContent, reversed: Bool) -> CGFloat {
+      switch value {
+      case .Center, .SpaceAround, .SpaceEvenly: return 0.5
+      case .End: return 1
+      case .FlexEnd: return reversed ? 0 : 1
+      case .Normal, .FlexStart, .SpaceBetween, .Stretch: return reversed ? 1 : 0
+      case .Start: return 0
+      }
+    }
+    switch style.display {
+    case .Flex, .InlineFlex:
+      switch style.flexDirection {
+      case .Row: return justify(style.justifyContent, reversed: false)
+      case .RowReverse: return justify(style.justifyContent, reversed: true)
+      default:
+        switch style.alignItems {
+        case .Center: return 0.5
+        case .End, .FlexEnd: return 1
+        default: return 0
+        }
+      }
+    case .Grid, .InlineGrid:
+      switch style.justifyItems {
+      case .Center: return 0.5
+      case .End, .FlexEnd: return 1
+      default: return justify(style.justifyContent, reversed: false)
+      }
+    default:
+      return 0
+    }
+  }
+
+  /// mason-core's `BASELINE_QUERY`: an available width asking for the last baseline.
+  static let baselineQuery: CGFloat = -4
+
+  /// The last line's baseline from the top of a content box `size` big in pixels, where it is drawn.
+  private func baselineFromTop(of size: CGSize) -> CGFloat {
+    let scale = CGFloat(NSCMason.scale)
+    let padding = textFramePadding() ?? .zero
+    let height = size.height / scale + padding.top + padding.bottom
+    let width = size.width / scale + padding.left + padding.right
+    guard let fromBottom = lastBaselineFromBottom(width: width, height: height) else { return .nan }
+    return (height - fromBottom - padding.top) * scale
+  }
+
+  private func lastBaselineFromBottom(width: CGFloat, height: CGFloat) -> CGFloat? {
+    let text = buildAttributedString(forMeasurement: false)
+    guard text.length > 0 else { return nil }
+    let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+    if drawsSingleLine(text) {
+      var drawBounds = bounds
+      if let padding = textFramePadding() { drawBounds = drawBounds.inset(by: padding) }
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      _ = CTLineGetTypographicBounds(CTLineCreateWithAttributedString(text), &ascent, &descent, nil)
+      return singleLineBaselineY(ascent: ascent, descent: descent, in: drawBounds, bounds: bounds)
+    }
+    guard let layout = layOutLines(text, bounds: bounds) else { return nil }
+    return layout.origins[layout.count - 1].y + layout.textBaseY
+  }
+
+  private func layOutLines(_ text: NSAttributedString, bounds: CGRect) -> LineLayout? {
+    guard text.length > 0 else { return nil }
+
     var drawBounds = bounds
 
-    guard drawBounds.width > 0 else { return }
+    guard drawBounds.width > 0 else { return nil }
     if let padding = textFramePadding() {
-      paddingRestore = true
       drawBounds = drawBounds.inset(by: padding)
-      guard drawBounds.width > 0, drawBounds.height > 0 else { return }
+      guard drawBounds.width > 0, drawBounds.height > 0 else { return nil }
     }
 
     // Reuses the framesetter measure() already cached for this string.
     let indent = textIndent(basis: drawBounds.width)
-    let framesetter = self.framesetter(for: text, width: drawBounds.width, indent: indent)
+    let width = canWrap ? drawBounds.width : max(drawBounds.width, maxContent(text, indent: max(indent, 0)))
+    let framesetter = self.framesetter(for: text, width: width, indent: indent)
 
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
       CFRange(location: 0, length: text.length),
       nil,
-      wrapRect(width: drawBounds.width, height: .greatestFiniteMagnitude, indent: indent).size,
+      wrapRect(width: width, height: .greatestFiniteMagnitude, indent: indent).size,
       nil
     )
 
@@ -1789,7 +1914,7 @@ public class TextEngine: NSObject {
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
-      width: drawBounds.width,
+      width: width,
       height: floatRects.isEmpty ? suggestedSize.height : max(suggestedSize.height, drawBounds.height)
     )
 
@@ -1811,23 +1936,6 @@ public class TextEngine: NSObject {
     }
     appendHoles(bezier, inside: localOuter)
     let path = bezier.cgPath
-
-    // DEBUG: visualize exclusion path (even-odd fill + stroke) so holes appear transparent
-    #if DEBUG_EXCLUSION_PATH
-    do {
-      context.saveGState()
-      // Translate to layout origin so overlay aligns with onscreen coordinates
-      context.translateBy(x: layoutBounds.origin.x, y: layoutBounds.origin.y)
-      context.setAlpha(0.35)
-      context.setFillColor(UIColor.systemPurple.withAlphaComponent(0.2).cgColor)
-      context.setStrokeColor(UIColor.red.cgColor)
-      context.setLineWidth(1.5)
-      context.addPath(path)
-      // Use even-odd fill rule so appended rects become holes
-      context.drawPath(using: .eoFillStroke)
-      context.restoreGState()
-    }
-    #endif
 
     var frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
 
@@ -1856,12 +1964,9 @@ public class TextEngine: NSObject {
       frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), taller.cgPath, nil)
     }
 
-    context.saveGState()
-    context.clip(to: bounds)
-
     let linesCF = CTFrameGetLines(frame)
     var linesCount = CFArrayGetCount(linesCF)
-    guard linesCount > 0 else { context.restoreGState(); return }
+    guard linesCount > 0 else { return nil }
 
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
@@ -1900,9 +2005,22 @@ public class TextEngine: NSObject {
       clampedLast = ellipsized
       linesCount = clamp
     }
-    func lineAt(_ i: Int) -> CTLine {
-      if i == linesCount - 1, let last = clampedLast { return last }
-      return unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+
+    let factor = containerAlignmentFactor
+    if factor > 0 {
+      var left = CGFloat.greatestFiniteMagnitude
+      var right = -CGFloat.greatestFiniteMagnitude
+      for i in 0..<linesCount {
+        let line = i == linesCount - 1 ? (clampedLast ?? unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self))
+          : unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+        left = min(left, origins[i].x)
+        right = max(right, origins[i].x + TextEngine.visibleWidth(line))
+      }
+      let free = drawBounds.width - (right - left)
+      if free > 0 {
+        let shift = factor * free - left
+        for i in 0..<linesCount { origins[i].x += shift }
+      }
     }
 
     // Re-anchor the vertical baseline using the font's true metrics, not
@@ -1927,24 +2045,61 @@ public class TextEngine: NSObject {
         // Measure the boxes' own runs: the line's ascent also grows with a line-height
         // taller than the font (minimumLineHeight), and plain text must stay centred then.
         let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
+        // A box on the baseline also reaches below it by its own baseline.
         var lineAscent: CGFloat = 0
+        var lineDescent: CGFloat = 0
         for run in CTLineGetGlyphRuns(line0) as! [CTRun] {
           let runAttributes = CTRunGetAttributes(run) as NSDictionary
           guard runAttributes[kCTRunDelegateAttributeName as String] != nil else { continue }
           var runAscent: CGFloat = 0
-          CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, nil, nil)
+          var runDescent: CGFloat = 0
+          CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, &runDescent, nil)
           lineAscent = max(lineAscent, runAscent)
+          lineDescent = max(lineDescent, runDescent)
         }
+        let fontDescent = naturalLineHeight - fontAscent
         // Grown lines already make room for their boxes.
-        let boxRaised = grownExtents == nil && lineAscent > fontAscent + 0.5
+        let boxRaised = grownExtents == nil && (lineAscent > fontAscent + 0.5 || lineDescent > fontDescent + 0.5)
         var lineBounds = drawBounds
         if fixedLineBox { lineBounds.size.height = maxLineHeight }
-        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
+        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? max(lineAscent, fontAscent) : fontAscent, descent: boxRaised ? max(lineDescent, fontDescent) : fontDescent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
       }
     }
+
+    return LineLayout(lines: linesCF, origins: origins, count: linesCount, clampedLast: clampedLast,
+                      drawBounds: drawBounds, layoutBounds: layoutBounds, path: path, textBaseY: textBaseY,
+                      grownExtents: grownExtents)
+  }
+
+  internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
+    guard let layout = layOutLines(text, bounds: bounds) else { return }
+    let drawBounds = layout.drawBounds
+    let layoutBounds = layout.layoutBounds
+    let linesCount = layout.count
+    let textBaseY = layout.textBaseY
+    var origins = layout.origins
+    let grownExtents = layout.grownExtents
+    func lineAt(_ i: Int) -> CTLine { layout.line(i) }
+
+    #if DEBUG_EXCLUSION_PATH
+    do {
+      context.saveGState()
+      context.translateBy(x: layoutBounds.origin.x, y: layoutBounds.origin.y)
+      context.setAlpha(0.35)
+      context.setFillColor(UIColor.systemPurple.withAlphaComponent(0.2).cgColor)
+      context.setStrokeColor(UIColor.red.cgColor)
+      context.setLineWidth(1.5)
+      context.addPath(layout.path)
+      context.drawPath(using: .eoFillStroke)
+      context.restoreGState()
+    }
+    #endif
+
+    context.saveGState()
+    context.clip(to: bounds)
 
     // vertical-lr: glyphs still turn clockwise but lines stack from the left, so mirror
     // each line's block position within the content box (CoreText y-up).
@@ -2059,10 +2214,6 @@ public class TextEngine: NSObject {
       let lineOrigin = CGPoint(x: layoutBounds.origin.x + origins[i].x, y: origins[i].y + textBaseY)
       drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context, bounds: bounds)
     }
-
-    if(paddingRestore){
-     // context.restoreGState()
-    }
   }
   
   
@@ -2113,6 +2264,7 @@ public class TextEngine: NSObject {
       bounds: CGRect
     ) {
       let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+      let glyphRaise = (node.getDefaultAttributes()[.baselineOffset] as? CGFloat) ?? 0
       
       for run in runs {
         let attrs = CTRunGetAttributes(run) as NSDictionary
@@ -2137,7 +2289,9 @@ public class TextEngine: NSObject {
         // Context is already in CoreText coordinates (flipped in drawText/drawMultiLine)
         // So use CoreText coordinates directly
         let ctX = origin.x + runPosition.x
-        let ctY = origin.y - descent  // baseline minus descent = bottom of inline element
+        // Baseline minus descent = bottom of the box. The text's glyphs are raised to centre
+        // them in their line box (getDefaultAttributes), so the box is too.
+        let ctY = origin.y + glyphRaise - descent
         
         let drawRect = CGRect(x: ctX, y: ctY, width: childWidth, height: childHeight)
         
@@ -2190,10 +2344,8 @@ public class TextEngine: NSObject {
   /// than the font's ascent plus descent: the first line's ascent and the last line's descent
   /// stick out by half of it each, as CSS's negative half-leading puts them.
   func inkOverflow() -> CGFloat {
-    let ws = style.whiteSpace
     let text = buildAttributedString(forMeasurement: false)
-    let noWrap = ws == .Pre || ws == .NoWrap || style.textWrap == .NoWrap
-    guard text.length > 0, !(noWrap && !TextEngine.hasLineBreak(text)),
+    guard text.length > 0, !drawsSingleLine(text),
       let paragraph = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle,
       paragraph.maximumLineHeight > 0,
       let fv = node.getDefaultAttributes()[.font], CFGetTypeID(fv as CFTypeRef) == CTFontGetTypeID()
@@ -2235,14 +2387,8 @@ public class TextEngine: NSObject {
       context.translateBy(x: 0, y: rect.height)
       context.scaleBy(x: 1.0, y: -1.0)
     }
-    
-    // `white-space: nowrap`/`pre` and `text-wrap: nowrap` are independent CSS
-    // properties that both force single-line drawing; match Android's OR.
-    let noWrap = style.textWrap == .NoWrap || style.whiteSpace == .NoWrap || style.whiteSpace == .Pre
 
-    // Handle nowrap case - but still respect explicit line breaks from <br>.
-    // Only nowrap text needs the scan for them.
-    if noWrap && !TextEngine.hasLineBreak(text) {
+    if drawsSingleLine(text) {
       drawSingleLine(text: text, in: context, bounds: rect)
       context.restoreGState()
       drawState = .idle
@@ -2676,13 +2822,15 @@ public class TextEngine: NSObject {
         // Check if this is an inline child placeholder
         if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {
           if let childPtr = helper.node.nativePtr {
-            let childHeight = max(CGFloat(helper.node.cachedHeight) / scale, ascent)
-            let baselineFromBottom = Self.inlineChildBaselineFromBottom(
-              height: childHeight,
-              verticalAlign: helper.node.style.verticalAlign,
-              parentFont: currentFontMetrics(),
-              scale: scale
-            )
+            let childHeight = max(inlineBoxSize(helper.node).height, ascent + descent)
+            let baselineFromBottom = helper.node.style.verticalAlign.align == .Baseline
+              ? descent
+              : Self.inlineChildBaselineFromBottom(
+                height: childHeight,
+                verticalAlign: helper.node.style.verticalAlign,
+                parentFont: currentFontMetrics(),
+                scale: scale
+              )
             var segment = CMasonSegment()
             segment.tag = InlineChild
             segment.inline_child = CMasonInlineChildSegment(node: childPtr, descent: Float(baselineFromBottom * scale))
@@ -2765,7 +2913,7 @@ final class TextLayoutCache {
     if isBlock { flags |= 2 }
     if style.isValueInitialized {
       flags |= 4
-      if style.textWrap == .NoWrap { flags |= 8 }
+      if style.resolvedTextWrap == .NoWrap { flags |= 8 }
     }
     let font = node.getDefaultAttributes()[.font].map { CFHash($0 as CFTypeRef) } ?? 0
     return Key(
@@ -2774,7 +2922,7 @@ final class TextLayoutCache {
       knownW: Float(known?.width ?? -.infinity), knownH: Float(known?.height ?? -.infinity),
       availW: Float(available.width), availH: Float(available.height),
       flags: flags,
-      whiteSpace: style.isValueInitialized ? style.whiteSpace.rawValue : -1,
+      whiteSpace: style.isValueInitialized ? style.resolvedWhiteSpace.rawValue : -1,
       indent: Float(engine.textIndent(basis: available.width.isFinite && available.width > 0 ? available.width / CGFloat(NSCMason.scale) : 0)),
       lineClamp: Int32(engine.lineClamp)
     )

@@ -1136,156 +1136,93 @@ impl Tree {
         FontMetrics::DEFAULT
     }
 
-    /// Get first baseline for a child element
-    /// Returns the distance from the BOTTOM of the element to its baseline
+    /// Distance from the bottom of an inline-level box to the baseline it sits on; 0 puts its
+    /// bottom edge on the line's baseline.
     pub(crate) fn get_child_baseline(&self, child_id: Id) -> f32 {
-        let node = &self.nodes()[child_id];
+        self.box_baseline(child_id).unwrap_or(0.0)
+    }
+
+    fn box_baseline(&self, id: Id) -> Option<f32> {
+        let node = &self.nodes()[id];
         let style = node.style();
-
-        // 1. Check for explicit first baseline set by native platform.
-        // For inline text containers, prefer inline segments when present
-        // (they provide measured descent). Only use the explicit baseline
-        // if the node is not an inline container or there are no inline
-        // segments, or the explicit baseline is a positive value.
-        let display_mode = style.display_mode();
-
-        if let Some(baseline) = style.first_baseline() {
-            if baseline > 0.0 {
-                return baseline;
-            }
-        }
-
-        // 2. For replaced elements (images), baseline is at bottom
+        // Replaced elements and boxes that clip their overflow sit on their bottom edge.
         if style.get_item_is_replaced() {
-            return 0.0;
+            return None;
         }
-
-        // 3. For elements with overflow != visible, baseline is at bottom
         let overflow = style.overflow();
         if overflow.x != taffy::Overflow::Visible || overflow.y != taffy::Overflow::Visible {
-            return 0.0;
+            return None;
+        }
+        let layout = &node.unrounded_layout;
+
+        if node.has_measure && node.is_text_container() {
+            let top = layout.padding.top + layout.border.top;
+            let content = taffy::Size {
+                width: layout.size.width
+                    - layout.padding.left
+                    - layout.padding.right
+                    - layout.border.left
+                    - layout.border.right,
+                height: layout.size.height - top - layout.padding.bottom - layout.border.bottom,
+            };
+            let from_content_top = self
+                .node_data()
+                .get(id)
+                .and_then(|data| data.copy_measure().baseline(content));
+            if let Some(from_content_top) = from_content_top {
+                return Some(layout.size.height - top - from_content_top);
+            }
         }
 
-        // 4. Check display mode to determine baseline behavior
-        match display_mode {
-            DisplayMode::Inline => {
-                // Inline text container - check for text segments
-                if let Some(node_data) = self.node_data().get(child_id) {
-                    let segments = node_data.inline_segments();
-                    for segment in segments.iter() {
-                        if let InlineSegment::Text { descent, .. } = segment {
-                            // Text baseline is descent from bottom of text
-                            // For a container, add padding/border
-                            let layout = &node.unrounded_layout;
-                            let baseline = layout.padding.bottom + layout.border.bottom + *descent;
-                            return baseline;
-                        }
-                    }
-                }
-
-                // No text segments - use inherited font metrics (fall back to DEFAULT)
-                let metrics = self.get_font_metrics(child_id);
-                let layout = &node.unrounded_layout;
-                let baseline = layout.padding.bottom + layout.border.bottom + metrics.descent;
-                baseline
+        match style.display_mode() {
+            DisplayMode::Inline if self.is_pure_inline(id) => {
+                let descent = self
+                    .node_data()
+                    .get(id)
+                    .and_then(|data| {
+                        data.inline_segments().iter().find_map(|segment| match segment {
+                            InlineSegment::Text { descent, .. } => Some(*descent),
+                            _ => None,
+                        })
+                    })
+                    .unwrap_or_else(|| self.get_font_metrics(id).descent);
+                return Some(layout.padding.bottom + layout.border.bottom + descent);
             }
-            DisplayMode::Box => {
-                // Inline-level block (inline-block / inline-flex / inline-grid)
-                // According to spec, the baseline is the first baseline of the
-                // element's in-flow inline-level descendants. We perform a
-                // depth-first search and compute the baseline relative to the
-                // bottom of this element. If none found, fallback to bottom.
-
-                let this_layout = &node.unrounded_layout;
-
-                // Stack of (id, absolute_top_offset) where absolute_top_offset
-                // is distance from this element's top to child's top.
-                let mut stack: Vec<(Id, f32)> = Vec::new();
-                if let Some(children) = self.inner().children.get(child_id) {
-                    for &c in children.iter().rev() {
-                        let child_layout = &self.nodes()[c].unrounded_layout;
-                        stack.push((c, child_layout.location.y));
-                    }
-                }
-
-                while let Some((did, abs_top)) = stack.pop() {
-                    // Consider any descendant that can yield a baseline. This
-                    // covers cases where the element is an inline-level flex
-                    // or grid container whose inline baseline is provided by
-                    // descendants that may themselves be block/flex/grid.
-                    let d_baseline = self.get_child_baseline(did);
-
-                    if d_baseline > 0.0 {
-                        let d_layout = &self.nodes()[did].unrounded_layout;
-                        // descendant bottom absolute (from this top)
-                        let desc_bottom_abs = abs_top + d_layout.size.height;
-                        let this_height = this_layout.size.height;
-                        let baseline_from_bottom = this_height - desc_bottom_abs + d_baseline;
-
-                        if baseline_from_bottom > 0.0 {
-                            return baseline_from_bottom;
-                        } else {
-                            // Fallback: if computed baseline collapses to 0 due
-                            // to positioning quirks (flex/grid), use the
-                            // descendant baseline as a conservative positive
-                            // baseline value.
-                            return d_baseline;
-                        }
-                    }
-
-                    // Push grandchildren with accumulated absolute top offsets
-                    if let Some(grand) = self.inner().children.get(did) {
-                        for &gc in grand.iter().rev() {
-                            let gc_layout = &self.nodes()[gc].unrounded_layout;
-                            stack.push((gc, abs_top + gc_layout.location.y));
-                        }
-                    }
-                }
-
-                // No inline descendant baseline found -> baseline at bottom
-                // As a last resort, scan descendants for inline text segments
-                // and return the first found descent as a conservative baseline.
-                let mut scan_stack: Vec<Id> = Vec::new();
-                if let Some(children) = self.inner().children.get(child_id) {
-                    for &c in children.iter().rev() {
-                        scan_stack.push(c);
-                    }
-                }
-
-                while let Some(did) = scan_stack.pop() {
-                    if let Some(data) = self.node_data().get(did) {
-                        for seg in data.inline_segments().iter() {
-                            if let InlineSegment::Text { descent, .. } = seg {
-                                return *descent;
-                            }
-                        }
-                    }
-                    if let Some(grand) = self.inner().children.get(did) {
-                        for &gc in grand.iter().rev() {
-                            scan_stack.push(gc);
-                        }
-                    }
-                }
-
-                0.0
+            DisplayMode::None | DisplayMode::ListItem if node.type_ == NodeType::Text => {
+                let metrics = self.get_font_metrics(id);
+                let descent = if metrics.is_set() {
+                    metrics.descent
+                } else {
+                    FontMetrics::DEFAULT.descent
+                };
+                let baseline = layout.padding.bottom + layout.border.bottom + descent;
+                return Some(baseline.min(layout.size.height.max(0.0)));
             }
-            DisplayMode::None | DisplayMode::ListItem => {
-                // For text nodes (NodeType::Text), use font metrics
-                if node.type_ == NodeType::Text {
-                    let metrics = self.get_font_metrics(child_id);
-                    if metrics.is_set() {
-                        let layout = &node.unrounded_layout;
-                        // Clamp baseline to not exceed element height
-                        let baseline =
-                            layout.padding.bottom + layout.border.bottom + metrics.descent;
-                        return baseline.min(layout.size.height.max(0.0));
-                    }
-                    return FontMetrics::DEFAULT.descent;
-                }
+            _ => {}
+        }
 
-                // Default: bottom sits on baseline
-                0.0
-            }
+        // A flex or grid container takes its first item's baseline, a block its last line's.
+        let inner = self.inner();
+        let children = inner.children.get(id)?;
+        let first = matches!(style.get_display(), Display::Flex | Display::Grid);
+        let in_flow = |&&child: &&Id| {
+            let child_node = &self.nodes()[child];
+            let child_style = child_node.style();
+            child_style.get_display() != Display::None
+                && child_style.get_position() != Position::Absolute
+                && child_node.unrounded_layout.size.height > 0.0
+        };
+        let baseline_of = |&child: &Id| {
+            let child_layout = &self.nodes()[child].unrounded_layout;
+            self.box_baseline(child).map(|from_child_bottom| {
+                layout.size.height - (child_layout.location.y + child_layout.size.height)
+                    + from_child_bottom
+            })
+        };
+        if first {
+            children.iter().filter(in_flow).find_map(baseline_of)
+        } else {
+            children.iter().rev().filter(in_flow).find_map(baseline_of)
         }
     }
 
@@ -1303,6 +1240,16 @@ impl Tree {
         // Must be DisplayMode::Inline (not Box/inline-block)
         if style.display_mode() != DisplayMode::Inline {
             return false;
+        }
+
+        if !node.is_text_container() && !node.has_measure {
+            let has_segments = self
+                .node_data()
+                .get(child_id)
+                .is_some_and(|data| !data.inline_segments().is_empty());
+            if !has_segments {
+                return false;
+            }
         }
 
         true
@@ -1541,7 +1488,21 @@ impl Tree {
         result
     }
 
+    /// Lays out an inline-level child for its line and records the baseline the natives place a
+    /// baseline-aligned box on (see `NodeStateKeys::BASELINE`).
     fn measure_inline_child(&mut self, child_id: Id, inputs: LayoutInput) -> LayoutOutput {
+        let output = self.lay_out_inline_child(child_id, inputs);
+        let sits_on_baseline = self.nodes()[child_id].style().vertical_align().align
+            == VerticalAlign::Baseline
+            && !self.is_pure_inline(child_id);
+        if sits_on_baseline {
+            let baseline = self.get_child_baseline(child_id);
+            self.nodes_mut()[child_id].set_baseline(baseline);
+        }
+        output
+    }
+
+    fn lay_out_inline_child(&mut self, child_id: Id, inputs: LayoutInput) -> LayoutOutput {
         // Check if this is a replaced element (image, video, etc.)
         let is_replaced = self.nodes()[child_id].style().get_item_is_replaced();
 

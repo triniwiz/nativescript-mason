@@ -74,7 +74,9 @@ internal object MasonPositioning {
     val rootView = rootOf(node).view as? View ?: return x to y
     if (view.parent !== host) {
       if (node.fixedOriginalParent == null) {
-        node.fixedOriginalParent = view.parent as? ViewGroup
+        val original = view.parent as? ViewGroup
+        node.fixedOriginalParent = original
+        if (original != null) followParent(node, view, original, host)
       }
       NodeUtils.detachNow(view)
       host.addView(view)
@@ -85,11 +87,27 @@ internal object MasonPositioning {
     return (originX + x) to (originY + y)
   }
 
+  private fun followParent(node: Node, view: View, original: ViewGroup, host: ViewGroup) {
+    val listener = object : View.OnAttachStateChangeListener {
+      override fun onViewDetachedFromWindow(v: View) {
+        if (view.parent === host) host.removeView(view)
+      }
+
+      override fun onViewAttachedToWindow(v: View) {
+        if (view.parent == null) host.addView(view)
+      }
+    }
+    original.addOnAttachStateChangeListener(listener)
+    node.fixedFollowsParent = listener
+  }
+
   // Undoes applyFixed once a node stops being fixed.
   fun clearPositioning(node: Node, view: View) {
     node.stickyScrollHost = null
     val original = node.fixedOriginalParent
     if (original != null) {
+      node.fixedFollowsParent?.let { original.removeOnAttachStateChangeListener(it) }
+      node.fixedFollowsParent = null
       node.fixedOriginalParent = null
       if (view.parent !== original) {
         NodeUtils.detachNow(view)

@@ -1589,6 +1589,7 @@ SWIFT_CLASS("_TtC5Mason14MasonTextLayer")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithLayer:(id _Nonnull)layer OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
 - (void)drawInContext:(CGContextRef _Nonnull)context;
 @end
 
@@ -1853,6 +1854,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)setDeviceScale:(float)value;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
 - (void)setMeasureForView:(UIView * _Nonnull)view block:(CGSize (^ _Nonnull)(CGFloat, CGFloat, CGFloat, CGFloat))block;
+/// Drops a foreign view’s cached measurement after its content changed. A
+/// running compute holds Rust’s lock, so that waits until it returns.
+- (void)invalidateForeignView:(UIView * _Nonnull)view;
 - (void)setPercentWidth:(UIView * _Nonnull)view :(float)fraction;
 - (void)setPercentHeight:(UIView * _Nonnull)view :(float)fraction;
 - (void)configureStyleForView:(UIView * _Nonnull)view :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
@@ -1952,6 +1956,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_computeWithViewSize;
 - (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
 - (void)mason_computeWithMaxContent;
+/// Core’s onMeasure in one call, see <code>MasonElement.measure</code>.
+- (double)mason_measure:(NSInteger)widthSpec :(NSInteger)heightSpec :(BOOL)root :(BOOL)viewport SWIFT_WARN_UNUSED_RESULT;
 - (void)mason_markRootComputeApplied;
 /// <code>mason_markRootComputeApplied</code> plus the box the host measured against, so
 /// a later <code>autoComputeIfRoot</code> reuses it rather than the superview’s bounds.

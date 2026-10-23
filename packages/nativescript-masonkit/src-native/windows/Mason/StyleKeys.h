@@ -306,6 +306,7 @@ namespace mason_style_keys
     inline constexpr uint32_t kTextCombineUprightState = 739;
     inline constexpr uint32_t kTextSpacingTrim = 740; // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
     inline constexpr uint32_t kTextSpacingTrimState = 741;
+    inline constexpr uint32_t kVisibility = 742; // 0 visible, 1 hidden, 2 collapse
 }
 
 // Bit numbers of the 128-bit style dirty mask.
@@ -396,4 +397,5 @@ namespace mason_state_keys
     inline constexpr uint32_t kTextOrientation = 82;
     inline constexpr uint32_t kTextCombineUpright = 83;
     inline constexpr uint32_t kTextSpacingTrim = 84;
+    inline constexpr uint32_t kVisibility = 85;
 }

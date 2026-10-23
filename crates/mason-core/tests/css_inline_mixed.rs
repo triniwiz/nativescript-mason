@@ -288,3 +288,66 @@ fn inline_replaced_and_text_runs() {
         "parent should accommodate replaced inline element"
     );
 }
+
+#[test]
+fn inline_element_inside_text_lays_out_its_content() {
+    let mut mason = Mason::new();
+
+    let p = mason.create_text_node();
+    let pid = p.id();
+    mason.set_measure(pid, Some(measure_80x25), std::ptr::null_mut());
+    mason.with_style_mut(pid, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::None);
+    });
+
+    let div = mason.create_node();
+    let div_id = div.id();
+    mason.with_style_mut(div_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Inline);
+    });
+
+    let link = mason.create_text_node();
+    let link_id = link.id();
+    mason.set_measure(link_id, Some(measure_40x20), std::ptr::null_mut());
+    mason.with_style_mut(link_id, |s| {
+        s.set_display(Display::Block);
+        s.set_display_mode(DisplayMode::Inline);
+    });
+
+    mason.append_node(div_id, &[link_id]);
+    mason.append_node(pid, &[div_id]);
+    mason.set_segments(
+        pid,
+        vec![
+            InlineSegment::Text {
+                flags: 0,
+                width: 30.0,
+                ascent: 16.0,
+                descent: 4.0,
+            },
+            InlineSegment::InlineChild {
+                id: Some(div_id),
+                baseline: 0.0,
+            },
+        ],
+    );
+
+    mason.compute_wh(pid, 300.0, f32::NAN);
+
+    let div_layout = mason.layout_raw(div_id);
+    assert!(
+        approx(div_layout.size.width, 40.0) && approx(div_layout.size.height, 20.0),
+        "inline div should be sized by its link, got {}x{}",
+        div_layout.size.width,
+        div_layout.size.height
+    );
+    let link_layout = mason.layout_raw(link_id);
+    assert!(
+        approx(link_layout.size.width, 40.0) && approx(link_layout.size.height, 20.0),
+        "link inside the inline div should be laid out, got {}x{}",
+        link_layout.size.width,
+        link_layout.size.height
+    );
+}

@@ -52,7 +52,8 @@ import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
-import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty } from '@nativescript/core/ui/styling/style-properties';
+import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty } from '@nativescript/core/ui/styling/style-properties';
+import { transformConverter } from '@nativescript/core/ui/styling/css-transform';
 import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBorderStyleStartEnd, splitBorderWidthStartEnd, splitBorderColorStartEnd, splitInsetStartEnd, splitMarginStartEnd, splitPaddingStartEnd, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
@@ -1825,6 +1826,38 @@ export const cornerShapeBottomLeftProperty = new CssProperty<Style, string>({
 registerAlongsideCore(cornerShapeProperty);
 registerAlongsideCore(boxShadowProperty);
 registerAlongsideCore(transformProperty);
+
+// A stylesheet `transform` reaches only the longhands core splits it into (translateX and the
+// rest, in dips), so a percentage or an em in it was lost on a mason view.
+const transformDeclarationProperty = new CssProperty<Style, string>({
+  name: 'masonTransformDeclaration',
+  cssName: '-mason-transform-declaration',
+  valueChanged(target, _oldValue, newValue) {
+    if (isMasonView(target)) (target as any)[transformProperty.cssName] = newValue;
+  },
+});
+transformDeclarationProperty.register(Style);
+
+new ShorthandProperty<Style, string>({
+  name: 'transform',
+  cssName: 'transform',
+  getter(this: Style) {
+    return (this as any).transform;
+  },
+  converter(value) {
+    const { translate, rotate, scale } = transformConverter(value === unsetValue ? 'none' : (value as string));
+    return [
+      [translateXProperty, translate.x],
+      [translateYProperty, translate.y],
+      [scaleXProperty, scale.x],
+      [scaleYProperty, scale.y],
+      [rotateProperty, rotate.z],
+      [rotateXProperty, rotate.x],
+      [rotateYProperty, rotate.y],
+      [transformDeclarationProperty, value],
+    ];
+  },
+});
 cornerShapeTopLeftProperty.register(Style);
 cornerShapeTopRightProperty.register(Style);
 cornerShapeBottomRightProperty.register(Style);
