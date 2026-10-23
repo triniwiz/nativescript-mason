@@ -1388,8 +1388,6 @@ mod tests {
         );
     }
 
-    static IMG_KNOWN: std::sync::Mutex<Vec<(f32, f32)>> = std::sync::Mutex::new(Vec::new());
-
     extern "C" fn image_measure_2x1(
         _data: *const c_void,
         known_w: c_float,
@@ -1397,7 +1395,6 @@ mod tests {
         _avail_w: c_float,
         _avail_h: c_float,
     ) -> c_longlong {
-        IMG_KNOWN.lock().unwrap().push((known_w, known_h));
         if !known_w.is_nan() && known_h.is_nan() {
             return MeasureOutput::make(known_w, known_w / 2.0);
         }
@@ -1413,17 +1410,34 @@ mod tests {
         mason.with_style_mut(root.id(), |s| s.set_display(Display::Block));
         mason.with_style_mut(bx.id(), |s| {
             s.set_display(Display::Block);
-            s.set_size(Size { width: Dimension::length(110.0), height: Dimension::auto() });
+            s.set_size(Size {
+                width: Dimension::length(110.0),
+                height: Dimension::auto(),
+            });
         });
-        mason.with_style_mut(img.id(), |s| s.set_size(Size { width: Dimension::length(110.0), height: Dimension::auto() }));
-        mason.set_segments(bx.id(), vec![InlineSegment::InlineChild { id: Some(img.id()), baseline: 0.0 }]);
+        mason.with_style_mut(img.id(), |s| {
+            s.set_size(Size {
+                width: Dimension::length(110.0),
+                height: Dimension::auto(),
+            })
+        });
+        mason.set_segments(
+            bx.id(),
+            vec![InlineSegment::InlineChild {
+                id: Some(img.id()),
+                baseline: 0.0,
+            }],
+        );
         mason.append_node(root.id(), &[bx.id()]);
         mason.append_node(bx.id(), &[img.id()]);
         mason.set_measure(img.id(), Some(image_measure_2x1), std::ptr::null_mut());
-        mason.set_measure(bx.id(), Some(test_measure_parent_text), std::ptr::null_mut());
+        mason.set_measure(
+            bx.id(),
+            Some(test_measure_parent_text),
+            std::ptr::null_mut(),
+        );
         mason.compute_wh(root.id(), 400.0, -2.0);
         let out = mason.layout(img.id());
-        eprintln!("IMG known calls {:?} -> {:?}", IMG_KNOWN.lock().unwrap(), (out[3], out[4]));
         assert!((out[3] - 110.0).abs() < 0.01, "width {}", out[3]);
         assert!((out[4] - 55.0).abs() < 0.01, "height {}", out[4]);
     }

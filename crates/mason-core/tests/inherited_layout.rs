@@ -237,7 +237,11 @@ fn inherited_text_orientation_changes_remeasure_text() {
     tree.mason.mark_dirty(root);
     let before = measures();
     tree.compute();
-    assert_eq!(measures(), before, "an unchanged root keeps the text's measure");
+    assert_eq!(
+        measures(),
+        before,
+        "an unchanged root keeps the text's measure"
+    );
 
     for (orientation, state) in [(1, 1), (2, 1), (0, 0)] {
         let (ptr, len) = tree.mason.style_data_raw_mut(root);
@@ -250,7 +254,10 @@ fn inherited_text_orientation_changes_remeasure_text() {
         tree.mason.mark_dirty(root);
         let before = measures();
         tree.compute();
-        assert!(measures() > before, "text-orientation {orientation} must remeasure the text");
+        assert!(
+            measures() > before,
+            "text-orientation {orientation} must remeasure the text"
+        );
         assert_eq!(tree.mason.resolved_text_orientation(text), orientation);
     }
 }

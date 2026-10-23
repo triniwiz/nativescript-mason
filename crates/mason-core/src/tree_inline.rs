@@ -2984,7 +2984,11 @@ impl Tree {
                     &style,
                     |_val, _basis| 0.0,
                     |known_dimensions, available_space| {
-                        let known = if replaced { known_dimensions.or(own_known) } else { known_dimensions };
+                        let known = if replaced {
+                            known_dimensions.or(own_known)
+                        } else {
+                            known_dimensions
+                        };
                         self.cached_leaf_measure(id, &measure, known, available_space)
                     },
                 )
