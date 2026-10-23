@@ -2500,7 +2500,7 @@ impl Tree {
         };
 
         let aspect_ratio = style.aspect_ratio();
-        let (_node_size, _node_min_size, _node_max_size) = match inputs.sizing_mode {
+        let (node_size, _node_min_size, _node_max_size) = match inputs.sizing_mode {
             SizingMode::ContentSize => (known_dimensions, Size::NONE, Size::NONE),
             SizingMode::InherentSize => {
                 let style_size = style
@@ -2532,11 +2532,11 @@ impl Tree {
         let is_inline_container = matches!(style.display_mode(), DisplayMode::Inline);
         let content_box_child_base = if !is_inline_container {
             let content_box_parent_size = Size {
-                width: _node_size
+                width: node_size
                     .width
                     .or(known_dimensions.width)
                     .map(|w| (w - pb.left - pb.right).max(0.0)),
-                height: _node_size
+                height: node_size
                     .height
                     .or(known_dimensions.height)
                     .map(|h| (h - pb.top - pb.bottom).max(0.0)),
@@ -2975,12 +2975,17 @@ impl Tree {
         if flow_child_ids.is_empty() && !has_segments {
             let leaf_output = if has_measure {
                 let measure = self.node_data().get(id).unwrap().copy_measure();
+                // A replaced box (an image) is measured knowing its own definite width or height,
+                // so it can keep its ratio; taffy only passes the parent's.
+                let replaced = style.get_item_is_replaced() || self.nodes()[id].is_image();
+                let own_known = node_size.maybe_sub(pb.sum_axes());
                 compute_leaf_layout(
                     inputs,
                     &style,
                     |_val, _basis| 0.0,
                     |known_dimensions, available_space| {
-                        self.cached_leaf_measure(id, &measure, known_dimensions, available_space)
+                        let known = if replaced { known_dimensions.or(own_known) } else { known_dimensions };
+                        self.cached_leaf_measure(id, &measure, known, available_space)
                     },
                 )
             } else {
