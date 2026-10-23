@@ -64,6 +64,8 @@ open class Node internal constructor(
 
 
   internal var computeCacheDirty = false
+  // A foreign leaf's pending requestLayout was handed to Taffy before the compute.
+  internal var leafRequestDirtied = false
   internal var nestedComputePending = false
   internal var nestedComputeWidth = 0f
   internal var nestedComputeHeight = 0f
