@@ -1368,9 +1368,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
     // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
     // and a view that was laid out before going `display: none` keeps drawing at its old frame.
-    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY) || StateKeys.hasFlag(low, high, StateKeys.VISIBILITY)) {
       (node.view as? View)?.let { view ->
-        val visibility = if (display == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
+        val visibility = if (display == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
         // GONE is `visibility: collapse` or a queued removal (NodeUtils); both outrank display.
         if (view.visibility != visibility && view.visibility != View.GONE) view.visibility = visibility
       }
@@ -2377,8 +2377,12 @@ class Style internal constructor(@Transient internal var node: Node) {
       // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
       // Mason positions children itself, and GONE is `visibility: collapse`.
       (node.view as? View)?.visibility =
-        if (value == Display.None || node.detailsHidden) View.INVISIBLE else View.VISIBLE
+        if (value == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
     }
+
+  // `visibility: hidden` or `collapse`: the view isn't drawn, though a hidden one keeps its box.
+  internal val hidesView: Boolean
+    get() = values.get(StyleKeys.VISIBILITY) != 0.toByte()
 
   var position: Position
     get() {

@@ -746,13 +746,13 @@ class TextEngine(val container: TextContainer) {
 
     var allowWrap = true
     if (node.style.isValueInitialized) {
-      val ws = node.style.whiteSpace
+      val ws = node.style.resolvedWhiteSpace
       // No wrap for pre / nowrap
       if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
         allowWrap = false
       }
       // Explicit override
-      if (node.style.textWrap == TextWrap.NoWrap) {
+      if (node.style.resolvedTextWrap == TextWrap.NoWrap) {
         allowWrap = false
       }
     }
@@ -1098,7 +1098,7 @@ class TextEngine(val container: TextContainer) {
       // A text node holding only collapsible whitespace (e.g. a JSX/HTML
       // newline+indent between sibling elements) must collapse to 0x0 rather
       // than floor to minLineHeight. `white-space: pre*`/`break-spaces` opt out.
-      val preservesWhitespace = node.style.isValueInitialized && when (node.style.whiteSpace) {
+      val preservesWhitespace = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap,
         Styles.WhiteSpace.PreLine, Styles.WhiteSpace.BreakSpaces -> true
         else -> false
@@ -1302,11 +1302,11 @@ class TextEngine(val container: TextContainer) {
 
     var allowWrap = true
     if (node.style.isValueInitialized) {
-      val ws = node.style.whiteSpace
+      val ws = node.style.resolvedWhiteSpace
       if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
         allowWrap = false
       }
-      if (node.style.textWrap == TextWrap.NoWrap) {
+      if (node.style.resolvedTextWrap == TextWrap.NoWrap) {
         allowWrap = false
       }
     }
@@ -2036,7 +2036,7 @@ class TextEngine(val container: TextContainer) {
     return ceilFine(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
   }
 
-  private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.whiteSpace) {
+  private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
     else -> false
   }

@@ -31,6 +31,12 @@ three three three</pre>
           <p class="tk-text row">Press <kbd class="kbd">Ctrl</kbd> then <button class="inline-btn">Go</button> and <span class="kbd two-line">two<br />lines</span> end.</p>
         </div>
 
+        <p class="tk-text heading">D. Inherited white-space and text-transform</p>
+        <div class="tk-surface card">
+          <div class="inherit-nowrap"><p class="tk-text">This paragraph inherits nowrap from its div, so it stays on one line and is clipped</p></div>
+          <p class="tk-text upper">uppercase p with <span>a plain span</span> and <b>bold</b></p>
+        </div>
+
         <p class="tk-text heading">1. Nested text keeps inline styles</p>
         <div class="tk-surface card">
           <p class="tk-text row">plain <span class="red bold">red bold</span> plain <span class="blue italic">blue italic</span></p>
@@ -411,6 +417,16 @@ onMounted(() => {
 .bar {
   height: 28;
   padding: 4;
+}
+
+.inherit-nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  background-color: #ffeaa7;
+}
+
+.upper {
+  text-transform: uppercase;
 }
 .a { background-color: #74b9ff; }
 .b { background-color: #fab1a0; }

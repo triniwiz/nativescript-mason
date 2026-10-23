@@ -1647,10 +1647,11 @@ public class TextEngine: NSObject {
   }
   
   
+  /// white-space and text-wrap are inherited, so a block inside `<pre>` doesn't wrap either.
   internal var canWrap: Bool {
     guard node.style.isValueInitialized else { return true }
-    let ws = node.style.whiteSpace
-    return !((ws == .Pre || ws == .NoWrap) || node.style.textWrap == .NoWrap)
+    let ws = node.style.resolvedWhiteSpace
+    return !((ws == .Pre || ws == .NoWrap) || node.style.resolvedTextWrap == .NoWrap)
   }
 
   /// Widest line, in points, when wrapped at `width`; trailing whitespace hangs.
@@ -2912,7 +2913,7 @@ final class TextLayoutCache {
     if isBlock { flags |= 2 }
     if style.isValueInitialized {
       flags |= 4
-      if style.textWrap == .NoWrap { flags |= 8 }
+      if style.resolvedTextWrap == .NoWrap { flags |= 8 }
     }
     let font = node.getDefaultAttributes()[.font].map { CFHash($0 as CFTypeRef) } ?? 0
     return Key(
@@ -2921,7 +2922,7 @@ final class TextLayoutCache {
       knownW: Float(known?.width ?? -.infinity), knownH: Float(known?.height ?? -.infinity),
       availW: Float(available.width), availH: Float(available.height),
       flags: flags,
-      whiteSpace: style.isValueInitialized ? style.whiteSpace.rawValue : -1,
+      whiteSpace: style.isValueInitialized ? style.resolvedWhiteSpace.rawValue : -1,
       indent: Float(engine.textIndent(basis: available.width.isFinite && available.width > 0 ? available.width / CGFloat(NSCMason.scale) : 0)),
       lineClamp: Int32(engine.lineClamp)
     )
