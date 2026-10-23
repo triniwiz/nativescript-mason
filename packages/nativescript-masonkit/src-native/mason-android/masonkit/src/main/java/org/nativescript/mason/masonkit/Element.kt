@@ -161,6 +161,7 @@ interface Element : EventTarget {
   fun compute() {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
+    dirtyRequestedForeignLeaves()
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
@@ -175,6 +176,7 @@ interface Element : EventTarget {
     // NaN (no constraint) is computed as max-content, which the cache can hold.
     val width = if (widthArg.isNaN()) -2f else widthArg
     val height = if (heightArg.isNaN()) -2f else heightArg
+    if (!node.mason.inCompute && dirtyRequestedForeignLeaves()) node.computeCacheDirty = true
     // Fast-path: if compute cache already contains the requested size and
     // cache is clean, skip the native compute to avoid redundant work and
     // repeated max-content (-2 x -2) cycles caused by races.
@@ -198,6 +200,7 @@ interface Element : EventTarget {
   fun computeMaxContent() {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
+    dirtyRequestedForeignLeaves()
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
@@ -211,6 +214,7 @@ interface Element : EventTarget {
   fun computeMinContent() {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
+    dirtyRequestedForeignLeaves()
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
@@ -322,6 +326,7 @@ interface Element : EventTarget {
   private fun computeAndLayoutUnbatched(): MasonLayoutTree {
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
+    dirtyRequestedForeignLeaves()
     TextEngine.warmMeasures(node)
     var applied = true
     mason.inCompute = true
@@ -368,6 +373,7 @@ interface Element : EventTarget {
     node.nestedComputePending = false
     TextEngine.flushPendingTextStyles(node)
     Style.flushPendingMetrics(node)
+    if (dirtyRequestedForeignLeaves()) node.computeCacheDirty = true
 
     // Fast-path: if compute cache already contains the requested size,
     // cache is clean, and we have a valid layout tree, skip the native
@@ -1017,6 +1023,42 @@ private fun popFrame(state: LayoutDfsState): LayoutStackFrame {
   return frame
 }
 
+/**
+ * A foreign leaf's requestLayout (text changed, children added) never reaches Taffy, which keeps
+ * reusing the leaf's cached size. Dirty such leaves before computing so Taffy re-measures them in
+ * this pass. A request flags every ancestor, so only flagged branches are walked.
+ */
+private fun Element.dirtyRequestedForeignLeaves(): Boolean {
+  val group = view as? ViewGroup ?: return false
+  if (!group.isLayoutRequested) return false
+  return dirtyRequestedForeignLeaves(group, node.mason)
+}
+
+private fun dirtyRequestedForeignLeaves(group: ViewGroup, mason: Mason): Boolean {
+  var found = false
+  for (i in 0 until group.childCount) {
+    val child = group.getChildAt(i)
+    if (!child.isLayoutRequested || child.isGone) continue
+    if (child is Element) {
+      // A detached node here is a separate root (a list item); it dirties its own leaves.
+      if (child.node.parent != null && child is ViewGroup) {
+        found = dirtyRequestedForeignLeaves(child, mason) || found
+      }
+      continue
+    }
+    val leaf = mason.foreignNode(child)
+    if (leaf != null) {
+      leaf.dirty()
+      leaf.leafRequestDirtied = true
+      found = true
+    } else if (child is ViewGroup) {
+      // Mason's own wrappers (a list's RecyclerView) sit between Elements.
+      found = dirtyRequestedForeignLeaves(child, mason) || found
+    }
+  }
+  return found
+}
+
 internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
   if (tree.nodeCount == 0) return
 
@@ -1093,15 +1135,16 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           // Foreign views are leaf nodes. If the first pass produced an empty
           // axis, remeasure outside Rust's lock so nested Mason children can
           // compute their intrinsic size, then invalidate Taffy's stale leaf.
-          // A pending requestLayout on the leaf (children added, text changed)
-          // never reaches Taffy on its own: the cached leaf size is reused and
-          // the skip guard below would not even re-measure it.
+          // A pending requestLayout is normally re-measured before the compute
+          // (dirtyRequestedForeignLeaves); one the compute missed is caught here.
           val foreignSize = if (view !is Element) node.style.size else null
           val autoWidth = foreignSize?.width is Dimension.Auto
           val autoHeight = foreignSize?.height is Dimension.Auto
           val fallbackWidth = width <= 0 && autoWidth
           val fallbackHeight = height <= 0 && autoHeight
-          val leafChanged = view !is Element && view.isLayoutRequested
+          // Only a request the compute did not already re-measure needs the guess below.
+          val leafChanged = view !is Element && view.isLayoutRequested && !node.leafRequestDirtied
+          node.leafRequestDirtied = false
           if (view !is Element && (fallbackWidth || fallbackHeight || leafChanged)) {
             val assignedWidth = width
             val assignedHeight = height

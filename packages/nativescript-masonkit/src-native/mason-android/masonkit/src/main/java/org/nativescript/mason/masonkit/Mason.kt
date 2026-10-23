@@ -587,6 +587,9 @@ class Mason {
     }
   }
 
+  /** The node of a foreign (non-Mason) view, if it has one; never creates it. */
+  internal fun foreignNode(view: android.view.View): Node? = viewNodes[view]?.get()
+
   /** Commits a JS-written style buffer using four signed 32-bit dirty words, low to high. */
   fun syncStyleParts(view: android.view.View, lowLow: Int, lowHigh: Int, highLow: Int, highHigh: Int) {
     if (view is Element) {

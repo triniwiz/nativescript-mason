@@ -10,6 +10,7 @@ import android.widget.TextView as AndroidTextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,10 +47,10 @@ class ForeignFlexFrameInstrumentedTest {
     return root
   }
 
-  private fun layout(root: View, heightMode: Int = MeasureSpec.EXACTLY) {
+  private fun layout(root: View, heightMode: Int = MeasureSpec.EXACTLY, size: Pair<Int, Int> = 107 to 200) {
     root.forceLayout()
-    root.measure(MeasureSpec.makeMeasureSpec(107, MeasureSpec.EXACTLY),
-      MeasureSpec.makeMeasureSpec(200, heightMode))
+    root.measure(MeasureSpec.makeMeasureSpec(size.first, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(size.second, heightMode))
     root.layout(0, 0, root.measuredWidth, root.measuredHeight)
   }
 
@@ -159,6 +160,72 @@ class ForeignFlexFrameInstrumentedTest {
       assertEquals(initialHeight, leaf.height)
       assertEquals(leaf.bottom, footer.top)
       assertEquals(initialRootHeight, root.measuredHeight)
+    }
+  }
+
+  @Test
+  fun rowAutoWidthTextGrowthReachesTaffy() {
+    instrumentation.runOnMainSync {
+      val mason = Mason()
+      val root = mason.createView(context).apply {
+        style.display = Display.Flex
+        style.flexDirection = FlexDirection.Row
+        style.setSizeWidth(800f, Dimension.Kind.Points.value)
+        style.setSizeHeight(50f, Dimension.Kind.Points.value)
+      }
+      val leaf = AndroidTextView(context).apply {
+        text = "a"
+        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+      }
+      root.addView(leaf)
+      mason.nodeForView(leaf).style.setSizeHeight(40f, Dimension.Kind.Points.value)
+      layout(root, size = 800 to 50)
+      val initialWidth = leaf.width
+      leaf.text = "a much longer label"
+      layout(root, size = 800 to 50)
+      leaf.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(40, MeasureSpec.EXACTLY))
+      val intrinsic = leaf.measuredWidth
+      assertTrue("text should widen", intrinsic > initialWidth)
+      assertEquals(intrinsic, leaf.width)
+      assertEquals(40, leaf.height)
+    }
+  }
+
+  @Test
+  fun contentSizedTextGrowthSettlesInOnePass() {
+    instrumentation.runOnMainSync {
+      val mason = Mason()
+      val root = mason.createView(context).apply {
+        style.display = Display.Flex
+        style.flexDirection = FlexDirection.Column
+      }
+      val leaf = label().apply {
+        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+      }
+      val footer = mason.createView(context).apply { style.setSizeHeight(20f, Dimension.Kind.Points.value) }
+      root.addView(leaf)
+      root.addView(footer)
+      layout(root, MeasureSpec.AT_MOST)
+      val initialHeight = leaf.height
+      leaf.text = "longer text that wraps over several lines in the narrow container"
+      layout(root, MeasureSpec.AT_MOST)
+      assertTrue("text should grow", leaf.height > initialHeight)
+      assertEquals(leaf.bottom, footer.top)
+      assertEquals(leaf.height + footer.height, root.measuredHeight)
+    }
+  }
+
+  @Test
+  fun stretchedLeafRequestDoesNotScheduleAnotherCompute() {
+    instrumentation.runOnMainSync {
+      val leaf = label()
+      val root = fixture(leaf, FlexDirection.Column)
+      layout(root)
+      leaf.requestLayout()
+      layout(root)
+      assertFills(root, leaf, "leaf request")
+      assertFalse("root should not need another compute", root.node.computeCacheDirty)
+      assertFalse("leaf should be laid out", leaf.isLayoutRequested)
     }
   }
 }
