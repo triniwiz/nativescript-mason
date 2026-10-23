@@ -174,7 +174,6 @@ namespace winrt::NativeScript::Mason::implementation
         void HookInput();
         void SetPressed(winrt::Windows::Foundation::IInspectable const& target);
         void ArrangeBoxes();
-        bool LastBaseline(float& baseline);
         void CollapseFlowSpaces(std::vector<BuiltRun>& runs) const;
 
         void ApplyStyleFromBuffer();
@@ -209,6 +208,8 @@ namespace winrt::NativeScript::Mason::implementation
             bool wrap{ false };
             // white-space: nowrap or pre, or text-wrap: nowrap: one line at any width.
             bool noWrap{ false };
+            // A button's text is centred down its content box.
+            bool centered{ false };
             std::vector<MinContentRun> runs;
 
             // DirectWrite: the paragraph, and its layout built on first use. The version changes with
@@ -218,7 +219,6 @@ namespace winrt::NativeScript::Mason::implementation
             uint64_t version{ 0 };
 
             std::vector<winrt::NativeScript::Mason::Node> boxNodes;
-            std::vector<winrt::weak_ref<winrt::NativeScript::Mason::Text>> boxTexts;
             // The element each of the paragraph's spans comes from, for its text-orientation.
             std::vector<winrt::NativeScript::Mason::Node> spanNodes;
             float ascent{ 0.0f };
@@ -274,6 +274,8 @@ namespace winrt::NativeScript::Mason::implementation
 
         static bool RefreshBoxes(MeasureCache& cache);
         static bool RefreshUpright(MeasureCache& cache);
+        // The last line's baseline from the top of a content box, where it's drawn; NaN if none.
+        static float BaselineFromTop(MeasureCache& cache, float width, float height);
         // Margin boxes of the floats beside the text, in its content box, from the last layout.
         static std::vector<mason_dwrite::Exclusion> FloatExclusions(MeasureCache const& cache);
         void SyncFloatParent();

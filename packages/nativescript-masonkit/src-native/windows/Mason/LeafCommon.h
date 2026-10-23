@@ -51,6 +51,9 @@ namespace mason_leaf
         return static_cast<int64_t>((static_cast<uint64_t>(wb) << 32) | static_cast<uint64_t>(hb));
     }
 
+    // An available width asking a text leaf for its last baseline (mason-core BASELINE_QUERY).
+    inline constexpr float kBaselineQuery = -4.0f;
+
     // The known size, else the available space. XAML clamps DesiredSize to the constraint, so the
     // engine's -1 (min-content) and -2 (max-content) are measured unconstrained instead.
     inline float XamlConstraint(float known, float available)

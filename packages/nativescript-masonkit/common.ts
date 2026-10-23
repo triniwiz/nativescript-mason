@@ -1619,6 +1619,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // Windows attaches element children on load with no index, after text runs that attached
   // straight away, so an append would land them after text that comes later.
   _windowsNativeIndexOf(child: any, atIndex: number): number {
+    if (this._hoistingProxy(child)) return this._nativeAttachIndex(child, atIndex).nativeIndex;
     if (atIndex >= 0) return atIndex;
     const slot = this._children.indexOf(child);
     return slot >= 0 ? this._nativeIndexFor(slot) : atIndex;

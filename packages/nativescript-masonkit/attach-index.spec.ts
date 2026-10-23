@@ -99,6 +99,16 @@ describe('passthrough hosts', () => {
     expect(h._nativeAttachIndex(hoisted(proxy), -1).nativeIndex).toBe(3);
   });
 
+  it('places a hoisted child at the host on Windows', () => {
+    const children: any[] = views(2);
+    const h = host(children);
+    for (const c of children) attach(h, c);
+    const proxy = proxyIn(h, 1);
+    children.splice(1, 0, proxy);
+    expect(h._windowsNativeIndexOf(hoisted(proxy), 0)).toBe(1);
+    expect(h._windowsNativeIndexOf(hoisted(proxy), -1)).toBe(2);
+  });
+
   it("counts a host's attached children for the siblings after it", () => {
     const children: any[] = views(3);
     const h = host(children);
