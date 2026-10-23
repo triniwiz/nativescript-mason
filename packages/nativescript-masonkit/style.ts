@@ -983,7 +983,7 @@ function parseGradientCorner(token: string): [number, number] | undefined {
 }
 
 const LINEAR_GRADIENT = /linear-gradient/i;
-const ANY_GRADIENT = /gradient/i;
+const ANY_GRADIENT = /-gradient\(/i;
 const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
 
 const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
