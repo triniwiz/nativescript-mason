@@ -1503,6 +1503,8 @@ public class TextEngine: NSObject {
     case .Left, .Auto, .Start, .Justify:
       horizontalOffset = 0
     }
+    let factor = containerAlignmentFactor
+    if factor > 0 { horizontalOffset = max(0, factor * (room - lineWidth)) }
     let originX = drawBounds.origin.x + (style.direction == .RTL ? 0 : indent) + horizontalOffset
     let baselineOrigin = CGPoint(x: originX, y: baselineY)
 
@@ -1821,6 +1823,44 @@ public class TextEngine: NSObject {
     return noWrap && !TextEngine.hasLineBreak(text)
   }
 
+  /// Where a flex or grid text element puts its text across, as a fraction of the free space. Its
+  /// text is one anonymous item as wide as the longest line, which justify-content (a row),
+  /// align-items (a column) or justify-items (a grid) places, so `display: flex;
+  /// justify-content: center` centres an avatar's initials. 0 leaves it where text-align put it.
+  private var containerAlignmentFactor: CGFloat {
+    guard style.isValueInitialized, verticalWritingMode == 0 else { return 0 }
+    func justify(_ value: JustifyContent, reversed: Bool) -> CGFloat {
+      switch value {
+      case .Center, .SpaceAround, .SpaceEvenly: return 0.5
+      case .End: return 1
+      case .FlexEnd: return reversed ? 0 : 1
+      case .Normal, .FlexStart, .SpaceBetween, .Stretch: return reversed ? 1 : 0
+      case .Start: return 0
+      }
+    }
+    switch style.display {
+    case .Flex, .InlineFlex:
+      switch style.flexDirection {
+      case .Row: return justify(style.justifyContent, reversed: false)
+      case .RowReverse: return justify(style.justifyContent, reversed: true)
+      default:
+        switch style.alignItems {
+        case .Center: return 0.5
+        case .End, .FlexEnd: return 1
+        default: return 0
+        }
+      }
+    case .Grid, .InlineGrid:
+      switch style.justifyItems {
+      case .Center: return 0.5
+      case .End, .FlexEnd: return 1
+      default: return justify(style.justifyContent, reversed: false)
+      }
+    default:
+      return 0
+    }
+  }
+
   /// How far the last line's baseline sits above the bottom of this view laid out `width` by
   /// `height` points, where drawText draws it; nil when there is no text.
   internal func lastBaselineFromBottom(width: CGFloat, height: CGFloat) -> CGFloat? {
@@ -1961,6 +2001,24 @@ public class TextEngine: NSObject {
       origins[clamp - 1].x += flushFactor(text, cut) * (TextEngine.visibleWidth(cut) - TextEngine.visibleWidth(ellipsized))
       clampedLast = ellipsized
       linesCount = clamp
+    }
+
+    // A flex or grid text element places its lines as one item (see containerAlignmentFactor).
+    let factor = containerAlignmentFactor
+    if factor > 0 {
+      var left = CGFloat.greatestFiniteMagnitude
+      var right = -CGFloat.greatestFiniteMagnitude
+      for i in 0..<linesCount {
+        let line = i == linesCount - 1 ? (clampedLast ?? unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self))
+          : unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+        left = min(left, origins[i].x)
+        right = max(right, origins[i].x + TextEngine.visibleWidth(line))
+      }
+      let free = drawBounds.width - (right - left)
+      if free > 0 {
+        let shift = factor * free - left
+        for i in 0..<linesCount { origins[i].x += shift }
+      }
     }
 
     // Re-anchor the vertical baseline using the font's true metrics, not

@@ -38,7 +38,11 @@ import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
@@ -302,7 +306,7 @@ open class TextView @JvmOverloads constructor(
     // We bypass super.onDraw, which normally insets the layout by the view's
     // padding — so apply paddingLeft/paddingTop here.
     drawnLayout = layout
-    drawnDx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layout, contentWidth)
+    drawnDx = paddingLeft.toFloat() + unconstrainedAlignmentShift(layout, contentWidth) + containerAlignmentShift(layout, contentWidth)
     drawnDy = paddingTop.toFloat() + dy
     return layout
   }
@@ -332,6 +336,52 @@ open class TextView @JvmOverloads constructor(
       layout.getLineRight(0) >= layout.width - 0.5f -> -slack
       else -> -slack / 2f
     }
+  }
+
+  /**
+   * How far a flex or grid text element moves its text across. Its text is one anonymous item as
+   * wide as the longest line, which justify-content (a row), align-items (a column) or
+   * justify-items (a grid) places, so `display: flex; justify-content: center` centres an avatar's
+   * initials. 0 when the item starts at the left, as before.
+   */
+  private fun containerAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float {
+    if (contentWidth <= 0 || layout.lineCount == 0 || !style.isValueInitialized) return 0f
+    val factor = when (style.display) {
+      Display.Flex, Display.InlineFlex -> when (style.flexDirection) {
+        FlexDirection.Row -> justifyFactor(style.justifyContent, reversed = false)
+        FlexDirection.RowReverse -> justifyFactor(style.justifyContent, reversed = true)
+        else -> when (style.alignItems) {
+          AlignItems.Center -> 0.5f
+          AlignItems.End, AlignItems.FlexEnd -> 1f
+          else -> 0f
+        }
+      }
+      Display.Grid, Display.InlineGrid -> when (style.justifyItems) {
+        JustifyItems.Center -> 0.5f
+        JustifyItems.End, JustifyItems.FlexEnd -> 1f
+        else -> justifyFactor(style.justifyContent, reversed = false)
+      }
+      else -> 0f
+    }
+    if (factor == 0f) return 0f
+    var left = Float.MAX_VALUE
+    var right = -Float.MAX_VALUE
+    for (i in 0 until layout.lineCount) {
+      left = minOf(left, layout.getLineLeft(i))
+      right = maxOf(right, layout.getLineRight(i))
+    }
+    val free = contentWidth - (right - left)
+    if (free <= 0f) return 0f
+    return factor * free - left
+  }
+
+  /** Where justify-content puts a lone item: 0 at the start, 0.5 centred, 1 at the end. */
+  private fun justifyFactor(value: JustifyContent, reversed: Boolean): Float = when (value) {
+    JustifyContent.Center, JustifyContent.SpaceAround, JustifyContent.SpaceEvenly -> 0.5f
+    JustifyContent.End -> 1f
+    JustifyContent.FlexEnd -> if (reversed) 0f else 1f
+    JustifyContent.Normal, JustifyContent.FlexStart, JustifyContent.SpaceBetween, JustifyContent.Stretch -> if (reversed) 1f else 0f
+    JustifyContent.Start -> 0f
   }
 
   /**
