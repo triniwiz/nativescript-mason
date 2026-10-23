@@ -27,12 +27,14 @@ private func boxIsInVerticalText(_ node: MasonNode) -> Bool {
   return mode == 1 || mode == 2
 }
 
-/// A box's size in points: measured, else laid out (a box with no content isn't measured).
+/// A box's border-box size in points: laid out, else measured before its first layout. A text
+/// box's measure is its content size, without its padding.
 internal func inlineBoxSize(_ node: MasonNode) -> CGSize {
   let scale = CGFloat(NSCMason.scale)
   let layout = node.computedLayout
-  let width = node.cachedWidth > 0 ? CGFloat(node.cachedWidth) : CGFloat(layout.width.isNaN ? 0 : layout.width)
-  let height = node.cachedHeight > 0 ? CGFloat(node.cachedHeight) : CGFloat(layout.height.isNaN ? 0 : layout.height)
+  let laidOut = !layout.width.isNaN && !layout.height.isNaN && (layout.width > 0 || layout.height > 0)
+  let width = laidOut ? CGFloat(layout.width) : CGFloat(node.cachedWidth)
+  let height = laidOut ? CGFloat(layout.height) : CGFloat(node.cachedHeight)
   return CGSize(width: width / scale, height: height / scale)
 }
 
@@ -857,6 +859,10 @@ public class TextEngine: NSObject {
   // segmentsInvalidateVersion so it is automatically stale after any invalidation.
   private var cachedFramesetter: CTFramesetter?
   private var framesetterStringVersion: UInt64 = UInt64.max
+  // CoreText reads the run delegates when it typesets, so a framesetter made before its inline
+  // boxes were laid out keeps their old metrics: it is also keyed by their sizes and baselines.
+  private var framesetterBoxMetrics: [CGFloat] = []
+  private var inlineBoxNodes: (version: UInt64, nodes: [MasonNode])?
 
   // The text's soft hyphens, first-line indent and inter-character justification resolved for one
   // width (0 when neither applies).
@@ -979,14 +985,37 @@ public class TextEngine: NSObject {
     }
   }
 
+  private func currentInlineBoxMetrics(_ text: NSAttributedString) -> [CGFloat] {
+    if inlineBoxNodes?.version != segmentsInvalidateVersion {
+      var nodes: [MasonNode] = []
+      text.enumerateAttribute(Constants.VIEW_PLACEHOLDER_KEY, in: NSRange(location: 0, length: text.length), options: .longestEffectiveRangeNotRequired) { value, _, _ in
+        if let helper = value as? ViewHelper { nodes.append(helper.node) }
+      }
+      inlineBoxNodes = (segmentsInvalidateVersion, nodes)
+    }
+    guard let nodes = inlineBoxNodes?.nodes, !nodes.isEmpty else { return [] }
+    var metrics: [CGFloat] = []
+    metrics.reserveCapacity(nodes.count * 3)
+    for node in nodes {
+      let size = inlineBoxSize(node)
+      metrics.append(size.width)
+      metrics.append(size.height)
+      metrics.append(inlineBoxBaseline(node, height: boxIsInVerticalText(node) ? size.width : size.height))
+    }
+    return metrics
+  }
+
   internal func framesetter(for text: NSAttributedString, width: CGFloat, indent: CGFloat = 0) -> CTFramesetter {
     let base: CTFramesetter
-    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion {
+    let boxMetrics = currentInlineBoxMetrics(text)
+    if let cached = cachedFramesetter, framesetterStringVersion == segmentsInvalidateVersion, framesetterBoxMetrics == boxMetrics {
       base = cached
     } else {
       base = TextEngine.framesetter(text)
       cachedFramesetter = base
       framesetterStringVersion = segmentsInvalidateVersion
+      framesetterBoxMetrics = boxMetrics
+      fitted = nil
     }
     let finiteWidth = width.isFinite && width > 0 && width < 1_000_000
     let hyphenWidth: CGFloat = finiteWidth
@@ -2015,19 +2044,24 @@ public class TextEngine: NSObject {
         // Measure the boxes' own runs: the line's ascent also grows with a line-height
         // taller than the font (minimumLineHeight), and plain text must stay centred then.
         let line0 = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, 0), to: CTLine.self)
+        // A box on the baseline also reaches below it by its own baseline.
         var lineAscent: CGFloat = 0
+        var lineDescent: CGFloat = 0
         for run in CTLineGetGlyphRuns(line0) as! [CTRun] {
           let runAttributes = CTRunGetAttributes(run) as NSDictionary
           guard runAttributes[kCTRunDelegateAttributeName as String] != nil else { continue }
           var runAscent: CGFloat = 0
-          CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, nil, nil)
+          var runDescent: CGFloat = 0
+          CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &runAscent, &runDescent, nil)
           lineAscent = max(lineAscent, runAscent)
+          lineDescent = max(lineDescent, runDescent)
         }
+        let fontDescent = naturalLineHeight - fontAscent
         // Grown lines already make room for their boxes.
-        let boxRaised = grownExtents == nil && lineAscent > fontAscent + 0.5
+        let boxRaised = grownExtents == nil && (lineAscent > fontAscent + 0.5 || lineDescent > fontDescent + 0.5)
         var lineBounds = drawBounds
         if fixedLineBox { lineBounds.size.height = maxLineHeight }
-        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? lineAscent : fontAscent, descent: naturalLineHeight - fontAscent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
+        let baselineFromTop = singleLineBaselineFromTop(ascent: boxRaised ? max(lineAscent, fontAscent) : fontAscent, descent: boxRaised ? max(lineDescent, fontDescent) : fontDescent, capHeight: boxRaised ? 0 : CTFontGetCapHeight(font), baselineOffset: baselineOffset, in: lineBounds)
         textBaseY = bounds.height - origins[0].y - baselineFromTop
       } else if maxLineHeight > 0 && maxLineHeight < naturalLineHeight {
         textBaseY = bounds.height - drawBounds.origin.y - fontAscent - origins[0].y
@@ -2229,6 +2263,7 @@ public class TextEngine: NSObject {
       bounds: CGRect
     ) {
       let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+      let glyphRaise = (node.getDefaultAttributes()[.baselineOffset] as? CGFloat) ?? 0
       
       for run in runs {
         let attrs = CTRunGetAttributes(run) as NSDictionary
@@ -2253,7 +2288,9 @@ public class TextEngine: NSObject {
         // Context is already in CoreText coordinates (flipped in drawText/drawMultiLine)
         // So use CoreText coordinates directly
         let ctX = origin.x + runPosition.x
-        let ctY = origin.y - descent  // baseline minus descent = bottom of inline element
+        // Baseline minus descent = bottom of the box. The text's glyphs are raised to centre
+        // them in their line box (getDefaultAttributes), so the box is too.
+        let ctY = origin.y + glyphRaise - descent
         
         let drawRect = CGRect(x: ctX, y: ctY, width: childWidth, height: childHeight)
         
@@ -2784,7 +2821,7 @@ public class TextEngine: NSObject {
         // Check if this is an inline child placeholder
         if let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper {
           if let childPtr = helper.node.nativePtr {
-            let childHeight = max(CGFloat(helper.node.cachedHeight) / scale, ascent + descent)
+            let childHeight = max(inlineBoxSize(helper.node).height, ascent + descent)
             let baselineFromBottom = helper.node.style.verticalAlign.align == .Baseline
               ? descent
               : Self.inlineChildBaselineFromBottom(
