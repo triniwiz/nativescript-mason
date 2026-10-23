@@ -1778,6 +1778,7 @@ public class TextEngine: NSObject {
     let layoutBounds: CGRect
     let path: CGPath
     let textBaseY: CGFloat
+    let grownExtents: (above: [CGFloat], below: [CGFloat])?
 
     func line(_ i: Int) -> CTLine {
       if i == count - 1, let last = clampedLast { return last }
@@ -2034,7 +2035,8 @@ public class TextEngine: NSObject {
     }
 
     return LineLayout(lines: linesCF, origins: origins, count: linesCount, clampedLast: clampedLast,
-                      drawBounds: drawBounds, layoutBounds: layoutBounds, path: path, textBaseY: textBaseY)
+                      drawBounds: drawBounds, layoutBounds: layoutBounds, path: path, textBaseY: textBaseY,
+                      grownExtents: grownExtents)
   }
 
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
@@ -2044,6 +2046,7 @@ public class TextEngine: NSObject {
     let linesCount = layout.count
     let textBaseY = layout.textBaseY
     var origins = layout.origins
+    let grownExtents = layout.grownExtents
     func lineAt(_ i: Int) -> CTLine { layout.line(i) }
 
     #if DEBUG_EXCLUSION_PATH
