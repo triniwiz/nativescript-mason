@@ -116,6 +116,13 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
   return font
 }
 
+private func systemFontDesign(_ postScriptName: String) -> UIFontDescriptor.SystemDesign? {
+  if postScriptName.contains("Mono") { return .monospaced }
+  if postScriptName.contains("NewYork") { return .serif }
+  if postScriptName.contains("Rounded") { return .rounded }
+  return nil
+}
+
 private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
   // UIFont.Weight → CoreText weight value
   let weightValue: CGFloat
@@ -175,8 +182,12 @@ private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.W
   ]
 
   if isSystemFont {
-    let uiFont = UIFont.systemFont(ofSize: fontSize, weight: weight)
-    return CTFontCreateWithFontDescriptor(uiFont.fontDescriptor as CTFontDescriptor, fontSize, nil)
+    // Keep the system design ui-monospace, ui-serif and ui-rounded resolved to.
+    var descriptor = UIFont.systemFont(ofSize: fontSize, weight: weight).fontDescriptor
+    if let design = systemFontDesign(postScriptName), let designed = descriptor.withDesign(design) {
+      descriptor = designed
+    }
+    return CTFontCreateWithFontDescriptor(descriptor as CTFontDescriptor, fontSize, nil)
   } else {
     // Resolve by FAMILY name + traits, not the exact PostScript name: pinning a
     // face makes CoreText ignore the weight trait. Fall back to the PostScript
