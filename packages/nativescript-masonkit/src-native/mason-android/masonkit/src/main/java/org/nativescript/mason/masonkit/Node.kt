@@ -211,6 +211,7 @@ open class Node internal constructor(
 
   // position: fixed / sticky state — see MasonPositioning.kt.
   internal var fixedOriginalParent: ViewGroup? = null
+  internal var fixedFollowsParent: android.view.View.OnAttachStateChangeListener? = null
   internal var stickyLocalX: Int = 0
   internal var stickyLocalY: Int = 0
   internal var stickyNaturalX: Int = 0
