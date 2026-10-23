@@ -1136,7 +1136,7 @@ namespace mason_svg
         {
             auto child = children.Item(i);
             const auto type = child.NodeType();
-            if (type == dom::NodeType::TextNode || type == dom::NodeType::CDataSectionNode)
+            if (type == dom::NodeType::TextNode || type == dom::NodeType::DataSectionNode)
             {
                 const std::wstring text{ child.InnerText() };
                 for (size_t k = 0; k < text.size(); ++k)
