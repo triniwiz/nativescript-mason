@@ -73,6 +73,21 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // True while the box is painted through CALayer properties instead of draw(_:).
   private var _usesLayerPaint = false
 
+  /// A rounded overflow clip done by the layer's own corner radius: only the corners render
+  /// offscreen, where a shape mask renders the whole scrolled content. The layer paint uses the same radius.
+  internal var overflowCornerClip: (radius: CGFloat, corners: CACornerMask)? {
+    didSet {
+      guard !_usesLayerPaint else {
+        layer.setNeedsDisplay()
+        return
+      }
+      let radius = overflowCornerClip?.radius ?? 0
+      let corners = overflowCornerClip?.corners ?? MasonUIView.allCorners
+      if layer.cornerRadius != radius { layer.cornerRadius = radius }
+      if layer.maskedCorners != corners { layer.maskedCorners = corners }
+    }
+  }
+
   /// Paint the box with CALayer properties and sublayers. Returns false, and clears them, when draw(_:) is needed.
   internal func applyLayerPaintIfEligible() -> Bool {
     // Nothing to paint is the degenerate case: every property cleared.
@@ -84,8 +99,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         layer.backgroundColor = nil
         layer.borderWidth = 0
         layer.borderColor = nil
-        layer.cornerRadius = 0
-        layer.maskedCorners = MasonUIView.allCorners
+        layer.cornerRadius = overflowCornerClip?.radius ?? 0
+        layer.maskedCorners = overflowCornerClip?.corners ?? MasonUIView.allCorners
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         removeBorderLayer()
@@ -97,8 +112,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
     _usesLayerPaint = true
     if layer.backgroundColor != paint.background { layer.backgroundColor = paint.background }
-    if layer.cornerRadius != paint.radius { layer.cornerRadius = paint.radius }
-    if layer.maskedCorners != paint.corners { layer.maskedCorners = paint.corners }
+    // The overflow clip has the same radius when both exist; it outlives a box with nothing to paint.
+    let corner = overflowCornerClip ?? (paint.radius, paint.corners)
+    if layer.cornerRadius != corner.radius { layer.cornerRadius = corner.radius }
+    if layer.maskedCorners != corner.corners { layer.maskedCorners = corner.corners }
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     setGradientLayer(paint.gradient, paint: paint)
@@ -282,7 +299,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   }
 
   /// The one circular radius of the rounded corners, scaled as CSS scales overlapping radii.
-  private func layerCornerRadius(_ r: CSSBorderRenderer.BorderRadius) -> (CGFloat, CACornerMask)? {
+  internal func layerCornerRadius(_ r: CSSBorderRenderer.BorderRadius) -> (CGFloat, CACornerMask)? {
     let corners = [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]
     let masks: [CACornerMask] = [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner, .layerMinXMaxYCorner]
     var value: CGFloat = 0
@@ -653,9 +670,10 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   private var _scrollPanTranslation: CGPoint = .zero
   private var _scrollDecelerationLink: CADisplayLink?
   private var _scrollDecelerationVelocity: CGPoint = .zero
-  // DecelerationRate.normal (0.998) is per-millisecond; raise to 1000/60 to get
-  // the per-frame factor (≈0.967) matching UIScrollView feel.
-  private let _scrollDecelerationRate: CGFloat = pow(UIScrollView.DecelerationRate.normal.rawValue, 1000.0 / 60.0)
+  // Unsnapped momentum position, what was last shown, and the frame time it was for.
+  private var _scrollDecelerationOffset: CGPoint = .zero
+  private var _scrollDecelerationShown: CGPoint = .zero
+  private var _scrollDecelerationTime: CFTimeInterval = 0
   private var _lastBoundsSize: CGSize = .zero
   private var _scrollGestureDelegate: _MasonScrollPanDelegate?
   // True while a scroll gesture/deceleration is active; layoutSubviews skips
@@ -1740,7 +1758,7 @@ extension MasonUIView {
         x: _scrollPanStartOffset.x - (_canScrollH ? t.x : 0),
         y: _scrollPanStartOffset.y - (_canScrollV ? t.y : 0)
       )
-      _setScrollOrigin(_rubberBanded(raw))
+      _setScrollOrigin(_pixelAligned(_rubberBanded(raw)))
 
     case .ended, .cancelled:
       _panActive = false
@@ -1766,10 +1784,32 @@ extension MasonUIView {
     }
     _scrollDecelerationLink?.invalidate()
     _scrollDecelerationVelocity = velocity
+    _scrollDecelerationOffset = contentOffset
+    _scrollDecelerationShown = contentOffset
+    _scrollDecelerationTime = CACurrentMediaTime()
     _isScrolling = true
-    let link = CADisplayLink(target: self, selector: #selector(_scrollDecelerationStep))
+    _scrollDecelerationLink = MasonUIView.scrollDisplayLink(self, #selector(_scrollDecelerationStep))
+  }
+
+  /// A display link at the display's full rate (120Hz on ProMotion when the app allows it).
+  fileprivate static func scrollDisplayLink(_ target: Any, _ selector: Selector) -> CADisplayLink {
+    let link = CADisplayLink(target: target, selector: selector)
+    link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
     link.add(to: .main, forMode: .common)
-    _scrollDecelerationLink = link
+    return link
+  }
+
+  /// UIScrollView keeps the offset on whole device pixels: content at a fractional offset is
+  /// resampled, and its text shimmers as the fraction changes from frame to frame.
+  fileprivate func _pixelAligned(_ o: CGPoint) -> CGPoint {
+    let scale = CGFloat(NSCMason.scale)
+    let range = webScrollRange
+    func snap(_ v: CGFloat, _ hi: CGFloat) -> CGFloat {
+      let p = (v * scale).rounded() / scale
+      // An in-range offset stays in range, so an edge never reads as overscrolled.
+      return v >= 0 && v <= hi ? min(max(p, 0), hi) : p
+    }
+    return CGPoint(x: snap(o.x, range.x), y: snap(o.y, range.y))
   }
 
   private func _stopScrollDeceleration() {
@@ -1780,16 +1820,23 @@ extension MasonUIView {
     _scrollMotionEnded()
   }
 
-  // Advance one axis: momentum decay in-bounds, spring-back when overscrolled.
+  // UIScrollView.DecelerationRate.normal: the velocity kept per millisecond.
+  private static let decelerationPerMs = UIScrollView.DecelerationRate.normal.rawValue
+
+  // Advance one axis by `dt` seconds: momentum decay in-bounds, spring-back when overscrolled.
   // Returns (offset, velocity, settled).
-  private func _integrateScrollAxis(
+  func _integrateScrollAxis(
     _ value: CGFloat, _ velocity: CGFloat, _ lo: CGFloat, _ hi: CGFloat, _ dt: CGFloat
   ) -> (CGFloat, CGFloat, Bool) {
     if value >= lo && value <= hi {
-      let nv = velocity * _scrollDecelerationRate
-      let nval = value + nv * dt
+      // Exact for any frame length: v(t) = v0 * rate^ms, so the distance is its integral.
+      let rate = MasonUIView.decelerationPerMs
+      let ms = dt * 1000
+      let decay = pow(rate, ms)
+      let nv = velocity * decay
+      let nval = value + velocity * (decay - 1) / (1000 * log(rate))
       // Settle only when slow and still in-bounds (else momentum bounces off the edge).
-      if abs(nv) < 30, nval >= lo, nval <= hi { return (nval, nv, true) }
+      if abs(nv) < 10, nval >= lo, nval <= hi { return (nval, nv, true) }
       return (nval, nv, false)
     }
     let target = value < lo ? lo : hi
@@ -1802,10 +1849,15 @@ extension MasonUIView {
   }
 
   @objc func _scrollDecelerationStep() {
-    let dt: CGFloat = 1.0 / 60.0
+    // Advance to when this frame is shown, so a late or 120Hz frame keeps the same motion.
+    let now = _scrollDecelerationLink?.targetTimestamp ?? CACurrentMediaTime()
+    let dt = CGFloat(min(max(now - _scrollDecelerationTime, 0), 0.05))
+    _scrollDecelerationTime = now
     let hiX = max(0, contentSize.width - bounds.width)
     let hiY = max(0, contentSize.height - bounds.height)
-    var o = contentOffset
+    // Something else moved the offset (a relayout clamp): carry on from there.
+    if contentOffset != _scrollDecelerationShown { _scrollDecelerationOffset = contentOffset }
+    var o = _scrollDecelerationOffset
     var v = _scrollDecelerationVelocity
     var doneX = true
     var doneY = true
@@ -1824,7 +1876,9 @@ extension MasonUIView {
       v.y = 0
     }
     _scrollDecelerationVelocity = v
-    _setScrollOrigin(o)
+    _scrollDecelerationOffset = o
+    _setScrollOrigin(_pixelAligned(o))
+    _scrollDecelerationShown = contentOffset
     if doneX && doneY { _stopScrollDeceleration() }
   }
 }
@@ -1902,9 +1956,7 @@ extension MasonUIView {
     _scrollAnimationTo = target
     _scrollAnimationStart = CACurrentMediaTime()
     _isScrolling = true
-    let link = CADisplayLink(target: self, selector: #selector(_scrollAnimationStep))
-    link.add(to: .main, forMode: .common)
-    _scrollAnimationLink = link
+    _scrollAnimationLink = MasonUIView.scrollDisplayLink(self, #selector(_scrollAnimationStep))
   }
 
   /// Keeps a scrollTo made before layout for the next layout pass; a later one replaces it per axis.
@@ -1945,12 +1997,14 @@ extension MasonUIView {
   }
 
   @objc func _scrollAnimationStep() {
-    let t = min(1, (CACurrentMediaTime() - _scrollAnimationStart) / MasonUIView.smoothScrollDuration)
+    let now = _scrollAnimationLink?.targetTimestamp ?? CACurrentMediaTime()
+    let t = min(1, (now - _scrollAnimationStart) / MasonUIView.smoothScrollDuration)
     let e = CGFloat(1 - pow(1 - t, 3))
     let from = _scrollAnimationFrom
     let to = _scrollAnimationTo
-    // Clamped each step: a relayout mid-animation can shrink the range.
-    _setScrollOrigin(_clampScrollOffset(CGPoint(x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e)))
+    // Clamped each step: a relayout mid-animation can shrink the range. The end is exact.
+    let o = _clampScrollOffset(CGPoint(x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e))
+    _setScrollOrigin(t >= 1 ? o : _pixelAligned(o))
     if t >= 1 { _stopScrollAnimation() }
   }
 
@@ -2150,7 +2204,15 @@ private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelega
 
 // Skips the backing store (and draw(_:)) while the owning view paints nothing.
 final class MasonViewLayer: CALayer {
+  // How the shadow is drawn depends on whether this box is see-through.
+  override var opacity: Float {
+    didSet {
+      if (oldValue < 1) != (opacity < 1) { (delegate as? MasonUIView)?.style.refreshShadowMode(self) }
+    }
+  }
+
   override func display() {
+    (delegate as? MasonUIView)?.style.refreshShadowMode(self)
     if let view = delegate as? MasonUIView, view.applyLayerPaintIfEligible() {
       contents = nil
       return

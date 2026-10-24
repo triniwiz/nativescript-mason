@@ -88,6 +88,39 @@ final class ScrollTests: XCTestCase {
     XCTAssertEqual(view.webScrollRange, .zero)
   }
 
+  // A one-axis mask would render the scrolled content offscreen every frame.
+  func testAScrollAxisClipsBothAxesWithoutAMask() {
+    let view = fixture()
+    view.configure { $0.overflow = MasonPoint(.Visible, .Scroll) }
+    layout(view)
+    XCTAssertTrue(view.clipsToBounds)
+    XCTAssertNil(view.layer.mask)
+  }
+
+  func testRoundedScrollerClipsWithTheLayerCornerRadius() {
+    let view = fixture()
+    view.style.borderRadius = "24px"
+    layout(view)
+    XCTAssertNil(view.layer.mask)
+    XCTAssertTrue(view.layer.masksToBounds)
+    XCTAssertEqual(view.layer.cornerRadius, 24, accuracy: 0.01)
+    // Nothing to paint must not reset the clip's radius.
+    view.layer.display()
+    XCTAssertEqual(view.layer.cornerRadius, 24, accuracy: 0.01)
+
+    view.style.borderRadius = "40px 8px"
+    layout(view)
+    view.layer.displayIfNeeded()
+    XCTAssertTrue(view.layer.mask is CAShapeLayer, "mixed radii still need the shape")
+    XCTAssertEqual(view.layer.cornerRadius, 0)
+
+    view.style.borderRadius = "0"
+    layout(view)
+    view.layer.displayIfNeeded()
+    XCTAssertNil(view.layer.mask)
+    XCTAssertEqual(view.layer.cornerRadius, 0)
+  }
+
   func testShrinkingContentClampsTheCurrentOffset() throws {
     let view = fixture()
     let child = try XCTUnwrap(view.subviews.first as? MasonUIView)
@@ -176,6 +209,38 @@ final class ScrollTests: XCTestCase {
     spin(0.4)
     XCTAssertEqual(view.contentOffset, detached)
     XCTAssertEqual(ends(), before + 1)
+  }
+
+  func testMomentumIsTheSameAtAnyFrameRate() {
+    let view = fixture()
+    layout(view)
+    var a: (CGFloat, CGFloat, Bool) = (100, 2000, false)
+    for _ in 0..<60 { a = view._integrateScrollAxis(a.0, a.1, 0, 1850, 1.0 / 60) }
+    var b: (CGFloat, CGFloat, Bool) = (100, 2000, false)
+    for _ in 0..<120 { b = view._integrateScrollAxis(b.0, b.1, 0, 1850, 1.0 / 120) }
+    var c: (CGFloat, CGFloat, Bool) = (100, 2000, false)
+    for _ in 0..<30 { c = view._integrateScrollAxis(c.0, c.1, 0, 1850, 1.0 / 30) }
+    XCTAssertEqual(a.0, b.0, accuracy: 0.01)
+    XCTAssertEqual(a.0, c.0, accuracy: 0.01)
+    XCTAssertEqual(a.1, b.1, accuracy: 0.01)
+    // UIScrollView's normal rate: velocity * 0.998^ms after one second.
+    XCTAssertEqual(a.1, 2000 * pow(0.998, 1000), accuracy: 0.5)
+  }
+
+  func testDraggedOffsetsLandOnDevicePixels() {
+    let view = fixture()
+    layout(view)
+    let pan = SyntheticScrollPan()
+    view._handleScrollPan(pan)
+    pan.simulatedState = .changed
+    let scale = CGFloat(NSCMason.scale)
+    for d in stride(from: CGFloat(0.13), to: 40, by: 3.71) {
+      pan.delta = CGPoint(x: 0, y: -d)
+      view._handleScrollPan(pan)
+      let y = view.contentOffset.y * scale
+      XCTAssertEqual(y, y.rounded(), accuracy: 0.0001, "offset \(view.contentOffset.y) for a \(d)pt drag")
+      XCTAssertEqual(view.contentOffset.y, d, accuracy: 0.5 / scale)
+    }
   }
 
   func testSeekDuringDragIsKeptAndTheDragContinuesFromIt() {

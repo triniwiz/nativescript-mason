@@ -211,6 +211,57 @@ final class LayerPaintTests: XCTestCase {
     try assertMatches(v, edgePixels: 300)
   }
 
+  func testUnitlessShadowLengthsAreCSSPixels() throws {
+    let bare = view(100, 50) { $0.boxShadow = "6 10 4 6 rgba(0, 0, 0, 0.5)" }
+    let px = view(100, 50) { $0.boxShadow = "6px 10px 4px 6px rgba(0, 0, 0, 0.5)" }
+    let a = try XCTUnwrap(bare.style.boxShadows.first)
+    let b = try XCTUnwrap(px.style.boxShadows.first)
+    XCTAssertEqual([a.offsetX, a.offsetY, a.blurRadius, a.spreadRadius], [6, 10, 4, 6])
+    XCTAssertEqual([a.offsetX, a.offsetY, a.blurRadius, a.spreadRadius], [b.offsetX, b.offsetY, b.blurRadius, b.spreadRadius])
+  }
+
+  /// Alpha of the shadow layer at (x, y) in its own points.
+  private func shadowAlpha(_ shadow: CALayer, _ x: CGFloat, _ y: CGFloat) throws -> Int {
+    let bmp = try bitmap(shadow.bounds.size) { ctx in shadow.render(in: ctx) }
+    return bmp.rgba(Int(x * scale), Int(y * scale)).a
+  }
+
+  // CSS paints no outset shadow under the box; a see-through box gets it from an image, not a mask.
+  func testSeeThroughBoxShadowIsAClearedImage() throws {
+    let host = UIView(frame: CGRect(x: 0, y: 0, width: 500, height: 400))
+    let v = view(240, 110) {
+      $0.backgroundColor = 0xFFFFFFFF
+      $0.borderRadius = "16px"
+      $0.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.5)"
+    }
+    v.frame.origin = CGPoint(x: 130, y: 145)
+    host.addSubview(v)
+    v.style.updateShadowLayer(for: CGRect(origin: .zero, size: v.bounds.size))
+    let shadow = v.style.mShadowLayer
+    let e = (shadow.bounds.width - 240) / 2
+    XCTAssertNil(shadow.mask)
+    XCTAssertNil(shadow.contents)
+
+    v.style.backgroundColor = 0x59FFFFFF
+    v.style.refreshShadowMode(v.layer)
+    XCTAssertNil(shadow.mask)
+    let image = try XCTUnwrap(shadow.contents) as! CGImage
+    XCTAssertLessThan(CGFloat(image.width), shadow.bounds.width * CGFloat(NSCMason.scale), "nine-slice keeps the image small")
+    XCTAssertEqual(try shadowAlpha(shadow, e + 120, e + 55), 0, "nothing under the box")
+    XCTAssertEqual(try shadowAlpha(shadow, e + 30, e + 20), 0, "nothing under the box")
+    let imageBelow = try shadowAlpha(shadow, e + 120, e + 110 + 10)
+    XCTAssertGreaterThan(imageBelow, 0)
+    // 2pt past the shadow's edge, with a Gaussian of sigma = blur / 2: 0.5 * Phi(-2 / 12).
+    let expected = 255 * 0.5 * 0.5 * erfc((2.0 / 12.0) / 2.0.squareRoot())
+    XCTAssertEqual(Double(imageBelow), expected, accuracy: 6, "CSS blur")
+
+    v.style.backgroundColor = 0xFFFFFFFF
+    v.style.refreshShadowMode(v.layer)
+    XCTAssertNil(shadow.contents)
+    v.layer.opacity = 0.5
+    XCTAssertNotNil(shadow.contents, "a half-transparent box shows what is under it")
+  }
+
   func testCasesThatNeedDrawStayOnIt() {
     let rounded = view(200, 100) {
       $0.borderRadius = "8px"
