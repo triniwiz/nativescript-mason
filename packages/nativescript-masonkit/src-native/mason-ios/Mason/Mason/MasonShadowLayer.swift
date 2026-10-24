@@ -8,15 +8,15 @@
 import UIKit
 
 /// A sublayer that renders CSS box-shadow effects outside the view's bounds.
-/// Each shadow is a Core Animation shadow on its own caster sublayer, so the
-/// blur is done by the render server instead of on the CPU while drawing.
+/// Under an opaque element each shadow is a Core Animation shadow on its own caster
+/// sublayer. CSS never paints an outset shadow under the element, so a see-through one
+/// gets a pre-blurred nine-slice image with the element cleared out instead: a mask
+/// would do it too, but is rendered offscreen every frame.
 class MasonShadowLayer: CALayer {
   
   weak var masonStyle: MasonStyle?
 
   private var casters: [CALayer] = []
-  // CSS never paints an outset shadow under the element itself.
-  private let cutout = CAShapeLayer()
 
   /// Set once any shadow layer exists; until then there is nothing to sweep.
   static var anyCreated = false
@@ -55,7 +55,6 @@ class MasonShadowLayer: CALayer {
   private func setup() {
     masksToBounds = false
     isOpaque = false
-    cutout.fillRule = .evenOdd
   }
 
   // Disable implicit CALayer animations so the shadow snaps with its item during
@@ -111,7 +110,7 @@ class MasonShadowLayer: CALayer {
     if !CATransform3DEqualToTransform(transform, viewLayer.transform) { transform = viewLayer.transform }
     
     let shadowsHash = style.boxShadows.hashValue
-    // The radius can arrive after the first layout; the casters and cutout follow it.
+    // The radius can arrive after the first layout; the casters and image follow it.
     style.mBorderRender.resolve(for: viewBounds)
     let radius = style.mBorderRender.radius
     if cachedBounds != viewBounds || cachedShadowsHash != shadowsHash || cachedRadius != radius {
@@ -120,8 +119,119 @@ class MasonShadowLayer: CALayer {
       cachedRadius = radius
       updateCasters(style, outsetShadows)
     }
+    updateMode(viewLayer: viewLayer)
   }
-  
+
+  /// Casters when the element covers the shadow under it, the cleared-out image otherwise.
+  func updateMode(viewLayer: CALayer) {
+    guard let style = masonStyle, cachedBounds.width > 0, cachedBounds.height > 0 else { return }
+    let useImage = viewLayer.opacity < 1 || !style.paintsOpaqueBorderBox
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    defer { CATransaction.commit() }
+    if useImage {
+      if rasterBounds != cachedBounds || rasterShadowsHash != cachedShadowsHash || rasterRadius != cachedRadius {
+        renderImage(style, resolveOutsetShadows())
+      }
+    } else if contents != nil {
+      contents = nil
+      rasterBounds = nil
+    }
+    for caster in casters where caster.isHidden != useImage { caster.isHidden = useImage }
+  }
+
+  private var rasterBounds: CGRect?
+  private var rasterShadowsHash = 0
+  private var rasterRadius: CSSBorderRenderer.BorderRadius = .zero
+
+  private func renderImage(_ style: MasonStyle, _ shadows: [BoxShadow]) {
+    rasterBounds = cachedBounds
+    rasterShadowsHash = cachedShadowsHash
+    rasterRadius = cachedRadius
+    let w = cachedBounds.width
+    let h = cachedBounds.height
+    let e = (bounds.width - w) / 2
+    let border = style.mBorderRender
+    let radius = absoluteRadius(border.radius, w, h)
+
+    // Past the corners and the blur, columns and rows stop changing along the edge, so one
+    // stretchable point in the middle stands in for the rest of the box.
+    var reach: CGFloat = 1
+    for s in shadows {
+      reach = max(reach, s.blurRadius * 1.5 + abs(s.spreadRadius) + max(abs(s.offsetX), abs(s.offsetY)) + 1)
+    }
+    let r = [radius.topLeft, radius.topRight, radius.bottomRight, radius.bottomLeft].map { $0.resolved(rect: cachedBounds) }
+    let left = ceil(max(r[0].x, r[3].x) + reach)
+    let right = ceil(max(r[1].x, r[2].x) + reach)
+    let top = ceil(max(r[0].y, r[1].y) + reach)
+    let bottom = ceil(max(r[3].y, r[2].y) + reach)
+    let sliceX = w > left + right + 1
+    let sliceY = h > top + bottom + 1
+    let box = CGRect(x: e, y: e, width: sliceX ? left + right + 1 : w, height: sliceY ? top + bottom + 1 : h)
+    let size = CGSize(width: box.width + e * 2, height: box.height + e * 2)
+
+    let hasRadii = border.hasRadii()
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = CGFloat(NSCMason.scale)
+    format.opaque = false
+    let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+      let cg = ctx.cgContext
+      // The fill is drawn off to the left and only its shadow moved back, as for inset shadows.
+      let away = size.width
+      for shadow in shadows.reversed() {
+        let spread = shadow.spreadRadius
+        let shape = box.insetBy(dx: -spread, dy: -spread)
+        let path = hasRadii
+          ? border.buildRoundedPath(in: shape, radius: adjustRadius(radius, spread: spread, rect: shape))
+          : UIBezierPath(rect: shape)
+        cg.saveGState()
+        cg.setShadow(offset: CGSize(width: shadow.offsetX + away, height: shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
+        cg.translateBy(x: -away, y: 0)
+        cg.addPath(path.cgPath)
+        cg.setFillColor(UIColor.black.cgColor)
+        cg.fillPath()
+        cg.restoreGState()
+      }
+      cg.setBlendMode(.clear)
+      cg.addPath((hasRadii ? border.buildRoundedPath(in: box, radius: radius) : UIBezierPath(rect: box)).cgPath)
+      cg.fillPath()
+    }
+    contents = image.cgImage
+    contentsScale = format.scale
+    contentsGravity = .resize
+    contentsCenter = CGRect(
+      x: sliceX ? (e + left) / size.width : 0,
+      y: sliceY ? (e + top) / size.height : 0,
+      width: sliceX ? 1 / size.width : 1,
+      height: sliceY ? 1 / size.height : 1
+    )
+  }
+
+  /// The corners in points, scaled down as CSS does for this size, so a smaller box keeps them.
+  private func absoluteRadius(_ radius: CSSBorderRenderer.BorderRadius, _ w: CGFloat, _ h: CGFloat) -> CSSBorderRenderer.BorderRadius {
+    let rect = CGRect(x: 0, y: 0, width: w, height: h)
+    let tl = radius.topLeft.resolved(rect: rect)
+    let tr = radius.topRight.resolved(rect: rect)
+    let br = radius.bottomRight.resolved(rect: rect)
+    let bl = radius.bottomLeft.resolved(rect: rect)
+    let ratio = max((tl.x + tr.x) / max(w, 1), (br.x + bl.x) / max(w, 1), (tl.y + bl.y) / max(h, 1), (tr.y + br.y) / max(h, 1))
+    let f = ratio > 1 ? 1 / ratio : 1
+    func corner(_ c: CSSBorderRenderer.CornerRadius, _ v: (x: CGFloat, y: CGFloat)) -> CSSBorderRenderer.CornerRadius {
+      // `.Points` holds device pixels.
+      CSSBorderRenderer.CornerRadius(
+        horizontal: .Points(Float(v.x * f) * NSCMason.scale),
+        vertical: .Points(Float(v.y * f) * NSCMason.scale),
+        exponent: c.exponent
+      )
+    }
+    return CSSBorderRenderer.BorderRadius(
+      topLeft: corner(radius.topLeft, tl),
+      topRight: corner(radius.topRight, tr),
+      bottomRight: corner(radius.bottomRight, br),
+      bottomLeft: corner(radius.bottomLeft, bl)
+    )
+  }
+
   private func updateCasters(_ style: MasonStyle, _ outsetShadows: [BoxShadow]) {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
@@ -138,9 +248,8 @@ class MasonShadowLayer: CALayer {
     style.mBorderRender.resolve(for: cachedBounds)
     let hasRadii = style.mBorderRender.hasRadii()
     
-    // The element's exact shape: the cutout masks it away so shadows only show
-    // outside it. Inflating the rect while keeping the radius drifts the arcs
-    // and opens a corner gap.
+    // The element's exact shape. Inflating the rect while keeping the radius
+    // drifts the arcs and opens a corner gap.
     let innerClipPath: UIBezierPath
     if hasRadii {
       innerClipPath = style.mBorderRender.getClipPath(rect: viewRect, radius: style.mBorderRender.radius)
@@ -172,8 +281,8 @@ class MasonShadowLayer: CALayer {
 
       let shadowPath: UIBezierPath
       if spread == 0 {
-        // Zero spread (common case): reuse the EXACT inner-clip path so caster ==
-        // clip-exclusion and the fill can't bleed past rounded corners.
+        // Zero spread (common case): reuse the EXACT element path so the fill
+        // can't bleed past rounded corners.
         shadowPath = innerClipPath
       } else if hasRadii {
         let adjustedRadius = adjustRadius(style.mBorderRender.radius, spread: spread, rect: shadowRect)
@@ -190,12 +299,6 @@ class MasonShadowLayer: CALayer {
       // CSS blur is twice the Gaussian's standard deviation; shadowRadius is about one.
       caster.shadowRadius = shadow.blurRadius / 2
     }
-
-    let cut = UIBezierPath(rect: bounds)
-    cut.append(innerClipPath)
-    cutout.frame = bounds
-    cutout.path = cut.cgPath
-    if mask !== cutout { mask = cutout }
   }
   
   /// Adjust border radius by spread amount

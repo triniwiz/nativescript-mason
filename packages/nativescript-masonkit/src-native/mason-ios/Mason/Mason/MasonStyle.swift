@@ -3273,6 +3273,17 @@ public class MasonStyle: NSObject {
   }()
   private var shadowLayerAdded = false
   private weak var shadowLayerParent: CALayer?
+
+  /// An opaque color fills the whole border box, hiding whatever lies under the element.
+  internal var paintsOpaqueBorderBox: Bool {
+    guard (resolvedBackgroundColor >> 24) == 0xFF, filter.isEmpty else { return false }
+    return (mBackground?.layers.last?.clip ?? .borderBox) == .borderBox
+  }
+
+  /// Background or opacity changed without a relayout: re-decide how the shadow is drawn.
+  internal func refreshShadowMode(_ viewLayer: CALayer) {
+    if shadowLayerAdded && !mShadowLayer.isHidden { mShadowLayer.updateMode(viewLayer: viewLayer) }
+  }
   
   public var boxShadow: String = "" {
     didSet {

@@ -1295,6 +1295,12 @@ class MasonElementHelpers: NSObject {
     let clipY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Clip
       || (overflow.y == .Auto && realLayout.contentHeight > realLayout.height)
       || (overflow.y == .Visible && _isScrollContainer && realLayout.contentHeight > realLayout.height)
+    // A scroll container clips both axes (CSS turns the other axis' visible into auto), as
+    // Android does. Only clip + visible clips one axis: that needs a mask, rendered offscreen.
+    let scrollAxisX = overflow.x == .Hidden || overflow.x == .Scroll || overflow.x == .Auto
+    let scrollAxisY = overflow.y == .Hidden || overflow.y == .Scroll || overflow.y == .Auto
+      || (overflow.y == .Visible && _isScrollContainer)
+    let clipBoth = (clipX && clipY) || ((clipX || clipY) && (scrollAxisX || scrollAxisY))
 
     let borderRender = node.style.mBorderRender
     borderRender.resolve(for: view.bounds)
@@ -1312,11 +1318,16 @@ class MasonElementHelpers: NSObject {
     if clipWork {
       CATransaction.begin()
       CATransaction.setDisableActions(true)
-      if clipX && clipY {
+      var cornerClip: (radius: CGFloat, corners: CACornerMask)? = nil
+      if clipBoth {
         // Both axes clip — use clipsToBounds (+ border-radius mask if needed)
         view.clipsToBounds = true
         if MasonStyle.routeOverflowClip(view, hasRadii ? borderRender.getClipPath(rect: localBounds, radius: borderRender.radius).cgPath : nil) {
           // The CSS mask clips to the rounded box.
+        } else if hasRadii, let corner = masonView?.layerCornerRadius(borderRender.radius) {
+          // One circular radius: the layer's own corners clip it, no mask needed.
+          cornerClip = corner
+          if view.layer.mask is CAShapeLayer { view.layer.mask = nil }
         } else if hasRadii {
           let clipPath = borderRender.getClipPath(rect: localBounds, radius: borderRender.radius)
           let newCGPath = clipPath.cgPath
@@ -1368,6 +1379,10 @@ class MasonElementHelpers: NSObject {
         } else if view.layer.mask != nil {
           view.layer.mask = nil
         }
+      }
+      if let masonView, masonView.overflowCornerClip?.radius != cornerClip?.radius
+          || masonView.overflowCornerClip?.corners != cornerClip?.corners {
+        masonView.overflowCornerClip = cornerClip
       }
       CATransaction.commit()
     }
