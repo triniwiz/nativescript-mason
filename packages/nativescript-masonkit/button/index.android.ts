@@ -2,7 +2,7 @@ import { CSSType, Utils, ViewBase } from '@nativescript/core';
 import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isText_, isMasonView_, isTextChild_, native_ } from '../symbols';
+import { style_, isText_, isMasonView_, isPlaceholder_, isTextChild_, native_ } from '../symbols';
 
 @CSSType('Button')
 export class Button extends ButtonBase {
@@ -50,17 +50,31 @@ export class Button extends ButtonBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.Button;
-    if (nativeView && child.nativeViewProtected) {
+    if (nativeView && (child.nativeViewProtected || child.android)) {
       child[isTextChild_] = true;
-      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
-      nativeView.addChildAt(child.nativeViewProtected, index as never);
-      this._masonAdoptForeign(child);
+      // Map the JS index onto the native children list (views attach lazily,
+      // so the raw index can run ahead of native state).
+      const { nativeIndex } = (this as any)._nativeAttachIndex(child, atIndex);
+      child._isMasonChild = true;
+      if (child[isPlaceholder_]) {
+        nativeView.addChildAt(child.android, nativeIndex as never);
+      } else {
+        // `addView` takes any view: a Mason element, or a foreign one (an SVG,
+        // a canvas, an image), which the button lays out as an inline box.
+        // `addChildAt` only has overloads for text, elements and nodes.
+        //@ts-ignore
+        nativeView.addView(child.nativeViewProtected, nativeIndex as never);
+        this._masonAdoptForeign(child);
+      }
+      return true;
     }
 
     return false;
   }
 
   _removeViewFromNativeVisualTree(view: ViewBase): void {
+    (this as any)._invalidateAttachCursor();
+    (view as any)._isMasonChild = false;
     view[isTextChild_] = false;
     super._removeViewFromNativeVisualTree(view);
   }

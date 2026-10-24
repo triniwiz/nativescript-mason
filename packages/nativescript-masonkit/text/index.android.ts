@@ -160,8 +160,14 @@ export class Text extends TextBase {
         return true;
       }
       child._isMasonChild = true;
-      nativeView.addChildAt(child.nativeViewProtected, nativeIndex as never);
-      this._masonAdoptForeign(child);
+      if (child[isPlaceholder_]) {
+        nativeView.addChildAt(child.android, nativeIndex as never);
+      } else {
+        // `addView` takes any view, Mason or foreign (an SVG, a canvas);
+        // `addChildAt` only has overloads for text, elements and nodes.
+        nativeView.addView(child.nativeViewProtected, nativeIndex as never);
+        this._masonAdoptForeign(child);
+      }
       return true;
     }
 
