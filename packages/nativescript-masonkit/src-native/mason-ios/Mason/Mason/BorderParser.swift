@@ -148,7 +148,8 @@ func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.s
   default:
     guard parsed != nil else { return nil }
     // This one has a style in hand, so `em` can use the element's own font size.
-    return cssPxForUnit(num, unit, Float(style.fontSize)) * scale
+    let px = cssPxForUnit(num, unit, Float(style.fontSize))
+    return resolve ? px : px * scale
   }
 }
 

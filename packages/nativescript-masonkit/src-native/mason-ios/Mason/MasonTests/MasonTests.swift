@@ -875,14 +875,22 @@ final class ReapplyTests: XCTestCase {
     XCTAssertFalse(child.clipsToBounds)
   }
 
-  func test_borderRadiusOnClippedBoxWithoutResizeInstallsMask() {
+  func test_borderRadiusOnClippedBoxWithoutResizeRoundsTheClip() {
     let (root, child) = tree()
     child.configure { $0.overflow = MasonPoint(.Hidden, .Hidden) }
     root.computeWithSize(100, 100)
     XCTAssertNil(child.layer.mask)
+    XCTAssertEqual(child.layer.cornerRadius, 0)
     child.style.borderRadius = "10px"
     root.computeWithSize(100, 100)
-    XCTAssertNotNil(child.layer.mask as? CAShapeLayer, "the rounded clip must follow a radius change")
+    // One circular radius clips through the layer's own corners.
+    XCTAssertTrue(child.clipsToBounds)
+    // Scaled down as CSS does when adjacent corners would overlap.
+    let side = min(child.bounds.width, child.bounds.height)
+    XCTAssertEqual(child.layer.cornerRadius, min(10, side / 2), accuracy: 0.01, "the rounded clip must follow a radius change")
+    child.style.borderRadius = "10px / 4px"
+    root.computeWithSize(100, 100)
+    XCTAssertNotNil(child.layer.mask as? CAShapeLayer, "elliptical corners still need the shape")
   }
 
   func test_unchangedPassKeepsFramesAndResizeStillApplies() {
