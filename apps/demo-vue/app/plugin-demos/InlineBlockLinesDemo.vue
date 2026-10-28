@@ -46,9 +46,11 @@ function windowY(view: any): number {
   return loc[1];
 }
 
+// The probe reads Android views; the page itself renders anywhere.
 onMounted(() => {
+  if (!__ANDROID__) return;
   setTimeout(() => {
-    const density = (global as any).android ? android.content.res.Resources.getSystem().getDisplayMetrics().density : 1;
+    const density = android.content.res.Resources.getSystem().getDisplayMetrics().density;
     for (const c of cases) {
       const p = paragraphs[c.id]?.nativeView?.nativeViewProtected;
       const box = boxes[c.id]?.nativeView?.nativeViewProtected;

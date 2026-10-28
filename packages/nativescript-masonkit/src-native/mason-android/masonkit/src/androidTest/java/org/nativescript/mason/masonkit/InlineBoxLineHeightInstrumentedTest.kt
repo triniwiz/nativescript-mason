@@ -18,16 +18,19 @@ class InlineBoxLineHeightInstrumentedTest {
   private val width = 600
 
   private fun layOut(root: View): Bitmap {
-    NativeHelpers.nativeNodeComputeWithSizeAndLayout(root.node.mason.nativePtr, root.node.nativePtr, width.toFloat(), -1f)
-    root.measure(
-      MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
-      MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-    )
-    root.layout(0, 0, width, maxOf(root.measuredHeight, 1))
-    val bitmap = Bitmap.createBitmap(width, maxOf(root.height, 1), Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    canvas.drawColor(Color.WHITE)
-    root.draw(canvas)
+    lateinit var bitmap: Bitmap
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      NativeHelpers.nativeNodeComputeWithSizeAndLayout(root.node.mason.nativePtr, root.node.nativePtr, width.toFloat(), -1f)
+      root.measure(
+        MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      )
+      root.layout(0, 0, width, maxOf(root.measuredHeight, 1))
+      bitmap = Bitmap.createBitmap(width, maxOf(root.height, 1), Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(bitmap)
+      canvas.drawColor(Color.WHITE)
+      root.draw(canvas)
+    }
     return bitmap
   }
 
