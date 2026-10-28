@@ -58,6 +58,59 @@ class InputInstrumentedTest {
     assertEquals("textInput.bottom", bottom, input.textInput.bottom)
   }
 
+  /** Lays out [field] in a block root, or after text in a <p> when [inText]. */
+  private fun layOutField(field: Element, inText: Boolean) {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = field.node.mason
+    val root = mason.createView(context)
+    if (inText) {
+      val p = mason.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.P)
+      p.append("Name ")
+      p.append(field)
+      root.append(p)
+    } else {
+      root.append(field)
+    }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      val tree = root.computeAndLayout(400f, -1f)
+      if (tree.nodeCount > 0) root.applyLayoutFlat(root.node, tree)
+    }
+  }
+
+  private fun insetLeft(node: Node) = node.computedPaddingLeft.toInt() + node.computedBorderLeft.toInt()
+  private fun insetTop(node: Node) = node.computedPaddingTop.toInt() + node.computedBorderTop.toInt()
+
+  @Test
+  fun textFieldInsideTextIsInsetByCssPaddingAndBorder() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = Mason().apply { setDeviceScale(context.resources.displayMetrics.density) }
+    val input = mason.createInput(context).apply {
+      configure { style -> style.paddingCss = "10 12" }
+    }
+    layOutField(input, inText = true)
+
+    assertTrue("the input is laid out inside the text (${input.width}x${input.height})", input.width > 0 && input.height > 0)
+    assertEquals("textInput.left", insetLeft(input.node), input.textInput.left)
+    assertEquals("textInput.top", insetTop(input.node), input.textInput.top)
+  }
+
+  @Test
+  fun textAreaIsInsetByCssPaddingAndBorder() {
+    for (inText in listOf(false, true)) {
+      val context = InstrumentationRegistry.getInstrumentation().targetContext
+      val mason = Mason().apply { setDeviceScale(context.resources.displayMetrics.density) }
+      val area = mason.createTextArea(context).apply {
+        configure { style -> style.paddingCss = "10 12" }
+      }
+      layOutField(area, inText)
+
+      val where = if (inText) "inside text" else "in a block"
+      assertTrue("padding+border is more than the UA default (${insetLeft(area.node)})", insetLeft(area.node) > 12)
+      assertEquals("paddingLeft $where", insetLeft(area.node), area.paddingLeft)
+      assertEquals("paddingTop $where", insetTop(area.node), area.paddingTop)
+    }
+  }
+
   @Test
   fun defaultTextFieldKeepsUserAgentPadding() {
     val (input, nv) = layoutInput { }
