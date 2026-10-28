@@ -46,7 +46,6 @@ function windowY(view: any): number {
   return loc[1];
 }
 
-// The probe reads Android views; the page itself renders anywhere.
 onMounted(() => {
   if (!__ANDROID__) return;
   setTimeout(() => {

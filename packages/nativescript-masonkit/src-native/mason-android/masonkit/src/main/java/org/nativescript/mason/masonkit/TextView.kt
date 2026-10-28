@@ -775,7 +775,6 @@ open class TextView @JvmOverloads constructor(
       )
       view.layout(r.left, r.top, r.right, r.bottom)
     }
-    // Outside the frame check: padding or border can change while the frame stays the same.
     if (view is Input) {
       view.layoutChildInside(
         r.width(),

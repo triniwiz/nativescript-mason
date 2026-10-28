@@ -58,7 +58,6 @@ class InputInstrumentedTest {
     assertEquals("textInput.bottom", bottom, input.textInput.bottom)
   }
 
-  /** Lays out [field] in a block root, or after text in a <p> when [inText]. */
   private fun layOutField(field: Element, inText: Boolean) {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     val mason = field.node.mason

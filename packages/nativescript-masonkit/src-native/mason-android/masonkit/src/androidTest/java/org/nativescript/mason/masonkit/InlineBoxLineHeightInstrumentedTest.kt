@@ -34,7 +34,6 @@ class InlineBoxLineHeightInstrumentedTest {
     return bitmap
   }
 
-  /** The last row from [from] down that has dark ink, or -1. */
   private fun lastInkRow(bitmap: Bitmap, from: Int): Int {
     for (y in bitmap.height - 1 downTo maxOf(from, 0)) {
       for (x in 0 until bitmap.width) {
@@ -55,11 +54,9 @@ class InlineBoxLineHeightInstrumentedTest {
     return y
   }
 
-  /**
-   * [linesBefore] lines of text in a <p> (16px), then a [boxHeight] CSS px inline-block on the next.
-   * Returns the paragraph, the box and the height of one text line in device px.
-   */
-  private fun paragraph(mason: Mason, lineHeight: Float?, boxHeight: Float, linesBefore: Int): Triple<TextView, TextView, Float> {
+  private data class Paragraph(val p: TextView, val box: TextView, val textLinePx: Float)
+
+  private fun paragraph(mason: Mason, lineHeight: Float?, boxHeight: Float, linesBefore: Int): Paragraph {
     val p = mason.createTextView(context, TextType.P)
     lineHeight?.let { p.style.setLineHeight(it, true) }
     val probe = android.text.TextPaint().apply { textSize = 16f * mason.scale }
@@ -76,7 +73,7 @@ class InlineBoxLineHeightInstrumentedTest {
     p.append(box)
     p.append(" after.")
     val textLine = lineHeight?.let { it * 16f * mason.scale } ?: probe.fontMetrics.let { it.descent - it.ascent }
-    return Triple(p, box, textLine)
+    return Paragraph(p, box, textLine)
   }
 
   private fun assertBoxFitsItsLine(lineHeight: Float?, linesBefore: Int) {
@@ -95,10 +92,6 @@ class InlineBoxLineHeightInstrumentedTest {
     Assert.assertTrue("the box ends at $boxBottom, below the paragraph's bottom (${p.height}px)", boxBottom <= p.height + 1)
   }
 
-  /**
-   * A three-line box on line 1, so the line's baseline is near the box's bottom, then text in one
-   * run that wraps once, so line 2 starts inside that run.
-   */
   private fun assertTextAfterBoxLineKeepsItsHeight(lineHeight: Float?) {
     val mason = Mason()
     val root = mason.createView(context)

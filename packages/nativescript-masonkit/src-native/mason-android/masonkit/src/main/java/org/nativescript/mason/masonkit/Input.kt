@@ -1091,16 +1091,12 @@ class Input @JvmOverloads constructor(
       }
     }
 
-  /**
-   * Lays the control out inside the box's padding and border ([left]..[bottom] are their sums), for
-   * a box of [width] x [height]. A control already there is left alone, so draws can call this.
-   */
-  internal fun layoutChildInside(width: Int, height: Int, left: Int, top: Int, right: Int, bottom: Int) {
-    val r = maxOf(left, width - right)
-    val b = maxOf(top, height - bottom)
+  internal fun layoutChildInside(width: Int, height: Int, insetLeft: Int, insetTop: Int, insetRight: Int, insetBottom: Int) {
+    val right = maxOf(insetLeft, width - insetRight)
+    val bottom = maxOf(insetTop, height - insetBottom)
     val child = getChildAt(0)
-    if (child != null && !child.isLayoutRequested && child.left == left && child.top == top && child.right == r && child.bottom == b) return
-    layoutChild(left, top, r, b)
+    if (child != null && !child.isLayoutRequested && child.left == insetLeft && child.top == insetTop && child.right == right && child.bottom == bottom) return
+    layoutChild(insetLeft, insetTop, right, bottom)
   }
 
   internal fun layoutChild(l: Int, t: Int, r: Int, b: Int) {
