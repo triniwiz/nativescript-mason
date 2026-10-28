@@ -1817,6 +1817,7 @@ class TextEngine(val container: TextContainer) {
         metrics.bottom = metrics.descent
         ascent = metrics.ascent
         descent = metrics.descent
+        TextNode.LineScan.measuredGeneration++
 
         // Follow web behavior: do not artificially clamp placeholder font
         // metrics here. Let the native layout compute line-box contributions

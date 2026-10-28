@@ -95,8 +95,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     private var lastBase = 0f
     private var lastBottom = 0f
     private var boxLineTop = NO_LINE
-    private val runPaint = TextPaint()
-    private val runMetrics = Paint.FontMetricsInt()
 
     /** Whether the line being chosen comes right after one that held an inline box. */
     var afterBoxLine = false
@@ -108,7 +106,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
      * box, [afterBoxLine] says the incoming metrics are the box's rather than this line's. Every
      * line-height span of a paragraph sees each of its lines, so this span's history is complete.
      */
-    fun inlineBoxes(text: CharSequence?, start: Int, end: Int, spanstartv: Int, v: Int): Array<InlineBox> {
+    fun inlineBoxes(text: CharSequence?, start: Int, end: Int, spanstartv: Int, v: Int): LineScan {
       val top = v - spanstartv
       if (top <= 0) {
         // The first line of the paragraph this span starts in: no line of its own came before.
@@ -117,9 +115,9 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       } else if (top != lastTop) {
         afterBoxLine = lastTop == boxLineTop && startsInsideRun(text, start, end)
       }
-      val found = (text as? Spanned)?.getSpans(start, end, InlineBox::class.java) ?: emptyArray()
-      if (found.isNotEmpty()) boxLineTop = top
-      return found
+      val line = LineScan.of(text, start, end)
+      if (line.hasBoxes) boxLineTop = top
+      return line
     }
 
     // StaticLayout splits a paragraph into runs at MetricAffectingSpan edges; a paragraph starts fresh.
@@ -127,34 +125,6 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val spanned = text as? Spanned ?: return false
       if (start <= 0 || text[start - 1] == '\n') return false
       return spanned.nextSpanTransition(start - 1, end, MetricAffectingSpan::class.java) != start
-    }
-
-    /** Sets [out] to the line's own metrics, as StaticLayout measures each text run, grown to fit [boxes]. */
-    fun lineMetrics(text: CharSequence?, start: Int, end: Int, paint: TextPaint, boxes: Array<InlineBox>, out: Paint.FontMetricsInt) {
-      out.ascent = 0
-      out.descent = 0
-      val spanned = text as? Spanned
-      var i = start
-      while (i < end) {
-        val next = spanned?.nextSpanTransition(i, end, MetricAffectingSpan::class.java) ?: end
-        val spans = spanned?.getSpans(i, next, MetricAffectingSpan::class.java)
-        // Boxes are added below; StaticLayout measures any other run, replaced or not, by its font.
-        if (spans == null || spans.none { it is InlineBox }) {
-          runPaint.set(paint)
-          spans?.forEach { it.updateMeasureState(runPaint) }
-          runPaint.getFontMetricsInt(runMetrics)
-          out.ascent = minOf(out.ascent, runMetrics.ascent)
-          out.descent = maxOf(out.descent, runMetrics.descent)
-        }
-        i = next
-      }
-      if (out.descent - out.ascent <= 0) paint.getFontMetricsInt(out)
-      for (box in boxes) {
-        out.ascent = minOf(out.ascent, box.ascent)
-        out.descent = maxOf(out.descent, box.descent)
-      }
-      out.top = out.ascent
-      out.bottom = out.descent
     }
 
     fun apply(fm: Paint.FontMetricsInt, spanstartv: Int, v: Int, height: Float) {
@@ -184,6 +154,102 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     }
   }
 
+  /**
+   * One line's inline boxes and own metrics. Every line-height span of a paragraph is asked about
+   * each line in turn, so the line is scanned once and the result shared, per thread.
+   */
+  internal class LineScan {
+    private var text: CharSequence? = null
+    private var start = -1
+    private var end = -1
+    private var generation = -1
+    private var metricsPaint: TextPaint? = null
+    private val metrics = Paint.FontMetricsInt()
+    private val runPaint = TextPaint()
+    private val runMetrics = Paint.FontMetricsInt()
+
+    var hasBoxes = false
+      private set
+
+    /** The union of the line's boxes' extents above (negative) and below the baseline. */
+    var boxAscent = 0
+      private set
+    var boxDescent = 0
+      private set
+
+    /** Sets [out] to the line's own metrics, as StaticLayout measures each text run, grown to fit its boxes. */
+    fun lineMetrics(paint: TextPaint, out: Paint.FontMetricsInt) {
+      if (metricsPaint !== paint) {
+        metricsPaint = paint
+        measure(paint)
+      }
+      out.ascent = metrics.ascent
+      out.descent = metrics.descent
+      out.top = metrics.ascent
+      out.bottom = metrics.descent
+    }
+
+    private fun measure(paint: TextPaint) {
+      metrics.ascent = 0
+      metrics.descent = 0
+      val spanned = text as? Spanned
+      var i = start
+      while (i < end) {
+        val next = spanned?.nextSpanTransition(i, end, MetricAffectingSpan::class.java) ?: end
+        val spans = spanned?.getSpans(i, next, MetricAffectingSpan::class.java)
+        // Boxes are added below; StaticLayout measures any other run, replaced or not, by its font.
+        if (spans == null || spans.none { it is InlineBox }) {
+          runPaint.set(paint)
+          spans?.forEach { it.updateMeasureState(runPaint) }
+          runPaint.getFontMetricsInt(runMetrics)
+          metrics.ascent = minOf(metrics.ascent, runMetrics.ascent)
+          metrics.descent = maxOf(metrics.descent, runMetrics.descent)
+        }
+        i = next
+      }
+      if (metrics.descent - metrics.ascent <= 0) paint.getFontMetricsInt(metrics)
+      if (hasBoxes) {
+        metrics.ascent = minOf(metrics.ascent, boxAscent)
+        metrics.descent = maxOf(metrics.descent, boxDescent)
+      }
+    }
+
+    private fun scan(text: CharSequence?, start: Int, end: Int) {
+      this.text = text
+      this.start = start
+      this.end = end
+      generation = measuredGeneration
+      metricsPaint = null
+      hasBoxes = false
+      boxAscent = 0
+      boxDescent = 0
+      val spanned = text as? Spanned ?: return
+      for (box in spanned.getSpans(start, end, InlineBox::class.java)) {
+        hasBoxes = true
+        boxAscent = minOf(boxAscent, box.ascent)
+        boxDescent = maxOf(boxDescent, box.descent)
+      }
+    }
+
+    companion object {
+      // Bumped whenever an inline box measures itself, so a resized box is never read from a stale scan.
+      @JvmStatic
+      var measuredGeneration = 0
+
+      private val current = object : ThreadLocal<LineScan>() {
+        override fun initialValue() = LineScan()
+      }
+
+      fun of(text: CharSequence?, start: Int, end: Int): LineScan {
+        val line = current.get()!!
+        if (line.text !== text || line.start != start || line.end != end || line.generation != measuredGeneration) {
+          line.scan(text, start, end)
+        }
+        return line
+      }
+    }
+  }
+
   /** An inline box's extent above (negative) and below the baseline, as its span last measured it. */
   internal interface InlineBox {
     val ascent: Int
@@ -205,17 +271,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val m = fm ?: return
       if (m.descent - m.ascent <= 0) return
       val height = heightDip * (paint?.density ?: 1f)
-      val inline = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
+      val line = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
       // line-height sizes the text: the container's strut on a box's line, the line's own text after one.
-      if (paint != null && inline.isNotEmpty()) paint.getFontMetricsInt(m)
-      else if (paint != null && boxes.afterBoxLine) boxes.lineMetrics(text, start, end, paint, inline, m)
+      if (paint != null && line.hasBoxes) paint.getFontMetricsInt(m)
+      else if (paint != null && boxes.afterBoxLine) line.lineMetrics(paint, m)
       boxes.apply(m, spanstartv, lineHeight, height)
-      if (inline.isEmpty()) return
+      if (!line.hasBoxes) return
       // An inline box taller than the strut grows the line (CSS 2.1 10.8).
-      for (box in inline) {
-        m.ascent = minOf(m.ascent, box.ascent)
-        m.descent = maxOf(m.descent, box.descent)
-      }
+      m.ascent = minOf(m.ascent, line.boxAscent)
+      m.descent = maxOf(m.descent, line.boxDescent)
       m.top = m.ascent
       m.bottom = m.descent
     }
@@ -268,8 +332,8 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val m = fm ?: return
       if (m.descent - m.ascent <= 0 || fontSizeDip <= 0f || paint == null) return
       resolve(paint)
-      val inline = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
-      if (boxes.afterBoxLine) boxes.lineMetrics(text, start, end, paint, inline, m)
+      val line = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
+      if (boxes.afterBoxLine) line.lineMetrics(paint, m)
       val own = m.descent - m.ascent
       val height = if (m.ascent == intAscent && m.descent == intDescent) exact else own.toFloat()
       boxes.apply(m, spanstartv, lineHeight, height)
