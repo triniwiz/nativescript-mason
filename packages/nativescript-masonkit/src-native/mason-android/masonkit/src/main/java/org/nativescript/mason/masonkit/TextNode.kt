@@ -11,7 +11,6 @@ import android.text.TextPaint
 import android.text.style.AlignmentSpan
 import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
-import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 
@@ -105,21 +104,29 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
     /**
      * The inline boxes on the line [start, end). StaticLayout starts a line that breaks inside a
-     * text run from the metrics the line before it ended with, so after a line grown for a box,
-     * [afterBoxLine] says the incoming metrics are the box's rather than this line's.
+     * text run from the metrics the line before it ended with, so when that line was grown for a
+     * box, [afterBoxLine] says the incoming metrics are the box's rather than this line's. Every
+     * line-height span of a paragraph sees each of its lines, so this span's history is complete.
      */
     fun inlineBoxes(text: CharSequence?, start: Int, end: Int, spanstartv: Int, v: Int): Array<InlineBox> {
       val top = v - spanstartv
       if (top <= 0) {
-        // A layout's first line: nothing from an earlier layout comes before it.
+        // The first line of the paragraph this span starts in: no line of its own came before.
         afterBoxLine = false
         boxLineTop = NO_LINE
       } else if (top != lastTop) {
-        afterBoxLine = lastTop == boxLineTop
+        afterBoxLine = lastTop == boxLineTop && startsInsideRun(text, start, end)
       }
       val found = (text as? Spanned)?.getSpans(start, end, InlineBox::class.java) ?: emptyArray()
       if (found.isNotEmpty()) boxLineTop = top
       return found
+    }
+
+    // StaticLayout splits a paragraph into runs at MetricAffectingSpan edges; a paragraph starts fresh.
+    private fun startsInsideRun(text: CharSequence?, start: Int, end: Int): Boolean {
+      val spanned = text as? Spanned ?: return false
+      if (start <= 0 || text[start - 1] == '\n') return false
+      return spanned.nextSpanTransition(start - 1, end, MetricAffectingSpan::class.java) != start
     }
 
     /** Sets [out] to the line's own metrics, as StaticLayout measures each text run, grown to fit [boxes]. */
@@ -131,7 +138,8 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       while (i < end) {
         val next = spanned?.nextSpanTransition(i, end, MetricAffectingSpan::class.java) ?: end
         val spans = spanned?.getSpans(i, next, MetricAffectingSpan::class.java)
-        if (spans == null || spans.none { it is ReplacementSpan }) {
+        // Boxes are added below; StaticLayout measures any other run, replaced or not, by its font.
+        if (spans == null || spans.none { it is InlineBox }) {
           runPaint.set(paint)
           spans?.forEach { it.updateMeasureState(runPaint) }
           runPaint.getFontMetricsInt(runMetrics)
