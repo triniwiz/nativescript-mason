@@ -1218,7 +1218,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val padTop = nv.paddingTop.toInt()
           val padRight = nv.paddingRight.toInt()
           val padBottom = nv.paddingBottom.toInt()
-          if (view is TextContainer) {
+          if (view is TextContainer || view is TextArea) {
             // CSS positions content at border + padding from the view edge.
             // Android's setPadding controls where text draws, so include
             // the border width so text renders inside the border boundary.

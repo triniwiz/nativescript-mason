@@ -766,15 +766,27 @@ open class TextView @JvmOverloads constructor(
       box.inlineTurn = turn
       box.style.applyTransformToView()
     }
-    if (view.left == r.left && view.top == r.top && view.right == r.right && view.bottom == r.bottom &&
-      !view.isLayoutRequested
-    ) return
-    view.measure(
-      MeasureSpec.makeMeasureSpec(r.width().coerceAtLeast(0), MeasureSpec.EXACTLY),
-      MeasureSpec.makeMeasureSpec(r.height().coerceAtLeast(0), MeasureSpec.EXACTLY)
-    )
-    view.layout(r.left, r.top, r.right, r.bottom)
-    if (view is Input) view.layoutChild(0, 0, r.width(), r.height())
+    if (view.left != r.left || view.top != r.top || view.right != r.right || view.bottom != r.bottom ||
+      view.isLayoutRequested
+    ) {
+      view.measure(
+        MeasureSpec.makeMeasureSpec(r.width().coerceAtLeast(0), MeasureSpec.EXACTLY),
+        MeasureSpec.makeMeasureSpec(r.height().coerceAtLeast(0), MeasureSpec.EXACTLY)
+      )
+      view.layout(r.left, r.top, r.right, r.bottom)
+    }
+    if (view is Input) {
+      // The field sits inside the control's padding and border, as in a block container; outside
+      // the frame check, since padding or border can change while the frame stays the same.
+      val left = box.computedPaddingLeft.toInt() + box.computedBorderLeft.toInt()
+      val top = box.computedPaddingTop.toInt() + box.computedBorderTop.toInt()
+      view.layoutChild(
+        left,
+        top,
+        maxOf(left, r.width() - box.computedPaddingRight.toInt() - box.computedBorderRight.toInt()),
+        maxOf(top, r.height() - box.computedPaddingBottom.toInt() - box.computedBorderBottom.toInt())
+      )
+    }
   }
 
 
