@@ -10,6 +10,8 @@ import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.AlignmentSpan
 import android.text.style.LineHeightSpan
+import android.text.style.MetricAffectingSpan
+import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 
@@ -93,6 +95,59 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     private var lastTop = -1
     private var lastBase = 0f
     private var lastBottom = 0f
+    private var boxLineTop = NO_LINE
+    private val runPaint = TextPaint()
+    private val runMetrics = Paint.FontMetricsInt()
+
+    /** Whether the line being chosen comes right after one that held an inline box. */
+    var afterBoxLine = false
+      private set
+
+    /**
+     * The inline boxes on the line [start, end). StaticLayout starts a line that breaks inside a
+     * text run from the metrics the line before it ended with, so after a line grown for a box,
+     * [afterBoxLine] says the incoming metrics are the box's rather than this line's.
+     */
+    fun inlineBoxes(text: CharSequence?, start: Int, end: Int, spanstartv: Int, v: Int): Array<InlineBox> {
+      val top = v - spanstartv
+      if (top <= 0) {
+        // A layout's first line: nothing from an earlier layout comes before it.
+        afterBoxLine = false
+        boxLineTop = NO_LINE
+      } else if (top != lastTop) {
+        afterBoxLine = lastTop == boxLineTop
+      }
+      val found = (text as? Spanned)?.getSpans(start, end, InlineBox::class.java) ?: emptyArray()
+      if (found.isNotEmpty()) boxLineTop = top
+      return found
+    }
+
+    /** Sets [out] to the line's own metrics, as StaticLayout measures each text run, grown to fit [boxes]. */
+    fun lineMetrics(text: CharSequence?, start: Int, end: Int, paint: TextPaint, boxes: Array<InlineBox>, out: Paint.FontMetricsInt) {
+      out.ascent = 0
+      out.descent = 0
+      val spanned = text as? Spanned
+      var i = start
+      while (i < end) {
+        val next = spanned?.nextSpanTransition(i, end, MetricAffectingSpan::class.java) ?: end
+        val spans = spanned?.getSpans(i, next, MetricAffectingSpan::class.java)
+        if (spans == null || spans.none { it is ReplacementSpan }) {
+          runPaint.set(paint)
+          spans?.forEach { it.updateMeasureState(runPaint) }
+          runPaint.getFontMetricsInt(runMetrics)
+          out.ascent = minOf(out.ascent, runMetrics.ascent)
+          out.descent = maxOf(out.descent, runMetrics.descent)
+        }
+        i = next
+      }
+      if (out.descent - out.ascent <= 0) paint.getFontMetricsInt(out)
+      for (box in boxes) {
+        out.ascent = minOf(out.ascent, box.ascent)
+        out.descent = maxOf(out.descent, box.descent)
+      }
+      out.top = out.ascent
+      out.bottom = out.descent
+    }
 
     fun apply(fm: Paint.FontMetricsInt, spanstartv: Int, v: Int, height: Float) {
       val top = v - spanstartv
@@ -115,6 +170,16 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       fm.top = fm.ascent
       fm.bottom = fm.descent
     }
+
+    private companion object {
+      const val NO_LINE = Int.MIN_VALUE
+    }
+  }
+
+  /** An inline box's extent above (negative) and below the baseline, as its span last measured it. */
+  internal interface InlineBox {
+    val ascent: Int
+    val descent: Int
   }
 
   class FixedLineHeightSpan(private val heightDip: Float) : LineHeightSpan.WithDensity {
@@ -129,7 +194,22 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       fm: Paint.FontMetricsInt?,
       paint: TextPaint?
     ) {
-      fm?.let { if (it.descent - it.ascent > 0) boxes.apply(it, spanstartv, lineHeight, heightDip * (paint?.density ?: 1f)) }
+      val m = fm ?: return
+      if (m.descent - m.ascent <= 0) return
+      val height = heightDip * (paint?.density ?: 1f)
+      val inline = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
+      // line-height sizes the text: the container's strut on a box's line, the line's own text after one.
+      if (paint != null && inline.isNotEmpty()) paint.getFontMetricsInt(m)
+      else if (paint != null && boxes.afterBoxLine) boxes.lineMetrics(text, start, end, paint, inline, m)
+      boxes.apply(m, spanstartv, lineHeight, height)
+      if (inline.isEmpty()) return
+      // An inline box taller than the strut grows the line (CSS 2.1 10.8).
+      for (box in inline) {
+        m.ascent = minOf(m.ascent, box.ascent)
+        m.descent = maxOf(m.descent, box.descent)
+      }
+      m.top = m.ascent
+      m.bottom = m.descent
     }
 
     override fun chooseHeight(
@@ -178,9 +258,11 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       paint: TextPaint?
     ) {
       val m = fm ?: return
-      val own = m.descent - m.ascent
-      if (own <= 0 || fontSizeDip <= 0f || paint == null) return
+      if (m.descent - m.ascent <= 0 || fontSizeDip <= 0f || paint == null) return
       resolve(paint)
+      val inline = boxes.inlineBoxes(text, start, end, spanstartv, lineHeight)
+      if (boxes.afterBoxLine) boxes.lineMetrics(text, start, end, paint, inline, m)
+      val own = m.descent - m.ascent
       val height = if (m.ascent == intAscent && m.descent == intDescent) exact else own.toFloat()
       boxes.apply(m, spanstartv, lineHeight, height)
     }
