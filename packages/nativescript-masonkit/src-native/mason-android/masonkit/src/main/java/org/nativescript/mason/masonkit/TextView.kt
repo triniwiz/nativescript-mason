@@ -775,16 +775,15 @@ open class TextView @JvmOverloads constructor(
       )
       view.layout(r.left, r.top, r.right, r.bottom)
     }
+    // Outside the frame check: padding or border can change while the frame stays the same.
     if (view is Input) {
-      // The field sits inside the control's padding and border, as in a block container; outside
-      // the frame check, since padding or border can change while the frame stays the same.
-      val left = box.computedPaddingLeft.toInt() + box.computedBorderLeft.toInt()
-      val top = box.computedPaddingTop.toInt() + box.computedBorderTop.toInt()
-      view.layoutChild(
-        left,
-        top,
-        maxOf(left, r.width() - box.computedPaddingRight.toInt() - box.computedBorderRight.toInt()),
-        maxOf(top, r.height() - box.computedPaddingBottom.toInt() - box.computedBorderBottom.toInt())
+      view.layoutChildInside(
+        r.width(),
+        r.height(),
+        box.computedPaddingLeft.toInt() + box.computedBorderLeft.toInt(),
+        box.computedPaddingTop.toInt() + box.computedBorderTop.toInt(),
+        box.computedPaddingRight.toInt() + box.computedBorderRight.toInt(),
+        box.computedPaddingBottom.toInt() + box.computedBorderBottom.toInt()
       )
     }
   }
