@@ -92,7 +92,12 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
 
   private var childToScrollTo: View? = null
 
-  private var isBeingDragged = false
+  // Where the finger went down, for the touch slop.
+  private var downX = 0f
+  private var downY = 0f
+
+  // TouchAction.PAN_X/PAN_Y this drag scrolls, fixed once it leaves the touch slop; 0 before then.
+  private var dragAxes = 0
 
   private var velocityTracker: VelocityTracker? = null
 
@@ -370,6 +375,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_DOWN -> {
         if (!scroller!!.isFinished) scroller!!.abortAnimation()
         touchAxes = touchActionAt(x, y)
+        downX = x
+        downY = y
         lastMotionY = y
         lastMotionX = x
         nestedXOffset = 0
@@ -382,12 +389,21 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       }
 
       MotionEvent.ACTION_MOVE -> {
-        var deltaX = (lastMotionX - x).toInt()
-        var deltaY = (lastMotionY - y).toInt()
-        if ((touchAxes and TouchAction.PAN_X) == 0) deltaX = 0
-        if ((touchAxes and TouchAction.PAN_Y) == 0) deltaY = 0
+        if (dragAxes == 0) {
+          dragAxes = claimDrag(x, y)
+          if (dragAxes == 0) return true
+        }
+        val dx = (lastMotionX - x).toInt()
+        val dy = (lastMotionY - y).toInt()
+        // Carry the fraction toInt drops, or a slow finger's sub-pixel moves never add up to a scroll.
+        lastMotionX -= dx
+        lastMotionY -= dy
+        var deltaX = if ((dragAxes and TouchAction.PAN_X) != 0) dx else 0
+        var deltaY = if ((dragAxes and TouchAction.PAN_Y) != 0) dy else 0
 
         // Pre-scroll: give a nested parent first claim on the delta.
+        scrollOffset[0] = 0
+        scrollOffset[1] = 0
         if (dispatchNestedPreScroll(deltaX, deltaY, scrollConsumed, scrollOffset, ViewCompat.TYPE_TOUCH)) {
           deltaX -= scrollConsumed[0]
           deltaY -= scrollConsumed[1]
@@ -396,8 +412,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         }
 
         // Re-anchor against any window shift the parent applied.
-        lastMotionX = x - scrollOffset[0]
-        lastMotionY = y - scrollOffset[1]
+        lastMotionX -= scrollOffset[0]
+        lastMotionY -= scrollOffset[1]
 
         // Consume locally what we can, within range.
         scrollByClamped(deltaX, deltaY, scrollConsumed)
@@ -409,6 +425,8 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         // Hand the leftover up to a nested parent (Child3 consumed-aware path).
         scrollConsumed[0] = 0
         scrollConsumed[1] = 0
+        scrollOffset[0] = 0
+        scrollOffset[1] = 0
         dispatchNestedScroll(
           scrolledX, scrolledY, unconsumedX, unconsumedY,
           scrollOffset, ViewCompat.TYPE_TOUCH, scrollConsumed
@@ -440,8 +458,9 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       MotionEvent.ACTION_UP -> {
         val vt = velocityTracker
         vt!!.computeCurrentVelocity(1000, maximumVelocity.toFloat())
-        val initialXVelocity = if ((touchAxes and TouchAction.PAN_X) != 0) vt.xVelocity.toInt() else 0
-        val initialYVelocity = if ((touchAxes and TouchAction.PAN_Y) != 0) vt.yVelocity.toInt() else 0
+        val initialXVelocity = if ((dragAxes and TouchAction.PAN_X) != 0) vt.xVelocity.toInt() else 0
+        val initialYVelocity = if ((dragAxes and TouchAction.PAN_Y) != 0) vt.yVelocity.toInt() else 0
+        dragAxes = 0
         if ((abs(initialXVelocity) + abs(initialYVelocity) > minimumVelocity) && childCount > 0) {
           fling(-initialXVelocity, -initialYVelocity)
         } else {
@@ -458,6 +477,7 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
       }
 
       MotionEvent.ACTION_CANCEL -> {
+        dragAxes = 0
         if (velocityTracker != null) {
           velocityTracker!!.recycle()
           velocityTracker = null
@@ -907,24 +927,49 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     return flags
   }
 
+  /** Axes this view can scroll now: overflowing content that `touch-action` lets the finger pan. */
+  private fun draggableAxes(): Int {
+    var axes = 0
+    if (maxScrollX > 0) axes = axes or TouchAction.PAN_X
+    if (maxScrollY > 0) axes = axes or TouchAction.PAN_Y
+    return axes and touchAxes
+  }
+
+  /**
+   * The axes a drag to (x, y) scrolls once it leaves the touch slop, or 0 to leave the gesture to
+   * a child or parent. A one-axis scroller only takes drags mostly along its axis, so a horizontal
+   * scroller inside a vertical one splits swipes at 45°; a two-axis scroller locks to the dominant
+   * axis unless the drag is diagonal. Claiming stops ancestors intercepting the rest of the gesture.
+   */
+  private fun claimDrag(x: Float, y: Float): Int {
+    val ax = abs(x - downX)
+    val ay = abs(y - downY)
+    if (max(ax, ay) <= touchSlop) return 0
+    val draggable = draggableAxes()
+    val dominant = if (ax > ay) TouchAction.PAN_X else TouchAction.PAN_Y
+    val diagonal = min(ax, ay) * DIAGONAL_RATIO > max(ax, ay)
+    val bothAxes = TouchAction.PAN_X or TouchAction.PAN_Y
+    val axes = if (diagonal && draggable == bothAxes) bothAxes else dominant and draggable
+    if (axes != 0) {
+      lastMotionX = x
+      lastMotionY = y
+      parent?.requestDisallowInterceptTouchEvent(true)
+    }
+    return axes
+  }
+
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-    val action = ev.action
-    if ((action == MotionEvent.ACTION_MOVE) && isBeingDragged) return true
     if (!canScroll()) {
-      isBeingDragged = false
+      dragAxes = 0
       return false
     }
     val y = ev.y
     val x = ev.x
-    when (action) {
-      MotionEvent.ACTION_MOVE -> {
-        val yDiff = abs(y - lastMotionY).toInt()
-        val xDiff = abs(x - lastMotionX).toInt()
-        val exceedsY = enableScrollY && (touchAxes and TouchAction.PAN_Y) != 0 && yDiff > touchSlop
-        val exceedsX = enableScrollX && (touchAxes and TouchAction.PAN_X) != 0 && xDiff > touchSlop
-        if (exceedsY || exceedsX) isBeingDragged = true
-      }
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_MOVE -> if (dragAxes == 0) dragAxes = claimDrag(x, y)
       MotionEvent.ACTION_DOWN -> {
+        downX = x
+        downY = y
         lastMotionY = y
         lastMotionX = x
         nestedXOffset = 0
@@ -933,15 +978,15 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
         // A down during a fling, or while an edge is still stretched from one
         // (Android 12+), catches the scroll instead of tapping through to a
         // child, as the platform ScrollView does.
-        isBeingDragged = !scroller!!.isFinished || isEdgeStretched()
+        dragAxes = if (!scroller!!.isFinished || isEdgeStretched()) draggableAxes() else 0
         startNestedScroll(nestedScrollAxes(), ViewCompat.TYPE_TOUCH)
       }
       MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
-        isBeingDragged = false
+        dragAxes = 0
         stopNestedScroll(ViewCompat.TYPE_TOUCH)
       }
     }
-    return isBeingDragged
+    return dragAxes != 0
   }
 
   override fun onRequestFocusInDescendants(direction: Int, previouslyFocusedRect: Rect?): Boolean {
@@ -1220,5 +1265,9 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     const val ANIMATED_SCROLL_GAP: Int = 250
     const val SCROLL_ANIMATION_DURATION: Int = 250
     const val MAX_SCROLL_FACTOR: Float = 0.5f
+
+    // A drag is diagonal, and scrolls both axes of a two-axis scroller, while neither axis moved
+    // more than this many times the other (between ~27° and ~63° from horizontal).
+    const val DIAGONAL_RATIO: Float = 2f
   }
 }
