@@ -327,8 +327,10 @@ class ViewUtils {
       } else false
       val drawContent = {
         if (hasRadii && overflowClipsContent) {
-          val innerPath = style.mBorderRenderer.getClipPath(width, height)
-          canvas.clipPath(innerPath)
+          // The outline belongs to the viewport, and the canvas is back in content coordinates.
+          canvas.translate(boxDx, boxDy)
+          canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+          canvas.translate(-boxDx, -boxDy)
         }
 
         Style.applyOverflowClip(style, canvas, style.node, width, height)
