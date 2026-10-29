@@ -79,6 +79,7 @@ import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
 import PositionDemo from '~/plugin-demos/PositionDemo.vue';
 import InlineBoxesDemo from '~/plugin-demos/InlineBoxesDemo.vue';
 import IssueReprosDemo from '~/plugin-demos/IssueReprosDemo.vue';
+import InlineBlockLinesDemo from '~/plugin-demos/InlineBlockLinesDemo.vue';
 import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
 import GradientDemo from '~/plugin-demos/GradientDemo.vue';
@@ -147,6 +148,7 @@ const groups = [
       { title: 'Core views', desc: 'NativeScript widgets inside Mason containers', icon: 'C', color: '#74b9ff', page: CoreViewsDemo },
       { title: 'Showcase', desc: 'Component gallery', icon: 'W', color: '#a29bfe', page: ShowcaseDemo },
       { title: 'Issue repros', desc: 'One card per reported MasonKit issue', icon: '!', color: '#d63031', page: IssueReprosDemo },
+      { title: 'Inline-block lines', desc: 'Tall inline boxes on later lines', icon: 'Ib', color: '#e17055', page: InlineBlockLinesDemo },
     ],
   },
   {

@@ -1218,7 +1218,7 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
           val padTop = nv.paddingTop.toInt()
           val padRight = nv.paddingRight.toInt()
           val padBottom = nv.paddingBottom.toInt()
-          if (view is TextContainer) {
+          if (view is TextContainer || view is TextArea) {
             // CSS positions content at border + padding from the view edge.
             // Android's setPadding controls where text draws, so include
             // the border width so text renders inside the border boundary.
@@ -1304,13 +1304,13 @@ internal fun Element.applyLayoutFlat(rootNode: Node, tree: MasonLayoutTree) {
               view.layout(x, y, right, bottom)
             }
             // Outside the skip: padding or border can change while the frame stays the same.
-            val insetLeft = padLeft + nv.borderLeft.toInt()
-            val insetTop = padTop + nv.borderTop.toInt()
-            view.layoutChild(
-              insetLeft,
-              insetTop,
-              maxOf(insetLeft, width - padRight - nv.borderRight.toInt()),
-              maxOf(insetTop, height - padBottom - nv.borderBottom.toInt())
+            view.layoutChildInside(
+              width,
+              height,
+              padLeft + nv.borderLeft.toInt(),
+              padTop + nv.borderTop.toInt(),
+              padRight + nv.borderRight.toInt(),
+              padBottom + nv.borderBottom.toInt()
             )
           } else {
             if (!skipMeasureAndLayout) {

@@ -1700,11 +1700,13 @@ class TextEngine(val container: TextContainer) {
   // Custom span for inline child views
   private inner class ViewSpan(
     val childNode: Node, private val viewHelper: ViewHelper
-  ) : ReplacementSpan() {
+  ) : ReplacementSpan(), TextNode.InlineBox {
     // Where the box sits, in layout coordinates, as of the last draw. The text view lays
     // the box's real view out there.
     internal val drawnRect = RectF()
     internal var drawn = false
+    override var ascent = 0
+    override var descent = 0
 
     /**
      * The box's extent along the line, then across it. Vertical text runs its lines down
@@ -1813,6 +1815,9 @@ class TextEngine(val container: TextContainer) {
 
         metrics.top = metrics.ascent
         metrics.bottom = metrics.descent
+        ascent = metrics.ascent
+        descent = metrics.descent
+        TextNode.LineScan.measuredGeneration++
 
         // Follow web behavior: do not artificially clamp placeholder font
         // metrics here. Let the native layout compute line-box contributions

@@ -537,6 +537,8 @@ commitState(StateKeys.X)
 - `includeFontPadding` defaults to **`false`**. Web/iOS don't add Android's extra font metrics padding — defaulting to true inflates line boxes to ~1.33×; false gives ~1.17× (natural Roboto).
 - Letter-spacing uses `LetterSpacingSpan` (a `MetricAffectingSpan` that sets `tp.letterSpacing = px / tp.textSize`), **not** `ScaleXSpan`. `ScaleXSpan` scales glyph width — it does not add tracking.
 - Letter-spacing must be fixed in **both** `TextEngine.kt` (~line 1694) and `TextNode.kt` (~line 204). Fixing only one leaves the other broken.
+- Line boxes with inline boxes: `ViewSpan.getSize` reports the box's extent as the run's font metrics, and the line-height spans (`TextNode.FixedLineHeightSpan`, `NormalLineHeightSpan`) then size each line. A fixed line-height sizes the text's strut, and a box taller than it grows the line (CSS 2.1 §10.8); `ViewSpan` records its extent as a `TextNode.InlineBox` for this. A paragraph's height is the larger of the StaticLayout height and mason-core's inline layout, and the box views are placed from the StaticLayout, so a line that doesn't grow shows as a box drawn over the line above.
+- **StaticLayout leaks line metrics.** A line that breaks inside a text run starts from the `FontMetricsInt` the previous line's `LineHeightSpan`s left behind, so the text line after a box line starts as tall as the box. `LineBoxes.afterBoxLine` flags that line and the spans size it from the text's own metrics.
 
 ### iOS
 
