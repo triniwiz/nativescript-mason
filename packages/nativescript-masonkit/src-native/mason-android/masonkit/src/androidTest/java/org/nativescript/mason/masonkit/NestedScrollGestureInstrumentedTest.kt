@@ -27,8 +27,16 @@ class NestedScrollGestureInstrumentedTest {
   private data class Offsets(val outerY: Int, val innerX: Int, val innerY: Int = 0)
 
   // Outer: 300x400px viewport, scrolls y over a 2000px column. The column's top 350px is the
-  // inner scroller, which scrolls x over 1200px, and with [bothAxes] y over 1200px too.
-  private fun withNested(bothAxes: Boolean = false, tappable: Boolean = false, block: (Fixture) -> Unit) {
+  // inner scroller, which scrolls x over 1200px, and with [bothAxes] y over 1200px too. With
+  // [verticalOnly] it scrolls only y, over 1200px.
+  private fun withNested(
+    bothAxes: Boolean = false,
+    verticalOnly: Boolean = false,
+    tappable: Boolean = false,
+    block: (Fixture) -> Unit
+  ) {
+    val innerX = !verticalOnly
+    val innerY = bothAxes || verticalOnly
     ActivityScenario.launch(BenchmarkActivity::class.java).use { scenario ->
       lateinit var fixture: Fixture
       scenario.onActivity { activity ->
@@ -42,11 +50,14 @@ class NestedScrollGestureInstrumentedTest {
         column.setSize(300f, 2000f)
         column.style.flexShrink = 0f
         val inner = mason.createScrollView(activity)
-        inner.style.overflow = Point(Overflow.Scroll, if (bothAxes) Overflow.Scroll else Overflow.Hidden)
+        inner.style.overflow = Point(
+          if (innerX) Overflow.Scroll else Overflow.Hidden,
+          if (innerY) Overflow.Scroll else Overflow.Hidden
+        )
         inner.style.setSizePoints(300f, 350f)
         inner.style.flexShrink = 0f
         val content = mason.createView(activity)
-        content.setSize(1200f, if (bothAxes) 1200f else 350f)
+        content.setSize(if (innerX) 1200f else 300f, if (innerY) 1200f else 350f)
         content.style.flexShrink = 0f
         inner.addView(content)
         column.addView(inner)
@@ -58,8 +69,8 @@ class NestedScrollGestureInstrumentedTest {
       instr.waitForIdleSync()
       instr.runOnMainSync {
         assertEquals(1600, fixture.outer.maxScrollY)
-        assertEquals(900, fixture.inner.maxScrollX)
-        assertEquals(if (bothAxes) 850 else 0, fixture.inner.maxScrollY)
+        assertEquals(if (innerX) 900 else 0, fixture.inner.maxScrollX)
+        assertEquals(if (innerY) 850 else 0, fixture.inner.maxScrollY)
       }
       block(fixture)
     }
@@ -165,6 +176,24 @@ class NestedScrollGestureInstrumentedTest {
     assertEquals("outer scrollY after a diagonal swipe", 0, diagonal.outerY)
     assertTrue("a diagonal swipe moves x: ${diagonal.innerX}", diagonal.innerX >= swiped(f, 140f))
     assertTrue("a diagonal swipe moves y: ${diagonal.innerY - vertical.innerY}", diagonal.innerY - vertical.innerY >= swiped(f, 140f))
+  }
+
+  @Test
+  fun aVerticalInnerScrollerTakesVerticalSwipesThenHandsTheRestToThePage() = withNested(verticalOnly = true) { f ->
+    val first = drag(f, verticalSwipe(f)).last()
+    assertEquals("outer scrollY while the list has room", 0, first.outerY)
+    assertTrue("inner scrollY ${first.innerY}", first.innerY >= swiped(f, 219f))
+
+    // 50px from the list's end: the list takes those, the page the rest of the same swipe.
+    instr.runOnMainSync { f.inner.scrollTo(0, 800) }
+    val chained = drag(f, verticalSwipe(f)).last()
+    assertEquals("the list reached its end", 850, chained.innerY)
+    assertTrue("the page took the rest: ${chained.outerY}", chained.outerY >= swiped(f, 219f) - 50)
+  }
+
+  @Test
+  fun aHorizontalSwipeOnAVerticalInnerScrollerMovesNothing() = withNested(verticalOnly = true) { f ->
+    for (offsets in drag(f, horizontalSwipe(f))) assertEquals(Offsets(0, 0, 0), offsets)
   }
 
   @Test

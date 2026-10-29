@@ -16,6 +16,17 @@
           </div>
         </div>
 
+        <div class="block">
+          <span class="section-label">Vertical list</span>
+          <span class="muted">Scrolls the same way as the page. A swipe that starts here moves the list first; once the list reaches its end, the rest of the swipe moves the page.</span>
+          <div class="vertical tk-surface">
+            <div v-for="n in 20" :key="n" class="list-row" @tap="tap('Vertical list', n)">
+              <div class="dot" :style="{ backgroundColor: color(n) }" />
+              <span class="list-text tk-text">Item {{ n }}</span>
+            </div>
+          </div>
+        </div>
+
         <span class="muted">Last tap: {{ lastTap || 'none' }} · taps {{ taps }}</span>
 
         <div class="block">
@@ -107,6 +118,31 @@ function tap(row: string, n: number) {
   font-size: 20;
   font-weight: bold;
   color: #ffffff;
+}
+
+.vertical {
+  height: 240;
+  overflow-y: auto;
+  border-radius: 12;
+}
+
+.list-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+  height: 48;
+  padding: 0 12;
+}
+
+.dot {
+  width: 24;
+  height: 24;
+  border-radius: 12;
+}
+
+.list-text {
+  font-size: 16;
 }
 
 .both {
