@@ -14,8 +14,6 @@ import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Overflow
 import kotlin.math.sin
 
-// A scroller inside a vertical one, driven by finger-like paths: fractional coordinates, drift
-// off the swipe axis, wobble on a tap, flicks, and content that takes taps as the demo's cards do.
 @RunWith(AndroidJUnit4::class)
 class NestedScrollGestureInstrumentedTest {
   private val instr = InstrumentationRegistry.getInstrumentation()
@@ -26,9 +24,6 @@ class NestedScrollGestureInstrumentedTest {
 
   private data class Offsets(val outerY: Int, val innerX: Int, val innerY: Int = 0)
 
-  // Outer: 300x400px viewport, scrolls y over a 2000px column. The column's top 350px is the
-  // inner scroller, which scrolls x over 1200px, and with [bothAxes] y over 1200px too. With
-  // [verticalOnly] it scrolls only y, over 1200px.
   private fun withNested(
     bothAxes: Boolean = false,
     verticalOnly: Boolean = false,
@@ -78,10 +73,6 @@ class NestedScrollGestureInstrumentedTest {
 
   private fun offsets(f: Fixture) = Offsets(f.outer.scrollY, f.inner.scrollX, f.inner.scrollY)
 
-  /**
-   * On the main thread: touches down at the first point, moves through the rest 8ms apart, and
-   * ends with [end] at the last point; returns the offsets after each move.
-   */
   private fun gesture(f: Fixture, path: List<Pair<Float, Float>>, end: Int = MotionEvent.ACTION_CANCEL): List<Offsets> {
     val seen = ArrayList<Offsets>()
     val down = SystemClock.uptimeMillis()
@@ -111,15 +102,20 @@ class NestedScrollGestureInstrumentedTest {
     instr.waitForIdleSync()
   }
 
-  // One 7.3px step: the move that crosses the slop starts the drag but doesn't scroll.
-  private fun swiped(f: Fixture, distance: Float) = distance - f.slop - 7.3f - 3f
+  private val swipeStep = 7.3f
+
+  private fun swiped(f: Fixture, distance: Float): Float {
+    val lostStartingTheDrag = f.slop + swipeStep
+    val tolerance = 3f
+    return distance - lostStartingTheDrag - tolerance
+  }
 
   private fun horizontalSwipe(f: Fixture) = (0..30).map { i ->
-    Pair(250f - i * 7.3f, 200f + f.slop * 1.5f * i / 30f + 2.5f * sin(i * 1.7f))
+    Pair(250f - i * swipeStep, 200f + f.slop * 1.5f * i / 30f + 2.5f * sin(i * 1.7f))
   }
 
   private fun verticalSwipe(f: Fixture) = (0..30).map { i ->
-    Pair(150f + f.slop * 1.5f * i / 30f + 2.5f * sin(i * 1.3f), 300f - i * 7.3f)
+    Pair(150f + f.slop * 1.5f * i / 30f + 2.5f * sin(i * 1.3f), 300f - i * swipeStep)
   }
 
   @Test
@@ -139,14 +135,12 @@ class NestedScrollGestureInstrumentedTest {
   @Test
   fun wobbleWithinTheTouchSlopScrollsNothing() = withNested { f ->
     val r = f.slop * 0.8f
-    // Every point stays within r of the down point on each axis.
     val path = (0..12).map { i -> Pair(150f + r * sin(i * 2.1f), 200f + r * sin(i * 3.7f)) }
     for (offsets in drag(f, path)) assertEquals(Offsets(0, 0), offsets)
   }
 
   @Test
   fun slowSubPixelMovesStillScroll() = withNested { f ->
-    // Past the slop quickly, then 100 moves of 0.6px, as a slow finger reports at a high sample rate.
     val fast = (0..10).map { i -> Pair(250f - i * 6f, 200f) }
     val slow = (1..100).map { i -> Pair(190f - i * 0.6f, 200f) }
     val seen = drag(f, fast + slow)
@@ -157,7 +151,6 @@ class NestedScrollGestureInstrumentedTest {
 
   @Test
   fun aSwipeThatCurvesPastFortyFiveDegreesStaysWithTheScrollerThatClaimedIt() = withNested { f ->
-    // 80px left, then 160px up: overall mostly vertical, but the inner scroller claimed it first.
     val path = (0..10).map { i -> Pair(250f - i * 8f, 300f) } + (1..20).map { i -> Pair(170f, 300f - i * 8f) }
     val end = drag(f, path).last()
     assertEquals("outer scrollY", 0, end.outerY)
@@ -184,7 +177,6 @@ class NestedScrollGestureInstrumentedTest {
     assertEquals("outer scrollY while the list has room", 0, first.outerY)
     assertTrue("inner scrollY ${first.innerY}", first.innerY >= swiped(f, 219f))
 
-    // 50px from the list's end: the list takes those, the page the rest of the same swipe.
     instr.runOnMainSync { f.inner.scrollTo(0, 800) }
     val chained = drag(f, verticalSwipe(f)).last()
     assertEquals("the list reached its end", 850, chained.innerY)

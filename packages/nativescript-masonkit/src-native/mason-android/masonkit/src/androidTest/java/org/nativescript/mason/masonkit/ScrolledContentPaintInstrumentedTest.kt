@@ -14,14 +14,10 @@ import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.Overflow
 
-// A rounded scroll box over a taller div, as a Vue `<div style="overflow: scroll; border-radius">`
-// lays one out: content scrolled into view must paint, on both axes.
 @RunWith(AndroidJUnit4::class)
 class ScrolledContentPaintInstrumentedTest {
   private val instr = InstrumentationRegistry.getInstrumentation()
 
-  // Box: 300x260px viewport with 12px corners. Content: a div of 9 rows, 100px tall and 600px
-  // wide each, alternating red and blue.
   private fun withBox(block: (Scroll) -> Unit) {
     ActivityScenario.launch(BenchmarkActivity::class.java).use { scenario ->
       lateinit var box: Scroll
@@ -61,7 +57,6 @@ class ScrolledContentPaintInstrumentedTest {
     return bitmap
   }
 
-  // The row under viewport y when the box is scrolled to scrollY.
   private fun rowColor(scrollY: Int, y: Int) = if (((scrollY + y) / 100) % 2 == 0) Color.RED else Color.BLUE
 
   @Test

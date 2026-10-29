@@ -5832,9 +5832,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         if (includeBorderRadius) {
           style.mBorderRenderer.updateCache(width, height)
           if (style.mBorderRenderer.hasRadii()) {
-            canvas.translate(scrollOX, scrollOY)
-            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
-            canvas.translate(-scrollOX, -scrollOY)
+            style.mBorderRenderer.clipToScrolledPaddingBox(canvas, width, height, scrollOX, scrollOY)
           }
         }
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)

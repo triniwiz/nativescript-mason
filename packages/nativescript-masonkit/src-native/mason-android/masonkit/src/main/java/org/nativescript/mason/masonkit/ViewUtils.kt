@@ -327,10 +327,7 @@ class ViewUtils {
       } else false
       val drawContent = {
         if (hasRadii && overflowClipsContent) {
-          // The outline belongs to the viewport, and the canvas is back in content coordinates.
-          canvas.translate(boxDx, boxDy)
-          canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
-          canvas.translate(-boxDx, -boxDy)
+          style.mBorderRenderer.clipToScrolledPaddingBox(canvas, width, height, boxDx, boxDy)
         }
 
         Style.applyOverflowClip(style, canvas, style.node, width, height)
