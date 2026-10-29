@@ -327,8 +327,7 @@ class ViewUtils {
       } else false
       val drawContent = {
         if (hasRadii && overflowClipsContent) {
-          val innerPath = style.mBorderRenderer.getClipPath(width, height)
-          canvas.clipPath(innerPath)
+          style.mBorderRenderer.clipToScrolledPaddingBox(canvas, width, height, boxDx, boxDy)
         }
 
         Style.applyOverflowClip(style, canvas, style.node, width, height)
