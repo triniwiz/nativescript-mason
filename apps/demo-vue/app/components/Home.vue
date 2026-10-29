@@ -79,6 +79,7 @@ import SpacingDemo from '~/plugin-demos/SpacingDemo.vue';
 import PositionDemo from '~/plugin-demos/PositionDemo.vue';
 import InlineBoxesDemo from '~/plugin-demos/InlineBoxesDemo.vue';
 import IssueReprosDemo from '~/plugin-demos/IssueReprosDemo.vue';
+import NestedScrollDemo from '~/plugin-demos/NestedScrollDemo.vue';
 import TypographyDemo from '~/plugin-demos/TypographyDemo.vue';
 import BoxShadowDemo from '~/plugin-demos/BoxShadowDemo.vue';
 import GradientDemo from '~/plugin-demos/GradientDemo.vue';
@@ -147,6 +148,7 @@ const groups = [
       { title: 'Core views', desc: 'NativeScript widgets inside Mason containers', icon: 'C', color: '#74b9ff', page: CoreViewsDemo },
       { title: 'Showcase', desc: 'Component gallery', icon: 'W', color: '#a29bfe', page: ShowcaseDemo },
       { title: 'Issue repros', desc: 'One card per reported MasonKit issue', icon: '!', color: '#d63031', page: IssueReprosDemo },
+      { title: 'Nested scroll', desc: 'Horizontal rows inside a vertical page', icon: 'Ns', color: '#0984e3', page: NestedScrollDemo },
     ],
   },
   {
