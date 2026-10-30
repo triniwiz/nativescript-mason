@@ -1760,13 +1760,13 @@ const VIEWPORT_UNIT_TEXT = /\d(?:vw|vh|vmin|vmax)\b/i;
 
 /** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
 export function beginStyleWrite(target: object, name: string, value: unknown): void {
-  viewportWrites.get(target)?.delete(name);
+  if (viewportStyles.size !== 0) viewportWrites.get(target)?.delete(name);
   writeTargets[writeDepth] = target;
   writeNames[writeDepth] = name;
   writeValues[writeDepth] = value;
   writeDepth++;
   // Android and iOS parse some CSS text natively, so the text itself marks a viewport unit.
-  if (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
+  if (typeof value === 'string' && (value.indexOf('v') !== -1 || value.indexOf('V') !== -1) && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
 }
 
 export function endStyleWrite(): void {
@@ -4422,14 +4422,9 @@ export class Style {
   private stampPhysical(group: LogicalGroupName, mask: number) {
     const { order, half } = LOGICAL_GROUPS[group];
     const view = this.style_view;
-    let logical = false;
-    for (let i = 0; i < half; i++) {
-      if (getUint8(view, order + half + i) !== 0) {
-        logical = true;
-        break;
-      }
-    }
-    if (!logical) return;
+    // No logical side set: all of the group's stamp bytes are 0.
+    const at = order + half;
+    if (view.getUint32(at, true) === 0 && (half === 4 || view.getUint16(at + 4, true) === 0)) return;
     const stamp = this.nextLogicalStamp();
     for (let i = 0; i < half; i++) {
       if (mask & (1 << i)) setUint8(view, order + i, stamp);
