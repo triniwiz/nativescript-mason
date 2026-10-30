@@ -271,8 +271,8 @@ public class MasonTextLayer: CALayer {
     guard let textView = textView else {
       return
     }
-    // Ensure the context starts clear (transparent)
-    context.clear(bounds)
+    // A first display gets a new, already clear backing store; a redisplay may reuse one.
+    if contents != nil { context.clear(bounds) }
 
     // Clip background and text content to border-radius, matching the pattern in
     // MasonUIView.draw: saveGState → clip to rounded path → draw content → restoreGState
