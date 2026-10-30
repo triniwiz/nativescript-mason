@@ -422,6 +422,23 @@ function finite(n: number): number {
 
 const EM_UNIT = /em/i;
 
+// Parsed plain lengths: CSS px (the density can change) or a 0-1 fraction for %.
+const PLAIN_LENGTH = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))(px|dip|%)?\s*$/i;
+type PlainLength = { percent: boolean; value: number };
+const plainLengths = new Map<string, PlainLength | null>();
+
+function plainLength(token: string): PlainLength | null {
+  let plain = plainLengths.get(token);
+  if (plain === undefined) {
+    const m = PLAIN_LENGTH.exec(token);
+    const n = m ? parseFloat(m[1]) : NaN;
+    plain = Number.isFinite(n) ? (m[2] === '%' ? { percent: true, value: n / 100 } : { percent: false, value: n }) : null;
+    if (plainLengths.size >= 512) plainLengths.clear();
+    plainLengths.set(token, plain);
+  }
+  return plain;
+}
+
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 const PX_PER_PT = 96 / 72;
 
@@ -523,6 +540,8 @@ function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType
  * Suffix order matters: `rem` also ends with `em`, and `dppx` with `px`.
  */
 function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
+  const plain = plainLength(token);
+  if (plain && !plain.percent) return layout.toDevicePixels(plain.value);
   const t = token.trim().toLowerCase();
   if (isCssMathFunction(t)) {
     const math = evaluateLengthMath(t, emBasis);
@@ -625,6 +644,10 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
   if (typeof value !== 'string') {
     return undefined;
   }
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? undefined : plain.value;
+  }
   const t = value.trim().toLowerCase();
   if (t === '' || t === 'auto' || t.endsWith('%')) {
     return undefined;
@@ -659,6 +682,10 @@ function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
 }
 
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -698,6 +725,10 @@ function dimensionFromString(value: string, emBasis?: number): { type: number; v
 
 // Shared parser for LengthPercentageAuto props (min/max width/height, margin, inset)
 function lengthPercentageAutoFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -715,6 +746,10 @@ function lengthPercentageAutoFromString(value: string, emBasis?: number): { type
 
 // Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
 function lengthPercentageFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 1, value: plain.value } : { type: 0, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   const math = mathLengthPercentage(t, emBasis, 0, 1);
   if (math) {
