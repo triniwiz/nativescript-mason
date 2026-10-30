@@ -422,6 +422,23 @@ function finite(n: number): number {
 
 const EM_UNIT = /em/i;
 
+// Parsed plain lengths: CSS px (the density can change) or a 0-1 fraction for %.
+const PLAIN_LENGTH = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))(px|dip|%)?\s*$/i;
+type PlainLength = { percent: boolean; value: number };
+const plainLengths = new Map<string, PlainLength | null>();
+
+function plainLength(token: string): PlainLength | null {
+  let plain = plainLengths.get(token);
+  if (plain === undefined) {
+    const m = PLAIN_LENGTH.exec(token);
+    const n = m ? parseFloat(m[1]) : NaN;
+    plain = Number.isFinite(n) ? (m[2] === '%' ? { percent: true, value: n / 100 } : { percent: false, value: n }) : null;
+    if (plainLengths.size >= 512) plainLengths.clear();
+    plainLengths.set(token, plain);
+  }
+  return plain;
+}
+
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 const PX_PER_PT = 96 / 72;
 
@@ -523,6 +540,8 @@ function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType
  * Suffix order matters: `rem` also ends with `em`, and `dppx` with `px`.
  */
 function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
+  const plain = plainLength(token);
+  if (plain && !plain.percent) return layout.toDevicePixels(plain.value);
   const t = token.trim().toLowerCase();
   if (isCssMathFunction(t)) {
     const math = evaluateLengthMath(t, emBasis);
@@ -625,6 +644,10 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
   if (typeof value !== 'string') {
     return undefined;
   }
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? undefined : plain.value;
+  }
   const t = value.trim().toLowerCase();
   if (t === '' || t === 'auto' || t.endsWith('%')) {
     return undefined;
@@ -659,6 +682,10 @@ function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
 }
 
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -698,6 +725,10 @@ function dimensionFromString(value: string, emBasis?: number): { type: number; v
 
 // Shared parser for LengthPercentageAuto props (min/max width/height, margin, inset)
 function lengthPercentageAutoFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -715,6 +746,10 @@ function lengthPercentageAutoFromString(value: string, emBasis?: number): { type
 
 // Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
 function lengthPercentageFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 1, value: plain.value } : { type: 0, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   const math = mathLengthPercentage(t, emBasis, 0, 1);
   if (math) {
@@ -1725,13 +1760,13 @@ const VIEWPORT_UNIT_TEXT = /\d(?:vw|vh|vmin|vmax)\b/i;
 
 /** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
 export function beginStyleWrite(target: object, name: string, value: unknown): void {
-  viewportWrites.get(target)?.delete(name);
+  if (viewportStyles.size !== 0) viewportWrites.get(target)?.delete(name);
   writeTargets[writeDepth] = target;
   writeNames[writeDepth] = name;
   writeValues[writeDepth] = value;
   writeDepth++;
   // Android and iOS parse some CSS text natively, so the text itself marks a viewport unit.
-  if (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
+  if (typeof value === 'string' && (value.indexOf('v') !== -1 || value.indexOf('V') !== -1) && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
 }
 
 export function endStyleWrite(): void {
@@ -1758,6 +1793,8 @@ export function refreshViewportUnits(): void {
     const writes = style && viewportWrites.get(style);
     if (!style || !writes || !writes.size) {
       viewportStyles.delete(ref);
+      // A later viewport write makes a new map, which tracks the style again.
+      if (style) viewportWrites.delete(style);
       continue;
     }
     const keys = Array.from(writes.keys());
@@ -4385,14 +4422,9 @@ export class Style {
   private stampPhysical(group: LogicalGroupName, mask: number) {
     const { order, half } = LOGICAL_GROUPS[group];
     const view = this.style_view;
-    let logical = false;
-    for (let i = 0; i < half; i++) {
-      if (getUint8(view, order + half + i) !== 0) {
-        logical = true;
-        break;
-      }
-    }
-    if (!logical) return;
+    // No logical side set: all of the group's stamp bytes are 0.
+    const at = order + half;
+    if (view.getUint32(at, true) === 0 && (half === 4 || view.getUint16(at + 4, true) === 0)) return;
     const stamp = this.nextLogicalStamp();
     for (let i = 0; i < half; i++) {
       if (mask & (1 << i)) setUint8(view, order + i, stamp);
@@ -6121,6 +6153,23 @@ export class Style {
     setFloat32(this.style_view, keys.xValue, amount);
     setUint8(this.style_view, keys.yType, type);
     setFloat32(this.style_view, keys.yValue, amount);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
+  /** One corner from CSS text of one or two plain tokens (`8px`, `50%`, `8px 4px`); false when it needs the full path. */
+  _writeCornerCss(corner: number, css: string, scale = deviceScale()): boolean {
+    if (!this.nativeView || this._pseudo || !this.style_view) return false;
+    const t = fastRadiusTokens(css, scale);
+    if (!t || t.length < 1 || t.length > 2) return false;
+    this._borderRadiusCss = null;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    const v = t[t.length - 1];
+    setUint8(this.style_view, keys.xType, t[0].type);
+    setFloat32(this.style_view, keys.xValue, t[0].value);
+    setUint8(this.style_view, keys.yType, v.type);
+    setFloat32(this.style_view, keys.yValue, v.value);
     this.commitState(StateKeys.BORDER_RADIUS);
     return true;
   }

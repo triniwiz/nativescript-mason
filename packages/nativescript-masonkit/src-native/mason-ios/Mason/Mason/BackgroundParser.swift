@@ -281,7 +281,7 @@ class Background {
   // reapplied when they arrive. Core applies the `background` shorthand after
   // the longhands whatever their declaration order, so it reapplies them too.
   private var longhands: [(name: String, value: String)] = []
-  unowned let style: MasonStyle
+  unowned(unsafe) let style: MasonStyle
   init(style: MasonStyle) {
     self.style = style
   }

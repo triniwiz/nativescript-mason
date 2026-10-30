@@ -103,7 +103,10 @@ public class MasonNode: NSObject {
   public internal(set) var mason: NSCMason
   
   internal var isAnonymous = false {
-    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+    didSet {
+      if isAnonymous { layoutParent?.hasAnonymousChild = true }
+      MasonStyle.resolveEpoch &+= 1
+    }
   }
 
   // Set once an anonymous node is linked under this one (sticky). Without one,
@@ -512,8 +515,12 @@ public class MasonNode: NSObject {
   }()
   
   
+  // Inherited values resolve through it: see MasonStyle.resolveEpoch.
   internal weak var layoutParent: MasonNode? = nil {
-    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+    didSet {
+      if isAnonymous { layoutParent?.hasAnonymousChild = true }
+      MasonStyle.resolveEpoch &+= 1
+    }
   }
   public internal(set) var parent: MasonNode? {
     get {
@@ -689,6 +696,8 @@ public class MasonNode: NSObject {
 
   deinit {
     MasonNode.liveCount -= 1
+    // Children's weak parent links go nil without a didSet.
+    MasonStyle.resolveEpoch &+= 1
     // An anonymous text container under a text container keeps its own view alive, and the view
     // owns that node: release the pair with this parent.
     for child in children where child.retainedAnonymousView != nil {

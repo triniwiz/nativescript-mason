@@ -73,6 +73,15 @@ const GEOMETRY: Case[] = [
   { prop: 'paddingLeft', input: '10px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10), typeOffset: K.PADDING_LEFT_TYPE, typeValue: TYPE_POINTS_LP },
   { prop: 'marginTop', input: '10px', valueOffset: K.MARGIN_TOP_VALUE, expected: cssPx(10) },
 
+  // --- plain lengths, cached across scales ----------------------------------
+  { prop: 'paddingLeft', input: ' 10px ', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
+  { prop: 'paddingLeft', input: '10PX', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
+  { prop: 'paddingLeft', input: '.5px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(0.5) },
+  { prop: 'paddingLeft', input: '25%', valueOffset: K.PADDING_LEFT_VALUE, expected: () => 0.25, typeOffset: K.PADDING_LEFT_TYPE, typeValue: 1 },
+  { prop: 'marginTop', input: '-4px', valueOffset: K.MARGIN_TOP_VALUE, expected: cssPx(-4) },
+  { prop: 'marginTop', input: '0', valueOffset: K.MARGIN_TOP_VALUE, expected: () => 0 },
+  { prop: 'minWidth', input: '8dip', valueOffset: K.MIN_WIDTH_VALUE, expected: cssPx(8) },
+
   // --- shorthands go through their own parser -------------------------------
   { prop: 'padding', input: '10px 20px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(20) },
   { prop: 'padding', input: 10, valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
@@ -170,7 +179,7 @@ describe.each(SCALES)('screen scale %i', (scale) => {
 describe('scale invariance', () => {
   // A single assertion that catches the whole bug class: whatever spelling is
   // used, a CSS length must come out N times bigger at scale N.
-  it.each(GEOMETRY.filter((c) => c.input !== '100dppx' && c.input !== '50%').map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s scales linearly', (_label, c) => {
+  it.each(GEOMETRY.filter((c) => c.expected(1) !== 0 && c.expected(2) === c.expected(1) * 2).map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s scales linearly', (_label, c) => {
     const at = (scale: number) => {
       setScreenScale(scale);
       const t = styleUnderTest();
@@ -302,6 +311,17 @@ describe('CSS relative units', () => {
     setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
     refreshViewportUnits();
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
+  });
+
+  it('tracks a style again when it uses a viewport unit after a refresh dropped it', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = '10px' as never;
+    refreshViewportUnits();
+    t.style.width = '50vw' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(500);
   });
 
   it('writes CSS text with a viewport unit again, for values the platform parses natively', () => {

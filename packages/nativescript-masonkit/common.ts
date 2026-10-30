@@ -2647,9 +2647,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!style) {
       return;
     }
-    if ((__ANDROID__ || __APPLE__) && !isCssLength(value) && (style as MasonStyle)._writeCornerLength(corner, value)) {
-      (this as any)[borderRadiusCorners_] = undefined;
-      return;
+    if (__ANDROID__ || __APPLE__) {
+      const css = isCssLength(value) ? value.css : typeof value === 'string' ? value : undefined;
+      if (css !== undefined ? (style as MasonStyle)._writeCornerCss(corner, css) : (style as MasonStyle)._writeCornerLength(corner, value)) {
+        (this as any)[borderRadiusCorners_] = undefined;
+        return;
+      }
     }
     let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
     if (!corners) {
