@@ -6127,6 +6127,23 @@ export class Style {
     return true;
   }
 
+  /** One corner from CSS text of one or two plain tokens (`8px`, `50%`, `8px 4px`); false when it needs the full path. */
+  _writeCornerCss(corner: number, css: string, scale = deviceScale()): boolean {
+    if (!this.nativeView || this._pseudo || !this.style_view) return false;
+    const t = fastRadiusTokens(css, scale);
+    if (!t || t.length < 1 || t.length > 2) return false;
+    this._borderRadiusCss = null;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    const v = t[t.length - 1];
+    setUint8(this.style_view, keys.xType, t[0].type);
+    setFloat32(this.style_view, keys.xValue, t[0].value);
+    setUint8(this.style_view, keys.yType, v.type);
+    setFloat32(this.style_view, keys.yValue, v.value);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
   // The four corners as border-radius CSS, from the buffer.
   private _radiusCssFromBuffer(scale = deviceScale()): string {
     const view = this.style_view;
