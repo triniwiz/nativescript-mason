@@ -1758,6 +1758,8 @@ export function refreshViewportUnits(): void {
     const writes = style && viewportWrites.get(style);
     if (!style || !writes || !writes.size) {
       viewportStyles.delete(ref);
+      // A later viewport write makes a new map, which tracks the style again.
+      if (style) viewportWrites.delete(style);
       continue;
     }
     const keys = Array.from(writes.keys());

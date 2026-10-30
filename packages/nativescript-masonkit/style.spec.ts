@@ -304,6 +304,17 @@ describe('CSS relative units', () => {
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
   });
 
+  it('tracks a style again when it uses a viewport unit after a refresh dropped it', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = '10px' as never;
+    refreshViewportUnits();
+    t.style.width = '50vw' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(500);
+  });
+
   it('writes CSS text with a viewport unit again, for values the platform parses natively', () => {
     const t = styleUnderTest();
     t.style.background = 'linear-gradient(red 0 5vw, blue 0 10vw)';
