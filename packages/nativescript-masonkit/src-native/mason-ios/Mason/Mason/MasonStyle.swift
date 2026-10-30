@@ -683,7 +683,14 @@ public class MasonStyle: NSObject {
   internal var isDirtyHigh: UInt64 = 0
   /// Monotonically increasing counter bumped on every style sync.
   /// Used by MasonNode to invalidate cached getDefaultAttributes().
-  internal private(set) var styleVersion: UInt64 = 0
+  internal private(set) var styleVersion: UInt64 = 0 {
+    didSet { MasonStyle.resolveEpoch &+= 1 }
+  }
+
+  /// Bumped by any style write, sync or tree change; `resolvedMemo` holds only within one epoch.
+  internal static var resolveEpoch: UInt64 = 1
+  internal var resolvedMemo = ResolvedMemo()
+
   internal var isSlowDirty = false {
     didSet {
       if (!inBatch) {
@@ -728,6 +735,7 @@ public class MasonStyle: NSObject {
   public func prepareMut() {
     // Every native style write passes here: the next layout pass re-applies this view.
     node.appliedStyleVersion = .max
+    MasonStyle.resolveEpoch &+= 1
     if (node.isPlaceholder) {
       return
     }
@@ -4570,6 +4578,17 @@ public class MasonStyle: NSObject {
 
   /// font-feature-settings here or inherited.
   internal var resolvedFontFeatureSettings: String {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.fontFeatureSettings {
+      return value
+    }
+    let value = resolvedFontFeatureSettingsUncached
+    resolvedMemo.fontFeatureSettings = value
+    return value
+  }
+
+  private var resolvedFontFeatureSettingsUncached: String {
     hasFontFeatureSettings ? fontFeatureSettings : (parentStyleWithTextValues?.resolvedFontFeatureSettings ?? "normal")
   }
   
@@ -4887,6 +4906,17 @@ extension MasonStyle {
   }
   
   internal var resolvedFontFace: NSCFontFace {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.fontFace {
+      return value
+    }
+    let value = resolvedFontFaceUncached
+    resolvedMemo.fontFace = value
+    return value
+  }
+
+  private var resolvedFontFaceUncached: NSCFontFace {
     let familyState = getUInt8(StyleKeys.FONT_FAMILY_STATE)
     let weightState = getUInt8(StyleKeys.FONT_WEIGHT_STATE)
     let styleState = getUInt8(StyleKeys.FONT_STYLE_STATE)
@@ -5010,6 +5040,17 @@ extension MasonStyle {
   }
 
   internal var resolvedFontSize: Float {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.fontSize {
+      return value
+    }
+    let value = resolvedFontSizeUncached
+    resolvedMemo.fontSize = value
+    return value
+  }
+
+  private var resolvedFontSizeUncached: Float {
     let state = getUInt8(StyleKeys.FONT_SIZE_STATE)
     let type = getUInt8(StyleKeys.FONT_SIZE_TYPE)
     // PERCENT == 1
@@ -5037,7 +5078,18 @@ extension MasonStyle {
     return max(parentFontSize * percent, 0)
   }
   
-  internal var resolvedFontWeight: NSCFontWeight  {
+  internal var resolvedFontWeight: NSCFontWeight {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.fontWeight {
+      return value
+    }
+    let value = resolvedFontWeightUncached
+    resolvedMemo.fontWeight = value
+    return value
+  }
+
+  private var resolvedFontWeightUncached: NSCFontWeight {
     let state = getUInt8(StyleKeys.FONT_WEIGHT_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedFontWeight
@@ -5056,7 +5108,18 @@ extension MasonStyle {
     }
   }
   
-  internal var resolvedInternalFontStyle: NSCFontStyle{
+  internal var resolvedInternalFontStyle: NSCFontStyle {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.internalFontStyle {
+      return value
+    }
+    let value = resolvedInternalFontStyleUncached
+    resolvedMemo.internalFontStyle = value
+    return value
+  }
+
+  private var resolvedInternalFontStyleUncached: NSCFontStyle {
     let state = getUInt8(StyleKeys.FONT_STYLE_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedInternalFontStyle ?? internalFontStyle
@@ -5078,6 +5141,17 @@ extension MasonStyle {
   }
   
   internal var resolvedDecorationLine: DecorationLine {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.decorationLine {
+      return value
+    }
+    let value = resolvedDecorationLineUncached
+    resolvedMemo.decorationLine = value
+    return value
+  }
+
+  private var resolvedDecorationLineUncached: DecorationLine {
     let state = getUInt8(StyleKeys.DECORATION_LINE_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedDecorationLine ?? DecorationLine(rawValue:
@@ -5120,6 +5194,17 @@ extension MasonStyle {
   }
   
   internal var resolvedLetterSpacing: Float {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.letterSpacing {
+      return value
+    }
+    let value = resolvedLetterSpacingUncached
+    resolvedMemo.letterSpacing = value
+    return value
+  }
+
+  private var resolvedLetterSpacingUncached: Float {
     let state = getUInt8(StyleKeys.LETTER_SPACING_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedLetterSpacing
@@ -5141,7 +5226,18 @@ extension MasonStyle {
     return FontVariantNumeric(rawValue: pseudoRaw)
   }
 
-  internal var resolvedTextWrap: TextWrap{
+  internal var resolvedTextWrap: TextWrap {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textWrap {
+      return value
+    }
+    let value = resolvedTextWrapUncached
+    resolvedMemo.textWrap = value
+    return value
+  }
+
+  private var resolvedTextWrapUncached: TextWrap {
     let state = getUInt8(StyleKeys.TEXT_WRAP_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedTextWrap ?? TextWrap(
@@ -5155,6 +5251,17 @@ extension MasonStyle {
   }
   
   internal var resolvedWhiteSpace: WhiteSpace {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.whiteSpace {
+      return value
+    }
+    let value = resolvedWhiteSpaceUncached
+    resolvedMemo.whiteSpace = value
+    return value
+  }
+
+  private var resolvedWhiteSpaceUncached: WhiteSpace {
     let state = getUInt8(StyleKeys.WHITE_SPACE_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedWhiteSpace
@@ -5165,6 +5272,17 @@ extension MasonStyle {
   }
   
   internal var resolvedTextTransform: TextTransform {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textTransform {
+      return value
+    }
+    let value = resolvedTextTransformUncached
+    resolvedMemo.textTransform = value
+    return value
+  }
+
+  private var resolvedTextTransformUncached: TextTransform {
     let state = getUInt8(StyleKeys.TEXT_TRANSFORM_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedTextTransform
@@ -5174,7 +5292,18 @@ extension MasonStyle {
     }
   }
   
-  internal var resolvedTextAlign: TextAlign{
+  internal var resolvedTextAlign: TextAlign {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textAlign {
+      return value
+    }
+    let value = resolvedTextAlignUncached
+    resolvedMemo.textAlign = value
+    return value
+  }
+
+  private var resolvedTextAlignUncached: TextAlign {
     let state = getUInt8(StyleKeys.TEXT_ALIGN_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedTextAlign ?? TextAlign(
@@ -5188,6 +5317,17 @@ extension MasonStyle {
   }
   
   internal var resolvedTextJustify: TextJustify {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textJustify {
+      return value
+    }
+    let value = resolvedTextJustifyUncached
+    resolvedMemo.textJustify = value
+    return value
+  }
+
+  private var resolvedTextJustifyUncached: TextJustify {
     if getUInt8(StyleKeys.TEXT_JUSTIFY_STATE) == StyleState.INHERIT, let parent = parentStyleWithTextValues {
       return parent.resolvedTextJustify
     }
@@ -5196,6 +5336,17 @@ extension MasonStyle {
   }
   
   internal var resolvedLineHeight: Float {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.lineHeight {
+      return value
+    }
+    let value = resolvedLineHeightUncached
+    resolvedMemo.lineHeight = value
+    return value
+  }
+
+  private var resolvedLineHeightUncached: Float {
     let state = getUInt8(StyleKeys.LINE_HEIGHT_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedLineHeight
@@ -5206,6 +5357,17 @@ extension MasonStyle {
   }
   
   internal var resolvedLineHeightType: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.lineHeightType {
+      return value
+    }
+    let value = resolvedLineHeightTypeUncached
+    resolvedMemo.lineHeightType = value
+    return value
+  }
+
+  private var resolvedLineHeightTypeUncached: UInt8 {
     let state = getUInt8(StyleKeys.LINE_HEIGHT_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedLineHeightType
@@ -5292,6 +5454,17 @@ extension MasonStyle {
 
   /// word-spacing here or inherited: device px, a percentage of the space advance, or none.
   internal var resolvedWordSpacingValue: (value: Float, isPercent: Bool)? {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.wordSpacingValue {
+      return value
+    }
+    let value = resolvedWordSpacingValueUncached
+    resolvedMemo.wordSpacingValue = value
+    return value
+  }
+
+  private var resolvedWordSpacingValueUncached: (value: Float, isPercent: Bool)? {
     let state = getUInt8(StyleKeys.WORD_SPACING_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedWordSpacingValue
@@ -5316,6 +5489,17 @@ extension MasonStyle {
   }
 
   internal var resolvedWritingMode: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.writingMode {
+      return value
+    }
+    let value = resolvedWritingModeUncached
+    resolvedMemo.writingMode = value
+    return value
+  }
+
+  private var resolvedWritingModeUncached: UInt8 {
     let state = getUInt8(StyleKeys.WRITING_MODE_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedWritingMode ?? getUInt8(StyleKeys.WRITING_MODE)
@@ -5326,6 +5510,17 @@ extension MasonStyle {
   /// text-orientation: 0 mixed, 1 upright, 2 sideways.
   /// text-spacing-trim: 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto.
   internal var resolvedTextSpacingTrim: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textSpacingTrim {
+      return value
+    }
+    let value = resolvedTextSpacingTrimUncached
+    resolvedMemo.textSpacingTrim = value
+    return value
+  }
+
+  private var resolvedTextSpacingTrimUncached: UInt8 {
     let state = getUInt8(StyleKeys.TEXT_SPACING_TRIM_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedTextSpacingTrim ?? getUInt8(StyleKeys.TEXT_SPACING_TRIM)
@@ -5335,6 +5530,17 @@ extension MasonStyle {
 
   /// text-combine-upright: 0 none, 1 all, 2-4 digits (that many).
   internal var resolvedTextCombineUpright: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textCombineUpright {
+      return value
+    }
+    let value = resolvedTextCombineUprightUncached
+    resolvedMemo.textCombineUpright = value
+    return value
+  }
+
+  private var resolvedTextCombineUprightUncached: UInt8 {
     let state = getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedTextCombineUpright ?? getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT)
@@ -5343,6 +5549,17 @@ extension MasonStyle {
   }
 
   internal var resolvedTextOrientation: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textOrientation {
+      return value
+    }
+    let value = resolvedTextOrientationUncached
+    resolvedMemo.textOrientation = value
+    return value
+  }
+
+  private var resolvedTextOrientationUncached: UInt8 {
     let state = getUInt8(StyleKeys.TEXT_ORIENTATION_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedTextOrientation ?? getUInt8(StyleKeys.TEXT_ORIENTATION)
@@ -5351,6 +5568,17 @@ extension MasonStyle {
   }
 
   internal var resolvedUnicodeBidi: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.unicodeBidi {
+      return value
+    }
+    let value = resolvedUnicodeBidiUncached
+    resolvedMemo.unicodeBidi = value
+    return value
+  }
+
+  private var resolvedUnicodeBidiUncached: UInt8 {
     let state = getUInt8(StyleKeys.UNICODE_BIDI_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedUnicodeBidi ?? getUInt8(StyleKeys.UNICODE_BIDI)
@@ -5359,6 +5587,17 @@ extension MasonStyle {
   }
 
   internal var resolvedHyphens: UInt8 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.hyphens {
+      return value
+    }
+    let value = resolvedHyphensUncached
+    resolvedMemo.hyphens = value
+    return value
+  }
+
+  private var resolvedHyphensUncached: UInt8 {
     let state = getUInt8(StyleKeys.HYPHENS_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedHyphens ?? getUInt8(StyleKeys.HYPHENS)
@@ -5368,6 +5607,17 @@ extension MasonStyle {
 
   /// text-indent here or inherited: device px, or a percentage when `isPercent`.
   internal var resolvedTextIndent: (value: Float, isPercent: Bool) {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.textIndent {
+      return value
+    }
+    let value = resolvedTextIndentUncached
+    resolvedMemo.textIndent = value
+    return value
+  }
+
+  private var resolvedTextIndentUncached: (value: Float, isPercent: Bool) {
     if getUInt8(StyleKeys.TEXT_INDENT_STATE) == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedTextIndent ?? (0, false)
     }
@@ -5376,6 +5626,17 @@ extension MasonStyle {
 
   /// line-clamp here or inherited: the most lines shown, 0 for none.
   internal var resolvedLineClamp: Int32 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.lineClamp {
+      return value
+    }
+    let value = resolvedLineClampUncached
+    resolvedMemo.lineClamp = value
+    return value
+  }
+
+  private var resolvedLineClampUncached: Int32 {
     if getUInt8(StyleKeys.LINE_CLAMP_STATE) == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedLineClamp ?? 0
     }
@@ -5383,10 +5644,50 @@ extension MasonStyle {
   }
 
   internal var resolvedFontStretch: Int32 {
+    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
+      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
+    } else if let value = resolvedMemo.fontStretch {
+      return value
+    }
+    let value = resolvedFontStretchUncached
+    resolvedMemo.fontStretch = value
+    return value
+  }
+
+  private var resolvedFontStretchUncached: Int32 {
     let state = getUInt8(StyleKeys.FONT_STRETCH_STATE)
     if state == StyleState.INHERIT {
       return parentStyleWithTextValues?.resolvedFontStretch ?? getInt32(StyleKeys.FONT_STRETCH)
     }
     return getInt32(StyleKeys.FONT_STRETCH)
   }
+}
+
+/// Inherited text values one style resolved in one `MasonStyle.resolveEpoch`.
+internal struct ResolvedMemo {
+  var epoch: UInt64 = 0
+  var fontFace: NSCFontFace?
+  var fontSize: Float?
+  var fontWeight: NSCFontWeight?
+  var internalFontStyle: NSCFontStyle?
+  var decorationLine: DecorationLine?
+  var letterSpacing: Float?
+  var textWrap: TextWrap?
+  var whiteSpace: WhiteSpace?
+  var textTransform: TextTransform?
+  var textAlign: TextAlign?
+  var textJustify: TextJustify?
+  var lineHeight: Float?
+  var lineHeightType: UInt8?
+  var wordSpacingValue: (value: Float, isPercent: Bool)??
+  var writingMode: UInt8?
+  var textSpacingTrim: UInt8?
+  var textCombineUpright: UInt8?
+  var textOrientation: UInt8?
+  var unicodeBidi: UInt8?
+  var hyphens: UInt8?
+  var textIndent: (value: Float, isPercent: Bool)?
+  var lineClamp: Int32?
+  var fontStretch: Int32?
+  var fontFeatureSettings: String?
 }
