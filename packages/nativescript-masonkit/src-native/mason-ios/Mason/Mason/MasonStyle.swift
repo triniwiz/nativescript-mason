@@ -694,7 +694,7 @@ public class MasonStyle: NSObject {
       }
     }
   }
-  unowned let node: MasonNode
+  unowned(unsafe) let node: MasonNode
   var inBatch = false {
     didSet {
       if (!inBatch) {
