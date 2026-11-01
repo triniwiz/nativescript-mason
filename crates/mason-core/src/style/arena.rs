@@ -28,33 +28,43 @@ pub enum Handle {
     Button,
 }
 
-/// Packs a slot index (low 24 bits) and a reuse generation (high 8 bits).
+/// Packs a slot index (low 32 bits, below `MAX_SLOTS`) and a reuse generation (the next 8 bits).
 /// The generation rejects a handle from before a `release()` once its slot
 /// is reused — raw handles cross the FFI boundary as plain integers and can
 /// outlive the node that produced them.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct StyleHandle(u32);
+pub struct StyleHandle(u64);
 impl StyleHandle {
-    const INDEX_BITS: u32 = 24;
-    const INDEX_MASK: u32 = (1 << Self::INDEX_BITS) - 1;
+    const INDEX_MASK: u64 = 0xFFFF_FFFF;
+    const GENERATION_SHIFT: u32 = 32;
 
     pub const fn new(handle: Handle) -> Self {
-        Self(handle as u32)
+        Self(handle as u64)
     }
 
-    pub const fn from_raw(id: u32) -> Self {
+    pub const fn from_raw(id: u64) -> Self {
         Self(id)
     }
 
     #[inline]
     fn pack(index: u32, generation: u8) -> Self {
-        Self(((generation as u32) << Self::INDEX_BITS) | (index & Self::INDEX_MASK))
+        Self(((generation as u64) << Self::GENERATION_SHIFT) | index as u64)
     }
 
     #[inline]
     fn generation(self) -> u8 {
-        (self.0 >> Self::INDEX_BITS) as u8
+        (self.0 >> Self::GENERATION_SHIFT) as u8
     }
+}
+
+/// Slots an arena can hold: indices stay below 2^31, so platforms can pass them as a signed 32-bit int.
+pub const MAX_SLOTS: usize = 1 << 31;
+
+/// The index for a new slot appended after `len` slots; panics at `MAX_SLOTS` rather than wrapping.
+#[inline]
+fn next_slot_index(len: usize) -> u32 {
+    assert!(len < MAX_SLOTS, "style arena is full ({MAX_SLOTS} slots)");
+    len as u32
 }
 
 impl StyleHandle {
@@ -73,7 +83,7 @@ impl StyleHandle {
     }
 
     #[inline]
-    pub fn raw(self) -> u32 {
+    pub fn raw(self) -> u64 {
         self.0
     }
 }
@@ -656,7 +666,7 @@ impl StyleArena {
             set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
-            let idx = self.buffers.len() as u32;
+            let idx = next_slot_index(self.buffers.len());
             let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
@@ -817,7 +827,7 @@ impl StyleArena {
             set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
-            let idx = self.buffers.len() as u32;
+            let idx = next_slot_index(self.buffers.len());
             let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
@@ -1013,4 +1023,23 @@ mod tests {
         assert!(arena.is_current(b));
     }
 
+    #[test]
+    fn handle_keeps_a_31_bit_index_and_its_generation() {
+        let handle = StyleHandle::pack((MAX_SLOTS - 1) as u32, 0xAB);
+        assert_eq!(handle.index(), MAX_SLOTS - 1);
+        assert_eq!(handle.generation(), 0xAB);
+        assert_eq!(StyleHandle::from_raw(handle.raw()), handle);
+        assert_eq!(StyleHandle::pack(1 << 24, 0).index(), 1 << 24, "an index past 24 bits must not wrap");
+    }
+
+    #[test]
+    fn last_slot_index_fits_a_signed_32_bit_int() {
+        assert_eq!(next_slot_index(MAX_SLOTS - 1), i32::MAX as u32);
+    }
+
+    #[test]
+    #[should_panic(expected = "style arena is full")]
+    fn a_full_arena_panics_instead_of_wrapping() {
+        next_slot_index(MAX_SLOTS);
+    }
 }

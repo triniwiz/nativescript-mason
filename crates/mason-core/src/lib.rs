@@ -507,12 +507,12 @@ impl Mason {
 
     /// Return the StyleHandle for a pseudo style (immutable) if present.
     #[track_caller]
-    pub fn pseudo_style_handle(&self, node: Id, flags: u16) -> Option<u32> {
+    pub fn pseudo_style_handle(&self, node: Id, flags: u16) -> Option<u64> {
         self.0.nodes().get(node).and_then(|node| {
             node.pseudo_styles
                 .as_ref()
                 .and_then(|p| p.resolve(flags))
-                .map(|s| s.handle.index() as u32)
+                .map(|s| s.handle.raw())
         })
     }
 
@@ -574,7 +574,7 @@ impl Mason {
     /// Prepare and return the StyleHandle for a mutable pseudo style.
     /// Caller may then query `buffer_from(handle)` / `buffer_raw_mut_from(handle)`.
     #[track_caller]
-    pub fn pseudo_style_handle_mut(&mut self, node: Id, flags: u16) -> Option<u32> {
+    pub fn pseudo_style_handle_mut(&mut self, node: Id, flags: u16) -> Option<u64> {
         self.0.nodes_mut().get_mut(node).and_then(|node| {
             if node.pseudo_styles.is_none() {
                 node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
@@ -583,7 +583,7 @@ impl Mason {
                 .as_mut()
                 .unwrap()
                 .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
-                .map(|s| s.handle.index() as u32)
+                .map(|s| s.handle.raw())
         })
     }
 
@@ -1110,7 +1110,7 @@ impl Mason {
         .ok()
     }
 
-    pub fn buffer_raw_from(&self, handle: u32) -> Option<(*const u8, usize)> {
+    pub fn buffer_raw_from(&self, handle: u64) -> Option<(*const u8, usize)> {
         let reader = self.0 .0.read();
         reader
             .style_arena
@@ -1118,7 +1118,7 @@ impl Mason {
             .map(|buffer| (buffer, STYLE_BUFFER_SIZE))
     }
 
-    pub fn buffer_raw_mut_from(&mut self, handle: u32) -> Option<(*mut u8, usize)> {
+    pub fn buffer_raw_mut_from(&mut self, handle: u64) -> Option<(*mut u8, usize)> {
         let mut reader = self.0 .0.write();
         reader
             .style_arena
@@ -1127,13 +1127,13 @@ impl Mason {
     }
 
     #[cfg(target_vendor = "apple")]
-    pub fn buffer_from(&self, handle: u32) -> Option<objc2::rc::Retained<NSMutableData>> {
+    pub fn buffer_from(&self, handle: u64) -> Option<objc2::rc::Retained<NSMutableData>> {
         let reader = self.0 .0.read();
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
     }
 
     #[cfg(target_vendor = "apple")]
-    pub fn buffer_from_ptr(&self, handle: u32) -> Option<*mut c_void> {
+    pub fn buffer_from_ptr(&self, handle: u64) -> Option<*mut c_void> {
         let reader = self.0 .0.read();
         reader
             .style_arena
@@ -1142,18 +1142,18 @@ impl Mason {
     }
 
     #[cfg(target_os = "android")]
-    pub fn buffer_from(&self, handle: u32) -> Option<jni::sys::jint> {
+    pub fn buffer_from(&self, handle: u64) -> Option<jni::sys::jint> {
         let reader = self.0 .0.read();
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
     }
 
     #[cfg(target_os = "android")]
-    pub fn style_handle(&self, node: Id) -> Option<u32> {
+    pub fn style_handle(&self, node: Id) -> Option<u64> {
         self.0.nodes().get(node).map(|n| n.style().handle.raw())
     }
 
     #[cfg(target_os = "android")]
-    pub fn set_handle_buffer(&mut self, handle: u32, buffer_id: i32) {
+    pub fn set_handle_buffer(&mut self, handle: u64, buffer_id: i32) {
         let mut reader = self.0 .0.write();
         reader
             .style_arena
