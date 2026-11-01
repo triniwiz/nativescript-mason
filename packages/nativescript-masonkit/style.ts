@@ -1541,16 +1541,25 @@ const f32View = new Float32Array(f32Buffer.buffer);
 const i32Buffer = new Uint8Array(Int32Array.BYTES_PER_ELEMENT * 4);
 const i32View = new Int32Array(i32Buffer.buffer);
 
+const colorArgbs = new Map<string, number | null>();
+
 function normalizeColorValue(value: number | string | { argb?: number }): number | null {
   switch (typeof value) {
     case 'number':
       return value;
-    case 'string':
-      try {
-        return new Color(value).argb;
-      } catch (_) {
-        return null;
+    case 'string': {
+      let argb = colorArgbs.get(value);
+      if (argb === undefined) {
+        try {
+          argb = new Color(value).argb;
+        } catch (_) {
+          argb = null;
+        }
+        if (colorArgbs.size >= 512) colorArgbs.clear();
+        colorArgbs.set(value, argb);
       }
+      return argb;
+    }
     case 'object':
       if (value instanceof Color) {
         return value.argb;
@@ -2603,7 +2612,7 @@ export class Style {
   }
 
   emBasisFor(value: unknown): number | undefined {
-    return typeof value === 'string' && EM_UNIT.test(value) ? this.emBasis() : undefined;
+    return typeof value === 'string' && (value.indexOf('m') !== -1 || value.indexOf('M') !== -1) && EM_UNIT.test(value) ? this.emBasis() : undefined;
   }
 
   /** The nearest existing Mason ancestor style's font size (its own for a pseudo-class style). */
@@ -2757,6 +2766,15 @@ export class Style {
         // exactly what the buffer's percent type already means, so `1.5em`
         // becomes `150%` and inheritance resolves it natively. `rem` is absolute
         // against the root font size.
+        const plain = plainLength(value);
+        if (plain) {
+          this.prepareMut();
+          setFloat32(this.style_view, StyleKeys.FONT_SIZE, plain.percent ? plain.value * 100 : plain.value);
+          setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
+          setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, plain.percent ? 1 : 0);
+          this.commitState(StateKeys.FONT_SIZE);
+          break;
+        }
         const t = value.trim().toLowerCase();
         const n = finite(parseFloat(t) || 0);
         this.prepareMut();
@@ -8243,6 +8261,11 @@ export class Style {
     Object.defineProperty(proto, name, {
       ...descriptor,
       set(this: object, value: unknown) {
+        if (typeof value === 'number') {
+          if (viewportStyles.size !== 0) viewportWrites.get(this)?.delete(name);
+          set.call(this, value);
+          return;
+        }
         beginStyleWrite(this, name, value);
         try {
           set.call(this, value);

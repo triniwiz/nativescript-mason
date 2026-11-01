@@ -280,6 +280,16 @@ describe('CSS relative units', () => {
     expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(1);
   });
 
+  it('font-size as a percentage or a bare number', () => {
+    const t = styleUnderTest();
+    t.style.fontSize = '50%' as never;
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(50);
+    expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(1);
+    t.style.fontSize = '18' as never;
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(18);
+    expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(0);
+  });
+
   it('font-size in rem is absolute against the root font size', () => {
     const t = styleUnderTest();
     t.style.fontSize = '1.5rem' as never;
@@ -308,6 +318,15 @@ describe('CSS relative units', () => {
     const t = styleUnderTest();
     t.style.width = '50vw' as never;
     t.style.width = '10px' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
+  });
+
+  it('forgets a viewport unit once the property is written as a number', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = 10 as never;
     setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
     refreshViewportUnits();
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
@@ -494,6 +513,15 @@ describe('resetting a color', () => {
     expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(1);
     (t.style as any).color = undefined;
     expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(0);
+  });
+
+  it('writes the same background-color string on every element', () => {
+    const a = styleUnderTest();
+    const b = styleUnderTest();
+    a.style.backgroundColor = '#3B5BDB';
+    b.style.backgroundColor = '#3B5BDB';
+    expect(a.getInt32(K.BACKGROUND_COLOR) >>> 0).toBe(0xff3b5bdb);
+    expect(b.getInt32(K.BACKGROUND_COLOR) >>> 0).toBe(0xff3b5bdb);
   });
 
   it('unsets background-color, which goes transparent', () => {
