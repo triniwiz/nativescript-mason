@@ -3944,6 +3944,9 @@ installLogicalBoxes(ViewBase.prototype);
 // Mason paints padding, borders and backgrounds itself, so core can skip deriving them (Windows still paints through core).
 if (__ANDROID__ || __APPLE__) (ViewBase.prototype as any)._appliesOwnBoxStyle = true;
 
+// Native setters only write the style buffer, so css values can reach it as they apply instead of on a replay after load.
+if (__ANDROID__ || __APPLE__) (ViewBase.prototype as any)._eagerNativeSetters = true;
+
 export class TextBase extends ViewBase {
   textContent: string;
 
