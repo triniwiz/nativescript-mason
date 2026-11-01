@@ -42,8 +42,9 @@ public class NSCMason: NSObject {
     // Set the device scale up front so CSS strings parsed natively in Rust
     // (e.g. grid-template `px` tracks) resolve to points, not raw device pixels.
     mason_set_device_scale(nativePtr, NSCMason.scale)
-    if let ptr = mason_get_buffer(nativePtr, 0) {
-      let buffer = Unmanaged<NSMutableData>.fromOpaque(ptr).takeRetainedValue()
+    super.init()
+    if let ptr = mason_default_style_ptr(nativePtr) {
+      let buffer = MasonSlotData(ptr, StyleKeys.STYLE_BUFFER_SIZE, owner: self)
       let instance = NSCFontFaceSet.instance()
       instance.load("16px serif", text: nil) { fonts, error in
         if(error != nil){
@@ -71,6 +72,36 @@ public class NSCMason: NSObject {
   
   deinit {
     mason_release(nativePtr)
+  }
+
+  /// Base pointers of the arena's chunks, fetched once each; they never move while this Mason is alive.
+  private var styleChunks: [UnsafeMutableRawPointer] = []
+  private var styleChunkData: [MasonSlotData] = []
+
+  private func styleChunkBase(_ chunk: Int) -> UnsafeMutableRawPointer? {
+    while styleChunks.count <= chunk {
+      guard let base = mason_style_chunk(nativePtr, Int32(styleChunks.count), nil) else { return nil }
+      styleChunks.append(UnsafeMutableRawPointer(base))
+    }
+    return styleChunks[chunk]
+  }
+
+  /// The bytes of style slot `slot`.
+  internal func styleSlotBytes(_ slot: Int32) -> UnsafeMutableRawPointer {
+    guard let base = styleChunkBase(Int(slot) / MasonStyleSlots.perChunk) else {
+      fatalError("style slot \(slot) has no chunk")
+    }
+    return base + (Int(slot) % MasonStyleSlots.perChunk) * StyleKeys.STYLE_BUFFER_SIZE
+  }
+
+  /// One arena chunk (64 style slots) as data JS can wrap in an ArrayBuffer without copying.
+  @objc public func styleChunk(_ chunk: Int32) -> MasonSlotData? {
+    guard chunk >= 0, styleChunkBase(Int(chunk)) != nil else { return nil }
+    while styleChunkData.count <= Int(chunk) {
+      let base = styleChunks[styleChunkData.count]
+      styleChunkData.append(MasonSlotData(base, MasonStyleSlots.perChunk * StyleKeys.STYLE_BUFFER_SIZE, owner: self))
+    }
+    return styleChunkData[Int(chunk)]
   }
   
   public func setDeviceScale(_ value: Float) {

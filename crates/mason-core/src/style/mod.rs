@@ -18,10 +18,6 @@ use crate::utils::{
 #[cfg(target_os = "android")]
 use crate::JVM;
 use bitflags::bitflags;
-#[cfg(target_vendor = "apple")]
-use objc2::__framework_prelude::Retained;
-#[cfg(target_vendor = "apple")]
-use objc2_foundation::NSMutableData;
 
 use crate::style::arena::{StyleArena, StyleHandle, STYLE_BUFFER_SIZE};
 use std::fmt::{Debug, Formatter};
@@ -2871,22 +2867,13 @@ impl Style {
         );
     }
 
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn buffer(&self) -> Retained<NSMutableData> {
-        let area = unsafe { &*self.arena };
-        area.buffer(self.handle)
-    }
-
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn buffer(&self) -> jni::sys::jint {
-        let area = unsafe { &*self.arena };
-        area.buffer(self.handle)
-    }
-
     pub fn raw(&self) -> (*const u8, usize) {
         (self.raw, STYLE_BUFFER_SIZE)
+    }
+
+    /// The index of the arena slot holding this style's bytes.
+    pub fn slot(&self) -> usize {
+        self.handle.index()
     }
 
     pub fn raw_mut(&mut self) -> (*mut u8, usize) {

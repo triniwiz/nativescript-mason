@@ -957,16 +957,12 @@ open class Node internal constructor(
         return it
       }
 
-      val id = NativeHelpers.nativeGetPseudoStyleBuffer(mason.nativePtr, nativePtr, flags)
-      if (id < 0) {
+      val slot = Style.nativePseudoStyleSlot(mason.nativePtr, nativePtr, flags)
+      val buffer = if (slot >= 0) mason.styleSlot(slot) else null
+      if (buffer == null) {
         val empty = ByteBuffer.allocateDirect(0)
         empty.order(ByteOrder.nativeOrder())
         return empty
-      }
-
-      val buffer = ObjectManager.shared[id] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
       }
 
       (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
@@ -986,16 +982,12 @@ open class Node internal constructor(
         return it
       }
 
-      val id = NativeHelpers.nativePreparePseudoMut(mason.nativePtr, nativePtr, flags)
-      if (id < 0) {
+      val slot = Style.nativePreparePseudoSlot(mason.nativePtr, nativePtr, flags)
+      val buffer = if (slot >= 0) mason.styleSlot(slot) else null
+      if (buffer == null) {
         val empty = ByteBuffer.allocateDirect(0)
         empty.order(ByteOrder.nativeOrder())
         return empty
-      }
-
-      val buffer = ObjectManager.shared[id] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
       }
       (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
       registerPseudoBufferOwner(buffer, this@Node, flags)

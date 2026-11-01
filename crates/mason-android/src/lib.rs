@@ -1,7 +1,6 @@
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject, JString};
-use jni::signature::ReturnType;
 use jni::sys::{jfloat, jfloatArray, jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
@@ -121,13 +120,12 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeInitWithCapacity",
                 "nativeDestroy",
                 "nativeSetDeviceScale",
-                "nativeGetBuffer",
             ];
 
             let mason_signatures = if ret >= ANDROID_O {
-                ["()J", "(J)V", "(I)J", "(J)V", "(JF)V", "(JI)I"]
+                ["()J", "(J)V", "(I)J", "(J)V", "(JF)V"]
             } else {
-                ["!()J", "!(J)V", "!(I)J", "!(J)V", "!(JF)V", "!(JI)I"]
+                ["!()J", "!(J)V", "!(I)J", "!(J)V", "!(JF)V"]
             };
 
             let mason_methods = if ret >= ANDROID_O {
@@ -137,7 +135,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     MasonNativeInitWithCapacity as *mut c_void,
                     MasonNativeDestroy as *mut c_void,
                     MasonNativeSetDeviceScale as *mut c_void,
-                    MasonNativeGetBuffer as *mut c_void,
                 ]
             } else {
                 [
@@ -146,7 +143,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     MasonNativeInitWithCapacityNormal as *mut c_void,
                     MasonNativeDestroy as *mut c_void,
                     MasonNativeSetDeviceScaleNormal as *mut c_void,
-                    MasonNativeGetBuffer as *mut c_void,
                 ]
             };
 
@@ -206,8 +202,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeNewListItem",
                 "nativeNodeNewListItemWithContext",
                 "nativeGetStateBuffer",
-                "nativeGetPseudoStyleBuffer",
-                "nativePreparePseudoMut",
                 "nativeNodeSetSegmentsPacked",
                 "nativeNodeComputeWithSizeAndLayoutInto",
             ];
@@ -256,8 +250,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(J)J",
                     "(JI)J",
                     "(JJ)I",
-                    "(JJI)I",
-                    "(JJI)I",
                     "(JJ[F[J[I)V",
                     "(JJFF[F)I",
                 ]
@@ -305,8 +297,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(J)J",
                     "!(JI)J",
                     "!(JJ)I",
-                    "!(JJI)I",
-                    "!(JJI)I",
                     "!(JJ[F[J[I)V",
                     "!(JJFF[F)I",
                 ]
@@ -359,8 +349,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewListItemNodeNormal as *mut c_void,
                     node::NodeNativeNewListItemNodeWithContext as *mut c_void,
                     node::NodeNativeGetStateBuffer as *mut c_void,
-                    node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
-                    node::NodeNativePreparePseudoMut as *mut c_void,
                     node::NodeNativeSetSegmentsPacked as *mut c_void,
                     node::nativeComputeWithSizeAndLayoutInto as *mut c_void,
                 ]
@@ -408,8 +396,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewListItemNodeNormal as *mut c_void,
                     node::NodeNativeNewListItemNodeWithContextNormal as *mut c_void,
                     node::NodeNativeGetStateBuffer as *mut c_void,
-                    node::NodeNativeGetPseudoStyleBuffer as *mut c_void,
-                    node::NodeNativePreparePseudoMut as *mut c_void,
                     node::NodeNativeSetSegmentsPacked as *mut c_void,
                     node::nativeComputeWithSizeAndLayoutInto as *mut c_void,
                 ]
@@ -433,7 +419,6 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
             let style_class = env.find_class(STYLE_CLASS).unwrap();
 
             let style_method_names = [
-                "nativeGetStyleBuffer",
                 "nativeGetGridArea",
                 "nativeGetGridTemplateAreas",
                 "nativeGetGridAutoRows",
@@ -446,12 +431,15 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeGetGridRowEnd",
                 "nativeGetGridTemplateRows",
                 "nativeGetGridTemplateColumns",
-                "nativePrepareMut",
+                "nativePrepareStyleSlot",
+                "nativeStyleChunk",
+                "nativeStyleSlot",
+                "nativePseudoStyleSlot",
+                "nativePreparePseudoSlot",
             ];
 
             let style_signatures = if ret >= ANDROID_O {
                 [
-                    "(JJ)I",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
@@ -465,10 +453,13 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)I",
+                    "(JI)Ljava/nio/ByteBuffer;",
+                    "(JJ)I",
+                    "(JJI)I",
+                    "(JJI)I",
                 ]
             } else {
                 [
-                    "!(JJ)I",
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
@@ -482,12 +473,15 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
                     "(JJ)I",
+                    "(JI)Ljava/nio/ByteBuffer;",
+                    "(JJ)I",
+                    "(JJI)I",
+                    "(JJI)I",
                 ]
             };
 
             let style_methods = if ret >= ANDROID_O {
                 [
-                    style::nativeGetStyleBuffer as *mut c_void,
                     style::StyleNativeGetGridArea as *mut c_void,
                     style::StyleNativeGetGridTemplateAreas as *mut c_void,
                     style::StyleNativeGetGridAutoRows as *mut c_void,
@@ -500,11 +494,14 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     style::StyleNativeGetGridRowEnd as *mut c_void,
                     style::StyleNativeGetGridTemplateRows as *mut c_void,
                     style::StyleNativeGetGridTemplateColumns as *mut c_void,
-                    style::nativePrepareMut as *mut c_void,
+                    style::nativePrepareStyleSlot as *mut c_void,
+                    style::nativeStyleChunk as *mut c_void,
+                    style::nativeStyleSlot as *mut c_void,
+                    style::nativePseudoStyleSlot as *mut c_void,
+                    style::nativePreparePseudoSlot as *mut c_void,
                 ]
             } else {
                 [
-                    style::nativeGetStyleBuffer as *mut c_void,
                     style::StyleNativeGetGridArea as *mut c_void,
                     style::StyleNativeGetGridTemplateAreas as *mut c_void,
                     style::StyleNativeGetGridAutoRows as *mut c_void,
@@ -517,7 +514,11 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     style::StyleNativeGetGridRowEnd as *mut c_void,
                     style::StyleNativeGetGridTemplateRows as *mut c_void,
                     style::StyleNativeGetGridTemplateColumns as *mut c_void,
-                    style::nativePrepareMut as *mut c_void,
+                    style::nativePrepareStyleSlotNormal as *mut c_void,
+                    style::nativeStyleChunk as *mut c_void,
+                    style::nativeStyleSlotNormal as *mut c_void,
+                    style::nativePseudoStyleSlotNormal as *mut c_void,
+                    style::nativePreparePseudoSlotNormal as *mut c_void,
                 ]
             };
 
@@ -641,66 +642,6 @@ pub extern "system" fn MasonNativeInitWithCapacityNormal(
     capacity: jint,
 ) -> jlong {
     Box::into_raw(Box::new(Mason::with_capacity(capacity as usize))) as jlong
-}
-
-#[no_mangle]
-pub extern "system" fn MasonNativeGetBuffer(
-    mut env: JNIEnv,
-    _: JClass,
-    mason: jlong,
-    handle: jint,
-) -> jint {
-    if mason == 0 {
-        return -1;
-    }
-
-    match handle.try_into() {
-        Ok(handle) => {
-            unsafe {
-                let mut mason = &mut *(mason as *mut Mason);
-                let buffer = mason.buffer_from(handle).unwrap_or(-1);
-
-                // try to create the buffer if it's valid
-                if buffer == -1 {
-                    if let Some((ptr, len)) = mason.buffer_raw_mut_from(handle) {
-                        return match env.new_direct_byte_buffer(ptr as _, len) {
-                            Ok(buffer) => match mason_core::JVM_CACHE.get() {
-                                Some(cache) => {
-                                    let manager = unsafe {
-                                        JClass::from_raw(cache.object_manager_clazz.as_raw())
-                                    };
-                                    let result = unsafe {
-                                        env.call_static_method_unchecked(
-                                            manager,
-                                            cache.object_manager_add_id,
-                                            ReturnType::Primitive(jni::signature::Primitive::Int),
-                                            &[jni::sys::jvalue {
-                                                l: buffer.into_raw(),
-                                            }],
-                                        )
-                                    };
-
-                                    return match result {
-                                        Ok(result) => {
-                                            let ret = result.i().unwrap_or(-1);
-                                            mason.set_handle_buffer(handle, ret);
-                                            ret
-                                        }
-                                        Err(_) => -1,
-                                    };
-                                }
-                                None => -1,
-                            },
-                            Err(_) => -1,
-                        };
-                    }
-                }
-
-                buffer
-            }
-        }
-        Err(_) => return -1,
-    }
 }
 
 fn native_clear(taffy: jlong) {

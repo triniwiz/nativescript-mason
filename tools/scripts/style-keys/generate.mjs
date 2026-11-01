@@ -167,7 +167,7 @@ const RENDER = {
   'swift:offsets': (s) => [`public static let STYLE_BUFFER_SIZE = ${s.bufferSize}`, '', ...lines(s.style, '//', (f) => `public static let ${f.name} = ${f.offset}`)],
   'swift:state': (s) => lines(s.state, '//', (b) => (stateName(b, 'swift') ? `public static let ${stateName(b, 'swift')} = StateKeys(${b.bit})` : null)),
 
-  'ts:offsets': (s) => lines(s.style, '//', (f) => `${f.name} = ${f.offset},`),
+  'ts:offsets': (s) => [`STYLE_BUFFER_SIZE = ${s.bufferSize},`, '', ...lines(s.style, '//', (f) => `${f.name} = ${f.offset},`)],
   'ts:state': (s) => lines(s.state, '//', (b) => (stateName(b, 'ts') ? `static readonly ${stateName(b, 'ts')} = StateKeys.flag(${b.bit});` : null)),
 };
 

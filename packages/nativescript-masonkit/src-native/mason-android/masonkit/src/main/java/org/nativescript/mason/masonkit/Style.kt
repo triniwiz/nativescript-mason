@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.TextPaint
 import android.view.View
+import dalvik.annotation.optimization.CriticalNative
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontStyle
@@ -1159,22 +1160,30 @@ class Style internal constructor(@Transient internal var node: Node) {
       return
     }
 
-    // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
-    // Skip the JNI call; writes go to the existing buffer and will be flushed
-    // via updateNativeStyle after compute finishes.
+    // Rust holds its lock during compute: write the current buffer and let updateNativeStyle sync it after.
     if (node.mason.inCompute) {
       isValueInitialized = true
       mWritableValue = values
       return
     }
-    // Copying off a shared buffer can restore that buffer in place for its other users.
+    // Copying off a shared default restores that default in place for its other users.
     sharedBufferEpoch++
-    val buffer =
-      ObjectManager.shared[nativePrepareMut(node.mason.nativePtr, node.nativePtr)] as ByteBuffer
-    buffer.order(ByteOrder.nativeOrder())
-
+    val slot = nativePrepareStyleSlot(node.mason.nativePtr, node.nativePtr)
     isValueInitialized = true
-    mWritableValue = buffer
+    this.slot = slot
+    mWritableValue = node.mason.styleSlot(slot) ?: error("Could not allocate style buffer")
+  }
+
+  /** The style slot this style owns, or -1 while it still shares a default. */
+  internal var slot = -1
+    private set
+
+  /** Gives this style its own slot if it shares one; returns the slot index, or -1. */
+  internal fun prepareSlot(): Int {
+    if (node.isPlaceholder || node.mason.inCompute) return -1
+    prepareMut()
+    if (slot < 0) slot = nativePrepareStyleSlot(node.mason.nativePtr, node.nativePtr)
+    return slot
   }
 
   val writableValue: ByteBuffer
@@ -1195,14 +1204,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (node.mason.inCompute) {
         return mPlaceholder
       }
-      val buffer =
-        ObjectManager.shared[nativeGetStyleBuffer(
-          node.mason.nativePtr,
-          node.nativePtr
-        )] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
-      }
+      val buffer = node.mason.styleSlot(nativeStyleSlot(node.mason.nativePtr, node.nativePtr))
+        ?: error("Could not read style buffer")
       mValues = buffer
       return buffer
     }
@@ -5838,19 +5841,41 @@ class Style internal constructor(@Transient internal var node: Node) {
 
     }
 
-    @FastNative
+    @CriticalNative
     @JvmStatic
-    external fun nativeGetStyleBuffer(
+    external fun nativeStyleSlot(
       mason: Long,
       node: Long,
     ): Int
 
-    @FastNative
+    @CriticalNative
     @JvmStatic
-    external fun nativePrepareMut(
+    external fun nativePseudoStyleSlot(
+      mason: Long,
+      node: Long,
+      flags: Int,
+    ): Int
+
+    @CriticalNative
+    @JvmStatic
+    external fun nativePreparePseudoSlot(
+      mason: Long,
+      node: Long,
+      flags: Int,
+    ): Int
+
+    @CriticalNative
+    @JvmStatic
+    external fun nativePrepareStyleSlot(
       mason: Long,
       node: Long,
     ): Int
+
+    @JvmStatic
+    external fun nativeStyleChunk(
+      mason: Long,
+      chunk: Int,
+    ): ByteBuffer?
 
 
     @JvmStatic

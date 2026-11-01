@@ -22,6 +22,8 @@ const layout: typeof coreLayout = __WINDOWS__ ? { ...coreLayout, getDisplayDensi
 
 enum StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+  STYLE_BUFFER_SIZE = 744,
+
   DISPLAY = 0,
   POSITION = 1,
   DIRECTION = 2,
@@ -422,7 +424,7 @@ function finite(n: number): number {
 
 const EM_UNIT = /em/i;
 
-// Parsed plain lengths: CSS px (the density can change) or a 0-1 fraction for %.
+// Plain lengths parsed once: px, dip and bare numbers in CSS px (the density can change), % as a 0-1 fraction.
 const PLAIN_LENGTH = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))(px|dip|%)?\s*$/i;
 type PlainLength = { percent: boolean; value: number };
 const plainLengths = new Map<string, PlainLength | null>();
@@ -1724,6 +1726,46 @@ function appleHasWritableStyleValues(nativeView: any): boolean {
   return !!appleWritableStyleValues;
 }
 
+/** Style slots per arena chunk; matches Rust's SLOTS_PER_CHUNK. */
+const STYLE_SLOTS_PER_CHUNK = 64;
+/** ArrayBuffers over the arena chunks, fetched once each; a style's DataView covers its own slot. */
+const styleChunks: ArrayBuffer[] = [];
+let styleSlots: boolean | undefined;
+let androidMason: any;
+
+/** The view's own style slot index (taking one if it shares a default), or -1. */
+function styleSlot(nativeView: any): number {
+  if (__ANDROID__) {
+    if (styleSlots === undefined) {
+      androidMason = org.nativescript.mason.masonkit.Mason.getShared();
+      styleSlots = typeof androidMason.prepareStyleSlot === 'function';
+    }
+    return styleSlots && nativeView instanceof android.view.View ? androidMason.prepareStyleSlot(nativeView) : -1;
+  }
+  if (styleSlots === undefined && nativeView) {
+    styleSlots = typeof nativeView.mason_prepareStyleSlot === 'function';
+  }
+  return styleSlots ? nativeView.mason_prepareStyleSlot() : -1;
+}
+
+/** The ArrayBuffer over arena chunk `chunk`, or undefined past the last chunk. */
+function styleChunk(chunk: number): ArrayBuffer | undefined {
+  let buffer = styleChunks[chunk];
+  if (buffer === undefined) {
+    if (__ANDROID__) {
+      const data = androidMason.styleChunk(chunk);
+      if (!data) return undefined;
+      buffer = (<any>ArrayBuffer).from(data);
+    } else {
+      const data = (NSCMason.shared as any).styleChunk(chunk);
+      if (!data) return undefined;
+      buffer = interop.bufferFromData(data);
+    }
+    styleChunks[chunk] = buffer;
+  }
+  return buffer;
+}
+
 function windowsStyleValues(nativeView: any, foreign: boolean) {
   if (foreign && nativeView) return masonEngine().ForeignStyleValues(nativeView);
   if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
@@ -1899,9 +1941,9 @@ export class Style {
   }
 
   // The byte views are rarely read, so they are made on demand.
-  private setBuffer(buffer: ArrayBuffer) {
+  private setBuffer(buffer: ArrayBuffer, offset?: number, length?: number) {
     this._bufferRequested = true;
-    this._sv = new DataView(buffer);
+    this._sv = new DataView(buffer, offset, length);
     this._i8 = undefined;
     this._u8 = undefined;
   }
@@ -1911,6 +1953,14 @@ export class Style {
   // the node's own copy: one native fetch instead of a shared read plus a copy.
   private loadBuffer() {
     this._bufferRequested = true;
+    if (__ANDROID__ || __APPLE__) {
+      const slot = styleSlot(this.nativeView);
+      const chunk = slot >= 0 ? styleChunk((slot / STYLE_SLOTS_PER_CHUNK) | 0) : undefined;
+      if (chunk) {
+        this.setBuffer(chunk, (slot % STYLE_SLOTS_PER_CHUNK) * StyleKeys.STYLE_BUFFER_SIZE, StyleKeys.STYLE_BUFFER_SIZE);
+        return;
+      }
+    }
     if (__ANDROID__) {
       this.setBuffer((<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView)));
     } else if (__APPLE__) {
@@ -6175,7 +6225,7 @@ export class Style {
     return true;
   }
 
-  /** One corner from CSS text of one or two plain tokens (`8px`, `50%`, `8px 4px`); false when it needs the full path. */
+  /** Writes one corner from plain CSS (`8px`, `50%`, `8px 4px`); false when the value needs the full parser. */
   _writeCornerCss(corner: number, css: string, scale = deviceScale()): boolean {
     if (!this.nativeView || this._pseudo || !this.style_view) return false;
     const t = fastRadiusTokens(css, scale);

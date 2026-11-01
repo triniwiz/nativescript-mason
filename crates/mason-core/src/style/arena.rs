@@ -3,8 +3,6 @@ use crate::style::{DisplayMode, StyleKeys};
 use crate::utils::{display_mode_to_enum, display_to_enum};
 use crate::Style;
 use crate::PREFLIGHT_ENABLED;
-#[cfg(target_vendor = "apple")]
-use objc2_foundation::NSMutableData;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::Ordering;
@@ -28,10 +26,8 @@ pub enum Handle {
     Button,
 }
 
-/// Packs a slot index (low 32 bits, below `MAX_SLOTS`) and a reuse generation (the next 8 bits).
-/// The generation rejects a handle from before a `release()` once its slot
-/// is reused — raw handles cross the FFI boundary as plain integers and can
-/// outlive the node that produced them.
+/// A slot index (low 32 bits, below `MAX_SLOTS`) and a reuse generation (the next 8 bits).
+/// The generation rejects a handle that outlived its slot's `release()`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StyleHandle(u64);
 impl StyleHandle {
@@ -57,10 +53,10 @@ impl StyleHandle {
     }
 }
 
-/// Slots an arena can hold: indices stay below 2^31, so platforms can pass them as a signed 32-bit int.
+/// The most slots an arena holds; indices below 2^31 fit a signed 32-bit int on every platform.
 pub const MAX_SLOTS: usize = 1 << 31;
 
-/// The index for a new slot appended after `len` slots; panics at `MAX_SLOTS` rather than wrapping.
+/// The index of a new slot after `len` existing ones; panics at `MAX_SLOTS` instead of wrapping.
 #[inline]
 fn next_slot_index(len: usize) -> u32 {
     assert!(len < MAX_SLOTS, "style arena is full ({MAX_SLOTS} slots)");
@@ -88,86 +84,55 @@ impl StyleHandle {
     }
 }
 
+/// Style slots per chunk. Chunks never move or free, so slot pointers stay valid.
+pub const SLOTS_PER_CHUNK: usize = 64;
+pub const CHUNK_BYTES: usize = SLOTS_PER_CHUNK * STYLE_BUFFER_SIZE;
+
+#[repr(C, align(16))]
+struct Chunk([u8; CHUNK_BYTES]);
+
+impl std::fmt::Debug for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Chunk({:p})", self.0.as_ptr())
+    }
+}
+
+impl Chunk {
+    fn new_zeroed() -> Box<Chunk> {
+        let layout = std::alloc::Layout::new::<Chunk>();
+        unsafe {
+            let ptr = std::alloc::alloc_zeroed(layout) as *mut Chunk;
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr)
+        }
+    }
+}
+
 #[derive(Debug)]
 struct StyleBuffer {
-    #[cfg(target_vendor = "apple")]
-    buffer: objc2::rc::Retained<NSMutableData>,
-    // The NSMutableData's bytes; its length never changes, so they never move.
-    #[cfg(target_vendor = "apple")]
     ptr: *mut u8,
-    #[cfg(target_os = "android")]
-    buffer: jni::sys::jint,
-    #[cfg(not(target_vendor = "apple"))]
-    data: Box<[u8; STYLE_BUFFER_SIZE]>,
     pub(crate) ref_count: u32,
     // Key this buffer was registered under in `hash_index`, if interned.
     interned_hash: Option<u64>,
 }
 
 impl StyleBuffer {
-    #[cfg(target_vendor = "apple")]
-    pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
-        let buffer = NSMutableData::with_bytes(data);
-        let ptr = unsafe { buffer.as_mut_bytes_unchecked() }.as_mut_ptr();
+    fn new(ptr: *mut u8) -> Self {
         StyleBuffer {
-            ref_count: 0,
-            buffer,
             ptr,
+            ref_count: 0,
             interned_hash: None,
         }
     }
 
-    #[cfg(target_vendor = "apple")]
     pub fn bytes(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.ptr, STYLE_BUFFER_SIZE) }
     }
 
-    #[cfg(not(target_vendor = "apple"))]
-    pub fn bytes(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-
-    #[cfg(target_vendor = "apple")]
     pub fn mut_bytes(&mut self) -> &mut [u8] {
         unsafe { std::slice::from_raw_parts_mut(self.ptr, STYLE_BUFFER_SIZE) }
-    }
-
-    #[cfg(not(target_vendor = "apple"))]
-    pub fn mut_bytes(&mut self) -> &mut [u8] {
-        self.data.as_mut_slice()
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
-        let data = Box::new(*data);
-        StyleBuffer {
-            data,
-            ref_count: 0,
-            buffer: -1,
-            interned_hash: None,
-        }
-    }
-
-    #[cfg(not(any(target_vendor = "apple", target_os = "android")))]
-    pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
-        let data = Box::new(*data);
-        StyleBuffer {
-            data,
-            ref_count: 0,
-            interned_hash: None,
-        }
-    }
-
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn buffer(&self) -> objc2::rc::Retained<NSMutableData> {
-        self.buffer.clone()
-    }
-
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn buffer(&self) -> jni::sys::jint {
-        self.buffer
     }
 }
 
@@ -176,6 +141,7 @@ const NUM_DEFAULTS: usize = 8;
 
 #[derive(Debug)]
 pub struct StyleArena {
+    chunks: Vec<Box<Chunk>>,
     buffers: Vec<StyleBuffer>,
     free_list: Vec<u32>,
     /// Reuse generation per slot, parallel to `buffers`; bumped in `release`.
@@ -195,26 +161,34 @@ impl Default for StyleArena {
 
 impl StyleArena {
     pub fn new(default_data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
-        let mut default_buffer = StyleBuffer::new(default_data);
+        let mut arena = Self {
+            chunks: Vec::new(),
+            buffers: Vec::with_capacity(NUM_DEFAULTS),
+            free_list: Vec::new(),
+            generations: Vec::with_capacity(NUM_DEFAULTS),
+            hash_index: std::collections::HashMap::new(),
+            default_snapshots: [[0u8; STYLE_BUFFER_SIZE]; NUM_DEFAULTS],
+        };
+        let default_buffer = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = default_buffer.mut_bytes();
+            let data = arena.buffers[default_buffer].mut_bytes();
             Style::init_default_data(data);
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        default_buffer.ref_count = 1;
+        arena.buffers[default_buffer].ref_count = 1;
 
-        let mut inline = StyleBuffer::new(default_data);
+        let inline = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = inline.mut_bytes();
+            let data = arena.buffers[inline].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(data, StyleKeys::DISPLAY_MODE, 1);
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        inline.ref_count = 1;
+        arena.buffers[inline].ref_count = 1;
 
-        let mut img = StyleBuffer::new(default_data);
+        let img = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = img.mut_bytes();
+            let data = arena.buffers[img].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(data, StyleKeys::ITEM_IS_REPLACED, 1);
             crate::style::utils::set_style_data_i8(
@@ -224,11 +198,11 @@ impl StyleArena {
             );
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        img.ref_count = 1;
+        arena.buffers[img].ref_count = 1;
 
-        let mut flex = StyleBuffer::new(default_data);
+        let flex = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = flex.mut_bytes();
+            let data = arena.buffers[flex].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(
                 data,
@@ -237,11 +211,11 @@ impl StyleArena {
             );
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        flex.ref_count = 1;
+        arena.buffers[flex].ref_count = 1;
 
-        let mut grid = StyleBuffer::new(default_data);
+        let grid = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = grid.mut_bytes();
+            let data = arena.buffers[grid].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(
                 data,
@@ -250,20 +224,20 @@ impl StyleArena {
             );
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        grid.ref_count = 1;
+        arena.buffers[grid].ref_count = 1;
 
-        let mut list = StyleBuffer::new(default_data);
+        let list = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = list.mut_bytes();
+            let data = arena.buffers[list].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(data, StyleKeys::ITEM_IS_LIST, 1);
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        list.ref_count = 1;
+        arena.buffers[list].ref_count = 1;
 
-        let mut list_item = StyleBuffer::new(default_data);
+        let list_item = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = list_item.mut_bytes();
+            let data = arena.buffers[list_item].mut_bytes();
             Style::init_default_data(data);
             crate::style::utils::set_style_data_i8(
                 data,
@@ -273,11 +247,11 @@ impl StyleArena {
             crate::style::utils::set_style_data_i8(data, StyleKeys::ITEM_IS_LIST_ITEM, 1);
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        list_item.ref_count = 1;
+        arena.buffers[list_item].ref_count = 1;
 
-        let mut button = StyleBuffer::new(default_data);
+        let button = arena_push_slot(&mut arena.chunks, &mut arena.buffers, &mut arena.generations, default_data.as_ptr()) as usize;
         {
-            let data = button.mut_bytes();
+            let data = arena.buffers[button].mut_bytes();
             Style::init_default_data(data);
             // CSS spec: button { display: inline-block; text-align: center; box-sizing: border-box }
             crate::style::utils::set_style_data_i8(data, StyleKeys::TEXT_ALIGN, 3);
@@ -289,35 +263,20 @@ impl StyleArena {
             );
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }
-        button.ref_count = 1;
+        arena.buffers[button].ref_count = 1;
 
         // Capture pristine snapshots of each default buffer before any JS writes
         let mut default_snapshots = [[0u8; STYLE_BUFFER_SIZE]; NUM_DEFAULTS];
-        default_snapshots[Handle::Default as usize].copy_from_slice(default_buffer.bytes());
-        default_snapshots[Handle::Inline as usize].copy_from_slice(inline.bytes());
-        default_snapshots[Handle::Img as usize].copy_from_slice(img.bytes());
-        default_snapshots[Handle::Flex as usize].copy_from_slice(flex.bytes());
-        default_snapshots[Handle::Grid as usize].copy_from_slice(grid.bytes());
-        default_snapshots[Handle::List as usize].copy_from_slice(list.bytes());
-        default_snapshots[Handle::ListItem as usize].copy_from_slice(list_item.bytes());
-        default_snapshots[Handle::Button as usize].copy_from_slice(button.bytes());
+        default_snapshots[Handle::Default as usize].copy_from_slice(arena.buffers[default_buffer].bytes());
+        default_snapshots[Handle::Inline as usize].copy_from_slice(arena.buffers[inline].bytes());
+        default_snapshots[Handle::Img as usize].copy_from_slice(arena.buffers[img].bytes());
+        default_snapshots[Handle::Flex as usize].copy_from_slice(arena.buffers[flex].bytes());
+        default_snapshots[Handle::Grid as usize].copy_from_slice(arena.buffers[grid].bytes());
+        default_snapshots[Handle::List as usize].copy_from_slice(arena.buffers[list].bytes());
+        default_snapshots[Handle::ListItem as usize].copy_from_slice(arena.buffers[list_item].bytes());
+        default_snapshots[Handle::Button as usize].copy_from_slice(arena.buffers[button].bytes());
 
-        let mut arena = Self {
-            buffers: vec![
-                default_buffer,
-                inline,
-                img,
-                flex,
-                grid,
-                list,
-                list_item,
-                button,
-            ],
-            free_list: Vec::new(),
-            generations: vec![0u8; NUM_DEFAULTS],
-            hash_index: std::collections::HashMap::new(),
-            default_snapshots,
-        };
+        arena.default_snapshots = default_snapshots;
 
         if PREFLIGHT_ENABLED.load(Ordering::Relaxed) {
             arena.reset_defaults(true);
@@ -330,6 +289,7 @@ impl StyleArena {
     /// buffers to avoid `Vec` reallocation churn during bulk node creation.
     pub fn with_capacity(default_data: &[u8; STYLE_BUFFER_SIZE], capacity: usize) -> Self {
         let mut arena = Self::new(default_data);
+        arena.chunks.reserve(capacity.div_ceil(SLOTS_PER_CHUNK));
         arena.buffers.reserve(capacity);
         arena.generations.reserve(capacity);
         arena.free_list.reserve(capacity);
@@ -629,53 +589,39 @@ impl StyleArena {
     }
 }
 
-#[cfg(target_vendor = "apple")]
+/// Appends a slot holding a copy of `src`'s STYLE_BUFFER_SIZE bytes; returns its index.
+fn arena_push_slot(chunks: &mut Vec<Box<Chunk>>, buffers: &mut Vec<StyleBuffer>, generations: &mut Vec<u8>, src: *const u8) -> u32 {
+    let idx = next_slot_index(buffers.len());
+    let (chunk, slot) = (idx as usize / SLOTS_PER_CHUNK, idx as usize % SLOTS_PER_CHUNK);
+    if chunk == chunks.len() {
+        chunks.push(Chunk::new_zeroed());
+    }
+    let ptr = unsafe { chunks[chunk].0.as_mut_ptr().add(slot * STYLE_BUFFER_SIZE) };
+    unsafe { std::ptr::copy_nonoverlapping(src, ptr, STYLE_BUFFER_SIZE) };
+    buffers.push(StyleBuffer::new(ptr));
+    generations.push(0);
+    idx
+}
+
 impl StyleArena {
-    #[track_caller]
-    pub fn buffer(&self, handle: StyleHandle) -> objc2::rc::Retained<NSMutableData> {
-        debug_assert!(
-            self.is_current(handle),
-            "stale StyleHandle passed to buffer"
-        );
-        self.buffers[handle.index()].buffer()
-    }
-
-    /// FFI entry point: a stale handle returns `None` instead of aliasing
-    /// the slot's new occupant (Swift may hold `handle` past a `release()`).
-    #[track_caller]
-    pub fn buffer_opt(&self, handle: StyleHandle) -> Option<objc2::rc::Retained<NSMutableData>> {
-        if !self.is_current(handle) {
-            return None;
-        }
-        self.buffers.get(handle.index()).map(|b| b.buffer())
-    }
-
     /// Allocate a new buffer with the given data
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
         self.alloc_from(data.as_ptr())
     }
 
-    /// Allocate a new buffer copied from `src`, which must be readable for STYLE_BUFFER_SIZE bytes
-    /// and not be a free slot.
+    /// Allocates a slot holding a copy of `src`'s STYLE_BUFFER_SIZE bytes; `src` must not be a free slot.
     fn alloc_from(&mut self, src: *const u8) -> StyleHandle {
         let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
-            buf.ref_count = 1;
-            buf.interned_hash = None;
             unsafe { std::ptr::copy_nonoverlapping(src, buf.ptr, STYLE_BUFFER_SIZE) };
-            set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
-            let idx = next_slot_index(self.buffers.len());
-            let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
-            let mut buffer = StyleBuffer::new(data);
-            buffer.ref_count = 1;
-            set_style_data_u32(buffer.mut_bytes(), StyleKeys::REF_COUNT, 1);
-            self.buffers.push(buffer);
-            self.generations.push(0);
-            (idx, 0)
+            (arena_push_slot(&mut self.chunks, &mut self.buffers, &mut self.generations, src), 0)
         };
-
+        let buf = &mut self.buffers[idx as usize];
+        buf.ref_count = 1;
+        buf.interned_hash = None;
+        set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
         StyleHandle::pack(idx, generation)
     }
 
@@ -714,8 +660,7 @@ impl StyleArena {
         let idx = handle.index();
 
         if self.buffers[idx].ref_count == 1 {
-            let ptr = self.buffers[idx].mut_bytes().as_mut_ptr();
-            return (handle, ptr);
+            return (handle, self.buffers[idx].ptr);
         }
 
         // COW: copy the current bytes (may include JS writes) straight into the new buffer.
@@ -734,8 +679,7 @@ impl StyleArena {
             self.restore_default(idx);
         }
 
-        let ptr = self.buffers[new_handle.index()].mut_bytes().as_mut_ptr();
-        (new_handle, ptr)
+        (new_handle, self.buffers[new_handle.index()].ptr)
     }
 
     /// Get read-only pointer to buffer data
@@ -744,15 +688,15 @@ impl StyleArena {
             self.is_current(handle),
             "stale StyleHandle passed to get_ptr"
         );
-        self.buffers[handle.index()].bytes().as_ptr()
+        self.buffers[handle.index()].ptr
     }
 
-    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
+    /// FFI entry point: a stale handle returns `None`.
     pub fn get_ptr_opt(&self, handle: StyleHandle) -> Option<*const u8> {
         if !self.is_current(handle) {
             return None;
         }
-        self.buffers.get(handle.index()).map(|b| b.bytes().as_ptr())
+        self.buffers.get(handle.index()).map(|b| b.ptr as *const u8)
     }
 
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
@@ -761,17 +705,15 @@ impl StyleArena {
             self.is_current(handle),
             "stale StyleHandle passed to get_ptr_mut"
         );
-        self.buffers[handle.index()].mut_bytes().as_mut_ptr()
+        self.buffers[handle.index()].ptr
     }
 
-    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
+    /// FFI entry point: a stale handle returns `None`.
     pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
         if !self.is_current(handle) {
             return None;
         }
-        self.buffers
-            .get_mut(handle.index())
-            .map(|b| b.mut_bytes().as_mut_ptr())
+        self.buffers.get(handle.index()).map(|b| b.ptr)
     }
 
     /// Get read-only reference to buffer data
@@ -779,184 +721,14 @@ impl StyleArena {
         debug_assert!(self.is_current(handle), "stale StyleHandle passed to get");
         <&[u8; STYLE_BUFFER_SIZE]>::try_from(self.buffers[handle.index()].bytes()).unwrap()
     }
-}
 
-#[cfg(not(target_vendor = "apple"))]
-impl StyleArena {
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn buffer(&self, handle: StyleHandle) -> jni::sys::jint {
-        debug_assert!(
-            self.is_current(handle),
-            "stale StyleHandle passed to buffer"
-        );
-        self.buffers[handle.index()].buffer()
+    /// The bytes of chunk `chunk`, or None past the last chunk.
+    pub fn chunk_ptr(&mut self, chunk: usize) -> Option<*mut u8> {
+        self.chunks.get_mut(chunk).map(|c| c.0.as_mut_ptr())
     }
 
-    /// FFI entry point: a stale handle returns `None` instead of aliasing
-    /// the slot's new occupant (Kotlin may hold `handle` past a `release()`).
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn buffer_opt(&self, handle: StyleHandle) -> Option<jni::sys::jint> {
-        if !self.is_current(handle) {
-            return None;
-        }
-        self.buffers.get(handle.index()).and_then(|b| {
-            let id = b.buffer();
-            if id >= 0 {
-                Some(id)
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Allocate a new buffer with the given data
-    pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
-        self.alloc_from(data.as_ptr())
-    }
-
-    /// Allocate a new buffer copied from `src`, which must be readable for STYLE_BUFFER_SIZE bytes
-    /// and not be a free slot.
-    fn alloc_from(&mut self, src: *const u8) -> StyleHandle {
-        let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
-            let buf = &mut self.buffers[free_idx as usize];
-            unsafe { std::ptr::copy_nonoverlapping(src, buf.data.as_mut_ptr(), STYLE_BUFFER_SIZE) };
-            buf.ref_count = 1;
-            buf.interned_hash = None;
-            set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
-            (free_idx, self.generations[free_idx as usize])
-        } else {
-            let idx = next_slot_index(self.buffers.len());
-            let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
-            let mut buffer = StyleBuffer::new(data);
-            buffer.ref_count = 1;
-            set_style_data_u32(buffer.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
-            self.buffers.push(buffer);
-            self.generations.push(0);
-            (idx, 0)
-        };
-
-        StyleHandle::pack(idx, generation)
-    }
-
-    /// Intern: find an existing identical buffer or allocate a new one
-    pub fn intern(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
-        let hash = Self::hash_buffer(data);
-
-        // O(1) lookup via hash index instead of O(n) linear scan
-        if let Some(indices) = self.hash_index.get(&hash) {
-            for &idx in indices {
-                let buf = &mut self.buffers[idx as usize];
-                if buf.ref_count > 0 && buf.data.as_ref() == data {
-                    buf.ref_count += 1;
-                    set_style_data_u32(
-                        buf.data.as_mut_slice(),
-                        StyleKeys::REF_COUNT,
-                        buf.ref_count,
-                    );
-                    return StyleHandle::pack(idx, self.generations[idx as usize]);
-                }
-            }
-        }
-
-        let handle = self.alloc(data);
-        self.buffers[handle.index()].interned_hash = Some(hash);
-        self.hash_index
-            .entry(hash)
-            .or_insert_with(Vec::new)
-            .push(handle.index() as u32);
-        handle
-    }
-
-    /// Prepare for mutation - COW if shared, returns (new_handle, ptr)
-    pub fn prepare_mut(&mut self, handle: StyleHandle) -> (StyleHandle, *mut u8) {
-        debug_assert!(
-            self.is_current(handle),
-            "stale StyleHandle passed to prepare_mut"
-        );
-        let idx = handle.index();
-
-        if self.buffers[idx].ref_count == 1 {
-            let ptr = self.buffers[idx].data.as_mut_ptr();
-            return (handle, ptr);
-        }
-
-        // COW: copy the current bytes (may include JS writes) straight into the new buffer.
-        let new_handle = self.alloc_from(self.buffers[idx].data.as_ptr());
-
-        {
-            let current = &mut self.buffers[idx];
-            current.ref_count -= 1;
-            let ref_count = current.ref_count;
-            set_style_data_u32(current.data.as_mut_slice(), StyleKeys::REF_COUNT, ref_count);
-        }
-
-        // Restore the default buffer to its pristine state so future views
-        // sharing this handle don't inherit stale JS writes.
-        if Self::is_default_index(idx) {
-            self.restore_default(idx);
-        }
-
-        let ptr = self.buffers[new_handle.index()].data.as_mut_ptr();
-        (new_handle, ptr)
-    }
-
-    /// Get read-only pointer to buffer data
-    pub fn get_ptr(&self, handle: StyleHandle) -> *const u8 {
-        debug_assert!(
-            self.is_current(handle),
-            "stale StyleHandle passed to get_ptr"
-        );
-        self.buffers[handle.index()].data.as_ptr()
-    }
-
-    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
-    pub fn get_ptr_opt(&self, handle: StyleHandle) -> Option<*const u8> {
-        if !self.is_current(handle) {
-            return None;
-        }
-        self.buffers.get(handle.index()).map(|b| b.data.as_ptr())
-    }
-
-    /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
-    pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
-        debug_assert!(
-            self.is_current(handle),
-            "stale StyleHandle passed to get_ptr_mut"
-        );
-        self.buffers[handle.index()].data.as_mut_ptr()
-    }
-
-    /// FFI entry point — see `buffer_opt` for why a stale handle returns `None`.
-    pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
-        if !self.is_current(handle) {
-            return None;
-        }
-        self.buffers
-            .get_mut(handle.index())
-            .map(|b| b.data.as_mut_ptr())
-    }
-
-    /// Get read-only reference to buffer data
-    pub fn get(&self, handle: StyleHandle) -> &[u8; STYLE_BUFFER_SIZE] {
-        debug_assert!(self.is_current(handle), "stale StyleHandle passed to get");
-        &self.buffers[handle.index()].data
-    }
-
-    /// FFI entry point — a stale `handle` (see `buffer_opt`) is a no-op
-    /// rather than attaching the buffer id to the wrong slot.
-    #[cfg(target_os = "android")]
-    pub(crate) fn set_handle_buffer(&mut self, handle: StyleHandle, buffer_id: i32) {
-        if !self.is_current(handle) {
-            return;
-        }
-        if let Some(data) = self.buffers.get_mut(handle.index()) {
-            if data.buffer != -1 {
-                return;
-            }
-            data.buffer = buffer_id;
-        }
+    pub fn chunk_count(&self) -> usize {
+        self.chunks.len()
     }
 }
 
@@ -1041,5 +813,66 @@ mod tests {
     #[should_panic(expected = "style arena is full")]
     fn a_full_arena_panics_instead_of_wrapping() {
         next_slot_index(MAX_SLOTS);
+    }
+
+    #[test]
+    fn slots_never_move_when_the_arena_grows() {
+        let mut arena = StyleArena::default();
+        let first = arena.alloc(&[3u8; STYLE_BUFFER_SIZE]);
+        let ptr = arena.get_ptr(first);
+        let chunks = arena.chunk_count();
+        let rest: Vec<_> = (0..SLOTS_PER_CHUNK * 3).map(|_| arena.alloc(&[0u8; STYLE_BUFFER_SIZE])).collect();
+        assert!(arena.chunk_count() > chunks, "expected new chunks");
+        assert_eq!(arena.get_ptr(first), ptr, "a slot moved when the arena grew");
+        assert_eq!(arena.get(first)[0], 3);
+        for (i, h) in rest.iter().enumerate() {
+            let expected = unsafe { arena.chunk_ptr(h.index() / SLOTS_PER_CHUNK).unwrap().add((h.index() % SLOTS_PER_CHUNK) * STYLE_BUFFER_SIZE) };
+            assert_eq!(arena.get_ptr(*h), expected as *const u8, "slot {i} is not at its chunk offset");
+        }
+    }
+
+    #[test]
+    fn slots_are_aligned_for_typed_reads() {
+        let mut arena = StyleArena::default();
+        for _ in 0..SLOTS_PER_CHUNK + 1 {
+            let h = arena.alloc(&[0u8; STYLE_BUFFER_SIZE]);
+            assert_eq!(arena.get_ptr(h) as usize % 8, 0);
+        }
+    }
+
+    #[test]
+    fn copy_on_write_moves_only_the_writer_and_restores_the_default() {
+        let mut arena = StyleArena::default();
+        arena.retain(StyleHandle::DEFAULT);
+        let shared = arena.get_ptr(StyleHandle::DEFAULT);
+        let pristine = *arena.get(StyleHandle::DEFAULT);
+        unsafe { *(shared as *mut u8).add(100) ^= 0xFF };
+        let (own, ptr) = arena.prepare_mut(StyleHandle::DEFAULT);
+        assert_ne!(own, StyleHandle::DEFAULT);
+        assert_ne!(ptr as *const u8, shared);
+        assert_eq!(arena.get_ptr(StyleHandle::DEFAULT), shared, "the shared slot moved");
+        assert_eq!(unsafe { *ptr.add(100) }, pristine[100] ^ 0xFF, "the copy lost the write");
+        assert_eq!(arena.get(StyleHandle::DEFAULT)[100], pristine[100], "the default kept the write");
+        let (again, ptr2) = arena.prepare_mut(own);
+        assert_eq!((again, ptr2), (own, ptr), "an owned slot was copied again");
+    }
+
+    #[test]
+    fn a_reused_slot_keeps_its_address() {
+        let mut arena = StyleArena::default();
+        let a = arena.alloc(&[1u8; STYLE_BUFFER_SIZE]);
+        let ptr = arena.get_ptr(a);
+        arena.release(a);
+        let b = arena.alloc(&[2u8; STYLE_BUFFER_SIZE]);
+        assert_eq!(b.index(), a.index());
+        assert_eq!(arena.get_ptr(b), ptr);
+        assert_eq!(arena.get(b)[0], 2);
+    }
+
+    #[test]
+    fn chunk_ptr_covers_existing_chunks_only() {
+        let mut arena = StyleArena::default();
+        assert!(arena.chunk_ptr(0).is_some());
+        assert!(arena.chunk_ptr(arena.chunk_count()).is_none());
     }
 }

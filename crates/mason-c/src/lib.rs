@@ -165,19 +165,16 @@ pub extern "C" fn mason_ua_default_for_tag(tag: *const c_char, out: *mut CMasonU
     }
 }
 
-#[cfg(target_vendor = "apple")]
+/// The bytes of the shared default style slot.
 #[no_mangle]
-pub extern "C" fn mason_get_buffer(mason: *mut CMason, handle: c_int) -> *mut c_void {
+pub extern "C" fn mason_default_style_ptr(mason: *mut CMason) -> *mut u8 {
     if mason.is_null() {
-        return 0 as _;
+        return std::ptr::null_mut();
     }
-
-    match handle.try_into() {
-        Ok(handle) => unsafe {
-            let mason = &mut *(mason as *mut Mason);
-            mason.buffer_from_ptr(handle).unwrap_or(0 as _)
-        },
-        Err(_) => 0 as _,
+    unsafe {
+        (*(mason as *mut Mason))
+            .buffer_raw_mut_from(0)
+            .map_or(std::ptr::null_mut(), |(ptr, _)| ptr)
     }
 }
 

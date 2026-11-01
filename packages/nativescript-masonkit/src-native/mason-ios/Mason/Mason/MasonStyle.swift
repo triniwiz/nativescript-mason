@@ -687,7 +687,7 @@ public class MasonStyle: NSObject {
     didSet { MasonStyle.resolveEpoch &+= 1 }
   }
 
-  /// Bumped by any style write, sync or tree change; `resolvedMemo` holds only within one epoch.
+  /// Changes on any style write, style sync or tree change, which clears every `resolvedMemo`.
   internal static var resolveEpoch: UInt64 = 1
   internal var resolvedMemo = ResolvedMemo()
 
@@ -746,12 +746,23 @@ public class MasonStyle: NSObject {
       return
     }
 
-    guard let buffer = mason_style_prepare_mut_apple(node.mason.nativePtr, node.nativePtr) else {
-      // todo
+    let slot = mason_style_prepare_slot(node.mason.nativePtr, node.nativePtr)
+    guard slot >= 0 else {
       fatalError("Could not allocate style buffer")
     }
     isValueInitialized = true
-    writableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+    self.slot = slot
+    writableValue = MasonSlotData(node.mason.styleSlotBytes(slot), StyleKeys.STYLE_BUFFER_SIZE, owner: node.mason)
+  }
+
+  /// The style slot this style owns, or -1 while it still shares a default.
+  internal private(set) var slot: Int32 = -1
+
+  /// Gives this style its own slot if it shares one; returns the slot index, or -1.
+  internal func prepareSlot() -> Int32 {
+    prepareMut()
+    if slot < 0 { slot = mason_style_prepare_slot(node.mason.nativePtr, node.nativePtr) }
+    return slot
   }
   
   private lazy var placeHolderValue: NSMutableData = {
@@ -835,15 +846,14 @@ public class MasonStyle: NSObject {
       
       guard let value = value else {
         
-        let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
-        guard let buffer else {
-          // todo
+        var length = 0
+        guard let bytes = mason_style_get_style_data(node.mason.nativePtr, node.nativePtr, &length), length > 0 else {
           fatalError("Could not allocate style buffer")
         }
         
         isValueInitialized = true
         
-        readableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+        readableValue = MasonSlotData(UnsafeMutableRawPointer(mutating: bytes), length, owner: node.mason)
         
         return readableValue!
         
@@ -5657,7 +5667,7 @@ extension MasonStyle {
   }
 }
 
-/// Inherited text values one style resolved in one `MasonStyle.resolveEpoch`.
+/// Inherited text values a style resolved during one `MasonStyle.resolveEpoch`.
 internal struct ResolvedMemo {
   var epoch: UInt64 = 0
   var fontFace: NSCFontFace?
@@ -5684,4 +5694,38 @@ internal struct ResolvedMemo {
   var lineClamp: Int32?
   var fontStretch: Int32?
   var fontFeatureSettings: String?
+}
+
+/// Style slots per arena chunk; matches Rust's `SLOTS_PER_CHUNK`.
+internal enum MasonStyleSlots {
+  static let perChunk = 64
+}
+
+/// A fixed-size NSMutableData over memory Mason owns (a style slot or chunk); it never copies or resizes.
+@objc(MasonSlotData)
+public final class MasonSlotData: NSMutableData {
+  private let ptr: UnsafeMutableRawPointer
+  private let size: Int
+  /// Keeps the arena that owns the memory alive.
+  private let owner: AnyObject?
+
+  internal init(_ ptr: UnsafeMutableRawPointer, _ size: Int, owner: AnyObject?) {
+    self.ptr = ptr
+    self.size = size
+    self.owner = owner
+    super.init()
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("MasonSlotData can't be decoded")
+  }
+
+  public override var length: Int {
+    get { size }
+    set { precondition(newValue == size, "MasonSlotData is fixed-size") }
+  }
+
+  public override var bytes: UnsafeRawPointer { UnsafeRawPointer(ptr) }
+
+  public override var mutableBytes: UnsafeMutableRawPointer { ptr }
 }

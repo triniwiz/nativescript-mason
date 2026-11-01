@@ -2,10 +2,7 @@ use jni::objects::{JClass, JString};
 use jni::signature::ReturnType;
 use jni::sys::{jbyte, jfloat, jint, jlong, jstring};
 use jni::JNIEnv;
-use mason_core::{Mason, NodeRef, JVM_CACHE};
-
-#[cfg(target_os = "android")]
-use crate::JVM;
+use mason_core::{Mason, NodeRef};
 
 pub(crate) const JAVA_INT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Int);
 pub(crate) const JAVA_SHORT_TYPE: ReturnType =
@@ -342,84 +339,133 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
         });
     }
 }
-unsafe fn node_style_buffer_id(
-    env: &mut JNIEnv,
-    mason: &mut Mason,
-    node: &NodeRef,
-) -> jni::sys::jint {
-    let data = mason.style_data(node.id());
-    if data >= 0 {
-        return data;
-    }
 
-    let (ptr, len) = mason.style_data_raw(node.id());
-    if ptr.is_null() || len == 0 {
+fn prepare_style_slot(mason: jlong, node: jlong) -> jint {
+    if mason == 0 || node == 0 {
         return -1;
     }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        mason
+            .prepare_style_slot(node.id())
+            .map_or(-1, |slot| slot as jint)
+    }
+}
 
-    let id = match env.new_direct_byte_buffer(ptr as _, len) {
-        Ok(buffer) => match mason_core::JVM_CACHE.get() {
-            Some(cache) => {
-                let manager = JClass::from_raw(cache.object_manager_clazz.as_raw());
-                let result = env.call_static_method_unchecked(
-                    manager,
-                    cache.object_manager_add_id,
-                    ReturnType::Primitive(jni::signature::Primitive::Int),
-                    &[jni::sys::jvalue {
-                        l: buffer.into_raw(),
-                    }],
-                );
-                match result {
-                    Ok(result) => result.i().unwrap_or(-1),
-                    Err(_) => -1,
-                }
-            }
-            None => -1,
-        },
-        Err(_) => -1,
-    };
+/// Gives the node its own style slot if it shares one; returns the slot index, or -1.
+#[no_mangle]
+pub extern "system" fn nativePrepareStyleSlot(mason: jlong, node: jlong) -> jint {
+    prepare_style_slot(mason, node)
+}
 
-    if id >= 0 {
-        if let Some(handle) = mason.style_handle(node.id()) {
-            mason.set_handle_buffer(handle, id);
+#[no_mangle]
+pub extern "system" fn nativePrepareStyleSlotNormal(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jint {
+    prepare_style_slot(mason, node)
+}
+
+fn style_slot(mason: jlong, node: jlong) -> jint {
+    if mason == 0 || node == 0 {
+        return -1;
+    }
+    unsafe {
+        let mason = &*(mason as *const Mason);
+        let node = &*(node as *const NodeRef);
+        mason.style_slot(node.id()).map_or(-1, |slot| slot as jint)
+    }
+}
+
+/// The node's current style slot index (a shared default until its first write), or -1.
+#[no_mangle]
+pub extern "system" fn nativeStyleSlot(mason: jlong, node: jlong) -> jint {
+    style_slot(mason, node)
+}
+
+#[no_mangle]
+pub extern "system" fn nativeStyleSlotNormal(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jint {
+    style_slot(mason, node)
+}
+
+fn pseudo_style_slot(mason: jlong, node: jlong, flags: jint, prepare: bool) -> jint {
+    if mason == 0 || node == 0 {
+        return -1;
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let id = (*(node as *const NodeRef)).id();
+        let slot = if prepare {
+            mason.prepare_pseudo_style_slot(id, flags as u16)
+        } else {
+            mason.pseudo_style_slot(id, flags as u16)
+        };
+        slot.map_or(-1, |slot| slot as jint)
+    }
+}
+
+/// The slot index of the node's existing pseudo-class style for `flags`, or -1.
+#[no_mangle]
+pub extern "system" fn nativePseudoStyleSlot(mason: jlong, node: jlong, flags: jint) -> jint {
+    pseudo_style_slot(mason, node, flags, false)
+}
+
+#[no_mangle]
+pub extern "system" fn nativePseudoStyleSlotNormal(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    pseudo_style_slot(mason, node, flags, false)
+}
+
+/// Creates the node's pseudo-class style for `flags` if missing; returns its slot index, or -1.
+#[no_mangle]
+pub extern "system" fn nativePreparePseudoSlot(mason: jlong, node: jlong, flags: jint) -> jint {
+    pseudo_style_slot(mason, node, flags, true)
+}
+
+#[no_mangle]
+pub extern "system" fn nativePreparePseudoSlotNormal(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+) -> jint {
+    pseudo_style_slot(mason, node, flags, true)
+}
+
+/// A direct ByteBuffer over one arena chunk of 64 style slots, or null past the last chunk.
+#[no_mangle]
+pub extern "system" fn nativeStyleChunk(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    chunk: jni::sys::jint,
+) -> jni::sys::jobject {
+    if mason == 0 || chunk < 0 {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        match mason.style_chunk_ptr(chunk as usize) {
+            Some(ptr) => env
+                .new_direct_byte_buffer(ptr, mason_core::style::arena::CHUNK_BYTES)
+                .map(|buffer| buffer.into_raw())
+                .unwrap_or(std::ptr::null_mut()),
+            None => std::ptr::null_mut(),
         }
-    }
-    id
-}
-
-// #[cfg(target_os = "android")]
-#[no_mangle]
-pub extern "system" fn nativeGetStyleBuffer(
-    mut env: JNIEnv,
-    _: JClass,
-    mason: jlong,
-    node: jlong,
-) -> jni::sys::jint {
-    if mason == 0 || node == 0 {
-        return -1;
-    }
-    unsafe {
-        let mason = &mut *(mason as *mut Mason);
-        let node = &mut *(node as *mut NodeRef);
-        node_style_buffer_id(&mut env, mason, node)
-    }
-}
-
-#[no_mangle]
-pub extern "system" fn nativePrepareMut(
-    mut env: JNIEnv,
-    _: JClass,
-    mason: jlong,
-    node: jlong,
-) -> jni::sys::jint {
-    if mason == 0 || node == 0 {
-        return -1;
-    }
-    unsafe {
-        let mason = &mut *(mason as *mut Mason);
-        let node = &mut *(node as *mut NodeRef);
-        mason.prepare_mut(node);
-        node_style_buffer_id(&mut env, mason, node)
     }
 }
 

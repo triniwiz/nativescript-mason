@@ -1,6 +1,4 @@
 pub use crate::tree::{Id, Tree};
-#[cfg(target_vendor = "apple")]
-use objc2_foundation::NSMutableData;
 
 use crate::pass_lock::{RawRwLock, RwLockReadGuard};
 use parking_lot::lock_api::MappedRwLockReadGuard;
@@ -423,16 +421,6 @@ impl Mason {
             .unwrap_or(-1 as _)
     }
 
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn node_state_data(&mut self, node: Id) -> *mut c_void {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
-            .unwrap_or(0 as _)
-    }
-
     #[cfg(not(any(target_os = "android", target_vendor = "apple")))]
     #[track_caller]
     pub fn style_data(&mut self, node: Id) -> &[u8] {
@@ -464,33 +452,6 @@ impl Mason {
             .unwrap_or(false)
     }
 
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn style_data(&mut self, node: Id) -> jni::sys::jint {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .map(|data| data.style().buffer())
-            .unwrap_or(-1 as _)
-    }
-
-    /// Return platform-specific pseudo style buffer (android: buffer id) for a node
-    /// matching `flags`. Returns -1 when none available.
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn pseudo_style_data(&mut self, node: Id, flags: u16) -> jni::sys::jint {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .and_then(|node| {
-                node.pseudo_styles
-                    .as_ref()
-                    .and_then(|p| p.resolve(flags))
-                    .map(|s| s.buffer())
-            })
-            .unwrap_or(-1 as _)
-    }
-
     #[track_caller]
     pub fn pseudo_style_data_raw(&self, node: Id, flags: u16) -> (*const u8, usize) {
         self.0
@@ -503,17 +464,6 @@ impl Mason {
                     .map(|s| s.raw())
             })
             .unwrap_or((0 as _, 0))
-    }
-
-    /// Return the StyleHandle for a pseudo style (immutable) if present.
-    #[track_caller]
-    pub fn pseudo_style_handle(&self, node: Id, flags: u16) -> Option<u64> {
-        self.0.nodes().get(node).and_then(|node| {
-            node.pseudo_styles
-                .as_ref()
-                .and_then(|p| p.resolve(flags))
-                .map(|s| s.handle.raw())
-        })
     }
 
     /// Prepare and return a mutable pseudo style buffer for `node` matching `flags`.
@@ -537,83 +487,42 @@ impl Mason {
             .unwrap_or((0 as _, 0))
     }
 
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn pseudo_style_data(&self, node: Id, flags: u16) -> *mut c_void {
+    /// Gives the node its own style slot if it shares one; returns the slot index.
+    pub fn prepare_style_slot(&mut self, node: Id) -> Option<usize> {
+        let mut nodes = self.0.nodes_mut();
+        Some(nodes.get_mut(node)?.style_mut().slot())
+    }
+
+    /// The node's current style slot index (a shared default until its first write).
+    pub fn style_slot(&self, node: Id) -> Option<usize> {
+        self.0.nodes().get(node).map(|n| n.style().slot())
+    }
+
+    /// The slot index of the node's existing pseudo-class style for `flags`.
+    pub fn pseudo_style_slot(&self, node: Id, flags: u16) -> Option<usize> {
         self.0
             .nodes()
             .get(node)
-            .and_then(|node| {
-                node.pseudo_styles
-                    .as_ref()
-                    .and_then(|p| p.resolve(flags))
-                    .map(|s| objc2::rc::Retained::into_raw(s.buffer()) as _)
-            })
-            .unwrap_or(0 as _)
+            .and_then(|n| n.pseudo_styles.as_ref().and_then(|p| p.resolve(flags)).map(|s| s.slot()))
     }
 
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn pseudo_style_data_mut(&mut self, node: Id, flags: u16) -> *mut c_void {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .and_then(|node| {
-                if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(Box::new(node::PseudoStyles::default()));
-                }
-                node.pseudo_styles
-                    .as_mut()
-                    .unwrap()
-                    .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
-                    .map(|s| objc2::rc::Retained::into_raw(s.buffer()) as *mut c_void)
-            })
-            .unwrap_or(0 as _)
+    /// Creates the node's pseudo-class style for `flags` from its base style if missing; returns its slot index.
+    pub fn prepare_pseudo_style_slot(&mut self, node: Id, flags: u16) -> Option<usize> {
+        let mut nodes = self.0.nodes_mut();
+        let node = nodes.get_mut(node)?;
+        if node.pseudo_styles.is_none() {
+            node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
+        }
+        node.pseudo_styles
+            .as_mut()
+            .unwrap()
+            .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
+            .map(|s| s.slot())
     }
 
-    /// Prepare and return the StyleHandle for a mutable pseudo style.
-    /// Caller may then query `buffer_from(handle)` / `buffer_raw_mut_from(handle)`.
-    #[track_caller]
-    pub fn pseudo_style_handle_mut(&mut self, node: Id, flags: u16) -> Option<u64> {
-        self.0.nodes_mut().get_mut(node).and_then(|node| {
-            if node.pseudo_styles.is_none() {
-                node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
-            }
-            node.pseudo_styles
-                .as_mut()
-                .unwrap()
-                .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
-                .map(|s| s.handle.raw())
-        })
-    }
-
-    #[cfg(target_os = "android")]
-    #[track_caller]
-    pub fn pseudo_style_data_mut(&mut self, node: Id, flags: u16) -> jni::sys::jint {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .and_then(|node| {
-                if node.pseudo_styles.is_none() {
-                    node.pseudo_styles = Some(Box::new(crate::node::PseudoStyles::default()));
-                }
-                node.pseudo_styles
-                    .as_mut()
-                    .unwrap()
-                    .resolve_or_create_mut(flags, &node.style, initialize_pseudo_style_from_base)
-                    .map(|s| s.buffer())
-            })
-            .unwrap_or(-1 as _)
-    }
-
-    #[cfg(target_vendor = "apple")]
-    #[track_caller]
-    pub fn style_data(&mut self, node: Id) -> *mut c_void {
-        self.0
-            .nodes_mut()
-            .get_mut(node)
-            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
-            .unwrap_or(0 as _)
+    /// The bytes of one arena chunk (64 style slots), or None past the last chunk.
+    pub fn style_chunk_ptr(&mut self, chunk: usize) -> Option<*mut u8> {
+        self.0.inner_mut().style_arena.chunk_ptr(chunk)
     }
 
     #[track_caller]
@@ -1110,54 +1019,12 @@ impl Mason {
         .ok()
     }
 
-    pub fn buffer_raw_from(&self, handle: u64) -> Option<(*const u8, usize)> {
-        let reader = self.0 .0.read();
-        reader
-            .style_arena
-            .get_ptr_opt(StyleHandle::from_raw(handle))
-            .map(|buffer| (buffer, STYLE_BUFFER_SIZE))
-    }
-
     pub fn buffer_raw_mut_from(&mut self, handle: u64) -> Option<(*mut u8, usize)> {
         let mut reader = self.0 .0.write();
         reader
             .style_arena
             .get_ptr_mut_opt(StyleHandle::from_raw(handle))
             .map(|buffer| (buffer, STYLE_BUFFER_SIZE))
-    }
-
-    #[cfg(target_vendor = "apple")]
-    pub fn buffer_from(&self, handle: u64) -> Option<objc2::rc::Retained<NSMutableData>> {
-        let reader = self.0 .0.read();
-        reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
-    }
-
-    #[cfg(target_vendor = "apple")]
-    pub fn buffer_from_ptr(&self, handle: u64) -> Option<*mut c_void> {
-        let reader = self.0 .0.read();
-        reader
-            .style_arena
-            .buffer_opt(StyleHandle::from_raw(handle))
-            .map(|buffer| objc2::rc::Retained::into_raw(buffer) as *mut c_void)
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn buffer_from(&self, handle: u64) -> Option<jni::sys::jint> {
-        let reader = self.0 .0.read();
-        reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn style_handle(&self, node: Id) -> Option<u64> {
-        self.0.nodes().get(node).map(|n| n.style().handle.raw())
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn set_handle_buffer(&mut self, handle: u64, buffer_id: i32) {
-        let mut reader = self.0 .0.write();
-        reader
-            .style_arena
-            .set_handle_buffer(StyleHandle::from_raw(handle), buffer_id);
     }
 
     pub fn with_style<F>(&self, node: Id, func: F)

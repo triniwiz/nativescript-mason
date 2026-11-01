@@ -1325,23 +1325,6 @@ pub extern "C" fn mason_node_get_pseudo_style_buffer(
     }
 }
 
-#[cfg(target_vendor = "apple")]
-#[no_mangle]
-pub extern "C" fn mason_node_get_pseudo_style_buffer_apple(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    flags: u16,
-) -> *mut c_void {
-    if mason.is_null() || node.is_null() {
-        return 0 as _;
-    }
-    unsafe {
-        let mason = &(*mason);
-        let node_id = &(*node).0;
-        mason.0.pseudo_style_data(node_id.id(), flags)
-    }
-}
-
 /// Prepare (create if needed) and return a mutable pseudo style buffer.
 /// Clones from the base style if this is the first call for the given pseudo state.
 /// Returns a raw mutable pointer + length for direct buffer writes.
@@ -1368,23 +1351,6 @@ pub extern "C" fn mason_node_prepare_pseudo_style_buffer(
             *out_len = len;
         }
         ptr
-    }
-}
-
-#[cfg(target_vendor = "apple")]
-#[no_mangle]
-pub extern "C" fn mason_node_prepare_pseudo_style_buffer_apple(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    flags: u16,
-) -> *mut c_void {
-    if mason.is_null() || node.is_null() {
-        return 0 as _;
-    }
-    unsafe {
-        let mason = &mut *mason;
-        let node_id = &(*node).0;
-        mason.0.pseudo_style_data_mut(node_id.id(), flags)
     }
 }
 
