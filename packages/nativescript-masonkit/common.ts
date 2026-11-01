@@ -3941,6 +3941,9 @@ for (const { property, group, slot } of logicalLonghands) {
 // Logical borders, corners and overflow: see logical-boxes.ts.
 installLogicalBoxes(ViewBase.prototype);
 
+// Mason paints padding, borders and backgrounds itself, so core can skip deriving them (Windows still paints through core).
+if (__ANDROID__ || __APPLE__) (ViewBase.prototype as any)._appliesOwnBoxStyle = true;
+
 export class TextBase extends ViewBase {
   textContent: string;
 
