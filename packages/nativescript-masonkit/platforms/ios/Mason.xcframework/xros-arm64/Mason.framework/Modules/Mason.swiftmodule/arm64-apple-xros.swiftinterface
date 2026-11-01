@@ -197,6 +197,7 @@ extension Mason.Button {
   @objc public static var shared: Mason.NSCMason
   @objc override dynamic public init()
   @objc deinit
+  @objc public func styleChunk(_ chunk: Swift.Int32) -> Mason.MasonSlotData?
   @objc public func setDeviceScale(_ value: Swift.Float)
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
   @objc(setMeasureForView:block:) public func setMeasure(for view: UIKit.UIView, block: @escaping (_ knownWidth: CoreFoundation.CGFloat, _ knownHeight: CoreFoundation.CGFloat, _ availableWidth: CoreFoundation.CGFloat, _ availableHeight: CoreFoundation.CGFloat) -> CoreFoundation.CGSize)
@@ -2252,6 +2253,19 @@ public struct StateKeys : Swift.Equatable {
   }
   @objc deinit
 }
+@_hasMissingDesignatedInitializers @objc(MasonSlotData) final public class MasonSlotData : Foundation.NSMutableData {
+  @objc override final public var length: Swift.Int {
+    @objc get
+    @objc set
+  }
+  @objc override final public var bytes: Swift.UnsafeRawPointer {
+    @objc get
+  }
+  @objc override final public var mutableBytes: Swift.UnsafeMutableRawPointer {
+    @objc get
+  }
+  @objc deinit
+}
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonOverflowPointCompat) public class MasonOverflowPointCompat : ObjectiveC.NSObject, Swift.Codable {
   @objc public var x: Mason.Overflow
   @objc public var y: Mason.Overflow
@@ -2396,6 +2410,7 @@ extension UIKit.UIImage {
   @objc dynamic public func mason_scrollIntoView(_ block: Swift.Int, _ inline: Swift.Int, _ smooth: Swift.Bool)
   @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent)
   @objc dynamic public func mason_syncStyle(_ low: Swift.String, _ high: Swift.String)
+  @objc dynamic public func mason_prepareStyleSlot() -> Swift.Int32
   @objc dynamic public func mason_writableStyleValues() -> Foundation.NSMutableData?
   @objc dynamic public func mason_syncStyleParts(_ lowLow: Swift.Int32, _ lowHigh: Swift.Int32, _ highLow: Swift.Int32, _ highHigh: Swift.Int32)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView)

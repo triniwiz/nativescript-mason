@@ -1279,6 +1279,32 @@ SWIFT_CLASS_NAMED("MasonSizeHelper")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSData;
+/// A fixed-size NSMutableData over memory Mason owns (a style slot or chunk); it never copies or resizes.
+SWIFT_CLASS_NAMED("MasonSlotData")
+@interface MasonSlotData : NSMutableData
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic) NSUInteger length;
+@property (nonatomic, readonly) void const * _Nonnull bytes;
+@property (nonatomic, readonly) void * _Nonnull mutableBytes;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+- (nullable instancetype)initWithContentsOfMappedFile:(NSString * _Nonnull)path SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithBase64EncodedString:(NSString * _Nonnull)base64String options:(NSDataBase64DecodingOptions)options SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithBase64EncodedData:(NSData * _Nonnull)base64Data options:(NSDataBase64DecodingOptions)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytes:(void const * _Nullable)bytes length:(NSUInteger)length SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length freeWhenDone:(BOOL)b SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length deallocator:(void (^ _Nullable)(void * _Nonnull, NSInteger))deallocator SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfFile:(NSString * _Nonnull)path options:(NSDataReadingOptions)readOptionsMask error:(NSError * _Nullable * _Nullable)error SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfURL:(NSURL * _Nonnull)url options:(NSDataReadingOptions)readOptionsMask error:(NSError * _Nullable * _Nullable)error SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfFile:(NSString * _Nonnull)path SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfURL:(NSURL * _Nonnull)url SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithData:(NSData * _Nonnull)data SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithCapacity:(NSUInteger)capacity SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithLength:(NSUInteger)length SWIFT_UNAVAILABLE;
+@end
+
 @class NSCFontFace;
 @class MasonVerticalAlignValue;
 SWIFT_ENUM_FWD_DECL(NSInteger, MasonObjectFit)
@@ -1851,6 +1877,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 + (NSCMason * _Nonnull)shared SWIFT_WARN_UNUSED_RESULT;
 + (void)setShared:(NSCMason * _Nonnull)value;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+/// One arena chunk (64 style slots) as data JS can wrap in an ArrayBuffer without copying.
+- (MasonSlotData * _Nullable)styleChunk:(int32_t)chunk SWIFT_WARN_UNUSED_RESULT;
 - (void)setDeviceScale:(float)value;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
 - (void)setMeasureForView:(UIView * _Nonnull)view block:(CGSize (^ _Nonnull)(CGFloat, CGFloat, CGFloat, CGFloat))block;
@@ -1940,6 +1968,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
 /// The node’s own style buffer (copied off the shared default if needed), in one call.
+/// The node’s own style slot index (taking one if it shares a default), or -1 outside the shared Mason.
+- (int32_t)mason_prepareStyleSlot SWIFT_WARN_UNUSED_RESULT;
 - (NSMutableData * _Nullable)mason_writableStyleValues SWIFT_WARN_UNUSED_RESULT;
 - (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
@@ -3465,6 +3495,32 @@ SWIFT_CLASS_NAMED("MasonSizeHelper")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSData;
+/// A fixed-size NSMutableData over memory Mason owns (a style slot or chunk); it never copies or resizes.
+SWIFT_CLASS_NAMED("MasonSlotData")
+@interface MasonSlotData : NSMutableData
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic) NSUInteger length;
+@property (nonatomic, readonly) void const * _Nonnull bytes;
+@property (nonatomic, readonly) void * _Nonnull mutableBytes;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+- (nullable instancetype)initWithContentsOfMappedFile:(NSString * _Nonnull)path SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithBase64EncodedString:(NSString * _Nonnull)base64String options:(NSDataBase64DecodingOptions)options SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithBase64EncodedData:(NSData * _Nonnull)base64Data options:(NSDataBase64DecodingOptions)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytes:(void const * _Nullable)bytes length:(NSUInteger)length SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length freeWhenDone:(BOOL)b SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithBytesNoCopy:(void * _Nonnull)bytes length:(NSUInteger)length deallocator:(void (^ _Nullable)(void * _Nonnull, NSInteger))deallocator SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfFile:(NSString * _Nonnull)path options:(NSDataReadingOptions)readOptionsMask error:(NSError * _Nullable * _Nullable)error SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfURL:(NSURL * _Nonnull)url options:(NSDataReadingOptions)readOptionsMask error:(NSError * _Nullable * _Nullable)error SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfFile:(NSString * _Nonnull)path SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithContentsOfURL:(NSURL * _Nonnull)url SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithData:(NSData * _Nonnull)data SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithCapacity:(NSUInteger)capacity SWIFT_UNAVAILABLE;
+- (nullable instancetype)initWithLength:(NSUInteger)length SWIFT_UNAVAILABLE;
+@end
+
 @class NSCFontFace;
 @class MasonVerticalAlignValue;
 SWIFT_ENUM_FWD_DECL(NSInteger, MasonObjectFit)
@@ -4037,6 +4093,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 + (NSCMason * _Nonnull)shared SWIFT_WARN_UNUSED_RESULT;
 + (void)setShared:(NSCMason * _Nonnull)value;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+/// One arena chunk (64 style slots) as data JS can wrap in an ArrayBuffer without copying.
+- (MasonSlotData * _Nullable)styleChunk:(int32_t)chunk SWIFT_WARN_UNUSED_RESULT;
 - (void)setDeviceScale:(float)value;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
 - (void)setMeasureForView:(UIView * _Nonnull)view block:(CGSize (^ _Nonnull)(CGFloat, CGFloat, CGFloat, CGFloat))block;
@@ -4126,6 +4184,8 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) float scale;)
 - (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)low :(NSString * _Nonnull)high;
 /// The node’s own style buffer (copied off the shared default if needed), in one call.
+/// The node’s own style slot index (taking one if it shares a default), or -1 outside the shared Mason.
+- (int32_t)mason_prepareStyleSlot SWIFT_WARN_UNUSED_RESULT;
 - (NSMutableData * _Nullable)mason_writableStyleValues SWIFT_WARN_UNUSED_RESULT;
 - (void)mason_syncStyleParts:(int32_t)lowLow :(int32_t)lowHigh :(int32_t)highLow :(int32_t)highHigh;
 - (void)mason_addView:(UIView * _Nonnull)view;
