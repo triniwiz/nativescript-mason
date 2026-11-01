@@ -1143,6 +1143,10 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   // Bumped on every style write path so draw-time caches can skip re-reading the buffer.
   internal var styleVersion = 0
+    set(value) {
+      field = value
+      writeEpoch++
+    }
 
   fun prepareMut() {
     if (node.isPlaceholder) {
@@ -5612,6 +5616,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 
     internal var sharedBufferEpoch = 0
+
+    // Bumped with any style's styleVersion, for caches that depend on more than one node's style.
+    internal var writeEpoch = 0L
 
     @JvmStatic
     internal fun flushPendingMetrics(forRoot: Node) {

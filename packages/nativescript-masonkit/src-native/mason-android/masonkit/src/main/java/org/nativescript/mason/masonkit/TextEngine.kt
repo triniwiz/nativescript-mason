@@ -1141,14 +1141,7 @@ class TextEngine(val container: TextContainer) {
   internal var measuredExclusions: FloatArray? = null
     private set
 
-  private fun hasFloatedSibling(): Boolean {
-    val parent = node.parent ?: return false
-    for (child in parent.children) {
-      if (child === node || child.type != NodeType.Element || !child.style.isValueInitialized) continue
-      if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) return true
-    }
-    return false
-  }
+  private fun hasFloatedSibling(): Boolean = node.parent?.hasFloatedChildBesides(node) ?: false
 
   /**
    * The margin boxes of floats beside this text, as `[left, top, right, bottom, side]` runs in
@@ -2603,12 +2596,14 @@ class TextEngine(val container: TextContainer) {
     }
     if (!nested) {
       val modes = spacingTrimModes(wrapped)
-      applySpacingTrim(wrapped, modes)
+      // Text without full-width punctuation has nothing to trim.
+      val punctuated = hasFullWidthPunctuation(wrapped)
+      if (punctuated || modes != null) applySpacingTrim(wrapped, modes)
       if (isVerticalWritingMode) {
         applyUprightGlyphs(wrapped, style.resolvedTextOrientation.toInt(), style.resolvedTextCombineUpright.toInt())
       }
       lineEdgeTrimModes = modes
-      trimsLineEdges = trimsAtLineEdges(wrapped, modes)
+      trimsLineEdges = punctuated && trimsAtLineEdges(wrapped, modes)
     }
 
     // Cache the result

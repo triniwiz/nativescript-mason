@@ -453,12 +453,42 @@ open class Node internal constructor(
   }
 
   var type: NodeType = nodeType
-    internal set
+    internal set(value) {
+      field = value
+      Style.writeEpoch++
+    }
 
   var view: Any? = null
 
   internal val children = ChildList(4)
   internal val style = Style(this)
+
+  // Floated children as of the last scan; rescanned when the list or any style changes.
+  private var floatScanChildren = -1
+  private var floatScanStyles = -1L
+  private var floatedChildren = 0
+  private var firstFloatedChild: Node? = null
+
+  /** Whether a child other than [except] is floated. */
+  internal fun hasFloatedChildBesides(except: Node): Boolean {
+    val styles = Style.writeEpoch
+    if (floatScanChildren != children.version || floatScanStyles != styles) {
+      var count = 0
+      var first: Node? = null
+      for (child in children) {
+        if (child.type != NodeType.Element || !child.style.isValueInitialized) continue
+        if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) {
+          if (count == 0) first = child
+          count++
+        }
+      }
+      floatedChildren = count
+      firstFloatedChild = first
+      floatScanChildren = children.version
+      floatScanStyles = styles
+    }
+    return floatedChildren > 1 || (floatedChildren == 1 && firstFloatedChild !== except)
+  }
 
   internal var suppressChildOps = 0
   internal inline fun <T> suppressChildOperations(block: () -> T): T {

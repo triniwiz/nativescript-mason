@@ -41,6 +41,16 @@ internal fun fullWidthPunctuation(c: Char): Int = when (c.code) {
   else -> 0
 }
 
+/** Whether [text] has any full-width punctuation; scans a plain copy, a Spanned's charAt is slow. */
+internal fun hasFullWidthPunctuation(text: CharSequence): Boolean {
+  val plain = text.toString()
+  for (i in plain.indices) {
+    val c = plain[i]
+    if (c >= '\u3001' && fullWidthPunctuation(c) != 0) return true
+  }
+  return false
+}
+
 private fun isForcedBreak(c: Char): Boolean = c == '\n' || c == '\r' || c == '\u2028' || c == '\u2029'
 
 private fun isBidiControl(c: Char): Boolean = c in '\u202A'..'\u202E' || c in '\u2066'..'\u2069'
