@@ -223,6 +223,8 @@ uint8_t mason_node_get_text_combine_upright(struct CMason *mason, struct CMasonN
 
 uint8_t mason_node_get_text_spacing_trim(struct CMason *mason, struct CMasonNode *node);
 
+uint8_t mason_node_get_white_space(struct CMason *mason, struct CMasonNode *node);
+
 uint8_t mason_node_get_direction(struct CMason *mason, struct CMasonNode *node);
 
 void mason_node_get_unrounded_size(struct CMason *mason,
@@ -564,6 +566,11 @@ const uint8_t *mason_style_get_style_data(struct CMason *mason,
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 
 void *mason_style_get_style_buffer_apple(struct CMason *mason, struct CMasonNode *node);
+
+/**
+ * Copies the node's style off a shared buffer if needed and returns its own buffer, retained.
+ */
+void *mason_style_prepare_mut_apple(struct CMason *mason, struct CMasonNode *node);
 
 char *mason_style_get_grid_area_css(struct CMason *mason, struct CMasonNode *node);
 

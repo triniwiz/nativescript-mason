@@ -1152,31 +1152,29 @@ class Style internal constructor(@Transient internal var node: Node) {
     // REF_COUNT is a u32 - must read the full width, not just the low byte,
     // or a shared count whose low byte happens to be 1 (257, 513, ...) looks
     // exclusively owned and the write corrupts every node sharing the buffer.
-    val mutable = values.getInt(StyleKeys.REF_COUNT) == 1
-
-    if (!mutable) {
-      // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
-      // Skip the JNI call; writes go to the existing buffer and will be flushed
-      // via updateNativeStyle after compute finishes.
-      if (node.mason.inCompute) {
-        isValueInitialized = true
-        mWritableValue = values
-        return
-      }
-      // Copying off a shared buffer can restore that buffer in place for its other users.
-      sharedBufferEpoch++
-      val buffer =
-        ObjectManager.shared[nativePrepareMut(node.mason.nativePtr, node.nativePtr)] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
-      }
-
+    val current = mWritableValue ?: mValues
+    if (current != null && current.getInt(StyleKeys.REF_COUNT) == 1) {
       isValueInitialized = true
-      mWritableValue = buffer
-    } else {
+      if (mWritableValue == null) mWritableValue = current
+      return
+    }
+
+    // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
+    // Skip the JNI call; writes go to the existing buffer and will be flushed
+    // via updateNativeStyle after compute finishes.
+    if (node.mason.inCompute) {
       isValueInitialized = true
       mWritableValue = values
+      return
     }
+    // Copying off a shared buffer can restore that buffer in place for its other users.
+    sharedBufferEpoch++
+    val buffer =
+      ObjectManager.shared[nativePrepareMut(node.mason.nativePtr, node.nativePtr)] as ByteBuffer
+    buffer.order(ByteOrder.nativeOrder())
+
+    isValueInitialized = true
+    mWritableValue = buffer
   }
 
   val writableValue: ByteBuffer

@@ -1186,6 +1186,24 @@ pub extern "C" fn mason_style_get_style_buffer_apple(
     }
 }
 
+/// Copies the node's style off a shared buffer if needed and returns its own buffer, retained.
+#[cfg(target_vendor = "apple")]
+#[no_mangle]
+pub extern "C" fn mason_style_prepare_mut_apple(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut std::os::raw::c_void {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &(*node).0;
+        mason.0.prepare_mut(node);
+        mason.0.style_data(node.id())
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_area_css(
     mason: *mut CMason,

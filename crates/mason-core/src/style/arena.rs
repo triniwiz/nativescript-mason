@@ -82,6 +82,9 @@ impl StyleHandle {
 struct StyleBuffer {
     #[cfg(target_vendor = "apple")]
     buffer: objc2::rc::Retained<NSMutableData>,
+    // The NSMutableData's bytes; its length never changes, so they never move.
+    #[cfg(target_vendor = "apple")]
+    ptr: *mut u8,
     #[cfg(target_os = "android")]
     buffer: jni::sys::jint,
     #[cfg(not(target_vendor = "apple"))]
@@ -95,16 +98,18 @@ impl StyleBuffer {
     #[cfg(target_vendor = "apple")]
     pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
         let buffer = NSMutableData::with_bytes(data);
+        let ptr = unsafe { buffer.as_mut_bytes_unchecked() }.as_mut_ptr();
         StyleBuffer {
             ref_count: 0,
             buffer,
+            ptr,
             interned_hash: None,
         }
     }
 
     #[cfg(target_vendor = "apple")]
     pub fn bytes(&self) -> &[u8] {
-        unsafe { self.buffer.as_bytes_unchecked() }
+        unsafe { std::slice::from_raw_parts(self.ptr, STYLE_BUFFER_SIZE) }
     }
 
     #[cfg(not(target_vendor = "apple"))]
@@ -114,7 +119,7 @@ impl StyleBuffer {
 
     #[cfg(target_vendor = "apple")]
     pub fn mut_bytes(&mut self) -> &mut [u8] {
-        unsafe { self.buffer.as_mut_bytes_unchecked() }
+        unsafe { std::slice::from_raw_parts_mut(self.ptr, STYLE_BUFFER_SIZE) }
     }
 
     #[cfg(not(target_vendor = "apple"))]
@@ -637,15 +642,22 @@ impl StyleArena {
 
     /// Allocate a new buffer with the given data
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
+        self.alloc_from(data.as_ptr())
+    }
+
+    /// Allocate a new buffer copied from `src`, which must be readable for STYLE_BUFFER_SIZE bytes
+    /// and not be a free slot.
+    fn alloc_from(&mut self, src: *const u8) -> StyleHandle {
         let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
             buf.ref_count = 1;
             buf.interned_hash = None;
-            buf.buffer.set_bytes(data);
+            unsafe { std::ptr::copy_nonoverlapping(src, buf.ptr, STYLE_BUFFER_SIZE) };
             set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
             let idx = self.buffers.len() as u32;
+            let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
             set_style_data_u32(buffer.mut_bytes(), StyleKeys::REF_COUNT, 1);
@@ -696,9 +708,8 @@ impl StyleArena {
             return (handle, ptr);
         }
 
-        // COW: capture current data (may include JS writes — correct for new
-        // buffer) as a stack array, not a heap-allocated Vec.
-        let data: [u8; STYLE_BUFFER_SIZE] = self.buffers[idx].bytes().try_into().unwrap();
+        // COW: copy the current bytes (may include JS writes) straight into the new buffer.
+        let new_handle = self.alloc_from(self.buffers[idx].ptr);
 
         {
             let current = &mut self.buffers[idx];
@@ -713,7 +724,6 @@ impl StyleArena {
             self.restore_default(idx);
         }
 
-        let new_handle = self.alloc(&data);
         let ptr = self.buffers[new_handle.index()].mut_bytes().as_mut_ptr();
         (new_handle, ptr)
     }
@@ -793,15 +803,22 @@ impl StyleArena {
 
     /// Allocate a new buffer with the given data
     pub fn alloc(&mut self, data: &[u8; STYLE_BUFFER_SIZE]) -> StyleHandle {
+        self.alloc_from(data.as_ptr())
+    }
+
+    /// Allocate a new buffer copied from `src`, which must be readable for STYLE_BUFFER_SIZE bytes
+    /// and not be a free slot.
+    fn alloc_from(&mut self, src: *const u8) -> StyleHandle {
         let (idx, generation) = if let Some(free_idx) = self.free_list.pop() {
             let buf = &mut self.buffers[free_idx as usize];
-            buf.data.copy_from_slice(data);
+            unsafe { std::ptr::copy_nonoverlapping(src, buf.data.as_mut_ptr(), STYLE_BUFFER_SIZE) };
             buf.ref_count = 1;
             buf.interned_hash = None;
             set_style_data_u32(buf.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
             (free_idx, self.generations[free_idx as usize])
         } else {
             let idx = self.buffers.len() as u32;
+            let data = unsafe { &*src.cast::<[u8; STYLE_BUFFER_SIZE]>() };
             let mut buffer = StyleBuffer::new(data);
             buffer.ref_count = 1;
             set_style_data_u32(buffer.data.as_mut_slice(), StyleKeys::REF_COUNT, 1);
@@ -855,8 +872,8 @@ impl StyleArena {
             return (handle, ptr);
         }
 
-        // COW: capture current data (may include JS writes — correct for new buffer)
-        let data = *self.buffers[idx].data;
+        // COW: copy the current bytes (may include JS writes) straight into the new buffer.
+        let new_handle = self.alloc_from(self.buffers[idx].data.as_ptr());
 
         {
             let current = &mut self.buffers[idx];
@@ -871,7 +888,6 @@ impl StyleArena {
             self.restore_default(idx);
         }
 
-        let new_handle = self.alloc(&data);
         let ptr = self.buffers[new_handle.index()].data.as_mut_ptr();
         (new_handle, ptr)
     }
@@ -996,4 +1012,5 @@ mod tests {
         );
         assert!(arena.is_current(b));
     }
+
 }

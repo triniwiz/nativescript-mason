@@ -740,24 +740,18 @@ public class MasonStyle: NSObject {
       return
     }
     
-    let mutable = getInt32(StyleKeys.REF_COUNT) == 1
-    
-    
-    if (!mutable) {
-      mason_style_prepare_style_for_mut(node.mason.nativePtr, node.nativePtr)
-      let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
-      guard let buffer else {
-        // todo
-        fatalError("Could not allocate style buffer")
-      }
-      
+    if cachedBytes != nil && getInt32(StyleKeys.REF_COUNT) == 1 {
       isValueInitialized = true
-      
-      writableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
-    } else {
-      isValueInitialized = true
-      writableValue = values
+      if writableValue == nil { writableValue = readableValue }
+      return
     }
+
+    guard let buffer = mason_style_prepare_mut_apple(node.mason.nativePtr, node.nativePtr) else {
+      // todo
+      fatalError("Could not allocate style buffer")
+    }
+    isValueInitialized = true
+    writableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
   }
   
   private lazy var placeHolderValue: NSMutableData = {
