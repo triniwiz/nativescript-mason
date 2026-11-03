@@ -227,7 +227,7 @@ open class Node internal constructor(
   internal var stickyScrollHost: Scroll? = null
   internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
-  private var dirtyMarkedEpoch = -1
+  private var dirtyMarkedEpoch = mason.computeEpoch
 
   open var parent: Node?
     internal set(value) {
@@ -1288,9 +1288,12 @@ open class Node internal constructor(
       NodeUtils.invalidateLayout(this)
     } else {
       children.add(child)
+      val childMarked = child.dirtyMarkedEpoch == mason.computeEpoch
       child.parent = this
       if (child.nativePtr != 0L) {
         NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+        dirtyMarkedEpoch = mason.computeEpoch
+        if (childMarked) child.dirtyMarkedEpoch = mason.computeEpoch
       }
 
       if (attach) {
@@ -1840,13 +1843,14 @@ open class Node internal constructor(
     return removed
   }
 
-  fun dirty() {
+  @JvmOverloads
+  fun dirty(force: Boolean = false) {
     // During compute Rust holds the lock — skip JNI to avoid deadlock
     if (mason.inCompute) {
       computeCacheDirty = true
       return
     }
-    if (dirtyMarkedEpoch == mason.computeEpoch) {
+    if (!force && dirtyMarkedEpoch == mason.computeEpoch) {
       computeCacheDirty = true
       return
     }
