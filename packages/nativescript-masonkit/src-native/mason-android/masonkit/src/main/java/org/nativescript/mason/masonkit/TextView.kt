@@ -824,7 +824,7 @@ open class TextView @JvmOverloads constructor(
 
   override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
     super.onInitializeAccessibilityNodeInfo(info)
-    info.text = readableText()
+    info.text = readableText().toString()
   }
 
   override fun onPopulateAccessibilityEvent(event: AccessibilityEvent) {
