@@ -2460,7 +2460,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) {
       prepareMut()
       values.put(StyleKeys.OVERFLOW_X, value.x.value)
-      values.put(StyleKeys.OVERFLOW_Y, value.x.value)
+      values.put(StyleKeys.OVERFLOW_Y, value.y.value)
       setOrAppendState(arrayOf(StateKeys.OVERFLOW_X, StateKeys.OVERFLOW_Y))
     }
 
@@ -5832,7 +5832,7 @@ class Style internal constructor(@Transient internal var node: Node) {
         if (includeBorderRadius) {
           style.mBorderRenderer.updateCache(width, height)
           if (style.mBorderRenderer.hasRadii()) {
-            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+            style.mBorderRenderer.clipToScrolledPaddingBox(canvas, width, height, scrollOX, scrollOY)
           }
         }
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)

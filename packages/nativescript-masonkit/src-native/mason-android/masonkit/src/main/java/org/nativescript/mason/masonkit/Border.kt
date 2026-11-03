@@ -614,6 +614,12 @@ class BorderRenderer(private val style: Style) {
   }
 
 
+  fun clipToScrolledPaddingBox(canvas: Canvas, width: Float, height: Float, scrollX: Float, scrollY: Float) {
+    canvas.translate(scrollX, scrollY)
+    canvas.clipPath(getClipPath(width, height))
+    canvas.translate(-scrollX, -scrollY)
+  }
+
   fun getClipPath(width: Float, height: Float): Path {
     // Return cached clip path if nothing changed
     if (!clipPathDirty && width == lastClipWidth && height == lastClipHeight) {
