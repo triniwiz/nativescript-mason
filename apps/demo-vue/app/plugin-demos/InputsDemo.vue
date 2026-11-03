@@ -47,6 +47,19 @@
           <Input class="no-border" placeholder="border: none, padding 8" />
         </div>
 
+        <p class="section">Inside text</p>
+        <div class="stack">
+          <label class="label">Name <Input class="pad-12-16" placeholder="padding 12 16 in a label" /></label>
+          <p class="label">Inline <Input class="border-2" placeholder="border 2, padding 8" /> in a paragraph</p>
+        </div>
+
+        <p class="section">Textarea</p>
+        <div class="stack">
+          <TextArea placeholder="UA defaults" />
+          <TextArea class="pad-12-16" placeholder="padding 12 16, border 1" />
+          <label class="label">Note <TextArea class="pad-12-16" placeholder="padding 12 16 in a label" /></label>
+        </div>
+
         <p class="section">Radius and background</p>
         <div class="stack">
           <Input class="field round-0" placeholder="radius 0" />

@@ -1091,6 +1091,14 @@ class Input @JvmOverloads constructor(
       }
     }
 
+  internal fun layoutChildInside(width: Int, height: Int, insetLeft: Int, insetTop: Int, insetRight: Int, insetBottom: Int) {
+    val right = maxOf(insetLeft, width - insetRight)
+    val bottom = maxOf(insetTop, height - insetBottom)
+    val child = getChildAt(0)
+    if (child != null && !child.isLayoutRequested && child.left == insetLeft && child.top == insetTop && child.right == right && child.bottom == bottom) return
+    layoutChild(insetLeft, insetTop, right, bottom)
+  }
+
   internal fun layoutChild(l: Int, t: Int, r: Int, b: Int) {
     val width = r - l
     val height = b - t
