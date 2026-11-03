@@ -672,7 +672,7 @@ extension MasonElement {
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
     setComputeCache(CGSize(width: CGFloat(width), height: CGFloat(height)))
-    runPass {
+    runPass(available: CGSize(width: CGFloat(width), height: CGFloat(height))) {
       mason_node_compute_wh_and_layout(mason.nativePtr, node.nativePtr, width, height, create_layout)
     }
   }
@@ -694,28 +694,35 @@ extension MasonElement {
   public func computeWithMaxContent(){
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    runPass {
+    let available = CGSize(width: -2, height: -2)
+    setComputeCache(available)
+    runPass(available: available) {
       mason_node_compute_max_content_and_layout(mason.nativePtr, node.nativePtr, create_layout)
     }
-    setComputeCache(CGSize(width: CGFloat(-2), height: CGFloat(-2)))
   }
 
   public func computeWithMinContent(){
     let mason = node.mason
     if mason.inCompute { return } // re-entrant compute → skip to avoid Rust RWLock deadlock
-    runPass {
+    let available = CGSize(width: -1, height: -1)
+    setComputeCache(available)
+    runPass(available: available) {
       mason_node_compute_min_content_and_layout(mason.nativePtr, node.nativePtr, create_layout)
     }
-    setComputeCache(CGSize(width: CGFloat(-1), height: CGFloat(-1)))
   }
 
   /// Runs a compute with Rust's lock held and applies the layout it returns.
   /// Roots a foreign host measured meanwhile are computed right after, and the
   /// pass reruns (at most twice) when one of them had reported a stale size.
-  private func runPass(_ compute: () -> UnsafeMutableRawPointer?) {
+  private func runPass(available: CGSize? = nil, _ compute: () -> UnsafeMutableRawPointer?) {
     let mason = node.mason
+    // Deferred measurements must restore this pass's box, including a new
+    // host size, rather than the viewport from the preceding layout.
+    let hostSize = _hostRootSize
+    if let available = available { _hostRootSize = available }
     mason.passDepth += 1
     defer {
+      _hostRootSize = hostSize
       mason.passDepth -= 1
       if mason.passDepth == 0 { mason.endPass() }
     }
@@ -794,6 +801,8 @@ extension MasonElement {
   internal func settleDeferredSizes() -> Bool {
     let queued = node.deferredRootSizes
     let leaf = node.deferredRootLeaf
+    let hostSize = _hostRootSize
+    let autoComputeSize = _lastAutoComputeSize
     node.deferredRootSizes.removeAll()
     node.deferredRootLeaf = nil
     var stale = false
@@ -801,6 +810,13 @@ extension MasonElement {
       let size = computeRoot(Float(entry.available.width), Float(entry.available.height))
       node.settledRootSizes.append(MasonRootSize(available: entry.available, size: size))
       if size != entry.size { stale = true }
+    }
+    // Intrinsic queries share the live tree with the host's layout. Keep
+    // their measured sizes, but do not leave their viewport applied to it.
+    _hostRootSize = hostSize
+    _lastAutoComputeSize = autoComputeSize
+    if !queued.isEmpty, hostSize != .zero, computeCache() != hostSize {
+      _ = computeRoot(Float(hostSize.width), Float(hostSize.height))
     }
     if !queued.isEmpty { node.mason.settledRoots.append(node) }
     guard stale, let host = leaf ?? foreignHostLeaf()?.leaf else { return false }
