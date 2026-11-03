@@ -2647,9 +2647,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (!style) {
       return;
     }
-    if ((__ANDROID__ || __APPLE__) && !isCssLength(value) && (style as MasonStyle)._writeCornerLength(corner, value)) {
-      (this as any)[borderRadiusCorners_] = undefined;
-      return;
+    if (__ANDROID__ || __APPLE__) {
+      const css = isCssLength(value) ? value.css : typeof value === 'string' ? value : undefined;
+      if (css !== undefined ? (style as MasonStyle)._writeCornerCss(corner, css) : (style as MasonStyle)._writeCornerLength(corner, value)) {
+        (this as any)[borderRadiusCorners_] = undefined;
+        return;
+      }
     }
     let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
     if (!corners) {
@@ -3937,6 +3940,12 @@ for (const { property, group, slot } of logicalLonghands) {
 
 // Logical borders, corners and overflow: see logical-boxes.ts.
 installLogicalBoxes(ViewBase.prototype);
+
+// Mason paints padding, borders and backgrounds itself, so core can skip deriving them (Windows still paints through core).
+if (__ANDROID__ || __APPLE__) (ViewBase.prototype as any)._appliesOwnBoxStyle = true;
+
+// Native setters only write the style buffer, so css values can reach it as they apply instead of on a replay after load.
+if (__ANDROID__ || __APPLE__) (ViewBase.prototype as any)._eagerNativeSetters = true;
 
 export class TextBase extends ViewBase {
   textContent: string;

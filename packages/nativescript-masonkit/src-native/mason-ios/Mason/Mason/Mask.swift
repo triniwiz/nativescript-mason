@@ -120,7 +120,7 @@ final class MaskBorder {
 /// The element's mask: the raw longhands as set, the layers, clip path and mask border parsed
 /// from them, and the rasterizer that composes them into the image `MasonMaskLayer` shows.
 final class Mask {
-  unowned let style: MasonStyle
+  unowned(unsafe) let style: MasonStyle
   // Drawing only: masks reuse the background layer painter. Never parse into it or set its
   // color - that writes the element's background-color.
   private lazy var painter = Background(style: style)

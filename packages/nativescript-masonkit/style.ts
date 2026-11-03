@@ -22,6 +22,8 @@ const layout: typeof coreLayout = __WINDOWS__ ? { ...coreLayout, getDisplayDensi
 
 enum StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
+  STYLE_BUFFER_SIZE = 744,
+
   DISPLAY = 0,
   POSITION = 1,
   DIRECTION = 2,
@@ -422,6 +424,23 @@ function finite(n: number): number {
 
 const EM_UNIT = /em/i;
 
+// Plain lengths parsed once: px, dip and bare numbers in CSS px (the density can change), % as a 0-1 fraction.
+const PLAIN_LENGTH = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))(px|dip|%)?\s*$/i;
+type PlainLength = { percent: boolean; value: number };
+const plainLengths = new Map<string, PlainLength | null>();
+
+function plainLength(token: string): PlainLength | null {
+  let plain = plainLengths.get(token);
+  if (plain === undefined) {
+    const m = PLAIN_LENGTH.exec(token);
+    const n = m ? parseFloat(m[1]) : NaN;
+    plain = Number.isFinite(n) ? (m[2] === '%' ? { percent: true, value: n / 100 } : { percent: false, value: n }) : null;
+    if (plainLengths.size >= 512) plainLengths.clear();
+    plainLengths.set(token, plain);
+  }
+  return plain;
+}
+
 /** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
 const PX_PER_PT = 96 / 72;
 
@@ -523,6 +542,8 @@ function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType
  * Suffix order matters: `rem` also ends with `em`, and `dppx` with `px`.
  */
 function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
+  const plain = plainLength(token);
+  if (plain && !plain.percent) return layout.toDevicePixels(plain.value);
   const t = token.trim().toLowerCase();
   if (isCssMathFunction(t)) {
     const math = evaluateLengthMath(t, emBasis);
@@ -625,6 +646,10 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
   if (typeof value !== 'string') {
     return undefined;
   }
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? undefined : plain.value;
+  }
   const t = value.trim().toLowerCase();
   if (t === '' || t === 'auto' || t.endsWith('%')) {
     return undefined;
@@ -659,6 +684,10 @@ function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
 }
 
 function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -698,6 +727,10 @@ function dimensionFromString(value: string, emBasis?: number): { type: number; v
 
 // Shared parser for LengthPercentageAuto props (min/max width/height, margin, inset)
 function lengthPercentageAutoFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   if (t === '' || t === 'auto') {
     return { type: 0, value: 0 };
@@ -715,6 +748,10 @@ function lengthPercentageAutoFromString(value: string, emBasis?: number): { type
 
 // Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
 function lengthPercentageFromString(value: string, emBasis?: number): { type: number; value: number } {
+  const plain = plainLength(value);
+  if (plain) {
+    return plain.percent ? { type: 1, value: plain.value } : { type: 0, value: layout.toDevicePixels(plain.value) };
+  }
   const t = value.trim();
   const math = mathLengthPercentage(t, emBasis, 0, 1);
   if (math) {
@@ -1506,16 +1543,25 @@ const f32View = new Float32Array(f32Buffer.buffer);
 const i32Buffer = new Uint8Array(Int32Array.BYTES_PER_ELEMENT * 4);
 const i32View = new Int32Array(i32Buffer.buffer);
 
+const colorArgbs = new Map<string, number | null>();
+
 function normalizeColorValue(value: number | string | { argb?: number }): number | null {
   switch (typeof value) {
     case 'number':
       return value;
-    case 'string':
-      try {
-        return new Color(value).argb;
-      } catch (_) {
-        return null;
+    case 'string': {
+      let argb = colorArgbs.get(value);
+      if (argb === undefined) {
+        try {
+          argb = new Color(value).argb;
+        } catch (_) {
+          argb = null;
+        }
+        if (colorArgbs.size >= 512) colorArgbs.clear();
+        colorArgbs.set(value, argb);
       }
+      return argb;
+    }
     case 'object':
       if (value instanceof Color) {
         return value.argb;
@@ -1680,6 +1726,46 @@ function appleHasWritableStyleValues(nativeView: any): boolean {
   return !!appleWritableStyleValues;
 }
 
+/** Style slots per arena chunk; matches Rust's SLOTS_PER_CHUNK. */
+const STYLE_SLOTS_PER_CHUNK = 64;
+/** ArrayBuffers over the arena chunks, fetched once each; a style's DataView covers its own slot. */
+const styleChunks: ArrayBuffer[] = [];
+let styleSlots: boolean | undefined;
+let androidMason: any;
+
+/** The view's own style slot index (taking one if it shares a default), or -1. */
+function styleSlot(nativeView: any): number {
+  if (__ANDROID__) {
+    if (styleSlots === undefined) {
+      androidMason = org.nativescript.mason.masonkit.Mason.getShared();
+      styleSlots = typeof androidMason.prepareStyleSlot === 'function';
+    }
+    return styleSlots && nativeView instanceof android.view.View ? androidMason.prepareStyleSlot(nativeView) : -1;
+  }
+  if (styleSlots === undefined && nativeView) {
+    styleSlots = typeof nativeView.mason_prepareStyleSlot === 'function';
+  }
+  return styleSlots ? nativeView.mason_prepareStyleSlot() : -1;
+}
+
+/** The ArrayBuffer over arena chunk `chunk`, or undefined past the last chunk. */
+function styleChunk(chunk: number): ArrayBuffer | undefined {
+  let buffer = styleChunks[chunk];
+  if (buffer === undefined) {
+    if (__ANDROID__) {
+      const data = androidMason.styleChunk(chunk);
+      if (!data) return undefined;
+      buffer = (<any>ArrayBuffer).from(data);
+    } else {
+      const data = (NSCMason.shared as any).styleChunk(chunk);
+      if (!data) return undefined;
+      buffer = interop.bufferFromData(data);
+    }
+    styleChunks[chunk] = buffer;
+  }
+  return buffer;
+}
+
 function windowsStyleValues(nativeView: any, foreign: boolean) {
   if (foreign && nativeView) return masonEngine().ForeignStyleValues(nativeView);
   if (nativeView?.Node) return masonEngine().StyleValues(nativeView);
@@ -1725,13 +1811,13 @@ const VIEWPORT_UNIT_TEXT = /\d(?:vw|vh|vmin|vmax)\b/i;
 
 /** Marks a style write in progress, so a viewport unit it resolves is remembered against `target[name] = value`. */
 export function beginStyleWrite(target: object, name: string, value: unknown): void {
-  viewportWrites.get(target)?.delete(name);
+  if (viewportStyles.size !== 0) viewportWrites.get(target)?.delete(name);
   writeTargets[writeDepth] = target;
   writeNames[writeDepth] = name;
   writeValues[writeDepth] = value;
   writeDepth++;
   // Android and iOS parse some CSS text natively, so the text itself marks a viewport unit.
-  if (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
+  if (typeof value === 'string' && (value.indexOf('v') !== -1 || value.indexOf('V') !== -1) && VIEWPORT_UNIT_TEXT.test(value)) noteViewportUnit();
 }
 
 export function endStyleWrite(): void {
@@ -1758,6 +1844,8 @@ export function refreshViewportUnits(): void {
     const writes = style && viewportWrites.get(style);
     if (!style || !writes || !writes.size) {
       viewportStyles.delete(ref);
+      // A later viewport write makes a new map, which tracks the style again.
+      if (style) viewportWrites.delete(style);
       continue;
     }
     const keys = Array.from(writes.keys());
@@ -1853,9 +1941,9 @@ export class Style {
   }
 
   // The byte views are rarely read, so they are made on demand.
-  private setBuffer(buffer: ArrayBuffer) {
+  private setBuffer(buffer: ArrayBuffer, offset?: number, length?: number) {
     this._bufferRequested = true;
-    this._sv = new DataView(buffer);
+    this._sv = new DataView(buffer, offset, length);
     this._i8 = undefined;
     this._u8 = undefined;
   }
@@ -1865,6 +1953,14 @@ export class Style {
   // the node's own copy: one native fetch instead of a shared read plus a copy.
   private loadBuffer() {
     this._bufferRequested = true;
+    if (__ANDROID__ || __APPLE__) {
+      const slot = styleSlot(this.nativeView);
+      const chunk = slot >= 0 ? styleChunk((slot / STYLE_SLOTS_PER_CHUNK) | 0) : undefined;
+      if (chunk) {
+        this.setBuffer(chunk, (slot % STYLE_SLOTS_PER_CHUNK) * StyleKeys.STYLE_BUFFER_SIZE, StyleKeys.STYLE_BUFFER_SIZE);
+        return;
+      }
+    }
     if (__ANDROID__) {
       this.setBuffer((<any>ArrayBuffer).from(androidWritableStyleBuffer(this.nativeView)));
     } else if (__APPLE__) {
@@ -2566,7 +2662,7 @@ export class Style {
   }
 
   emBasisFor(value: unknown): number | undefined {
-    return typeof value === 'string' && EM_UNIT.test(value) ? this.emBasis() : undefined;
+    return typeof value === 'string' && (value.indexOf('m') !== -1 || value.indexOf('M') !== -1) && EM_UNIT.test(value) ? this.emBasis() : undefined;
   }
 
   /** The nearest existing Mason ancestor style's font size (its own for a pseudo-class style). */
@@ -2720,6 +2816,15 @@ export class Style {
         // exactly what the buffer's percent type already means, so `1.5em`
         // becomes `150%` and inheritance resolves it natively. `rem` is absolute
         // against the root font size.
+        const plain = plainLength(value);
+        if (plain) {
+          this.prepareMut();
+          setFloat32(this.style_view, StyleKeys.FONT_SIZE, plain.percent ? plain.value * 100 : plain.value);
+          setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
+          setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, plain.percent ? 1 : 0);
+          this.commitState(StateKeys.FONT_SIZE);
+          break;
+        }
         const t = value.trim().toLowerCase();
         const n = finite(parseFloat(t) || 0);
         this.prepareMut();
@@ -4385,14 +4490,9 @@ export class Style {
   private stampPhysical(group: LogicalGroupName, mask: number) {
     const { order, half } = LOGICAL_GROUPS[group];
     const view = this.style_view;
-    let logical = false;
-    for (let i = 0; i < half; i++) {
-      if (getUint8(view, order + half + i) !== 0) {
-        logical = true;
-        break;
-      }
-    }
-    if (!logical) return;
+    // No logical side set: all of the group's stamp bytes are 0.
+    const at = order + half;
+    if (view.getUint32(at, true) === 0 && (half === 4 || view.getUint16(at + 4, true) === 0)) return;
     const stamp = this.nextLogicalStamp();
     for (let i = 0; i < half; i++) {
       if (mask & (1 << i)) setUint8(view, order + i, stamp);
@@ -6121,6 +6221,23 @@ export class Style {
     setFloat32(this.style_view, keys.xValue, amount);
     setUint8(this.style_view, keys.yType, type);
     setFloat32(this.style_view, keys.yValue, amount);
+    this.commitState(StateKeys.BORDER_RADIUS);
+    return true;
+  }
+
+  /** Writes one corner from plain CSS (`8px`, `50%`, `8px 4px`); false when the value needs the full parser. */
+  _writeCornerCss(corner: number, css: string, scale = deviceScale()): boolean {
+    if (!this.nativeView || this._pseudo || !this.style_view) return false;
+    const t = fastRadiusTokens(css, scale);
+    if (!t || t.length < 1 || t.length > 2) return false;
+    this._borderRadiusCss = null;
+    this.prepareMut();
+    const keys = RADIUS_KEYS[corner][1];
+    const v = t[t.length - 1];
+    setUint8(this.style_view, keys.xType, t[0].type);
+    setFloat32(this.style_view, keys.xValue, t[0].value);
+    setUint8(this.style_view, keys.yType, v.type);
+    setFloat32(this.style_view, keys.yValue, v.value);
     this.commitState(StateKeys.BORDER_RADIUS);
     return true;
   }
@@ -8194,6 +8311,11 @@ export class Style {
     Object.defineProperty(proto, name, {
       ...descriptor,
       set(this: object, value: unknown) {
+        if (typeof value === 'number') {
+          if (viewportStyles.size !== 0) viewportWrites.get(this)?.delete(name);
+          set.call(this, value);
+          return;
+        }
         beginStyleWrite(this, name, value);
         try {
           set.call(this, value);

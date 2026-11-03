@@ -12,10 +12,14 @@ import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
+
+/** Style slots per arena chunk; matches Rust's SLOTS_PER_CHUNK. */
+private const val STYLE_SLOTS_PER_CHUNK = 64
 
 class Mason {
   internal val gc by lazy {
@@ -26,6 +30,9 @@ class Mason {
     nativeInit()
   }
   private var isAlive = true
+
+  /** The arena's chunks, fetched once each; they never move while this Mason is alive. */
+  private val styleChunks = ArrayList<ByteBuffer>()
 
   // ConcurrentHashMap: written from the UI thread on node creation but removed
   // from GC.kt's Cleaner/PhantomReference callback thread — a plain HashMap
@@ -144,9 +151,7 @@ class Mason {
     nativeSetDeviceScale(nativePtr, scale)
 
     // set default style font metrics
-    val buffer = ObjectManager.shared[nativeGetBuffer(
-      nativePtr, 0 // default handle
-    )] as? ByteBuffer
+    val buffer = styleSlot(0)
 
     fun setFontData(face: FontFace) {
       buffer?.let {
@@ -639,6 +644,32 @@ class Mason {
     return node?.style
   }
 
+  /** A direct ByteBuffer over one arena chunk of 64 style slots, or null past the last chunk. */
+  fun styleChunk(chunk: Int): ByteBuffer? {
+    while (styleChunks.size <= chunk) {
+      val buffer = Style.nativeStyleChunk(nativePtr, styleChunks.size) ?: return null
+      styleChunks.add(buffer.order(ByteOrder.nativeOrder()))
+    }
+    return styleChunks[chunk]
+  }
+
+  /** A ByteBuffer over style slot `slot`, sliced from its chunk. */
+  internal fun styleSlot(slot: Int): ByteBuffer? {
+    val chunk = styleChunk(slot / STYLE_SLOTS_PER_CHUNK) ?: return null
+    val offset = (slot % STYLE_SLOTS_PER_CHUNK) * StyleKeys.STYLE_BUFFER_SIZE
+    val view = chunk.duplicate()
+    view.position(offset)
+    view.limit(offset + StyleKeys.STYLE_BUFFER_SIZE)
+    return view.slice().order(ByteOrder.nativeOrder())
+  }
+
+  /** The view's own style slot index (taking one if it shares a default), or -1 outside the shared Mason. */
+  fun prepareStyleSlot(view: android.view.View): Int {
+    if (this !== shared) return -1
+    val style = (view as? Element)?.style ?: styleForViewOrNode(view) ?: return -1
+    return style.prepareSlot()
+  }
+
   fun requestLayout(node: Long) {
     nodes[node]?.get()?.style?.updateNativeStyle()
   }
@@ -710,9 +741,6 @@ class Mason {
 
     @JvmStatic
     private external fun nativeDebugStats(mason: Long): LongArray
-
-    @JvmStatic
-    private external fun nativeGetBuffer(mason: Long, handle: Int): Int
 
     /**
      * Enable or disable CSS Preflight (web-normalised / Tailwind-like) defaults.

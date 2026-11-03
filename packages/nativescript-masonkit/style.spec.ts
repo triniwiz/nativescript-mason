@@ -73,6 +73,15 @@ const GEOMETRY: Case[] = [
   { prop: 'paddingLeft', input: '10px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10), typeOffset: K.PADDING_LEFT_TYPE, typeValue: TYPE_POINTS_LP },
   { prop: 'marginTop', input: '10px', valueOffset: K.MARGIN_TOP_VALUE, expected: cssPx(10) },
 
+  // --- plain lengths, cached across scales ----------------------------------
+  { prop: 'paddingLeft', input: ' 10px ', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
+  { prop: 'paddingLeft', input: '10PX', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
+  { prop: 'paddingLeft', input: '.5px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(0.5) },
+  { prop: 'paddingLeft', input: '25%', valueOffset: K.PADDING_LEFT_VALUE, expected: () => 0.25, typeOffset: K.PADDING_LEFT_TYPE, typeValue: 1 },
+  { prop: 'marginTop', input: '-4px', valueOffset: K.MARGIN_TOP_VALUE, expected: cssPx(-4) },
+  { prop: 'marginTop', input: '0', valueOffset: K.MARGIN_TOP_VALUE, expected: () => 0 },
+  { prop: 'minWidth', input: '8dip', valueOffset: K.MIN_WIDTH_VALUE, expected: cssPx(8) },
+
   // --- shorthands go through their own parser -------------------------------
   { prop: 'padding', input: '10px 20px', valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(20) },
   { prop: 'padding', input: 10, valueOffset: K.PADDING_LEFT_VALUE, expected: cssPx(10) },
@@ -170,7 +179,7 @@ describe.each(SCALES)('screen scale %i', (scale) => {
 describe('scale invariance', () => {
   // A single assertion that catches the whole bug class: whatever spelling is
   // used, a CSS length must come out N times bigger at scale N.
-  it.each(GEOMETRY.filter((c) => c.input !== '100dppx' && c.input !== '50%').map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s scales linearly', (_label, c) => {
+  it.each(GEOMETRY.filter((c) => c.expected(1) !== 0 && c.expected(2) === c.expected(1) * 2).map((c) => [`${c.prop} = ${JSON.stringify(c.input)}`, c] as const))('%s scales linearly', (_label, c) => {
     const at = (scale: number) => {
       setScreenScale(scale);
       const t = styleUnderTest();
@@ -271,6 +280,16 @@ describe('CSS relative units', () => {
     expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(1);
   });
 
+  it('font-size as a percentage or a bare number', () => {
+    const t = styleUnderTest();
+    t.style.fontSize = '50%' as never;
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(50);
+    expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(1);
+    t.style.fontSize = '18' as never;
+    expect(t.getFloat32(K.FONT_SIZE)).toBe(18);
+    expect(t.getInt8(K.FONT_SIZE_TYPE)).toBe(0);
+  });
+
   it('font-size in rem is absolute against the root font size', () => {
     const t = styleUnderTest();
     t.style.fontSize = '1.5rem' as never;
@@ -302,6 +321,26 @@ describe('CSS relative units', () => {
     setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
     refreshViewportUnits();
     expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
+  });
+
+  it('forgets a viewport unit once the property is written as a number', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = 10 as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(10);
+  });
+
+  it('tracks a style again when it uses a viewport unit after a refresh dropped it', () => {
+    const t = styleUnderTest();
+    t.style.width = '50vw' as never;
+    t.style.width = '10px' as never;
+    refreshViewportUnits();
+    t.style.width = '50vw' as never;
+    setCssUnitContext({ viewportWidth: 1000, viewportHeight: 400 });
+    refreshViewportUnits();
+    expect(t.getFloat32(K.WIDTH_VALUE)).toBe(500);
   });
 
   it('writes CSS text with a viewport unit again, for values the platform parses natively', () => {
@@ -474,6 +513,15 @@ describe('resetting a color', () => {
     expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(1);
     (t.style as any).color = undefined;
     expect(t.getInt8(K.FONT_COLOR_STATE)).toBe(0);
+  });
+
+  it('writes the same background-color string on every element', () => {
+    const a = styleUnderTest();
+    const b = styleUnderTest();
+    a.style.backgroundColor = '#3B5BDB';
+    b.style.backgroundColor = '#3B5BDB';
+    expect(a.getInt32(K.BACKGROUND_COLOR) >>> 0).toBe(0xff3b5bdb);
+    expect(b.getInt32(K.BACKGROUND_COLOR) >>> 0).toBe(0xff3b5bdb);
   });
 
   it('unsets background-color, which goes transparent', () => {

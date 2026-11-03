@@ -1169,21 +1169,46 @@ pub extern "C" fn mason_style_get_style_buffer(
     }
 }
 
-#[cfg(target_vendor = "apple")]
+/// Gives the node its own style slot if it shares one; returns the slot's bytes.
 #[no_mangle]
-pub extern "C" fn mason_style_get_style_buffer_apple(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-) -> *mut std::os::raw::c_void {
+pub extern "C" fn mason_style_prepare_mut_ptr(mason: *mut CMason, node: *mut CMasonNode) -> *mut u8 {
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
     unsafe {
         let mason = &mut *mason;
         let node = &(*node).0;
-
-        mason.0.style_data(node.id())
+        mason.0.prepare_mut(node);
+        mason.0.style_data_raw_mut(node.id()).0
     }
+}
+
+/// Gives the node its own style slot if it shares one; returns the slot index, or -1.
+#[no_mangle]
+pub extern "C" fn mason_style_prepare_slot(mason: *mut CMason, node: *mut CMasonNode) -> i32 {
+    if mason.is_null() || node.is_null() {
+        return -1;
+    }
+    unsafe {
+        let mason = &mut *mason;
+        mason.0.prepare_style_slot((*node).0.id()).map_or(-1, |slot| slot as i32)
+    }
+}
+
+/// The bytes of one arena chunk (64 style slots), or null past the last chunk.
+#[no_mangle]
+pub extern "C" fn mason_style_chunk(mason: *mut CMason, chunk: i32, out_len: *mut usize) -> *mut u8 {
+    let ptr = if mason.is_null() || chunk < 0 {
+        None
+    } else {
+        unsafe { (*mason).0.style_chunk_ptr(chunk as usize) }
+    };
+    if !out_len.is_null() {
+        unsafe {
+            *out_len = if ptr.is_some() { mason_core::style::arena::CHUNK_BYTES } else { 0 };
+        }
+    }
+    ptr.unwrap_or(std::ptr::null_mut())
 }
 
 #[no_mangle]

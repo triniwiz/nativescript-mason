@@ -4,7 +4,12 @@ internal class ChildList(initialCapacity: Int) : ArrayList<Node>(initialCapacity
   var mayHaveAnonymous = false
     private set
 
+  // Bumped on every change to the list.
+  var version = 0
+    private set
+
   private fun note(node: Node) {
+    version++
     if (node.isAnonymous) mayHaveAnonymous = true
   }
 
@@ -34,7 +39,33 @@ internal class ChildList(initialCapacity: Int) : ArrayList<Node>(initialCapacity
   }
 
   override fun clear() {
+    version++
     super.clear()
     mayHaveAnonymous = false
+  }
+
+  override fun remove(element: Node): Boolean {
+    version++
+    return super.remove(element)
+  }
+
+  override fun removeAt(index: Int): Node {
+    version++
+    return super.removeAt(index)
+  }
+
+  override fun removeAll(elements: Collection<Node>): Boolean {
+    version++
+    return super.removeAll(elements)
+  }
+
+  override fun retainAll(elements: Collection<Node>): Boolean {
+    version++
+    return super.retainAll(elements)
+  }
+
+  override fun removeRange(fromIndex: Int, toIndex: Int) {
+    version++
+    super.removeRange(fromIndex, toIndex)
   }
 }

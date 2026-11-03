@@ -258,7 +258,7 @@ public final class CSSBorderRenderer {
       return "BorderSide{ side: \(side),  width: \(width), color: \(color), style: \(style) }"
     }
 
-    unowned let owner: MasonStyle
+    unowned(unsafe) let owner: MasonStyle
     public var width: MasonLengthPercentage {
       get {
         return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), Int(owner.getInt8(keys.widthType)))!
@@ -378,7 +378,7 @@ public final class CSSBorderRenderer {
   public var radius: BorderRadius { didSet { _hasRadii = nil } }
   private var _hasRadii: Bool?
   
-  unowned var style: MasonStyle
+  unowned(unsafe) var style: MasonStyle
   
   // Cache
   private var lastHash: Int = 0

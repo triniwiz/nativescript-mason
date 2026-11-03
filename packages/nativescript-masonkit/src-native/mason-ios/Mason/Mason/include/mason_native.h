@@ -121,7 +121,10 @@ bool mason_get_preflight(void);
 
 bool mason_ua_default_for_tag(const char *tag, struct CMasonUaDefault *out);
 
-void *mason_get_buffer(struct CMason *mason, int handle);
+/**
+ * The bytes of the shared default style slot.
+ */
+uint8_t *mason_default_style_ptr(struct CMason *mason);
 
 void mason_node_set_segments(struct CMason *mason,
                              struct CMasonNode *node,
@@ -383,10 +386,6 @@ const uint8_t *mason_node_get_pseudo_style_buffer(struct CMason *mason,
                                                   uint16_t flags,
                                                   uintptr_t *out_len);
 
-void *mason_node_get_pseudo_style_buffer_apple(struct CMason *mason,
-                                               struct CMasonNode *node,
-                                               uint16_t flags);
-
 /**
  * Prepare (create if needed) and return a mutable pseudo style buffer.
  * Clones from the base style if this is the first call for the given pseudo state.
@@ -396,10 +395,6 @@ uint8_t *mason_node_prepare_pseudo_style_buffer(struct CMason *mason,
                                                 struct CMasonNode *node,
                                                 uint16_t flags,
                                                 uintptr_t *out_len);
-
-void *mason_node_prepare_pseudo_style_buffer_apple(struct CMason *mason,
-                                                   struct CMasonNode *node,
-                                                   uint16_t flags);
 
 bool mason_node_is_children_same(struct CMason *mason,
                                  struct CMasonNode *node,
@@ -565,7 +560,20 @@ const uint8_t *mason_style_get_style_data(struct CMason *mason,
 
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 
-void *mason_style_get_style_buffer_apple(struct CMason *mason, struct CMasonNode *node);
+/**
+ * Gives the node its own style slot if it shares one; returns the slot's bytes.
+ */
+uint8_t *mason_style_prepare_mut_ptr(struct CMason *mason, struct CMasonNode *node);
+
+/**
+ * Gives the node its own style slot if it shares one; returns the slot index, or -1.
+ */
+int32_t mason_style_prepare_slot(struct CMason *mason, struct CMasonNode *node);
+
+/**
+ * The bytes of one arena chunk (64 style slots), or null past the last chunk.
+ */
+uint8_t *mason_style_chunk(struct CMason *mason, int32_t chunk, uintptr_t *out_len);
 
 char *mason_style_get_grid_area_css(struct CMason *mason, struct CMasonNode *node);
 

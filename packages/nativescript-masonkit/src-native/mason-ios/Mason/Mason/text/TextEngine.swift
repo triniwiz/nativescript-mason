@@ -96,7 +96,7 @@ public class TextEngine: NSObject {
   
   internal var drawState: DrawState = .idle
   
-  unowned let container: TextContainer
+  unowned(unsafe) let container: TextContainer
   
   var node: MasonNode {
     return container.node

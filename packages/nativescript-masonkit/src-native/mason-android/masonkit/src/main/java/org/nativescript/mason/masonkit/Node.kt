@@ -453,12 +453,42 @@ open class Node internal constructor(
   }
 
   var type: NodeType = nodeType
-    internal set
+    internal set(value) {
+      field = value
+      Style.writeEpoch++
+    }
 
   var view: Any? = null
 
   internal val children = ChildList(4)
   internal val style = Style(this)
+
+  // Floated children as of the last scan; rescanned when the list or any style changes.
+  private var floatScanChildren = -1
+  private var floatScanStyles = -1L
+  private var floatedChildren = 0
+  private var firstFloatedChild: Node? = null
+
+  /** Whether a child other than [except] is floated. */
+  internal fun hasFloatedChildBesides(except: Node): Boolean {
+    val styles = Style.writeEpoch
+    if (floatScanChildren != children.version || floatScanStyles != styles) {
+      var count = 0
+      var first: Node? = null
+      for (child in children) {
+        if (child.type != NodeType.Element || !child.style.isValueInitialized) continue
+        if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) {
+          if (count == 0) first = child
+          count++
+        }
+      }
+      floatedChildren = count
+      firstFloatedChild = first
+      floatScanChildren = children.version
+      floatScanStyles = styles
+    }
+    return floatedChildren > 1 || (floatedChildren == 1 && firstFloatedChild !== except)
+  }
 
   internal var suppressChildOps = 0
   internal inline fun <T> suppressChildOperations(block: () -> T): T {
@@ -957,16 +987,12 @@ open class Node internal constructor(
         return it
       }
 
-      val id = NativeHelpers.nativeGetPseudoStyleBuffer(mason.nativePtr, nativePtr, flags)
-      if (id < 0) {
+      val slot = Style.nativePseudoStyleSlot(mason.nativePtr, nativePtr, flags)
+      val buffer = if (slot >= 0) mason.styleSlot(slot) else null
+      if (buffer == null) {
         val empty = ByteBuffer.allocateDirect(0)
         empty.order(ByteOrder.nativeOrder())
         return empty
-      }
-
-      val buffer = ObjectManager.shared[id] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
       }
 
       (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
@@ -986,16 +1012,12 @@ open class Node internal constructor(
         return it
       }
 
-      val id = NativeHelpers.nativePreparePseudoMut(mason.nativePtr, nativePtr, flags)
-      if (id < 0) {
+      val slot = Style.nativePreparePseudoSlot(mason.nativePtr, nativePtr, flags)
+      val buffer = if (slot >= 0) mason.styleSlot(slot) else null
+      if (buffer == null) {
         val empty = ByteBuffer.allocateDirect(0)
         empty.order(ByteOrder.nativeOrder())
         return empty
-      }
-
-      val buffer = ObjectManager.shared[id] as ByteBuffer
-      buffer.apply {
-        order(ByteOrder.nativeOrder())
       }
       (cache ?: mutableMapOf<Int, ByteBuffer>().also { cache = it })[flags] = buffer
       registerPseudoBufferOwner(buffer, this@Node, flags)

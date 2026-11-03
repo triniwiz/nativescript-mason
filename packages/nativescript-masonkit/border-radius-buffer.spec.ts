@@ -152,6 +152,47 @@ describe('_writeCornerLength', () => {
   });
 });
 
+describe('_writeCornerCss', () => {
+  function withNativeView() {
+    const t = styleUnderTest();
+    (t.style as any).nativeView = {};
+    return t;
+  }
+
+  it('writes the same corner as the parse-and-compose path', () => {
+    for (const [css, radius] of [
+      ['8px', ['8px', '8px']],
+      ['50%', ['50%', '50%']],
+      ['3dppx', ['3dppx', '3dppx']],
+      [' 8px 4px ', ['8px', '4px']],
+    ] as [string, [string, string]][]) {
+      const fast = withNativeView();
+      const slow = withNativeView();
+      expect(fast.style._writeCornerCss(2, css, 3)).toBe(true);
+      expect(slow.style._writeCornerRadius(2, radius, css, 3)).toBe(true);
+      expect(corners(fast)).toEqual(corners(slow));
+      expect(fast.dirty()).toBe(slow.dirty());
+    }
+  });
+
+  it('builds the shorthand from the buffer only when read', () => {
+    const t = withNativeView();
+    t.style._writeBorderRadius('1 2 3 4', 2);
+    expect(t.style._writeCornerCss(1, '8px 2px', 2)).toBe(true);
+    expect((t.style as any)._borderRadiusCss).toBeNull();
+    expect((t.style as any)._radiusCssFromBuffer(2)).toBe('1px 8px 3px 4px / 1px 2px 3px 4px');
+  });
+
+  it('leaves units that need native context and missing native views to the full path', () => {
+    for (const css of ['1em', '2rem', 'calc(4px + 1px)', '1px 2px 3px', '', 'auto']) {
+      const t = withNativeView();
+      expect(t.style._writeCornerCss(0, css, 2)).toBe(false);
+      expect(t.dirty()).toBe(-1n);
+    }
+    expect(styleUnderTest().style._writeCornerCss(0, '4px', 2)).toBe(false);
+  });
+});
+
 describe('_cornerRadiusIsZero', () => {
   it('reads one corner from the buffer', () => {
     const t = styleUnderTest();

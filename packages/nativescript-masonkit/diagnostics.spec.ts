@@ -26,6 +26,14 @@ describe('CSS diagnostics', () => {
     expect(formatCssDiagnostics()).toContain('10ch');
   });
 
+  it('reports an unknown unit again after a clear', () => {
+    const t = styleUnderTest();
+    t.style.width = '10ch' as never;
+    clearCssDiagnostics();
+    t.style.paddingLeft = '10ch' as never;
+    expect(formatCssDiagnostics()).toContain('10ch');
+  });
+
   it('reports a viewport unit used before the viewport is known', () => {
     setCssUnitContext({ viewportWidth: 0, viewportHeight: 0 });
     const t = styleUnderTest();

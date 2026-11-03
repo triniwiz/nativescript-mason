@@ -103,7 +103,10 @@ public class MasonNode: NSObject {
   public internal(set) var mason: NSCMason
   
   internal var isAnonymous = false {
-    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+    didSet {
+      if isAnonymous { layoutParent?.hasAnonymousChild = true }
+      MasonStyle.resolveEpoch &+= 1
+    }
   }
 
   // Set once an anonymous node is linked under this one (sticky). Without one,
@@ -409,19 +412,19 @@ public class MasonNode: NSObject {
   
   /// Get existing pseudo style buffer (read-only).
   public func getPseudoBuffer(_ flags: UInt16) -> NSMutableData? {
-    let buffer = mason_node_get_pseudo_style_buffer_apple(mason.nativePtr, nativePtr, flags)
-    guard let buffer = buffer else { return nil }
-    return Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+    var length = 0
+    guard let bytes = mason_node_get_pseudo_style_buffer(mason.nativePtr, nativePtr, flags, &length), length > 0 else { return nil }
+    return MasonSlotData(UnsafeMutableRawPointer(mutating: bytes), length, owner: mason)
   }
 
   /// Prepare (create if needed) a mutable pseudo style buffer.
   /// Clones from base style on first call for a given state.
   public func preparePseudoBuffer(_ flags: UInt16) -> NSMutableData {
-    let buffer = mason_node_prepare_pseudo_style_buffer_apple(mason.nativePtr, nativePtr, flags)
-    guard let buffer = buffer else {
+    let buffer = preparePseudoBufferRaw(flags)
+    guard let bytes = buffer.baseAddress else {
       return NSMutableData()
     }
-    return Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+    return MasonSlotData(UnsafeMutableRawPointer(bytes), buffer.count, owner: mason)
   }
 
   /// Returns true when any active pseudo buffer explicitly set the given StateKeys.
@@ -512,8 +515,12 @@ public class MasonNode: NSObject {
   }()
   
   
+  /// Inherited text values resolve through this link, so changing it bumps `MasonStyle.resolveEpoch`.
   internal weak var layoutParent: MasonNode? = nil {
-    didSet { if isAnonymous { layoutParent?.hasAnonymousChild = true } }
+    didSet {
+      if isAnonymous { layoutParent?.hasAnonymousChild = true }
+      MasonStyle.resolveEpoch &+= 1
+    }
   }
   public internal(set) var parent: MasonNode? {
     get {
@@ -689,6 +696,8 @@ public class MasonNode: NSObject {
 
   deinit {
     MasonNode.liveCount -= 1
+    // Children's weak parent links go nil without a didSet, so cached inherited values must go too.
+    MasonStyle.resolveEpoch &+= 1
     // An anonymous text container under a text container keeps its own view alive, and the view
     // owns that node: release the pair with this parent.
     for child in children where child.retainedAnonymousView != nil {
