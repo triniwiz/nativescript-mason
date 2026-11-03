@@ -71,6 +71,7 @@ open class View @JvmOverloads constructor(
     clipToPadding = false
 
     isChildrenDrawingOrderEnabled = false
+    if (android.os.Build.VERSION.SDK_INT >= 30) importantForContentCapture = android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO
   }
 
 
