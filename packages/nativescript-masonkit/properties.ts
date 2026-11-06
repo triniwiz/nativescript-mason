@@ -52,7 +52,7 @@ import { isCssMathFunction } from './css-math';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
-import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty } from '@nativescript/core/ui/styling/style-properties';
+import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty, fontFamilyProperty as coreFontFamilyProperty } from '@nativescript/core/ui/styling/style-properties';
 import { transformConverter } from '@nativescript/core/ui/styling/css-transform';
 import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBorderStyleStartEnd, splitBorderWidthStartEnd, splitBorderColorStartEnd, splitInsetStartEnd, splitMarginStartEnd, splitPaddingStartEnd, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
 import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
@@ -526,16 +526,14 @@ export const textDecorationThicknessProperty = new CssProperty<Style, string>({
 // (the natives keep the family on a FontFace, not in the buffer), and core's
 // fontInternalProperty.setNative hook in common.ts is Windows-only. So on both
 // mobile platforms this was unsettable from CSS *and* from TS.
-export const fontFamilyProperty = new CssProperty<Style, string>({
-  name: 'fontFamily',
-  cssName: 'font-family',
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.fontFamily = newValue as never;
-    }
-  },
-});
+//
+// This has to stay core's InheritedCssProperty: a parallel registration gave
+// `style.fontFamily` a second value slot, so propagateInheritableCssProperties
+// read Mason's unset slot while core's inherited slot held the family — and a
+// child attached after propagation inherited undefined. Aliasing core's
+// property keeps a single slot; the mobile forward is added to its
+// valueChanged where it was registered alongside core, below.
+export const fontFamilyProperty = coreFontFamilyProperty;
 
 // ---------------------------------------------------------------------------
 // Registering alongside @nativescript/core
@@ -2630,11 +2628,26 @@ const TextDecorationParse = makeParser<string>(makeValidator('none', 'underline'
     return isMasonView(this) ? value : TextDecorationParse(value);
   },
 });
-// core owns `font-family` (through its Font shorthand), so this has to dispatch
-// rather than shadow it.
-// Windows keeps core's inherited font-family, whose fontInternal reaches common.ts and resolves app fonts.
+// core owns `font-family` (through its Font shorthand), so extend its
+// valueChanged to keep core's Font state and forward the family to the mason
+// style helper, which performs the real native font lookup on mobile.
+// Windows keeps core's handling alone: its fontInternal setNative resolves app fonts.
 if (!__WINDOWS__) {
-  registerAlongsideCore(fontFamilyProperty);
+  coreFontFamilyProperty.overrideHandlers({
+    valueChanged(target, oldValue, newValue) {
+      // Core's own update, restated — overrideHandlers replaces the handler
+      // wholesale, so the fontInternal bookkeeping cannot just be delegated to.
+      const currentFont = target.fontInternal || Font.default;
+      if (currentFont.fontFamily !== newValue) {
+        const newFont = currentFont.withFontFamily(newValue);
+        target.fontInternal = Font.equals(Font.default, newFont) ? unsetValue : newFont;
+      }
+      const view = getViewStyle(target.viewRef);
+      if (view) {
+        view.fontFamily = newValue as never;
+      }
+    },
+  });
 }
 
 displayProperty.register(Style);
