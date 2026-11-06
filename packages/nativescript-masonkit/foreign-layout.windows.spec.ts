@@ -45,4 +45,16 @@ describe('foreign child layout on Windows', () => {
     style.flexGrow = unsetValue;
     expect(leaf).toEqual({ flexGrow: 0, flexShrink: 0, alignSelf: 'center', gridArea: '2 / auto / auto / auto' });
   });
+
+  it('still reads px as a CSS pixel, for the panel to copy', () => {
+    const leaf = leafTransport();
+    const { view, style } = foreign();
+    style.height = '31px';
+    adoptForeignLayout(view);
+    adopted.push(view);
+    style.width = '22px';
+    expect(style.width).toBe(22);
+    expect(style.height).toBe(31);
+    expect(leaf).not.toHaveProperty('width');
+  });
 });
