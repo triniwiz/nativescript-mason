@@ -40,6 +40,9 @@
     "build:native": "npm run build:android && npm run build:ios"
   },
   "bootstrapper": "@nativescript/plugin-seed",
+  "dependencies": {
+    "@nativescript/font-manager": "^1.0.20"
+  },
   "peerDependencies": {
     "@angular/core": ">=19.0.0",
     "@nativescript-community/react": ">=19.0.0",
