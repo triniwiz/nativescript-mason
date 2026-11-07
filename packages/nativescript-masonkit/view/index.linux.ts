@@ -1,0 +1,62 @@
+import { CSSType } from '@nativescript/core';
+import { ViewBase } from '../common';
+import { Style } from '../style';
+import { Tree } from '../tree';
+import { isMasonView_, native_, style_ } from '../symbols';
+import { appendNativeChild } from '../panel-helpers';
+import type * as Native from '../native.linux';
+
+@CSSType('View')
+export class View extends ViewBase {
+  [style_];
+  nativeViewProtected: Native.View;
+
+  constructor() {
+    super();
+    this[isMasonView_] = true;
+  }
+
+  get _view(): Native.View {
+    if (!this[native_]) {
+      this[native_] = Tree.instance.createView() as never;
+    }
+    return this[native_] as never as Native.View;
+  }
+
+  get _styleHelper(): Style {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
+  _inBatch = false;
+
+  createNativeView() {
+    return this._view;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get linux() {
+    return this._view;
+  }
+
+  // @ts-ignore
+  public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
+    if (this._windowsAttach(child)) return true;
+    const index = this._windowsNativeIndexOf(child, atIndex);
+    super._addViewToNativeVisualTree(child, index);
+    if (!appendNativeChild(this._view, child, index)) return false;
+    this._masonAdoptForeign(child);
+    return true;
+  }
+
+  // @ts-ignore
+  public _removeViewFromNativeVisualTree(child: any): void {
+    this._windowsDetachChild(child);
+    child._isMasonChild = false;
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(child);
+  }
+}

@@ -1,5 +1,5 @@
 import { CSSType, Property, Utils, ViewBase, unsetValue } from '@nativescript/core';
-import { masonEngine } from './panel-helpers';
+import { masonDelegate, masonEngine } from './panel-helpers';
 // Not from '.': the index re-exports this module, so that import is a cycle.
 import { Scroll } from './scroll';
 import { Text } from './text';
@@ -334,7 +334,7 @@ function nativeOf(view: any): any {
  * Where the native view does `<details>` itself (role + open): it hides the closed content, turns
  * the summary's marker, answers accessibility and toggles on a summary tap, reporting "toggle".
  */
-const NATIVE_DETAILS = __WINDOWS__ || __APPLE__ || __ANDROID__;
+const NATIVE_DETAILS = __WINDOWS__ || __LINUX__ || __APPLE__ || __ANDROID__;
 
 declare const kotlin: any;
 
@@ -344,19 +344,19 @@ const enum DetailsRole {
 }
 
 function setNativeRole(native: any, role: DetailsRole) {
-  if (__WINDOWS__) native.Role = role;
+  if (__WINDOWS__ || __LINUX__) native.Role = role;
   else if (__APPLE__) native.mason_detailsRole = role;
   else if (__ANDROID__) native.setDetailsRole(role);
 }
 
 function setNativeOpen(native: any, open: boolean) {
-  if (__WINDOWS__) native.Open = open;
+  if (__WINDOWS__ || __LINUX__) native.Open = open;
   else if (__APPLE__) native.mason_detailsOpen = open;
   else if (__ANDROID__) native.setDetailsOpen(open);
 }
 
 function isNativeOpen(native: any): boolean {
-  if (__WINDOWS__) return !!native.Open;
+  if (__WINDOWS__ || __LINUX__) return !!native.Open;
   if (__APPLE__) return !!native.mason_detailsOpen;
   if (__ANDROID__) return !!native.getDetailsOpen();
   return false;
@@ -364,8 +364,8 @@ function isNativeOpen(native: any): boolean {
 
 /** Calls `callback` on the native "toggle" event; returns what removes it. */
 function onNativeToggle(native: any, callback: () => void): () => void {
-  if (__WINDOWS__) {
-    const listener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', callback);
+  if (__WINDOWS__ || __LINUX__) {
+    const listener = masonDelegate('NativeScript.Mason.EventListener', callback);
     const id = masonEngine().AddEventListener(native, 'toggle', listener);
     return () => masonEngine().RemoveEventListener(native, 'toggle', id);
   }

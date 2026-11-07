@@ -44,6 +44,7 @@ export default defineConfig({
     __IOS__: 'false',
     __VISIONOS__: 'false',
     __WINDOWS__: 'false',
+    __LINUX__: 'false',
     __DEV__: 'true',
     __COMMONJS__: 'false',
     __TEST__: 'true',
