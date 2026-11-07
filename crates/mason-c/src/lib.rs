@@ -7,6 +7,7 @@ pub mod style;
 pub mod util;
 
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct CMason(Mason);
 
 impl CMason {
@@ -179,4 +180,12 @@ pub extern "C" fn mason_default_style_ptr(mason: *mut CMason) -> *mut u8 {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[repr(transparent)]
 pub struct CMasonNode(NodeRef);
+
+impl CMasonNode {
+    /// Wraps a node created through mason-core (the Linux bindings).
+    pub fn from_ref(node: NodeRef) -> Self {
+        CMasonNode(node)
+    }
+}
