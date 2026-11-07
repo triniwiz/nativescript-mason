@@ -1038,7 +1038,7 @@ fn flow(el: &Element, full: &pango::Layout, width: f32) -> Option<(Vec<Band>, f3
             break;
         };
         let height = line.extents().1.height() as f32 / unit;
-        let len = (line.length() as usize).max(1);
+        let len = line_advance(&full.text(), start, line.length() as usize);
         bands.push(Band {
             layout,
             start,
@@ -1052,6 +1052,15 @@ fn flow(el: &Element, full: &pango::Layout, width: f32) -> Option<(Vec<Band>, f3
         y += height;
     }
     Some((bands, y))
+}
+
+/// Bytes a band's first line consumes; an empty line (at a paragraph separator, maybe
+/// multi-byte like U+2029) still moves on a whole char.
+fn line_advance(text: &str, start: usize, line_len: usize) -> usize {
+    match line_len {
+        0 => text[start..].chars().next().map_or(1, char::len_utf8),
+        n => n,
+    }
 }
 
 fn last_baseline(layout: &pango::Layout) -> f32 {
@@ -1403,4 +1412,15 @@ pub fn snapshot_marker(el: &Element, s: &gtk::Snapshot, g: &BoxGeometry) {
     s.translate(&graphene::Point::new(x, rect.y()));
     s.append_layout(&layout, &rgba(text_style.color));
     s.restore();
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn empty_lines_advance_whole_chars() {
+        let text = "x\u{2029}y";
+        assert_eq!(super::line_advance(text, 1, 0), 3);
+        assert_eq!(super::line_advance(text, 0, 1), 1);
+        assert!(text.is_char_boundary(1 + super::line_advance(text, 1, 0)));
+    }
 }
