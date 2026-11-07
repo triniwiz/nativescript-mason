@@ -26,7 +26,7 @@ Fonts in your app's `fonts` folder are registered with fontconfig at startup, so
 - Backgrounds, gradients, borders, box shadows and filters are drawn with GSK render nodes.
 - `<input>` and `<textarea>` host a GTK control (an entry, a check button, a scale, a color button or a text view) in their content box.
 
-In TypeScript, `native.linux.ts` exposes the library with the same API as the Windows component (`NativeScript.Mason.View`, `Text`, `Css`, ...). Each element object is also the `GtkWidget` pointer, so core treats it like any other native view. CSS is parsed in TypeScript, as on Windows.
+In TypeScript, `native.linux.ts` exposes the library as `NativeScript.Mason` (`View`, `Text`, `Css`, ...). Each element object is also the `GtkWidget` pointer, so core treats it like any other native view. CSS is parsed in TypeScript.
 
 Plain NativeScript views inside a Mason element are measured and laid out through core, at the size and position Mason gives them.
 

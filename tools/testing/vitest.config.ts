@@ -10,7 +10,7 @@ const root = resolve(__dirname, '../..');
  * not symlink it into node_modules, so Node's ESM loader cannot find it; this
  * routes the import to the source entry before Node sees it.
  */
-/** Prefer masonkit's `.windows.ts` modules, as the Windows build does. */
+/** Prefer masonkit's `.windows.ts` modules. */
 const windowsSuffixResolver = () => ({
   name: 'masonkit-windows-suffix-resolver',
   enforce: 'pre' as const,
