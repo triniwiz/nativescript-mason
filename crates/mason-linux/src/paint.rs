@@ -688,34 +688,63 @@ fn paint_layer(el: &Element, s: &gtk::Snapshot, layer: &Layer, g: &BoxGeometry) 
     let py = origin.y() + layer.position.1.px + layer.position.1.pct / 100.0 * (oh - th);
     push_clip(s, &clip, g.is_rounded());
     let bounds = clip.bounds();
-    let tiles = |start: f32, size: f32, lo: f32, hi: f32, repeat: u8| -> Vec<f32> {
-        if repeat == 1 {
-            return vec![start];
-        }
-        let mut first = start - ((start - lo) / size).ceil() * size;
-        let mut out = Vec::new();
-        while first < hi && out.len() < 4096 {
-            out.push(first);
-            first += size;
-        }
-        out
-    };
-    for ty in tiles(
+    let rows = tile_starts(
         py,
         th,
         bounds.y(),
         bounds.y() + bounds.height(),
         layer.repeat.1,
-    ) {
-        for tx in tiles(
+        MAX_TILES_PER_AXIS,
+    );
+    let per_row = (MAX_TILES / rows.len().max(1)).clamp(1, MAX_TILES_PER_AXIS);
+    for ty in rows {
+        for tx in tile_starts(
             px,
             tw,
             bounds.x(),
             bounds.x() + bounds.width(),
             layer.repeat.0,
+            per_row,
         ) {
             draw_image(el, s, image, graphene::Rect::new(tx, ty, tw, th), 2, (1, 1));
         }
     }
     s.pop();
+}
+
+pub const MAX_TILES_PER_AXIS: usize = 4096;
+/// Tiles one layer paints at most; tiny background / mask sizes would otherwise paint millions.
+pub const MAX_TILES: usize = 1 << 18;
+
+/// Tile positions of `size` along [lo, hi) through `start`; just `start` for no-repeat (1).
+pub fn tile_starts(start: f32, size: f32, lo: f32, hi: f32, repeat: u8, max: usize) -> Vec<f32> {
+    if repeat == 1 {
+        return vec![start];
+    }
+    let mut first = start - ((start - lo) / size).ceil() * size;
+    let mut out = Vec::new();
+    while first < hi && out.len() < max {
+        out.push(first);
+        first += size;
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tile_positions() {
+        assert_eq!(
+            tile_starts(5.0, 10.0, 0.0, 30.0, 0, MAX_TILES_PER_AXIS),
+            [-5.0, 5.0, 15.0, 25.0]
+        );
+        assert_eq!(
+            tile_starts(5.0, 10.0, 0.0, 30.0, 1, MAX_TILES_PER_AXIS),
+            [5.0]
+        );
+        assert_eq!(tile_starts(0.0, 1e-6, 0.0, 1000.0, 0, 64).len(), 64);
+        assert!(tile_starts(0.0, f32::NAN, 0.0, 1000.0, 0, 64).is_empty());
+    }
 }

@@ -639,6 +639,19 @@ fn luminance_to_alpha(surface: &mut cairo::ImageSurface) {
     surface.mark_dirty();
 }
 
+/// Mask canvases hold at most this many pixels (several are alive at once); a bigger area
+/// gets a lower resolution instead of gigabytes.
+const MAX_CANVAS_PIXELS: f64 = (1 << 24) as f64;
+
+fn canvas_scale(area: &graphene::Rect, scale: f64) -> f64 {
+    let pixels = area.width() as f64 * area.height() as f64 * scale * scale;
+    if pixels > MAX_CANVAS_PIXELS {
+        scale * (MAX_CANVAS_PIXELS / pixels).sqrt()
+    } else {
+        scale
+    }
+}
+
 fn new_surface(w: i32, h: i32) -> Option<cairo::ImageSurface> {
     cairo::ImageSurface::create(cairo::Format::ARgb32, w.max(1), h.max(1)).ok()
 }
@@ -703,20 +716,17 @@ fn tile_layer(el: &Element, cr: &cairo::Context, layer: &Layer, g: &BoxGeometry)
     rounded_path(cr, &clip);
     cr.clip();
     let b = clip.bounds();
-    let tiles = |start: f32, size: f32, lo: f32, hi: f32, repeat: u8| -> Vec<f32> {
-        if repeat == 1 {
-            return vec![start];
-        }
-        let mut first = start - ((start - lo) / size).ceil() * size;
-        let mut out = Vec::new();
-        while first < hi && out.len() < 4096 {
-            out.push(first);
-            first += size;
-        }
-        out
-    };
-    for ty in tiles(py, th, b.y(), b.y() + b.height(), layer.repeat.1) {
-        for tx in tiles(px, tw, b.x(), b.x() + b.width(), layer.repeat.0) {
+    let rows = paint::tile_starts(
+        py,
+        th,
+        b.y(),
+        b.y() + b.height(),
+        layer.repeat.1,
+        paint::MAX_TILES_PER_AXIS,
+    );
+    let per_row = (paint::MAX_TILES / rows.len().max(1)).clamp(1, paint::MAX_TILES_PER_AXIS);
+    for ty in rows {
+        for tx in paint::tile_starts(px, tw, b.x(), b.x() + b.width(), layer.repeat.0, per_row) {
             draw_image_cairo(el, cr, image, &graphene::Rect::new(tx, ty, tw, th));
         }
     }
@@ -890,7 +900,7 @@ pub fn masked(
         return;
     };
     let area = mask_area(spec, g);
-    let scale = el.scale_factor().max(1) as f64;
+    let scale = canvas_scale(&area, el.scale_factor().max(1) as f64);
     let mask = mask_surface(el, spec, g, &area, scale);
     drop(css);
     let Some(mask) = mask else {
@@ -1009,6 +1019,8 @@ fn tiles_along(start: f32, len: f32, size: f32, mode: u8) -> Vec<(f32, f32)> {
     if len <= 0.0 || size <= 0.0 || mode == 4 {
         return vec![(start, len)];
     }
+    // a sliver of a slice scaled up would tile without bound (fill tiles both axes: 512² = MAX_TILES)
+    let size = size.max(len / 512.0);
     match mode {
         3 => {
             let n = (len / size).round().max(1.0);
@@ -1130,5 +1142,32 @@ pub fn draw_nine_slice(el: &Element, ns: &NineSlice, g: &BoxGeometry, painter: &
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tiles_are_bounded() {
+        for mode in [0, 2, 3] {
+            assert!(
+                tiles_along(0.0, 1000.0, 1e-6, mode).len() <= 514,
+                "mode {mode}"
+            );
+        }
+        assert_eq!(tiles_along(0.0, 100.0, 10.0, 3).len(), 10);
+        assert_eq!(tiles_along(0.0, 100.0, 30.0, 2).len(), 3);
+    }
+
+    #[test]
+    fn huge_canvases_lose_resolution() {
+        assert_eq!(
+            canvas_scale(&graphene::Rect::new(0.0, 0.0, 800.0, 600.0), 2.0),
+            2.0
+        );
+        let s = canvas_scale(&graphene::Rect::new(0.0, 0.0, 30000.0, 30000.0), 1.0);
+        assert!((30000.0 * s).powi(2) <= MAX_CANVAS_PIXELS * 1.001);
     }
 }
