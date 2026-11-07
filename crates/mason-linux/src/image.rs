@@ -5,11 +5,12 @@ use crate::engine::{self, mason};
 use crate::paint::{fit_rect, BoxGeometry};
 use gtk::glib::translate::*;
 use gtk::prelude::*;
-use gtk::{gdk, glib, graphene};
+use gtk::{gdk, gdk_pixbuf, glib, graphene};
 use mason_core::style::StyleKeys;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ffi::{c_char, CString};
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct ImageState {
@@ -45,19 +46,68 @@ fn decode_data_uri(src: &str) -> Option<glib::Bytes> {
     }
 }
 
+/// Images whose declared size is over this many pixels aren't decoded (4 bytes each).
+const MAX_PIXELS: i64 = 1 << 26;
+/// Encoded image files over this are refused.
+const MAX_FILE_BYTES: u64 = 128 << 20;
+
+fn fits(w: i32, h: i32) -> bool {
+    w > 0 && h > 0 && w as i64 * h as i64 <= MAX_PIXELS
+}
+
+/// The size an encoded image declares, read without decoding its pixels; None when gdk-pixbuf
+/// doesn't know the format.
+fn declared_size(bytes: &[u8]) -> Option<(i32, i32)> {
+    let loader = gdk_pixbuf::PixbufLoader::new();
+    let size = Rc::new(Cell::new(None));
+    let seen = size.clone();
+    loader.connect_size_prepared(move |loader, w, h| {
+        seen.set(Some((w, h)));
+        // 0x0 stops the loader before it allocates (as gdk_pixbuf_get_file_info does)
+        loader.set_size(0, 0);
+    });
+    for chunk in bytes.chunks(64 << 10) {
+        if loader.write(chunk).is_err() || size.get().is_some() {
+            break;
+        }
+    }
+    let _ = loader.close();
+    size.get()
+}
+
+fn decode(bytes: &glib::Bytes) -> Option<gdk::Texture> {
+    if declared_size(bytes).is_some_and(|(w, h)| !fits(w, h)) {
+        return None;
+    }
+    gdk::Texture::from_bytes(bytes).ok()
+}
+
+/// A local image: an absolute path to a regular file (not one relative to the CWD, nor a device
+/// or FIFO that never ends).
+fn read_file(path: &str) -> Option<glib::Bytes> {
+    let path = std::path::Path::new(path);
+    if !path.is_absolute() {
+        return None;
+    }
+    let file = std::fs::File::open(path).ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_FILE_BYTES {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(meta.len() as usize);
+    std::io::Read::read_to_end(&mut std::io::Read::take(file, MAX_FILE_BYTES), &mut bytes).ok()?;
+    Some(glib::Bytes::from_owned(bytes))
+}
+
 fn load_now(src: &str) -> Option<Result<gdk::Texture, ()>> {
     if src.starts_with("data:") {
-        return Some(
-            decode_data_uri(src)
-                .and_then(|b| gdk::Texture::from_bytes(&b).ok())
-                .ok_or(()),
-        );
+        return Some(decode_data_uri(src).and_then(|b| decode(&b)).ok_or(()));
     }
     if src.starts_with("http://") || src.starts_with("https://") {
         return None;
     }
     let path = src.strip_prefix("file://").unwrap_or(src);
-    Some(gdk::Texture::from_filename(path).map_err(|_| ()))
+    Some(read_file(path).and_then(|b| decode(&b)).ok_or(()))
 }
 
 /// The texture for `src`, or None while it loads; `waiter` is laid out again when it arrives.
@@ -116,7 +166,7 @@ pub fn texture_loaded(src: &str, bytes: &[u8]) {
     let texture = if bytes.is_empty() {
         None
     } else {
-        gdk::Texture::from_bytes(&glib::Bytes::from(bytes)).ok()
+        decode(&glib::Bytes::from(bytes))
     };
     let waiters = CACHE.with(|c| {
         let mut cache = c.borrow_mut();
@@ -245,4 +295,45 @@ pub fn snapshot(el: &Element, s: &gtk::Snapshot, g: &BoxGeometry) {
     s.push_rounded_clip(&content);
     s.append_texture(&texture, &dest);
     s.pop();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PNG_1X1: &[u8] = &[
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+        0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 248, 207, 192, 240,
+        31, 0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ];
+    // IHDR says 9000x9000 (324 MB decoded)
+    const PNG_HUGE: &[u8] = &[
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 35, 40, 0, 0, 35, 40,
+        8, 6, 0, 0, 0, 109, 213, 114, 186, 0, 0, 0, 11, 73, 68, 65, 84, 120, 156, 99, 96, 64, 5, 0,
+        0, 16, 0, 1, 57, 189, 143, 101, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ];
+
+    #[test]
+    fn declared_sizes() {
+        assert_eq!(declared_size(PNG_1X1), Some((1, 1)));
+        assert_eq!(declared_size(PNG_HUGE), Some((9000, 9000)));
+        assert_eq!(declared_size(b"not an image"), None);
+        assert!(decode(&glib::Bytes::from_static(PNG_1X1)).is_some());
+        assert!(decode(&glib::Bytes::from_static(PNG_HUGE)).is_none());
+    }
+
+    #[test]
+    fn local_files() {
+        assert!(read_file("relative.png").is_none(), "relative to the CWD");
+        assert!(read_file("/dev/zero").is_none());
+        assert!(read_file("/").is_none());
+        let path = std::env::temp_dir().join(format!("mason-img-{}.png", std::process::id()));
+        std::fs::write(&path, PNG_1X1).unwrap();
+        assert!(load_now(&format!("file://{}", path.display()))
+            .unwrap()
+            .is_ok());
+        let _ = std::fs::remove_file(&path);
+        let svg = b"<svg xmlns='http://www.w3.org/2000/svg' width='20000' height='20000'/>";
+        eprintln!("svg declared size: {:?}", declared_size(svg));
+    }
 }
