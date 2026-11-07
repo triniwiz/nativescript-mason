@@ -382,7 +382,7 @@ function interpolateNumber(from: string, to: string, t: number): string {
   return String(a + (b - a) * t);
 }
 
-if (__WINDOWS__) {
+if (__WINDOWS__ || __LINUX__) {
   registerKeyframeProperty(rotateProperty as never, interpolateNumber, '0');
   registerKeyframeProperty(scaleXProperty as never, interpolateNumber, '1');
   registerKeyframeProperty(scaleYProperty as never, interpolateNumber, '1');
@@ -459,7 +459,7 @@ export function installKeyframes() {
     // The keyframe intervals are shared by every play of this animation, so take the tracks
     // out once.
     if (this[tracks_] === undefined) {
-      if (__WINDOWS__) splitTransforms(this.animations);
+      if (__WINDOWS__ || __LINUX__) splitTransforms(this.animations);
       this[tracks_] = extractTracks(this.animations);
       if (this[tracks_].tracks.length) {
         holdEmptyIntervals(this.animations);

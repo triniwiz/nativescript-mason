@@ -68,3 +68,6 @@ packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason.xcodeproj/xcuser
 /tools/assets/App_Resources/Android/.gradle
 /apps/demo-react/platforms
 /apps/demo-react/hooks
+
+# local Linux runtime packs (scripts/pack-npm.sh in NativeScript/linux)
+tools/linux/*.tgz

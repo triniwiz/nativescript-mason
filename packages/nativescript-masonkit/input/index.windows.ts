@@ -2,7 +2,7 @@ import { Color, CSSType, fontInternalProperty } from '@nativescript/core';
 import { placeholderColorProperty } from '@nativescript/core/ui/editable-text-base/editable-text-base-common';
 import { ViewBase, windowsFontSource } from '../common';
 import { acceptProperty, appearanceProperty, defaultValueProperty, getCheckedProperty, getValueProperty, InputAppearance, InputElementBase, multipleProperty, setCheckedProperty, setValueProperty, placeholderProperty, syncCheckedPseudoClass, typeProperty } from './common';
-import { masonEngine } from '../panel-helpers';
+import { masonDelegate, masonEngine } from '../panel-helpers';
 import { toCamelCase } from '../css-shorthands';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
@@ -187,7 +187,7 @@ export class Input extends InputElementBase {
     const view = this._view;
     if (!view || typeof masonEngine().AddEventListener !== 'function') return;
     const ref = new WeakRef(this);
-    this._changeListener = (globalThis as any).NSWinRT.asDelegate('NativeScript.Mason.EventListener', () => {
+    this._changeListener = masonDelegate('NativeScript.Mason.EventListener', () => {
       ref.deref()?.[syncCheckedPseudoClass]();
     });
     this._changeId = masonEngine().AddEventListener(view, 'change', this._changeListener);

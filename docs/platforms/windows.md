@@ -15,7 +15,7 @@ The plugin declares `windows: 9.1.0` as its minimum runtime. The Windows runtime
 
 Nothing else is required. When your app builds, the plugin's `platforms/windows/plugin.targets` copies `NativeScript.Mason.dll` and `NativeScript.Mason.winmd` for the target architecture (x64 or ARM64) into the build output and registers the component's activatable classes in the app manifest. The runtime finds the `.winmd` at startup and activates the classes from there.
 
-`plugin.props` also adds the `NativeScript.FontManager` NuGet package, which MasonKit uses for fonts.
+MasonKit uses `NativeScript.FontManager` for fonts. It comes from the `@nativescript/font-manager` plugin, which MasonKit depends on and which adds that NuGet package.
 
 ## What the component contains
 

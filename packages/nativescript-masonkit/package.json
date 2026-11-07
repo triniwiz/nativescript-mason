@@ -8,7 +8,8 @@
     "platforms": {
       "ios": "8.0.0",
       "android": "8.0.0",
-      "windows": "9.1.0"
+      "windows": "9.1.0",
+      "linux": "0.1.0-alpha.2"
     }
   },
   "repository": {
@@ -21,7 +22,8 @@
     "TypeScript",
     "iOS",
     "Android",
-    "Windows"
+    "Windows",
+    "Linux"
   ],
   "author": {
     "name": "Osei Fortune",
@@ -37,9 +39,13 @@
     "build:android": "bash ../../tools/scripts/masonkit-build-android-aar.sh",
     "build:ios": "bash ../../tools/scripts/masonkit-build-ios-framework.sh",
     "build:windows": "pwsh ./src-native/windows/publish.ps1",
-    "build:native": "npm run build:android && npm run build:ios"
+    "build:native": "npm run build:android && npm run build:ios",
+    "build:linux": "bash ../../tools/scripts/masonkit-build-linux.sh"
   },
   "bootstrapper": "@nativescript/plugin-seed",
+  "dependencies": {
+    "@nativescript/font-manager": "^1.0.20"
+  },
   "peerDependencies": {
     "@angular/core": ">=19.0.0",
     "@nativescript-community/react": ">=19.0.0",
