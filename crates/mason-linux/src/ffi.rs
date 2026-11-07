@@ -57,7 +57,11 @@ pub extern "C" fn mason_gtk_init() -> bool {
     if !gtk::is_initialized() && unsafe { gffi::gtk_is_initialized() } != 0 {
         unsafe { gtk::set_initialized() };
     }
-    gtk::is_initialized()
+    let ready = gtk::is_initialized();
+    if ready {
+        crate::fonts::watch();
+    }
+    ready
 }
 
 #[no_mangle]
@@ -1139,9 +1143,13 @@ pub unsafe extern "C" fn mason_gtk_register_fonts(dir: *const c_char) -> bool {
     true
 }
 
-/// Fonts were added (fontconfig): every text lays out again.
+/// Fonts were added outside font-manager (fontconfig): every text lays out again.
 #[no_mangle]
 pub extern "C" fn mason_gtk_fonts_changed() {
+    relayout_text();
+}
+
+pub fn relayout_text() {
     fn walk(widget: &gtk::Widget) {
         if let Some(el) = widget.downcast_ref::<Element>() {
             if el.kind().is_text() {

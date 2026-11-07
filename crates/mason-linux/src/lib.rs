@@ -7,6 +7,7 @@ mod element;
 mod engine;
 mod events;
 mod ffi;
+mod fonts;
 mod image;
 mod input;
 mod mask;

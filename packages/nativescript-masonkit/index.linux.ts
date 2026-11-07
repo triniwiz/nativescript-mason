@@ -1,4 +1,3 @@
-import { Application } from '@nativescript/core';
 import './native.linux';
 export { View } from './view';
 export { Img } from './img';
@@ -22,9 +21,6 @@ import { registerAppFontsDirectory } from './fonts';
 export { registerAppFontsDirectory };
 
 registerAppFontsDirectory();
-
-// font-manager (or anything adding fonts to fontconfig) raises it: text lays out again
-Application.on('fontsChanged', () => mason_gtk_fonts_changed());
 
 export type BoxShadowRenderMode = 'auto' | 'render-node' | 'software';
 

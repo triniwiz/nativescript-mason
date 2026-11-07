@@ -77,17 +77,13 @@ impl InputState {
                 f.clone()
             }
         };
-        let family = if family.is_empty() {
-            "sans-serif".to_string()
-        } else {
-            family
-        };
+        let family = crate::fonts::resolve(&family, style.weight, style.italic).replace('"', "");
         let kind = self.kind.get();
         let bare = self.area
             || !matches!(kind, CHECKBOX | RADIO | RANGE | COLOR)
             || self.appearance_none.get();
         let mut css = format!(
-            ".{cls}, .{cls} text, .{cls} textview, .{cls} textview text, .{cls} label {{ color: {color}; font-family: {family}; font-size: {size}px; font-weight: {weight}; font-style: {italic}; }}\n",
+            ".{cls}, .{cls} text, .{cls} textview, .{cls} textview text, .{cls} label {{ color: {color}; font-family: \"{family}\"; font-size: {size}px; font-weight: {weight}; font-style: {italic}; }}\n",
             cls = self.class,
             size = style.size,
             weight = style.weight,

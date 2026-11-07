@@ -462,12 +462,11 @@ pub fn resolve_style(el: &Element) -> TextStyle {
 
 fn font_desc(style: &TextStyle) -> pango::FontDescription {
     let mut desc = pango::FontDescription::new();
-    let family = if style.family.is_empty() {
-        "sans-serif".to_string()
-    } else {
-        style.family.replace('"', "").replace('\'', "")
-    };
-    desc.set_family(&family);
+    desc.set_family(&crate::fonts::resolve(
+        &style.family,
+        style.weight,
+        style.italic,
+    ));
     desc.set_absolute_size(style.size as f64 * pango::SCALE as f64);
     desc.set_weight(match style.weight {
         w if w <= 150 => pango::Weight::Thin,

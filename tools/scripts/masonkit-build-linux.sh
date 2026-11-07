@@ -4,6 +4,9 @@
 # Needs the GTK 4 (>= 4.6) development files, or NS_SYSROOT pointing at a sysroot made by
 # NativeScript/linux's metadata-generator/linux/fetch-sysroot.sh (headers and .pc files only).
 #
+# Links libfontmanager.so from @nativescript/font-manager (resolved from the package, or
+# FONT_MANAGER_DIR pointing at a font-manager package folder).
+#
 # Usage: tools/scripts/masonkit-build-linux.sh [--debug]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -35,6 +38,13 @@ if ! pkg-config --exists 'gtk4 >= 4.6' 2>/dev/null; then
     done
     export RUSTFLAGS="${RUSTFLAGS:-} -L $LINK"
 fi
+
+FM_DIR="${FONT_MANAGER_DIR:-$(cd packages/nativescript-masonkit && node -p "require('path').dirname(require.resolve('@nativescript/font-manager/package.json'))" 2>/dev/null || true)}"
+export FONT_MANAGER_LIB_DIR="$FM_DIR/platforms/linux/lib/$ARCH"
+[ -f "$FONT_MANAGER_LIB_DIR/libfontmanager.so" ] || {
+    echo "libfontmanager.so not found in '$FONT_MANAGER_LIB_DIR': install @nativescript/font-manager or set FONT_MANAGER_DIR" >&2
+    exit 1
+}
 
 FLAGS=()
 [ "$PROFILE" = release ] && FLAGS+=(--release)

@@ -15,7 +15,7 @@ The plugin declares `linux: 0.1.0-alpha.2` as its minimum runtime. The Linux run
 
 Nothing else is required. The package ships `platforms/linux/lib/x64/libmasonkit.so` and its C header `platforms/linux/include/mason_linux.h`. When your app builds, the CLI copies the library next to the app and runs the metadata generator over the header, so the library's functions are callable from JavaScript.
 
-Fonts in your app's `fonts` folder are registered with fontconfig at startup, so a custom `font-family` resolves by name.
+Fonts in your app's `fonts` folder are registered with fontconfig at startup, so a custom `font-family` resolves by name. Fonts loaded at run time (`@font-face`, `FontFace`) go through `@nativescript/font-manager`: `libmasonkit.so` links its `libfontmanager.so`, resolves families through it, and lays text out again when a face loads.
 
 ## What the library contains
 
