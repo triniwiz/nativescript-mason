@@ -6,6 +6,14 @@ export function masonEngine(): NativeScript.Mason.Mason {
   return (engine ??= NativeScript.Mason.Mason.Instance());
 }
 
+export function masonDelegate<T extends Function>(type: string, fn: T): T {
+  return (globalThis as any).NSWinRT.asDelegate(type, fn);
+}
+
+export function arrayBufferOf(buffer: any): ArrayBuffer {
+  return (globalThis as any).NSWinRT.interop.arrayBufferFromBuffer(buffer) as ArrayBuffer;
+}
+
 export function appendNativeChild(panel: any, child: any, atIndex: number): boolean {
   const nativeChild = child?.nativeViewProtected ?? child?.windows; // as Microsoft.UI.Xaml.UIElement;
   if (!nativeChild) return false;

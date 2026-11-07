@@ -3,7 +3,7 @@ import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { style_, isText_, isMasonView_, native_, runMember_ } from '../symbols';
-import { removeNativeChild } from '../panel-helpers';
+import { masonDelegate, removeNativeChild } from '../panel-helpers';
 
 @CSSType('Button')
 export class Button extends ButtonBase {
@@ -43,7 +43,7 @@ export class Button extends ButtonBase {
   initNativeView() {
     super.initNativeView();
     const ref = new WeakRef(this);
-    this._invoked = NSWinRT.asDelegate('Microsoft.UI.Xaml.RoutedEventHandler', () => ref.deref()?._dispatchTap());
+    this._invoked = masonDelegate('Microsoft.UI.Xaml.RoutedEventHandler', () => ref.deref()?._dispatchTap());
     // @ts-ignore
     this._view.Invoked = this._invoked;
   }

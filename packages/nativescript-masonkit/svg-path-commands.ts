@@ -1,4 +1,4 @@
-// SVG path data as absolute drawing commands, for Direct2D geometry (CssMask.h hit tests
+// SVG path data as absolute drawing commands, for native path geometry (Windows' CssMask.h hit tests
 // clip-path: path() with it). Arcs become cubics (SVG 2, appendix B.2.4).
 
 /** Opcodes in the flat command list: M x y, L x y, C x1 y1 x2 y2 x y, Q x1 y1 x y, Z. */
