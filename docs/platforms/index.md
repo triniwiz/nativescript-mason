@@ -1,6 +1,6 @@
 # Platform support
 
-MasonKit runs on iOS, Android and Windows. The Rust layout engine (`mason-core`, built on [taffy](https://github.com/DioxusLabs/taffy)) is shared by all three; each platform has its own native view layer that draws, measures text and handles input.
+MasonKit runs on iOS, Android, Windows and Linux. The Rust layout engine (`mason-core`, built on [taffy](https://github.com/DioxusLabs/taffy)) is shared by all four; each platform has its own native view layer that draws, measures text and handles input.
 
 ## Requirements
 
@@ -9,10 +9,13 @@ MasonKit runs on iOS, Android and Windows. The Rust layout engine (`mason-core`,
 | iOS | `@nativescript/ios` 8.0+ | iOS 15.6 | `platforms/ios/Mason.xcframework` (iOS device, iOS simulator, visionOS device and simulator slices) |
 | Android | `@nativescript/android` 8.0+ | API 21 | `platforms/android/masonkit-release.aar` (arm, arm64, x86, x86_64) |
 | Windows | `@nativescript/windows` 9.1+ | Windows 10/11 with the Windows App SDK (WinUI 3) | `platforms/windows/{x64,arm64}/NativeScript.Mason.{dll,winmd}` |
+| Linux | `@nativescript/linux` 0.1.0-alpha.2+ | GTK 4.6 | `platforms/linux/lib/x64/libmasonkit.so` and `platforms/linux/include/mason_linux.h` |
 
 The runtime minimums come from the `nativescript.platforms` field of the package's `package.json`. The OS minimums come from the native projects: `MinimumOSVersion` in the xcframework and `minSdk` in the AAR's Gradle build.
 
-The Android library also depends on Glide (images), Gson and `org.nativescript:fontmanager`; these are declared in `platforms/android/include.gradle` and resolved by Gradle when you build your app.
+The Android library also depends on Glide (images) and Gson, declared in `platforms/android/include.gradle` and resolved by Gradle when you build your app.
+
+Fonts come from `@nativescript/font-manager`, a dependency of MasonKit. It adds its native library on each platform (Maven on Android, SPM on iOS, NuGet on Windows); on Linux it registers fonts with fontconfig, which MasonKit's text reads.
 
 ## Feature differences
 
@@ -61,4 +64,5 @@ if (__ANDROID__) {
 ## More
 
 - [Windows](/platforms/windows): how the Windows component is packaged and what differs there.
+- [Linux](/platforms/linux): how the Linux library is packaged and what differs there.
 - [Using Mason natively](/platforms/native): driving the Kotlin and Swift libraries without NativeScript.
