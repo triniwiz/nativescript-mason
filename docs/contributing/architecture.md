@@ -25,7 +25,7 @@ This page is a map for contributors. `MASON_CONTEXT.md` at the repo root goes de
 
 The layout engine. It owns the node tree and style storage and runs flexbox, grid, block, inline flow and floats on top of [taffy](https://github.com/DioxusLabs/taffy). The workspace pins a fork of taffy (`Cargo.toml`, `[workspace.dependencies]`) that carries flexbox and out-of-flow sizing fixes not yet upstream.
 
-For text, Rust only sizes boxes. The platform breaks and draws lines, and reports sizes back through measure callbacks. That keeps text rendering native (CoreText on iOS, Android's text stack, DirectWrite on Windows).
+For text, Rust only sizes boxes. The platform breaks and draws lines, and reports sizes back through measure callbacks. That keeps text rendering native (CoreText on iOS, Android's text stack, DirectWrite on Windows, Pango on Linux).
 
 ### Bindings
 

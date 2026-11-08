@@ -18,7 +18,7 @@
 
 ## Input types
 
-`type` defaults to `text` and can change at runtime. Every HTML type is accepted on iOS, Android and Windows:
+`type` defaults to `text` and can change at runtime. Every HTML type is accepted on iOS, Android, Windows and Linux:
 
 | Type | Renders as |
 | --- | --- |

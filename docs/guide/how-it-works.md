@@ -10,7 +10,7 @@ You do not need any of this to use MasonKit, but a rough picture of the moving p
 | **Native views** (Swift on iOS, Kotlin on Android, C++/WinRT on Windows) | One native view per element. Draws backgrounds, borders, shadows and text, handles touch, scrolling and accessibility. |
 | **Mason core** (Rust, built on [taffy](https://github.com/DioxusLabs/taffy)) | Holds the layout tree and computes every box's size and position: flexbox, grid, block and inline flow, floats, positioning. |
 
-The same Rust core runs on all three platforms, which is why one stylesheet lays out the same way on each of them.
+The same Rust core runs on all four platforms, which is why one stylesheet lays out the same way on each of them.
 
 ## From CSS to pixels
 
@@ -40,7 +40,7 @@ Every element you create is a real native view: a `UIView` subclass on iOS, an A
 
 A text element (`<p>`, `<span>`, `<h1>`, `<li>`, ...) is a single native text view. Inline children inside it, such as a `<strong>` or `<a>` inside a `<p>`, become styled runs of that one text view rather than separate views, so a paragraph with ten styled words is still one view. Taps on a run are still delivered to the element that produced it. Inline elements placed directly in a block such as a `<div>` are grouped the same way: consecutive inline children share one anonymous text container. Non-text inline content, such as an `<img>` or an `inline-block` element on the line, stays a real view positioned within the text.
 
-Each platform shapes and measures text with its native text stack (CoreText on iOS, Android's text layout APIs, DirectWrite on Windows), so fonts, glyphs and line breaking look native. Mason uses those measurements to size text boxes during layout.
+Each platform shapes and measures text with its native text stack (CoreText on iOS, Android's text layout APIs, DirectWrite on Windows, Pango on Linux), so fonts, glyphs and line breaking look native. Mason uses those measurements to size text boxes during layout.
 
 ### Block containers can scroll
 

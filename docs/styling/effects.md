@@ -145,7 +145,7 @@ All mask gradients work on every platform, including `conic-gradient()` and the 
 
 Supported shapes: `inset()`, `rect()`, `xywh()` (all with an optional `round` radius), `circle()` and `ellipse()` (with `at <position>`), `polygon()` and `path()` (with an optional fill rule). A reference box (`border-box`, `padding-box`, `content-box`, ...) can follow the shape, or be used alone to clip to that box with its border radii. `url()` and invalid values behave as `none`.
 
-Supported on iOS, Android and Windows, including hit testing against the shape.
+Supported on iOS, Android, Windows and Linux, including hit testing against the shape.
 
 ## object-fit and object-position
 

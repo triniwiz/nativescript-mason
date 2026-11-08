@@ -2,7 +2,7 @@
 
 Every CSS property MasonKit elements understand, in alphabetical order. Shorthands share a row with their longhands. "Inherited" means a value set on a Mason element reaches its Mason descendants, as in CSS; inheritance does not cross into or out of plain NativeScript views (see [Mixing with NativeScript views](/guide/mixing-views)).
 
-Values are summarized; follow the link in the last column for details and examples. Unless a note says otherwise, a property works on iOS, Android and Windows.
+Values are summarized; follow the link in the last column for details and examples. Unless a note says otherwise, a property works on iOS, Android, Windows and Linux.
 
 Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`, `em`, `rem`, `%`, `vw`, `vh`, `vmin`, `vmax` and `calc()`/`min()`/`max()`/`clamp()`, unless noted. See [Units](/styling/units).
 
@@ -78,15 +78,15 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `padding`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left` | length, percentage | no | | [Box model](/styling/box-model) |
 | `padding-block`, `padding-inline`, `padding-block-start`, `padding-block-end`, `padding-inline-start`, `padding-inline-end` | as `padding` | no | Logical | [Box model](/styling/box-model) |
 | `place-content`, `place-items`, `place-self` | `<align> [<justify>]` | no | Shorthands | [Grid](/styling/grid) |
-| `position` | `static`, `relative`, `absolute`, `fixed`, `sticky` | no | | [Positioning](/styling/positioning) |
+| `position` | `static`, `relative`, `absolute`, `fixed`, `sticky` | no | `fixed` and `sticky` don't stay in place while scrolling on Linux | [Positioning](/styling/positioning) |
 | `scrollbar-width` | a number | no | A width, not the CSS `auto`/`thin`/`none` keywords | [Scrolling](/guide/scrolling) |
 | `text-align` | `left`, `right`, `center`, `justify`, `start`, `end` | yes | | [Typography](/styling/typography#text-align) |
 | `text-decoration`, `text-decoration-line`, `text-decoration-style`, `text-decoration-color`, `text-decoration-thickness` | full CSS values, including `overline` and `wavy` | no | | [Typography](/styling/typography#text-decoration) |
 | `text-indent` | length, percentage | yes | | [Typography](/styling/typography#text-indent) |
 | `text-justify` | `auto`, `none`, `inter-word`, `inter-character`, `distribute` | yes | Windows honours `none` only | [Typography](/styling/typography#text-justify) |
 | `text-orientation` | `mixed`, `upright`, `sideways` | yes | | [Flow](/styling/flow#text-orientation) |
-| `text-combine-upright` | `none`, `all`, `digits` (2-4) | yes | Vertical text | [Flow](/styling/flow#text-combine-upright) |
-| `text-spacing-trim` | `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all`, `auto` | yes | Line-start and line-end trims on iOS and Android | [Typography](/styling/typography#text-spacing-trim) |
+| `text-combine-upright` | `none`, `all`, `digits` (2-4) | yes | Vertical text; not on Linux | [Flow](/styling/flow#text-combine-upright) |
+| `text-spacing-trim` | `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all`, `auto` | yes | Line-start and line-end trims on iOS and Android; not on Linux | [Typography](/styling/typography#text-spacing-trim) |
 | `text-overflow` | `clip`, `ellipsis` | no | | [Typography](/styling/typography#text-overflow) |
 | `text-shadow` | `<x> <y> [blur] [color]`, comma separated | yes | | [Typography](/styling/typography#text-shadow) |
 | `text-transform` | `none`, `capitalize`, `uppercase`, `lowercase` | yes | | [Typography](/styling/typography#text-transform) |

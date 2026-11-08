@@ -21,20 +21,20 @@ Fonts come from `@nativescript/font-manager`, a dependency of MasonKit. It adds 
 
 Almost everything in these docs behaves the same on every platform. The differences below are the ones confirmed in the native code.
 
-| Feature | iOS | Android | Windows |
-| --- | --- | --- | --- |
-| Flexbox, grid, block, inline flow, float | Yes | Yes | Yes |
-| `position: fixed` / `sticky` | Yes | Yes | Yes |
-| `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes |
-| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes |
-| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) |
-| Floats in vertical text | Yes | Yes | Yes |
-| `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) |
-| SVG `url()` backgrounds and `Img` | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer |
-| `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes |
-| `box-shadow` backend switch (`setBoxShadowRenderMode`) | No-op | Yes | No-op (always Composition) |
-| `<details>` / `<summary>` | Native | Native | Native |
-| `<input>` types | All types in `InputType` are mapped | All types mapped | All types mapped |
+| Feature | iOS | Android | Windows | Linux |
+| --- | --- | --- | --- | --- |
+| Flexbox, grid, block, inline flow, float | Yes | Yes | Yes | Yes |
+| `position: fixed` / `sticky` | Yes | Yes | Yes | No (they scroll with the content) |
+| `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes | Yes (Pango vertical gravity) |
+| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes | `text-orientation` only (see [Linux](/platforms/linux)) |
+| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) | No |
+| Floats in vertical text | Yes | Yes | Yes | No |
+| `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) | Yes (see [Linux](/platforms/linux)) |
+| SVG `url()` backgrounds and `Img` | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer | gdk-pixbuf (needs librsvg's loader) |
+| `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes | Mason content only |
+| `box-shadow` backend switch (`setBoxShadowRenderMode`) | No-op | Yes | No-op (always Composition) | No-op |
+| `<details>` / `<summary>` | Native | Native | Native | Native |
+| `<input>` types | All types in `InputType` are mapped | All types mapped | All types mapped | All types mapped (GTK controls) |
 
 Notes:
 
@@ -44,12 +44,13 @@ Notes:
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG.** Shapes, paths, groups, transforms, fills, strokes, opacity, gradients, patterns, masks, markers, text, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. Filters and `<textPath>` are not supported anywhere.
 - **SVG text** uses the platform's fonts, so glyphs differ between platforms as fonts do. iOS and Android find app fonts by family name; Windows uses installed fonts only, with `serif`, `sans-serif` and `monospace` mapped to Times New Roman, Arial and Consolas as Chrome does.
+- **SVG on Linux** goes through gdk-pixbuf, so it needs librsvg's pixbuf loader on the system and follows librsvg's support.
 - **SVG on Windows.** A pattern on a stroke uses the paint's fallback color, and a mask inside a masked element is not applied.
 - **Vertical writing modes.** Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
 
 ## Platform-specific APIs
 
-The box-shadow backend can be switched on Android (iOS and Windows export both functions as no-ops):
+The box-shadow backend can be switched on Android (iOS, Windows and Linux export both functions as no-ops):
 
 ```ts
 import { setBoxShadowRenderMode, setBoxShadowSoftwareRasterScale } from '@triniwiz/nativescript-masonkit';

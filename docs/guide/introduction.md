@@ -1,6 +1,6 @@
 # Introduction
 
-MasonKit (`@triniwiz/nativescript-masonkit`) brings web layout and HTML-shaped elements to NativeScript. You build screens out of `<div>`, `<p>`, `<span>`, `<h1>`, `<ul>`, `<img>` and friends, style them with ordinary CSS (flexbox, grid, block and inline flow, floats, positioning), and every element renders as a real native view on iOS, Android and Windows.
+MasonKit (`@triniwiz/nativescript-masonkit`) brings web layout and HTML-shaped elements to NativeScript. You build screens out of `<div>`, `<p>`, `<span>`, `<h1>`, `<ul>`, `<img>` and friends, style them with ordinary CSS (flexbox, grid, block and inline flow, floats, positioning), and every element renders as a real native view on iOS, Android, Windows and Linux.
 
 Layout is computed by **Mason**, a layout engine written in Rust on top of [taffy](https://github.com/DioxusLabs/taffy). The same engine runs on every platform, so a stylesheet lays out the same way everywhere.
 

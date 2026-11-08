@@ -30,12 +30,13 @@ In TypeScript, `native.linux.ts` exposes the library as `NativeScript.Mason` (`V
 
 Plain NativeScript views inside a Mason element are measured and laid out through core, at the size and position Mason gives them.
 
-## Differences from iOS and Android
+## Differences from the other platforms
 
 - **Masks and `clip-path`.** A `clip-path` that is a box, `inset()`, `circle()` or `ellipse()` is a GPU clip. Polygons, paths, `mask-image` layers and `mask-border` use a mask: GTK 4.10 and later draw it on the GPU, GTK 4.6 to 4.8 composite the element in software, which costs more for large masked elements. Taps outside a `clip-path` go to whatever is underneath.
 - **`backdrop-filter`** filters the Mason content behind the element, from its layout root down. Plain GTK or NativeScript views behind that root aren't part of the backdrop.
 - **Scrolling.** `overflow: scroll` and `auto` scroll with the wheel, touchpad (with momentum) and touch drag, and show overlay indicators while moving. `<scroll>` wraps its content in a `GtkScrolledWindow` instead.
 - **Vertical writing modes** draw with Pango's vertical gravity. `text-orientation: upright` keeps CJK upright but turns other scripts sideways, as `mixed` does.
+- **Not yet on Linux:** `position: fixed` and `sticky` scroll with the content instead of staying in place, `text-combine-upright` and `text-spacing-trim` are ignored, and text in a vertical box doesn't wrap around floats.
 - **Remote images** are fetched with the runtime's `fetch`; files and `data:` URIs load directly.
 
 See the [support matrix](/platforms/) for features that differ across all platforms.
