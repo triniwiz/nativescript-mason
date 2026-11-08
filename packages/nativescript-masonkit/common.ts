@@ -1080,15 +1080,49 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public addEventListener(arg: string, callback: any, thisArg?: any) {
-    const listened = __APPLE__ && this._masonListensToLayout();
+    const listened = (__APPLE__ || __LINUX__) && this._masonListensToLayout();
     this._addEventListener(arg, callback, thisArg);
-    if (__APPLE__ && !listened && this._masonListensToLayout()) this._masonAddLayoutWork(1);
+    if (!listened && (__APPLE__ || __LINUX__) && this._masonListensToLayout()) {
+      if (__APPLE__) this._masonAddLayoutWork(1);
+      if (__LINUX__) this._masonWatchLayout(true);
+    }
   }
 
   public removeEventListener(arg: string, callback: any, thisArg?: any) {
-    const listened = __APPLE__ && this._masonListensToLayout();
+    const listened = (__APPLE__ || __LINUX__) && this._masonListensToLayout();
     this._removeEventListener(arg, callback, thisArg);
-    if (__APPLE__ && listened && !this._masonListensToLayout()) this._masonAddLayoutWork(-1);
+    if (listened && (__APPLE__ || __LINUX__) && !this._masonListensToLayout()) {
+      if (__APPLE__) this._masonAddLayoutWork(-1);
+      if (__LINUX__) this._masonWatchLayout(false);
+    }
+  }
+
+  private _masonLayoutListener?: () => void;
+
+  /**
+   * Linux: core raises `layoutChanged` from its own layout pass, which never visits nested Mason
+   * elements (GTK allocates them natively). Those raise `mason:layout` when they're allocated at a
+   * new size instead, and the bounds come from Mason's layout.
+   */
+  private _masonWatchLayout(on: boolean) {
+    if (!on) {
+      if (this._masonLayoutListener) this._unregisterNativeEvent('mason:layout', this._masonLayoutListener);
+      this._masonLayoutListener = undefined;
+      return;
+    }
+    const ref = new WeakRef(this);
+    const listener = () => {
+      const owner = ref.deref();
+      if (!owner || owner._masonLayoutListener !== listener) return;
+      const b = owner._getCurrentLayoutBounds();
+      if (owner._setCurrentLayoutBounds(b.left, b.top, b.right, b.bottom).boundsChanged) {
+        owner._raiseLayoutChangedEvent();
+      }
+    };
+    this._masonLayoutListener = listener;
+    this._registerNativeEvent('mason:layout', listener);
+    // The element may already be allocated, and no new allocation would report it.
+    setTimeout(listener, 0);
   }
 
   private _addEventListener(arg: string, callback: any, thisArg?: any) {
