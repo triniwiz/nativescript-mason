@@ -576,6 +576,32 @@ fn dispatch_quiet(el: &Element, kind: &str, data: &str) -> Event {
     )
 }
 
+const LAYOUT: &str = "mason:layout";
+
+/// Raises `mason:layout` once the element is allocated at a new size, for `layoutChanged`.
+/// GTK 4 has no size-allocate signal and core never lays out nested Mason elements, so this is
+/// the only place their size is known. It runs on idle: listeners may change the tree, which
+/// mustn't happen during an allocation.
+pub fn notify_layout(el: &Element, width: i32, height: i32) {
+    let imp = el.imp();
+    if imp.allocated.replace((width, height)) == (width, height) || !el.listeners().has(LAYOUT) {
+        return;
+    }
+    if imp.layout_pending.replace(true) {
+        return;
+    }
+    let weak = el.downgrade();
+    glib::idle_add_local_once(move || {
+        let Some(el) = weak.upgrade() else {
+            return;
+        };
+        el.imp().layout_pending.set(false);
+        if el.listeners().has(LAYOUT) {
+            dispatch_quiet(&el, LAYOUT, "");
+        }
+    });
+}
+
 pub fn add_listener(el: &Element, kind: &str) -> i32 {
     let id = NEXT_ID.with(|n| {
         let id = n.get();

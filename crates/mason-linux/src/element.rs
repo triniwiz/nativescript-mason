@@ -70,6 +70,9 @@ mod imp {
         pub listeners: RefCell<Listeners>,
         pub list_ordered: Cell<bool>,
         pub scroll: RefCell<Option<crate::scroll::ScrollState>>,
+        /// Size of the last allocation, and whether a `mason:layout` is queued for it.
+        pub allocated: Cell<(i32, i32)>,
+        pub layout_pending: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -105,7 +108,9 @@ mod imp {
         }
 
         fn size_allocate(&self, width: i32, height: i32, _baseline: i32) {
-            self.obj().allocate_children(width as f32, height as f32);
+            let obj = self.obj();
+            obj.allocate_children(width as f32, height as f32);
+            crate::events::notify_layout(&obj, width, height);
         }
 
         fn contains(&self, x: f64, y: f64) -> bool {
