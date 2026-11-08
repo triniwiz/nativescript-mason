@@ -4,7 +4,7 @@
 [![docs](https://img.shields.io/badge/docs-github%20pages-3d5afe)](https://triniwiz.github.io/nativescript-mason/)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/triniwiz/nativescript-mason/blob/main/LICENSE)
 
-Web layout for NativeScript. MasonKit brings flexbox, grid, block and inline flow, positioning and HTML-shaped elements (`div`, `p`, `span`, `h1`, `ul`, `img`, `input`, ...) to iOS, Android and Windows. Every element is a real native view; layout runs in a Rust core built on [taffy](https://github.com/DioxusLabs/taffy).
+Web layout for NativeScript. MasonKit brings flexbox, grid, block and inline flow, positioning and HTML-shaped elements (`div`, `p`, `span`, `h1`, `ul`, `img`, `input`, ...) to iOS, Android, Windows and Linux. Every element is a real native view; layout runs in a Rust core built on [taffy](https://github.com/DioxusLabs/taffy).
 
 **Documentation: https://triniwiz.github.io/nativescript-mason/**
 

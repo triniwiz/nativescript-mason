@@ -81,6 +81,7 @@ export default defineConfig({
         items: [
           { text: 'Support matrix', link: '/platforms/' },
           { text: 'Windows', link: '/platforms/windows' },
+          { text: 'Linux', link: '/platforms/linux' },
           { text: 'Using Mason natively', link: '/platforms/native' },
         ],
       },

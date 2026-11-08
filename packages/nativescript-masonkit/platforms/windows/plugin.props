@@ -3,7 +3,4 @@
   <ItemGroup Condition="!Exists('$(MSBuildThisFileDirectory)x64\NativeScript.Mason.dll') and !Exists('$(MSBuildThisFileDirectory)arm64\NativeScript.Mason.dll')">
     <PackageReference Include="NativeScript.Mason" Version="1.0.0-beta.71" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="NativeScript.FontManager" Version="1.0.19" />
-  </ItemGroup>
 </Project>

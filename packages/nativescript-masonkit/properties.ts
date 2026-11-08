@@ -2633,7 +2633,7 @@ const TextDecorationParse = makeParser<string>(makeValidator('none', 'underline'
 // core owns `font-family` (through its Font shorthand), so this has to dispatch
 // rather than shadow it.
 // Windows keeps core's inherited font-family, whose fontInternal reaches common.ts and resolves app fonts.
-if (!__WINDOWS__) {
+if (!(__WINDOWS__ || __LINUX__)) {
   registerAlongsideCore(fontFamilyProperty);
 }
 

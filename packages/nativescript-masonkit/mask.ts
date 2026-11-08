@@ -1,4 +1,4 @@
-// Windows only (mask.windows.ts); iOS and Android parse masks natively.
+// Windows and Linux (mask-spec.ts); iOS and Android parse masks natively.
 
 /** What the encoder needs from the element's style. */
 export interface WindowsMaskContext {
