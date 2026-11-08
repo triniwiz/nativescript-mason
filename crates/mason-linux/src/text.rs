@@ -1063,6 +1063,15 @@ fn line_advance(text: &str, start: usize, line_len: usize) -> usize {
     }
 }
 
+/// The widest unbreakable run: the paragraph wrapped at every opportunity.
+fn min_content_width(layout: &pango::Layout) -> f32 {
+    let narrow = layout.copy();
+    narrow.set_width(1);
+    narrow.set_ellipsize(pango::EllipsizeMode::None);
+    let (_, logical) = narrow.extents();
+    logical.width() as f32 / pango::SCALE as f32
+}
+
 fn last_baseline(layout: &pango::Layout) -> f32 {
     let mut iter = layout.iter();
     let mut baseline = iter.baseline();
@@ -1118,8 +1127,16 @@ fn measure_inline(el: &Element, kw: f32, aw: f32, kh: f32) -> (f32, f32) {
         // an unwrapped line still starts at text-indent
         w += (layout.indent() as f32 / unit).max(0.0);
     }
-    if aw >= 0.0 && kw.is_nan() {
-        w = w.min(aw.max(0.0));
+    if aw >= 0.0 && kw.is_nan() && w > aw {
+        // A line wider than the space holds a word that can't break: the text overflows rather
+        // than measuring narrower than its min-content (CSS, and Taffy's measure contract).
+        // Unwrapped text (nowrap, pre) is one unbreakable run.
+        let min = if layout.width() < 0 {
+            w
+        } else {
+            min_content_width(&layout)
+        };
+        w = aw.max(min).min(w);
     }
     let mut h = logical.height() as f32 / unit;
     if width > 0 && vertical(&el).is_none() {
@@ -1133,6 +1150,87 @@ fn measure_inline(el: &Element, kw: f32, aw: f32, kh: f32) -> (f32, f32) {
     )
 }
 
+/// Where the paragraph sits on each axis of its content box (0 start, 0.5 center, 1 end).
+///
+/// A browser wraps a flex or grid container's text in an anonymous item, which the container
+/// aligns like any other item, and centers a button's content. The text node is that container
+/// here, so it places the paragraph itself when its box is larger than the text.
+fn container_alignment(el: &Element) -> (f32, f32) {
+    let nested = el
+        .text_state()
+        .as_ref()
+        .is_some_and(|s| s.host.upgrade().is_some());
+    if nested || vertical(el).is_some() {
+        return (0.0, 0.0);
+    }
+    let style = el.style();
+    // justify-content / align-content: 0 start, 1 end, 2 center, 5 space-around, 6 space-evenly,
+    // 8 flex-end. normal, stretch, space-between and flex-start pack at flex-start, which a
+    // reverse direction moves to the other end.
+    let content = |key: StyleKeys, reversed: bool| match style.i8(key) {
+        0 => 0.0,
+        1 => 1.0,
+        2 | 5 | 6 => 0.5,
+        8 if !reversed => 1.0,
+        8 => 0.0,
+        _ if reversed => 1.0,
+        _ => 0.0,
+    };
+    // align-items / justify-items: 1 end, 2 center, 6 flex-end
+    let items = |key: StyleKeys| match style.i8(key) {
+        2 => Some(0.5),
+        1 | 6 => Some(1.0),
+        _ => None,
+    };
+    let cross = |key: StyleKeys| items(key).unwrap_or(0.0);
+    let is_button = el.text_state().as_ref().is_some_and(|s| s.is_button);
+    use StyleKeys::*;
+    match style.i8(DISPLAY) {
+        // flex: row, column, row-reverse, column-reverse
+        1 => match style.i8(FLEX_DIRECTION) {
+            1 => (cross(ALIGN_ITEMS), content(JUSTIFY_CONTENT, false)),
+            2 => (content(JUSTIFY_CONTENT, true), cross(ALIGN_ITEMS)),
+            3 => (cross(ALIGN_ITEMS), content(JUSTIFY_CONTENT, true)),
+            _ => (content(JUSTIFY_CONTENT, false), cross(ALIGN_ITEMS)),
+        },
+        // grid: the item in its cell, else the (single) track in the container
+        2 => (
+            items(JUSTIFY_ITEMS).unwrap_or_else(|| content(JUSTIFY_CONTENT, false)),
+            items(ALIGN_ITEMS).unwrap_or_else(|| content(ALIGN_CONTENT, false)),
+        ),
+        _ if is_button => (0.0, 0.5),
+        _ => (0.0, 0.0),
+    }
+}
+
+/// The paragraph's offset in a `width` x `height` content box, from `container_alignment`.
+/// `flowed` is the height of lines wrapped around floats, which keep their own x.
+fn paragraph_offset(
+    el: &Element,
+    layout: &pango::Layout,
+    flowed: Option<f32>,
+    width: f32,
+    height: f32,
+) -> (f32, f32) {
+    let (fx, fy) = container_alignment(el);
+    if (fx == 0.0 && fy == 0.0) || layout.text().is_empty() {
+        return (0.0, 0.0);
+    }
+    let unit = pango::SCALE as f32;
+    let (_, logical) = layout.extents();
+    let free = width - logical.width() as f32 / unit;
+    let dx = if flowed.is_none() && fx > 0.0 && free > 0.0 {
+        fx * free - logical.x() as f32 / unit
+    } else {
+        0.0
+    };
+    // A centered paragraph taller than its box overflows both edges, as a flex item does
+    // (`center`, not `safe center`).
+    let text_height = flowed.unwrap_or(logical.height() as f32 / unit);
+    let dy = fy * (height - text_height);
+    (dx, dy)
+}
+
 pub fn allocate(el: &Element, _width: f32, _height: f32) {
     let content = el.content_box();
     let vertical = vertical(el);
@@ -1143,11 +1241,19 @@ pub fn allocate(el: &Element, _width: f32, _height: f32) {
     };
     let width = (inline * pango::SCALE as f32).ceil() as i32;
     let layout = layout_for(el, width, inline);
-    let bands = if vertical.is_some() {
+    let flowed = if vertical.is_some() {
         None
     } else {
-        flow(el, &layout, inline).map(|(b, _)| b)
+        flow(el, &layout, inline)
     };
+    let (dx, dy) = paragraph_offset(
+        el,
+        &layout,
+        flowed.as_ref().map(|(_, h)| *h),
+        content.width(),
+        content.height(),
+    );
+    let bands = flowed.map(|(b, _)| b);
     let lines = vertical.map(|_| line_bands(&layout)).unwrap_or_default();
     let boxes = el
         .text_state()
@@ -1173,8 +1279,9 @@ pub fn allocate(el: &Element, _width: f32, _height: f32) {
                 (px - bw, py)
             }
             None => (
-                content.x() + ox + pos.x() as f32 / unit,
+                content.x() + dx + ox + pos.x() as f32 / unit,
                 content.y()
+                    + dy
                     + oy
                     + pos.y() as f32 / unit
                     + (pos.height() as f32 / unit - bh).max(0.0),
@@ -1204,11 +1311,19 @@ pub fn snapshot(el: &Element, s: &gtk::Snapshot, g: &BoxGeometry) {
     };
     let width = (inline * pango::SCALE as f32).ceil() as i32;
     let layout = layout_for(el, width, inline);
-    let bands = if vertical.is_some() {
+    let flowed = if vertical.is_some() {
         None
     } else {
-        flow(el, &layout, inline).map(|(b, _)| b)
+        flow(el, &layout, inline)
     };
+    let (dx, dy) = paragraph_offset(
+        el,
+        &layout,
+        flowed.as_ref().map(|(_, h)| *h),
+        rect.width(),
+        rect.height(),
+    );
+    let bands = flowed.map(|(b, _)| b);
     let style = resolve_style(el);
     let pressed = el
         .text_state()
@@ -1221,7 +1336,7 @@ pub fn snapshot(el: &Element, s: &gtk::Snapshot, g: &BoxGeometry) {
             s.translate(&graphene::Point::new(rect.x() + rect.width(), rect.y()));
             s.rotate(90.0);
         }
-        None => s.translate(&graphene::Point::new(rect.x(), rect.y())),
+        None => s.translate(&graphene::Point::new(rect.x() + dx, rect.y() + dy)),
     }
     let lr = vertical
         .unwrap_or(false)
@@ -1348,7 +1463,14 @@ pub fn hit_text(host: &Element, x: f64, y: f64) -> Element {
             };
             (y - content.y() as f64, ly)
         }
-        None => (x - content.x() as f64, y - content.y() as f64),
+        None => {
+            let (dx, dy) =
+                paragraph_offset(host, &layout, None, content.width(), content.height());
+            (
+                x - (content.x() + dx) as f64,
+                y - (content.y() + dy) as f64,
+            )
+        }
     };
     let (inside, index, _) = layout.xy_to_index(
         (lx * pango::SCALE as f64) as i32,
