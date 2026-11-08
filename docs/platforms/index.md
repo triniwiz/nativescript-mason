@@ -9,7 +9,7 @@ MasonKit runs on iOS, Android, Windows and Linux. The Rust layout engine (`mason
 | iOS | `@nativescript/ios` 8.0+ | iOS 15.6 | `platforms/ios/Mason.xcframework` (iOS device, iOS simulator, visionOS device and simulator slices) |
 | Android | `@nativescript/android` 8.0+ | API 21 | `platforms/android/masonkit-release.aar` (arm, arm64, x86, x86_64) |
 | Windows | `@nativescript/windows` 9.1+ | Windows 10/11 with the Windows App SDK (WinUI 3) | `platforms/windows/{x64,arm64}/NativeScript.Mason.{dll,winmd}` |
-| Linux | `@nativescript/linux` 0.1.0-alpha.2+ | GTK 4.6 | `platforms/linux/lib/x64/libmasonkit.so` and `platforms/linux/include/mason_linux.h` |
+| Linux | `@nativescript/linux` 0.1.0-alpha.0+ | GTK 4.6 | `platforms/linux/lib/x64/libmasonkit.so` and `platforms/linux/include/mason_linux.h` |
 
 The runtime minimums come from the `nativescript.platforms` field of the package's `package.json`. The OS minimums come from the native projects: `MinimumOSVersion` in the xcframework and `minSdk` in the AAR's Gradle build.
 

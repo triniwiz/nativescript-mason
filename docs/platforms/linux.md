@@ -11,7 +11,7 @@ ns plugin add @triniwiz/nativescript-masonkit
 ns run linux
 ```
 
-The plugin declares `linux: 0.1.0-alpha.2` as its minimum runtime. The Linux runtime is in alpha. Apps need GTK 4.6 or later at run time.
+The plugin declares `linux: 0.1.0-alpha.0` as its minimum runtime. The Linux runtime is in alpha. Apps need GTK 4.6 or later at run time.
 
 Nothing else is required. The package ships `libmasonkit.so` for x64 and arm64 (`platforms/linux/lib/x64`, `platforms/linux/lib/arm64`) and its C header `platforms/linux/include/mason_linux.h`. When your app builds, the CLI copies the library next to the app and runs the metadata generator over the header, so the library's functions are callable from JavaScript.
 
